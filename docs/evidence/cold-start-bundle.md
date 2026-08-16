@@ -179,7 +179,9 @@ Firstmate accepted deferred packaged proof on 30 July 2026. Two outcomes remain 
 
 The possible non-London 404 is detectable within seconds after deployment and the PR is immediately reversible. Deferring the deployment check avoids holding back a measured trace reduction of about 95% with six-response parity while launch-day cold TTFB remains around two seconds. This is risk acceptance, not evidence of a speed improvement.
 
-The explicit `venueDetailIndex` include remains because incidental tracing is not a deployment contract. Current production has `PUBMAX_ANCHORED_GENERATION` and `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` off, so neither the anchor endpoint nor a member-only get-in response can prove Plan data loading. Post-deploy verification therefore creates an unlisted recap under a dedicated authenticated test account. Its server-returned UUID supplies a valid affected recap URL without inventing an id.
+The explicit `venueDetailIndex` include remains because incidental tracing is not a deployment contract. At the time of measurement production had `PUBMAX_ANCHORED_GENERATION` and `PUBMAX_FRIEND_MEMBER_REHYDRATION_V2` off, so neither the anchor endpoint nor a member-only get-in response could prove Plan data loading. Post-deploy verification therefore creates an unlisted recap under a dedicated authenticated test account. Its server-returned UUID supplies a valid affected recap URL without inventing an id.
+
+`PUBMAX_ANCHORED_GENERATION` has since been retired: `GET /api/plans/anchor` is permanently reachable and rate limited, so it can now prove Plan data loading directly. The recap route stays the verification path for a member-only response. The historical commands above keep the flag exactly as it was set on the measured day; setting it today does nothing.
 
 Run this setup once after deployment. `VERIFY_AUTH_BEARER` must be a current Supabase access token for the dedicated test account.
 

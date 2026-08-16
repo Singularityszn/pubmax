@@ -1,6 +1,7 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
+import PlanIntake from "@/components/plan/PlanIntake";
 
 import {
   PLAN_INTAKE_DRAFT_TTL_MS,
@@ -363,6 +364,39 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
     });
   });
 
+  it("threads an exact accepted Venue anchor through generation intake", () => {
+    const anchor = {
+      venueId: "venue-intent",
+      source: "near" as const,
+      cityId: "manchester" as const,
+      acceptedArea: { kind: "night-patch" as const, id: "soho" as const },
+      startsAt: "2026-07-24T20:00:00.000Z",
+    };
+    const body = buildPlanGenerationIntakeBody(
+      answeredDraft(),
+      "quiet pints",
+      generatedContext,
+      {},
+      anchor,
+    );
+
+    expect(body.cityId).toBe("manchester");
+    expect(body.anchor).toEqual({
+      venueId: anchor.venueId,
+      source: anchor.source,
+      acceptedArea: anchor.acceptedArea,
+      startsAt: anchor.startsAt,
+    });
+    expect(Object.keys(body.anchor ?? {})).toEqual([
+      "venueId", "source", "acceptedArea", "startsAt",
+    ]);
+  });
+
+  it("omits anchor from generic generation intake bodies", () => {
+    const body = buildPlanGenerationIntakeBody(answeredDraft(), "", generatedContext);
+    expect(body).not.toHaveProperty("anchor");
+  });
+
   it("does not silently coerce Hackney into a different generation area", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "hackney" });
     expect(planIntakeHandoff(draft).area).toEqual({ kind: "night-patch", id: "hackney" });
@@ -371,9 +405,13 @@ describe("Wave 2.2 typed handoff and stale constraint retraction", () => {
 });
 
 describe("intake accessibility and entry invariants", () => {
-  it("does not participate in routing or prompt budgets", () => {
-    const root = path.resolve(__dirname, "..");
-    const component = readFileSync(path.join(root, "components/plan/PlanIntake.tsx"), "utf8");
-    expect(component).not.toMatch(/useRouter|promptBudget|router\.(push|replace)/);
+  it("renders standalone entry controls without a router provider", () => {
+    const html = renderToStaticMarkup(createElement(PlanIntake, {
+      draft: createPlanIntakeDraft(),
+      onChange: () => undefined,
+    }));
+    expect(html).toContain("Shape the route");
+    expect(html).toContain("Describe instead");
+    expect(html).toContain('href="/pal/chat"');
   });
 });

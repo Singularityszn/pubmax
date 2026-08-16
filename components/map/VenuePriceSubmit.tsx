@@ -24,6 +24,7 @@ import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
+import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 
 // The word-of-mouth moment: you're standing in the pub, you tap what you're
 // drinking, you type what it cost, and the map restamps under your thumb.
@@ -336,14 +337,7 @@ export default function VenuePriceSubmit({
               {stampStanding} · {formatPriceDay(stamped.submittedAt)}
             </span>
           </p>
-          <p className="vpsubStampHint">
-            {logged.attribution.status === "credited" ? (
-              <>
-                Counted under <strong>@{logged.attribution.handle}</strong> on
-                the contributor record.
-              </>
-            ) : null}
-          </p>
+          <PriceContributionImpact attribution={logged.attribution} />
           {/* Close the loop in-session: the mark the map just gained, named and
               coloured exactly as the map draws it, so the submitter can look up
               and find their own dot rather than take our word for it. */}

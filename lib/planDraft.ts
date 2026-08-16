@@ -1,4 +1,8 @@
 import { DAY_MS } from "@/lib/dayMs";
+import { CITIES, type CityId } from "@/lib/cities";
+import { LONDON_BOROUGHS } from "@/lib/boroughs";
+import { NIGHT_PATCHES } from "@/lib/nightPatches";
+import { PLANNING_INTENT_SOURCES, type PlanningIntentArea, type PlanningIntentSource } from "@/lib/planningIntent";
 
 export const PLAN_DRAFT_KEY = "pubmaxx:plan-draft:v1";
 export const PLAN_DRAFT_V2_KEY = "pubmax:plan-draft:v2";
@@ -21,6 +25,14 @@ export type StoredPlanDraft = {
   startTime: string;
   conciergeQuery: string;
   stops: Array<{ key: number; venueId: string; venueName: string }>;
+  acceptedAnchor?: {
+    venueId: string;
+    source: PlanningIntentSource;
+    cityId: CityId | null;
+    acceptedArea: PlanningIntentArea;
+    startsAt: string | null;
+    expiresAt: string;
+  };
 };
 
 export type PlanDraftEnvelopeV2 = {
@@ -62,7 +74,10 @@ const DRAFT_KEYS = [
   "conciergeQuery",
   "stops",
 ] as const;
+const DRAFT_KEYS_WITH_ANCHOR = [...DRAFT_KEYS, "acceptedAnchor"] as const;
 const STOP_KEYS = ["key", "venueId", "venueName"] as const;
+const LEGACY_ACCEPTED_ANCHOR_KEYS = ["venueId", "source", "cityId", "acceptedArea", "startsAt"] as const;
+const ACCEPTED_ANCHOR_KEYS = ["venueId", "source", "cityId", "acceptedArea", "startsAt", "expiresAt"] as const;
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -89,7 +104,10 @@ function canonicalTimestamp(value: unknown): { value: string; time: number } | n
 }
 
 function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDraft | null {
-  if (!isRecord(value) || (exactKeys && !hasExactKeys(value, DRAFT_KEYS))) return null;
+  if (
+    !isRecord(value)
+    || (exactKeys && !hasExactKeys(value, DRAFT_KEYS) && !hasExactKeys(value, DRAFT_KEYS_WITH_ANCHOR))
+  ) return null;
   const title = boundedText(value.title, 200);
   const creatorName = boundedText(value.creatorName, 100);
   const startTime = boundedText(value.startTime, 40);
@@ -107,16 +125,70 @@ function parseStoredPlanDraft(value: unknown, exactKeys: boolean): StoredPlanDra
     if (venueId === null || venueName === null) return null;
     return { key: index + 1, venueId, venueName };
   });
-  return stops.some((stop) => stop === null)
-    ? null
-    : { title, creatorName, startTime, conciergeQuery, stops: stops as StoredPlanDraft["stops"] };
+  if (stops.some((stop) => stop === null)) return null;
+  let acceptedAnchor: StoredPlanDraft["acceptedAnchor"];
+  if (value.acceptedAnchor !== undefined) {
+    const anchor = value.acceptedAnchor;
+    if (!isRecord(anchor)) return null;
+    if (hasExactKeys(anchor, LEGACY_ACCEPTED_ANCHOR_KEYS)) {
+      return {
+        title,
+        creatorName,
+        startTime,
+        conciergeQuery,
+        stops: stops as StoredPlanDraft["stops"],
+      };
+    }
+    if (!hasExactKeys(anchor, ACCEPTED_ANCHOR_KEYS)) return null;
+    const venueId = boundedText(anchor.venueId, 200);
+    const source = typeof anchor.source === "string" && (PLANNING_INTENT_SOURCES as readonly string[]).includes(anchor.source)
+      ? anchor.source as PlanningIntentSource
+      : null;
+    const cityId = anchor.cityId === null
+      ? null
+      : typeof anchor.cityId === "string" && Object.hasOwn(CITIES, anchor.cityId)
+        ? anchor.cityId as CityId
+        : undefined;
+    const startsAt = anchor.startsAt === null ? null : canonicalTimestamp(anchor.startsAt)?.value;
+    const expiresAt = canonicalTimestamp(anchor.expiresAt)?.value;
+    const area = anchor.acceptedArea;
+    const acceptedArea = area === null
+      ? null
+      : isRecord(area)
+        && ((hasExactKeys(area, ["kind", "id"]) && area.kind === "night-patch" && typeof area.id === "string" && NIGHT_PATCHES.some((patch) => patch.id === area.id))
+          || (hasExactKeys(area, ["kind", "name"]) && area.kind === "borough" && typeof area.name === "string" && LONDON_BOROUGHS.includes(area.name)))
+          ? area as PlanningIntentArea
+          : undefined;
+    if (!venueId || !source || cityId === undefined || startsAt === undefined || acceptedArea === undefined || !expiresAt) return null;
+    acceptedAnchor = { venueId, source, cityId, acceptedArea, startsAt, expiresAt };
+  }
+  return {
+    title,
+    creatorName,
+    startTime,
+    conciergeQuery,
+    stops: stops as StoredPlanDraft["stops"],
+    ...(acceptedAnchor ? { acceptedAnchor } : {}),
+  };
+}
+
+function withoutExpiredAcceptedAnchor(draft: StoredPlanDraft, now: number): StoredPlanDraft {
+  if (!draft.acceptedAnchor || now < Date.parse(draft.acceptedAnchor.expiresAt)) return draft;
+  return {
+    title: draft.title,
+    creatorName: draft.creatorName,
+    startTime: draft.startTime,
+    conciergeQuery: draft.conciergeQuery,
+    stops: draft.stops,
+  };
 }
 
 /** Parse the unversioned session draft without inventing storage metadata. */
-export function parsePlanDraft(raw: string | null): StoredPlanDraft | null {
-  if (!raw || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
+export function parsePlanDraft(raw: string | null, now = Date.now()): StoredPlanDraft | null {
+  if (!raw || !Number.isFinite(now) || byteLength(raw) > PLAN_DRAFT_MAX_RAW_BYTES) return null;
   try {
-    return parseStoredPlanDraft(JSON.parse(raw), false);
+    const draft = parseStoredPlanDraft(JSON.parse(raw), false);
+    return draft ? withoutExpiredAcceptedAnchor(draft, now) : null;
   } catch {
     return null;
   }
@@ -137,7 +209,8 @@ export function parsePlanDraftV2(
     if (!savedAt || !expiresAt) return null;
     if (savedAt.time > now + PLAN_DRAFT_MAX_FUTURE_SKEW_MS) return null;
     if (expiresAt.time !== savedAt.time + PLAN_DRAFT_TTL_MS || now >= expiresAt.time) return null;
-    const draft = parseStoredPlanDraft(value.draft, true);
+    const parsedDraft = parseStoredPlanDraft(value.draft, true);
+    const draft = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
     if (!draft) return null;
     return {
       storageVersion: PLAN_DRAFT_STORAGE_VERSION,
@@ -160,7 +233,7 @@ export function parsePlanDraftEnvelope(
 ): ParsedPlanDraft | null {
   const v2 = parsePlanDraftV2(rawV2, now);
   if (v2) return v2;
-  const draft = parsePlanDraft(rawV1);
+  const draft = parsePlanDraft(rawV1, now);
   return draft
     ? {
         storageVersion: 1,
@@ -196,7 +269,8 @@ export function writePlanDraftEnvelope(
   storage: PlanDraftStorage | null,
   now = Date.now(),
 ): PlanDraftWriteResult {
-  const canonical = parseStoredPlanDraft(draft, false);
+  const parsedDraft = parseStoredPlanDraft(draft, false);
+  const canonical = parsedDraft ? withoutExpiredAcceptedAnchor(parsedDraft, now) : null;
   const savedAt = new Date(now);
   const expiresAt = new Date(now + PLAN_DRAFT_TTL_MS);
   if (

@@ -62,6 +62,47 @@ async function expectLockedCoralContrast(control: Locator): Promise<void> {
   ).toBeGreaterThanOrEqual(5.96);
 }
 
+/**
+ * A theme-mixed surface computes as `color(srgb r g b)` with 0..1 channels,
+ * never `rgb()`, so a bare digit scrape reads 0.99 as a channel of 1 and calls
+ * a near-white panel black. The sticky bar's secondary sits on such a mix.
+ */
+function cssColourChannels(cssColour: string): [number, number, number] {
+  const channels = cssColour.match(/-?\d+(?:\.\d+)?/g)?.map(Number);
+  if (!channels || channels.length < 3) {
+    throw new Error(`Could not parse computed colour: ${cssColour}`);
+  }
+  const [red, green, blue] = channels;
+  return cssColour.startsWith("color(")
+    ? [red * 255, green * 255, blue * 255]
+    : [red, green, blue];
+}
+
+/**
+ * The sticky bar's SECONDARY action is not locked coral and must not be held to
+ * the locked-coral ink: acceptance owns the one primary slot on a pub sheet, so
+ * Add price reads as a ghost over the sheet's own panel. What it still owes is
+ * ordinary readable contrast against the surface it actually renders on.
+ */
+async function expectReadableGhostContrast(control: Locator): Promise<void> {
+  const computed = await control.evaluate((node) => {
+    const style = getComputedStyle(node);
+    let background = style.backgroundColor;
+    let cursor: HTMLElement | null = node.parentElement;
+    while (cursor && /^(transparent|rgba\(0, 0, 0, 0\))$/.test(background)) {
+      background = getComputedStyle(cursor).backgroundColor;
+      cursor = cursor.parentElement;
+    }
+    return { colour: style.color, background };
+  });
+  expect(
+    contrastRatio(
+      cssColourChannels(computed.colour),
+      cssColourChannels(computed.background),
+    ),
+  ).toBeGreaterThanOrEqual(4.5);
+}
+
 function dismissFirstRunChrome(page: Page): Promise<void> {
   return page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -368,10 +409,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await page.setViewportSize(MOBILE);
     await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
     const planStop = page.getByRole("button", { name: "Plan stop" });
+    // Acceptance is permanent, so the pub sheet's ONE primary slot is now
+    // "Make it Stop 1" and Add price is its ghost neighbour. The locked coral
+    // guarantee follows the primary; it never followed the button's name.
+    const acceptStop1 = page.getByRole("button", {
+      name: "Make Arnos Arms Stop 1",
+    });
     const addPrice = page.getByRole("button", {
       name: "Add a price at Arnos Arms",
     });
     await expect(planStop).toBeVisible();
+    await expect(acceptStop1).toBeVisible();
     await expect(addPrice).toBeVisible();
 
     for (const theme of ["light", "dark"] as const) {
@@ -380,7 +428,8 @@ test.describe("map keyboard and screen-reader venue path", () => {
         document.documentElement.dataset.theme = nextTheme;
       }, theme);
       await expectLockedCoralContrast(planStop);
-      await expectLockedCoralContrast(addPrice);
+      await expectLockedCoralContrast(acceptStop1);
+      await expectReadableGhostContrast(addPrice);
     }
   });
 });

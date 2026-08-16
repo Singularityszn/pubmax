@@ -235,9 +235,29 @@ type GeneratePlanRequest = {
   cityId?: string;              // default "london"; validated by parseCityId
   query?: string;              // free-text night description; parsed by inferNightContext
   context?: Partial<NightContext> | NightContext; // merged over inference; MUST resolve a nightArea
+  anchor?: {                    // the accepted pub, when the person kept one first
+    venueId: string;
+    source: PlanningIntentSource;   // "near" | "map-search" | "tonight" | "pal"
+    acceptedArea: PlanningIntentArea;
+    startsAt: string | null;
+  };
 };
 // At least one of `query` or `context` is required.
 ```
+
+### Accepted-pub anchor
+
+An `anchor` is always authoritative; a request without one keeps the generic,
+unanchored selection path. The anchored lane answers `200` with an `outcome`:
+
+| `outcome` | Meaning | Body shape |
+| --- | --- | --- |
+| `route` | The anchor is Stop 1 of a full grounded route | ordinary `stops` plus `anchored`, `anchorVenueId`, `anchorSource`, `groundingProof` |
+| `anchor-only` | The anchor stands, but too few companions ground a route | one Stop, `routeReady: false`, `reason: "ANCHOR_COMPANIONS_INSUFFICIENT"` |
+| `anchor-conflict` | The anchor itself cannot carry a route now | `stops: []`, `grounded: false`, plus `reason` and a reader-visible `message` |
+
+`anchor-conflict` is a `200` with no Stops, so a caller must branch on
+`outcome` before it treats an empty `stops` array as no match.
 
 Merge rule (`mergeContext`): a complete `cleanNightContext` wins; else a `cleanNightContextPatch` is layered over the inferred context; else the inferred context is used. `context.nightArea` must resolve — a `null` area is a `422`.
 
@@ -309,13 +329,16 @@ type PatchPlanRequest = {
   memberToken?: string;              // fallback if no Authorization: Bearer header
   status?: PlannedNightStatus;       // must be a legal transition from current status
   context?: NightContext;            // full context (strict cleanNightContext)
-  stops?: Array<{ venueId: string }>;// EXACTLY 3 distinct Venue Dataset ids → canonical route replacement
+  stops?: Array<{ venueId: string }>;// 3 to 6 distinct Venue Dataset ids → canonical route replacement
   expectedRouteRevision?: number;    // REQUIRED with `stops` — optimistic concurrency
+  groundingProof?: string;           // with `operationKey`: claims this replacement is the grounded upgrade
+  operationKey?: string;             // the generation operation the proof was minted for
 };
 ```
 
 Rules:
-- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (exactly 3 distinct ids that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
 - At least one of `status` / `context` / `stops` must be present.
 - `status` change is rejected if `canTransitionPlannedNight(current, next)` is false (`403`/`400` via store).
@@ -332,6 +355,7 @@ Full `PlanState` (updated).
 | `400` | malformed body / invalid context / bad stop set / missing revision / nothing to update |
 | `403` | member token cannot edit this Plan |
 | `409` | `expectedRouteRevision` stale — `"That Crawl Route has changed. Refresh and try again."` |
+| `422` | grounded upgrade refused - `PLAN_ANCHOR_PROOF_*` (expired, route mismatch, operation mismatch, invalid) or `PLAN_ANCHOR_OUTCOME_MISMATCH` |
 
 ### Idempotency
 
@@ -565,6 +589,7 @@ FSA hygiene and routed walking time are not asserted until a scheduled, permissi
 | Route | Method | Rate limit | Error envelope | Auth |
 | --- | --- | --- | --- | --- |
 | `/api/plans/generate` | POST | ✅ `plan-generate` (8/60s; hashed per client) | flat `PublicApiError` | keyless |
+| `/api/plans/anchor` | GET | ✅ `plan-anchor` (60/60s; hashed per client) | flat `PublicApiError` | keyless |
 | `/api/plans/:id` | PATCH | ❌ deferred | flat `PublicApiError` | member token |
 | `/api/plans/:id/actions` | POST | ❌ deferred | flat `PublicApiError` | Bearer member token; body fallback |
 | `/api/plans/:id/complete` | POST/GET | ❌ deferred | flat `PublicApiError` | member token (POST) / public (GET) |

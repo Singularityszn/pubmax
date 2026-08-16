@@ -1,7 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  canonicalizePlanningIntentVenueId,
   clearPlanningIntent,
+  PLANNING_INTENT_CHANGED_EVENT,
   createPlanningIntent,
   parsePlanningIntent,
   PLANNING_INTENT_MAX_FUTURE_SKEW_MS,
@@ -184,6 +186,24 @@ describe("PlanningIntent V1 parser", () => {
 });
 
 describe("PlanningIntent storage lifecycle", () => {
+  it("canonicalises a matching Venue id without renewing acceptance", () => {
+    const raw = validRaw();
+    const storage = memoryStorage(raw);
+
+    const canonical = canonicalizePlanningIntentVenueId(
+      "venue-abc123",
+      "venue-canonical",
+      { storage, now: NOW + 60_000 },
+    );
+
+    expect(canonical).toMatchObject({
+      acceptedVenueId: "venue-canonical",
+      acceptedAt: "2026-07-24T18:00:00.000Z",
+      expiresAt: "2026-07-24T20:00:00.000Z",
+    });
+    expect(readPlanningIntent({ storage, now: NOW + 60_000 })).toEqual(canonical);
+  });
+
   it("creates and writes a canonical two-hour envelope with an injectable clock", () => {
     const storage = memoryStorage();
     const clock = vi.fn(() => NOW);
@@ -238,6 +258,14 @@ describe("PlanningIntent storage lifecycle", () => {
     }
   });
 
+  it("can validate without mutating storage during a render snapshot", () => {
+    const raw = "{";
+    const storage = memoryStorage(raw);
+
+    expect(readPlanningIntent({ storage, now: NOW, cleanupInvalid: false })).toBeNull();
+    expect(storage.values.get(PLANNING_INTENT_STORAGE_KEY)).toBe(raw);
+  });
+
   it("never throws when storage access is blocked", () => {
     const blocked: PlanningIntentStorage = {
       getItem: () => { throw new Error("blocked"); },
@@ -287,5 +315,67 @@ describe("PlanningIntent storage lifecycle", () => {
 
     expect(writePlanningIntent(invalid, { storage, now: NOW })).toBeNull();
     expect(storage.values.get(PLANNING_INTENT_STORAGE_KEY)).toBe(raw);
+  });
+});
+
+describe("PlanningIntent change announcement", () => {
+  // A same-tab localStorage/sessionStorage write raises no `storage` event, so
+  // a Map that only listened for one kept the previous accepted-arrival answer
+  // until a full page load. The writer announces itself instead.
+  function fakeWindow() {
+    const events: string[] = [];
+    return {
+      events,
+      dispatchEvent: (event: Event) => {
+        events.push(event.type);
+        return true;
+      },
+    };
+  }
+
+  function memoryStorage(): PlanningIntentStorage {
+    const map = new Map<string, string>();
+    return {
+      getItem: (key) => map.get(key) ?? null,
+      setItem: (key, value) => { map.set(key, String(value)); },
+      removeItem: (key) => { map.delete(key); },
+    };
+  }
+
+  it("announces a landed write and a clear, and nothing else", () => {
+    const win = fakeWindow();
+    vi.stubGlobal("window", win);
+    vi.stubGlobal("Event", class { constructor(public type: string) {} });
+    try {
+      const storage = memoryStorage();
+
+      writePlanningIntent(INPUT, { storage, now: NOW });
+      expect(win.events).toEqual([PLANNING_INTENT_CHANGED_EVENT]);
+
+      clearPlanningIntent({ storage });
+      expect(win.events).toEqual([
+        PLANNING_INTENT_CHANGED_EVENT,
+        PLANNING_INTENT_CHANGED_EVENT,
+      ]);
+
+      // A read is not a change.
+      readPlanningIntent({ storage, now: NOW });
+      expect(win.events).toHaveLength(2);
+
+      // A refused write announces nothing: nothing changed.
+      writePlanningIntent(
+        { ...INPUT, acceptedVenueId: "not a venue id" },
+        { storage, now: NOW },
+      );
+      expect(win.events).toHaveLength(2);
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("stays silent on the server, where there is no window to tell", () => {
+    const storage = memoryStorage();
+    expect(() => writePlanningIntent(INPUT, { storage, now: NOW })).not.toThrow();
+    expect(() => clearPlanningIntent({ storage })).not.toThrow();
   });
 });

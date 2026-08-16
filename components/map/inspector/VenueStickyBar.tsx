@@ -15,6 +15,7 @@ export default function VenueStickyBar({
   inCrawl,
   onToggleStop,
   onAcceptStop1,
+  acceptanceError,
   onAddPrice,
   shareVenue,
   currentShareFeedback,
@@ -23,8 +24,9 @@ export default function VenueStickyBar({
   mode: CrawlMode;
   inCrawl: boolean;
   onToggleStop: (id: string) => void;
-  /** Trusted-handoff §4.8: accept this Venue as Stop 1. Absent when off. */
+  /** Trusted-handoff §4.8: accept this Venue as Stop 1. */
   onAcceptStop1?: () => void;
+  acceptanceError?: string | null;
   onAddPrice: () => void;
   shareVenue: () => Promise<void>;
   currentShareFeedback: ShareFeedback | null;
@@ -89,6 +91,11 @@ export default function VenueStickyBar({
           className={`venueSheetShareFeedback ${currentShareFeedback.tone}`}
         >
           {currentShareFeedback.text}
+        </span>
+      ) : null}
+      {acceptanceError ? (
+        <span role="alert" className="venueSheetShareFeedback error">
+          {acceptanceError}
         </span>
       ) : null}
     </div>

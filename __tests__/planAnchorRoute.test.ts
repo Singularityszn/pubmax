@@ -1,13 +1,26 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 // House pattern (followingRoute / planIdempotencyRoutes): the route asserts
 // server env at module load, and CI has no Supabase vars.
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+// The preflight is a live unauthenticated GET now that its 404 gate is gone, so
+// it spends a per-IP budget like every other read-heavy route. Held open here
+// and closed in its own case below.
+const limiterCalls: string[] = [];
+let limiterClosed = false;
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return {
+    ...actual,
+    isLimited: async (key: string) => {
+      limiterCalls.push(key);
+      return limiterClosed;
+    },
+  };
+});
 
 import { GET } from "@/app/api/plans/anchor/route";
-
-const FLAG = "PUBMAX_ANCHORED_GENERATION";
 
 function get(query: Record<string, string>): Promise<Response> {
   const url = new URL("http://localhost/api/plans/anchor");
@@ -16,36 +29,44 @@ function get(query: Record<string, string>): Promise<Response> {
 }
 
 describe("GET /api/plans/anchor", () => {
-  let previous: string | undefined;
-
-  beforeEach(() => {
-    previous = process.env[FLAG];
-  });
-  afterEach(() => {
-    if (previous === undefined) delete process.env[FLAG];
-    else process.env[FLAG] = previous;
-  });
-
-  it("is dark while anchored generation is off", async () => {
-    delete process.env[FLAG];
+  it("resolves accepted Venue preflight by default without a rollout flag", async () => {
     const response = await get({ cityId: "london", venueId: "venue-x" });
-    expect(response.status).toBe(404);
-    expect(await response.json()).toMatchObject({ code: "PLAN_ANCHOR_DISABLED" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
   });
 
-  describe("with the flag on", () => {
-    beforeEach(() => { process.env[FLAG] = "1"; });
+  it("rejects a missing Venue, bad city, and bad area by default", async () => {
+    expect((await get({ cityId: "london" })).status).toBe(400);
+    expect((await get({ cityId: "atlantis", venueId: "venue-x" })).status).toBe(400);
+    expect((await get({ cityId: "london", venueId: "venue-x", areaKind: "night-patch", areaId: "nowhere" })).status).toBe(400);
+  });
 
-    it("rejects a missing Venue, bad city, and bad area", async () => {
-      expect((await get({ cityId: "london" })).status).toBe(400);
-      expect((await get({ cityId: "atlantis", venueId: "venue-x" })).status).toBe(400);
-      expect((await get({ cityId: "london", venueId: "venue-x", areaKind: "night-patch", areaId: "nowhere" })).status).toBe(400);
-    });
+  it("returns a machine-readable conflict for an unknown Venue", async () => {
+    const response = await get({ cityId: "london", venueId: "venue-does-not-exist-zzz" });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
+  });
+});
 
-    it("returns a machine-readable conflict for an unknown Venue", async () => {
-      const response = await get({ cityId: "london", venueId: "venue-does-not-exist-zzz" });
-      expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ status: "conflict", code: "ANCHOR_VENUE_INVALID" });
-    });
+describe("GET /api/plans/anchor rate limit", () => {
+  it("spends one per-IP budget per call and answers 429 when it runs out", async () => {
+    limiterCalls.length = 0;
+    limiterClosed = false;
+    await get({ cityId: "london", venueId: "venue-x" });
+    expect(limiterCalls).toHaveLength(1);
+    expect(limiterCalls[0]).toMatch(/^plan-anchor:/);
+    // The hashed IP is the key; a raw address must never be one.
+    expect(limiterCalls[0]).not.toContain("127.0.0.1");
+
+    limiterClosed = true;
+    const limited = await get({ cityId: "london", venueId: "venue-x" });
+    expect(limited.status).toBe(429);
+    expect((await limited.json()).code).toBe("RATE_LIMITED");
+
+    // The limiter is consulted before the query is parsed, so a flood of
+    // malformed calls costs the same as a flood of valid ones.
+    const malformed = await get({ cityId: "atlantis" });
+    expect(malformed.status).toBe(429);
+    limiterClosed = false;
   });
 });

@@ -4,7 +4,11 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { isPlanId, PLANNED_NIGHT_STATUSES, type PlanState, type PlanStopDTO } from "@/lib/plan";
 import { cleanNightContext } from "@/lib/nightPlanning";
-import { verifyAnchoredPlanGroundingProofV2, type PlanGroundingRejectionV2 } from "@/lib/planGrounding.server";
+import {
+  readPlanGroundingClaims,
+  verifyAnchoredPlanGroundingProofV2,
+  type PlanGroundingRejectionV2,
+} from "@/lib/planGrounding.server";
 import { planMemberCapability } from "@/lib/planMemberCapability";
 import { planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { resolvePlanProjection } from "@/lib/planPrivacyBoundary.server";
@@ -12,7 +16,6 @@ import { canonicalPlanRoute } from "@/lib/planRoute";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planInviteToken, planMemberIdentityResult, planStateResult, planStore, type PlanWriteError } from "@/lib/planStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { planAcceptedEventTokens } from "@/lib/verifiedAnalytics.server";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
@@ -33,9 +36,9 @@ function upgradeProofError(reason: PlanGroundingRejectionV2): { message: string;
 type AnchoredUpgrade = { done: Response } | { groundedUpgrade: boolean; upgradeAnchored: boolean };
 
 /**
- * Gate a route replacement as a grounded upgrade. Only a stops replacement,
- * behind the flag, carrying a valid V2 proof over the exact new order becomes a
- * grounded upgrade; every proof failure returns a 422 the caller forwards.
+ * Gate a route replacement as a grounded upgrade. Only a stops replacement
+ * carrying a valid V2 proof over the exact new order becomes a grounded
+ * upgrade; every proof failure returns a 422 the caller forwards.
  */
 function checkAnchoredUpgrade(
   stops: PlanStopDTO[] | null | undefined,
@@ -46,10 +49,20 @@ function checkAnchoredUpgrade(
   const operationKey = typeof rawOperationKey === "string" && rawOperationKey.trim().length >= 8 && rawOperationKey.trim().length <= 120
     ? rawOperationKey.trim()
     : null;
-  if (!stops || !readTrustedHandoffFlag("anchoredGeneration") || !groundingProof || !operationKey) {
+  if (!stops || !groundingProof || !operationKey) {
     return { groundedUpgrade: false, upgradeAnchored: false };
   }
-  const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, stops.map((stop) => stop.venueId), operationKey);
+  const routeVenueIds = stops.map((stop) => stop.venueId);
+  // A legacy V1 creation proof is not an upgrade claim. V1 was only ever minted
+  // for unanchored creation, so a caller replaying its own create proof onto a
+  // route replacement is not asking to be upgraded, and answering it with the
+  // V2 "your proof is malformed" 422 would refuse a save that main allowed.
+  // Only OUR signature can reach this branch, so a forged or tampered proof
+  // still falls through to the strict V2 verification below.
+  if (readPlanGroundingClaims(groundingProof, routeVenueIds, operationKey)) {
+    return { groundedUpgrade: false, upgradeAnchored: false };
+  }
+  const verdict = verifyAnchoredPlanGroundingProofV2(groundingProof, routeVenueIds, operationKey);
   if (!verdict.ok) {
     const mapped = upgradeProofError(verdict.reason);
     return { done: publicApiError(mapped.message, mapped.code, 422) };

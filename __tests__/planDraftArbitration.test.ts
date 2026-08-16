@@ -284,7 +284,6 @@ describe("pure Plan draft arbitration", () => {
   it("uses explicit URL surface and defaults only after clean arbitration", () => {
     expect(arbitratePlanDrafts({
       url: { surface: "map", selectedVenueId: null, replaceAnchor: false },
-      intentReadEnabled: true,
       defaults: {
         area: { kind: "night-patch", id: "camden" },
         startsAt: "2026-07-24T18:30:00.000Z",
@@ -306,7 +305,6 @@ describe("pure Plan draft arbitration", () => {
     const newerPlan = arbitratePlanDrafts({
       planDraft: v2Plan(NOW + 2_000),
       intakeDraft: intake(NOW + 1_000),
-      intentReadEnabled: true,
     });
     expect(newerPlan.startsAt).toEqual({
       value: "2026-07-24T18:00:00.000Z",
@@ -317,7 +315,6 @@ describe("pure Plan draft arbitration", () => {
     const newerIntake = arbitratePlanDrafts({
       planDraft: v2Plan(NOW + 1_000),
       intakeDraft: intake(NOW + 2_000),
-      intentReadEnabled: true,
     });
     expect(newerIntake.startsAt).toEqual({
       value: "2026-07-24T19:00:00.000Z",
@@ -330,7 +327,6 @@ describe("pure Plan draft arbitration", () => {
     const result = arbitratePlanDrafts({
       planDraft: legacyPlan,
       planningIntent: intent(),
-      intentReadEnabled: true,
     });
     expect(result.acceptedVenueId).toEqual({ value: "venue-a", source: "plan-legacy" });
     expect(result.startsAt).toEqual({
@@ -347,7 +343,6 @@ describe("pure Plan draft arbitration", () => {
     const fromIntent = arbitratePlanDrafts({
       planningIntent: intent(),
       rememberedArea: { kind: "patch", id: "camden" },
-      intentReadEnabled: true,
     });
     expect(fromIntent.acceptedVenueId).toEqual({
       value: "venue-intent",
@@ -358,14 +353,12 @@ describe("pure Plan draft arbitration", () => {
       source: "planning-intent",
     });
 
-    const ignoredIntent = arbitratePlanDrafts({
-      planningIntent: intent(),
+    const withoutIntent = arbitratePlanDrafts({
       rememberedArea: { kind: "patch", id: "camden" },
-      intentReadEnabled: false,
       defaults: { acceptedVenueId: "default-venue" },
     });
-    expect(ignoredIntent.acceptedVenueId).toEqual({ value: "default-venue", source: "default" });
-    expect(ignoredIntent.area).toEqual({
+    expect(withoutIntent.acceptedVenueId).toEqual({ value: "default-venue", source: "default" });
+    expect(withoutIntent.area).toEqual({
       value: { kind: "night-patch", id: "camden" },
       source: "remembered-area",
     });
@@ -375,7 +368,6 @@ describe("pure Plan draft arbitration", () => {
     const result = arbitratePlanDrafts({
       routeDraft: routeDraft(NOW),
       lastAppliedOperationKey: "operation-1",
-      intentReadEnabled: true,
     });
     expect(result.routePreview).toMatchObject({ value: { routeStale: true } });
     expect(result.conflicts).toContainEqual(expect.objectContaining({
@@ -389,7 +381,6 @@ describe("pure Plan draft arbitration", () => {
     const inspected = arbitratePlanDrafts({
       planDraft: plan,
       url: { surface: "map", selectedVenueId: "venue-b", replaceAnchor: false },
-      intentReadEnabled: true,
     });
     expect(inspected.inspectionVenueId.value).toBe("venue-b");
     expect(inspected.acceptedVenueId.value).toBe("venue-a");
@@ -401,7 +392,6 @@ describe("pure Plan draft arbitration", () => {
     const replaced = arbitratePlanDrafts({
       planDraft: plan,
       url: { surface: "map", selectedVenueId: "venue-b", replaceAnchor: true },
-      intentReadEnabled: true,
     });
     expect(replaced.acceptedVenueId).toEqual({ value: "venue-b", source: "explicit-url" });
     expect(replaced.conflicts).toContainEqual(expect.objectContaining({ code: "anchor-replaced" }));
@@ -413,7 +403,6 @@ describe("pure Plan draft arbitration", () => {
       intakeDraft: intake(NOW + 1),
       routeDraft: routeDraft(NOW),
       planningIntent: intent(),
-      intentReadEnabled: true,
     };
     const first = arbitratePlanDrafts(input);
     const second = arbitratePlanDrafts(structuredClone(input));

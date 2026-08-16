@@ -169,6 +169,9 @@ turns into a logged price.
 - `price_submit_failed` — `{ category, reason }`. `reason` is a three-value
   enum: `invalid` (the client-side envelope check), `rejected` (a non-2xx from
   `/api/price-submit`), `offline` (transport failure).
+- `price_impact_opened` - no properties. Fires only when a credited submitter
+  opens their own public profile from the confirmed price receipt. It carries
+  no handle, Venue, price, category, or free text.
 - `contribution_gate` - `{ step }`. Fires when required identity adds
   friction. The closed steps are `sign_in_required` and
   `onboarding_required`. No handle, account id, birth date, venue or price is
@@ -180,6 +183,9 @@ turns into a logged price.
 ```
 community_price_submission_rate = count(price_submitted)
                                 / count(price_submit_viewed)
+
+price_impact_open_rate = count(price_impact_opened)
+                       / count(price_submitted)
 
 required_sign_in_cost = count(contribution_gate where step = sign_in_required)
                       / count(price_submit_viewed)
@@ -284,7 +290,7 @@ the host side, then view, RSVP, react and map-click on the guest side.
   — no server change needed, since the toggle response already carries that
   answer.
 - `invite_map_opened` — no props. Fires from a new small client component,
-  `components/plan/InviteMapLink.tsx`, on the "See these pubs on the map"
+  `components/plan/InviteMapLink.tsx`, on the "Open these stops on the map"
   link under the stop list. One stop opens `/map?sel=<id>` via `venueMapUrl`;
   two or more opens the ordered crawl via `buildCrawlMapHref`
   (`/map?mode=build&pubs=…`).
@@ -305,7 +311,7 @@ is exactly what the registry's allow-list exists to prevent.
 **Privacy:** no raw device id, guest display name, or invite token ever
 rides in any of these six events — `submitterId`/`submitterHash` and the
 invite token stay server-side, matching the pattern below every other event
-in this rail. The "See these pubs on the map" link is pure navigation, not
+in this rail. The "Open these stops on the map" link is pure navigation, not
 a new data practice: `/privacy` already discloses, under "If you use an
 invite link", that a guest can RSVP and react without an account and that
 PUBMAXX stores the display name, RSVP choice, reaction choices, and a
@@ -357,7 +363,7 @@ pwa_install_completed: [],
 pwa_standalone_launch: [],
 ```
 
-The community-price funnel added four more, with scoped validators
+The community-price funnel added five more, with scoped validators
 (`isAllowedPriceFunnelProp` and `isAllowedContributionGateProp`) so shared prop
 keys keep the right closed set per event:
 
@@ -365,6 +371,7 @@ keys keep the right closed set per event:
 price_submit_viewed: ["category"],
 price_submitted: ["category"],
 price_submit_failed: ["category", "reason"],
+price_impact_opened: [],
 contribution_gate: ["step"],
 ```
 
@@ -446,10 +453,14 @@ current surface emits either event.
 Activation is the elapsed time from `plan_generated` to the first verified
 `plan_accepted` with `stops = 3`, `grounded = true`, `routeReady = true` for the
 same pseudonymous identity. `plan_saved` and `plan_draft_saved` remain separate
-signals and never enter this grounded-Route activation measure. Direct/manual
-Plans do not emit `plan_accepted`; the legacy creation response keeps acceptance
-delivery suppressed until L09 installs the one-Stop-to-three-Stop lifecycle and
-its server-owned transition token. `grounded`, `anchored`, `routeReady`, and
+signals and never enter this grounded-Route activation measure. The anchored
+one-Stop-to-three-Stop lifecycle is permanent: an anchor-only creation emits
+`plan_draft_saved` and never `plan_accepted`, and the verified three-Stop route
+(creation, or the grounded upgrade on `PATCH /api/plans/:id`) carries the
+server-owned acceptance token. Direct/manual unanchored Plans still emit no
+`plan_accepted`: their creation response returns an empty
+`meaningfulCoreAction`, so the client condition fails closed.
+`grounded`, `anchored`, `routeReady`, and
 `source` on acceptance are server-owned: generation returns a two-hour HMAC
 proof covering its candidate Venue ids and one create idempotency operation.
 Plan creation verifies the exact accepted three-stop route against that proof

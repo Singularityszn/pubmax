@@ -1,14 +1,10 @@
 import fs from "node:fs";
 import path from "node:path";
 
-import { expect, test, type Page, type Request } from "@playwright/test";
+import { expect, test, type Locator, type Page, type Request } from "@playwright/test";
 
-// DAG L15 — Tonight trusted UI, flag-OFF shipped half. The default webServer
-// leaves PUBMAX_TONIGHT_GROUPING off, so every case here asserts shipped
-// behaviour with no runtime test.skip (L20 zero-skip contract). The flag-ON
-// half lives in tonight-trusted-ui.flag-on.spec.ts, run by the chromium-flag-on
-// project against a server built with PUBMAX_TONIGHT_GROUPING=1 (and
-// PUBMAX_TRUSTED_HANDOFF_INTENT_WRITE=1 for acceptance).
+// Tonight grouping remains rollout-controlled. Explicit Venue acceptance is a
+// permanent action and is proved in this default project.
 
 const SHOTS_DIR = path.join(process.cwd(), "e2e-shots", "tonight-trusted-ui");
 
@@ -58,6 +54,31 @@ async function openTonight(page: Page, viewport = { width: 390, height: 844 }) {
   await expect(page.getByTestId("tonight-list")).toBeVisible();
 }
 
+// A Tonight row settles in with a scaled entrance (tonight.css `tonightRowIn`),
+// so a rendered box measured while it runs is the row's animated box, not the
+// laid-out one. The 48px touch target is a claim about the settled control, so
+// let the row's animations finish before measuring anything inside it.
+async function settleRowEntrance(target: Locator): Promise<void> {
+  await target.evaluate(async (node) => {
+    const row = node.closest(".tonightRow") ?? node;
+    await Promise.all(
+      row.getAnimations({ subtree: true }).map((animation) =>
+        animation.finished.catch(() => undefined),
+      ),
+    );
+  });
+}
+
+async function captureAnalytics(page: Page): Promise<unknown[]> {
+  const payloads: unknown[] = [];
+  await page.route("**/api/events", async (route) => {
+    const raw = route.request().postData();
+    if (raw) payloads.push(JSON.parse(raw));
+    await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
+  });
+  return payloads;
+}
+
 async function shoot(page: Page, name: string) {
   fs.mkdirSync(SHOTS_DIR, { recursive: true });
   for (const scheme of ["light", "dark"] as const) {
@@ -75,6 +96,78 @@ async function shoot(page: Page, name: string) {
 }
 
 test.describe("Tonight trusted UI (flag off / shipped)", () => {
+  test("keeps a Venue for tonight only after the explicit action", async ({ page }) => {
+    await mockWhatsOn(page);
+    await openTonight(page);
+
+    expect(await page.evaluate(() => sessionStorage.getItem("pubmax:planning-intent:v1"))).toBeNull();
+    const accept = page.getByRole("button", { name: "Keep The Deal Arms A for tonight" });
+    const row = page.locator(".tonightRow", { has: accept });
+    await row.getByRole("link").click();
+    await expect(page).toHaveURL(/\/map\?[^#]*sel=venue-deala/);
+    expect(new URL(page.url()).searchParams.get("accept")).toBeNull();
+    expect(await page.evaluate(() => sessionStorage.getItem("pubmax:planning-intent:v1"))).toBeNull();
+
+    await page.goBack();
+    await expect(page.getByTestId("tonight-list")).toBeVisible();
+    await expect(accept).toBeVisible();
+    await settleRowEntrance(accept);
+    const box = await accept.boundingBox();
+    expect(box?.height).toBeGreaterThanOrEqual(48);
+    const appearance = await accept.evaluate((button) => {
+      const probe = document.createElement("span");
+      probe.style.cssText = "position:fixed;background:var(--state-active-surface);border:1px solid var(--state-active-border);color:var(--state-active-ink)";
+      document.body.appendChild(probe);
+      const actual = getComputedStyle(button);
+      const expected = getComputedStyle(probe);
+      const result = {
+        actual: [actual.backgroundColor, actual.borderColor, actual.color],
+        expected: [expected.backgroundColor, expected.borderColor, expected.color],
+      };
+      probe.remove();
+      return result;
+    });
+    expect(appearance.actual).toEqual(appearance.expected);
+    await accept.click();
+    await expect(page).toHaveURL(/\/map\?[^#]*accept=1[^#]*src=tonight/);
+    const stored = await page.evaluate(() => {
+      const raw = sessionStorage.getItem("pubmax:planning-intent:v1");
+      return raw ? JSON.parse(raw) : null;
+    });
+    expect(stored?.source).toBe("tonight");
+    expect(stored?.acceptedVenueId).toBe("venue-deala");
+  });
+
+  test("storage denial stays on Tonight and emits no acceptance events", async ({ page }) => {
+    await page.addInitScript(() => {
+      localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+      const nativeSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function setItem(key: string, value: string) {
+        if (this === sessionStorage && key === "pubmax:planning-intent:v1") {
+          throw new DOMException("Quota exceeded", "QuotaExceededError");
+        }
+        return nativeSetItem.call(this, key, value);
+      };
+    });
+    const payloads = await captureAnalytics(page);
+    await mockWhatsOn(page);
+    await openTonight(page);
+
+    await page.getByRole("button", { name: "Keep The Deal Arms A for tonight" }).click();
+
+    await expect(page).toHaveURL(/\/tonight$/);
+    await expect(page.locator(".tonightAcceptanceError")).toHaveText(
+      "Couldn’t keep this pub on this device. Try again.",
+    );
+    await page.waitForTimeout(400);
+    expect(payloads.some((payload) => (
+      payload && typeof payload === "object"
+      && ["venue_accepted", "planning_handoff_opened"].includes(
+        String((payload as { name?: unknown }).name),
+      )
+    ))).toBe(false);
+  });
+
   test("keeps the main list before Deals/Music and above the mobile tab bar", async ({ page }) => {
     await mockWhatsOn(page);
     await openTonight(page);

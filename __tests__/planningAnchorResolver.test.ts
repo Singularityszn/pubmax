@@ -7,6 +7,7 @@ import {
   type ResolvePlanningAnchorDeps,
   type ResolvePlanningAnchorInput,
 } from "@/lib/planningAnchor.server";
+import { ANCHOR_CONFLICT_CODES, planningAnchorConflict } from "@/lib/planningAnchor";
 import type { Venue } from "@/lib/venues";
 
 const NOW = Date.parse("2026-07-24T18:00:00.000Z");
@@ -207,5 +208,19 @@ describe("resolvePlanningAnchor — conflicts", () => {
   it("ANCHOR_ROUTE_CONFLICT when no route context can be built", async () => {
     const result = await resolvePlanningAnchor(baseInput(), deps(fakeVenue(), { hasRouteContext: () => false }));
     expect(result).toMatchObject({ status: "conflict", code: "ANCHOR_ROUTE_CONFLICT" });
+  });
+});
+
+describe("anchor conflict copy", () => {
+  // Reader-visible since the composer started printing the server sentence for
+  // an anchor conflict answered 200. "Venue", "Route", "Plan" and "Stop" are
+  // our own nouns for a row, a derived path, a saved night and a position in
+  // it, so a refusal that used them described our data model, not the night.
+  it("says pub, plan and route in every conflict sentence", () => {
+    for (const code of ANCHOR_CONFLICT_CODES) {
+      const { message } = planningAnchorConflict(code);
+      expect(message.length).toBeGreaterThan(20);
+      expect(message).not.toMatch(/\bVenue\b|\bRoute\b|\bPlan\b|\bStop\b/);
+    }
   });
 });

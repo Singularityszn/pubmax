@@ -14,6 +14,20 @@ const ACTIONS = "plan_actions";
 const COMPLETIONS = "plan_completions";
 const PLAN_COMPLETION_SELECT = "id,plan_id,ending,terminal_venue_id,ending_selection,final_pint_drop_id,route_revision,route_snapshot,qualifying_arrival_action_id,qualifying_arrival_stop_position,qualifying_arrival_at,completed_at";
 
+/**
+ * Does this failure mean the database has no such function? PostgREST answers
+ * PGRST202 when a function is missing from its schema cache and PostgreSQL
+ * answers 42883 when the call itself finds no candidate. Either says the
+ * migration behind the call has not been applied on this database yet.
+ */
+export function isMissingDatabaseFunction(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const code = (error as { code?: unknown }).code;
+  if (code === "PGRST202" || code === "42883") return true;
+  const message = (error as { message?: unknown }).message;
+  return typeof message === "string" && /could not find the function/i.test(message);
+}
+
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
@@ -94,9 +108,17 @@ function validatedCreateAnchor(
  * (no proof, no anchor) keeps its historical hash exactly.
  */
 function createRequestHash(clean: CleanPlanInput, options: PlanCreateOptions): string {
-  if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(clean);
+  const plan = clean.context
+    ? clean
+    : {
+        title: clean.title,
+        startTime: clean.startTime,
+        creatorName: clean.creatorName,
+        stops: clean.stops,
+      };
+  if (!options.groundingProofDigest && !options.anchor) return planRequestDigest(plan);
   return planRequestDigest({
-    plan: clean,
+    plan,
     ...(options.groundingProofDigest ? { groundingProofDigest: options.groundingProofDigest } : {}),
     ...(options.anchor ? { anchor: options.anchor } : {}),
   });
@@ -231,7 +253,8 @@ export const supabasePlanStore: PlanStore = {
     const memberId = planIdempotentUuid("plan-create-member", key);
     const joinedAt = new Date().toISOString();
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("create_plan_idempotent_atomic", {
+      const admin = requireSupabaseAdmin();
+      const createArgs = {
         p_id: id,
         p_title: clean.title,
         p_start_time: clean.startTime,
@@ -247,7 +270,21 @@ export const supabasePlanStore: PlanStore = {
         p_anchor_venue_id: anchor?.venueId ?? null,
         p_anchor_source: anchor?.source ?? null,
         p_outcome: anchor?.outcome ?? null,
+      };
+      let { data, error } = await admin.rpc("create_plan_with_context_idempotent_atomic", {
+        ...createArgs,
+        p_context: clean.context,
       });
+      if (error && isMissingDatabaseFunction(error)) {
+        // Migration 0106 has not been applied yet. Creating the Plan without
+        // its Night Context beats refusing every Plan creation on the site,
+        // and the composer writes the context it holds straight afterwards
+        // through PATCH /api/plans/[id] once it sees the created Plan came
+        // back without one. Only a missing FUNCTION may take this path: a
+        // genuine write failure must stay a refusal.
+        console.warn("[plans] create context RPC missing; creating without night context");
+        ({ data, error } = await admin.rpc("create_plan_idempotent_atomic", createArgs));
+      }
       if (error) throw new Error(error.message);
       if (data === "conflict") return { ok: false, error: "conflict" };
       if (data !== "created" && data !== "replayed") return { ok: false, error: "error" };
@@ -574,7 +611,7 @@ export const memoryPlanStore: PlanStore = {
         id: planIdempotentUuid("plan-create-member", key), name: clean.creatorName, status: "in", joinedAt: createdAt,
         updatedAt: createdAt, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized: true,
       }],
-      context: null,
+      context: clean.context ? structuredClone(clean.context) : null,
       actions: [],
       ending: null,
       completion: null,

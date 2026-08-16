@@ -1,6 +1,6 @@
 import type { CrewMemberDTO } from "@/lib/crew";
 import { cleanText } from "@/lib/textClean";
-import type { NightContext } from "@/lib/nightPlanning";
+import { cleanNightContext, type NightContext } from "@/lib/nightPlanning";
 import { isPlanStopCount } from "@/lib/planStopCount";
 
 export const PLAN_TITLE_MAX = 80;
@@ -48,6 +48,19 @@ export type PlanDTO = {
  */
 export function planRouteReady(plan: PlanDTO, stopCount: number): boolean {
   return plan.outcome === "route" && typeof plan.routeReadyAt === "string" && Boolean(plan.routeReadyAt) && isPlanStopCount(stopCount);
+}
+
+/**
+ * Does this Plan actually hold a Crawl Route? A grounded anchor-only draft
+ * holds one accepted pub and no route; every other Plan carrying a valid Plan
+ * stop count holds one, whether or not an anchor was ever involved. This is
+ * the honest question a lifecycle transition and a privacy preview ask —
+ * `planRouteReady` is the narrower question of whether the grounded lane
+ * stamped its immutable `routeReadyAt`.
+ */
+export function planHasRoute(plan: PlanDTO, stopCount: number): boolean {
+  if (plan.outcome === "anchor-only") return false;
+  return isPlanStopCount(stopCount);
 }
 
 /** Validate optional anchor metadata supplied on Plan creation. */
@@ -183,6 +196,7 @@ export type CreatePlanInput = {
   startTime?: unknown;
   creatorName?: unknown;
   stops?: unknown;
+  context?: unknown;
 };
 
 export type CleanPlanInput = {
@@ -190,6 +204,7 @@ export type CleanPlanInput = {
   startTime: string;
   creatorName: string;
   stops: Array<{ venueId: string; venueName: string }>;
+  context: NightContext | null;
 };
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -213,10 +228,13 @@ export function cleanCreatePlan(input: CreatePlanInput): CleanPlanInput | null {
   });
   if (stops.some((stop) => !stop.venueId || !stop.venueName)) return null;
   if (new Set(stops.map((stop) => stop.venueId)).size !== stops.length) return null;
+  const context = input.context === undefined ? null : cleanNightContext(input.context);
+  if (input.context !== undefined && !context) return null;
   return {
     title: cleanText(input.title, PLAN_TITLE_MAX) || "Tonight's Plan",
     startTime: new Date(startMs).toISOString(),
     creatorName,
     stops,
+    context,
   };
 }

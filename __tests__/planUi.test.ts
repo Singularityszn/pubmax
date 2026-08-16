@@ -1,7 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { planViewModel, shareCopyForPlan, stopsFromAnswerCards, stopsFromConcierge } from "@/components/plan/planPresentation";
-import { parsePendingRoute, routeHasChanged } from "@/components/plan/PlanSummary";
+import {
+  parsePendingRoute,
+  canBeginPlanRouteEdit,
+  planSummaryGenerationBody,
+  planSummaryRouteUpdateBody,
+  refreshedRouteRejection,
+  routeHasChanged,
+} from "@/components/plan/PlanSummary";
 import type { PlanState } from "@/lib/plan";
 
 const state: PlanState = {
@@ -53,8 +60,125 @@ describe("routeHasChanged", () => {
 describe("pending route continuity", () => {
   it("accepts the v1 envelope and rejects unknown storage versions", () => {
     const stops = [{ venueId: "a", venueName: "A", position: 0, alternatives: [] }];
-    expect(parsePendingRoute(JSON.stringify({ version: 1, savedAt: "2026-07-16T20:00:00Z", expectedRouteRevision: 2, stops }))).toMatchObject({ expectedRouteRevision: 2, stops });
+    expect(parsePendingRoute(JSON.stringify({ version: 1, savedAt: "2026-07-16T20:00:00Z", expectedRouteRevision: 2, stops }))).toMatchObject({
+      expectedRouteRevision: 2,
+      stops,
+      groundingProof: null,
+      operationKey: null,
+    });
     expect(parsePendingRoute(JSON.stringify({ version: 2, expectedRouteRevision: 2, stops }))).toBeNull();
+  });
+});
+
+describe("anchored Plan route editing", () => {
+  const anchoredState: PlanState = {
+    plan: {
+      ...state.plan,
+      anchorVenueId: "venue-a",
+      anchorSource: "near",
+      outcome: "anchor-only",
+    },
+    stops: [{ venueId: "venue-a", venueName: "Anchor", position: 0 }],
+    crew: [],
+    context: {
+      nightArea: "piccadilly-soho",
+      daypart: "evening",
+      partyType: "friends",
+      groupSize: null,
+      stopCount: 3,
+      budget: "value",
+      budgetLimitPence: null,
+      zeroProof: false,
+      wetherspoonsPreferred: false,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+    },
+  };
+
+  it("regenerates from the saved anchor and its city", () => {
+    expect(planSummaryGenerationBody(anchoredState)).toMatchObject({
+      cityId: "london",
+      anchor: {
+        venueId: "venue-a",
+        source: "near",
+        acceptedArea: null,
+        startsAt: state.plan.startTime,
+      },
+    });
+  });
+
+  it("submits returned V2 authority with anchored Stop 1", () => {
+    expect(planSummaryRouteUpdateBody({
+      stops: [
+        { venueId: "venue-a", venueName: "Anchor", position: 0 },
+        { venueId: "venue-b", venueName: "Second", position: 1 },
+        { venueId: "venue-c", venueName: "Third", position: 2 },
+      ],
+      expectedRouteRevision: 1,
+      authority: { groundingProof: "signed-v2", operationKey: "upgrade-op-01" },
+    })).toEqual({
+      stops: [
+        { venueId: "venue-a", venueName: "Anchor" },
+        { venueId: "venue-b", venueName: "Second" },
+        { venueId: "venue-c", venueName: "Third" },
+      ],
+      expectedRouteRevision: 1,
+      groundingProof: "signed-v2",
+      operationKey: "upgrade-op-01",
+    });
+  });
+
+  it("hides anchored route editing from guests but keeps it for the host", () => {
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: false,
+      anchoredPlan: true,
+    })).toBe(false);
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: true,
+      anchoredPlan: true,
+    })).toBe(true);
+    expect(canBeginPlanRouteEdit({
+      hasMemberToken: true,
+      collaborationAuthorized: true,
+      isHost: false,
+      anchoredPlan: false,
+    })).toBe(true);
+  });
+});
+
+describe("refreshedRouteRejection", () => {
+  const route = [
+    { venueId: "venue-a", venueName: "Anchor", position: 0 },
+    { venueId: "venue-b", venueName: "Second", position: 1 },
+    { venueId: "venue-c", venueName: "Third", position: 2 },
+  ];
+
+  it("prints the server's own sentence for an anchor conflict answered with no Stops", () => {
+    expect(refreshedRouteRejection(
+      { outcome: "anchor-conflict", stops: [], message: "That pub is closed tonight." },
+      [],
+      3,
+    )).toBe("That pub is closed tonight.");
+  });
+
+  it("names the anchor conflict even when the server sent no sentence", () => {
+    expect(refreshedRouteRejection({ outcome: "anchor-conflict", stops: [] }, [], 3))
+      .toBe("We could not build a route from that pub right now. Try a different pub.");
+  });
+
+  it("falls back to the empty-route sentence for an ordinary short answer", () => {
+    expect(refreshedRouteRejection({ stops: [] }, [], 3))
+      .toBe("Couldn't get 3 good stops that time. Give it another go.");
+  });
+
+  it("rejects nothing when the refreshed route is usable", () => {
+    expect(refreshedRouteRejection({ stops: route }, route, 3)).toBeNull();
   });
 });
 

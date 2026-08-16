@@ -370,14 +370,17 @@ import {
   UK_NATIONAL_MAP_VIEW,
 } from "@/lib/ukNationalBrowse";
 import {
+  PLANNING_INTENT_CHANGED_EVENT,
   readPlanningIntent,
-  writePlanningIntent,
-  type PlanningIntentSource,
 } from "@/lib/planningIntent";
 import {
-  buildMapAcceptanceIntentInput,
-  initialAcceptanceSource,
+  acceptMapVenue,
+  invalidateAcceptedArrivalSource,
+  readAcceptedArrivalSource,
+  scheduleAcceptedArrivalExpiry,
+  type AcceptedArrivalInput,
 } from "@/lib/mapAcceptance";
+import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 
 // The "Near me now" instant-answer cards (Cycle 3, Lane 1). Loaded lazily so it
 // never rides in the eager map chunk (perf budget, PR #306) — it only mounts
@@ -399,6 +402,43 @@ function readSavedVenueIds(): Set<string> {
 // param probes below can't drift on the SSR ("") fallback.
 function currentSearch(): string {
   return typeof window === "undefined" ? "" : window.location.search;
+}
+
+// A same-tab PlanningIntent write raises no `storage` event, so this lane also
+// listens for the writer's own announcement. Without it the accepted-arrival
+// answer only refreshed because the snapshot callback's identity changed with
+// the search params, which is a coincidence rather than a subscription.
+const ACCEPTED_ARRIVAL_EVENTS = [
+  "storage",
+  "popstate",
+  PLANNING_INTENT_CHANGED_EVENT,
+] as const;
+
+function subscribeAcceptedArrival(
+  query: () => AcceptedArrivalInput,
+  onStoreChange: () => void,
+): () => void {
+  let cancelExpiry: () => void = () => {};
+  let scheduleExpiry: () => void = () => {};
+  const notify = () => {
+    invalidateAcceptedArrivalSource();
+    onStoreChange();
+    scheduleExpiry();
+  };
+  scheduleExpiry = () => {
+    cancelExpiry();
+    cancelExpiry = scheduleAcceptedArrivalExpiry(query(), notify);
+  };
+  for (const name of ACCEPTED_ARRIVAL_EVENTS) window.addEventListener(name, notify);
+  scheduleExpiry();
+  return () => {
+    cancelExpiry();
+    for (const name of ACCEPTED_ARRIVAL_EVENTS) window.removeEventListener(name, notify);
+  };
+}
+
+function noAcceptedArrivalSource(): null {
+  return null;
 }
 
 // D4 — take `log=1` off the current history entry. Idempotent, so it can run
@@ -667,12 +707,12 @@ export default function PubMap({
   // If any of these are present, the arrival is intentional and we never onboard.
   // §4.7 shared onboarding intent: the generic first-run tour and this curated
   // "Start with a story" overlay consume the SAME answer, so an intentional Map
-  // arrival never gets a tour/onboarding stacked over it. PlanningIntent is only
-  // consulted when intent read is on (off keeps it ignored-but-preserved).
+  // arrival never gets a tour/onboarding stacked over it. A valid
+  // PlanningIntent is always explicit Map intent.
   const [explicitArrivalIntent] = useState(() =>
     explicitMapIntent({
       search: currentSearch(),
-      planningIntent: flags.intentRead ? readPlanningIntent() : null,
+      planningIntent: readPlanningIntent(),
       restoredMobileSession,
     }),
   );
@@ -703,7 +743,36 @@ export default function PubMap({
   const [selectedVenueId, setSelectedVenueId] = useState<string>(
     seed.selectedVenueId || restoredMobileSession?.selectedVenueId || "",
   );
+  const reactiveAcceptanceSearch = searchParams?.toString() ?? "";
+  // Canonicalising an alias `sel` moves the URL with history.replaceState,
+  // which useSearchParams never hears, so the live location is the only honest
+  // reading of which Venue this arrival is about. The router's own params stay
+  // in the dependency list because a client navigation is the other way this
+  // answer changes, and they are the SSR-safe reading before a window exists.
+  const acceptanceQuery = useCallback((): AcceptedArrivalInput => {
+    const routerSearch = reactiveAcceptanceSearch ? `?${reactiveAcceptanceSearch}` : "";
+    const search = typeof window === "undefined" ? routerSearch : window.location.search;
+    return {
+      search,
+      selectedVenueId: new URLSearchParams(search).get("sel") ?? seed.selectedVenueId,
+      cityId,
+    };
+  }, [cityId, reactiveAcceptanceSearch, seed.selectedVenueId]);
+  const acceptedArrivalSnapshot = useCallback(
+    () => readAcceptedArrivalSource(acceptanceQuery()),
+    [acceptanceQuery],
+  );
+  const acceptedArrivalSubscription = useCallback(
+    (onStoreChange: () => void) => subscribeAcceptedArrival(acceptanceQuery, onStoreChange),
+    [acceptanceQuery],
+  );
+  const acceptedArrivalSource = useSyncExternalStore(
+    acceptedArrivalSubscription,
+    acceptedArrivalSnapshot,
+    noAcceptedArrivalSource,
+  );
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
+  const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
   const [filters, setFilters] = useState<Filters>(restoredMobileSession?.filters ?? seed.filters);
@@ -1681,22 +1750,14 @@ export default function PubMap({
   // components/map/pubmap/useBuiltIdsPersistence.ts).
   useBuiltIdsPersistence(builtIds, BUILT_STORAGE_KEY);
 
-  // §4.8 typed acceptance source. Seeded from an `accept=1&src=` arrival, set to
-  // "map-search" when a search result is picked, and reset to null (browse) on
-  // an ordinary pin tap or generic `?sel=` selection. Consumed ONLY by an
-  // explicit Make it Stop 1 — opening details never writes intent.
-  const selectionOriginRef = useRef<PlanningIntentSource | null>(
-    initialAcceptanceSource(currentSearch()),
-  );
-
   const selectVenue = useCallback(
     (
       id: string,
       initialTab: TabKey = "overview",
-      origin: PlanningIntentSource | null = null,
     ) => {
       if (!id) return;
       setSelectionNotice(null);
+      setAcceptanceError(null);
       setDetailStatusById((current) => {
         if (!current.has(id)) return current;
         const next = new Map(current);
@@ -1725,7 +1786,6 @@ export default function PubMap({
           preSheetFocusRef.current = active;
         }
       }
-      selectionOriginRef.current = origin;
       // Base pubs have no /api/venue record; prefetching one is a certain 404.
       if (!isUkBaseId(id)) prefetchVenue(id);
       setTonightLaneOpen(false);
@@ -1746,29 +1806,29 @@ export default function PubMap({
     ],
   );
 
-  // §4.8 Make it Stop 1 — the ONE Map intent-write. The caller only wires this
-  // when the intent-write flag is on; the guard is defence in depth. It records
-  // a minimal honest PlanningIntent for the accepted Venue with its typed source
-  // (map-search selection, or the accepted-handoff arrival source), fires the
-  // verified acceptance + handoff analytics, then hands off to the Plan
-  // composer. Only an explicit tap reaches here — opening details never does.
+  // §4.8 Make it Stop 1. Only a confirmed PlanningIntent write may emit
+  // acceptance telemetry or hand the person to Plan. The source is never the
+  // calling surface's belief about where the selection came from: acceptMapVenue
+  // reads it from the verified stored intent, so a matching Near/Tonight arrival
+  // keeps its richer area and provenance envelope and everything else is a
+  // plain map search.
   const acceptStop1 = useCallback(() => {
-    if (!flags.intentWrite) return;
     const venue = selectedVenue;
     if (!venue) return;
-    const source: PlanningIntentSource = selectionOriginRef.current ?? "map-search";
-    writePlanningIntent(
-      buildMapAcceptanceIntentInput({ source, cityId, acceptedVenueId: venue.id }),
-    );
-    trackEvent("venue_accepted", {
-      source,
-      hasArea: false,
-      hasDate: false,
-      hasProvenance: false,
+    const result = acceptMapVenue({
+      cityId,
+      acceptedVenueId: venue.id,
+      search: currentSearch(),
     });
-    trackEvent("planning_handoff_opened", { from: source, to: "plan" });
-    if (typeof window !== "undefined") window.location.assign("/plan");
-  }, [flags.intentWrite, selectedVenue, cityId]);
+    if (!result.accepted || !result.telemetry || !result.destination) {
+      setAcceptanceError(VENUE_ACCEPTANCE_STORAGE_ERROR);
+      return;
+    }
+    setAcceptanceError(null);
+    trackEvent("venue_accepted", result.telemetry);
+    trackEvent("planning_handoff_opened", { from: result.telemetry.source, to: "plan" });
+    if (typeof window !== "undefined") window.location.assign(result.destination);
+  }, [selectedVenue, cityId]);
 
   // The tapped UK base pub, held whole because it exists in no index this
   // component has: the map hands the record up with the tap. Selection itself
@@ -2680,7 +2740,7 @@ export default function PubMap({
         );
         return;
       }
-      selectVenue(id, "overview", "map-search");
+      selectVenue(id, "overview");
     },
     [cityId, selectVenue, trimmedMapQuery],
   );
@@ -2688,7 +2748,7 @@ export default function PubMap({
     (pub: UkBasePub) => {
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       setSelectedBasePub(pub);
-      selectVenue(pub.id, "overview", "map-search");
+      selectVenue(pub.id, "overview");
     },
     [selectVenue, trimmedMapQuery],
   );
@@ -3221,9 +3281,17 @@ export default function PubMap({
     if (!detailOpen || !selectedVenue) return null;
     const selectedLensPrice =
       activeLensPrices?.get(selectedVenue.id) ?? null;
+    const showsAcceptedArrivalReceipt =
+      acceptedArrivalSource !== null
+      && selectedVenue.id === acceptanceQuery().selectedVenueId;
 
     return (
       <>
+        {showsAcceptedArrivalReceipt ? (
+          <p className="venueAcceptanceReceipt" role="status">
+            Kept for tonight. Make it Stop 1 when you are ready.
+          </p>
+        ) : null}
         <div className="mobileVenuePeekSummary" aria-label={selectedVenueLabels.summaryLabel}>
           {activeLensPrices !== null ? (
             <span>
@@ -3266,6 +3334,9 @@ export default function PubMap({
             </strong>
             <small>{userLocation ? "walk" : "Turn on location for walk times"}</small>
           </span>
+          {/* Adding a pub to the crawl you are building is a different capability
+              from "Make it Stop 1", which starts one plan around one accepted
+              pub. Keeping both is why the peek has three columns. */}
           {selectedVenueIsPub ? (
             <button
               type="button"
@@ -3300,7 +3371,8 @@ export default function PubMap({
           shareLoggedAt={venueSignals.get(selectedVenue.id)?.latestContributorAt ?? null}
           onToggleStop={toggleBuiltStop}
           onSelectVenue={selectVenue}
-          onAcceptStop1={flags.intentWrite && selectedVenueIsPub ? acceptStop1 : undefined}
+          onAcceptStop1={selectedVenueIsPub ? acceptStop1 : undefined}
+          acceptanceError={acceptanceError}
           initialTab={venueInitialTab}
           pintDrops={pintDrops}
           communityPrices={communityPrices}

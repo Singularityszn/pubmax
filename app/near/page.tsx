@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 
 import NearPageClient from "@/components/nearme/NearPageClient";
-import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
 
 // The instant-answer surface (Cycle 3, Lane 1): geolocate → the cheapest good
 // pints within a short walk, as immediate cards. No map needed to reach the
@@ -16,5 +15,5 @@ export const metadata: Metadata = {
 };
 
 export default function NearPage() {
-  return <NearPageClient intentWrite={readTrustedHandoffFlags().intentWrite} />;
+  return <NearPageClient />;
 }

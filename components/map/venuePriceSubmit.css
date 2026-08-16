@@ -330,6 +330,33 @@
   color: var(--ink-soft);
 }
 
+.vpsubImpactRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.vpsubImpactRow .vpsubStampHint {
+  flex: 1 1 210px;
+}
+
+.vpsubImpactLink {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  color: var(--accent-action);
+  font-size: 0.8rem;
+  font-weight: 750;
+  text-underline-offset: 3px;
+  touch-action: manipulation;
+}
+
+.vpsubImpactLink:focus-visible {
+  outline: 3px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
 .vpsubStampDot {
   flex: 0 0 auto;
   /* Sits on the FIRST line like a bullet - centring it against a three-line

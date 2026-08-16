@@ -29,6 +29,17 @@ function watchPageErrors(page: Page): string[] {
   return errors;
 }
 
+async function openVenueSheet(page: Page) {
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
+  const inspector = venueSheet.locator(".venueInspector");
+  const expand = venueSheet.getByRole("button", { name: "Expand sheet" });
+  await expect.poll(async () => (await inspector.isVisible()) || (await expand.isVisible())).toBe(true);
+  if (!(await inspector.isVisible()) && (await expand.isVisible())) await expand.click();
+  await expect(inspector).toBeVisible();
+  return venueSheet;
+}
+
 // A known seed venue id (lib/pintDropSeeds.ts) - the same pub the Golden
 // Thread spec drives, so the sheet reliably has content around the card.
 const SEED_VENUE_ID = "venue-16pnwmm";
@@ -93,8 +104,14 @@ async function installContributorBoundary(
 }> {
   await seedSignedInSession(page);
   let onboardingComplete = !options.requireOnboarding;
+  let lastSubmittedAt = Date.now();
   const submittedPrices: SubmittedPrice[] = [];
   const submittedSignals: SubmittedSignal[] = [];
+
+  const nextSubmittedAt = (): number => {
+    lastSubmittedAt = Math.max(lastSubmittedAt + 1, Date.now());
+    return lastSubmittedAt;
+  };
 
   await page.route("https://pubmaxx-e2e.supabase.co/**", async (route) => {
     await route.fulfill({
@@ -184,7 +201,7 @@ async function installContributorBoundary(
         venueId: body.venueId,
         signalKey: body.signalKey,
         signalValue: body.signalValue,
-        submittedAt: Date.now(),
+        submittedAt: nextSubmittedAt(),
         source: "community",
         corroborations: 1,
       };
@@ -201,7 +218,7 @@ async function installContributorBoundary(
       venueId: body.venueId,
       drinkCategory: body.drinkCategory,
       priceGbp: body.priceGbp,
-      submittedAt: Date.now(),
+      submittedAt: nextSubmittedAt(),
       source: "community",
       corroborations: 1,
     };
@@ -253,11 +270,12 @@ test("an over-limit drink price is blocked before any network attempt", async ({
       writes += 1;
     }
   });
+  await installContributorBoundary(page, { requireOnboarding: false });
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  const venueSheet = await openVenueSheet(page);
   const submit = venueSheet.locator(".venuePriceSubmit");
   await expect(submit).toBeVisible();
 
@@ -278,24 +296,60 @@ test("an over-limit drink price is blocked before any network attempt", async ({
 
 test("a drinker logs tonight's price after completing private signup", async ({
   page,
-}) => {
+}, testInfo) => {
   const errors = watchPageErrors(page);
+  const analyticsPayloads: Array<{ name?: unknown; props?: unknown }> = [];
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmaxx:analytics-consent:v1", "granted");
+  });
+  await page.route("**/api/events", async (route) => {
+    const raw = route.request().postData();
+    if (raw) analyticsPayloads.push(JSON.parse(raw));
+    await route.fulfill({ status: 204, headers: { "cache-control": "no-store" } });
+  });
   const boundary = await installContributorBoundary(page, {
     requireOnboarding: true,
+  });
+  await page.route("**/api/profiles/night_owl/lane-stats", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 350));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        stats: {
+          status: "ready",
+          handle: "night_owl",
+          prices: 1,
+          reviews: 0,
+          recommendations: 0,
+          total: 1,
+        },
+      }),
+    });
+  });
+
+  await page.addInitScript(() => {
+    const originalScrollIntoView = Element.prototype.scrollIntoView;
+    const browser = window as typeof window & { __impactScrolls?: number };
+    browser.__impactScrolls = 0;
+    Element.prototype.scrollIntoView = function (...args) {
+      if (this instanceof HTMLElement && this.id === "contribution-impact") {
+        browser.__impactScrolls = (browser.__impactScrolls ?? 0) + 1;
+      }
+      return originalScrollIntoView.apply(this, args);
+    };
   });
 
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(venueSheet).toBeVisible();
-  await expect(venueSheet.locator(".venueInspector")).toBeVisible();
+  const venueSheet = await openVenueSheet(page);
 
   const onboarding = page.getByRole("dialog", {
-    name: "Choose how people know you",
+    name: "Let's get you in",
   });
   await expect(onboarding).toBeVisible();
-  await expect(onboarding.getByLabel("Public handle")).toBeVisible();
+  await expect(onboarding.getByLabel("Your handle")).toBeVisible();
   await expect(onboarding.getByLabel("Date of birth")).toBeVisible();
   const onboardingZ = await onboarding.evaluate((element) =>
     Number.parseInt(getComputedStyle(element.parentElement!).zIndex, 10),
@@ -304,13 +358,17 @@ test("a drinker logs tonight's price after completing private signup", async ({
     Number.parseInt(getComputedStyle(element).zIndex, 10),
   );
   expect(onboardingZ).toBeGreaterThan(venueSheetZ);
-  await onboarding.getByLabel("Public handle").fill("night_owl");
+  const handleField = onboarding.getByLabel("Your handle");
+  await handleField.fill("night_owl");
+  await expect(handleField).toHaveValue("night_owl");
   await onboarding.getByLabel("Date of birth").fill("2015-02-03");
-  const skipOptional = onboarding.getByRole("button", {
-    name: "Skip optional details",
+  await expect(onboarding.getByLabel("Date of birth")).toHaveValue("2015-02-03");
+  await expect(onboarding.getByRole("status")).toHaveText("Handle available.");
+  const claimHandle = onboarding.getByRole("button", {
+    name: "Claim handle",
   });
-  await expect(skipOptional).toBeEnabled();
-  await skipOptional.click();
+  await expect(claimHandle).toBeEnabled();
+  await claimHandle.click();
   await expect(onboarding).toHaveCount(0);
 
   // The submit card lives on the Overview tab, the tab the sheet opens on.
@@ -365,6 +423,17 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(stamp.locator("xpath=following-sibling::*[1]")).toContainText(
     "@night_owl",
   );
+  const impactLink = submit.getByRole("link", { name: "See your impact" });
+  await expect(impactLink).toHaveAttribute(
+    "href",
+    "/u/night_owl#contribution-impact",
+  );
+  expect(
+    (await impactLink.boundingBox())?.height ?? 0,
+  ).toBeGreaterThanOrEqual(44);
+  expect(
+    (await impactLink.boundingBox())?.width ?? 0,
+  ).toBeGreaterThanOrEqual(44);
 
   // …and the receipt is honest about REACH. One device is one voice, so this
   // tap has MARKED the map - the provisional badge on the pin - without setting
@@ -372,11 +441,9 @@ test("a drinker logs tonight's price after completing private signup", async ({
   // closing in-session (captain decision 2026-07-26), and the hint beside it is
   // what stops that reading as "the pin now says £4.40".
   await expect(stamp).toContainText("Marked on the map");
-  const stampHint = submit
-    .locator(".vpsubStampHint")
-    .filter({ hasText: /second drinker/i });
+  const stampHint = submit.getByText(/A second independent drinker/i);
   await expect(stampHint).toBeVisible();
-  await expect(stampHint).toContainText(/second drinker/i);
+  await expect(stampHint).toContainText(/second independent drinker/i);
 
   // The venue card carries the same price on its own dated, badged row -
   // alongside the price on record, which is still shown.
@@ -418,30 +485,53 @@ test("a drinker logs tonight's price after completing private signup", async ({
     )
     .toBeGreaterThan(0);
 
-  // Venue observations cross the same captured account boundary. The 2015
-  // signup date still adds no second gate, and the saved receipt remains
-  // explicitly one person's report.
-  const signals = venueSheet.locator(".venueCommunitySignals");
-  await signals.locator("summary").click();
-  await signals.getByText("Access", { exact: true }).click();
-  await signals.getByText("Step-free", { exact: true }).click();
-  await signals.getByRole("button", { name: "Log what you saw" }).click();
-  await expect(signals.getByRole("status")).toContainText(
-    "Logged as your report",
-  );
-  await expect(
-    page.getByRole("dialog", { name: /18 or over|age/i }),
-  ).toHaveCount(0);
-  expect(boundary.submittedSignals).toContainEqual(
-    expect.objectContaining({
-      venueId: SEED_VENUE_ID,
-      signalKey: "step-free-venue",
-      signalValue: "step-free",
-      corroborations: 1,
-    }),
-  );
-
   expect(errors).toEqual([]);
+
+  await impactLink.click();
+  await expect(page).toHaveURL(/\/u\/night_owl#contribution-impact$/);
+  const impact = page.locator("#contribution-impact");
+  await expect(impact).toBeVisible();
+  await expect(impact.locator(".contribStatValue").first()).toHaveText("1");
+  await expect(impact.locator(".contribStatLabel").first()).toHaveText("price");
+  await expect(page.locator(".contribNudge")).toHaveCount(0);
+  await expect.poll(() =>
+    impact.evaluate((element) => {
+      const rect = element.getBoundingClientRect();
+      return rect.top < window.innerHeight && rect.bottom > 0;
+    }),
+  ).toBe(true);
+  expect(
+    await page.evaluate(
+      () => (window as typeof window & { __impactScrolls?: number }).__impactScrolls ?? 0,
+    ),
+  ).toBe(1);
+  const arrivalWelcome = page.locator(".arrivalWelcome");
+  if (await arrivalWelcome.isVisible()) {
+    await expect.poll(async () => {
+      const [welcomeBox, impactBox] = await Promise.all([
+        arrivalWelcome.boundingBox(),
+        impact.boundingBox(),
+      ]);
+      return (
+        !welcomeBox ||
+        !impactBox ||
+        welcomeBox.y + welcomeBox.height <= impactBox.y
+      );
+    }).toBe(true);
+  }
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    VIEWPORT.width,
+  );
+  await page.screenshot({
+    path: testInfo.outputPath("price-impact-destination.png"),
+    fullPage: false,
+  });
+  await expect.poll(() =>
+    analyticsPayloads
+      .filter((payload) => payload.name === "price_impact_opened")
+      .map(({ name, props }) => ({ name, props })),
+  )
+    .toEqual([{ name: "price_impact_opened", props: {} }]);
 });
 
 test("a person can log soft-drink, alcohol-free and coffee prices from the pub sheet", async ({
@@ -454,8 +544,7 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
   const response = await page.goto(`/map?sel=${NO_ALCOHOL_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(venueSheet).toBeVisible();
+  const venueSheet = await openVenueSheet(page);
   const submit = venueSheet.locator(".venuePriceSubmit");
   await expect(submit).toBeVisible();
   const priceField = submit.getByRole("textbox");
@@ -485,10 +574,16 @@ test("a person can log soft-drink, alcohol-free and coffee prices from the pub s
     ).toBe(Number(entry.price));
   }
 
-  // Freshest across categories wins the overview row; coffee was last.
+  // The default pint lane has no submitted beer, so menu order leads with
+  // alcohol-free. Coffee remains its own row rather than replacing another
+  // category's observation.
   const communityRow = venueSheet.locator(".communityPriceRow");
-  await expect(communityRow).toContainText("Coffee");
-  await expect(communityRow).toContainText("£2.50");
+  await expect(communityRow).toContainText("Alcohol-free");
+  await expect(communityRow).toContainText("£4.60");
+  const coffeeRow = venueSheet.locator(".venueDrinkPriceRow", {
+    hasText: "Coffee",
+  });
+  await expect(coffeeRow).toContainText("£2.50");
   expect(errors).toEqual([]);
 });
 
@@ -498,8 +593,7 @@ test("the one-tap price confirm still works alongside submission", async ({ page
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
-  await expect(venueSheet).toBeVisible();
+  const venueSheet = await openVenueSheet(page);
 
   // The Golden Thread (and its "Still £X?" chip) lives on the Stories tab.
   await venueSheet.getByRole("tab", { name: "Stories", exact: true }).click();

@@ -11,7 +11,9 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
  * two or more open the ordered crawl in build mode (`buildCrawlMapHref`).
  */
 export default function InviteMapLink({ venueIds }: { venueIds: string[] }) {
-  const ids = venueIds.filter(Boolean);
+  const ids = venueIds
+    .map((venueId) => venueId.trim())
+    .filter((venueId) => venueId.length > 0);
   if (ids.length === 0) return null;
 
   const href =
@@ -22,10 +24,11 @@ export default function InviteMapLink({ venueIds }: { venueIds: string[] }) {
   return (
     <Link
       className="invite__mapLink"
+      data-pressable
       href={href}
       onClick={() => trackEvent("invite_map_opened")}
     >
-      See these pubs on the map
+      Open these stops on the map
     </Link>
   );
 }

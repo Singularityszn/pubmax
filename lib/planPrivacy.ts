@@ -10,7 +10,7 @@
 // venue-tied pint evidence, member/invite capability, or the user-entered title.
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import type { PlanState } from "@/lib/plan";
+import { planHasRoute, type PlanState } from "@/lib/plan";
 import { vibeChipById } from "@/lib/vibeChips";
 import type { VibeTally } from "@/lib/vibeTally";
 
@@ -60,14 +60,13 @@ function resolveAreaName(slug: string | null | undefined): string | null {
 }
 
 /**
- * Server-derived readiness. Until S09 lands `routeReadyAt`, derive an honest
- * proxy from the Plan lifecycle: any non-draft, non-abandoned status means the
- * route has become usable. Legacy records without a status read as draft ⇒ not
- * ready, which is the safe under-claim.
+ * Server-derived readiness: the Plan really holds a route and has not been
+ * abandoned. An anchor-only draft holds one accepted pub, so it is never
+ * ready; an unanchored route is as ready as an anchored one.
  */
 export function planRouteReady(state: PlanState): boolean {
-  const status = state.plan.status;
-  return Boolean(status && status !== "draft" && status !== "abandoned");
+  if (state.plan.status === "abandoned") return false;
+  return planHasRoute(state.plan, state.stops.length);
 }
 
 /**

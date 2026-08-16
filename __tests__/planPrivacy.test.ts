@@ -18,6 +18,8 @@ function planState(overrides: Partial<PlanState> = {}): PlanState {
       startTime: "2026-07-24T19:00:00.000Z",
       createdAt: "2026-07-24T12:00:00.000Z",
       status: "ready",
+      outcome: "route",
+      routeReadyAt: "2026-07-24T12:00:00.000Z",
     },
     stops: [
       { venueId: "venue-the-dove", venueName: "The Dove", position: 0 },
@@ -80,15 +82,28 @@ describe("buildPlanPrivacyPreview", () => {
 });
 
 describe("planRouteReady", () => {
-  it("is true for a non-draft, non-abandoned status", () => {
-    for (const status of ["ready", "active", "ending", "completed"] as const) {
-      expect(planRouteReady(planState({ plan: { ...planState().plan, status } }))).toBe(true);
-    }
+  it("is true for a grounded route with a readiness timestamp and valid stop count", () => {
+    expect(planRouteReady(planState())).toBe(true);
   });
-  it("is false for draft, abandoned, or legacy (no status)", () => {
-    expect(planRouteReady(planState({ plan: { ...planState().plan, status: "draft" } }))).toBe(false);
-    expect(planRouteReady(planState({ plan: { ...planState().plan, status: "abandoned" } }))).toBe(false);
-    expect(planRouteReady(planState({ plan: { ...planState().plan, status: undefined } }))).toBe(false);
+
+  it("is true for an unanchored route, which carries no anchor metadata at all", () => {
+    expect(planRouteReady(planState({
+      plan: { ...planState().plan, outcome: null, routeReadyAt: null, status: "draft" },
+    }))).toBe(true);
+  });
+
+  it("is false for an anchor-only Plan even when status says ready", () => {
+    expect(planRouteReady(planState({
+      plan: { ...planState().plan, outcome: "anchor-only", routeReadyAt: null, status: "ready" },
+      stops: [{ venueId: "venue-the-dove", venueName: "The Dove", position: 0 }],
+    }))).toBe(false);
+  });
+
+  it("is false without a valid route stop count, and false once abandoned", () => {
+    expect(planRouteReady(planState({ stops: planState().stops.slice(0, 2) }))).toBe(false);
+    expect(planRouteReady(planState({
+      plan: { ...planState().plan, status: "abandoned" },
+    }))).toBe(false);
   });
 });
 

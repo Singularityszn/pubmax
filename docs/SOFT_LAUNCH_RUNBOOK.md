@@ -138,7 +138,7 @@ Run each check on the production host after every promoted deploy.
 | Venue sheet | Tap any pin on the map | Sheet opens with venue name, address, and price state (a real price, or an honest "no price logged" line, never a blank). |
 | Plan generate | `https://pubmaxxing.com/plan` | Five-step intake completes and returns a priced route, or the honest 422 "No three-stop route ... meets every must-have need" message. Never a raw error page. |
 | Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
-| Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "See these pubs on the map" opens `/map?venue=<first stop>`. |
+| Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "Open these stops on the map" is present before and after the RSVP, and opens `/map?mode=build&pubs=<ordered stops>` (one stop opens `/map?sel=<id>`). |
 | Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
 | Social tab | `https://pubmaxxing.com/social` | While `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is off: safe preview copy only, no post content, no sign-in-required content leak. Once the friends launch flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the launch flag unset until after the WP5 rehearsal. |
 

@@ -80,16 +80,20 @@ export type PlanningAnchorConflict = {
 
 export type PlanningAnchorResult = PlanningAnchorResolved | PlanningAnchorConflict;
 
+// Reader-visible from the moment a conflict reaches the composer, so these say
+// "pub" and "plan": "Venue" and "Route" are our own nouns for a row and a
+// derived path, and a person reads them as a different product than the one
+// whose button they just pressed.
 const ANCHOR_CONFLICT_MESSAGES: Record<AnchorConflictCode, string> = {
-  ANCHOR_VENUE_INVALID: "We could not find that Venue. Choose a Venue to build your Plan around.",
-  ANCHOR_CITY_MISMATCH: "That Venue is not in this city. Pick a Venue in the same city as your night.",
-  ANCHOR_AREA_CONFLICT: "That Venue sits outside your accepted area. Keep the area or accept a Venue inside it.",
-  ANCHOR_PROMOTED: "That Venue cannot anchor a Plan. Choose a Venue you accepted from real results.",
-  ANCHOR_SAFETY_EXCLUDED: "That Venue is currently excluded. Choose another Venue to anchor your Plan.",
-  ANCHOR_OPENING_CONFLICT: "That Venue is not open for your chosen time. Adjust the time or accept another Venue.",
-  ANCHOR_BUDGET_CONFLICT: "That Venue does not fit your budget. Raise the budget or accept another Venue.",
-  ANCHOR_ACCESS_CONFLICT: "That Venue does not meet your access needs. Accept a Venue that does.",
-  ANCHOR_ROUTE_CONFLICT: "We could not build a Route from that Venue right now. Try a different anchor.",
+  ANCHOR_VENUE_INVALID: "We could not find that pub. Choose a pub to build your plan around.",
+  ANCHOR_CITY_MISMATCH: "That pub is not in this city. Pick a pub in the same city as your night.",
+  ANCHOR_AREA_CONFLICT: "That pub sits outside your accepted area. Keep the area or accept a pub inside it.",
+  ANCHOR_PROMOTED: "That pub cannot anchor a plan. Choose a pub you accepted from real results.",
+  ANCHOR_SAFETY_EXCLUDED: "That pub is currently excluded. Choose another pub to anchor your plan.",
+  ANCHOR_OPENING_CONFLICT: "That pub is not open for your chosen time. Adjust the time or accept another pub.",
+  ANCHOR_BUDGET_CONFLICT: "That pub does not fit your budget. Raise the budget or accept another pub.",
+  ANCHOR_ACCESS_CONFLICT: "That pub does not meet your access needs. Accept a pub that does.",
+  ANCHOR_ROUTE_CONFLICT: "We could not build a route from that pub right now. Try a different pub.",
 };
 
 export function isAnchorConflictCode(value: unknown): value is AnchorConflictCode {

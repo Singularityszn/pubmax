@@ -416,6 +416,7 @@ describe("community-price funnel events", () => {
     expect(isKnownEvent("price_submit_viewed")).toBe(true);
     expect(isKnownEvent("price_submitted")).toBe(true);
     expect(isKnownEvent("price_submit_failed")).toBe(true);
+    expect(isKnownEvent("price_impact_opened")).toBe(true);
     expect(isKnownEvent("contribution_gate")).toBe(true);
   });
 
@@ -433,6 +434,14 @@ describe("community-price funnel events", () => {
     ).toEqual({
       name: "price_submit_failed",
       props: { category: "wine", reason: "rejected" },
+    });
+    expect(sanitizeEvent("price_impact_opened", {
+      handle: "night_owl",
+      venueId: "venue-private",
+      priceGbp: 4.2,
+    })).toEqual({
+      name: "price_impact_opened",
+      props: {},
     });
   });
 

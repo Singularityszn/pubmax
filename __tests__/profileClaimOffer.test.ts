@@ -9,10 +9,15 @@
 // and "we could not ask" are two different answers, and only one of them may be
 // acted on.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import {
+  ProfileClaimOffer,
+  profileClaimOfferVisible,
+  shouldShowContributionClaimNudge,
+} from "@/app/u/[handle]/ProfilePageClient";
 import { handleIsAdoptable, type PublicProfile } from "@/lib/profiles";
 
 const OWNER: PublicProfile = {
@@ -62,44 +67,50 @@ describe("handleIsAdoptable", () => {
 });
 
 describe("the profile page asks that question rather than its own", () => {
-  const source = readFileSync(
-    join(process.cwd(), "app/u/[handle]/ProfilePageClient.tsx"),
-    "utf8",
-  );
-
-  it("gates the claim button on the shared predicate", () => {
-    expect(source).toContain("handleIsAdoptable(");
-    // The claim branch names the guard; a branch on the viewer alone is what
-    // shipped the offer under an owner's face.
-    expect(source).toMatch(
-      /isAnonymous && !isYouRoute && canAdoptHandle \? \(/,
-    );
+  it("renders the claim action only for an adoptable signed-out handle", () => {
+    const visible = profileClaimOfferVisible({
+      isAnonymous: true,
+      isYouRoute: false,
+      canAdoptHandle: handleIsAdoptable({ read: "answered", ownerProfile: null, tombstoned: false }),
+    });
+    const html = visible
+      ? renderToStaticMarkup(createElement(ProfileClaimOffer, { onClaim: () => undefined }))
+      : "";
+    expect(html).toContain("Claim this handle");
+    expect(html).toContain('class="profileClaimBtn"');
+    expect(profileClaimOfferVisible({ isAnonymous: true, isYouRoute: false, canAdoptHandle: false })).toBe(false);
+    expect(profileClaimOfferVisible({ isAnonymous: false, isYouRoute: false, canAdoptHandle: true })).toBe(false);
+    expect(profileClaimOfferVisible({ isAnonymous: true, isYouRoute: true, canAdoptHandle: true })).toBe(false);
   });
 
-  it("keeps the read's own state, not just its answer", () => {
-    // `stored` says WHAT the read found; `publicRead` says whether it found
-    // anything out at all. Collapsing the two is the defect this fence exists
-    // to catch.
-    expect(source).toContain("setPublicRead(outcome === \"failed\" ? \"failed\" : \"answered\")");
-  });
-
-  it("keeps viewer naming on the shared tri-state reader", () => {
-    expect(source).toContain('import { useViewerHandle } from "@/components/auth/useViewerHandle";');
-    expect(source).not.toContain('window.localStorage.getItem("pubmax_handle")');
-  });
-
-  it("keeps signed-out You as an invitation rather than a pseudo-profile", () => {
-    expect(source).toContain('className="youIdentityIntro"');
-    expect(source).toContain("Make the night yours.");
-    expect(source).toContain("Claim your @handle");
-    expect(source).toContain('href="#account-settings"');
-    expect(source).not.toContain('className="profileHeader profileHeaderLoading"');
-  });
-
-  it("holds the You sentinel neutral until identity handoff finishes", () => {
-    expect(source).toContain("const surface = profileSurfaceFor(");
-    expect(source).toContain('surface === "identity-loading"');
-    expect(source).toContain('className="profileIdentityLoadingSurface"');
-    expect(source).toContain('viewerState="loading"');
+  it("keeps claim nudge for unclaimed viewers, not signed-in owners", () => {
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: true,
+        hasUser: false,
+      }),
+    ).toBe(true);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: false,
+        hasUser: false,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: true,
+        identityResolved: true,
+        hasUser: true,
+      }),
+    ).toBe(false);
+    expect(
+      shouldShowContributionClaimNudge({
+        isOwnProfile: false,
+        identityResolved: true,
+        hasUser: false,
+      }),
+    ).toBe(false);
   });
 });

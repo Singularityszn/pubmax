@@ -13,12 +13,10 @@ import {
 import {
   composerLockErrorFromResponse,
   resolveComposerHydration,
-  type ComposerHandoffFlags,
 } from "@/lib/planComposerHandoff";
 import { createPlanningIntent } from "@/lib/planningIntent";
 
 const NOW = Date.parse("2026-07-24T12:00:00.000Z");
-const ON: ComposerHandoffFlags = { intentRead: true, anchoredGeneration: true };
 
 function memoryStorage(): Storage {
   const values = new Map<string, string>();
@@ -55,29 +53,75 @@ function v2Plan(savedAt: number): ParsedPlanDraft {
   return readPlanDraftEnvelope(storage, savedAt) as ParsedPlanDraft;
 }
 
-describe("PlanComposer flag-on rendered UI", () => {
+describe("PlanComposer rendered UI", () => {
+  it("renders accepted context before intake completion", () => {
+    const handoff = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: intent(), rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
+
+    expect(handoff.showAcceptedSummary).toBe(true);
+    expect(html).toContain("Carried over from what you accepted");
+    // The id is what we call a row, never what a person calls a pub, and a pin
+    // promoted out of the UK base layer never reaches the slim index at all.
+    expect(html).not.toContain("venue-intent");
+    expect(html).toContain("The pub you kept");
+  });
+
   it("renders the accepted Venue/area/date summary and marks area+date answered so intake never re-asks", () => {
     const handoff = resolveComposerHydration({
       planDraft: null, routeDraft: null, intakeDraft: null,
-      planningIntent: intent(), rememberedArea: null, flags: ON,
+      planningIntent: intent(), rememberedArea: null,
     });
     const html = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
 
     expect(html).toContain("Carried over from what you accepted");
-    expect(html).toContain("venue-intent");
+    expect(html).not.toContain("venue-intent");
+    expect(html).toContain("The pub you kept");
     expect(html).toContain("soho");
     expect(html).toContain("Jul"); // London service-date label for the accepted start
-    expect(html).toContain("You can still change any of these below");
+    expect(html).toContain("You can change the area and the date below.");
+    expect(html).toContain("Stop 1 stays this pub until you release it.");
+    expect(html).toContain("Releasing keeps every stop.");
     // The same hydration marks area + date answered, which is what suppresses the
     // area/date intake steps (PlanIntake is seeded settled; untouched here per the hold).
     expect(handoff.answeredArea).toBe(true);
     expect(handoff.answeredDate).toBe(true);
+
+    // A resolved name always wins over the neutral label.
+    const named = renderToStaticMarkup(createElement(AcceptedContextPanel, {
+      handoff,
+      acceptedVenueName: "The Accepted Arms",
+    }));
+    expect(named).toContain("The Accepted Arms");
+    expect(named).not.toContain("The pub you kept");
+  });
+
+  it("renders the way out of a held acceptance beside the summary", () => {
+    // The regression this pins: Stop 1 could not be released at all, so the
+    // accepted pub was held for the whole PlanningIntent TTL.
+    const handoff = resolveComposerHydration({
+      planDraft: null, routeDraft: null, intakeDraft: null,
+      planningIntent: intent(), rememberedArea: null,
+    });
+    const html = renderToStaticMarkup(createElement(AcceptedContextPanel, {
+      handoff,
+      onRelease: () => undefined,
+    }));
+
+    expect(html).toContain("Release this pub");
+    expect(html).toContain("planComposer__acceptedRelease");
+
+    // A panel with no release offered says nothing about releasing.
+    const withoutRelease = renderToStaticMarkup(createElement(AcceptedContextPanel, { handoff }));
+    expect(withoutRelease).not.toContain("planComposer__acceptedRelease");
   });
 
   it("renders the 'kept existing Plan work' conflict note when a newer Plan draft beats a newer intent", () => {
     const handoff = resolveComposerHydration({
       planDraft: v2Plan(NOW + 2_000), routeDraft: null, intakeDraft: null,
-      planningIntent: intent(), rememberedArea: null, flags: ON,
+      planningIntent: intent(), rememberedArea: null,
     });
     expect(handoff.conflicts.map((conflict) => conflict.code)).toContain("intent-preserved-existing");
 

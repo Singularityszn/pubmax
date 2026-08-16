@@ -2,10 +2,19 @@
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 
+import InviteMapLink from "@/components/plan/InviteMapLink";
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
 import { getAnonId } from "@/lib/anonId";
-import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
+import {
+  GUEST_DISPLAY_NAME_MAX,
+  isPlanInviteRsvpSummary,
+  isRsvpStatus,
+  markDeviceRsvpCommitted,
+  readDeviceRsvpCommitted,
+  type PlanInviteRsvpSummary,
+  type RsvpStatus,
+} from "@/lib/planInvite";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -23,6 +32,8 @@ import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } 
 // not the site-wide handle identity.
 const GUEST_NAME_STORAGE_KEY = "pubmax:inviteGuestName:v1";
 
+const RSVP_SAVED_LINE = "RSVP saved.";
+
 function readStoredGuestName(): string {
   if (typeof window === "undefined") return "";
   try {
@@ -30,6 +41,20 @@ function readStoredGuestName(): string {
   } catch {
     return "";
   }
+}
+
+function deviceStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
+function subscribeDeviceRsvp(onStoreChange: () => void): () => void {
+  window.addEventListener("storage", onStoreChange);
+  return () => window.removeEventListener("storage", onStoreChange);
 }
 
 function writeStoredGuestName(name: string): void {
@@ -40,16 +65,52 @@ function writeStoredGuestName(name: string): void {
   }
 }
 
+export function InviteMapPrompt({
+  committedThisVisit,
+  rememberedFromDevice,
+  venueIds,
+}: {
+  committedThisVisit: boolean;
+  rememberedFromDevice: boolean;
+  venueIds: string[];
+}) {
+  // The map link is never gated on the RSVP. Gating it meant a guest who
+  // answered and reloaded, came back the next day, answered from another
+  // device, or was already Going before the deploy could no longer reach the
+  // stops the invite is about. "RSVP saved." is emphasis laid on top of a way
+  // out that was always there, not the thing that unlocks it.
+  //
+  // The two reasons the line shows are one announcement apart. A save made in
+  // this visit is news, so it lands as a text change inside a live region that
+  // was already mounted and empty - a region inserted together with its own
+  // first words is the shape screen readers that watch existing regions miss.
+  // A line restored from device memory on arrival is not news, so it is printed
+  // outside that region and says nothing. One line is visible either way.
+  return (
+    <div className="inviteRsvp__mapPrompt">
+      <p className="inviteRsvp__status" role="status">
+        {committedThisVisit ? RSVP_SAVED_LINE : ""}
+      </p>
+      {!committedThisVisit && rememberedFromDevice ? (
+        <p className="inviteRsvp__status">{RSVP_SAVED_LINE}</p>
+      ) : null}
+      <InviteMapLink venueIds={venueIds} />
+    </div>
+  );
+}
+
 export default function PlanInviteRsvp({
   token,
   planId,
   initialRsvp,
   initialReactions,
+  venueIds,
 }: {
   token: string;
   planId: string;
   initialRsvp: PlanInviteRsvpSummary;
   initialReactions: ReactionSummary;
+  venueIds: string[];
 }) {
   const [rsvp, setRsvp] = useState(initialRsvp);
   const [reactions, setReactions] = useState(initialReactions);
@@ -57,6 +118,7 @@ export default function PlanInviteRsvp({
   const [status, setStatus] = useState<RsvpStatus | null>(null);
   const [submittingRsvp, setSubmittingRsvp] = useState(false);
   const [rsvpError, setRsvpError] = useState<string | null>(null);
+  const [rsvpCommitted, setRsvpCommitted] = useState(false);
   const [pendingReaction, setPendingReaction] = useState<ReactionKey | null>(null);
   const [reactionError, setReactionError] = useState<string | null>(null);
   const [removingId, setRemovingId] = useState<string | null>(null);
@@ -76,6 +138,17 @@ export default function PlanInviteRsvp({
   );
   const { token: memberToken, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
   const isHost = Boolean(memberToken && role === "host");
+
+  // A guest's own device is the only record we hold of their answer, so a
+  // return visit restores the saved emphasis from it. The server snapshot is
+  // false because the server knows nothing about this device, and the value is
+  // a boolean, so it is stable across renders. Another tab's RSVP arrives
+  // through `storage`; this tab's own arrives through `rsvpCommitted`.
+  const rsvpRemembered = useSyncExternalStore(
+    subscribeDeviceRsvp,
+    () => readDeviceRsvpCommitted(planId, deviceStorage()),
+    () => false,
+  );
 
   useEffect(() => {
     if (memberToken) return;
@@ -172,10 +245,14 @@ export default function PlanInviteRsvp({
           );
           return;
         }
-        const data = (await res.json()) as { summary?: PlanInviteRsvpSummary; isUpdate?: boolean };
-        if (data.summary) {
+        const data = (await res.json()) as { summary?: unknown; isUpdate?: unknown };
+        if (isPlanInviteRsvpSummary(data.summary)) {
           setRsvp(data.summary);
-          trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: Boolean(data.isUpdate) });
+          setRsvpCommitted(true);
+          markDeviceRsvpCommitted(planId, deviceStorage());
+          trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: data.isUpdate === true });
+        } else {
+          setRsvpError("Couldn't save that RSVP.");
         }
       } catch {
         setRsvpError("Couldn't save that RSVP.");
@@ -183,7 +260,7 @@ export default function PlanInviteRsvp({
         setSubmittingRsvp(false);
       }
     },
-    [name, submittingRsvp, token],
+    [name, planId, submittingRsvp, token],
   );
 
   const onSubmit = useCallback(
@@ -321,6 +398,12 @@ export default function PlanInviteRsvp({
           {rsvpError}
         </p>
       ) : null}
+
+      <InviteMapPrompt
+        committedThisVisit={rsvpCommitted}
+        rememberedFromDevice={rsvpRemembered}
+        venueIds={venueIds}
+      />
 
       <div className="inviteRsvp__reactions">
         {REACTION_KEYS.map((key) => {

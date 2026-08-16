@@ -139,6 +139,13 @@ export default function MobileSharedSheet({
   // Modal focus trap at half and full: the scrim blocks pointer input to the map,
   // so keyboard focus must not walk the inert page behind an unreachable surface.
   // Peek is the tested exception — enough map stays live that trapping would lie.
+  //
+  // The policy is "map-surface", not "strict-modal": this sheet is a map surface
+  // with body-level siblings that outrank it. The primary tab bar stays reachable
+  // beside it, and so does the account onboarding dialog, which portals into
+  // <body> and owns its own strict-modal trap over this sheet. A strict-modal
+  // policy here inerted that dialog, so a new drinker could see the signup form
+  // and type nothing into it.
   const sheetModal = mobileSheetIsModal(sheetSnap);
   useFocusTrap(
     Boolean(kind) && mobileSheetFocusContained(sheetSnap),

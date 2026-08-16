@@ -1,4 +1,4 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 
 // Task: plan-invite-page. Proves the whole public invite feature end to end on
@@ -107,10 +107,26 @@ async function futureLondonFirstPint(): Promise<string> {
   return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
 }
 
+async function openHydratedPlanComposer(page: Page): Promise<void> {
+  await page.goto("/plan");
+  const stopCount = page
+    .getByRole("group", { name: "Number of pub stops" })
+    .getByRole("button", { name: "4", exact: true });
+  // A tap that lands before React attaches is dropped, and a lone click is
+  // therefore not a wait for hydration: under a loaded box the button answered
+  // "aria-pressed=false" for the whole assertion budget. Retry the tap itself
+  // until the control answers.
+  await expect(async () => {
+    await stopCount.click();
+    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
+}
+
 test("Copy invite link shows for the host's own session and never for an anonymous visitor", async ({
   page,
   browser,
 }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -121,7 +137,7 @@ test("Copy invite link shows for the host's own session and never for an anonymo
     // the cooldown gate shut, the same way it would for a returning visitor.
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
-  await page.goto("/plan");
+  await openHydratedPlanComposer(page);
   await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
@@ -131,7 +147,7 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   // pint keeps Lock disabled. Setting a future time marks the route stale, so
   // regenerate before locking.
   await page.getByLabel("First pint").fill(await futureLondonFirstPint());
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
@@ -161,20 +177,21 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   page,
   browser,
 }) => {
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
   });
-  await page.goto("/plan");
-  await page.getByLabel("Describe the night").fill("Quiet in Clapham for 4, not pricey");
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await openHydratedPlanComposer(page);
+  await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
+  await page.getByRole("button", { name: "Make a plan" }).click();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill(await futureLondonFirstPint());
-  await page.getByRole("button", { name: "Plan my night" }).click();
+  await page.getByRole("button", { name: "Regenerate route" }).click();
   await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible();
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
@@ -199,11 +216,13 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   const guest = await browser.newContext();
   const guestPage = await guest.newPage();
   await guestPage.goto(`/invite/${token}`);
-  const mapLink = guestPage.getByRole("link", { name: "See these pubs on the map" });
-  await expect(mapLink).toBeVisible();
-  const mapHref = await mapLink.getAttribute("href");
-  // Multi-stop invites open the ordered crawl; a single stop uses ?sel=.
-  expect(mapHref).toMatch(/^\/map\?(?:mode=build&.*pubs=|sel=)/);
+  // The page-level link moved into the RSVP island. It is still unconditional
+  // there, so arriving without an RSVP still reaches the stops, and there is
+  // exactly one of it.
+  await expect(guestPage.locator(".invite__mapLink")).toHaveCount(1);
+  await expect(
+    guestPage.getByRole("link", { name: "Open these stops on the map" }),
+  ).toBeVisible();
 
   await guestPage.locator(".inviteRsvp__nameInput").fill("Priya");
   await guestPage.getByRole("button", { name: "Going", exact: true }).click();
@@ -211,6 +230,11 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   await expect(guestPage.locator(".inviteRsvp__guest", { hasText: "Priya" })).toBeVisible();
 
   // Guest map handoff.
+  const mapLink = guestPage.getByRole("link", { name: "Open these stops on the map" });
+  await expect(mapLink).toBeVisible();
+  const mapHref = await mapLink.getAttribute("href");
+  // Multi-stop invites open the ordered crawl; a single stop uses ?sel=.
+  expect(mapHref).toMatch(/^\/map\?(?:mode=build&.*pubs=|sel=)/);
   await mapLink.click();
   await expect(guestPage).toHaveURL(/\/map\?(?:mode=build&.*pubs=|sel=)/);
   await guest.close();

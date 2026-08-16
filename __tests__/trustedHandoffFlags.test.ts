@@ -35,9 +35,13 @@ describe("trusted handoff flag parser", () => {
 });
 
 describe("trusted handoff flag registry", () => {
-  it("registers exactly eight flags with ownership and removal metadata", () => {
-    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(8);
+  it("registers exactly five live rollout flags with ownership and removal metadata", () => {
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).toHaveLength(5);
     expect(Object.keys(TRUSTED_HANDOFF_FLAG_DEFINITIONS)).toEqual(TRUSTED_HANDOFF_FLAG_KEYS);
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("landingFindMyPint");
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("intentWrite");
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("intentRead");
+    expect(TRUSTED_HANDOFF_FLAG_KEYS).not.toContain("anchoredGeneration");
 
     for (const definition of Object.values(TRUSTED_HANDOFF_FLAG_DEFINITIONS)) {
       expect(definition.env).toMatch(/^PUBMAX_/);
@@ -58,9 +62,6 @@ describe("trusted handoff flag registry", () => {
 
   it("reads a complete all-on snapshot", () => {
     expect(readTrustedHandoffFlags(ALL_ON_ENV)).toEqual({
-      intentWrite: true,
-      intentRead: true,
-      anchoredGeneration: true,
       mapRouteTransfer: true,
       tonightGrouping: true,
       palHandoff: true,

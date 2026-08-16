@@ -8,7 +8,7 @@ import PlanCollaborationPanel from "@/components/plan/PlanCollaborationPanel";
 import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
-import { routeStopsFromGenerated } from "@/components/plan/PlanComposer";
+import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
 import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
 import { setActivePlanRole } from "@/lib/activePlan";
 import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
@@ -16,6 +16,7 @@ import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { VibeTally } from "@/lib/vibeTally";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { getNightArea } from "@/lib/nightAreas";
 
 /** Map the §4.10 preview onto the existing preview component's DTO. */
 function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
@@ -40,6 +41,8 @@ type EditableStop = {
 type PendingRoute = {
   stops: EditableStop[];
   expectedRouteRevision: RouteRevision | null;
+  groundingProof: string | null;
+  operationKey: string | null;
 };
 type PendingRouteV1 = PendingRoute & { version: 1; savedAt: string };
 
@@ -112,7 +115,16 @@ export function parsePendingRoute(raw: string | null): PendingRoute | null {
     if (value.version !== undefined && value.version !== 1) return null;
     const stops = cleanStops(value.stops);
     if (!stops.length) return null;
-    return { stops, expectedRouteRevision: cleanRevision(value.expectedRouteRevision) };
+    return {
+      stops,
+      expectedRouteRevision: cleanRevision(value.expectedRouteRevision),
+      groundingProof: typeof value.groundingProof === "string" && value.groundingProof.length <= 8_000
+        ? value.groundingProof
+        : null,
+      operationKey: typeof value.operationKey === "string" && value.operationKey.trim().length >= 8 && value.operationKey.trim().length <= 120
+        ? value.operationKey.trim()
+        : null,
+    };
   } catch {
     return null;
   }
@@ -154,10 +166,88 @@ export function routeHasChanged(before: ReadonlyArray<{ venueId: string }>, afte
   return before.length !== after.length || before.some((stop, index) => stop.venueId !== after[index]?.venueId);
 }
 
+export function canBeginPlanRouteEdit(input: {
+  hasMemberToken: boolean;
+  collaborationAuthorized: boolean;
+  isHost: boolean;
+  anchoredPlan: boolean;
+}): boolean {
+  return input.hasMemberToken
+    && input.collaborationAuthorized
+    && (input.isHost || !input.anchoredPlan);
+}
+
 function validRouteDraft(stops: ReadonlyArray<EditableStop>): boolean {
   return isPlanStopCount(stops.length)
     && stops.every((stop) => stop.venueId.trim() && stop.venueName.trim())
     && new Set(stops.map((stop) => stop.venueId)).size === stops.length;
+}
+
+/**
+ * Why a refreshed-route answer cannot be used, or null when it can be. An
+ * anchored refresh can answer HTTP 200 with no Stops and an anchor-conflict
+ * outcome, and only the server's own sentence names which check refused the
+ * kept pub, so it is read before the empty-route sentence.
+ */
+export function refreshedRouteRejection(
+  body: unknown,
+  generated: ReadonlyArray<EditableStop>,
+  requestedStopCount: number,
+): string | null {
+  const anchorConflict = anchorConflictMessage(body);
+  if (anchorConflict) return anchorConflict;
+  if (!validRouteDraft(generated)) {
+    return `Couldn't get ${requestedStopCount} good stops that time. Give it another go.`;
+  }
+  return null;
+}
+
+type RouteGenerationAuthority = {
+  groundingProof: string;
+  operationKey: string;
+};
+
+function routeGenerationAuthority(value: unknown): RouteGenerationAuthority | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as { groundingProof?: unknown; operationKey?: unknown };
+  const groundingProof = typeof row.groundingProof === "string" && row.groundingProof.length <= 8_000
+    ? row.groundingProof
+    : "";
+  const operationKey = typeof row.operationKey === "string" ? row.operationKey.trim() : "";
+  return groundingProof && operationKey.length >= 8 && operationKey.length <= 120
+    ? { groundingProof, operationKey }
+    : null;
+}
+
+export function planSummaryGenerationBody(state: PlanState): Record<string, unknown> {
+  const anchor = state.plan.anchorVenueId && state.plan.anchorSource
+    ? {
+        venueId: state.plan.anchorVenueId,
+        source: state.plan.anchorSource,
+        acceptedArea: null,
+        startsAt: state.plan.startTime,
+      }
+    : null;
+  const cityId = state.context?.nightArea
+    ? getNightArea(state.context.nightArea).cityId
+    : null;
+  return {
+    context: state.context,
+    ...(cityId ? { cityId } : {}),
+    ...(anchor ? { anchor } : {}),
+  };
+}
+
+export function planSummaryRouteUpdateBody(input: {
+  stops: ReadonlyArray<EditableStop>;
+  expectedRouteRevision: RouteRevision;
+  authority: RouteGenerationAuthority | null;
+}): Record<string, unknown> {
+  return {
+    stops: input.stops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+    expectedRouteRevision: input.expectedRouteRevision,
+    ...(input.authority ?? {}),
+  };
 }
 
 function stopWithNextAlternative(stop: EditableStop, excludedVenueIds: ReadonlySet<string>): EditableStop {
@@ -275,11 +365,23 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [loadingPreview, setLoadingPreview] = useState(false);
+  const [localAuthority, setLocalAuthority] = useState<RouteGenerationAuthority | null>(null);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
   const draftStops = pending?.stops ?? localStops;
+  const pendingAuthority = pending?.groundingProof && pending.operationKey
+    ? { groundingProof: pending.groundingProof, operationKey: pending.operationKey }
+    : null;
+  const routeAuthority = pendingAuthority ?? localAuthority;
+  const anchoredPlan = Boolean(state.plan.anchorVenueId && state.plan.anchorSource);
   const isHost = Boolean(memberToken && role === "host");
   const canCollaborate = Boolean(memberToken && collaborationAuthorized);
+  const canBeginEditing = canBeginPlanRouteEdit({
+    hasMemberToken: Boolean(memberToken),
+    collaborationAuthorized: canCollaborate,
+    isHost,
+    anchoredPlan,
+  });
   useEffect(() => {
     if (memberToken && role) setActivePlanRole(planId, role);
   }, [memberToken, planId, role]);
@@ -287,7 +389,10 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
   const routeRevision = pending?.expectedRouteRevision ?? savedRevision;
   const canonicalVenueIds = canonicalStops.map((stop) => ({ venueId: stop.venueId }));
   const hasRouteChanged = routeHasChanged(canonicalVenueIds, draftStops);
-  const canSaveDraft = validRouteDraft(draftStops) && hasRouteChanged && routeRevision !== null;
+  const canSaveDraft = validRouteDraft(draftStops)
+    && hasRouteChanged
+    && routeRevision !== null
+    && (!anchoredPlan || routeAuthority !== null);
   const canonicalRouteStops = canonicalStops.map((stop, index) => ({
     venueId: stop.venueId,
     venueName: stop.venueName,
@@ -301,10 +406,11 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
     }
     setEditing(true);
     setError("");
-    if (pending) {
+    if (pending && (!anchoredPlan || pendingAuthority)) {
       setStatus(`Recovered unsaved route changes. Nothing changes until ${isHost ? "you save" : "the host accepts a proposal"}.`);
       return;
     }
+    if (pending) clearPendingRoute(planId);
     if (!state.context) {
       setEditing(false);
       setError("This plan doesn't have enough saved to sort a fresh route. Add the details, then try again.");
@@ -317,7 +423,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       const response = await fetch("/api/plans/generate", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ context: state.context }),
+        body: JSON.stringify(planSummaryGenerationBody(state)),
       });
       const body = await response.json();
       if (!response.ok) throw new Error(errorMessageFrom(body, "Could not find a replacement route."));
@@ -327,10 +433,26 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         position: index,
         alternatives: stop.alternatives,
       }));
-      if (!validRouteDraft(generated)) throw new Error(`Couldn't get ${requestedStopCount} good stops that time. Give it another go.`);
+      const rejection = refreshedRouteRejection(body, generated, requestedStopCount);
+      if (rejection) throw new Error(rejection);
+      if (state.plan.anchorVenueId && generated[0]?.venueId !== state.plan.anchorVenueId) {
+        throw new Error("The refreshed route did not keep Stop 1. Nothing changed.");
+      }
+      const authority = routeGenerationAuthority(body);
+      if (anchoredPlan && !authority) {
+        throw new Error("The refreshed route could not be verified. Nothing changed.");
+      }
       setLocalStops(generated);
-      writePendingRoute(planId, { stops: generated, expectedRouteRevision: routeRevisionFromPlanState(state) });
-      setStatus(`Fresh route preview ready. Swap a stop, then ${isHost ? "save it" : "send it to the host"}.`);
+      setLocalAuthority(authority);
+      writePendingRoute(planId, {
+        stops: generated,
+        expectedRouteRevision: routeRevisionFromPlanState(state),
+        groundingProof: authority?.groundingProof ?? null,
+        operationKey: authority?.operationKey ?? null,
+      });
+      setStatus(anchoredPlan
+        ? `Fresh route preview ready with Stop 1 kept. ${isHost ? "Save it" : "Send it to the host"} when it looks right.`
+        : `Fresh route preview ready. Swap a stop, then ${isHost ? "save it" : "send it to the host"}.`);
     } catch (caught) {
       setEditing(false);
       setError(caught instanceof Error ? caught.message : "Could not find a replacement route.");
@@ -351,8 +473,15 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       return;
     }
     const nextStops = draftStops.map((stop, stopIndex) => stopIndex === index ? replacement : stop);
+    const nextAuthority = anchoredPlan ? null : routeAuthority;
     setLocalStops(nextStops);
-    writePendingRoute(planId, { stops: nextStops, expectedRouteRevision: routeRevision });
+    setLocalAuthority(nextAuthority);
+    writePendingRoute(planId, {
+      stops: nextStops,
+      expectedRouteRevision: routeRevision,
+      groundingProof: nextAuthority?.groundingProof ?? null,
+      operationKey: nextAuthority?.operationKey ?? null,
+    });
     setEditing(true);
     setStatus(`Stop ${index + 1} swapped to ${nextStops[index]?.venueName}. ${isHost ? "Save the route" : "Explain the proposal below"} when it looks right.`);
     setError("");
@@ -385,10 +514,11 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
           "content-type": "application/json",
           authorization: `Bearer ${memberToken}`,
         },
-        body: JSON.stringify({
-          stops: draftStops.map(({ venueId, venueName }) => ({ venueId, venueName })),
+        body: JSON.stringify(planSummaryRouteUpdateBody({
+          stops: draftStops,
           expectedRouteRevision: routeRevision,
-        }),
+          authority: routeAuthority,
+        })),
       });
       const body = await response.json();
       if (!response.ok) {
@@ -403,6 +533,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       const savedStops = cleanStops(canonical.stops);
       setCanonicalStops(savedStops);
       setLocalStops(savedStops);
+      setLocalAuthority(null);
       setEditing(false);
       setStatus("Route saved. The new order is now canonical.");
     } catch (caught) {
@@ -421,17 +552,17 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
         <p className="planPage__eyebrow">First pint · {view.startLabel}</p>
         <div className="planSummary__headingRow">
           <h2 id="plan-stops-title">The route</h2>
-          {memberToken && canCollaborate ? (
+          {canBeginEditing ? (
             <button type="button" className="planSummary__edit" onClick={() => void beginEditing()} aria-expanded={editing} disabled={loadingPreview}>
               {loadingPreview ? "Finding alternatives…" : editing ? "Editing" : isHost ? "Edit route" : "Propose swap"}
             </button>
           ) : null}
         </div>
       </div>
-      {memberToken && canCollaborate && (editing || pending) ? (
+      {canBeginEditing && (editing || pending) ? (
         <div className="planSummary__editor" aria-labelledby="plan-route-editor-title">
           <h3 id="plan-route-editor-title">Route preview</h3>
-          <p>Swap a stop to make a private draft. {isHost ? "Save only when it differs and still has three to six distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
+          <p>{anchoredPlan ? "Review the fresh route with Stop 1 kept." : "Swap a stop to make a private draft."} {isHost ? "Save only when it differs and still has three to six distinct stops." : "The route stays unchanged until the host accepts your proposal."}</p>
           <ol className="planSummary__editStops">
             {draftStops.map((stop, index) => (
               <li key={`${stop.position}-${stop.venueId}`}>
@@ -440,15 +571,17 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
                   <strong>{stop.venueName}</strong>
                   {stop.alternatives?.length ? <small>{stop.alternatives.length} backup{stop.alternatives.length === 1 ? "" : "s"} ready</small> : null}
                 </span>
-                <button
-                  type="button"
-                  className="planSummary__swap"
-                  onClick={() => swapStop(index)}
-                  disabled={!stop.alternatives?.length || saving}
-                  aria-label={stop.alternatives?.length ? `Swap stop ${index + 1}, currently ${stop.venueName}` : `No alternatives for stop ${index + 1}`}
-                >
-                  Swap
-                </button>
+                {!anchoredPlan ? (
+                  <button
+                    type="button"
+                    className="planSummary__swap"
+                    onClick={() => swapStop(index)}
+                    disabled={!stop.alternatives?.length || saving}
+                    aria-label={stop.alternatives?.length ? `Swap stop ${index + 1}, currently ${stop.venueName}` : `No alternatives for stop ${index + 1}`}
+                  >
+                    Swap
+                  </button>
+                ) : null}
               </li>
             ))}
           </ol>
@@ -457,7 +590,7 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
               <button type="button" className="planSummary__save" onClick={saveRoute} disabled={saving || !canSaveDraft}>
                 {saving ? "Saving…" : canSaveDraft ? "Save route changes" : "Choose a route change"}
               </button>
-              <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setEditing(false); setError(""); setStatus("Unsaved route changes discarded."); }} disabled={saving}>
+              <button type="button" className="planSummary__cancel" onClick={() => { clearPendingRoute(planId); setLocalAuthority(null); setEditing(false); setError(""); setStatus("Unsaved route changes discarded."); }} disabled={saving}>
                 Discard draft
               </button>
             </div>
@@ -494,9 +627,10 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
           isHost={isHost}
           draftStops={draftStops.map((stop, index) => ({ venueId: stop.venueId, venueName: stop.venueName, position: index }))}
           routeRevision={routeRevision}
-          canPropose={!isHost && canSaveDraft}
+          canPropose={!anchoredPlan && !isHost && canSaveDraft}
           onProposalCreated={() => {
             clearPendingRoute(planId);
+            setLocalAuthority(null);
             setEditing(false);
             setStatus("Proposal sent. Your private draft was cleared; the canonical route is unchanged until the host accepts.");
           }}

@@ -36,7 +36,6 @@ import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanConstraintReport, PlanRouteTiming, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
-import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
@@ -128,7 +127,7 @@ async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
 	const anchorVenueId = anchorResolution.canonical.venueId;
 	const selection = await selectAnchoredPlanGenerationCandidates(candidates, context, intake, requestNow, anchorVenueId);
 	if (!selection.ok) {
-		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "We could not build a Route from that Venue right now. Try a different anchor.");
+		return anchorConflict("ANCHOR_ROUTE_CONFLICT", "We could not build a route from that pub right now. Try a different pub.");
 	}
 	if (selection.outcome === "anchor-only") {
 		let anchorOnlyProof: string;
@@ -303,9 +302,9 @@ export async function POST(request: Request): Promise<Response> {
 	let anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource } | null = null;
 	let chosen: Candidate[];
 	const anchorRequest = parsedRequest.value.anchor;
-	// Anchored generation is opt-in behind the flag; off ignores the anchor and
-	// leaves the legacy unanchored path byte-identical.
-	if (readTrustedHandoffFlag("anchoredGeneration") && anchorRequest) {
+	// An accepted Venue is always authoritative for anchored generation. Requests
+	// without one retain the generic, unanchored selection path.
+	if (anchorRequest) {
 		const anchored = await runAnchoredGeneration({
 			cityId, anchor: anchorRequest, candidates, context, intake, requestNow, operationKey, area, coverage,
 		});

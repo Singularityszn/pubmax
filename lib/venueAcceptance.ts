@@ -8,12 +8,15 @@
 // (NearMeNow) only wires clicks to it and emits the returned telemetry.
 //
 // Trust rules it enforces (§3.2, §4.8):
-//   • Only an explicit "Use this Venue" reaches here; opening a card for a look
-//     never does, so browsing is never mistaken for accepting.
+//   • Only an explicit "Keep for tonight" reaches here; opening a card for a
+//     look never does, so browsing is never mistaken for accepting.
 //   • The source is fixed "near" — never guessed from the current UI.
 //   • Acceptance requires the envelope to actually persist. If storage denies or
-//     the envelope is invalid, the person still lands on the Venue, but as a
-//     browse selection (`?sel=`), never a claimed-but-unrecorded acceptance.
+//     the envelope is invalid, nothing is accepted and no telemetry is emitted.
+//     NearMeNow then stays on Near and reports VENUE_ACCEPTANCE_STORAGE_ERROR
+//     rather than navigating, so a claimed-but-unrecorded acceptance cannot
+//     exist. The browse href below remains the safe fallback address for a
+//     caller that still chooses to move.
 
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { type CityId } from "@/lib/cities";
@@ -55,6 +58,16 @@ export type VenueAcceptedTelemetry = {
   hasDate: boolean;
   hasProvenance: boolean;
 };
+
+/**
+ * The one sentence every acceptance surface says when the envelope would not
+ * persist. Near, Tonight and Map fail the same way and must not word it three
+ * ways: it was pasted into three components and had already drifted from the
+ * lowercase "Keep this venue" button beside it. "Venue" is our own noun for a
+ * row in the index, so the reader is told about a pub instead.
+ */
+export const VENUE_ACCEPTANCE_STORAGE_ERROR =
+  "Couldn’t keep this pub on this device. Try again.";
 
 export type VenueAcceptance = {
   /** True only when the PlanningIntent envelope actually persisted. */

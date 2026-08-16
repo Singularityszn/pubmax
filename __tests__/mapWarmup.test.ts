@@ -221,7 +221,16 @@ describe("warmNavRoute / warmPrimaryTabRoutes", () => {
     warmNavRoute({ prefetch }, "/tonight", seen);
     warmNavRoute({ prefetch }, "/social", seen);
     warmNavRoute({ prefetch }, "/tonight", seen);
-    expect(prefetch).toHaveBeenCalledTimes(2);
+    // A query and a fragment are both dropped: only the path is fetchable, and
+    // a hash-bearing prefetch key cost the landed URL its own fragment.
+    warmNavRoute({ prefetch }, "/u/night_owl#contribution-impact", seen);
+    warmNavRoute({ prefetch }, "/u/night_owl", seen);
+    warmNavRoute({ prefetch }, "/plan?occasion=quiet", seen);
+    warmNavRoute({ prefetch }, "/plan", seen);
+    expect(prefetch).toHaveBeenCalledWith("/u/night_owl");
+    expect(prefetch).not.toHaveBeenCalledWith("/u/night_owl#contribution-impact");
+    expect(prefetch).toHaveBeenCalledWith("/plan");
+    expect(prefetch).toHaveBeenCalledTimes(4);
     expect(prefetch).toHaveBeenCalledWith("/tonight");
     expect(prefetch).toHaveBeenCalledWith("/social");
   });

@@ -17,7 +17,9 @@ import {
 import {
   browseSelectionUrl,
   cleanMapUrl,
+  refreshSelectionUrl,
   searchHasSelection,
+  selectionResolution,
 } from "@/lib/mapSelectionHistory";
 import {
   ROOT_SURFACE_STACK,
@@ -27,6 +29,7 @@ import {
   type SurfaceStack,
 } from "@/lib/surfaceStack";
 import type { MapOverlay } from "@/lib/mobileShell";
+import { announceAcceptedArrivalUrlChange, canonicalizeAcceptedArrivalSelection } from "@/lib/mapAcceptance";
 
 export type MapSurfaceId = MapOverlay | "venue-list";
 
@@ -71,8 +74,11 @@ function urlForStack(
 ): string {
   const { pathname, search, hash } = window.location;
   const venueId = selectedVenueId(stack);
+  const liveVenueId = new URLSearchParams(search).get("sel");
   return venueId
-    ? browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
+    ? liveVenueId === venueId
+      ? refreshSelectionUrl(pathname, search, venueId, hash, selectionHint)
+      : browseSelectionUrl(pathname, search, venueId, hash, selectionHint)
     : cleanMapUrl(pathname, search, hash);
 }
 
@@ -241,22 +247,37 @@ export function useMapSurfaceNavigation({
       const held = stackRef.current;
       const current = currentSurface(held);
       const { pathname, search, hash } = window.location;
-      if (current?.id === "venue" && current.state?.venueId === requestedVenueId) {
-        if (requestedVenueId === canonicalVenueId) return;
-        const resolvedEntry = {
-          ...current,
-          state: { ...current.state, venueId: canonicalVenueId },
-        };
-        const next = [...held.slice(0, -1), resolvedEntry] as SurfaceStack<MapSurfaceState>;
-        publishStack(next);
+      const resolution = selectionResolution({
+        requestedVenueId,
+        canonicalVenueId,
+        currentVenueId: current?.id === "venue" ? current.state?.venueId ?? null : null,
+        liveSelectedVenueId: new URLSearchParams(search).get("sel"),
+      });
+      if (resolution.kind === "none") return;
+      if (resolution.kind === "canonicalise") {
+        const canonicalUrl = canonicalizeAcceptedArrivalSelection({
+          pathname,
+          search,
+          hash,
+          requestedVenueId,
+          canonicalVenueId: resolution.venueId,
+        });
+        if (!canonicalUrl) return;
+        const next = current?.id === "venue"
+          ? [...held.slice(0, -1), {
+              ...current,
+              state: { ...current.state, venueId: resolution.venueId },
+            }] as SurfaceStack<MapSurfaceState>
+          : held;
+        if (next !== held) publishStack(next);
         window.history.replaceState(
-          stampMapSurfaceHistory(window.history.state, next, canonicalVenueId),
+          stampMapSurfaceHistory(window.history.state, next, resolution.venueId),
           "",
-          browseSelectionUrl(pathname, search, canonicalVenueId, hash),
+          canonicalUrl,
         );
+        announceAcceptedArrivalUrlChange();
         return;
       }
-      if (new URLSearchParams(search).get("sel") !== requestedVenueId) return;
       window.history.replaceState(
         stampMapSurfaceHistory(window.history.state, held, selectedVenueId(held)),
         "",

@@ -63,6 +63,37 @@ describe("Plan collaboration HTTP contract", () => {
     expect(await response.json()).toMatchObject({ code: "PLAN_COLLAB_NOT_FOUND", retryable: false });
   });
 
+  it("refuses guest route proposals on an anchored Plan", async () => {
+    const created = await memoryPlanStore.create({
+      startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      creatorName: "Host",
+      stops: route.map((stop, index) => ({ ...stop, venueName: `Pub ${index + 1}` })),
+    }, {
+      idempotencyKey: "anchored-collab-host",
+      anchor: { venueId: route[0]!.venueId, source: "near", outcome: "route" },
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const guest = await memoryPlanStore.join(created.plan.plan.id, "Guest", {
+      collaborationAuthorized: true,
+      idempotencyKey: "anchored-collab-guest",
+    });
+    expect(guest.ok).toBe(true);
+    if (!guest.ok) return;
+
+    const response = await CREATE_PROPOSAL(new Request(`${URL}/${created.plan.plan.id}/proposals`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${guest.memberToken}`,
+        "idempotency-key": "anchored-proposal-denied",
+      },
+      body: JSON.stringify({ reason: "Swap route", expectedRouteRevision: 1, stops: route, resolvedConstraintIds: [] }),
+    }), ctx(created.plan.plan.id));
+
+    expect(response.status).toBe(403);
+    expect(await response.json()).toMatchObject({ code: "PLAN_COLLAB_FORBIDDEN" });
+  });
+
   it("issues a host-only invite and rejects replay when it is joined twice", async () => {
     const host = await createPlan();
     expect(host.role).toBe("host");
