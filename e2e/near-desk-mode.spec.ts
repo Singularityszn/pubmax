@@ -42,7 +42,11 @@ test.describe("near desk mode", () => {
     await expect(page.getByRole("heading", { name: /Somewhere to sit around Soho/ })).toBeVisible();
     await expect(page.locator(".ndnHero .ndnHeroName")).toBeVisible();
     await expect(page.locator(".ndnHero .ndnFacts li").first()).toBeVisible();
-    await expect(page.getByText(/^(Open until |Opens |Closed today|Hours unknown)/).first()).toBeVisible();
+    await expect(
+      page
+        .getByText(/^(Open until |Open all day|Opens |Closed today|Hours unknown)/)
+        .first(),
+    ).toBeVisible();
     await expect(page.getByText("Laptops: not known")).toHaveCount(0);
     await expect(page.getByText("No seat data yet")).toHaveCount(0);
     await expect(page.getByText(/^Checked /).first()).toBeVisible();

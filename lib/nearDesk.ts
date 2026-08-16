@@ -27,6 +27,16 @@ export const DESK_MODE_KINDS = [
 export const DESK_MAX_ANSWERS = 5;
 
 /**
+ * ONE clock for a desk card. The rank key (`openNow`) and the human hours line
+ * are two readings of the same door, so they may not read two zones: a viewer
+ * whose device sat west of London used to be told `Open until 22:00` about a
+ * venue the same card had already ranked as shut. Every desk in the pack is in
+ * London, so London is what both answer from unless a caller names one zone
+ * for both.
+ */
+export const DESK_TIME_ZONE = "Europe/London";
+
+/**
  * The walkable ring a desk card is bucketed into before anything else is
  * compared. 0.4 km is about a five minute walk at the pint lane's pace.
  *
@@ -66,18 +76,14 @@ export type DeskCard = {
   name: string;
   kind: VenueKind;
   kindLabel: string;
-  address: string;
   distanceKm?: number;
   walkMinutes?: number;
   wifi: WifiState;
   laptop: LaptopState;
   openNow: boolean | "unknown";
   amenityLines: string[];
-  wifiCaption: string;
-  laptopCaption: string;
   hoursCaption: string;
   hoursRaw: string | null;
-  seatDataLine: string;
   checkedCaption: string;
   source: "osm";
 };
@@ -211,7 +217,6 @@ function clockMinutes(value: string): number | null {
 }
 
 function formatClockMinutes(minutes: number): string {
-  if (minutes === 24 * 60) return "24:00";
   const wrapped = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
   const hour = Math.floor(wrapped / 60);
   const minute = wrapped % 60;
@@ -219,16 +224,28 @@ function formatClockMinutes(minutes: number): string {
 }
 
 /**
+ * The sentence for a window the reader is inside right now. `24:00` is not a
+ * clock anybody reads, and the pack holds both shapes of it: a `24/7` row parses
+ * to `00:00-24:00` every day, and seventy more rows close on midnight.
+ */
+function openWindowCaption(opens: number, adjustedClose: number): string {
+  if (opens === 0 && adjustedClose === 24 * 60) return "Open all day";
+  if (adjustedClose % (24 * 60) === 0) return "Open until midnight";
+  return `Open until ${formatClockMinutes(adjustedClose)}`;
+}
+
+/**
  * One line for the desk card: open until, opens later today, closed today,
- * or hours unknown. Viewer's clock. Raw OSM syntax stays off this line.
+ * or hours unknown. Same clock as the card's own `openNow` rank key. Raw OSM
+ * syntax stays off this line.
  */
 export function deskHoursCaption(
   hours: WeeklyOpeningHours | null | undefined,
   now: Date = new Date(),
-  timeZone?: string,
+  timeZone: string = DESK_TIME_ZONE,
 ): string {
   if (!hours) return "Hours unknown";
-  const zone = timeZone ?? Intl.DateTimeFormat().resolvedOptions().timeZone;
+  const zone = timeZone || DESK_TIME_ZONE;
   const clock = deskLocalClock(now, zone);
   const windows = hours[clock.weekday];
   if (!windows || windows.length === 0) return "Closed today";
@@ -244,10 +261,9 @@ export function deskHoursCaption(
         ? clock.minutes + 24 * 60
         : clock.minutes;
       if (adjustedNow >= opens && adjustedNow < adjustedClose) {
-        return `Open until ${formatClockMinutes(adjustedClose)}`;
+        return openWindowCaption(opens, adjustedClose);
       }
     }
-    return "Hours unknown";
   }
 
   const laterOpen = windows
@@ -334,6 +350,22 @@ export function deskChainKey(name: string): string {
 
 export function deskSeatDataLine(): string {
   return "No seat data yet";
+}
+
+export const DESK_COLLAPSED_CHAINS_ATTRIBUTE = "data-desk-collapsed-chains";
+
+/**
+ * The development-only attribute naming which chains a diverse answer put
+ * aside. Nothing ships to a reader: production answers no attribute at all,
+ * and neither does an answer that collapsed nothing.
+ */
+export function deskCollapsedChainsAttributes(
+  collapsedChains: readonly string[] | null | undefined,
+  env: string | undefined = process.env.NODE_ENV,
+): Record<string, string> {
+  if (env !== "development") return {};
+  if (!collapsedChains || collapsedChains.length === 0) return {};
+  return { [DESK_COLLAPSED_CHAINS_ATTRIBUTE]: collapsedChains.join(",") };
 }
 
 export function deskEmptyLine(): string {
@@ -542,9 +574,10 @@ function toCard(
   observedAt: string | null | undefined,
   timeZone?: string,
 ): DeskCard {
+  const zone = timeZone || DESK_TIME_ZONE;
   const openNow = evaluateOpenState({
     now,
-    timeZone: "Europe/London",
+    timeZone: zone,
     openingHours: point.openingHours ?? undefined,
   });
   return {
@@ -552,7 +585,6 @@ function toCard(
     name: point.name,
     kind: point.kind,
     kindLabel: deskKindLabel(point.kind),
-    address: point.address ?? "",
     ...(typeof km === "number"
       ? { distanceKm: km, walkMinutes: walkMinutesFromKm(km) }
       : {}),
@@ -560,11 +592,8 @@ function toCard(
     laptop: point.laptop,
     openNow,
     amenityLines: deskAmenityLines(point.wifi, point.laptop),
-    wifiCaption: deskWifiCaption(point.wifi),
-    laptopCaption: deskLaptopCaption(point.laptop),
-    hoursCaption: deskHoursCaption(point.openingHours, now, timeZone),
+    hoursCaption: deskHoursCaption(point.openingHours, now, zone),
     hoursRaw: point.hoursRaw ?? null,
-    seatDataLine: deskSeatDataLine(),
     checkedCaption: deskCheckedCaption(observedAt),
     source: "osm",
   };

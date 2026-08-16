@@ -1,11 +1,12 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
 import { evaluateOpenState } from "@/lib/busyness";
 import {
   deskAmenityLines,
   deskChainKey,
+  deskCollapsedChainsAttributes,
   deskHoursCaption,
   parseOsmOpeningHours,
   rankDeskNearMe,
@@ -203,6 +204,22 @@ describe("deskHoursCaption", () => {
     expect(deskHoursCaption(null, new Date("2026-08-16T12:00:00+01:00"), LONDON)).toBe("Hours unknown");
   });
 
+  it("says all day and midnight rather than printing a 24:00 clock", () => {
+    const allDay = parseOsmOpeningHours("24/7");
+    const lateClose = parseOsmOpeningHours("Mo-Su 22:00-24:00");
+    const rollsToMidnight = parseOsmOpeningHours("Mo-Su 08:00-00:00");
+    expect(deskHoursCaption(allDay, new Date("2026-08-16T14:00:00+01:00"), LONDON)).toBe("Open all day");
+    expect(deskHoursCaption(lateClose, new Date("2026-08-16T22:30:00+01:00"), LONDON)).toBe("Open until midnight");
+    expect(deskHoursCaption(rollsToMidnight, new Date("2026-08-16T23:00:00+01:00"), LONDON)).toBe("Open until midnight");
+    expect(deskHoursCaption(allDay, new Date("2026-08-16T14:00:00+01:00"), LONDON)).not.toContain("24:00");
+  });
+
+  it("reads London when no zone is named, not the machine clock", () => {
+    const sundayOnly = parseOsmOpeningHours("Su 12:00-20:00");
+    // Saturday 23:30 UTC is Sunday 00:30 in London.
+    expect(deskHoursCaption(sundayOnly, new Date("2026-08-15T23:30:00Z"))).toBe("Opens 12:00");
+  });
+
   it("crosses the closing minute and the next morning without hedging", () => {
     expect(deskHoursCaption(everyDay, new Date("2026-08-16T21:59:00+01:00"), LONDON)).toBe("Open until 22:00");
     expect(deskHoursCaption(everyDay, new Date("2026-08-16T22:00:00+01:00"), LONDON)).toBe("Closed today");
@@ -240,6 +257,23 @@ describe("desk card projection", () => {
     expect(card?.checkedCaption).toMatch(/^Checked /);
   });
 
+  it("reads one clock for the open-now key and the hours line", () => {
+    const hours = parseOsmOpeningHours("Mo-Fr 09:00-22:00");
+    // Friday 19:30 in New York is Saturday 00:30 in London.
+    const now = new Date("2026-08-14T23:30:00Z");
+    const viewerZone = rankDeskNearMe(here.lat, here.lng, [
+      desk("bean", 0.001, { name: "Desk and Bean", wifi: "yes", openingHours: hours }),
+    ], { now, timeZone: "America/New_York" }).hero;
+    expect(viewerZone?.openNow).toBe(true);
+    expect(viewerZone?.hoursCaption).toBe("Open until 22:00");
+
+    const london = rankDeskNearMe(here.lat, here.lng, [
+      desk("bean", 0.001, { name: "Desk and Bean", wifi: "yes", openingHours: hours }),
+    ], { now }).hero;
+    expect(london?.openNow).toBe(false);
+    expect(london?.hoursCaption).toBe("Closed today");
+  });
+
   it("does not print unknown laptop or seat-data noise", () => {
     const answer = rankDeskNearMe(here.lat, here.lng, [
       desk("quiet", 0.001, { name: "Quiet Corner" }),
@@ -251,10 +285,35 @@ describe("desk card projection", () => {
 });
 
 describe("desk surface debug attribute", () => {
-  it("names collapsed chains only on a development debug attribute", () => {
-    const source = readFileSync(join(process.cwd(), "components/nearme/NearDeskNow.tsx"), "utf8");
-    expect(source).toMatch(/data-desk-collapsed-chains/);
-    expect(source).toMatch(/NODE_ENV === ["']development["']/);
-    expect(source).not.toMatch(/data-testid=\{?["'][^"']*collapsed/);
+  const collapsedAnswer = () => rankDeskNearMe(here.lat, here.lng, [
+    desk("nero-1", 0.0004, { name: "Caffè Nero", wifi: "yes" }),
+    desk("nero-2", 0.0005, { name: "Caffe Nero Oxford Street", wifi: "yes" }),
+    desk("bean", 0.0006, { name: "Desk and Bean" }),
+  ], { maxAnswers: 1 });
+
+  it("renders the collapsed chains on the surface in development", () => {
+    const answer = collapsedAnswer();
+    expect(answer.collapsedChains).toEqual(["caffe nero"]);
+    const markup = renderToStaticMarkup(createElement(
+      "section",
+      deskCollapsedChainsAttributes(answer.collapsedChains, "development"),
+    ));
+    expect(markup).toContain('data-desk-collapsed-chains="caffe nero"');
+  });
+
+  it("renders no debug attribute in production or with nothing collapsed", () => {
+    const answer = collapsedAnswer();
+    expect(renderToStaticMarkup(createElement(
+      "section",
+      deskCollapsedChainsAttributes(answer.collapsedChains, "production"),
+    ))).toBe("<section></section>");
+    expect(renderToStaticMarkup(createElement(
+      "section",
+      deskCollapsedChainsAttributes([], "development"),
+    ))).toBe("<section></section>");
+    expect(renderToStaticMarkup(createElement(
+      "section",
+      deskCollapsedChainsAttributes(undefined, "development"),
+    ))).toBe("<section></section>");
   });
 });

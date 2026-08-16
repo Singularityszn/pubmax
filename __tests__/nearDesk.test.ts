@@ -279,7 +279,7 @@ describe("rankDeskNearMe", () => {
       "Near Wifi",
       "Near Unknown",
     ]);
-    expect(answer.cards.every((card) => card.wifiCaption && card.laptopCaption)).toBe(true);
+    expect(answer.cards.every((card) => card.amenityLines.length > 0)).toBe(true);
     expect(answer.cards[0]?.openNow).toBe(true);
     expect(answer.cards.find((card) => card.name === "Near Closed")?.openNow).toBe(false);
   });
@@ -313,10 +313,10 @@ describe("rankDeskNearMe", () => {
       }),
     ], { observedAt: "2026-08-16T04:01:27.583Z" });
     const card = answer.hero;
-    expect(card?.wifiCaption).toBe("Wifi: yes");
-    expect(card?.laptopCaption).toBe("Laptops: allowed");
     expect(card?.amenityLines).toEqual(["Wifi: yes", "Laptops: allowed"]);
-    expect(card?.hoursCaption).toMatch(/^(Open until |Opens |Closed today|Hours unknown)/);
+    expect(card?.hoursCaption).toMatch(
+      /^(Open until |Open all day|Opens |Closed today|Hours unknown)/,
+    );
     expect(card?.hoursRaw).toBe("Mo-Fr 08:00-17:00");
     expect(card?.source).toBe("osm");
     expect(card?.checkedCaption).toMatch(/^Checked /);

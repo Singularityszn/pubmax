@@ -70,12 +70,11 @@
 .ndnHoursRaw {
   margin: 0;
   max-width: 100%;
-  overflow: hidden;
   color: var(--ink-soft);
   font-size: 0.78rem;
   line-height: 1.35;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  white-space: normal;
+  overflow-wrap: anywhere;
 }
 
 .ndnCard {

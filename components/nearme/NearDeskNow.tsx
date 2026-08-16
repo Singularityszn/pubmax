@@ -7,11 +7,13 @@ import { LocateFixed, RotateCw } from "lucide-react";
 import { trackEvent } from "@/lib/analytics";
 import {
   deskAnswerHeadline,
+  deskCollapsedChainsAttributes,
   deskEmptyLine,
   deskLoadFailedLine,
   deskPatchQuery,
   deskPatchReasonLine,
   rankDeskNearMe,
+  DESK_TIME_ZONE,
   type DeskAnswer,
   type DeskCard,
   type DeskPatchReason,
@@ -176,6 +178,7 @@ export default function NearDeskNow({
       }
       const ranked = rankDeskNearMe(next.lat, next.lng, loaded.venues, {
         observedAt: loaded.observedAt,
+        timeZone: DESK_TIME_ZONE,
       });
       applyAnswer(generation, loaded, ranked, next, reason);
       writeRememberedArea({ kind: "patch", id: next.id });
@@ -225,7 +228,7 @@ export default function NearDeskNow({
             position.coords.latitude,
             position.coords.longitude,
             loaded.venues,
-            { observedAt: loaded.observedAt },
+            { observedAt: loaded.observedAt, timeZone: DESK_TIME_ZONE },
           );
           applyAnswer(generation, loaded, ranked, null, null);
         });
@@ -270,9 +273,7 @@ export default function NearDeskNow({
     <section
       className="nmn"
       aria-label="Find a desk nearby"
-      {...(process.env.NODE_ENV === "development" && answer?.collapsedChains.length
-        ? { "data-desk-collapsed-chains": answer.collapsedChains.join(",") }
-        : {})}
+      {...deskCollapsedChainsAttributes(answer?.collapsedChains)}
     >
       {state === "idle" ? (
         <div className="nmnIntro">
