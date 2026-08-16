@@ -290,7 +290,7 @@ the host side, then view, RSVP, react and map-click on the guest side.
   — no server change needed, since the toggle response already carries that
   answer.
 - `invite_map_opened` — no props. Fires from a new small client component,
-  `components/plan/InviteMapLink.tsx`, on the "See these pubs on the map"
+  `components/plan/InviteMapLink.tsx`, on the "Open these stops on the map"
   link under the stop list. One stop opens `/map?sel=<id>` via `venueMapUrl`;
   two or more opens the ordered crawl via `buildCrawlMapHref`
   (`/map?mode=build&pubs=…`).
@@ -311,7 +311,7 @@ is exactly what the registry's allow-list exists to prevent.
 **Privacy:** no raw device id, guest display name, or invite token ever
 rides in any of these six events — `submitterId`/`submitterHash` and the
 invite token stay server-side, matching the pattern below every other event
-in this rail. The "See these pubs on the map" link is pure navigation, not
+in this rail. The "Open these stops on the map" link is pure navigation, not
 a new data practice: `/privacy` already discloses, under "If you use an
 invite link", that a guest can RSVP and react without an account and that
 PUBMAXX stores the display name, RSVP choice, reaction choices, and a

@@ -329,13 +329,16 @@ type PatchPlanRequest = {
   memberToken?: string;              // fallback if no Authorization: Bearer header
   status?: PlannedNightStatus;       // must be a legal transition from current status
   context?: NightContext;            // full context (strict cleanNightContext)
-  stops?: Array<{ venueId: string }>;// EXACTLY 3 distinct Venue Dataset ids → canonical route replacement
+  stops?: Array<{ venueId: string }>;// 3 to 6 distinct Venue Dataset ids → canonical route replacement
   expectedRouteRevision?: number;    // REQUIRED with `stops` — optimistic concurrency
+  groundingProof?: string;           // with `operationKey`: claims this replacement is the grounded upgrade
+  operationKey?: string;             // the generation operation the proof was minted for
 };
 ```
 
 Rules:
-- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (exactly 3 distinct ids that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- `stops` replacement requires `expectedRouteRevision` and must NOT be combined with `status`. Stops are re-resolved server-side via `canonicalPlanRoute` (3 to 6 distinct ids, per `isPlanStopCount`, that exist in a shipped city dataset; returns canonical names). Replacing the route increments `routeRevision`.
+- The grounded upgrade is permanent and unflagged: a `stops` replacement carrying a `groundingProof` plus an `operationKey` is verified against the exact new order, and only that path raises a one-Stop anchor draft to a grounded route and emits `plan_accepted` once. A legacy V1 creation proof is not an upgrade claim and takes the ordinary update path. Every V2 proof failure is a `422`.
 - `context` must pass strict `cleanNightContext` or `400`.
 - At least one of `status` / `context` / `stops` must be present.
 - `status` change is rejected if `canTransitionPlannedNight(current, next)` is false (`403`/`400` via store).
@@ -352,6 +355,7 @@ Full `PlanState` (updated).
 | `400` | malformed body / invalid context / bad stop set / missing revision / nothing to update |
 | `403` | member token cannot edit this Plan |
 | `409` | `expectedRouteRevision` stale — `"That Crawl Route has changed. Refresh and try again."` |
+| `422` | grounded upgrade refused - `PLAN_ANCHOR_PROOF_*` (expired, route mismatch, operation mismatch, invalid) or `PLAN_ANCHOR_OUTCOME_MISMATCH` |
 
 ### Idempotency
 
