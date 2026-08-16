@@ -424,6 +424,31 @@ describe("priced landing map arrivals", () => {
     });
   });
 
+  it("keeps the hero log CTA about the brand whichever href it gets", () => {
+    expect(
+      pricedLandingLogCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        venueId: "core-1",
+        surface: "hero",
+      }),
+    ).toEqual({
+      href: "/map?sel=core-1&brand=guinness&log=1",
+      label: "Log a Guinness pint price",
+    });
+    expect(
+      pricedLandingLogCta({
+        brandSlug: "guinness",
+        brandLabel: "Guinness",
+        venueId: null,
+        surface: "hero",
+      }),
+    ).toEqual({
+      href: "/map?brand=guinness&log=1",
+      label: "Log a Guinness pint price",
+    });
+  });
+
   it("lists only this brand's published area pages, in the order they arrived", () => {
     expect(
       pricedLandingBrandAreaLinks("guinness", [
@@ -437,10 +462,49 @@ describe("priced landing map arrivals", () => {
     ]);
   });
 
-  it("title-cases an all-caps drink tag and leaves mixed case and short acronyms", () => {
+  it("title-cases an all-caps drink tag and keeps only the known capital tokens", () => {
     expect(formatPricedLandingPintName("GUINNESS")).toBe("Guinness");
     expect(formatPricedLandingPintName("Guinness Draught")).toBe("Guinness Draught");
-    expect(formatPricedLandingPintName("IPA")).toBe("IPA");
+    // A short word is not an acronym: the length rule shouted half of a tag.
+    expect(formatPricedLandingPintName("NECK OIL")).toBe("Neck Oil");
+    expect(formatPricedLandingPintName("BEVERTOWN NECK OIL")).toBe(
+      "Bevertown Neck Oil",
+    );
+    expect(formatPricedLandingPintName("MCMULLEN AK")).toBe("Mcmullen Ak");
+    // Every listed capital token survives, inside a shout and inside mixed case.
+    expect(formatPricedLandingPintName("ALPACALYPSE SESSION IPA")).toBe(
+      "Alpacalypse Session IPA",
+    );
+    expect(formatPricedLandingPintName("Greeneking IPA")).toBe("Greeneking IPA");
+    expect(formatPricedLandingPintName("CRAZY HORSE APA")).toBe("Crazy Horse APA");
+    expect(formatPricedLandingPintName("ESB")).toBe("ESB");
+    expect(formatPricedLandingPintName("HAZY DIPA")).toBe("Hazy DIPA");
+    expect(formatPricedLandingPintName("JUICY NEIPA")).toBe("Juicy NEIPA");
+    expect(formatPricedLandingPintName("SUMMER XPA")).toBe("Summer XPA");
+    // An accent is a letter, so a shout may not come back out half-shouted.
+    expect(formatPricedLandingPintName("STEIGL GOLDBRAÜ")).toBe("Steigl Goldbraü");
+    expect(formatPricedLandingPintName("MURPHY'S")).toBe("Murphy's");
+    expect(formatPricedLandingPintName("YOUNG’S ORIGINAL")).toBe("Young’s Original");
+    expect(formatPricedLandingPintName("LOST ALCOHOL FREE 0.5%")).toBe(
+      "Lost Alcohol Free 0.5%",
+    );
+  });
+
+  it("leaves no half-shouted tag on a published brand page", async () => {
+    const landings = listDrinkBrandLandings(await loadPintPriceLandingVenues());
+    const tags = new Set(landings.flatMap((landing) => landing.rows.map((row) => row.pintName)));
+    expect(tags.size).toBeGreaterThan(0);
+
+    for (const tag of tags) {
+      const printed = formatPricedLandingPintName(tag);
+      for (const word of printed.match(/\p{L}[\p{L}\p{N}'’.-]*/gu) ?? []) {
+        if (word.length < 2 || word !== word.toUpperCase()) continue;
+        expect(
+          ["IPA", "APA", "DIPA", "NEIPA", "ESB", "XPA"],
+          `${tag} printed ${word} in capitals`,
+        ).toContain(word);
+      }
+    }
   });
 
   it("reads the map's eager shard so eligibility is never a hardcoded list", async () => {

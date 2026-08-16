@@ -3,6 +3,7 @@ import "server-only";
 import {
   buildDrinkBrandAreaLanding,
   listDrinkBrandAreaLandings,
+  listDrinkBrandAreaLandingsForBrand,
   type DrinkBrandAreaLanding,
 } from "@/lib/drinkBrandAreaLanding";
 import { loadPintPriceLandingVenues } from "@/lib/pintPriceLandingDataset.server";
@@ -14,6 +15,15 @@ export function drinkBrandAreaLandingRoute(landing: DrinkBrandAreaLanding): stri
 
 export async function loadDrinkBrandAreaLandings(): Promise<DrinkBrandAreaLanding[]> {
   return listDrinkBrandAreaLandings(await loadPintPriceLandingVenues());
+}
+
+export async function loadDrinkBrandAreaLandingsForBrand(
+  brandSlug: string,
+): Promise<DrinkBrandAreaLanding[]> {
+  return listDrinkBrandAreaLandingsForBrand(
+    brandSlug,
+    await loadPintPriceLandingVenues(),
+  );
 }
 
 export async function loadDrinkBrandAreaLanding(

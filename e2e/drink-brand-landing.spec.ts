@@ -201,6 +201,16 @@ async function assertLandingContract(page: Page): Promise<void> {
 
   const rows = page.locator(".drinkBrandDirectory__row");
   await expect(rows).toHaveCount(20);
+  // The borough is its own cell, so a generated trailing separator would hang
+  // with nothing after it.
+  await expect
+    .poll(async () =>
+      rows
+        .first()
+        .locator(".drinkBrandDirectory__borough")
+        .evaluate((node) => getComputedStyle(node, "::after").content),
+    )
+    .toBe("none");
   await expect(rows.first()).toContainText("J.J. Moon's - JD Wetherspoon");
   await expect(rows.first()).toContainText("£3.09");
   await expect(page.locator(".drinkBrandDirectory__publisher")).toHaveCount(20);

@@ -163,24 +163,28 @@ export function pricedLandingAreaMapCta(input: {
 }
 
 /**
- * The row (or hero) log arrival: ONE decision answers both the destination and
- * the words. A named pub may say "this price"; a brand-only href may not.
+ * The log arrival: ONE decision answers both the destination and the words, on
+ * both surfaces that offer it. A ROW may say "this price" only while its own
+ * pub is named, because a brand-only href opens the map's own picker instead. A
+ * HERO is about the brand rather than about one row, so it names the brand
+ * whichever href it gets, and that sentence stays true either way.
  */
 export function pricedLandingLogCta(input: {
   brandSlug: string;
   brandLabel: string;
   venueId?: string | null;
+  surface?: "row" | "hero";
 }): PricedLandingMapCta {
   const venueId = input.venueId || null;
+  const brandWording = `Log a ${input.brandLabel} pint price`;
   return {
     href: pricedLandingMapHref({
       brandSlug: input.brandSlug,
       venueId,
       log: true,
     }),
-    label: venueId
-      ? "Log this price"
-      : `Log a ${input.brandLabel} pint price`,
+    label:
+      input.surface === "hero" || !venueId ? brandWording : "Log this price",
   };
 }
 
@@ -199,10 +203,32 @@ export function pricedLandingBrandAreaLinks(
     }));
 }
 
-/** A drink tag is title-cased when the dataset shouted it; short acronyms stay. */
+/**
+ * The tokens a shouted drink tag is allowed to keep in capitals. It is an
+ * EXPLICIT list rather than a length rule: "NECK OIL" and "IPA" are both two
+ * short words, and only one of them is an acronym, so a rule counting letters
+ * printed "Neck OIL" - a half-shout worse than the untouched tag. Anything
+ * absent here title-cases, however short.
+ */
+const PRICED_LANDING_CAPITALISED_DRINK_TOKENS = new Set([
+  "IPA",
+  "APA",
+  "DIPA",
+  "NEIPA",
+  "ESB",
+  "XPA",
+]);
+
+/**
+ * A drink tag is title-cased when the dataset shouted it; the known all-caps
+ * beer tokens stay. The word pattern is Unicode, because an accented shout
+ * ("GOLDBRAÜ") split on the accent under an ASCII class and came back out
+ * half-shouted.
+ */
 export function formatPricedLandingPintName(name: string): string {
-  return name.replace(/[A-Za-z][A-Za-z0-9'’.-]*/g, (word) => {
-    if (word.length <= 3 || word !== word.toUpperCase()) return word;
+  return name.replace(/\p{L}[\p{L}\p{N}'’.-]*/gu, (word) => {
+    if (word !== word.toUpperCase()) return word;
+    if (PRICED_LANDING_CAPITALISED_DRINK_TOKENS.has(word)) return word;
     return `${word.charAt(0)}${word.slice(1).toLowerCase()}`;
   });
 }

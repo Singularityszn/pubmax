@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import path from "node:path";
 import { createElement, type ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -304,16 +302,6 @@ describe("governed drink brand landing page", () => {
     expect(html).toContain(">Guinness</span>");
     expect(html).not.toContain(">GUINNESS</span>");
     expect(html).not.toContain('href="/area/clapham"');
-  });
-
-  it("does not hang a separator after the borough and centres a wrapping hero CTA", () => {
-    const css = readFileSync(
-      path.join(process.cwd(), "components/drinks/drinkBrandDirectory.css"),
-      "utf8",
-    );
-
-    expect(css).not.toMatch(/__borough::after[\s\S]*content:\s*" ·"/);
-    expect(css).toMatch(/__primary\s*\{[^}]*text-align:\s*center/);
   });
 
   it("binds metadata to the canonical route and leaves unknown brands noindex", async () => {

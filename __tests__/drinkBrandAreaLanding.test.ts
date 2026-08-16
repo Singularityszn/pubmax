@@ -6,6 +6,7 @@ import {
   DRINK_BRAND_AREA_PUBLICATION_FLOOR,
   buildDrinkBrandAreaLanding,
   listDrinkBrandAreaLandings,
+  listDrinkBrandAreaLandingsForBrand,
   type DrinkBrandAreaLanding,
 } from "@/lib/drinkBrandAreaLanding";
 import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
@@ -522,6 +523,25 @@ describe("governed drink brand by Night Area landings", () => {
       },
     });
     expect(landing?.rows[1]?.publisher).toBeNull();
+  });
+
+  // The brand page needs its OWN pairs, so it asks for them rather than
+  // building every brand's and discarding the rest on every request.
+  it("answers one brand's pairs exactly as the whole list filtered to it", async () => {
+    const venues = await realVenues();
+    const everyPair = listDrinkBrandAreaLandings(venues, NIGHT_AREAS);
+
+    for (const brand of DRINK_BRANDS.beer) {
+      expect(listDrinkBrandAreaLandingsForBrand(brand.id, venues, NIGHT_AREAS)).toEqual(
+        everyPair.filter((landing) => landing.brandSlug === brand.id),
+      );
+    }
+    expect(
+      listDrinkBrandAreaLandingsForBrand("not-a-brand", venues, NIGHT_AREAS),
+    ).toEqual([]);
+    expect(
+      listDrinkBrandAreaLandingsForBrand("guinness", venues, NIGHT_AREAS).length,
+    ).toBeGreaterThan(0);
   });
 
   // Derived from the publishing areas and the brand catalogue rather than from

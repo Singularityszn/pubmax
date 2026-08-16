@@ -7,6 +7,7 @@ import PricedLandingRows, {
 import type { DrinkBrandLanding } from "@/lib/drinkBrandLanding";
 import {
   pricedLandingCountLabel,
+  pricedLandingLogCta,
   pricedLandingMapArrivalRow,
   pricedLandingMapHref,
   type MapSelectableVenueIds,
@@ -34,10 +35,11 @@ export default function DrinkBrandLandingContent({
     mapSelectableVenueIds,
   );
   const mapHref = pricedLandingMapHref({ brandSlug: landing.slug });
-  const contributionHref = pricedLandingMapHref({
+  const contribution = pricedLandingLogCta({
     brandSlug: landing.slug,
+    brandLabel: landing.brandLabel,
     venueId: contributionRow?.venueId,
-    log: true,
+    surface: "hero",
   });
 
   return (
@@ -69,9 +71,9 @@ export default function DrinkBrandLandingContent({
           </Link>
           <Link
             className="drinkBrandDirectory__secondary"
-            href={contributionHref}
+            href={contribution.href}
           >
-            Log a {landing.brandLabel} pint price
+            {contribution.label}
           </Link>
         </nav>
       </header>
