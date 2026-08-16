@@ -90,6 +90,65 @@ export function normalizeOsmPubElement(element, { fallbackCity = null } = {}) {
 }
 
 /**
+ * Tags the work-spot vertical needs and a pub pack never carried. Kept as a
+ * table so the UK venue pack and any later reader agree on what was retained,
+ * and so a tag OSM does not state stays absent rather than becoming a guessed
+ * default. `laptop` / `laptop_friendly` are not approved OSM keys, so they are
+ * read only when a mapper has stated one.
+ */
+const WORK_SPOT_TAGS = /** @type {const} */ ([
+  ["internetAccess", "internet_access"],
+  ["internetAccessFee", "internet_access:fee"],
+  ["internetAccessSsid", "internet_access:ssid"],
+  ["wheelchair", "wheelchair"],
+  ["capacity", "capacity"],
+  ["brand", "brand"],
+  ["laptop", "laptop"],
+  ["laptopFriendly", "laptop_friendly"],
+  ["takeaway", "takeaway"],
+  ["food", "food"],
+  ["alcohol", "alcohol"],
+]);
+
+function readWorkSpotTags(tags) {
+  /** @type {Record<string, string>} */
+  const extra = {};
+  for (const [field, key] of WORK_SPOT_TAGS) {
+    const value = typeof tags[key] === "string" ? tags[key].trim() : "";
+    if (value) extra[field] = value;
+  }
+  return extra;
+}
+
+/**
+ * Normalize any OSM venue element the UK venue pack covers - a pub, a cafe, a
+ * library, a coworking desk - onto the pub contract plus the work-spot tags.
+ *
+ * The pub fields are produced by `normalizeOsmPubElement` itself rather than
+ * restated here, so a pub row from this function and a pub row from the pub
+ * pack cannot drift. `kind` and `taxonomyKey` are what the caller decided the
+ * element is; this function never guesses them from the tags.
+ *
+ * @param {any} element raw Overpass node/way with tags and coordinates
+ * @param {{ kind: string, taxonomyKey: string, fallbackCity?: string | null }} options
+ * @returns {Record<string, unknown> | null}
+ */
+export function normalizeOsmVenueElement(element, { kind, taxonomyKey, fallbackCity = null }) {
+  const base = normalizeOsmPubElement(element, { fallbackCity });
+  if (!base) return null;
+  const tags = element?.tags ?? {};
+  return {
+    ...base,
+    kind,
+    taxonomyKey,
+    shop: typeof tags.shop === "string" ? tags.shop : null,
+    tourism: typeof tags.tourism === "string" ? tags.tourism : null,
+    office: typeof tags.office === "string" ? tags.office : null,
+    ...readWorkSpotTags(tags),
+  };
+}
+
+/**
  * Sort normalized OSM pubs by stable geographic and identity keys.
  *
  * @param {Array<Record<string, any>>} pubs

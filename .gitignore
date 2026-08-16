@@ -57,3 +57,8 @@ skills_used_global.md
 
 # clerk configuration (can include secrets)
 /.clerk/
+
+# UK venue Overpass working files: several hundred MB of raw responses that
+# rebuild from `npm run fetch:uk-venues`. The normalized packs beside them are
+# what a reader consumes and those ARE committed.
+data/osm/uk/raw_venues/

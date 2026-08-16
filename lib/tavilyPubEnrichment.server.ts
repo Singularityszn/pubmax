@@ -11,7 +11,11 @@ import {
 import { DAY_MS } from "@/lib/dayMs";
 import type { SearchProvider } from "@/lib/searchProvider.server";
 
+// London leads the rotation. It was absent from it entirely until 2026-08-16,
+// so no London pub had ever reached this seam, while the site's whole price
+// story is a London one.
 const CITY_ROTATION = [
+  "london",
   "manchester",
   "birmingham",
   "edinburgh",

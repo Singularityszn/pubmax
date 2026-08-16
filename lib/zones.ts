@@ -7,6 +7,8 @@
 // per-zone median "pint index", and the low-observation honesty gate. It never
 // invents a number — a zone with too few priced venues is reported as such.
 
+import type { VenueKind } from "@/lib/venues";
+
 /** Filterable fare zones offered by the picker: 1–6 plus "all". */
 export const ZONE_IDS = [1, 2, 3, 4, 5, 6] as const;
 export type ZoneId = (typeof ZONE_IDS)[number];
@@ -69,7 +71,7 @@ export function median(values: readonly number[]): number | null {
 export type ZonePricedVenue = {
   zone?: number | null;
   cheapestPrice?: number | null;
-  kind?: "pub" | "bar" | "club" | "food" | "restaurant";
+  kind?: VenueKind;
 };
 
 /** One zone's row in the pint index. */

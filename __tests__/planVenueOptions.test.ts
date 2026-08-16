@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { planVenueOptions } from "@/lib/planVenueOptions";
+import { VENUE_KINDS } from "@/lib/venues";
 
 describe("planVenueOptions", () => {
   it("keeps legacy and explicit pubs while excluding other venue kinds", () => {
@@ -26,5 +27,18 @@ describe("planVenueOptions", () => {
         { id: "future", name: "Future Venue", kind: "cinema" },
       ]),
     ).toEqual([]);
+  });
+
+  it("drops every kind the widened vocabulary added, without a list of its own", () => {
+    expect(
+      planVenueOptions(
+        VENUE_KINDS.filter((kind) => kind !== "pub").map((kind) => ({
+          id: kind,
+          name: `A ${kind}`,
+          kind,
+        })),
+      ),
+    ).toEqual([]);
+    expect(planVenueOptions([{ id: "cafe", name: "Desk & Bean", kind: "cafe" }])).toEqual([]);
   });
 });

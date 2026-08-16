@@ -21,7 +21,7 @@ import { discardBody } from "@/lib/responseBody";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
-import type { VenueFilterHints, VenueKind } from "@/lib/venues";
+import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v1";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -141,9 +141,7 @@ function isValidSlimVenue(value: unknown): value is SlimVenue {
     (typeof row.zone === "number" &&
       Number.isInteger(row.zone) &&
       row.zone > 0);
-  const kindOk =
-    row.kind === undefined ||
-    ["pub", "bar", "club", "food", "restaurant"].includes(String(row.kind));
+  const kindOk = row.kind === undefined || isVenueKind(row.kind);
   const priceBandOk =
     row.priceBand === undefined ||
     row.priceBand === 0 ||

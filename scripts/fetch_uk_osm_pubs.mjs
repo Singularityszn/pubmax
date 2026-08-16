@@ -21,19 +21,24 @@
 //
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
-import {
-  access,
-  mkdir,
-  readFile,
-  readdir,
-  rename,
-  stat,
-  unlink,
-  writeFile,
-} from "node:fs/promises";
+import { access, mkdir, readFile, readdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import {
+  COMMIT_SIZE_LIMIT_BYTES,
+  INTER_CHUNK_DELAY_MS,
+  INTER_CHUNK_DELAY_STALE_MS,
+  MAX_SOURCE_AGE_MS,
+  QUERY_TIMEOUT_S,
+  fetchOverpass,
+  formatMb,
+  isFreshOverpassSnapshot,
+  parseOverpassRawText,
+  sleep,
+  writeCompact,
+  writePretty,
+} from "./lib/overpassClient.mjs";
 import {
   DEFAULT_LAT_STEP,
   DEFAULT_LON_STEP,
@@ -59,21 +64,11 @@ const CURATED_LONDON_SLIM = path.join(ROOT, "public", "data", "venues_slim.json"
 const OUTER_LONDON_SEED = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
 const CITIES_DIR = path.join(ROOT, "data", "cities");
 
-const OVERPASS_ENDPOINTS = [
-  "https://overpass.private.coffee/api/interpreter",
-  "https://overpass.kumi.systems/api/interpreter",
-  "https://overpass-api.de/api/interpreter",
-];
-
-const INTER_CHUNK_DELAY_MS = 8_000;
-const INTER_CHUNK_DELAY_STALE_MS = 3_000;
-const MAX_ATTEMPTS = 6;
-const MAX_BACKOFF_MS = 180_000;
-const QUERY_TIMEOUT_S = 90;
-const MAX_SOURCE_AGE_MS = 48 * 60 * 60 * 1_000;
-const MAX_FUTURE_CLOCK_SKEW_MS = 5 * 60 * 1_000;
-// Guard from the wave brief: stop before committing a data drop this large.
-const COMMIT_SIZE_LIMIT_BYTES = 100 * 1024 * 1024;
+// The Overpass client contract (endpoints, retries, backoff, staleness, atomic
+// writes) is shared with the venue fetcher - see scripts/lib/overpassClient.mjs.
+// Re-exported here because __tests__/ukOsmSeedPacks.test.ts pins them through
+// this module's public surface.
+export { isFreshOverpassSnapshot, parseOverpassRawText };
 
 function parseArgs(argv) {
   const options = {
@@ -102,10 +97,6 @@ function parseArgs(argv) {
   return options;
 }
 
-function sleep(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
 async function fileExists(filePath) {
   try {
     await access(filePath);
@@ -113,124 +104,6 @@ async function fileExists(filePath) {
   } catch {
     return false;
   }
-}
-
-function isRetryableStatus(status) {
-  return status === 429 || status === 502 || status === 503 || status === 504;
-}
-
-function backoffMs(attempt, retryAfterHeader) {
-  const retryAfterS = Number(retryAfterHeader);
-  if (Number.isFinite(retryAfterS) && retryAfterS > 0) {
-    return Math.min(MAX_BACKOFF_MS, retryAfterS * 1_000);
-  }
-  return Math.min(MAX_BACKOFF_MS, 4_000 * 2 ** attempt);
-}
-
-function isValidOverpassRaw(raw) {
-  return (
-    raw !== null &&
-    typeof raw === "object" &&
-    Array.isArray(raw.elements) &&
-    !(typeof raw.remark === "string" && raw.remark.trim().length > 0)
-  );
-}
-
-export function parseOverpassRawText(text) {
-  try {
-    const raw = JSON.parse(text);
-    return isValidOverpassRaw(raw) ? raw : null;
-  } catch {
-    return null;
-  }
-}
-
-export function isFreshOverpassSnapshot(raw, nowMs = Date.now()) {
-  if (!isValidOverpassRaw(raw)) return false;
-  const timestampMs = Date.parse(raw.osm3s?.timestamp_osm_base ?? "");
-  if (!Number.isFinite(timestampMs)) return false;
-  return (
-    timestampMs >= nowMs - MAX_SOURCE_AGE_MS &&
-    timestampMs <= nowMs + MAX_FUTURE_CLOCK_SKEW_MS
-  );
-}
-
-async function fetchOverpass(query, { allowStale = false } = {}) {
-  let lastError = null;
-  for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt += 1) {
-    const endpoint = OVERPASS_ENDPOINTS[attempt % OVERPASS_ENDPOINTS.length];
-    try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-          Accept: "application/json",
-          "User-Agent": "PubMaxing/0.1 (UK pub seed; contact: github.com/karanmrn/pubmax)",
-        },
-        body: `data=${encodeURIComponent(query)}`,
-      });
-      if (!response.ok) {
-        const body = await response.text().catch(() => "");
-        const err = new Error(`Overpass ${response.status} from ${endpoint}: ${body.slice(0, 200)}`);
-        if (isRetryableStatus(response.status)) {
-          lastError = err;
-          const backoff = backoffMs(attempt, response.headers.get("retry-after"));
-          console.warn(`  rate-limit/backoff ${backoff}ms (attempt ${attempt + 1}/${MAX_ATTEMPTS})`);
-          await sleep(backoff);
-          continue;
-        }
-        err.fatal = true;
-        throw err;
-      }
-      const raw = await response.json();
-      if (!isValidOverpassRaw(raw)) {
-        throw new Error(`Invalid Overpass JSON from ${endpoint}: missing elements or contains remark`);
-      }
-      if (!isFreshOverpassSnapshot(raw)) {
-        const stamp = raw.osm3s?.timestamp_osm_base ?? "missing timestamp";
-        if (!allowStale) {
-          throw new Error(`Stale Overpass snapshot from ${endpoint}: ${stamp}`);
-        }
-        console.warn(`  accepting stale Overpass snapshot from ${endpoint}: ${stamp}`);
-      }
-      return raw;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (lastError.fatal) throw lastError;
-      if (attempt < MAX_ATTEMPTS - 1) {
-        const backoff = backoffMs(attempt, null);
-        console.warn(`  fetch error, retry in ${backoff}ms: ${lastError.message}`);
-        await sleep(backoff);
-        continue;
-      }
-    }
-  }
-  throw lastError ?? new Error("Overpass fetch failed");
-}
-
-/** Raw chunks are written compact: the full pull is ~38k elements across 132
- * files, and pretty-printing them would roughly quadruple what the repo carries
- * for zero readability gain on a machine-generated dump. */
-async function writeJsonAtomic(filePath, content) {
-  const temporaryPath = path.join(
-    path.dirname(filePath),
-    `.${path.basename(filePath)}.tmp`,
-  );
-  try {
-    await writeFile(temporaryPath, content);
-    await rename(temporaryPath, filePath);
-  } catch (error) {
-    await unlink(temporaryPath).catch(() => {});
-    throw error;
-  }
-}
-
-async function writeCompact(filePath, value) {
-  await writeJsonAtomic(filePath, `${JSON.stringify(value)}\n`);
-}
-
-async function writePretty(filePath, value) {
-  await writeJsonAtomic(filePath, `${JSON.stringify(value, null, 2)}\n`);
 }
 
 async function fetchChunk(chunk, { refresh, allowStale }) {
@@ -343,10 +216,6 @@ async function dirSizeBytes(dir) {
     else total += (await stat(full)).size;
   }
   return total;
-}
-
-function formatMb(bytes) {
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
 // --- main --------------------------------------------------------------------

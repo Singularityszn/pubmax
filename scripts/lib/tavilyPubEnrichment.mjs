@@ -2,6 +2,15 @@ const TAVILY_SEARCH_URL = "https://api.tavily.com/search";
 const MAX_TAVILY_CALLS_PER_RUN = 200;
 
 export const CITY_DEFINITIONS = Object.freeze({
+  // London is the city the product is about and was the one city the rotation
+  // never held, so no London pub had ever been through this seam. The bbox is
+  // Greater London and it is used only to SELECT candidates out of the UK OSM
+  // pack; it makes no claim about which borough a pub is in.
+  london: {
+    id: "london",
+    displayName: "London",
+    bbox: [51.28, -0.53, 51.7, 0.34],
+  },
   manchester: {
     id: "manchester",
     displayName: "Manchester",
@@ -156,9 +165,16 @@ export function selectCityPubs(cityId, allPubs) {
       const bWebsite = b.website ? 0 : 1;
       const aChain = classifyChainPub(a) ? 1 : 0;
       const bChain = classifyChainPub(b) ? 1 : 0;
+      // A pub the curated layer already owns is already covered by the London
+      // pipeline, so it goes behind one nobody has looked at. `curatedRef` is
+      // written by the UK OSM pack itself; a pack without it simply sorts by
+      // the keys below, exactly as before.
+      const aCovered = a.curatedRef ? 1 : 0;
+      const bCovered = b.curatedRef ? 1 : 0;
       return (
         aWebsite - bWebsite ||
         aChain - bChain ||
+        aCovered - bCovered ||
         String(a.name).localeCompare(String(b.name)) ||
         String(a.osmId).localeCompare(String(b.osmId))
       );

@@ -9,6 +9,12 @@ never feed the curated venue index.
 Prices are **not** taken from OSM. Everything in these packs is venue presence
 and metadata; pint prices come from community submissions and curated datasets.
 
+The WIDER extraction - bars, cafes, coworking desks, libraries and the rest of
+the places a drinker or a laptop could sit in - lives beside this one in
+[`VENUES.md`](VENUES.md). It is a separate taxonomy, separate packs and a
+separate London publish; this pack stays `amenity=pub` alone, because the base
+map layer and every reader of it draw a pub.
+
 ## Layout
 
 ```
@@ -48,9 +54,13 @@ renames, so interruption cannot replace a good file with a partial one.
 base (busy primary, lagging mirror): still OSM, still ODbL, just not within the
 usual 48-hour freshness window.
 
-Overpass etiquette matches `scripts/fetch_city_osm_pubs.mjs`: one request at a
-time, a delay between chunks, endpoint rotation, and exponential backoff on
-transient failures. A full cold pull takes roughly an hour.
+Overpass etiquette lives in `scripts/lib/overpassClient.mjs`, the one client this
+fetcher shares with the venue fetcher beside it: one request at a time, a delay
+between chunks, exponential backoff on transient failures, and a per-request
+timeout so a hung mirror cannot stall a chunk on its own. Endpoints are tiered
+there rather than rotated flat, because a flat rotation spent two attempts of
+every chunk on a mirror that was down or serving a ten-week-old snapshot. A full
+cold pull takes roughly an hour.
 
 ## How the query is chunked
 

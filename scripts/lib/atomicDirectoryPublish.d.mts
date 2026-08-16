@@ -4,6 +4,8 @@ export function publishStagedDirectory(options: {
   requiredFiles?: string[];
   manifestBudgetBytes?: number;
   totalBudgetBytes?: number;
+  /** URL prefix the staged manifest must claim. Defaults to the pub layer's. */
+  urlPrefix?: string;
 }): Promise<{
   generation: string;
   manifestBytes: number;

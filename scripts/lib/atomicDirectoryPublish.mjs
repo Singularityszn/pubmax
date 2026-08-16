@@ -19,12 +19,22 @@ async function exists(pathname) {
   }
 }
 
+/**
+ * The URL prefix a staged manifest is allowed to claim. It is a PARAMETER
+ * rather than a constant because a second sharded layer publishes through this
+ * same function (`public/data/london_venues/`), and a hardcoded path would have
+ * meant either a fork of the publisher or a layer that lies about where its own
+ * files live. Its default keeps every existing caller unchanged.
+ */
+const DEFAULT_URL_PREFIX = "/data/uk_base/";
+
 export async function publishStagedDirectory({
   stagedDir,
   targetDir,
   requiredFiles = [],
   manifestBudgetBytes = Number.POSITIVE_INFINITY,
   totalBudgetBytes = Number.POSITIVE_INFINITY,
+  urlPrefix = DEFAULT_URL_PREFIX,
 }) {
   for (const file of requiredFiles) {
     await access(path.join(stagedDir, file));
@@ -38,7 +48,7 @@ export async function publishStagedDirectory({
   }
 
   const compactManifest = typeof manifest.urlPrefix === "string";
-  if (compactManifest && manifest.urlPrefix !== "/data/uk_base/") {
+  if (compactManifest && manifest.urlPrefix !== urlPrefix) {
     throw new Error(`Invalid staged shard URL prefix: ${manifest.urlPrefix}`);
   }
   const shardFiles = manifest.shards.map((shard) => {
@@ -58,7 +68,9 @@ export async function publishStagedDirectory({
     const url = typeof shard?.url === "string" ? shard.url : "";
     const file = compactManifest
       ? `${shardId}.json`
-      : url.replace(/^\/data\/uk_base\//, "");
+      : url.startsWith(urlPrefix)
+        ? url.slice(urlPrefix.length)
+        : url;
     if (
       !file ||
       (!compactManifest && file === url) ||
@@ -94,7 +106,7 @@ export async function publishStagedDirectory({
   const generation = hash.digest("hex").slice(0, 16);
   const packRoot = path.join(targetDir, "packs");
   const generationDir = path.join(packRoot, generation);
-  const publicPrefix = `/data/uk_base/packs/${generation}/`;
+  const publicPrefix = `${urlPrefix}packs/${generation}/`;
   const nextManifest = compactManifest
     ? { ...manifest, urlPrefix: publicPrefix }
     : {

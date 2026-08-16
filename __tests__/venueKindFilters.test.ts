@@ -105,6 +105,18 @@ describe("venueKindFilters", () => {
     expect(venueKindLabel("restaurant")).toBe("Restaurant");
   });
 
+  it("lands a kind this build does not hold on the neutral word, never on nothing", () => {
+    // A slim row, a shard or a stored venue may carry a kind a later build
+    // added. It reaches this copy as a string, and "undefined" printed into a
+    // heading or an image alt text is not copy.
+    const unknown = "brewpub" as Venue["kind"];
+    expect(venueKindLabel(unknown)).toBe("Venue");
+    expect(venueKindNoun(unknown)).toBe("venue");
+    // Still not a fall-through to Pub: a known non-pub kind keeps its own word.
+    expect(venueKindLabel("library")).toBe("Library");
+    expect(venueKindNoun("library")).toBe("library");
+  });
+
   it("supplies kind-honest nouns for shared venue copy", () => {
     expect(venueKindNoun(undefined)).toBe("pub");
     expect(venueKindNoun("pub")).toBe("pub");

@@ -20,28 +20,53 @@ export const UK_BASE_GRID = {
   lonStep: 0.25,
 };
 
-export function cellIndexFor(lat, lon) {
+// The three cell helpers take a grid so a SECOND sharded layer can be cut on a
+// finer one. The London venue layer needs that: a 0.25° cell holds a few hundred
+// pubs but a few thousand pubs-plus-cafes-plus-libraries, and the per-viewport
+// budget is a promise about one fetch, not about one kind. The default is the
+// pub layer's own grid, so every existing caller is unchanged. The client never
+// derives a cell - it reads the manifest and intersects bboxes - so a layer may
+// carry its own grid without shipping a second copy of this maths to the phone.
+
+export function cellIndexFor(lat, lon, grid = UK_BASE_GRID) {
   return {
-    latIndex: Math.floor((lat - UK_BASE_GRID.originLat) / UK_BASE_GRID.latStep),
-    lonIndex: Math.floor((lon - UK_BASE_GRID.originLon) / UK_BASE_GRID.lonStep),
+    latIndex: Math.floor((lat - grid.originLat) / grid.latStep),
+    lonIndex: Math.floor((lon - grid.originLon) / grid.lonStep),
   };
 }
 
+/**
+ * How many decimals a cell id needs to tell this grid's cells apart, derived
+ * from the step itself and never guessed. A 0.25° grid lands on two, and that is
+ * the floor so the pub layer's existing ids do not move; a 0.025° grid needs
+ * three, and formatting it to two would collapse several cells onto one id and
+ * MERGE THEIR ROWS - which is a silent data loss, not a naming detail.
+ */
+export function cellKeyDecimals(grid = UK_BASE_GRID) {
+  const decimals = (step) => {
+    const text = String(step);
+    const dot = text.indexOf(".");
+    return dot === -1 ? 0 : text.length - dot - 1;
+  };
+  return Math.max(2, decimals(grid.latStep), decimals(grid.lonStep));
+}
+
 /** South-west corner of a cell, formatted — also its file name and manifest id. */
-export function cellKey(latIndex, lonIndex) {
-  const lat = UK_BASE_GRID.originLat + latIndex * UK_BASE_GRID.latStep;
-  const lon = UK_BASE_GRID.originLon + lonIndex * UK_BASE_GRID.lonStep;
-  return `${lat.toFixed(2)}_${lon.toFixed(2)}`;
+export function cellKey(latIndex, lonIndex, grid = UK_BASE_GRID) {
+  const lat = grid.originLat + latIndex * grid.latStep;
+  const lon = grid.originLon + lonIndex * grid.lonStep;
+  const places = cellKeyDecimals(grid);
+  return `${lat.toFixed(places)}_${lon.toFixed(places)}`;
 }
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order, as the manifest wants. */
-export function cellBbox(latIndex, lonIndex) {
-  const minLat = UK_BASE_GRID.originLat + latIndex * UK_BASE_GRID.latStep;
-  const minLon = UK_BASE_GRID.originLon + lonIndex * UK_BASE_GRID.lonStep;
+export function cellBbox(latIndex, lonIndex, grid = UK_BASE_GRID) {
+  const minLat = grid.originLat + latIndex * grid.latStep;
+  const minLon = grid.originLon + lonIndex * grid.lonStep;
   return [
     Number(minLon.toFixed(4)),
     Number(minLat.toFixed(4)),
-    Number((minLon + UK_BASE_GRID.lonStep).toFixed(4)),
-    Number((minLat + UK_BASE_GRID.latStep).toFixed(4)),
+    Number((minLon + grid.lonStep).toFixed(4)),
+    Number((minLat + grid.latStep).toFixed(4)),
   ];
 }

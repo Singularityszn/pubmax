@@ -29,22 +29,55 @@ export function hasSavedPubVenue(
   return venues.some((venue) => isPubVenue(venue) && savedIds.has(venue.id));
 }
 
+/**
+ * The word a surface prints for a kind. Every kind names itself: falling
+ * through to "Pub" would print the wrong noun over a library the moment the
+ * vocabulary widened, and a wrong noun beside a figure is exactly what
+ * `docs/VOICE.md` forbids. A kind this build does not hold lands on the NEUTRAL
+ * entry rather than on nothing: a heading that reads "undefined" is not copy.
+ */
+const KIND_LABELS: Record<VenueKind, string> = {
+  pub: "Pub",
+  bar: "Bar",
+  club: "Club",
+  food: "Late food",
+  restaurant: "Restaurant",
+  cafe: "Cafe",
+  coworking: "Coworking space",
+  library: "Library",
+  hotel_lounge: "Hotel bar",
+  other: "Venue",
+};
+
+const KIND_NOUNS: Record<VenueKind, string> = {
+  pub: "pub",
+  bar: "bar",
+  club: "club",
+  food: "late-food venue",
+  restaurant: "restaurant",
+  cafe: "cafe",
+  coworking: "coworking space",
+  library: "library",
+  hotel_lounge: "hotel bar",
+  other: "venue",
+};
+
 export function venueKindLabel(kind: VenueKind | undefined): string {
-  if (kind === "bar") return "Bar";
-  if (kind === "food") return "Late food";
-  if (kind === "club") return "Club";
-  if (kind === "restaurant") return "Restaurant";
-  return "Pub";
+  if (kind === undefined) return KIND_LABELS.pub;
+  return KIND_LABELS[kind] ?? KIND_LABELS.other;
 }
 
 export function venueKindNoun(kind: VenueKind | undefined): string {
-  if (kind === "bar") return "bar";
-  if (kind === "food") return "late-food venue";
-  if (kind === "club") return "club";
-  if (kind === "restaurant") return "restaurant";
-  return "pub";
+  if (kind === undefined) return KIND_NOUNS.pub;
+  return KIND_NOUNS[kind] ?? KIND_NOUNS.other;
 }
 
+/**
+ * The map's kind filter offers the CURATED kinds only. A kind that arrived with
+ * the UK-wide OSM venue pack answers null, so `filterVenuesByKind` leaves it out
+ * of a curated map view rather than showing it under a toggle nobody can reach.
+ * Giving those kinds their own surface is a separate wave.
+ */
 function curatedVenueKind(
   kind: VenueKind | undefined,
 ): CuratedVenueKind | null {
