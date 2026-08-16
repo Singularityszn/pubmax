@@ -112,8 +112,14 @@ async function openHydratedPlanComposer(page: Page): Promise<void> {
   const stopCount = page
     .getByRole("group", { name: "Number of pub stops" })
     .getByRole("button", { name: "4", exact: true });
-  await stopCount.click();
-  await expect(stopCount).toHaveAttribute("aria-pressed", "true");
+  // A tap that lands before React attaches is dropped, and a lone click is
+  // therefore not a wait for hydration: under a loaded box the button answered
+  // "aria-pressed=false" for the whole assertion budget. Retry the tap itself
+  // until the control answers.
+  await expect(async () => {
+    await stopCount.click();
+    await expect(stopCount).toHaveAttribute("aria-pressed", "true", { timeout: 1_000 });
+  }).toPass({ timeout: 20_000 });
 }
 
 test("Copy invite link shows for the host's own session and never for an anonymous visitor", async ({
