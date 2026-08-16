@@ -13,6 +13,16 @@ import {
   normalizeOsmPubElement,
 } from "../scripts/lib/osmPubNormalizer.mjs";
 import {
+  MAX_ATTEMPTS,
+  MAX_BACKOFF_MS,
+  OVERPASS_FALLBACK_ENDPOINTS,
+  OVERPASS_PRIMARY_ENDPOINTS,
+  PRIMARY_ATTEMPTS,
+  backoffMs,
+  endpointForAttempt,
+  isFreshOverpassSnapshot,
+} from "../scripts/lib/overpassClient.mjs";
+import {
   UK_VENUE_GROUPS,
   UK_VENUE_KINDS,
   UK_VENUE_QUERY_SCOPES,
@@ -206,5 +216,40 @@ describe("the widened venue vocabulary", () => {
     const kinds: readonly VenueKind[] = VENUE_KINDS;
     expect(new Set(kinds).size).toBe(kinds.length);
     expect(kinds.slice(0, 5)).toEqual(["pub", "bar", "club", "food", "restaurant"]);
+  });
+});
+
+describe("the shared Overpass client", () => {
+  it("spends its first attempts on the primaries and only its tail on the degraded pair", () => {
+    const seen = Array.from({ length: MAX_ATTEMPTS }, (_, attempt) => endpointForAttempt(attempt));
+    expect(seen.slice(0, PRIMARY_ATTEMPTS).every((url) => OVERPASS_PRIMARY_ENDPOINTS.includes(url))).toBe(
+      true,
+    );
+    expect(seen.slice(PRIMARY_ATTEMPTS).every((url) => OVERPASS_FALLBACK_ENDPOINTS.includes(url))).toBe(
+      true,
+    );
+    // Both primaries are tried before either is tried twice: one mirror rate
+    // limiting must not spend every attempt of a chunk on that same mirror.
+    expect(new Set(seen.slice(0, OVERPASS_PRIMARY_ENDPOINTS.length)).size).toBe(
+      OVERPASS_PRIMARY_ENDPOINTS.length,
+    );
+  });
+
+  it("honours a Retry-After header and otherwise backs off exponentially, capped", () => {
+    expect(backoffMs(0, "30")).toBe(30_000);
+    expect(backoffMs(0, null)).toBe(4_000);
+    expect(backoffMs(3, null)).toBe(32_000);
+    expect(backoffMs(20, null)).toBe(MAX_BACKOFF_MS);
+    expect(backoffMs(0, "99999")).toBe(MAX_BACKOFF_MS);
+  });
+
+  it("refuses a snapshot that is stale, undated or from the future", () => {
+    const now = Date.parse("2026-08-16T05:00:00.000Z");
+    const at = (stamp: string) => ({ elements: [], osm3s: { timestamp_osm_base: stamp } });
+    expect(isFreshOverpassSnapshot(at("2026-08-16T04:30:00Z"), now)).toBe(true);
+    expect(isFreshOverpassSnapshot(at("2026-06-01T08:52:28Z"), now)).toBe(false);
+    expect(isFreshOverpassSnapshot(at("2026-08-16T06:00:00Z"), now)).toBe(false);
+    expect(isFreshOverpassSnapshot({ elements: [] }, now)).toBe(false);
+    expect(isFreshOverpassSnapshot({ elements: [], remark: "runtime error" }, now)).toBe(false);
   });
 });
