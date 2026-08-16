@@ -33,6 +33,7 @@ const KIND_TERMS: Record<WhatsOnKind, RegExp> = {
   sport: /\b(?:sport|sports|football|footy|rugby|boxing|cricket|the match|the game|premier league|champions league|world cup|six nations|showing the)\b/i,
   deal: /\b(?:deal|deals|offer|offers|curry club|steak club|burger club|wing(?:s)? night|happy hour|2 for 1|two for one)\b/i,
   music: /\b(?:live music|gig|gigs|band|bands|dj set|karaoke|open mic|jam night)\b/i,
+  event: /\b(?:comedy|stand-?up|theatre|theater|club night|playhouse)\b/i,
 };
 
 // A generic "what's on" phrasing carries a What's-On intent even without a kind.
@@ -195,6 +196,7 @@ function kindNoun(kind: WhatsOnKind | undefined, plural: boolean): string {
     sport: ["live-sport screening", "live-sport screenings"],
     deal: ["deal", "deals"],
     music: ["live-music night", "live-music nights"],
+    event: ["listed night", "listed nights"],
   };
   if (!kind) return plural ? "listings" : "listing";
   return map[kind][plural ? 1 : 0];

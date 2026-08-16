@@ -83,12 +83,14 @@ describe("mapTicketmasterEvent", () => {
     expect(isValidWhatsOnRow(row as unknown, now)).toBe(true);
   });
 
-  it("drops events whose segment does not map (theatre, comedy, …)", () => {
+  it("maps Arts & Theatre onto kind event instead of dropping it", () => {
     const row = mapTicketmasterEvent(
       { ...tmMusicAtKnownPub, classifications: [{ segment: { name: "Arts & Theatre" } }] },
       { observedAt, venueIndex },
     );
-    expect(row).toBeNull();
+    expect(row).not.toBeNull();
+    expect(row!.kind).toBe("event");
+    expect(isValidWhatsOnRow(row as unknown, now)).toBe(true);
   });
 
   it("drops events missing provenance (no url), place name, or usable start", () => {
@@ -100,7 +102,7 @@ describe("mapTicketmasterEvent", () => {
   });
 
   it("normalises a full payload and drops non-mapping members", () => {
-    const rows = normaliseTicketmasterEvents(
+    const { rows, dropped } = normaliseTicketmasterEvents(
       {
         _embedded: {
           events: [
@@ -113,13 +115,14 @@ describe("mapTicketmasterEvent", () => {
       { observedAt, venueIndex },
     );
     expect(rows).toHaveLength(2);
+    expect(dropped.noKind).toBe(1);
     expect(rows.every((r) => isValidWhatsOnRow(r as unknown, now))).toBe(true);
   });
 
-  it("returns [] for an absent or malformed payload", () => {
-    expect(normaliseTicketmasterEvents(null)).toEqual([]);
-    expect(normaliseTicketmasterEvents({})).toEqual([]);
-    expect(normaliseTicketmasterEvents({ _embedded: { events: "nope" } })).toEqual([]);
+  it("returns empty rows for an absent or malformed payload", () => {
+    expect(normaliseTicketmasterEvents(null).rows).toEqual([]);
+    expect(normaliseTicketmasterEvents({}).rows).toEqual([]);
+    expect(normaliseTicketmasterEvents({ _embedded: { events: "nope" } }).rows).toEqual([]);
   });
 });
 
@@ -166,8 +169,11 @@ describe("mapSkiddleEvent", () => {
     expect(isValidWhatsOnRow(row as unknown, now)).toBe(true);
   });
 
-  it("drops event codes that do not map (CLUB, COMEDY, generic BARPUB, …)", () => {
-    expect(mapSkiddleEvent(skClubDropped, { observedAt, venueIndex })).toBeNull();
+  it("maps CLUB onto kind event instead of dropping it", () => {
+    const row = mapSkiddleEvent(skClubDropped, { observedAt, venueIndex });
+    expect(row).not.toBeNull();
+    expect(row!.kind).toBe("event");
+    expect(isValidWhatsOnRow(row as unknown, now)).toBe(true);
   });
 
   it("drops events missing provenance, place name, or start", () => {
@@ -177,14 +183,18 @@ describe("mapSkiddleEvent", () => {
   });
 
   it("normalises a full payload", () => {
-    const rows = normaliseSkiddleEvents({ results: [skLiveAtKnownPub, skClubDropped] }, { observedAt, venueIndex });
-    expect(rows).toHaveLength(1);
+    const { rows } = normaliseSkiddleEvents(
+      { results: [skLiveAtKnownPub, skClubDropped] },
+      { observedAt, venueIndex },
+    );
+    expect(rows).toHaveLength(2);
     expect(rows[0].source).toEqual({ ...SKIDDLE_SOURCE, url: "https://www.skiddle.com/whats-on/e/900" });
+    expect(rows[1].kind).toBe("event");
   });
 
-  it("returns [] for absent/malformed payloads", () => {
-    expect(normaliseSkiddleEvents(null)).toEqual([]);
-    expect(normaliseSkiddleEvents({ results: "nope" })).toEqual([]);
+  it("returns empty rows for absent/malformed payloads", () => {
+    expect(normaliseSkiddleEvents(null).rows).toEqual([]);
+    expect(normaliseSkiddleEvents({ results: "nope" }).rows).toEqual([]);
   });
 });
 

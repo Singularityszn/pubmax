@@ -20,7 +20,7 @@ const ROOT = join(__dirname, "..");
 const IN_DIR = join(ROOT, "scripts", "whatson");
 const OUT_DIR = join(ROOT, "public", "data", "whats_on");
 
-const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music"]);
+const WHATS_ON_KINDS = new Set(["sport", "quiz", "deal", "music", "event"]);
 const WHATS_ON_CONFIDENCES = new Set(["confirmed", "listed", "derived"]);
 
 function isNonEmptyString(v) {

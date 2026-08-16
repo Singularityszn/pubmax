@@ -22,7 +22,11 @@ export type TonightGlanceCounts = {
 
 export function countTonightKinds(rows: readonly WhatsOnRow[]): TonightGlanceCounts {
   const counts: TonightGlanceCounts = { quiz: 0, music: 0, sport: 0, deal: 0 };
-  for (const row of rows) counts[row.kind] += 1;
+  for (const row of rows) {
+    if (row.kind === "quiz" || row.kind === "music" || row.kind === "sport" || row.kind === "deal") {
+      counts[row.kind] += 1;
+    }
+  }
   return counts;
 }
 

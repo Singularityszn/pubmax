@@ -725,6 +725,25 @@ describe("invite loop events", () => {
     });
   });
 
+  it("registers out_card_opened with a closed source only", () => {
+    expect(ANALYTICS_EVENTS.out_card_opened).toEqual(["source"]);
+    expect(
+      sanitizeEvent("out_card_opened", {
+        source: "skiddle",
+        venueId: "venue-1",
+        eventId: "tm-9",
+        latitude: 51.5,
+      }),
+    ).toEqual({
+      name: "out_card_opened",
+      props: { source: "skiddle" },
+    });
+    expect(sanitizeEvent("out_card_opened", { source: "free-text-pub" })).toEqual({
+      name: "out_card_opened",
+      props: {},
+    });
+  });
+
   it("registers occupancy events with closed level and state props only", () => {
     expect(ANALYTICS_EVENTS.occupancy_reported).toEqual(["level", "surface"]);
     expect(ANALYTICS_EVENTS.occupancy_read).toEqual(["state"]);

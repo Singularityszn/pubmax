@@ -42,11 +42,12 @@ function makeRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
 }
 
 describe("isWhatsOnKind", () => {
-  it("recognises the 4 kinds and rejects others", () => {
+  it("recognises the five kinds including event and rejects others", () => {
     expect(isWhatsOnKind("sport")).toBe(true);
     expect(isWhatsOnKind("quiz")).toBe(true);
     expect(isWhatsOnKind("deal")).toBe(true);
     expect(isWhatsOnKind("music")).toBe(true);
+    expect(isWhatsOnKind("event")).toBe(true);
     expect(isWhatsOnKind("gig")).toBe(false);
     expect(isWhatsOnKind(null)).toBe(false);
   });
@@ -80,6 +81,37 @@ describe("isValidWhatsOnRow", () => {
     expect(isValidWhatsOnRow(makeRow({ source: { label: "X", url: "not-a-url" } }), NOW)).toBe(false);
     expect(isValidWhatsOnRow(makeRow({ source: { label: "X", url: "ftp://x.com" } }), NOW)).toBe(false);
     expect(isValidWhatsOnRow(makeRow({ source: { label: "X", url: "https://x.com" } }), NOW)).toBe(true);
+  });
+
+  it("keeps provenance on an event row and accepts optional imageUrl, sourceId, and area", () => {
+    const eventRow = makeRow({
+      kind: "event",
+      title: "Stand-up at the back room",
+      imageUrl: "https://img.example/event.jpg",
+      sourceId: "tm-99",
+      area: "camden",
+    });
+    expect(isValidWhatsOnRow(eventRow, NOW)).toBe(true);
+    const parsed = parseWhatsOnRows([eventRow], NOW);
+    expect(parsed).toHaveLength(1);
+    expect(parsed[0]).toMatchObject({
+      kind: "event",
+      source: eventRow.source,
+      imageUrl: "https://img.example/event.jpg",
+      sourceId: "tm-99",
+      area: "camden",
+    });
+    expect(parsed[0].source.url).toMatch(/^https:\/\//);
+    expect(parsed[0].observedAt).toBe(eventRow.observedAt);
+  });
+
+  it("rejects an event row that drops provenance", () => {
+    expect(
+      isValidWhatsOnRow(
+        makeRow({ kind: "event", source: { label: "Ticketmaster", url: "not-a-url" } }),
+        NOW,
+      ),
+    ).toBe(false);
   });
 
   it("rejects a missing/invalid/future observedAt", () => {

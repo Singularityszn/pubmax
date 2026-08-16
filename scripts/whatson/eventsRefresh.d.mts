@@ -1,18 +1,20 @@
 // Hand-maintained declarations for eventsRefresh.mjs so the vitest suite
-// (__tests__/whatsOnEvents.test.ts) type-checks under the repo's allowJs:false
-// tsconfig. Keep in sync with the runtime module.
+// type-checks under the repo's allowJs:false tsconfig. Keep in sync with
+// the runtime module.
 
 import type { VenueResolverIndex } from "./resolveVenueId.d.mts";
 
 export type EventSource = { label: string; url: string };
 
+export declare const EVENT_REFRESH_CITIES: readonly string[];
+
 export declare const TICKETMASTER_SOURCE: EventSource;
 export declare const SKIDDLE_SOURCE: EventSource;
 
-export declare const TICKETMASTER_SEGMENT_KIND: Record<string, "music" | "sport">;
-export declare const SKIDDLE_EVENTCODE_KIND: Record<string, "music" | "sport">;
+export declare const TICKETMASTER_SEGMENT_KIND: Record<string, "music" | "sport" | "event">;
+export declare const SKIDDLE_EVENTCODE_KIND: Record<string, "music" | "sport" | "event">;
 
-export type WhatsOnEventKind = "music" | "sport";
+export type WhatsOnEventKind = "music" | "sport" | "event";
 
 export type WhatsOnEventRow = {
   id: string;
@@ -26,6 +28,9 @@ export type WhatsOnEventRow = {
   title: string;
   detail?: string;
   priceGbp?: number;
+  imageUrl?: string;
+  sourceId?: string;
+  area?: string;
   source: EventSource;
   observedAt: string;
   confidence: "listed";
@@ -35,6 +40,33 @@ export type MapEventOpts = {
   observedAt: string;
   venueIndex?: VenueResolverIndex | null;
 };
+
+export type EventDropCounts = {
+  noKind: number;
+  noPlace: number;
+  noStart: number;
+  noUrl: number;
+  noTitle: number;
+  total: number;
+};
+
+export type NormalisedEvents = {
+  rows: WhatsOnEventRow[];
+  dropped: EventDropCounts;
+};
+
+export declare const EMPTY_EVENT_DROPS: Readonly<EventDropCounts>;
+
+export declare function emptyEventDrops(): EventDropCounts;
+export declare function summariseEventDrops(dropped: EventDropCounts): string;
+export declare function providerLaneStatus(env?: Record<string, string | undefined>): {
+  ticketmaster: "configured" | "not-configured";
+  skiddle: "configured" | "not-configured";
+};
+export declare function eventsOutputPath(city?: string): string;
+export declare function dedupeEventRowsBySourceId(rows: WhatsOnEventRow[]): WhatsOnEventRow[];
+export declare function readExistingCommonRows(filePath: string): WhatsOnEventRow[];
+export declare function parseEventsCityArg(argv?: string[]): string | null;
 
 export declare function toIsoInstant(value: unknown): string | null;
 
@@ -46,7 +78,7 @@ export declare function mapTicketmasterEvent(
 export declare function normaliseTicketmasterEvents(
   payload: unknown,
   opts?: MapEventOpts,
-): WhatsOnEventRow[];
+): NormalisedEvents;
 
 export declare function mapSkiddleEvent(
   event: unknown,
@@ -56,4 +88,4 @@ export declare function mapSkiddleEvent(
 export declare function normaliseSkiddleEvents(
   payload: unknown,
   opts?: MapEventOpts,
-): WhatsOnEventRow[];
+): NormalisedEvents;

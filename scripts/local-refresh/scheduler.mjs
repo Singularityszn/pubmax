@@ -204,7 +204,10 @@ export function captureRefreshSnapshot(root) {
 
 export function commandsForMode(mode, dryRun) {
   if (mode === "events") {
-    return [{ executable: process.execPath, args: ["scripts/whatson/eventsRefresh.mjs"] }];
+    return [
+      { executable: process.execPath, args: ["scripts/whatson/eventsRefresh.mjs"] },
+      { executable: process.execPath, args: ["scripts/whatson/commonRefresh.mjs"] },
+    ];
   }
   if (mode !== "prices") throw new Error(`Unknown refresh mode: ${mode}`);
   const command = (...args) => ({ executable: process.execPath, args });

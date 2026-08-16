@@ -38,6 +38,7 @@ export const WHATS_ON_KIND_META: Record<WhatsOnKind, WhatsOnKindMeta> = {
   },
   deal: { kind: "deal", label: "Deal", badgeLabel: "Deal on", timed: true, priority: 2 },
   music: { kind: "music", label: "Live music", badgeLabel: "Live music", timed: true, priority: 3 },
+  event: { kind: "event", label: "Event", badgeLabel: "On tonight", timed: true, priority: 4 },
 };
 
 /** Ordered kinds by hero priority — used for stable, priority-sorted output. */

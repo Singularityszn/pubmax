@@ -7,17 +7,13 @@ name: What's-On events refresh
 # WhatsOnRow contract, matches venues conservatively, and opens a PR for human
 # review. It NEVER pushes to a protected branch and NEVER scrapes aggregators.
 #
-# DISABLED BY DEFAULT — the scheduled cron is intentionally commented out. This
-# is a safe no-op until the owner provisions provider keys:
-#   * TICKETMASTER_API_KEY — free, instant, from developer.ticketmaster.com.
-#   * SKIDDLE_API_KEY      — free key, BUT commercial use requires written
-#                            approval from dev@skiddle.com first (see research
-#                            doc §3). Keep this provider off until approved.
-# With no keys set the refresh script noop-skips every provider and touches
-# nothing. Add the secrets, then uncomment the schedule to activate.
+# Daily 04:00 UTC. GitHub Actions is currently DISABLED at the repo level
+# (captain decision pending). Keep this schedule so it fires the moment
+# Actions is switched on. TICKETMASTER_API_KEY is a repo secret; SKIDDLE_API_KEY
+# is not provisioned yet and the Skiddle lane stays not-configured.
 on:
-  # schedule:
-  #   - cron: "45 15 * * *"  # 15:45 UTC daily (afternoon, ahead of the evening)
+  schedule:
+    - cron: "0 4 * * *"
   workflow_dispatch:
 
 permissions:

@@ -31,29 +31,36 @@
 // and it lights up with no code change. With no keys at all, main() is a pure
 // no-op that leaves the honest empty file untouched.
 //
-// KIND MAPPING (conservative, honest partial): our four kinds are
-// sport/quiz/deal/music. Only unambiguous classifications map — Ticketmaster
-// "Music"->music / "Sports"->sport; Skiddle "LIVE"/"FEST"->music, "SPORT"->
-// sport. Everything else (theatre, comedy, generic BARPUB, …) is DROPPED
-// rather than dishonestly forced into a kind it isn't.
+// KIND MAPPING: music and sport stay themselves. Comedy, theatre, club and
+// BARPUB map onto kind "event" so a real night is not dropped. A classification
+// we still cannot name (Film, DATE, …) is DROPPED and counted.
 //
 // VENUE MATCHING (W6): each normalised row is passed through the shared,
 // conservative resolveVenueId (exact grouping-key OR normalized-name +
 // postcode/proximity confirmation, null on ambiguity). Unmatched events are
 // STILL LISTED with their own venue name — they just don't carry a venueId.
 
-import { writeFileSync, mkdirSync } from "node:fs";
+import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { CITY_BOUNDS } from "../../lib/cityBounds.mjs";
 import { resolveVenueId, loadCanonicalVenueIndex } from "./resolveVenueId.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const OUT_PATH = join(ROOT, "public", "data", "whats_on", "events_london.json");
 
-// Greater-London centroid + radius for the Skiddle lat/lng search.
-const LONDON = { lat: 51.5074, lng: -0.1278, radiusMiles: 15 };
+export const EVENT_REFRESH_CITIES = [
+  "london",
+  "bristol",
+  "cambridge",
+  "glasgow",
+  "liverpool",
+  "manchester",
+  "oxford",
+];
+
+const LONDON = { lat: 51.5074, lng: -0.1278, radiusMiles: 30 };
 // How far ahead to pull. The store re-windows to "tonight" and drops stale
 // rows, so a small forward horizon keeps the cached file short-lived (honouring
 // Ticketmaster's "reasonable period" caching term) while surviving a missed run.
@@ -81,18 +88,79 @@ export const SKIDDLE_SOURCE = {
   url: "https://www.skiddle.com/",
 };
 
-// Only unambiguous classifications map. Everything absent from these maps is
-// intentionally dropped (see KIND MAPPING above).
+// Music and sport keep their own kinds. Comedy / theatre / club / BARPUB land
+// on "event". Anything else is dropped and counted.
 export const TICKETMASTER_SEGMENT_KIND = {
   Music: "music",
   Sports: "sport",
+  "Arts & Theatre": "event",
+  Comedy: "event",
 };
 
 export const SKIDDLE_EVENTCODE_KIND = {
   LIVE: "music",
   FEST: "music",
   SPORT: "sport",
+  CLUB: "event",
+  COMEDY: "event",
+  THEATRE: "event",
+  BARPUB: "event",
 };
+
+export const EMPTY_EVENT_DROPS = Object.freeze({
+  noKind: 0,
+  noPlace: 0,
+  noStart: 0,
+  noUrl: 0,
+  noTitle: 0,
+  total: 0,
+});
+
+export function emptyEventDrops() {
+  return { noKind: 0, noPlace: 0, noStart: 0, noUrl: 0, noTitle: 0, total: 0 };
+}
+
+function noteDrop(dropped, reason) {
+  dropped[reason] += 1;
+  dropped.total += 1;
+}
+
+export function summariseEventDrops(dropped) {
+  if (!dropped || dropped.total === 0) return "dropped 0";
+  return `dropped ${dropped.total} (noKind=${dropped.noKind} noPlace=${dropped.noPlace} noStart=${dropped.noStart} noUrl=${dropped.noUrl} noTitle=${dropped.noTitle})`;
+}
+
+export function providerLaneStatus(env = process.env) {
+  const present = (name) => {
+    const value = env?.[name];
+    return typeof value === "string" && value.trim().length > 0;
+  };
+  return {
+    ticketmaster: present("TICKETMASTER_API_KEY") ? "configured" : "not-configured",
+    skiddle: present("SKIDDLE_API_KEY") ? "configured" : "not-configured",
+  };
+}
+
+export function eventsOutputPath(city = "london") {
+  return join(ROOT, "public", "data", "whats_on", `events_${city}.json`);
+}
+
+export function dedupeEventRowsBySourceId(rows) {
+  const byKey = new Map();
+  const leftover = [];
+  for (const row of rows) {
+    if (!nonEmptyString(row?.sourceId) || !nonEmptyString(row?.source?.label)) {
+      leftover.push(row);
+      continue;
+    }
+    const key = `${row.source.label.toLowerCase()}|${row.sourceId}`;
+    const existing = byKey.get(key);
+    if (!existing || Date.parse(row.observedAt) >= Date.parse(existing.observedAt)) {
+      byKey.set(key, row);
+    }
+  }
+  return [...byKey.values(), ...leftover];
+}
 
 // ---------------------------------------------------------------------------
 // Time helpers (pure)
@@ -188,6 +256,32 @@ function attachVenue(row, venueMatch, venueIndex) {
 // Ticketmaster normalisation (pure)
 // ---------------------------------------------------------------------------
 
+function cityGeo(city = "london") {
+  const bounds = CITY_BOUNDS[city];
+  if (!bounds) return { ...LONDON };
+  const lat = (bounds.latMin + bounds.latMax) / 2;
+  const lng = (bounds.lonMin + bounds.lonMax) / 2;
+  const latMiles = ((bounds.latMax - bounds.latMin) * 69) / 2;
+  const lonMiles =
+    ((bounds.lonMax - bounds.lonMin) * 69 * Math.cos((lat * Math.PI) / 180)) / 2;
+  return { lat, lng, radiusMiles: Math.max(5, Math.ceil(Math.hypot(latMiles, lonMiles))) };
+}
+
+function firstImageUrl(images) {
+  if (!Array.isArray(images)) return null;
+  for (const image of images) {
+    const url = httpUrl(image?.url);
+    if (url) return url;
+  }
+  return null;
+}
+
+function asSourceId(value) {
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (nonEmptyString(value)) return value.trim();
+  return null;
+}
+
 // First mapping kind across an event's classifications, or undefined.
 function ticketmasterKind(classifications) {
   for (const c of classifications) {
@@ -209,25 +303,25 @@ function ticketmasterStart(start) {
 
 // Map one Discovery API v2 event object to a WhatsOnRow, or null if it can't be
 // honestly represented (no mapping kind, no place name, no start, no link).
-export function mapTicketmasterEvent(event, { observedAt, venueIndex = null } = {}) {
-  if (!event || typeof event !== "object") return null;
+function classifyTicketmasterEvent(event, { observedAt, venueIndex = null } = {}) {
+  if (!event || typeof event !== "object") return { row: null, drop: "noTitle" };
 
   const classifications = Array.isArray(event.classifications) ? event.classifications : [];
   const kind = ticketmasterKind(classifications);
-  if (!kind) return null;
+  if (!kind) return { row: null, drop: "noKind" };
 
   const venue = event._embedded?.venues?.[0];
   const placeName = venue?.name;
-  if (!nonEmptyString(placeName)) return null;
+  if (!nonEmptyString(placeName)) return { row: null, drop: "noPlace" };
 
   const url = httpUrl(event.url);
-  if (!url) return null; // provenance non-negotiable
+  if (!url) return { row: null, drop: "noUrl" };
 
   const title = nonEmptyString(event.name) ? event.name.trim() : null;
-  if (!title) return null;
+  if (!title) return { row: null, drop: "noTitle" };
 
   const startsAt = ticketmasterStart(event.dates?.start);
-  if (!startsAt) return null; // can't window an event with no usable start
+  if (!startsAt) return { row: null, drop: "noStart" };
 
   const row = {
     id: stableId("events-tm", `${event.id ?? title}|${placeName}|${startsAt}`),
@@ -239,6 +333,11 @@ export function mapTicketmasterEvent(event, { observedAt, venueIndex = null } = 
     observedAt,
     confidence: "listed",
   };
+
+  const sourceId = asSourceId(event.id);
+  if (sourceId) row.sourceId = sourceId;
+  const imageUrl = firstImageUrl(event.images);
+  if (imageUrl) row.imageUrl = imageUrl;
 
   const lat = finiteNum(venue?.location?.latitude);
   const lng = finiteNum(venue?.location?.longitude);
@@ -252,24 +351,33 @@ export function mapTicketmasterEvent(event, { observedAt, venueIndex = null } = 
   const genre = classifications.find((c) => nonEmptyString(c?.genre?.name))?.genre?.name;
   if (nonEmptyString(genre)) row.detail = genre.trim();
 
-  return attachVenue(row, {
-    name: placeName,
-    address: venue?.address?.line1 ?? "",
-    postcode: venue?.postalCode ?? "",
-    lat,
-    lng,
-  }, venueIndex);
+  return {
+    row: attachVenue(row, {
+      name: placeName,
+      address: venue?.address?.line1 ?? "",
+      postcode: venue?.postalCode ?? "",
+      lat,
+      lng,
+    }, venueIndex),
+    drop: null,
+  };
+}
+
+export function mapTicketmasterEvent(event, opts = {}) {
+  return classifyTicketmasterEvent(event, opts).row;
 }
 
 export function normaliseTicketmasterEvents(payload, opts = {}) {
+  const dropped = emptyEventDrops();
   const events = payload?._embedded?.events;
-  if (!Array.isArray(events)) return [];
+  if (!Array.isArray(events)) return { rows: [], dropped };
   const rows = [];
   for (const event of events) {
-    const row = mapTicketmasterEvent(event, opts);
+    const { row, drop } = classifyTicketmasterEvent(event, opts);
     if (row) rows.push(row);
+    else if (drop) noteDrop(dropped, drop);
   }
-  return rows;
+  return { rows, dropped };
 }
 
 // ---------------------------------------------------------------------------
@@ -277,28 +385,28 @@ export function normaliseTicketmasterEvents(payload, opts = {}) {
 // ---------------------------------------------------------------------------
 
 // Map one Skiddle Events-API result to a WhatsOnRow, or null.
-export function mapSkiddleEvent(event, { observedAt, venueIndex = null } = {}) {
-  if (!event || typeof event !== "object") return null;
+function classifySkiddleEvent(event, { observedAt, venueIndex = null } = {}) {
+  if (!event || typeof event !== "object") return { row: null, drop: "noTitle" };
 
   const code = event.EventCode ?? event.eventcode;
   const kind = nonEmptyString(code) ? SKIDDLE_EVENTCODE_KIND[code] : undefined;
-  if (!kind) return null;
+  if (!kind) return { row: null, drop: "noKind" };
 
   const venue = event.venue ?? {};
   const placeName = venue.name;
-  if (!nonEmptyString(placeName)) return null;
+  if (!nonEmptyString(placeName)) return { row: null, drop: "noPlace" };
 
   const url = httpUrl(event.link);
-  if (!url) return null; // provenance non-negotiable
+  if (!url) return { row: null, drop: "noUrl" };
 
   const title = nonEmptyString(event.eventname) ? event.eventname.trim() : null;
-  if (!title) return null;
+  if (!title) return { row: null, drop: "noTitle" };
 
   const startsAt =
     toIsoInstant(event.startdate) ??
     toIsoInstant(event.openingtimes?.doorsopen) ??
     toIsoInstant(nonEmptyString(event.date) ? `${event.date} 20:00:00` : null);
-  if (!startsAt) return null;
+  if (!startsAt) return { row: null, drop: "noStart" };
 
   const row = {
     id: stableId("events-sk", `${event.id ?? title}|${placeName}|${startsAt}`),
@@ -310,6 +418,15 @@ export function mapSkiddleEvent(event, { observedAt, venueIndex = null } = {}) {
     observedAt,
     confidence: "listed",
   };
+
+  const sourceId = asSourceId(event.id);
+  if (sourceId) row.sourceId = sourceId;
+  const imageUrl = firstImageUrl([
+    { url: event.largeimageurl },
+    { url: event.imageurl },
+    { url: event.imageurlhttps },
+  ]);
+  if (imageUrl) row.imageUrl = imageUrl;
 
   const lat = finiteNum(venue.latitude);
   const lng = finiteNum(venue.longitude);
@@ -324,56 +441,73 @@ export function mapSkiddleEvent(event, { observedAt, venueIndex = null } = {}) {
 
   if (nonEmptyString(event.genre)) row.detail = event.genre.trim();
 
-  return attachVenue(row, {
-    name: placeName,
-    address: venue.address ?? "",
-    postcode: venue.postcode ?? "",
-    lat,
-    lng,
-  }, venueIndex);
+  return {
+    row: attachVenue(row, {
+      name: placeName,
+      address: venue.address ?? "",
+      postcode: venue.postcode ?? "",
+      lat,
+      lng,
+    }, venueIndex),
+    drop: null,
+  };
+}
+
+export function mapSkiddleEvent(event, opts = {}) {
+  return classifySkiddleEvent(event, opts).row;
 }
 
 export function normaliseSkiddleEvents(payload, opts = {}) {
+  const dropped = emptyEventDrops();
   const results = payload?.results;
-  if (!Array.isArray(results)) return [];
+  if (!Array.isArray(results)) return { rows: [], dropped };
   const rows = [];
   for (const event of results) {
-    const row = mapSkiddleEvent(event, opts);
+    const { row, drop } = classifySkiddleEvent(event, opts);
     if (row) rows.push(row);
+    else if (drop) noteDrop(dropped, drop);
   }
-  return rows;
+  return { rows, dropped };
 }
 
 // ---------------------------------------------------------------------------
 // Fetchers (impure — only run from main(), never imported by tests)
 // ---------------------------------------------------------------------------
 
-async function fetchTicketmaster(apiKey, { nowMs }) {
+async function fetchTicketmaster(apiKey, { nowMs, city = "london" }) {
+  const geo = cityGeo(city);
   const url = new URL("https://app.ticketmaster.com/discovery/v2/events.json");
   url.search = new URLSearchParams({
     apikey: apiKey,
     countryCode: "GB",
-    city: "London",
-    classificationName: "Music,Sports",
+    latlong: `${geo.lat},${geo.lng}`,
+    radius: String(geo.radiusMiles),
+    unit: "miles",
     startDateTime: new Date(nowMs).toISOString().replace(/\.\d{3}Z$/, "Z"),
     endDateTime: new Date(nowMs + FORWARD_HORIZON_MS).toISOString().replace(/\.\d{3}Z$/, "Z"),
     size: "100",
     sort: "date,asc",
   }).toString();
   const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
-  if (!res.ok) throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
+  if (!res.ok) {
+    await res.arrayBuffer();
+    throw new Error(`Ticketmaster Discovery API returned ${res.status}`);
+  }
   return res.json();
 }
 
-async function fetchSkiddle(apiKey, { nowMs }) {
+const SKIDDLE_FETCH_CODES = Object.keys(SKIDDLE_EVENTCODE_KIND).join(",");
+
+async function fetchSkiddle(apiKey, { nowMs, city = "london" }) {
+  const geo = cityGeo(city);
   const url = new URL("https://www.skiddle.com/api/v1/events/search/");
   const fmt = (ms) => new Date(ms).toISOString().slice(0, 10);
   url.search = new URLSearchParams({
     api_key: apiKey,
-    latitude: String(LONDON.lat),
-    longitude: String(LONDON.lng),
-    radius: String(LONDON.radiusMiles),
-    eventcode: "LIVE,FEST,SPORT",
+    latitude: String(geo.lat),
+    longitude: String(geo.lng),
+    radius: String(geo.radiusMiles),
+    eventcode: SKIDDLE_FETCH_CODES,
     minDate: fmt(nowMs),
     maxDate: fmt(nowMs + FORWARD_HORIZON_MS),
     order: "date",
@@ -381,8 +515,28 @@ async function fetchSkiddle(apiKey, { nowMs }) {
     description: "1",
   }).toString();
   const res = await fetch(url, { headers: { accept: "application/json", "user-agent": "PUBMAXX-events/1" } });
-  if (!res.ok) throw new Error(`Skiddle Events API returned ${res.status}`);
+  if (!res.ok) {
+    await res.arrayBuffer();
+    throw new Error(`Skiddle Events API returned ${res.status}`);
+  }
   return res.json();
+}
+
+export function readExistingCommonRows(filePath) {
+  if (!existsSync(filePath)) return [];
+  try {
+    const raw = JSON.parse(readFileSync(filePath, "utf8"));
+    const rows = Array.isArray(raw?.rows) ? raw.rows : [];
+    return rows.filter((row) => row?.source?.label?.toLowerCase() === "common");
+  } catch {
+    return [];
+  }
+}
+
+export function parseEventsCityArg(argv = process.argv) {
+  const flagged = argv.find((arg) => arg.startsWith("--city="));
+  const city = flagged ? flagged.slice("--city=".length).trim().toLowerCase() : "london";
+  return EVENT_REFRESH_CITIES.includes(city) ? city : null;
 }
 
 // ---------------------------------------------------------------------------
@@ -400,13 +554,27 @@ function serialiseFile(payload) {
 async function main() {
   const nowMs = Date.now();
   const observedAt = new Date(nowMs).toISOString();
+  const city = parseEventsCityArg(process.argv);
+  if (!city) {
+    console.error(
+      `eventsRefresh: unknown city. Use one of ${EVENT_REFRESH_CITIES.join(", ")}.`,
+    );
+    process.exitCode = 1;
+    return;
+  }
+  const outPath = eventsOutputPath(city);
+  const lanes = providerLaneStatus();
+  console.log(
+    `eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle}`,
+  );
+
   const tmKey = process.env.TICKETMASTER_API_KEY;
   const skKey = process.env.SKIDDLE_API_KEY;
 
   if (!nonEmptyString(tmKey) && !nonEmptyString(skKey)) {
     console.log(
       "eventsRefresh: no provider keys present (TICKETMASTER_API_KEY / SKIDDLE_API_KEY). " +
-        "Noop — leaving events_london.json untouched. Provision a key to activate.",
+        "Lanes stay not-configured. Leaving the events file untouched.",
     );
     return;
   }
@@ -414,16 +582,27 @@ async function main() {
   const venueIndex = loadCanonicalVenueIndex();
   const allRows = [];
   const providersRun = [];
+  const dropped = emptyEventDrops();
 
   if (nonEmptyString(tmKey)) {
     try {
-      const payload = await fetchTicketmaster(tmKey, { nowMs });
-      const rows = normaliseTicketmasterEvents(payload, { observedAt, venueIndex });
-      allRows.push(...rows);
-      providersRun.push({ provider: "ticketmaster", rows: rows.length });
-      console.log(`eventsRefresh: Ticketmaster -> ${rows.length} rows`);
+      const payload = await fetchTicketmaster(tmKey, { nowMs, city });
+      const result = normaliseTicketmasterEvents(payload, { observedAt, venueIndex });
+      allRows.push(...result.rows);
+      dropped.noKind += result.dropped.noKind;
+      dropped.noPlace += result.dropped.noPlace;
+      dropped.noStart += result.dropped.noStart;
+      dropped.noUrl += result.dropped.noUrl;
+      dropped.noTitle += result.dropped.noTitle;
+      dropped.total += result.dropped.total;
+      providersRun.push({ provider: "ticketmaster", rows: result.rows.length });
+      console.log(
+        `eventsRefresh: Ticketmaster -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
+      );
     } catch (err) {
-      console.error(`eventsRefresh: Ticketmaster fetch failed (${err.message}) — skipping provider, not clobbering file.`);
+      console.error(
+        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - skipping provider, not clobbering file.`,
+      );
       process.exitCode = 1;
       return;
     }
@@ -431,38 +610,56 @@ async function main() {
 
   if (nonEmptyString(skKey)) {
     try {
-      const payload = await fetchSkiddle(skKey, { nowMs });
-      const rows = normaliseSkiddleEvents(payload, { observedAt, venueIndex });
-      allRows.push(...rows);
-      providersRun.push({ provider: "skiddle", rows: rows.length });
-      console.log(`eventsRefresh: Skiddle -> ${rows.length} rows`);
+      const payload = await fetchSkiddle(skKey, { nowMs, city });
+      const result = normaliseSkiddleEvents(payload, { observedAt, venueIndex });
+      allRows.push(...result.rows);
+      dropped.noKind += result.dropped.noKind;
+      dropped.noPlace += result.dropped.noPlace;
+      dropped.noStart += result.dropped.noStart;
+      dropped.noUrl += result.dropped.noUrl;
+      dropped.noTitle += result.dropped.noTitle;
+      dropped.total += result.dropped.total;
+      providersRun.push({ provider: "skiddle", rows: result.rows.length });
+      console.log(
+        `eventsRefresh: Skiddle -> ${result.rows.length} rows, ${summariseEventDrops(result.dropped)}`,
+      );
     } catch (err) {
-      console.error(`eventsRefresh: Skiddle fetch failed (${err.message}) — skipping provider, not clobbering file.`);
+      console.error(
+        `eventsRefresh: Skiddle fetch failed (${err.message}) - skipping provider, not clobbering file.`,
+      );
       process.exitCode = 1;
       return;
     }
+  } else {
+    console.log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
   }
 
+  const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
+  allRows.push(...commonRows);
+
   // Fail closed: a successful run that yields zero rows across every enabled
-  // provider is more likely an upstream hiccup than a genuinely empty city —
+  // provider is more likely an upstream hiccup than a genuinely empty city -
   // refuse to clobber a good file unless --allow-empty is passed.
   const allowEmpty = process.argv.includes("--allow-empty");
   if (allRows.length === 0 && !allowEmpty) {
     console.error(
-      "eventsRefresh: aborting — enabled provider(s) returned 0 mappable rows. " +
-        "Refusing to overwrite events_london.json. Pass --allow-empty to override.",
+      `eventsRefresh: aborting - enabled provider(s) returned 0 mappable rows. ` +
+        `Refusing to overwrite ${outPath}. Pass --allow-empty to override.`,
     );
     process.exitCode = 1;
     return;
   }
 
-  allRows.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
+  const deduped = dedupeEventRowsBySourceId(allRows);
+  deduped.sort((a, b) => a.startsAt.localeCompare(b.startsAt) || a.id.localeCompare(b.id));
 
-  const countBy = (provider) => allRows.filter((r) => r.source.label.toLowerCase().startsWith(provider)).length;
+  const countBy = (provider) =>
+    deduped.filter((r) => r.source.label.toLowerCase().startsWith(provider)).length;
   const payload = {
     generatedAt: observedAt,
     kind: "events",
-    region: "greater-london",
+    region: city === "london" ? "greater-london" : city,
+    city,
     sources: [
       {
         ...TICKETMASTER_SOURCE,
@@ -470,10 +667,10 @@ async function main() {
         provider: "ticketmaster",
         rowsEmitted: countBy("ticketmaster"),
         notes:
-          "Official Ticketmaster Discovery API v2 (GB market, London). Music->music, " +
-          "Sports->sport; other segments dropped. Each row deep-links back to its own " +
-          "ticketmaster.co.uk event page per the API terms; file is fully overwritten " +
-          "each run (transient cache only).",
+          "Official Ticketmaster Discovery API v2 (GB market, city bbox). Music->music, " +
+          "Sports->sport, Arts & Theatre/Comedy->event; other segments dropped and counted. " +
+          "Each row deep-links back to its own ticketmaster.co.uk event page per the API terms; " +
+          "file is fully overwritten each run (transient cache only).",
       },
       {
         ...SKIDDLE_SOURCE,
@@ -481,26 +678,33 @@ async function main() {
         provider: "skiddle",
         rowsEmitted: countBy("skiddle"),
         notes:
-          "Official Skiddle Events API (London lat/lng radius). LIVE/FEST->music, " +
-          "SPORT->sport; other codes dropped. Commercial use requires written approval " +
-          "from dev@skiddle.com; provider noop-skips without SKIDDLE_API_KEY.",
+          "Official Skiddle Events API (city lat/lng radius). LIVE/FEST->music, SPORT->sport, " +
+          "CLUB/COMEDY/THEATRE/BARPUB->event; other codes dropped and counted. Commercial use " +
+          "requires written approval from dev@skiddle.com; provider stays not-configured " +
+          "without SKIDDLE_API_KEY. Name + logo + event link are licence obligations.",
       },
     ],
-    rows: allRows,
+    rows: deduped,
   };
 
-  mkdirSync(dirname(OUT_PATH), { recursive: true });
-  writeFileSync(OUT_PATH, serialiseFile(payload));
+  mkdirSync(dirname(outPath), { recursive: true });
+  writeFileSync(outPath, serialiseFile(payload));
   console.log(
-    `eventsRefresh: wrote ${allRows.length} event rows -> ${OUT_PATH} ` +
-      `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ")})`,
+    `eventsRefresh: wrote ${deduped.length} event rows -> ${outPath} ` +
+      `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ") || "none"}; ` +
+      `common kept ${commonRows.length}; ${summariseEventDrops(dropped)})`,
   );
+
+  if (process.argv.includes("--open-pr") && city === "london") {
+    const { refreshCommonEvents } = await import("./commonRefresh.mjs");
+    await refreshCommonEvents();
+  }
 
   if (!process.argv.includes("--open-pr")) return;
   const stamp = observedAt.slice(0, 10).replaceAll("-", "");
   const branch = `whats-on-events/${stamp}-${process.env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
   execFileSync("git", ["checkout", "-b", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["add", OUT_PATH], { cwd: ROOT, stdio: "inherit" });
+  execFileSync("git", ["add", outPath], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["commit", "-m", `chore(whats-on): refresh events ${stamp}`], { cwd: ROOT, stdio: "inherit" });
   execFileSync("git", ["push", "-u", "origin", branch], { cwd: ROOT, stdio: "inherit" });
   execFileSync(

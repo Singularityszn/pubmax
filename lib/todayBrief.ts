@@ -223,6 +223,7 @@ const KIND_LABEL: Record<WhatsOnKind, string> = {
   quiz: "Quiz",
   deal: "Deal",
   music: "Live music",
+  event: "Event",
 };
 
 /** Reduce a row to the card DTO. A resolved venue deep-links to the map; a

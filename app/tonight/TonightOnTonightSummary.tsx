@@ -29,6 +29,7 @@ const FACET_NOUNS: Record<WhatsOnKind, [one: string, many: string]> = {
   sport: ["sport listing", "sport listings"],
   deal: ["deal", "deals"],
   music: ["live music listing", "live music listings"],
+  event: ["listed night", "listed nights"],
 };
 
 function facetLine(facet: WhatsOnKindFacet): string {

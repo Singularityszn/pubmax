@@ -9,7 +9,7 @@
 
 import { type ThingsToDoResult } from "@/lib/citymcp/client";
 
-export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music"] as const;
+export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music", "event"] as const;
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
 
 // "confirmed": venue/organiser directly confirms this row. "listed": a
@@ -41,6 +41,12 @@ export type WhatsOnRow = {
   title: string;
   detail?: string;
   priceGbp?: number;
+  /** Ticketmaster / Skiddle listing image. Never a pub photo. */
+  imageUrl?: string;
+  /** Provider event id. Dedupes a refresh that sees the same listing twice. */
+  sourceId?: string;
+  /** Night-area slug from assignVenueToNightArea at build / serve. */
+  area?: string;
   source: WhatsOnSource;
   observedAt: string; // ISO-8601, never in the future
   confidence: WhatsOnConfidence;
@@ -172,7 +178,14 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
   if (!isValidSource(row.source)) return false; // provenance non-negotiable
   if (!isValidObservedAt(row.observedAt, now)) return false; // never future
   if (!isWhatsOnConfidence(row.confidence)) return false;
+  return optionalsValid(row, hasExactStart, hasListedWindow);
+}
 
+function optionalsValid(
+  row: Record<string, unknown>,
+  hasExactStart: boolean,
+  hasListedWindow: boolean,
+): boolean {
   if (!isAbsentOr(row.venueId, isNonEmptyString)) return false;
   if (row.lat !== undefined && row.lat !== null && !isFiniteNumber(row.lat)) return false;
   if (row.lng !== undefined && row.lng !== null && !isFiniteNumber(row.lng)) return false;
@@ -180,13 +193,14 @@ export function isValidWhatsOnRow(value: unknown, now: number = Date.now()): val
     if (!hasExactStart || !isValidIso(row.endsAt)) return false;
   }
   if (!isAbsentOr(row.timeEvidence, isNonEmptyString)) return false;
-  if (row.listedWindow !== undefined && !hasListedWindow) {
-    return false;
-  }
+  if (row.listedWindow !== undefined && !hasListedWindow) return false;
   if (!isAbsentOr(row.detail, isNonEmptyString)) return false;
   if (row.priceGbp !== undefined && row.priceGbp !== null) {
     if (!isFiniteNumber(row.priceGbp) || row.priceGbp < 0) return false;
   }
+  if (!isAbsentOr(row.imageUrl, isHttpUrl)) return false;
+  if (!isAbsentOr(row.sourceId, isNonEmptyString)) return false;
+  if (!isAbsentOr(row.area, isNonEmptyString)) return false;
   return true;
 }
 
@@ -245,6 +259,9 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   }
   if (isNonEmptyString(row.detail)) out.detail = row.detail;
   if (isFiniteNumber(row.priceGbp)) out.priceGbp = row.priceGbp;
+  if (isHttpUrl(row.imageUrl)) out.imageUrl = row.imageUrl;
+  if (isNonEmptyString(row.sourceId)) out.sourceId = row.sourceId;
+  if (isNonEmptyString(row.area)) out.area = row.area;
   return out;
 }
 
@@ -425,6 +442,7 @@ const POINT_ROW_GRACE_MS: Record<WhatsOnKind, number> = {
   music: 3 * 60 * 60 * 1000,
   sport: 2.5 * 60 * 60 * 1000,
   deal: 0,
+  event: 3 * 60 * 60 * 1000,
 };
 
 /**
