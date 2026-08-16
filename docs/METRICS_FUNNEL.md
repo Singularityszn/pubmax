@@ -230,8 +230,9 @@ whether the write-back made the figure trusted.
 
 `surface` is `near` or `map`. `reason` is `provisional`, `stale`, or
 `missing`. `category` is the closed drink taxonomy and is omitted on a missing
-mission. No venue id, handle, price, or coordinate ever rides along. Every
-event fails closed on a missing required key.
+mission. No venue id, handle, price, or coordinate ever rides along. The
+required keys, and the validator that closes each vocabulary, are under
+[Registry additions](#registry-additions).
 
 ## 6. Press arrival (the London Pint Index)
 
@@ -397,12 +398,23 @@ price_submitted: ["category"],
 price_submit_failed: ["category", "reason"],
 price_impact_opened: [],
 contribution_gate: ["step"],
+```
+
+The price evidence missions (§5b) added five more, with their own scoped
+validator (`isAllowedMissionProp`) so `surface`, `reason`, `category` and
+`outcome` each keep their own closed set:
+
+```ts
 mission_viewed: ["surface", "reason", "category"],
 mission_opened: ["surface", "reason", "category"],
 mission_dismissed: ["surface", "reason", "category"],
 mission_submitted: ["surface", "reason", "category", "outcome"],
 mission_newly_trusted: ["surface", "reason", "category", "outcome"],
 ```
+
+All five are also in `TRUSTED_HANDOFF_REQUIRED_KEYS`: `surface` and `reason`
+on every one, plus `outcome` on the two submit events. `category` is optional,
+because a missing mission names no drink.
 
 The press-arrival funnel added three more, with the same treatment
 (`isAllowedPintIndexArrivalProp`) so `surface`, `visit` and `area` each keep
