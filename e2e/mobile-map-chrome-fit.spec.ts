@@ -550,9 +550,27 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
 const FLOATING_RIGHT_EDGE = [
   { name: "create action", selector: ".createFab" },
   { name: "Pub Pal pill", selector: ".palSummon" },
+  { name: "plan activation", selector: ".mobilePlanActivation" },
   { name: "locate FAB", selector: ".mobileMapLocateFab" },
   { name: "TfL control", selector: ".mobileMapTflButton" },
 ] as const;
+
+// Members that MUST be measured, or the sweep would pass by shrinking rather
+// than by clearing: the plan pill is what the default berth used to land on, and
+// the locate FAB is what the Pub Pal berth used to land on.
+const REQUIRED_MEMBERS = [
+  "create action",
+  "Pub Pal pill",
+  "plan activation",
+  "locate FAB",
+] as const;
+
+// One pair predates the floating stack and is NOT this lane's to move: the Pub
+// Pal pill (right 18px, bottom 78, 52 tall) sits inside the map planning pill's
+// full-width band (bottom 86, 48 tall), and the pill paints over it. Named here
+// so the sweep still fails on every OTHER pair, including any new one, instead
+// of being narrowed to the create action alone.
+const KNOWN_PREEXISTING_OVERLAPS = new Set(["Pub Pal pill + plan activation"]);
 
 function overlaps(a: Rect, b: Rect): boolean {
   return (
@@ -565,6 +583,12 @@ for (const viewport of VIEWPORTS) {
     page,
   }) => {
     await page.addInitScript(() => {
+      // Consent is ANSWERED on purpose. Leaving it undecided renders
+      // AnalyticsConsentPrompt, which lifts the map-edge column to its own
+      // higher berth - the one berth where the collision this test exists for
+      // cannot happen - and whether it renders at all depends on a prompt
+      // budget, so an undecided seed is nondeterministic as well as blind.
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
       const now = "2026-01-01T00:00:00.000Z";
       window.localStorage.setItem(
         "pubmax_pub_pal_v1",
@@ -609,19 +633,30 @@ for (const viewport of VIEWPORTS) {
         },
       });
     }
-    // Both members of the stack this change introduced must be in the sample,
-    // or the test would pass by measuring nothing.
     expect(boxes.map((box) => box.name)).toEqual(
-      expect.arrayContaining(["create action", "Pub Pal pill"]),
+      expect.arrayContaining([...REQUIRED_MEMBERS]),
     );
+    await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
 
     for (let i = 0; i < boxes.length; i += 1) {
       for (let j = i + 1; j < boxes.length; j += 1) {
+        const pair = [boxes[i]!.name, boxes[j]!.name].sort().join(" + ");
+        if (KNOWN_PREEXISTING_OVERLAPS.has(pair)) continue;
         expect(
           overlaps(boxes[i]!.rect, boxes[j]!.rect),
           `${boxes[i]!.name} overlaps ${boxes[j]!.name}: ${JSON.stringify([boxes[i]!.rect, boxes[j]!.rect])}`,
         ).toBe(false);
       }
+    }
+    // The create action is the member this stack was built for, so its own
+    // clearance is asserted separately and is never waived.
+    const createAction = boxes.find((box) => box.name === "create action")!;
+    for (const box of boxes) {
+      if (box === createAction) continue;
+      expect(
+        overlaps(createAction.rect, box.rect),
+        `create action overlaps ${box.name}: ${JSON.stringify([createAction.rect, box.rect])}`,
+      ).toBe(false);
     }
 
     // And every one of them stays clear of the tab bar it parks above.

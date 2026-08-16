@@ -11,13 +11,55 @@
    hides behind it; hoisting the magic number here keeps the two in lockstep. */
 :root {
   --tabbar-h: 64px;
-  /* The floating stack on the right edge. Every fixed control that parks above
-     the tab bar derives its offset from these, so two of them cannot drift into
-     each other: the Pub Pal pill takes the lower berth, the create action sits
-     one gap above whatever is below it. */
+
+  /* ── The right-edge floating stack ────────────────────────────────────────
+     Every fixed control that parks above the tab bar is a MEMBER, and every
+     member publishes its own bottom offset and its own height here. That is
+     what makes the stack derivable: a member's TOP edge is bottom + height, and
+     the create action takes the berth one gap above the topmost member that is
+     actually on screen (createFab.css reads these through body:has()).
+
+     Owning the numbers here rather than at each member's own rule is the point.
+     The create action first shipped assuming only the tab bar was below it, then
+     assuming only the Pub Pal pill was, and each time it landed on a control
+     whose offset it had never read - the map's planning pill, then the Near me
+     FAB. A member that stops declaring its geometry through these cannot be
+     stacked, and the rendered overlap proof in e2e/mobile-map-chrome-fit.spec.ts
+     is what catches that. */
   --float-stack-gap: 12px;
+  /* The band every member measures from: the reserved tab-bar lane plus a gap.
+     mobileMapShell.css's --mobile-map-dock-clearance IS this. */
+  --float-stack-base: calc(
+    var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
+  );
+
+  /* Member: the Pub Pal summon pill (/, /map, /map/*, /plan, /plan/*). */
   --pal-summon-h: 52px;
   --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+
+  /* Member: the phone map's planning pill. */
+  --plan-activation-h: 48px;
+  --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
+
+  /* Member: the map-edge corner column. Its box spans most of the viewport, but
+     what sits in this band is the Near me FAB parked at the column's own bottom
+     (justify-content: space-between). The consent variant is the lifted berth
+     the column takes while the analytics disclosure owns the lane. */
+  --map-corner-locate-size: 52px;
+  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
+  --map-corner-bottom-consent: calc(var(--float-stack-base) + 200px);
+
+  /* Each member's top edge, which is the only thing a control above it needs. */
+  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
+  --float-stack-top-plan: calc(
+    var(--plan-activation-bottom) + var(--plan-activation-h)
+  );
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size)
+  );
+  --float-stack-top-map-corner-consent: calc(
+    var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
+  );
 }
 
 /* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —

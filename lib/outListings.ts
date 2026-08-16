@@ -47,6 +47,14 @@ export const OUT_LISTING_LIMIT = 60;
  * freshest row of the same kind was observed at. It is only the fallback, for a
  * row that carries no usable day of its own, and when it cannot answer either
  * the card says so rather than borrowing somebody else's day.
+ *
+ * Preferring the ROW is only honest while /out is baseline-only. A LIVE row's
+ * `observedAt` falls back to the request instant when the provider states none
+ * (lib/whatsOnStore.ts, "a LIVE row's is not"), and the live lane maps
+ * gig/nightlife onto `music`, which this page lists. What keeps that off the
+ * card is `app/out/page.tsx` passing a `fetchLive` that returns an empty array.
+ * Re-enable the live layer here and this preference has to be gated on the row
+ * not being one of its rows.
  */
 export function outCardObservedAt(
   row: { kind: WhatsOnKind; observedAt?: string | null },

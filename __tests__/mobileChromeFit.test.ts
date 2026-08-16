@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
+const mobileNavCss = read("components/nav/mobileNav.css");
 const arcChipsCss = read("components/map/tonightArcChips.css");
 const arcChipsTsx = read("components/map/TonightArcChips.tsx");
 const landingCss = read("components/landing/landing.css");
@@ -209,7 +210,14 @@ describe("mobile chrome fit at 390px", () => {
     const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab, ".mobileMapLocateFab rule present").not.toBe("");
     expect(fab, "a locate FAB is round").toMatch(/border-radius:\s*50%/);
-    const fabSize = Number(fab.match(/width:\s*(\d+)px/)?.[1]);
+    // The size is published with the floating stack (mobileNav.css), because the
+    // create action above has to clear this control's own top edge.
+    expect(fab, "the FAB reads its published size").toMatch(
+      /width:\s*var\(--map-corner-locate-size\)/,
+    );
+    const fabSize = Number(
+      mobileNavCss.match(/--map-corner-locate-size:\s*(\d+)px/)?.[1],
+    );
     expect(fabSize, "the FAB keeps the tap floor").toBeGreaterThanOrEqual(44);
     expect(fabSize, "and stays inside the published lane").toBeLessThanOrEqual(
       cornerInset + cornerBtn + cornerGap,

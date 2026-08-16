@@ -1,6 +1,10 @@
 /* Floating create action. Destinations stay in the tab bar; this is the
    compose affordance that used to sit in the centre of the row. Phone only.
-   Geometrically above the reserved tab-bar lane so it never covers the bar. */
+
+   It is the TOP member of the right-edge floating stack, and every berth below
+   it is published by mobileNav.css. It owns no offset of its own beyond the gap:
+   whichever member is on screen, this control clears that member's own top edge.
+   Rendered proof at 320/390/430 is e2e/mobile-map-chrome-fit.spec.ts. */
 
 .createFabRoot {
   display: none;
@@ -30,13 +34,32 @@
       visibility 0s;
   }
 
-  /* One stack, never an overlap. Where the Pub Pal pill is on screen (its own
-     routes, and only once a pal exists) the create action takes the berth
-     directly above it, derived from the pill's own two numbers rather than
-     restated. Everywhere else it keeps the tab-bar berth above. */
+  /* One stack, never an overlap: the create action parks one gap above the
+     TOPMOST member that is actually on screen.
+
+     Every berth is the member's own published top edge (mobileNav.css), never a
+     number restated here - reading only the tab bar put this control on the map's
+     planning pill, and reading only the Pub Pal pill put it on the Near me FAB.
+
+     These four rules share one specificity, so SOURCE ORDER decides, and they are
+     ordered by ascending top edge: the last one that matches is the highest
+     member present, which is exactly the berth to clear. Adding a member means
+     adding its rule in that order. */
   body:has(.palSummon) .createFabRoot {
+    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
+  }
+
+  body:has(.mobilePlanActivation) .createFabRoot {
+    bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+  }
+
+  body:has(.mobileMapUtilityCorner) .createFabRoot {
+    bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
+  }
+
+  body:has(.analyticsConsentPrompt):has(.mobileMapUtilityCorner) .createFabRoot {
     bottom: calc(
-      var(--pal-summon-bottom) + var(--pal-summon-h) + var(--float-stack-gap)
+      var(--float-stack-top-map-corner-consent) + var(--float-stack-gap)
     );
   }
 
@@ -140,8 +163,16 @@
     transform: scale(1);
   }
 
+  /* Every hidden state is restated here, because a media query adds no
+     specificity: a bare `.createFabRoot` loses to `.createFabRoot.isKeyboardHidden`
+     and to `body:has(...) .createFabRoot`, so the control kept sliding and fading
+     for a reader who asked for neither. Dropping the transition also drops the
+     delay the visibility flip was riding, so it withdraws at once. */
   .createFabRoot,
-  .createFab {
+  .createFab,
+  .createFabRoot.isKeyboardHidden,
+  body:has(.appShell.detail-open) .createFabRoot,
+  body:has(.appShell.planning-open) .createFabRoot {
     transition: none;
   }
 }
