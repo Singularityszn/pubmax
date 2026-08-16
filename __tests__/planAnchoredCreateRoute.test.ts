@@ -18,6 +18,7 @@ vi.mock("@/lib/concierge/venues.server", () => ({
   ],
 }));
 
+import { composerCreatePayload } from "@/components/plan/PlanComposer";
 import { POST as CREATE } from "@/app/api/plans/route";
 import { PATCH } from "@/app/api/plans/[id]/route";
 import {
@@ -136,6 +137,42 @@ describe("POST /api/plans — anchored lock", () => {
 
     expect(response.status).toBe(422);
     expect((await response.json()).code).toBe("PLAN_ANCHOR_REQUIRED");
+  });
+
+  it("locks a released night as an ordinary plan, keeping every stop", async () => {
+    // Releasing a held pub drops the anchor AND its V2 proof, because the pair
+    // is validated as one unit here: a kept proof with no anchor is refused,
+    // which would leave a released night unlockable.
+    const stops = [
+      { venueId: "venue-a", venueName: "Venue A" },
+      { venueId: "venue-b", venueName: "Venue B" },
+      { venueId: "venue-c", venueName: "Venue C" },
+    ];
+    const released = composerCreatePayload({
+      title: "Tonight",
+      creatorName: "Host",
+      startTime: "2026-07-24T19:00:00.000Z",
+      stops,
+      groundingProof: null,
+      planAnchor: null,
+    });
+    expect(released).not.toHaveProperty("anchor");
+    expect(released).not.toHaveProperty("groundingProof");
+
+    const response = await create(released, "op-released-01");
+    expect(response.status).toBe(201);
+    expect((await response.json()).plan.stops).toHaveLength(3);
+
+    const keptProof = await create(composerCreatePayload({
+      title: "Tonight",
+      creatorName: "Host",
+      startTime: "2026-07-24T19:00:00.000Z",
+      stops,
+      groundingProof: anchorOnlyProof("op-released-02"),
+      planAnchor: null,
+    }), "op-released-02");
+    expect(keptProof.status).toBe(422);
+    expect((await keptProof.json()).code).toBe("PLAN_ANCHOR_REQUIRED");
   });
 
   it("rejects a submitted anchor Venue that differs from the signed proof", async () => {

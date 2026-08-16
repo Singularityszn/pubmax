@@ -90,7 +90,7 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
       planAnchor: parsed.planAnchor ?? null,
       groundingProof: parsed.groundingProof ?? null,
     };
-  }).toEqual({ planAnchor: null, groundingProof: "signed-proof" });
+  }).toEqual({ planAnchor: null, groundingProof: null });
 
   await page.getByLabel("Your name").fill("Karan");
   await page.getByLabel("First pint").fill("2026-08-17T20:00");
@@ -99,6 +99,8 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   await expect.poll(() => creates.length).toBeGreaterThan(0);
   expect(creates[0]).toMatchObject({ cityId: "manchester" });
   expect(creates[0]).not.toHaveProperty("anchor");
+  expect(creates[0]).not.toHaveProperty("groundingProof");
+  expect((creates[0] as { stops: unknown[] }).stops).toHaveLength(3);
 });
 
 test("Keep on Near then Make it Stop 1 shows one describe box and names the area", async ({ page }) => {

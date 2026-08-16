@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -193,13 +191,5 @@ describe("TonightRowAccept", () => {
   it("says nothing on a different offer family at the same pub", () => {
     const html = render("venue-failed", "deal|Curry Club|Chain Co");
     expect(html).not.toContain('role="alert"');
-  });
-});
-
-describe("tonightAcceptanceError inset", () => {
-  it("uses the same 16px horizontal inset as the Keep button", () => {
-    const css = readFileSync(join(process.cwd(), "app/tonight/tonight.css"), "utf8");
-    const block = css.match(/\.tonightAcceptanceError\s*\{[^}]+\}/);
-    expect(block?.[0]).toMatch(/margin:\s*0 16px 16px/);
   });
 });

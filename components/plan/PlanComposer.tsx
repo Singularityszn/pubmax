@@ -512,6 +512,8 @@ export const PLAN_INTAKE_CONFLICT_SERVER =
   "Plan intake skipped steps conflict with supplied answers.";
 export const PLAN_INTAKE_CONFLICT_READER =
   "The earlier route is still here - start again or keep it";
+export const PLAN_INTAKE_CONFLICT_NO_ROUTE =
+  "That answer clashed with an earlier step - start again from the first question";
 export function releasedAcceptanceStatus(input: {
   venueName: string | null;
   routeStale: boolean;
@@ -577,8 +579,9 @@ export function planGenerationFailureStatus(
   if (
     message === PLAN_INTAKE_CONFLICT_SERVER
     || message === PLAN_INTAKE_CONFLICT_READER
+    || message === PLAN_INTAKE_CONFLICT_NO_ROUTE
   ) {
-    return hasPreviousRoute ? PLAN_INTAKE_CONFLICT_READER : PLAN_INTAKE_CONFLICT_SERVER;
+    return hasPreviousRoute ? PLAN_INTAKE_CONFLICT_READER : PLAN_INTAKE_CONFLICT_NO_ROUTE;
   }
   return hasPreviousRoute ? `The previous route is still here. ${message}` : message;
 }
@@ -1345,6 +1348,7 @@ function PlanComposerForm({
       routeDraft: canPersist ? localStorage : null,
     });
     setPlanAnchor(null);
+    setGroundingProof(null);
     setAcceptanceReleased(true);
     setRouteStatus(releasedAcceptanceStatus({
       venueName: acceptedVenueName,

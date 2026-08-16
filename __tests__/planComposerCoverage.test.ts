@@ -24,6 +24,7 @@ import {
   planComposerVenueIndexPath,
   planDraftSavedTelemetry,
   planGenerationFailureStatus,
+  PLAN_INTAKE_CONFLICT_NO_ROUTE,
   PLAN_INTAKE_CONFLICT_READER,
   PLAN_INTAKE_CONFLICT_SERVER,
   planLockValidationError,
@@ -497,11 +498,21 @@ describe("PlanComposer route preview seam", () => {
       PLAN_INTAKE_CONFLICT_READER,
     );
     expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_SERVER, false)).toBe(
-      PLAN_INTAKE_CONFLICT_SERVER,
+      PLAN_INTAKE_CONFLICT_NO_ROUTE,
     );
     expect(planGenerationFailureStatus(PLAN_INTAKE_CONFLICT_READER, false)).toBe(
-      PLAN_INTAKE_CONFLICT_SERVER,
+      PLAN_INTAKE_CONFLICT_NO_ROUTE,
     );
+  });
+
+  it("never prints the generator's own conflict sentence to a reader", () => {
+    for (const hasPreviousRoute of [true, false]) {
+      for (const message of [PLAN_INTAKE_CONFLICT_SERVER, PLAN_INTAKE_CONFLICT_READER]) {
+        expect(planGenerationFailureStatus(message, hasPreviousRoute))
+          .not.toBe(PLAN_INTAKE_CONFLICT_SERVER);
+      }
+    }
+    expect(PLAN_INTAKE_CONFLICT_NO_ROUTE).not.toContain("intake");
   });
 
   it("uses house error copy when Lock it in is missing only a name", () => {
