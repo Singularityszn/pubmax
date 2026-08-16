@@ -168,7 +168,7 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
 
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(
-    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Tonight" }),
+    page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Now" }),
   ).toBeVisible();
   expect(errors).toEqual([]);
 });

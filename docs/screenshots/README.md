@@ -69,6 +69,11 @@ location success/failure states and Today title diversity:
 - `today-diversity-light-390.png`
 - `today-diversity-dark-390.png`
 
+## Out tab evidence (390×844)
+
+`out-l1/` holds the phone capture of the `/out` shell in both themes:
+`out-390-light.png` and `out-390-dark.png`.
+
 ## Press arrival evidence (390×844)
 
 `press-arrival/` holds the phone capture of the Pint Index arrival: the live

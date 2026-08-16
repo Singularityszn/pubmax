@@ -2,6 +2,8 @@
 .next-*/
 node_modules/
 out/
+!app/out/
+!app/out/**
 dist/
 .env*
 !.env.example

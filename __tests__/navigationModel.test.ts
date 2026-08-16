@@ -10,10 +10,11 @@ import {
 } from "@/components/nav/navigationModel";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps four destinations and models Moment separately", () => {
+  it("keeps five destinations and models Moment separately", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
+      "Now",
       "Map",
-      "Tonight",
+      "Out",
       "Social",
       "You",
     ]);
@@ -22,10 +23,15 @@ describe("PUBMAXX primary navigation", () => {
 
   it("keeps capture separate from the map and sends Social to its canonical shell", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
+      "/today",
       "/map",
-      "/tonight",
+      "/out",
       "/social",
       "/u/you",
+    ]);
+    expect(PRIMARY_NAV_ITEMS.find((item) => item.key === "now")?.match).toEqual([
+      "/today",
+      "/tonight",
     ]);
   });
 

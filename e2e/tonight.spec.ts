@@ -233,15 +233,20 @@ test("a failed listings request can be retried", async ({ page }) => {
   expect(requests).toBe(2);
 });
 
-test("mobile keeps Tonight as a root tab", async ({
+test("mobile keeps Now as a root tab over live today and tonight", async ({
   page,
 }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/discover");
 
   const primaryNav = page.getByRole("navigation", { name: "Primary" });
-  await expect(primaryNav.getByRole("link", { name: "Tonight" })).toBeVisible();
-  await primaryNav.getByRole("link", { name: "Tonight" }).click();
+  await expect(primaryNav.getByRole("link", { name: "Now", exact: true })).toBeVisible();
+  await primaryNav.getByRole("link", { name: "Now", exact: true }).click();
+  await expect(page).toHaveURL(/\/(today|tonight)$/);
+  await page
+    .getByRole("navigation", { name: "Now" })
+    .getByRole("link", { name: "Tonight", exact: true })
+    .click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });

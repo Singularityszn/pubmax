@@ -32,14 +32,9 @@ test.describe("mobile Moment journey", () => {
     await expect(page.getByText("Your unfinished Moment is back.")).toBeVisible();
   });
 
-  test("Stories opens the social feed instead of the map", async ({ page }) => {
+  test("Social opens the social shell instead of the map", async ({ page }) => {
     await page.goto("/moment");
-    await page.getByRole("link", { name: "Stories", exact: true }).click();
-    await expect(page).toHaveURL(/\/feed$/);
-    await expect(page.getByRole("heading", { name: "Stories" })).toBeVisible();
-    await expect(page.getByRole("button", { name: "Latest", exact: true })).toHaveAttribute(
-      "aria-pressed",
-      "true",
-    );
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Social", exact: true }).click();
+    await expect(page).toHaveURL(/\/social$/);
   });
 });

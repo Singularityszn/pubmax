@@ -11,6 +11,53 @@
    hides behind it; hoisting the magic number here keeps the two in lockstep. */
 :root {
   --tabbar-h: 64px;
+
+  /* ── The right-edge floating stack ────────────────────────────────────────
+     Every fixed control that parks above the tab bar is a MEMBER, and every
+     member publishes its own bottom offset and its own height here. That is
+     what makes the stack derivable: a member's TOP edge is bottom + height, and
+     the create action takes the berth one gap above the topmost member that is
+     actually on screen (createFab.css reads these through body:has()).
+
+     Owning the numbers here rather than at each member's own rule is the point.
+     The create action first shipped assuming only the tab bar was below it, then
+     assuming only the Pub Pal pill was, and each time it landed on a control
+     whose offset it had never read - the map's planning pill, then the Near me
+     FAB. A member that stops declaring its geometry through these cannot be
+     stacked, and the rendered overlap proof in e2e/mobile-map-chrome-fit.spec.ts
+     is what catches that. */
+  --float-stack-gap: 12px;
+  /* The band every member measures from: the reserved tab-bar lane plus a gap.
+     mobileMapShell.css's --mobile-map-dock-clearance IS this. */
+  --float-stack-base: calc(
+    var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
+  );
+
+  /* Member: the Pub Pal summon pill (/, /map, /map/*, /plan, /plan/*). */
+  --pal-summon-h: 52px;
+  --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+
+  /* Member: the phone map's planning pill. */
+  --plan-activation-h: 48px;
+  --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
+
+  /* Member: the map-edge corner column. Its box spans most of the viewport, but
+     what sits in this band is the Near me FAB parked at the column's own bottom
+     (justify-content: space-between). The consent variant is the lifted berth
+     the column takes while the analytics disclosure owns the lane; the create
+     action does not stack above that card at all, it stands down (createFab.css). */
+  --map-corner-locate-size: 52px;
+  --map-corner-bottom: calc(var(--float-stack-base) + 72px);
+  --map-corner-bottom-consent: calc(var(--float-stack-base) + 200px);
+
+  /* Each member's top edge, which is the only thing a control above it needs. */
+  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
+  --float-stack-top-plan: calc(
+    var(--plan-activation-bottom) + var(--plan-activation-h)
+  );
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom) + var(--map-corner-locate-size)
+  );
 }
 
 /* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —
@@ -84,19 +131,6 @@
   display: none;
 }
 
-/* Moment's calm idle presence — a slow, low-amplitude glow bloom, never a fast
-   high-contrast pulse. Kept top-level (not nested) so it stays readable
-   alongside the other keyframes in this file. */
-@keyframes mobileTabDropGlow {
-  0%,
-  100% {
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 20%, transparent);
-  }
-  50% {
-    box-shadow: 0 2px 13px color-mix(in srgb, var(--ink-deep) 32%, transparent);
-  }
-}
-
 @media (max-width: 640px) {
   body:has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
@@ -156,7 +190,7 @@
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 6;
+    --tab-count: 5;
     --tab-inset: 2px;
     max-width: 420px;
     margin: 0 auto;
@@ -253,7 +287,7 @@
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
-  .mobileTab:not(.isActive):not(.mobileTabPrimary) .mobileTabIcon {
+  .mobileTab:not(.isActive) .mobileTabIcon {
     color: var(--ink-soft);
   }
 
@@ -287,91 +321,6 @@
 
   .mobileTab.isActive .mobileTabIcon {
     color: var(--brass);
-  }
-
-  /* Moment: primary centre action — compact circle, never "current page". */
-  .mobileTabPrimary {
-    color: var(--ink-soft);
-  }
-
-  .mobileTabPrimary .mobileTabIcon {
-    /* Compact Drop circle; parent .mobileTab keeps the tap target.
-       Baseline contract: every label in the bar sits on ONE baseline, and the
-       circle's CENTRE sits on the same axis as its five sibling icons. The
-       circle is 24px against the 20px icon row; symmetric -2px margins keep
-       its occupied height at 20px so it overhangs equally above and below the
-       row instead of riding raised above it (owner ruling 2026-07-22: the
-       raised-FAB look read as misalignment, the bar must be uniform). */
-    width: 24px;
-    height: 24px;
-    margin-top: -2px;
-    margin-bottom: -2px;
-    border-radius: 50%;
-    /* Solid ink, not coral: Moment is an action circle, and coral in the tab
-       bar belongs to the active glyph alone (finding 2.1). Ink flips per
-       theme, so the circle stays the bar's strongest neutral in both. */
-    background: var(--ink);
-    color: var(--paper);
-    box-shadow: 0 2px 8px color-mix(in srgb, var(--ink-deep) 20%, transparent);
-    border: 1.5px solid color-mix(in srgb, var(--panel-raised) 92%, transparent);
-  }
-
-  .mobileTabPrimary .mobileTabLabel {
-    color: var(--ink-soft);
-    font-weight: 700;
-  }
-
-  .mobileTabPrimary:focus-visible {
-    background: color-mix(in srgb, var(--ink) 8%, transparent);
-    color: var(--ink);
-  }
-
-  .mobileTabPrimary:focus-visible .mobileTabLabel {
-    color: var(--ink);
-  }
-
-  .mobileTabPrimary:focus-visible .mobileTabIcon {
-    background: var(--ink-soft);
-    transform: translateY(-1px);
-  }
-
-  /* Confident tactile press — a firmer dip than the row's default .pressable
-     scale (Drop is the emphasized action) and it works from touch alone, no
-     :hover required. */
-  .mobileTabPrimary:active .mobileTabIcon {
-    animation-play-state: paused;
-    transform: scale(var(--press-scale-firm));
-    box-shadow: 0 1px 4px color-mix(in srgb, var(--ink-deep) 26%, transparent);
-  }
-
-  .mobileTabPrimary:active {
-    --shared-press-scale: 1;
-  }
-}
-
-/* Calm idle presence: a slow (3.2s), low-amplitude glow so Drop keeps reading
-   as the primary action at rest — never a fast/high-contrast pulse. Scoped
-   entirely inside no-preference, so reduced-motion users simply never get the
-   animation (nothing to opt back out of). */
-@media (max-width: 640px) and (prefers-reduced-motion: no-preference) {
-  .mobileTabPrimary .mobileTabIcon {
-    animation: mobileTabDropGlow 3200ms var(--ease-in-out-strong) infinite;
-  }
-}
-
-@media (max-width: 640px) and (hover: hover) and (pointer: fine) {
-  .mobileTabPrimary:hover {
-    background: color-mix(in srgb, var(--ink) 8%, transparent);
-    color: var(--ink);
-  }
-
-  .mobileTabPrimary:hover .mobileTabLabel {
-    color: var(--ink);
-  }
-
-  .mobileTabPrimary:hover .mobileTabIcon {
-    background: var(--ink-soft);
-    transform: translateY(-1px);
   }
 }
 

@@ -100,6 +100,9 @@ export const ANALYTICS_EVENTS = {
   // Wave A
   tonight_screen_view: [],
   tonight_filter_select: ["kind"],
+  out_screen_view: [],
+  out_filter_select: ["kind"],
+  create_fab_action: ["action"],
   // Vibe layer (docs/VIBE_LAYER_SPEC_2026-07-19.md): which mood chip was
   // pressed. The vibe id only — never free text, never location.
   tonight_vibe_select: ["vibe"],
@@ -421,7 +424,8 @@ const CONTRIBUTION_GATE_STEPS = [
 
 const SAFE_STRING_VALUES = new Set([
   // fixed product surfaces and provenance
-  "landing", "home", "map", "tonight", "plan", "you", "pal", "borough", "city", "crawl", "recap",
+  "landing", "home", "map", "tonight", "tomorrow", "weekend", "plan", "you", "pal", "borough", "city", "crawl", "recap",
+  "moment", "price",
   "shared-plan", "plan-link", "crew-reinvite", "completed_plan", "plan-crew",
   "near", "map-search", "direct-plan", "mobile-route-preview",
   "location", "remembered-area", "picked-area", "default-area", "0", "1", "1-3", "2-3", "4+",

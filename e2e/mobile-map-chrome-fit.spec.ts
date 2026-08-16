@@ -243,6 +243,22 @@ for (const viewport of VIEWPORTS) {
       "map-edge controls share one right edge",
     ).toBe(Math.round(layout.utility.right));
 
+    // Near me's own size is published with the floating stack, so what it owes
+    // is measured here rather than read back out of that declaration: the tap
+    // floor, a square box its 50% radius can round, and a footprint the map
+    // edge holds whole.
+    expect(layout.locate.width, "Near me keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(layout.locate.height, "Near me keeps the tap floor").toBeGreaterThanOrEqual(44);
+    expect(
+      Math.round(layout.locate.width),
+      "Near me is square, so its 50% radius reads as a circle",
+    ).toBe(Math.round(layout.locate.height));
+    expect(layout.locate.left, "Near me stays inside the viewport").toBeGreaterThan(0);
+    expect(
+      layout.locate.right,
+      "Near me stays inside the viewport",
+    ).toBeLessThanOrEqual(viewport.width);
+
     // Below 361px the wordmark leaves the bar on purpose, so the place name
     // keeps a readable column (components/mobile/mobileMapShell.css). It is the
     // one control the bar drops, and it must be dropped OUTRIGHT: a hidden
@@ -538,3 +554,319 @@ test("390px recorded map journey reaches Filters and a painted pin", async ({
     .toBe(tappedPinId);
   await page.waitForTimeout(1_200);
 });
+
+// The right-edge floating stack: one column, never an overlap.
+//
+// The create action, the Pub Pal pill and the map-edge locate FAB are three
+// independently-positioned fixed controls in the same corner. The create action
+// arrived last and, at the tab bar's own layer with the tab bar's own offset, it
+// painted over roughly 50px of the pill on /map and /plan. What holds them apart
+// is a shared set of custom properties, so the proof has to be the RENDERED
+// geometry rather than the declarations.
+const FLOATING_RIGHT_EDGE = [
+  { name: "create action", selector: ".createFab" },
+  { name: "Pub Pal pill", selector: ".palSummon" },
+  { name: "plan activation", selector: ".mobilePlanActivation" },
+  { name: "locate FAB", selector: ".mobileMapLocateFab" },
+  { name: "TfL control", selector: ".mobileMapTflButton" },
+] as const;
+
+// Members that MUST be measured, or the sweep would pass by shrinking rather
+// than by clearing: the plan pill is what the default berth used to land on, and
+// the locate FAB is what the Pub Pal berth used to land on.
+const REQUIRED_MEMBERS = [
+  "create action",
+  "Pub Pal pill",
+  "plan activation",
+  "locate FAB",
+] as const;
+
+// One pair predates the floating stack and is NOT this lane's to move: the Pub
+// Pal pill (right 18px, bottom 78, 52 tall) sits inside the map planning pill's
+// full-width band (bottom 86, 48 tall), and the pill paints over it. Named here
+// so the sweep still fails on every OTHER pair, including any new one, instead
+// of being narrowed to the create action alone.
+const KNOWN_PREEXISTING_OVERLAPS = new Set(["Pub Pal pill + plan activation"]);
+
+function overlaps(a: Rect, b: Rect): boolean {
+  return (
+    a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
+  );
+}
+
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px right-edge floating controls never overlap`, async ({
+    page,
+  }) => {
+    await page.addInitScript(() => {
+      // Consent is ANSWERED on purpose. Leaving it undecided renders
+      // AnalyticsConsentPrompt, which lifts the map-edge column to its own
+      // higher berth - the one berth where the collision this test exists for
+      // cannot happen - and whether it renders at all depends on a prompt
+      // budget, so an undecided seed is nondeterministic as well as blind.
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      const now = "2026-01-01T00:00:00.000Z";
+      window.localStorage.setItem(
+        "pubmax_pub_pal_v1",
+        JSON.stringify({
+          id: "pal-e2e",
+          ownerId: "owner-e2e",
+          name: "Ada",
+          adultAttestedAt: now,
+          appearance: {},
+          personality: {},
+          voice: {},
+          muted: false,
+          hidden: false,
+          proposalPreferences: {},
+          masteryPoints: 0,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    });
+    await openPhoneMap(page, viewport);
+    // The pill is stored-pal gated and mounts after a microtask.
+    await expect(page.locator(".palSummon")).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".createFab")).toBeVisible();
+
+    const boxes: Array<{ name: string; rect: Rect }> = [];
+    for (const control of FLOATING_RIGHT_EDGE) {
+      const locator = page.locator(control.selector);
+      if ((await locator.count()) === 0) continue;
+      if (!(await locator.first().isVisible())) continue;
+      const rect = await locator.first().boundingBox();
+      if (!rect) continue;
+      boxes.push({
+        name: control.name,
+        rect: {
+          top: rect.y,
+          right: rect.x + rect.width,
+          bottom: rect.y + rect.height,
+          left: rect.x,
+          width: rect.width,
+          height: rect.height,
+        },
+      });
+    }
+    expect(boxes.map((box) => box.name)).toEqual(
+      expect.arrayContaining([...REQUIRED_MEMBERS]),
+    );
+    await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
+
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let j = i + 1; j < boxes.length; j += 1) {
+        const pair = [boxes[i]!.name, boxes[j]!.name].sort().join(" + ");
+        if (KNOWN_PREEXISTING_OVERLAPS.has(pair)) continue;
+        expect(
+          overlaps(boxes[i]!.rect, boxes[j]!.rect),
+          `${boxes[i]!.name} overlaps ${boxes[j]!.name}: ${JSON.stringify([boxes[i]!.rect, boxes[j]!.rect])}`,
+        ).toBe(false);
+      }
+    }
+    // The create action is the member this stack was built for, so its own
+    // clearance is asserted separately and is never waived.
+    const createAction = boxes.find((box) => box.name === "create action")!;
+    for (const box of boxes) {
+      if (box === createAction) continue;
+      expect(
+        overlaps(createAction.rect, box.rect),
+        `create action overlaps ${box.name}: ${JSON.stringify([createAction.rect, box.rect])}`,
+      ).toBe(false);
+    }
+
+    // And every one of them stays clear of the tab bar it parks above.
+    const bar = await page.locator(".mobileTabBar").boundingBox();
+    expect(bar).not.toBeNull();
+    for (const box of boxes) {
+      expect(
+        box.rect.bottom,
+        `${box.name} sits above the tab bar`,
+      ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
+    }
+
+    // The plan pill's own published height and berth, measured rather than
+    // read off a declaration (mobileNav.css --plan-activation-h / -bottom).
+    const plan = boxes.find((box) => box.name === "plan activation")!;
+    expect(plan.rect.height, "the plan pill keeps its 48px").toBeGreaterThanOrEqual(48);
+    expect(
+      Math.round(bar!.y) - Math.round(plan.rect.bottom),
+      "the plan pill keeps a real gap above the tab bar",
+    ).toBeGreaterThanOrEqual(10);
+  });
+}
+
+// The DEFAULT berth, which no map case can reach.
+//
+// Every case above opens /map with a stored Pub Pal, so the create action is
+// always measured at one of the map berths. The berth every OTHER phone route
+// uses - the bare one, above the tab bar - was never rendered anywhere in the
+// suite, and the one fixed control that shares it is mounted in the root layout
+// for any reader who has not answered the analytics question. Both specs that
+// could have caught that seeded the answer away, so the collision was excluded
+// by construction: an opaque 56px circle sat on the card's Allow / No thanks
+// column and took its taps.
+//
+// The assertion is hit-testing rather than geometry, because what the reader
+// needs is not clearance, it is that pressing Allow records Allow.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px consent choices stay reachable in the default berth`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      // Consent is deliberately UNDECIDED, and no other prompt holds the
+      // session budget, so the card is the one on screen.
+      window.localStorage.removeItem("pubmaxx:analytics-consent:v1");
+      window.sessionStorage.removeItem("pubmax:prompt-budget:v1");
+    });
+
+    const response = await page.goto("/out");
+    expect(response?.status()).toBe(200);
+
+    const prompt = page.locator(".analyticsConsentPrompt");
+    // Present, or this case would pass by measuring nothing.
+    await expect(prompt).toBeVisible({ timeout: 30_000 });
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    // And the map members really are absent, so this IS the default berth.
+    await expect(page.locator(".palSummon")).toHaveCount(0);
+    await expect(page.locator(".mobilePlanActivation")).toHaveCount(0);
+    await expect(page.locator(".mobileMapUtilityCorner")).toHaveCount(0);
+
+    for (const label of ["Allow", "No thanks"]) {
+      const button = prompt.getByRole("button", { name: label, exact: true });
+      await expect(button).toBeVisible();
+      const box = await button.boundingBox();
+      expect(box, `${label} has a box`).not.toBeNull();
+      expect(box!.height, `${label} keeps the tap floor`).toBeGreaterThanOrEqual(44);
+      const owner = await page.evaluate(
+        ({ x, y }) => {
+          const hit = document.elementFromPoint(x, y);
+          if (!hit) return "nothing";
+          if (hit.closest(".analyticsConsentPrompt")) return "prompt";
+          if (hit.closest(".createFabRoot")) return "create action";
+          return hit.className || hit.tagName;
+        },
+        { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 },
+      );
+      expect(owner, `${label} receives its own tap`).toBe("prompt");
+    }
+
+    // Pressing it records the choice rather than opening the create sheet.
+    await prompt.getByRole("button", { name: "No thanks", exact: true }).click();
+    await expect(prompt).toHaveCount(0);
+    await expect(page.getByRole("link", { name: "Post a moment", exact: true })).toHaveCount(0);
+    // With the question answered, compose comes back at the default berth.
+    const create = page.getByTestId("create-fab");
+    await expect(create).toBeVisible();
+    const createBox = await create.boundingBox();
+    expect(createBox, "the create action has a box").not.toBeNull();
+    expect(createBox!.width, "the create action keeps its 56px").toBe(56);
+  });
+}
+
+// The create action's own geometry, and what the hidden state COSTS a reader.
+//
+// Both used to be regexes over createFab.css. A declaration that matches proves
+// nothing: the rule can be dead, overridden, or renamed without moving a pixel.
+// So this measures the rendered boxes, and drives the hidden state through the
+// one class the component emits for it (proved by __tests__/createFab.test.ts).
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px the create action is measured, and leaves the screen when hidden`, async ({
+    page,
+  }) => {
+    await page.setViewportSize(viewport);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+    });
+
+    const response = await page.goto("/out");
+    expect(response?.status()).toBe(200);
+
+    const create = page.getByTestId("create-fab");
+    await expect(create).toBeVisible();
+    const box = await create.boundingBox();
+    expect(box, "the create action has a box").not.toBeNull();
+    expect(box!.width, "56px square").toBe(56);
+    expect(box!.height, "56px square").toBe(56);
+    expect(box!.x + box!.width, "inside the viewport").toBeLessThanOrEqual(viewport.width);
+
+    const bar = await page.locator(".mobileTabBar").boundingBox();
+    expect(bar, "the tab bar has a box").not.toBeNull();
+    expect(
+      box!.y + box!.height,
+      "the create action parks above the tab bar",
+    ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
+
+    // Every row of its sheet keeps the tap floor.
+    await create.click();
+    for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
+      const row = page.getByRole("link", { name: label, exact: true });
+      await expect(row).toBeVisible();
+      const rowBox = await row.boundingBox();
+      expect(rowBox, `${label} has a box`).not.toBeNull();
+      expect(rowBox!.height, `${label} keeps the tap floor`).toBeGreaterThanOrEqual(44);
+    }
+    await page.keyboard.press("Escape");
+
+    const centre = { x: box!.x + box!.width / 2, y: box!.y + box!.height / 2 };
+    const before = await page.evaluate((point) => {
+      const fab = document.querySelector<HTMLElement>(".createFab")!;
+      const style = getComputedStyle(fab);
+      return {
+        pointerEvents: style.pointerEvents,
+        visibility: style.visibility,
+        top: fab.getBoundingClientRect().top,
+        ownsItsCentre: !!document
+          .elementFromPoint(point.x, point.y)
+          ?.closest(".createFabRoot"),
+      };
+    }, centre);
+    expect(before.pointerEvents, "live, it takes taps").not.toBe("none");
+    expect(before.visibility, "live, it is painted").toBe("visible");
+    expect(before.ownsItsCentre, "live, it owns its own centre").toBe(true);
+
+    // The soft keyboard is the OS's, not the page's, so no browser test can
+    // raise it. What the component does about it is add this class
+    // (components/nav/CreateFab.tsx); what the CSS owes is everything below.
+    // Reduced motion is emulated above, so the withdrawal is not mid-transition.
+    const hidden = await page.evaluate((point) => {
+      const root = document.querySelector<HTMLElement>(".createFabRoot")!;
+      root.classList.add("isKeyboardHidden");
+      const fab = document.querySelector<HTMLElement>(".createFab")!;
+      const style = getComputedStyle(fab);
+      const rect = fab.getBoundingClientRect();
+      const centreHit = document.elementFromPoint(point.x, point.y);
+      const ownHit = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return {
+        pointerEvents: style.pointerEvents,
+        visibility: style.visibility,
+        top: rect.top,
+        centreOwned: !!centreHit?.closest(".createFabRoot"),
+        ownBoxOwned: !!ownHit?.closest(".createFabRoot"),
+      };
+    }, centre);
+    expect(hidden.pointerEvents, "hidden, it takes no taps").toBe("none");
+    expect(hidden.visibility, "hidden, it is not painted").toBe("hidden");
+    expect(hidden.top, "hidden, it slid down out of its berth").toBeGreaterThan(
+      before.top,
+    );
+    expect(
+      hidden.centreOwned,
+      "hidden, its old centre belongs to whatever is under it",
+    ).toBe(false);
+    expect(
+      hidden.ownBoxOwned,
+      "hidden, it takes no tap anywhere its box still overlaps",
+    ).toBe(false);
+  });
+}
