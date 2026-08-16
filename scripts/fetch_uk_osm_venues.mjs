@@ -53,6 +53,7 @@ import {
   writeCompact,
   writePretty,
 } from "./lib/overpassClient.mjs";
+import { coveringStamp } from "./lib/coveringStamp.mjs";
 import {
   DEFAULT_LAT_STEP,
   DEFAULT_LON_STEP,
@@ -92,6 +93,20 @@ export function venuePackPath(group) {
  * record rather than overwriting the whole-taxonomy run's. */
 export function manifestPathFor(scope) {
   return scope === "all" ? MANIFEST_PATH : path.join(UK_DIR, `venue_chunks_${scope}.json`);
+}
+
+/**
+ * What a pack may claim it was fetched at.
+ *
+ * A NETWORK run stamps its own start: it really did look at the world then.
+ * `--from-raw` looks at nothing, so it may not date itself today - it carries
+ * the OLDEST `osm3s.timestamp_osm_base` among the raw snapshots it re-read, and
+ * goes UNDATED when one of them cannot be dated rather than borrowing the wall
+ * clock or another chunk's day. Old raws are still accepted there; what changes
+ * is that the stamp tells the truth about their age.
+ */
+export function packFetchedAt({ fromRaw, runStartedAt, chunkStamps }) {
+  return fromRaw ? coveringStamp(chunkStamps) : runStartedAt;
 }
 
 /**
@@ -333,6 +348,18 @@ async function main() {
     return;
   }
 
+  const fetchedAt = packFetchedAt({
+    fromRaw: options.fromRaw,
+    runStartedAt,
+    chunkStamps: result.chunkStats.map((stats) => stats.timestamp),
+  });
+  if (fetchedAt === null) {
+    console.warn(
+      "At least one raw chunk carries no usable OSM snapshot timestamp, so the packs publish undated " +
+        "rather than claiming this run's day for data nobody looked at today.",
+    );
+  }
+
   const summaries = [];
   const totals = { byKind: {}, byTaxonomyKey: {} };
   const londonTotals = { byKind: {}, byTaxonomyKey: {} };
@@ -359,7 +386,7 @@ async function main() {
       source: "OpenStreetMap Overpass",
       license: "ODbL",
       attribution: "© OpenStreetMap contributors",
-      fetchedAt: runStartedAt,
+      fetchedAt,
       bbox: UK_BBOX,
       areaFilter: "OSM relation 62149 (United Kingdom)",
       group,

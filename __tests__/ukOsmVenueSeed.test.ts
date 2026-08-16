@@ -10,7 +10,11 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { runArtifactPlan, venuePackPath } from "../scripts/fetch_uk_osm_venues.mjs";
+import {
+  packFetchedAt,
+  runArtifactPlan,
+  venuePackPath,
+} from "../scripts/fetch_uk_osm_venues.mjs";
 import {
   normalizeOsmVenueElement,
   normalizeOsmPubElement,
@@ -254,6 +258,50 @@ describe("what a run of the venue fetcher may rewrite", () => {
     expect(plan.packGroups).toEqual([]);
     expect(plan.manifestPath).toBeNull();
     expect(plan.countsPath).toBeNull();
+  });
+
+  it("stamps a network pull with the run's own start", () => {
+    // The run really did look at the world then, so the wall clock is the
+    // honest answer here - and it stays the answer whatever the mirrors' own
+    // snapshot timestamps happen to say.
+    expect(
+      packFetchedAt({
+        fromRaw: false,
+        runStartedAt: "2026-08-16T04:01:27.583Z",
+        chunkStamps: ["2026-06-01T08:52:28Z", "2026-08-16T03:59:00Z"],
+      }),
+    ).toBe("2026-08-16T04:01:27.583Z");
+  });
+
+  it("stamps a --from-raw rebuild with the OLDEST raw it re-read, never today", () => {
+    // `--from-raw` asks nobody, so dating it today would sell weeks-old cafe
+    // and library rows as fresh through the honest-looking path.
+    expect(
+      packFetchedAt({
+        fromRaw: true,
+        runStartedAt: "2026-08-16T04:01:27.583Z",
+        chunkStamps: [
+          "2026-08-15T23:00:00Z",
+          "2026-06-01T08:52:28Z",
+          "2026-07-20T10:00:00Z",
+        ],
+      }),
+    ).toBe("2026-06-01T08:52:28Z");
+  });
+
+  it("publishes a --from-raw rebuild UNDATED when one raw cannot be dated", () => {
+    for (const unusable of [null, undefined, "", "last tuesday", 1_755_316_887_583]) {
+      expect(
+        packFetchedAt({
+          fromRaw: true,
+          runStartedAt: "2026-08-16T04:01:27.583Z",
+          chunkStamps: ["2026-06-01T08:52:28Z", unusable],
+        }),
+      ).toBeNull();
+    }
+    expect(
+      packFetchedAt({ fromRaw: true, runStartedAt: "2026-08-16T04:01:27.583Z", chunkStamps: [] }),
+    ).toBeNull();
   });
 
   it("names each pack after its own group", () => {

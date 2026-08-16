@@ -29,6 +29,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
+import { coveringStamp } from "./lib/coveringStamp.mjs";
 import { cellBbox, cellIndexFor, cellKey } from "./lib/ukBaseGrid.mjs";
 import { UK_VENUE_GROUPS } from "./lib/ukOsmVenueSeed.mjs";
 import { GREATER_LONDON_BBOX } from "./fetch_uk_osm_venues.mjs";
@@ -130,26 +131,6 @@ function formatBytes(bytes) {
     : `${(bytes / 1024).toFixed(1)} KB`;
 }
 
-/**
- * One line covering several kinds takes the OLDEST of the kinds it covers, and
- * goes undated entirely when it cannot date one of them: this layer's stamp
- * covers the drink, food and work packs at once, and a per-lane rebuild is a
- * supported flow, so borrowing the freshest pack's day would date weeks-old
- * cafe and library rows as today. The opposite rule - a PAGE stamp taking the
- * freshest evidence it holds - is not this one.
- */
-export function coveringFetchedAt(stamps) {
-  if (stamps.length === 0) return null;
-  let oldest = null;
-  for (const stamp of stamps) {
-    if (typeof stamp !== "string") return null;
-    const ms = Date.parse(stamp);
-    if (!Number.isFinite(ms)) return null;
-    if (oldest === null || ms < oldest.ms) oldest = { ms, stamp };
-  }
-  return oldest.stamp;
-}
-
 function median(values) {
   if (values.length === 0) return 0;
   const sorted = [...values].sort((a, b) => a - b);
@@ -204,7 +185,7 @@ async function main() {
     throw new Error("No London venues in the packs - refresh them with `npm run fetch:uk-venues`.");
   }
 
-  const fetchedAt = coveringFetchedAt(packStamps);
+  const fetchedAt = coveringStamp(packStamps);
   if (fetchedAt === null) {
     console.warn(
       "One of the venue packs carries no usable fetchedAt, so the layer publishes undated rather than " +

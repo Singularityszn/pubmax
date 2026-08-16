@@ -161,6 +161,11 @@ A resume keeps whatever raw chunks are on disk under
 `data/osm/uk/raw_venues/` (gitignored) and refetches only what is missing or
 older than 48 hours. A partial pull never overwrites a whole pack.
 
+`--from-raw` asks Overpass nothing, so the packs it writes carry the oldest
+OSM snapshot timestamp among the raws they were rebuilt from, and no stamp at
+all when one of those raws cannot be dated. Only a run that really fetched
+stamps itself with its own start time.
+
 An artifact describes a complete run of its OWN scope. So a `--scope` lane
 retry rewrites that lane's pack alone, records its chunks in
 `data/osm/uk/venue_chunks_<scope>.json`, and leaves the other two packs, the

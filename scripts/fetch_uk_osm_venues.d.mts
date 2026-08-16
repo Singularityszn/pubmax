@@ -10,6 +10,12 @@ export interface UkVenueRunArtifactPlan {
   countsPath: string | null;
 }
 
+export function packFetchedAt(options: {
+  fromRaw: boolean;
+  runStartedAt: string;
+  chunkStamps: readonly unknown[];
+}): string | null;
+
 export function runArtifactPlan(
   scope: string,
   options?: { missingChunks?: number },

@@ -4,7 +4,8 @@ Every place in the United Kingdom a drinker or a laptop could sit in, taken from
 OpenStreetMap through Overpass. This is the widening of the pub pack beside it
 (`README.md`, `uk_osm_pubs.json`, `amenity=pub` alone).
 
-Generated. This file is hand-written and survives a rebuild.
+The packs beside this file are generated. This file is hand-written and
+survives a rebuild.
 
 ```
 uk_osm_venues_drink.json   # pubs, bars, beer gardens, restaurants with a bar,
@@ -83,7 +84,10 @@ mirror that was down or serving a ten-week-old snapshot.
 ## Provenance
 
 `source=osm`, `license=ODbL`, `attribution=© OpenStreetMap contributors`, and
-`fetchedAt` is the run's own timestamp. Nothing here is a price source, and no
+`fetchedAt` is the run's own timestamp when the run asked Overpass. A
+`--from-raw` rebuild asked nobody, so it carries the oldest OSM snapshot
+timestamp among the raws it re-read, and no stamp at all when one of them
+cannot be dated. Nothing here is a price source, and no
 row from these packs may reach a price band, a pin figure, a cheapest bucket or
 the Pint Index. See `data/osm/uk/README.md`.
 

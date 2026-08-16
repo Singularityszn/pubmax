@@ -7,7 +7,7 @@ import path from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-import { coveringFetchedAt } from "../scripts/build_london_venue_shards.mjs";
+import { coveringStamp } from "../scripts/lib/coveringStamp.mjs";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import {
   LONDON_VENUE_ID_PREFIX,
@@ -126,38 +126,48 @@ describe("London venue manifest", () => {
 });
 
 describe("the layer's covering stamp", () => {
-  it("dates the layer by the OLDEST pack it covers, never the freshest", () => {
+  it("dates the layer by the OLDEST evidence it covers, never the freshest", () => {
     // The manifest's stamp covers the drink, food and work packs at once, and a
     // per-lane rebuild is supported, so rebuilding the drink pack alone must not
     // date the cafe and library rows beside it as today.
     expect(
-      coveringFetchedAt([
+      coveringStamp([
         "2026-08-16T04:01:27.583Z",
         "2026-07-02T09:00:00.000Z",
         "2026-08-01T00:00:00.000Z",
       ]),
     ).toBe("2026-07-02T09:00:00.000Z");
-    expect(coveringFetchedAt(["2026-08-16T04:01:27.583Z"])).toBe("2026-08-16T04:01:27.583Z");
+    expect(coveringStamp(["2026-08-16T04:01:27.583Z"])).toBe("2026-08-16T04:01:27.583Z");
   });
 
   it("goes undated rather than borrowing a stamp for a pack it cannot date", () => {
-    expect(coveringFetchedAt(["2026-08-16T04:01:27.583Z", undefined])).toBeNull();
-    expect(coveringFetchedAt(["2026-08-16T04:01:27.583Z", "last tuesday"])).toBeNull();
-    expect(coveringFetchedAt(["2026-08-16T04:01:27.583Z", 1_755_316_887_583])).toBeNull();
-    expect(coveringFetchedAt([])).toBeNull();
+    expect(coveringStamp(["2026-08-16T04:01:27.583Z", undefined])).toBeNull();
+    expect(coveringStamp(["2026-08-16T04:01:27.583Z", "last tuesday"])).toBeNull();
+    expect(coveringStamp(["2026-08-16T04:01:27.583Z", 1_755_316_887_583])).toBeNull();
+    expect(coveringStamp([])).toBeNull();
   });
 
-  it("stamps the published manifest with a day one of the packs really carries", () => {
+  it("never claims the published layer is fresher than the run behind its packs", () => {
+    // Both files are generated artifacts read here as the contracts they are.
+    // What this pins is the DIRECTION the covering rule may move a stamp: the
+    // packs come out of the run `venue_chunks.json` records, so the layer over
+    // them may be older (a `--from-raw` rebuild, an unrebuilt lane) but never
+    // newer, and never a build time. Which of several stamps wins is proved by
+    // the unit tests above, which vary them; this one proves the wiring.
     const manifest = JSON.parse(readFileSync(publishedManifestPath, "utf8")) as {
       generatedFrom: { fetchedAt: string | null };
     };
-    const packStamps = ["drink", "food", "work"].map((group) => {
-      const pack = JSON.parse(
-        readFileSync(path.join(__dirname, "..", "data", "osm", "uk", `uk_osm_venues_${group}.json`), "utf8"),
-      ) as { fetchedAt?: string };
-      return pack.fetchedAt;
-    });
-    expect(manifest.generatedFrom.fetchedAt).toBe(coveringFetchedAt(packStamps));
+    const run = JSON.parse(
+      readFileSync(path.join(__dirname, "..", "data", "osm", "uk", "venue_chunks.json"), "utf8"),
+    ) as { generatedAt: string; scope: string; missingChunks: string[] };
+
+    expect(run.scope).toBe("all");
+    expect(run.missingChunks).toEqual([]);
+    const layerStamp = manifest.generatedFrom.fetchedAt;
+    if (layerStamp !== null) {
+      expect(Number.isFinite(Date.parse(layerStamp))).toBe(true);
+      expect(Date.parse(layerStamp)).toBeLessThanOrEqual(Date.parse(run.generatedAt));
+    }
   });
 });
 

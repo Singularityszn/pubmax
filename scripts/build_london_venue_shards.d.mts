@@ -9,4 +9,3 @@ export const LONDON_VENUE_GRID: {
 
 export function inGreaterLondon(lat: number, lng: number): boolean;
 export function londonLayerBbox(): [number, number, number, number];
-export function coveringFetchedAt(stamps: readonly unknown[]): string | null;
