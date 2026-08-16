@@ -6,6 +6,26 @@ export const OUT_EMPTY_LINE = "No listings for this day yet.";
 export const OUT_PENDING_LINE = "Checking listings...";
 
 /**
+ * What the surface may show for the day currently on screen.
+ *
+ * An answer is held WITH the day it is about, and there is no answer at all
+ * until the first read lands. Both cases are PENDING: the previous day's cards
+ * may not render under a newly pressed chip, and a reader opening the page must
+ * not meet the heading and the day chips over a blank area either.
+ */
+export function outAnswerView<T>(
+  held: { day: string; body: T | null; failed: boolean } | null,
+  day: string,
+): { body: T | null; failed: boolean; pending: boolean } {
+  const current = held !== null && held.day === day ? held : null;
+  return {
+    body: current?.body ?? null,
+    failed: current?.failed ?? false,
+    pending: current === null,
+  };
+}
+
+/**
  * What /out says above the list, in order.
  *
  * The one rule: a read that did not answer is NEVER worded as an empty market.

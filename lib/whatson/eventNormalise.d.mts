@@ -85,6 +85,11 @@ export declare function cityGeo(city?: string): {
 
 export declare const DATE_ONLY_TIME_EVIDENCE: string;
 
+/** False while Skiddle's official logo asset is absent. */
+export declare const SKIDDLE_BRAND_ASSET_PRESENT: boolean;
+/** True while a Skiddle row may not be fetched, written or served at all. */
+export declare function skiddleLaneFenced(): boolean;
+
 export declare function toIsoInstant(value: unknown): string | null;
 export declare function statedCalendarDate(value: unknown): string | null;
 

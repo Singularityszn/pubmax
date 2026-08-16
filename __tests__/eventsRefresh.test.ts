@@ -16,6 +16,8 @@ import {
   normaliseTicketmasterEvents,
   providerLaneStatus,
   runEventsRefresh,
+  skiddleLaneFenced,
+  SKIDDLE_BRAND_ASSET_PRESENT,
   WITH_COMMON_FLAG,
   summariseEventDrops,
 } from "../scripts/whatson/eventsRefresh.mjs";
@@ -416,6 +418,58 @@ describe("runEventsRefresh end to end", () => {
     const written = JSON.parse(readFileSync(outPath, "utf8"));
     expect(written.rows[0].venueId).toBeUndefined();
     expect(written.rows[0].placeName).toEqual(expect.any(String));
+  });
+});
+
+describe("the Skiddle fence holds the WRITE lane shut too", () => {
+  const NOW_MS = Date.parse("2026-08-16T09:00:00.000Z");
+
+  it("fetches and writes no Skiddle row while the logo asset is absent, key present", async () => {
+    // The fence is the undischarged licence obligation, not the missing key, so
+    // the day SKIDDLE_API_KEY lands must not be the day Skiddle rows reach a
+    // reader. Both lanes read one predicate, so they cannot disagree.
+    expect(SKIDDLE_BRAND_ASSET_PRESENT).toBe(false);
+    expect(skiddleLaneFenced()).toBe(true);
+
+    const dir = mkdtempSync(join(tmpdir(), "events-refresh-skiddle-"));
+    temporaryDirs.push(dir);
+    const outPath = join(dir, "events_london.json");
+    const asked: string[] = [];
+    const lines: string[] = [];
+
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "tm-key", SKIDDLE_API_KEY: "sk-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async (url: URL | string) => {
+        asked.push(String(url));
+        return new Response(JSON.stringify({ _embedded: { events: [tmTheatre] } }), {
+          status: 200,
+        });
+      }) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: (message: string) => lines.push(message),
+      logError: (message: string) => lines.push(message),
+    });
+
+    expect(result.provider.status).toBe("wrote");
+    // No Skiddle request was ever made.
+    expect(asked.some((url) => url.includes("skiddle.com"))).toBe(false);
+    // And no Skiddle row was written.
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(
+      written.rows.filter(
+        (row: { source: { label: string } }) => row.source.label.toLowerCase() === "skiddle",
+      ),
+    ).toEqual([]);
+    const skiddleSource = written.sources.find(
+      (source: { provider: string }) => source.provider === "skiddle",
+    );
+    expect(skiddleSource.rowsEmitted).toBe(0);
+    // The refusal NAMES itself, rather than reading as an empty market.
+    expect(lines.some((line) => /Skiddle lane FENCED OFF/.test(line))).toBe(true);
   });
 });
 

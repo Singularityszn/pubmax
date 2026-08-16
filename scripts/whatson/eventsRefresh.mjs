@@ -55,6 +55,7 @@ import {
   emptyEventDrops,
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
+  skiddleLaneFenced,
   summariseEventDrops,
 } from "../../lib/whatson/eventNormalise.mjs";
 import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
@@ -62,6 +63,7 @@ import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
 export {
   EMPTY_EVENT_DROPS,
   EVENT_REFRESH_CITIES,
+  SKIDDLE_BRAND_ASSET_PRESENT,
   SKIDDLE_EVENTCODE_KIND,
   SKIDDLE_SOURCE,
   TICKETMASTER_SEGMENT_KIND,
@@ -73,6 +75,7 @@ export {
   mapTicketmasterEvent,
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
+  skiddleLaneFenced,
   summariseEventDrops,
   toIsoInstant,
 } from "../../lib/whatson/eventNormalise.mjs";
@@ -250,7 +253,13 @@ async function runProviderLane({
     }
   }
 
-  if (nonEmptyString(skKey)) {
+  if (nonEmptyString(skKey) && skiddleLaneFenced()) {
+    log(
+      "eventsRefresh: Skiddle lane FENCED OFF - the official logo asset is absent and " +
+        "the credit obligation cannot be discharged, so no Skiddle row is fetched or written. " +
+        "This is not an empty market.",
+    );
+  } else if (nonEmptyString(skKey)) {
     try {
       const payload = await fetchSkiddle(skKey, { nowMs, city, fetchImpl });
       const result = normaliseSkiddleEvents(payload, opts);

@@ -8,8 +8,9 @@ import {
   outDayWindow,
   parseOutQuery,
 } from "@/lib/out/loadOut";
-import { outStatusLines } from "@/lib/out/outStatus";
+import { outAnswerView, outStatusLines } from "@/lib/out/outStatus";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
+import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const FIXTURE_NOW = new Date("2026-08-16T17:00:00.000Z");
@@ -392,5 +393,39 @@ describe("outStatusLines", () => {
     expect(
       outStatusLines({ body: { status: "ready", events: [eventRow()] }, failed: false }),
     ).toEqual([]);
+  });
+});
+
+describe("outAnswerView", () => {
+  const heldBody: Pick<OutResponse, "status" | "events" | "reason"> = {
+    status: "ready",
+    events: [],
+  };
+  const answer = { day: "today" as const, body: heldBody, failed: false };
+
+  it("is pending before the FIRST answer lands, not only on a day switch", () => {
+    // A reader opening /out meets the heading and the chips; nothing has
+    // answered yet, so the surface says so rather than showing a blank area.
+    const view = outAnswerView<Pick<OutResponse, "status" | "events" | "reason">>(null, "today");
+    expect(view).toEqual({ body: null, failed: false, pending: true });
+    expect(outStatusLines({ ...view })).toEqual(["Checking listings..."]);
+  });
+
+  it("is pending again the moment another day is pressed, holding no stale cards", () => {
+    const view = outAnswerView(answer, "weekend");
+    expect(view.body).toBeNull();
+    expect(view.pending).toBe(true);
+  });
+
+  it("hands back the held answer once it is about the day on screen", () => {
+    const view = outAnswerView(answer, "today");
+    expect(view).toEqual({ body: answer.body, failed: false, pending: false });
+    expect(outStatusLines({ ...view })).toEqual(["No listings for this day yet."]);
+  });
+
+  it("carries a failed read for its own day, and never as another day's", () => {
+    const held = { day: "tomorrow" as const, body: null, failed: true };
+    expect(outAnswerView(held, "tomorrow")).toEqual({ body: null, failed: true, pending: false });
+    expect(outAnswerView(held, "today")).toEqual({ body: null, failed: false, pending: true });
   });
 });

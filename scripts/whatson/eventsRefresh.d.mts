@@ -18,6 +18,7 @@ export type {
 export {
   EMPTY_EVENT_DROPS,
   EVENT_REFRESH_CITIES,
+  SKIDDLE_BRAND_ASSET_PRESENT,
   SKIDDLE_EVENTCODE_KIND,
   SKIDDLE_SOURCE,
   TICKETMASTER_SEGMENT_KIND,
@@ -29,6 +30,7 @@ export {
   mapTicketmasterEvent,
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
+  skiddleLaneFenced,
   summariseEventDrops,
   toIsoInstant,
 } from "../../lib/whatson/eventNormalise.d.mts";

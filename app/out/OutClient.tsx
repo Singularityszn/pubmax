@@ -13,7 +13,7 @@ import {
   OUT_OPEN_PLANS_WAY_LABEL,
   type OutDayWindow,
 } from "@/lib/outListings";
-import { outStatusLines } from "@/lib/out/outStatus";
+import { outAnswerView, outStatusLines } from "@/lib/out/outStatus";
 import type { OutDay, OutResponse } from "@/lib/out/types";
 import { discardBody } from "@/lib/responseBody";
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
@@ -37,15 +37,15 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   // is pressed, so a body that belongs to another day is not this day's answer
   // and must not render under it - last night's listings reading as this
   // weekend's, with nothing on screen saying otherwise.
-  const [answer, setAnswer] = useState<{ day: OutDay; body: OutResponse | null; failed: boolean }>({
-    day: apiDay,
-    body: null,
-    failed: false,
-  });
-  const answered = answer.day === apiDay;
-  const body = answered ? answer.body : null;
-  const failed = answered && answer.failed;
-  const pending = !answered;
+  // Null until the FIRST answer lands, so the very first paint is pending too:
+  // a reader opening /out must never meet the heading and the day chips over a
+  // blank area either.
+  const [answer, setAnswer] = useState<{
+    day: OutDay;
+    body: OutResponse | null;
+    failed: boolean;
+  } | null>(null);
+  const { body, failed, pending } = outAnswerView(answer, apiDay);
 
   useEffect(() => {
     trackEvent("out_screen_view");

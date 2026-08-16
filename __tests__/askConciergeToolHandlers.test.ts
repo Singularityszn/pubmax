@@ -246,6 +246,46 @@ describe("tonight_now", () => {
     expect(result.cards[0]?.note).toBe("On right now");
   });
 
+  it("prints no bare figure for a listed night, and keeps the deal's own", async () => {
+    // A kind=event priceGbp is a TICKET price. It belongs to the /out card,
+    // worded "Tickets from £X" beside its source credit; a Pub Pal card prints
+    // `price` as a bare figure, which in this product reads as a drink price.
+    state.whatsOn = {
+      rows: [
+        {
+          id: "ticketed",
+          placeName: "Soho Theatre",
+          kind: "event",
+          title: "A Night at the Playhouse",
+          startsAt: "2026-08-15T20:00:00.000Z",
+          endsAt: "2026-08-15T22:00:00.000Z",
+          priceGbp: 23.5,
+          source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+        },
+        {
+          id: "priced-deal",
+          placeName: "The Lamb",
+          kind: "deal",
+          title: "Two for one",
+          startsAt: "2026-08-15T20:00:00.000Z",
+          endsAt: "2026-08-15T22:00:00.000Z",
+          priceGbp: 4.5,
+          source: { label: "Venue site", url: "https://example.com" },
+          observedAt: "2026-08-15T09:00:00.000Z",
+          confidence: "listed",
+        },
+      ],
+      kindObservedAt: {},
+    };
+    const result = await runAskTool("tonight_now", {}, ctx());
+    const byKey = new Map(result.cards.map((card) => [card.key, card]));
+    expect(byKey.get("ticketed")?.price).toBeNull();
+    expect(byKey.get("priced-deal")?.price).toBe(4.5);
+    expect(JSON.stringify(result.cards)).not.toContain("23.5");
+  });
+
   it("reads the window and the split off the same clock", async () => {
     state.whatsOn = {
       rows: [

@@ -50,6 +50,7 @@ import {
   type NearMeCard,
   type PricedPoint,
 } from "@/lib/nearMeAnswer";
+import { whatsOnBarePriceGbp } from "@/lib/whatsOn";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 import { filterRowsByArea } from "@/lib/concierge/whatsOn";
 
@@ -280,7 +281,7 @@ export async function toolTonightNow(
         title: row.title,
         place: row.placeName,
         note: split.onNow.includes(row) ? "On right now" : "Still to start tonight",
-        price: typeof row.priceGbp === "number" ? row.priceGbp : null,
+        price: whatsOnBarePriceGbp(row),
         provenance: {
           label: row.source?.label || "What's On",
           ...(row.source?.url ? { url: row.source.url } : {}),
