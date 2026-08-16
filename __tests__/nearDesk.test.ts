@@ -139,6 +139,36 @@ describe("parseOsmOpeningHours", () => {
     expect(hours?.[6]?.[0]).toEqual({ opens: "08:30", closes: "17:00" });
   });
 
+  it("reads a day no rule mentions as closed, never unknown", () => {
+    const hours = parseOsmOpeningHours("Mo-Fr 08:00-17:00");
+    expect(hours?.[0]).toEqual([]);
+    // 2026-08-16 is a Sunday.
+    expect(evaluateOpenState({
+      now: new Date("2026-08-16T12:00:00.000Z"),
+      timeZone: "Europe/London",
+      openingHours: hours ?? undefined,
+    })).toBe(false);
+  });
+
+  it("ranks a weekday-only desk below one that is open, on a Sunday", () => {
+    const weekdayOnly = parseOsmOpeningHours("Mo-Fr 08:00-17:00");
+    const everyDay = parseOsmOpeningHours("24/7");
+    const answer = rankDeskNearMe(here.lat, here.lng, [
+      desk("shut", "cafe", 0.001, 0, {
+        name: "Weekday Only",
+        wifi: "yes",
+        openingHours: weekdayOnly,
+      }),
+      desk("open", "cafe", 0.001, 0.0001, {
+        name: "Open Today",
+        wifi: "yes",
+        openingHours: everyDay,
+      }),
+    ], { now: new Date("2026-08-16T12:00:00.000Z") });
+    expect(answer.cards.map((card) => card.name)).toEqual(["Open Today", "Weekday Only"]);
+    expect(answer.cards[1]?.openNow).toBe(false);
+  });
+
   it("treats an unreadable string as unknown rather than inventing a window", () => {
     expect(parseOsmOpeningHours("open until late")).toBeNull();
     expect(parseOsmOpeningHours("")).toBeNull();
@@ -157,7 +187,21 @@ describe("rankDeskNearMe", () => {
     expect(answer.hero).toBeNull();
   });
 
-  it("ranks first by distance, then known wifi, then laptop, then open now", () => {
+  it("puts a nearer untagged desk above a further wifi-tagged one", () => {
+    // ~60 m and ~950 m from the reader.
+    const answer = rankDeskNearMe(here.lat, here.lng, [
+      desk("far-wifi", "cafe", 0.00855, 0, {
+        wifi: "yes",
+        laptop: "allowed",
+        name: "Far Wifi",
+      }),
+      desk("near-untagged", "cafe", 0.00054, 0, { name: "Near Untagged" }),
+    ]);
+    expect(answer.hero?.name).toBe("Near Untagged");
+    expect(answer.cards.map((card) => card.name)).toEqual(["Near Untagged", "Far Wifi"]);
+  });
+
+  it("ranks by walkable ring first, then wifi, then laptop, then open now", () => {
     const closedHours = parseOsmOpeningHours("Mo-Fr 08:00-09:00");
     const openHours = parseOsmOpeningHours("Mo-Su 00:00-24:00");
     const now = new Date("2026-08-17T12:00:00.000Z");
@@ -191,7 +235,7 @@ describe("rankDeskNearMe", () => {
       "Near Wifi Laptop",
       "Near Closed",
       "Near Wifi",
-      "Far Wifi",
+      "Near Unknown",
     ]);
     expect(answer.cards.every((card) => card.wifiCaption && card.laptopCaption)).toBe(true);
     expect(answer.cards[0]?.openNow).toBe(true);
@@ -251,8 +295,8 @@ describe("desk copy", () => {
     expect(deskCheckedCaption(null)).toBe("No date on this yet");
     expect(deskAnswerHeadline({ scope: "walkable" })).toBe("Somewhere to sit near you");
     expect(deskAnswerHeadline({ scope: "widened" })).toBe("Nearest desks a bit further out");
-    expect(deskAnswerHeadline({ scope: "none", patchLabel: "Soho" })).toBe(
-      "No desks logged around Soho yet",
+    expect(deskAnswerHeadline({ scope: "walkable", patchLabel: "Soho" })).toBe(
+      "Somewhere to sit around Soho",
     );
     expect(deskLoadFailedLine()).toBe("Could not check desks near here.");
     for (const line of [

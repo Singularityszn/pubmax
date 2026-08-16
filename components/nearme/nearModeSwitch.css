@@ -33,7 +33,7 @@
   cursor: pointer;
 }
 
-.nearModeSwitchTab[aria-selected="true"] {
+.nearModeSwitchTab[aria-checked="true"] {
   background: var(--brass);
   color: var(--color-on-accent);
   box-shadow: none;

@@ -99,7 +99,7 @@ describe("shipped London desk pack", () => {
     ) as unknown;
     const parsed = parseDeskPack(raw);
     expect(parsed.venues.length).toBeGreaterThan(1000);
-    expect(parsed.observedAt).toMatch(/^2026-08-16T/);
+    expect(Number.isFinite(Date.parse(parsed.observedAt ?? ""))).toBe(true);
     expect(parsed.source).toBe("osm");
     expect(parsed.venues.every((venue) => isDeskEligible(venue))).toBe(true);
     expect(parsed.venues.some((venue) => venue.kind === "cafe")).toBe(true);

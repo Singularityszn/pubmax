@@ -18,13 +18,17 @@ export default function NearModeSwitch({
 }) {
   return (
     <div className="nearModeSwitch">
+      {/* A radiogroup, not a tablist: a tab owes an associated tabpanel, and
+          the answer below is rendered by NearMeNow, which this wave may not
+          edit. Two exclusive choices with roving focus is what a radiogroup
+          already means. */}
       <div
         className="nearModeSwitchList"
-        role="tablist"
+        role="radiogroup"
         aria-label="Near mode"
         onKeyDown={(event) => {
           if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
-          const tabs = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]')];
+          const tabs = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="radio"]')];
           const current = tabs.indexOf(event.target as HTMLButtonElement);
           if (current < 0) return;
           const nextIndex = event.key === "Home"
@@ -43,9 +47,9 @@ export default function NearModeSwitch({
             <button
               key={mode}
               type="button"
-              role="tab"
+              role="radio"
               className="nearModeSwitchTab"
-              aria-selected={selected}
+              aria-checked={selected}
               tabIndex={selected ? 0 : -1}
               onClick={() => onChange(mode)}
             >

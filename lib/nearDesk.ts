@@ -1,7 +1,6 @@
 import { evaluateOpenState, type WeeklyOpeningHours } from "@/lib/busyness";
 import { haversineKm } from "@/lib/haversine";
 import {
-  formatNearDistance,
   walkMinutesFromKm,
   WALKABLE_RADIUS_KM,
   WIDENED_RADIUS_KM,
@@ -26,6 +25,25 @@ export const DESK_MODE_KINDS = [
 ] as const satisfies readonly VenueKind[];
 
 export const DESK_MAX_ANSWERS = 5;
+
+/**
+ * The walkable ring a desk card is bucketed into before anything else is
+ * compared. 0.4 km is about a five minute walk at the pint lane's pace.
+ *
+ * Distance is the FIRST rank key, the same anonymous locality basis pint mode
+ * answers from. Amenity richness ordered ahead of it, so a wifi-tagged cafe a
+ * kilometre away displaced an untagged one sixty metres from the reader, and
+ * most London cafes carry no `internet_access` tag at all. The bucket is what
+ * makes the later keys decide anything: raw metres would settle every pair
+ * before amenity or open-now was ever read.
+ */
+export const DESK_DISTANCE_RING_KM = 0.4;
+
+/** Which walkable ring a distance sits in. Lower is nearer. */
+export function deskDistanceRing(km: number): number {
+  if (!Number.isFinite(km) || km <= 0) return 0;
+  return Math.floor(km / DESK_DISTANCE_RING_KM);
+}
 
 export type WifiState = "yes" | "no" | "unknown";
 export type LaptopState = "allowed" | "unknown";
@@ -155,15 +173,16 @@ export function deskCheckedCaption(observedAt: string | null | undefined): strin
   return provenanceLabel(observedAt);
 }
 
+/**
+ * The heading over an answer that HAS a hero. An empty locality is the other
+ * lane and prints `deskEmptyLine()`, so `"none"` is not a scope this sentence
+ * is ever asked about.
+ */
 export function deskAnswerHeadline(input: {
-  scope: NearMeScope;
-  borough?: string | null;
+  scope: Exclude<NearMeScope, "none">;
   patchLabel?: string | null;
 }): string {
-  const place = input.borough ?? input.patchLabel ?? null;
-  if (input.scope === "none") {
-    return place ? `No desks logged around ${place} yet` : deskEmptyLine();
-  }
+  const place = input.patchLabel ?? null;
   if (place) return `Somewhere to sit around ${place}`;
   return input.scope === "widened"
     ? "Nearest desks a bit further out"
@@ -256,6 +275,11 @@ function applyWindows(
  * A conservative OSM opening_hours reader. Common day ranges and clock
  * windows become weekly hours. Anything else stays unknown rather than a
  * guessed door.
+ *
+ * A day no rule mentions is CLOSED in OSM, not unknown, so a parsed string
+ * fills its silent days with an empty window list. Leaving them absent made
+ * `evaluateOpenState` answer "unknown" for a weekday-only cafe on a Sunday,
+ * which ranked it above a venue that had stated `Su off`.
  */
 export function parseOsmOpeningHours(
   raw: string | null | undefined,
@@ -297,7 +321,11 @@ export function parseOsmOpeningHours(
     applyWindows(hours, days, windows);
     parsed = true;
   }
-  return parsed ? hours : null;
+  if (!parsed) return null;
+  for (let day = 0; day < 7; day += 1) {
+    if (!hours[day]) hours[day] = [];
+  }
+  return hours;
 }
 
 function amenityScore(wifi: WifiState, laptop: LaptopState): number {
@@ -343,6 +371,8 @@ function toCard(
 }
 
 function byDeskRank(a: { card: DeskCard; km: number }, b: { card: DeskCard; km: number }): number {
+  const ring = deskDistanceRing(a.km) - deskDistanceRing(b.km);
+  if (ring !== 0) return ring;
   const amenity = amenityScore(b.card.wifi, b.card.laptop) - amenityScore(a.card.wifi, a.card.laptop);
   if (amenity !== 0) return amenity;
   const open = openRank(a.card.openNow) - openRank(b.card.openNow);
@@ -397,28 +427,3 @@ export function rankDeskNearMe(
     radiusKm: walkable.length > 0 ? walkRadius : wideRadius,
   };
 }
-
-export function rankDeskByArea(
-  venues: DeskPoint[],
-  options: RankDeskOptions = {},
-): DeskAnswer {
-  const now = options.now ?? new Date();
-  const max = Math.max(1, Math.floor(options.maxAnswers ?? DESK_MAX_ANSWERS));
-  const ranked = venues
-    .filter((point) => isDeskEligible(point))
-    .map((point) => ({
-      km: 0,
-      card: toCard(point, undefined, now, options.observedAt),
-    }))
-    .sort(byDeskRank)
-    .slice(0, max)
-    .map((entry) => entry.card);
-  return {
-    hero: ranked[0] ?? null,
-    cards: ranked,
-    scope: ranked.length > 0 ? "walkable" : "none",
-    radiusKm: 0,
-  };
-}
-
-export { formatNearDistance };

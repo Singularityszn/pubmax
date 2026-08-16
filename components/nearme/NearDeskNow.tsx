@@ -31,7 +31,7 @@ import "./nearMeNow.css";
 import "./nearDeskNow.css";
 
 type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
-type PatchReason = "denied" | "unavailable" | "none" | null;
+type PatchReason = "denied" | "unavailable" | null;
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
 
@@ -254,16 +254,13 @@ export default function NearDeskNow({
   }, [autoLocate, bootPatch?.id]);
 
   const areaLabel = patch?.label ?? null;
-  const headline = deskAnswerHeadline({
-    scope: answer?.scope ?? "none",
-    patchLabel: areaLabel,
-  });
+  const headline = answer && answer.scope !== "none"
+    ? deskAnswerHeadline({ scope: answer.scope, patchLabel: areaLabel })
+    : null;
   const patchMessage = areaLabel && patchReason
     ? patchReason === "denied"
       ? `Location's off, so here's ${areaLabel}.`
-      : patchReason === "none"
-        ? `Nothing logged within reach, so here's ${areaLabel}.`
-        : `No location on this device, so here's ${areaLabel}.`
+      : `No location on this device, so here's ${areaLabel}.`
     : null;
 
   return (
