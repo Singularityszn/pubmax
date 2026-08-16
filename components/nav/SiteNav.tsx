@@ -21,6 +21,7 @@ import {
   momentHref,
   navPathMatches,
   nowTabHref,
+  serverNowTabHref,
   subscribeNowTabHref,
 } from "@/components/nav/navigationModel";
 
@@ -110,10 +111,12 @@ export default function SiteNav({
     preferredCityMapHref,
     () => "/map",
   );
+  // Constant server snapshot, then the clock after mount — a prerendered,
+  // CDN-held document must not hydrate against a Now href that has since moved.
   const nowHref = useSyncExternalStore(
     subscribeNowTabHref,
     nowTabHref,
-    nowTabHref,
+    serverNowTabHref,
   );
   const links = LINKS.map((link) => {
     if (link.key === "map") return { ...link, href: mapHref };

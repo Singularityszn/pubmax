@@ -7,11 +7,12 @@ import SiteNav from "@/components/nav/SiteNav";
 import { trackEvent } from "@/lib/analytics";
 import {
   OUT_DAY_WINDOWS,
-  filterOutListings,
+  outListingsEmptyLine,
   type OutDayWindow,
+  type OutListingsReadStatus,
 } from "@/lib/outListings";
 import { checkedLabel, WHATS_ON_KIND_META } from "@/lib/whatsOnBadges";
-import type { WhatsOnRow } from "@/lib/whatsOn";
+import { EMPTY_KIND_OBSERVED_AT, type WhatsOnKindObservedAt, type WhatsOnRow } from "@/lib/whatsOn";
 
 import "./out.css";
 
@@ -24,11 +25,16 @@ const DAY_LABEL: Record<OutDayWindow, string> = {
 export default function OutClient({
   day,
   rows,
+  kindObservedAt = EMPTY_KIND_OBSERVED_AT,
+  readStatus = "ready",
 }: {
   day: OutDayWindow;
+  /** Already filtered to this window on the server, against one clock. */
   rows: WhatsOnRow[];
+  kindObservedAt?: WhatsOnKindObservedAt;
+  readStatus?: OutListingsReadStatus;
 }) {
-  const listings = filterOutListings(rows, day);
+  const listings = rows;
 
   useEffect(() => {
     trackEvent("out_screen_view");
@@ -78,7 +84,7 @@ export default function OutClient({
           {DAY_LABEL[day]}
         </h2>
         {listings.length === 0 ? (
-          <p className="outEmpty">No sourced listings for this window yet.</p>
+          <p className="outEmpty">{outListingsEmptyLine(readStatus)}</p>
         ) : (
           <ul className="outCardList">
             {listings.map((row) => (
@@ -86,10 +92,14 @@ export default function OutClient({
                 <p className="outCardKind">{WHATS_ON_KIND_META[row.kind].label}</p>
                 <h3 className="outCardTitle">{row.title}</h3>
                 <p className="outCardPlace">{row.placeName}</p>
+                {/* A card shows ONE kind, so it dates itself from that kind's
+                    own evidence. A live row's observedAt falls back to the
+                    request instant, which would print today's date with nobody
+                    having checked anything. */}
                 <p className="outCardMeta">
                   {row.source.label}
                   <span aria-hidden="true"> · </span>
-                  {checkedLabel(row.observedAt)}
+                  {checkedLabel(kindObservedAt[row.kind] ?? null)}
                 </p>
               </li>
             ))}

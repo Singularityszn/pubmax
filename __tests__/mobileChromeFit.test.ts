@@ -396,11 +396,17 @@ describe("mobile tap-target floors", () => {
     expect(fab).toMatch(/height:\s*56px/);
     expect(fab).toMatch(/min-width:\s*56px/);
     expect(fab).toMatch(/min-height:\s*56px/);
-    // The FAB sits above the reserved tab-bar lane, never on top of it.
-    expect(fab).toMatch(
+    // The FAB sits above the reserved tab-bar lane, never on top of it. The
+    // offset belongs to the fixed root: the button inside it is statically
+    // positioned, so a `bottom` declared on the button itself does nothing and
+    // would pass this check while the real rule was gone.
+    const root = css.match(/\.createFabRoot\s*{([^}]*position:\s*fixed[^}]*)}/)?.[1] ?? "";
+    expect(root, "fixed .createFabRoot rule present").not.toBe("");
+    expect(root).toMatch(
       /bottom:\s*calc\(\s*var\(--tabbar-h\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)/,
     );
-    expect(fab).not.toMatch(/bottom:\s*0/);
+    expect(root).not.toMatch(/bottom:\s*0/);
+    expect(fab).not.toMatch(/bottom:/);
     const row = css.match(/\.createFabRow\s*{([^}]*)}/)?.[1] ?? "";
     expect(row, ".createFabRow rule present").not.toBe("");
     expect(row).toMatch(/min-height:\s*44px/);

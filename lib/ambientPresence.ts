@@ -20,6 +20,7 @@
 // appear "out tonight" at the same curated heritage pubs.
 
 import { demoContentEnabled } from "@/lib/demoContent";
+import { londonHour } from "@/lib/londonHour";
 import { demoPintDrops, isManchesterVenueId } from "@/lib/pintDropSeeds";
 
 /** Hard cap on the ambient count for one venue — a glance, never a crowd. */
@@ -73,21 +74,7 @@ function mulberry32(seed: number): () => number {
   };
 }
 
-/**
- * The hour-of-day in the Europe/London wall clock — pub presence follows London
- * evenings regardless of where the server runs. Deterministic for a given Date.
- */
-export function londonHour(date: Date): number {
-  const hour = Number(
-    new Intl.DateTimeFormat("en-GB", {
-      hour: "numeric",
-      hour12: false,
-      timeZone: "Europe/London",
-    }).format(date),
-  );
-  // Intl renders midnight as "24" in some ICU builds — normalize to 0–23.
-  return Number.isFinite(hour) ? hour % 24 : 0;
-}
+export { londonHour };
 
 /**
  * Deterministic ambient presence count for one venue at one moment. Seeded on

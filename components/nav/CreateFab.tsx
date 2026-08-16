@@ -1,12 +1,23 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Plus } from "lucide-react";
-import { useCallback, useEffect, useId, useState, useSyncExternalStore } from "react";
+import {
+  Suspense,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
-import { momentHref } from "@/components/nav/navigationModel";
+import {
+  CREATE_FAB_ACTIONS,
+  createFabMenuVisible,
+} from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
 import {
   readSoftKeyboardOpen,
@@ -17,51 +28,89 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import "./createFab.css";
 
-const ACTIONS = [
-  { action: "moment", label: "Post a moment", hrefFor: (returnTo: string) => momentHref(returnTo) },
-  { action: "price", label: "Log a price", hrefFor: () => "/map?log=1" },
-  { action: "plan", label: "Start a plan", hrefFor: () => "/plan" },
-] as const;
-
+// The compose affordance. It reads useSearchParams so a Moment carries the
+// query of the route it was composed from, which puts it behind a Suspense
+// boundary of its own: this is mounted in the root layout, and `/` and `/map`
+// are prerendered documents that an unwrapped read would pull back to per-request.
 export default function CreateFab() {
-  const pathname = usePathname() ?? "";
-  if (!shouldShowMobileTabBar(pathname)) return null;
-  return <CreateFabContent pathname={pathname} />;
+  return (
+    <Suspense fallback={null}>
+      <CreateFabGate />
+    </Suspense>
+  );
 }
 
-function CreateFabContent({ pathname }: { pathname: string }) {
+function CreateFabGate() {
+  const pathname = usePathname() ?? "";
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  if (!shouldShowMobileTabBar(pathname)) return null;
+  return <CreateFabContent returnTo={`${pathname}${query ? `?${query}` : ""}`} />;
+}
+
+function CreateFabContent({ returnTo }: { returnTo: string }) {
   const menuId = useId();
   const [open, setOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const keyboardOpen = useSyncExternalStore(
     subscribeSoftKeyboard,
     readSoftKeyboardOpen,
     serverSoftKeyboardOpen,
   );
 
-  const returnTo = pathname;
-
   const close = useCallback(() => setOpen(false), []);
   useDismissOnEscape(open, close);
 
+  // The sheet leaves with the control, and it does NOT come back when the
+  // keyboard goes down. Adjusted during render rather than in an effect: an
+  // effect would paint one frame of a menu over the caret first.
+  const [keyboardWas, setKeyboardWas] = useState(keyboardOpen);
+  if (keyboardOpen !== keyboardWas) {
+    setKeyboardWas(keyboardOpen);
+    if (keyboardOpen && open) setOpen(false);
+  }
+
+  // A panel anchored to a visible trigger owes Escape AND an outside tap
+  // (lib/surfaceStack.ts): it is not in the surface trail, so the way out has to
+  // be the two ordinary ones.
   useEffect(() => {
-    if (keyboardOpen) close();
-  }, [keyboardOpen, close]);
+    if (!open) return;
+    const onPointerDown = (event: PointerEvent) => {
+      const root = rootRef.current;
+      if (!root) return;
+      if (event.target instanceof Node && root.contains(event.target)) return;
+      close();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [open, close]);
+
+  const menuOpen = createFabMenuVisible(open, keyboardOpen);
 
   return (
     <div
+      ref={rootRef}
       className={"createFabRoot" + (keyboardOpen ? " isKeyboardHidden" : "")}
+      // Hidden from the reader means hidden from a screen reader and from the
+      // keyboard's own next-field key too. The tab bar beside it takes the same
+      // pair for the same reason: a control that has slid off the bottom of the
+      // screen must not still be a tab stop above the keyboard.
       aria-hidden={keyboardOpen || undefined}
+      inert={keyboardOpen || undefined}
     >
-      {open ? (
+      {menuOpen ? (
         <div className="createFabMenu" id={menuId} role="menu" aria-label="Create">
-          {ACTIONS.map((item) => (
+          {CREATE_FAB_ACTIONS.map((item) => (
             <Link
               key={item.action}
               role="menuitem"
               className="createFabRow"
-              href={item.action === "plan" ? "/plan" : item.hrefFor(returnTo)}
+              href={item.hrefFor(returnTo)}
               onClick={() => {
                 trackEvent("create_fab_action", { action: item.action });
+                // A client-side navigation leaves this component mounted, so a
+                // sheet nobody closed stays painted over the destination.
+                close();
               }}
             >
               {item.label}
@@ -75,8 +124,9 @@ function CreateFabContent({ pathname }: { pathname: string }) {
         data-testid="create-fab"
         aria-label="Create"
         aria-haspopup="menu"
-        aria-expanded={open}
-        aria-controls={open ? menuId : undefined}
+        aria-expanded={menuOpen}
+        aria-controls={menuOpen ? menuId : undefined}
+        tabIndex={keyboardOpen ? -1 : undefined}
         onClick={() => setOpen((value) => !value)}
       >
         <Plus size={24} strokeWidth={2.25} aria-hidden="true" />

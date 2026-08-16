@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { parseOutDayWindow } from "@/lib/outListings";
+import { parseOutDayWindow, selectOutListings } from "@/lib/outListings";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
 
 import OutClient from "./OutClient";
@@ -31,8 +31,18 @@ export default async function OutPage({
 }) {
   const params = searchParams ? await searchParams : {};
   const day = parseOutDayWindow(params.day);
-  const listings = await loadWhatsOn({ limit: 80 });
+  // No `limit` here: the What's-On read slices in dataset order, so a cap spent
+  // there is spent on deal rows this page discards. Filter to the kinds and the
+  // window first, then cap what is left. Filtering on the server also settles
+  // the window against ONE clock, so the list cannot change under hydration.
+  const listings = await loadWhatsOn();
+  const rows = selectOutListings(listings.rows, day);
   return (
-    <OutClient day={day} rows={listings.rows} />
+    <OutClient
+      day={day}
+      rows={rows}
+      kindObservedAt={listings.kindObservedAt}
+      readStatus={listings.revalidation.status === "measured" ? "ready" : "degraded"}
+    />
   );
 }

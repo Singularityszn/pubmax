@@ -1,0 +1,159 @@
+// The floating create action. Compose is an ACTION, so it never joins the
+// five-tab row; what it owes instead is the three destinations, a returnTo that
+// survives the query of the route it was pressed on, and the same disappearance
+// the tab bar performs when the soft keyboard comes up.
+//
+// The keyboard half is the regression: the control was opacity 0 and translated
+// into the tab-bar lane while still being tappable and still a tab stop, because
+// `pointer-events: none` on the wrapper does not reach a child that says `auto`.
+
+import { createElement } from "react";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+import {
+  CREATE_FAB_ACTIONS,
+  createFabMenuVisible,
+} from "@/components/nav/createFabActions";
+import { safeMomentReturnTo } from "@/components/nav/navigationModel";
+
+const createFabCss = readFileSync(
+  join(process.cwd(), "components/nav/createFab.css"),
+  "utf8",
+);
+
+describe("what the create action offers", () => {
+  it("offers exactly the three compose rows, in order", () => {
+    expect(CREATE_FAB_ACTIONS.map((item) => item.label)).toEqual([
+      "Post a moment",
+      "Log a price",
+      "Start a plan",
+    ]);
+    expect(CREATE_FAB_ACTIONS.map((item) => item.action)).toEqual([
+      "moment",
+      "price",
+      "plan",
+    ]);
+  });
+
+  it("sends each row to its own destination", () => {
+    const byAction = Object.fromEntries(
+      CREATE_FAB_ACTIONS.map((item) => [item.action, item.hrefFor("/map")]),
+    );
+    expect(byAction.price).toBe("/map?log=1");
+    expect(byAction.plan).toBe("/plan");
+    expect(byAction.moment).toBe("/moment?returnTo=%2Fmap");
+  });
+
+  it("carries the query of the route it was pressed on back into the Moment", () => {
+    const moment = CREATE_FAB_ACTIONS.find((item) => item.action === "moment")!;
+    const href = moment.hrefFor("/map?sel=venue-123");
+    const returnTo = new URL(href, "https://pubmaxxing.com").searchParams.get("returnTo");
+    // The pub the composer opened from, not a bare map.
+    expect(returnTo).toBe("/map?sel=venue-123");
+    expect(safeMomentReturnTo(returnTo)).toBe("/map?sel=venue-123");
+  });
+
+  it("never paints the sheet while the control is hidden", () => {
+    expect(createFabMenuVisible(true, false)).toBe(true);
+    expect(createFabMenuVisible(true, true)).toBe(false);
+    expect(createFabMenuVisible(false, false)).toBe(false);
+  });
+});
+
+describe("what the create action renders for each keyboard answer", () => {
+  afterEach(() => {
+    vi.resetModules();
+    vi.doUnmock("@/lib/softKeyboard");
+    vi.doUnmock("next/navigation");
+  });
+
+  async function renderFab(
+    keyboardOpen: boolean,
+    pathname = "/out",
+    search = "",
+  ): Promise<string> {
+    vi.doMock("next/navigation", () => ({
+      usePathname: () => pathname,
+      useSearchParams: () => new URLSearchParams(search),
+      useRouter: () => ({
+        back: () => undefined,
+        forward: () => undefined,
+        refresh: () => undefined,
+        push: () => undefined,
+        replace: () => undefined,
+        prefetch: () => Promise.resolve(),
+      }),
+    }));
+    vi.doMock("@/lib/softKeyboard", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("@/lib/softKeyboard")>()),
+      subscribeSoftKeyboard: () => () => {},
+      readSoftKeyboardOpen: () => keyboardOpen,
+      serverSoftKeyboardOpen: () => keyboardOpen,
+    }));
+    vi.resetModules();
+    const { default: CreateFab } = await import("@/components/nav/CreateFab");
+    return renderToStaticMarkup(createElement(CreateFab));
+  }
+
+  const rootTag = (markup: string): string => markup.slice(0, markup.indexOf(">") + 1);
+  const buttonTag = (markup: string): string => {
+    const start = markup.indexOf("<button");
+    return markup.slice(start, markup.indexOf(">", start) + 1);
+  };
+
+  it("keeps the control live with no keyboard on screen", async () => {
+    const markup = await renderFab(false);
+    expect(rootTag(markup)).toContain('class="createFabRoot"');
+    expect(rootTag(markup)).not.toContain("isKeyboardHidden");
+    expect(rootTag(markup)).not.toContain("aria-hidden");
+    expect(rootTag(markup)).not.toMatch(/\binert\b/);
+    expect(buttonTag(markup)).not.toMatch(/tabindex="-1"/i);
+  });
+
+  it("takes the control out of reach entirely while the keyboard is up", async () => {
+    const markup = await renderFab(true);
+    expect(rootTag(markup)).toContain("isKeyboardHidden");
+    expect(rootTag(markup)).toContain('aria-hidden="true"');
+    expect(rootTag(markup)).toMatch(/\binert\b/);
+    expect(buttonTag(markup)).toMatch(/tabindex="-1"/i);
+    // Hidden, not unmounted: it comes straight back on blur.
+    expect(markup).toContain("createFab");
+    // And the sheet cannot be open behind it.
+    expect(markup).not.toContain("createFabMenu");
+  });
+
+  it("stays off the exact landing pathname, where Find my pint owns entry", async () => {
+    expect(await renderFab(false, "/")).not.toContain("createFabRoot");
+  });
+});
+
+describe("the shipped CSS actually withdraws it", () => {
+  // Owned CSS contract, the sibling of the tab bar's own in
+  // __tests__/softKeyboardTabBar.test.ts: this state is a rendered geometry that
+  // no node-environment render can observe.
+  it("cancels the children's pointer-events opt-in in every hidden state", () => {
+    const hiddenChildren = createFabCss.match(
+      /\.createFabRoot\.isKeyboardHidden :is\(\.createFab, \.createFabMenu\)\s*{([^}]*)}/,
+    )?.[1];
+    expect(hiddenChildren, "hidden-state child rule present").toBeTruthy();
+    expect(hiddenChildren).toMatch(/pointer-events:\s*none/);
+    expect(createFabCss).toMatch(
+      /body:has\(\.appShell\.detail-open\) \.createFabRoot :is\(\.createFab, \.createFabMenu\)/,
+    );
+  });
+
+  it("slides it out and then makes it invisible, on the tab bar's own rule", () => {
+    const rule =
+      createFabCss.match(
+        /\.createFabRoot\.isKeyboardHidden\s*{([^}]*)}/,
+      )?.[1] ?? "";
+    expect(rule).toMatch(/transform:\s*translateY\(110%\)/);
+    expect(rule).toMatch(/opacity:\s*0/);
+    expect(rule).toMatch(/visibility:\s*hidden/);
+    // Delayed by the slide's own duration, so the exit is still seen.
+    expect(rule).toMatch(/visibility 0s linear var\(--duration-base\)/);
+  });
+});

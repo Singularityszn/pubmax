@@ -1,4 +1,4 @@
-import { londonHour } from "@/lib/ambientPresence";
+import { londonHour } from "@/lib/londonHour";
 
 export type PrimaryNavKey = "now" | "map" | "out" | "social" | "you";
 
@@ -36,6 +36,22 @@ export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
 /** Now keeps /today and /tonight live. The tab href flips at 17:00 London. */
 export function nowTabHref(at: Date = new Date()): "/today" | "/tonight" {
   return londonHour(at) < 17 ? "/today" : "/tonight";
+}
+
+/**
+ * What the server, and the browser's hydrating pass, must render for the Now
+ * tab.
+ *
+ * A clock read is NOT a server snapshot: `/` and `/map` are prerendered and held
+ * by the CDN for up to an hour, so a document built at 16:30 and hydrated at
+ * 17:10 would meet markup holding /today with a browser that had just decided
+ * /tonight. The city-preference store beside this one takes the same shape and
+ * for the same reason - a constant here, then `nowTabHref` flips it after mount.
+ */
+export const NOW_TAB_SERVER_HREF = "/today" as const;
+
+export function serverNowTabHref(): "/today" {
+  return NOW_TAB_SERVER_HREF;
 }
 
 const NOW_TAB_TICK_MS = 30_000;

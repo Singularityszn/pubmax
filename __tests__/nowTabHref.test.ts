@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { nowTabHref } from "@/components/nav/navigationModel";
+import { nowTabHref, serverNowTabHref } from "@/components/nav/navigationModel";
 
 // The Now tab keeps both /today and /tonight live and only flips the TAB
 // href. 17:00 Europe/London is the cut. Winter (GMT) and summer (BST) both
@@ -24,5 +24,17 @@ describe("nowTabHref", () => {
   it("points at /tonight from 17:00 Europe/London in summer", () => {
     // 17:00 BST = 16:00 UTC
     expect(nowTabHref(new Date("2026-08-16T16:00:00Z"))).toBe("/tonight");
+  });
+});
+
+// `/` and `/map` are prerendered and held by the CDN for up to an hour, so the
+// server snapshot may not read a clock: a document built at 16:30 and hydrated
+// at 17:10 would meet markup saying /today with a browser that had already
+// decided /tonight. The constant holds, then getSnapshot flips it after mount.
+describe("serverNowTabHref", () => {
+  it("answers the same href whatever the hour", () => {
+    expect(serverNowTabHref()).toBe("/today");
+    expect(serverNowTabHref()).toBe(serverNowTabHref());
+    expect(nowTabHref(new Date("2026-08-16T16:00:00Z"))).not.toBe(serverNowTabHref());
   });
 });

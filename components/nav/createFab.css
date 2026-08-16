@@ -19,37 +19,48 @@
     pointer-events: none;
     transition:
       opacity var(--duration-base) var(--ease-out),
-      transform var(--duration-base) var(--ease-out);
+      transform var(--duration-base) var(--ease-out),
+      visibility 0s;
+  }
+
+  /* The root is a fixed, mostly empty box, so it must not eat taps around the
+     control; the control and its sheet opt back in. A hidden state has to turn
+     that opt-in OFF by name - an ancestor's `pointer-events: none` does not
+     reach a descendant that says `auto`, which left the FAB invisible, slid into
+     the tab-bar lane, and still tappable while the keyboard was up. */
+  .createFab,
+  .createFabMenu {
+    pointer-events: auto;
   }
 
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
   .createFabRoot.isKeyboardHidden {
     opacity: 0;
-    pointer-events: none;
     transform: translateY(110%);
+    /* Delayed to the end of the slide, so the control is still painted while it
+       leaves and is out of hit-testing the moment it has gone. */
+    visibility: hidden;
+    transition:
+      opacity var(--duration-base) var(--ease-out),
+      transform var(--duration-base) var(--ease-out),
+      visibility 0s linear var(--duration-base);
   }
 
-  .createFab,
-  .createFabMenu {
-    pointer-events: auto;
-  }
-
-  .createFab::-webkit-details-marker,
-  .createFab::marker {
-    display: none;
+  body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
+  body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
+  .createFabRoot.isKeyboardHidden :is(.createFab, .createFabMenu) {
+    pointer-events: none;
   }
 
   .createFab {
     display: inline-flex;
-    list-style: none;
     align-items: center;
     justify-content: center;
     width: 56px;
     height: 56px;
     min-width: 56px;
     min-height: 56px;
-    bottom: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 12px);
     padding: 0;
     border: 0;
     border-radius: 50%;

@@ -13,6 +13,26 @@ export type OutDayWindow = (typeof OUT_DAY_WINDOWS)[number];
 
 export const OUT_LISTING_KINDS: readonly WhatsOnKind[] = ["music", "quiz", "sport"];
 
+/**
+ * How many cards one chip prints.
+ *
+ * The cap is spent on rows this page WOULD show, so it is applied after the kind
+ * and window filters, never before them. Handing the cap to the What's-On read
+ * instead sliced the raw dataset in its own order - deals first, music last -
+ * and printed "no listings" over a city whose gigs our own truncation had
+ * dropped.
+ */
+export const OUT_LISTING_LIMIT = 60;
+
+/** A read that could not answer is not an empty city. */
+export type OutListingsReadStatus = "ready" | "degraded";
+
+export function outListingsEmptyLine(status: OutListingsReadStatus): string {
+  return status === "degraded"
+    ? "We could not check the listings just now. Refresh to try again, or start a plan of your own."
+    : "No sourced listings for this window yet.";
+}
+
 export function isOutDayWindow(value: unknown): value is OutDayWindow {
   return (OUT_DAY_WINDOWS as readonly string[]).includes(value as string);
 }
@@ -72,4 +92,19 @@ export function filterOutListings(
   }
   const days = weekendYmds(now);
   return listed.filter((row) => row.startsAt && days.has(londonYmd(Date.parse(row.startsAt))));
+}
+
+/**
+ * The rows one chip prints: filtered to the kinds and the window FIRST, then
+ * capped. The order matters - the What's-On dataset is concatenated by family
+ * rather than by time, so a cap spent before the filter is spent on rows this
+ * page discards and leaves the page saying the city has nothing on.
+ */
+export function selectOutListings(
+  rows: readonly WhatsOnRow[],
+  window: OutDayWindow,
+  now: number = Date.now(),
+  limit: number = OUT_LISTING_LIMIT,
+): WhatsOnRow[] {
+  return filterOutListings(rows, window, now).slice(0, limit);
 }

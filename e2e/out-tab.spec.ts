@@ -19,7 +19,10 @@ function primaryNav(page: Page) {
 async function openCreateMenu(page: Page) {
   const create = page.getByTestId("create-fab");
   await expect(create).toBeVisible();
-  await create.evaluate((node) => (node as HTMLButtonElement).click());
+  // A plain click on purpose: the actionability and occlusion checks ARE the
+  // proof that the control and its sheet are clear of the tab bar at every
+  // phone width. A forced click would pass through whatever covered them.
+  await create.click();
   await expect(page.getByRole("menuitem", { name: "Post a moment" })).toBeVisible();
 }
 
@@ -46,13 +49,17 @@ for (const width of WIDTHS) {
 
       await page.goto("/out");
       await openCreateMenu(page);
-      await page.getByRole("menuitem", { name: "Log a price" }).click({ force: true });
+      await page.getByRole("menuitem", { name: "Log a price" }).click();
       await page.waitForURL(/\/map\?log=1/, { timeout: 45_000 });
 
       await page.goto("/out");
       await openCreateMenu(page);
       await page.getByRole("menuitem", { name: "Start a plan" }).click();
       await page.waitForURL(/\/plan$/);
+      // The action is mounted in the root layout, so a client-side navigation
+      // leaves it mounted: a sheet nobody closed stays painted over wherever it
+      // sent you.
+      await expect(page.getByRole("menuitem", { name: "Start a plan" })).toHaveCount(0);
     });
   });
 }

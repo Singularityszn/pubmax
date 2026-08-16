@@ -1,6 +1,11 @@
 import { describe, expect, it } from "vitest";
 
-import { filterOutListings, parseOutDayWindow } from "@/lib/outListings";
+import {
+  filterOutListings,
+  outListingsEmptyLine,
+  parseOutDayWindow,
+  selectOutListings,
+} from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "kind" | "title">): WhatsOnRow {
@@ -46,5 +51,59 @@ describe("out listings", () => {
       "sat-quiz",
       "sun-gig",
     ]);
+  });
+
+  // The dataset is concatenated by family (quiz, then deals, then sport, then
+  // music), so the rows this page wants sit past hundreds it discards. A cap
+  // spent before the filter dropped every gig and printed "no listings" over a
+  // city that had them.
+  it("spends the cap on rows this page shows, never on rows it discards", () => {
+    const now = Date.parse("2026-08-14T18:00:00.000Z");
+    const rows = [
+      ...Array.from({ length: 20 }, (_unused, index) =>
+        row({
+          id: `deal-${index}`,
+          kind: "deal",
+          title: "Deal",
+          startsAt: "2026-08-14T19:00:00.000Z",
+        }),
+      ),
+      row({ id: "music-1", kind: "music", title: "Gig", startsAt: "2026-08-14T20:00:00.000Z" }),
+    ];
+    expect(selectOutListings(rows, "tonight", now, 5).map((item) => item.id)).toEqual([
+      "music-1",
+    ]);
+  });
+
+  it("caps what is left once the window has been applied", () => {
+    const now = Date.parse("2026-08-14T18:00:00.000Z");
+    const rows = Array.from({ length: 8 }, (_unused, index) =>
+      row({
+        id: `quiz-${index}`,
+        kind: "quiz",
+        title: "Quiz",
+        startsAt: "2026-08-14T19:00:00.000Z",
+      }),
+    );
+    expect(selectOutListings(rows, "tonight", now, 3)).toHaveLength(3);
+  });
+});
+
+describe("out listings empty line", () => {
+  // A read that could not answer and a window with nothing in it are two
+  // findings, and one sentence for both tells a reader the city is quiet when
+  // the truth is that we never looked.
+  it("separates a quiet window from a read that could not answer", () => {
+    const quiet = outListingsEmptyLine("ready");
+    const degraded = outListingsEmptyLine("degraded");
+    expect(quiet).not.toBe(degraded);
+    expect(quiet).toMatch(/no sourced listings/i);
+    expect(degraded).toMatch(/could not check/i);
+    // Never a closed door: the way onward rides with the refusal.
+    expect(degraded).toMatch(/plan/i);
+    for (const line of [quiet, degraded]) {
+      expect(line).not.toMatch(/—/);
+      expect(line).not.toMatch(/!/);
+    }
   });
 });

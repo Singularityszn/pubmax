@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Images, CalendarClock, DoorOpen } from "lucide-react";
 import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import {
@@ -16,6 +16,7 @@ import {
   TOUR_TARGET_TAB_KEY,
   navPathMatches,
   nowTabHref,
+  serverNowTabHref,
   subscribeNowTabHref,
   type PrimaryNavKey,
   type TourSpotlightTarget,
@@ -58,11 +59,9 @@ const warmedTabs = new Set<string>();
 // Exported for the five-tab contract test (order + destinations are load-bearing).
 export function buildTabs(
   mapHref: string,
-  pathname: string,
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
 ): Tab[] {
-  void pathname;
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
@@ -81,10 +80,10 @@ export function buildTabs(
 // Resolve a first-run tour spotlight target ("map" | "drop" | "social") to
 // its live column in the tab row, so the tour ring is positioned from the REAL
 // tab geometry and moves with it if the row grows or reorders. Args are
-// irrelevant to the order/count, so the canonical /map pair is fine. Exported
+// irrelevant to the order/count, so the canonical /map is fine. Exported
 // for the tour and its geometry regression test.
 export function tourSpotlightColumn(target: TourSpotlightTarget): { index: number; total: number } {
-  const tabs = buildTabs("/map", "/map");
+  const tabs = buildTabs("/map");
   return {
     index: tabs.findIndex((tab) => tab.key === TOUR_TARGET_TAB_KEY[target]),
     total: tabs.length,
@@ -112,7 +111,6 @@ export default function MobileTabBar() {
 }
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
-  const searchParams = useSearchParams();
   const router = useRouter();
   // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
   // /map, then re-read after mount (and when CitySwitcher writes).
@@ -121,10 +119,13 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     preferredCityMapHref,
     () => "/map",
   );
+  // Now flips at 17:00 London. The SERVER snapshot is a constant, not a clock
+  // read: a prerendered document held by the CDN would otherwise hydrate against
+  // an href the browser had already moved past. See navigationModel.
   const nowHref = useSyncExternalStore(
     subscribeNowTabHref,
     nowTabHref,
-    nowTabHref,
+    serverNowTabHref,
   );
   // You tab: when identity is known, point straight at /u/<handle> instead of
   // the /u/you sentinel (which client-redirects after mount and doubles the
@@ -147,10 +148,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const returnTo = `${pathname}${searchParams.size ? `?${searchParams.toString()}` : ""}`;
   const tabs = useMemo(
-    () => buildTabs(mapHref, returnTo, youHref, nowHref),
-    [mapHref, returnTo, youHref, nowHref],
+    () => buildTabs(mapHref, youHref, nowHref),
+    [mapHref, youHref, nowHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
