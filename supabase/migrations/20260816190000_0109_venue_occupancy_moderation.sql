@@ -6,23 +6,32 @@
 -- reading. A moderator can HIDE it. Hide never deletes. Reporting never
 -- auto-hides: one account must not erase a pub's now reading.
 --
+-- WHAT THIS MAY NOT TOUCH: `reported_at` belongs to 0107. It is the
+-- OBSERVATION timestamp - the column the 90-minute now window, the printed
+-- age and the 15-minute retake all read - so a flag stamp of its own
+-- (`flagged_at`) is what a moderation lane gets. Re-dating an observation
+-- because somebody complained about it would promote a stale reading into
+-- the live now window.
+--
 -- Apply AFTER 0107. The browser still never touches these tables.
 
 begin;
 
 alter table public.venue_occupancy_reports
   add column if not exists hidden_at timestamptz,
-  add column if not exists reported_at timestamptz,
+  add column if not exists flagged_at timestamptz,
   add column if not exists report_reason text,
   add column if not exists report_count integer not null default 0;
 
 comment on column public.venue_occupancy_reports.hidden_at is
   'Moderator hide stamp. Null means visible. Hide never deletes the row.';
+comment on column public.venue_occupancy_reports.flagged_at is
+  'Freshest reader flag. Never the observation time: reported_at is 0107''s and stays put.';
 comment on column public.venue_occupancy_reports.report_count is
   'Distinct reporter count. A flag never hides the reading.';
 
 create index if not exists venue_occupancy_reports_review_idx
-  on public.venue_occupancy_reports (reported_at desc)
+  on public.venue_occupancy_reports (flagged_at desc)
   where report_count > 0 or hidden_at is not null;
 
 create table if not exists public.venue_occupancy_flags (
@@ -54,7 +63,8 @@ create policy venue_occupancy_flags_authenticated_deny
 
 -- Insert-the-ledger-then-count. Unknown id returns null (route maps to 404).
 -- A same-actor repeat answers true without moving the counter.
--- Nothing in this function may stamp a hide.
+-- Nothing in this function may stamp a hide, and nothing in it may write
+-- reported_at: a flag is not an observation.
 create or replace function public.report_occupancy_report(
   p_id uuid,
   p_actor_hash text,
@@ -82,7 +92,7 @@ begin
 
   update public.venue_occupancy_reports
      set report_count  = coalesce(report_count, 0) + 1,
-         reported_at   = now(),
+         flagged_at    = now(),
          report_reason = coalesce(nullif(p_reason, ''), report_reason)
    where id = p_id;
 

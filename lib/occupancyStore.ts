@@ -96,10 +96,13 @@ export const memoryOccupancyStore: OccupancyStore = {
     if (!venueId) throw new Error("A venue is required.");
     if (!reporterUserId) throw new Error("A signed-in account is required.");
     const nowMs = input.now ?? Date.now();
+    // A hidden row is never the retake target: reusing one would launder a
+    // moderator hide into the account's next honest reading.
     const open = memoryReports.find(
       (row) =>
         row.venueId === venueId &&
         row.reporterUserId === reporterUserId &&
+        !row.hiddenAt &&
         occupancyRetakeOpen(row.reportedAt, nowMs),
     );
     if (open) {
@@ -227,12 +230,13 @@ export const supabaseOccupancyStore: OccupancyStore = {
           .select(OCCUPANCY_SELECT)
           .eq("venue_id", venueId)
           .eq("reporter_user_id", reporterUserId)
+          .is("hidden_at", null)
           .gte("reported_at", since)
           .order("reported_at", { ascending: false })
           .limit(1);
         if (openError) throw new Error(openError.message);
         const open = fromRow((openRows ?? [])[0] ?? {});
-        if (open && occupancyRetakeOpen(open.reportedAt, nowMs)) {
+        if (open && !open.hiddenAt && occupancyRetakeOpen(open.reportedAt, nowMs)) {
           const { data, error } = await admin()
             .from(TABLE)
             .update({

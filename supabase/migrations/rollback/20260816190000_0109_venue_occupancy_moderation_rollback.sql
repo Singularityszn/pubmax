@@ -1,7 +1,8 @@
 -- Rollback 0109: drop occupancy flag ledger and hide stamp.
 --
 -- Lossy for flags. Hidden readings become visible again. The observations
--- themselves stay: 0107 still owns the report rows.
+-- themselves stay: 0107 still owns the report rows, `reported_at`, and the
+-- now / retake indexes built on it. Drop ONLY what 0109 added.
 
 begin;
 
@@ -16,7 +17,7 @@ drop index if exists public.venue_occupancy_reports_review_idx;
 
 alter table public.venue_occupancy_reports
   drop column if exists hidden_at,
-  drop column if exists reported_at,
+  drop column if exists flagged_at,
   drop column if exists report_reason,
   drop column if exists report_count;
 

@@ -13,6 +13,7 @@ import {
 import {
   buildPriceEvidenceMissionUrl,
   dismissedVenueIds,
+  readPriceEvidenceMissionWithDeadline,
   startPriceEvidenceMissionRequest,
   type PriceEvidenceMissionRead,
 } from "@/lib/priceEvidenceMissionClient";
@@ -71,29 +72,22 @@ export function usePriceEvidenceMission(input: {
       requestUrl,
       authedActionFetch,
     );
-    const timeout = window.setTimeout(() => {
+    // The deadline may only degrade a read that is still in flight, so the
+    // race settles exactly once and a mission that landed stays put.
+    const read = readPriceEvidenceMissionWithDeadline(request);
+    void read.settled.then((outcome) => {
+      if (outcome.outcome === "abandoned") return;
       if (generation !== generationRef.current) return;
-      request.abort();
-      setResolved({ requestUrl, view: { status: "degraded", mission: null } });
-    }, 2000);
-    void request.promise
-      .then((body) => {
-        if (generation !== generationRef.current) return;
-        setResolved({ requestUrl, view: body });
-      })
-      .catch((error: unknown) => {
-        if (request.signal.aborted) return;
-        if (generation === generationRef.current) {
-          setResolved({
-            requestUrl,
-            view: { status: "degraded", mission: null },
-          });
-        }
-        void error;
+      setResolved({
+        requestUrl,
+        view:
+          outcome.outcome === "read"
+            ? outcome.read
+            : { status: "degraded", mission: null },
       });
+    });
     return () => {
-      window.clearTimeout(timeout);
-      request.abort();
+      read.cancel();
     };
   }, [enabled, requestUrl]);
 

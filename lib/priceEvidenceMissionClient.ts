@@ -104,6 +104,60 @@ export function startPriceEvidenceMissionRequest(
   };
 }
 
+/** How long Log it may wait on the mission read before it answers anyway. */
+export const PRICE_EVIDENCE_MISSION_DEADLINE_MS = 2000;
+
+export type PriceEvidenceMissionOutcome =
+  | { outcome: "read"; read: PriceEvidenceMissionRead }
+  | { outcome: "degraded" }
+  | { outcome: "abandoned" };
+
+export type PriceEvidenceMissionDeadline = {
+  settled: Promise<PriceEvidenceMissionOutcome>;
+  cancel: () => void;
+};
+
+/**
+ * Race one mission read against its deadline and settle EXACTLY ONCE.
+ *
+ * The deadline may only degrade a read that is still in flight: a mission that
+ * has already landed stays, so the timer is cleared the moment the read
+ * answers. The request is aborted by the deadline or by the caller cancelling,
+ * never after an answer arrived.
+ */
+export function readPriceEvidenceMissionWithDeadline(
+  request: PriceEvidenceMissionRequest,
+  deadlineMs: number = PRICE_EVIDENCE_MISSION_DEADLINE_MS,
+): PriceEvidenceMissionDeadline {
+  let finish: (outcome: PriceEvidenceMissionOutcome) => void = () => {};
+  const settled = new Promise<PriceEvidenceMissionOutcome>((resolve) => {
+    finish = resolve;
+  });
+  let done = false;
+  const timer = setTimeout(() => {
+    if (done) return;
+    done = true;
+    request.abort();
+    finish({ outcome: "degraded" });
+  }, deadlineMs);
+  const settle = (outcome: PriceEvidenceMissionOutcome): boolean => {
+    if (done) return false;
+    done = true;
+    clearTimeout(timer);
+    finish(outcome);
+    return true;
+  };
+  void request.promise
+    .then((read) => settle({ outcome: "read", read }))
+    .catch(() => settle({ outcome: "degraded" }));
+  return {
+    settled,
+    cancel: () => {
+      if (settle({ outcome: "abandoned" })) request.abort();
+    },
+  };
+}
+
 export function dismissedVenueIds(keys: ReadonlySet<string>): Set<string> {
   const ids = new Set<string>();
   for (const key of keys) {

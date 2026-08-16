@@ -125,6 +125,32 @@ describe("occupancyStore", () => {
     expect(restored.now).toBe("full");
     expect(restored.reportsLast90).toBe(1);
   });
+
+  it("never retakes a hidden row, so a hide is not laundered into the next report", async () => {
+    const hidden = await occupancyStore().report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+    expect(await occupancyStore().moderate(hidden.id, true)).toBe(true);
+
+    // Inside the 15-minute retake window, so the pre-fix store UPDATEd the
+    // hidden row and the drinker's honest reading never appeared.
+    vi.setSystemTime(NOW + OCCUPANCY_RETAKE_WINDOW_MS / 2);
+    const fresh = await occupancyStore().report({
+      venueId: "venue-1",
+      level: "empty",
+      reporterUserId: "user-a",
+    });
+
+    expect(fresh.id).not.toBe(hidden.id);
+    expect(fresh.hiddenAt).toBeNull();
+
+    const reading = await occupancyStore().readNow("venue-1");
+    expect(reading.now).toBe("empty");
+    expect(reading.reportsLast90).toBe(1);
+    expect(reading.id).toBe(fresh.id);
+  });
 });
 
 describe("occupancy read before the durable table exists", () => {
