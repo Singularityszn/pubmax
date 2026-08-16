@@ -1,4 +1,20 @@
-import type { OutResponse } from "@/lib/out/types";
+import type { OutResponse, OutStatus } from "@/lib/out/types";
+
+export const OUT_READY_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
+export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=0";
+
+/**
+ * How long the edge may keep this answer.
+ *
+ * A ready answer is a settled fact about the day and holds for its full window.
+ * A degraded or not-configured answer is a fact about US at one instant - one
+ * upstream blip would otherwise pin "Some listings could not be checked." on
+ * the CDN for a quarter of an hour after the provider recovered - so it is held
+ * briefly and re-asked.
+ */
+export function outCacheControl(status: OutStatus): string {
+  return status === "ready" ? OUT_READY_CACHE_CONTROL : OUT_UNSETTLED_CACHE_CONTROL;
+}
 
 export const OUT_READ_FAILED_LINE = "Could not check listings.";
 export const OUT_DEGRADED_LINE = "Some listings could not be checked.";

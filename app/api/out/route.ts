@@ -7,13 +7,12 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { buildOutResponse, parseOutQuery } from "@/lib/out/loadOut";
+import { outCacheControl } from "@/lib/out/outStatus";
 import { isOutLimited } from "@/lib/outRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
 
 export const runtime = "nodejs";
 export const maxDuration = 15;
-
-const CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 
 export const GET = withRouteTiming("out", getHandler);
 
@@ -32,6 +31,6 @@ async function getHandler(request: Request): Promise<Response> {
 
   const body = await buildOutResponse(query);
   return Response.json(body, {
-    headers: { "cache-control": CACHE_CONTROL },
+    headers: { "cache-control": outCacheControl(body.status) },
   });
 }

@@ -325,6 +325,35 @@ describe("runEventsRefresh end to end", () => {
     expect(commonCalls).toHaveLength(1);
   });
 
+  it("asks every provider lane after one of them fails, and writes nothing", async () => {
+    // A failed lane must not abort the others: the run owes an operator each
+    // lane's own outcome. The WRITE is what the failure stops, because the file
+    // is overwritten whole and a partial write publishes the failed lane empty.
+    const outPath = temporaryOutPath();
+    const logs: string[] = [];
+    const errors: string[] = [];
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs"],
+      env: { TICKETMASTER_API_KEY: "tm-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response("upstream down", { status: 503 })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      log: (message) => logs.push(message),
+      logError: (message) => errors.push(message),
+    });
+
+    expect(result.provider.status).toBe("failed");
+    expect(result.provider.wrote).toBe(false);
+    expect(result.provider.reason).toContain("ticketmaster");
+    expect(existsSync(outPath)).toBe(false);
+    // The Skiddle lane still reported its own outcome, so the log describes
+    // what really happened rather than a per-provider skip that did not.
+    expect(logs.some((line) => line.includes("Skiddle lane not-configured"))).toBe(true);
+    expect(errors.some((line) => line.includes(`not writing ${outPath}`))).toBe(true);
+  });
+
   it("runs the keyless Common lane even when the Ticketmaster lane fails", async () => {
     const outPath = temporaryOutPath();
     let commonRan = false;

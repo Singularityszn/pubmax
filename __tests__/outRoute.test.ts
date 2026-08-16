@@ -8,7 +8,12 @@ import {
   outDayWindow,
   parseOutQuery,
 } from "@/lib/out/loadOut";
-import { outAnswerView, outStatusLines } from "@/lib/out/outStatus";
+import {
+  OUT_READY_CACHE_CONTROL,
+  OUT_UNSETTLED_CACHE_CONTROL,
+  outAnswerView,
+  outStatusLines,
+} from "@/lib/out/outStatus";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -328,6 +333,92 @@ describe("buildOutResponse", () => {
   });
 });
 
+describe("a row with no stated time answers only the day it was listed for", () => {
+  const listedTonight = () => [
+    eventRow({ id: "listed-tonight", startsAt: undefined, listedWindow: "tonight" }),
+  ];
+
+  it("shows a tonight-listed row under Today", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      { now: FIXTURE_NOW.getTime(), loadBaseline: listedTonight, liveProviders: [] },
+    );
+    expect(body.events).toHaveLength(1);
+  });
+
+  it("refuses it under Tomorrow and Weekend rather than claiming the wrong day", async () => {
+    for (const day of ["tomorrow", "weekend"] as const) {
+      const body = await buildOutResponse(
+        { city: "london", day },
+        { now: FIXTURE_NOW.getTime(), loadBaseline: listedTonight, liveProviders: [] },
+      );
+      expect(body.events).toEqual([]);
+    }
+  });
+});
+
+describe("the live lanes are asked at once", () => {
+  it("starts every configured provider before the first one answers", async () => {
+    // Each lane carries its own request timeout. Walked one after another, two
+    // slow upstreams cost more than the route's whole budget and the reader
+    // gets a platform error instead of the honest degraded body.
+    const trace: string[] = [];
+    const lane = (name: string) => ({
+      name,
+      isConfigured: () => true,
+      fetchTonight: async () => {
+        trace.push(`start:${name}`);
+        await Promise.resolve();
+        await Promise.resolve();
+        trace.push(`end:${name}`);
+        return [] as WhatsOnRow[];
+      },
+    });
+
+    await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [lane("ticketmaster"), lane("skiddle")],
+      },
+    );
+
+    expect(trace.slice(0, 2)).toEqual(["start:ticketmaster", "start:skiddle"]);
+  });
+
+  it("reports one failed lane as degraded and still keeps the other lane's rows", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          {
+            name: "ticketmaster",
+            isConfigured: () => true,
+            fetchTonight: async () => {
+              throw new Error("upstream 503");
+            },
+          },
+          {
+            name: "skiddle",
+            isConfigured: () => true,
+            fetchTonight: async () => [eventRow({ id: "sk-1", sourceId: "sk-1" })],
+          },
+        ],
+      },
+    );
+
+    expect(body.status).toBe("degraded");
+    expect(body.events).toHaveLength(1);
+    expect(body.providers).toEqual([
+      { name: "skiddle", configured: true, rows: 1, status: "ready" },
+      { name: "ticketmaster", configured: true, rows: 0, status: "degraded" },
+    ]);
+  });
+});
+
 describe("the two lanes fold onto one listing", () => {
   it("shows a Ticketmaster event once, keeping the bundled row's venue match", async () => {
     const bundled = eventRow({
@@ -358,6 +449,24 @@ describe("the two lanes fold onto one listing", () => {
     expect(body.events[0].venueId).toBe("venue-soho-theatre");
   });
 
+  it("keeps two shows in one venue at the same minute, because their ids differ", async () => {
+    // Comedy, theatre, club and BARPUB all land on the single kind "event", and
+    // a live row carries no venueId, so a multi-room venue's two 20:00 shows
+    // share (place, kind, start). Their provider ids do not.
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [
+          eventRow({ id: "a", sourceId: "tm-1", title: "Upstairs" }),
+          eventRow({ id: "b", sourceId: "tm-2", title: "Downstairs" }),
+        ],
+        liveProviders: [],
+      },
+    );
+    expect(body.events.map((row) => row.sourceId)).toEqual(["tm-1", "tm-2"]);
+  });
+
   it("leaves two genuinely different listings alone", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },
@@ -375,16 +484,26 @@ describe("the two lanes fold onto one listing", () => {
 });
 
 describe("GET /api/out", () => {
-  it("sets the edge cache header on a 200", async () => {
+  it("sets the edge cache header on a 200, matched to how settled the answer is", async () => {
     const res = await GET(new Request("http://localhost/api/out?city=london&day=today"));
     expect(res.status).toBe(200);
-    expect(res.headers.get("cache-control")).toBe(
-      "public, s-maxage=300, stale-while-revalidate=900",
-    );
     const body = await res.json();
     expect(["ready", "degraded", "not-configured"]).toContain(body.status);
+    expect(res.headers.get("cache-control")).toBe(
+      body.status === "ready" ? OUT_READY_CACHE_CONTROL : OUT_UNSETTLED_CACHE_CONTROL,
+    );
     expect(Array.isArray(body.events)).toBe(true);
     expect(body.openPlans).toEqual([]);
+  });
+
+  it("holds an unsettled answer only briefly, so one blip is not pinned on the CDN", async () => {
+    // A city Out does not cover yet is the deterministic non-ready body: the
+    // answer is a fact about us at one instant, not about the day.
+    const res = await GET(new Request("http://localhost/api/out?city=bristol&day=today"));
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.status).toBe("degraded");
+    expect(res.headers.get("cache-control")).toBe(OUT_UNSETTLED_CACHE_CONTROL);
   });
 
   it("uses the house error envelope for a bad day", async () => {

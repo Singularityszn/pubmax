@@ -130,16 +130,28 @@ export function outDayWindow(day: OutDay, now: number): { startMs: number; endMs
   return { startMs: friday.startMs, endMs: sunday.endMs };
 }
 
-function rowOverlapsWindow(row: WhatsOnRow, window: { startMs: number; endMs: number }): boolean {
+// A row with no stated interval says only which window it was LISTED for, so it
+// may answer that day and no other. Reading "tonight" as an answer to the
+// Tomorrow chip is a wrong-day claim, and a row that cannot support the day
+// asked for is dropped rather than shown under it.
+const LISTED_WINDOW_DAY: Record<string, OutDay> = {
+  tonight: "today",
+  tomorrow_night: "tomorrow",
+  this_weekend: "weekend",
+};
+
+function rowOverlapsWindow(
+  row: WhatsOnRow,
+  window: { startMs: number; endMs: number },
+  day: OutDay,
+): boolean {
   const stated = rowStatedInterval(row);
   if (stated) {
     if (!Number.isFinite(stated.startMs) || !Number.isFinite(stated.endMs)) return false;
     return stated.startMs < window.endMs && stated.endMs > window.startMs;
   }
-  if (row.listedWindow === "tonight") return true;
-  if (row.listedWindow === "tomorrow_night") return true;
-  if (row.listedWindow === "this_weekend") return true;
-  return false;
+  if (!row.listedWindow) return false;
+  return LISTED_WINDOW_DAY[row.listedWindow] === day;
 }
 
 /**
@@ -227,42 +239,55 @@ export async function buildOutResponse(
 
   const window = outDayWindow(query.day, now);
 
-  const reports: OutProviderReport[] = [];
-  const liveRows: WhatsOnRow[] = [];
-  for (const provider of liveProviders) {
-    if (!provider.isConfigured()) {
-      reports.push({
-        name: provider.name,
-        configured: false,
-        rows: 0,
-        status: "not-configured",
-      });
-      continue;
-    }
-    try {
-      // The provider is asked for the window this answer will KEEP, so a
-      // tomorrow or weekend request never spends an upstream call on rows the
-      // filter below would discard.
-      const rows = await provider.fetchTonight({ now, city, window });
-      liveRows.push(...rows);
-      reports.push({ name: provider.name, configured: true, rows: rows.length, status: "ready" });
-    } catch (err) {
-      status = "degraded";
-      reason = "Some listings could not be checked.";
-      // The upstream message is a server-side diagnostic. The public body says
-      // only that this lane is degraded.
-      log("warn", "out.provider_failed", {
-        provider: provider.name,
-        city,
-        day: query.day,
-        error: err instanceof Error ? err.message : "provider failed",
-      });
-      reports.push({ name: provider.name, configured: true, rows: 0, status: "degraded" });
-    }
+  // Every lane is asked AT ONCE. Each carries its own request timeout, so a
+  // sequential walk spends them one after another: two slow upstreams cost more
+  // than the function's whole budget and the reader gets a platform error
+  // instead of the honest degraded body this status design exists to produce.
+  const settled = await Promise.all(
+    liveProviders.map(
+      async (provider): Promise<{ report: OutProviderReport; rows: WhatsOnRow[] }> => {
+        if (!provider.isConfigured()) {
+          return {
+            report: { name: provider.name, configured: false, rows: 0, status: "not-configured" },
+            rows: [],
+          };
+        }
+        try {
+          // The provider is asked for the window this answer will KEEP, so a
+          // tomorrow or weekend request never spends an upstream call on rows
+          // the filter below would discard.
+          const rows = await provider.fetchTonight({ now, city, window });
+          return {
+            report: { name: provider.name, configured: true, rows: rows.length, status: "ready" },
+            rows,
+          };
+        } catch (err) {
+          // The upstream message is a server-side diagnostic. The public body
+          // says only that this lane is degraded.
+          log("warn", "out.provider_failed", {
+            provider: provider.name,
+            city,
+            day: query.day,
+            error: err instanceof Error ? err.message : "provider failed",
+          });
+          return {
+            report: { name: provider.name, configured: true, rows: 0, status: "degraded" },
+            rows: [],
+          };
+        }
+      },
+    ),
+  );
+
+  const reports: OutProviderReport[] = settled.map((entry) => entry.report);
+  const liveRows: WhatsOnRow[] = settled.flatMap((entry) => entry.rows);
+  if (reports.some((report) => report.status === "degraded")) {
+    status = "degraded";
+    reason = "Some listings could not be checked.";
   }
 
   const merged = dedupeRows(foldBySourceId([...baseline, ...liveRows]))
-    .filter((row) => rowOverlapsWindow(row, window))
+    .filter((row) => rowOverlapsWindow(row, window, query.day))
     .map(fillEventArea)
     .sort(
       (left, right) =>

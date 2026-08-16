@@ -243,10 +243,19 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
   return out;
 }
 
-// Exact-start rows collide on place, kind, and start. Without an exact start,
-// listed-time wording is not enough to identify an event, so title and source
-// remain part of the identity.
+// A row that carries the PROVIDER'S OWN id is identified by it: two listings
+// with distinct sourceIds are two events, however alike their venue, kind and
+// start look. A multi-room venue really does run two shows at 20:00, and
+// comedy, theatre, club and BARPUB all land on the single kind "event", so
+// (place, kind, start) alone silently drops one of them.
+//
+// Exact-start rows with no id collide on place, kind, and start. Without an
+// exact start, listed-time wording is not enough to identify an event, so title
+// and source remain part of the identity.
 export function dedupeKey(row: WhatsOnRow): string {
+  if (isNonEmptyString(row.sourceId)) {
+    return `${row.source.label.toLocaleLowerCase("en-GB")}|${row.sourceId}`;
+  }
   const place = isNonEmptyString(row.venueId) ? row.venueId : row.placeName.toLowerCase();
   const when =
     row.startsAt ??

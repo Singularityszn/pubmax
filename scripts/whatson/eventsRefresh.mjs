@@ -223,6 +223,11 @@ async function runProviderLane({
   const venueIndex = loadVenueIndex();
   const allRows = [];
   const providersRun = [];
+  // A lane that FAILED is recorded and the run carries on: the other lanes are
+  // independent and an operator is owed each one's own outcome. The write is
+  // what the failure stops, further down - the file is overwritten whole, so
+  // publishing the lanes that answered would drop the failed lane's rows.
+  const providerFailures = [];
   const dropped = emptyEventDrops();
   const opts = { observedAt, venueIndex, resolveVenue: resolveVenueId };
 
@@ -247,9 +252,9 @@ async function runProviderLane({
       );
     } catch (err) {
       logError(
-        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - skipping provider, not clobbering file.`,
+        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - its rows are missing, so the file will not be written this run. The other provider lanes still run.`,
       );
-      return { status: "failed", wrote: false, reason: `ticketmaster: ${err.message}` };
+      providerFailures.push(`ticketmaster: ${err.message}`);
     }
   }
 
@@ -271,12 +276,23 @@ async function runProviderLane({
       );
     } catch (err) {
       logError(
-        `eventsRefresh: Skiddle fetch failed (${err.message}) - skipping provider, not clobbering file.`,
+        `eventsRefresh: Skiddle fetch failed (${err.message}) - its rows are missing, so the file will not be written this run.`,
       );
-      return { status: "failed", wrote: false, reason: `skiddle: ${err.message}` };
+      providerFailures.push(`skiddle: ${err.message}`);
     }
   } else {
     log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
+  }
+
+  // The clobber guard: the city file is overwritten WHOLE, so a write with a
+  // lane missing publishes that lane as empty. Every configured lane has now
+  // been asked and reported; one that failed refuses the write for all of them.
+  if (providerFailures.length > 0) {
+    logError(
+      `eventsRefresh: not writing ${outPath} - ${providerFailures.length} provider lane(s) failed ` +
+        `(${providerFailures.join("; ")}). A partial write would drop the failed lane's rows.`,
+    );
+    return { status: "failed", wrote: false, reason: providerFailures.join("; ") };
   }
 
   // Fail closed: a successful run that yields zero rows across every enabled
