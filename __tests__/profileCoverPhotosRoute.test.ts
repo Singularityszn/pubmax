@@ -277,6 +277,25 @@ describe("adding a cover", () => {
     expect(await profileCoverPhotoStore().countForProfile(profile!.id)).toBe(countBefore);
   });
 
+  it("hides rotation-only covers when the profile mirror image is absent", async () => {
+    const profile = await profileStore().getByHandle(HANDLE);
+    await memoryProfileCoverPhotoStore.create({
+      id: "77777777-7777-4777-8777-777777777771",
+      profileId: profile!.id,
+      generation: "55555555-5555-4555-8555-555555555555",
+      objectKey: profileImageServingKey(
+        "cover",
+        profile!.id,
+        "55555555-5555-4555-8555-555555555555",
+      ),
+    });
+    expect(profile?.coverObjectKey).toBeFalsy();
+
+    expect(await moderateProfileImageAcrossStores(HANDLE, "cover", "hide")).toBe(true);
+    expect(await profileCoverPhotoStore().listApproved(profile!.id)).toEqual([]);
+    expect(await memoryProfileCoverPhotoStore.listForReview()).toEqual([]);
+  });
+
   it("answers a profile guard outage as a retryable store failure", async () => {
     vi.spyOn(memoryProfileStore, "getById").mockRejectedValueOnce(
       new Error("profile read unavailable"),
