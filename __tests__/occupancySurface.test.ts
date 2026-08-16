@@ -18,6 +18,7 @@ const occupancyState = vi.hoisted(() => ({
     reportsLast90: 0,
     degraded: false,
     state: "none",
+    id: null,
   } as OccupancyNowAnswer | null,
 }));
 
@@ -39,6 +40,7 @@ vi.mock("@/components/map/useVenueOccupancy", () => ({
     reload: async () => undefined,
   }),
   confirmOccupancyProposal: async () => ({ ok: false, error: "unused" }),
+  flagVenueOccupancy: async () => ({ ok: false, error: "unused" }),
 }));
 
 function signedIn(): void {
@@ -62,6 +64,7 @@ beforeEach(() => {
     reportsLast90: 0,
     degraded: false,
     state: "none",
+    id: null,
   };
 });
 
@@ -86,6 +89,7 @@ describe("occupancy venue surface", () => {
     expect(html).toContain("How busy is it right now?");
     expect(html).toContain("No fresh reading");
     expect(html).toContain("Sign in to report");
+    expect(html).toContain('href="/login?mode=signin&amp;from=%2Fmap%3Fsel%3Dvenue-1"');
     expect(html).not.toContain(">Empty<");
   });
 
@@ -97,11 +101,14 @@ describe("occupancy venue surface", () => {
       reportsLast90: 1,
       degraded: false,
       state: "fresh",
+      id: "occ-1",
     };
 
     const dated = render();
-    expect(dated).toContain("Some seats · 12 min ago");
+    expect(dated).toContain("Some seats · 12 min ago · 1 report");
     expect(dated).not.toContain("venueOccupancyReading--empty");
+    expect(dated).not.toContain("aria-pressed");
+    expect(dated).toContain("Report this crowd reading");
 
     occupancyState.reading = {
       now: null,
@@ -109,6 +116,7 @@ describe("occupancy venue surface", () => {
       reportsLast90: 0,
       degraded: false,
       state: "stale",
+      id: null,
     };
 
     const aged = render();
@@ -124,6 +132,7 @@ describe("occupancy venue surface", () => {
       reportsLast90: 0,
       degraded: true,
       state: "degraded",
+      id: null,
     };
 
     const html = render();
@@ -139,6 +148,7 @@ describe("occupancy venue surface", () => {
       reportsLast90: 1,
       degraded: false,
       state: "fresh",
+      id: "occ-1",
     };
 
     const html = render();

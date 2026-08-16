@@ -27,11 +27,15 @@ import {
 } from "@/lib/occupancy";
 
 const TABLE = "venue_occupancy_reports";
-const MIGRATION_HINT = "apply migration 0107";
+const MIGRATION_HINT = "apply migrations 0107 and 0109";
 const STORE_TAG = "venue-occupancy";
 
 export type OccupancyStoredReport = OccupancyReport & {
   id: string;
+  hiddenAt: string | null;
+  reportCount: number;
+  reporters: Set<string>;
+  reportReason?: string;
 };
 
 export type OccupancyWriteInput = {
@@ -44,6 +48,8 @@ export type OccupancyWriteInput = {
 export type OccupancyStore = {
   report(input: OccupancyWriteInput): Promise<OccupancyStoredReport>;
   readNow(venueId: string, now?: number): Promise<OccupancyNowAnswer>;
+  flag(id: string, reason?: string, actorHash?: string): Promise<boolean>;
+  moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
 };
 
 function cleanVenueId(value: unknown): string {
@@ -69,7 +75,18 @@ function stamp(
     reportedAt: new Date(nowMs).toISOString(),
     reporterUserId: cleanUserId(input.reporterUserId),
     source: OCCUPANCY_SOURCE,
+    hiddenAt: null,
+    reportCount: 0,
+    reporters: new Set<string>(),
   };
+}
+
+function cleanReason(value: unknown): string {
+  return typeof value === "string" ? value.trim().slice(0, 200) : "";
+}
+
+function findMemoryRow(id: string): OccupancyStoredReport | undefined {
+  return memoryReports.find((row) => row.id === id);
 }
 
 export const memoryOccupancyStore: OccupancyStore = {
@@ -102,6 +119,27 @@ export const memoryOccupancyStore: OccupancyStore = {
       now ?? Date.now(),
     );
   },
+
+  async flag(id, reason, actorHash) {
+    const row = findMemoryRow(id);
+    if (!row) return false;
+    const reporter = actorHash && actorHash !== "" ? actorHash : null;
+    if (reporter) {
+      if (row.reporters.has(reporter)) return true;
+      row.reporters.add(reporter);
+    }
+    row.reportCount += 1;
+    const cleaned = cleanReason(reason);
+    if (cleaned) row.reportReason = cleaned;
+    return true;
+  },
+
+  async moderate(id, hidden) {
+    const row = findMemoryRow(id);
+    if (!row) return false;
+    row.hiddenAt = hidden ? new Date().toISOString() : null;
+    return true;
+  },
 };
 
 const guard = createFailSoftGuard({
@@ -117,7 +155,13 @@ type OccupancyRow = {
   level?: unknown;
   reporter_user_id?: unknown;
   source?: unknown;
+  hidden_at?: unknown;
+  report_count?: unknown;
+  report_reason?: unknown;
 };
+
+const OCCUPANCY_SELECT =
+  "id, venue_id, reported_at, level, reporter_user_id, source, hidden_at, report_count, report_reason";
 
 function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
   const id = typeof row.id === "string" ? row.id : "";
@@ -131,7 +175,28 @@ function fromRow(row: OccupancyRow): OccupancyStoredReport | null {
   if (row.source !== OCCUPANCY_SOURCE) return null;
   const source: OccupancySource = OCCUPANCY_SOURCE;
   if (!id || !venueId || !level || !reportedAt || !reporterUserId) return null;
-  return { id, venueId, level, reportedAt, reporterUserId, source };
+  const hiddenAt =
+    typeof row.hidden_at === "string" && row.hidden_at !== ""
+      ? row.hidden_at
+      : null;
+  const reportCount =
+    typeof row.report_count === "number" && Number.isFinite(row.report_count)
+      ? Math.max(0, Math.floor(row.report_count))
+      : 0;
+  const reportReason =
+    typeof row.report_reason === "string" ? row.report_reason : undefined;
+  return {
+    id,
+    venueId,
+    level,
+    reportedAt,
+    reporterUserId,
+    source,
+    hiddenAt,
+    reportCount,
+    reporters: new Set<string>(),
+    reportReason,
+  };
 }
 
 export const supabaseOccupancyStore: OccupancyStore = {
@@ -159,7 +224,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
         const since = new Date(nowMs - 15 * 60 * 1000).toISOString();
         const { data: openRows, error: openError } = await admin()
           .from(TABLE)
-          .select("id, venue_id, reported_at, level, reporter_user_id, source")
+          .select(OCCUPANCY_SELECT)
           .eq("venue_id", venueId)
           .eq("reporter_user_id", reporterUserId)
           .gte("reported_at", since)
@@ -175,7 +240,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
               reported_at: new Date(nowMs).toISOString(),
             })
             .eq("id", open.id)
-            .select("id, venue_id, reported_at, level, reporter_user_id, source")
+            .select(OCCUPANCY_SELECT)
             .limit(1);
           if (error) throw new Error(error.message);
           const updated = fromRow((data ?? [])[0] ?? {});
@@ -193,7 +258,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
             reporter_user_id: row.reporterUserId,
             source: row.source,
           })
-          .select("id, venue_id, reported_at, level, reporter_user_id, source")
+          .select(OCCUPANCY_SELECT)
           .limit(1);
         if (error) throw new Error(error.message);
         const stored = fromRow((data ?? [])[0] ?? {});
@@ -224,7 +289,7 @@ export const supabaseOccupancyStore: OccupancyStore = {
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
-          .select("id, venue_id, reported_at, level, reporter_user_id, source")
+          .select(OCCUPANCY_SELECT)
           .eq("venue_id", id)
           .order("reported_at", { ascending: false })
           .limit(200);
@@ -233,6 +298,43 @@ export const supabaseOccupancyStore: OccupancyStore = {
           .map((row) => fromRow(row as OccupancyRow))
           .filter((row): row is OccupancyStoredReport => row !== null);
         return occupancyNowFromReports(reports, now ?? Date.now());
+      },
+    });
+  },
+
+  async flag(id, reason, actorHash) {
+    const reportId = typeof id === "string" ? id.trim() : "";
+    if (!reportId) return false;
+    return guard.guard({
+      context: "flag",
+      onSchemaMiss: () => memoryOccupancyStore.flag(reportId, reason, actorHash),
+      run: async () => {
+        const { data, error } = await admin().rpc("report_occupancy_report", {
+          p_id: reportId,
+          p_actor_hash: actorHash ?? "",
+          p_reason: cleanReason(reason),
+        });
+        if (error) throw new Error(error.message);
+        return data === true;
+      },
+    });
+  },
+
+  async moderate(id, hidden) {
+    const reportId = typeof id === "string" ? id.trim() : "";
+    if (!reportId) return false;
+    return guard.guard({
+      context: "moderate",
+      onSchemaMiss: () => memoryOccupancyStore.moderate(reportId, hidden),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({ hidden_at: hidden ? new Date().toISOString() : null })
+          .eq("id", reportId)
+          .select("id")
+          .limit(1);
+        if (error) throw new Error(error.message);
+        return Boolean(data?.[0]);
       },
     });
   },

@@ -80,9 +80,20 @@ test("a signed-out visitor sees the reading and the sign-in door", async ({
   const row = sheet.locator(".venueOccupancy");
   await expect(row).toBeVisible();
   await expect(row.getByText("How busy is it right now?")).toBeVisible();
-  await expect(row.getByText("Some seats · 12 min ago")).toBeVisible();
-  await expect(row.getByRole("link", { name: "Sign in to report" })).toBeVisible();
+  await expect(row.getByText("Some seats · 12 min ago · 1 report")).toBeVisible();
+  const signIn = row.getByRole("link", { name: "Sign in to report" });
+  await expect(signIn).toBeVisible();
+  await expect(signIn).toHaveAttribute(
+    "href",
+    "/login?mode=signin&from=%2Fmap%3Fsel%3Dvenue-16pnwmm",
+  );
   await expect(row.getByRole("button", { name: "Empty" })).toHaveCount(0);
+
+  await signIn.click();
+  await expect(page).toHaveURL(/\/login\?mode=signin&from=/);
+  expect(new URL(page.url()).searchParams.get("from")).toBe(
+    `/map?sel=${SEED_VENUE_ID}`,
+  );
 });
 
 test("a signed-in tap writes a receipt then an aged reading", async ({
@@ -170,7 +181,7 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
 
   // The receipt gives way to the derived reading rather than freezing the row
   // on its own "just now" for the life of the sheet.
-  await expect(reading).toHaveText("Some seats · just now", {
+  await expect(reading).toHaveText("Some seats · just now · 1 report", {
     timeout: 20_000,
   });
   await expect(row.locator('[role="status"]')).toHaveText("");
@@ -179,5 +190,5 @@ test("a signed-in tap writes a receipt then an aged reading", async ({
   await page.locator("#venueTab-story").click();
   await expect(page.locator("#venuePanel-story")).toBeVisible();
   await page.locator("#venueTab-overview").click();
-  await expect(row.getByText("Some seats · 12 min ago")).toBeVisible();
+  await expect(row.getByText("Some seats · 12 min ago · 1 report")).toBeVisible();
 });

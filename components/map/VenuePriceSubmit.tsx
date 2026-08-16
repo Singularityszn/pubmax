@@ -10,7 +10,6 @@ import {
   paintsMap,
   COMMUNITY_PRICE_MAX_GBP,
   DEFAULT_SUBMIT_CATEGORY,
-  SUBMITTABLE_DRINK_CATEGORIES,
   submitCategoryLabel,
   validateCommunityPrice,
   type CommunityPrice,
@@ -95,6 +94,12 @@ type VenuePriceSubmitProps = {
    * authoritative write-back, never from this client reason.
    */
   mission?: VenuePriceSubmitMission | null;
+  /**
+   * The sheet mounts this form before its mission read answers. Hold Log it
+   * until that read lands or times out, or a typed price is submitted under
+   * a drink that arrived after typing began.
+   */
+  missionPending?: boolean;
 };
 
 /**
@@ -118,6 +123,7 @@ export default function VenuePriceSubmit({
   focusRequest = 0,
   laneCategory = DEFAULT_SUBMIT_CATEGORY,
   mission = null,
+  missionPending = false,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -134,11 +140,8 @@ export default function VenuePriceSubmit({
   );
   const category = missionCategory ?? chosenCategory;
   const categories = useMemo(
-    () =>
-      mission
-        ? SUBMITTABLE_DRINK_CATEGORIES
-        : submitCategoriesForLane(laneCategory),
-    [laneCategory, mission],
+    () => submitCategoriesForLane(laneCategory),
+    [laneCategory],
   );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -222,7 +225,7 @@ export default function VenuePriceSubmit({
   async function logPrice() {
     // The Enter key reaches here even while the button is disabled; one
     // submission at a time keeps the optimistic rollback snapshots coherent.
-    if (submitting || !priceValidation.ok) return;
+    if (submitting || missionPending || !priceValidation.ok) return;
     setError(null);
     await requestContribution(async (auth) => {
       const result = await submit({
@@ -344,13 +347,13 @@ export default function VenuePriceSubmit({
           type="button"
           className="vpsubLog"
           onClick={() => void logPrice()}
-          disabled={submitting || !priceValidation.ok}
+          disabled={submitting || missionPending || !priceValidation.ok}
         >
-          {submitting ? "Logging…" : "Log it"}
+          {missionPending ? "Checking..." : submitting ? "Logging…" : "Log it"}
         </button>
       </div>
 
-      {mission ? null : (
+      {missionLocksCategory ? null : (
         <div className="vpsubQuick" aria-label="Common prices">
           {quickPrices.map((value) => (
             <button

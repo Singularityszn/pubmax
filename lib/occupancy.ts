@@ -95,6 +95,8 @@ export type OccupancyReport = {
   reportedAt: string;
   reporterUserId: string;
   source: OccupancySource;
+  id?: string;
+  hiddenAt?: string | null;
 };
 
 export type OccupancyNowAnswer = {
@@ -104,6 +106,8 @@ export type OccupancyNowAnswer = {
   degraded: boolean;
   /** Derived on read. Older rows feed the forecast later; they never paint now. */
   state: OccupancyReadState;
+  /** The freshest visible report. Absent when nobody has a now reading. */
+  id: string | null;
 };
 
 export type OccupancyReadState = "fresh" | "stale" | "none" | "degraded";
@@ -129,6 +133,30 @@ export function occupancyReceiptLine(
   return `Thanks - ${OCCUPANCY_LEVEL_LABELS[level]}, ${occupancyAgeLabel(ageMinutes)}`;
 }
 
+/**
+ * The receipt for a tap that landed. A degraded read-back must still thank
+ * the level that was written, or a successful insert reads as a failed one.
+ */
+export function occupancyWriteReceiptLine(
+  requested: OccupancyLevel,
+  reading: OccupancyNowAnswer,
+): string {
+  return occupancyReceiptLine(
+    reading.now ?? requested,
+    reading.ageMinutes ?? 0,
+  );
+}
+
+/** Sign-in from the occupancy row lands back on this pub's map sheet. */
+export function occupancySignInHref(venueId: string): string {
+  return `/login?mode=signin&from=${encodeURIComponent(`/map?sel=${venueId}`)}`;
+}
+
+export function occupancyReportsCaption(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? "1 report" : `${count} reports`;
+}
+
 export function occupancyNowFromReports(
   reports: readonly OccupancyReport[],
   nowMs: number,
@@ -141,9 +169,11 @@ export function occupancyNowFromReports(
       reportsLast90: 0,
       degraded: true,
       state: "degraded",
+      id: null,
     };
   }
   const dated = reports
+    .filter((row) => !row.hiddenAt)
     .map((row) => {
       const reportedAtMs = Date.parse(row.reportedAt);
       return { row, reportedAtMs };
@@ -166,6 +196,7 @@ export function occupancyNowFromReports(
       reportsLast90: fresh.length,
       degraded: false,
       state: "fresh",
+      id: newest.row.id ?? null,
     };
   }
   const hadOlder = dated.some(({ reportedAtMs }) => nowMs - reportedAtMs > OCCUPANCY_FRESH_WINDOW_MS);
@@ -175,6 +206,7 @@ export function occupancyNowFromReports(
     reportsLast90: 0,
     degraded: false,
     state: hadOlder ? "stale" : "none",
+    id: null,
   };
 }
 
@@ -199,6 +231,7 @@ export function occupancyAnswerAfter(
       reportsLast90: 0,
       degraded: false,
       state: "stale",
+      id: null,
     };
   }
   return { ...answer, ageMinutes: Math.floor(agedMs / 60_000) };
@@ -213,7 +246,9 @@ export function occupancyReadState(
 export function occupancyReadingLine(answer: OccupancyNowAnswer): string {
   if (answer.degraded) return "Could not check how busy it is.";
   if (!answer.now || answer.ageMinutes == null) return "No fresh reading";
-  return `${OCCUPANCY_LEVEL_LABELS[answer.now]} · ${occupancyAgeLabel(answer.ageMinutes)}`;
+  const count = occupancyReportsCaption(answer.reportsLast90);
+  const base = `${OCCUPANCY_LEVEL_LABELS[answer.now]} · ${occupancyAgeLabel(answer.ageMinutes)}`;
+  return count ? `${base} · ${count}` : base;
 }
 
 /**

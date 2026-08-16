@@ -59,12 +59,6 @@
   cursor: pointer;
 }
 
-.venueOccupancyTap[aria-pressed="true"] {
-  border-color: var(--brass);
-  background: color-mix(in srgb, var(--brass) 18%, var(--panel-raised));
-  color: var(--ink);
-}
-
 .venueOccupancyTap:disabled {
   opacity: 0.6;
   cursor: wait;
@@ -84,6 +78,16 @@
 }
 
 .venueOccupancyError {
+  margin: 8px 0 0;
+  font-size: 16px;
+  color: var(--ink-soft);
+}
+
+.venueOccupancyFlag {
+  margin: 8px 0 0;
+}
+
+.venueOccupancyFlagged {
   margin: 8px 0 0;
   font-size: 16px;
   color: var(--ink-soft);

@@ -64,20 +64,40 @@ describe("price evidence mission render", () => {
     expect(html).not.toContain("4.20");
   });
 
-  it("lets a missing mission choose any submittable category and keeps the price blank", () => {
+  it("lets a missing mission keep the lane chips and one-tap prices", () => {
     const html = renderToStaticMarkup(
       createElement(VenuePriceSubmit, {
         venueId: "venue-empty",
         venueName: "The Crown",
         communityPrices,
+        laneCategory: "gin",
         mission: { reason: "missing", surface: "near" },
       }),
     );
     expect(html).toContain('value=""');
-    expect(html).not.toContain("Common prices");
+    expect(html).toContain("Common prices");
+    expect(html).toContain('role="radiogroup"');
+    expect(html).toContain(`>${submitCategoryLabel("gin")}<`);
+    expect(html).toMatch(
+      new RegExp(`aria-checked="true"[^>]*>${submitCategoryLabel("gin")}<`),
+    );
     for (const category of SUBMITTABLE_DRINK_CATEGORIES) {
       expect(html).toContain(`>${submitCategoryLabel(category)}<`);
     }
+  });
+
+  it("holds Log it until the mission read answers", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenuePriceSubmit, {
+        venueId: "venue-live",
+        venueName: "The Crown",
+        communityPrices,
+        missionPending: true,
+      }),
+    );
+    expect(html).toContain("Checking...");
+    expect(html).toMatch(/disabled(?:=|"")/);
+    expect(html).not.toContain(">Log it<");
   });
 
   it("locks a known category and offers no one-tap agreement", () => {
@@ -95,6 +115,24 @@ describe("price evidence mission render", () => {
     expect(html).not.toContain('role="radiogroup"');
     expect(html).not.toContain("Common prices");
     expect(html).toContain('value=""');
+  });
+
+  it("holds the sheet Log it while the mission read is still in flight", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenuePriceEntryPanel, {
+        venueId: "venue-live",
+        venueName: "The Crown",
+        communityPrices,
+        canSubmitPrice: true,
+        showSignInGate: false,
+        authLoading: false,
+        mission: null,
+        missionPending: true,
+      }),
+    );
+    expect(html).toContain("Checking...");
+    expect(html).not.toContain(">Log it<");
+    expect(html).not.toContain("pemHeading");
   });
 
   it("keeps the sheet form after a failed write by leaving the composer mounted", () => {

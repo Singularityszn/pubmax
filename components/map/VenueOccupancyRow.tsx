@@ -14,11 +14,13 @@ import {
   OCCUPANCY_LEVEL_LABELS,
   OCCUPANCY_RECEIPT_HOLD_MS,
   occupancyReadingLine,
-  occupancyReceiptLine,
+  occupancySignInHref,
+  occupancyWriteReceiptLine,
   type OccupancyLevel,
 } from "@/lib/occupancy";
 
 import {
+  flagVenueOccupancy,
   trackOccupancyRead,
   useVenueOccupancy,
 } from "@/components/map/useVenueOccupancy";
@@ -42,6 +44,9 @@ export default function VenueOccupancyRow({
   const [receipt, setReceipt] = useState<{ venueId: string; line: string } | null>(
     null,
   );
+  const [flaggedIds, setFlaggedIds] = useState<Set<string>>(() => new Set());
+  const [flagError, setFlagError] = useState<string | null>(null);
+  const [flagging, setFlagging] = useState(false);
   const receiptLine = receipt?.venueId === venueId ? receipt.line : null;
 
   const line = useMemo(() => {
@@ -68,12 +73,24 @@ export default function VenueOccupancyRow({
     if (!result.ok) return;
     trackEvent("occupancy_reported", { level, surface });
     trackOccupancyRead(venueId, result.reading.state);
-    if (result.reading.now && result.reading.ageMinutes != null) {
-      setReceipt({
-        venueId,
-        line: occupancyReceiptLine(result.reading.now, result.reading.ageMinutes),
-      });
+    setReceipt({
+      venueId,
+      line: occupancyWriteReceiptLine(level, result.reading),
+    });
+  }
+
+  async function onFlag() {
+    const id = reading?.id;
+    if (!id || flaggedIds.has(id) || flagging) return;
+    setFlagging(true);
+    setFlagError(null);
+    const result = await flagVenueOccupancy(venueId, id, auth);
+    setFlagging(false);
+    if (!result.ok) {
+      setFlagError(result.error);
+      return;
     }
+    setFlaggedIds((prev) => new Set(prev).add(id));
   }
 
   const shown = receiptLine ?? line;
@@ -102,7 +119,6 @@ export default function VenueOccupancyRow({
               type="button"
               className="venueOccupancyTap pressable"
               disabled={reporting}
-              aria-pressed={reading?.now === level}
               onClick={() => void onTap(level)}
             >
               {OCCUPANCY_LEVEL_LABELS[level]}
@@ -111,8 +127,28 @@ export default function VenueOccupancyRow({
         </div>
       ) : identityResolved ? (
         <p className="venueOccupancySignIn">
-          <Link href="/login?mode=signin">Sign in to report</Link>
+          <Link href={occupancySignInHref(venueId)}>Sign in to report</Link>
         </p>
+      ) : null}
+      {reading?.id && reading.now ? (
+        flaggedIds.has(reading.id) ? (
+          <p className="venueOccupancyFlagged" role="status">
+            Reported. We&rsquo;ll take a look.
+          </p>
+        ) : (
+          <p className="venueOccupancyFlag">
+            <button
+              type="button"
+              className="reportBtn"
+              disabled={flagging}
+              onClick={() => void onFlag()}
+              aria-label="Report this crowd reading"
+            >
+              Report
+            </button>
+            {flagError ? <small role="status">{flagError}</small> : null}
+          </p>
+        )
       ) : null}
       {error ? (
         <p className="venueOccupancyError" role="status">

@@ -19,10 +19,27 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
   };
 });
 
+const moderatorState = vi.hoisted(() => ({ on: false }));
+vi.mock("@/lib/adminAuth", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/adminAuth")>();
+  return {
+    ...actual,
+    isModerator: () => moderatorState.on,
+  };
+});
+
 // One case simulates the city pack failing to load; every other case passes
 // through to the real canonical lookup on disk, so an unknown id really is
 // unknown.
 const venueIndexState = vi.hoisted(() => ({ unavailable: false }));
+vi.mock("@/lib/venueAliases", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/venueAliases")>();
+  return {
+    ...actual,
+    resolveCanonicalVenueId: async (id: string) =>
+      id === "legacy-occupancy-pub" ? "venue-xjf3n0" : actual.resolveCanonicalVenueId(id),
+  };
+});
 vi.mock("@/lib/venueIndex", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/venueIndex")>();
   return {
@@ -84,6 +101,7 @@ beforeEach(() => {
   authState.userId = null;
   storeState.failRead = false;
   venueIndexState.unavailable = false;
+  moderatorState.on = false;
   __resetMemoryOccupancyReports();
   __resetPintDrops();
 });
@@ -180,6 +198,12 @@ describe("POST /api/venues/[id]/occupancy", () => {
       now: "full",
       reportsLast90: 1,
     });
+
+    const viaAlias = await GET(getRequest(), params("legacy-occupancy-pub"));
+    expect(await viaAlias.json()).toMatchObject({
+      now: "full",
+      reportsLast90: 1,
+    });
   });
 
   it("answers a retryable 503 when the venue list cannot be read", async () => {
@@ -204,5 +228,61 @@ describe("POST /api/venues/[id]/occupancy", () => {
       }
     }
     expect(limited).toBeGreaterThan(0);
+  });
+});
+
+describe("occupancy reader flag and moderator hide", () => {
+  it("flags a reading without taking it down", async () => {
+    authState.userId = "user-a";
+    const written = await POST(postRequest({ level: "full" }), params(VENUE));
+    const body = (await written.json()) as { id?: string };
+    expect(typeof body.id).toBe("string");
+
+    authState.userId = null;
+    const flagged = await POST(
+      postRequest({ action: "report", id: body.id }),
+      params(VENUE),
+    );
+    expect(flagged.status).toBe(200);
+    expect(await flagged.json()).toEqual({ ok: true });
+
+    const stillUp = await GET(getRequest(), params(VENUE));
+    expect(await stillUp.json()).toMatchObject({
+      now: "full",
+      reportsLast90: 1,
+    });
+  });
+
+  it("lets a moderator hide and restore a reading", async () => {
+    authState.userId = "user-a";
+    const written = await POST(postRequest({ level: "full" }), params(VENUE));
+    const { id } = (await written.json()) as { id: string };
+
+    const refused = await POST(
+      postRequest({ action: "hide", id }),
+      params(VENUE),
+    );
+    expect(refused.status).toBe(403);
+
+    moderatorState.on = true;
+    const hidden = await POST(
+      postRequest({ action: "hide", id }),
+      params(VENUE),
+    );
+    expect(hidden.status).toBe(200);
+
+    const gone = await GET(getRequest(), params(VENUE));
+    expect(await gone.json()).toMatchObject({
+      now: null,
+      reportsLast90: 0,
+    });
+
+    const restored = await POST(
+      postRequest({ action: "restore", id }),
+      params(VENUE),
+    );
+    expect(restored.status).toBe(200);
+    const back = await GET(getRequest(), params(VENUE));
+    expect(await back.json()).toMatchObject({ now: "full", reportsLast90: 1 });
   });
 });

@@ -38,7 +38,7 @@ export default function VenueSheetPriceEntry({
   mapReach?: CommunityPriceMapReach;
 }) {
   const { user, handle, identityResolved } = useAuth();
-  const { mission, dismiss } = usePriceEvidenceMission({
+  const { mission, dismiss, status } = usePriceEvidenceMission({
     venueIds: [venueId],
     enabled: Boolean(isPub && identityResolved && user && handle && canSubmitPrice),
     surface: "map",
@@ -59,6 +59,7 @@ export default function VenueSheetPriceEntry({
       laneCategory={laneCategory}
       mapReach={mapReach}
       mission={mission?.venueId === venueId ? mission : null}
+      missionPending={status === "loading"}
       onDismissMission={dismiss}
     />
   );

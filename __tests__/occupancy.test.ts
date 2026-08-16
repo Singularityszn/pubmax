@@ -16,7 +16,9 @@ import {
   occupancyReadState,
   occupancyReadingLine,
   occupancyReceiptLine,
+  occupancySignInHref,
   occupancyToBusyness,
+  occupancyWriteReceiptLine,
   parseOccupancyLevel,
 } from "@/lib/occupancy";
 
@@ -26,6 +28,7 @@ function report(
   level: (typeof OCCUPANCY_LEVELS)[number],
   reportedAtMs: number,
   reporterUserId = "user-a",
+  extra?: { hiddenAt?: string; id?: string },
 ) {
   return {
     venueId: "venue-1",
@@ -33,6 +36,7 @@ function report(
     reportedAt: new Date(reportedAtMs).toISOString(),
     reporterUserId,
     source: "crowd" as const,
+    ...extra,
   };
 }
 
@@ -86,7 +90,7 @@ describe("occupancy 90-minute now rule", () => {
     expect(fresh.reportsLast90).toBe(1);
     expect(fresh.degraded).toBe(false);
     expect(occupancyReadState(fresh)).toBe("fresh");
-    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago");
+    expect(occupancyReadingLine(fresh)).toBe("Empty · 12 min ago · 1 report");
 
     const stale = occupancyNowFromReports(
       [report("full", NOW - 91 * 60 * 1000)],
@@ -118,17 +122,57 @@ describe("occupancy 90-minute now rule", () => {
     );
   });
 
+  it("prints how many drinkers said so, and never a count of zero", () => {
+    const one = occupancyNowFromReports(
+      [report("some-seats", NOW - 12 * 60 * 1000)],
+      NOW,
+    );
+    expect(occupancyReadingLine(one)).toBe("Some seats · 12 min ago · 1 report");
+
+    const three = occupancyNowFromReports(
+      [
+        report("full", NOW - 2 * 60 * 1000, "user-a"),
+        report("full", NOW - 8 * 60 * 1000, "user-b"),
+        report("some-seats", NOW - 20 * 60 * 1000, "user-c"),
+      ],
+      NOW,
+    );
+    expect(three.reportsLast90).toBe(3);
+    expect(occupancyReadingLine(three)).toBe("Full · 2 min ago · 3 reports");
+  });
+
+  it("carries the pub back through the sign-in door", () => {
+    expect(occupancySignInHref("venue-16pnwmm")).toBe(
+      "/login?mode=signin&from=%2Fmap%3Fsel%3Dvenue-16pnwmm",
+    );
+  });
+
+  it("thanks the tap even when the read-back cannot name a now reading", () => {
+    const degraded = occupancyNowFromReports([], NOW, { degraded: true });
+    expect(occupancyWriteReceiptLine("full", degraded)).toBe(
+      "Thanks - Full, just now",
+    );
+    const named = occupancyNowFromReports([report("some-seats", NOW)], NOW);
+    expect(occupancyWriteReceiptLine("full", named)).toBe(
+      "Thanks - Some seats, just now",
+    );
+  });
+
   it("keeps ageing a held answer and drops it past 90 minutes", () => {
     const justReported = occupancyNowFromReports(
       [report("some-seats", NOW)],
       NOW,
     );
-    expect(occupancyReadingLine(justReported)).toBe("Some seats · just now");
+    expect(occupancyReadingLine(justReported)).toBe(
+      "Some seats · just now · 1 report",
+    );
 
     const held12 = occupancyAnswerAfter(justReported, 12 * 60 * 1000);
     expect(held12.now).toBe("some-seats");
     expect(held12.ageMinutes).toBe(12);
-    expect(occupancyReadingLine(held12)).toBe("Some seats · 12 min ago");
+    expect(occupancyReadingLine(held12)).toBe(
+      "Some seats · 12 min ago · 1 report",
+    );
 
     const atWindow = occupancyAnswerAfter(justReported, OCCUPANCY_FRESH_WINDOW_MS);
     expect(atWindow.now).toBe("some-seats");
@@ -165,5 +209,21 @@ describe("occupancy 90-minute now rule", () => {
     const fresh = occupancyNowFromReports([report("empty", NOW)], NOW);
     expect(occupancyAnswerAfter(fresh, -5 * 60 * 1000).ageMinutes).toBe(0);
     expect(occupancyAnswerAfter(fresh, Number.NaN).ageMinutes).toBe(0);
+  });
+
+  it("never paints a hidden report as the pub's now reading", () => {
+    const hidden = occupancyNowFromReports(
+      [
+        report("full", NOW - 2 * 60 * 1000, "user-a", {
+          hiddenAt: new Date(NOW).toISOString(),
+          id: "hidden-1",
+        }),
+        report("some-seats", NOW - 8 * 60 * 1000, "user-b", { id: "open-1" }),
+      ],
+      NOW,
+    );
+    expect(hidden.now).toBe("some-seats");
+    expect(hidden.reportsLast90).toBe(1);
+    expect(hidden.id).toBe("open-1");
   });
 });

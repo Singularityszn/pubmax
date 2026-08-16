@@ -32,6 +32,7 @@ export function usePriceEvidenceMission(input: {
   surface: MissionSurface;
 }): {
   mission: PriceEvidenceMission | null;
+  status: PriceEvidenceMissionView["status"];
   dismiss: (mission: PriceEvidenceMission) => void;
 } {
   const { user, identityResolved } = useAuth();
@@ -70,6 +71,11 @@ export function usePriceEvidenceMission(input: {
       requestUrl,
       authedActionFetch,
     );
+    const timeout = window.setTimeout(() => {
+      if (generation !== generationRef.current) return;
+      request.abort();
+      setResolved({ requestUrl, view: { status: "degraded", mission: null } });
+    }, 2000);
     void request.promise
       .then((body) => {
         if (generation !== generationRef.current) return;
@@ -85,7 +91,10 @@ export function usePriceEvidenceMission(input: {
         }
         void error;
       });
-    return () => request.abort();
+    return () => {
+      window.clearTimeout(timeout);
+      request.abort();
+    };
   }, [enabled, requestUrl]);
 
   const view: PriceEvidenceMissionView = !enabled
@@ -120,6 +129,6 @@ export function usePriceEvidenceMission(input: {
     [input.surface],
   );
 
-  return { mission, dismiss };
+  return { mission, status: view.status, dismiss };
 }
 

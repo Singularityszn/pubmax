@@ -103,6 +103,28 @@ describe("occupancyStore", () => {
     expect(reading.state).toBe("stale");
     expect(reading.reportsLast90).toBe(0);
   });
+
+  it("drops a hidden report from the now reading and keeps the row", async () => {
+    const stored = await occupancyStore().report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+    expect(await occupancyStore().flag(stored.id, "not true", "actor-1")).toBe(
+      true,
+    );
+    expect(await occupancyStore().moderate(stored.id, true)).toBe(true);
+
+    const reading = await occupancyStore().readNow("venue-1");
+    expect(reading.now).toBeNull();
+    expect(reading.reportsLast90).toBe(0);
+    expect(reading.state).toBe("none");
+
+    expect(await occupancyStore().moderate(stored.id, false)).toBe(true);
+    const restored = await occupancyStore().readNow("venue-1");
+    expect(restored.now).toBe("full");
+    expect(restored.reportsLast90).toBe(1);
+  });
 });
 
 describe("occupancy read before the durable table exists", () => {

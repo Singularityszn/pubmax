@@ -49,12 +49,14 @@ function parseReading(body: unknown): VenueOccupancyReading {
       : now
         ? "fresh"
         : "none";
+  const id = typeof row.id === "string" && row.id.trim() ? row.id.trim() : null;
   return {
     now: now && ageMinutes != null ? now : null,
     ageMinutes: now ? ageMinutes : null,
     reportsLast90,
     degraded: false,
     state,
+    id,
   };
 }
 
@@ -72,6 +74,41 @@ export async function fetchVenueOccupancy(
     return parseReading(await res.json());
   } catch {
     return failedReading();
+  }
+}
+
+export async function flagVenueOccupancy(
+  venueId: string,
+  id: string,
+  auth: AccountAuthSnapshot | null,
+): Promise<{ ok: true } | { ok: false; error: string }> {
+  try {
+    const res = auth
+      ? await accountBoundFetch(
+          auth,
+          `/api/venues/${encodeURIComponent(venueId)}/occupancy`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "report", id }),
+          },
+        )
+      : await fetch(`/api/venues/${encodeURIComponent(venueId)}/occupancy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "report", id }),
+        });
+    if (!res.ok) {
+      const body = (await res.json().catch(() => ({}))) as { error?: unknown };
+      return {
+        ok: false,
+        error: errorMessageFrom(body, "Could not send that report."),
+      };
+    }
+    await discardBody(res);
+    return { ok: true };
+  } catch {
+    return { ok: false, error: "Could not send that report." };
   }
 }
 
