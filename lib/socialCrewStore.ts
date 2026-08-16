@@ -114,11 +114,7 @@ export type SocialCrewStore = {
     actor: SocialPostActor,
     input: SocialCrewListInput,
   ): Promise<SocialCrewListPageDTO>;
-  listOpen(input: {
-    city: string;
-    from: string;
-    limit?: number;
-  }): Promise<OutOpenPlan[]>;
+  listOpen(input: { from: string; limit?: number }): Promise<OutOpenPlan[]>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
@@ -381,6 +377,10 @@ function parseOpenPlanRow(value: unknown): OutOpenPlan | null {
     stopVenueName: row.stopVenueName,
     hostHandle: row.hostHandle,
     memberCount: Number(row.memberCount),
+    // The city and the map point are DERIVED from Stop 1 by the reader
+    // (lib/openSocialCrew.server). Plans store no city, so the RPC lists every
+    // upcoming open crew and answers no question about where it is.
+    meetingPoint: null,
   };
 }
 
@@ -502,9 +502,6 @@ export function createSocialCrewStore(
     },
 
     async listOpen(input) {
-      const city = typeof input.city === "string" && input.city.trim()
-        ? input.city.trim()
-        : "london";
       const from = typeof input.from === "string" ? input.from.trim() : "";
       if (!from) return unavailable();
       const limit = input.limit ?? OPEN_PLAN_LIST_LIMIT;
@@ -514,7 +511,6 @@ export function createSocialCrewStore(
       let snapshot: unknown;
       try {
         snapshot = await dependencies.snapshot("list_open_social_crews", {
-          p_city: city,
           p_from: from,
           p_limit: limit,
         });

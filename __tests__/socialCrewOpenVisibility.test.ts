@@ -4,10 +4,7 @@ vi.mock("server-only", () => ({}));
 
 import type { PlanState } from "@/lib/plan";
 import type { SocialPostActor } from "@/lib/socialPostStore";
-import {
-  OPEN_PLAN_ADULT_LINE,
-  OPEN_PLAN_PLACE_REFUSED_LINE,
-} from "@/lib/openSocialCrew";
+import { OPEN_PLAN_PLACE_REFUSED_LINE } from "@/lib/openSocialCrew";
 
 const ALICE_ACCOUNT_ID = "10000000-0000-4000-8000-000000000001";
 const ALICE_PROFILE_ID = "20000000-0000-4000-8000-000000000001";
@@ -44,8 +41,15 @@ const state = vi.hoisted(() => ({
   access: null as unknown,
   plan: null as PlanState | null,
   planOk: true,
+  venueIndexReadable: true,
   venue: { id: "venue-angel-islington", name: "The Angel" } as { id: string; name: string } | null,
-  places: [{ id: "tube-kings-cross-st-pancras", name: "King's Cross" }],
+  places: [
+    {
+      id: "tube-kings-cross-st-pancras",
+      name: "King's Cross",
+      coordinates: [-0.124, 51.5308] as [number, number],
+    },
+  ],
 }));
 
 const store = vi.hoisted(() => ({
@@ -82,9 +86,17 @@ vi.mock("@/lib/planStore", () => ({
 }));
 
 vi.mock("@/lib/venueIndex", () => ({
-  resolveVenue: vi.fn(async (id: string) =>
-    state.venue && state.venue.id === id ? state.venue : null,
-  ),
+  lookupCanonicalVenue: vi.fn(async (id: string) => {
+    if (!state.venueIndexReadable) return { status: "unavailable", canonicalId: id };
+    return state.venue && state.venue.id === id
+      ? {
+          status: "found",
+          canonicalId: id,
+          venue: { id, name: state.venue.name, borough: "Islington", lat: 51.53, lng: -0.1 },
+          slimVenue: { id, name: state.venue.name },
+        }
+      : { status: "unknown", canonicalId: id };
+  }),
 }));
 
 vi.mock("@/lib/cultureCrawl.server", () => ({
@@ -119,8 +131,15 @@ beforeEach(() => {
   state.access = { ok: true, actor };
   state.plan = structuredClone(planState);
   state.planOk = true;
+  state.venueIndexReadable = true;
   state.venue = { id: "venue-angel-islington", name: "The Angel" };
-  state.places = [{ id: "tube-kings-cross-st-pancras", name: "King's Cross" }];
+  state.places = [
+    {
+      id: "tube-kings-cross-st-pancras",
+      name: "King's Cross",
+      coordinates: [-0.124, 51.5308],
+    },
+  ];
   store.create.mockResolvedValue({
     code: "created",
     replayed: false,
@@ -214,6 +233,39 @@ describe("open crew create", () => {
     expect(store.create).not.toHaveBeenCalled();
   });
 
+  it("refuses a place Stop 1 the POI layer does not hold", async () => {
+    state.plan = {
+      ...planState,
+      stops: [
+        { venueId: "place:not-a-real-poi", venueName: "Nowhere", position: 0 },
+      ],
+    };
+    const response = await createCrew(
+      mutationRequest("http://localhost/api/social/crews", "POST", {
+        planId: PLAN_ID,
+        visibility: "open",
+      }),
+    );
+    expect(response.status).toBe(422);
+    expect(store.create).not.toHaveBeenCalled();
+  });
+
+  it("says unavailable rather than refused when the venue index cannot be read", async () => {
+    state.venueIndexReadable = false;
+    const response = await createCrew(
+      mutationRequest("http://localhost/api/social/crews", "POST", {
+        planId: PLAN_ID,
+        visibility: "open",
+      }),
+    );
+    // A listed pub the index could not answer for is not an unlisted pub.
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.not.toMatchObject({
+      error: OPEN_PLAN_PLACE_REFUSED_LINE,
+    });
+    expect(store.create).not.toHaveBeenCalled();
+  });
+
   it("refuses an under-18 actor before an open create", async () => {
     state.access = {
       ok: false,
@@ -229,7 +281,6 @@ describe("open crew create", () => {
     );
     expect(response.status).toBe(403);
     expect(store.create).not.toHaveBeenCalled();
-    expect(OPEN_PLAN_ADULT_LINE).toMatch(/over-18/);
   });
 });
 

@@ -1,4 +1,3 @@
-import { accountIsAdult, type AccountAdultEvidence } from "@/lib/socialLaunch";
 import type { PlanStopDTO } from "@/lib/plan";
 
 /** Prefix that marks an ambient POI meeting point, never free text. */
@@ -6,8 +5,6 @@ export const OPEN_PLAN_PLACE_PREFIX = "place:";
 
 export const OPEN_PLAN_PLACE_REFUSED_LINE =
   "Open plans need a listed pub or a named public place.";
-
-export const OPEN_PLAN_ADULT_LINE = "Open plans are for over-18s.";
 
 export const OPEN_PLAN_LIST_LIMIT = 50;
 
@@ -52,11 +49,4 @@ export function classifyOpenMeetingPoint(
   }
   if (id.includes(" ") || id.length > 120) return { kind: "refused" };
   return { kind: "venue", venueId: id };
-}
-
-export function openPlanAdultAllowed(
-  evidence: AccountAdultEvidence | null,
-): boolean {
-  if (!evidence) return false;
-  return accountIsAdult(evidence);
 }

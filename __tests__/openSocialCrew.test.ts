@@ -3,7 +3,6 @@ import {
   classifyOpenMeetingPoint,
   firstPlanStop,
   OPEN_PLAN_PLACE_REFUSED_LINE,
-  openPlanAdultAllowed,
   parseOpenPlaceId,
 } from "@/lib/openSocialCrew";
 
@@ -40,21 +39,5 @@ describe("open plan meeting point", () => {
     expect(classifyOpenMeetingPoint("place:")).toEqual({ kind: "refused" });
     expect(classifyOpenMeetingPoint("")).toEqual({ kind: "refused" });
     expect(OPEN_PLAN_PLACE_REFUSED_LINE).toMatch(/listed pub or a named public place/);
-  });
-});
-
-describe("open plan adult gate", () => {
-  it("honours a stored date of birth in both directions", () => {
-    expect(
-      openPlanAdultAllowed({ dateOfBirth: "1990-01-01" }),
-    ).toBe(true);
-    expect(
-      openPlanAdultAllowed({ dateOfBirth: "2015-01-01" }),
-    ).toBe(false);
-  });
-
-  it("treats a missing read as not adult", () => {
-    expect(openPlanAdultAllowed(null)).toBe(false);
-    expect(openPlanAdultAllowed({})).toBe(false);
   });
 });

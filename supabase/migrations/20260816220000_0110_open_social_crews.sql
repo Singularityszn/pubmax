@@ -443,7 +443,13 @@ as $$
   end;
 $$;
 
-create or replace function public.list_open_social_crews(p_city text, p_from timestamptz, p_limit integer)
+-- Upcoming open crews, newest window first. It takes NO city: a plan stores no
+-- city (night_context has no such key and plans has no such column), so a city
+-- predicate here could only ever compare against a default. The reader derives
+-- a plan's city from Stop 1 through the venue index instead
+-- (lib/openSocialCrew.server.ts), and a Stop 1 that does not resolve is listed
+-- under no city at all.
+create or replace function public.list_open_social_crews(p_from timestamptz, p_limit integer)
 returns jsonb
 language sql
 stable
@@ -485,14 +491,12 @@ as $$
     where crew.visibility = 'open'
       and plan.status not in ('completed','abandoned')
       and plan.start_time >= p_from
-      and lower(coalesce(plan.night_context->>'city','london'))
-        = lower(coalesce(nullif(btrim(coalesce(p_city,'')), ''), 'london'))
     order by plan.start_time, crew.id
     limit least(greatest(coalesce(p_limit, 50), 1), 50)
   ) listed;
 $$;
 
-revoke all on function public.list_open_social_crews(text, timestamptz, integer) from public, anon, authenticated;
-grant execute on function public.list_open_social_crews(text, timestamptz, integer) to service_role;
+revoke all on function public.list_open_social_crews(timestamptz, integer) from public, anon, authenticated;
+grant execute on function public.list_open_social_crews(timestamptz, integer) to service_role;
 
 commit;
