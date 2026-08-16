@@ -51,7 +51,11 @@ npm run pubpal:agent -- --base-url https://pubmaxxing.com
 ```
 
 The script reads `.env.local` and `.env`, so a local run needs no exported
-shell variables. It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
+shell variables. A dry run still needs `ELEVENLABS_LLM_SHARED_SECRET`, because
+it prints the agent it would write and that body carries the secret; it does
+not need `ELEVENLABS_API_KEY`, because it calls nothing. `--base-url` also
+reads `PUBMAX_BASE_URL`, and it must be https (or `http://localhost` for a
+tunnel test). It is idempotent: with `ELEVENLABS_PUB_PAL_AGENT_ID` set it
 patches that agent, and without one it looks for an agent named
 `PUBMAXX Pub Pal` before creating a new one. Re-running never leaves two.
 
@@ -78,7 +82,8 @@ On a first create the script prints the agent id. Put it on the deployment as
 ## Checking it
 
 ```bash
-# Should answer {"available":true} once the two keys are set.
+# Answers available, maxSessionSeconds, retention and mutationPolicy.
+# `available` turns true once `ELEVENLABS_API_KEY` and the agent id are set.
 curl -s https://pubmaxxing.com/api/pub-pal/voice-token | jq .
 
 # Should answer 401 without the shared secret, never 200.
