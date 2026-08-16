@@ -230,6 +230,58 @@ describe("refreshCommonEvents", () => {
     rmSync(dir, { recursive: true, force: true });
   });
 
+  it("refuses its own write rather than emptying the rows it already holds", async () => {
+    // fetchText throws only on a non-2xx, so a 200 that is a sitemap index, a
+    // renamed post path or a challenge page parses to no posts at all. The old
+    // write rewrote the file with the Common lane emptied, and the run reported
+    // success.
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const held = toCommonEventRow({
+      url: "https://www.common-social.com/post/one",
+      parsed: { title: "Held", placeName: "Camberwell", dateText: "20 Aug" },
+      observedAt: "2026-08-15T10:00:00.000Z",
+      todayLondon: TODAY,
+    });
+    const before = JSON.stringify({
+      generatedAt: "2026-08-15T10:00:00.000Z",
+      kind: "events",
+      region: "greater-london",
+      sources: [],
+      rows: [held],
+    });
+    writeFileSync(outPath, before);
+
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response("<urlset></urlset>", { status: 200 })) as unknown as typeof fetch,
+      outPath,
+      gapMs: 0,
+    });
+
+    expect(report.wrote).toBe(false);
+    expect(report.refused).toEqual(expect.any(String));
+    expect(readFileSync(outPath, "utf8")).toBe(before);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("still writes a genuinely empty answer when it held nothing upcoming", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
+    const outPath = join(dir, "events_london.json");
+    const report = await refreshCommonEvents({
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response("<urlset></urlset>", { status: 200 })) as unknown as typeof fetch,
+      outPath,
+      gapMs: 0,
+    });
+    expect(report.refused).toBeUndefined();
+    expect(report.wrote).toBe(true);
+    expect(JSON.parse(readFileSync(outPath, "utf8")).rows).toEqual([]);
+    rmSync(dir, { recursive: true, force: true });
+  });
+
   it("reuses a post it already holds and caps the rest, reporting both", async () => {
     const dir = mkdtempSync(join(tmpdir(), "common-refresh-"));
     const outPath = join(dir, "events_london.json");

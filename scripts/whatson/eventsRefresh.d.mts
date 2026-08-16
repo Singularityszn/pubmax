@@ -40,6 +40,10 @@ export declare function providerLaneStatus(env?: Record<string, string | undefin
   skiddle: "configured" | "not-configured";
 };
 export declare function eventsOutputPath(city?: string): string;
+export declare function readExistingRowsForLabels(
+  filePath: string,
+  labels: readonly string[],
+): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
 export declare function readExistingCommonRows(
   filePath: string,
 ): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
@@ -53,6 +57,9 @@ export type EventsLaneReport = {
   wrote?: boolean;
   rows?: number;
   reason?: string;
+  /** Lanes whose upstream failed while another lane still published. Their own
+   *  held rows carried across the write. */
+  failures?: string[];
 };
 
 /** One refresh run with every dependency injectable, so the whole path can be

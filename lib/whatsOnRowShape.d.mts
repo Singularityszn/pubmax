@@ -7,6 +7,8 @@ export declare const WHATS_ON_LISTED_WINDOWS: readonly string[];
 
 export declare function isWhatsOnKind(value: unknown): boolean;
 export declare function isWhatsOnConfidence(value: unknown): boolean;
+/** `<source label>|<sourceId>`, or null when the row names no provider id. */
+export declare function eventIdentityKey(value: unknown): string | null;
 export declare function isHttpUrl(value: unknown): value is string;
 export declare function isValidIso(value: unknown): value is string;
 export declare function isCalendarDate(value: unknown): value is string;

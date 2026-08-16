@@ -1,5 +1,6 @@
 import rawEventsLondon from "../../public/data/whats_on/events_london.json";
 import { EVENT_REFRESH_CITIES } from "@/lib/whatson/eventNormalise.mjs";
+import { eventIdentityKey } from "@/lib/whatsOnRowShape.mjs";
 import { CITIES, type CityId } from "@/lib/cities";
 import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
@@ -171,11 +172,11 @@ function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
   const byKey = new Map<string, WhatsOnRow>();
   const noSourceId: WhatsOnRow[] = [];
   for (const row of rows) {
-    if (!row.sourceId) {
+    const key = eventIdentityKey(row);
+    if (!key) {
       noSourceId.push(row);
       continue;
     }
-    const key = `${row.source.label.toLowerCase()}|${row.sourceId}`;
     const held = byKey.get(key);
     if (!held) {
       byKey.set(key, row);

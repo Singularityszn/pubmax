@@ -9,6 +9,7 @@
 
 import { type ThingsToDoResult } from "@/lib/citymcp/client";
 import {
+  eventIdentityKey,
   isCalendarDate as isCalendarDateShape,
   isHttpUrl as isHttpUrlShape,
   isValidIso as isValidIsoShape,
@@ -253,9 +254,8 @@ function normaliseRow(row: WhatsOnRow): WhatsOnRow {
 // exact start, listed-time wording is not enough to identify an event, so title
 // and source remain part of the identity.
 export function dedupeKey(row: WhatsOnRow): string {
-  if (isNonEmptyString(row.sourceId)) {
-    return `${row.source.label.toLocaleLowerCase("en-GB")}|${row.sourceId}`;
-  }
+  const identity = eventIdentityKey(row);
+  if (identity) return identity;
   const place = isNonEmptyString(row.venueId) ? row.venueId : row.placeName.toLowerCase();
   const when =
     row.startsAt ??

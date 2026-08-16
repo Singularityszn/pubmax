@@ -56,8 +56,15 @@ export declare function refreshCommonEvents(opts?: {
   outPath?: string;
   gapMs?: number;
   maxFetches?: number;
+  /** Write a run that saw nothing anyway. Off, so a blind run never empties
+   *  the rows the file already holds. */
+  allowEmpty?: boolean;
 }): Promise<{
   rows: CommonEventRow[];
+  /** False when the run refused its own write. */
+  wrote: boolean;
+  /** Why the write was refused, when it was. */
+  refused?: string;
   droppedStale: number;
   droppedUnparseable: number;
   droppedFetch: number;

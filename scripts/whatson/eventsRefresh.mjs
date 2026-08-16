@@ -163,15 +163,30 @@ async function fetchSkiddle(apiKey, { nowMs, city = "london", fetchImpl = fetch 
   return res.json();
 }
 
-export function readExistingCommonRows(filePath) {
+/**
+ * The rows the held file already carries for a set of source labels.
+ *
+ * This is the CLOBBER GUARD, and it is per-provider: the file is overwritten
+ * whole, so a lane that is not in this run's answer - because it is keyless
+ * (Common, which has its own writer) or because its upstream failed - would be
+ * published as empty. Its own last-known rows carry across instead, each still
+ * carrying the observedAt it was really seen at.
+ */
+export function readExistingRowsForLabels(filePath, labels) {
   if (!existsSync(filePath)) return [];
+  const wanted = new Set(labels.map((label) => String(label).toLowerCase()));
+  if (wanted.size === 0) return [];
   try {
     const raw = JSON.parse(readFileSync(filePath, "utf8"));
     const rows = Array.isArray(raw?.rows) ? raw.rows : [];
-    return rows.filter((row) => row?.source?.label?.toLowerCase() === "common");
+    return rows.filter((row) => wanted.has(String(row?.source?.label ?? "").toLowerCase()));
   } catch {
     return [];
   }
+}
+
+export function readExistingCommonRows(filePath) {
+  return readExistingRowsForLabels(filePath, ["common"]);
 }
 
 export function parseEventsCityArg(argv = process.argv) {
@@ -224,9 +239,10 @@ async function runProviderLane({
   const allRows = [];
   const providersRun = [];
   // A lane that FAILED is recorded and the run carries on: the other lanes are
-  // independent and an operator is owed each one's own outcome. The write is
-  // what the failure stops, further down - the file is overwritten whole, so
-  // publishing the lanes that answered would drop the failed lane's rows.
+  // independent and an operator is owed each one's own outcome. The failed
+  // lane's own held rows carry across the write further down, so a lane that
+  // answered still publishes and the quiet lane is not emptied by its
+  // neighbour's outage.
   const providerFailures = [];
   const dropped = emptyEventDrops();
   const opts = { observedAt, venueIndex, resolveVenue: resolveVenueId };
@@ -252,9 +268,13 @@ async function runProviderLane({
       );
     } catch (err) {
       logError(
-        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - its rows are missing, so the file will not be written this run. The other provider lanes still run.`,
+        `eventsRefresh: Ticketmaster fetch failed (${err.message}) - its held rows carry across instead. The other provider lanes still run.`,
       );
-      providerFailures.push(`ticketmaster: ${err.message}`);
+      providerFailures.push({
+        provider: "ticketmaster",
+        label: TICKETMASTER_SOURCE.label,
+        message: err.message,
+      });
     }
   }
 
@@ -276,23 +296,44 @@ async function runProviderLane({
       );
     } catch (err) {
       logError(
-        `eventsRefresh: Skiddle fetch failed (${err.message}) - its rows are missing, so the file will not be written this run.`,
+        `eventsRefresh: Skiddle fetch failed (${err.message}) - its held rows carry across instead.`,
       );
-      providerFailures.push(`skiddle: ${err.message}`);
+      providerFailures.push({
+        provider: "skiddle",
+        label: SKIDDLE_SOURCE.label,
+        message: err.message,
+      });
     }
   } else {
     log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
   }
 
-  // The clobber guard: the city file is overwritten WHOLE, so a write with a
-  // lane missing publishes that lane as empty. Every configured lane has now
-  // been asked and reported; one that failed refuses the write for all of them.
-  if (providerFailures.length > 0) {
+  const failureReason = providerFailures
+    .map((failure) => `${failure.provider}: ${failure.message}`)
+    .join("; ");
+
+  // The clobber guard is PER PROVIDER. A failed lane keeps its own held rows
+  // (read back below) and the lanes that answered still publish, so one
+  // upstream outage never ages the whole file. With NO lane answering there is
+  // nothing to publish and nothing to compare, so the write is refused outright
+  // rather than rewriting the file with only what it already said.
+  if (providerFailures.length > 0 && providersRun.length === 0) {
     logError(
-      `eventsRefresh: not writing ${outPath} - ${providerFailures.length} provider lane(s) failed ` +
-        `(${providerFailures.join("; ")}). A partial write would drop the failed lane's rows.`,
+      `eventsRefresh: not writing ${outPath} - every configured provider lane failed ` +
+        `(${failureReason}).`,
     );
-    return { status: "failed", wrote: false, reason: providerFailures.join("; ") };
+    return { status: "failed", wrote: false, reason: failureReason };
+  }
+
+  const carriedFailedRows = readExistingRowsForLabels(
+    outPath,
+    providerFailures.map((failure) => failure.label),
+  );
+  if (providerFailures.length > 0) {
+    log(
+      `eventsRefresh: carrying ${carriedFailedRows.length} held row(s) across for the failed lane(s) ` +
+        `(${failureReason}), so a lane that answered can still publish.`,
+    );
   }
 
   // Fail closed: a successful run that yields zero rows across every enabled
@@ -309,6 +350,8 @@ async function runProviderLane({
     );
     return { status: "refused", wrote: false, reason: "0 mappable rows" };
   }
+
+  allRows.push(...carriedFailedRows);
 
   const commonRows = city === "london" ? readExistingCommonRows(outPath) : [];
   allRows.push(...commonRows);
@@ -357,9 +400,15 @@ async function runProviderLane({
   log(
     `eventsRefresh: wrote ${deduped.length} event rows -> ${outPath} ` +
       `(${providersRun.map((p) => `${p.provider}:${p.rows}`).join(", ") || "none"}; ` +
-      `common kept ${commonRows.length}; ${summariseEventDrops(dropped)})`,
+      `common kept ${commonRows.length}; carried ${carriedFailedRows.length} from failed lane(s); ` +
+      `${summariseEventDrops(dropped)})`,
   );
-  return { status: "wrote", wrote: true, rows: deduped.length };
+  const report = { status: "wrote", wrote: true, rows: deduped.length };
+  if (providerFailures.length > 0) {
+    report.failures = providerFailures.map((failure) => `${failure.provider}: ${failure.message}`);
+    report.reason = failureReason;
+  }
+  return report;
 }
 
 async function defaultRunCommonLane(options) {
@@ -424,7 +473,12 @@ export async function runEventsRefresh({
   if (city === "london" && argv.includes(WITH_COMMON_FLAG)) {
     try {
       const report = await runCommonLane({ nowMs, outPath });
-      common = { status: "ran", rows: report?.rows?.length ?? 0 };
+      // The Common lane refuses its own write when a run that can see nothing
+      // would empty the rows the file already holds. That is a refusal, not a
+      // write, so nothing downstream may treat it as one.
+      common = report?.refused
+        ? { status: "refused", wrote: false, reason: report.refused }
+        : { status: "ran", wrote: true, rows: report?.rows?.length ?? 0 };
     } catch (err) {
       logError(`eventsRefresh: Common lane failed (${err.message}).`);
       common = { status: "failed", reason: err.message };
@@ -435,10 +489,11 @@ export async function runEventsRefresh({
   // rows, refusing to clobber a good file) is an ordinary quiet-upstream
   // outcome, so it only reds the run when nothing else published - an operator
   // reading a red job beside an open review PR cannot tell the two apart.
-  const providerFailed = provider.status === "failed";
+  const providerFailed = provider.status === "failed" || (provider.failures?.length ?? 0) > 0;
   const commonFailed = common.status === "failed";
-  const wrote = provider.wrote === true || common.status === "ran";
-  const refusedWithNothingPublished = provider.status === "refused" && !wrote;
+  const wrote = provider.wrote === true || common.wrote === true;
+  const refusedWithNothingPublished =
+    (provider.status === "refused" || common.status === "refused") && !wrote;
 
   let validation = { status: "skipped" };
   let published = { status: "skipped" };

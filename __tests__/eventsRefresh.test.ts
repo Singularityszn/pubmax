@@ -15,6 +15,7 @@ import {
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
   providerLaneStatus,
+  readExistingRowsForLabels,
   runEventsRefresh,
   skiddleLaneFenced,
   SKIDDLE_BRAND_ASSET_PRESENT,
@@ -325,6 +326,38 @@ describe("runEventsRefresh end to end", () => {
     expect(commonCalls).toHaveLength(1);
   });
 
+  it("reads back one lane's own held rows, which is the per-provider clobber guard", async () => {
+    const outPath = temporaryOutPath();
+    const row = (id: string, label: string) => ({
+      id,
+      placeName: "Soho Theatre",
+      kind: "event",
+      startsAt: "2026-08-16T19:00:00.000Z",
+      title: id,
+      source: { label, url: `https://example.com/${id}` },
+      observedAt: "2026-08-15T09:00:00.000Z",
+      confidence: "listed",
+      sourceId: id,
+    });
+    writeFileSync(
+      outPath,
+      JSON.stringify({
+        generatedAt: "2026-08-15T09:00:00.000Z",
+        kind: "events",
+        region: "greater-london",
+        rows: [row("tm-1", "Ticketmaster"), row("sk-1", "Skiddle"), row("cm-1", "common")],
+      }),
+    );
+
+    expect(readExistingRowsForLabels(outPath, ["Ticketmaster"]).map((r) => r.id)).toEqual(["tm-1"]);
+    expect(readExistingRowsForLabels(outPath, ["skiddle", "common"]).map((r) => r.id)).toEqual([
+      "sk-1",
+      "cm-1",
+    ]);
+    expect(readExistingRowsForLabels(outPath, [])).toEqual([]);
+    expect(readExistingRowsForLabels(join(outPath, "missing.json"), ["Ticketmaster"])).toEqual([]);
+  });
+
   it("asks every provider lane after one of them fails, and writes nothing", async () => {
     // A failed lane must not abort the others: the run owes an operator each
     // lane's own outcome. The WRITE is what the failure stops, because the file
@@ -491,6 +524,37 @@ describe("runEventsRefresh end to end", () => {
     expect(result.common.status).toBe("ran");
     expect(result.published.status).toBe("ran");
     expect(result.ok).toBe(true);
+  });
+
+  it("treats a Common refusal as a refusal, not a write", async () => {
+    // The Common lane refuses its own write when a blind run would empty the
+    // rows the file already holds. Counting that as a write opened a review PR
+    // over a file nobody had written.
+    const outPath = temporaryOutPath();
+    let published = false;
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", WITH_COMMON_FLAG, "--open-pr"],
+      env: { TICKETMASTER_API_KEY: "test-key" },
+      nowMs: NOW_MS,
+      fetchImpl: (async () =>
+        new Response(JSON.stringify({ _embedded: { events: [] } }), {
+          status: 200,
+        })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [], wrote: false, refused: "sitemap listed no post" }),
+      validate: () => {},
+      openPr: () => {
+        published = true;
+      },
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.common.status).toBe("refused");
+    expect(published).toBe(false);
+    expect(result.published.status).toBe("skipped");
+    expect(existsSync(outPath)).toBe(false);
   });
 
   it("runs the Common lane with no provider key at all, spending no upstream call", async () => {

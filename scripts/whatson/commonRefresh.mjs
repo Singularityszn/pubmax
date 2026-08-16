@@ -297,6 +297,7 @@ export async function refreshCommonEvents({
   outPath = eventsOutputPath("london"),
   gapMs = COMMON_FETCH_GAP_MS,
   maxFetches = COMMON_MAX_FETCHES_PER_RUN,
+  allowEmpty = false,
 } = {}) {
   const observedAt = new Date(nowMs).toISOString();
   const todayLondon = londonToday(nowMs);
@@ -317,6 +318,9 @@ export async function refreshCommonEvents({
   }
   const existingRows = Array.isArray(existing.rows) ? existing.rows : [];
   const kept = existingRows.filter((row) => row?.source?.label?.toLowerCase() !== "common");
+  const existingCommonRows = existingRows.filter(
+    (row) => row?.source?.label?.toLowerCase() === "common",
+  );
   // A post we already hold a still-upcoming row for is not re-read: the OG
   // prefix cannot change the day it already stated, and re-reading it is the
   // whole of the unbounded cost.
@@ -381,6 +385,37 @@ export async function refreshCommonEvents({
     }
   }
 
+  // Fail closed, the way the provider lane already does. `fetchText` throws
+  // only on a non-2xx, so a 200 that is a sitemap index, a renamed post path or
+  // a challenge page parses to NO posts, reuses none of the rows the file
+  // already holds, and would rewrite the file with the Common lane emptied -
+  // silently, and straight into a review PR. A run that can see nothing is an
+  // upstream fault rather than a city with nothing on, so it writes nothing.
+  const refusalReason =
+    rows.length === 0 && heldByUrl.size > 0
+      ? `parsed 0 Common rows while the file holds ${heldByUrl.size} upcoming one(s)`
+      : posts.length === 0 && existingCommonRows.length > 0
+        ? "the sitemap listed no /post/ entry while the file holds Common rows"
+        : null;
+  if (refusalReason && !allowEmpty) {
+    console.error(
+      `commonRefresh: refusing to write ${outPath} - ${refusalReason}. ` +
+        `Held rows are left in place (fetched ${fetched}, dropped fetch=${droppedFetch} ` +
+        `unparseable=${droppedUnparseable}). Pass allowEmpty to override.`,
+    );
+    return {
+      rows: [],
+      wrote: false,
+      refused: refusalReason,
+      droppedStale,
+      droppedUnparseable,
+      droppedFetch,
+      reusedHeld,
+      skippedOverBudget,
+      fetched,
+    };
+  }
+
   const merged = [...kept, ...rows];
   const sources = Array.isArray(existing.sources) ? existing.sources.filter((s) => s?.provider !== "common") : [];
   sources.push({
@@ -412,6 +447,7 @@ export async function refreshCommonEvents({
   );
   return {
     rows,
+    wrote: true,
     droppedStale,
     droppedUnparseable,
     droppedFetch,
@@ -423,7 +459,8 @@ export async function refreshCommonEvents({
 
 async function main() {
   try {
-    await refreshCommonEvents();
+    const report = await refreshCommonEvents();
+    if (report?.refused) process.exitCode = 1;
   } catch (err) {
     console.error(`commonRefresh: failed (${err.message}). Leaving events_london.json untouched.`);
     process.exitCode = 1;

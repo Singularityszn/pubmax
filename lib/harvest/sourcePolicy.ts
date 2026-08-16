@@ -15,10 +15,12 @@
 // admits ordinary crawlers but names the headless-renderer class Firecrawl
 // belongs to in a Disallow - the narrower rule is the one that binds.
 //
-// FIRST PARTY IS THE DEFAULT AND THE AGGREGATORS ARE THE EXCEPTION, which is why
-// every aggregator here is currently refused. That is continuous with
+// FIRST PARTY IS THE DEFAULT AND A LISTINGS SITE IS THE EXCEPTION, which is why
+// every ticketing aggregator here is refused. That is continuous with
 // docs/EVENT_SOURCES_RESEARCH_2026-07-18.md, which chose official APIs over
-// scraping aggregators for the same reason.
+// scraping aggregators for the same reason. A non-first-party source that IS
+// allowed states its own exception in `nonFirstPartyException`, naming what it
+// may take, so the permission is as narrow as the decision that granted it.
 
 /** Why a source is not read this run. */
 export const HARVEST_SKIP_REASONS = [
@@ -47,6 +49,13 @@ export type HarvestSource = {
   /** True when the publisher owns the thing published (an operator, not a listings site). */
   firstParty: boolean;
   access: HarvestSourceAccess;
+  /**
+   * Why a publisher that does not own what it publishes is nonetheless read.
+   * FIRST PARTY IS THE DEFAULT, so an allowed non-first-party source states its
+   * own exception here - what it may take, and what it may not - or the fence
+   * refuses it.
+   */
+  nonFirstPartyException?: string;
   /**
    * Seconds a polite reader waits between requests to this host, when the host
    * publishes a Crawl-delay. Absent means the host asked for none.
@@ -135,7 +144,25 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
       "Refused on permission, not on reachability. Revisit if the estate publishes a readable robots.txt that admits a rendering crawler, or if Mitchells & Butlers offers a feed.",
   },
 
-  // --- events: aggregators, all currently refused --------------------------
+  // --- events: the one permitted listings reader, then the refused ---------
+  {
+    id: "common-social-posts",
+    label: "common",
+    url: "https://www.common-social.com/sitemap.xml",
+    kind: "venue-events",
+    firstParty: false,
+    access: {
+      allowed: true,
+      evidence:
+        "robots.txt: `User-agent: *` with no Disallow covering /post/, and it names the sitemap itself. Checked 2026-08-16. No commercial-use bar is stated, and the reader takes no page the sitemap does not list.",
+      checkedOn: "2026-08-16",
+    },
+    nonFirstPartyException:
+      "Captain 2026-08-16, and the exception is narrow: FACTS ONLY plus a link out. Place and date come from the og:description prefix, the description text itself is never stored or rendered, and every card links back to the post. Nothing here is a price lane.",
+    crawlDelaySeconds: 1,
+    notes:
+      "Read by scripts/whatson/commonRefresh.mjs, which is bound to this entry's own URL and delay. FACTS ONLY plus a link out: it reads og:title and the og:description PREFIX (`<place> · <date>`) and nothing else, so the description text and the names inside it are never stored or rendered. One request per second, a UA naming PUBMAXX and the public contact, and a per-run fetch cap. Common publishes no clock time, so a row states a date and says so.",
+  },
   {
     id: "skiddle-listings",
     label: "Skiddle",
