@@ -45,6 +45,9 @@ test.describe("near desk mode", () => {
     await expect(page.getByText("Hours:", { exact: false }).first()).toBeVisible();
     await expect(page.getByText("No seat data yet").first()).toBeVisible();
     await expect(page.getByText(/^Checked /).first()).toBeVisible();
+    await expect(
+      page.getByRole("link", { name: "OpenStreetMap contributors" }),
+    ).toBeVisible();
     expect(errors).toEqual([]);
   });
 

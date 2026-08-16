@@ -32,6 +32,10 @@ what OSM stated and "No seat data yet" for what it did not.
 
 ## Attribution
 
-OSM data is © OpenStreetMap contributors, ODbL 1.0. The credit is attached to
-the map itself (`OSM_ATTRIBUTION` in `components/map/canvas/tokens.ts`), not to
-one optional source.
+OSM data is © OpenStreetMap contributors, ODbL 1.0.
+
+The shard and base layers credit the MAP, because that is where they are drawn.
+This pack is read by `/near?mode=desk`, which renders no map canvas, so
+`OSM_ATTRIBUTION` never reaches it. The desk answer therefore carries its own
+credit (`components/nearme/DeskDataCredit.tsx`), the way `UnverifiedPubSheet`
+and `CityChooser` credit the OSM rows they show.

@@ -9,6 +9,7 @@ import {
   deskAnswerHeadline,
   deskEmptyLine,
   deskLoadFailedLine,
+  deskPatchQuery,
   deskPatchReasonLine,
   rankDeskNearMe,
   type DeskAnswer,
@@ -29,10 +30,11 @@ import {
   shouldStartNearAutoLocate,
 } from "@/components/nearme/NearMeNow";
 
+import DeskDataCredit from "./DeskDataCredit";
 import "./nearMeNow.css";
 import "./nearDeskNow.css";
 
-type LocateState = "idle" | "requesting" | "ready" | "denied" | "unavailable";
+type LocateState = "idle" | "requesting" | "ready";
 type PatchReason = DeskPatchReason | null;
 
 const GEO_OPTS: PositionOptions = { enableHighAccuracy: false, timeout: 7000, maximumAge: 60_000 };
@@ -174,11 +176,10 @@ export default function NearDeskNow({
       writeRememberedArea({ kind: "patch", id: next.id });
       if (syncPatchToUrl && pathname) {
         try {
-          const params = new URLSearchParams(
+          const query = deskPatchQuery(
             typeof window !== "undefined" ? window.location.search : "",
+            next.id,
           );
-          params.set("patch", next.id);
-          const query = params.toString();
           router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
         } catch {
           // URL sync is best-effort.
@@ -196,7 +197,6 @@ export default function NearDeskNow({
 
   const locate = useCallback(() => {
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setState("unavailable");
       answerWithoutFix("unavailable");
       return;
     }
@@ -227,7 +227,6 @@ export default function NearDeskNow({
       (error) => {
         if (generation !== answerGenerationRef.current) return;
         const reason = error.code === error.PERMISSION_DENIED ? "denied" : "unavailable";
-        setState(reason);
         answerWithoutFix(reason);
       },
       GEO_OPTS,
@@ -298,13 +297,6 @@ export default function NearDeskNow({
         </div>
       ) : null}
 
-      {state === "denied" || state === "unavailable" ? (
-        <div className="nmnStatus" role="status">
-          <span className="nmnSpinner" aria-hidden="true" />
-          Checking desks in town…
-        </div>
-      ) : null}
-
       {state === "ready" && packStatus === "failed" ? (
         <p className="ndnEmpty" role="status">{deskLoadFailedLine()}</p>
       ) : null}
@@ -345,6 +337,7 @@ export default function NearDeskNow({
           </header>
           <DeskHero card={answer.hero} />
           <DeskCardList cards={answer.cards} />
+          <DeskDataCredit />
           <footer className="nmnFoot">
             <button type="button" className="nmnRetry nmnRetryGhost" onClick={locate}>
               <RotateCw size={15} aria-hidden="true" /> Update location

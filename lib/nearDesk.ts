@@ -31,11 +31,11 @@ export const DESK_MAX_ANSWERS = 5;
  * compared. 0.4 km is about a five minute walk at the pint lane's pace.
  *
  * Distance is the FIRST rank key, the same anonymous locality basis pint mode
- * answers from. Amenity richness ordered ahead of it, so a wifi-tagged cafe a
- * kilometre away displaced an untagged one sixty metres from the reader, and
- * most London cafes carry no `internet_access` tag at all. The bucket is what
- * makes the later keys decide anything: raw metres would settle every pair
- * before amenity or open-now was ever read.
+ * answers from. Amenity richness USED TO be ordered ahead of it, which put a
+ * wifi-tagged cafe a kilometre away above an untagged one sixty metres from
+ * the reader, and most London cafes carry no `internet_access` tag at all. The
+ * bucket is what makes the later keys decide anything: raw metres would settle
+ * every pair before amenity or open-now was ever read.
  */
 export const DESK_DISTANCE_RING_KM = 0.4;
 
@@ -127,6 +127,21 @@ export function resolveNearMode(
  */
 export function shouldSwitchNearMode(current: NearMode, next: NearMode): boolean {
   return current !== next;
+}
+
+/**
+ * The query a desk answer writes when it lands on an area.
+ *
+ * It carries `mode=desk` itself rather than trusting the search string it was
+ * handed. The mode switch commits its own navigation asynchronously, so a
+ * patch write composed from the live URL could land first and publish a link
+ * that opens in pint mode.
+ */
+export function deskPatchQuery(search: string, patchId: string): string {
+  const params = new URLSearchParams(search);
+  params.set(NEAR_MODE_QUERY, "desk");
+  params.set("patch", patchId);
+  return params.toString();
 }
 
 export function wifiFromOsm(value: string | null | undefined): WifiState {

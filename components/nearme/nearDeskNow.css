@@ -73,3 +73,15 @@
   line-height: 1.35;
   color: var(--ink);
 }
+
+.ndnSource {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.4;
+}
+
+.ndnSource a {
+  color: inherit;
+  text-decoration: underline;
+}

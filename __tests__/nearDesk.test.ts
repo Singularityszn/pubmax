@@ -8,6 +8,7 @@ import {
   deskLoadFailedLine,
   deskHoursCaption,
   deskLaptopCaption,
+  deskPatchQuery,
   deskPatchReasonLine,
   deskSeatDataLine,
   deskWifiCaption,
@@ -76,6 +77,26 @@ describe("resolveNearMode", () => {
     expect(shouldSwitchNearMode("desk", "pint")).toBe(true);
     expect(shouldSwitchNearMode("pint", "pint")).toBe(false);
     expect(shouldSwitchNearMode("desk", "desk")).toBe(false);
+  });
+});
+
+describe("deskPatchQuery", () => {
+  it("carries the desk mode itself rather than trusting the live URL", () => {
+    const params = new URLSearchParams(deskPatchQuery("", "soho"));
+    expect(params.get("mode")).toBe("desk");
+    expect(params.get("patch")).toBe("soho");
+  });
+
+  it("keeps the rest of the query and replaces a stale patch", () => {
+    const params = new URLSearchParams(deskPatchQuery("?patch=camden&src=poster", "soho"));
+    expect(params.get("patch")).toBe("soho");
+    expect(params.get("src")).toBe("poster");
+    expect(params.getAll("patch")).toEqual(["soho"]);
+  });
+
+  it("overwrites a pint mode left in the URL by a switch still in flight", () => {
+    const params = new URLSearchParams(deskPatchQuery("?mode=pint", "soho"));
+    expect(params.getAll("mode")).toEqual(["desk"]);
   });
 });
 

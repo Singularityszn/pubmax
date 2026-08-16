@@ -2,6 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
+import DeskDataCredit from "@/components/nearme/DeskDataCredit";
 import NearModeSwitch from "@/components/nearme/NearModeSwitch";
 import { resolveNearMode } from "@/lib/nearDesk";
 
@@ -24,6 +25,15 @@ describe("NearModeSwitch", () => {
       createElement(NearModeSwitch, { value: "desk", onChange: vi.fn() }),
     );
     expect(html).toMatch(/aria-checked="true"[^>]*>Desk/);
+  });
+});
+
+describe("DeskDataCredit", () => {
+  it("credits OpenStreetMap under the ODbL with a link to the licence", () => {
+    const html = renderToStaticMarkup(createElement(DeskDataCredit));
+    expect(html).toContain("OpenStreetMap contributors");
+    expect(html).toContain("ODbL");
+    expect(html).toContain('href="https://www.openstreetmap.org/copyright"');
   });
 });
 
