@@ -82,16 +82,16 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
 
       <header className="feedHeader">
         <p className="feedEyebrow">Out tonight</p>
-        <h1 className="feedTitle">We&rsquo;re out</h1>
+        <h1 className="feedTitle">I&rsquo;m here</h1>
         <p className="feedLede">
-          Tell your lot you&rsquo;re out tonight. Area only, no exact spot. Friends
+          Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
           who follow you back see it. It clears itself after 12 hours.
         </p>
       </header>
 
       {state === "done" ? (
         <section className="weAreOutDone" role="status">
-          <p className="weAreOutDoneTitle">You&rsquo;re out. Your lot can see it.</p>
+          <p className="weAreOutDoneTitle">You&rsquo;re here. Your lot can see it.</p>
           <div className="weAreOutDoneActions">
             {socialFriendsLaunchEnabled ? (
               <Link className="feedDropCta" href="/social">
@@ -152,7 +152,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
             disabled={state === "posting"}
             onClick={post}
           >
-            {state === "posting" ? "Posting." : "We're out"}
+            {state === "posting" ? "Posting." : "I'm here"}
           </button>
         </section>
       )}

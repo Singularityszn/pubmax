@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 
+import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
@@ -334,6 +335,7 @@ export default function TonightClient({
 
       <div className="tonightDesktopGrid">
       <header className="tonightHead">
+        <NowSegment current="tonight" />
         <div className="tonightEyebrowRow">
           <p className="tonightEyebrow">Tonight in London</p>
           <TonightShareButton />

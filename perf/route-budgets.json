@@ -44,6 +44,14 @@
       "requests": 56
     },
     {
+      "path": "/out",
+      "readySelector": "main",
+      "why": "The Out tab shell. Composed from existing what's-on rows; no new API.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1300,
+      "requests": 56
+    },
+    {
       "path": "/about",
       "readySelector": "main",
       "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on.",

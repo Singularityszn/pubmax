@@ -769,7 +769,7 @@ export default function FeedPageClient({
           <div className="feedComposeActions" aria-label="Create">
             <Link href="/moment" className="feedMomentCta">Share a Moment</Link>
             <Link href="/map?log=1" className="feedDropCta">Log a Pint Drop</Link>
-            <Link href="/we-are-out" className="feedMomentCta">We&rsquo;re out</Link>
+            <Link href="/we-are-out" className="feedMomentCta">I&rsquo;m here</Link>
           </div>
         ) : null}
       </header>

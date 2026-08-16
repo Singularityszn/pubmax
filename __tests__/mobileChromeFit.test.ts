@@ -387,4 +387,26 @@ describe("mobile tap-target floors", () => {
       /@media \(max-width: 640px\)[\s\S]*?\.mapSoftRetry\s*{[^}]*bottom:\s*calc\(var\(--mobile-tab-clearance\) \+ 10px\)/,
     );
   });
+
+  it("keeps the create FAB above the tab bar and at the tap floor", () => {
+    const css = read("components/nav/createFab.css");
+    const fab = css.match(/\.createFab\s*{([^}]*)}/)?.[1] ?? "";
+    expect(fab, ".createFab rule present").not.toBe("");
+    expect(fab).toMatch(/width:\s*56px/);
+    expect(fab).toMatch(/height:\s*56px/);
+    expect(fab).toMatch(/min-width:\s*56px/);
+    expect(fab).toMatch(/min-height:\s*56px/);
+    // The FAB sits above the reserved tab-bar lane, never on top of it.
+    expect(fab).toMatch(
+      /bottom:\s*calc\(\s*var\(--tabbar-h\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)/,
+    );
+    expect(fab).not.toMatch(/bottom:\s*0/);
+    const row = css.match(/\.createFabRow\s*{([^}]*)}/)?.[1] ?? "";
+    expect(row, ".createFabRow rule present").not.toBe("");
+    expect(row).toMatch(/min-height:\s*44px/);
+    expect(css).toMatch(/\.createFab:active\s*{[^}]*scale\(0\.97\)/);
+    expect(css).toMatch(
+      /@media\s*\(prefers-reduced-motion:\s*reduce\)[\s\S]*?\.createFab:active\s*{[^}]*scale\(1\)/,
+    );
+  });
 });

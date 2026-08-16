@@ -33,8 +33,9 @@ test.describe("site navigation touch targets", () => {
     await expect(nav).toBeVisible();
     await expectTappable(nav.getByLabel("Open PUBMAXX landing page"), "tablet site wordmark");
     await expectTappable(nav.getByRole("link", { name: "Map", exact: true }), "tablet Map link");
-    await expectTappable(nav.getByRole("link", { name: "Stories", exact: true }), "tablet Stories link");
-    await expectTappable(nav.getByRole("link", { name: "Tonight", exact: true }), "tablet Tonight link");
+    await expectTappable(nav.getByRole("link", { name: "Social", exact: true }), "tablet Social link");
+    await expectTappable(nav.getByRole("link", { name: "Now", exact: true }), "tablet Now link");
+    await expectTappable(nav.getByRole("link", { name: "Out", exact: true }), "tablet Out link");
     await expectTappable(nav.getByLabel(/^Activity/), "tablet Activity bell");
     await expectTappable(nav.getByLabel(/^Messages/), "tablet Messages bell");
     await expectTappable(nav.getByRole("button", { name: /switch to/i }), "tablet theme toggle");

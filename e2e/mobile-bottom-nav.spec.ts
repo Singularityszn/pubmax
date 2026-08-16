@@ -72,19 +72,35 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("searchbox", { name: "Search pubs" })).toBeVisible();
   });
 
-  test("Tonight tab routes to /tonight and exposes the tonight screen", async ({ page }) => {
+  test("Now tab routes to the live /today or /tonight surface", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Tonight", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Now", exact: true }).click();
 
-    await expect(page).toHaveURL(/\/tonight$/);
-    await expect(page.getByTestId("tonight-screen")).toBeVisible();
+    await expect(page).toHaveURL(/\/(today|tonight)$/);
+    const onToday = /\/today$/.test(page.url());
+    if (onToday) {
+      await expect(page.getByTestId("today-screen")).toBeVisible();
+    } else {
+      await expect(page.getByTestId("tonight-screen")).toBeVisible();
+    }
   });
 
-  test("Moment opens the capture chooser without silently returning to the map", async ({ page }) => {
+  test("Out tab routes to /out", async ({ page }) => {
     await page.goto("/map");
 
-    await primaryNav(page).getByRole("link", { name: "Moment", exact: true }).click();
+    await primaryNav(page).getByRole("link", { name: "Out", exact: true }).click();
+
+    await expect(page).toHaveURL(/\/out$/);
+    await expect(page.getByTestId("out-screen")).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Out", exact: true })).toBeVisible();
+  });
+
+  test("create action opens Moment with the live return path", async ({ page }) => {
+    await page.goto("/map");
+
+    await page.getByRole("button", { name: "Create" }).click();
+    await page.getByRole("menuitem", { name: "Post a moment" }).click();
 
     await expect(page).toHaveURL(/\/moment\?returnTo=%2Fmap$/);
     await expect(page.getByRole("heading", { name: "Keep this one." })).toBeVisible();
@@ -92,18 +108,15 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/map");
   });
 
-  test("Stories routes directly to the social feed", async ({ page }) => {
+  test("Social routes to the social shell", async ({ page }) => {
     await page.goto("/map");
 
-    const stories = primaryNav(page).getByRole("link", { name: "Stories", exact: true });
-    await stories.click();
+    const social = primaryNav(page).getByRole("link", { name: "Social", exact: true });
+    await social.click();
 
-    await expect(page).toHaveURL(/\/feed$/);
-    await expect(page.getByRole("heading", { name: "Stories", exact: true })).toBeVisible();
-    // Active-state contract: landing on /feed must light Stories (aria-current
-    // + isActive), not leave the bar with no current tab.
-    await expect(stories).toHaveAttribute("aria-current", "page");
-    await expect(stories).toHaveClass(/isActive/);
+    await expect(page).toHaveURL(/\/social$/);
+    await expect(social).toHaveAttribute("aria-current", "page");
+    await expect(social).toHaveClass(/isActive/);
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {

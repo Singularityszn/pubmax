@@ -654,6 +654,35 @@ describe("invite loop events", () => {
     expect(ANALYTICS_EVENTS.invite_map_opened).toEqual([]);
   });
 
+  it("registers the Out tab and create-FAB events", () => {
+    expect(ANALYTICS_EVENTS.out_screen_view).toEqual([]);
+    expect(ANALYTICS_EVENTS.out_filter_select).toEqual(["kind"]);
+    expect(ANALYTICS_EVENTS.create_fab_action).toEqual(["action"]);
+    expect(sanitizeEvent("out_screen_view")).toEqual({ name: "out_screen_view", props: {} });
+    expect(sanitizeEvent("out_filter_select", { kind: "tonight" })?.props).toEqual({
+      kind: "tonight",
+    });
+    expect(sanitizeEvent("out_filter_select", { kind: "tomorrow" })?.props).toEqual({
+      kind: "tomorrow",
+    });
+    expect(sanitizeEvent("out_filter_select", { kind: "weekend" })?.props).toEqual({
+      kind: "weekend",
+    });
+    expect(sanitizeEvent("out_filter_select", { kind: "someone@pub" })).toEqual({
+      name: "out_filter_select",
+      props: {},
+    });
+    expect(sanitizeEvent("create_fab_action", { action: "moment" })?.props).toEqual({
+      action: "moment",
+    });
+    expect(sanitizeEvent("create_fab_action", { action: "price" })?.props).toEqual({
+      action: "price",
+    });
+    expect(sanitizeEvent("create_fab_action", { action: "plan" })?.props).toEqual({
+      action: "plan",
+    });
+  });
+
   it("accepts landing CTA targets and rejects free text", () => {
     expect(ANALYTICS_EVENTS.landing_cta_clicked).toEqual(["target"]);
     expect(sanitizeEvent("landing_cta_clicked", { target: "map" })).toEqual({
