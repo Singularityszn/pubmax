@@ -1,4 +1,5 @@
 import { londonCalendarDate } from "@/lib/privateIdentity";
+import type { SocialAccessState } from "@/lib/socialAccess";
 
 /** Registry env for the friends-only Social launch switch. */
 export const SOCIAL_FRIENDS_LAUNCH_ENV = "PUBMAX_SOCIAL_FRIENDS_LAUNCH";
@@ -29,10 +30,7 @@ export function socialLoadingLabel(friendsLaunchEnabled: boolean): string {
 }
 
 export type SocialBoundaryCopyState =
-  | "preview"
-  | "sign_in_required"
-  | "age_verification_required"
-  | "suspended"
+  | Exclude<SocialAccessState, "verified">
   | "unavailable";
 
 /** Empty-state lines for SocialAccessBoundary — surface name follows the launch flag. */
