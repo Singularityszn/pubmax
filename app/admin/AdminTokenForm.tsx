@@ -49,6 +49,7 @@ export default function AdminTokenForm(): React.JSX.Element {
           placeholder="Admin token"
           aria-label="Admin token"
           autoComplete="current-password"
+          required
         />
         <button className="admin-btn" type="submit" disabled={busy}>
           {busy ? "Checking…" : "Open console"}

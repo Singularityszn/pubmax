@@ -117,6 +117,7 @@
     "@vitest/coverage-v8": "^4.1.10",
     "eslint": "^10.8.0",
     "eslint-config-next": "^16.2.12",
+    "jsdom": "^30.0.1",
     "knip": "^6.31.0",
     "tailwindcss": "^4.3.2",
     "tsx": "^4.20.6",

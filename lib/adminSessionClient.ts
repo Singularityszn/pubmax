@@ -21,6 +21,7 @@ export const ADMIN_SESSION_NOT_KEPT_MESSAGE =
   "Sign-in did not stick - this page needs HTTPS.";
 export const ADMIN_SESSION_UNCONFIRMED_MESSAGE =
   "Could not confirm the sign-in. Try again.";
+export const ADMIN_SESSION_MISSING_TOKEN_MESSAGE = "Enter the admin token.";
 
 export const ADMIN_SESSION_PATH = "/api/admin/session";
 
@@ -85,13 +86,19 @@ export async function submitAdminToken(
   token: string,
   fetchImpl: FetchLike,
 ): Promise<AdminSessionSubmitOutcome> {
+  const trimmed = token.trim();
+  // The route rate-limits per IP BEFORE it looks at the token, so a stray empty
+  // submit spends the moderator's own budget on a request that cannot succeed.
+  if (!trimmed) {
+    return { status: "refused", message: ADMIN_SESSION_MISSING_TOKEN_MESSAGE };
+  }
   let res: Response;
   try {
     res = await fetchImpl(ADMIN_SESSION_PATH, {
       method: "POST",
       credentials: "include",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token: token.trim() }),
+      body: JSON.stringify({ token: trimmed }),
     });
   } catch {
     return { status: "refused", message: ADMIN_SESSION_UNREACHABLE_MESSAGE };

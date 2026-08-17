@@ -19,12 +19,20 @@ assertServerEnv();
 const SESSION_ATTEMPT_LIMIT = 10;
 const SESSION_ATTEMPT_WINDOW_MS = 60_000;
 
+// SameSite=Lax, like every other session cookie here. GET /admin is now gated on
+// the DOCUMENT, so the top-level navigation itself has to carry this cookie: a
+// browser withholds a Strict cookie on a cross-site top-level navigation, which
+// met a moderator following an /admin link from Slack or an email with the token
+// form despite a live 24h session. Lax sends it on exactly that navigation and
+// still withholds it from every cross-site subresource and non-GET request, so
+// the CSRF surface the Strict setting was for is unchanged - the route only ever
+// mints a session from a token in the body, never from the cookie.
 function setSessionCookie(token: string): Headers {
   const headers = new Headers();
   const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
+    `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${ADMIN_SESSION_MAX_AGE_SEC}${secure ? "; Secure" : ""}`,
   );
   return headers;
 }
@@ -34,7 +42,7 @@ function clearSessionCookie(): Headers {
   const secure = process.env.NODE_ENV === "production";
   headers.append(
     "Set-Cookie",
-    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${secure ? "; Secure" : ""}`,
+    `${ADMIN_SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? "; Secure" : ""}`,
   );
   return headers;
 }

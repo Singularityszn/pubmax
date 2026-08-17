@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  ADMIN_SESSION_MISSING_TOKEN_MESSAGE,
   ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   ADMIN_SESSION_UNREACHABLE_MESSAGE,
@@ -110,6 +111,18 @@ describe("submitAdminToken", () => {
       message: "Not authorised.",
     });
     expect(calls).toHaveLength(1);
+  });
+
+  // The route rate-limits per IP before it inspects the token, so an empty
+  // submit that cannot succeed must not spend the moderator's own budget.
+  it("spends no request on an empty token", async () => {
+    const { fetch, calls } = scriptedFetch([]);
+
+    await expect(submitAdminToken("   ", fetch)).resolves.toEqual({
+      status: "refused",
+      message: ADMIN_SESSION_MISSING_TOKEN_MESSAGE,
+    });
+    expect(calls).toHaveLength(0);
   });
 
   // Both admin doors read the session through this one function, so a 200 POST
