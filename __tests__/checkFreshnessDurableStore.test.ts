@@ -216,6 +216,20 @@ describe("evaluateFreshness — a declared row pack", () => {
     expect(results[0].status).toBe("fresh");
   });
 
+  // Parity with lib/freshnessArtifact.ts resolveDatasetStamp: a pack naming no
+  // artifact is unmeasurable in BOTH readers. They used to disagree here, and
+  // the app was the one answering fresh.
+  it("reports a pack that declares no artifact as unknown, matching the app reader", async () => {
+    const { results, breached } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding(null),
+      registry: packRegistry({ artifact: null }),
+    });
+    expect(results[0].status).toBe("unknown");
+    expect(results[0].detail).toContain("no artifact to read it from");
+    expect(breached).toBe(true);
+  });
+
   it("leaves a literal-stamped dataset that is NOT a pack unopened and fresh", async () => {
     const { results } = await evaluateFreshness({
       now: NOW,

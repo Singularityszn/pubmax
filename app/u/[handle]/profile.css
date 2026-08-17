@@ -972,6 +972,24 @@
   font-variant-numeric: tabular-nums;
 }
 
+.profilePage .profileCrawlUnlisted {
+  margin-top: 12px;
+}
+
+.profilePage .profileCrawlUnlisted > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.profilePage .profileCrawlUnlisted > summary:hover {
+  color: var(--brass);
+}
+
 .profilePage .profileCrawlMore {
   margin-top: 8px;
   min-height: 44px;

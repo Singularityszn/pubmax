@@ -7,8 +7,8 @@
 
 import {
   clampAuthorCrawlListLimit,
-  countOwnStoriesByAuthor,
   listAuthoredCrawlPage,
+  listOwnUnlistedCrawlPage,
   createCrawlStory,
   getCrawlStoryBySlug,
   getStoryAuthor,
@@ -193,13 +193,17 @@ export async function GET(request: Request): Promise<Response> {
   // component that can't import the server store directly).
   //
   // `count`/`total` are TRI-STATE by way of null and `status` says which answer
-  // this is: a read that failed reports `degraded` with no rows and no number,
-  // never a confident 0 above a list of crawls.
+  // this is. `degraded` means the COUNT could not be measured, rows or no rows:
+  // a query that returned its page without a count header is still an answer
+  // about those rows. What may never happen is a confident 0 above a list of
+  // crawls.
   //
-  // `?scope=own` additionally answers the passport's "story posts" number, which
-  // counts the owner's unlisted crawls too. It is handed ONLY to the verified
-  // owner of the handle — an unlisted crawl is a direct-link crawl, so how many
-  // of them somebody has is theirs to know.
+  // `?scope=own` additionally answers the owner's UNLISTED crawls - the rows and
+  // their total, plus the published tally the two add up to. It is handed ONLY
+  // to the verified owner of the handle, because an unlisted crawl is a
+  // direct-link crawl and which ones somebody has is theirs to know. Rows
+  // rather than a bare number, so the figure on their own passport opens
+  // something.
   const author = params.get("author");
   if (author !== null) {
     const handle = normalizeHandle(readString(author, HANDLE_MAX));
@@ -222,7 +226,14 @@ export async function GET(request: Request): Promise<Response> {
       const userId = await callerUserId(request);
       const linked = userId ? await resolveMessageHandle(request, "", userId) : "";
       if (linked && linked === handle) {
-        body.ownCount = await countOwnStoriesByAuthor(handle);
+        const unlisted = await listOwnUnlistedCrawlPage(handle);
+        body.unlisted = unlisted.crawls;
+        body.unlistedTotal = unlisted.total;
+        // The published tally is DERIVED from the two lanes rather than counted
+        // again: visibility is a closed set, so public plus unlisted is exactly
+        // "not a draft", and a third query could only disagree with them.
+        body.ownCount =
+          total === null || unlisted.total === null ? null : total + unlisted.total;
       }
     }
 

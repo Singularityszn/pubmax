@@ -227,7 +227,7 @@ import {
   __resetCrawlStories,
   createCrawlStory,
   listAuthoredCrawlPage,
-  listStoriesByAuthor,
+  listOwnUnlistedCrawlPage,
 } from "@/lib/crawlStoryStore";
 
 beforeEach(() => {
@@ -246,7 +246,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-describe("listStoriesByAuthor (Supabase)", () => {
+describe("listAuthoredCrawlPage rows (Supabase)", () => {
   it("counts crawl_story_stops rows rather than reading a stops column", async () => {
     db.stories.push({
       id: "story-1",
@@ -261,7 +261,7 @@ describe("listStoriesByAuthor (Supabase)", () => {
       { crawl_story_id: "story-1" },
     );
 
-    expect(await listStoriesByAuthor("ken")).toEqual([
+    expect((await listAuthoredCrawlPage("ken")).crawls).toEqual([
       {
         slug: "loop-one-abc123",
         title: "Loop One",
@@ -299,7 +299,7 @@ describe("listStoriesByAuthor (Supabase)", () => {
       },
     );
 
-    const listed = await listStoriesByAuthor("ken");
+    const listed = (await listAuthoredCrawlPage("ken")).crawls;
     expect(listed.map((row) => row.slug)).toEqual(["loop-one-abc123"]);
   });
 
@@ -323,7 +323,7 @@ describe("listStoriesByAuthor (Supabase)", () => {
       },
     );
 
-    const listed = await listStoriesByAuthor("ken");
+    const listed = (await listAuthoredCrawlPage("ken")).crawls;
     expect(listed.map((row) => row.slug)).toEqual(["listed-abc123"]);
   });
 
@@ -339,7 +339,7 @@ describe("listStoriesByAuthor (Supabase)", () => {
     });
     db.stopsReadFails = true;
 
-    expect(await listStoriesByAuthor("ken")).toEqual([
+    expect((await listAuthoredCrawlPage("ken")).crawls).toEqual([
       {
         slug: "loop-one-abc123",
         title: "Loop One",
@@ -445,6 +445,75 @@ describe("listAuthoredCrawlPage (Supabase)", () => {
   });
 });
 
+// The owner's lane is the SAME query keyed on the other visibility, so it can
+// neither leak a draft nor miss a row the public lane already refused. It
+// returns rows because the figure it feeds has to open something.
+describe("listOwnUnlistedCrawlPage (Supabase)", () => {
+  beforeEach(() => {
+    db.stories.push(
+      {
+        id: "story-public",
+        slug: "listed-abc123",
+        title: "Listed",
+        created_at: "2026-08-01T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "public",
+      },
+      {
+        id: "story-unlisted",
+        slug: "direct-only-def456",
+        title: "Direct Link Only",
+        created_at: "2026-08-02T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "unlisted",
+      },
+      {
+        id: "story-draft",
+        slug: "half-written-ghi789",
+        title: "Half Written",
+        created_at: "2026-08-03T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "draft",
+      },
+      {
+        id: "story-other-unlisted",
+        slug: "someone-elses-jkl012",
+        title: "Someone Else's",
+        created_at: "2026-08-04T12:00:00.000Z",
+        author_handle: "pat",
+        visibility: "unlisted",
+      },
+    );
+  });
+
+  it("lists the owner's unlisted crawls, and only theirs", async () => {
+    const page = await listOwnUnlistedCrawlPage("ken");
+    expect(page.total).toBe(1);
+    expect(page.crawls.map((crawl) => crawl.slug)).toEqual(["direct-only-def456"]);
+  });
+
+  it("never lists a draft or a public crawl in the unlisted lane", async () => {
+    const slugs = (await listOwnUnlistedCrawlPage("ken")).crawls.map((crawl) => crawl.slug);
+    expect(slugs).not.toContain("half-written-ghi789");
+    expect(slugs).not.toContain("listed-abc123");
+  });
+
+  it("adds up with the public lane to every crawl that is not a draft", async () => {
+    const publicPage = await listAuthoredCrawlPage("ken");
+    const unlistedPage = await listOwnUnlistedCrawlPage("ken");
+    const notDraft = db.stories.filter(
+      (row) => row.author_handle === "ken" && row.visibility !== "draft",
+    ).length;
+    expect((publicPage.total ?? 0) + (unlistedPage.total ?? 0)).toBe(notDraft);
+  });
+
+  it("reports an unknown total with no rows when the read fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    db.storiesReadFails = true;
+    expect(await listOwnUnlistedCrawlPage("ken")).toEqual({ crawls: [], total: null });
+  });
+});
+
 describe("createCrawlStory (Supabase)", () => {
   it("persists a story the schema accepts, and it lists back", async () => {
     const created = await createCrawlStory({
@@ -461,7 +530,7 @@ describe("createCrawlStory (Supabase)", () => {
 
     expect(created?.slug).toBeTruthy();
     expect(created?.authorHandle).toBe("ken");
-    expect(await listStoriesByAuthor("ken")).toEqual([
+    expect((await listAuthoredCrawlPage("ken")).crawls).toEqual([
       expect.objectContaining({ slug: created?.slug, title: "Loop One", stops: 2 }),
     ]);
   });

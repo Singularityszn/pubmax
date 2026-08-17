@@ -96,10 +96,9 @@ vi.mock("@/lib/venueIndex", () => ({
 import { GET, POST } from "@/app/api/crawls/route";
 import {
   __resetCrawlStories,
-  countOwnStoriesByAuthor,
   createCrawlStory,
   listAuthoredCrawlPage,
-  listStoriesByAuthor,
+  listOwnUnlistedCrawlPage,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -126,14 +125,14 @@ beforeEach(() => {
   auth.userId = null;
 });
 
-describe("listStoriesByAuthor", () => {
+describe("listAuthoredCrawlPage rows", () => {
   it("returns stop counts from stored stops in the memory backend", async () => {
     await createCrawlStory({
       title: "Three stop loop",
       authorHandle: "ken",
       stops: [{ venueId: "v1" }, { venueId: "v2" }, { venueId: "v3" }],
     });
-    const listed = await listStoriesByAuthor("ken");
+    const listed = (await listAuthoredCrawlPage("ken")).crawls;
     expect(listed.length).toBe(1);
     expect(listed[0].stops).toBe(3);
   });
@@ -199,21 +198,24 @@ describe("listAuthoredCrawlPage — the public count and its rows", () => {
 
 // The passport's story-posts number is what this author PUBLISHED, and an
 // unlisted crawl is published — shared by direct link. Narrowing it to `public`
-// alongside the crawls tile would tell an owner they wrote fewer than they did.
-describe("countOwnStoriesByAuthor", () => {
-  it("counts the owner's unlisted crawls, which the public count withholds", async () => {
+// alongside the crawls tile would tell an owner they wrote fewer than they did,
+// so the owner's lane carries the ROWS behind that difference.
+describe("listOwnUnlistedCrawlPage", () => {
+  it("carries the crawls the public lane withholds, as rows", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
     await makeStory("ken", "Listed");
     await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
 
-    expect(await countOwnStoriesByAuthor("ken")).toBe(2);
+    const own = await listOwnUnlistedCrawlPage("ken");
+    expect(own.total).toBe(1);
+    expect(own.crawls.map((crawl) => crawl.title)).toEqual(["Direct Link Only"]);
     expect((await listAuthoredCrawlPage("ken")).total).toBe(1);
   });
 
-  it("still never counts a draft", async () => {
+  it("still never carries a draft", async () => {
     const slug = await makeStory("ken", "Half Written");
     await updateCrawlStory(slug, "ken", { visibility: "draft" });
-    expect(await countOwnStoriesByAuthor("ken")).toBe(0);
+    expect(await listOwnUnlistedCrawlPage("ken")).toEqual({ crawls: [], total: 0 });
   });
 });
 
@@ -321,15 +323,17 @@ describe("GET /api/crawls?author=", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.ownCount).toBeUndefined();
+    expect(body.unlisted).toBeUndefined();
+    expect(body.unlistedTotal).toBeUndefined();
     expect(body.count).toBe(0);
     expect(body.crawls).toEqual([]);
   });
 
-  // The other side of the same gate: the verified owner IS answered, and the
-  // number they get back counts the unlisted crawl the public one withholds.
-  // Without this, the whole branch could stop firing and the owner's passport
-  // would quietly fall back to the public count with nothing failing.
-  it("hands the verified owner a count that includes their unlisted crawls", async () => {
+  // The other side of the same gate: the verified owner IS answered, and what
+  // they get back is the unlisted crawl itself, not only a number. Without
+  // this, the whole branch could stop firing and the owner's passport would
+  // quietly fall back to the public count with nothing failing.
+  it("hands the verified owner the unlisted crawls the public lane withholds", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
     await makeStory("ken", "Listed");
     await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
@@ -338,11 +342,41 @@ describe("GET /api/crawls?author=", () => {
 
     const body = (await (
       await GET(new Request(`${URL_BASE}?author=ken&scope=own`))
-    ).json()) as Record<string, unknown>;
+    ).json()) as {
+      ownCount: number;
+      count: number;
+      crawls: unknown[];
+      unlisted: Array<{ slug: string; title: string }>;
+      unlistedTotal: number;
+    };
 
     expect(body.ownCount).toBe(2);
     expect(body.count).toBe(1);
     expect(body.crawls).toHaveLength(1);
+    // The number opens something: the row behind the difference travels with it.
+    expect(body.unlistedTotal).toBe(1);
+    expect(body.unlisted.map((crawl) => crawl.title)).toEqual(["Direct Link Only"]);
+    expect(body.ownCount).toBe(body.count + body.unlistedTotal);
+  });
+
+  // The public page the owner scope also answers is not the one rendered, so
+  // the client trims it. Trimming may never change the numbers.
+  it("answers the same owner figures however small the public page is", async () => {
+    for (let i = 0; i < 12; i += 1) await makeStory("ken", `Loop ${i}`);
+    const unlisted = await makeStory("ken", "Direct Link Only");
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+
+    const trimmed = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&scope=own&limit=1`))
+    ).json()) as Record<string, unknown>;
+
+    expect(trimmed.crawls).toHaveLength(1);
+    expect(trimmed.count).toBe(12);
+    expect(trimmed.ownCount).toBe(13);
+    expect(trimmed.unlistedTotal).toBe(1);
+    expect(trimmed.unlisted).toHaveLength(1);
   });
 
   it("refuses the owner scope to a signed-in stranger", async () => {
@@ -357,6 +391,7 @@ describe("GET /api/crawls?author=", () => {
     ).json()) as Record<string, unknown>;
 
     expect(body.ownCount).toBeUndefined();
+    expect(body.unlisted).toBeUndefined();
   });
 
   it("answers no owner count unless the scope was asked for", async () => {
@@ -369,6 +404,7 @@ describe("GET /api/crawls?author=", () => {
     ).json()) as Record<string, unknown>;
 
     expect(body.ownCount).toBeUndefined();
+    expect(body.unlisted).toBeUndefined();
   });
 });
 

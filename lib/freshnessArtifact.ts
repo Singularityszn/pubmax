@@ -64,10 +64,14 @@ export function resolveDatasetStamp(
   dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack">,
   read: (rootDir: string, relPath: string | null) => ArtifactRead = readFreshnessArtifact,
 ): StampResolution {
-  if (!datasetOpensArtifact(dataset)) {
-    return resolveStamp(dataset.stamp, { kind: "absent" });
-  }
-  const artifactRead = read(rootDir, dataset.artifact);
+  const artifactRead = datasetOpensArtifact(dataset)
+    ? read(rootDir, dataset.artifact)
+    : ({ kind: "absent" } as const);
+  // The pack judgement runs whatever the read was, INCLUDING the absent one a
+  // pack with no declared artifact produces. Short-circuiting before this is
+  // how the two readers came to disagree about that registry mistake, and they
+  // disagreed in the dangerous direction: the app answered the literal stamp
+  // and reported the feed fresh forever while the CLI gate failed the build.
   if (dataset.pack === true) {
     const packReason = packArtifactReason(artifactRead);
     if (packReason) return { observedAt: null, reason: packReason };

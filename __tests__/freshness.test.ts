@@ -366,6 +366,36 @@ describe("a declared row pack", () => {
     expect(resolution.reason).toContain(expected);
   });
 
+  // A pack that names no artifact is a registry mistake, and the two readers
+  // used to answer it differently: the app short-circuited on the missing path
+  // and reported the literal stamp FRESH forever while the CLI gate failed the
+  // build. They now agree, and they agree on the safe answer.
+  it("refuses the stamp for a pack that declares no artifact at all", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ ...historicPack, artifact: null }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain("no artifact to read it from");
+  });
+
+  it("evaluateRegistry reports an artifact-less pack as unknown, never fresh", () => {
+    const registry: FreshnessRegistry = {
+      version: 1,
+      datasets: [dataset({ ...historicPack, artifact: null })],
+    };
+    const results = evaluateRegistry(
+      registry,
+      (d) => resolveDatasetStamp("/root", d, readFreshnessArtifact),
+      NOW,
+    );
+    expect(results[0]?.status).toBe("unknown");
+    expect(hasBreach(results)).toBe(true);
+  });
+
   it("refuses the stamp when the pack never reached the deployed function", () => {
     const { read } = countingRead();
     const resolution = resolveDatasetStamp("/root", dataset(historicPack), read);

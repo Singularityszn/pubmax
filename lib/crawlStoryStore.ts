@@ -566,15 +566,15 @@ export type AuthoredCrawlPage = {
 };
 
 /**
- * The PUBLIC crawls a handle wrote — visibility `public` only. `unlisted` is a
- * direct-link crawl and never joins a public author listing; `draft` never
- * leaves the author's own hands. The profile's Crawls tile links to the section
- * this list renders, so the number beside it comes back on this same read.
- * Fail-soft: a backend hiccup is an empty page with an unknown total.
+ * ONE query behind every author lane, keyed on the visibility it is allowed to
+ * name. The public listing and the owner's unlisted listing differ by that one
+ * value and nothing else, so the row shape, the stop counts, the ordering and
+ * the tri-state total cannot drift between them.
  */
-export async function listAuthoredCrawlPage(
+async function listCrawlPageByVisibility(
   handle: string,
-  limit: number = AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+  visibility: StoryVisibility,
+  limit: number,
 ): Promise<AuthoredCrawlPage> {
   const author = normalizeHandle(handle ?? "");
   if (!author) return { crawls: [], total: 0 };
@@ -585,7 +585,7 @@ export async function listAuthoredCrawlPage(
         .from(STORIES_TABLE)
         .select("id,slug,title,created_at", { count: "exact" })
         .eq("author_handle", author)
-        .eq("visibility", "public")
+        .eq("visibility", visibility)
         .order("created_at", { ascending: false })
         .limit(bounded);
       if (error) throw new Error(error.message);
@@ -618,7 +618,7 @@ export async function listAuthoredCrawlPage(
     }
   }
   const matching = [...memoryStories.values()]
-    .filter((story) => story.authorHandle === author && story.visibility === "public")
+    .filter((story) => story.authorHandle === author && story.visibility === visibility)
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
   return {
     total: matching.length,
@@ -632,52 +632,31 @@ export async function listAuthoredCrawlPage(
 }
 
 /**
- * The rows half of {@link listAuthoredCrawlPage}, for a caller that wants the
- * listing and nothing else. Same query, same visibility rule.
+ * The PUBLIC crawls a handle wrote — visibility `public` only. `unlisted` is a
+ * direct-link crawl and never joins a public author listing; `draft` never
+ * leaves the author's own hands. The profile's Crawls tile links to the section
+ * this list renders, so the number beside it comes back on this same read.
+ * Fail-soft: a backend hiccup is an empty page with an unknown total.
  */
-export async function listStoriesByAuthor(
+export async function listAuthoredCrawlPage(
   handle: string,
   limit: number = AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
-): Promise<AuthoredCrawlSummary[]> {
-  return (await listAuthoredCrawlPage(handle, limit)).crawls;
+): Promise<AuthoredCrawlPage> {
+  return listCrawlPageByVisibility(handle, "public", limit);
 }
 
 /**
- * The PUBLISHED crawls a handle wrote as ITS OWNER sees them — `public` plus
- * `unlisted`, never a draft. This is the passport's "story posts" number: an
- * unlisted crawl is a posted crawl the owner shared by direct link, so dropping
- * it from their own tally would tell them they wrote fewer than they did. It is
- * deliberately NOT the public listing's count, which may name only what a
- * stranger can open, and the route hands it out only to the verified owner.
- *
- * TRI-STATE by way of null: a read that could not answer is unknown, never a
- * zero an owner would read as "none of mine survived".
+ * The UNLISTED crawls a handle wrote, which only its owner may see. An unlisted
+ * crawl is published, so it belongs in the owner's own tally; it is a direct
+ * link, so it may never join the public listing. The route hands this lane to
+ * the verified owner alone, and it returns ROWS rather than a bare number
+ * because a figure an owner cannot open is a dead end wearing a count.
  */
-export async function countOwnStoriesByAuthor(handle: string): Promise<number | null> {
-  const author = normalizeHandle(handle ?? "");
-  if (!author) return 0;
-  if (isSupabaseConfigured()) {
-    try {
-      const { count, error } = await admin()
-        .from(STORIES_TABLE)
-        .select("id", { count: "exact", head: true })
-        .eq("author_handle", author)
-        .neq("visibility", "draft");
-      if (error) throw new Error(error.message);
-      return typeof count === "number" && count >= 0 ? count : null;
-    } catch (err) {
-      console.error(
-        "[crawl-stories] could not count own stories by author:",
-        err instanceof Error ? err.message : err,
-      );
-      return null;
-    }
-  }
-  let total = 0;
-  for (const story of memoryStories.values()) {
-    if (story.authorHandle === author && story.visibility !== "draft") total += 1;
-  }
-  return total;
+export async function listOwnUnlistedCrawlPage(
+  handle: string,
+  limit: number = AUTHOR_CRAWL_LIST_MAX_LIMIT,
+): Promise<AuthoredCrawlPage> {
+  return listCrawlPageByVisibility(handle, "unlisted", limit);
 }
 
 /** Is `handle` the author of `slug`? False for an anonymous story (no author to

@@ -21,3 +21,16 @@ export function clampAuthorCrawlListLimit(
   if (!Number.isFinite(parsed)) return AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
   return Math.min(Math.max(Math.floor(parsed), 1), AUTHOR_CRAWL_LIST_MAX_LIMIT);
 }
+
+/**
+ * What the owner's unlisted crawls are called on their own profile, and why
+ * only they can see them. It is the one line that explains why the published
+ * tally on the passport is larger than the public Crawls figure beside it, so
+ * it names the number rather than leaving a bare second figure to be guessed
+ * at, and the rows it heads are the door to what it counts.
+ */
+export function ownUnlistedCrawlsLabel(total: number): string {
+  return total === 1
+    ? "1 unlisted crawl (only you see this)"
+    : `${total} unlisted crawls (only you see these)`;
+}

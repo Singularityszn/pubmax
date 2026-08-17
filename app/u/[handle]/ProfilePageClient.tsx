@@ -34,6 +34,7 @@ import { authedFetch } from "@/lib/authedFetch";
 import {
   AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
   AUTHOR_CRAWL_LIST_MAX_LIMIT,
+  ownUnlistedCrawlsLabel,
 } from "@/lib/authorCrawlList";
 import { syncDeviceHandle } from "@/lib/identityClient";
 import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
@@ -361,6 +362,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // story-posts stat. Only the verified owner is answered, so it stays null for
   // everybody else and the public number stands in.
   const [ownStoryCount, setOwnStoryCount] = useState<number | null>(null);
+  // The unlisted crawls behind the difference between that tally and the public
+  // Crawls figure. They are ROWS, not a second number: an owner who is told they
+  // have two more than the page lists needs a way to reach those two.
+  const [ownUnlistedCrawls, setOwnUnlistedCrawls] = useState<
+    Array<{ slug: string; title: string; stops: number | null }>
+  >([]);
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
@@ -493,20 +500,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle, crawlLimit]);
 
-  // The owner's own total, unlisted crawls included. Authenticated and never
-  // surface-cached: it is a viewer-scoped answer, so it may not be held in the
-  // shared snapshot store beside the public one. All of it runs in an async
-  // callback so setState never fires synchronously in the effect body.
+  // The owner's own published tally and the unlisted crawls it counts.
+  // Authenticated and never surface-cached: it is a viewer-scoped answer, so it
+  // may not be held in the shared snapshot store beside the public one. All of
+  // it runs in an async callback so setState never fires synchronously in the
+  // effect body. `limit=1` because the public page in this reply is not the one
+  // rendered - the surface-cached read above owns that - so asking for ten rows
+  // and their stop lookup would spend a second query on rows nobody reads.
   useEffect(() => {
     const viewerOwnsThisProfile = viewerHandle !== "" && viewerHandle === routeHandle;
     const controller = new AbortController();
     async function loadOwnStoryCount() {
       if (!viewerOwnsThisProfile || routeHandle === YOU_SENTINEL) {
         setOwnStoryCount(null);
+        setOwnUnlistedCrawls([]);
         return;
       }
       const response = await authedFetch(
-        `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own`,
+        `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own&limit=1`,
         { signal: controller.signal, cache: "no-store" },
       ).catch(() => null);
       if (!response?.ok || controller.signal.aborted) {
@@ -514,11 +525,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         return;
       }
       const body = (await response.json().catch(() => null)) as
-        | { ownCount?: number | null }
+        | {
+            ownCount?: number | null;
+            unlisted?: Array<{ slug: string; title: string; stops: number | null }>;
+          }
         | null;
       if (controller.signal.aborted) return;
       const own = body?.ownCount;
       setOwnStoryCount(typeof own === "number" && Number.isFinite(own) ? own : null);
+      setOwnUnlistedCrawls(Array.isArray(body?.unlisted) ? body.unlisted : []);
     }
     void loadOwnStoryCount();
     return () => controller.abort();
@@ -1108,8 +1123,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
 
                   {/* The destination behind the Crawls tile. It prints only
                       when this handle has published one, so an empty section
-                      never sits under a zero. */}
-                  {!youSignedOut && authoredCrawls.length > 0 ? (
+                      never sits under a zero - or when the owner has an
+                      unlisted crawl, which lives nowhere else at all. */}
+                  {!youSignedOut &&
+                  (authoredCrawls.length > 0 || ownUnlistedCrawls.length > 0) ? (
                     <section
                       id="crawl-stories"
                       className="profileDropsSection"
@@ -1150,6 +1167,31 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                             And {storyCount - authoredCrawls.length} more.
                           </p>
                         ) : null
+                      ) : null}
+                      {/* The owner's own unlisted crawls, and the ONE line that
+                          says why their published tally is larger than the
+                          public figure above it. A count with no way through
+                          would be a dead end wearing a number, so the line
+                          opens the rows it counts. Nobody but the verified
+                          owner is ever answered with them. */}
+                      {ownUnlistedCrawls.length > 0 ? (
+                        <details className="profileCrawlUnlisted">
+                          <summary>{ownUnlistedCrawlsLabel(ownUnlistedCrawls.length)}</summary>
+                          <ul className="profileCrawlList">
+                            {ownUnlistedCrawls.map((crawl) => (
+                              <li key={crawl.slug} className="profileCrawlRow">
+                                <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
+                                  {crawl.title}
+                                </Link>
+                                {typeof crawl.stops === "number" ? (
+                                  <span className="profileCrawlStops">
+                                    {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
+                                  </span>
+                                ) : null}
+                              </li>
+                            ))}
+                          </ul>
+                        </details>
                       ) : null}
                     </section>
                   ) : null}
