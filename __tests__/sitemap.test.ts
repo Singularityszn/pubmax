@@ -214,7 +214,8 @@ describe("sitemap() when historic data is unavailable", () => {
     expect(degradedUrls.some((u) => u.includes("/ledger/"))).toBe(true);
     expect(
       errorSpy.mock.calls.some((call) =>
-        String(call[0]).includes("[sitemap][ALERT]") &&
+        String(call[0]).includes("[freshness-audit][ALERT]") &&
+        String(call[0]).includes("sitemap historic degrade") &&
         String(call[0]).includes("historic"),
       ),
     ).toBe(true);

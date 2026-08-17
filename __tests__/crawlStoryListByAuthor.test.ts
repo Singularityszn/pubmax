@@ -244,6 +244,30 @@ describe("listStoriesByAuthor (Supabase)", () => {
     expect(listed.map((row) => row.slug)).toEqual(["loop-one-abc123"]);
   });
 
+  it("never lists unlisted crawls on the public author profile", async () => {
+    db.stories.push(
+      {
+        id: "story-public",
+        slug: "listed-abc123",
+        title: "Listed",
+        created_at: "2026-08-01T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "public",
+      },
+      {
+        id: "story-unlisted",
+        slug: "direct-only-def456",
+        title: "Direct Link Only",
+        created_at: "2026-08-02T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "unlisted",
+      },
+    );
+
+    const listed = await listStoriesByAuthor("ken");
+    expect(listed.map((row) => row.slug)).toEqual(["listed-abc123"]);
+  });
+
   it("keeps the crawls and leaves the count unknown when the stops read fails", async () => {
     vi.spyOn(console, "warn").mockImplementation(() => {});
     db.stories.push({

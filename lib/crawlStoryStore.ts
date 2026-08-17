@@ -560,7 +560,7 @@ export async function listStoriesByAuthor(
         .from(STORIES_TABLE)
         .select("id,slug,title,created_at")
         .eq("author_handle", author)
-        .neq("visibility", "draft")
+        .eq("visibility", "public")
         .order("created_at", { ascending: false })
         .limit(bounded);
       if (error) throw new Error(error.message);
@@ -589,7 +589,7 @@ export async function listStoriesByAuthor(
     }
   }
   return [...memoryStories.values()]
-    .filter((story) => story.authorHandle === author && story.visibility !== "draft")
+    .filter((story) => story.authorHandle === author && story.visibility === "public")
     .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
     .slice(0, bounded)
     .map((story) => ({

@@ -11,6 +11,7 @@ import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
 } from "@/lib/drinkBrandAreaLanding.server";
+import { notifySitemapHistoricDegrade } from "@/lib/freshnessNotify";
 
 // Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
@@ -95,12 +96,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // Historic URLs are optional for sitemap generation: a failed or empty read
   // omits /historic/{slug} only, while the core price-derived families still
-  // publish. Ops get a loud `[sitemap][ALERT]` line (freshness-audit idiom) so
-  // an empty historic pack is not mistaken for health.
+  // publish. Ops get a loud freshness-audit ALERT so an empty historic pack is
+  // not mistaken for health.
   if (historicPubs.length === 0) {
-    console.error(
-      "[sitemap][ALERT] historic pub dataset is empty or unreadable; /historic/{slug} URLs are omitted from this generation and price-derived URLs still ship",
-    );
+    notifySitemapHistoricDegrade();
   }
 
   const entries: MetadataRoute.Sitemap = [];
