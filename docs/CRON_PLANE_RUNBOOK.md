@@ -87,7 +87,7 @@ still sits clear of the evening read.
 | What's-On — events vertical | Ticketmaster / Skiddle | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` | Provider noop-skips; slim cron logs the absent keys. Skiddle also needs **written commercial approval** (email dev@skiddle.com) before use. |
 | Events (later) | Ticketmaster Discovery | `TICKETMASTER_API_KEY` | Free instant key; lights up the events vertical when full ingest is wired. |
 | **Night Signals — candidates** | Exa | `EXA_API_KEY` | Cron logs the absent key and no-op skips; candidates stay wherever the last sweep left them. |
-| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons return 503 before they claim a job; queued posts, comments, and quotes stay pending. |
+| **Social text moderation** | OpenAI | `OPENAI_API_KEY` | Both crons answer `200 { skipped: "openai_not_configured" }` before they claim a job; queued posts, comments, and quotes stay pending. The posts cron still reads the backlog and logs its `[social-moderation][ALERT]` findings on that skip. |
 | **UK city pub enrichment** | Exa through Vercel AI Gateway, with Tavily fallback (discovery only - never provenance; see `data/price_sources.json`) | `SEARCH_PROVIDER`, `AI_GATEWAY_API_KEY` or automatic Vercel OIDC, `SEARCH_GATEWAY_MAX_CALLS`, `TAVILY_API_KEY` | Defaults to Exa. Missing Gateway credentials or a failed Gateway request fall back loudly when Tavily is configured. Explicit Tavily selection requires `TAVILY_API_KEY` and does not use Exa. When the selection has no configured provider or fallback, the cron is an honest no-op. Set server-only values as Vercel secrets. |
 
 Provider-key failures follow the table above. A missing key never produces fake
@@ -219,7 +219,11 @@ would only duplicate the live path. Same for `/api/last-train` and friends
 - Social moderation provider failures keep posts, comments, and quotes held.
   Retryable failures use bounded backoff; terminal failures require an
   authenticated requeue action.
-- Missing `OPENAI_API_KEY` returns **503** before any queued job is claimed.
+- Missing `OPENAI_API_KEY` returns **`200 { skipped: "openai_not_configured" }`**
+  before any queued job is claimed. An absent key is a configuration fact, not a
+  failed drain. The posts cron still inspects the backlog and emits its findings
+  on that path, so a growing pending queue is never silent. A store failure is
+  the separate **503 `UNAVAILABLE`** answer, with the cause logged.
 - City enrichment provider failure → **`502 PROVIDER_UNAVAILABLE`** with an
   `[ALERT]` log; any partial batch already processed is logged as a
   `[partial]` line (progress observations stream per pub, so a mid-batch

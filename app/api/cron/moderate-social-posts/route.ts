@@ -37,13 +37,20 @@ export async function GET(request: Request): Promise<Response> {
         compatibilityFields: { ok: false },
       });
     }
+    const store = socialPostStore();
     if (!isOpenAISocialModerationConfigured()) {
       console.warn(
         "[cron:moderate-social-posts] OPENAI_API_KEY absent: moderation queue skipped.",
       );
-      return jsonNoStore({ ok: true, skipped: "openai_not_configured" });
+      const skippedBacklog = await store.inspectModerationBacklog();
+      const skippedFindings = notifySocialModerationFindings(skippedBacklog);
+      return jsonNoStore({
+        ok: true,
+        skipped: "openai_not_configured",
+        backlog: skippedBacklog,
+        ...skippedFindings,
+      });
     }
-    const store = socialPostStore();
     const result = await store.processModerationQueue(
       new OpenAISocialPostModerationAdapter(),
       20,

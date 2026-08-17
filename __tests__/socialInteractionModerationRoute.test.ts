@@ -70,7 +70,7 @@ describe("Social interaction moderation worker", () => {
     expect(processModerationQueue).not.toHaveBeenCalled();
   });
 
-  it("answers queue_empty when nothing is waiting", async () => {
+  it("names an unclaimed drain honestly rather than calling the queue empty", async () => {
     state.drainResult = {
       processed: 0,
       approved: 0,
@@ -83,7 +83,7 @@ describe("Social interaction moderation worker", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({
       ok: true,
-      skipped: "queue_empty",
+      skipped: "no_jobs_claimed",
       processed: 0,
       approved: 0,
       needsReview: 0,

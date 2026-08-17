@@ -4,6 +4,7 @@ const state = vi.hoisted(() => ({
   calls: 0,
   requeueCalls: 0,
   purgeCalls: 0,
+  inspectCalls: 0,
   backlogPending: 1,
   drainShouldThrow: false,
   drainResult: {
@@ -28,11 +29,14 @@ vi.mock("@/lib/socialPostStore", () => ({
       state.requeueCalls += 1;
       return 3;
     },
-    inspectModerationBacklog: async () => ({
-      pending: state.backlogPending,
-      strandedTerminal: state.backlogPending > 0 ? 1 : 0,
-      oldestPendingAgeMs: state.backlogPending > 0 ? 45 * 60 * 1000 : null,
-    }),
+    inspectModerationBacklog: async () => {
+      state.inspectCalls += 1;
+      return {
+        pending: state.backlogPending,
+        strandedTerminal: state.backlogPending > 0 ? 1 : 0,
+        oldestPendingAgeMs: state.backlogPending > 0 ? 45 * 60 * 1000 : null,
+      };
+    },
   }),
 }));
 vi.mock("@/lib/socialModerationNotify", () => ({
@@ -82,6 +86,7 @@ beforeEach(() => {
   state.calls = 0;
   state.requeueCalls = 0;
   state.purgeCalls = 0;
+  state.inspectCalls = 0;
   state.backlogPending = 1;
   state.drainShouldThrow = false;
   state.drainResult = {
@@ -148,8 +153,19 @@ describe("Social post moderation worker", () => {
     expect(await response.json()).toEqual({
       ok: true,
       skipped: "openai_not_configured",
+      backlog: { pending: 1, strandedTerminal: 1, oldestPendingAgeMs: 45 * 60 * 1000 },
+      findings: [
+        {
+          kind: "stranded_terminal",
+          detail: "stranded",
+          pending: 1,
+          strandedTerminal: 1,
+          oldestPendingAgeMs: 45 * 60 * 1000,
+        },
+      ],
     });
     expect(state.calls).toBe(0);
+    expect(state.inspectCalls).toBe(1);
   });
 
   it("answers queue_empty when nothing is waiting", async () => {

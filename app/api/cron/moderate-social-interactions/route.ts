@@ -26,7 +26,10 @@ export async function GET(request: Request): Promise<Response> {
       20,
     );
     if (result.processed === 0) {
-      return jsonNoStore({ ok: true, skipped: "queue_empty", ...result });
+      // A claim leases nothing when the queue is empty AND when every held job
+      // is in backoff or has exhausted its retries. This lane has no backlog
+      // inspector, so it may not call that "queue empty".
+      return jsonNoStore({ ok: true, skipped: "no_jobs_claimed", ...result });
     }
     return jsonNoStore({ ok: true, ...result });
   } catch (error) {
