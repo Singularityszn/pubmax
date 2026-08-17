@@ -6,6 +6,8 @@ out/
 !app/out/**
 !lib/out/
 !lib/out/**
+!components/out/
+!components/out/**
 dist/
 .env*
 !.env.example

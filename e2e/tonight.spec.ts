@@ -33,8 +33,8 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
   ).toBeVisible();
 
   // The screen resolves to exactly one of: list, empty, error status. Wait for
-  // the loading status to clear into one of those terminal states.
-  await expect(page.getByText("Reading tonight’s listings…")).toHaveCount(0, {
+  // the loading skeleton to clear into one of those terminal states.
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, {
     timeout: 10_000,
   });
   await expect(page.locator(".tonightStatus, .tonightList")).toHaveCount(1, {
@@ -249,4 +249,50 @@ test("mobile keeps Now as a root tab over live today and tonight", async ({
     .click();
   await expect(page).toHaveURL(/\/tonight$/);
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
+});
+
+const PLAYHOUSE_EVENT = {
+  id: "events-tm-playhouse",
+  placeName: "Soho Theatre",
+  kind: "event",
+  startsAt: "2026-08-16T19:00:00.000Z",
+  title: "A Night at the Playhouse",
+  source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+  observedAt: "2026-08-16T09:00:00.000Z",
+  confidence: "listed",
+  sourceId: "1",
+};
+
+test("shows a ready Out event card even when What's-On is empty", async ({ page }) => {
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows: [],
+        asOf: "2026-08-16T12:00:00.000Z",
+        sourceObservedAt: "2026-08-16T12:00:00.000Z",
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    }),
+  );
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [PLAYHOUSE_EVENT],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByText("A Night at the Playhouse")).toBeVisible();
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "ready");
 });

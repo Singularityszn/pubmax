@@ -16,7 +16,11 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
-import { buildCityChooserSearchResults } from "@/lib/cityChooserSearch";
+import {
+  buildCityChooserSearchResults,
+  cityGuidesHavePricesLine,
+  cityGuidesSearchUnavailableLine,
+} from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
 import { cityMapShareUrl } from "@/lib/cityShare";
 import { resolveLocateMapDestination } from "@/lib/locateMapDestination";
@@ -245,8 +249,7 @@ export default function CityChooser({
             />
           </div>
           <p id={`${listId}-search-help`} className="cityChooserSearchHelp">
-            The nine city guides have prices and crawls. Other UK places open
-            the pub map without prices.
+            {cityGuidesHavePricesLine(cities.length)}
           </p>
         </div>
 
@@ -338,8 +341,7 @@ export default function CityChooser({
               </p>
             ) : placeIndex.status === "error" ? (
               <p className="cityChooserSearchStatus" role="status">
-                Town search isn’t available right now. The nine city maps are
-                below.
+                {cityGuidesSearchUnavailableLine(cities.length)}
               </p>
             ) : (
               <p className="cityChooserSearchStatus">

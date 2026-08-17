@@ -36,6 +36,45 @@ export type CityChooserSearchResult =
 const UNCOVERED_DESCRIPTION =
   "No prices logged here yet. Open the pub map and you could be first.";
 
+const SMALL_COUNT_WORDS = [
+  "zero",
+  "one",
+  "two",
+  "three",
+  "four",
+  "five",
+  "six",
+  "seven",
+  "eight",
+  "nine",
+  "ten",
+  "eleven",
+  "twelve",
+  "thirteen",
+  "fourteen",
+  "fifteen",
+  "sixteen",
+  "seventeen",
+  "eighteen",
+  "nineteen",
+  "twenty",
+] as const;
+
+/** The list length, in words a reader can hear. Never a typed city count. */
+export function cityGuideCountWord(count: number): string {
+  return count >= 0 && count < SMALL_COUNT_WORDS.length
+    ? SMALL_COUNT_WORDS[count]
+    : String(count);
+}
+
+export function cityGuidesHavePricesLine(count: number): string {
+  return `The ${cityGuideCountWord(count)} city guides have prices and crawls. Other UK places open the pub map without prices.`;
+}
+
+export function cityGuidesSearchUnavailableLine(count: number): string {
+  return `Town search isn’t available right now. The ${cityGuideCountWord(count)} city maps are below.`;
+}
+
 /**
  * What a place inside a curated city gets by being part of it. The line names
  * only what that city actually ships: a pack that is the map and nothing else

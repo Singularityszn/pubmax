@@ -280,10 +280,25 @@ test("Tonight reserves loading space without holding settled content", async ({
       body: JSON.stringify({ rows: [], asOf: "2026-08-14T18:00:00.000Z" }),
     });
   });
+  await page.route("**/api/out?**", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [],
+      }),
+    });
+  });
 
   const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
   const navigation = navigateToAuditedRoute(page, baseURL!, route);
-  await expect(page.getByText("Reading tonight’s listings…")).toBeVisible();
+  await expect(page.getByTestId("listings-skeleton")).toBeVisible();
   expect(await page.locator(".tonightPrimary").evaluate((element) =>
     Number.parseFloat(getComputedStyle(element).minHeight),
   )).toBeGreaterThan(0);
@@ -306,6 +321,20 @@ test("Tonight error settles without holding loading space", async ({ baseURL, pa
       body: JSON.stringify({ rows: [], error: "Store unavailable" }),
     });
   });
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [],
+      }),
+    }),
+  );
 
   const route = AUDITED_ROUTES.find(({ name }) => name === "tonight")!;
   const result = await navigateToAuditedRoute(page, baseURL!, {

@@ -37,9 +37,11 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import {
   buildDayGreeting,
-  PICKS_EMPTY_LINE,
+  picksCardStatus,
+  picksListLine,
   type DayGreeting,
   type DaySlot,
+  type PicksListReadStatus,
 } from "@/lib/dayGreeting";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -69,6 +71,7 @@ type Props = {
   weather: WeatherBrief | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
+  picksStatus: PicksListReadStatus;
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
@@ -141,13 +144,20 @@ function PicksCard({
   picks,
   filteredPickCount,
   slot,
+  picksStatus,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
   slot: DaySlot;
+  picksStatus: PicksListReadStatus;
 }) {
   return (
-    <section className="todayCard" aria-labelledby="today-picks-title" data-testid="today-picks">
+    <section
+      className="todayCard"
+      aria-labelledby="today-picks-title"
+      data-testid="today-picks"
+      data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
+    >
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
           <CalendarClock size={18} />
@@ -223,7 +233,7 @@ function PicksCard({
           <p className="todayCardEmpty">
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
-              : PICKS_EMPTY_LINE[slot]}
+              : picksListLine(picksStatus, slot)}
           </p>
           <p className="todayCardFootRow">
             <Link href="/map" className="todayCardFootLink">
@@ -299,6 +309,7 @@ export default function TodayClient({
   weather,
   weatherByArea,
   picks,
+  picksStatus,
   fact,
   pintsIndex,
   quietPint,
@@ -383,6 +394,7 @@ export default function TodayClient({
             picks={brief.picks}
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
+            picksStatus={picksStatus}
           />
           <TodayGetThereStrip />
         </div>

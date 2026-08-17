@@ -20,7 +20,7 @@ export const AUDITED_ROUTES = [
     path: "/tonight",
     readySelector:
       '[data-testid="tonight-screen"][data-listings-status="ready"]:has(.tonightFootLink), [data-testid="tonight-screen"][data-listings-status="empty"]:has(.tonightStatusLink), [data-testid="tonight-screen"][data-listings-status="error"]:has(.tonightStatusError .tonightRetry), [data-testid="tonight-screen"]:not([data-listings-status]):has(.tonightFootLink, .tonightStatusLink, .tonightStatusError .tonightRetry)',
-    pendingTexts: ["Reading tonight’s listings…"],
+    pendingTexts: [],
     waitForAuthResolution: true,
   },
   { name: "near", path: "/near", readySelector: ".nmnIntro", waitForAuthResolution: true },

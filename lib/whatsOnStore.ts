@@ -190,8 +190,12 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   };
 };
 
+export type WhatsOnReadStatus = "ready" | "degraded";
+
 export type LoadWhatsOnResult = {
   rows: WhatsOnRow[];
+  /** Whether the bundled read answered. A throw is degraded, never "nothing on". */
+  readStatus: WhatsOnReadStatus;
   servedAt: string;
   revalidation:
     | { status: "measured" }
@@ -253,7 +257,14 @@ export async function loadWhatsOn(
 ): Promise<LoadWhatsOnResult> {
   const now = deps.now ?? Date.now();
   const servedAt = new Date(now).toISOString();
-  const baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+  let readStatus: WhatsOnReadStatus = "ready";
+  let baseline: WhatsOnRow[] = [];
+  try {
+    baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+  } catch {
+    readStatus = "degraded";
+    baseline = [];
+  }
   const datasetObservedAt =
     deps.baselineSourceObservedAt === undefined
       ? deps.loadBaseline
@@ -330,6 +341,7 @@ export async function loadWhatsOn(
 
   return {
     rows,
+    readStatus,
     servedAt,
     revalidation,
     sourceObservedAt,

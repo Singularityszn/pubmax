@@ -6,7 +6,10 @@ import { describe, expect, it } from "vitest";
 import { CITIES, listEnabledCities } from "@/lib/cities";
 import {
   buildCityChooserSearchResults,
+  cityGuideCountWord,
   cityGuideMembershipLine,
+  cityGuidesHavePricesLine,
+  cityGuidesSearchUnavailableLine,
 } from "@/lib/cityChooserSearch";
 import {
   normaliseUkPlaceQuery,
@@ -148,5 +151,21 @@ describe("city chooser search mobile contract", () => {
     expect(css).toMatch(
       /@media \(max-width: 560px\)[\s\S]*?\.cityChooserResults\s*{[^}]*grid-template-columns:\s*1fr/,
     );
+  });
+});
+
+describe("city guide count copy", () => {
+  it("derives the count from the enabled list, never a typed nine", () => {
+    const count = listEnabledCities().length;
+    const word = cityGuideCountWord(count);
+    expect(count).toBeGreaterThan(0);
+    expect(cityGuidesHavePricesLine(count)).toContain(`${word} city guides`);
+    expect(cityGuidesSearchUnavailableLine(count)).toContain(`${word} city maps`);
+    if (count !== 9) {
+      expect(cityGuidesHavePricesLine(count)).not.toMatch(/\bnine city guides/);
+      expect(cityGuidesSearchUnavailableLine(count)).not.toMatch(/\bnine city maps/);
+    }
+    expect(cityGuidesHavePricesLine(10)).toContain("ten city guides");
+    expect(cityGuidesHavePricesLine(10)).not.toMatch(/\bnine city guides/);
   });
 });

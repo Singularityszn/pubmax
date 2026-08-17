@@ -30,6 +30,8 @@ import {
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
+import ListingsSkeleton from "@/components/out/ListingsSkeleton";
+import { useOutListings } from "@/components/out/useOutListings";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -68,6 +70,11 @@ import {
   orderDealsInPlace,
 } from "@/lib/dealsHonesty";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import {
+  mergeTonightListingRows,
+  tonightListingsErrorLine,
+  tonightListingsStatus,
+} from "@/lib/tonightOutListings";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
@@ -200,6 +207,25 @@ export default function TonightClient({
     true,
     tonightNear?.near ?? null,
   );
+  const {
+    body: outBody,
+    failed: outFailed,
+    pending: outPending,
+    retry: retryOut,
+  } = useOutListings("tonight");
+  const outAnswer = useMemo(
+    () => ({ body: outBody, failed: outFailed, pending: outPending }),
+    [outBody, outFailed, outPending],
+  );
+  const listingRows = useMemo(
+    () => mergeTonightListingRows(rows, outBody?.events ?? []),
+    [rows, outBody],
+  );
+  const listingsStatus = tonightListingsStatus(status, outAnswer);
+  const retryListings = useCallback(() => {
+    retry();
+    retryOut();
+  }, [retry, retryOut]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -267,14 +293,14 @@ export default function TonightClient({
     [tonightNear],
   );
   const groupedAll = useMemo(() => {
-    const groups = groupTonightListings(rows, tonightNear?.near ?? null, {
+    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null, {
       v2: flags.tonightGrouping,
     });
     // Deals order among themselves: nearest patch first, then closing soonest.
     // In place, so no quiz, match or gig moves to make room, and so the order
     // holds on the mixed list rather than only behind the Deal filter.
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
-  }, [rows, tonightNear, flags.tonightGrouping, dealAnchor]);
+  }, [listingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
@@ -284,25 +310,25 @@ export default function TonightClient({
   // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
   // lane's own facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
-  const ready = status === "ready";
+  const ready = listingsStatus === "ready";
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
     [facets, ready],
   );
 
-  const empty = status === "empty";
+  const empty = listingsStatus === "empty";
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   const checked = freshnessLabel(sourceFreshnessKind, asOf);
-  const errored = status === "error";
-  const loading = status === "idle";
-  // Unfiltered `rows.length`, not the kind-filtered `visible.length` — a thin
+  const errored = listingsStatus === "error";
+  const loading = listingsStatus === "idle";
+  // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && rows.length <= THIN_NIGHT_MAX_ROWS);
+  const thinNight = empty || (ready && listingRows.length <= THIN_NIGHT_MAX_ROWS);
   const hasGeoRows =
     ready &&
-    rows.some(
+    listingRows.some(
       (row) => typeof row.lat === "number" && typeof row.lng === "number",
     );
   const showLocation = hasGeoRows || thinNight;
@@ -329,7 +355,7 @@ export default function TonightClient({
       id="main"
       className="tonightPage"
       data-testid="tonight-screen"
-      data-listings-status={status}
+      data-listings-status={listingsStatus}
     >
       <SiteNav active="tonight" />
 
@@ -352,7 +378,7 @@ export default function TonightClient({
                 header's wording has been rewritten twice and took the specs
                 that read it down both times. */}
             <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={checked ? "yes" : "no"}>
-              {coverageLabel(rows.length)}
+              {coverageLabel(listingRows.length)}
               <span aria-hidden="true"> · </span>
               {/* One template literal so the separator spacing survives JSX
                   text-node splitting (the built output was eating the space before
@@ -397,17 +423,13 @@ export default function TonightClient({
         </div>
       </aside>
 
-      <div className="tonightPrimary" data-status={status}>
-      {loading ? (
-        <p className="tonightStatus" role="status">
-          Reading tonight&rsquo;s listings…
-        </p>
-      ) : null}
+      <div className="tonightPrimary" data-status={listingsStatus}>
+      {loading ? <ListingsSkeleton /> : null}
 
       {errored ? (
         <div className="tonightStatus tonightStatusError">
-          <p role="status">Couldn&rsquo;t reach tonight&rsquo;s listings just now.</p>
-          <button type="button" className="tonightRetry" onClick={retry}>
+          <p role="status">{tonightListingsErrorLine(status, outAnswer)}</p>
+          <button type="button" className="tonightRetry" onClick={retryListings}>
             <RefreshCw size={15} aria-hidden="true" />
             Retry listings
           </button>

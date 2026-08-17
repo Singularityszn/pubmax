@@ -19,7 +19,6 @@ export function outCacheControl(status: OutStatus): string {
 export const OUT_READ_FAILED_LINE = "Could not check listings.";
 export const OUT_DEGRADED_LINE = "Some listings could not be checked.";
 export const OUT_EMPTY_LINE = "No listings for this day yet.";
-export const OUT_PENDING_LINE = "Checking listings...";
 export const OUT_NOT_CONFIGURED_LINE = "Listings are not switched on yet.";
 
 /**
@@ -60,10 +59,8 @@ export function outStatusLines(input: {
   if (input.failed) lines.push(OUT_READ_FAILED_LINE);
   const body = input.body;
   if (!body) {
-    // A pressed chip with no answer yet is day chips over a blank area, which
-    // reads as a broken surface. It is not an empty market and must never be
-    // worded as one.
-    if (!input.failed && input.pending) lines.push(OUT_PENDING_LINE);
+    // A pressed chip with no answer yet is a skeleton, not a sentence. The
+    // surface must not word that wait as an empty market either.
     return lines;
   }
   if (body.status === "degraded") {

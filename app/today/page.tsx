@@ -63,8 +63,11 @@ export default async function TodayPage() {
     loadFreshWeatherSnapshot({ now }),
     // Baseline-only (fail-soft live disabled): the brief must be reliable and
     // instant, and the bundled listings are already sourced. Tonight's own page
-    // still layers the live CityMCP enrichment on top.
-    loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }),
+    // still layers the live CityMCP enrichment on top. A throw here is a
+    // degraded read, never "nothing left".
+    loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }).catch(
+      () => null,
+    ),
     // Cheapest priced pints per area, precomputed from the bundled price dataset
     // so the client can answer the viewer's remembered area with no venue data
     // of its own and no request-time work.
@@ -87,7 +90,8 @@ export default async function TodayPage() {
   // section with five identical cards. No location on the server, so the digest
   // resolves each group's display to its soonest venue; the client re-orders the
   // resulting picks around the viewer's remembered patch below.
-  const picks = digestSectionPicks(whatsOn.rows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
+  const picksStatus = whatsOn?.readStatus ?? "degraded";
+  const picks = digestSectionPicks(whatsOn?.rows ?? [], { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
   });
@@ -141,6 +145,7 @@ export default async function TodayPage() {
       weather={weather}
       weatherByArea={weatherByArea}
       picks={picks}
+      picksStatus={picksStatus}
       fact={fact}
       pintsIndex={pintsIndex}
       quietPint={quietPint}

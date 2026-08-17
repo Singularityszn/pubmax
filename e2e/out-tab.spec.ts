@@ -100,6 +100,41 @@ for (const width of WIDTHS) {
   });
 }
 
+const PLAYHOUSE_EVENT = {
+  id: "events-tm-playhouse",
+  placeName: "Soho Theatre",
+  kind: "event",
+  startsAt: "2026-08-16T19:00:00.000Z",
+  title: "A Night at the Playhouse",
+  source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+  observedAt: "2026-08-16T09:00:00.000Z",
+  confidence: "listed",
+  sourceId: "1",
+};
+
+test("shows event cards when GET /api/out is ready", async ({ page }) => {
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [PLAYHOUSE_EVENT],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("out-screen")).toBeVisible();
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
+  await expect(page.getByText("Open plans arrive here.")).toBeVisible();
+});
+
 test.describe("out tab screenshots @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test.setTimeout(60_000);

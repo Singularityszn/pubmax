@@ -703,11 +703,9 @@ describe("outStatusLines", () => {
     ]);
   });
 
-  it("says it is checking while the pressed day has no answer yet", () => {
+  it("keeps a pending day as a skeleton, never a checking sentence", () => {
     // Never day chips over a blank area, and never worded as an empty market.
-    expect(outStatusLines({ body: null, failed: false, pending: true })).toEqual([
-      "Checking listings...",
-    ]);
+    expect(outStatusLines({ body: null, failed: false, pending: true })).toEqual([]);
     // A failed read owns the line instead; pending never doubles it up.
     expect(outStatusLines({ body: null, failed: true, pending: true })).toEqual([
       "Could not check listings.",
@@ -741,7 +739,7 @@ describe("outAnswerView", () => {
     // answered yet, so the surface says so rather than showing a blank area.
     const view = outAnswerView<Pick<OutResponse, "status" | "events" | "reason">>(null, "today");
     expect(view).toEqual({ body: null, failed: false, pending: true });
-    expect(outStatusLines({ ...view })).toEqual(["Checking listings..."]);
+    expect(outStatusLines({ ...view })).toEqual([]);
   });
 
   it("is pending again the moment another day is pressed, holding no stale cards", () => {
