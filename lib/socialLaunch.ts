@@ -9,6 +9,73 @@ export function isSocialFriendsLaunchEnabled(
   return value === "1";
 }
 
+export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
+export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
+
+/** Tab and nav label while friends launch is off vs on. */
+export function socialPrimaryNavLabel(friendsLaunchEnabled: boolean): string {
+  return friendsLaunchEnabled
+    ? SOCIAL_LAUNCH_NAV_LABEL
+    : SOCIAL_PREVIEW_NAV_LABEL;
+}
+
+/** In-page headings and loading lines use the same surface name. */
+export function socialSurfaceName(friendsLaunchEnabled: boolean): string {
+  return socialPrimaryNavLabel(friendsLaunchEnabled);
+}
+
+export function socialLoadingLabel(friendsLaunchEnabled: boolean): string {
+  return `Loading ${socialSurfaceName(friendsLaunchEnabled)}`;
+}
+
+export type SocialBoundaryCopyState =
+  | "preview"
+  | "sign_in_required"
+  | "age_verification_required"
+  | "suspended"
+  | "unavailable";
+
+/** Empty-state lines for SocialAccessBoundary — surface name follows the launch flag. */
+export function socialBoundaryCopy(
+  state: SocialBoundaryCopyState,
+  friendsLaunchEnabled: boolean,
+): string {
+  const surface = socialSurfaceName(friendsLaunchEnabled);
+  switch (state) {
+    case "preview":
+      return `${surface} is invite-only for now. It opens more widely soon.`;
+    case "sign_in_required":
+      return `Sign in to use ${surface}.`;
+    case "age_verification_required":
+      return `Adult check needed for ${surface}.`;
+    case "suspended":
+      return `${surface} access is suspended.`;
+    case "unavailable":
+      return `${surface} is unavailable right now.`;
+  }
+}
+
+export function socialInviteMessage(friendsLaunchEnabled: boolean): string {
+  return `Use ${socialSurfaceName(friendsLaunchEnabled)}.`;
+}
+
+export function adultSelfAssertionLine(friendsLaunchEnabled: boolean): string {
+  return `${socialSurfaceName(friendsLaunchEnabled)} is for over-18s.`;
+}
+
+/** Body dataset written by root layout (`data-social-friends-launch`). */
+export function readSocialFriendsLaunchFromDocument(): boolean {
+  if (typeof document === "undefined") return false;
+  return document.body.dataset.socialFriendsLaunch === "1";
+}
+
+export function subscribeSocialFriendsLaunchFromDocument(
+  _onStoreChange: () => void,
+): () => void {
+  // The flag is env-driven and only changes on a full navigation after deploy.
+  return () => {};
+}
+
 /**
  * What the product may say when it asks the age question. One place, because
  * the prompt, the button and the refusal are read together and a second copy

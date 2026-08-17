@@ -56,9 +56,7 @@ test.describe("mobile Pubs gallery", () => {
     const response = await page.goto("/pubs");
     expect(response?.status()).toBe(200);
 
-    await expect(
-      page.getByRole("heading", { name: "Pubs with a drink on every card", exact: true }),
-    ).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: /Chains/i })).toBeVisible();
     await expect(page.locator(".pubsCard").first()).toBeVisible();
     await expectNoHorizontalOverflow(page);
 

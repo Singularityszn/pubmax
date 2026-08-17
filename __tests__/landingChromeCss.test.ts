@@ -102,7 +102,7 @@ describe("landing chrome CSS audit", () => {
     expect(landingTsx).toMatch(/lpHeroMapCaption/);
     expect(landingTsx).toMatch(/thamesHeroHintTouch/);
     expect(landingTsx).toMatch(/thamesHeroHintPointer/);
-    expect(landingTsx).toMatch(/examples, not live listed prices/);
+    expect(landingTsx).not.toMatch(/examples, not live listed prices/);
   });
 
   it("ships three reduced-motion-safe hero presence motions", () => {

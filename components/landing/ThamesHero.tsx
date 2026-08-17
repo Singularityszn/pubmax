@@ -24,8 +24,6 @@ export type HeroPub = {
   category: DrinkCategory;
   /** Short place cue shown under the glyph (all-ages readability). */
   place: string;
-  /** Optional price tag for atmosphere, illustrative only, never in the accessible name. */
-  price: string;
   /**
    * Decorative rim colour, drawn from the real map price key (green/amber/
    * red, `mapPriceLegend.ts`: <=£5.50 green, up to £7 amber, over £7 red).
@@ -44,7 +42,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "dove",
     category: "beer",
     place: "The Dove",
-    price: "£4.20",
     band: "green",
     left: "14%",
     top: "26%",
@@ -54,7 +51,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "mayflower",
     category: "gin",
     place: "Mayflower",
-    price: "£5.10",
     band: "green",
     left: "36%",
     top: "64%",
@@ -64,7 +60,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "cheese",
     category: "whisky",
     place: "Cheshire Cheese",
-    price: "£4.60",
     band: "green",
     left: "68%",
     top: "28%",
@@ -74,7 +69,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "prospect",
     category: "wine",
     place: "Prospect of Whitby",
-    price: "£5.40",
     band: "green",
     left: "82%",
     top: "68%",
@@ -84,7 +78,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "spritz",
     category: "cocktail",
     place: "Soho spritz",
-    price: "£7.50",
     band: "red",
     left: "52%",
     top: "16%",
@@ -94,7 +87,6 @@ const HERO_PUBS: HeroPub[] = [
     id: "rum",
     category: "rum",
     place: "Dockside rum",
-    price: "£5.80",
     band: "amber",
     left: "18%",
     top: "78%",
@@ -163,7 +155,6 @@ export default function ThamesHero() {
                 <span className="thamesHeroPinMeta">
                   <span className="thamesHeroPinCat">{categoryLabel(pub.category)}</span>
                   <span className="thamesHeroPinPlace">{pub.place}</span>
-                  <span className="thamesHeroPinPrice">{pub.price}</span>
                 </span>
               </Link>
             </li>

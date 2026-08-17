@@ -13,7 +13,7 @@ test("More menu stays usable in a short desktop viewport", async ({ page }) => {
   await expect(menu.getByRole("menuitem")).toHaveText([
     "PlanBuild a three-stop outing",
     "NearFind priced pubs close to you",
-    "PubsBrowse every listed pub",
+    "ChainsChain pub menus on the map",
     "HistoricRead the stories behind old pubs",
     "PalAsk for a pub that fits tonight",
   ]);

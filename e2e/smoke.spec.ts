@@ -160,7 +160,7 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   const errors = watchPageErrors(page);
   const response = await page.goto("/pubs");
   expect(response?.status()).toBe(200);
-  await expect(page.getByRole("heading", { name: /pubs with a drink/i })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1, name: /Chains/i })).toBeVisible();
   await expect(page.locator(".pubsCard").first()).toBeVisible();
   await expect(
     page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Social" }),

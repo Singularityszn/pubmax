@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import Link from "next/link";
 
 import SiteNav from "@/components/nav/SiteNav";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { loadAboutStats, type AboutStats } from "@/lib/aboutStats";
 import { buildLeagueTable, indexSummary } from "@/lib/pintIndex";
 import { loadPublicPintIndexSnapshot } from "@/lib/publicPintIndexSnapshot.server";
@@ -31,10 +32,10 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/about" },
   openGraph: {
-    title: `${PAGE_TITLE} · PUBMAXXING`,
+    title: appPageTitle(PAGE_TITLE),
     description: PAGE_DESCRIPTION,
     url: "https://pubmaxxing.com/about",
-    siteName: "PUBMAXXING",
+    siteName: metadataSiteName(),
     type: "website",
     images: [
       {
@@ -47,7 +48,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: `${PAGE_TITLE} · PUBMAXXING`,
+    title: appPageTitle(PAGE_TITLE),
     description: PAGE_DESCRIPTION,
     images: ["/og.png"],
   },

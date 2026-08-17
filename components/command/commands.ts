@@ -24,9 +24,9 @@ export const commands: Command[] = [
   },
   {
     id: "nav-pubs",
-    label: "Pubs",
+    label: "Chains",
     hint: "/pubs",
-    keywords: ["leaderboard", "cheapest", "prices", "ranking"],
+    keywords: ["leaderboard", "cheapest", "prices", "ranking", "chain"],
     group: "Navigate",
     run: (ctx) => ctx.navigate("/pubs"),
   },

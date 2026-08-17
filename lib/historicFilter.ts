@@ -6,7 +6,7 @@
 // records loaded by lib/historic — it never fabricates a field. The citation
 // helpers below derive a link + label strictly from the data's own sourceRefs.
 
-import type { HistoricPub } from "@/lib/historic";
+import type { HistoricPub, HistoricVenueStatus } from "@/lib/historic";
 
 export type HistoricSort = "oldest" | "az" | "borough";
 
@@ -62,6 +62,15 @@ export function availableBoroughs(pubs: HistoricPub[]): string[] {
 /** Human label for a listed grade, e.g. "II*" → "Grade II*". null → null. */
 export function listedBadge(listed: string | null): string | null {
   return listed ? `Grade ${listed}` : null;
+}
+
+/** Venue lifecycle badge from stored status only — never guessed from hook text. */
+export function venueStatusBadge(
+  status: HistoricVenueStatus | null | undefined,
+): string | null {
+  if (status === "closed") return "Closed";
+  if (status === "demolished") return "Demolished";
+  return null;
 }
 
 // Canonical human label for a heritage fact's `source`, shared by every heritage

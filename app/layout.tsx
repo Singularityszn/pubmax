@@ -31,6 +31,7 @@ import PosthogPageviews from "@/components/PosthogPageviews";
 import SkipLink from "@/components/a11y/SkipLink";
 import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
+import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -228,6 +229,7 @@ export default async function RootLayout({
   // Server-only two-key check. Client components receive only this boolean,
   // never CLERK_SECRET_KEY or a value derived from its contents.
   const clerkIntegrationConfigured = isClerkMiddlewareConfigured();
+  const socialFriendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
   return (
     <html
       lang="en"
@@ -317,7 +319,7 @@ export default async function RootLayout({
             every other inline script under the nonce CSP (proxy.ts). */}
         <JsonLd data={SITE_JSON_LD} nonce={nonce} />
       </head>
-      <body>
+      <body data-social-friends-launch={socialFriendsLaunchEnabled ? "1" : "0"}>
         <SplashAperture />
         <SkipLink />
         {/* ClerkProvider is additive beside AuthProvider and sits OUTSIDE it.

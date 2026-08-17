@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { parseOutDayWindow } from "@/lib/outListings";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
 import OutClient from "./OutClient";
 
@@ -17,7 +18,7 @@ const PAGE_DESCRIPTION =
 // until L2 and L4 give it content of its own. The Open Graph tags stay, because
 // a shared link still deserves a card and `og:` is not an indexing instruction.
 export const metadata: Metadata = {
-  title: `${PAGE_TITLE} · PUBMAXXING`,
+  title: appPageTitle(PAGE_TITLE),
   description: PAGE_DESCRIPTION,
   robots: {
     index: false,
@@ -25,10 +26,10 @@ export const metadata: Metadata = {
     googleBot: { index: false, follow: true },
   },
   openGraph: {
-    title: `${PAGE_TITLE} · PUBMAXXING`,
+    title: appPageTitle(PAGE_TITLE),
     description: PAGE_DESCRIPTION,
     url: "https://pubmaxxing.com/out",
-    siteName: "PUBMAXXING",
+    siteName: metadataSiteName(),
     type: "website",
   },
 };

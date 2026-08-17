@@ -1,18 +1,17 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
+import { socialSurfaceName } from "@/lib/socialLaunch";
+import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
 
-export const metadata: Metadata = {
-  title: "Social",
-  description: "Chronological pub-night posts and public pub discovery.",
-  alternates: { canonical: "/social" },
-  robots: { index: true, follow: true },
-};
+const SOCIAL_DESCRIPTION =
+  "Chronological pub-night posts and public pub discovery.";
 
 type SearchParams = Record<string, string | string[] | undefined>;
 
@@ -28,6 +27,26 @@ function toUrlSearchParams(input: SearchParams): URLSearchParams {
   return params;
 }
 
+export async function generateMetadata(): Promise<Metadata> {
+  const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
+  const surface = socialSurfaceName(friendsLaunchEnabled);
+  const title = appPageTitle(surface);
+  return {
+    title,
+    description: SOCIAL_DESCRIPTION,
+    alternates: { canonical: "/social" },
+    robots: { index: true, follow: true },
+    openGraph: {
+      title,
+      description: SOCIAL_DESCRIPTION,
+      url: "/social",
+      siteName: metadataSiteName(),
+      type: "website",
+      images: ["/og.png"],
+    },
+  };
+}
+
 export default async function SocialPage({
   searchParams,
 }: {
@@ -35,6 +54,8 @@ export default async function SocialPage({
 }) {
   const state = parseSocialShellSearch(toUrlSearchParams(await searchParams));
   if (!state.valid) redirect("/social");
+
+  const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
 
   const [rivalry, heritageCrawls] =
     state.tab === "discover"
@@ -46,6 +67,7 @@ export default async function SocialPage({
       initialState={state}
       rivalry={rivalry}
       heritageCrawls={heritageCrawls}
+      friendsLaunchEnabled={friendsLaunchEnabled}
     />
   );
 }

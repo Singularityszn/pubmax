@@ -14,6 +14,9 @@ import path from "node:path";
 
 import type { HeritageFact } from "@/lib/heritage";
 
+/** Closed or demolished — never inferred; absent means no badge. */
+export type HistoricVenueStatus = "closed" | "demolished";
+
 export type HistoricPub = {
   venueId: string | null;
   name: string;
@@ -25,6 +28,7 @@ export type HistoricPub = {
   facts: HeritageFact[];
   era: string | null;
   listed: string | null;
+  venueStatus?: HistoricVenueStatus | null;
   sourced: true;
 };
 

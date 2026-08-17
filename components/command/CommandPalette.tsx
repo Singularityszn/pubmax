@@ -11,8 +11,14 @@
 // input, Esc closes, ↑/↓ move the active row, Enter runs it. Backdrop click
 // closes. Entrance motion is gated behind prefers-reduced-motion in the CSS.
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { useRouter } from "next/navigation";
+
+import {
+  readSocialFriendsLaunchFromDocument,
+  socialPrimaryNavLabel,
+  subscribeSocialFriendsLaunchFromDocument,
+} from "@/lib/socialLaunch";
 
 import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
@@ -51,10 +57,29 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const socialFriendsLaunch = useSyncExternalStore(
+    subscribeSocialFriendsLaunchFromDocument,
+    readSocialFriendsLaunchFromDocument,
+    () => false,
+  );
+
+  const paletteCommands = useMemo(
+    () =>
+      commands.map((command) =>
+        command.id === "nav-social"
+          ? {
+              ...command,
+              label: socialPrimaryNavLabel(socialFriendsLaunch),
+            }
+          : command,
+      ),
+    [socialFriendsLaunch],
+  );
+
   // Filter, then re-group so each section's rows are contiguous under a single
   // header while still honouring the pure filter's ranking within a group.
   const ordered = useMemo(() => {
-    const matches = filterCommands(commands, query);
+    const matches = filterCommands(paletteCommands, query);
     const groups: CommandGroup[] = [];
     for (const cmd of matches) if (!groups.includes(cmd.group)) groups.push(cmd.group);
     return groups.flatMap((group) => matches.filter((cmd) => cmd.group === group));

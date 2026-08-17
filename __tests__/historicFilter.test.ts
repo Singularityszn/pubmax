@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import type { HistoricPub } from "@/lib/historic";
 import {
@@ -8,6 +10,7 @@ import {
   eraStartYear,
   filterAndSortHistoric,
   listedBadge,
+  venueStatusBadge,
   type HistoricFilters,
 } from "@/lib/historicFilter";
 
@@ -204,5 +207,26 @@ describe("derived helpers", () => {
     expect(citationLabel("https://camra.org.uk/pub")).toBe("CAMRA");
     expect(citationLabel("https://whatpub.com/pub")).toBe("WhatPub");
     expect(citationLabel("not a url")).toBe("Source");
+  });
+});
+
+describe("venueStatusBadge", () => {
+  it("names closed and demolished only", () => {
+    expect(venueStatusBadge("closed")).toBe("Closed");
+    expect(venueStatusBadge("demolished")).toBe("Demolished");
+    expect(venueStatusBadge(undefined)).toBeNull();
+    expect(venueStatusBadge("open")).toBeNull();
+  });
+
+  it("named audit pubs carry a recorded status in the bundle", () => {
+    const pubs = JSON.parse(
+      readFileSync(join(process.cwd(), "public/data/historic_pubs.json"), "utf8"),
+    ) as HistoricPub[];
+    const colony = pubs.find((p) => p.slug === "the-colony-room");
+    const blackCap = pubs.find((p) => p.slug === "the-black-cap");
+    const robey = pubs.find((p) => p.slug === "the-sir-george-robey");
+    expect(colony?.venueStatus).toBe("closed");
+    expect(blackCap?.venueStatus).toBe("closed");
+    expect(robey?.venueStatus).toBe("demolished");
   });
 });

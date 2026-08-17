@@ -689,7 +689,8 @@
     ],
     "era": "1948",
     "listed": null,
-    "sourced": true
+    "sourced": true,
+    "venueStatus": "closed"
   },
   {
     "venueId": "venue-1sx1vco",
@@ -3889,7 +3890,8 @@
     ],
     "era": null,
     "listed": null,
-    "sourced": true
+    "sourced": true,
+    "venueStatus": "closed"
   },
   {
     "venueId": "venue-1sw9ofl",
@@ -5915,7 +5917,8 @@
     ],
     "era": null,
     "listed": null,
-    "sourced": true
+    "sourced": true,
+    "venueStatus": "demolished"
   },
   {
     "venueId": "venue-1gz2vse",
