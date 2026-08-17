@@ -441,6 +441,19 @@ describe("the canonical-host redirect survives the Clerk composition", () => {
     expect(response.headers.get("location")).toBe("https://pubmaxxing.com/crawls");
   });
 
+  it("sends /sign-in to /login and keeps the query", () => {
+    const response = securityProxy(
+      new NextRequest("https://pubmaxxing.com/sign-in?from=/today", {
+        headers: { host: "pubmaxxing.com" },
+      }),
+    );
+
+    expect(response.status).toBe(308);
+    expect(response.headers.get("location")).toBe(
+      "https://pubmaxxing.com/login?from=/today",
+    );
+  });
+
   it("still passes the canonical host through untouched", () => {
     const response = securityProxy(
       new NextRequest("https://pubmaxxing.com/map", {

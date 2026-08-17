@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
@@ -24,6 +24,7 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
+import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -238,26 +239,54 @@ function WelcomeBackCard({
   );
 }
 
+/**
+ * What stands where the sign-in card will be while the live session answers.
+ * It says nothing about the person, because nothing is known yet: no sentence
+ * about checking, no spinner text, just the shape the card is about to take.
+ *
+ * TWO rules hold the spoken half up, and they pull against each other.
+ * `aria-busy` tells assistive technology to withhold updates from everything it
+ * wraps, and busy never clears here - the whole subtree unmounts the moment the
+ * session answers - so the live region may NOT sit inside it. It is a sibling
+ * of the busy shape rather than a child of it. And the line is empty on the
+ * first paint and fills after mount, because a live region announces a CHANGE:
+ * text already there when the region appeared is never spoken.
+ */
+function SignInSkeleton(): React.JSX.Element {
+  const announcement = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const node = announcement.current;
+    if (node) node.textContent = "Loading";
+  }, []);
+
+  return (
+    <>
+      <p ref={announcement} className="loginPageSrOnly" role="status" />
+      <div className="loginPageSkeleton" aria-busy="true">
+        <div className="loginPageSkeletonDoors" aria-hidden="true">
+          <span className="loginPageSkeletonPill" />
+          <span className="loginPageSkeletonPill" />
+        </div>
+        <div className="loginPageSkeletonOptions" aria-hidden="true">
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonField" />
+          <span className="loginPageSkeletonButton" />
+        </div>
+      </div>
+    </>
+  );
+}
+
 /** What the page says, which is the first thing a door differs in. */
 function PageHead({
-  adding,
-  signedIn,
-  door,
+  title,
+  lead,
 }: {
-  adding: boolean;
-  signedIn: boolean;
-  door: { title: string; lead: string };
+  title: string;
+  lead: string;
 }): React.JSX.Element {
-  const title = adding
-    ? "Add another account"
-    : signedIn
-      ? "You are signed in"
-      : door.title;
-  const lead = adding
-    ? "Sign in to the other account. This device keeps both, and you can switch between them whenever you like."
-    : signedIn
-      ? "Your account is ready. Jump back into the map, or sign out."
-      : door.lead;
   return (
     <header className="loginPageHead">
       <p className="loginPageEyebrow">PUBMAXXING</p>
@@ -476,11 +505,20 @@ export default function LoginPage({
   // they did not ask.
   const adding = addAccount && Boolean(user);
   const showSignedIn = Boolean(user) && !adding;
+  const returning = Boolean(welcomeBack) && !useDifferentAccount;
+  const head = loginPageHeadCopy({
+    sessionKnown: !loading,
+    adding,
+    signedIn: Boolean(user),
+    returning,
+    intent,
+    door,
+  });
 
   return (
     <main className="loginPage">
       <div className="loginPageInner">
-        <PageHead adding={adding} signedIn={Boolean(user)} door={door} />
+        <PageHead title={head.title} lead={head.lead} />
 
         {!hasAuthSurface && !loading ? (
           <p className="loginPageNotice" role="status">
@@ -489,10 +527,8 @@ export default function LoginPage({
           </p>
         ) : null}
 
-        {loading && !clerkSessionAvailable ? (
-          <p className="loginPageNotice" role="status">
-            Checking your session…
-          </p>
+        {loginPageShowsSkeleton({ sessionKnown: !loading, hasAuthSurface }) ? (
+          <SignInSkeleton />
         ) : null}
 
         {!loading && showSignedIn && user ? (

@@ -219,7 +219,7 @@ test.describe("the two doors", () => {
 
     await page.goto("/login?from=%2Fmap");
     await expect(
-      page.getByRole("heading", { name: "Welcome back", level: 1 }),
+      page.getByRole("heading", { name: "Sign in or create your account", level: 1 }),
     ).toBeVisible();
     await expect(page.getByRole("tab", { name: "Sign in" })).toHaveAttribute(
       "aria-selected",

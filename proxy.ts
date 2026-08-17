@@ -211,6 +211,12 @@ export function securityProxy(request: NextRequest) {
       NextResponse.redirect(canonicalUrl, 308),
     );
   }
+  // Hyphenated alias of /login. /signin stays the existing page redirect.
+  if (pathname === "/sign-in") {
+    const target = new URL(request.url);
+    target.pathname = "/login";
+    return applyNonProductionRobotsTag(NextResponse.redirect(target, 308));
+  }
   const legacyUkBaseTarget = legacyUkBaseRewrite(request);
   if (legacyUkBaseTarget) {
     return applyNonProductionRobotsTag(NextResponse.rewrite(legacyUkBaseTarget));

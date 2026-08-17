@@ -14,7 +14,9 @@ import { describe, expect, it } from "vitest";
 //   1. NO page server-renders per-account content. Every route in this app is
 //      a shell plus client reads; identity is resolved from the live session in
 //      the browser (components/auth/useViewerHandle.ts). A held payload can
-//      therefore never name the previous account.
+//      therefore never name the previous account. A page reads the request's
+//      credential either directly (cookies(), draftMode()) or by handing its
+//      header list to a gate module, so this fence watches both doors.
 //   2. NOTHING expects a server surface to change after a mutation. Every
 //      mutable surface owns its own /api read, so a held payload cannot hide a
 //      write that has landed.
@@ -57,16 +59,61 @@ describe("the router cache window", () => {
   });
 });
 
+/**
+ * Modules that answer a question about the CALLER's credential. A server page
+ * importing one of these renders per-session content even when it never names
+ * `cookies()` itself — app/admin/page.tsx reads the session cookie by handing
+ * `headers()` to lib/adminAuth.
+ */
+const REQUEST_CREDENTIAL_MODULES = ["@/lib/adminAuth"];
+
+/**
+ * The argued exceptions, each with the reason the held window cannot hurt it.
+ * This list may only shrink. A new entry means the staleTimes window in
+ * next.config.mjs has to be re-derived in the same commit.
+ */
+const PER_SESSION_SERVER_PAGES: Record<string, string> = {
+  "app/admin/page.tsx":
+    "Nothing in the app links to /admin, so the client router cache never holds it: the only ways in are a typed URL and AdminTokenForm's window.location.assign, both full document loads. The console shell it renders also carries no data — every /api/admin read re-gates on the same credential.",
+};
+
+function serverRouteSources(): Array<{ path: string; source: string }> {
+  return routeFiles
+    .map((file) => ({ path: relative(file), source: readFileSync(file, "utf8") }))
+    .filter(
+      ({ source }) =>
+        !source.includes('"use client"') && !source.includes("'use client'"),
+    );
+}
+
+function readsPerSessionState(source: string): boolean {
+  if (/\bcookies\s*\(\s*\)/.test(source)) return true;
+  if (/\bdraftMode\s*\(\s*\)/.test(source)) return true;
+  return REQUEST_CREDENTIAL_MODULES.some((module) =>
+    new RegExp(`from\\s+["']${module}["']`).test(source),
+  );
+}
+
 describe("invariant 1 — no page renders per-account content on the server", () => {
-  it("reads no cookie and no draft mode outside the API", () => {
-    const offenders = routeFiles.filter((file) => {
-      const source = readFileSync(file, "utf8");
-      if (source.includes('"use client"') || source.includes("'use client'")) return false;
-      return /\bcookies\s*\(\s*\)/.test(source) || /\bdraftMode\s*\(\s*\)/.test(source);
+  it("reads no cookie, no draft mode and no credential gate outside the API", () => {
+    const offenders = serverRouteSources()
+      .filter(({ source }) => readsPerSessionState(source))
+      .map(({ path: file }) => file)
+      .filter((file) => !(file in PER_SESSION_SERVER_PAGES));
+    expect(
+      offenders,
+      "a server page that reads the request's credential renders one account's page; the router cache would then hand it to the next",
+    ).toEqual([]);
+  });
+
+  it("keeps every argued exception real, so the list can only shrink", () => {
+    const stale = Object.keys(PER_SESSION_SERVER_PAGES).filter((file) => {
+      const entry = serverRouteSources().find((candidate) => candidate.path === file);
+      return !entry || !readsPerSessionState(entry.source);
     });
     expect(
-      offenders.map(relative),
-      "a server page that reads the request's cookies renders one account's page; the router cache would then hand it to the next",
+      stale,
+      "an exception whose page no longer reads per-session state must be deleted, not left as a mute button",
     ).toEqual([]);
   });
 });

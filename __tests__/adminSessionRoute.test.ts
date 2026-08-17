@@ -47,7 +47,11 @@ describe("POST /api/admin/session", () => {
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("pubmax_admin_session=");
     expect(setCookie.toLowerCase()).toContain("httponly");
-    expect(setCookie).toContain("SameSite=Strict");
+    // Lax, not Strict: GET /admin is gated on the document now, so the
+    // top-level navigation to it has to carry this cookie. A browser withholds
+    // a Strict cookie on a cross-site top-level navigation, which met a
+    // moderator arriving from a pasted link with the token form.
+    expect(setCookie).toContain("SameSite=Lax");
   });
 
   it("returns 403 for a wrong token", async () => {
@@ -108,7 +112,7 @@ describe("DELETE /api/admin/session", () => {
     expect(res.status).toBe(200);
     const setCookie = res.headers.get("set-cookie") ?? "";
     expect(setCookie).toContain("Max-Age=0");
-    expect(setCookie).toContain("SameSite=Strict");
+    expect(setCookie).toContain("SameSite=Lax");
   });
 
   it("includes Secure on the cleared cookie in production", async () => {

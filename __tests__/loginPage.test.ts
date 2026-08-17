@@ -18,6 +18,15 @@ const loginEntries = vi.hoisted(() => ({
   passwordDestination: undefined as string | null | undefined,
 }));
 
+const authState = vi.hoisted(() => ({
+  current: {
+    user: null as { email?: string; user_metadata?: Record<string, unknown> } | null,
+    loading: false,
+    configured: true,
+    welcomeBack: null as { maskedEmail: string | null } | null,
+  },
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     href,
@@ -30,15 +39,18 @@ vi.mock("next/link", () => ({
   }) => createElement("a", { href, ...rest }, children),
 }));
 
+const navigation = vi.hoisted(() => ({ redirect: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  redirect: navigation.redirect,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
-    user: null,
-    loading: false,
-    configured: true,
+    user: authState.current.user,
+    loading: authState.current.loading,
+    configured: authState.current.configured,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true },
     signInWithGoogle: authActions.google,
@@ -46,8 +58,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     signInWithEmail: authActions.email,
     cancelAuthAttempt: vi.fn(),
     signOut: vi.fn(async () => undefined),
-    welcomeBack: null,
+    switchAccount: vi.fn(async () => ({ status: "switched" })),
+    welcomeBack: authState.current.welcomeBack,
     resumeSignIn: authActions.resume,
+    handle: null,
   }),
 }));
 
@@ -96,31 +110,102 @@ beforeEach(() => {
   loginEntries.apple = null;
   loginEntries.email = null;
   loginEntries.passwordDestination = undefined;
+  authState.current = {
+    user: null,
+    loading: false,
+    configured: true,
+    welcomeBack: null,
+  };
+  navigation.redirect.mockClear();
 });
 
 describe("login page", () => {
-  it("ships a dedicated /login route and /signin alias", () => {
-    const login = readFileSync(
-      join(process.cwd(), "app/login/page.tsx"),
-      "utf8",
+  it("renders the sign-in wall at /login", async () => {
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const html = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({}) }),
     );
-    const signin = readFileSync(
-      join(process.cwd(), "app/signin/page.tsx"),
-      "utf8",
-    );
-    expect(login).toContain("LoginPage");
-    expect(signin).toMatch(/redirect\(["']\/login["']\)/);
+    expect(html).toContain("email form");
+    expect(html).toContain("Browse without signing in");
+  });
+
+  it("sends /signin to /login", async () => {
+    const { default: SignInAliasPage } = await import("@/app/signin/page");
+    SignInAliasPage();
+    expect(navigation.redirect).toHaveBeenCalledWith("/login");
   });
 
   it("renders identity, email flow, and browse-away on the signed-out wall", () => {
     const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Sign in or create your account");
     expect(html).toContain("Sign in");
     expect(html).toContain("email form");
     expect(html).toContain("social");
     expect(html).toContain("Browse without signing in");
     expect(html).toContain('href="/map"');
     expect(html).toContain('href="/privacy"');
+    expect(html).not.toContain("Welcome back");
+    expect(html).not.toContain("Checking your session");
     expect(html).not.toMatch(/—|–/);
+  });
+
+  it("stays on first-time copy while the session is still unknown", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Sign in or create your account");
+    expect(html).toContain("Use your email, or pick a handle after the link lands.");
+    expect(html).not.toContain("Welcome back");
+    expect(html).not.toContain("Checking your session");
+  });
+
+  // The body may not be empty while the session resolves: the card's shape
+  // stands in for it. `aria-busy` belongs to the region that is loading, and
+  // the screen-reader line starts EMPTY, because a live region announces a
+  // change and text already present when it mounted is never spoken.
+  it("stands the sign-in card's shape up while the session resolves", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
+    // The spoken line stands BESIDE the busy shape, never inside it.
+    expect(html).toMatch(
+      /<p class="loginPageSrOnly" role="status">\s*<\/p><div class="loginPageSkeleton"/,
+    );
+    expect(html).toContain('class="loginPageSrOnly" role="status"');
+    expect(html).not.toContain(">Loading<");
+    expect(html).not.toContain("email form");
+    expect(html).not.toContain("social");
+    // The page as a whole is not busy: aria-busy there withholds updates from
+    // everything it wraps, including the line meant to be announced.
+    expect(html).not.toContain('<main class="loginPage" aria-busy');
+  });
+
+  // A keyless build has no form to arrive: the skeleton would promise a card
+  // that never comes, so the not-configured notice is the whole answer.
+  it("never promises a sign-in card a keyless build cannot show", () => {
+    authState.current.configured = false;
+    authState.current.loading = true;
+    const busy = renderToStaticMarkup(createElement(LoginPage));
+    expect(busy).not.toContain("loginPageSkeleton");
+
+    authState.current.loading = false;
+    const settled = renderToStaticMarkup(createElement(LoginPage));
+    expect(settled).not.toContain("loginPageSkeleton");
+    expect(settled).toContain("Sign-in is not configured on this build");
+    expect(settled).not.toContain("email form");
+  });
+
+  it("drops the skeleton once the session has answered", () => {
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).toContain("email form");
+  });
+
+  it("keeps Welcome back for a returning resume cookie", () => {
+    authState.current.welcomeBack = { maskedEmail: "k***@example.test" };
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Welcome back");
+    expect(html).toContain("Continue as k***@example.test");
+    expect(html).not.toContain("Sign in or create your account");
   });
 
   it("keeps phone sign-in as a /login link and desktop as a disclosure", () => {
