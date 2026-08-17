@@ -101,6 +101,11 @@ The seams:
 - **`experimental.staleTimes` in `next.config.mjs`** is the window. It is safe
   only because no page server-renders per-account content and nothing calls
   `router.refresh()`; `__tests__/clientRouterCache.test.ts` fences both.
+  `/admin` is the one argued exception to the first invariant, named in that
+  fence as `PER_SESSION_SERVER_PAGES`: it server-renders the console or a 401
+  token form off the caller's own credential, nothing links to it, and every
+  `/api/admin` read re-gates. A second exception re-derives the whole window
+  rather than adding a list entry.
 - **`lib/surfaceDataCache.ts`** is the data half: one browser-only
   stale-while-revalidate store, so a return paints its last answer and refreshes
   behind it. It refuses auth and identity keys outright and empties at an
