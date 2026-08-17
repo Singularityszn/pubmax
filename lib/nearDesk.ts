@@ -533,7 +533,7 @@ export function parseOsmOpeningHours(
 }
 
 function amenityScore(wifi: WifiState, laptop: LaptopState): number {
-  return (wifi === "unknown" ? 0 : 2) + (laptop === "allowed" ? 1 : 0);
+  return (wifi === "yes" ? 2 : 0) + (laptop === "allowed" ? 1 : 0);
 }
 
 function openRank(state: boolean | "unknown"): number {

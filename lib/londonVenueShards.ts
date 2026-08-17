@@ -21,7 +21,6 @@
 import { parseShardManifest, type ShardEntry, type ShardManifest } from "@/lib/slimShards";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
 
-export const LONDON_VENUE_MANIFEST_PATH = "/data/london_venues/manifest.json";
 export const LONDON_VENUE_SHARD_VERSION = 1;
 
 const LONDON_VENUE_URL_PREFIX = /^\/data\/london_venues\/(?:packs\/[a-f0-9]{16}\/)?$/;

@@ -39,7 +39,6 @@ describe("nowTabHref", () => {
 describe("serverNowTabHref", () => {
   it("answers the same href whatever the hour", () => {
     expect(serverNowTabHref()).toBe("/today");
-    expect(serverNowTabHref()).toBe(serverNowTabHref());
     expect(nowTabHref(new Date("2026-08-16T16:00:00Z"))).not.toBe(serverNowTabHref());
   });
 });

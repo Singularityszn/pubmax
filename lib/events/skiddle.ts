@@ -43,11 +43,3 @@ export function createSkiddleProvider(): LiveEventsProvider {
   });
   return provider;
 }
-
-export function isSkiddleConfigured(): boolean {
-  return createSkiddleProvider().isConfigured();
-}
-
-export function resetSkiddleCache(): void {
-  createSkiddleProvider().reset();
-}
