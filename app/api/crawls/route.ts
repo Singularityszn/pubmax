@@ -198,8 +198,9 @@ export async function GET(request: Request): Promise<Response> {
   // about those rows. What may never happen is a confident 0 above a list of
   // crawls.
   //
-  // `?scope=own` additionally answers the owner's UNLISTED crawls - the rows and
-  // their total, plus the published tally the two add up to. It is handed ONLY
+  // `?scope=own` additionally answers the owner's UNLISTED crawls - the rows,
+  // their whole total, whether the page is short of it, plus the published tally
+  // the two lanes add up to. It is handed ONLY
   // to the verified owner of the handle, because an unlisted crawl is a
   // direct-link crawl and which ones somebody has is theirs to know. Rows
   // rather than a bare number, so the figure on their own passport opens
@@ -226,9 +227,20 @@ export async function GET(request: Request): Promise<Response> {
       const userId = await callerUserId(request);
       const linked = userId ? await resolveMessageHandle(request, "", userId) : "";
       if (linked && linked === handle) {
-        const unlisted = await listOwnUnlistedCrawlPage(handle);
+        // Its OWN page bound: the public `?limit=` on this same reply is trimmed
+        // by the profile to almost nothing (the cached public read owns those
+        // rows), so one number could not size both lanes. Same clamp, so the
+        // ceiling cannot drift between them.
+        const unlisted = await listOwnUnlistedCrawlPage(
+          handle,
+          clampAuthorCrawlListLimit(params.get("unlistedLimit")),
+        );
         body.unlisted = unlisted.crawls;
         body.unlistedTotal = unlisted.total;
+        // Says the page is short WITHOUT making the reader compare two figures,
+        // and never on the strength of a count that could not be measured.
+        body.unlistedHasMore =
+          unlisted.total === null ? false : unlisted.total > unlisted.crawls.length;
         // The published tally is DERIVED from the two lanes rather than counted
         // again: visibility is a closed set, so public plus unlisted is exactly
         // "not a draft", and a third query could only disagree with them.

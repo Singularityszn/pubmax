@@ -379,6 +379,75 @@ describe("GET /api/crawls?author=", () => {
     expect(trimmed.unlisted).toHaveLength(1);
   });
 
+  // THE LINE OVER THOSE ROWS NAMES A TOTAL, NOT A PAGE.
+  //
+  // The owner's unlisted rows are a page like every other, so an owner with more
+  // than one page of them used to be told they had exactly as many as the page
+  // happened to carry, while the passport tally beside it counted them all. The
+  // whole total and a short-page flag now travel with the rows.
+  it("names the whole unlisted total and says the page is short of it", async () => {
+    for (let i = 0; i < 30; i += 1) {
+      const slug = await makeStory("ken", `Direct ${String(i).padStart(2, "0")}`);
+      await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    }
+    await makeStory("ken", "Listed");
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+
+    const first = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&scope=own&limit=1`))
+    ).json()) as {
+      ownCount: number;
+      unlisted: unknown[];
+      unlistedTotal: number;
+      unlistedHasMore: boolean;
+    };
+
+    expect(first.unlisted).toHaveLength(10);
+    expect(first.unlistedTotal).toBe(30);
+    expect(first.unlistedHasMore).toBe(true);
+    expect(first.ownCount).toBe(31);
+
+    // Its own bound: the public page in this same reply is trimmed to one row,
+    // and that trim may not size the unlisted lane.
+    const widened = (await (
+      await GET(
+        new Request(`${URL_BASE}?author=ken&scope=own&limit=1&unlistedLimit=25`),
+      )
+    ).json()) as {
+      crawls: unknown[];
+      unlisted: unknown[];
+      unlistedTotal: number;
+      unlistedHasMore: boolean;
+    };
+
+    expect(widened.crawls).toHaveLength(1);
+    expect(widened.unlisted).toHaveLength(25);
+    expect(widened.unlistedTotal).toBe(30);
+    expect(widened.unlistedHasMore).toBe(true);
+
+    const clamped = (await (
+      await GET(
+        new Request(`${URL_BASE}?author=ken&scope=own&unlistedLimit=500`),
+      )
+    ).json()) as { unlisted: unknown[] };
+    expect(clamped.unlisted).toHaveLength(25);
+  });
+
+  it("says nothing is behind a page that holds every unlisted crawl", async () => {
+    const slug = await makeStory("ken", "Direct Link Only");
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+
+    const body = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&scope=own`))
+    ).json()) as { unlistedTotal: number; unlistedHasMore: boolean };
+
+    expect(body.unlistedTotal).toBe(1);
+    expect(body.unlistedHasMore).toBe(false);
+  });
+
   it("refuses the owner scope to a signed-in stranger", async () => {
     const unlisted = await makeStory("ken", "Direct Link Only");
     await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });

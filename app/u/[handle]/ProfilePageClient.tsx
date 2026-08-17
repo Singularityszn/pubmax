@@ -368,6 +368,19 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [ownUnlistedCrawls, setOwnUnlistedCrawls] = useState<
     Array<{ slug: string; title: string; stops: number | null }>
   >([]);
+  // How many unlisted crawls there are ALTOGETHER, which is what the line above
+  // those rows names. TRI-STATE like every count on this lane. It is not the
+  // page length: the page is capped, and a capped figure could not reconcile
+  // with the published tally on the passport, which is the one job that line
+  // has. The unlisted lane pages on its own bound for the same reason the public
+  // one does, and the widening carries the handle it was asked for.
+  const [ownUnlistedTotal, setOwnUnlistedTotal] = useState<number | null>(null);
+  const [unlistedHaveMore, setUnlistedHaveMore] = useState(false);
+  const [widenedUnlistedPage, setWidenedUnlistedPage] = useState("");
+  const unlistedLimit =
+    widenedUnlistedPage === routeHandle
+      ? AUTHOR_CRAWL_LIST_MAX_LIMIT
+      : AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
@@ -514,10 +527,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (!viewerOwnsThisProfile || routeHandle === YOU_SENTINEL) {
         setOwnStoryCount(null);
         setOwnUnlistedCrawls([]);
+        setOwnUnlistedTotal(null);
+        setUnlistedHaveMore(false);
         return;
       }
       const response = await authedFetch(
-        `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own&limit=1`,
+        `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own&limit=1&unlistedLimit=${unlistedLimit}`,
         { signal: controller.signal, cache: "no-store" },
       ).catch(() => null);
       if (!response?.ok || controller.signal.aborted) {
@@ -528,16 +543,25 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         | {
             ownCount?: number | null;
             unlisted?: Array<{ slug: string; title: string; stops: number | null }>;
+            unlistedTotal?: number | null;
+            unlistedHasMore?: boolean;
           }
         | null;
       if (controller.signal.aborted) return;
       const own = body?.ownCount;
       setOwnStoryCount(typeof own === "number" && Number.isFinite(own) ? own : null);
       setOwnUnlistedCrawls(Array.isArray(body?.unlisted) ? body.unlisted : []);
+      const unlistedTotal = body?.unlistedTotal;
+      setOwnUnlistedTotal(
+        typeof unlistedTotal === "number" && Number.isFinite(unlistedTotal)
+          ? unlistedTotal
+          : null,
+      );
+      setUnlistedHaveMore(body?.unlistedHasMore === true);
     }
     void loadOwnStoryCount();
     return () => controller.abort();
-  }, [routeHandle, viewerHandle]);
+  }, [routeHandle, unlistedLimit, viewerHandle]);
 
   // /u/you resolution: once viewer identity is known, redirect the sentinel
   // route to its real profile. With no signed-out fallback, /u/you stays put and
@@ -1176,7 +1200,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                           owner is ever answered with them. */}
                       {ownUnlistedCrawls.length > 0 ? (
                         <details className="profileCrawlUnlisted">
-                          <summary>{ownUnlistedCrawlsLabel(ownUnlistedCrawls.length)}</summary>
+                          <summary>{ownUnlistedCrawlsLabel(ownUnlistedTotal)}</summary>
                           <ul className="profileCrawlList">
                             {ownUnlistedCrawls.map((crawl) => (
                               <li key={crawl.slug} className="profileCrawlRow">
@@ -1191,6 +1215,26 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                               </li>
                             ))}
                           </ul>
+                          {/* The line above names every unlisted crawl, so a
+                              page holding fewer has to open the rest rather
+                              than leaving the difference unreachable. One step
+                              widens to the ceiling, then the remainder is named
+                              the way the public lane names its own. */}
+                          {unlistedHaveMore ? (
+                            unlistedLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
+                              <button
+                                type="button"
+                                className="profileCrawlMore"
+                                onClick={() => setWidenedUnlistedPage(routeHandle)}
+                              >
+                                Show more unlisted crawls
+                              </button>
+                            ) : typeof ownUnlistedTotal === "number" ? (
+                              <p className="profileEmpty">
+                                And {ownUnlistedTotal - ownUnlistedCrawls.length} more.
+                              </p>
+                            ) : null
+                          ) : null}
                         </details>
                       ) : null}
                     </section>

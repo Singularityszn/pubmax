@@ -53,6 +53,25 @@ describe("ownUnlistedCrawlsLabel", () => {
     expect(line).toContain("only you see these");
   });
 
+  // The rows under this line are a PAGE; the number in it is the whole total.
+  // Those two differ the moment an owner passes the page ceiling, and the line
+  // exists to reconcile with the passport tally rather than with the list.
+  it("names a total larger than any page the list can hold", () => {
+    expect(ownUnlistedCrawlsLabel(AUTHOR_CRAWL_LIST_MAX_LIMIT + 15)).toContain(
+      `${AUTHOR_CRAWL_LIST_MAX_LIMIT + 15} unlisted crawls`,
+    );
+  });
+
+  // A count the read could not measure is not a count of the rows that came
+  // back, so the line names no figure at all rather than a wrong one.
+  it("names no figure when the total could not be measured", () => {
+    const line = ownUnlistedCrawlsLabel(null);
+    expect(line).toContain("only you see these");
+    expect(line).not.toMatch(/\d/);
+    expect(line).not.toContain("null");
+    expect(line).not.toContain("NaN");
+  });
+
   it("never carries a dash the voice law bans", () => {
     for (const total of [1, 2, 12]) {
       expect(ownUnlistedCrawlsLabel(total)).not.toMatch(/[–—]/);

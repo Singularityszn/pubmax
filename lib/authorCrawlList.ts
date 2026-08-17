@@ -28,8 +28,17 @@ export function clampAuthorCrawlListLimit(
  * tally on the passport is larger than the public Crawls figure beside it, so
  * it names the number rather than leaving a bare second figure to be guessed
  * at, and the rows it heads are the door to what it counts.
+ *
+ * The number it names is the WHOLE total, never the length of the page under
+ * it: a page is capped at AUTHOR_CRAWL_LIST_MAX_LIMIT, and a capped figure here
+ * would fail to reconcile with the passport tally it exists to explain.
+ *
+ * TRI-STATE by way of null, like every count on this lane: a total the read
+ * could not measure is named as nothing rather than as the rows that happened
+ * to come back, because those rows are a page and not a count.
  */
-export function ownUnlistedCrawlsLabel(total: number): string {
+export function ownUnlistedCrawlsLabel(total: number | null): string {
+  if (total === null) return "Your unlisted crawls (only you see these)";
   return total === 1
     ? "1 unlisted crawl (only you see this)"
     : `${total} unlisted crawls (only you see these)`;
