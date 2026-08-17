@@ -81,7 +81,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           {DAY_LABEL[day]}
         </h2>
         {pending && !failed ? <ListingsSkeleton /> : null}
-        {outStatusLines({ body, failed, pending }).map((line) => (
+        {outStatusLines({ body, failed }).map((line) => (
           <p className="outStatus" key={line}>
             {line}
           </p>

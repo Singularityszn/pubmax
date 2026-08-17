@@ -91,7 +91,7 @@ export async function handleWhatsOnRequest(
     };
     // A bundled read that could not answer is not a quiet night. The client
     // already treats a named `error` as status "error", distinct from empty.
-    if (result.readStatus === "degraded" && result.rows.length === 0) {
+    if (result.readStatus === "degraded") {
       return jsonNoStore({ ...response, error: "Could not check listings." });
     }
     return jsonNoStore(response);

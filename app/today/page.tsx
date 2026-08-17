@@ -66,7 +66,13 @@ export default async function TodayPage() {
     // still layers the live CityMCP enrichment on top. A throw here is a
     // degraded read, never "nothing left".
     loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }).catch(
-      () => null,
+      (err) => {
+        console.warn(
+          "[today] whats-on baseline read failed; picks degraded:",
+          err instanceof Error ? err.message : String(err),
+        );
+        return null;
+      },
     ),
     // Cheapest priced pints per area, precomputed from the bundled price dataset
     // so the client can answer the viewer's remembered area with no venue data

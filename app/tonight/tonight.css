@@ -212,6 +212,12 @@
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
 }
 
+/* A lane that could not answer, printed ABOVE the cards that did. Quieter than
+   the error register: the list is real, it is only short. */
+.tonightStatusNote {
+  margin: 12px 0 0;
+}
+
 /* The one exit on an empty night: same quiet register as the status line,
    underlined so it reads as a door, not a shout. */
 .tonightStatusLink {

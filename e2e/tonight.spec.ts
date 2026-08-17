@@ -295,4 +295,78 @@ test("shows a ready Out event card even when What's-On is empty", async ({ page 
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByText("A Night at the Playhouse")).toBeVisible();
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "ready");
+  // The Out lane is credited on its own line, by its own source and its own
+  // observation. Dating it to the What's-On stamp would be a claim about when
+  // Ticketmaster was read that nobody made.
+  const outCredit = page.locator('[data-tonight-provenance="out"]');
+  await expect(outCredit).toHaveText(/1 listing via Ticketmaster/);
+  await expect(outCredit).toHaveText(/Checked 16 Aug/);
+});
+
+test("a degraded Out lane still names itself beside the cards it did return", async ({
+  page,
+}) => {
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows: [],
+        asOf: "2026-08-16T12:00:00.000Z",
+        sourceObservedAt: "2026-08-16T12:00:00.000Z",
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    }),
+  );
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "degraded",
+        events: [PLAYHOUSE_EVENT],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "skiddle", configured: true, rows: 0, status: "degraded" }],
+        reason: "Some listings could not be checked.",
+      }),
+    }),
+  );
+
+  await page.goto("/tonight");
+  await expect(page.getByText("A Night at the Playhouse")).toBeVisible({ timeout: 10_000 });
+  // Cards show, so the error block never renders. Without this note the short
+  // list reads as a quiet city rather than a lane we could not check.
+  await expect(page.locator('[data-tonight-listings-note="partial"]')).toHaveText(
+    "Some listings could not be checked.",
+  );
+});
+
+test("a hung Out read settles instead of pinning the loading skeleton", async ({ page }) => {
+  test.setTimeout(60_000);
+  await page.route("**/api/whats-on?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows: [],
+        asOf: "2026-08-16T12:00:00.000Z",
+        sourceObservedAt: "2026-08-16T12:00:00.000Z",
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    }),
+  );
+  // Never answered, never refused: the shape a CDN or edge hang takes. Tonight
+  // waits on both lanes, so an Out read with no ceiling of its own would hold
+  // the skeleton for the rest of the session over a night What's-On already
+  // described.
+  await page.route("**/api/out?**", () => {});
+
+  // "load" would wait on the request that is deliberately never answered.
+  await page.goto("/tonight", { waitUntil: "domcontentloaded" });
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 30_000 });
+  const screen = page.getByTestId("tonight-screen");
+  await expect(screen).not.toHaveAttribute("data-listings-status", "idle");
+  await expect(page.getByRole("button", { name: "Retry listings" })).toBeVisible();
 });

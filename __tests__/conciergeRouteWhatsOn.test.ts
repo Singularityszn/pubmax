@@ -116,4 +116,18 @@ describe("POST /api/concierge — What's-On intents", () => {
     expect(() => new Date(body.asOf).toISOString()).not.toThrow();
     expect(body.message).toMatch(/couldn't load/i);
   });
+
+  it("503s on a read that reported itself degraded, never 'no matches'", async () => {
+    const { loadWhatsOn } = await import("@/lib/whatsOnStore");
+    vi.mocked(loadWhatsOn).mockResolvedValueOnce({
+      rows: [],
+      readStatus: "degraded",
+      asOf: "2026-07-12T18:00:00.000Z",
+    } as unknown as Awaited<ReturnType<typeof loadWhatsOn>>);
+    const res = await post({ query: "quiz in Soho tonight" }, "198.51.100.65");
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body.count).toBe(0);
+    expect(body.message).toMatch(/couldn't load/i);
+  });
 });

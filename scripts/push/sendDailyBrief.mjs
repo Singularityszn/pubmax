@@ -39,6 +39,11 @@ export async function buildCurrentDailyBrief(now = new Date()) {
     { window: "tonight" },
     { now: now.getTime(), fetchLive: async () => [] },
   );
+  // A bundled read that could not run has no picks in it. Refuse the brief
+  // rather than push a night described from zero rows nobody read.
+  if (whatsOn.readStatus === "degraded") {
+    throw new Error("whats-on baseline read failed; daily brief not composed");
+  }
   const picks = rankTonightPicks(whatsOn.rows, 1).map(toTonightPickDto);
   return composeDailyBriefPush(weather, picks);
 }

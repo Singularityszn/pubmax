@@ -160,6 +160,29 @@ describe("loadWhatsOn orchestration", () => {
     );
     expect(result.readStatus).toBe("degraded");
     expect(result.rows).toEqual([]);
+    // The freshness cron stamps a feed on a MEASURED revalidation. A read that
+    // could not run must not stamp an observation of zero rows.
+    expect(result.revalidation).toEqual({
+      status: "unmeasured",
+      reason: "baseline-read-failed",
+    });
+  });
+
+  it("reports the baseline failure even when the live layer answered", async () => {
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: NOW,
+        loadBaseline: () => {
+          throw new Error("pack missing");
+        },
+        fetchLive: async () => ({ rows: [], sourceObservedAt: null, stale: false }),
+      },
+    );
+    expect(result.revalidation).toEqual({
+      status: "unmeasured",
+      reason: "baseline-read-failed",
+    });
   });
 
   it("keeps ready when the bundled read answered empty", async () => {

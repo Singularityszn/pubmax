@@ -52,8 +52,6 @@ export function outAnswerView<T>(
 export function outStatusLines(input: {
   body: Pick<OutResponse, "status" | "events" | "reason"> | null;
   failed: boolean;
-  /** No answer for the day on screen yet. */
-  pending?: boolean;
 }): string[] {
   const lines: string[] = [];
   if (input.failed) lines.push(OUT_READ_FAILED_LINE);

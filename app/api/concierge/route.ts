@@ -33,7 +33,11 @@ const MAX_QUERY_LENGTH = 500;
 // Isolated from POST so an outage here is a plain try/catch at the call site,
 // not extra branching inside the route's already-large handler.
 async function tonightEventKindsByVenueMap(): Promise<Map<string, Set<WhatsOnKind>>> {
-  const { rows } = await loadWhatsOn({ window: "tonight" }, {});
+  const { rows, readStatus } = await loadWhatsOn({ window: "tonight" }, {});
+  // A read that could not run has no weighting in it. Say so, so the call site
+  // falls soft to "no weighting" instead of weighting on an empty map that
+  // reads like a night with no events in it.
+  if (readStatus === "degraded") throw new Error("whats-on baseline unavailable");
   const byVenue = new Map<string, Set<WhatsOnKind>>();
   for (const row of rows) {
     if (!row.venueId) continue;
@@ -104,13 +108,17 @@ export async function POST(request: Request): Promise<Response> {
   const whatsOnQuery = query ? detectWhatsOnIntent(query) : null;
   if (whatsOnQuery) {
     try {
-      const { rows, asOf } = await loadWhatsOn(
+      const { rows, asOf, readStatus } = await loadWhatsOn(
         {
           ...(whatsOnQuery.kind ? { kind: whatsOnQuery.kind } : {}),
           ...(whatsOnQuery.window === "tonight" ? { window: "tonight" as const } : {}),
         },
         {},
       );
+      // A bundled read that could not run leaves nothing to ground an answer
+      // on, so it takes the same 503 refusal a thrown read takes rather than
+      // answering "no matches" for a question nobody could look up.
+      if (readStatus === "degraded") throw new Error("whats-on baseline unavailable");
       let matched = whatsOnQuery.area ? filterRowsByArea(rows, whatsOnQuery.area) : rows;
       if (whatsOnQuery.window === "weekday" && whatsOnQuery.weekday !== undefined) {
         matched = filterRowsByWeekday(matched, whatsOnQuery.weekday);

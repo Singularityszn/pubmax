@@ -73,7 +73,9 @@ import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
   tonightListingsErrorLine,
+  tonightListingsNoteLine,
   tonightListingsStatus,
+  tonightProvenanceCredits,
 } from "@/lib/tonightOutListings";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
@@ -320,6 +322,22 @@ export default function TonightClient({
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   const checked = freshnessLabel(sourceFreshnessKind, asOf);
+  // Each lane is credited and dated by its OWN read. The What's-On stamp above
+  // says nothing about a Ticketmaster row, so it never covers one.
+  const provenance = useMemo(
+    () =>
+      tonightProvenanceCredits({
+        merged: listingRows,
+        outEvents: outBody?.events ?? [],
+        whatsOnChecked: checked,
+        outObservedAt: outBody?.observedAt,
+      }),
+    [listingRows, outBody, checked],
+  );
+  // A lane that could not answer is named beside the cards, not only in place
+  // of them: a degraded Out answer still carrying Ticketmaster rows makes the
+  // list short for a reason the reader is owed.
+  const listingsNote = tonightListingsNoteLine(status, outAnswer);
   const errored = listingsStatus === "error";
   const loading = listingsStatus === "idle";
   // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
@@ -377,20 +395,30 @@ export default function TonightClient({
                 looking at instead of matching the sentence inside it. This
                 header's wording has been rewritten twice and took the specs
                 that read it down both times. */}
-            <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={checked ? "yes" : "no"}>
+            <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={provenance.dated ? "yes" : "no"}>
               {coverageLabel(listingRows.length)}
-              <span aria-hidden="true"> · </span>
-              {/* One template literal so the separator spacing survives JSX
-                  text-node splitting (the built output was eating the space before
-                  the interpunct, rendering "unknown· via"). */}
-              {`${checked ? `${checked} · ` : ""}via what’s-on`}
+              {/* One template literal per segment so the separator spacing
+                  survives JSX text-node splitting (the built output was eating
+                  the space before the interpunct, rendering "unknown· via"). */}
+              {provenance.whatsOn ? (
+                <>
+                  <span aria-hidden="true"> · </span>
+                  {provenance.whatsOn}
+                </>
+              ) : null}
               {/* The one quiet continuity line: when the order comes from a
                   remembered patch (not a live position), say which. */}
               {ready && tonightNear?.patchLabel
                 ? ` · nearest ${tonightNear.patchLabel} first`
                 : null}
             </p>
-            {checked ? null : (
+            {/* Out is credited on its own line, with its own sources and its own
+                date. Folding it into the line above would date a Ticketmaster
+                listing to the bundled What's-On artifact. */}
+            {provenance.out ? (
+              <p className="tonightProvenance" data-tonight-provenance="out">{provenance.out}</p>
+            ) : null}
+            {provenance.dated ? null : (
               <p className="tonightProvenance" data-tonight-provenance="undated">{UNDATED_SOURCE_LINE}</p>
             )}
           </>
@@ -434,6 +462,16 @@ export default function TonightClient({
             Retry listings
           </button>
         </div>
+      ) : null}
+
+      {ready && listingsNote ? (
+        <p
+          className="tonightStatus tonightStatusNote"
+          data-tonight-listings-note="partial"
+          role="status"
+        >
+          {listingsNote}
+        </p>
       ) : null}
 
       {empty ? (
