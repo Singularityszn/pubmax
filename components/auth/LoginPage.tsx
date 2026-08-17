@@ -244,11 +244,13 @@ function WelcomeBackCard({
  * It says nothing about the person, because nothing is known yet: no sentence
  * about checking, no spinner text, just the shape the card is about to take.
  *
- * `aria-busy` sits on THIS region rather than the page, because it is the only
- * part that is loading and because it tells assistive technology to withhold
- * updates from whatever it wraps. The screen-reader line is empty on the first
- * paint and fills after mount: a live region announces a CHANGE, so text that
- * was already there when the region appeared is never spoken.
+ * TWO rules hold the spoken half up, and they pull against each other.
+ * `aria-busy` tells assistive technology to withhold updates from everything it
+ * wraps, and busy never clears here - the whole subtree unmounts the moment the
+ * session answers - so the live region may NOT sit inside it. It is a sibling
+ * of the busy shape rather than a child of it. And the line is empty on the
+ * first paint and fills after mount, because a live region announces a CHANGE:
+ * text already there when the region appeared is never spoken.
  */
 function SignInSkeleton(): React.JSX.Element {
   const announcement = useRef<HTMLParagraphElement | null>(null);
@@ -259,19 +261,21 @@ function SignInSkeleton(): React.JSX.Element {
   }, []);
 
   return (
-    <div className="loginPageSkeleton" aria-busy="true">
+    <>
       <p ref={announcement} className="loginPageSrOnly" role="status" />
-      <div className="loginPageSkeletonDoors" aria-hidden="true">
-        <span className="loginPageSkeletonPill" />
-        <span className="loginPageSkeletonPill" />
+      <div className="loginPageSkeleton" aria-busy="true">
+        <div className="loginPageSkeletonDoors" aria-hidden="true">
+          <span className="loginPageSkeletonPill" />
+          <span className="loginPageSkeletonPill" />
+        </div>
+        <div className="loginPageSkeletonOptions" aria-hidden="true">
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonBar" />
+          <span className="loginPageSkeletonField" />
+          <span className="loginPageSkeletonButton" />
+        </div>
       </div>
-      <div className="loginPageSkeletonOptions" aria-hidden="true">
-        <span className="loginPageSkeletonBar" />
-        <span className="loginPageSkeletonBar" />
-        <span className="loginPageSkeletonField" />
-        <span className="loginPageSkeletonButton" />
-      </div>
-    </div>
+    </>
   );
 }
 

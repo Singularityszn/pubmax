@@ -59,6 +59,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   authState.loading = true;
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -108,17 +109,53 @@ describe("the sign-in skeleton's screen-reader line", () => {
     expect(statusRegion()?.getAttribute("role")).toBe("status");
   });
 
-  it("marks the region it is loading busy, and not the page", () => {
+  // THE REGRESSION THIS ROUND CLOSES: `aria-busy` withholds updates from a live
+  // region ANYWHERE beneath it, and busy never clears here - the subtree
+  // unmounts instead - so a status node inside the busy container is never
+  // spoken however the text arrives. No ancestor of the region may be busy.
+  it("keeps every aria-busy container off the live region's ancestry", () => {
     act(() => {
       root.render(createElement(LoginPage));
     });
 
+    const region = statusRegion();
+    expect(region).not.toBeNull();
+
+    const busyAncestors: string[] = [];
+    for (
+      let node = region?.parentElement ?? null;
+      node && node !== document.body;
+      node = node.parentElement
+    ) {
+      if (node.getAttribute("aria-busy") === "true") {
+        busyAncestors.push(node.className || node.tagName);
+      }
+    }
+    expect(busyAncestors).toEqual([]);
+
+    // The shape it stands beside is still the thing that is busy.
     expect(
       host.querySelector(".loginPageSkeleton")?.getAttribute("aria-busy"),
     ).toBe("true");
     expect(host.querySelector("main.loginPage")?.hasAttribute("aria-busy")).toBe(
       false,
     );
+  });
+
+  // A live region an ancestor has hidden is not read either.
+  it("keeps the live region out of every aria-hidden subtree", () => {
+    act(() => {
+      root.render(createElement(LoginPage));
+    });
+
+    const region = statusRegion();
+    for (
+      let node = region?.parentElement ?? null;
+      node && node !== document.body;
+      node = node.parentElement
+    ) {
+      expect(node.getAttribute("aria-hidden")).not.toBe("true");
+    }
   });
 
   it("takes the whole region away once the session answers", () => {

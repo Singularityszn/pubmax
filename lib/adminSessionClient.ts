@@ -17,6 +17,12 @@ import { discardBody } from "@/lib/responseBody";
 export const ADMIN_SESSION_UNREACHABLE_MESSAGE =
   "Could not reach the server. Try again.";
 export const ADMIN_SESSION_REFUSED_FALLBACK = "Not authorised.";
+// The route's own 403 body is the bare "Not authorised.", which tells a
+// moderator nothing to do. A refused token has exactly one remedy, so this door
+// says it; every other status still carries the route's own honest line (the
+// 429 has to stay "Too many attempts, slow down.").
+export const ADMIN_SESSION_NOT_AUTHORISED_MESSAGE =
+  "Not authorised. Check the admin token.";
 export const ADMIN_SESSION_NOT_KEPT_MESSAGE =
   "Sign-in did not stick - this page needs HTTPS.";
 export const ADMIN_SESSION_UNCONFIRMED_MESSAGE =
@@ -104,11 +110,14 @@ export async function submitAdminToken(
     return { status: "refused", message: ADMIN_SESSION_UNREACHABLE_MESSAGE };
   }
   if (!res.ok) {
+    const refusedToken = res.status === 403;
     const body = await readApiJson(res).catch(() => null);
     discardBody(res);
     return {
       status: "refused",
-      message: errorMessageFrom(body, ADMIN_SESSION_REFUSED_FALLBACK),
+      message: refusedToken
+        ? ADMIN_SESSION_NOT_AUTHORISED_MESSAGE
+        : errorMessageFrom(body, ADMIN_SESSION_REFUSED_FALLBACK),
     };
   }
   discardBody(res);

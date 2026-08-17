@@ -166,6 +166,10 @@ describe("login page", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));
     expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
+    // The spoken line stands BESIDE the busy shape, never inside it.
+    expect(html).toMatch(
+      /<p class="loginPageSrOnly" role="status">\s*<\/p><div class="loginPageSkeleton"/,
+    );
     expect(html).toContain('class="loginPageSrOnly" role="status"');
     expect(html).not.toContain(">Loading<");
     expect(html).not.toContain("email form");

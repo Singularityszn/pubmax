@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   ADMIN_SESSION_MISSING_TOKEN_MESSAGE,
+  ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
   ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   ADMIN_SESSION_UNREACHABLE_MESSAGE,
@@ -101,16 +102,32 @@ describe("submitAdminToken", () => {
     });
   });
 
-  it("keeps the route's own refusal copy and never confirms after it", async () => {
+  // The route's own 403 body is the bare "Not authorised.", which leaves a
+  // moderator with nothing to do. A refused token has one remedy, so this door
+  // says it.
+  it("tells a refused token what to do, and never confirms after it", async () => {
     const { fetch, calls } = scriptedFetch([
       async () => jsonResponse({ error: "Not authorised." }, 403),
     ]);
 
     await expect(submitAdminToken("wrong", fetch)).resolves.toEqual({
       status: "refused",
-      message: "Not authorised.",
+      message: ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
     });
     expect(calls).toHaveLength(1);
+  });
+
+  // Every other status keeps the route's own honest line: a rate limit is not a
+  // wrong token, and telling a moderator to check the token would be a lie.
+  it("keeps the route's own line for a refusal that is not the token", async () => {
+    const { fetch } = scriptedFetch([
+      async () => jsonResponse({ error: "Too many attempts, slow down." }, 429),
+    ]);
+
+    await expect(submitAdminToken("secret", fetch)).resolves.toEqual({
+      status: "refused",
+      message: "Too many attempts, slow down.",
+    });
   });
 
   // The route rate-limits per IP before it inspects the token, so an empty

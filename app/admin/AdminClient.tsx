@@ -9,12 +9,14 @@ import Link from "next/link";
 import { useCallback, useState } from "react";
 
 import {
+  ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   browserFetch,
   readAdminSessionState,
   submitAdminToken,
   type AdminSessionSubmitOutcome,
 } from "@/lib/adminSessionClient";
+import { adminAlert, adminStatus, type AdminNotice } from "@/lib/adminNotice";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -127,8 +129,6 @@ function readStoredToken(): string {
   return window.localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
-const NOT_AUTHORISED_MESSAGE = "Not authorised. Check the admin token.";
-
 // Both admin doors spend the same route, so both ask the same question: a 200
 // from the POST is not a session, only a cookie the browser may have dropped.
 async function establishSession(token: string): Promise<AdminSessionSubmitOutcome> {
@@ -136,7 +136,7 @@ async function establishSession(token: string): Promise<AdminSessionSubmitOutcom
   const state = await readAdminSessionState(browserFetch);
   if (state === "authenticated") return { status: "open" };
   if (state === "anonymous") {
-    return { status: "refused", message: NOT_AUTHORISED_MESSAGE };
+    return { status: "refused", message: ADMIN_SESSION_NOT_AUTHORISED_MESSAGE };
   }
   return { status: "refused", message: ADMIN_SESSION_UNCONFIRMED_MESSAGE };
 }
@@ -168,7 +168,7 @@ export default function AdminClient() {
   const [hiddenPhotos, setHiddenPhotos] = useState<ModeratorVenuePhoto[]>([]);
   const [reportedAvatars, setReportedAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
-  const [message, setMessage] = useState<string | null>(null);
+  const [message, setMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
 
@@ -180,7 +180,7 @@ export default function AdminClient() {
     "sourced",
   );
   const [importPending, setImportPending] = useState(false);
-  const [importMsg, setImportMsg] = useState<string | null>(null);
+  const [importMsg, setImportMsg] = useState<AdminNotice | null>(null);
   const [importNotes, setImportNotes] = useState<ImportNoteRow[]>([]);
   const [importLoading, setImportLoading] = useState(false);
   const [importShowDismissed, setImportShowDismissed] = useState(false);
@@ -190,7 +190,7 @@ export default function AdminClient() {
   const [operatorClaims, setOperatorClaims] = useState<OperatorClaimRow[]>([]);
   const [operatorProposals, setOperatorProposals] = useState<OperatorProposalRow[]>([]);
   const [operatorLoading, setOperatorLoading] = useState(false);
-  const [operatorMsg, setOperatorMsg] = useState<string | null>(null);
+  const [operatorMsg, setOperatorMsg] = useState<AdminNotice | null>(null);
   const [operatorActionId, setOperatorActionId] = useState<string | null>(null);
 
   const ensureAdminSession = useCallback(
@@ -223,7 +223,7 @@ export default function AdminClient() {
       const session = await ensureAdminSession();
       if (session.status !== "open") {
         setImportNotes([]);
-        setImportMsg(session.message);
+        setImportMsg(adminAlert(session.message));
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
@@ -233,20 +233,20 @@ export default function AdminClient() {
       if (res.status === 403) {
         discardBody(res);
         setImportNotes([]);
-        setImportMsg("Not authorised. Check the admin token.");
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
         discardBody(res);
         setImportNotes([]);
-        setImportMsg("Could not load import notes.");
+        setImportMsg(adminAlert("Could not load import notes."));
         return;
       }
       const body = (await res.json()) as { notes?: ImportNoteRow[] };
       setImportNotes(body.notes ?? []);
     } catch {
       setImportNotes([]);
-      setImportMsg("Could not reach the server.");
+      setImportMsg(adminAlert("Could not reach the server."));
     } finally {
       setImportLoading(false);
     }
@@ -260,7 +260,7 @@ export default function AdminClient() {
       if (session.status !== "open") {
         setDrops([]);
         setComments([]);
-        setMessage(session.message);
+        setMessage(adminAlert(session.message));
         return;
       }
 
@@ -268,13 +268,13 @@ export default function AdminClient() {
       if (res.status === 403) {
         discardBody(res);
         setDrops([]);
-        setMessage("Not authorised. Check the admin token.");
+        setMessage(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
         discardBody(res);
         setDrops([]);
-        setMessage("Could not load reported drops.");
+        setMessage(adminAlert("Could not load reported drops."));
         return;
       }
       const body = (await res.json()) as { drops: ModeratorDrop[] };
@@ -370,10 +370,10 @@ export default function AdminClient() {
         setReportedAvatars([]);
         setHiddenAvatars([]);
       }
-      if ((body.drops ?? []).length === 0) setMessage("No reported drops in the queue.");
+      if ((body.drops ?? []).length === 0) setMessage(adminStatus("No reported drops in the queue."));
     } catch {
       setDrops([]);
-      setMessage("Could not reach the server.");
+      setMessage(adminAlert("Could not reach the server."));
     } finally {
       setLoading(false);
     }
@@ -391,19 +391,19 @@ export default function AdminClient() {
       });
       if (res.status === 403) {
         discardBody(res);
-        setMessage("Not authorised. Check the admin token.");
+        setMessage(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
         discardBody(res);
-        setMessage("Action failed. Try again.");
+        setMessage(adminAlert("Action failed. Try again."));
         return;
       }
       // Decided comments leave the hidden queue either way.
       setComments((current) => current.filter((c) => c.id !== id));
-      setMessage(action === "restore" ? "Comment restored." : "Comment kept hidden.");
+      setMessage(adminStatus(action === "restore" ? "Comment restored." : "Comment kept hidden."));
     } catch {
-      setMessage("Could not reach the server.");
+      setMessage(adminAlert("Could not reach the server."));
     } finally {
       setPendingId(null);
     }
@@ -425,12 +425,12 @@ export default function AdminClient() {
         });
         if (res.status === 403) {
           discardBody(res);
-          setMessage("Not authorised. Check the admin token.");
+          setMessage(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setMessage("Action failed. Try again.");
+          setMessage(adminAlert("Action failed. Try again."));
           return;
         }
         setVisitReports((current) => current.filter((v) => v.id !== report.id));
@@ -439,14 +439,16 @@ export default function AdminClient() {
           return action === "hide" ? [report, ...without] : without;
         });
         setMessage(
-          action === "hide"
-            ? "Visit report hidden."
-            : lane === "hidden"
-              ? "Visit report restored."
-              : "Visit report kept visible.",
+          adminStatus(
+            action === "hide"
+              ? "Visit report hidden."
+              : lane === "hidden"
+                ? "Visit report restored."
+                : "Visit report kept visible.",
+          ),
         );
       } catch {
-        setMessage("Could not reach the server.");
+        setMessage(adminAlert("Could not reach the server."));
       } finally {
         setPendingId(null);
       }
@@ -470,12 +472,12 @@ export default function AdminClient() {
         });
         if (res.status === 403) {
           discardBody(res);
-          setMessage("Not authorised. Check the admin token.");
+          setMessage(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setMessage("Action failed. Try again.");
+          setMessage(adminAlert("Action failed. Try again."));
           return;
         }
         setReportedPhotos((current) => current.filter((p) => p.id !== photo.id));
@@ -484,14 +486,16 @@ export default function AdminClient() {
           return action === "hide" ? [photo, ...without] : without;
         });
         setMessage(
-          action === "hide"
-            ? "Photo hidden."
-            : lane === "hidden"
-              ? "Photo restored to the wall."
-              : "Photo kept on the wall.",
+          adminStatus(
+            action === "hide"
+              ? "Photo hidden."
+              : lane === "hidden"
+                ? "Photo restored to the wall."
+                : "Photo kept on the wall.",
+          ),
         );
       } catch {
-        setMessage("Could not reach the server.");
+        setMessage(adminAlert("Could not reach the server."));
       } finally {
         setPendingId(null);
       }
@@ -518,12 +522,12 @@ export default function AdminClient() {
         });
         if (res.status === 403) {
           discardBody(res);
-          setMessage("Not authorised. Check the admin token.");
+          setMessage(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setMessage("Action failed. Try again.");
+          setMessage(adminAlert("Action failed. Try again."));
           return;
         }
         setReportedAvatars((current) => current.filter((a) => a.handle !== avatar.handle));
@@ -534,14 +538,16 @@ export default function AdminClient() {
             : without;
         });
         setMessage(
-          action === "hide"
-            ? "Profile picture hidden."
-            : lane === "hidden"
-              ? "Profile picture restored."
-              : "Profile picture kept visible.",
+          adminStatus(
+            action === "hide"
+              ? "Profile picture hidden."
+              : lane === "hidden"
+                ? "Profile picture restored."
+                : "Profile picture kept visible.",
+          ),
         );
       } catch {
-        setMessage("Could not reach the server.");
+        setMessage(adminAlert("Could not reach the server."));
       } finally {
         setPendingId(null);
       }
@@ -561,20 +567,20 @@ export default function AdminClient() {
       });
       if (res.status === 403) {
         discardBody(res);
-        setMessage("Not authorised. Check the admin token.");
+        setMessage(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
         discardBody(res);
-        setMessage("Action failed. Try again.");
+        setMessage(adminAlert("Action failed. Try again."));
         return;
       }
       // Decided drops leave the queue either way (restore → visible,
       // keep_hidden → reviewed), so drop them from the list.
       setDrops((current) => current.filter((d) => d.id !== id));
-      setMessage(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden.");
+      setMessage(adminStatus(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden."));
     } catch {
-      setMessage("Could not reach the server.");
+      setMessage(adminAlert("Could not reach the server."));
     } finally {
       setPendingId(null);
     }
@@ -586,7 +592,7 @@ export default function AdminClient() {
     try {
       const session = await ensureAdminSession();
       if (session.status !== "open") {
-        setImportMsg(session.message);
+        setImportMsg(adminAlert(session.message));
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -607,20 +613,20 @@ export default function AdminClient() {
         message?: string;
       };
       if (res.status === 403) {
-        setImportMsg("Not authorised. Check the admin token.");
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
-        setImportMsg(errorMessageFrom(payload, "Could not queue the note."));
+        setImportMsg(adminAlert(errorMessageFrom(payload, "Could not queue the note.")));
         return;
       }
-      setImportMsg(payload.message ?? "Queued for review");
+      setImportMsg(adminStatus(payload.message ?? "Queued for review"));
       setImportBody("");
       setImportVenueId("");
       setImportVenueName("");
       await loadImportNotes();
     } catch {
-      setImportMsg("Could not reach the server.");
+      setImportMsg(adminAlert("Could not reach the server."));
     } finally {
       setImportPending(false);
     }
@@ -632,7 +638,7 @@ export default function AdminClient() {
     try {
       const session = await ensureAdminSession();
       if (session.status !== "open") {
-        setImportMsg(session.message);
+        setImportMsg(adminAlert(session.message));
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -648,17 +654,17 @@ export default function AdminClient() {
         message?: string;
       };
       if (res.status === 403) {
-        setImportMsg("Not authorised. Check the admin token.");
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       if (!res.ok) {
-        setImportMsg(errorMessageFrom(payload, "Action failed. Try again."));
+        setImportMsg(adminAlert(errorMessageFrom(payload, "Action failed. Try again.")));
         return;
       }
-      setImportMsg(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored."));
+      setImportMsg(adminStatus(payload.message ?? (action === "dismiss" ? "Note dismissed." : "Note restored.")));
       await loadImportNotes();
     } catch {
-      setImportMsg("Could not reach the server.");
+      setImportMsg(adminAlert("Could not reach the server."));
     } finally {
       setImportActionId(null);
     }
@@ -673,7 +679,7 @@ export default function AdminClient() {
       if (session.status !== "open") {
         setOperatorClaims([]);
         setOperatorProposals([]);
-        setOperatorMsg(session.message);
+        setOperatorMsg(adminAlert(session.message));
         return;
       }
       const [claimsRes, proposalsRes] = await Promise.all([
@@ -687,7 +693,7 @@ export default function AdminClient() {
       if (claimsRes.status === 403 || proposalsRes.status === 403) {
         setOperatorClaims([]);
         setOperatorProposals([]);
-        setOperatorMsg("Not authorised. Check the admin token.");
+        setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
         return;
       }
       setOperatorClaims(
@@ -701,7 +707,7 @@ export default function AdminClient() {
     } catch {
       setOperatorClaims([]);
       setOperatorProposals([]);
-      setOperatorMsg("Could not reach the server.");
+      setOperatorMsg(adminAlert("Could not reach the server."));
     } finally {
       setOperatorLoading(false);
     }
@@ -722,18 +728,18 @@ export default function AdminClient() {
         );
         if (res.status === 403) {
           discardBody(res);
-          setOperatorMsg("Not authorised. Check the admin token.");
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setOperatorMsg("Action failed. Try again.");
+          setOperatorMsg(adminAlert("Action failed. Try again."));
           return;
         }
         setOperatorClaims((current) => current.filter((c) => c.id !== id));
-        setOperatorMsg(`Claim ${action === "verify" ? "approved" : action === "reject" ? "rejected" : "revoked"}.`);
+        setOperatorMsg(adminStatus(`Claim ${action === "verify" ? "approved" : action === "reject" ? "rejected" : "revoked"}.`));
       } catch {
-        setOperatorMsg("Could not reach the server.");
+        setOperatorMsg(adminAlert("Could not reach the server."));
       } finally {
         setOperatorActionId(null);
       }
@@ -756,18 +762,18 @@ export default function AdminClient() {
         );
         if (res.status === 403) {
           discardBody(res);
-          setOperatorMsg("Not authorised. Check the admin token.");
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setOperatorMsg("Action failed. Try again.");
+          setOperatorMsg(adminAlert("Action failed. Try again."));
           return;
         }
         setOperatorProposals((current) => current.filter((p) => p.id !== id));
-        setOperatorMsg(action === "accept" ? "Proposal accepted." : "Proposal declined.");
+        setOperatorMsg(adminStatus(action === "accept" ? "Proposal accepted." : "Proposal declined."));
       } catch {
-        setOperatorMsg("Could not reach the server.");
+        setOperatorMsg(adminAlert("Could not reach the server."));
       } finally {
         setOperatorActionId(null);
       }
@@ -844,15 +850,8 @@ export default function AdminClient() {
       {tab === "moderation" ? (
         <>
           {message ? (
-            <div
-              className="admin-msg"
-              role={
-                message.startsWith("Not authorised") || message.startsWith("Could not")
-                  ? "alert"
-                  : "status"
-              }
-            >
-              {message}
+            <div className="admin-msg" role={message.tone}>
+              {message.text}
             </div>
           ) : null}
 
@@ -1235,20 +1234,8 @@ export default function AdminClient() {
           </p>
 
           {importMsg ? (
-            <div
-              className="admin-msg"
-              role={
-                importMsg.startsWith("Not authorised") ||
-                importMsg.startsWith("Could not") ||
-                importMsg.includes("required") ||
-                importMsg.includes("too long") ||
-                importMsg.includes("Source type") ||
-                importMsg.includes("failed")
-                  ? "alert"
-                  : "status"
-              }
-            >
-              {importMsg}
+            <div className="admin-msg" role={importMsg.tone}>
+              {importMsg.text}
             </div>
           ) : null}
 
@@ -1398,16 +1385,8 @@ export default function AdminClient() {
           </p>
 
           {operatorMsg ? (
-            <div
-              className="admin-msg"
-              role={
-                operatorMsg.startsWith("Not authorised") || operatorMsg.startsWith("Could not") ||
-                operatorMsg.includes("failed")
-                  ? "alert"
-                  : "status"
-              }
-            >
-              {operatorMsg}
+            <div className="admin-msg" role={operatorMsg.tone}>
+              {operatorMsg.text}
             </div>
           ) : null}
 
