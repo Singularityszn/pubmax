@@ -239,6 +239,33 @@ function WelcomeBackCard({
   );
 }
 
+/**
+ * What stands where the sign-in card will be while the live session answers.
+ * It says nothing about the person, because nothing is known yet: no sentence
+ * about checking, no spinner text, just the shape the card is about to take.
+ * The one thing it says out loud is for a screen reader, which cannot see the
+ * `aria-busy` page around it.
+ */
+function SignInSkeleton(): React.JSX.Element {
+  return (
+    <div className="loginPageSkeleton">
+      <p className="loginPageSrOnly" role="status">
+        Loading
+      </p>
+      <div className="loginPageSkeletonDoors" aria-hidden="true">
+        <span className="loginPageSkeletonPill" />
+        <span className="loginPageSkeletonPill" />
+      </div>
+      <div className="loginPageSkeletonOptions" aria-hidden="true">
+        <span className="loginPageSkeletonBar" />
+        <span className="loginPageSkeletonBar" />
+        <span className="loginPageSkeletonField" />
+        <span className="loginPageSkeletonButton" />
+      </div>
+    </div>
+  );
+}
+
 /** What the page says, which is the first thing a door differs in. */
 function PageHead({
   title,
@@ -486,6 +513,8 @@ export default function LoginPage({
             map.
           </p>
         ) : null}
+
+        {loading ? <SignInSkeleton /> : null}
 
         {!loading && showSignedIn && user ? (
           <SignedInCard

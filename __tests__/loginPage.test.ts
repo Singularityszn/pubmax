@@ -153,6 +153,26 @@ describe("login page", () => {
     expect(html).toContain('aria-busy="true"');
   });
 
+  // The body may not be empty while the session resolves: the card's shape
+  // stands in for it, and the one thing said out loud is for a screen reader,
+  // which cannot see aria-busy.
+  it("stands the sign-in card's shape up while the session resolves", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("loginPageSkeleton");
+    expect(html).toContain('class="loginPageSrOnly" role="status"');
+    expect(html).toContain(">Loading<");
+    expect(html).not.toContain("email form");
+    expect(html).not.toContain("social");
+  });
+
+  it("drops the skeleton once the session has answered", () => {
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).not.toContain("loginPageSkeleton");
+    expect(html).not.toContain(">Loading<");
+    expect(html).toContain("email form");
+  });
+
   it("keeps Welcome back for a returning resume cookie", () => {
     authState.current.welcomeBack = { maskedEmail: "k***@example.test" };
     const html = renderToStaticMarkup(createElement(LoginPage));

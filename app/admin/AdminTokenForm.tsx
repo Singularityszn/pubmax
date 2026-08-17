@@ -2,16 +2,19 @@
 
 import { useState, type FormEvent } from "react";
 
-import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
-import { discardBody } from "@/lib/responseBody";
+import { submitAdminToken } from "@/lib/adminSessionClient";
 
 import "./admin.css";
 
-const UNREACHABLE_MESSAGE = "Could not reach the server. Try again.";
+/** The global under a name, because a detached `fetch` is an illegal call. */
+const browserFetch = (input: string, init?: RequestInit): Promise<Response> =>
+  fetch(input, init);
 
 /**
  * The only surface an anonymous GET /admin may show. It spends the existing
- * session POST and reloads so the document guard can admit the console.
+ * session POST, proves the cookie landed, and only then reloads so the document
+ * guard can admit the console. A silent reload onto this same form would read
+ * as a correct token being ignored.
  */
 export default function AdminTokenForm(): React.JSX.Element {
   const [token, setToken] = useState("");
@@ -22,27 +25,12 @@ export default function AdminTokenForm(): React.JSX.Element {
     event.preventDefault();
     setBusy(true);
     setError(null);
-    let res: Response;
-    try {
-      res = await fetch("/api/admin/session", {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ token: token.trim() }),
-      });
-    } catch {
-      setError(UNREACHABLE_MESSAGE);
+    const outcome = await submitAdminToken(token, browserFetch);
+    if (outcome.status === "refused") {
+      setError(outcome.message);
       setBusy(false);
       return;
     }
-    if (!res.ok) {
-      const body = await readApiJson(res).catch(() => null);
-      discardBody(res);
-      setError(errorMessageFrom(body, "Not authorised."));
-      setBusy(false);
-      return;
-    }
-    discardBody(res);
     window.location.assign("/admin");
   }
 
