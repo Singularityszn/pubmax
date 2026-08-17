@@ -12,6 +12,14 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
   return { ...actual, isSupabaseConfigured: () => false };
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
+// The ONLY thing stubbed on the ownership chain is the JWT read. Everything
+// after it - resolveMessageHandle, the profile store's user-id link, the
+// handle comparison - runs for real, because that chain is what decides
+// whether an owner's unlisted crawls are disclosed.
+const auth = vi.hoisted(() => ({ userId: null as string | null }));
+vi.mock("@/lib/authServer", () => ({
+  callerUserId: async () => auth.userId,
+}));
 vi.mock("@/lib/venueAliases", () => ({
   resolveCanonicalVenueId: async (id: string) =>
     id === "legacy-a"
@@ -89,12 +97,13 @@ import { GET, POST } from "@/app/api/crawls/route";
 import {
   __resetCrawlStories,
   countOwnStoriesByAuthor,
-  countStoriesByAuthor,
   createCrawlStory,
+  listAuthoredCrawlPage,
   listStoriesByAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/crawls";
 
@@ -113,6 +122,8 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
   __resetPintDrops();
+  __resetMemoryProfiles();
+  auth.userId = null;
 });
 
 describe("listStoriesByAuthor", () => {
@@ -128,59 +139,61 @@ describe("listStoriesByAuthor", () => {
   });
 });
 
-describe("countStoriesByAuthor", () => {
-  it("counts a handle's published stories, normalizing the handle", async () => {
+// ONE query owns the public visibility rule, so the number and the rows it
+// links to cannot disagree. These assertions used to sit on a second,
+// independent count nothing user-facing exercised.
+describe("listAuthoredCrawlPage — the public count and its rows", () => {
+  it("counts a handle's published crawls, normalizing the handle", async () => {
     await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
     await makeStory("someone_else", "Their Loop");
-    expect(await countStoriesByAuthor("ken")).toBe(2);
-    expect(await countStoriesByAuthor("  KEN ")).toBe(2); // normalized
-    expect(await countStoriesByAuthor("someone_else")).toBe(1);
+    expect((await listAuthoredCrawlPage("ken")).total).toBe(2);
+    expect((await listAuthoredCrawlPage("  KEN ")).total).toBe(2); // normalized
+    expect((await listAuthoredCrawlPage("someone_else")).total).toBe(1);
   });
 
-  it("is 0 for a handle with no stories, an anonymous author, or a blank handle", async () => {
+  it("is 0 for a handle with no crawls, an anonymous author, or a blank handle", async () => {
     await makeStory(undefined, "Anon Loop"); // anonymous — no author
-    expect(await countStoriesByAuthor("nobody")).toBe(0);
-    expect(await countStoriesByAuthor("")).toBe(0);
+    expect(await listAuthoredCrawlPage("nobody")).toEqual({ crawls: [], total: 0 });
+    expect(await listAuthoredCrawlPage("")).toEqual({ crawls: [], total: 0 });
   });
 
-  it("excludes draft stories (only public crawls count as posts)", async () => {
+  it("excludes draft crawls (only public crawls count as posts)", async () => {
     const slug = await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
-    expect(await countStoriesByAuthor("ken")).toBe(2);
+    expect((await listAuthoredCrawlPage("ken")).total).toBe(2);
     await updateCrawlStory(slug, "ken", { visibility: "draft" });
-    expect(await countStoriesByAuthor("ken")).toBe(1);
+    const page = await listAuthoredCrawlPage("ken");
+    expect(page.total).toBe(1);
+    expect(page.crawls.length).toBe(1);
   });
 
-  // The profile's Crawls tile links to the section listStoriesByAuthor renders,
-  // so the count may never claim a crawl the listing withholds. An unlisted
-  // crawl is a direct link and belongs to neither.
-  it("excludes unlisted stories, matching listStoriesByAuthor exactly", async () => {
+  // The profile's Crawls tile links to the section this page renders, so the
+  // count may never claim a crawl the listing withholds. An unlisted crawl is a
+  // direct link and belongs to neither.
+  it("excludes unlisted crawls from both the count and the rows", async () => {
     const slug = await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
     await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
-    expect(await countStoriesByAuthor("ken")).toBe(1);
-    expect((await listStoriesByAuthor("ken")).map((crawl) => crawl.title)).toEqual([
-      "Loop Two",
-    ]);
+    const page = await listAuthoredCrawlPage("ken");
+    expect(page.total).toBe(1);
+    expect(page.crawls.map((crawl) => crawl.title)).toEqual(["Loop Two"]);
   });
 
   it("counts 0 when every crawl a handle wrote is unlisted, so the tile links nowhere it cannot open", async () => {
     const slug = await makeStory("ken", "Only Loop");
     await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
-    expect(await countStoriesByAuthor("ken")).toBe(0);
-    expect(await listStoriesByAuthor("ken")).toEqual([]);
+    expect(await listAuthoredCrawlPage("ken")).toEqual({ crawls: [], total: 0 });
   });
 
-  it("matches listStoriesByAuthor cardinality when more than the default page size", async () => {
+  it("counts every crawl while listing one page of them", async () => {
     for (let i = 0; i < 11; i += 1) {
       await makeStory("ken", `Loop ${i}`);
     }
-    const total = await countStoriesByAuthor("ken");
-    const listed = await listStoriesByAuthor("ken");
-    expect(total).toBe(11);
-    expect(listed.length).toBe(10);
-    expect(total).toBeGreaterThan(listed.length);
+    const page = await listAuthoredCrawlPage("ken");
+    expect(page.total).toBe(11);
+    expect(page.crawls.length).toBe(10);
+    expect(page.total).toBeGreaterThan(page.crawls.length);
   });
 });
 
@@ -194,7 +207,7 @@ describe("countOwnStoriesByAuthor", () => {
     await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
 
     expect(await countOwnStoriesByAuthor("ken")).toBe(2);
-    expect(await countStoriesByAuthor("ken")).toBe(1);
+    expect((await listAuthoredCrawlPage("ken")).total).toBe(1);
   });
 
   it("still never counts a draft", async () => {
@@ -311,6 +324,52 @@ describe("GET /api/crawls?author=", () => {
     expect(body.count).toBe(0);
     expect(body.crawls).toEqual([]);
   });
+
+  // The other side of the same gate: the verified owner IS answered, and the
+  // number they get back counts the unlisted crawl the public one withholds.
+  // Without this, the whole branch could stop firing and the owner's passport
+  // would quietly fall back to the public count with nothing failing.
+  it("hands the verified owner a count that includes their unlisted crawls", async () => {
+    const unlisted = await makeStory("ken", "Direct Link Only");
+    await makeStory("ken", "Listed");
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    auth.userId = "user-ken";
+
+    const body = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&scope=own`))
+    ).json()) as Record<string, unknown>;
+
+    expect(body.ownCount).toBe(2);
+    expect(body.count).toBe(1);
+    expect(body.crawls).toHaveLength(1);
+  });
+
+  it("refuses the owner scope to a signed-in stranger", async () => {
+    const unlisted = await makeStory("ken", "Direct Link Only");
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    await memoryProfileStore.createOwned("pat", "user-pat");
+    auth.userId = "user-pat";
+
+    const body = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&scope=own`))
+    ).json()) as Record<string, unknown>;
+
+    expect(body.ownCount).toBeUndefined();
+  });
+
+  it("answers no owner count unless the scope was asked for", async () => {
+    await memoryProfileStore.createOwned("ken", "user-ken");
+    await makeStory("ken", "Listed");
+    auth.userId = "user-ken";
+
+    const body = (await (
+      await GET(new Request(`${URL_BASE}?author=ken`))
+    ).json()) as Record<string, unknown>;
+
+    expect(body.ownCount).toBeUndefined();
+  });
 });
 
 describe("POST /api/crawls", () => {
@@ -341,7 +400,7 @@ describe("POST /api/crawls", () => {
 
   it("rejects a cocktail bar before saving the crawl", async () => {
     expect((await post([{ venueId: "bar-a" }])).status).toBe(400);
-    expect(await countStoriesByAuthor("nobody")).toBe(0);
+    expect((await listAuthoredCrawlPage("nobody")).total).toBe(0);
   });
 
   it("rejects a legacy alias that resolves to a cocktail bar", async () => {

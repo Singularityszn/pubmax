@@ -905,7 +905,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               profile={profile}
               stats={stats}
               socialLinks={socialLinks}
-              crawls={storyCount ?? undefined}
+              crawls={storyCount}
               memories={stats.memoriesPosted}
               drops={drops}
               followers={counts.followers}
@@ -939,7 +939,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       profile={profile}
                       stats={stats}
                       socialLinks={socialLinks}
-                      crawls={storyCount ?? undefined}
+                      crawls={storyCount}
                       memories={stats.memoriesPosted}
                       drops={drops}
                       followers={counts.followers}

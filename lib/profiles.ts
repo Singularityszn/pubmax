@@ -227,6 +227,22 @@ export function formatCheapestPint(gbp: number | null): string {
   return gbp == null ? NO_CHEAPEST_PINT : `£${gbp.toFixed(2)}`;
 }
 
+/**
+ * What a stat face says when the read behind it could not answer. "None" and
+ * "we could not look" are two findings, and a tile printing 0 for the second
+ * one states a fact nobody measured, about somebody's own record.
+ */
+export const UNCOUNTED_STAT = "Not counted";
+
+/**
+ * One owner for how a TRI-STATE count reaches a stat face, shared by the
+ * passport grid and the profile header so the two cannot drift. A real number
+ * prints; a null prints {@link UNCOUNTED_STAT}, never a zero.
+ */
+export function formatStatCount(value: number | null): number | string {
+  return typeof value === "number" && Number.isFinite(value) ? value : UNCOUNTED_STAT;
+}
+
 // An earned-or-not achievement badge. Pure data — the UI decides how to render.
 // `earned` lets callers keep the full catalogue (for a "locked" preview) or
 // filter to just the earned set; computeBadges returns the whole catalogue.

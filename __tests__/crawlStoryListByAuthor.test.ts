@@ -225,7 +225,6 @@ function stopsQuery() {
 
 import {
   __resetCrawlStories,
-  countStoriesByAuthor,
   createCrawlStory,
   listAuthoredCrawlPage,
   listStoriesByAuthor,
@@ -351,10 +350,13 @@ describe("listStoriesByAuthor (Supabase)", () => {
   });
 });
 
-describe("countStoriesByAuthor (Supabase)", () => {
-  // The profile tile prints this number and links to the section the listing
+// The rows and the number come from ONE query, so no degradation can split
+// them. Two fail-soft reads could, and the losing combination was a Crawls tile
+// reading 0 directly above a section listing three crawls.
+describe("listAuthoredCrawlPage (Supabase)", () => {
+  // The profile tile prints this number and links to the section the same read
   // renders, so a crawl the listing withholds may never be counted.
-  it("counts exactly what listStoriesByAuthor returns, dropping unlisted and draft", async () => {
+  it("counts exactly the rows it lists, dropping unlisted and draft", async () => {
     db.stories.push(
       {
         id: "story-public",
@@ -390,10 +392,9 @@ describe("countStoriesByAuthor (Supabase)", () => {
       },
     );
 
-    expect(await countStoriesByAuthor("ken")).toBe(1);
-    expect(await countStoriesByAuthor("ken")).toBe(
-      (await listStoriesByAuthor("ken")).length,
-    );
+    const page = await listAuthoredCrawlPage("ken");
+    expect(page.total).toBe(1);
+    expect(page.crawls.map((crawl) => crawl.slug)).toEqual(["listed-abc123"]);
   });
 
   it("counts 0 when every crawl the handle wrote is unlisted", async () => {
@@ -406,15 +407,9 @@ describe("countStoriesByAuthor (Supabase)", () => {
       visibility: "unlisted",
     });
 
-    expect(await countStoriesByAuthor("ken")).toBe(0);
-    expect(await listStoriesByAuthor("ken")).toEqual([]);
+    expect(await listAuthoredCrawlPage("ken")).toEqual({ crawls: [], total: 0 });
   });
-});
 
-// The rows and the number come from ONE query, so no degradation can split
-// them. Two fail-soft reads could, and the losing combination was a Crawls tile
-// reading 0 directly above a section listing three crawls.
-describe("listAuthoredCrawlPage (Supabase)", () => {
   it("answers the page and the whole count from one read", async () => {
     for (let i = 0; i < 12; i += 1) {
       db.stories.push({

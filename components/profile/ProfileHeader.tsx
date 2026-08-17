@@ -12,6 +12,7 @@ import { profileCoverUrls } from "@/lib/profileCovers";
 import {
   computeBadges,
   formatCheapestPint,
+  formatStatCount,
   type Badge,
   type Profile,
   type ProfileDrop,
@@ -24,7 +25,9 @@ type ProfileHeaderProps = {
   stats: ProfileStats;
   viewerState?: "loading" | "resolved";
   socialLinks?: readonly PublicSocialLink[];
-  crawls?: number;
+  /** TRI-STATE: a number counts, null is a read that could not answer, and an
+   *  omitted prop falls back to the drop-derived figure. */
+  crawls?: number | null;
   memories?: number;
   followers?: number;
   following?: number;
@@ -153,7 +156,11 @@ export default function ProfileHeader({
   const profileBase = `/u/${encodeURIComponent(handle)}`;
 
   const crawlsPosted =
-    typeof crawls === "number" ? crawls : stats.crawlsPosted ?? 0;
+    crawls === null
+      ? null
+      : typeof crawls === "number"
+        ? crawls
+        : stats.crawlsPosted ?? 0;
   const memoriesPosted =
     typeof memories === "number" ? memories : stats.memoriesPosted ?? 0;
 
@@ -275,7 +282,7 @@ export default function ProfileHeader({
         ) : null}
         <ProfileStatTile
           label="Crawls"
-          value={crawlsPosted}
+          value={formatStatCount(crawlsPosted)}
           href={`${profileBase}#crawl-stories`}
           hint="Open the published crawls"
         />
