@@ -265,7 +265,6 @@ function toStoryRow(story: StoredStory) {
     summary: story.summary,
     visibility: story.visibility,
     cover_image_url: null as string | null,
-    started_at: null as string | null,
     created_at: story.createdAt,
     updated_at: story.createdAt,
   };
@@ -422,22 +421,33 @@ export async function getCrawlStoryBySlug(slug: string): Promise<DurableStory | 
   return enrich(stored);
 }
 
-/** Stop counts for crawl_story rows — stops live in crawl_story_stops, not on stories. */
-async function stopCountsForStoryIds(storyIds: string[]): Promise<Map<string, number>> {
+/** Stop counts for crawl_story rows — stops live in crawl_story_stops, not on
+ *  stories. A read that could not run answers null (an unknown count), never an
+ *  empty map: a zero here would be a false claim about a crawl that has stops,
+ *  and dropping the crawls the story read already returned would be worse. */
+async function stopCountsForStoryIds(storyIds: string[]): Promise<Map<string, number> | null> {
   const counts = new Map<string, number>();
   if (storyIds.length === 0) return counts;
-  const { data, error } = await admin()
-    .from(STOPS_TABLE)
-    .select("crawl_story_id")
-    .in("crawl_story_id", storyIds);
-  if (error) throw new Error(error.message);
-  for (const row of data ?? []) {
-    const record = row as { crawl_story_id?: unknown };
-    const id = String(record.crawl_story_id ?? "");
-    if (!id) continue;
-    counts.set(id, (counts.get(id) ?? 0) + 1);
+  try {
+    const { data, error } = await admin()
+      .from(STOPS_TABLE)
+      .select("crawl_story_id")
+      .in("crawl_story_id", storyIds);
+    if (error) throw new Error(error.message);
+    for (const row of data ?? []) {
+      const record = row as { crawl_story_id?: unknown };
+      const id = String(record.crawl_story_id ?? "");
+      if (!id) continue;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+    return counts;
+  } catch (err) {
+    console.warn(
+      "[crawl-stories] could not count stops for author crawls:",
+      err instanceof Error ? err.message : err,
+    );
+    return null;
   }
-  return counts;
 }
 
 async function getFromSupabase(slug: string): Promise<StoredStory | null> {
@@ -521,11 +531,13 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
  *  same weak-but-honest identity the rest of authorship uses. Never throws — a
  *  storage miss / bad handle resolves to 0 so the passport degrades to a clean
  *  zero rather than a 500. Draft stories don't count (they aren't public posts). */
-/** One published crawl by a handle, in the shape a profile row needs. */
+/** One published crawl by a handle, in the shape a profile row needs. `stops` is
+ *  TRI-STATE by way of null: a stop count we could not read is unknown, so the
+ *  row still opens and simply prints no number. */
 export type AuthoredCrawlSummary = {
   slug: string;
   title: string;
-  stops: number;
+  stops: number | null;
   createdAt: string;
 };
 
@@ -563,7 +575,7 @@ export async function listStoriesByAuthor(
           return {
             slug: String(record.slug ?? ""),
             title: String(record.title ?? ""),
-            stops: stopCounts.get(id) ?? 0,
+            stops: stopCounts ? stopCounts.get(id) ?? 0 : null,
             createdAt: String(record.created_at ?? ""),
           };
         })

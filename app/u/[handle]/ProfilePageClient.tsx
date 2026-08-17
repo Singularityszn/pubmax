@@ -337,7 +337,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // The crawls themselves, so the Crawls tile opens something rather than
   // announcing a number with nowhere to go.
   const [authoredCrawls, setAuthoredCrawls] = useState<
-    Array<{ slug: string; title: string; stops: number }>
+    Array<{ slug: string; title: string; stops: number | null }>
   >([]);
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
@@ -445,7 +445,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // A held answer seeds the passport before the network replies.
       const outcome = await loadSurfaceJson<{
         count?: number;
-        crawls?: Array<{ slug: string; title: string; stops: number }>;
+        crawls?: Array<{ slug: string; title: string; stops: number | null }>;
       }>(
         `/api/crawls?author=${encodeURIComponent(routeHandle)}`,
         { signal: controller.signal },
@@ -1065,9 +1065,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                             <Link href={`/crawls/${encodeURIComponent(crawl.slug)}`}>
                               {crawl.title}
                             </Link>
-                            <span className="profileCrawlStops">
-                              {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
-                            </span>
+                            {typeof crawl.stops === "number" ? (
+                              <span className="profileCrawlStops">
+                                {crawl.stops} {crawl.stops === 1 ? "stop" : "stops"}
+                              </span>
+                            ) : null}
                           </li>
                         ))}
                       </ul>
