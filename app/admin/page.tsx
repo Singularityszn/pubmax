@@ -1,4 +1,11 @@
 import type { Metadata } from "next";
+import { headers } from "next/headers";
+import { unauthorized } from "next/navigation";
+
+import {
+  canOpenAdminDocument,
+  requestFromIncomingHeaders,
+} from "@/lib/adminAuth";
 
 import AdminClient from "./AdminClient";
 
@@ -11,6 +18,10 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
-export default function AdminPage() {
+export default async function AdminPage() {
+  const headerList = await headers();
+  if (!canOpenAdminDocument(requestFromIncomingHeaders(headerList))) {
+    unauthorized();
+  }
   return <AdminClient />;
 }

@@ -110,7 +110,8 @@ describe("the add-account door", () => {
 
     // The flag says "I already have a session". Without one there is nothing to
     // add to, so the page is exactly the door it always was.
-    expect(html).toContain("Welcome back");
+    expect(html).toContain("Sign in or create your account");
+    expect(html).not.toContain("Welcome back");
     expect(html).not.toContain("Add another account");
     expect(html).toContain("authMagicLink");
   });

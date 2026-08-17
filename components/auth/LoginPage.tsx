@@ -24,6 +24,7 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
+import { loginPageHeadCopy } from "@/lib/loginPageFraming";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -240,24 +241,12 @@ function WelcomeBackCard({
 
 /** What the page says, which is the first thing a door differs in. */
 function PageHead({
-  adding,
-  signedIn,
-  door,
+  title,
+  lead,
 }: {
-  adding: boolean;
-  signedIn: boolean;
-  door: { title: string; lead: string };
+  title: string;
+  lead: string;
 }): React.JSX.Element {
-  const title = adding
-    ? "Add another account"
-    : signedIn
-      ? "You are signed in"
-      : door.title;
-  const lead = adding
-    ? "Sign in to the other account. This device keeps both, and you can switch between them whenever you like."
-    : signedIn
-      ? "Your account is ready. Jump back into the map, or sign out."
-      : door.lead;
   return (
     <header className="loginPageHead">
       <p className="loginPageEyebrow">PUBMAXXING</p>
@@ -476,22 +465,25 @@ export default function LoginPage({
   // they did not ask.
   const adding = addAccount && Boolean(user);
   const showSignedIn = Boolean(user) && !adding;
+  const returning = Boolean(welcomeBack) && !useDifferentAccount;
+  const head = loginPageHeadCopy({
+    sessionKnown: !loading,
+    adding,
+    signedIn: Boolean(user),
+    returning,
+    intent,
+    door,
+  });
 
   return (
-    <main className="loginPage">
+    <main className="loginPage" aria-busy={loading ? true : undefined}>
       <div className="loginPageInner">
-        <PageHead adding={adding} signedIn={Boolean(user)} door={door} />
+        <PageHead title={head.title} lead={head.lead} />
 
         {!hasAuthSurface && !loading ? (
           <p className="loginPageNotice" role="status">
             Sign-in is not configured on this build. You can still browse the
             map.
-          </p>
-        ) : null}
-
-        {loading && !clerkSessionAvailable ? (
-          <p className="loginPageNotice" role="status">
-            Checking your session…
           </p>
         ) : null}
 

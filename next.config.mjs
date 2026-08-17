@@ -216,6 +216,10 @@ const nextConfig = {
     // today's instant swap; prefers-reduced-motion users get no animation via
     // the media guard on those rules. See app/globals.css "View Transitions".
     viewTransition: true,
+    // Lets app/admin/page.tsx call unauthorized() so an anonymous GET is a
+    // real 401 with the token form, not a 200 console shell. Nothing else
+    // calls unauthorized() or forbidden().
+    authInterrupts: true,
   },
   env: {
     // See swVersion above — SW cache-busting build id.

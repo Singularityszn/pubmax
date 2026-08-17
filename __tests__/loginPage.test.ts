@@ -18,6 +18,14 @@ const loginEntries = vi.hoisted(() => ({
   passwordDestination: undefined as string | null | undefined,
 }));
 
+const authState = vi.hoisted(() => ({
+  current: {
+    user: null as { email?: string; user_metadata?: Record<string, unknown> } | null,
+    loading: false,
+    welcomeBack: null as { maskedEmail: string | null } | null,
+  },
+}));
+
 vi.mock("next/link", () => ({
   default: ({
     href,
@@ -36,8 +44,8 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
-    user: null,
-    loading: false,
+    user: authState.current.user,
+    loading: authState.current.loading,
     configured: true,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true },
@@ -46,8 +54,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
     signInWithEmail: authActions.email,
     cancelAuthAttempt: vi.fn(),
     signOut: vi.fn(async () => undefined),
-    welcomeBack: null,
+    switchAccount: vi.fn(async () => ({ status: "switched" })),
+    welcomeBack: authState.current.welcomeBack,
     resumeSignIn: authActions.resume,
+    handle: null,
   }),
 }));
 
@@ -96,6 +106,7 @@ beforeEach(() => {
   loginEntries.apple = null;
   loginEntries.email = null;
   loginEntries.passwordDestination = undefined;
+  authState.current = { user: null, loading: false, welcomeBack: null };
 });
 
 describe("login page", () => {
@@ -108,19 +119,43 @@ describe("login page", () => {
       join(process.cwd(), "app/signin/page.tsx"),
       "utf8",
     );
+    const proxy = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
     expect(login).toContain("LoginPage");
     expect(signin).toMatch(/redirect\(["']\/login["']\)/);
+    expect(proxy).toContain('pathname === "/sign-in"');
+    expect(proxy).toContain('target.pathname = "/login"');
   });
 
   it("renders identity, email flow, and browse-away on the signed-out wall", () => {
     const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Sign in or create your account");
     expect(html).toContain("Sign in");
     expect(html).toContain("email form");
     expect(html).toContain("social");
     expect(html).toContain("Browse without signing in");
     expect(html).toContain('href="/map"');
     expect(html).toContain('href="/privacy"');
+    expect(html).not.toContain("Welcome back");
+    expect(html).not.toContain("Checking your session");
     expect(html).not.toMatch(/—|–/);
+  });
+
+  it("stays on first-time copy while the session is still unknown", () => {
+    authState.current.loading = true;
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Sign in or create your account");
+    expect(html).toContain("Use your email, or pick a handle after the link lands.");
+    expect(html).not.toContain("Welcome back");
+    expect(html).not.toContain("Checking your session");
+    expect(html).toContain('aria-busy="true"');
+  });
+
+  it("keeps Welcome back for a returning resume cookie", () => {
+    authState.current.welcomeBack = { maskedEmail: "k***@example.test" };
+    const html = renderToStaticMarkup(createElement(LoginPage));
+    expect(html).toContain("Welcome back");
+    expect(html).toContain("Continue as k***@example.test");
+    expect(html).not.toContain("Sign in or create your account");
   });
 
   it("keeps phone sign-in as a /login link and desktop as a disclosure", () => {

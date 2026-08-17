@@ -40,6 +40,19 @@ function readAdminSessionCookie(request: Request): string | undefined {
   return undefined;
 }
 
+/** Rebuild a Request so the document gate can reuse `isModerator`. */
+export function requestFromIncomingHeaders(headerList: Headers): Request {
+  return new Request("http://localhost/admin", { headers: headerList });
+}
+
+/**
+ * Whether GET /admin may render the moderator console. Same credential as the
+ * API gate: a missing session is a refusal, never a 200 shell.
+ */
+export function canOpenAdminDocument(request: Request): boolean {
+  return isModerator(request);
+}
+
 export function isModerator(request: Request): boolean {
   const expected = process.env.ADMIN_TOKEN;
   if (!expected) {

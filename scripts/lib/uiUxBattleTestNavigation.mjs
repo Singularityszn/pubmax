@@ -34,7 +34,7 @@ export const AUDITED_ROUTES = [
     name: "login",
     path: "/login",
     readySelector:
-      ".loginPageForm, .loginPageSignedIn, .loginPageWelcomeBack, .loginPageNotice:not(:has-text('Checking your session'))",
+      ".loginPageForm, .loginPageSignedIn, .loginPageWelcomeBack, h1.loginPageTitle",
   },
   {
     name: "profile",
