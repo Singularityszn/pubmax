@@ -53,6 +53,7 @@ import {
   parseOutQuery,
 } from "@/lib/out/loadOut";
 import {
+  OUT_DEGRADED_LINE,
   OUT_READY_CACHE_CONTROL,
   OUT_UNSETTLED_CACHE_CONTROL,
   outAnswerView,
@@ -613,6 +614,41 @@ describe("GET /api/out openPlans", () => {
     const body = await response.json();
     expect(body.status).toBe("degraded");
     expect(body.openPlans).toEqual([]);
+    // The plans failure widens the WHOLE answer's status and leaves the
+    // listings lane exactly as its own read left it, so a surface showing only
+    // listings never apologises for a read that ran.
+    const listingsOnly = await buildOutResponse(
+      { city: "london", day: "today" },
+      { now: FIXTURE_NOW.getTime() },
+    );
+    expect(body.listingsStatus).toBe(listingsOnly.status);
+    expect(body.listingsReason).toBe(listingsOnly.reason);
+  });
+
+  it("keeps a healthy listings lane unmarked when only the plans read failed", async () => {
+    store.listOpen.mockRejectedValue(new Error("rpc down"));
+    const ready = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          {
+            name: "ticketmaster",
+            isConfigured: () => true,
+            fetchTonight: async () => [],
+          },
+        ],
+      },
+    );
+    expect(ready.status).toBe("ready");
+    expect(ready.listingsStatus).toBe("ready");
+    // The reader-facing consequence: the lines a listings-only surface prints
+    // carry no "could not be checked" claim once the plans status is split off.
+    const widened = { ...ready, status: "degraded" as const, reason: OUT_DEGRADED_LINE };
+    expect(outStatusLines({ body: widened, failed: false })).not.toContain(
+      OUT_DEGRADED_LINE,
+    );
   });
 
   it("keeps a successful empty open-plan list without inventing rows", async () => {

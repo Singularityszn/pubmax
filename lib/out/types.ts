@@ -35,7 +35,23 @@ export type OutProviderReport = {
 export type OutStatus = "ready" | "degraded" | "not-configured";
 
 export type OutResponse = {
+  /**
+   * The WHOLE answer's health: the listings lane and the open-plans read
+   * together. It is what decides how long the edge may keep this body, and a
+   * failed open-plans read belongs in it.
+   */
   status: OutStatus;
+  /**
+   * The LISTINGS lane's own health, untouched by the open-plans read.
+   *
+   * A surface that shows listings and no open plans asks THIS one: with the
+   * plans RPC unavailable, the top-level status is degraded while both event
+   * providers read fine, and "Some listings could not be checked." over a
+   * complete list is a claim about a read that ran.
+   */
+  listingsStatus: OutStatus;
+  /** Why the LISTINGS lane is degraded, in words a reader can act on. */
+  listingsReason?: string;
   events: WhatsOnRow[];
   openPlans: OutOpenPlan[];
   attribution: OutSourceCredit[];

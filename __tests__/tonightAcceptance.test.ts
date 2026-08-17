@@ -93,6 +93,21 @@ describe("acceptTonightVenue", () => {
     expect(intent?.displayEvidence).toEqual({ kind: "whats-on", observedAt: OBSERVED });
   });
 
+  it("records an Out-lane listing by the read that carried it", () => {
+    // A Ticketmaster row is dated by the Out read, so recording it as a
+    // what's-on observation is a claim about a read nobody made about it.
+    const result = acceptTonightVenue(
+      { ...baseInput, evidenceKind: "out-listing" },
+      { storage, now: NOW },
+    );
+
+    expect(result.accepted).toBe(true);
+    expect(storedIntent(storage)?.displayEvidence).toEqual({
+      kind: "out-listing",
+      observedAt: OBSERVED,
+    });
+  });
+
   it("records a canonical borough as the accepted area", () => {
     const result = acceptTonightVenue(
       { ...baseInput, area: { kind: "borough", name: CANONICAL_BOROUGH } },
@@ -165,7 +180,7 @@ describe("TonightRowAccept", () => {
   function render(venueId: string, familyKey = "quiz|Quiz Night|Chain Co") {
     return renderToStaticMarkup(createElement(TonightRowAccept, {
       venueId,
-      observedAt: new Date(NOW).toISOString(),
+      evidence: { observedAt: new Date(NOW).toISOString(), kind: "whats-on" as const },
       familyKey,
       placeName: "The Dove",
       className: "tonightRowAccept",

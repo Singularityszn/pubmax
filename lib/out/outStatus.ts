@@ -41,6 +41,28 @@ export function outAnswerView<T>(
   };
 }
 
+export type OutListingsBody = Pick<OutResponse, "status" | "events" | "reason"> &
+  Partial<Pick<OutResponse, "listingsStatus" | "listingsReason">>;
+
+/**
+ * The listings lane's own health, for every surface that shows only listings.
+ *
+ * `/api/out` widens the top-level status with the OPEN-PLANS read, so a plans
+ * RPC that is unavailable (no Supabase, or migration 0110 not yet applied)
+ * marks an answer whose event providers both read fine. The lane's own field is
+ * the honest one; a body from before that field existed falls back to the
+ * top-level status, which was that answer's whole truth at the time.
+ */
+export function outListingsHealth(body: OutListingsBody): {
+  status: OutStatus;
+  reason: string | undefined;
+} {
+  if (body.listingsStatus) {
+    return { status: body.listingsStatus, reason: body.listingsReason };
+  }
+  return { status: body.status, reason: body.reason };
+}
+
 /**
  * What /out says above the list, in order.
  *
@@ -50,7 +72,7 @@ export function outAnswerView<T>(
  * the city is quiet when what actually happened is that we could not look.
  */
 export function outStatusLines(input: {
-  body: Pick<OutResponse, "status" | "events" | "reason"> | null;
+  body: OutListingsBody | null;
   failed: boolean;
 }): string[] {
   const lines: string[] = [];
@@ -61,14 +83,15 @@ export function outStatusLines(input: {
     // surface must not word that wait as an empty market either.
     return lines;
   }
-  if (body.status === "degraded") {
-    lines.push(body.reason ?? OUT_DEGRADED_LINE);
+  const listings = outListingsHealth(body);
+  if (listings.status === "degraded") {
+    lines.push(listings.reason ?? OUT_DEGRADED_LINE);
     return lines;
   }
   // A lane nobody asked is not a city with nothing on. Say the listings are off
   // rather than wording an unasked question as an empty market.
-  if (body.status === "not-configured") {
-    lines.push(body.reason ?? OUT_NOT_CONFIGURED_LINE);
+  if (listings.status === "not-configured") {
+    lines.push(listings.reason ?? OUT_NOT_CONFIGURED_LINE);
     return lines;
   }
   if (!input.failed && body.events.length === 0) lines.push(OUT_EMPTY_LINE);

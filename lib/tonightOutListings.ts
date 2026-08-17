@@ -1,4 +1,8 @@
-import { OUT_DEGRADED_LINE, OUT_READ_FAILED_LINE } from "@/lib/out/outStatus";
+import {
+  OUT_DEGRADED_LINE,
+  OUT_READ_FAILED_LINE,
+  outListingsHealth,
+} from "@/lib/out/outStatus";
 import type { OutResponse } from "@/lib/out/types";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
@@ -9,11 +13,27 @@ export type TonightListingsStatus = TonightWhatsOnStatus;
 export type TonightOutAnswer = {
   body:
     | (Pick<OutResponse, "status" | "events" | "reason"> &
-        Partial<Pick<OutResponse, "observedAt">>)
+        Partial<
+          Pick<OutResponse, "observedAt" | "listingsStatus" | "listingsReason">
+        >)
     | null;
   failed: boolean;
   pending: boolean;
 };
+
+/**
+ * Tonight shows LISTINGS and no open plans, so it asks the listings lane's own
+ * health. The top-level status also carries the open-plans read, and a plans
+ * RPC nobody can reach would otherwise put "Some listings could not be checked."
+ * over a complete list and turn a genuinely quiet night into an error box.
+ */
+function outListingsStatus(out: TonightOutAnswer): {
+  status: OutResponse["status"] | null;
+  reason: string | undefined;
+} {
+  if (!out.body) return { status: null, reason: undefined };
+  return outListingsHealth(out.body);
+}
 
 /** One list: What's-On plus Out events, newest observation wins a clash. */
 export function mergeTonightListingRows(
@@ -59,7 +79,11 @@ export function tonightListingsStatus(
   const outEvents = filterNotPast(out.body?.events ?? [], now);
   if (outEvents.length > 0 || whatsOn === "ready") return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
-  if (whatsOn === "error" || out.failed || out.body?.status === "degraded") {
+  if (
+    whatsOn === "error" ||
+    out.failed ||
+    outListingsStatus(out).status === "degraded"
+  ) {
     return "error";
   }
   return "empty";
@@ -81,19 +105,16 @@ export function tonightListingsNoteLine(
 ): string | null {
   const reasons: string[] = [];
   if (out.failed) reasons.push(OUT_READ_FAILED_LINE);
-  if (out.body?.status === "degraded") reasons.push(out.body.reason ?? OUT_DEGRADED_LINE);
+  const listings = outListingsStatus(out);
+  if (listings.status === "degraded") {
+    reasons.push(listings.reason ?? OUT_DEGRADED_LINE);
+  }
   if (whatsOn === "error") reasons.push(TONIGHT_WHATS_ON_FAILED_LINE);
   return reasons.length > 0 ? reasons.join(" · ") : null;
 }
 
-export function tonightListingsErrorLine(
-  whatsOn: TonightWhatsOnStatus,
-  out: TonightOutAnswer,
-): string {
-  return tonightListingsNoteLine(whatsOn, out) ?? TONIGHT_WHATS_ON_FAILED_LINE;
-}
-
 export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
+export const TONIGHT_QUIET_NIGHT_LABEL = "Quiet night";
 
 export type TonightProvenanceCredits = {
   /** The What's-On segment of the coverage line, or null when it carried none. */
@@ -131,7 +152,7 @@ export function tonightProvenanceCredits(input: {
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
   const whatsOn = creditsWhatsOn
-    ? `${laneCountLabel(lanes.whatsOnCount, "listing")}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
+    ? `${whatsOnLaneLabel(lanes.whatsOnCount)}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
   const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
   const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
@@ -183,9 +204,11 @@ function outLaneCredit(
   return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
 }
 
-function laneCountLabel(count: number, noun: string): string {
-  const label = noun === "listing" ? (count === 1 ? noun : "listings") : noun;
-  return `${count} ${label}`;
+// A night this read found nothing on is said in words, not as a bare numeral
+// over the quiet-night sentence beneath it.
+function whatsOnLaneLabel(count: number): string {
+  if (count === 0) return TONIGHT_QUIET_NIGHT_LABEL;
+  return `${count} ${count === 1 ? "listing" : "listings"}`;
 }
 
 function canonicalIso(value: string | null): string | null {

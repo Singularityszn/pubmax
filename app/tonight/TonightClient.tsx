@@ -56,7 +56,10 @@ import {
   tonightAcceptanceFamilyKey,
   type TonightAcceptanceError,
 } from "@/lib/tonightAcceptance";
-import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
+import {
+  TonightRowAccept,
+  type TonightRowEvidence,
+} from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
@@ -72,10 +75,11 @@ import {
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
-  tonightListingsErrorLine,
+  tonightListingLanes,
   tonightListingsNoteLine,
   tonightListingsStatus,
   tonightProvenanceCredits,
+  TONIGHT_WHATS_ON_FAILED_LINE,
 } from "@/lib/tonightOutListings";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
@@ -234,13 +238,14 @@ export default function TonightClient({
   // the Venue off via the accept deep link. Storage failure stays on Tonight,
   // reports the error, and emits nothing.
   const acceptVenue = useCallback(
-    (venueId: string, familyKey: string, observedAt: string) => {
+    (venueId: string, familyKey: string, evidence: TonightRowEvidence) => {
       const result = acceptTonightVenue({
         venueId,
         area: remembered,
         // Tonight answers "tonight"; like Near, no explicit future date is chosen.
         startsAt: null,
-        observedAt,
+        observedAt: evidence.observedAt,
+        evidenceKind: evidence.kind,
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
@@ -337,6 +342,17 @@ export default function TonightClient({
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
   // list short for a reason the reader is owed.
   const listingsNote = tonightListingsNoteLine(status, outAnswer);
+  // Which read a row came from decides how keeping it is recorded, so the Out
+  // lane is identified by the same reference identity the credits use.
+  const rowEvidence = useMemo(() => {
+    const fromOut = new Set(
+      tonightListingLanes(listingRows, outBody?.events ?? []).outRows,
+    );
+    return (row: WhatsOnRow): TonightRowEvidence => ({
+      observedAt: row.observedAt,
+      kind: fromOut.has(row) ? "out-listing" : "whats-on",
+    });
+  }, [listingRows, outBody]);
   const errored = listingsStatus === "error";
   const loading = listingsStatus === "idle";
   // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
@@ -456,7 +472,7 @@ export default function TonightClient({
 
       {errored ? (
         <div className="tonightStatus tonightStatusError">
-          <p role="status">{tonightListingsErrorLine(status, outAnswer)}</p>
+          <p role="status">{listingsNote ?? TONIGHT_WHATS_ON_FAILED_LINE}</p>
           <button type="button" className="tonightRetry" onClick={retryListings}>
             <RefreshCw size={15} aria-hidden="true" />
             Retry listings
@@ -681,7 +697,7 @@ export default function TonightClient({
                     <TonightRowAccept
                       venueId={row.venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
-                      observedAt={row.observedAt}
+                      evidence={rowEvidence(row)}
                       placeName={row.placeName}
                       className="tonightRowAccept"
                       label="Keep this venue"
@@ -747,7 +763,7 @@ export default function TonightClient({
                                 <TonightRowAccept
                                   venueId={alt.venueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
-                                  observedAt={alt.observedAt}
+                                  evidence={rowEvidence(alt)}
                                   placeName={alt.placeName}
                                   className="tonightRowMoreAccept"
                                   label="Keep"

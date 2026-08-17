@@ -5,7 +5,6 @@ import {
   TONIGHT_WHATS_ON_FAILED_LINE,
   mergeTonightListingRows,
   tonightListingLanes,
-  tonightListingsErrorLine,
   tonightListingsNoteLine,
   tonightListingsStatus,
   tonightProvenanceCredits,
@@ -142,22 +141,33 @@ describe("tonight listings status", () => {
   });
 });
 
-describe("tonight listings error line", () => {
+describe("the error state always has a line to print", () => {
+  it("names a reason for every answer that reaches the error state", () => {
+    // The error box prints the note line, so a status that says "error" with
+    // nothing to say would leave the reader an empty box.
+    const errored: TonightOutAnswer[] = [failedOut, degradedOut];
+    for (const out of errored) {
+      expect(statusAtFixture("empty", out)).toBe("error");
+      expect(tonightListingsNoteLine("empty", out)).not.toBeNull();
+    }
+    expect(statusAtFixture("error", emptyReadyOut)).toBe("error");
+    expect(tonightListingsNoteLine("error", emptyReadyOut)).toBe(
+      TONIGHT_WHATS_ON_FAILED_LINE,
+    );
+  });
+
   it("names the Out failure or degraded reason before the What's-On line", () => {
-    expect(tonightListingsErrorLine("empty", failedOut)).toBe(OUT_READ_FAILED_LINE);
-    expect(tonightListingsErrorLine("empty", degradedOut)).toBe("Out does not cover Bristol yet.");
+    expect(tonightListingsNoteLine("empty", failedOut)).toBe(OUT_READ_FAILED_LINE);
+    expect(tonightListingsNoteLine("empty", degradedOut)).toBe(
+      "Out does not cover Bristol yet.",
+    );
     expect(
-      tonightListingsErrorLine("empty", {
+      tonightListingsNoteLine("empty", {
         body: { status: "degraded", events: [] },
         failed: false,
         pending: false,
       }),
     ).toBe(OUT_DEGRADED_LINE);
-    expect(tonightListingsErrorLine("error", emptyReadyOut)).toBe(TONIGHT_WHATS_ON_FAILED_LINE);
-  });
-
-  it("falls back to the What's-On line when no lane named a reason", () => {
-    expect(tonightListingsErrorLine("empty", emptyReadyOut)).toBe(TONIGHT_WHATS_ON_FAILED_LINE);
   });
 });
 
@@ -292,8 +302,59 @@ describe("tonight provenance credits", () => {
       outEvents: [],
       whatsOnChecked: null,
     });
-    expect(credits.whatsOn).toBe("0 listings · undated · via what’s-on");
+    expect(credits.whatsOn).toBe("Quiet night · undated · via what’s-on");
     expect(credits.out).toBeNull();
     expect(credits.dated).toBe(false);
+  });
+
+  it("says a dated quiet night in words rather than as a bare zero", () => {
+    const credits = tonightProvenanceCredits({
+      merged: [],
+      outEvents: [],
+      whatsOnChecked: "Checked 15 Aug",
+    });
+    expect(credits.whatsOn).toBe("Quiet night · Checked 15 Aug · via what’s-on");
+    expect(credits.whatsOnDated).toBe(true);
+  });
+});
+
+describe("tonight reads the listings lane's own health", () => {
+  // /api/out widens its top-level status with the OPEN-PLANS read, so a plans
+  // RPC nobody can reach (no Supabase, or migration 0110 unapplied) marks an
+  // answer whose event providers both read fine.
+  const plansDegradedOnly: TonightOutAnswer = {
+    body: {
+      status: "degraded",
+      listingsStatus: "ready",
+      events: [],
+      reason: "Some listings could not be checked.",
+    },
+    failed: false,
+    pending: false,
+  };
+
+  it("keeps a quiet night quiet when only the open-plans read failed", () => {
+    expect(statusAtFixture("empty", plansDegradedOnly)).toBe("empty");
+  });
+
+  it("says nothing about listings that were checked", () => {
+    expect(tonightListingsNoteLine("empty", plansDegradedOnly)).toBeNull();
+  });
+
+  it("still names a listings lane that really degraded", () => {
+    const listingsDegraded: TonightOutAnswer = {
+      body: {
+        status: "degraded",
+        listingsStatus: "degraded",
+        listingsReason: "Some listings could not be checked.",
+        events: [],
+      },
+      failed: false,
+      pending: false,
+    };
+    expect(statusAtFixture("empty", listingsDegraded)).toBe("error");
+    expect(tonightListingsNoteLine("empty", listingsDegraded)).toBe(
+      "Some listings could not be checked.",
+    );
   });
 });

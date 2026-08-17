@@ -253,7 +253,7 @@ test("a failed listings request can be retried", async ({ page }) => {
   );
   await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
   await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
-    /^0 listings · /,
+    /^Quiet night · /,
   );
   expect(requests).toBe(2);
 });

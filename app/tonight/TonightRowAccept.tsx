@@ -7,12 +7,21 @@
 import {
   tonightRowAcceptanceError,
   type TonightAcceptanceError,
+  type TonightEvidenceKind,
 } from "@/lib/tonightAcceptance";
+
+/** What this row was observed by, and when. The two travel together, because a
+ *  date without the read it came from is what let a Ticketmaster listing be
+ *  recorded as a what's-on observation. */
+export type TonightRowEvidence = {
+  observedAt: string;
+  kind: TonightEvidenceKind;
+};
 
 export function TonightRowAccept({
   venueId,
   familyKey,
-  observedAt,
+  evidence,
   placeName,
   className,
   label,
@@ -21,12 +30,12 @@ export function TonightRowAccept({
 }: {
   venueId: string;
   familyKey: string;
-  observedAt: string;
+  evidence: TonightRowEvidence;
   placeName: string;
   className: string;
   label: string;
   acceptanceError: TonightAcceptanceError | null;
-  onAccept: (venueId: string, familyKey: string, observedAt: string) => void;
+  onAccept: (venueId: string, familyKey: string, evidence: TonightRowEvidence) => void;
 }) {
   const message = tonightRowAcceptanceError(acceptanceError, venueId, familyKey);
   return (
@@ -35,7 +44,7 @@ export function TonightRowAccept({
         type="button"
         className={`${className} pressable`}
         aria-label={`Keep ${placeName} for tonight`}
-        onClick={() => onAccept(venueId, familyKey, observedAt)}
+        onClick={() => onAccept(venueId, familyKey, evidence)}
       >
         {label}
       </button>
