@@ -4,6 +4,7 @@ import {
   LOGIN_FIRST_TIME_LEAD,
   LOGIN_FIRST_TIME_TITLE,
   loginPageHeadCopy,
+  loginPageShowsSkeleton,
 } from "@/lib/loginPageFraming";
 
 const SIGNIN_DOOR = {
@@ -57,6 +58,20 @@ describe("login page framing", () => {
         door: SIGNUP_DOOR,
       }),
     ).toEqual(SIGNUP_DOOR);
+  });
+
+  it("stands the card's shape up only where a card can arrive", () => {
+    expect(
+      loginPageShowsSkeleton({ sessionKnown: false, hasAuthSurface: true }),
+    ).toBe(true);
+    // Keyless build: the notice is the whole answer, so nothing may promise a
+    // form that is never coming.
+    expect(
+      loginPageShowsSkeleton({ sessionKnown: false, hasAuthSurface: false }),
+    ).toBe(false);
+    expect(
+      loginPageShowsSkeleton({ sessionKnown: true, hasAuthSurface: true }),
+    ).toBe(false);
   });
 
   it("keeps Welcome back for a returning resume", () => {

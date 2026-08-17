@@ -30,10 +30,20 @@ export type AdminSessionSubmitOutcome =
 
 type FetchLike = (input: string, init?: RequestInit) => Promise<Response>;
 
-/** Whether the browser kept the session cookie the POST just handed it. */
-async function confirmAdminSession(
+/** The global under a name, because a detached `fetch` is an illegal call. */
+export const browserFetch: FetchLike = (input, init) => fetch(input, init);
+
+/**
+ * What the session route says this browser holds. TRI-STATE on purpose: a read
+ * we could not run says nothing about the cookie, and each door names its own
+ * refusal for `anonymous` - after a POST that is a cookie the browser refused
+ * to keep, and with no token typed it is simply nobody signed in yet.
+ */
+export type AdminSessionState = "authenticated" | "anonymous" | "unknown";
+
+export async function readAdminSessionState(
   fetchImpl: FetchLike,
-): Promise<AdminSessionSubmitOutcome> {
+): Promise<AdminSessionState> {
   let res: Response;
   try {
     res = await fetchImpl(ADMIN_SESSION_PATH, {
@@ -42,11 +52,11 @@ async function confirmAdminSession(
       headers: { accept: "application/json" },
     });
   } catch {
-    return { status: "refused", message: ADMIN_SESSION_UNCONFIRMED_MESSAGE };
+    return "unknown";
   }
   if (!res.ok) {
     discardBody(res);
-    return { status: "refused", message: ADMIN_SESSION_UNCONFIRMED_MESSAGE };
+    return "unknown";
   }
   const body = await readApiJson(res).catch(() => null);
   discardBody(res);
@@ -54,8 +64,18 @@ async function confirmAdminSession(
     body && typeof body === "object"
       ? (body as { authenticated?: unknown }).authenticated
       : undefined;
-  if (authenticated === true) return { status: "open" };
-  if (authenticated === false) {
+  if (authenticated === true) return "authenticated";
+  if (authenticated === false) return "anonymous";
+  return "unknown";
+}
+
+/** Whether the browser kept the session cookie the POST just handed it. */
+export async function confirmAdminSession(
+  fetchImpl: FetchLike,
+): Promise<AdminSessionSubmitOutcome> {
+  const state = await readAdminSessionState(fetchImpl);
+  if (state === "authenticated") return { status: "open" };
+  if (state === "anonymous") {
     return { status: "refused", message: ADMIN_SESSION_NOT_KEPT_MESSAGE };
   }
   return { status: "refused", message: ADMIN_SESSION_UNCONFIRMED_MESSAGE };

@@ -22,6 +22,7 @@ const authState = vi.hoisted(() => ({
   current: {
     user: null as { email?: string; user_metadata?: Record<string, unknown> } | null,
     loading: false,
+    configured: true,
     welcomeBack: null as { maskedEmail: string | null } | null,
   },
 }));
@@ -49,7 +50,7 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     user: authState.current.user,
     loading: authState.current.loading,
-    configured: true,
+    configured: authState.current.configured,
     clerkIntegrationConfigured: false,
     socialProviders: { google: true, apple: true },
     signInWithGoogle: authActions.google,
@@ -109,7 +110,12 @@ beforeEach(() => {
   loginEntries.apple = null;
   loginEntries.email = null;
   loginEntries.passwordDestination = undefined;
-  authState.current = { user: null, loading: false, welcomeBack: null };
+  authState.current = {
+    user: null,
+    loading: false,
+    configured: true,
+    welcomeBack: null,
+  };
   navigation.redirect.mockClear();
 });
 
@@ -150,26 +156,43 @@ describe("login page", () => {
     expect(html).toContain("Use your email, or pick a handle after the link lands.");
     expect(html).not.toContain("Welcome back");
     expect(html).not.toContain("Checking your session");
-    expect(html).toContain('aria-busy="true"');
   });
 
   // The body may not be empty while the session resolves: the card's shape
-  // stands in for it, and the one thing said out loud is for a screen reader,
-  // which cannot see aria-busy.
+  // stands in for it. `aria-busy` belongs to the region that is loading, and
+  // the screen-reader line starts EMPTY, because a live region announces a
+  // change and text already present when it mounted is never spoken.
   it("stands the sign-in card's shape up while the session resolves", () => {
     authState.current.loading = true;
     const html = renderToStaticMarkup(createElement(LoginPage));
-    expect(html).toContain("loginPageSkeleton");
+    expect(html).toContain('class="loginPageSkeleton" aria-busy="true"');
     expect(html).toContain('class="loginPageSrOnly" role="status"');
-    expect(html).toContain(">Loading<");
+    expect(html).not.toContain(">Loading<");
     expect(html).not.toContain("email form");
     expect(html).not.toContain("social");
+    // The page as a whole is not busy: aria-busy there withholds updates from
+    // everything it wraps, including the line meant to be announced.
+    expect(html).not.toContain('<main class="loginPage" aria-busy');
+  });
+
+  // A keyless build has no form to arrive: the skeleton would promise a card
+  // that never comes, so the not-configured notice is the whole answer.
+  it("never promises a sign-in card a keyless build cannot show", () => {
+    authState.current.configured = false;
+    authState.current.loading = true;
+    const busy = renderToStaticMarkup(createElement(LoginPage));
+    expect(busy).not.toContain("loginPageSkeleton");
+
+    authState.current.loading = false;
+    const settled = renderToStaticMarkup(createElement(LoginPage));
+    expect(settled).not.toContain("loginPageSkeleton");
+    expect(settled).toContain("Sign-in is not configured on this build");
+    expect(settled).not.toContain("email form");
   });
 
   it("drops the skeleton once the session has answered", () => {
     const html = renderToStaticMarkup(createElement(LoginPage));
     expect(html).not.toContain("loginPageSkeleton");
-    expect(html).not.toContain(">Loading<");
     expect(html).toContain("email form");
   });
 

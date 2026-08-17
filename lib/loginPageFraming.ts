@@ -19,6 +19,21 @@ export const LOGIN_ADD_ACCOUNT_TITLE = "Add another account";
 export const LOGIN_ADD_ACCOUNT_LEAD =
   "Sign in to the other account. This device keeps both, and you can switch between them whenever you like.";
 
+/**
+ * Whether the sign-in card's shape stands in while the session resolves. A
+ * keyless build has no card to arrive, so the not-configured notice is the
+ * whole answer there and a skeleton would promise something that never comes.
+ */
+export function loginPageShowsSkeleton({
+  sessionKnown,
+  hasAuthSurface,
+}: {
+  sessionKnown: boolean;
+  hasAuthSurface: boolean;
+}): boolean {
+  return !sessionKnown && hasAuthSurface;
+}
+
 export function loginPageHeadCopy({
   sessionKnown,
   adding,

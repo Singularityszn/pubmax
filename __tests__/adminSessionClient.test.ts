@@ -4,6 +4,7 @@ import {
   ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   ADMIN_SESSION_UNREACHABLE_MESSAGE,
+  readAdminSessionState,
   submitAdminToken,
 } from "@/lib/adminSessionClient";
 
@@ -109,6 +110,29 @@ describe("submitAdminToken", () => {
       message: "Not authorised.",
     });
     expect(calls).toHaveLength(1);
+  });
+
+  // Both admin doors read the session through this one function, so a 200 POST
+  // can never be mistaken for a session on either of them.
+  it("is the one session read, and it answers three ways", async () => {
+    const held = scriptedFetch([async () => jsonResponse({ authenticated: true })]);
+    await expect(readAdminSessionState(held.fetch)).resolves.toBe("authenticated");
+
+    const none = scriptedFetch([async () => jsonResponse({ authenticated: false })]);
+    await expect(readAdminSessionState(none.fetch)).resolves.toBe("anonymous");
+
+    const failed = scriptedFetch([async () => new Response("", { status: 500 })]);
+    await expect(readAdminSessionState(failed.fetch)).resolves.toBe("unknown");
+
+    const offline = scriptedFetch([
+      async () => {
+        throw new TypeError("network down");
+      },
+    ]);
+    await expect(readAdminSessionState(offline.fetch)).resolves.toBe("unknown");
+
+    const shapeless = scriptedFetch([async () => jsonResponse({})]);
+    await expect(readAdminSessionState(shapeless.fetch)).resolves.toBe("unknown");
   });
 
   it("names an unreachable server rather than a dropped cookie", async () => {

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { LogIn } from "lucide-react";
 
 import AccountDeviceControls from "@/components/auth/AccountDeviceControls";
@@ -24,7 +24,7 @@ import type { DeviceAccountRecord } from "@/lib/deviceAccountSessions";
 import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
-import { loginPageHeadCopy } from "@/lib/loginPageFraming";
+import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -243,15 +243,24 @@ function WelcomeBackCard({
  * What stands where the sign-in card will be while the live session answers.
  * It says nothing about the person, because nothing is known yet: no sentence
  * about checking, no spinner text, just the shape the card is about to take.
- * The one thing it says out loud is for a screen reader, which cannot see the
- * `aria-busy` page around it.
+ *
+ * `aria-busy` sits on THIS region rather than the page, because it is the only
+ * part that is loading and because it tells assistive technology to withhold
+ * updates from whatever it wraps. The screen-reader line is empty on the first
+ * paint and fills after mount: a live region announces a CHANGE, so text that
+ * was already there when the region appeared is never spoken.
  */
 function SignInSkeleton(): React.JSX.Element {
+  const announcement = useRef<HTMLParagraphElement | null>(null);
+
+  useEffect(() => {
+    const node = announcement.current;
+    if (node) node.textContent = "Loading";
+  }, []);
+
   return (
-    <div className="loginPageSkeleton">
-      <p className="loginPageSrOnly" role="status">
-        Loading
-      </p>
+    <div className="loginPageSkeleton" aria-busy="true">
+      <p ref={announcement} className="loginPageSrOnly" role="status" />
       <div className="loginPageSkeletonDoors" aria-hidden="true">
         <span className="loginPageSkeletonPill" />
         <span className="loginPageSkeletonPill" />
@@ -503,7 +512,7 @@ export default function LoginPage({
   });
 
   return (
-    <main className="loginPage" aria-busy={loading ? true : undefined}>
+    <main className="loginPage">
       <div className="loginPageInner">
         <PageHead title={head.title} lead={head.lead} />
 
@@ -514,7 +523,9 @@ export default function LoginPage({
           </p>
         ) : null}
 
-        {loading ? <SignInSkeleton /> : null}
+        {loginPageShowsSkeleton({ sessionKnown: !loading, hasAuthSurface }) ? (
+          <SignInSkeleton />
+        ) : null}
 
         {!loading && showSignedIn && user ? (
           <SignedInCard

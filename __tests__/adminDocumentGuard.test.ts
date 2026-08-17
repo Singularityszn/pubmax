@@ -22,10 +22,20 @@ vi.mock("next/headers", () => ({
 
 vi.mock("next/navigation", () => ({
   unauthorized: navigation.unauthorized,
+  usePathname: () => "/admin",
+}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) =>
+    createElement("a", { href }, children),
 }));
 
 vi.mock("@/app/admin/AdminClient", () => ({
   default: () => createElement("div", null, "moderator console"),
+}));
+
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => createElement("nav", null, "site nav"),
 }));
 
 const ORIGINAL_ADMIN_TOKEN = process.env.ADMIN_TOKEN;
@@ -117,5 +127,16 @@ describe("the admin document", () => {
     expect(html).toContain("Moderator sign-in");
     expect(html).toContain('aria-label="Admin token"');
     expect(html).not.toContain("moderator console");
+  });
+
+  // A refusal is not a dead end. The root layout's only nav is the phone tab
+  // bar, hidden above 640px, so the desktop way out has to be on this page.
+  it("leaves a way out of the 401 body", async () => {
+    const { default: AdminUnauthorized } = await import(
+      "@/app/admin/unauthorized"
+    );
+    const html = renderToStaticMarkup(createElement(AdminUnauthorized));
+    expect(html).toContain("Back to the map");
+    expect(html).toContain('href="/map"');
   });
 });

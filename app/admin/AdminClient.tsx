@@ -8,6 +8,13 @@ import VenuePhotoModeration, {
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
+import {
+  ADMIN_SESSION_UNCONFIRMED_MESSAGE,
+  browserFetch,
+  readAdminSessionState,
+  submitAdminToken,
+  type AdminSessionSubmitOutcome,
+} from "@/lib/adminSessionClient";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -120,23 +127,18 @@ function readStoredToken(): string {
   return window.localStorage.getItem(TOKEN_KEY) ?? "";
 }
 
-async function establishSession(token: string): Promise<boolean> {
-  if (token) {
-    const res = await fetch("/api/admin/session", {
-      ...SESSION_FETCH,
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    return res.ok;
+const NOT_AUTHORISED_MESSAGE = "Not authorised. Check the admin token.";
+
+// Both admin doors spend the same route, so both ask the same question: a 200
+// from the POST is not a session, only a cookie the browser may have dropped.
+async function establishSession(token: string): Promise<AdminSessionSubmitOutcome> {
+  if (token) return submitAdminToken(token, browserFetch);
+  const state = await readAdminSessionState(browserFetch);
+  if (state === "authenticated") return { status: "open" };
+  if (state === "anonymous") {
+    return { status: "refused", message: NOT_AUTHORISED_MESSAGE };
   }
-  const res = await fetch("/api/admin/session", SESSION_FETCH);
-  if (!res.ok) {
-    discardBody(res);
-    return false;
-  }
-  const body = (await res.json()) as { authenticated?: boolean };
-  return body.authenticated === true;
+  return { status: "refused", message: ADMIN_SESSION_UNCONFIRMED_MESSAGE };
 }
 
 // venueId → name, resolved from the same app dataset the map groups. Fetched
@@ -191,20 +193,23 @@ export default function AdminClient() {
   const [operatorMsg, setOperatorMsg] = useState<string | null>(null);
   const [operatorActionId, setOperatorActionId] = useState<string | null>(null);
 
-  const ensureAdminSession = useCallback(async (force = false): Promise<boolean> => {
-    const t = token.trim();
-    if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
-    if (sessionEstablished && !force) return true;
-    const authed = await establishSession(t);
-    setSessionEstablished(authed);
-    return authed;
-  }, [token, sessionEstablished]);
+  const ensureAdminSession = useCallback(
+    async (force = false): Promise<AdminSessionSubmitOutcome> => {
+      const t = token.trim();
+      if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
+      if (sessionEstablished && !force) return { status: "open" };
+      const outcome = await establishSession(t);
+      setSessionEstablished(outcome.status === "open");
+      return outcome;
+    },
+    [token, sessionEstablished],
+  );
 
   const retryWithFreshSession = useCallback(async (request: () => Promise<Response>) => {
     const res = await request();
     if (res.status !== 403) return res;
     setSessionEstablished(false);
-    if (!(await ensureAdminSession(true))) return res;
+    if ((await ensureAdminSession(true)).status !== "open") return res;
     return request();
   }, [ensureAdminSession]);
 
@@ -215,10 +220,10 @@ export default function AdminClient() {
     try {
       // Prefer the httpOnly session cookie (same as drop/comment moderation) —
       // never send the raw ADMIN_TOKEN as a request header from the browser.
-      const authed = await ensureAdminSession();
-      if (!authed) {
+      const session = await ensureAdminSession();
+      if (session.status !== "open") {
         setImportNotes([]);
-        setImportMsg("Not authorised. Check the admin token.");
+        setImportMsg(session.message);
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
@@ -251,11 +256,11 @@ export default function AdminClient() {
     setLoading(true);
     setMessage(null);
     try {
-      const authed = await ensureAdminSession();
-      if (!authed) {
+      const session = await ensureAdminSession();
+      if (session.status !== "open") {
         setDrops([]);
         setComments([]);
-        setMessage("Not authorised. Check the admin token.");
+        setMessage(session.message);
         return;
       }
 
@@ -579,9 +584,9 @@ export default function AdminClient() {
     setImportPending(true);
     setImportMsg(null);
     try {
-      const authed = await ensureAdminSession();
-      if (!authed) {
-        setImportMsg("Not authorised. Check the admin token.");
+      const session = await ensureAdminSession();
+      if (session.status !== "open") {
+        setImportMsg(session.message);
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -625,9 +630,9 @@ export default function AdminClient() {
     setImportActionId(id);
     setImportMsg(null);
     try {
-      const authed = await ensureAdminSession();
-      if (!authed) {
-        setImportMsg("Not authorised. Check the admin token.");
+      const session = await ensureAdminSession();
+      if (session.status !== "open") {
+        setImportMsg(session.message);
         return;
       }
       const res = await retryWithFreshSession(() =>
@@ -664,11 +669,11 @@ export default function AdminClient() {
     setOperatorLoading(true);
     setOperatorMsg(null);
     try {
-      const authed = await ensureAdminSession();
-      if (!authed) {
+      const session = await ensureAdminSession();
+      if (session.status !== "open") {
         setOperatorClaims([]);
         setOperatorProposals([]);
-        setOperatorMsg("Not authorised. Check the admin token.");
+        setOperatorMsg(session.message);
         return;
       }
       const [claimsRes, proposalsRes] = await Promise.all([

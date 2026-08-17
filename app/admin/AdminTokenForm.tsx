@@ -1,14 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import { useState, type FormEvent } from "react";
 
-import { submitAdminToken } from "@/lib/adminSessionClient";
+import SiteNav from "@/components/nav/SiteNav";
+import { browserFetch, submitAdminToken } from "@/lib/adminSessionClient";
 
 import "./admin.css";
-
-/** The global under a name, because a detached `fetch` is an illegal call. */
-const browserFetch = (input: string, init?: RequestInit): Promise<Response> =>
-  fetch(input, init);
 
 /**
  * The only surface an anonymous GET /admin may show. It spends the existing
@@ -35,9 +33,14 @@ export default function AdminTokenForm(): React.JSX.Element {
   }
 
   return (
-    <main className="admin">
+    <main id="main" className="admin">
+      <SiteNav />
+
       <h1>Moderator sign-in</h1>
       <p className="admin-sub">Enter the admin token to open the console.</p>
+      <Link className="adminMapCallout" href="/map">
+        Back to the map
+      </Link>
       <form className="admin-bar" onSubmit={(event) => void onSubmit(event)}>
         <input
           type="password"
