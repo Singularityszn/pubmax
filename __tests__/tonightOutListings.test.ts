@@ -2,11 +2,13 @@ import { describe, expect, it } from "vitest";
 
 import { OUT_DEGRADED_LINE, OUT_READ_FAILED_LINE } from "@/lib/out/outStatus";
 import {
+  TONIGHT_OUT_NOT_CONFIGURED_LINE,
   TONIGHT_WHATS_ON_FAILED_LINE,
   mergeTonightListingRows,
   tonightListingLanes,
   tonightListingsNoteLine,
   tonightListingsStatus,
+  tonightNoteOffersRetry,
   tonightProvenanceCredits,
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
@@ -199,6 +201,48 @@ describe("tonight listings note line", () => {
   it("is silent when both lanes answered", () => {
     expect(tonightListingsNoteLine("ready", eventOut)).toBeNull();
     expect(tonightListingsNoteLine("empty", emptyReadyOut)).toBeNull();
+    expect(tonightNoteOffersRetry("ready", eventOut)).toBe(false);
+  });
+
+  it("keeps the What's-On lane's way back while Out's rows hold the list up", () => {
+    // The page is ready off one Ticketmaster row, so the error box with its
+    // Retry button never renders: without this the spine's failure is a
+    // sentence and the rest of the night is unreachable short of a reload.
+    expect(statusAtFixture("error", eventOut)).toBe("ready");
+    expect(tonightNoteOffersRetry("error", eventOut)).toBe(true);
+  });
+
+  it("does not offer a retry for a lane asking again cannot change", () => {
+    expect(tonightNoteOffersRetry("ready", degradedWithRows)).toBe(false);
+    expect(tonightNoteOffersRetry("ready", failedOut)).toBe(false);
+  });
+});
+
+describe("an Out lane nobody switched on", () => {
+  const notConfigured: TonightOutAnswer = {
+    body: { status: "not-configured", listingsStatus: "not-configured", events: [] },
+    failed: false,
+    pending: false,
+  };
+
+  it("says the live lane was never asked instead of leaving the night quiet", () => {
+    // The quiet-night sentence renders beside this, so with nothing said here
+    // the page claims an absence on a read that never ran.
+    expect(tonightListingsNoteLine("empty", notConfigured)).toBe(
+      TONIGHT_OUT_NOT_CONFIGURED_LINE,
+    );
+  });
+
+  it("is not an error and not a lane the reader can re-ask", () => {
+    expect(statusAtFixture("empty", notConfigured)).toBe("empty");
+    expect(tonightNoteOffersRetry("empty", notConfigured)).toBe(false);
+  });
+
+  it("names both lanes when the spine failed too", () => {
+    expect(tonightListingsNoteLine("error", notConfigured)).toBe(
+      `${TONIGHT_OUT_NOT_CONFIGURED_LINE} · ${TONIGHT_WHATS_ON_FAILED_LINE}`,
+    );
+    expect(tonightNoteOffersRetry("error", notConfigured)).toBe(true);
   });
 });
 

@@ -78,6 +78,7 @@ import {
   tonightListingLanes,
   tonightListingsNoteLine,
   tonightListingsStatus,
+  tonightNoteOffersRetry,
   tonightProvenanceCredits,
   TONIGHT_WHATS_ON_FAILED_LINE,
 } from "@/lib/tonightOutListings";
@@ -342,6 +343,7 @@ export default function TonightClient({
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
   // list short for a reason the reader is owed.
   const listingsNote = tonightListingsNoteLine(status, outAnswer);
+  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer);
   // Which read a row came from decides how keeping it is recorded, so the Out
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
@@ -418,6 +420,11 @@ export default function TonightClient({
                   : null}
               </p>
             ) : null}
+            {provenance.whatsOn && !provenance.whatsOnDated ? (
+              <p className="tonightProvenance" data-tonight-provenance="undated-whats-on">
+                {UNDATED_SOURCE_LINE}
+              </p>
+            ) : null}
             {provenance.out ? (
               <p
                 className="tonightProvenance"
@@ -425,11 +432,6 @@ export default function TonightClient({
                 data-tonight-dated={provenance.outDated ? "yes" : "no"}
               >
                 {provenance.out}
-              </p>
-            ) : null}
-            {provenance.whatsOn && !provenance.whatsOnDated ? (
-              <p className="tonightProvenance" data-tonight-provenance="undated-whats-on">
-                {UNDATED_SOURCE_LINE}
               </p>
             ) : null}
             {provenance.out && !provenance.outDated ? (
@@ -480,14 +482,19 @@ export default function TonightClient({
         </div>
       ) : null}
 
-      {ready && listingsNote ? (
-        <p
+      {!errored && !loading && listingsNote ? (
+        <div
           className="tonightStatus tonightStatusNote"
           data-tonight-listings-note="partial"
-          role="status"
         >
-          {listingsNote}
-        </p>
+          <p role="status">{listingsNote}</p>
+          {noteOffersRetry ? (
+            <button type="button" className="tonightRetry" onClick={retryListings}>
+              <RefreshCw size={15} aria-hidden="true" />
+              Retry listings
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {empty ? (

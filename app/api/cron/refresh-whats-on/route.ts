@@ -65,11 +65,8 @@ export async function GET(request: Request): Promise<Response> {
       asOf = result.asOf;
     } else if (result.readStatus === "degraded") {
       failure = "Could not check tonight listings.";
-    } else {
-      failure =
-        result.revalidation.status === "unmeasured"
-          ? result.revalidation.reason
-          : "tonight-window revalidation failed";
+    } else if (result.revalidation.status === "unmeasured") {
+      failure = result.revalidation.reason;
     }
     if (failure !== null) console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);
     else console.log("[cron:refresh-whats-on] tonight-window revalidation ready.");

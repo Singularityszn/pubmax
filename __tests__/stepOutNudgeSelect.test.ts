@@ -1,6 +1,26 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { selectOwedStepOutNudge, type StepOutNudgeSelectDeps } from "@/lib/stepOutNudgeSelect.server";
+const whatsOn = vi.hoisted(() => ({
+  readStatus: "ready" as "ready" | "degraded",
+  rows: [] as unknown[],
+}));
+
+vi.mock("@/lib/whatsOnStore", () => ({
+  loadWhatsOn: vi.fn(async () => ({
+    rows: whatsOn.rows,
+    readStatus: whatsOn.readStatus,
+    asOf: null,
+    kindObservedAt: {},
+    localityBasis: "london-default",
+    revalidation: { status: "measured" },
+  })),
+}));
+
+import {
+  defaultStepOutNudgeSelectDeps,
+  selectOwedStepOutNudge,
+  type StepOutNudgeSelectDeps,
+} from "@/lib/stepOutNudgeSelect.server";
 import type { WantedDTO } from "@/lib/wanted";
 
 const ACTOR = "profile:22222222-2222-4222-8222-222222222222";
@@ -80,5 +100,34 @@ describe("selectOwedStepOutNudge", () => {
     const payload = await selectOwedStepOutNudge(ACTOR, ACCOUNT, NOW, deps);
     expect(payload?.kind).toBe("soft_plan_open");
     expect(payload?.url).toBe("/plan/plan-soft");
+  });
+});
+
+describe("the deals candidate read", () => {
+  const dealRow = {
+    id: "deal-1",
+    kind: "deal",
+    title: "Two for one",
+    placeName: "The Dove",
+    endsAt: "2026-08-08T22:00:00.000Z",
+    source: { label: "Pub listing", url: "https://example.com/deal" },
+    observedAt: "2026-08-08T09:00:00.000Z",
+    confidence: "listed",
+    venueId: "venue-dove",
+  };
+
+  it("carries tonight's deals when the bundled read answered", async () => {
+    whatsOn.readStatus = "ready";
+    whatsOn.rows = [dealRow];
+    const deals = await defaultStepOutNudgeSelectDeps().listTonightDeals(NOW);
+    expect(deals.map((deal) => deal.dealTitle)).toEqual(["Two for one"]);
+  });
+
+  it("offers nothing from a read that could not run", async () => {
+    // The rows are the artifact's last known set, not tonight's answer: a
+    // nudge built off them would name a deal nobody checked was still on.
+    whatsOn.readStatus = "degraded";
+    whatsOn.rows = [dealRow];
+    expect(await defaultStepOutNudgeSelectDeps().listTonightDeals(NOW)).toEqual([]);
   });
 });

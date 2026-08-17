@@ -33,13 +33,15 @@ test("the /tonight screen mounts with an honest header and provenance", async ({
   ).toBeVisible();
 
   // The screen resolves to exactly one of: list, empty, error status. Wait for
-  // the loading skeleton to clear into one of those terminal states.
+  // the loading skeleton to clear into one of those terminal states. The lane
+  // note is not one of them: it rides BESIDE whichever state landed, saying
+  // which lane came up short, so it is excluded rather than counted.
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, {
     timeout: 10_000,
   });
-  await expect(page.locator(".tonightStatus, .tonightList")).toHaveCount(1, {
-    timeout: 10_000,
-  });
+  await expect(
+    page.locator(".tonightStatus:not(.tonightStatusNote), .tonightList"),
+  ).toHaveCount(1, { timeout: 10_000 });
 
   expect(errors).toEqual([]);
 });

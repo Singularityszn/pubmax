@@ -91,26 +91,78 @@ export function tonightListingsStatus(
 
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
+export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";
+
+/** One lane's own account of why it is not carrying its share of the night. */
+export type TonightLaneReport = {
+  lane: "whats-on" | "out";
+  line: string;
+  /**
+   * Whether asking again from this page could change the answer. A lane nobody
+   * switched on is not one a reader can re-ask, so it is told and not offered.
+   */
+  retryable: boolean;
+};
 
 /**
- * The one line saying a lane could not answer, whether or not cards are showing.
+ * Every lane that could not carry its share, in its own words.
  *
  * A degraded Out lane beside real Ticketmaster rows is the case this exists for:
  * the list is short because we could not look, and a reader who is shown cards
- * with nothing beside them reads that shortfall as a quiet city.
+ * with nothing beside them reads that shortfall as a quiet city. A lane nobody
+ * ASKED speaks here too, because the quiet-night sentence beneath it would
+ * otherwise claim an absence on a read that never ran.
  */
+export function tonightLaneReports(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+): TonightLaneReport[] {
+  const reports: TonightLaneReport[] = [];
+  if (out.failed) {
+    reports.push({ lane: "out", line: OUT_READ_FAILED_LINE, retryable: false });
+  }
+  const listings = outListingsStatus(out);
+  if (listings.status === "degraded") {
+    reports.push({
+      lane: "out",
+      line: listings.reason ?? OUT_DEGRADED_LINE,
+      retryable: false,
+    });
+  }
+  if (listings.status === "not-configured") {
+    reports.push({
+      lane: "out",
+      line: listings.reason ?? TONIGHT_OUT_NOT_CONFIGURED_LINE,
+      retryable: false,
+    });
+  }
+  // The spine is the one lane this page's own control can ask again, so a
+  // failure here keeps its way back even while Out's rows hold the list up.
+  if (whatsOn === "error") {
+    reports.push({
+      lane: "whats-on",
+      line: TONIGHT_WHATS_ON_FAILED_LINE,
+      retryable: true,
+    });
+  }
+  return reports;
+}
+
+/** The one line saying a lane could not answer, whether or not cards are showing. */
 export function tonightListingsNoteLine(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
 ): string | null {
-  const reasons: string[] = [];
-  if (out.failed) reasons.push(OUT_READ_FAILED_LINE);
-  const listings = outListingsStatus(out);
-  if (listings.status === "degraded") {
-    reasons.push(listings.reason ?? OUT_DEGRADED_LINE);
-  }
-  if (whatsOn === "error") reasons.push(TONIGHT_WHATS_ON_FAILED_LINE);
-  return reasons.length > 0 ? reasons.join(" · ") : null;
+  const reports = tonightLaneReports(whatsOn, out);
+  return reports.length > 0 ? reports.map((report) => report.line).join(" · ") : null;
+}
+
+/** True when a lane behind the note can be asked again from this page. */
+export function tonightNoteOffersRetry(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+): boolean {
+  return tonightLaneReports(whatsOn, out).some((report) => report.retryable);
 }
 
 export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";
