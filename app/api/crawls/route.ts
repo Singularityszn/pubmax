@@ -6,8 +6,9 @@
 // we cap lengths / clamp counts / allowlist here so junk never reaches it.
 
 import {
-  countStoriesByAuthor,
-  listStoriesByAuthor,
+  clampAuthorCrawlListLimit,
+  countOwnStoriesByAuthor,
+  listAuthoredCrawlPage,
   createCrawlStory,
   getCrawlStoryBySlug,
   getStoryAuthor,
@@ -15,6 +16,7 @@ import {
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { callerUserId } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
@@ -34,15 +36,6 @@ const MAX_SUMMARY = 280;
 const MAX_NOTE = 160;
 const MAX_VENUE_ID = 80;
 const MAX_STOPS = 12;
-const AUTHOR_CRAWL_LIST_DEFAULT_LIMIT = 10;
-const AUTHOR_CRAWL_LIST_MAX_LIMIT = 25;
-
-function readAuthorCrawlListLimit(value: string | null): number {
-  if (!value) return AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
-  const parsed = Number.parseInt(value, 10);
-  if (!Number.isFinite(parsed)) return AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
-  return Math.min(Math.max(parsed, 1), AUTHOR_CRAWL_LIST_MAX_LIMIT);
-}
 
 function readString(value: unknown, cap: number): string {
   if (typeof value !== "string") return "";
@@ -194,24 +187,46 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
 
-  // ?author=<handle> — the published crawl-story count for a handle. Powers the
-  // Pint Passport's "story posts" number on /u/[handle] (a client component that
-  // can't import the server store directly). Fail-soft: an unknown/blank handle
-  // resolves to 0, never an error, so the passport degrades to a clean zero.
+  // ?author=<handle> — one page of a handle's PUBLIC crawls plus how many there
+  // are in total, from ONE read so the two can never contradict each other.
+  // Powers the Crawls tile and the section it opens on /u/[handle] (a client
+  // component that can't import the server store directly).
+  //
+  // `count`/`total` are TRI-STATE by way of null and `status` says which answer
+  // this is: a read that failed reports `degraded` with no rows and no number,
+  // never a confident 0 above a list of crawls.
+  //
+  // `?scope=own` additionally answers the passport's "story posts" number, which
+  // counts the owner's unlisted crawls too. It is handed ONLY to the verified
+  // owner of the handle — an unlisted crawl is a direct-link crawl, so how many
+  // of them somebody has is theirs to know.
   const author = params.get("author");
   if (author !== null) {
     const handle = normalizeHandle(readString(author, HANDLE_MAX));
-    // `crawls` rides beside the count so a profile can list what it counts. The
-    // count stays exactly where it was, so every existing reader is untouched.
-    const limit = readAuthorCrawlListLimit(params.get("limit"));
-    const [total, crawls] = handle
-      ? await Promise.all([
-          countStoriesByAuthor(handle),
-          listStoriesByAuthor(handle, limit),
-        ])
-      : [0, []];
-    const hasMore = total > crawls.length;
-    return jsonNoStore({ handle, count: total, total, crawls, hasMore }, { status: 200 });
+    const limit = clampAuthorCrawlListLimit(params.get("limit"));
+    const page = handle
+      ? await listAuthoredCrawlPage(handle, limit)
+      : { crawls: [], total: 0 };
+    const total = page.total;
+    const hasMore = total === null ? false : total > page.crawls.length;
+    const body: Record<string, unknown> = {
+      handle,
+      count: total,
+      total,
+      crawls: page.crawls,
+      hasMore,
+      status: total === null ? "degraded" : "ready",
+    };
+
+    if (handle && params.get("scope") === "own") {
+      const userId = await callerUserId(request);
+      const linked = userId ? await resolveMessageHandle(request, "", userId) : "";
+      if (linked && linked === handle) {
+        body.ownCount = await countOwnStoriesByAuthor(handle);
+      }
+    }
+
+    return jsonNoStore(body, { status: 200 });
   }
 
   const slug = params.get("slug");

@@ -11,6 +11,11 @@
 
 import { createHash, randomUUID } from "node:crypto";
 
+import {
+  AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+  AUTHOR_CRAWL_LIST_MAX_LIMIT,
+  clampAuthorCrawlListLimit,
+} from "@/lib/authorCrawlList";
 import { totalGbp, VIBE_TAGS, type CrawlStory } from "@/lib/crawlStory";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore } from "@/lib/profileStore";
@@ -525,6 +530,15 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
   return memoryStories.get(key)?.authorHandle ?? null;
 }
 
+// The page bounds live in one import-free leaf module so the route parsing
+// `?limit=`, the query applying it and the browser paging through it cannot
+// drift; re-exported here because the store is where a server caller looks.
+export {
+  AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+  AUTHOR_CRAWL_LIST_MAX_LIMIT,
+  clampAuthorCrawlListLimit,
+};
+
 /** One public crawl by a handle, in the shape a profile row needs. `stops` is
  *  TRI-STATE by way of null: a stop count we could not read is unknown, so the
  *  row still opens and simply prints no number. */
@@ -536,26 +550,40 @@ export type AuthoredCrawlSummary = {
 };
 
 /**
+ * One page of an author's public crawls TOGETHER WITH the whole count, because
+ * the profile prints the two side by side.
+ *
+ * `total` is TRI-STATE by way of null: a read that could not answer says so, and
+ * a caller reports it as degraded rather than as a confident zero. That is the
+ * whole reason the page and the count come from ONE query — two fail-soft reads
+ * could disagree, and the losing combination (a count of 0 above three listed
+ * crawls) is exactly the contradiction the shared visibility rule set out to
+ * remove.
+ */
+export type AuthoredCrawlPage = {
+  crawls: AuthoredCrawlSummary[];
+  total: number | null;
+};
+
+/**
  * The PUBLIC crawls a handle wrote — visibility `public` only. `unlisted` is a
  * direct-link crawl and never joins a public author listing; `draft` never
- * leaves the author's own hands. The sibling of countStoriesByAuthor, which is
- * bounded by the SAME rule, because the profile's Crawls tile links to the
- * section this list renders and a number with nowhere to go is worse than no
- * number. Exists so a profile can OPEN the crawls it counts rather than only
- * print one. Fail-soft, like its sibling: a backend hiccup is an empty list.
+ * leaves the author's own hands. The profile's Crawls tile links to the section
+ * this list renders, so the number beside it comes back on this same read.
+ * Fail-soft: a backend hiccup is an empty page with an unknown total.
  */
-export async function listStoriesByAuthor(
+export async function listAuthoredCrawlPage(
   handle: string,
-  limit = 10,
-): Promise<AuthoredCrawlSummary[]> {
+  limit: number = AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+): Promise<AuthoredCrawlPage> {
   const author = normalizeHandle(handle ?? "");
-  if (!author) return [];
-  const bounded = Math.min(Math.max(limit, 1), 25);
+  if (!author) return { crawls: [], total: 0 };
+  const bounded = clampAuthorCrawlListLimit(limit);
   if (isSupabaseConfigured()) {
     try {
-      const { data, error } = await admin()
+      const { data, count, error } = await admin()
         .from(STORIES_TABLE)
-        .select("id,slug,title,created_at")
+        .select("id,slug,title,created_at", { count: "exact" })
         .eq("author_handle", author)
         .eq("visibility", "public")
         .order("created_at", { ascending: false })
@@ -566,7 +594,7 @@ export async function listStoriesByAuthor(
         .map((row) => String(row.id ?? ""))
         .filter((id) => id.length > 0);
       const stopCounts = await stopCountsForStoryIds(storyIds);
-      return rows
+      const crawls = rows
         .map((record) => {
           const id = String(record.id ?? "");
           return {
@@ -577,24 +605,41 @@ export async function listStoriesByAuthor(
           };
         })
         .filter((row) => row.slug && row.title);
+      // A page that came back full but carried no count is still an answer about
+      // the rows; the total alone is what could not be measured.
+      const total = typeof count === "number" && count >= 0 ? count : null;
+      return { crawls, total };
     } catch (err) {
       console.error(
         "[crawl-stories] could not list stories by author:",
         err instanceof Error ? err.message : err,
       );
-      return [];
+      return { crawls: [], total: null };
     }
   }
-  return [...memoryStories.values()]
+  const matching = [...memoryStories.values()]
     .filter((story) => story.authorHandle === author && story.visibility === "public")
-    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)))
-    .slice(0, bounded)
-    .map((story) => ({
+    .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  return {
+    total: matching.length,
+    crawls: matching.slice(0, bounded).map((story) => ({
       slug: story.slug,
       title: story.title,
       stops: Array.isArray(story.stops) ? story.stops.length : 0,
       createdAt: String(story.createdAt ?? ""),
-    }));
+    })),
+  };
+}
+
+/**
+ * The rows half of {@link listAuthoredCrawlPage}, for a caller that wants the
+ * listing and nothing else. Same query, same visibility rule.
+ */
+export async function listStoriesByAuthor(
+  handle: string,
+  limit: number = AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+): Promise<AuthoredCrawlSummary[]> {
+  return (await listAuthoredCrawlPage(handle, limit)).crawls;
 }
 
 /** Count the PUBLIC crawls a handle has authored. Powers the Pint Passport's
@@ -628,6 +673,44 @@ export async function countStoriesByAuthor(handle: string): Promise<number> {
   let total = 0;
   for (const story of memoryStories.values()) {
     if (story.authorHandle === author && story.visibility === "public") total += 1;
+  }
+  return total;
+}
+
+/**
+ * The PUBLISHED crawls a handle wrote as ITS OWNER sees them — `public` plus
+ * `unlisted`, never a draft. This is the passport's "story posts" number: an
+ * unlisted crawl is a posted crawl the owner shared by direct link, so dropping
+ * it from their own tally would tell them they wrote fewer than they did. It is
+ * deliberately NOT the public listing's count, which may name only what a
+ * stranger can open, and the route hands it out only to the verified owner.
+ *
+ * TRI-STATE by way of null: a read that could not answer is unknown, never a
+ * zero an owner would read as "none of mine survived".
+ */
+export async function countOwnStoriesByAuthor(handle: string): Promise<number | null> {
+  const author = normalizeHandle(handle ?? "");
+  if (!author) return 0;
+  if (isSupabaseConfigured()) {
+    try {
+      const { count, error } = await admin()
+        .from(STORIES_TABLE)
+        .select("id", { count: "exact", head: true })
+        .eq("author_handle", author)
+        .neq("visibility", "draft");
+      if (error) throw new Error(error.message);
+      return typeof count === "number" && count >= 0 ? count : null;
+    } catch (err) {
+      console.error(
+        "[crawl-stories] could not count own stories by author:",
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    }
+  }
+  let total = 0;
+  for (const story of memoryStories.values()) {
+    if (story.authorHandle === author && story.visibility !== "draft") total += 1;
   }
   return total;
 }

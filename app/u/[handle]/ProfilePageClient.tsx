@@ -30,6 +30,11 @@ import SiteNavMore, {
 } from "@/components/nav/SiteNavMore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { authedFetch } from "@/lib/authedFetch";
+import {
+  AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
+  AUTHOR_CRAWL_LIST_MAX_LIMIT,
+} from "@/lib/authorCrawlList";
 import { syncDeviceHandle } from "@/lib/identityClient";
 import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
@@ -41,6 +46,7 @@ import {
 import type { FollowCounts } from "@/lib/followStore";
 import { buildPassport } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
+import { discardBody } from "@/lib/responseBody";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import {
   deriveProfileFromDrops,
@@ -329,16 +335,32 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [editing, setEditing] = useState(false);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
-  // Published crawl-story count for this handle, from /api/crawls?author= (the
+  // PUBLIC crawl count for this handle, from /api/crawls?author= (the
   // crawl-story store is server-only, so a client route carries the number).
-  // Feeds the Pint Passport's "story posts" stat. Starts at 0 so the first paint
-  // matches the zeroed passport, then fills in after the fetch.
-  const [storyCount, setStoryCount] = useState(0);
+  // TRI-STATE: null is "the read could not answer", never a confident zero, and
+  // it arrives on the SAME read as the rows below so the tile and the section
+  // can never contradict each other.
+  const [storyCount, setStoryCount] = useState<number | null>(0);
   // The crawls themselves, so the Crawls tile opens something rather than
   // announcing a number with nowhere to go.
   const [authoredCrawls, setAuthoredCrawls] = useState<
     Array<{ slug: string; title: string; stops: number | null }>
   >([]);
+  // How many rows this page asked for, and whether the server says there are
+  // more behind them. One "Show more" step widens the page to the published
+  // ceiling; past that the count itself says how many are still unlisted here.
+  // The widening carries the handle it was asked for, so arriving at another
+  // profile starts again at the first page with no reset effect.
+  const [widenedCrawlPage, setWidenedCrawlPage] = useState("");
+  const crawlLimit =
+    widenedCrawlPage === routeHandle
+      ? AUTHOR_CRAWL_LIST_MAX_LIMIT
+      : AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
+  const [crawlsHaveMore, setCrawlsHaveMore] = useState(false);
+  // The owner's own published total — public PLUS unlisted — for the passport's
+  // story-posts stat. Only the verified owner is answered, so it stays null for
+  // everybody else and the public number stands in.
+  const [ownStoryCount, setOwnStoryCount] = useState<number | null>(null);
   const [nightMemoriesInvite, setNightMemoriesInvite] = useState(false);
 
   useEffect(() => {
@@ -432,8 +454,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     return () => controller.abort();
   }, [routeHandle]);
 
-  // This handle's published crawl-story count (story 35 authorship). Best-effort:
-  // a failure just leaves 0, so the passport still renders. Runs in an async
+  // This handle's public crawls and their total (story 35 authorship), from one
+  // read so the tile and the listing agree. Best-effort: a failure leaves an
+  // unknown count and no rows, so the passport still renders. Runs in an async
   // callback (not the sync effect body) so setState never fires synchronously in
   // the effect — matching the loadSaved / loadProfile pattern above.
   useEffect(() => {
@@ -444,15 +467,17 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     async function loadStoryCount() {
       // A held answer seeds the passport before the network replies.
       const outcome = await loadSurfaceJson<{
-        count?: number;
+        count?: number | null;
+        hasMore?: boolean;
         crawls?: Array<{ slug: string; title: string; stops: number | null }>;
       }>(
-        `/api/crawls?author=${encodeURIComponent(routeHandle)}`,
+        `/api/crawls?author=${encodeURIComponent(routeHandle)}&limit=${crawlLimit}`,
         { signal: controller.signal },
         (body) => {
-          const next = body?.count ?? 0;
-          if (Number.isFinite(next)) setStoryCount(next);
+          const next = body?.count;
+          setStoryCount(typeof next === "number" && Number.isFinite(next) ? next : null);
           setAuthoredCrawls(Array.isArray(body?.crawls) ? body.crawls : []);
+          setCrawlsHaveMore(body?.hasMore === true);
         },
       );
       // Fail-soft, but never with the LAST handle's number: a load that answered
@@ -460,12 +485,44 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       // another's stories. A failed revalidate over a seeded answer is not that
       // case — the seed is this handle's own.
       if (outcome !== "failed" || controller.signal.aborted) return;
-      setStoryCount(0);
+      setStoryCount(null);
       setAuthoredCrawls([]);
+      setCrawlsHaveMore(false);
     }
     void loadStoryCount();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [routeHandle, crawlLimit]);
+
+  // The owner's own total, unlisted crawls included. Authenticated and never
+  // surface-cached: it is a viewer-scoped answer, so it may not be held in the
+  // shared snapshot store beside the public one. All of it runs in an async
+  // callback so setState never fires synchronously in the effect body.
+  useEffect(() => {
+    const viewerOwnsThisProfile = viewerHandle !== "" && viewerHandle === routeHandle;
+    const controller = new AbortController();
+    async function loadOwnStoryCount() {
+      if (!viewerOwnsThisProfile || routeHandle === YOU_SENTINEL) {
+        setOwnStoryCount(null);
+        return;
+      }
+      const response = await authedFetch(
+        `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own`,
+        { signal: controller.signal, cache: "no-store" },
+      ).catch(() => null);
+      if (!response?.ok || controller.signal.aborted) {
+        if (response) discardBody(response);
+        return;
+      }
+      const body = (await response.json().catch(() => null)) as
+        | { ownCount?: number | null }
+        | null;
+      if (controller.signal.aborted) return;
+      const own = body?.ownCount;
+      setOwnStoryCount(typeof own === "number" && Number.isFinite(own) ? own : null);
+    }
+    void loadOwnStoryCount();
+    return () => controller.abort();
+  }, [routeHandle, viewerHandle]);
 
   // /u/you resolution: once viewer identity is known, redirect the sentinel
   // route to its real profile. With no signed-out fallback, /u/you stays put and
@@ -603,7 +660,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // first-run route, the passport reads as own and shows the "start yours" CTA.
   const passport = buildPassport(drops as ProfileDrop[], {
     crawls: storyCount,
-    storyPosts: storyCount,
+    // Story posts are what this author PUBLISHED, so the owner's own number
+    // counts their unlisted crawls too. Everybody else sees the public one.
+    storyPosts: ownStoryCount ?? storyCount,
     badgeEvents: buildProfileBadgeEventOptions({
       isOwnPassport: passportIsOwn,
       legacyMode,
@@ -846,7 +905,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               profile={profile}
               stats={stats}
               socialLinks={socialLinks}
-              crawls={storyCount}
+              crawls={storyCount ?? undefined}
               memories={stats.memoriesPosted}
               drops={drops}
               followers={counts.followers}
@@ -880,7 +939,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       profile={profile}
                       stats={stats}
                       socialLinks={socialLinks}
-                      crawls={storyCount}
+                      crawls={storyCount ?? undefined}
                       memories={stats.memoriesPosted}
                       drops={drops}
                       followers={counts.followers}
@@ -1073,6 +1132,25 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                           </li>
                         ))}
                       </ul>
+                      {/* The tile counts every public crawl, so a page that
+                          shows fewer has to SAY so rather than reading as the
+                          whole set. One step widens the page to the ceiling;
+                          past that the remainder is named plainly. */}
+                      {crawlsHaveMore ? (
+                        crawlLimit < AUTHOR_CRAWL_LIST_MAX_LIMIT ? (
+                          <button
+                            type="button"
+                            className="profileCrawlMore"
+                            onClick={() => setWidenedCrawlPage(routeHandle)}
+                          >
+                            Show more crawls
+                          </button>
+                        ) : typeof storyCount === "number" ? (
+                          <p className="profileEmpty">
+                            And {storyCount - authoredCrawls.length} more.
+                          </p>
+                        ) : null
+                      ) : null}
                     </section>
                   ) : null}
 

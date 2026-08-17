@@ -17,6 +17,8 @@ import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
 import {
+  datasetOpensArtifact,
+  packArtifactReason,
   resolveStamp,
   stampNeedsArtifact,
   type ArtifactRead,
@@ -52,28 +54,26 @@ export function readFreshnessArtifact(rootDir: string, relPath: string | null): 
  * inside the artifact, so only a field stamp opens one: a literal stamp is
  * answered from the registry and an unstamped dataset is never dated, and
  * parsing multi-megabyte JSON to discard it would cost every request for
- * nothing. Both freshness readers go through here so neither can drift.
+ * nothing. The single exception is a declared PACK, which is opened whatever
+ * dates it because its rows ARE the finding, and which the tracing config ships
+ * for exactly that reason. Both freshness readers go through here so neither
+ * can drift.
  */
-function emptyArrayArtifactReason(read: ArtifactRead): string | null {
-  if (read.kind === "ok" && Array.isArray(read.json) && read.json.length === 0) {
-    return `Artifact ${read.path} is empty (0 rows).`;
-  }
-  return null;
-}
-
 export function resolveDatasetStamp(
   rootDir: string,
-  dataset: Pick<FreshnessDataset, "stamp" | "artifact">,
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack">,
   read: (rootDir: string, relPath: string | null) => ArtifactRead = readFreshnessArtifact,
 ): StampResolution {
-  if (!stampNeedsArtifact(dataset.stamp)) {
-    const artifactRead = read(rootDir, dataset.artifact);
-    const emptyReason = emptyArrayArtifactReason(artifactRead);
-    if (emptyReason) return { observedAt: null, reason: emptyReason };
+  if (!datasetOpensArtifact(dataset)) {
     return resolveStamp(dataset.stamp, { kind: "absent" });
   }
   const artifactRead = read(rootDir, dataset.artifact);
-  const emptyReason = emptyArrayArtifactReason(artifactRead);
-  if (emptyReason) return { observedAt: null, reason: emptyReason };
-  return resolveStamp(dataset.stamp, artifactRead);
+  if (dataset.pack === true) {
+    const packReason = packArtifactReason(artifactRead);
+    if (packReason) return { observedAt: null, reason: packReason };
+  }
+  return resolveStamp(
+    dataset.stamp,
+    stampNeedsArtifact(dataset.stamp) ? artifactRead : { kind: "absent" },
+  );
 }

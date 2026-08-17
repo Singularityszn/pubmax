@@ -283,74 +283,102 @@ describe("resolveDatasetStamp — a route opens only what it will read", () => {
     expect(reason).toContain("public/data/sample.json");
   });
 
-  it("opens a literal-stamped artifact only to detect an empty pack", () => {
+  it("never opens the artifact of a literal-stamped dataset", () => {
     const { opened, read } = countingRead();
     const resolution = resolveDatasetStamp(
       "/root",
       dataset({ stamp: { kind: "literal", value: "2026-07-03T12:00:00Z" }, artifact: "public/data/huge.json" }),
       read,
     );
-    expect(opened).toEqual(["public/data/huge.json"]);
+    expect(opened).toEqual([]);
     expect(resolution).toEqual({ observedAt: "2026-07-03T12:00:00Z", reason: null });
   });
 
-  it("flags a literal-stamped dataset when its artifact is an empty array", () => {
-    const read = (_root: string, relPath: string | null) => {
-      if (relPath === "public/data/historic_pubs.json") {
-        return { kind: "ok" as const, path: relPath, json: [] };
-      }
-      return { kind: "missing" as const, path: relPath ?? "" };
-    };
-    const resolution = resolveDatasetStamp(
-      "/root",
-      dataset({
-        id: "historic_pubs",
-        stamp: { kind: "literal", value: "2026-07-18T00:00:00Z" },
-        artifact: "public/data/historic_pubs.json",
-      }),
-      read,
-    );
-    expect(resolution.observedAt).toBeNull();
-    expect(resolution.reason).toContain("public/data/historic_pubs.json");
-    expect(resolution.reason).toContain("empty (0 rows)");
-  });
-
-  it("opens an unstamped dataset artifact only to detect an empty pack", () => {
+  it("never opens the artifact of an unstamped dataset", () => {
     const { opened, read } = countingRead();
     const resolution = resolveDatasetStamp(
       "/root",
       dataset({ stamp: null, artifact: "public/data/reference.json" }),
       read,
     );
-    expect(opened).toEqual(["public/data/reference.json"]);
+    expect(opened).toEqual([]);
     expect(resolution).toEqual({ observedAt: null, reason: null });
   });
 
-  it("still reports a field stamp with no artifact as unresolvable", () => {
+  it("still reports a field stamp with no artifact as unresolvable, opening nothing", () => {
     const { opened, read } = countingRead();
     const { observedAt, reason } = resolveDatasetStamp("/root", dataset({ artifact: null }), read);
-    expect(opened).toEqual([null]);
+    expect(opened).toEqual([]);
     expect(observedAt).toBeNull();
     expect(reason).toContain("no artifact to read it from");
   });
+});
 
-  it("evaluateRegistry flags historic_pubs when the committed pack is an empty array", () => {
+// A row pack is the ONE dataset a reader opens without a field stamp, because
+// its rows are the finding. The `pack: true` opt-in is what makes that read
+// happen, and lib/freshnessTracing.mjs is what makes the file reach the
+// function; a pack read is never widened to the rest of the registry.
+describe("a declared row pack", () => {
+  function countingRead() {
+    const opened: (string | null)[] = [];
+    const read = (_root: string, relPath: string | null) => {
+      opened.push(relPath);
+      return relPath === null
+        ? ({ kind: "absent" } as const)
+        : ({ kind: "missing", path: relPath } as const);
+    };
+    return { opened, read };
+  }
+
+  const historicPack = {
+    id: "historic_pubs",
+    label: "Historic pubs index",
+    class: "episodic" as const,
+    artifact: "public/data/historic_pubs.json",
+    pack: true,
+    stamp: { kind: "literal" as const, value: "2026-07-18T00:00:00Z" },
+    stalenessBudgetHours: 2160,
+  };
+
+  it("is opened even though a literal stamp dates it", () => {
+    const { opened, read } = countingRead();
+    resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(opened).toEqual(["public/data/historic_pubs.json"]);
+  });
+
+  it("answers its literal stamp when the pack holds rows", () => {
+    const read = (_root: string, relPath: string | null) =>
+      ({ kind: "ok", path: relPath ?? "", json: [{ slug: "a" }] }) as const;
+    expect(resolveDatasetStamp("/root", dataset(historicPack), read)).toEqual({
+      observedAt: "2026-07-18T00:00:00Z",
+      reason: null,
+    });
+  });
+
+  it.each([
+    ["empty", [] as unknown, "empty (0 rows)"],
+    ["not an array", {} as unknown, "does not hold a row array"],
+  ])("refuses the stamp when the pack is %s", (_label, json, expected) => {
+    const read = (_root: string, relPath: string | null) =>
+      ({ kind: "ok", path: relPath ?? "", json }) as const;
+    const resolution = resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain(expected);
+  });
+
+  it("refuses the stamp when the pack never reached the deployed function", () => {
+    const { read } = countingRead();
+    const resolution = resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain("not present at runtime");
+  });
+
+  it("evaluateRegistry reports an empty committed pack as unknown, never fresh", () => {
     const root = mkdtempSync(join(tmpdir(), "freshness-empty-historic-"));
     const artifactDir = join(root, "public/data");
     mkdirSync(artifactDir, { recursive: true });
     writeFileSync(join(artifactDir, "historic_pubs.json"), "[]\n", "utf8");
-    const registry: FreshnessRegistry = {
-      datasets: [
-        dataset({
-          id: "historic_pubs",
-          label: "Historic pubs index",
-          class: "episodic",
-          artifact: "public/data/historic_pubs.json",
-          stamp: { kind: "literal", value: "2026-07-18T00:00:00Z" },
-          stalenessBudgetHours: 2160,
-        }),
-      ],
-    };
+    const registry: FreshnessRegistry = { version: 1, datasets: [dataset(historicPack)] };
     const results = evaluateRegistry(
       registry,
       (d) => resolveDatasetStamp(root, d, readFreshnessArtifact),
@@ -359,6 +387,27 @@ describe("resolveDatasetStamp — a route opens only what it will read", () => {
     const historic = results.find((r) => r.id === "historic_pubs");
     expect(historic?.status).toBe("unknown");
     expect(historic?.detail).toContain("empty (0 rows)");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("evaluateRegistry reports a populated committed pack on its own stamp", () => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-full-historic-"));
+    const artifactDir = join(root, "public/data");
+    mkdirSync(artifactDir, { recursive: true });
+    writeFileSync(
+      join(artifactDir, "historic_pubs.json"),
+      JSON.stringify([{ slug: "the-lamb" }]),
+      "utf8",
+    );
+    const registry: FreshnessRegistry = { version: 1, datasets: [dataset(historicPack)] };
+    const results = evaluateRegistry(
+      registry,
+      (d) => resolveDatasetStamp(root, d, readFreshnessArtifact),
+      NOW,
+    );
+    const historic = results.find((r) => r.id === "historic_pubs");
+    expect(historic?.observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(historic?.status).not.toBe("unknown");
     rmSync(root, { recursive: true, force: true });
   });
 });

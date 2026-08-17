@@ -88,6 +88,7 @@ vi.mock("@/lib/venueIndex", () => ({
 import { GET, POST } from "@/app/api/crawls/route";
 import {
   __resetCrawlStories,
+  countOwnStoriesByAuthor,
   countStoriesByAuthor,
   createCrawlStory,
   listStoriesByAuthor,
@@ -183,6 +184,26 @@ describe("countStoriesByAuthor", () => {
   });
 });
 
+// The passport's story-posts number is what this author PUBLISHED, and an
+// unlisted crawl is published — shared by direct link. Narrowing it to `public`
+// alongside the crawls tile would tell an owner they wrote fewer than they did.
+describe("countOwnStoriesByAuthor", () => {
+  it("counts the owner's unlisted crawls, which the public count withholds", async () => {
+    const unlisted = await makeStory("ken", "Direct Link Only");
+    await makeStory("ken", "Listed");
+    await updateCrawlStory(unlisted, "ken", { visibility: "unlisted" });
+
+    expect(await countOwnStoriesByAuthor("ken")).toBe(2);
+    expect(await countStoriesByAuthor("ken")).toBe(1);
+  });
+
+  it("still never counts a draft", async () => {
+    const slug = await makeStory("ken", "Half Written");
+    await updateCrawlStory(slug, "ken", { visibility: "draft" });
+    expect(await countOwnStoriesByAuthor("ken")).toBe(0);
+  });
+});
+
 describe("GET /api/crawls?author=", () => {
   it("returns the normalized handle and its published story count", async () => {
     await makeStory("ken", "Loop One");
@@ -234,6 +255,7 @@ describe("GET /api/crawls?author=", () => {
       total: 0,
       crawls: [],
       hasMore: false,
+      status: "ready",
     });
   });
 
@@ -246,7 +268,48 @@ describe("GET /api/crawls?author=", () => {
       total: 0,
       crawls: [],
       hasMore: false,
+      status: "ready",
     });
+  });
+
+  // The profile pages with ?limit=, so a reader can reach past the first page
+  // rather than reading a tile count above a list that stops at ten.
+  it("honours ?limit= up to the published ceiling and clamps past it", async () => {
+    for (let i = 0; i < 30; i += 1) {
+      await makeStory("ken", `Loop ${String(i).padStart(2, "0")}`);
+    }
+
+    const widened = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&limit=25`))
+    ).json()) as { crawls: unknown[]; total: number; hasMore: boolean };
+    expect(widened.crawls.length).toBe(25);
+    expect(widened.total).toBe(30);
+    expect(widened.hasMore).toBe(true);
+
+    const clamped = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&limit=500`))
+    ).json()) as { crawls: unknown[] };
+    expect(clamped.crawls.length).toBe(25);
+
+    const junk = (await (
+      await GET(new Request(`${URL_BASE}?author=ken&limit=nope`))
+    ).json()) as { crawls: unknown[] };
+    expect(junk.crawls.length).toBe(10);
+  });
+
+  // An unlisted crawl is a direct-link crawl, so how many of them somebody has
+  // is theirs to know. An anonymous caller asking for the owner scope is simply
+  // not answered — no field, no error.
+  it("never hands the owner-scoped count to an anonymous caller", async () => {
+    const slug = await makeStory("ken", "Only Loop");
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+
+    const res = await GET(new Request(`${URL_BASE}?author=ken&scope=own`));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Record<string, unknown>;
+    expect(body.ownCount).toBeUndefined();
+    expect(body.count).toBe(0);
+    expect(body.crawls).toEqual([]);
   });
 });
 

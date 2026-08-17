@@ -34,6 +34,7 @@ const db = vi.hoisted(() => ({
   stories: [] as Array<Record<string, unknown>>,
   stops: [] as Array<Record<string, unknown>>,
   stopsReadFails: false,
+  storiesReadFails: false,
 }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -87,6 +88,7 @@ function storiesQuery() {
     limit: 25,
     selectError: null as { code: string; message: string } | null,
     headCount: false,
+    exactCount: false,
   };
   const matching = () =>
     db.stories
@@ -97,6 +99,10 @@ function storiesQuery() {
     select(cols: string, opts?: { count?: string; head?: boolean }) {
       state.selectError = checkSelect("crawl_stories", STORY_COLUMNS, cols);
       state.headCount = opts?.count === "exact" && opts?.head === true;
+      // PostgREST answers `count: exact` with the WHOLE matching cardinality
+      // alongside the requested page, which is what lets the listing and its
+      // total come from one read.
+      state.exactCount = opts?.count === "exact" && opts?.head !== true;
       return q;
     },
     insert(payload: unknown) {
@@ -130,8 +136,21 @@ function storiesQuery() {
     },
     limit(n: number) {
       state.limit = n;
-      if (state.selectError) return Promise.resolve({ data: null, error: state.selectError });
-      return Promise.resolve({ data: rows(), error: null });
+      if (state.selectError) {
+        return Promise.resolve({ data: null, count: null, error: state.selectError });
+      }
+      if (db.storiesReadFails) {
+        return Promise.resolve({
+          data: null,
+          count: null,
+          error: { code: "57014", message: "statement timeout" },
+        });
+      }
+      return Promise.resolve({
+        data: rows(),
+        count: state.exactCount ? matching().length : null,
+        error: null,
+      });
     },
     // A head+exact count builder is awaited straight off the filters, with no
     // terminal call, so the builder itself has to be thenable like PostgREST's.
@@ -147,6 +166,15 @@ function storiesQuery() {
         if (state.selectError) {
           return Promise.resolve(
             resolve({ data: null, count: null, error: state.selectError }),
+          );
+        }
+        if (db.storiesReadFails) {
+          return Promise.resolve(
+            resolve({
+              data: null,
+              count: null,
+              error: { code: "57014", message: "statement timeout" },
+            }),
           );
         }
         return Promise.resolve(
@@ -199,6 +227,7 @@ import {
   __resetCrawlStories,
   countStoriesByAuthor,
   createCrawlStory,
+  listAuthoredCrawlPage,
   listStoriesByAuthor,
 } from "@/lib/crawlStoryStore";
 
@@ -206,6 +235,7 @@ beforeEach(() => {
   db.stories.length = 0;
   db.stops.length = 0;
   db.stopsReadFails = false;
+  db.storiesReadFails = false;
   process.env.SUPABASE_URL = "https://example.supabase.co";
   process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role";
   __resetCrawlStories();
@@ -378,6 +408,45 @@ describe("countStoriesByAuthor (Supabase)", () => {
 
     expect(await countStoriesByAuthor("ken")).toBe(0);
     expect(await listStoriesByAuthor("ken")).toEqual([]);
+  });
+});
+
+// The rows and the number come from ONE query, so no degradation can split
+// them. Two fail-soft reads could, and the losing combination was a Crawls tile
+// reading 0 directly above a section listing three crawls.
+describe("listAuthoredCrawlPage (Supabase)", () => {
+  it("answers the page and the whole count from one read", async () => {
+    for (let i = 0; i < 12; i += 1) {
+      db.stories.push({
+        id: `story-${i}`,
+        slug: `loop-${i}-abc123`,
+        title: `Loop ${i}`,
+        created_at: `2026-08-${String(i + 1).padStart(2, "0")}T12:00:00.000Z`,
+        author_handle: "ken",
+        visibility: "public",
+      });
+    }
+
+    const page = await listAuthoredCrawlPage("ken", 10);
+    expect(page.crawls.length).toBe(10);
+    expect(page.total).toBe(12);
+  });
+
+  it("reports an unknown total with no rows when the read fails, never 0 with rows", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    db.stories.push({
+      id: "story-1",
+      slug: "loop-one-abc123",
+      title: "Loop One",
+      created_at: "2026-08-01T12:00:00.000Z",
+      author_handle: "ken",
+      visibility: "public",
+    });
+    db.storiesReadFails = true;
+
+    const page = await listAuthoredCrawlPage("ken", 10);
+    expect(page.total).toBeNull();
+    expect(page.crawls).toEqual([]);
   });
 });
 

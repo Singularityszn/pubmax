@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+import { execFileSync } from "node:child_process";
 import { promises as fs } from "fs";
-import path from "path";
+import path, { join } from "path";
 
+import registry from "@/data/freshness_registry.json";
 import sitemap from "@/app/sitemap";
 import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
@@ -223,6 +225,34 @@ describe("sitemap() when historic data is unavailable", () => {
     errorSpy.mockRestore();
     vi.doUnmock("@/lib/historic");
     vi.resetModules();
+  });
+
+  // The degrade above may only be the RARE outcome. lib/historic.ts opens the
+  // pack from process.cwd() at request time, so if the file is not declared for
+  // this function, a lambda-grouping change drops all 346 /historic/{slug} URLs
+  // on every generation and the alert becomes noise. Evaluating the real config
+  // the way Next does also proves it still loads.
+  it("ships the historic pack with the sitemap function, so the degrade is a fallback", () => {
+    const root = join(__dirname, "..");
+    const out = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "const m = await import(process.argv[1]);" +
+          "console.log(JSON.stringify(m.default.outputFileTracingIncludes ?? null));",
+        join(root, "next.config.mjs"),
+      ],
+      { cwd: root, encoding: "utf8" },
+    );
+    const includes = JSON.parse(out) as Record<string, string[]>;
+    expect(includes["/sitemap.xml"]).toContain("./public/data/historic_pubs.json");
+    // The pack the sitemap ships and the one the freshness audit ages are the
+    // same file, taken from the registry by id rather than typed twice.
+    const registered = (
+      registry.datasets as Array<{ id: string; artifact: string | null }>
+    ).find((d) => d.id === "historic_pubs");
+    expect(includes["/sitemap.xml"]).toContain(`./${registered?.artifact}`);
   });
 
   function familyCountFrom(urls: string[], prefix: string) {

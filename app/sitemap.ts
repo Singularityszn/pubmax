@@ -98,6 +98,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // omits /historic/{slug} only, while the core price-derived families still
   // publish. Ops get a loud freshness-audit ALERT so an empty historic pack is
   // not mistaken for health.
+  //
+  // A degrade is only a real fallback because the pack is PINNED into this
+  // function (next.config.mjs outputFileTracingIncludes "/sitemap.xml", taken
+  // from the freshness registry by id). Without that, dropping every historic
+  // URL would be the ordinary outcome of a lambda-grouping change rather than a
+  // rare one, and the alert would fire on every generation.
   if (historicPubs.length === 0) {
     notifySitemapHistoricDegrade();
   }
