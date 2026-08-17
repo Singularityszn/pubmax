@@ -76,9 +76,11 @@ import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
   tonightListingLanes,
+  tonightEmptyLead,
   tonightListingsNoteLine,
   tonightListingsStatus,
   tonightNoteOffersRetry,
+  tonightRetryLanes,
   tonightProvenanceCredits,
   TONIGHT_WHATS_ON_FAILED_LINE,
 } from "@/lib/tonightOutListings";
@@ -228,10 +230,13 @@ export default function TonightClient({
       listingsStatus: tonightListingsStatus(status, outAnswer, now),
     };
   }, [rows, outBody, status, outAnswer]);
+  const retryLanes = tonightRetryLanes(status, outAnswer);
+  const retryWhatsOnLane = retryLanes.whatsOn;
+  const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
-    retry();
-    retryOut();
-  }, [retry, retryOut]);
+    if (retryWhatsOnLane) retry();
+    if (retryOutLane) retryOut();
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -403,8 +408,8 @@ export default function TonightClient({
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
         <p className="tonightLede">
-          Quiz, sport, deals, and live music from sourced listings. Open a listed
-          venue on the map.
+          Quiz, sport, deals, live music and events from sourced listings. Open a
+          listed venue on the map.
         </p>
         {ready || empty ? (
           <>
@@ -499,8 +504,7 @@ export default function TonightClient({
 
       {empty ? (
         <p className="tonightStatus" role="status">
-          The city&apos;s having a quiet one tonight. We only list what&apos;s
-          really on, and nothing&apos;s confirmed yet.{" "}
+          {tonightEmptyLead(status, outAnswer)}{" "}
           <Link href="/map" className="tonightStatusLink">
             The map still knows where the cheap pints are
           </Link>

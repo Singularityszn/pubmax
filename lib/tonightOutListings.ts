@@ -98,8 +98,8 @@ export type TonightLaneReport = {
   lane: "whats-on" | "out";
   line: string;
   /**
-   * Whether asking again from this page could change the answer. A lane nobody
-   * switched on is not one a reader can re-ask, so it is told and not offered.
+   * Whether asking this lane again could change its answer. A lane nobody
+   * switched on cannot, so it is told and never re-read.
    */
   retryable: boolean;
 };
@@ -119,14 +119,14 @@ export function tonightLaneReports(
 ): TonightLaneReport[] {
   const reports: TonightLaneReport[] = [];
   if (out.failed) {
-    reports.push({ lane: "out", line: OUT_READ_FAILED_LINE, retryable: false });
+    reports.push({ lane: "out", line: OUT_READ_FAILED_LINE, retryable: true });
   }
   const listings = outListingsStatus(out);
   if (listings.status === "degraded") {
     reports.push({
       lane: "out",
       line: listings.reason ?? OUT_DEGRADED_LINE,
-      retryable: false,
+      retryable: true,
     });
   }
   if (listings.status === "not-configured") {
@@ -157,12 +157,55 @@ export function tonightListingsNoteLine(
   return reports.length > 0 ? reports.map((report) => report.line).join(" · ") : null;
 }
 
-/** True when a lane behind the note can be asked again from this page. */
+/**
+ * True when the note names the lane this page offers a control for.
+ *
+ * The spine is that lane. A short Out answer is told and not offered, because a
+ * second Out button is not this surface's job.
+ */
 export function tonightNoteOffersRetry(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
 ): boolean {
-  return tonightLaneReports(whatsOn, out).some((report) => report.retryable);
+  return tonightLaneReports(whatsOn, out).some(
+    (report) => report.lane === "whats-on" && report.retryable,
+  );
+}
+
+/**
+ * Which lanes a retry may actually re-read.
+ *
+ * Only the lanes that reported. Re-reading a healthy lane drops the answer it
+ * is holding, so one press would replace a rendered Ticketmaster card with the
+ * skeleton and could end with fewer rows than before it was pressed.
+ */
+export function tonightRetryLanes(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+): { whatsOn: boolean; out: boolean } {
+  const reports = tonightLaneReports(whatsOn, out);
+  const retryable = (lane: TonightLaneReport["lane"]) =>
+    reports.some((report) => report.lane === lane && report.retryable);
+  return { whatsOn: retryable("whats-on"), out: retryable("out") };
+}
+
+export const TONIGHT_QUIET_NIGHT_SENTENCE =
+  "The city’s having a quiet one tonight. We only list what’s really on, and nothing’s confirmed yet.";
+
+/**
+ * The sentence over an empty night, scoped to what was actually read.
+ *
+ * A lane nobody asked makes the whole-city claim untrue, so the sentence
+ * narrows to the lane that answered and the note beside it names the one that
+ * did not.
+ */
+export function tonightEmptyLead(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+): string {
+  const reports = tonightLaneReports(whatsOn, out);
+  if (reports.length === 0) return TONIGHT_QUIET_NIGHT_SENTENCE;
+  return `Nothing listed ${TONIGHT_WHATS_ON_CREDIT}.`;
 }
 
 export const TONIGHT_WHATS_ON_CREDIT = "via what’s-on";

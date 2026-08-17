@@ -3,13 +3,17 @@ import { describe, expect, it } from "vitest";
 import { OUT_DEGRADED_LINE, OUT_READ_FAILED_LINE } from "@/lib/out/outStatus";
 import {
   TONIGHT_OUT_NOT_CONFIGURED_LINE,
+  TONIGHT_QUIET_NIGHT_SENTENCE,
+  TONIGHT_WHATS_ON_CREDIT,
   TONIGHT_WHATS_ON_FAILED_LINE,
   mergeTonightListingRows,
+  tonightEmptyLead,
   tonightListingLanes,
   tonightListingsNoteLine,
   tonightListingsStatus,
   tonightNoteOffersRetry,
   tonightProvenanceCredits,
+  tonightRetryLanes,
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
 } from "@/lib/tonightOutListings";
@@ -216,6 +220,16 @@ describe("tonight listings note line", () => {
     expect(tonightNoteOffersRetry("ready", degradedWithRows)).toBe(false);
     expect(tonightNoteOffersRetry("ready", failedOut)).toBe(false);
   });
+
+  it("re-reads only the lane that reported", () => {
+    // Re-reading a healthy lane drops the answer it holds, so a press meant to
+    // recover the spine would replace the rendered Ticketmaster card with the
+    // skeleton and could end with fewer rows than it started with.
+    expect(tonightRetryLanes("error", eventOut)).toEqual({ whatsOn: true, out: false });
+    expect(tonightRetryLanes("empty", failedOut)).toEqual({ whatsOn: false, out: true });
+    expect(tonightRetryLanes("error", failedOut)).toEqual({ whatsOn: true, out: true });
+    expect(tonightRetryLanes("ready", eventOut)).toEqual({ whatsOn: false, out: false });
+  });
 });
 
 describe("an Out lane nobody switched on", () => {
@@ -243,6 +257,32 @@ describe("an Out lane nobody switched on", () => {
       `${TONIGHT_OUT_NOT_CONFIGURED_LINE} · ${TONIGHT_WHATS_ON_FAILED_LINE}`,
     );
     expect(tonightNoteOffersRetry("error", notConfigured)).toBe(true);
+  });
+
+  it("is never re-read, even beside a lane that is", () => {
+    expect(tonightRetryLanes("empty", notConfigured)).toEqual({
+      whatsOn: false,
+      out: false,
+    });
+    expect(tonightRetryLanes("error", notConfigured)).toEqual({
+      whatsOn: true,
+      out: false,
+    });
+  });
+
+  it("narrows the empty sentence to the lane that answered", () => {
+    // The whole-city claim is untrue while the live lane was never asked.
+    expect(tonightEmptyLead("empty", notConfigured)).toBe(
+      `Nothing listed ${TONIGHT_WHATS_ON_CREDIT}.`,
+    );
+    expect(tonightEmptyLead("empty", notConfigured)).not.toContain("quiet one tonight");
+  });
+});
+
+describe("the empty-night sentence", () => {
+  it("says the city is quiet only when every lane answered", () => {
+    expect(tonightEmptyLead("empty", emptyReadyOut)).toBe(TONIGHT_QUIET_NIGHT_SENTENCE);
+    expect(TONIGHT_QUIET_NIGHT_SENTENCE).toContain("quiet one tonight");
   });
 });
 

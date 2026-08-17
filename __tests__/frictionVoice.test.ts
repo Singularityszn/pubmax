@@ -3,6 +3,8 @@ import { join } from "node:path";
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
+import { tonightEmptyLead } from "@/lib/tonightOutListings";
+
 // Friction-state voice fence (2026-07-19 taste sweep). Empty, denied, and
 // error states are where love is won or lost (voice spec rule 5); they must
 // never leak the plumbing (rule 2), slam the door ("Check back later"), or
@@ -180,7 +182,12 @@ describe("friction-state voice fence", () => {
   it("Tonight's empty night hands the user an exit to the map", () => {
     const source = read("app/tonight/TonightClient.tsx");
     expect(source).toContain("tonightStatusLink");
-    expect(source.includes("quiet one tonight")).toBe(true);
+    // The sentence beside that exit is the lane-scoped one, so it is asked for
+    // rather than read off this file: a night both lanes answered says the city
+    // is quiet, and a lane nobody asked narrows the claim to what was read.
+    expect(
+      tonightEmptyLead("empty", { body: { status: "ready", events: [] }, failed: false, pending: false }),
+    ).toContain("quiet one tonight");
   });
 
   it("Today's empty picks card hands the user an exit to the map", () => {
