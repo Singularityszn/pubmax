@@ -239,6 +239,7 @@ describe("keyless lanes", () => {
     const lanes = providerLaneStatus({});
     expect(lanes.ticketmaster).toBe("not-configured");
     expect(lanes.skiddle).toBe("not-configured");
+    expect(lanes.contextdev).toBe("not-configured");
   });
 });
 
@@ -320,6 +321,7 @@ describe("runEventsRefresh end to end", () => {
     expect(written.sources.map((source: { label: string }) => source.label)).toEqual([
       "Ticketmaster",
       "Skiddle",
+      "Context.dev registered sources",
     ]);
     expect(written.generatedAt).toBe(new Date(NOW_MS).toISOString());
     expect(written.rows).toHaveLength(1);

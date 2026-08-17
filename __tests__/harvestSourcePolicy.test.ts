@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   allowedHarvestSources,
+  contextDevEventSources,
   HARVEST_SKIP_REASONS,
   HARVEST_SOURCES,
   harvestSource,
@@ -77,6 +78,14 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSourcesOfKind("chain-deals").length).toBeGreaterThan(0);
     expect(harvestSourcesOfKind("venue-events").length).toBeGreaterThan(0);
     expect(harvestSource("nope")).toBeUndefined();
+  });
+
+  it("keeps Context.dev on scrapeable venue-events pages, not sitemap readers", () => {
+    const pages = contextDevEventSources();
+    expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
+    expect(pages.every((source) => !source.url.endsWith(".xml"))).toBe(true);
+    expect(allowedHarvestSources("venue-events").some((source) => source.id === "common-social-posts")).toBe(true);
+    expect(pages.some((source) => source.id === "common-social-posts")).toBe(false);
   });
 });
 

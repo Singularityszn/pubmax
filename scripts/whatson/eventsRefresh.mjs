@@ -103,6 +103,7 @@ export function providerLaneStatus(env = process.env) {
   return {
     ticketmaster: present("TICKETMASTER_API_KEY") ? "configured" : "not-configured",
     skiddle: present("SKIDDLE_API_KEY") ? "configured" : "not-configured",
+    contextdev: present("CONTEXT_DEV_API_KEY") ? "configured" : "not-configured",
   };
 }
 
@@ -225,11 +226,17 @@ async function runProviderLane({
   const tmKey = env.TICKETMASTER_API_KEY;
   const skKey = env.SKIDDLE_API_KEY;
   const lanes = providerLaneStatus(env);
-  log(`eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle}`);
+  log(
+    `eventsRefresh: city=${city} ticketmaster=${lanes.ticketmaster} skiddle=${lanes.skiddle} contextdev=${lanes.contextdev}`,
+  );
 
-  if (!nonEmptyString(tmKey) && !nonEmptyString(skKey)) {
+  if (
+    !nonEmptyString(tmKey) &&
+    !nonEmptyString(skKey) &&
+    lanes.contextdev !== "configured"
+  ) {
     log(
-      "eventsRefresh: no provider keys present (TICKETMASTER_API_KEY / SKIDDLE_API_KEY). " +
+      "eventsRefresh: no provider keys present (TICKETMASTER_API_KEY / SKIDDLE_API_KEY / CONTEXT_DEV_API_KEY). " +
         "Lanes stay not-configured. Leaving the events file untouched.",
     );
     return { status: "not-configured", wrote: false };
@@ -308,27 +315,73 @@ async function runProviderLane({
     log("eventsRefresh: Skiddle lane not-configured (no SKIDDLE_API_KEY).");
   }
 
+  if (lanes.contextdev === "configured") {
+    try {
+      const { runContextDevEventsLane } = await import("../../lib/events/contextDevProvider.ts");
+      const contextDev = await runContextDevEventsLane({
+        observedAt,
+        venueIndex,
+        resolveVenue: resolveVenueId,
+        env,
+        log,
+        logError,
+      });
+      if (contextDev.rows.length > 0) {
+        allRows.push(...contextDev.rows);
+        addDrops(contextDev.dropped);
+      }
+      for (const run of contextDev.sourcesRun) {
+        providersRun.push({ provider: run.sourceId, rows: run.rows });
+      }
+      for (const failure of contextDev.failures) {
+        providerFailures.push({
+          provider: failure.sourceId,
+          label: failure.label,
+          message: failure.message,
+        });
+      }
+      if (contextDev.status === "failed" && contextDev.sourcesRun.length === 0) {
+        logError("eventsRefresh: every Context.dev registered source failed this run.");
+      }
+    } catch (err) {
+      logError(
+        `eventsRefresh: Context.dev lane failed (${err.message}) - its held rows carry across instead.`,
+      );
+      providerFailures.push({
+        provider: "contextdev",
+        label: "Context.dev",
+        message: err.message,
+      });
+    }
+  } else {
+    log("eventsRefresh: Context.dev lane not-configured (no CONTEXT_DEV_API_KEY).");
+  }
+
   const failureReason = providerFailures
     .map((failure) => `${failure.provider}: ${failure.message}`)
     .join("; ");
 
+  const carriedFailedRows = readExistingRowsForLabels(
+    outPath,
+    providerFailures.map((failure) => failure.label),
+  );
+
   // The clobber guard is PER PROVIDER. A failed lane keeps its own held rows
-  // (read back below) and the lanes that answered still publish, so one
-  // upstream outage never ages the whole file. With NO lane answering there is
-  // nothing to publish and nothing to compare, so the write is refused outright
-  // rather than rewriting the file with only what it already said.
-  if (providerFailures.length > 0 && providersRun.length === 0) {
+  // (read above) and the lanes that answered still publish, so one upstream
+  // outage never ages the whole file. With NO lane answering AND no held rows
+  // to carry, the write is refused outright rather than rewriting the file
+  // with only what it already said.
+  if (
+    providerFailures.length > 0 &&
+    providersRun.length === 0 &&
+    carriedFailedRows.length === 0
+  ) {
     logError(
       `eventsRefresh: not writing ${outPath} - every configured provider lane failed ` +
         `(${failureReason}).`,
     );
     return { status: "failed", wrote: false, reason: failureReason };
   }
-
-  const carriedFailedRows = readExistingRowsForLabels(
-    outPath,
-    providerFailures.map((failure) => failure.label),
-  );
   if (providerFailures.length > 0) {
     log(
       `eventsRefresh: carrying ${carriedFailedRows.length} held row(s) across for the failed lane(s) ` +
@@ -390,6 +443,16 @@ async function runProviderLane({
           "CLUB/COMEDY/THEATRE/BARPUB->event; other codes dropped and counted. Commercial use " +
           "requires written approval from dev@skiddle.com; provider stays not-configured " +
           "without SKIDDLE_API_KEY. Name + logo + event link are licence obligations.",
+      },
+      {
+        label: "Context.dev registered sources",
+        url: "https://context.dev/",
+        firstParty: false,
+        provider: "contextdev",
+        rowsEmitted: deduped.filter((row) => String(row.id ?? "").startsWith("events-cd-")).length,
+        notes:
+          "Registered venue-events pages from lib/harvest/sourcePolicy.ts, read through Context.dev " +
+          "extract. Date-only listings carry startsDate and never invent a clock time.",
       },
     ],
     rows: deduped,

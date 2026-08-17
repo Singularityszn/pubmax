@@ -44,6 +44,37 @@ already splits this way; the harvest follows it.
 | The shape of a run report | `lib/harvest/runReport.ts` |
 | The bounded batch the cron runs | `lib/harvestRefresh.server.ts` |
 | The durable pass | `scripts/harvest/run.mjs` |
+| Context.dev web reads (events lane) | `lib/contextDev.server.ts` |
+| Context.dev registered events harvest | `lib/events/contextDevProvider.ts` |
+
+## Context.dev (events lane)
+
+The What's-On events refresh (`scripts/whatson/eventsRefresh.mjs`) may read
+**registered venue-events pages** from `lib/harvest/sourcePolicy.ts` through
+Context.dev when `CONTEXT_DEV_API_KEY` is set server-side. The wrapper is
+`lib/contextDev.server.ts` (`scrapeMarkdown`, `extract`); the lane is
+`lib/events/contextDevProvider.ts`.
+
+| Endpoint | Credits | Docs |
+|---|---|---|
+| `GET /web/scrape/markdown` | 1 | https://docs.context.dev/api-reference/web-scraping/markdown |
+| `POST /web/extract` | 10 | https://docs.context.dev/api-reference/web-extraction/extract |
+
+Base URL: `https://api.context.dev/v1`. Auth: `Authorization: Bearer
+$CONTEXT_DEV_API_KEY` (never in a client bundle). On 429 honour `Retry-After`;
+retry 408/5xx with bounded backoff; never retry validation errors; pass
+`maxAgeMs` when freshness matters. Without a key every call answers
+`not-configured` and sends nothing.
+
+Proof (captain): with the key in `.env.local`:
+
+```bash
+set -a && source .env.local && set +a
+npm test -- __tests__/contextDevLiveProof.test.ts
+```
+
+The test skips when `CONTEXT_DEV_API_KEY` is unset. It prints a trimmed JSON
+preview to the console for PR bodies.
 
 ## The budget
 
@@ -95,6 +126,8 @@ crawlers and still refuse it.
 ## Pins
 
 `__tests__/harvestFirecrawlClient.test.ts` (fail closed, budget, retries),
+`__tests__/contextDev.server.test.ts` and `__tests__/contextDevProvider.test.ts`
+(Context.dev wrapper and events lane),
 `__tests__/harvestRows.test.ts` (what earns a row, provenance),
 `__tests__/harvestSourcePolicy.test.ts` (the source table and the report),
 `__tests__/cronHarvestRefreshRoute.test.ts` (auth, keyless run, budget ceiling).
