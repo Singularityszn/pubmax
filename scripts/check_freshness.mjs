@@ -216,9 +216,25 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
       }
       // Mirror of lib/freshnessArtifact.ts resolveDatasetStamp: only a field stamp
       // lives inside the artifact, so only a field stamp opens one.
+      const artifactRead =
+        spec?.kind === "field" || dataset.artifact
+          ? readArtifact(rootDir, dataset.artifact)
+          : { kind: "absent" };
+      if (
+        artifactRead.kind === "ok" &&
+        Array.isArray(artifactRead.json) &&
+        artifactRead.json.length === 0
+      ) {
+        return evaluateDataset(
+          dataset,
+          null,
+          now,
+          `Artifact ${artifactRead.path} is empty (0 rows).`,
+        );
+      }
       const { observedAt, reason } = resolveStamp(
         spec,
-        spec?.kind === "field" ? readArtifact(rootDir, dataset.artifact) : { kind: "absent" },
+        spec?.kind === "field" ? artifactRead : { kind: "absent" },
       );
       return evaluateDataset(dataset, observedAt, now, reason);
     }),

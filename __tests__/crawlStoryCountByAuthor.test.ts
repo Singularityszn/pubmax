@@ -170,6 +170,17 @@ describe("countStoriesByAuthor", () => {
     expect(await countStoriesByAuthor("ken")).toBe(0);
     expect(await listStoriesByAuthor("ken")).toEqual([]);
   });
+
+  it("matches listStoriesByAuthor cardinality when more than the default page size", async () => {
+    for (let i = 0; i < 11; i += 1) {
+      await makeStory("ken", `Loop ${i}`);
+    }
+    const total = await countStoriesByAuthor("ken");
+    const listed = await listStoriesByAuthor("ken");
+    expect(total).toBe(11);
+    expect(listed.length).toBe(10);
+    expect(total).toBeGreaterThan(listed.length);
+  });
 });
 
 describe("GET /api/crawls?author=", () => {
@@ -182,26 +193,60 @@ describe("GET /api/crawls?author=", () => {
     const body = (await res.json()) as {
       handle: string;
       count: number;
+      total: number;
+      hasMore: boolean;
       crawls: { slug: string; title: string }[];
     };
     expect(body.handle).toBe("ken");
     expect(body.count).toBe(2);
+    expect(body.total).toBe(2);
+    expect(body.hasMore).toBe(false);
     expect(body.crawls.map((crawl) => crawl.title).sort()).toEqual([
       "Loop One",
       "Loop Two",
     ]);
   });
 
+  it("never claims N stories while listing only the first page", async () => {
+    for (let i = 0; i < 11; i += 1) {
+      await makeStory("ken", `Loop ${i}`);
+    }
+    const res = await GET(new Request(`${URL_BASE}?author=ken`));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as {
+      count: number;
+      total: number;
+      hasMore: boolean;
+      crawls: unknown[];
+    };
+    expect(body.count).toBe(11);
+    expect(body.total).toBe(11);
+    expect(body.crawls.length).toBe(10);
+    expect(body.hasMore).toBe(true);
+  });
+
   it("returns count 0 for a handle with no stories", async () => {
     const res = await GET(new Request(`${URL_BASE}?author=nobody`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handle: "nobody", count: 0, crawls: [] });
+    expect(await res.json()).toEqual({
+      handle: "nobody",
+      count: 0,
+      total: 0,
+      crawls: [],
+      hasMore: false,
+    });
   });
 
   it("returns handle '' and count 0 for a blank author param", async () => {
     const res = await GET(new Request(`${URL_BASE}?author=`));
     expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ handle: "", count: 0, crawls: [] });
+    expect(await res.json()).toEqual({
+      handle: "",
+      count: 0,
+      total: 0,
+      crawls: [],
+      hasMore: false,
+    });
   });
 });
 

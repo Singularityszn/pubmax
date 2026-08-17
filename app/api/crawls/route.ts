@@ -34,6 +34,15 @@ const MAX_SUMMARY = 280;
 const MAX_NOTE = 160;
 const MAX_VENUE_ID = 80;
 const MAX_STOPS = 12;
+const AUTHOR_CRAWL_LIST_DEFAULT_LIMIT = 10;
+const AUTHOR_CRAWL_LIST_MAX_LIMIT = 25;
+
+function readAuthorCrawlListLimit(value: string | null): number {
+  if (!value) return AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isFinite(parsed)) return AUTHOR_CRAWL_LIST_DEFAULT_LIMIT;
+  return Math.min(Math.max(parsed, 1), AUTHOR_CRAWL_LIST_MAX_LIMIT);
+}
 
 function readString(value: unknown, cap: number): string {
   if (typeof value !== "string") return "";
@@ -194,13 +203,15 @@ export async function GET(request: Request): Promise<Response> {
     const handle = normalizeHandle(readString(author, HANDLE_MAX));
     // `crawls` rides beside the count so a profile can list what it counts. The
     // count stays exactly where it was, so every existing reader is untouched.
-    const [count, crawls] = handle
+    const limit = readAuthorCrawlListLimit(params.get("limit"));
+    const [total, crawls] = handle
       ? await Promise.all([
           countStoriesByAuthor(handle),
-          listStoriesByAuthor(handle),
+          listStoriesByAuthor(handle, limit),
         ])
       : [0, []];
-    return jsonNoStore({ handle, count, crawls }, { status: 200 });
+    const hasMore = total > crawls.length;
+    return jsonNoStore({ handle, count: total, total, crawls, hasMore }, { status: 200 });
   }
 
   const slug = params.get("slug");

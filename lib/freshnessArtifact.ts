@@ -54,11 +54,26 @@ export function readFreshnessArtifact(rootDir: string, relPath: string | null): 
  * parsing multi-megabyte JSON to discard it would cost every request for
  * nothing. Both freshness readers go through here so neither can drift.
  */
+function emptyArrayArtifactReason(read: ArtifactRead): string | null {
+  if (read.kind === "ok" && Array.isArray(read.json) && read.json.length === 0) {
+    return `Artifact ${read.path} is empty (0 rows).`;
+  }
+  return null;
+}
+
 export function resolveDatasetStamp(
   rootDir: string,
   dataset: Pick<FreshnessDataset, "stamp" | "artifact">,
   read: (rootDir: string, relPath: string | null) => ArtifactRead = readFreshnessArtifact,
 ): StampResolution {
-  if (!stampNeedsArtifact(dataset.stamp)) return resolveStamp(dataset.stamp, { kind: "absent" });
-  return resolveStamp(dataset.stamp, read(rootDir, dataset.artifact));
+  if (!stampNeedsArtifact(dataset.stamp)) {
+    const artifactRead = read(rootDir, dataset.artifact);
+    const emptyReason = emptyArrayArtifactReason(artifactRead);
+    if (emptyReason) return { observedAt: null, reason: emptyReason };
+    return resolveStamp(dataset.stamp, { kind: "absent" });
+  }
+  const artifactRead = read(rootDir, dataset.artifact);
+  const emptyReason = emptyArrayArtifactReason(artifactRead);
+  if (emptyReason) return { observedAt: null, reason: emptyReason };
+  return resolveStamp(dataset.stamp, artifactRead);
 }
