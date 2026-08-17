@@ -1,3 +1,5 @@
+import { firstHttp } from "@/lib/httpUrl";
+import { outCardSource, outSourceDisplayLabel } from "@/lib/out/attribution";
 import {
   OUT_DEGRADED_LINE,
   OUT_READ_FAILED_LINE,
@@ -220,8 +222,6 @@ export type TonightProvenanceCredits = {
   whatsOnDated: boolean;
   /** False when Out could not be dated. */
   outDated: boolean;
-  /** False when any displayed lane could not be dated. */
-  dated: boolean;
 };
 
 /**
@@ -256,7 +256,6 @@ export function tonightProvenanceCredits(input: {
     out: out.text,
     whatsOnDated,
     outDated: out.dated,
-    dated: whatsOnDated && out.dated,
   };
 }
 
@@ -267,11 +266,16 @@ function outLaneCredit(
   if (rows.length === 0) return { text: null, dated: true };
   const freshestByLabel = new Map<string, string | null>();
   for (const row of rows) {
-    const label = row.source?.label?.trim() ?? "";
-    if (!label) continue;
+    const raw = row.source?.label?.trim() ?? "";
+    if (!raw) continue;
+    // Spelled the one way every Out surface spells a publisher, so the credit
+    // beside a card and the credit over the list cannot read differently. The
+    // per-source map is keyed by the label the lane WROTE, so the lookup keeps
+    // the raw one.
+    const label = outSourceDisplayLabel(raw);
     // The response's per-source map is the lane's own answer; a row's stated
     // observation is the fall-back, because the row itself is the evidence.
-    const next = canonicalIso(observedAt[label.toLowerCase()] ?? row.observedAt ?? null);
+    const next = canonicalIso(observedAt[raw.toLowerCase()] ?? row.observedAt ?? null);
     const held = freshestByLabel.get(label);
     if (held === undefined) {
       freshestByLabel.set(label, next);
@@ -297,6 +301,44 @@ function outLaneCredit(
   const via = unlabelled ? "" : ` via ${joinLabels(labels)}`;
   const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
   return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+}
+
+export type TonightRowLinks = {
+  /** The whole card's link, or null when the row carries neither. */
+  primary: { href: string; external: boolean } | null;
+  /** The map, when the card link went to the publisher instead. */
+  mapHref: string | null;
+  /** How this row's publisher is spelled, wherever the row names it. */
+  sourceLabel: string;
+};
+
+/**
+ * Where one Tonight row leads, and what its publisher is called.
+ *
+ * A listing credited to a PUBLISHER (Ticketmaster, Skiddle, Common) links to
+ * that publisher's own page for the event: their name and event link are a
+ * licence obligation, and dropping the link because we happened to resolve a
+ * venue discharges nothing. The map keeps its own way in beside the card, as a
+ * sibling rather than an anchor inside an anchor, which the parser un-nests.
+ * A venue's own listing is unchanged: the pub it names is the destination.
+ */
+export function tonightRowLinks(row: WhatsOnRow): TonightRowLinks {
+  const rawLabel = row.source?.label ?? "";
+  const sourceLabel = outSourceDisplayLabel(rawLabel);
+  const sourceUrl = firstHttp(row.source?.url);
+  const mapHref =
+    typeof row.venueId === "string" && row.venueId.length > 0
+      ? `/map?sel=${encodeURIComponent(row.venueId)}`
+      : null;
+  const publisherCredited = outCardSource(rawLabel) !== "venue";
+  if (publisherCredited && sourceUrl) {
+    return { primary: { href: sourceUrl, external: true }, mapHref, sourceLabel };
+  }
+  if (mapHref) return { primary: { href: mapHref, external: false }, mapHref: null, sourceLabel };
+  if (sourceUrl) {
+    return { primary: { href: sourceUrl, external: true }, mapHref: null, sourceLabel };
+  }
+  return { primary: null, mapHref: null, sourceLabel };
 }
 
 // A night this read found nothing on is said in words, not as a bare numeral

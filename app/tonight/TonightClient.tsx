@@ -43,7 +43,6 @@ import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
 import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
-import { firstHttp } from "@/lib/httpUrl";
 import {
   resolveTonightNear,
   tonightHeading,
@@ -81,6 +80,7 @@ import {
   tonightListingsStatus,
   tonightNoteOffersRetry,
   tonightRetryLanes,
+  tonightRowLinks,
   tonightProvenanceCredits,
   TONIGHT_WHATS_ON_FAILED_LINE,
 } from "@/lib/tonightOutListings";
@@ -100,15 +100,6 @@ import "./tonightOnTonightSummary.css";
 
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
-
-function rowHref(row: WhatsOnRow): { href: string; external: boolean } | null {
-  if (typeof row.venueId === "string" && row.venueId.length > 0) {
-    return { href: `/map?sel=${encodeURIComponent(row.venueId)}`, external: false };
-  }
-  const url = firstHttp(row.source?.url);
-  if (url) return { href: url, external: true };
-  return null;
-}
 
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
@@ -608,7 +599,7 @@ export default function TonightClient({
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
-              const link = rowHref(row);
+              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(row);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
               const walk =
@@ -651,7 +642,7 @@ export default function TonightClient({
                         {walk}
                       </span>
                     ) : null}
-                    <span className="tonightRowSource">via {row.source.label}</span>
+                    <span className="tonightRowSource">via {sourceLabel}</span>
                   </div>
                   {dealListingAge ? (
                     <p className="tonightRowListingAge">{dealListingAge}</p>
@@ -660,7 +651,7 @@ export default function TonightClient({
                     <span className="tonightRowCta">
                       {link.external ? (
                         <>
-                          {row.source.label}
+                          {sourceLabel}
                           <ExternalLink size={13} aria-hidden="true" />
                         </>
                       ) : (
@@ -703,6 +694,16 @@ export default function TonightClient({
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {mapHref ? (
+                    <Link
+                      className="tonightRowMapLink pressable"
+                      href={mapHref}
+                      onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
+                    >
+                      Open on map
+                      <ArrowRight size={13} aria-hidden="true" />
+                    </Link>
+                  ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
                     <TonightRowAccept
@@ -728,7 +729,7 @@ export default function TonightClient({
                       </summary>
                       <ul className="tonightRowMoreList">
                         {group.alternates.map((alt) => {
-                          const altLink = rowHref(alt);
+                          const altLink = tonightRowLinks(alt).primary;
                           const altWalk =
                             typeof alt.lat === "number" && typeof alt.lng === "number"
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))

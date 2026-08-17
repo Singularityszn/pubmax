@@ -14,10 +14,12 @@ import {
   tonightNoteOffersRetry,
   tonightProvenanceCredits,
   tonightRetryLanes,
+  tonightRowLinks,
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
 } from "@/lib/tonightOutListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { checkedLabel } from "@/lib/whatsOnBadges";
 
 const NOW = Date.parse("2026-09-01T00:00:00.000Z");
 const NOW_ISO = new Date(NOW).toISOString();
@@ -279,6 +281,79 @@ describe("an Out lane nobody switched on", () => {
   });
 });
 
+describe("where a Tonight row leads", () => {
+  const publisherRow = row({
+    id: "tm-1",
+    title: "A Night at the Playhouse",
+    venueId: "venue-soho-theatre",
+  });
+
+  it("keeps a publisher's own event link and offers the map beside it", () => {
+    // Their name and event link are a licence obligation, so resolving a venue
+    // may not take the link away.
+    const links = tonightRowLinks(publisherRow);
+    expect(links.primary).toEqual({
+      href: "https://www.ticketmaster.co.uk/event/1",
+      external: true,
+    });
+    expect(links.mapHref).toBe("/map?sel=venue-soho-theatre");
+  });
+
+  it("sends a venue's own listing to that venue and offers no second way", () => {
+    const links = tonightRowLinks(
+      row({
+        id: "quiz-1",
+        kind: "quiz",
+        title: "Quiz",
+        venueId: "venue-the-dove",
+        source: { label: "The Dove", url: "https://example.com/quiz" },
+      }),
+    );
+    expect(links.primary).toEqual({ href: "/map?sel=venue-the-dove", external: false });
+    expect(links.mapHref).toBeNull();
+  });
+
+  it("falls back to the map when a publisher row carries no usable link", () => {
+    const links = tonightRowLinks(
+      row({
+        id: "tm-2",
+        title: "No link",
+        venueId: "venue-soho-theatre",
+        source: { label: "Ticketmaster", url: "not-a-url" },
+      }),
+    );
+    expect(links.primary).toEqual({ href: "/map?sel=venue-soho-theatre", external: false });
+    expect(links.mapHref).toBeNull();
+  });
+
+  it("spells a publisher the one way every Out surface spells it", () => {
+    // The Common lane writes "common" into its own rows.
+    expect(
+      tonightRowLinks(
+        row({
+          id: "cm-1",
+          title: "Common night",
+          source: { label: "common", url: "https://www.common-social.com/e/1" },
+        }),
+      ).sourceLabel,
+    ).toBe("Common");
+    expect(tonightRowLinks(publisherRow).sourceLabel).toBe("Ticketmaster");
+  });
+
+  it("leaves a venue's own name alone", () => {
+    expect(
+      tonightRowLinks(
+        row({
+          id: "quiz-2",
+          kind: "quiz",
+          title: "Quiz",
+          source: { label: "The Dove", url: "https://example.com/quiz" },
+        }),
+      ).sourceLabel,
+    ).toBe("The Dove");
+  });
+});
+
 describe("the empty-night sentence", () => {
   it("says the city is quiet only when every lane answered", () => {
     expect(tonightEmptyLead("empty", emptyReadyOut)).toBe(TONIGHT_QUIET_NIGHT_SENTENCE);
@@ -326,7 +401,7 @@ describe("tonight provenance credits", () => {
     });
     expect(credits.whatsOn).toBe("2 listings · Checked 15 Aug · via what’s-on");
     expect(credits.out).toBe("1 listing via Ticketmaster · Checked 16 Aug");
-    expect(credits.dated).toBe(true);
+    expect(credits.whatsOnDated && credits.outDated).toBe(true);
   });
 
   it("never dates an Out row to the What's-On stamp", () => {
@@ -358,7 +433,23 @@ describe("tonight provenance credits", () => {
       outObservedAt: {},
     });
     expect(credits.out).toBe("2 listings via Ticketmaster and Skiddle · Checked 14 Aug");
-    expect(credits.dated).toBe(true);
+    expect(credits.whatsOnDated && credits.outDated).toBe(true);
+  });
+
+  it("spells a publisher in the credit the way the card beside it does", () => {
+    const common = row({
+      id: "cm-1",
+      placeName: "Common",
+      title: "Common night",
+      source: { label: "common", url: "https://www.common-social.com/e/1" },
+    });
+    const credits = tonightProvenanceCredits({
+      merged: mergeWithFixture([], [common]),
+      outEvents: [common],
+      whatsOnChecked: null,
+      outObservedAt: {},
+    });
+    expect(credits.out).toBe(`1 listing via Common · ${checkedLabel(NOW_ISO)}`);
   });
 
   it("goes undated when a source it covers cannot be dated", () => {
@@ -377,7 +468,7 @@ describe("tonight provenance credits", () => {
       outObservedAt: {},
     });
     expect(credits.out).toBe("2 listings via Ticketmaster and Skiddle");
-    expect(credits.dated).toBe(false);
+    expect(credits.whatsOnDated && credits.outDated).toBe(false);
   });
 
   it("keeps the quiet night credited to What's-On when Out brought nothing", () => {
@@ -388,7 +479,7 @@ describe("tonight provenance credits", () => {
     });
     expect(credits.whatsOn).toBe("Quiet night · undated · via what’s-on");
     expect(credits.out).toBeNull();
-    expect(credits.dated).toBe(false);
+    expect(credits.whatsOnDated && credits.outDated).toBe(false);
   });
 
   it("says a dated quiet night in words rather than as a bare zero", () => {
