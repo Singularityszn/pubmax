@@ -77,11 +77,12 @@ export function subscribeSocialFriendsLaunchFromDocument(
 }
 
 /**
- * What the product may say when it asks the age question. One place, because
- * the prompt, the button and the refusal are read together and a second copy
- * of any of them would drift from the others.
+ * What the product may say when it asks the age question. The line itself is
+ * `adultSelfAssertionLine`, because the surface name follows the launch flag;
+ * the button is flag-blind and lives here. One place each, because the prompt,
+ * the button and the refusal are read together and a second copy of any of
+ * them would drift from the others.
  */
-export const ADULT_SELF_ASSERTION_LINE = "Social is for over-18s.";
 export const ADULT_SELF_ASSERTION_ACTION = "I'm 18 or over";
 
 /** Self-asserted 18+ from onboarding date of birth (London calendar day). */

@@ -11,14 +11,10 @@
 // input, Esc closes, ↑/↓ move the active row, Enter runs it. Backdrop click
 // closes. Entrance motion is gated behind prefers-reduced-motion in the CSS.
 
-import { useCallback, useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import {
-  readSocialFriendsLaunchFromDocument,
-  socialPrimaryNavLabel,
-  subscribeSocialFriendsLaunchFromDocument,
-} from "@/lib/socialLaunch";
+import { useSocialPrimaryNavLabel } from "@/lib/useSocialFriendsLaunch";
 
 import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
@@ -57,23 +53,16 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const socialFriendsLaunch = useSyncExternalStore(
-    subscribeSocialFriendsLaunchFromDocument,
-    readSocialFriendsLaunchFromDocument,
-    () => false,
-  );
+  const socialLabel = useSocialPrimaryNavLabel();
 
   const paletteCommands = useMemo(
     () =>
       commands.map((command) =>
         command.id === "nav-social"
-          ? {
-              ...command,
-              label: socialPrimaryNavLabel(socialFriendsLaunch),
-            }
+          ? { ...command, label: socialLabel }
           : command,
       ),
-    [socialFriendsLaunch],
+    [socialLabel],
   );
 
   // Filter, then re-group so each section's rows are contiguous under a single

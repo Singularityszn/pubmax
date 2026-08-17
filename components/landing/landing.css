@@ -270,7 +270,6 @@
 .thamesHeroPinMeta { padding: 7px 9px; display: grid; gap: 1px; border-radius: 11px; background: rgba(7,11,18,.76); backdrop-filter: blur(8px); }
 .thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; letter-spacing: .01em; }
 .thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
-.thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
 
 /* Human why beat: one column of copy between hero and the signal grid.
    No card grid, no pill cluster. Brass rule + night ink type on paper. */
@@ -526,7 +525,7 @@
      guessing game. Right-side pins flip the label inboard so it never clips
      the photo's hidden overflow. */
   .thamesHeroPinMeta { padding: 3px 7px; }
-  .thamesHeroPinPlace, .thamesHeroPinPrice { display: none; }
+  .thamesHeroPinPlace { display: none; }
   .thamesHeroPin:nth-child(3) .thamesHeroPinLink,
   .thamesHeroPin:nth-child(4) .thamesHeroPinLink { flex-direction: row-reverse; }
   .thamesHeroPin:nth-child(1) { left: 18% !important; top: 24% !important; }

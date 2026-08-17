@@ -24,11 +24,7 @@ import {
   serverNowTabHref,
   subscribeNowTabHref,
 } from "@/components/nav/navigationModel";
-import {
-  readSocialFriendsLaunchFromDocument,
-  socialPrimaryNavLabel,
-  subscribeSocialFriendsLaunchFromDocument,
-} from "@/lib/socialLaunch";
+import { useSocialPrimaryNavLabel } from "@/lib/useSocialFriendsLaunch";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -123,20 +119,11 @@ export default function SiteNav({
     nowTabHref,
     serverNowTabHref,
   );
-  const socialFriendsLaunch = useSyncExternalStore(
-    subscribeSocialFriendsLaunchFromDocument,
-    readSocialFriendsLaunchFromDocument,
-    () => false,
-  );
+  const socialLabel = useSocialPrimaryNavLabel();
   const links = LINKS.map((link) => {
     if (link.key === "map") return { ...link, href: mapHref };
     if (link.key === "now") return { ...link, href: nowHref };
-    if (link.key === "social") {
-      return {
-        ...link,
-        label: socialPrimaryNavLabel(socialFriendsLaunch),
-      };
-    }
+    if (link.key === "social") return { ...link, label: socialLabel };
     return link;
   });
 

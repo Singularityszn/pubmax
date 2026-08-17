@@ -19,11 +19,7 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import {
-  readSocialFriendsLaunchFromDocument,
-  socialPrimaryNavLabel,
-  subscribeSocialFriendsLaunchFromDocument,
-} from "@/lib/socialLaunch";
+import { useSocialPrimaryNavLabel } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
   readSoftKeyboardOpen,
@@ -138,19 +134,13 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const socialFriendsLaunch = useSyncExternalStore(
-    subscribeSocialFriendsLaunchFromDocument,
-    readSocialFriendsLaunchFromDocument,
-    () => false,
-  );
+  const socialLabel = useSocialPrimaryNavLabel();
   const tabs = useMemo(() => {
     const built = buildTabs(mapHref, youHref, nowHref);
     return built.map((tab) =>
-      tab.key === "social"
-        ? { ...tab, label: socialPrimaryNavLabel(socialFriendsLaunch) }
-        : tab,
+      tab.key === "social" ? { ...tab, label: socialLabel } : tab,
     );
-  }, [mapHref, youHref, nowHref, socialFriendsLaunch]);
+  }, [mapHref, youHref, nowHref, socialLabel]);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.

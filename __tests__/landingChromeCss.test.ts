@@ -102,7 +102,8 @@ describe("landing chrome CSS audit", () => {
     expect(landingTsx).toMatch(/lpHeroMapCaption/);
     expect(landingTsx).toMatch(/thamesHeroHintTouch/);
     expect(landingTsx).toMatch(/thamesHeroHintPointer/);
-    expect(landingTsx).not.toMatch(/examples, not live listed prices/);
+    // What the caption may SAY is proven against rendered output, not this
+    // source read: __tests__/landingHeroPriceCopy.test.ts.
   });
 
   it("ships three reduced-motion-safe hero presence motions", () => {
