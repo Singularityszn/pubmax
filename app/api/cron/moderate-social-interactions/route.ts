@@ -6,6 +6,7 @@ import {
   isOpenAISocialModerationConfigured,
   OpenAISocialPostModerationAdapter,
 } from "@/lib/socialPostModeration";
+import { thrownMessage } from "@/lib/thrownMessage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -33,8 +34,10 @@ export async function GET(request: Request): Promise<Response> {
     }
     return jsonNoStore({ ok: true, ...result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[cron:moderate-social-interactions] queue drain failed:", message);
+    console.error(
+      "[cron:moderate-social-interactions] queue drain failed:",
+      thrownMessage(error),
+    );
     return publicApiError("Social interaction moderation is unavailable.", "UNAVAILABLE", 503, {
       retryable: true,
       compatibilityFields: { ok: false },

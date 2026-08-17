@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
-  drainShouldThrow: false,
+  drainThrown: null as unknown,
   drainResult: {
     processed: 2,
     approved: 1,
@@ -15,9 +15,7 @@ const state = vi.hoisted(() => ({
 }));
 
 const processModerationQueue = vi.fn(async () => {
-  if (state.drainShouldThrow) {
-    throw new Error("claim_social_interaction_moderation_jobs is unavailable");
-  }
+  if (state.drainThrown !== null) throw state.drainThrown;
   return state.drainResult;
 });
 
@@ -32,7 +30,7 @@ vi.mock("@/lib/socialPostModeration", () => ({
 
 beforeEach(() => {
   vi.stubEnv("OPENAI_API_KEY", "test-key");
-  state.drainShouldThrow = false;
+  state.drainThrown = null;
   state.drainResult = {
     processed: 2,
     approved: 1,
@@ -92,8 +90,9 @@ describe("Social interaction moderation worker", () => {
     });
   });
 
-  it("returns the house envelope when the store drain throws", async () => {
-    state.drainShouldThrow = true;
+  it("returns the house envelope when the store drain throws, and logs why", async () => {
+    state.drainThrown = new Error("claim_social_interaction_moderation_jobs is unavailable");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
     const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");
     const response = await GET(new Request("http://localhost/api/cron/moderate-social-interactions"));
     expect(response.status).toBe(503);
@@ -103,6 +102,39 @@ describe("Social interaction moderation worker", () => {
       code: "UNAVAILABLE",
       retryable: true,
     });
+    // The reader is told nothing extra, so the store's own reason has to reach
+    // the operator log or the outage is undiagnosable.
+    expect(
+      logged.mock.calls.some((call) =>
+        call.some((part) =>
+          String(part).includes("claim_social_interaction_moderation_jobs is unavailable"),
+        ),
+      ),
+    ).toBe(true);
+    logged.mockRestore();
+  });
+
+  it("logs the reason when the store throws a PostgrestError rather than an Error", async () => {
+    // supabase-js does `if (error) throw error` with a plain object, so an
+    // `instanceof Error` read alone logs "[object Object]".
+    state.drainThrown = {
+      message: "function claim_social_interaction_moderation_jobs does not exist",
+      code: "42883",
+      details: null,
+      hint: null,
+    };
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+    const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");
+    const response = await GET(new Request("http://localhost/api/cron/moderate-social-interactions"));
+    expect(response.status).toBe(503);
+    const lines = logged.mock.calls.map((call) => call.map((part) => String(part)).join(" "));
+    expect(
+      lines.some((line) =>
+        line.includes("function claim_social_interaction_moderation_jobs does not exist"),
+      ),
+    ).toBe(true);
+    expect(lines.some((line) => line.includes("[object Object]"))).toBe(false);
+    logged.mockRestore();
   });
 
   it("schedules the held-interaction queue without request-owned background work", () => {

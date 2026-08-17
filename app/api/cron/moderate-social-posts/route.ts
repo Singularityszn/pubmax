@@ -7,6 +7,7 @@ import {
   OpenAISocialPostModerationAdapter,
 } from "@/lib/socialPostModeration";
 import { socialPostStore } from "@/lib/socialPostStore";
+import { thrownMessage } from "@/lib/thrownMessage";
 import { purgeDetachedSocialPhotos } from "@/lib/socialPostMedia.server";
 
 export const runtime = "nodejs";
@@ -64,8 +65,7 @@ export async function GET(request: Request): Promise<Response> {
     }
     return jsonNoStore({ ok: true, ...result, backlog, ...findings });
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    console.error("[cron:moderate-social-posts] queue drain failed:", message);
+    console.error("[cron:moderate-social-posts] queue drain failed:", thrownMessage(error));
     return publicApiError("Social post moderation queue is unavailable.", "UNAVAILABLE", 503, {
       retryable: true,
       compatibilityFields: { ok: false },

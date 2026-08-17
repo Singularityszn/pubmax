@@ -6,7 +6,7 @@ const state = vi.hoisted(() => ({
   purgeCalls: 0,
   inspectCalls: 0,
   backlogPending: 1,
-  drainShouldThrow: false,
+  drainThrown: null as unknown,
   drainResult: {
     processed: 0,
     approved: 0,
@@ -20,9 +20,7 @@ vi.mock("@/lib/socialPostStore", () => ({
   socialPostStore: () => ({
     processModerationQueue: async () => {
       state.calls += 1;
-      if (state.drainShouldThrow) {
-        throw new Error("claim_social_post_moderation_jobs is unavailable");
-      }
+      if (state.drainThrown !== null) throw state.drainThrown;
       return state.drainResult;
     },
     requeueTerminalModeration: async () => {
@@ -88,7 +86,7 @@ beforeEach(() => {
   state.purgeCalls = 0;
   state.inspectCalls = 0;
   state.backlogPending = 1;
-  state.drainShouldThrow = false;
+  state.drainThrown = null;
   state.drainResult = {
     processed: 0,
     approved: 0,
@@ -183,8 +181,9 @@ describe("Social post moderation worker", () => {
     expect(state.calls).toBe(1);
   });
 
-  it("returns the house envelope when the store drain throws", async () => {
-    state.drainShouldThrow = true;
+  it("returns the house envelope when the store drain throws, and logs why", async () => {
+    state.drainThrown = new Error("claim_social_post_moderation_jobs is unavailable");
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
 
     const response = await GET(request("cron-secret"));
 
@@ -196,6 +195,38 @@ describe("Social post moderation worker", () => {
       retryable: true,
     });
     expect(state.calls).toBe(1);
+    // The reader is told nothing extra, so the store's own reason has to reach
+    // the operator log or the outage is undiagnosable.
+    expect(
+      logged.mock.calls.some((call) =>
+        call.some((part) => String(part).includes("claim_social_post_moderation_jobs is unavailable")),
+      ),
+    ).toBe(true);
+    logged.mockRestore();
+  });
+
+  it("logs the reason when the store throws a PostgrestError rather than an Error", async () => {
+    // supabase-js does `if (error) throw error` with a plain object, so an
+    // `instanceof Error` read alone logs "[object Object]".
+    state.drainThrown = {
+      message: "function claim_social_post_moderation_jobs does not exist",
+      code: "42883",
+      details: null,
+      hint: null,
+    };
+    const logged = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await GET(request("cron-secret"));
+
+    expect(response.status).toBe(503);
+    const lines = logged.mock.calls.map((call) => call.map((part) => String(part)).join(" "));
+    expect(
+      lines.some((line) =>
+        line.includes("function claim_social_post_moderation_jobs does not exist"),
+      ),
+    ).toBe(true);
+    expect(lines.some((line) => line.includes("[object Object]"))).toBe(false);
+    logged.mockRestore();
   });
 
   it("requeues terminal holds only through the authenticated operator action", async () => {
