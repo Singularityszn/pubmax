@@ -103,12 +103,6 @@ function rowHref(row: WhatsOnRow): { href: string; external: boolean } | null {
   return null;
 }
 
-function coverageLabel(count: number): string {
-  if (count === 0) return "Quiet night";
-  if (count === 1) return "1 listing tonight";
-  return `${count} listings tonight`;
-}
-
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
 // out of the interpunct chain and gets its own sentence below it (VOICE.md rule
@@ -205,7 +199,7 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
+  const { rows, asOf, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
   );
@@ -219,11 +213,16 @@ export default function TonightClient({
     () => ({ body: outBody, failed: outFailed, pending: outPending }),
     [outBody, outFailed, outPending],
   );
-  const listingRows = useMemo(
-    () => mergeTonightListingRows(rows, outBody?.events ?? []),
-    [rows, outBody],
-  );
-  const listingsStatus = tonightListingsStatus(status, outAnswer);
+  // One instant answers both questions. Reading the clock twice lets the merge
+  // drop the night's last row while the status still calls the page ready, and
+  // a ready page over no rows shows neither cards nor the quiet-night sentence.
+  const { listingRows, listingsStatus } = useMemo(() => {
+    const now = Date.now();
+    return {
+      listingRows: mergeTonightListingRows(rows, outBody?.events ?? [], now),
+      listingsStatus: tonightListingsStatus(status, outAnswer, now),
+    };
+  }, [rows, outBody, status, outAnswer]);
   const retryListings = useCallback(() => {
     retry();
     retryOut();
@@ -235,13 +234,13 @@ export default function TonightClient({
   // the Venue off via the accept deep link. Storage failure stays on Tonight,
   // reports the error, and emits nothing.
   const acceptVenue = useCallback(
-    (venueId: string, familyKey: string) => {
+    (venueId: string, familyKey: string, observedAt: string) => {
       const result = acceptTonightVenue({
         venueId,
         area: remembered,
         // Tonight answers "tonight"; like Near, no explicit future date is chosen.
         startsAt: null,
-        observedAt: sourceObservedAt,
+        observedAt,
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
@@ -252,7 +251,7 @@ export default function TonightClient({
       trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
-    [remembered, sourceObservedAt, router],
+    [remembered, router],
   );
 
   const requestLocation = useCallback(() => {
@@ -391,36 +390,37 @@ export default function TonightClient({
         </p>
         {ready || empty ? (
           <>
-            {/* Both lines are named, so a browser test can ask which line it is
-                looking at instead of matching the sentence inside it. This
-                header's wording has been rewritten twice and took the specs
-                that read it down both times. */}
-            <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={provenance.dated ? "yes" : "no"}>
-              {coverageLabel(listingRows.length)}
-              {/* One template literal per segment so the separator spacing
-                  survives JSX text-node splitting (the built output was eating
-                  the space before the interpunct, rendering "unknown· via"). */}
-              {provenance.whatsOn ? (
-                <>
-                  <span aria-hidden="true"> · </span>
-                  {provenance.whatsOn}
-                </>
-              ) : null}
-              {/* The one quiet continuity line: when the order comes from a
-                  remembered patch (not a live position), say which. */}
-              {ready && tonightNear?.patchLabel
-                ? ` · nearest ${tonightNear.patchLabel} first`
-                : null}
-            </p>
-            {/* Out is credited on its own line, with its own sources and its own
-                date. Folding it into the line above would date a Ticketmaster
-                listing to the bundled What's-On artifact. */}
-            {provenance.out ? (
-              <p className="tonightProvenance" data-tonight-provenance="out">{provenance.out}</p>
+            {provenance.whatsOn ? (
+              <p
+                className="tonightProvenance"
+                data-tonight-provenance="whats-on"
+                data-tonight-dated={provenance.whatsOnDated ? "yes" : "no"}
+              >
+                {provenance.whatsOn}
+                {ready && tonightNear?.patchLabel
+                  ? ` · nearest ${tonightNear.patchLabel} first`
+                  : null}
+              </p>
             ) : null}
-            {provenance.dated ? null : (
-              <p className="tonightProvenance" data-tonight-provenance="undated">{UNDATED_SOURCE_LINE}</p>
-            )}
+            {provenance.out ? (
+              <p
+                className="tonightProvenance"
+                data-tonight-provenance="out"
+                data-tonight-dated={provenance.outDated ? "yes" : "no"}
+              >
+                {provenance.out}
+              </p>
+            ) : null}
+            {provenance.whatsOn && !provenance.whatsOnDated ? (
+              <p className="tonightProvenance" data-tonight-provenance="undated-whats-on">
+                {UNDATED_SOURCE_LINE}
+              </p>
+            ) : null}
+            {provenance.out && !provenance.outDated ? (
+              <p className="tonightProvenance" data-tonight-provenance="undated-out">
+                {UNDATED_SOURCE_LINE}
+              </p>
+            ) : null}
           </>
         ) : null}
       </header>
@@ -681,6 +681,7 @@ export default function TonightClient({
                     <TonightRowAccept
                       venueId={row.venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
+                      observedAt={row.observedAt}
                       placeName={row.placeName}
                       className="tonightRowAccept"
                       label="Keep this venue"
@@ -746,6 +747,7 @@ export default function TonightClient({
                                 <TonightRowAccept
                                   venueId={alt.venueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
+                                  observedAt={alt.observedAt}
                                   placeName={alt.placeName}
                                   className="tonightRowMoreAccept"
                                   label="Keep"

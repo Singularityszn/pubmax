@@ -10,20 +10,44 @@ import {
   tonightListingsStatus,
   tonightProvenanceCredits,
   type TonightOutAnswer,
+  type TonightWhatsOnStatus,
 } from "@/lib/tonightOutListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+
+const NOW = Date.parse("2026-09-01T00:00:00.000Z");
+const NOW_ISO = new Date(NOW).toISOString();
+const TONIGHT_START = new Date(NOW + 60 * 60_000).toISOString();
 
 function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "title">): WhatsOnRow {
   return {
     placeName: "Soho Theatre",
     kind: "event",
-    startsAt: "2026-08-16T19:00:00.000Z",
+    startsAt: TONIGHT_START,
     source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
-    observedAt: "2026-08-16T09:00:00.000Z",
+    observedAt: NOW_ISO,
     confidence: "listed",
     ...partial,
   };
 }
+
+function mergeWithFixture(whatsOnRows: WhatsOnRow[], outRows: WhatsOnRow[]) {
+  return mergeTonightListingRows(whatsOnRows, outRows, NOW);
+}
+
+// Every status question is asked at the same instant the merge is asked at, so
+// a fixture row cannot be tonight's for one and finished for the other.
+function statusAtFixture(whatsOn: TonightWhatsOnStatus, out: TonightOutAnswer) {
+  return tonightListingsStatus(whatsOn, out, NOW);
+}
+
+// A gig that started at 19:00 and carries the point-row grace has been over for
+// hours by the fixture instant. /out is a whole-day list, so it still rides the
+// response body.
+const finishedOutRow = row({
+  id: "tm-finished",
+  title: "This Afternoon at the Playhouse",
+  startsAt: new Date(NOW - 8 * 60 * 60_000).toISOString(),
+});
 
 const pendingOut: TonightOutAnswer = { body: null, failed: false, pending: true };
 const emptyReadyOut: TonightOutAnswer = {
@@ -45,7 +69,7 @@ const failedOut: TonightOutAnswer = { body: null, failed: true, pending: false }
 
 describe("tonight Out merge", () => {
   it("keeps a ready Out event on the Tonight list", () => {
-    const merged = mergeTonightListingRows(
+    const merged = mergeWithFixture(
       [],
       [row({ id: "tm-1", title: "A Night at the Playhouse" })],
     );
@@ -65,39 +89,56 @@ describe("tonight Out merge", () => {
       title: "Quiz (updated)",
       observedAt: "2026-08-16T10:00:00.000Z",
     });
-    expect(mergeTonightListingRows([older], [newer]).map((item) => item.title)).toEqual([
+    expect(mergeWithFixture([older], [newer]).map((item) => item.title)).toEqual([
       "Quiz (updated)",
     ]);
+  });
+
+  it("drops an Out listing that has already finished", () => {
+    const merged = mergeWithFixture([], [finishedOutRow]);
+    expect(merged).toEqual([]);
   });
 });
 
 describe("tonight listings status", () => {
   it("is ready when Out answered with cards", () => {
-    expect(tonightListingsStatus("idle", eventOut)).toBe("ready");
-    expect(tonightListingsStatus("empty", eventOut)).toBe("ready");
-    expect(tonightListingsStatus("error", eventOut)).toBe("ready");
+    expect(statusAtFixture("idle", eventOut)).toBe("ready");
+    expect(statusAtFixture("empty", eventOut)).toBe("ready");
+    expect(statusAtFixture("error", eventOut)).toBe("ready");
   });
 
   it("is ready when What's-On answered with cards", () => {
-    expect(tonightListingsStatus("ready", pendingOut)).toBe("ready");
-    expect(tonightListingsStatus("ready", emptyReadyOut)).toBe("ready");
+    expect(statusAtFixture("ready", pendingOut)).toBe("ready");
+    expect(statusAtFixture("ready", emptyReadyOut)).toBe("ready");
   });
 
   it("stays idle while a read is still in flight and nothing is ready", () => {
-    expect(tonightListingsStatus("idle", pendingOut)).toBe("idle");
-    expect(tonightListingsStatus("idle", emptyReadyOut)).toBe("idle");
-    expect(tonightListingsStatus("empty", pendingOut)).toBe("idle");
-    expect(tonightListingsStatus("error", pendingOut)).toBe("idle");
+    expect(statusAtFixture("idle", pendingOut)).toBe("idle");
+    expect(statusAtFixture("idle", emptyReadyOut)).toBe("idle");
+    expect(statusAtFixture("empty", pendingOut)).toBe("idle");
+    expect(statusAtFixture("error", pendingOut)).toBe("idle");
   });
 
   it("is error when a finished read failed or degraded and nothing is ready", () => {
-    expect(tonightListingsStatus("empty", degradedOut)).toBe("error");
-    expect(tonightListingsStatus("empty", failedOut)).toBe("error");
-    expect(tonightListingsStatus("error", emptyReadyOut)).toBe("error");
+    expect(statusAtFixture("empty", degradedOut)).toBe("error");
+    expect(statusAtFixture("empty", failedOut)).toBe("error");
+    expect(statusAtFixture("error", emptyReadyOut)).toBe("error");
   });
 
   it("is empty only when both reads answered with nothing", () => {
-    expect(tonightListingsStatus("empty", emptyReadyOut)).toBe("empty");
+    expect(statusAtFixture("empty", emptyReadyOut)).toBe("empty");
+  });
+
+  it("does not call a body of finished Out listings ready", () => {
+    // The merge drops these rows, so a "ready" here paints no cards and no
+    // quiet-night sentence either: the empty room this whole change exists for.
+    const finishedOut: TonightOutAnswer = {
+      body: { status: "ready", events: [finishedOutRow] },
+      failed: false,
+      pending: false,
+    };
+    expect(mergeWithFixture([], finishedOut.body?.events ?? [])).toEqual([]);
+    expect(statusAtFixture("empty", finishedOut)).toBe("empty");
   });
 });
 
@@ -134,7 +175,7 @@ describe("tonight listings note line", () => {
   it("still names a degraded Out lane that answered with cards", () => {
     // The status is "ready" here, so the error block never renders: without a
     // note the reader sees a short list and reads it as a quiet city.
-    expect(tonightListingsStatus("ready", degradedWithRows)).toBe("ready");
+    expect(statusAtFixture("ready", degradedWithRows)).toBe("ready");
     expect(tonightListingsNoteLine("ready", degradedWithRows)).toBe(
       "Some listings could not be checked.",
     );
@@ -155,7 +196,7 @@ describe("tonight lane split", () => {
   it("attributes each surviving row to the read that put it there", () => {
     const whatsOnRow = row({ id: "quiz-1", kind: "quiz", title: "Quiz" });
     const outRow = row({ id: "tm-1", title: "A Night at the Playhouse" });
-    const merged = mergeTonightListingRows([whatsOnRow], [outRow]);
+    const merged = mergeWithFixture([whatsOnRow], [outRow]);
     const lanes = tonightListingLanes(merged, [outRow]);
     expect(lanes.whatsOnCount).toBe(1);
     expect(lanes.outRows).toEqual([outRow]);
@@ -164,7 +205,7 @@ describe("tonight lane split", () => {
   it("counts a row both lanes carried once, under the winning observation", () => {
     const older = row({ id: "tm-1", title: "Playhouse", observedAt: "2026-08-16T08:00:00.000Z" });
     const newer = row({ id: "tm-1", title: "Playhouse", observedAt: "2026-08-16T10:00:00.000Z" });
-    const merged = mergeTonightListingRows([older], [newer]);
+    const merged = mergeWithFixture([older], [newer]);
     expect(merged).toHaveLength(1);
     const lanes = tonightListingLanes(merged, [newer]);
     expect(lanes.whatsOnCount).toBe(0);
@@ -184,19 +225,19 @@ describe("tonight provenance credits", () => {
     const quiz = row({ id: "quiz-1", kind: "quiz", title: "Quiz" });
     const sport = row({ id: "sport-1", kind: "sport", title: "Match" });
     const credits = tonightProvenanceCredits({
-      merged: mergeTonightListingRows([quiz, sport], [outRow]),
+      merged: mergeWithFixture([quiz, sport], [outRow]),
       outEvents: [outRow],
       whatsOnChecked: "Checked 15 Aug",
       outObservedAt: { ticketmaster: "2026-08-16T09:00:00.000Z" },
     });
-    expect(credits.whatsOn).toBe("Checked 15 Aug · via what’s-on");
+    expect(credits.whatsOn).toBe("2 listings · Checked 15 Aug · via what’s-on");
     expect(credits.out).toBe("1 listing via Ticketmaster · Checked 16 Aug");
     expect(credits.dated).toBe(true);
   });
 
   it("never dates an Out row to the What's-On stamp", () => {
     const credits = tonightProvenanceCredits({
-      merged: mergeTonightListingRows([], [outRow]),
+      merged: mergeWithFixture([], [outRow]),
       outEvents: [outRow],
       whatsOnChecked: "Checked 15 Aug",
       outObservedAt: {},
@@ -217,7 +258,7 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
-      merged: mergeTonightListingRows([], outEvents),
+      merged: mergeWithFixture([], outEvents),
       outEvents,
       whatsOnChecked: null,
       outObservedAt: {},
@@ -236,7 +277,7 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
-      merged: mergeTonightListingRows([], outEvents),
+      merged: mergeWithFixture([], outEvents),
       outEvents,
       whatsOnChecked: null,
       outObservedAt: {},
@@ -247,11 +288,11 @@ describe("tonight provenance credits", () => {
 
   it("keeps the quiet night credited to What's-On when Out brought nothing", () => {
     const credits = tonightProvenanceCredits({
-      merged: [],
+      merged: mergeWithFixture([], []),
       outEvents: [],
       whatsOnChecked: null,
     });
-    expect(credits.whatsOn).toBe("via what’s-on");
+    expect(credits.whatsOn).toBe("0 listings · undated · via what’s-on");
     expect(credits.out).toBeNull();
     expect(credits.dated).toBe(false);
   });

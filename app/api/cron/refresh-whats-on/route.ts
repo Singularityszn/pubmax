@@ -60,16 +60,19 @@ export async function GET(request: Request): Promise<Response> {
   let failure: string | null = null;
   try {
     const result = await loadWhatsOn({ window: "tonight" });
-    if (result.revalidation.status === "measured") {
+    if (result.readStatus === "ready" && result.revalidation.status === "measured") {
       rows = result.rows.length;
       asOf = result.asOf;
+    } else if (result.readStatus === "degraded") {
+      failure = "Could not check tonight listings.";
     } else {
-      failure = result.revalidation.reason;
-      console.error(
-        "[cron:refresh-whats-on] tonight-window revalidation failed:",
-        failure,
-      );
+      failure =
+        result.revalidation.status === "unmeasured"
+          ? result.revalidation.reason
+          : "tonight-window revalidation failed";
     }
+    if (failure !== null) console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);
+    else console.log("[cron:refresh-whats-on] tonight-window revalidation ready.");
   } catch (err) {
     failure = err instanceof Error ? err.message : String(err);
     console.error("[cron:refresh-whats-on] tonight-window revalidation failed:", failure);

@@ -1,6 +1,6 @@
 import { OUT_DEGRADED_LINE, OUT_READ_FAILED_LINE } from "@/lib/out/outStatus";
 import type { OutResponse } from "@/lib/out/types";
-import { dedupeRows, type WhatsOnRow } from "@/lib/whatsOn";
+import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
 export type TonightWhatsOnStatus = "idle" | "ready" | "empty" | "error";
@@ -19,8 +19,9 @@ export type TonightOutAnswer = {
 export function mergeTonightListingRows(
   whatsOnRows: WhatsOnRow[],
   outEvents: WhatsOnRow[],
+  now: number = Date.now(),
 ): WhatsOnRow[] {
-  return dedupeRows([...whatsOnRows, ...outEvents]);
+  return dedupeRows([...whatsOnRows, ...filterNotPast(outEvents, now)]);
 }
 
 /**
@@ -44,12 +45,18 @@ export function tonightListingLanes(
  * Idle while either read is still in flight and nothing is ready to show.
  * Error when a finished read failed or degraded and nothing is ready.
  * Empty only when both reads answered and there is nothing to show.
+ *
+ * The Out events are past-guarded here for the same reason the merge guards
+ * them: /out is a whole-day list, so a finished gig still rides its body. A
+ * status read off the unguarded body called the page ready over a list the
+ * merge had emptied, which paints no cards and no empty sentence either.
  */
 export function tonightListingsStatus(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  now: number = Date.now(),
 ): TonightListingsStatus {
-  const outEvents = out.body?.events ?? [];
+  const outEvents = filterNotPast(out.body?.events ?? [], now);
   if (outEvents.length > 0 || whatsOn === "ready") return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
   if (whatsOn === "error" || out.failed || out.body?.status === "degraded") {
@@ -72,10 +79,11 @@ export function tonightListingsNoteLine(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
 ): string | null {
-  if (out.failed) return OUT_READ_FAILED_LINE;
-  if (out.body?.status === "degraded") return out.body.reason ?? OUT_DEGRADED_LINE;
-  if (whatsOn === "error") return TONIGHT_WHATS_ON_FAILED_LINE;
-  return null;
+  const reasons: string[] = [];
+  if (out.failed) reasons.push(OUT_READ_FAILED_LINE);
+  if (out.body?.status === "degraded") reasons.push(out.body.reason ?? OUT_DEGRADED_LINE);
+  if (whatsOn === "error") reasons.push(TONIGHT_WHATS_ON_FAILED_LINE);
+  return reasons.length > 0 ? reasons.join(" · ") : null;
 }
 
 export function tonightListingsErrorLine(
@@ -92,7 +100,11 @@ export type TonightProvenanceCredits = {
   whatsOn: string | null;
   /** Its own line: the Out lane's count, its sources and its own date. */
   out: string | null;
-  /** False when a lane on screen could not be dated. */
+  /** False when What's-On could not be dated. */
+  whatsOnDated: boolean;
+  /** False when Out could not be dated. */
+  outDated: boolean;
+  /** False when any displayed lane could not be dated. */
   dated: boolean;
 };
 
@@ -119,13 +131,16 @@ export function tonightProvenanceCredits(input: {
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
   const whatsOn = creditsWhatsOn
-    ? `${input.whatsOnChecked ? `${input.whatsOnChecked} · ` : ""}${TONIGHT_WHATS_ON_CREDIT}`
+    ? `${laneCountLabel(lanes.whatsOnCount, "listing")}${input.whatsOnChecked ? ` · ${input.whatsOnChecked}` : " · undated"} · ${TONIGHT_WHATS_ON_CREDIT}`
     : null;
   const out = outLaneCredit(lanes.outRows, input.outObservedAt ?? {});
+  const whatsOnDated = creditsWhatsOn ? input.whatsOnChecked !== null : true;
   return {
     whatsOn,
     out: out.text,
-    dated: (!creditsWhatsOn || Boolean(input.whatsOnChecked)) && out.dated,
+    whatsOnDated,
+    outDated: out.dated,
+    dated: whatsOnDated && out.dated,
   };
 }
 
@@ -166,6 +181,11 @@ function outLaneCredit(
   const via = unlabelled ? "" : ` via ${joinLabels(labels)}`;
   const stamp = dated ? ` · ${checkedLabel(oldest)}` : "";
   return { text: `${rows.length} ${noun}${via}${stamp}`, dated };
+}
+
+function laneCountLabel(count: number, noun: string): string {
+  const label = noun === "listing" ? (count === 1 ? noun : "listings") : noun;
+  return `${count} ${label}`;
 }
 
 function canonicalIso(value: string | null): string | null {

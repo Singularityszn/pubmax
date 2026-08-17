@@ -704,15 +704,17 @@ describe("outStatusLines", () => {
   });
 
   it("keeps a pending day as a skeleton, never a checking sentence", () => {
-    // Never day chips over a blank area, and never worded as an empty market.
-    expect(outStatusLines({ body: null, failed: false, pending: true })).toEqual([]);
-    // A failed read owns the line instead; pending never doubles it up.
-    expect(outStatusLines({ body: null, failed: true, pending: true })).toEqual([
+    // A read still in flight has no body and has not failed, and it says
+    // nothing: the skeleton is the wake state, so a sentence here would be a
+    // claim about a market nobody has read yet.
+    expect(outStatusLines({ body: null, failed: false })).toEqual([]);
+    // A failed read owns the line instead.
+    expect(outStatusLines({ body: null, failed: true })).toEqual([
       "Could not check listings.",
     ]);
-    // Once an answer lands the pending line is gone.
+    // Once an answer lands the empty line is the read's own.
     expect(
-      outStatusLines({ body: { status: "ready", events: [] }, failed: false, pending: false }),
+      outStatusLines({ body: { status: "ready", events: [] }, failed: false }),
     ).toEqual(["No listings for this day yet."]);
   });
 

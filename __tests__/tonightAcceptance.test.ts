@@ -165,6 +165,7 @@ describe("TonightRowAccept", () => {
   function render(venueId: string, familyKey = "quiz|Quiz Night|Chain Co") {
     return renderToStaticMarkup(createElement(TonightRowAccept, {
       venueId,
+      observedAt: new Date(NOW).toISOString(),
       familyKey,
       placeName: "The Dove",
       className: "tonightRowAccept",

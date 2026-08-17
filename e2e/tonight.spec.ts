@@ -73,10 +73,11 @@ test("unknown source freshness never displays request time as checked", async ({
   );
 
   await page.goto("/tonight");
-  // The source cannot be dated, so the chain carries no dated segment and the
-  // plain sentence prints under it. Anchored on the line, not on its wording.
-  await expect(page.locator('[data-tonight-provenance="coverage"]')).toHaveAttribute("data-tonight-dated", "no");
-  await expect(page.locator('[data-tonight-provenance="undated"]')).toBeVisible();
+  // The source cannot be dated, so the What's-On line carries no dated segment
+  // and the plain sentence prints under that lane alone. Anchored on the line,
+  // not on its wording.
+  await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveAttribute("data-tonight-dated", "no");
+  await expect(page.locator('[data-tonight-provenance="undated-whats-on"]')).toBeVisible();
   await expect(page.getByText(/Checked 15 Jul/i)).toHaveCount(0);
 });
 
@@ -207,6 +208,23 @@ test("location is opt-in, removable, and only used for local walk times", async 
 
 test("a failed listings request can be retried", async ({ page }) => {
   let requests = 0;
+  // Tonight waits on both lanes, so the Out lane is held to a ready-empty
+  // answer here: this test is about the What's-On retry, and a live Out body
+  // would decide the screen's state instead.
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [],
+      }),
+    }),
+  );
   await page.route("**/api/whats-on?**", async (route) => {
     requests += 1;
     if (requests === 1) {
@@ -226,10 +244,17 @@ test("a failed listings request can be retried", async ({ page }) => {
 
   await page.goto("/tonight");
   await page.getByRole("button", { name: "Retry listings" }).click();
-  // The retry succeeded and returned no rows, so the honest coverage line is
-  // an empty night, not an error. The screen keeps its own coverageLabel
-  // (app/tonight/TonightClient.tsx); the spine's wording is a different lane.
-  await expect(page.getByText(/Quiet night/)).toBeVisible();
+  // The retry succeeded and returned no rows, so both lanes answered with
+  // nothing: an empty night, not an error, and said in the empty state's own
+  // sentence rather than left as a silent room.
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute(
+    "data-listings-status",
+    "empty",
+  );
+  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
+  await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveText(
+    /^0 listings · /,
+  );
   expect(requests).toBe(2);
 });
 
@@ -251,19 +276,38 @@ test("mobile keeps Now as a root tab over live today and tonight", async ({
   await expect(page.getByTestId("tonight-screen")).toBeVisible();
 });
 
-const PLAYHOUSE_EVENT = {
-  id: "events-tm-playhouse",
-  placeName: "Soho Theatre",
-  kind: "event",
-  startsAt: "2026-08-16T19:00:00.000Z",
-  title: "A Night at the Playhouse",
-  source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
-  observedAt: "2026-08-16T09:00:00.000Z",
-  confidence: "listed",
-  sourceId: "1",
-};
+// Tonight applies the spine's past-date guard to the Out lane, so this fixture
+// is dated off the run instead of off a calendar date: a listing pinned to a
+// day in the past is one the page is right to drop.
+function playhouseEvent(now = Date.now()) {
+  return {
+    id: "events-tm-playhouse",
+    placeName: "Soho Theatre",
+    kind: "event",
+    startsAt: new Date(now + 2 * 60 * 60_000).toISOString(),
+    title: "A Night at the Playhouse",
+    source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+    // Never the future: an observation is a thing that has happened.
+    observedAt: new Date(now - 60_000).toISOString(),
+    confidence: "listed",
+    sourceId: "1",
+  };
+}
+
+// The same day the page prints, read the same way (lib/whatsOnBadges.ts).
+function checkedLabelFor(iso: string): string {
+  const day = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    day: "numeric",
+    month: "short",
+  })
+    .format(new Date(iso))
+    .replace(/,/g, "");
+  return `Checked ${day}`;
+}
 
 test("shows a ready Out event card even when What's-On is empty", async ({ page }) => {
+  const event = playhouseEvent();
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({
       status: 200,
@@ -282,7 +326,7 @@ test("shows a ready Out event card even when What's-On is empty", async ({ page 
       contentType: "application/json",
       body: JSON.stringify({
         status: "ready",
-        events: [PLAYHOUSE_EVENT],
+        events: [event],
         openPlans: [],
         attribution: [],
         observedAt: {},
@@ -300,12 +344,13 @@ test("shows a ready Out event card even when What's-On is empty", async ({ page 
   // Ticketmaster was read that nobody made.
   const outCredit = page.locator('[data-tonight-provenance="out"]');
   await expect(outCredit).toHaveText(/1 listing via Ticketmaster/);
-  await expect(outCredit).toHaveText(/Checked 16 Aug/);
+  await expect(outCredit).toContainText(checkedLabelFor(event.observedAt));
 });
 
 test("a degraded Out lane still names itself beside the cards it did return", async ({
   page,
 }) => {
+  const event = playhouseEvent();
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({
       status: 200,
@@ -324,7 +369,7 @@ test("a degraded Out lane still names itself beside the cards it did return", as
       contentType: "application/json",
       body: JSON.stringify({
         status: "degraded",
-        events: [PLAYHOUSE_EVENT],
+        events: [event],
         openPlans: [],
         attribution: [],
         observedAt: {},
