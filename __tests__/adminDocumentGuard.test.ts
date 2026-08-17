@@ -6,7 +6,7 @@ import {
   ADMIN_SESSION_COOKIE,
   canOpenAdminDocument,
   hashAdminSession,
-  requestFromIncomingHeaders,
+  isModerator,
 } from "@/lib/adminAuth";
 
 const incoming = vi.hoisted(() => ({ headers: new Headers() }));
@@ -44,31 +44,49 @@ function moderatorCookie(token: string): string {
   return `${ADMIN_SESSION_COOKIE}=${encodeURIComponent(hashAdminSession(token))}`;
 }
 
+/** Next hands the page a sealed adapter, so the gate may only ever call `get`. */
+function sealedHeaders(init: Record<string, string>): Pick<Headers, "get"> {
+  const headers = new Headers(init);
+  return {
+    get(name: string) {
+      return headers.get(name);
+    },
+  };
+}
+
 describe("canOpenAdminDocument", () => {
-  it("refuses a request with no cookie when ADMIN_TOKEN is set", () => {
+  it("refuses a header list with no cookie when ADMIN_TOKEN is set", () => {
     process.env.ADMIN_TOKEN = "test-admin-secret";
-    expect(canOpenAdminDocument(new Request("http://localhost/admin"))).toBe(
-      false,
-    );
+    expect(canOpenAdminDocument(new Headers())).toBe(false);
   });
 
-  it("admits a request whose cookie is the hashed token", () => {
+  it("admits a header list whose cookie is the hashed token", () => {
     process.env.ADMIN_TOKEN = "test-admin-secret";
     expect(
       canOpenAdminDocument(
-        new Request("http://localhost/admin", {
-          headers: { cookie: moderatorCookie("test-admin-secret") },
-        }),
+        new Headers({ cookie: moderatorCookie("test-admin-secret") }),
       ),
     ).toBe(true);
   });
 
-  it("rebuilds a Request from incoming headers so the page can reuse the gate", () => {
+  it("reads a sealed header adapter through get alone", () => {
     process.env.ADMIN_TOKEN = "test-admin-secret";
-    const request = requestFromIncomingHeaders(
-      new Headers({ cookie: moderatorCookie("test-admin-secret") }),
-    );
-    expect(canOpenAdminDocument(request)).toBe(true);
+    expect(
+      canOpenAdminDocument(
+        sealedHeaders({ cookie: moderatorCookie("test-admin-secret") }),
+      ),
+    ).toBe(true);
+    expect(canOpenAdminDocument(sealedHeaders({}))).toBe(false);
+  });
+
+  it("shares one credential with the API gate", () => {
+    process.env.ADMIN_TOKEN = "test-admin-secret";
+    const cookie = moderatorCookie("test-admin-secret");
+    expect(
+      isModerator(new Request("http://localhost/api/admin", { headers: { cookie } })),
+    ).toBe(true);
+    expect(canOpenAdminDocument(new Headers({ cookie }))).toBe(true);
+    expect(isModerator(new Request("http://localhost/api/admin"))).toBe(false);
   });
 });
 

@@ -28,8 +28,13 @@ export function hashAdminSession(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-function readAdminSessionCookie(request: Request): string | undefined {
-  const raw = request.headers.get("cookie");
+// The two credentials are read off a header list, never off a whole Request:
+// the moderator document gate is handed Next's own sealed header adapter, and
+// only `get` is part of that contract.
+type ModeratorHeaders = Pick<Headers, "get">;
+
+function readAdminSessionCookie(headerList: ModeratorHeaders): string | undefined {
+  const raw = headerList.get("cookie");
   if (!raw) return undefined;
   for (const part of raw.split(";")) {
     const trimmed = part.trim();
@@ -40,29 +45,28 @@ function readAdminSessionCookie(request: Request): string | undefined {
   return undefined;
 }
 
-/** Rebuild a Request so the document gate can reuse `isModerator`. */
-export function requestFromIncomingHeaders(headerList: Headers): Request {
-  return new Request("http://localhost/admin", { headers: headerList });
-}
-
 /**
  * Whether GET /admin may render the moderator console. Same credential as the
  * API gate: a missing session is a refusal, never a 200 shell.
  */
-export function canOpenAdminDocument(request: Request): boolean {
-  return isModerator(request);
+export function canOpenAdminDocument(headerList: ModeratorHeaders): boolean {
+  return hasModeratorCredential(headerList);
 }
 
 export function isModerator(request: Request): boolean {
+  return hasModeratorCredential(request.headers);
+}
+
+function hasModeratorCredential(headerList: ModeratorHeaders): boolean {
   const expected = process.env.ADMIN_TOKEN;
   if (!expected) {
     return process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test";
   }
 
-  const headerToken = request.headers.get("x-admin-token") ?? undefined;
+  const headerToken = headerList.get("x-admin-token") ?? undefined;
   if (headerToken && safeTokenEqual(headerToken, expected)) return true;
 
-  const sessionValue = readAdminSessionCookie(request);
+  const sessionValue = readAdminSessionCookie(headerList);
   if (sessionValue && safeTokenEqual(sessionValue, hashAdminSession(expected))) return true;
 
   return false;

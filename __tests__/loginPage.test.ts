@@ -38,8 +38,11 @@ vi.mock("next/link", () => ({
   }) => createElement("a", { href, ...rest }, children),
 }));
 
+const navigation = vi.hoisted(() => ({ redirect: vi.fn() }));
+
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
+  redirect: navigation.redirect,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -107,20 +110,23 @@ beforeEach(() => {
   loginEntries.email = null;
   loginEntries.passwordDestination = undefined;
   authState.current = { user: null, loading: false, welcomeBack: null };
+  navigation.redirect.mockClear();
 });
 
 describe("login page", () => {
-  it("ships a dedicated /login route and /signin alias", () => {
-    const login = readFileSync(
-      join(process.cwd(), "app/login/page.tsx"),
-      "utf8",
+  it("renders the sign-in wall at /login", async () => {
+    const { default: LoginRoute } = await import("@/app/login/page");
+    const html = renderToStaticMarkup(
+      await LoginRoute({ searchParams: Promise.resolve({}) }),
     );
-    const signin = readFileSync(
-      join(process.cwd(), "app/signin/page.tsx"),
-      "utf8",
-    );
-    expect(login).toContain("LoginPage");
-    expect(signin).toMatch(/redirect\(["']\/login["']\)/);
+    expect(html).toContain("email form");
+    expect(html).toContain("Browse without signing in");
+  });
+
+  it("sends /signin to /login", async () => {
+    const { default: SignInAliasPage } = await import("@/app/signin/page");
+    SignInAliasPage();
+    expect(navigation.redirect).toHaveBeenCalledWith("/login");
   });
 
   it("renders identity, email flow, and browse-away on the signed-out wall", () => {
