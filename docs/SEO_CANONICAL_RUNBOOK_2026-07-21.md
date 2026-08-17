@@ -160,11 +160,14 @@ layers.
   request validation so Google recrawls, sees the 308, and drops the www URL in
   favour of the apex.
 - Submit the sitemap on the apex property: `https://pubmaxxing.com/sitemap.xml`.
-- If `/sitemap.xml` intermittently 500s, check logs for `[sitemap][ALERT] historic`:
-  a failed historic pack omits `/historic/{slug}` URLs for that generation only
-  while price-derived URLs still ship (crawlers keep last-known-good historic
-  URLs until the next successful build). An empty grouped price dataset still
-  fails loud with 500 by design.
+- If `/sitemap.xml` 500s, the grouped price dataset threw
+  (`loadPintPriceLandingVenuesOrThrow`): it is empty, unreadable or unparseable.
+  That failure is loud by design, because the whole core graph derives from it.
+  Fix the dataset; a historic-pack fault never causes this.
+- If the logs carry `[sitemap][ALERT] historic`, `/sitemap.xml` answered 200
+  WITHOUT the `/historic/{slug}` URLs. The historic pack is empty or unreadable;
+  the price-derived families still shipped. Search Console shows a smaller
+  submitted URL count with no error. Rebuild the historic pack, then resubmit.
 - Favicon refresh: the classic `/favicon.ico` fallback now exists (app/layout.tsx
   icons), so once Google recrawls the apex the old mug favicon is replaced. No
   extra action beyond requesting indexing.

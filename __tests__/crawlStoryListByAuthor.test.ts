@@ -82,13 +82,15 @@ function checkInsert(table: string, columns: Set<string>, rows: unknown) {
 
 function storiesQuery() {
   const state = {
-    author: "",
+    equals: [] as Array<[string, unknown]>,
+    notEquals: [] as Array<[string, unknown]>,
     limit: 25,
     selectError: null as { code: string; message: string } | null,
   };
   const rows = () =>
     db.stories
-      .filter((row) => row.author_handle === state.author)
+      .filter((row) => state.equals.every(([col, value]) => row[col] === value))
+      .filter((row) => state.notEquals.every(([col, value]) => row[col] !== value))
       .slice(0, state.limit);
   const q = {
     select(cols: string) {
@@ -114,10 +116,11 @@ function storiesQuery() {
       };
     },
     eq(col: string, value: unknown) {
-      if (col === "author_handle") state.author = String(value);
+      state.equals.push([col, value]);
       return q;
     },
-    neq() {
+    neq(col: string, value: unknown) {
+      state.notEquals.push([col, value]);
       return q;
     },
     order() {
@@ -207,6 +210,38 @@ describe("listStoriesByAuthor (Supabase)", () => {
         createdAt: "2026-08-01T12:00:00.000Z",
       },
     ]);
+  });
+
+  it("never lists the author's drafts, or another author's crawls", async () => {
+    db.stories.push(
+      {
+        id: "story-1",
+        slug: "loop-one-abc123",
+        title: "Loop One",
+        created_at: "2026-08-01T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "public",
+      },
+      {
+        id: "story-draft",
+        slug: "half-written-def456",
+        title: "Half Written",
+        created_at: "2026-08-02T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "draft",
+      },
+      {
+        id: "story-other",
+        slug: "someone-elses-ghi789",
+        title: "Someone Else's",
+        created_at: "2026-08-03T12:00:00.000Z",
+        author_handle: "pat",
+        visibility: "public",
+      },
+    );
+
+    const listed = await listStoriesByAuthor("ken");
+    expect(listed.map((row) => row.slug)).toEqual(["loop-one-abc123"]);
   });
 
   it("keeps the crawls and leaves the count unknown when the stops read fails", async () => {

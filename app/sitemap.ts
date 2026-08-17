@@ -49,12 +49,12 @@ const SITE_URL = "https://pubmaxxing.com";
 // The grouped venue set comes from the shared per-instance index (the read path
 // every priced surface uses). The sitemap's own wrapper FAILS LOUD: a
 // read/parse/grouping failure - or an unexpectedly empty dataset - throws,
-// aborting sitemap generation. This is intentional (CodeRabbit S1 review): a
-// silently shrunken sitemap is a deindexing hazard. If we published a 200 that
-// dropped every borough/venue/historic URL, Google would treat those pages as
-// removed. A thrown error instead surfaces as a 500 for /sitemap.xml, and
-// crawlers keep the last-known-good sitemap rather than acting on a truncated
-// one.
+// aborting sitemap generation. This is intentional (CodeRabbit S1 review): that
+// dataset derives the ledger, borough, venue and drink families, so publishing
+// a 200 without it would be a near-empty sitemap over the whole core graph. A
+// thrown error surfaces as a 500 for /sitemap.xml instead, so no truncated
+// generation is served at all. The rule governs THAT lane only: the historic
+// pack below is optional and degrades to a logged omission.
 
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
 async function dataFileModified(name: string, fallback: Date): Promise<Date> {
@@ -94,14 +94,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     : new Date("2026-07-16T00:00:00.000Z");
 
   // Historic URLs are optional for sitemap generation: a failed or empty read
-  // omits /historic/{slug} only. Core price-derived families still publish so
-  // crawlers get a complete ledger/borough/drink graph rather than a 500 that
-  // freezes the whole sitemap at the last-known-good snapshot. Ops still get a
-  // loud `[sitemap][ALERT]` line (freshness-audit idiom) so an empty historic
-  // pack is not mistaken for health.
+  // omits /historic/{slug} only, while the core price-derived families still
+  // publish. Ops get a loud `[sitemap][ALERT]` line (freshness-audit idiom) so
+  // an empty historic pack is not mistaken for health.
   if (historicPubs.length === 0) {
     console.error(
-      "[sitemap][ALERT] historic pub dataset is empty or unreadable — omitting /historic/{slug} URLs from this generation; crawlers keep last-known-good historic URLs until the next successful build",
+      "[sitemap][ALERT] historic pub dataset is empty or unreadable; /historic/{slug} URLs are omitted from this generation and price-derived URLs still ship",
     );
   }
 
