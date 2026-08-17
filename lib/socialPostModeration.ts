@@ -4,6 +4,11 @@ type Fetcher = (input: string | URL | Request, init?: RequestInit) => Promise<Re
 
 const DEFAULT_MODERATION_TIMEOUT_MS = 10_000;
 
+/** Social post/interaction moderation crons read this before claiming jobs. */
+export function isOpenAISocialModerationConfigured(apiKey = process.env.OPENAI_API_KEY): boolean {
+  return Boolean((apiKey ?? "").trim());
+}
+
 export class SocialPostModerationError extends Error {
   constructor(message: string, public readonly retryable: boolean) {
     super(message);

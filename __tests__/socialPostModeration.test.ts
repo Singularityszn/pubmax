@@ -1,8 +1,17 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { OpenAISocialPostModerationAdapter } from "@/lib/socialPostModeration";
+import {
+  isOpenAISocialModerationConfigured,
+  OpenAISocialPostModerationAdapter,
+} from "@/lib/socialPostModeration";
 
 describe("OpenAI Social post moderation adapter", () => {
+  it("reports whether the cron moderation key is present", () => {
+    expect(isOpenAISocialModerationConfigured("")).toBe(false);
+    expect(isOpenAISocialModerationConfigured("  ")).toBe(false);
+    expect(isOpenAISocialModerationConfigured("test-key")).toBe(true);
+  });
+
   it("uses the direct Moderations API and exact required model", async () => {
     let sentInit: RequestInit | undefined;
     const fetcher = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
