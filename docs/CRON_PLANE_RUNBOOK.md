@@ -224,6 +224,13 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   failed drain. The posts cron still inspects the backlog and emits its findings
   on that path, so a growing pending queue is never silent. A store failure is
   the separate **503 `UNAVAILABLE`** answer, with the cause logged.
+- A drain that claimed nothing names why, and the two crons word it apart
+  because only one of them can tell. The posts cron answers **`200 { skipped:
+  "queue_empty" }`** and only when the backlog read agrees `pending` is 0. The
+  interactions cron has no backlog inspector, so it answers **`200 { skipped:
+  "no_jobs_claimed" }`**: nothing was leased, which covers an empty queue and
+  jobs held in backoff or out of retries alike. Neither word may be read as
+  "there is nothing to review".
 - City enrichment provider failure → **`502 PROVIDER_UNAVAILABLE`** with an
   `[ALERT]` log; any partial batch already processed is logged as a
   `[partial]` line (progress observations stream per pub, so a mid-batch
