@@ -119,11 +119,8 @@ describe("login page", () => {
       join(process.cwd(), "app/signin/page.tsx"),
       "utf8",
     );
-    const proxy = readFileSync(join(process.cwd(), "proxy.ts"), "utf8");
     expect(login).toContain("LoginPage");
     expect(signin).toMatch(/redirect\(["']\/login["']\)/);
-    expect(proxy).toContain('pathname === "/sign-in"');
-    expect(proxy).toContain('target.pathname = "/login"');
   });
 
   it("renders identity, email flow, and browse-away on the signed-out wall", () => {

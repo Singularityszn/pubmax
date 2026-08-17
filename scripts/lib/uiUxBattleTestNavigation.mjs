@@ -34,7 +34,7 @@ export const AUDITED_ROUTES = [
     name: "login",
     path: "/login",
     readySelector:
-      ".loginPageForm, .loginPageSignedIn, .loginPageWelcomeBack, h1.loginPageTitle",
+      ".loginPageForm, .loginPageSignedIn, .loginPageWelcomeBack, .loginPageNotice",
   },
   {
     name: "profile",
