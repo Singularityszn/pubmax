@@ -143,12 +143,32 @@ describe("countStoriesByAuthor", () => {
     expect(await countStoriesByAuthor("")).toBe(0);
   });
 
-  it("excludes draft stories (only public/unlisted count as posts)", async () => {
+  it("excludes draft stories (only public crawls count as posts)", async () => {
     const slug = await makeStory("ken", "Loop One");
     await makeStory("ken", "Loop Two");
     expect(await countStoriesByAuthor("ken")).toBe(2);
     await updateCrawlStory(slug, "ken", { visibility: "draft" });
     expect(await countStoriesByAuthor("ken")).toBe(1);
+  });
+
+  // The profile's Crawls tile links to the section listStoriesByAuthor renders,
+  // so the count may never claim a crawl the listing withholds. An unlisted
+  // crawl is a direct link and belongs to neither.
+  it("excludes unlisted stories, matching listStoriesByAuthor exactly", async () => {
+    const slug = await makeStory("ken", "Loop One");
+    await makeStory("ken", "Loop Two");
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    expect(await countStoriesByAuthor("ken")).toBe(1);
+    expect((await listStoriesByAuthor("ken")).map((crawl) => crawl.title)).toEqual([
+      "Loop Two",
+    ]);
+  });
+
+  it("counts 0 when every crawl a handle wrote is unlisted, so the tile links nowhere it cannot open", async () => {
+    const slug = await makeStory("ken", "Only Loop");
+    await updateCrawlStory(slug, "ken", { visibility: "unlisted" });
+    expect(await countStoriesByAuthor("ken")).toBe(0);
+    expect(await listStoriesByAuthor("ken")).toEqual([]);
   });
 });
 

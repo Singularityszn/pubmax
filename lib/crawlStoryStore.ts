@@ -525,13 +525,7 @@ export async function getStoryAuthor(slug: string): Promise<string | null> {
   return memoryStories.get(key)?.authorHandle ?? null;
 }
 
-/** Count the PUBLISHED (public/unlisted — never draft) stories a handle has
- *  authored. Powers the Pint Passport's "story posts" number on /u/[handle]:
- *  attribution is by the self-asserted `author_handle` (story 35), so this is the
- *  same weak-but-honest identity the rest of authorship uses. Never throws — a
- *  storage miss / bad handle resolves to 0 so the passport degrades to a clean
- *  zero rather than a 500. Draft stories don't count (they aren't public posts). */
-/** One published crawl by a handle, in the shape a profile row needs. `stops` is
+/** One public crawl by a handle, in the shape a profile row needs. `stops` is
  *  TRI-STATE by way of null: a stop count we could not read is unknown, so the
  *  row still opens and simply prints no number. */
 export type AuthoredCrawlSummary = {
@@ -542,10 +536,13 @@ export type AuthoredCrawlSummary = {
 };
 
 /**
- * The published crawls a handle wrote. The sibling of countStoriesByAuthor and
- * bounded by the same rule: drafts never leave the author's own hands. Exists
- * so a profile can OPEN the crawls it counts rather than only print a number.
- * Fail-soft, like its sibling: a backend hiccup is an empty list.
+ * The PUBLIC crawls a handle wrote — visibility `public` only. `unlisted` is a
+ * direct-link crawl and never joins a public author listing; `draft` never
+ * leaves the author's own hands. The sibling of countStoriesByAuthor, which is
+ * bounded by the SAME rule, because the profile's Crawls tile links to the
+ * section this list renders and a number with nowhere to go is worse than no
+ * number. Exists so a profile can OPEN the crawls it counts rather than only
+ * print one. Fail-soft, like its sibling: a backend hiccup is an empty list.
  */
 export async function listStoriesByAuthor(
   handle: string,
@@ -600,6 +597,14 @@ export async function listStoriesByAuthor(
     }));
 }
 
+/** Count the PUBLIC crawls a handle has authored. Powers the Pint Passport's
+ *  crawls number on /u/[handle], whose tile links to the section
+ *  listStoriesByAuthor renders, so the two share ONE visibility rule: `public`
+ *  alone. An `unlisted` crawl stays a direct link and a `draft` stays private.
+ *  Attribution is by the self-asserted `author_handle` (story 35), so this is
+ *  the same weak-but-honest identity the rest of authorship uses. Never throws —
+ *  a storage miss / bad handle resolves to 0 so the passport degrades to a clean
+ *  zero rather than a 500. */
 export async function countStoriesByAuthor(handle: string): Promise<number> {
   const author = normalizeHandle(handle ?? "");
   if (!author) return 0;
@@ -609,7 +614,7 @@ export async function countStoriesByAuthor(handle: string): Promise<number> {
         .from(STORIES_TABLE)
         .select("id", { count: "exact", head: true })
         .eq("author_handle", author)
-        .neq("visibility", "draft");
+        .eq("visibility", "public");
       if (error) throw new Error(error.message);
       return typeof count === "number" && count > 0 ? count : 0;
     } catch (err) {
@@ -622,7 +627,7 @@ export async function countStoriesByAuthor(handle: string): Promise<number> {
   }
   let total = 0;
   for (const story of memoryStories.values()) {
-    if (story.authorHandle === author && story.visibility !== "draft") total += 1;
+    if (story.authorHandle === author && story.visibility === "public") total += 1;
   }
   return total;
 }

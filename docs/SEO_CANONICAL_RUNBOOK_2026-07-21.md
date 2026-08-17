@@ -164,7 +164,8 @@ layers.
   (`loadPintPriceLandingVenuesOrThrow`): it is empty, unreadable or unparseable.
   That failure is loud by design, because the whole core graph derives from it.
   Fix the dataset; a historic-pack fault never causes this.
-- If the logs carry `[sitemap][ALERT] historic`, `/sitemap.xml` answered 200
+- If the logs carry `[freshness-audit][ALERT] sitemap historic degrade`,
+  `/sitemap.xml` answered 200
   WITHOUT the `/historic/{slug}` URLs. The historic pack is empty or unreadable;
   the price-derived families still shipped. Search Console shows a smaller
   submitted URL count with no error. Rebuild the historic pack, then resubmit.

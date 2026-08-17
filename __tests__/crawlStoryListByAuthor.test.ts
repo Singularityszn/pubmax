@@ -86,15 +86,17 @@ function storiesQuery() {
     notEquals: [] as Array<[string, unknown]>,
     limit: 25,
     selectError: null as { code: string; message: string } | null,
+    headCount: false,
   };
-  const rows = () =>
+  const matching = () =>
     db.stories
       .filter((row) => state.equals.every(([col, value]) => row[col] === value))
-      .filter((row) => state.notEquals.every(([col, value]) => row[col] !== value))
-      .slice(0, state.limit);
+      .filter((row) => state.notEquals.every(([col, value]) => row[col] !== value));
+  const rows = () => matching().slice(0, state.limit);
   const q = {
-    select(cols: string) {
+    select(cols: string, opts?: { count?: string; head?: boolean }) {
       state.selectError = checkSelect("crawl_stories", STORY_COLUMNS, cols);
+      state.headCount = opts?.count === "exact" && opts?.head === true;
       return q;
     },
     insert(payload: unknown) {
@@ -130,6 +132,33 @@ function storiesQuery() {
       state.limit = n;
       if (state.selectError) return Promise.resolve({ data: null, error: state.selectError });
       return Promise.resolve({ data: rows(), error: null });
+    },
+    // A head+exact count builder is awaited straight off the filters, with no
+    // terminal call, so the builder itself has to be thenable like PostgREST's.
+    then(
+      resolve: (value: {
+        data: unknown;
+        count: number | null;
+        error: { code: string; message: string } | null;
+      }) => unknown,
+      reject?: (reason: unknown) => unknown,
+    ) {
+      try {
+        if (state.selectError) {
+          return Promise.resolve(
+            resolve({ data: null, count: null, error: state.selectError }),
+          );
+        }
+        return Promise.resolve(
+          resolve({
+            data: state.headCount ? null : rows(),
+            count: state.headCount ? matching().length : null,
+            error: null,
+          }),
+        );
+      } catch (err) {
+        return reject ? Promise.resolve(reject(err)) : Promise.reject(err);
+      }
     },
   };
   return q;
@@ -168,6 +197,7 @@ function stopsQuery() {
 
 import {
   __resetCrawlStories,
+  countStoriesByAuthor,
   createCrawlStory,
   listStoriesByAuthor,
 } from "@/lib/crawlStoryStore";
@@ -288,6 +318,66 @@ describe("listStoriesByAuthor (Supabase)", () => {
         createdAt: "2026-08-01T12:00:00.000Z",
       },
     ]);
+  });
+});
+
+describe("countStoriesByAuthor (Supabase)", () => {
+  // The profile tile prints this number and links to the section the listing
+  // renders, so a crawl the listing withholds may never be counted.
+  it("counts exactly what listStoriesByAuthor returns, dropping unlisted and draft", async () => {
+    db.stories.push(
+      {
+        id: "story-public",
+        slug: "listed-abc123",
+        title: "Listed",
+        created_at: "2026-08-01T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "public",
+      },
+      {
+        id: "story-unlisted",
+        slug: "direct-only-def456",
+        title: "Direct Link Only",
+        created_at: "2026-08-02T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "unlisted",
+      },
+      {
+        id: "story-draft",
+        slug: "half-written-ghi789",
+        title: "Half Written",
+        created_at: "2026-08-03T12:00:00.000Z",
+        author_handle: "ken",
+        visibility: "draft",
+      },
+      {
+        id: "story-other",
+        slug: "someone-elses-jkl012",
+        title: "Someone Else's",
+        created_at: "2026-08-04T12:00:00.000Z",
+        author_handle: "pat",
+        visibility: "public",
+      },
+    );
+
+    expect(await countStoriesByAuthor("ken")).toBe(1);
+    expect(await countStoriesByAuthor("ken")).toBe(
+      (await listStoriesByAuthor("ken")).length,
+    );
+  });
+
+  it("counts 0 when every crawl the handle wrote is unlisted", async () => {
+    db.stories.push({
+      id: "story-unlisted",
+      slug: "direct-only-def456",
+      title: "Direct Link Only",
+      created_at: "2026-08-02T12:00:00.000Z",
+      author_handle: "ken",
+      visibility: "unlisted",
+    });
+
+    expect(await countStoriesByAuthor("ken")).toBe(0);
+    expect(await listStoriesByAuthor("ken")).toEqual([]);
   });
 });
 
