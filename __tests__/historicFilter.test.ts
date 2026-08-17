@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-import type { HistoricPub } from "@/lib/historic";
+import type { HistoricPub, HistoricVenueStatus } from "@/lib/historic";
 import {
   availableBoroughs,
   citationHref,
@@ -210,18 +210,43 @@ describe("derived helpers", () => {
   });
 });
 
+function bundledHistoricPubs(): HistoricPub[] {
+  return JSON.parse(
+    readFileSync(join(process.cwd(), "public/data/historic_pubs.json"), "utf8"),
+  ) as HistoricPub[];
+}
+
 describe("venueStatusBadge", () => {
   it("names closed and demolished only", () => {
     expect(venueStatusBadge("closed")).toBe("Closed");
     expect(venueStatusBadge("demolished")).toBe("Demolished");
     expect(venueStatusBadge(undefined)).toBeNull();
-    expect(venueStatusBadge("open")).toBeNull();
+    expect(venueStatusBadge(null)).toBeNull();
+  });
+
+  it("stays silent on a status it does not know", () => {
+    // loadHistoricPubs casts the parsed bundle without validating it, so a
+    // status outside the union really can reach here.
+    const unvalidated = ["open", "refurbished", ""].map(
+      (value) => value as HistoricVenueStatus,
+    );
+    for (const status of unvalidated) {
+      expect(venueStatusBadge(status)).toBeNull();
+    }
+  });
+
+  it("names a badge for every status the shipped bundle records", () => {
+    for (const pub of bundledHistoricPubs()) {
+      if (pub.venueStatus == null) continue;
+      expect(
+        venueStatusBadge(pub.venueStatus),
+        `${pub.slug} carries a status the badge names`,
+      ).not.toBeNull();
+    }
   });
 
   it("named audit pubs carry a recorded status in the bundle", () => {
-    const pubs = JSON.parse(
-      readFileSync(join(process.cwd(), "public/data/historic_pubs.json"), "utf8"),
-    ) as HistoricPub[];
+    const pubs = bundledHistoricPubs();
     const colony = pubs.find((p) => p.slug === "the-colony-room");
     const blackCap = pubs.find((p) => p.slug === "the-black-cap");
     const robey = pubs.find((p) => p.slug === "the-sir-george-robey");

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   APP_NAME,
@@ -8,6 +8,20 @@ import {
   appPageTitle,
   metadataSiteName,
 } from "@/lib/brandNaming";
+
+// /pubs derives its own title from the row count, and the count is the only
+// reason its metadata touches the dataset. The share-card name is what is under
+// test here, so the read is stubbed rather than parsing the priced index.
+vi.mock("@/lib/scrapedPubs.server", () => ({
+  listScrapedPubs: async () => [],
+}));
+
+// next/font is a build-time loader, so the root layout needs its faces stubbed
+// to be importable here. Nothing about the metadata under test reads them.
+vi.mock("next/font/google", () => {
+  const face = () => ({ variable: "--font-x", className: "font-x", style: {} });
+  return { Space_Grotesk: face, Inter: face, JetBrains_Mono: face };
+});
 
 describe("brand naming (captain 2026-08-17)", () => {
   it("names the brand and app separately", () => {
@@ -24,11 +38,13 @@ describe("brand naming (captain 2026-08-17)", () => {
   });
 });
 
-// The sweep itself: every page that restates openGraph (App Router replaces the
-// layout's object wholesale rather than merging it) must resolve the BRAND for
-// siteName. These are the routes the brand decision touched; the assertion runs
-// their real `metadata` / `generateMetadata`, so a page that reverts to
-// "PUBMAXXING" fails here rather than shipping a wrong share card.
+// Every route that restates openGraph must resolve the BRAND for siteName. App
+// Router replaces a parent's openGraph object wholesale rather than merging it,
+// so each of these owns its own share-card name, and the assertion runs their
+// real `metadata` / `generateMetadata`: a page that reverts to "PUBMAXXING"
+// fails here rather than shipping a wrong card. The list covers the routes the
+// brand decision touched PLUS the ones that still hold the literal, so an edit
+// to either group is caught.
 const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/about", async () => (await import("@/app/about/page")).metadata],
   ["/out", async () => (await import("@/app/out/page")).metadata],
@@ -37,6 +53,17 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ["/historic", async () => (await import("@/app/historic/page")).metadata],
   ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
   ["/social", async () => (await import("@/app/social/page")).generateMetadata()],
+  ["root layout", async () => (await import("@/app/layout")).metadata],
+  ["/", async () => (await import("@/app/page")).metadata],
+  ["/feed", async () => (await import("@/app/feed/page")).metadata],
+  ["/crawls", async () => (await import("@/app/crawls/page")).metadata],
+  [
+    "/u/[handle]",
+    async () =>
+      (await import("@/app/u/[handle]/page")).generateMetadata({
+        params: Promise.resolve({ handle: "karan" }),
+      }),
+  ],
   [
     "/landmark/[id]",
     async () => {
