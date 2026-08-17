@@ -196,3 +196,35 @@ describe("sitemap()", () => {
     }
   });
 });
+
+describe("sitemap() when historic data is unavailable", () => {
+  it("omits historic URLs, logs an alert, and still emits the price-derived graph", async () => {
+    vi.resetModules();
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    vi.doMock("@/lib/historic", () => ({
+      loadHistoricPubs: async () => [],
+    }));
+
+    const degraded = (await import("@/app/sitemap")).default;
+    const degradedEntries = await degraded();
+    const degradedUrls = degradedEntries.map((e) => e.url);
+
+    expect(familyCountFrom(degradedUrls, "/historic/")).toBe(0);
+    expect(degradedUrls.some((u) => u.includes("/ledger/"))).toBe(true);
+    expect(
+      errorSpy.mock.calls.some((call) =>
+        String(call[0]).includes("[sitemap][ALERT]") &&
+        String(call[0]).includes("historic"),
+      ),
+    ).toBe(true);
+
+    errorSpy.mockRestore();
+    vi.doUnmock("@/lib/historic");
+    vi.resetModules();
+  });
+
+  function familyCountFrom(urls: string[], prefix: string) {
+    return urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
+  }
+});

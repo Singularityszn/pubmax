@@ -422,6 +422,24 @@ export async function getCrawlStoryBySlug(slug: string): Promise<DurableStory | 
   return enrich(stored);
 }
 
+/** Stop counts for crawl_story rows — stops live in crawl_story_stops, not on stories. */
+async function stopCountsForStoryIds(storyIds: string[]): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  if (storyIds.length === 0) return counts;
+  const { data, error } = await admin()
+    .from(STOPS_TABLE)
+    .select("crawl_story_id")
+    .in("crawl_story_id", storyIds);
+  if (error) throw new Error(error.message);
+  for (const row of data ?? []) {
+    const record = row as { crawl_story_id?: unknown };
+    const id = String(record.crawl_story_id ?? "");
+    if (!id) continue;
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
 async function getFromSupabase(slug: string): Promise<StoredStory | null> {
   try {
     const { data, error } = await admin()
@@ -528,21 +546,28 @@ export async function listStoriesByAuthor(
     try {
       const { data, error } = await admin()
         .from(STORIES_TABLE)
-        .select("slug,title,stops,created_at")
+        .select("id,slug,title,created_at")
         .eq("author_handle", author)
         .neq("visibility", "draft")
         .order("created_at", { ascending: false })
         .limit(bounded);
       if (error) throw new Error(error.message);
-      return (data ?? []).map((row) => {
-        const record = row as Record<string, unknown>;
-        return {
-          slug: String(record.slug ?? ""),
-          title: String(record.title ?? ""),
-          stops: Array.isArray(record.stops) ? record.stops.length : 0,
-          createdAt: String(record.created_at ?? ""),
-        };
-      }).filter((row) => row.slug && row.title);
+      const rows = (data ?? []) as Array<Record<string, unknown>>;
+      const storyIds = rows
+        .map((row) => String(row.id ?? ""))
+        .filter((id) => id.length > 0);
+      const stopCounts = await stopCountsForStoryIds(storyIds);
+      return rows
+        .map((record) => {
+          const id = String(record.id ?? "");
+          return {
+            slug: String(record.slug ?? ""),
+            title: String(record.title ?? ""),
+            stops: stopCounts.get(id) ?? 0,
+            createdAt: String(record.created_at ?? ""),
+          };
+        })
+        .filter((row) => row.slug && row.title);
     } catch (err) {
       console.error(
         "[crawl-stories] could not list stories by author:",

@@ -90,6 +90,7 @@ import {
   __resetCrawlStories,
   countStoriesByAuthor,
   createCrawlStory,
+  listStoriesByAuthor,
   updateCrawlStory,
 } from "@/lib/crawlStoryStore";
 import { __resetPintDrops } from "@/lib/pintDrops";
@@ -111,6 +112,19 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetCrawlStories();
   __resetPintDrops();
+});
+
+describe("listStoriesByAuthor", () => {
+  it("returns stop counts from stored stops in the memory backend", async () => {
+    await createCrawlStory({
+      title: "Three stop loop",
+      authorHandle: "ken",
+      stops: [{ venueId: "v1" }, { venueId: "v2" }, { venueId: "v3" }],
+    });
+    const listed = await listStoriesByAuthor("ken");
+    expect(listed.length).toBe(1);
+    expect(listed[0].stops).toBe(3);
+  });
 });
 
 describe("countStoriesByAuthor", () => {

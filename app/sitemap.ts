@@ -93,13 +93,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
 
-  // loadHistoricPubs() swallows read errors to [] (shared lib contract). The
-  // historic index is always non-empty in practice (346 cited pubs), so an
-  // empty result here means the data source failed — fail loud rather than
-  // publish a sitemap missing every /historic/{slug} page.
+  // Historic URLs are optional for sitemap generation: a failed or empty read
+  // omits /historic/{slug} only. Core price-derived families still publish so
+  // crawlers get a complete ledger/borough/drink graph rather than a 500 that
+  // freezes the whole sitemap at the last-known-good snapshot. Ops still get a
+  // loud `[sitemap][ALERT]` line (freshness-audit idiom) so an empty historic
+  // pack is not mistaken for health.
   if (historicPubs.length === 0) {
-    throw new Error(
-      "sitemap: historic pub dataset is empty — refusing to publish a truncated sitemap",
+    console.error(
+      "[sitemap][ALERT] historic pub dataset is empty or unreadable — omitting /historic/{slug} URLs from this generation; crawlers keep last-known-good historic URLs until the next successful build",
     );
   }
 
@@ -205,7 +207,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // Historic pub detail pages (the cited-heritage moat).
+  // Historic pub detail pages (the cited-heritage moat). Omitted when the
+  // dataset read failed — see alert above; never pretend the section is complete.
   for (const pub of historicPubs) {
     entries.push({
       url: `${SITE_URL}/historic/${pub.slug}`,
