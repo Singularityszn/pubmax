@@ -11,7 +11,10 @@
  * runs, CPU throttle, third-party block and app-defined interactive cut the
  * tracked budget spec uses - because a figure compared against a ceiling has to
  * have been taken the way that ceiling was. It reports LCP and CLS for the PR
- * and fails only when JS decoded exceeds its budget by more than 10%.
+ * and fails only when JS decoded exceeds, by more than 10%, a ceiling measured
+ * on the SAME document. A ceiling borrowed from another document is printed as
+ * context: /map is prerendered and CDN-cached while /map/london renders per
+ * request, so a difference between them is not a regression in either.
  *
  * The table is WRITTEN to the test's own output directory, not only attached:
  * an attachment carrying a body never reaches disk, and this run's whole point
@@ -26,8 +29,10 @@ import { measurePerfRoute, preparePerfPage, type PerfRoute } from "./helpers/per
 
 type UxLaneRoute = PerfRoute & {
   /**
-   * Route path in perf/route-budgets.json used for the JS ceiling comparison,
-   * or null for a route that carries no tracked ceiling.
+   * Route path in perf/route-budgets.json whose ceiling is printed beside this
+   * route's figure, or null for a route that carries no tracked ceiling. A
+   * ceiling GATES the build only when it belongs to the document that was
+   * loaded (`budgetPath === path`); anything else is context for the reader.
    */
   budgetPath: string | null;
   /** Stated when the ceiling belongs to a different document than the one loaded. */
@@ -43,7 +48,7 @@ const UX_LANE_ROUTES: UxLaneRoute[] = [
     settledSelectorHidden: ".mapLoading",
     budgetPath: "/map",
     budgetNote:
-      "ceiling belongs to /map, the CDN-cached document; /map/london renders per request",
+      "ceiling belongs to /map, the CDN-cached prerendered document, while /map/london renders per request with a nonce. The figure is reported for comparison and does not fail this job",
   },
   { path: "/out", readySelector: "main", budgetPath: "/out" },
 ];
@@ -86,7 +91,15 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
         ? Math.round(((jsDecodedKB - budgetKb) / budgetKb) * 100)
         : null;
 
-    if (budgetKb !== null && jsDecodedKB > budgetKb * REGRESSION_TOLERANCE) {
+    // A ceiling measured on another document is not this document's ceiling:
+    // /map is prerendered and CDN-cached, /map/london is rendered per request,
+    // so a per-request-only difference is not a JS regression.
+    const ceilingGatesThisRoute = route.budgetPath === route.path;
+    if (
+      ceilingGatesThisRoute
+      && budgetKb !== null
+      && jsDecodedKB > budgetKb * REGRESSION_TOLERANCE
+    ) {
       regressions.push(
         `${route.path}: JS decoded ${jsDecodedKB} KB > budget ${budgetKb} KB (+${overPct}%)`,
       );
@@ -96,7 +109,9 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
 
     rows.push(
       `| ${route.path} | ${Math.round(lcpMs)} | ${cls.toFixed(3)} | ${jsDecodedKB} | ${
-        budgetKb ?? "n/a"
+        budgetKb === null
+          ? "n/a"
+          : `${budgetKb}${ceilingGatesThisRoute ? "" : ` (${route.budgetPath}, reported)`}`
       } | ${overPct !== null ? `+${overPct}%` : "n/a"} |`,
     );
   }
@@ -111,7 +126,7 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
     ...rows,
     "",
     ...(notes.length > 0 ? [...notes, ""] : []),
-    "LCP and CLS are reported for the PR; JS decoded is compared to perf/route-budgets.json.",
+    "LCP and CLS are reported for the PR; JS decoded fails this job only against the ceiling measured on that same document.",
   ].join("\n");
 
   // `attach({ body })` keeps the table in memory and writes no file, and the

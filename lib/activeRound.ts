@@ -3,6 +3,7 @@
 // Codes are stored in the same canonical form as lib/rounds (normalizeRoundCode).
 
 import { isValidRoundCode, normalizeRoundCode } from "@/lib/rounds";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const ACTIVE_ROUND_KEY = "pubmax_active_round";
 
@@ -10,7 +11,7 @@ export const ACTIVE_ROUND_KEY = "pubmax_active_round";
 const CHANGE_EVENT = "pubmax:active-round";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function notifyActiveRoundChange(): void {

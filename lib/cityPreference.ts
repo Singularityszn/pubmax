@@ -7,13 +7,14 @@
 import { getCity, parseCityId, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "pubmax:preferredCity:v1";
 /** Same-tab notify so useSyncExternalStore clients re-read after a write. */
 const CHANGE_EVENT = "pubmax:preferred-city";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function notifyPreferredCityChange(): void {

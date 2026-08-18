@@ -7,10 +7,11 @@
 // SSR-safe: every entry point guards `window`, so importing/calling on the
 // server is a no-op that returns "". The id is only meaningful in the browser.
 
+import { safeLocalStorage } from "@/lib/safeStorage";
 const STORAGE_KEY = "pubmax:anonId:v1";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 // A URL-safe random id. Prefers crypto.randomUUID (all supported browsers), then

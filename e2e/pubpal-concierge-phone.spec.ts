@@ -100,15 +100,17 @@ test.describe("Pub Pal concierge at 390px", () => {
     await expect(answer.locator(".palChatCard")).toHaveCount(0);
   });
 
-  test("a crawl ask still proposes and waits for a Confirm", async ({ page }) => {
+  test("a crawl ask proposes one way on and waits to be taken", async ({ page }) => {
     await page.goto("/pal/chat");
     await askOnPhone(page, "Plan a crawl in Soho for 4");
 
     const answer = page.locator(".palChatRow--pal").last();
-    const confirm = answer.getByRole("button", { name: /Confirm three-stop draft/i });
-    await expect(confirm).toBeVisible();
+    await expect(answer.getByRole("link", { name: "Open in Plan" })).toBeVisible();
+    // ONE way on: a second control landing the same /plan?query= was two
+    // labels for one action.
+    await expect(answer.locator(".palChatProposalConfirm")).toHaveCount(0);
     await expect(answer.getByRole("button", { name: "Dismiss" }).first()).toBeVisible();
-    // Still on the chat: a proposal moves nothing until it is confirmed.
+    // Still on the chat: a proposal moves nothing until it is taken.
     expect(new URL(page.url()).pathname).toBe("/pal/chat");
   });
 

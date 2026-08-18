@@ -68,6 +68,7 @@ import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import {
   buildPlanGenerationIntakeBody,
   clearPlanIntakeDraft,
@@ -1002,34 +1003,6 @@ function initialComposerRouteDraft(
   };
 }
 
-/**
- * The browser's own storage, or nothing.
- *
- * `window.sessionStorage` and `window.localStorage` are PROPERTY GETTERS that
- * RAISE when site data is blocked or the document is a sandboxed frame without
- * allow-same-origin, so naming either identifier is itself a throwing
- * expression. Every reader here goes through these, the shape
- * `defaultStorage` (lib/planningIntent.ts) and `resolveStorage`
- * (lib/planIntake.ts) already use: a blocked browser costs a saved draft, never
- * the composer.
- */
-function safeSessionStorage(): Storage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
-}
-
-function safeLocalStorage(): Storage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
-}
 
 type UrlPrefill = {
   /** Any prefill the address carries: `occasion`, `describe` or `query`. */
@@ -1143,25 +1116,27 @@ function PlanComposerForm({
     const fresh = describeAskFromLocation();
     if (!fresh.ask) return;
     if (appliedUrlAskRef.current === fresh.ask) return;
-    appliedUrlAskRef.current = fresh.ask;
-    setAskDraftQuery(fresh.ask);
+    const ask = fresh.ask;
+    appliedUrlAskRef.current = ask;
+    const opensDescribeFirstForHandoff =
+      Boolean(fresh.handoffAsk) && hasDurableIntakeDraft && !recoveredIntake.completed;
     const entryForSurface: "describe" | "wizard" =
       hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
         ? "wizard"
         : "describe";
-    if (fresh.handoffAsk && hasDurableIntakeDraft && !recoveredIntake.completed) {
-      setEntryMode("describe");
-    }
-    if (
-      planComposerShowsDescribeFirst({
-        heldVenueId,
-        completed: recoveredIntake.completed,
-        entryMode: entryForSurface,
-      })
-    ) {
-      return;
-    }
-    setConciergeQuery(fresh.ask);
+    const askNeedsConciergeSurface = !planComposerShowsDescribeFirst({
+      heldVenueId,
+      completed: recoveredIntake.completed,
+      entryMode: entryForSurface,
+    });
+    // Deferred out of the effect body (react-hooks/set-state-in-effect). The
+    // draft restore below is scheduled from a PASSIVE effect, so its microtask
+    // is queued after this one and the URL ask still lands first.
+    void Promise.resolve().then(() => {
+      setAskDraftQuery(ask);
+      if (opensDescribeFirstForHandoff) setEntryMode("describe");
+      if (askNeedsConciergeSurface) setConciergeQuery(ask);
+    });
   }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,

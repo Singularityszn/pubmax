@@ -19,6 +19,7 @@ import {
   type PromptSurface,
 } from "@/lib/promptBudget";
 import { PAL_ONBOARDING_SPECIES } from "@/lib/pubPal";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 /** Bump the `vN` suffix if the tour content changes enough to re-show it. */
 const STORAGE_KEY = "pubmax-tour-v2-done";
@@ -31,12 +32,7 @@ const COMPANION_KEY = "pubmax:first-run-companion:v1";
 const CHANGE_EVENT = "pubmax:first-run-tour";
 
 function hasStorage(): boolean {
-  if (typeof window === "undefined") return false;
-  try {
-    return !!window.localStorage;
-  } catch {
-    return false;
-  }
+  return safeLocalStorage() !== null;
 }
 
 function notifyTourChange(): void {
@@ -143,7 +139,7 @@ export function isFirstRunCompanion(value: unknown): value is FirstRunCompanion 
 
 /** Read the remembered first-run companion. Invalid values fail closed. */
 export function readFirstRunCompanion(storage?: Storage | null): FirstRunCompanion | null {
-  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  const store = storage ?? safeLocalStorage();
   if (!store) return null;
   try {
     const value = store.getItem(COMPANION_KEY);
@@ -159,7 +155,7 @@ export function writeFirstRunCompanion(
   storage?: Storage | null,
 ): void {
   if (!isFirstRunCompanion(companion)) return;
-  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  const store = storage ?? safeLocalStorage();
   if (!store) return;
   try {
     store.setItem(COMPANION_KEY, companion);
@@ -170,7 +166,7 @@ export function writeFirstRunCompanion(
 
 /** Clear the companion choice for local testing. */
 export function resetFirstRunCompanion(storage?: Storage | null): void {
-  const store = storage ?? (hasStorage() ? window.localStorage : null);
+  const store = storage ?? safeLocalStorage();
   if (!store) return;
   try {
     store.removeItem(COMPANION_KEY);

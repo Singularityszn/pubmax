@@ -28,6 +28,7 @@
 
 import { isNativeApp } from "@/lib/nativePlatform";
 import { recordWebPushHighIntentAction } from "@/lib/webPushPrompt";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const ENABLED_KEY = "pubmax:nativePush:enabled:v1";
 const DISMISSED_SEQ_KEY = "pubmax:nativePush:dismissedSeq:v1";
@@ -36,7 +37,7 @@ const SEQ_KEY = "pubmax:nativePush:actionSeq:v1";
 export const NATIVE_PUSH_PROMPT_EVENT = "pubmax:native-push-prompt";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function readInt(key: string): number {

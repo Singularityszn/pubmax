@@ -122,3 +122,42 @@ describe("preferredCityMapHref", () => {
     expect(preferredCityMapHref()).toBe("/map");
   });
 });
+
+// `window.localStorage` is a PROPERTY GETTER that RAISES when the browser
+// refuses site data (Chrome "Block all cookies", or a sandboxed frame without
+// allow-same-origin), so naming the identifier is itself a throwing expression.
+// `readPreferredCity` is the getSnapshot argument to `useSyncExternalStore` on
+// the root landing (components/landing/LandingPage.tsx, ThamesHero.tsx), and a
+// getSnapshot runs DURING render - so a throw here is not a lost preference,
+// it is the landing page on the error boundary.
+describe("the browser refuses site data", () => {
+  afterEach(() => {
+    clearWindow();
+  });
+
+  function installBlockedWindow(): void {
+    const refuse = (): never => {
+      throw new DOMException("site data is blocked", "SecurityError");
+    };
+    const blocked = {};
+    Object.defineProperty(blocked, "localStorage", { configurable: true, get: refuse });
+    (globalThis as { window?: unknown }).window = blocked;
+  }
+
+  it("reads as no preferred city rather than throwing out of the render", () => {
+    installBlockedWindow();
+
+    expect(() => readPreferredCity()).not.toThrow();
+    expect(readPreferredCity()).toBeNull();
+    // The nav still has somewhere to send the tap.
+    expect(preferredCityMapHref()).toBe("/map");
+  });
+
+  it("keeps writes and clears as quiet no-ops", () => {
+    installBlockedWindow();
+
+    expect(() => writePreferredCity("glasgow")).not.toThrow();
+    expect(() => clearPreferredCity()).not.toThrow();
+    expect(readPreferredCity()).toBeNull();
+  });
+});

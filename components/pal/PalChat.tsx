@@ -471,17 +471,19 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                           <IntentLink
                             className="palChatPlanHandoff pressable"
                             href={planPalRouteHandoffHref(proposal.query)}
+                            onClick={() => trackEvent("concierge_result_tap")}
                           >
                             Open in Plan
                           </IntentLink>
-                        ) : null}
-                        <button
-                          type="button"
-                          className="palChatProposalConfirm pressable"
-                          onClick={() => confirmProposal(proposal, entry.id)}
-                        >
-                          {proposal.label}
-                        </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="palChatProposalConfirm pressable"
+                            onClick={() => confirmProposal(proposal, entry.id)}
+                          >
+                            {proposal.label}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="palChatProposalDismiss pressable"
