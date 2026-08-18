@@ -95,6 +95,7 @@ describe("local refresh key loading", () => {
       TAVILY_API_KEY: "tavily-secret",
       TICKETMASTER_API_KEY: "ticketmaster-secret",
       SKIDDLE_API_KEY: "skiddle-secret",
+      CONTEXT_DEV_API_KEY: "context-dev-secret",
     };
 
     const safeEnvironment = providerSafeEnvironment(environment);
@@ -268,7 +269,7 @@ describe("local refresh scraper sequence", () => {
         executable: process.execPath,
         args: ["scripts/whatson/eventsRefresh.mjs"],
         independent: true,
-        requiresAnyKey: ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY"],
+        requiresAnyKey: ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY", "CONTEXT_DEV_API_KEY"],
       },
       {
         executable: process.execPath,

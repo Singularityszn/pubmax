@@ -4,7 +4,7 @@ import { join } from "node:path";
 
 import { afterAll, describe, expect, it, vi } from "vitest";
 
-import * as contextDevServer from "@/lib/contextDev.server";
+import * as contextDev from "@/lib/contextDev";
 import { runEventsRefresh } from "../scripts/whatson/eventsRefresh.mjs";
 
 const temporaryDirs: string[] = [];
@@ -23,7 +23,7 @@ function temporaryOutPath() {
 
 describe("eventsRefresh Context.dev lane", () => {
   it("runs with only CONTEXT_DEV_API_KEY and merges rows into the file", async () => {
-    const extractSpy = vi.spyOn(contextDevServer, "extract").mockResolvedValue({
+    const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
       url: "https://www.fullers.co.uk/event-finder",
       data: {
@@ -78,7 +78,7 @@ describe("eventsRefresh Context.dev lane", () => {
       JSON.stringify({ generatedAt: observedAt, kind: "events", city: "london", rows: [heldRow] }, null, 2),
     );
 
-    const extractSpy = vi.spyOn(contextDevServer, "extract").mockResolvedValue({
+    const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "error",
       error: { code: "PROVIDER_UNAVAILABLE", message: "upstream down", retryable: true, statusCode: 503 },
     });
@@ -98,6 +98,90 @@ describe("eventsRefresh Context.dev lane", () => {
     expect(result.provider.status).toBe("wrote");
     const written = JSON.parse(readFileSync(outPath, "utf8"));
     expect(written.rows.some((row: { id?: string }) => row.id === "events-cd-held")).toBe(true);
+    extractSpy.mockRestore();
+  });
+
+  it("counts the drops of a source that yielded no rows at all", async () => {
+    const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
+      status: "ok",
+      url: "https://www.fullers.co.uk/event-finder",
+      data: {
+        events: [
+          {
+            title: "Film screening",
+            placeName: "The Dove",
+            kind: "film",
+            sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/film",
+            startsAt: "2026-08-16T20:00:00Z",
+          },
+          {
+            title: "Undated quiz",
+            placeName: "The Dove",
+            kind: "event",
+            sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz",
+          },
+        ],
+      },
+      urlsAnalyzed: ["https://www.fullers.co.uk/event-finder"],
+    });
+
+    const lines: string[] = [];
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", "--allow-empty"],
+      env: { CONTEXT_DEV_API_KEY: "test-key" },
+      nowMs,
+      fetchImpl: (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch,
+      outPath: temporaryOutPath(),
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: (line: string) => lines.push(line),
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("wrote");
+    const wrote = lines.find((line) => line.startsWith("eventsRefresh: wrote"));
+    expect(wrote).toBeDefined();
+    expect(wrote).toContain("dropped 2 (noKind=1 noPlace=0 noStart=1");
+    extractSpy.mockRestore();
+  });
+
+  it("carries held rows across a lane-level crash", async () => {
+    const outPath = temporaryOutPath();
+    const heldRow = {
+      id: "events-cd-crash-held",
+      placeName: "The Dove",
+      kind: "event",
+      title: "Held quiz",
+      source: { label: "Fuller's", url: "https://www.fullers.co.uk/pubs/the-dove/event/quiz" },
+      observedAt,
+      confidence: "listed",
+      startsAt: "2026-08-16T19:00:00.000Z",
+    };
+    const { writeFileSync } = await import("node:fs");
+    writeFileSync(
+      outPath,
+      JSON.stringify({ generatedAt: observedAt, kind: "events", city: "london", rows: [heldRow] }, null, 2),
+    );
+
+    const extractSpy = vi.spyOn(contextDev, "extract").mockImplementation(() => {
+      throw new Error("lane blew up");
+    });
+
+    const result = await runEventsRefresh({
+      argv: ["node", "eventsRefresh.mjs", "--allow-empty"],
+      env: { CONTEXT_DEV_API_KEY: "test-key" },
+      nowMs,
+      fetchImpl: (async () => new Response("{}", { status: 500 })) as unknown as typeof fetch,
+      outPath,
+      loadVenueIndex: () => null,
+      runCommonLane: async () => ({ rows: [] }),
+      log: () => {},
+      logError: () => {},
+    });
+
+    expect(result.provider.status).toBe("wrote");
+    const written = JSON.parse(readFileSync(outPath, "utf8"));
+    expect(written.rows.some((row: { id?: string }) => row.id === "events-cd-crash-held")).toBe(true);
     extractSpy.mockRestore();
   });
 });

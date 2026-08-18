@@ -59,6 +59,15 @@ import {
   summariseEventDrops,
 } from "../../lib/whatson/eventNormalise.mjs";
 import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
+// Statically imported, and deliberately so: the lane is a TypeScript module this
+// plain-node CLI loads through Node's own type stripping, which resolves no
+// tsconfig `@/*` alias. A dynamic import hid that resolution failure inside the
+// lane's catch, so the lane reported an upstream fault every run. Loading it up
+// front makes a broken specifier a loud start-up error instead.
+import {
+  contextDevSourceLabels,
+  runContextDevEventsLane,
+} from "../../lib/events/contextDevProvider.ts";
 
 export {
   EMPTY_EVENT_DROPS,
@@ -317,19 +326,20 @@ async function runProviderLane({
 
   if (lanes.contextdev === "configured") {
     try {
-      const { runContextDevEventsLane } = await import("../../lib/events/contextDevProvider.ts");
       const contextDev = await runContextDevEventsLane({
         observedAt,
         venueIndex,
         resolveVenue: resolveVenueId,
         env,
+        callOptions: fetchImpl ? { fetchImpl } : {},
         log,
         logError,
       });
-      if (contextDev.rows.length > 0) {
-        allRows.push(...contextDev.rows);
-        addDrops(contextDev.dropped);
-      }
+      allRows.push(...contextDev.rows);
+      // A source whose every extracted event was refused reports zero rows and
+      // a drop count, and the drops are the finding: counting them only when a
+      // row survived would make a silently non-yielding page read as a quiet one.
+      addDrops(contextDev.dropped);
       for (const run of contextDev.sourcesRun) {
         providersRun.push({ provider: run.sourceId, rows: run.rows });
       }
@@ -347,9 +357,13 @@ async function runProviderLane({
       logError(
         `eventsRefresh: Context.dev lane failed (${err.message}) - its held rows carry across instead.`,
       );
+      // Rows this lane wrote carry the SOURCE's credit label, so the carry list
+      // has to name those labels; a failure labelled "Context.dev" would match
+      // no held row and drop the lot.
       providerFailures.push({
         provider: "contextdev",
         label: "Context.dev",
+        carryLabels: contextDevSourceLabels(),
         message: err.message,
       });
     }
@@ -363,7 +377,7 @@ async function runProviderLane({
 
   const carriedFailedRows = readExistingRowsForLabels(
     outPath,
-    providerFailures.map((failure) => failure.label),
+    providerFailures.flatMap((failure) => failure.carryLabels ?? [failure.label]),
   );
 
   // The clobber guard is PER PROVIDER. A failed lane keeps its own held rows

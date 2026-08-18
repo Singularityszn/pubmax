@@ -44,7 +44,7 @@ already splits this way; the harvest follows it.
 | The shape of a run report | `lib/harvest/runReport.ts` |
 | The bounded batch the cron runs | `lib/harvestRefresh.server.ts` |
 | The durable pass | `scripts/harvest/run.mjs` |
-| Context.dev web reads (events lane) | `lib/contextDev.server.ts` |
+| Context.dev web reads (events lane) | `lib/contextDev.ts` (app door: `lib/contextDev.server.ts`) |
 | Context.dev registered events harvest | `lib/events/contextDevProvider.ts` |
 
 ## Context.dev (events lane)
@@ -54,6 +54,15 @@ The What's-On events refresh (`scripts/whatson/eventsRefresh.mjs`) may read
 Context.dev when `CONTEXT_DEV_API_KEY` is set server-side. The wrapper is
 `lib/contextDev.server.ts` (`scrapeMarkdown`, `extract`); the lane is
 `lib/events/contextDevProvider.ts`.
+
+Both are imported by a plain-`node` CLI, so two rules hold in that pair.
+`lib/contextDev.ts` carries the implementation and NO `server-only` marker, for
+the reason `lib/harvest/firecrawl.ts` carries none: the marker package throws on
+import outside a React Server Component. `lib/contextDev.server.ts` re-exports
+it behind that marker, and app code imports THAT. Every specifier inside the
+lane is relative and carries its extension, because Node strips TypeScript types
+but resolves no tsconfig `@/*` alias. A dynamic import of the lane hid both
+faults inside its own catch and reported an upstream failure every run.
 
 | Endpoint | Credits | Docs |
 |---|---|---|

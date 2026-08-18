@@ -21,6 +21,7 @@ describe("contextDev live proof", () => {
       // Captain proof artefact: trimmed output for PR bodies.
       console.log("contextDev live proof:", JSON.stringify(summary, null, 2));
       expect(result.status).toBe("ok");
+      if (result.status !== "ok") throw new Error("expected ok");
       expect(result.markdown.length).toBeGreaterThan(0);
     },
     90_000,

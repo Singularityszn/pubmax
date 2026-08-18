@@ -32,7 +32,7 @@ const MODULE_PATH = fileURLToPath(import.meta.url);
 const REPO_ROOT = join(dirname(MODULE_PATH), "..", "..");
 const LABELS = ["com.pubmax.refresh-prices", "com.pubmax.refresh-events"];
 const PRICE_PROVIDER_KEYS = ["EXA_API_KEY", "BROWSERBASE_API_KEY", "TAVILY_API_KEY"];
-const EVENT_PROVIDER_KEYS = ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY"];
+const EVENT_PROVIDER_KEYS = ["TICKETMASTER_API_KEY", "SKIDDLE_API_KEY", "CONTEXT_DEV_API_KEY"];
 const PROVIDER_SECRET_ENV_KEYS = [...PRICE_PROVIDER_KEYS, ...EVENT_PROVIDER_KEYS];
 
 export function parseFreeMemoryPercent(output) {

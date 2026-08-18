@@ -38,6 +38,7 @@ export {
 export declare function providerLaneStatus(env?: Record<string, string | undefined>): {
   ticketmaster: "configured" | "not-configured";
   skiddle: "configured" | "not-configured";
+  contextdev: "configured" | "not-configured";
 };
 export declare function eventsOutputPath(city?: string): string;
 export declare function readExistingRowsForLabels(

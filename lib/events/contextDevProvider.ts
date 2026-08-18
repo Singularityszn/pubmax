@@ -1,14 +1,21 @@
-import "server-only";
+// The Context.dev registered-source events lane.
+//
+// Every specifier below is RELATIVE and carries its extension, and this module
+// carries no `server-only` marker, because scripts/whatson/eventsRefresh.mjs
+// imports it under plain `node`: Node strips TypeScript types but resolves no
+// tsconfig `@/*` alias, and `server-only` throws on import outside a React
+// Server Component. Import the transport from `@/lib/contextDev.server` in app
+// code; this lane is a CLI consumer.
 
-import { extract, isContextDevConfigured, type ContextDevCallOptions } from "@/lib/contextDev.server";
-import { contextDevEventSources, type HarvestSource } from "@/lib/harvest/sourcePolicy";
+import { extract, isContextDevConfigured, type ContextDevCallOptions } from "../contextDev.ts";
+import { contextDevEventSources, type HarvestSource } from "../harvest/sourcePolicy.ts";
 import {
   DATE_ONLY_TIME_EVIDENCE,
   emptyEventDrops,
   statedCalendarDate,
   toIsoInstant,
-  type EventDropCounters,
-} from "@/lib/whatson/eventNormalise.mjs";
+  type EventDropCounts,
+} from "../whatson/eventNormalise.mjs";
 
 export const CONTEXT_DEV_EVENTS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
 
@@ -85,7 +92,7 @@ function stableId(prefix: string, input: string): string {
   let hash = 2_166_136_261;
   for (let i = 0; i < input.length; i += 1) {
     hash ^= input.charCodeAt(i);
-    hash = Math.imul(hash, 1_677_769_19);
+    hash = Math.imul(hash, 16_777_619);
   }
   return `${prefix}-${(hash >>> 0).toString(36)}`;
 }
@@ -162,7 +169,7 @@ export function normaliseContextDevExtract(
   payload: ExtractPayload,
   source: HarvestSource,
   opts: ContextDevNormaliseOpts,
-): { rows: Record<string, unknown>[]; dropped: EventDropCounters } {
+): { rows: Record<string, unknown>[]; dropped: EventDropCounts } {
   const dropped = emptyEventDrops();
   const rows: Record<string, unknown>[] = [];
   const events = Array.isArray(payload?.events) ? payload.events : [];
@@ -183,6 +190,13 @@ export function contextDevLaneStatus(env: NodeJS.ProcessEnv = process.env): "con
   return isContextDevConfigured(env) ? "configured" : "not-configured";
 }
 
+// Rows this lane writes carry the SOURCE's own credit label, never "Context.dev",
+// so a caller carrying held rows across a lane-level failure has to ask for these
+// labels rather than naming the lane.
+export function contextDevSourceLabels(): string[] {
+  return Array.from(new Set(contextDevEventSources().map((source) => source.label)));
+}
+
 export type ContextDevLaneFailure = {
   sourceId: string;
   label: string;
@@ -192,7 +206,7 @@ export type ContextDevLaneFailure = {
 export type ContextDevLaneResult = {
   status: "not-configured" | "ran" | "failed";
   rows: Record<string, unknown>[];
-  dropped: EventDropCounters;
+  dropped: EventDropCounts;
   failures: ContextDevLaneFailure[];
   sourcesRun: Array<{ sourceId: string; label: string; rows: number }>;
 };
@@ -208,7 +222,7 @@ export async function runContextDevEventsLane({
 }: {
   observedAt: string;
   venueIndex?: unknown;
-  resolveVenue?: ContextDevNormaliseOpts["resolveVenue"];
+  resolveVenue?: ContextDevNormaliseOpts["resolveVenue"] | null;
   env?: NodeJS.ProcessEnv;
   callOptions?: ContextDevCallOptions;
   log?: (message: string) => void;

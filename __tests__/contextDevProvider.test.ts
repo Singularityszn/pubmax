@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import * as contextDevServer from "@/lib/contextDev.server";
+import * as contextDev from "@/lib/contextDev";
 import {
   contextDevLaneStatus,
   normaliseContextDevEventRow,
@@ -23,7 +23,7 @@ describe("contextDevEventSources register gate", () => {
   });
 
   it("is not configured without a key", () => {
-    expect(contextDevLaneStatus({} as NodeJS.ProcessEnv)).toBe("not-configured");
+    expect(contextDevLaneStatus({} as unknown as NodeJS.ProcessEnv)).toBe("not-configured");
   });
 });
 
@@ -88,7 +88,7 @@ describe("runContextDevEventsLane", () => {
     const log = vi.fn();
     const result = await runContextDevEventsLane({
       observedAt,
-      env: {} as NodeJS.ProcessEnv,
+      env: {} as unknown as NodeJS.ProcessEnv,
       log,
     });
     expect(result.status).toBe("not-configured");
@@ -97,7 +97,7 @@ describe("runContextDevEventsLane", () => {
   });
 
   it("normalises extract payloads from registered sources", async () => {
-    const extractSpy = vi.spyOn(contextDevServer, "extract").mockResolvedValue({
+    const extractSpy = vi.spyOn(contextDev, "extract").mockResolvedValue({
       status: "ok",
       url: "https://www.fullers.co.uk/event-finder",
       data: {
@@ -116,7 +116,7 @@ describe("runContextDevEventsLane", () => {
 
     const result = await runContextDevEventsLane({
       observedAt,
-      env: { CONTEXT_DEV_API_KEY: "test-key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
       log: vi.fn(),
       logError: vi.fn(),
     });

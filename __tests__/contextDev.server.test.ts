@@ -19,14 +19,14 @@ function jsonResponse(body: unknown, status = 200, headers: Record<string, strin
 
 describe("contextDev key configuration", () => {
   it("reads the key from the environment and trims it", () => {
-    expect(contextDevApiKey({ CONTEXT_DEV_API_KEY: "  ctx-key  " } as NodeJS.ProcessEnv)).toBe("ctx-key");
-    expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "ctx-key" } as NodeJS.ProcessEnv)).toBe(true);
+    expect(contextDevApiKey({ CONTEXT_DEV_API_KEY: "  ctx-key  " } as unknown as NodeJS.ProcessEnv)).toBe("ctx-key");
+    expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv)).toBe(true);
   });
 
   it("treats an absent or blank key as not configured", () => {
-    expect(contextDevApiKey({} as NodeJS.ProcessEnv)).toBeNull();
-    expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "  " } as NodeJS.ProcessEnv)).toBe(false);
-    expect(scrapeMarkdown("https://example.com", { env: {} as NodeJS.ProcessEnv })).resolves.toEqual({
+    expect(contextDevApiKey({} as unknown as NodeJS.ProcessEnv)).toBeNull();
+    expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "  " } as unknown as NodeJS.ProcessEnv)).toBe(false);
+    expect(scrapeMarkdown("https://example.com", { env: {} as unknown as NodeJS.ProcessEnv })).resolves.toEqual({
       status: "not-configured",
     });
   });
@@ -38,7 +38,7 @@ describe("scrapeMarkdown", () => {
       jsonResponse({ success: true, url: "https://example.com/page", markdown: "# Hello" }),
     );
     const result = await scrapeMarkdown("https://example.com/page", {
-      env: { CONTEXT_DEV_API_KEY: "key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
@@ -50,13 +50,18 @@ describe("scrapeMarkdown", () => {
   });
 
   it("honours Retry-After on 429", async () => {
+    // The wait is 7s, deliberately unequal to CONTEXT_DEV_RETRY_BASE_DELAY_MS *
+    // attempt (2000ms), so the assertion proves the header was READ rather than
+    // matching the ordinary backoff by coincidence.
     const fetchImpl = vi
       .fn()
-      .mockResolvedValueOnce(new Response("slow down", { status: 429, headers: { "retry-after": "2" } }))
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "slow down" }, 429, { "retry-after": "7" }),
+      )
       .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
     const sleeps: number[] = [];
     const result = await scrapeMarkdown("https://example.com", {
-      env: { CONTEXT_DEV_API_KEY: "key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
         sleeps.push(ms);
@@ -65,14 +70,59 @@ describe("scrapeMarkdown", () => {
     });
     expect(result.status).toBe("ok");
     expect(fetchImpl).toHaveBeenCalledTimes(2);
-    expect(sleeps[0]).toBe(2000);
+    expect(sleeps[0]).toBe(7000);
+  });
+
+  it("honours Retry-After on a 429 whose body is not JSON", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("<html>slow down</html>", {
+          status: 429,
+          headers: { "content-type": "text/html", "retry-after": "7" },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
+    const sleeps: number[] = [];
+    const result = await scrapeMarkdown("https://example.com", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async (ms) => {
+        sleeps.push(ms);
+      },
+      maxAttempts: 2,
+    });
+    expect(result.status).toBe("ok");
+    expect(sleeps[0]).toBe(7000);
+  });
+
+  it("does not retry a validation answer whose body is not JSON", async () => {
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response("<html>Forbidden</html>", {
+          status: 403,
+          headers: { "content-type": "text/html" },
+        }),
+    );
+    const result = await scrapeMarkdown("https://example.com", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      maxAttempts: 3,
+    });
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.retryable).toBe(false);
+    expect(result.error.statusCode).toBe(403);
+    expect(result.error.code).toBe("INVALID_REQUEST");
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
   it("retries 5xx with bounded backoff then fails", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
     const sleeps: number[] = [];
     const result = await scrapeMarkdown("https://example.com", {
-      env: { CONTEXT_DEV_API_KEY: "key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: async (ms) => {
         sleeps.push(ms);
@@ -89,7 +139,7 @@ describe("scrapeMarkdown", () => {
   it("does not retry validation errors", async () => {
     const fetchImpl = vi.fn(async () => jsonResponse({ error: "bad schema" }, 400));
     const result = await scrapeMarkdown("https://example.com", {
-      env: { CONTEXT_DEV_API_KEY: "key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
       maxAttempts: 3,
@@ -121,7 +171,7 @@ describe("extract", () => {
       }),
     );
     const result = await extract("https://example.com/events", { type: "object" }, {
-      env: { CONTEXT_DEV_API_KEY: "key" } as NodeJS.ProcessEnv,
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
       fetchImpl: fetchImpl as unknown as typeof fetch,
       sleepImpl: noSleep,
     });
