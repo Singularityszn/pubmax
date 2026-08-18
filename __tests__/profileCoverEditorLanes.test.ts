@@ -205,9 +205,19 @@ describe("a remove goes to the lane the rotation is actually in", () => {
     wire.next = async () => Response.json({ profile: { handle: "alice" }, covers: [] });
     await clickRemoveCover();
 
+    // ONE tap clears EVERY cover, so the whole DELETE set is the assertion. The
+    // loop reads an `ids` SNAPSHOT rather than `covers`, which `applyReply`
+    // empties on the first reply - an implementation reading the live state
+    // would stop after c1 and leave the rest rotating under a receipt that said
+    // they were gone.
     const writes = wire.calls.filter((call) => call.method === "DELETE").map((c) => c.url);
-    expect(writes).toContain("/api/profiles/alice/covers/c1");
+    expect(writes).toEqual([
+      "/api/profiles/alice/covers/c1",
+      "/api/profiles/alice/covers/c2",
+    ]);
     expect(writes).not.toContain("/api/profiles/alice/cover");
+    // Nothing is left to remove, so the control goes with the covers.
+    expect(removeCoverButton()).toBeNull();
   });
 
   it("writes nothing at all while the read has not answered", async () => {

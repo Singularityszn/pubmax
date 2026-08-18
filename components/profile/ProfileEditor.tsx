@@ -119,9 +119,18 @@ export default function ProfileEditor({
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
-  const [heldCoverUrls, setHeldCoverUrls] = useState(() =>
-    profileCoverUrls({ coverUrl: initial.coverUrl, coverUrls: initial.coverUrls }),
-  );
+  // DERIVED, never held. The text fields above are snapshot-once on purpose -
+  // resyncing one would clobber what the owner is typing - but the held covers
+  // are a READ of the profile, not something anybody edits here, and the page
+  // above already owns that row: an image write reports up through
+  // `onProfileChanged`, the page stores it, and it arrives back as this prop.
+  // Held as state it froze at mount, so an owner who reached `?edit=1` before
+  // the profile read landed got `[]` for the life of the session and the
+  // single-cover Remove control never appeared for them.
+  const heldCoverUrls = profileCoverUrls({
+    coverUrl: initial.coverUrl,
+    coverUrls: initial.coverUrls,
+  });
   const [imageError, setImageError] = useState<Record<ProfileImageSlot, string | null>>({
     avatar: null,
     cover: null,
@@ -182,7 +191,7 @@ export default function ProfileEditor({
       if (profile) {
         // The card repaints and the editor stays open: a photo is one of the
         // things being edited, not the end of the edit.
-        handleProfileChanged(profile);
+        onProfileChanged(profile);
         if (slot === "avatar") setAvatarPreview(profile.avatarUrl ?? "");
       }
       markImage(slot, "idle", null);
@@ -195,11 +204,6 @@ export default function ProfileEditor({
           : "Network error. Try again.",
       );
     }
-  }
-
-  function handleProfileChanged(profile: PublicProfile) {
-    setHeldCoverUrls(profileCoverUrls(profile));
-    onProfileChanged(profile);
   }
 
   async function removeImage(slot: ProfileImageSlot) {
@@ -218,7 +222,7 @@ export default function ProfileEditor({
         return;
       }
       const profile = profileFrom(body);
-      if (profile) handleProfileChanged(profile);
+      if (profile) onProfileChanged(profile);
       if (slot === "avatar") setAvatarPreview("");
       markImage(slot, "idle", null);
     } catch (error) {
@@ -285,7 +289,7 @@ export default function ProfileEditor({
         <ProfileCoverPhotosEditor
           handle={handle}
           heldCoverUrls={heldCoverUrls}
-          onProfileChanged={handleProfileChanged}
+          onProfileChanged={onProfileChanged}
         />
 
         <div className="profileEditorField profileEditorAvatarField">
