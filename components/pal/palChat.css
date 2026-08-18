@@ -554,7 +554,7 @@
 }
 
 .palChatPlanHandoff:hover {
-  background: var(--paper-bright);
+  background: color-mix(in srgb, var(--paper) 88%, var(--brass) 12%);
 }
 
 .palChatProposalConfirm,

@@ -7,6 +7,8 @@ CI refuses a change that goes past it.
 - The ceilings: [`perf/route-budgets.json`](../perf/route-budgets.json)
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
+- The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
+- The UX lane report (same routes plus LCP and CLS, attached for the PR body): [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts)
 - The gate: the `performance-budget` job in `.github/workflows/ci.yml`
 
 ## What each metric means
@@ -40,7 +42,7 @@ them to within about 4 KB.
 Run it locally the same way CI does:
 
 ```
-PUBMAX_PERF_BUDGET=1 npx playwright test e2e/performance-budget.spec.ts --project=chromium
+PUBMAX_PERF_BUDGET=1 npx playwright test e2e/performance-budget.spec.ts e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 ```
 
 A failing run prints one row per breach: route, metric, measured, budget, and

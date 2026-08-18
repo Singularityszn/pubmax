@@ -53,8 +53,14 @@ function isShippedDescribeChip(value: string): boolean {
 }
 
 /**
- * Read a pre-approved describe string from a plan URL search string.
- * `occasion` wins over `describe`; only closed ids or shipped chip text pass.
+ * Read a describe string from a plan URL search string.
+ *
+ * THREE params, narrowest first. `occasion` wins and takes closed ids only;
+ * `describe` takes shipped chip text only; `query` is the Pub Pal route handoff
+ * and takes ARBITRARY ask text, so it is deliberately the widest and the last
+ * one asked. That text only ever prefills the describe field, and `cleanText`
+ * bounds it at 500 characters and strips angle brackets, so nothing here is a
+ * trust boundary: a caller may put any words in the field a drinker could type.
  * Culture Crawl ids share the `occasion` param with the soft occasions, so the
  * two id sets must never collide (pinned in __tests__/cultureCrawlChips.test.ts).
  */

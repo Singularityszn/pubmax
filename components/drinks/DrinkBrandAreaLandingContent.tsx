@@ -86,6 +86,7 @@ export default function DrinkBrandAreaLandingContent({
         </div>
         <PricedLandingRows
           rows={landing.rows}
+          heroPublisherVenueId={firstRow.venueId}
           rowAction={(row) =>
             pricedLandingLogCta({
               brandSlug: landing.brandSlug,

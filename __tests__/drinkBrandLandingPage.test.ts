@@ -204,7 +204,68 @@ describe("governed drink brand landing page", () => {
     );
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(1);
     expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    expect(html).not.toMatch(/drinkBrandDirectory__publisher/);
+    expect(html).not.toMatch(/drinkBrandDirectory__publisher\b/);
+  });
+
+  it("states every other rank's own publisher and never repeats the hero's", () => {
+    const model: DrinkBrandLanding = {
+      slug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 20,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-1",
+          venueName: "First pub",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.09,
+          publisher: {
+            label: "Hero Publisher",
+            url: "https://publisher.example/price-1",
+          },
+        },
+        {
+          rank: 2,
+          venueId: "venue-2",
+          venueName: "Second pub",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.5,
+          publisher: {
+            label: "Second Publisher",
+            url: "https://publisher.example/price-2",
+          },
+        },
+        {
+          rank: 3,
+          venueId: "venue-3",
+          venueName: "Third pub",
+          borough: "Hackney",
+          pintName: "Guinness",
+          priceGbp: 3.8,
+          publisher: null,
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+      }),
+    );
+
+    // The hero states rank 1's publisher, so rank 1's row does not repeat it.
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    // Ranks 2 and 3 each state their own record: a named publisher, and the
+    // plain refusal when the record names none (docs/VOICE.md).
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
+    expect(html).toContain('>Second Publisher</a>');
+    expect(html.match(/href="https:\/\/publisher\.example\/price-2"/g)).toHaveLength(1);
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(1);
   });
 
   it("arms the composer for a pub the map can open, and names none when it cannot", () => {

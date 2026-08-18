@@ -471,7 +471,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                             className="palChatPlanHandoff pressable"
                             href={planPalRouteHandoffHref(proposal.query)}
                           >
-                            Use this route in Plan
+                            Open in Plan
                           </Link>
                         ) : null}
                         <button

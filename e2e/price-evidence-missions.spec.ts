@@ -3,10 +3,9 @@ import { expect, test, type Page } from "@playwright/test";
 /**
  * Price evidence missions on the map sheet and /near.
  *
- * Auth: by default uses a mocked Supabase session (`seedSignedInSession`) so the
- * suite runs keyless in CI. For a live account, set PUBMAX_E2E_EMAIL and
- * PUBMAX_E2E_PASSWORD and run with PW_SKIP_WEBSERVER=1 against a production build
- * that has real auth configured (see playwright.config.ts webServer.env).
+ * Auth: the signed-in lanes seed a mocked Supabase session (`seedSignedInSession`)
+ * so the suite runs keyless in CI, the way playwright.config.ts webServer.env
+ * already runs the app.
  */
 
 const SEED_VENUE_ID = "venue-16pnwmm";

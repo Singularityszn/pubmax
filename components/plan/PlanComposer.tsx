@@ -1042,14 +1042,17 @@ function PlanComposerForm({
     askDraftConsumedRef.current = true;
     void Promise.resolve().then(() => {
       try {
+        // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
+        // URL that carries its own describe used to leave the draft behind for
+        // the next /plan visit to open on somebody's earlier ask.
+        const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+        if (raw) sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
         const fromUrl = parsePlanDescribeFromSearch(window.location.search);
         if (fromUrl) {
           setAskDraftQuery(fromUrl);
           return;
         }
-        const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
         if (!raw) return;
-        sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;

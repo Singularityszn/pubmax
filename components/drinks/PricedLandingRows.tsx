@@ -53,13 +53,20 @@ export function PricedLandingPublisher({
  * Safari, and the rank is marked presentational: the ordered list already gives
  * a screen reader the position, and a name on a bare span is prohibited so an
  * `aria-label` there is dropped.
+ *
+ * Every price states its own publisher status (docs/VOICE.md), so the ONE row
+ * that may go without is the one whose status the hero already states word for
+ * word. The caller names that pub through `heroPublisherVenueId` rather than
+ * this list assuming it is rank 1, so the two cannot disagree.
  */
 export default function PricedLandingRows({
   rows,
   rowAction,
+  heroPublisherVenueId,
 }: {
   rows: readonly PricedLandingRow[];
   rowAction?: (row: PricedLandingRow) => { href: string; label: string };
+  heroPublisherVenueId?: string;
 }) {
   return (
     <ol className="drinkBrandDirectory__list" role="list">
@@ -87,6 +94,12 @@ export default function PricedLandingRows({
               <span className="drinkBrandDirectory__pint">
                 {formatPricedLandingPintName(row.pintName)}
               </span>
+              {row.venueId === heroPublisherVenueId ? null : (
+                <PricedLandingPublisher
+                  className="drinkBrandDirectory__publisher"
+                  row={row}
+                />
+              )}
               {action ? (
                 <Link
                   className="drinkBrandDirectory__contribution"

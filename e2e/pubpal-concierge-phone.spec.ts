@@ -118,7 +118,7 @@ test.describe("Pub Pal concierge at 390px", () => {
     await askOnPhone(page, ask);
 
     const answer = page.locator(".palChatRow--pal").last();
-    const planLink = answer.getByRole("link", { name: "Use this route in Plan" });
+    const planLink = answer.getByRole("link", { name: "Open in Plan" });
     await expect(planLink).toBeVisible();
     await planLink.click();
 

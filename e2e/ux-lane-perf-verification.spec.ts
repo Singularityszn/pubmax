@@ -1,19 +1,29 @@
 /**
- * UX lane 13: LCP, CLS and decoded JS at 390×844 against perf/route-budgets.json.
- * Gated on PUBMAX_PERF_BUDGET (same CI job as e2e/performance-budget.spec.ts).
- * Attaches a markdown table for the PR body; fails only when JS decoded exceeds
- * its budget by more than 10%.
+ * UX lane 13: LCP, CLS and decoded JS at 390x844 against perf/route-budgets.json.
+ *
+ * Gated on PUBMAX_PERF_BUDGET and named in the performance-budget CI job
+ * (.github/workflows/ci.yml) beside e2e/performance-budget.spec.ts, so the
+ * markdown table for the PR body really is produced by a run.
+ *
+ * It measures through e2e/helpers/perfMeasurement.ts - the SAME warm-up, median
+ * runs, CPU throttle, third-party block and app-defined interactive cut the
+ * tracked budget spec uses - because a figure compared against a ceiling has to
+ * have been taken the way that ceiling was. It reports LCP and CLS for the PR
+ * and fails only when JS decoded exceeds its budget by more than 10%.
  */
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
+import { measurePerfRoute, preparePerfPage, type PerfRoute } from "./helpers/perfMeasurement";
 
-type UxLaneRoute = {
-  path: string;
-  readySelector: string;
-  settledSelectorHidden?: string;
-  /** Route path in perf/route-budgets.json used for JS ceiling comparison. */
+type UxLaneRoute = PerfRoute & {
+  /**
+   * Route path in perf/route-budgets.json used for the JS ceiling comparison,
+   * or null for a route that carries no tracked ceiling.
+   */
   budgetPath: string | null;
+  /** Stated when the ceiling belongs to a different document than the one loaded. */
+  budgetNote?: string;
 };
 
 const UX_LANE_ROUTES: UxLaneRoute[] = [
@@ -24,86 +34,18 @@ const UX_LANE_ROUTES: UxLaneRoute[] = [
     readySelector: ".mobileMapTopbar",
     settledSelectorHidden: ".mapLoading",
     budgetPath: "/map",
+    budgetNote:
+      "ceiling belongs to /map, the CDN-cached document; /map/london renders per request",
   },
   { path: "/out", readySelector: "main", budgetPath: "/out" },
 ];
 
 const REGRESSION_TOLERANCE = 1.1;
 
-async function installPerfObservers(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    const gateWindow = window as typeof window & {
-      __pubmaxGateMetrics?: { lcp: number; cls: number };
-    };
-    gateWindow.__pubmaxGateMetrics = { lcp: 0, cls: 0 };
+const method = PERFORMANCE_BUDGETS.method;
 
-    new PerformanceObserver((list) => {
-      const entries = list.getEntries();
-      const last = entries.at(-1);
-      if (last) gateWindow.__pubmaxGateMetrics!.lcp = last.startTime;
-    }).observe({ type: "largest-contentful-paint", buffered: true });
-
-    new PerformanceObserver((list) => {
-      for (const entry of list.getEntries() as Array<
-        PerformanceEntry & { hadRecentInput?: boolean; value?: number }
-      >) {
-        if (!entry.hadRecentInput) {
-          gateWindow.__pubmaxGateMetrics!.cls += entry.value ?? 0;
-        }
-      }
-    }).observe({ type: "layout-shift", buffered: true });
-  });
-}
-
-async function dismissFirstRunChrome(page: Page): Promise<void> {
-  await page.addInitScript(() => {
-    window.localStorage.setItem("pubmax-tour-v1-done", "1");
-    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
-    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
-    performance.setResourceTimingBufferSize(1000);
-  });
-}
-
-async function loadUxRoute(page: Page, route: UxLaneRoute): Promise<number> {
-  await page.goto(route.path, { waitUntil: "load" });
-  await expect(page.locator(route.readySelector).first()).toBeVisible({
-    timeout: 45_000,
-  });
-  if (route.settledSelectorHidden) {
-    await expect(page.locator(route.settledSelectorHidden)).toBeHidden({
-      timeout: 45_000,
-    });
-  }
-  await page.waitForTimeout(100);
-  return page.evaluate(() => performance.now());
-}
-
-async function readUxMetrics(
-  page: Page,
-  interactiveAt: number,
-): Promise<{ lcp: number; cls: number; jsDecodedKB: number }> {
-  return page.evaluate((boundary) => {
-    const gateWindow = window as typeof window & {
-      __pubmaxGateMetrics?: { lcp: number; cls: number };
-    };
-    const metrics = gateWindow.__pubmaxGateMetrics ?? { lcp: 0, cls: 0 };
-    const origin = location.origin;
-    let jsBytes = 0;
-    for (const entry of performance.getEntriesByType("resource")) {
-      const resource = entry as PerformanceResourceTiming;
-      if (!resource.name.startsWith(origin)) continue;
-      if (resource.startTime > boundary) continue;
-      const isJs =
-        resource.initiatorType === "script" || /\.js(\?|$)/.test(resource.name);
-      if (isJs) jsBytes += resource.decodedBodySize || 0;
-    }
-    return {
-      lcp: metrics.lcp,
-      cls: metrics.cls,
-      jsDecodedKB: Math.round(jsBytes / 1024),
-    };
-  }, interactiveAt);
-}
+const SWEEP_TIMEOUT_MS =
+  60_000 * UX_LANE_ROUTES.length * (method.warmupRuns + method.measuredRuns);
 
 function budgetForPath(path: string | null): number | null {
   if (!path) return null;
@@ -113,20 +55,20 @@ function budgetForPath(path: string | null): number | null {
 
 test("UX lane routes report LCP, CLS and JS decoded against route budgets", async ({
   page,
+  baseURL,
 }, testInfo) => {
   test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the performance-budget CI job.");
-  test.setTimeout(240_000);
+  test.setTimeout(SWEEP_TIMEOUT_MS);
 
-  await page.setViewportSize({ width: 390, height: 844 });
-  await dismissFirstRunChrome(page);
-  await installPerfObservers(page);
+  const origin = new URL(baseURL ?? "http://localhost:3100").origin;
+  await preparePerfPage(page, origin, method);
 
   const rows: string[] = [];
+  const notes: string[] = [];
   const regressions: string[] = [];
 
   for (const route of UX_LANE_ROUTES) {
-    const interactiveAt = await loadUxRoute(page, route);
-    const { lcp, cls, jsDecodedKB } = await readUxMetrics(page, interactiveAt);
+    const { lcpMs, cls, jsDecodedKB } = await measurePerfRoute(page, route, method);
     const budgetKb = budgetForPath(route.budgetPath);
     const overPct =
       budgetKb !== null && jsDecodedKB > budgetKb
@@ -139,20 +81,25 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
       );
     }
 
+    if (route.budgetNote) notes.push(`- \`${route.path}\`: ${route.budgetNote}.`);
+
     rows.push(
-      `| ${route.path} | ${Math.round(lcp)} | ${cls.toFixed(3)} | ${jsDecodedKB} | ${
+      `| ${route.path} | ${Math.round(lcpMs)} | ${cls.toFixed(3)} | ${jsDecodedKB} | ${
         budgetKb ?? "n/a"
       } | ${overPct !== null ? `+${overPct}%` : "n/a"} |`,
     );
   }
 
   const markdown = [
-    "## UX lane 13 performance (390×844, production build)",
+    `## UX lane 13 performance (${method.viewport.width}x${method.viewport.height}, production build)`,
+    "",
+    `Method: ${method.warmupRuns} warm-up run then the ${method.aggregate} of ${method.measuredRuns}, CPU throttled ${method.cpuThrottleRate}x, cross-origin requests refused. ${method.countedUpTo}`,
     "",
     "| route | LCP (ms) | CLS | JS decoded (KB) | budget (KB) | over budget |",
     "| --- | ---: | ---: | ---: | ---: | --- |",
     ...rows,
     "",
+    ...(notes.length > 0 ? [...notes, ""] : []),
     "LCP and CLS are reported for the PR; JS decoded is compared to perf/route-budgets.json.",
   ].join("\n");
 

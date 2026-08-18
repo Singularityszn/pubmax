@@ -342,6 +342,9 @@ async function assertLandingContract(
   const firstRow = rows.first();
   const firstVenue = firstRow.locator(".drinkBrandDirectory__venue");
   const firstContribution = firstRow.getByRole("link", { name: "Log this price", exact: true });
+  // The hero already states rank 1's publisher word for word, so its row does
+  // not repeat it; every other rank states its own (docs/VOICE.md).
+  await expect(firstRow.locator(".drinkBrandDirectory__publisher")).toHaveCount(0);
   const firstLedgerHref = `/ledger/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}`;
   const firstContributionHref = expectedContributionHref(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId,
@@ -357,11 +360,16 @@ async function assertLandingContract(
     const row = rows.nth(index);
     const venue = row.locator(".drinkBrandDirectory__venue");
     const pint = row.locator(".drinkBrandDirectory__pint");
+    const publisher = row.locator(".drinkBrandDirectory__publisher");
     const contribution = row.getByRole("link", { name: "Log this price", exact: true });
     const price = row.locator(".drinkBrandDirectory__price");
 
     await expect(venue, `row ${index + 1} pub should be visible`).toBeVisible();
     await expect(pint, `row ${index + 1} pint should be visible`).toBeVisible();
+    await expect(
+      publisher,
+      `row ${index + 1} publisher should state its own record unless the hero already did`,
+    ).toHaveCount(index === 0 ? 0 : 1);
     await expect(contribution, `row ${index + 1} log action should be visible`).toBeVisible();
     await expect(price, `row ${index + 1} price should be visible`).toBeVisible();
     await expectTouchTarget(venue, `row ${index + 1} pub`);
@@ -370,6 +378,10 @@ async function assertLandingContract(
     await expectHorizontallyInsideViewport(page, pint, `row ${index + 1} pint`);
     await expectHorizontallyInsideViewport(page, contribution, `row ${index + 1} log action`);
     await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
+    if (index > 0) {
+      await expect(publisher, `row ${index + 1} publisher should be visible`).toBeVisible();
+      await expectHorizontallyInsideViewport(page, publisher, `row ${index + 1} publisher`);
+    }
 
     const expectedVenueId = CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[index];
     expect(expectedVenueId, `row ${index + 1} should have a checked fixture identity`).toBeDefined();
@@ -382,6 +394,11 @@ async function assertLandingContract(
     );
     await expect(contribution).toHaveAttribute("href", contributionHref);
 
+    const publisherLink = publisher.getByRole("link");
+    if (await publisherLink.count()) {
+      await expectTouchTarget(publisherLink, `row ${index + 1} publisher link`);
+      await expectVisibleFocus(publisherLink, `${viewportName}px ${theme} row ${index + 1} publisher link`);
+    }
     await expectVisibleFocus(venue, `${viewportName}px ${theme} row ${index + 1} pub link`);
     await expectVisibleFocus(contribution, `${viewportName}px ${theme} row ${index + 1} log action`);
   }
