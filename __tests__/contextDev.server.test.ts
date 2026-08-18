@@ -24,12 +24,12 @@ describe("contextDev key configuration", () => {
     expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "ctx-key" } as unknown as NodeJS.ProcessEnv)).toBe(true);
   });
 
-  it("treats an absent or blank key as not configured", () => {
+  it("treats an absent or blank key as not configured", async () => {
     expect(contextDevApiKey({} as unknown as NodeJS.ProcessEnv)).toBeNull();
     expect(isContextDevConfigured({ CONTEXT_DEV_API_KEY: "  " } as unknown as NodeJS.ProcessEnv)).toBe(false);
-    expect(scrapeMarkdown("https://example.com", { env: {} as unknown as NodeJS.ProcessEnv })).resolves.toEqual({
-      status: "not-configured",
-    });
+    await expect(
+      scrapeMarkdown("https://example.com", { env: {} as unknown as NodeJS.ProcessEnv }),
+    ).resolves.toEqual({ status: "not-configured" });
   });
 });
 
@@ -167,8 +167,37 @@ describe("run request budget", () => {
     expect(budget.remaining()).toBe(0);
     expect(result.status).toBe("error");
     if (result.status !== "error") throw new Error("expected error");
+    // The ceiling stopped the retry, but the 503 is what an operator can act
+    // on, so it stays the answer and the budget rides in the message.
+    expect(result.error.code).toBe("PROVIDER_UNAVAILABLE");
+    expect(result.error.statusCode).toBe(503);
+    expect(result.error.message).toContain("No further attempt was made");
+  });
+
+  it("names the budget alone when the ceiling stopped the FIRST attempt", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const budget = createContextDevBudget(1);
+    await scrapeMarkdown("https://example.com/first", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      maxAttempts: 1,
+      budget,
+    });
+    fetchImpl.mockClear();
+
+    const result = await scrapeMarkdown("https://example.com/second", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      budget,
+    });
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
     expect(result.error.code).toBe("BUDGET_EXHAUSTED");
     expect(result.error.retryable).toBe(false);
+    expect(result.error.statusCode).toBeUndefined();
   });
 
   it("sends nothing at all once a shared budget is spent", async () => {

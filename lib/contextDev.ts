@@ -162,13 +162,20 @@ async function withRetries<T extends ContextDevScrapeOk | ContextDevExtractOk<un
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     if (budget && !budget.take()) {
+      const spent = `Run budget of ${budget.limit} Context.dev requests is spent.`;
+      // A ceiling reached BEFORE anything was sent is the whole finding. A
+      // ceiling reached between retries is not: the upstream failure that
+      // caused the retry is the actionable one, so it stays the answer and the
+      // budget rides along as the reason no further attempt was made.
+      if (last) {
+        return {
+          status: "error",
+          error: { ...last, message: `${last.message} ${spent} No further attempt was made.` },
+        };
+      }
       return {
         status: "error",
-        error: {
-          code: "BUDGET_EXHAUSTED",
-          message: `Run budget of ${budget.limit} Context.dev requests is spent.`,
-          retryable: false,
-        },
+        error: { code: "BUDGET_EXHAUSTED", message: spent, retryable: false },
       };
     }
     const result = await attemptOnce();

@@ -416,11 +416,11 @@ describe("the crawl budget advances", () => {
 
 describe("Common lane independence", () => {
   // The scheduler spawns Common as its OWN command so a quiet provider window
-  // cannot stop it. Node's type stripping is what lets eventsRefresh.mjs load
-  // the TypeScript Context.dev provider, so a child with stripping DISABLED
-  // fails to load anything whose graph reaches TypeScript. That is the probe:
-  // Common must load, and eventsRefresh must be the one that does not.
-  const loadUnderNoStripTypes = (specifier: string) => {
+  // cannot stop it, which means nothing in Common's module graph may depend on
+  // the provider lane loading. Node's type stripping is what lets a plain .mjs
+  // script import a TypeScript module, so a child with stripping DISABLED
+  // refuses any graph that reaches TypeScript. Common must load in that child.
+  const loadUnderNoStripTypes = (specifier: string, cwd: string) => {
     try {
       execFileSync(
         process.execPath,
@@ -430,7 +430,7 @@ describe("Common lane independence", () => {
           "-e",
           `await import(${JSON.stringify(specifier)});`,
         ],
-        { cwd: process.cwd(), stdio: "pipe" },
+        { cwd, stdio: "pipe" },
       );
       return { loaded: true, output: "" };
     } catch (error) {
@@ -439,17 +439,25 @@ describe("Common lane independence", () => {
     }
   };
 
-  const flagSupported = loadUnderNoStripTypes("./scripts/whatson/quizParsers.mjs").loaded;
+  // The control is a throwaway pair rather than a repository module, so the
+  // probe is proved to detect TypeScript in a graph without pinning any real
+  // script's current shape as a requirement.
+  function probeDetectsTypeScript() {
+    const dir = mkdtempSync(join(tmpdir(), "no-strip-types-probe-"));
+    try {
+      writeFileSync(join(dir, "typed.ts"), "export const answer: number = 1;\n");
+      writeFileSync(join(dir, "entry.mjs"), 'export { answer } from "./typed.ts";\n');
+      return !loadUnderNoStripTypes("./entry.mjs", dir).loaded;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
 
-  it.skipIf(!flagSupported)("loads with no TypeScript anywhere in its graph", () => {
-    const common = loadUnderNoStripTypes("./scripts/whatson/commonRefresh.mjs");
-    expect(common.output).toBe("");
+  const probeWorks = probeDetectsTypeScript();
+
+  it.skipIf(!probeWorks)("loads with no TypeScript anywhere in its graph", () => {
+    const common = loadUnderNoStripTypes("./scripts/whatson/commonRefresh.mjs", process.cwd());
+    expect(common.output).not.toContain("ERR_UNKNOWN_FILE_EXTENSION");
     expect(common.loaded).toBe(true);
-
-    // The counterpart: the provider lane's own graph DOES carry TypeScript, so
-    // this probe is measuring the graph rather than passing vacuously.
-    const events = loadUnderNoStripTypes("./scripts/whatson/eventsRefresh.mjs");
-    expect(events.loaded).toBe(false);
-    expect(events.output).toContain("ERR_UNKNOWN_FILE_EXTENSION");
   });
 });
