@@ -50,6 +50,42 @@ describe("the map's held loading frame", () => {
     );
   });
 
+  // docs/VOICE.md lets the VISIBLE loading line carry a dry aside. The
+  // ANNOUNCED name may not: a screen-reader user hears what is happening, not
+  // the joke. Every labelled node in the rendered frame has to obey, not just
+  // the outer one, and the sentence has to be built from the city it was
+  // given rather than written down once.
+  it.each(["London", "Manchester"])(
+    "announces the %s load as a plain fact and nothing else",
+    (city) => {
+      act(() => {
+        root.render(
+          createElement(MapLoadingFrame, { mapDisplayName: city, progress: 12 }),
+        );
+      });
+
+      const loadingLabels = Array.from(
+        host.querySelectorAll<HTMLElement>("[aria-label]"),
+      )
+        .map((element) => element.getAttribute("aria-label") ?? "")
+        .filter((label) => label.includes("Loading"));
+
+      expect(loadingLabels).toEqual([`Loading the ${city} pub map.`]);
+    },
+  );
+
+  // First paint waits on the basemap and the pin index, never on prices, so
+  // the held frame may not say it is fetching them.
+  it("never claims the wait is about tonight's prices", () => {
+    act(() => {
+      root.render(
+        createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 12 }),
+      );
+    });
+
+    expect(frame().textContent).not.toContain("Fetching tonight");
+  });
+
   it("admits the load is slow once the threshold passes", () => {
     vi.useFakeTimers();
     act(() => {

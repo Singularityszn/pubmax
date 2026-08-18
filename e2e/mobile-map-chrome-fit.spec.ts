@@ -68,7 +68,11 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
           __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
         }
       ).__pubmaxPaintedMapTapPoints?.().length > 0,
-    { timeout: 8_000 },
+    // A wait, not a ceiling: the recorded envelope in perf/route-budgets.json
+    // is 9.8-25.5s on this SwiftShader build, so a shorter wait here would
+    // fail the very run whose figure it exists to record. The enforced ceiling
+    // is the gated expect below and nothing else.
+    { timeout: 60_000 },
   );
   const pinReadyMs = Date.now() - started;
   // The recorded figure in perf/route-budgets.json (routes./map.pinReady) is
