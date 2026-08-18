@@ -4508,20 +4508,13 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     font-size: 0.72rem;
   }
 
-  /* The clamp bounds the SENTENCE alone. It may not sit on the card, because
-     clipped area is not hit-testable and the two buttons are the only way this
-     fixed overlay is dismissed; and it may not sit on the paragraph, because
-     the paragraph carries the banner's only route to the privacy notice, which
-     is the last thing on it and so the first thing a clamp would cut. Three
-     lines plus the 44px link line clears the 94px action column, so the card
-     holds its 120px ceiling at every phone width. */
-  .analyticsConsentPromptCopy {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 3;
-    line-clamp: 3;
-    overflow: hidden;
-  }
+  /* NOTHING here clamps the sentence. A clamp on the card cuts the two buttons
+     that are the only way out of a fixed overlay; a clamp on the paragraph cuts
+     the banner's only route to the privacy notice, which is the last thing on
+     it; and a clamp on the sentence alone silently drops the "never sold"
+     half of the disclosure on a 320px phone. The card holds its 120px ceiling
+     by the COPY being short enough to wrap inside it at every phone width,
+     with the Privacy link riding the last line rather than a line of its own. */
 
   .analyticsConsentPromptActions {
     display: grid;

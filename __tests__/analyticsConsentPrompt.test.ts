@@ -11,10 +11,9 @@ describe("first-visit analytics consent prompt", () => {
     }));
     const copy = markup.toLowerCase();
 
-    expect(markup).toContain("PUBMAXXING may use optional analytics");
+    expect(markup).toContain("PUBMAXXING uses optional analytics");
     expect(copy).toContain("what people use");
-    expect(copy).toContain("return for");
-    expect(copy).toContain("never sold or used for ads");
+    expect(copy).toContain("never sold, no ads");
     expect(markup).toContain(">Allow<");
     expect(markup).toContain(">No thanks<");
     expect(markup).toContain('href="/privacy"');

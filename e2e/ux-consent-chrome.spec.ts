@@ -2,9 +2,10 @@ import { expect, test } from "@playwright/test";
 
 const CONSENT_KEY = "pubmaxx:analytics-consent:v1";
 const VIEWPORT = { width: 390, height: 844 };
-// 320 is the narrowest phone the e2e matrix runs, and the width where the text
-// column is tight enough for a clamp to swallow the trailing Privacy link.
-const NARROW_VIEWPORT = { width: 320, height: 844 };
+// Every phone width this repo sweeps. The text column is the viewport minus the
+// card insets, its padding, the fixed action column and the gap, so 320 is
+// where the disclosure has the least room to wrap inside the 120px ceiling.
+const PHONE_WIDTHS = [320, 360, 390] as const;
 
 test.use({ storageState: { cookies: [], origins: [] } });
 
@@ -100,31 +101,45 @@ test("mobile consent does not cover the landing primary CTA after dismiss", asyn
   expect(owner).toBe("cta");
 });
 
-test("the narrowest phone still reaches the privacy notice from the banner", async ({ page }) => {
-  test.setTimeout(60_000);
-  await prepareUndecidedConsent(page, NARROW_VIEWPORT);
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+for (const width of PHONE_WIDTHS) {
+  test(`the whole disclosure and its privacy link fit the card @${width}`, async ({ page }) => {
+    test.setTimeout(60_000);
+    await prepareUndecidedConsent(page, { width, height: 844 });
+    await page.goto("/", { waitUntil: "domcontentloaded" });
 
-  const prompt = page.getByLabel("Anonymous analytics choice");
-  await expect(prompt).toBeVisible();
+    const prompt = page.getByLabel("Anonymous analytics choice");
+    await expect(prompt).toBeVisible();
 
-  // The banner is the one consent surface, so its route to /privacy may never
-  // be what a height clamp cuts. A clamped ancestor hides the link by height
-  // rather than by visibility, so the box is measured against the card's.
-  const privacy = prompt.getByRole("link", { name: "Privacy" });
-  await expect(privacy).toBeVisible();
-  const privacyBox = await privacy.boundingBox();
-  const promptBox = await prompt.boundingBox();
-  expect(privacyBox).not.toBeNull();
-  expect(promptBox).not.toBeNull();
-  expect(privacyBox!.height).toBeGreaterThanOrEqual(44);
-  expect(privacyBox!.y + privacyBox!.height).toBeLessThanOrEqual(
-    promptBox!.y + promptBox!.height,
-  );
+    // The sentence states what is collected and that it is never sold, so no
+    // part of it may be dropped to make the card fit. A clamp hides text by
+    // height rather than by visibility, so the paragraph is measured: laid-out
+    // content taller than the box it is painted in means something was cut.
+    const copy = prompt.locator("p");
+    await expect(copy).toContainText(
+      "PUBMAXXING uses optional analytics to see what people use. Never sold, no ads.",
+    );
+    const copyOverflow = await copy.evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(copyOverflow.scrollHeight).toBeLessThanOrEqual(copyOverflow.clientHeight + 1);
 
-  const fit = await consentFit(prompt);
-  expect(fit.boxHeight).toBeLessThanOrEqual(120);
-  expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+    // The banner is the one consent surface, so its route to /privacy may never
+    // be what a height ceiling cuts.
+    const privacy = prompt.getByRole("link", { name: "Privacy" });
+    await expect(privacy).toBeVisible();
+    await expect(privacy).toHaveAttribute("href", "/privacy");
+    const privacyBox = await privacy.boundingBox();
+    const promptBox = await prompt.boundingBox();
+    expect(privacyBox).not.toBeNull();
+    expect(promptBox).not.toBeNull();
+    expect(privacyBox!.height).toBeGreaterThanOrEqual(44);
+    expect(privacyBox!.y + privacyBox!.height).toBeLessThanOrEqual(
+      promptBox!.y + promptBox!.height,
+    );
 
-  await expect(privacy).toHaveAttribute("href", "/privacy");
-});
+    const fit = await consentFit(prompt);
+    expect(fit.boxHeight).toBeLessThanOrEqual(120);
+    expect(fit.scrollHeight).toBeLessThanOrEqual(120);
+  });
+}
