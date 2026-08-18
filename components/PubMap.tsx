@@ -1252,12 +1252,6 @@ export default function PubMap({
     });
   }, []);
 
-  useEffect(() => {
-    resetPinReveal();
-    setMapCanvasReady(false);
-    setMapCanvasErrored(false);
-  }, [cityId, resetPinReveal]);
-
   // A canvas that reports itself no longer ready has been torn down and is
   // re-initialising (Retry, soft retry, context loss). Its painted pins are
   // gone with it, so the reveal latch drops and the held frame comes back
