@@ -359,9 +359,9 @@ async function assertLandingContract(
   const firstRow = rows.first();
   const firstVenue = firstRow.locator(".drinkBrandDirectory__venue");
   const firstContribution = firstRow.getByRole("link", { name: "Log this price", exact: true });
-  // The hero already states rank 1's publisher word for word, so its row does
-  // not repeat it; every other rank states its own (docs/VOICE.md).
-  await expect(firstRow.locator(".drinkBrandDirectory__publisher")).toHaveCount(0);
+  // Every rank states its own publisher beside its own figure, rank 1
+  // included: the hero's copy sits above the h1 (docs/VOICE.md).
+  await expect(firstRow.locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
   const firstLedgerHref = `/ledger/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}`;
   const firstContributionHref = expectedContributionHref(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId,
@@ -385,8 +385,8 @@ async function assertLandingContract(
     await expect(pint, `row ${index + 1} pint should be visible`).toBeVisible();
     await expect(
       publisher,
-      `row ${index + 1} publisher should state its own record unless the hero already did`,
-    ).toHaveCount(index === 0 ? 0 : 1);
+      `row ${index + 1} publisher should state its own record`,
+    ).toHaveCount(1);
     await expect(contribution, `row ${index + 1} log action should be visible`).toBeVisible();
     await expect(price, `row ${index + 1} price should be visible`).toBeVisible();
     await expectTouchTarget(venue, `row ${index + 1} pub`);
@@ -395,10 +395,8 @@ async function assertLandingContract(
     await expectHorizontallyInsideViewport(page, pint, `row ${index + 1} pint`);
     await expectHorizontallyInsideViewport(page, contribution, `row ${index + 1} log action`);
     await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
-    if (index > 0) {
-      await expect(publisher, `row ${index + 1} publisher should be visible`).toBeVisible();
-      await expectHorizontallyInsideViewport(page, publisher, `row ${index + 1} publisher`);
-    }
+    await expect(publisher, `row ${index + 1} publisher should be visible`).toBeVisible();
+    await expectHorizontallyInsideViewport(page, publisher, `row ${index + 1} publisher`);
 
     const expectedVenueId = CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[index];
     expect(expectedVenueId, `row ${index + 1} should have a checked fixture identity`).toBeDefined();

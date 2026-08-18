@@ -213,11 +213,12 @@ async function assertLandingContract(page: Page): Promise<void> {
     .toBe("none");
   await expect(rows.first()).toContainText("J.J. Moon's - JD Wetherspoon");
   await expect(rows.first()).toContainText("£3.09");
-  // Exactly one publisher block per price: the hero states rank 1's, so rank 1's
-  // row does not repeat it, and every other rank states its own (docs/VOICE.md).
+  // One publisher block per price: the hero states the "From" figure's, and
+  // every row states its own beside its own figure, rank 1 included
+  // (docs/VOICE.md).
   await expect(page.locator(".drinkBrandDirectory__fromPublisher")).toHaveCount(1);
-  await expect(page.locator(".drinkBrandDirectory__publisher")).toHaveCount(19);
-  await expect(rows.first().locator(".drinkBrandDirectory__publisher")).toHaveCount(0);
+  await expect(page.locator(".drinkBrandDirectory__publisher")).toHaveCount(20);
+  await expect(rows.first().locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
   await expect(page.locator(".drinkBrandDirectory__venue")).toHaveCount(20);
 
   for (let index = 0; index < 20; index += 1) {
@@ -225,9 +226,7 @@ async function assertLandingContract(page: Page): Promise<void> {
     const rank = row.locator(".drinkBrandDirectory__rank");
     const price = row.locator(".drinkBrandDirectory__price");
     await expect(row.locator(".drinkBrandDirectory__venue")).toHaveCount(1);
-    await expect(row.locator(".drinkBrandDirectory__publisher")).toHaveCount(
-      index === 0 ? 0 : 1,
-    );
+    await expect(row.locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
     await expectHorizontallyInsideViewport(page, rank, `row ${index + 1} rank`);
     await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
     await expectTouchTarget(row.locator(".drinkBrandDirectory__venue"), `row ${index + 1} Ledger link`);
