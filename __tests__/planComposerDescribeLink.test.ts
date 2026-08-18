@@ -147,7 +147,7 @@ function clickButton(label: string): void {
 const HELD_ACCEPTANCE = {
   venueId: "venue-held",
   source: "pal" as const,
-  cityId: "london",
+  cityId: "london" as const,
   acceptedArea: null,
   startsAt: null,
 };
