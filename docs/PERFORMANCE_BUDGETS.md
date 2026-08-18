@@ -77,7 +77,7 @@ figure and the ceiling live in one place.
 | `note` | How the figure was taken, in one sentence. |
 
 The pin-ready test in `e2e/mobile-map-chrome-fit.spec.ts` opens the route cold,
-waits up to eight seconds on the painted-pin probe, and always records
+waits up to sixty seconds on the painted-pin probe, and always records
 `pinReadyMs` as a Playwright annotation. That proves pins paint on every run.
 
 The `targetMs` ceiling is enforced only when `PUBMAX_PIN_SLA_ENFORCE=1` is set

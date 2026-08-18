@@ -124,7 +124,7 @@ map.` The visible line is free to carry an aside and the announced one never is,
 because a joke in an accessible name is a joke at someone's expense. This frame's
 visible line stays plain on purpose - it is the first thing a cold arrival reads
 and it says which city is loading - so the split here is one of shape rather than
-of wit. `__tests__/mapLoadingChrome.test.ts` pins the accessible name and
+of wit. `__tests__/mapLoadingFrame.test.ts` pins the accessible name and
 `__tests__/mapLoadingCopy.test.ts` pins the visible line.
 
 The lines under **The north star** are settled. Each already carries its aside on
