@@ -49,6 +49,8 @@ vi.mock("@/lib/analytics", () => ({
 
 import PlanComposer from "@/components/plan/PlanComposer";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
+import { createPlanIntakeDraft, writePlanIntakeDraft } from "@/lib/planIntake";
+import { writePlanDraftEnvelope } from "@/lib/planDraft";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
 const DRAFT_ASK = "an older ask nobody asked for again";
@@ -103,6 +105,12 @@ async function mountComposer(): Promise<void> {
 function describeFieldValue(): string {
   const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query");
   if (!field) throw new Error("describe-first field did not render");
+  return field.value;
+}
+
+function conciergeFieldValue(): string {
+  const field = document.querySelector<HTMLInputElement>("#plan-concierge-query");
+  if (!field) throw new Error("concierge field did not render");
   return field.value;
 }
 
@@ -177,5 +185,59 @@ describe("PlanComposer describe prefill", () => {
     await mountComposer();
 
     expect(describeFieldValue()).toBe("");
+  });
+});
+
+// A URL ask is a fresher intention than anything the browser held, and the two
+// states below are the ones that used to hide the only surface showing it - so
+// the CTA landed on /plan with the ask nowhere on screen and nothing said.
+describe("PlanComposer never drops a URL ask", () => {
+  it("opens describe-first over an unfinished wizard draft", async () => {
+    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe(URL_ASK);
+  });
+
+  it("still opens on the wizard when no ask rides the URL", async () => {
+    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+
+    await mountComposer();
+
+    expect(
+      document.querySelector("#plan-describe-first-query"),
+      "an unfinished wizard draft still wins on its own",
+    ).toBeNull();
+  });
+
+  it("lands the ask in the composer's own field when a held pub opens it", async () => {
+    // A held acceptance opens the full composer, so describe-first never renders.
+    writePlanDraftEnvelope(
+      {
+        title: "",
+        creatorName: "",
+        startTime: "",
+        conciergeQuery: "",
+        stops: [{ key: 1, venueId: "venue-held", venueName: "The Held Arms" }],
+        acceptedAnchor: {
+          venueId: "venue-held",
+          source: "pal",
+          cityId: "london",
+          acceptedArea: null,
+          startsAt: null,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+      },
+      "planning-intent",
+      sessionStorage,
+    );
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+
+    expect(document.querySelector("#plan-describe-first-query")).toBeNull();
+    expect(conciergeFieldValue()).toBe(URL_ASK);
   });
 });

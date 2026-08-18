@@ -31,7 +31,12 @@ const COMPANION_KEY = "pubmax:first-run-companion:v1";
 const CHANGE_EVENT = "pubmax:first-run-tour";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined") return false;
+  try {
+    return !!window.localStorage;
+  } catch {
+    return false;
+  }
 }
 
 function notifyTourChange(): void {

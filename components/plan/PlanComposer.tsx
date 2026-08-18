@@ -1020,6 +1020,22 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
+/**
+ * The ask a `/plan` URL carries, read once at mount.
+ *
+ * `PlanComposerForm` is remounted under a fresh key the moment the page
+ * hydrates, so a lazy initialiser here sees the real address and no server
+ * render disagrees with it. Nothing but `window.location` is touched.
+ */
+function describeAskFromLocation(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return parsePlanDescribeFromSearch(window.location.search);
+  } catch {
+    return null;
+  }
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -1055,16 +1071,31 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [conciergeQuery, setConciergeQuery] = useState(draftFields.conciergeQuery);
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
-  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const [urlAsk] = useState(describeAskFromLocation);
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
-  // answers so far are not hidden behind the question they already passed.
-  const [entryMode, setEntryMode] = useState<"describe" | "wizard">(
-    hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
+  // answers so far are not hidden behind the question they already passed -
+  // unless the address itself carries an ask, which is a fresher intention
+  // than a draft they left behind, and the only surface that can show it.
+  const initialEntryMode: "describe" | "wizard" =
+    hasDurableIntakeDraft && !recoveredIntake.completed && !urlAsk ? "wizard" : "describe";
+  // A URL ask is never dropped in silence. Where describe-first cannot render
+  // it - a held acceptance opens the full composer instead - it lands in that
+  // surface's own field rather than nowhere.
+  const askNeedsConciergeField =
+    Boolean(urlAsk)
+    && !planComposerShowsDescribeFirst({
+      heldVenueId,
+      completed: recoveredIntake.completed,
+      entryMode: initialEntryMode,
+    });
+  const [conciergeQuery, setConciergeQuery] = useState(
+    draftFields.conciergeQuery || (askNeedsConciergeField ? urlAsk ?? "" : ""),
   );
-  const [askDraftQuery, setAskDraftQuery] = useState("");
+  const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
+  const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
   useEffect(() => {
     if (askDraftConsumedRef.current) return;

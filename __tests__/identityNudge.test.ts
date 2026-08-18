@@ -246,6 +246,10 @@ describe("identity nudge — the browser refuses site data", () => {
     installBlockedWindow();
   });
 
+  afterEach(() => {
+    clearWindow();
+  });
+
   it("reads as no nudge rather than throwing out of the render", () => {
     expect(() => getIdentityNudgeClientSnapshot()).not.toThrow();
     expect(getIdentityNudgeClientSnapshot()).toBeNull();

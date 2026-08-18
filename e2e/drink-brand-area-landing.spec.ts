@@ -228,7 +228,7 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
       return {
         rowHeight: row.getBoundingClientRect().height,
         detailsColumns: details ? getComputedStyle(details).gridTemplateColumns : "",
-        actionLeft: action ? Math.round(action.getBoundingClientRect().left) : null,
+        actionColumnStart: action ? getComputedStyle(action).gridColumnStart : null,
       };
     }),
   );
@@ -244,19 +244,21 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
     geometry.every(({ detailsColumns }) => detailsColumns.split(" ").length === 5),
     "desktop row details should use five horizontal information tracks",
   ).toBe(true);
-  // Rank 1 carries no publisher cell (the hero already states it), so the
-  // action would slide into the publisher's column unless it is placed by name.
-  // One column edge for every row is what proves it did not.
-  const actionLefts = geometry
-    .map(({ actionLeft }) => actionLeft)
-    .filter((left): left is number => left !== null);
-  expect(actionLefts.length, "every desktop row should carry a log action").toBe(
+  // Rank 1 carries no publisher cell (the hero already states it), so auto
+  // placement would slide its action into the publisher's column. The CSS
+  // states the rule as a track, so the track is what is asserted: a rendered
+  // edge would also move with the action's own label width, and the label
+  // differs by whether the row's pub is one the map can open.
+  const actionColumnStarts = geometry
+    .map(({ actionColumnStart }) => actionColumnStart)
+    .filter((start): start is string => start !== null);
+  expect(actionColumnStarts.length, "every desktop row should carry a log action").toBe(
     geometry.length,
   );
   expect(
-    new Set(actionLefts).size,
-    `every row's log action should share one column edge, saw ${[...new Set(actionLefts)].join(", ")}`,
-  ).toBe(1);
+    actionColumnStarts.every((start) => start === "5"),
+    `every row's log action should sit in the last track, saw ${[...new Set(actionColumnStarts)].join(", ")}`,
+  ).toBe(true);
 }
 
 // Never ?q=<area name>: `q` is a free-text VENUE filter, so an area name
