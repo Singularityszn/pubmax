@@ -13,6 +13,7 @@ import {
   OUT_DAY_WINDOWS,
   OUT_OPEN_PLANS_PLACEHOLDER_LINE,
   OUT_OPEN_PLANS_WAY_LABEL,
+  outListingsSectionTitle,
   type OutDayWindow,
 } from "@/lib/outListings";
 import { outStatusLines } from "@/lib/out/outStatus";
@@ -64,21 +65,9 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
         </nav>
       </header>
 
-      <section className="outPlans" aria-labelledby="out-plans-heading">
-        <h2 id="out-plans-heading" className="outSectionTitle">
-          Open plans
-        </h2>
-        <p className="outEmpty">
-          {OUT_OPEN_PLANS_PLACEHOLDER_LINE}{" "}
-          <Link href="/plan" className="outEmptyLink">
-            {OUT_OPEN_PLANS_WAY_LABEL}
-          </Link>
-        </p>
-      </section>
-
       <section className="outListings" aria-labelledby="out-listings-heading">
         <h2 id="out-listings-heading" className="outSectionTitle">
-          {DAY_LABEL[day]}
+          {outListingsSectionTitle(day)}
         </h2>
         {pending ? <ListingsSkeleton /> : null}
         {outStatusLines({ body, failed }).map((line) => (
@@ -91,6 +80,18 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             <OutCard key={row.id} row={row} onOpen={() => onOpen(row)} />
           ))}
         </ul>
+      </section>
+
+      <section className="outPlans" aria-labelledby="out-plans-heading">
+        <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+          Open plans
+        </h2>
+        <p className="outPlansPlaceholder">
+          {OUT_OPEN_PLANS_PLACEHOLDER_LINE}{" "}
+          <Link href="/plan" className="outPlansPlaceholderLink">
+            {OUT_OPEN_PLANS_WAY_LABEL}
+          </Link>
+        </p>
       </section>
     </main>
   );

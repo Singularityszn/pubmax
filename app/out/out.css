@@ -78,16 +78,24 @@
   margin: 0 0 22px;
 }
 
-.outEmpty {
-  margin: 0;
-  color: var(--ink-soft);
+.outPlansSectionTitle {
   font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+
+.outPlansPlaceholder {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
+  font-size: 0.88rem;
   line-height: 1.45;
 }
 
-.outEmptyLink {
-  color: var(--ink);
-  font-weight: 650;
+.outPlansPlaceholderLink {
+  color: color-mix(in srgb, var(--ink-soft) 92%, transparent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .outStatus {

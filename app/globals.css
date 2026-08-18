@@ -57,6 +57,17 @@
      __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
   --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
+  /* LOGIN PRIMARY ONLY. The one place a coral fill carries a WHITE label - the
+     /login primary and the magic-link button - because --brass under white is
+     below AA and those two controls are the front door. It is not a second
+     site-wide primary: the landing hero CTA and the map's sanctioned coral
+     marks stay on --brass with dark ink (--color-on-accent), pinned by
+     __tests__/landingFindMyPintHierarchy.test.ts and mapCoralEconomy.test.ts.
+     Do not repoint another surface at it without deciding the coral economy
+     first. One value for both themes, so the ratio cannot drift with the
+     theme; the hover mix darkens toward --ink-deep for the same reason
+     (__tests__/loginPage.test.ts holds both states to 4.5:1). */
+  --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;
@@ -4535,12 +4546,25 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     align-items: center;
     gap: 10px;
     width: auto;
+    max-height: 120px;
     padding: 10px;
+  }
+
+  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .analyticsConsentPrompt p {
     font-size: 0.72rem;
   }
+
+  /* NOTHING here clamps the sentence. A clamp on the card cuts the two buttons
+     that are the only way out of a fixed overlay; a clamp on the paragraph cuts
+     the banner's only route to the privacy notice, which is the last thing on
+     it; and a clamp on the sentence alone silently drops the "never sold"
+     half of the disclosure on a 320px phone. The card holds its 120px ceiling
+     by the COPY being short enough to wrap inside it at every phone width,
+     with the Privacy link riding the last line rather than a line of its own. */
 
   .analyticsConsentPromptActions {
     display: grid;

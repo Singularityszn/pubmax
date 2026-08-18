@@ -34,6 +34,7 @@ const REQUIRED_TARGETS: Partial<Record<LaunchRoute, readonly string[]>> = {
   "/discover": [".discoverBrandChip", "a.leaderboardPub"],
   "/pubs": [".pubsJumpChip"],
   "/social": [".findLot__ghost"],
+  "/login": [".authSignIn.authMagicLinkButton"],
 };
 
 const REQUIRED_TEXT_FIELDS: Partial<Record<LaunchRoute, readonly string[]>> = {

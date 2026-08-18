@@ -295,8 +295,9 @@ describe("login page", () => {
       /\.authSignIn\.authMagicLinkButton\s*{([^}]*)}/,
     )?.[1];
     expect(accent, "the accent rule must out-specify .authSignIn").toBeTruthy();
-    expect(accent).toMatch(/background:\s*var\(--brass\)/);
-    expect(accent).toMatch(/color:\s*var\(--color-on-accent\)/);
+    expect(accent).toMatch(/background:\s*var\(--brass-accessible\)/);
+    expect(accent).toMatch(/color:\s*var\(--color-on-photo\)/);
+    expect(accent).toMatch(/min-height:\s*44px/);
 
     // The handle-and-password door is the SECONDARY: a real control shape, and
     // never a second accent fill beside the primary.
@@ -310,5 +311,83 @@ describe("login page", () => {
     expect(toggle, "one filled accent on the page, and it is the primary").not.toMatch(
       /background:\s*var\(--brass\)/,
     );
+  });
+
+  // The primary is white-on-coral in BOTH states, so the hover fill is held to
+  // the same floor as the resting one. --ink is theme-dependent (near-white in
+  // dark), so a hover that mixed toward it LIGHTENED the coral and dropped the
+  // pair to ~3.95:1 on a dark device; the mix has to darken in every theme.
+  it("keeps white primary label contrast on the coral fill, resting and hover", () => {
+    const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+    const theme = readFileSync(join(process.cwd(), "app/theme.css"), "utf8");
+    const token = (css: string, name: string) =>
+      css.match(new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})`))?.[1];
+
+    const brassAccessible = token(globals, "brass-accessible");
+    const onPhoto = token(globals, "color-on-photo");
+    // Both themes declare --ink-deep; the dark one wins under html[data-theme].
+    const inkDeepLight = token(globals, "ink-deep");
+    const inkDeepDark = token(theme, "ink-deep");
+    expect(brassAccessible).toBeTruthy();
+    expect(onPhoto).toBeTruthy();
+    expect(inkDeepLight).toBeTruthy();
+    expect(inkDeepDark).toBeTruthy();
+
+    const channels = (hex: string) =>
+      [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+    const lum = (hex: string) => {
+      const [r, g, b] = channels(hex).map((c) => {
+        const v = c / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    // color-mix(in srgb, ...) interpolates the gamma-encoded channels.
+    const mix = (a: string, weight: number, b: string) => {
+      const [ar, ag, ab] = channels(a);
+      const [br, bg, bb] = channels(b);
+      const blend = (x: number, y: number) =>
+        Math.round(x * weight + y * (1 - weight))
+          .toString(16)
+          .padStart(2, "0");
+      return `#${blend(ar, br)}${blend(ag, bg)}${blend(ab, bb)}`;
+    };
+
+    expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
+
+    const hoverRule =
+      /color-mix\(in srgb, var\(--brass-accessible\) (\d+)%, var\(--([a-z-]+)\) (\d+)%\)/;
+    for (const [label, css] of [
+      ["app/auth/auth.css", readFileSync(join(process.cwd(), "app/auth/auth.css"), "utf8")],
+      [
+        "components/auth/loginPage.css",
+        readFileSync(join(process.cwd(), "components/auth/loginPage.css"), "utf8"),
+      ],
+    ] as const) {
+      const hover = css.match(hoverRule);
+      expect(hover, `${label} must state the primary hover fill as one mix`).toBeTruthy();
+      const [, accentPct, mixToken, otherPct] = hover!;
+      expect(Number(accentPct) + Number(otherPct)).toBe(100);
+      const mixedInto =
+        mixToken === "ink-deep"
+          ? [inkDeepLight!, inkDeepDark!]
+          : [token(globals, mixToken), token(theme, mixToken)].filter(Boolean) as string[];
+      expect(mixedInto.length, `${label} mixes toward an unresolved --${mixToken}`).toBe(2);
+      for (const other of mixedInto) {
+        const fill = mix(brassAccessible!, Number(accentPct) / 100, other);
+        expect(
+          ratio(onPhoto!, fill),
+          `${label} hover ${fill} (mixing --${mixToken} ${other})`,
+        ).toBeGreaterThanOrEqual(4.5);
+        expect(
+          lum(fill),
+          `${label} hover must darken, never lighten, the resting fill`,
+        ).toBeLessThanOrEqual(lum(brassAccessible!));
+      }
+    }
   });
 });

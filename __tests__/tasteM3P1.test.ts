@@ -54,10 +54,11 @@ describe("Lane M3 taste P1 fixes", () => {
     expect(secondary).toMatch(/border-color:\s*transparent/);
   });
 
-  it("#3 sign-in wall primary uses accent fill + on-accent text", () => {
-    const btn = ruleBody(authCss, ".authMagicLinkButton");
-    expect(btn).toMatch(/background:\s*var\(--brass\)/);
-    expect(btn).toMatch(/color:\s*var\(--color-on-accent\)/);
+  it("#3 sign-in wall primary uses accent fill + on-photo text", () => {
+    const btn = ruleBody(authCss, ".authSignIn.authMagicLinkButton");
+    expect(btn).toMatch(/background:\s*var\(--brass-accessible\)/);
+    expect(btn).toMatch(/color:\s*var\(--color-on-photo\)/);
+    expect(btn).toMatch(/min-height:\s*44px/);
   });
 
   it("#5 /moment photo drop uses a solid hairline, not a dashed placeholder", () => {

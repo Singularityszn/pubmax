@@ -26,8 +26,11 @@ describe("shared vibe chip skin", () => {
     const css = readFileSync(join(root, "components/vibe/vibeChips.css"), "utf8");
     expect(css).toMatch(/\.vibeChip\s*\{/);
     expect(css).toMatch(/min-height:\s*44px/);
-    expect(css).toMatch(/text-transform:\s*uppercase/);
-    expect(css).toMatch(/var\(--font-party/);
+    expect(css).not.toMatch(/text-transform:\s*uppercase/);
+    expect(css).toMatch(/font-family:\s*var\(--font-display\)/);
+    // Bungee has cap-height glyphs only, so the party face would render the
+    // sentence-case label as ALL CAPS whatever text-transform said.
+    expect(css).not.toMatch(/--font-party/);
     expect(css).toMatch(/\.vibeChip\[data-active="true"\]/);
   });
 });

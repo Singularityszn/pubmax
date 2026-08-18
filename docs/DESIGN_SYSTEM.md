@@ -60,6 +60,7 @@ Literal values and the deliberate map/root versus DOM/body split live in
 | `--paper`, `--panel`, `--panel-raised`, `--panel-overlay` | page-to-overlay elevation ladder |
 | `--ink-deep` | inverse and stamp-dark chrome |
 | `--brass`, `--brass-bright` | Plan CTA and identity accent |
+| `--brass-accessible` | login primary only - deepened coral that carries a white label at AA |
 | `--pint`, `--amber`, `--brick` | price and status semantics |
 | `--river`, `--river-bright` | heritage and by-water information |
 
@@ -110,6 +111,13 @@ fills keep fixed text colours. Exact values live in `app/globals.css` and
 --color-on-accent-strong   dark text on coral or brass-bright
 --color-on-photo           white text on a photo-scrim overlay
 ```
+
+The `/login` primary and the magic-link button are the one coral fill that
+carries a **white** label (`--color-on-photo`). They paint `--brass-accessible`,
+a deepened coral, because `--brass` under white is below AA. It is not a second
+site-wide primary: the landing hero CTA and the map's sanctioned coral marks
+stay on `--brass` with dark ink. `app/globals.css` owns the rationale beside the
+token, and `__tests__/loginPage.test.ts` holds both states to 4.5:1.
 
 ## Type
 
