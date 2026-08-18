@@ -369,20 +369,26 @@
 }
 
 /* Tap to view full. A dialog rather than a new tab: the thread is still there
-   behind it, and Escape is the way out on every platform. */
+   behind it, and Escape is the way out on every platform.
+   "View full" is a FULL-FRAME view, and the bug being fixed was a phone one, so
+   a desktop keeps the 60rem / 92dvh room it has always had. The narrow caps
+   belong to the 640px rule below, the shared mobile breakpoint
+   (lib/breakpoints.ts), where the composer and nav stay visible around it. */
 .messagePhotoViewer {
   width: min(96vw, 60rem);
-  max-width: 96vw;
+  max-width: calc(100vw - 2rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px));
   max-height: 92dvh;
+  margin: auto;
   padding: 0;
   border: none;
   border-radius: 0.8rem;
   background: var(--panel);
   color: var(--ink);
+  overflow: hidden;
 }
 
 .messagePhotoViewer::backdrop {
-  background: rgb(0 0 0 / 72%);
+  background: rgb(0 0 0 / 52%);
 }
 
 .messagePhotoViewerImage {
@@ -391,6 +397,26 @@
   height: auto;
   max-height: calc(92dvh - 56px);
   object-fit: contain;
+}
+
+/* The phone bound. A dialog the width of the screen reads as a page rather than
+   a look at one photograph, and the close control has to stay reachable above
+   the home indicator. */
+@media (max-width: 640px) {
+  .messagePhotoViewer {
+    width: min(88vw, 36rem);
+    max-height: min(
+      72dvh,
+      calc(100dvh - 7rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
+    );
+  }
+
+  .messagePhotoViewerImage {
+    max-height: min(
+      60dvh,
+      calc(100dvh - 9rem - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px))
+    );
+  }
 }
 
 .messagePhotoViewerClose {
@@ -757,6 +783,48 @@
   font: inherit;
   text-decoration: underline;
   cursor: pointer;
+}
+
+/* Crop step inside the thread: a card over the composer, not a full-screen page.
+   It is a modal, so it sits ABOVE the phone tab bar (--z-tabbar, 1350) and below
+   the splash takeover (1400). At z-index 30 the bar painted its opaque pill over
+   the card's own Use photo / Cancel row, so the two controls were untappable on
+   the one surface this card exists for. The phone rule below also reserves the
+   bar's lane, so the card is never merely painted on top of it. */
+.messageCropOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: calc(var(--z-tabbar) + 10);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding:
+    0.75rem
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px));
+  background: rgb(0 0 0 / 45%);
+}
+
+/* 640px is the shared mobile breakpoint (lib/breakpoints.ts), the width the tab
+   bar itself appears at. Above it there is no bar and no lane to reserve. */
+@media (max-width: 640px) {
+  .messageCropOverlay {
+    padding-bottom: calc(
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 0.75rem
+    );
+  }
+}
+
+.messageCropCard {
+  width: min(100%, 24rem);
+  max-height: min(70dvh, calc(100dvh - 6rem - env(safe-area-inset-top, 0px)));
+  overflow: auto;
+  padding: 0.75rem;
+  border: 1px solid var(--line);
+  border-radius: 0.8rem;
+  background: var(--panel);
+  box-shadow: 0 12px 40px rgb(0 0 0 / 22%);
 }
 
 .threadError {

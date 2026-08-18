@@ -1,6 +1,10 @@
-// The handles this profile follows (its followees). Powers the Friends feed lane
-// (lib/feed.ts): the /feed page fetches this once for the viewer's own handle,
-// then keeps only drops authored by a handle in the returned set.
+// The people this profile follows (its followees). Every row is one
+// `FollowListEntry` (lib/followList.ts): a handle, plus a display name and an
+// approved owned avatar when the profile read offers them. Powers the Friends
+// feed lane (lib/feed.ts): the /feed page fetches this once for the viewer's own
+// handle, then keeps only drops authored by a handle in the returned set, which
+// it reads through `followListHandleSet` rather than trusting the row to be a
+// bare string.
 //
 // Store choice is the same seam as the sibling routes: Supabase when configured,
 // process-memory otherwise. This is a pure read and MUST never 500 — a bad
@@ -8,6 +12,7 @@
 // (the Friends lane just falls through to its "follow people" empty state).
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -24,7 +29,8 @@ export async function GET(
   if (!handle) return jsonNoStore({ following: [] }, { status: 200 });
 
   try {
-    const following = await followStore().listFollowing(handle);
+    const handles = await followStore().listFollowing(handle);
+    const following = await followListEntries(handles);
     return jsonNoStore({ following }, { status: 200 });
   } catch {
     // Fail-soft: a backend error must not break the feed. The Friends lane will

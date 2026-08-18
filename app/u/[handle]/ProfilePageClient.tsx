@@ -1103,6 +1103,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                           bio: stored?.bio,
                           homeCity: stored?.homeCity,
                           avatarUrl: stored?.avatarUrl,
+                          coverUrl: stored?.coverUrl,
+                          coverUrls: stored?.coverUrls,
                           favouriteDrink: stored?.favouriteDrink,
                           interests: stored?.interests,
                           workplace: stored?.workplace,

@@ -25,6 +25,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { followListHandleSet } from "@/lib/followList";
 import {
   followActionDescription,
   followActionLabel,
@@ -151,11 +152,7 @@ export default function PeopleDirectory({
         }
         if (followingResponse.ok) {
           const body = (await followingResponse.json()) as { following?: unknown };
-          setFollowed(
-            new Set(
-              Array.isArray(body.following) ? (body.following as string[]) : [],
-            ),
-          );
+          setFollowed(followListHandleSet(body.following));
         }
       } catch {
         // The directory still lists people without the relation overlay.

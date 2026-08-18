@@ -1282,87 +1282,25 @@
   align-items: center;
 }
 
-/* ── Crop step ───────────────────────────────────────────────────────────
-   Between picking a photo and uploading it. The frame is the slot's own
-   shape, so what a person positions is exactly what the card will paint. */
-.profilePage .profileCropStep {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  width: 100%;
-}
-
+/* ── Crop step ────────────────────────────────────────────
+   The step itself is styled once, in components/profile/profileImageCropper.css,
+   which the component imports. What stays here is the profile page's own share:
+   the face's square, its round mask, and one specificity override. */
 .profilePage .profileCropStep-avatar {
   max-width: 320px;
 }
 
-.profilePage .profileCropFrame {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--line);
-  background: var(--panel-raised);
-  /* The gesture belongs to the crop, so the browser must not read a drag as a
-     page scroll or a pinch as a page zoom. */
-  touch-action: none;
-  cursor: grab;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.profilePage .profileCropFrame:active {
-  cursor: grabbing;
-}
-
-.profilePage .profileCropFrame:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.profilePage .profileCropImage {
-  position: absolute;
-  top: 0;
-  left: 0;
-  /* Natural size, then one transform: the arithmetic in
-     lib/profileImagePicker.ts treats the untransformed image as its own pixel
-     grid, so a stylesheet must not resize it first. */
-  width: auto;
-  height: auto;
-  max-width: none;
-  max-height: none;
-  transform-origin: 0 0;
-  will-change: transform;
-  pointer-events: none;
-}
-
-/* A face is served round, so the frame shows the round part of the square. */
-.profilePage .profileCropMask {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-}
-
+/* A face is served round, so the frame dims outside the round part of the
+   square. A rectangular slot has nothing to dim, which is why the shared mask
+   carries no shadow. */
 .profilePage .profileCropStep-avatar .profileCropMask {
   border-radius: 50%;
   box-shadow: 0 0 0 9999px color-mix(in srgb, var(--paper) 62%, transparent);
 }
 
-.profilePage .profileCropZoom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-
-.profilePage .profileCropZoom label {
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--ink);
-}
-
 /* One attribute selector more specific than `.profilePage .profileEditor
    input` above, which would otherwise give the slider that rule's border,
-   padding and box treatment. */
+   padding and box treatment. The shared sheet's class-only rule cannot win it. */
 .profilePage .profileCropZoom input[type="range"] {
   flex: 1 1 auto;
   min-width: 0;
@@ -1371,49 +1309,6 @@
   border: 0;
   background: transparent;
   accent-color: var(--brass);
-}
-
-/* One row at every width. The two buttons share it, so neither can grow wide
-   enough to drop the other onto a line of its own. */
-.profilePage .profileCropActions {
-  display: flex;
-  gap: 10px;
-}
-
-.profilePage .profileCropConfirm,
-.profilePage .profileCropCancel {
-  flex: 1 1 0;
-  min-width: 0;
-  min-height: 44px;
-  padding: 8px 12px;
-  border-radius: var(--radius-sm);
-  font-size: 0.88rem;
-  font-weight: 600;
-  cursor: pointer;
-  border: 1px solid var(--brass);
-}
-
-.profilePage .profileCropConfirm {
-  background: var(--brass);
-  color: var(--paper);
-}
-
-.profilePage .profileCropCancel {
-  background: transparent;
-  color: var(--ink-soft);
-  border-color: var(--line);
-}
-
-/* The failed state is a sentence and a way back, so its Cancel keeps its own
-   size rather than stretching across the row. */
-.profilePage .profileCropStepFailed .profileCropCancel {
-  flex: 0 0 auto;
-}
-
-.profilePage .profileCropConfirm:disabled,
-.profilePage .profileCropCancel:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 /* The real file input is hidden behind its own button, so it must take no room.

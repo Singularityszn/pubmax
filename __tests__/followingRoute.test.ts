@@ -21,9 +21,24 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/profiles/[handle]/following/route";
 import { memoryFollowStore, __resetMemoryFollows } from "@/lib/followStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  memoryProfileStore,
+  __resetMemoryProfiles,
+  __seedMemoryOwnedProfile,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const URL_BASE = "http://localhost/api/profiles";
+const AVATAR_GENERATION = "11111111-1111-1111-8111-111111111111";
+
+function followEntry(handle: string, extra?: { displayName?: string; avatarUrl?: string }) {
+  return { handle, ...extra };
+}
+
+function followingHandles(body: { following: Array<{ handle: string }> }): Set<string> {
+  return new Set(body.following.map((row) => row.handle));
+}
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -44,7 +59,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/profiles/[handle]/following", () => {
-  it("returns the normalized handles a handle follows", async () => {
+  it("returns enriched rows for handles a profile follows", async () => {
     await memoryFollowStore.follow("ken", "sam");
     await memoryFollowStore.follow("ken", "lee");
 
@@ -52,14 +67,34 @@ describe("GET /api/profiles/[handle]/following", () => {
     expect(res.status).toBe(200);
     expectNoStore(res);
     const body = await res.json();
-    // Order isn't part of the contract — compare as a set.
-    expect(new Set(body.following)).toEqual(new Set(["sam", "lee"]));
-    // Every entry is a normalized handle, never a raw id.
-    for (const h of body.following) expect(h).toMatch(/^[a-z0-9_]+$/);
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee"]));
+    for (const row of body.following) {
+      expect(row).toMatchObject({ handle: expect.stringMatching(/^[a-z0-9_]+$/) });
+    }
+  });
+
+  it("projects an owned avatar onto a followee when one exists", async () => {
+    // An owned avatar only exists on a CLAIMED handle - the upload is bound to
+    // the owner's own session - so the followee is seeded linked, the way the
+    // rest of the public avatar reads already require.
+    __seedMemoryOwnedProfile("sam", "user-sam");
+    await memoryFollowStore.follow("ken", "sam");
+    const profile = await memoryProfileStore.getByHandle("sam");
+    await memoryProfileStore.setOwnedImage("sam", "avatar", {
+      objectKey: profileImageServingKey("avatar", profile!.id, AVATAR_GENERATION),
+      generation: AVATAR_GENERATION,
+      moderationState: "approved",
+    });
+
+    const body = await (await following("ken")).json();
+    expect(body.following).toEqual([
+      followEntry("sam", {
+        avatarUrl: `/api/avatar/${profile!.id}/${AVATAR_GENERATION}`,
+      }),
+    ]);
   });
 
   it("returns { following: [] } for a handle that follows nobody", async () => {
-    // Give ken a profile (as a followee) but no OUTGOING edges of his own.
     await memoryFollowStore.follow("sam", "ken");
 
     const res = await following("ken");
@@ -78,12 +113,11 @@ describe("GET /api/profiles/[handle]/following", () => {
   it("normalizes the queried handle before resolving its followees", async () => {
     await memoryFollowStore.follow("ken", "sam");
 
-    // "@Ken" and "KEN" collapse to the same identity as the seeded "ken".
     const atKen = await following("@Ken");
-    expect(await atKen.json()).toEqual({ following: ["sam"] });
+    expect(await atKen.json()).toEqual({ following: [followEntry("sam")] });
 
     const upperKen = await following("KEN");
-    expect(await upperKen.json()).toEqual({ following: ["sam"] });
+    expect(await upperKen.json()).toEqual({ following: [followEntry("sam")] });
   });
 
   it("never 500s on an empty handle — returns { following: [] }, not a 400/500", async () => {
@@ -93,8 +127,6 @@ describe("GET /api/profiles/[handle]/following", () => {
   });
 
   it("never 500s on a blank / junk handle that normalizes to empty", async () => {
-    // Whitespace, a bare "@", and off-alphabet junk all normalize to "" — the
-    // route's empty-handle branch returns the uniform empty shape (never a 400).
     for (const junk of ["   ", "@", "@@@", "!!!", "###"]) {
       const res = await following(junk);
       expect(res.status).toBe(200);
@@ -106,8 +138,12 @@ describe("GET /api/profiles/[handle]/following", () => {
     await memoryFollowStore.follow("ken", "sam");
     await memoryFollowStore.follow("lee", "zoe");
 
-    expect(await (await following("ken")).json()).toEqual({ following: ["sam"] });
-    expect(await (await following("lee")).json()).toEqual({ following: ["zoe"] });
+    expect(await (await following("ken")).json()).toEqual({
+      following: [followEntry("sam")],
+    });
+    expect(await (await following("lee")).json()).toEqual({
+      following: [followEntry("zoe")],
+    });
   });
 
   it("reflects an unfollow — the dropped followee leaves the list", async () => {
@@ -116,7 +152,7 @@ describe("GET /api/profiles/[handle]/following", () => {
     await memoryFollowStore.unfollow("ken", "sam");
 
     const res = await following("ken");
-    expect(await res.json()).toEqual({ following: ["lee"] });
+    expect(await res.json()).toEqual({ following: [followEntry("lee")] });
   });
 
   it("returns a JSON body of exactly { following } and leaks no profile_id / actor_hash / raw id", async () => {
@@ -124,18 +160,81 @@ describe("GET /api/profiles/[handle]/following", () => {
 
     const res = await following("ken");
     const body = await res.json();
-    // The public shape is exactly one key: `following`.
     expect(Object.keys(body)).toEqual(["following"]);
 
-    // The serialized response must not leak any internal identifier. The memory
-    // profile id is `mem-profile-<handle>`; the Supabase edge carries profile_id
-    // / follower_id / followee_id / actor_hash — none may cross the wire.
     const blob = JSON.stringify(body);
     expect(blob).not.toMatch(/mem-profile-/i);
     expect(blob).not.toMatch(/profile_?id/i);
     expect(blob).not.toMatch(/follower_?id/i);
     expect(blob).not.toMatch(/followee_?id/i);
     expect(blob).not.toMatch(/actor_?hash/i);
+  });
+
+  it("reads every followee in ONE store round trip, not one per handle", async () => {
+    // The route is public, unpaginated and unauthenticated, so a point read per
+    // follower fans out one backend call per row on a well-followed profile.
+    for (const followee of ["sam", "lee", "zoe", "ash"]) {
+      await memoryFollowStore.follow("ken", followee);
+    }
+    const batch = vi.spyOn(memoryProfileStore, "getPublicCardsByHandles");
+    const point = vi.spyOn(memoryProfileStore, "getByHandle");
+
+    const body = await (await following("ken")).json();
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee", "zoe", "ash"]));
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledWith(
+      expect.arrayContaining(["sam", "lee", "zoe", "ash"]),
+    );
+    // The follow store resolves the FOLLOWER itself; no followee is point-read.
+    const pointReads = point.mock.calls.map(([handle]) => handle);
+    expect(pointReads).not.toContain("sam");
+    expect(pointReads).not.toContain("lee");
+    expect(pointReads).not.toContain("zoe");
+    expect(pointReads).not.toContain("ash");
+    batch.mockRestore();
+    point.mockRestore();
+  });
+
+  it("keeps the whole list when the profile read for its names and faces fails", async () => {
+    // Enrichment is decoration. A failed profile read used to reject the whole
+    // projection, and the route's catch then answered { following: [] } — which
+    // the Friends feed lane and the followers page read as "you follow nobody".
+    await memoryFollowStore.follow("ken", "sam");
+    await memoryFollowStore.follow("ken", "lee");
+    const batch = vi
+      .spyOn(memoryProfileStore, "getPublicCardsByHandles")
+      .mockRejectedValue(new Error("profile store down"));
+
+    const res = await following("ken");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee"]));
+    for (const row of body.following) {
+      expect(row).toEqual({ handle: row.handle });
+    }
+    batch.mockRestore();
+  });
+
+  it("never names a departed account, though its handle stays on the list", async () => {
+    // The auth-deletion trigger nulls the images and leaves `display_name`, so a
+    // card projection without a tombstone gate printed a departed person's real
+    // name beside their handle to any anonymous caller of this public route.
+    __seedMemoryOwnedProfile("gone", "user-gone");
+    await memoryFollowStore.follow("ken", "gone");
+    await memoryProfileStore.update("gone", { displayName: "Departed Person" });
+    const profile = await memoryProfileStore.getByHandle("gone");
+    await memoryProfileStore.setOwnedImage("gone", "avatar", {
+      objectKey: profileImageServingKey("avatar", profile!.id, AVATAR_GENERATION),
+      generation: AVATAR_GENERATION,
+      moderationState: "approved",
+    });
+    __tombstoneMemoryProfile("gone");
+
+    const body = await (await following("ken")).json();
+    expect(body.following).toEqual([followEntry("gone")]);
+    const blob = JSON.stringify(body);
+    expect(blob).not.toContain("Departed Person");
+    expect(blob).not.toContain("/api/avatar/");
   });
 
   it("advertises a JSON response and never a non-200 status", async () => {

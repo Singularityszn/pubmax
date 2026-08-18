@@ -68,6 +68,33 @@ function rule(selector: string): string {
   return CSS.slice(at, CSS.indexOf("}", at));
 }
 
+/**
+ * The same, but read out of a `@media (max-width: 640px)` block - the shared
+ * mobile breakpoint. Brace-matched, so a selector that only exists OUTSIDE the
+ * block cannot satisfy a phone assertion.
+ */
+function phoneRule(selector: string): string {
+  const marker = "@media (max-width: 640px)";
+  for (let from = CSS.indexOf(marker); from > -1; from = CSS.indexOf(marker, from + 1)) {
+    let depth = 0;
+    let end = from;
+    for (let at = CSS.indexOf("{", from); at < CSS.length && at > -1; at += 1) {
+      if (CSS[at] === "{") depth += 1;
+      if (CSS[at] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = at;
+          break;
+        }
+      }
+    }
+    const block = CSS.slice(from, end);
+    const at = block.indexOf(`${selector} {`);
+    if (at > -1) return block.slice(at, block.indexOf("}", at));
+  }
+  throw new Error(`${selector} is missing from every 640px block in app/messages/messages.css`);
+}
+
 describe("a bubble's width is the row's business, never the bubble's own", () => {
   it("puts the width limit on the line, with the row to measure against", () => {
     const line = rule(".messageLine");
@@ -305,3 +332,30 @@ describe("a photo tile is measured against the screen, never the reader's font",
     expect(card).not.toMatch(/(height|aspect-ratio):/);
   });
 });
+
+describe("a phone crop and lightbox stay bounded, not full-screen", () => {
+  it("anchors the crop step in a bottom card over a dimmed thread", () => {
+    const overlay = rule(".messageCropOverlay");
+    expect(overlay).toMatch(/align-items:\s*flex-end/);
+    expect(overlay).not.toMatch(/align-items:\s*stretch/);
+    const card = rule(".messageCropCard");
+    expect(card).toMatch(/width:\s*min\(100%,\s*24rem\)/);
+    expect(card).toMatch(/max-height:\s*min\(70dvh/);
+  });
+
+  it("keeps the lightbox dialog inside the viewport on phone", () => {
+    // The narrow caps belong to the phone alone: a desktop "view full" keeps
+    // the 60rem / 92dvh room it has always had, so the bound is read out of the
+    // 640px block rather than the base rule.
+    const viewer = phoneRule(".messagePhotoViewer");
+    expect(viewer).toMatch(/width:\s*min\(88vw,\s*36rem\)/);
+    expect(viewer).toMatch(/max-height:\s*min\(\s*72dvh/);
+    expect(viewer).not.toMatch(/width:\s*100vw/);
+    expect(viewer).not.toMatch(/height:\s*100vh/);
+    expect(rule(".messagePhotoViewerImage")).toMatch(/object-fit:\s*contain/);
+  });
+});
+// The desktop half of that bound is a RENDERED claim about a 1280px dialog, so
+// it is measured in e2e/message-bubble-geometry.spec.ts rather than read off the
+// stylesheet here: a clamp or a custom property would keep the pixels and fail a
+// regex, and a rule the cascade has killed would pass one.

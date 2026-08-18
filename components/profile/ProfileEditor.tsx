@@ -13,6 +13,7 @@ import {
   profileImageCropTarget,
 } from "@/lib/profileImagePicker";
 import type { ProfileImageSlot } from "@/lib/profileImageSlots";
+import { profileCoverUrls } from "@/lib/profileCovers";
 import type { PublicProfile } from "@/lib/profiles";
 
 // Inline "edit my profile" form for the owner of a handle. The page mounts this
@@ -72,6 +73,8 @@ type ProfileEditorProps = {
     bio?: string;
     homeCity?: string;
     avatarUrl?: string;
+    coverUrl?: string;
+    coverUrls?: string[];
     favouriteDrink?: string;
     interests?: string;
     workplace?: string;
@@ -116,6 +119,18 @@ export default function ProfileEditor({
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
+  // DERIVED, never held. The text fields above are snapshot-once on purpose -
+  // resyncing one would clobber what the owner is typing - but the held covers
+  // are a READ of the profile, not something anybody edits here, and the page
+  // above already owns that row: an image write reports up through
+  // `onProfileChanged`, the page stores it, and it arrives back as this prop.
+  // Held as state it froze at mount, so an owner who reached `?edit=1` before
+  // the profile read landed got `[]` for the life of the session and the
+  // single-cover Remove control never appeared for them.
+  const heldCoverUrls = profileCoverUrls({
+    coverUrl: initial.coverUrl,
+    coverUrls: initial.coverUrls,
+  });
   const [imageError, setImageError] = useState<Record<ProfileImageSlot, string | null>>({
     avatar: null,
     cover: null,
@@ -271,7 +286,11 @@ export default function ProfileEditor({
       <fieldset className="profileEditorGroup profileEditorGroupLook" disabled={formBusy}>
         <legend>Your look</legend>
 
-        <ProfileCoverPhotosEditor handle={handle} onProfileChanged={onProfileChanged} />
+        <ProfileCoverPhotosEditor
+          handle={handle}
+          heldCoverUrls={heldCoverUrls}
+          onProfileChanged={onProfileChanged}
+        />
 
         <div className="profileEditorField profileEditorAvatarField">
           <span className="profileEditorAvatarLabel" id="pe-avatar-label">

@@ -265,7 +265,67 @@ export function profileCoverThumbnailLabel(position: number): string {
 export const PROFILE_COVER_MOVE_UP_LABEL = "Move up";
 export const PROFILE_COVER_MOVE_DOWN_LABEL = "Move down";
 export const PROFILE_COVER_REMOVE_LABEL = "Remove";
+/** The field-level control beside Add cover, matching the avatar's Remove photo. */
+export const PROFILE_COVER_REMOVE_ALL_LABEL = "Remove cover";
 export const PROFILE_COVER_ADD_LABEL = "Add cover";
+
+/** Shown before a field-level remove clears every cover and restores the default band. */
+export function profileCoverRemoveConfirmLine(): string {
+  return "Remove your cover photo? Your profile will go back to the default backdrop.";
+}
+
+/**
+ * The EDITOR's own view of the rotation read, which is one state wider than the
+ * wire's: a route answers `ready` or `degraded`, but a surface holding neither
+ * yet has not asked. "Not asked" is not "empty", and merging the two is what let
+ * a remove be armed at the wrong lane while the GET was still in flight.
+ */
+export type ProfileCoverReadState = ProfileCoverReadStatus | "loading";
+
+export type ProfileCoverRemoveLane = "rotation" | "mirror" | "none" | "unavailable";
+
+/**
+ * Which lane a field-level "Remove cover" belongs in, decided ONCE.
+ *
+ * "The rotation is empty", "we could not read the rotation" and "we have not
+ * asked yet" are THREE findings. An editor that merged any of them classified an
+ * owner with five rotation rows as mirror-only, sent the remove at the
+ * single-cover DELETE, cleared `profiles.cover_*` alone and reported success:
+ * every row survived and the backdrop kept rotating. The mirror-only CARD and
+ * the remove lane read this one answer, so the thing shown and the thing done
+ * cannot disagree.
+ */
+export function profileCoverRemoveLane(input: {
+  status: ProfileCoverReadState;
+  rotationCount: number;
+  mirrorCount: number;
+}): ProfileCoverRemoveLane {
+  if (input.status !== "ready") return "unavailable";
+  if (input.rotationCount > 0) return "rotation";
+  if (input.mirrorCount > 0) return "mirror";
+  return "none";
+}
+
+/**
+ * The sentence under the field, or nothing. A read still in flight gets NO
+ * sentence: "no cover photo yet" is a claim about the rotation, and the only
+ * honest thing to say before it answers is nothing at all.
+ */
+export function profileCoverStatusLine(state: ProfileCoverReadState): string | null {
+  if (state === "loading") return null;
+  return profileCoverEmptyLine(state);
+}
+
+/**
+ * Why a field-level remove will not run. A read that could NOT answer says so:
+ * an empty rotation list from a failed read is not an empty rotation, and
+ * routing the remove to the single-cover lane on that guess clears the mirror
+ * while every rotation row survives, so the backdrop keeps rotating over a
+ * receipt that said it was gone.
+ */
+export function profileCoverRemoveUnavailableLine(): string {
+  return "We could not read your cover photos just now, so nothing was removed. Try again in a moment.";
+}
 
 export const PROFILE_COVER_REFUSED_LINE =
   "That cover photo did not pass our checks. Choose another.";

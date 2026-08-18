@@ -152,4 +152,40 @@ test.describe("A profile statistic is a way in", () => {
     await expect(page.getByRole("heading", { name: "Following" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Followers" })).toHaveCount(0);
   });
+
+  test("following rows paint owned avatars when the API carries them at 390px", async ({
+    page,
+  }) => {
+    await page.route("**/api/profiles/pubmaxx/following", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          following: [
+            {
+              handle: "alice",
+              displayName: "Alice",
+              avatarUrl: "/api/avatar/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa/1",
+            },
+          ],
+        }),
+      });
+    });
+    await page.route("**/api/profiles/pubmaxx/lot", async (route) => {
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ lot: [] }),
+      });
+    });
+    await page.goto("/u/pubmaxx/people/following");
+    await expect(page.getByRole("heading", { name: "Following" })).toBeVisible();
+    const avatar = page.locator(".peopleDir__avatar img");
+    await expect(avatar).toHaveCount(1);
+    await expect(avatar).toBeVisible();
+    await expect(avatar).toHaveAttribute(
+      "src",
+      /\/api\/avatar\/aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa\/1/,
+    );
+  });
 });

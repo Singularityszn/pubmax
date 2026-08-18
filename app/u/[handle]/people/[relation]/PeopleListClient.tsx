@@ -2,8 +2,9 @@
 
 // Followers and Following for one handle, and who among them is a mate.
 //
-// Both directions read the same shape (a list of handles) from their own public
-// route, and the mutual overlay is the intersection with this handle's /lot.
+// Both directions read the same shape (a list of `FollowListEntry` rows) from
+// their own public route, through the ONE parser in lib/followList.ts, and the
+// mutual overlay is the intersection with this handle's /lot.
 // That matters because the two lists look identical otherwise: a follower who
 // is also followed back is a MATE, and a list that cannot say so is a list of
 // strangers. The relation word comes from lib/followRelation.ts so this file
@@ -17,6 +18,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { followRelationHint, resolveFollowRelation } from "@/lib/followRelation";
 import { displayHandle } from "@/lib/handleDisplay";
+import { type FollowListEntry, parseFollowListEntry } from "@/lib/followList";
 import { normalizeHandle } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
@@ -56,7 +58,7 @@ export default function PeopleListClient({
   relation: PeopleRelation;
 }) {
   const [status, setStatus] = useState<LoadState>("loading");
-  const [handles, setHandles] = useState<string[]>([]);
+  const [people, setPeople] = useState<FollowListEntry[]>([]);
   const [mutuals, setMutuals] = useState<Set<string>>(new Set());
   const [attempt, setAttempt] = useState(0);
 
@@ -76,8 +78,10 @@ export default function PeopleListClient({
         (body) => {
           const rows = body[relation];
           if (!Array.isArray(rows)) return false;
-          setHandles(
-            rows.filter((row): row is string => typeof row === "string" && row.length > 0),
+          setPeople(
+            rows
+              .map((row) => parseFollowListEntry(row))
+              .filter((row): row is FollowListEntry => row !== null),
           );
           setStatus("ready");
           return true;
@@ -96,7 +100,7 @@ export default function PeopleListClient({
       );
       const [listOutcome] = await Promise.all([listPromise, lotPromise]);
       if (listOutcome === "failed" && !controller.signal.aborted) {
-        setHandles([]);
+        setPeople([]);
         setStatus("error");
       }
     })();
@@ -140,14 +144,14 @@ export default function PeopleListClient({
             Try again
           </button>
         </div>
-      ) : handles.length === 0 ? (
+      ) : people.length === 0 ? (
         <p className="peopleDir__body" role="status">
           {EMPTY[relation]}
         </p>
       ) : (
         <ul className="peopleDir__grid">
-          {handles.map((entry) => {
-            const clean = normalizeHandle(entry);
+          {people.map((entry) => {
+            const clean = entry.handle;
             // Seen from THIS profile: a row in Followers already follows it, a
             // row in Following is already followed by it, and /lot decides the
             // other edge.
@@ -164,11 +168,20 @@ export default function PeopleListClient({
                   href={`/u/${encodeURIComponent(clean)}`}
                 >
                   <span className="peopleDir__avatar" aria-hidden="true">
-                    {initial(clean)}
+                    {entry.avatarUrl ? (
+                      // eslint-disable-next-line @next/next/no-img-element -- owned avatar path
+                      <img src={entry.avatarUrl} alt="" loading="lazy" decoding="async" />
+                    ) : (
+                      initial(clean)
+                    )}
                   </span>
                   <span className="peopleDir__names">
                     <span className="peopleDir__handle">{displayHandle(clean)}</span>
-                    {hint ? <span className="peopleDir__display">{hint}</span> : null}
+                    {entry.displayName ? (
+                      <span className="peopleDir__display">{entry.displayName}</span>
+                    ) : hint ? (
+                      <span className="peopleDir__display">{hint}</span>
+                    ) : null}
                   </span>
                 </Link>
                 {mutuals.has(clean) ? (

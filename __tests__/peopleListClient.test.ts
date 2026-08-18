@@ -67,13 +67,32 @@ class TestElement extends TestNode {
   tagName: string;
   namespaceURI = "http://www.w3.org/1999/xhtml";
   style: Record<string, string> = {};
+  private attributes = new Map<string, string>();
 
   constructor(tagName: string, ownerDocument: TestDocument) {
     super(1, tagName.toUpperCase(), ownerDocument);
     this.tagName = tagName.toUpperCase();
   }
 
-  setAttribute(): void {}
+  setAttribute(name: string, value: string): void {
+    this.attributes.set(name.toLowerCase(), value);
+  }
+
+  getAttribute(name: string): string | null {
+    return this.attributes.get(name.toLowerCase()) ?? null;
+  }
+
+  querySelector(selector: string): TestElement | null {
+    if (selector === "img" && this.tagName === "IMG") return this;
+    for (const child of this.childNodes) {
+      if (child instanceof TestElement) {
+        const hit = child.querySelector(selector);
+        if (hit) return hit;
+      }
+    }
+    return null;
+  }
+
   removeAttribute(): void {}
 }
 
@@ -177,8 +196,10 @@ afterEach(async () => {
   vi.useRealTimers();
 });
 
-function listResponse(rows: string[]): Response {
-  return Response.json({ followers: rows });
+function listResponse(rows: Array<string | { handle: string; avatarUrl?: string }>): Response {
+  return Response.json({
+    followers: rows.map((row) => (typeof row === "string" ? { handle: row } : row)),
+  });
 }
 
 function lotResponse(rows: string[] = []): Response {
@@ -215,6 +236,24 @@ describe("PeopleListClient recovery", () => {
     expect(container.textContent).toContain("@alice");
     expect(container.textContent).not.toContain("Try again");
     expect(fetchMock).toHaveBeenCalledTimes(6);
+  });
+
+  it("renders an owned avatar when the list row carries one", async () => {
+    vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(
+        listResponse([{ handle: "alice", avatarUrl: "/api/avatar/p1/g1" }]),
+      )
+      .mockResolvedValueOnce(lotResponse());
+
+    await commit(() =>
+      root?.render(createElement(PeopleListClient, { handle: "karan", relation: "followers" })),
+    );
+    await settle();
+
+    const img = container.querySelector("img");
+    expect(img).not.toBeNull();
+    expect(img?.getAttribute("src")).toBe("/api/avatar/p1/g1");
+    expect(container.textContent).toContain("@alice");
   });
 
   it("paints a cached public snapshot on remount before revalidation", async () => {

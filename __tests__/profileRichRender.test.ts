@@ -183,6 +183,18 @@ describe("profile composer", () => {
     expect(editor({ avatarUrl: "/api/avatar/p/g" })).toContain("Remove photo");
   });
 
+  // The FIRST PAINT never offers it, whatever the profile holds: a remove has
+  // two lanes (the rotation's per-row DELETE, the single-slot one) and which it
+  // belongs in is only known once the covers read answers. Offering it before
+  // then armed the single-slot route for an owner whose rotation was still
+  // loading, which cleared the mirror and left every backdrop rotating.
+  // The control's arrival, and which lane it then takes, are mounted facts:
+  // `__tests__/profileCoverEditorLanes.test.ts`.
+  it("withholds Remove cover until the covers read answers", () => {
+    expect(editor()).not.toContain("Remove cover");
+    expect(editor({ coverUrl: "/api/cover/p/g" })).not.toContain("Remove cover");
+  });
+
   // The backdrop is a rotation of up to five, so the composer owns a LIST
   // rather than one slot. There is exactly one cover control on the page: two
   // live copies of the same choice drift the moment either one writes.
@@ -191,7 +203,6 @@ describe("profile composer", () => {
     expect(markup).toContain("Cover photos");
     expect(markup).toContain("Add cover");
     expect(markup).not.toContain("Choose cover");
-    expect(markup).not.toContain("Remove cover");
   });
 });
 

@@ -33,7 +33,7 @@ const PHOTO_MAX_HEIGHT_PX = 240;
 const PHOTO_MAX_VIEWPORT_FRACTION = 0.4;
 
 /** The frame a message photo is cut to, and a landscape one for the width lane. */
-const PORTRAIT = { width: 1080, height: 1350 } as const;
+const PORTRAIT = { width: 1638, height: 2048 } as const;
 const LANDSCAPE = { width: 1080, height: 720 } as const;
 
 type Box = { width: number; height: number };
@@ -385,6 +385,243 @@ for (const viewport of VIEWPORTS) {
     });
   });
 }
+
+type OverlayMeasured = {
+  cropCard: Box;
+  viewer: Box;
+  viewport: Box;
+  /** Whether a hit test at each crop action's centre lands inside the card. */
+  cropActionsOwnTheirTaps: boolean[];
+  /** What the topmost element at each action's centre actually is. */
+  cropActionOccluders: string[];
+  /** The phone tab bar's own pill, and what is painted over its centre. */
+  tabPill: (Box & { top: number }) | null;
+  scrimOwnsTabPillCentre: boolean;
+  tabPillOccluder: string;
+};
+
+/** Crop card and lightbox dialog, measured under the shipped stylesheet. */
+async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
+  return page.evaluate(async () => {
+    document.getElementById("overlay-probe")?.remove();
+    const host = document.querySelector(".messagesMain") ?? document.body;
+
+    const overlay = document.createElement("div");
+    overlay.id = "overlay-probe";
+    overlay.className = "messageCropOverlay";
+    const card = document.createElement("div");
+    card.className = "messageCropCard";
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    // The cropper's own last row. It is the whole point of the card, and it is
+    // the part the phone tab bar used to paint over.
+    const step = document.createElement("div");
+    step.className = "profileCropStep";
+    const frame = document.createElement("div");
+    frame.className = "profileCropFrame";
+    frame.style.height = "220px";
+    const actions = document.createElement("div");
+    actions.className = "profileCropActions";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "profileCropConfirm";
+    confirm.textContent = "Use photo";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "profileCropCancel";
+    cancel.textContent = "Cancel";
+    actions.append(confirm, cancel);
+    step.append(frame, actions);
+    card.append(step);
+    overlay.append(card);
+    host.append(overlay);
+
+    const dialog = document.createElement("dialog");
+    dialog.id = "viewer-probe";
+    dialog.className = "messagePhotoViewer";
+    dialog.open = true;
+    const img = document.createElement("img");
+    img.className = "messagePhotoViewerImage";
+    img.src =
+      "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>');
+    dialog.append(img);
+    host.append(dialog);
+    // The dialog's height is its PICTURE's height, so a rect read before the
+    // image loads answers zero - which silently satisfies every upper bound
+    // this probe checks. Wait for the decode, then measure.
+    await img.decode().catch(() => undefined);
+
+    const box = (selector: string): Box => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`missing ${selector}`);
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    };
+
+    const describe = (element: Element | null): string => {
+      if (!element) return "nothing";
+      const classes = element.className;
+      return `${element.tagName.toLowerCase()}.${typeof classes === "string" ? classes : ""}`;
+    };
+    const hits = [confirm, cancel].map((button) => {
+      const rect = button.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return { owned: top !== null && card.contains(top), occluder: describe(top) };
+    });
+
+    // The overlay's reserved lane keeps the CARD clear of the bar, so the card
+    // can never prove the stacking order. The scrim can: it is `inset: 0`, so it
+    // covers the bar's own pill, and whichever of the two answers a hit test at
+    // the pill's centre IS the stacking order.
+    const pillElement = document.querySelector(".mobileTabList");
+    const pillRect = pillElement?.getBoundingClientRect() ?? null;
+    const pillTop = pillRect
+      ? document.elementFromPoint(
+          pillRect.left + pillRect.width / 2,
+          pillRect.top + pillRect.height / 2,
+        )
+      : null;
+
+    const measured = {
+      cropCard: box("#overlay-probe .messageCropCard"),
+      viewer: box("#viewer-probe"),
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+      cropActionsOwnTheirTaps: hits.map((hit) => hit.owned),
+      cropActionOccluders: hits.map((hit) => hit.occluder),
+      tabPill: pillRect
+        ? { width: pillRect.width, height: pillRect.height, top: pillRect.top }
+        : null,
+      scrimOwnsTabPillCentre: pillTop !== null && overlay.contains(pillTop),
+      tabPillOccluder: describe(pillTop),
+    };
+    document.getElementById("overlay-probe")?.remove();
+    document.getElementById("viewer-probe")?.remove();
+    return measured;
+  });
+}
+
+test.describe("message attach preview and lightbox at phone 390", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const response = await page.goto("/messages");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".messagesMain")).toBeVisible();
+  });
+
+  test("the crop card and lightbox stay inside the viewport, not full-screen", async ({
+    page,
+  }) => {
+    const measured = await measurePhoneOverlays(page);
+    // THE DEFECT: crop and viewer took the whole phone, hiding nav and composer.
+    expect(measured.cropCard.width).toBeLessThanOrEqual(measured.viewport.width);
+    expect(measured.cropCard.height).toBeLessThan(measured.viewport.height * 0.85);
+    expect(measured.viewer.width).toBeLessThan(measured.viewport.width - 16);
+    expect(measured.viewer.height).toBeLessThan(measured.viewport.height * 0.8);
+    expect(measured.viewer.width).toBeLessThanOrEqual(390 * 0.88 + 2);
+  });
+
+  test("the crop card's own Use photo and Cancel own their taps", async ({ page }) => {
+    // Half of the fix: the overlay reserves the tab bar's lane, so the card's
+    // last row is never laid out underneath the pill in the first place.
+    const measured = await measurePhoneOverlays(page);
+    expect(measured.cropActionOccluders).toEqual([
+      "button.profileCropConfirm",
+      "button.profileCropCancel",
+    ]);
+    expect(measured.cropActionsOwnTheirTaps).toEqual([true, true]);
+  });
+
+  test("the crop scrim is painted OVER the phone tab bar, not under it", async ({
+    page,
+  }) => {
+    // THE DEFECT: the overlay sat at z-index 30 while the tab bar is fixed at
+    // 1350 with an opaque pill, so the bar punched through a modal scrim and
+    // owned every tap in its lane. The reserved padding alone cannot prove this
+    // - it moves the card clear of the bar - so the probe asks the one point
+    // where the two genuinely overlap: the pill's own centre.
+    const measured = await measurePhoneOverlays(page);
+    expect(measured.tabPill, "the phone tab bar must render on /messages").not.toBeNull();
+    expect(measured.tabPill!.height).toBeGreaterThan(0);
+    // The pill really is inside the scrim's box, so the hit test is meaningful.
+    expect(measured.tabPill!.top).toBeLessThan(measured.viewport.height);
+    expect(
+      measured.scrimOwnsTabPillCentre,
+      `the tab bar is painted over the crop scrim (topmost: ${measured.tabPillOccluder})`,
+    ).toBe(true);
+  });
+});
+
+/** The lightbox dialog alone, measured under whatever viewport is current. */
+async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }> {
+  return page.evaluate(async () => {
+    document.getElementById("viewer-probe")?.remove();
+    const host = document.querySelector(".messagesMain") ?? document.body;
+    const dialog = document.createElement("dialog");
+    dialog.id = "viewer-probe";
+    dialog.className = "messagePhotoViewer";
+    dialog.open = true;
+    const img = document.createElement("img");
+    img.className = "messagePhotoViewerImage";
+    // A tall source, so the dialog's own height cap is what binds rather than
+    // the picture running out.
+    img.src =
+      "data:image/svg+xml," +
+      encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1600"/>');
+    dialog.append(img);
+    host.append(dialog);
+    // A dialog with no loaded picture in it is zero high, and zero passes every
+    // upper bound below while proving nothing. Measure the loaded thing.
+    await img.decode().catch(() => undefined);
+    const rect = dialog.getBoundingClientRect();
+    const measured = {
+      width: rect.width,
+      height: rect.height,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    };
+    dialog.remove();
+    return measured;
+  });
+}
+
+// "View full" is a FULL-FRAME view, and the bug being fixed was a phone one, so
+// the narrow caps are scoped to the 640px breakpoint and a desktop keeps the
+// room it always had. That is a claim about rendered pixels at a wide viewport,
+// which no read of the stylesheet can make.
+test.describe("the lightbox keeps its desktop room", () => {
+  test("opens near 60rem wide at 1280, not the phone's 36rem", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const response = await page.goto("/messages");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".messagesMain")).toBeVisible();
+
+    const measured = await measureViewerDialog(page);
+
+    // THE DEFECT: the phone bound was unconditional, so this dialog rendered
+    // 576px wide (36rem) on a desktop that had been giving it 960px.
+    const PHONE_CAP_PX = 36 * 16;
+    expect(measured.width).toBeGreaterThan(PHONE_CAP_PX + 1);
+    expect(measured.width).toBeCloseTo(60 * 16, -1);
+    // And it may still not run off the screen.
+    expect(measured.width).toBeLessThanOrEqual(measured.viewport.width);
+    // 92dvh of room, against the phone rule's 72dvh.
+    expect(measured.height).toBeGreaterThan(measured.viewport.height * 0.75);
+    expect(measured.height).toBeLessThanOrEqual(measured.viewport.height * 0.93);
+  });
+});
 
 // The one viewport where the 40dvh limb of the cap binds instead of the flat
 // 240px: a phone held sideways. Without it the tile would be 240px of a 390px
