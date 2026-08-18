@@ -1,22 +1,174 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-describe("PlanComposer describe deep link", () => {
-  it("prefills from URL occasion params before the Ask draft seam", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/plan/PlanComposer.tsx"),
-      "utf8",
+// What the describe prefill owes is a VALUE IN A FIELD, not a line order, so
+// this file mounts the composer and reads the input. The rule it pins has three
+// halves that a source read cannot see: the URL beats a held ask draft, the
+// draft is SPENT either way (it is one-shot, and a URL visit used to leave it
+// behind for the next /plan to open on somebody's earlier ask), and the URL
+// prefill survives a `sessionStorage` that THROWS - which it does outright when
+// site data is blocked or the document is a sandboxed frame.
+
+vi.mock("server-only", () => ({}));
+
+vi.mock("next/link", () => ({
+  default: ({ href, children }: { href: string; children: React.ReactNode }) =>
+    createElement("a", { href }, children),
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    back: () => undefined,
+    forward: () => undefined,
+    refresh: () => undefined,
+    push: () => undefined,
+    replace: () => undefined,
+    prefetch: () => Promise.resolve(),
+  }),
+}));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: null, session: null, loading: false, identityResolved: true }),
+}));
+
+// Siblings of the field under test, each with its own coverage. The describe
+// surface itself stays real: it is what adopts the prefill.
+vi.mock("@/components/plan/PlanIntake", () => ({ default: () => null }));
+vi.mock("@/components/plan/PlanCultureOpener", () => ({ default: () => null }));
+vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
+
+vi.mock("@/lib/analytics", () => ({
+  trackEvent: () => undefined,
+  trackMeaningfulCoreAction: () => undefined,
+  laneSourceFromSearch: () => null,
+}));
+
+import PlanComposer from "@/components/plan/PlanComposer";
+import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
+
+const URL_ASK = "Plan a crawl in Soho for 4";
+const DRAFT_ASK = "an older ask nobody asked for again";
+
+let root: Root | null = null;
+let host: HTMLElement | null = null;
+
+const realSessionStorage = Object.getOwnPropertyDescriptor(window, "sessionStorage")!;
+
+/**
+ * Site data blocked, the way a browser does it: every session-storage call
+ * raises. `vi.spyOn` cannot express this - jsdom's Storage is a proxy and the
+ * spy silently never installs, which makes the assertion vacuous - so the whole
+ * object is replaced.
+ */
+function blockSessionStorage(): void {
+  const refuse = (): never => {
+    throw new DOMException("site data is blocked", "SecurityError");
+  };
+  Object.defineProperty(window, "sessionStorage", {
+    configurable: true,
+    value: {
+      getItem: refuse,
+      setItem: refuse,
+      removeItem: refuse,
+      clear: refuse,
+      key: refuse,
+      get length(): number { return refuse(); },
+    } as unknown as Storage,
+  });
+}
+
+function setSearch(search: string): void {
+  window.history.replaceState({}, "", `/plan${search}`);
+}
+
+async function mountComposer(): Promise<void> {
+  host = document.createElement("div");
+  document.body.append(host);
+  await act(async () => {
+    root = createRoot(host!);
+    root.render(createElement(PlanComposer));
+  });
+  // The prefill is read in a microtask off the effect, so let it settle.
+  await act(async () => {
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+function describeFieldValue(): string {
+  const field = document.querySelector<HTMLInputElement>("#plan-describe-first-query");
+  if (!field) throw new Error("describe-first field did not render");
+  return field.value;
+}
+
+beforeEach(() => {
+  vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
+    ok: true,
+    json: () => Promise.resolve([]),
+  } as unknown as Response)));
+  sessionStorage.clear();
+  localStorage.clear();
+  setSearch("");
+});
+
+afterEach(async () => {
+  if (root) {
+    const current = root;
+    await act(async () => { current.unmount(); });
+  }
+  root = null;
+  host?.remove();
+  host = null;
+  Object.defineProperty(window, "sessionStorage", realSessionStorage);
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+  sessionStorage.clear();
+  localStorage.clear();
+});
+
+describe("PlanComposer describe prefill", () => {
+  it("prefers the URL ask over a held draft, and spends the draft anyway", async () => {
+    sessionStorage.setItem(
+      ASK_PLAN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ query: DRAFT_ASK }),
     );
-    const effectBlock = source.match(
-      /askDraftConsumedRef[\s\S]*?}, \[\]\);/,
-    )?.[0];
-    expect(effectBlock).toBeTruthy();
-    expect(effectBlock).toContain("parsePlanDescribeFromSearch");
-    expect(effectBlock).toContain("const fromUrl = parsePlanDescribeFromSearch(window.location.search)");
-    expect(effectBlock!.indexOf("const fromUrl")).toBeLessThan(
-      effectBlock!.indexOf("ASK_PLAN_DRAFT_STORAGE_KEY"),
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe(URL_ASK);
+    // One-shot: the next /plan visit must not reopen on this ask.
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("falls back to the held draft when the URL carries no ask, and spends it", async () => {
+    sessionStorage.setItem(
+      ASK_PLAN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ query: DRAFT_ASK }),
     );
+
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe(DRAFT_ASK);
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("still lands the URL ask when reading session storage throws", async () => {
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+    blockSessionStorage();
+
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe(URL_ASK);
+  });
+
+  it("leaves the field empty when there is neither an ask nor a draft", async () => {
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe("");
   });
 });

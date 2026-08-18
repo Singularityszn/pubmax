@@ -464,7 +464,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                   </p>
                 ) : null}
                 {proposals.length > 0 ? (
-                  <ul className="palChatProposals" aria-label="Confirm an action">
+                  <ul className="palChatProposals" aria-label="Suggested actions">
                     {proposals.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
                         {proposal.kind === "draft_plan" ? (
