@@ -435,7 +435,7 @@ test("feed retry repeats only the failed chronological read", async ({
   await page.goto("/social");
   await expect(
     page.getByRole("heading", {
-      name: "Social posts are unavailable right now.",
+      name: "Social preview posts are unavailable right now.",
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Retry" }).click();

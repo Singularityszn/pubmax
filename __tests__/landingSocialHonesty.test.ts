@@ -1,7 +1,31 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
 
 // U2 — Landing Memory honesty while friends-launch is off.
 // Soft launch keeps PUBMAX_SOCIAL_FRIENDS_LAUNCH unset/off. The Memory beat
@@ -50,14 +74,41 @@ describe("landing Memory social honesty (U2)", () => {
     expect(memoryBlock).toMatch(/href="\/social"/);
   });
 
-  it("keeps nav and footer Social as a preview destination without Open Social", () => {
+  it("keeps the open-product CTA wording to the launch-on branch alone", () => {
     const copy = landingCopy();
-    // Nav + footer may still link to /social (preview page). They must not
-    // use the open-product CTA wording reserved for the launch-on Memory path.
-    expect(copy).toMatch(/href="\/social">Social</);
     const openSocialMatches = copy.match(/Open Social/g) ?? [];
     // Only the gated launch-on branch may say Open Social.
     expect(openSocialMatches).toHaveLength(1);
     expect(copy).toContain("Open Memories");
+  });
+});
+
+// The landing document is one of the two the CDN holds, so its own nav is the
+// first Social label most strangers read: it follows the same surface name the
+// site nav, the palette and /social do, decided on the server.
+describe("landing Social label follows the friends launch", () => {
+  function socialLinkLabels(friendsLaunchEnabled: boolean): string[] {
+    const markup = renderToStaticMarkup(
+      createElement(LandingPage, {
+        socialFriendsLaunchEnabled: friendsLaunchEnabled,
+      }),
+    );
+    return [...markup.matchAll(/<a[^>]*href="\/social"[^>]*>([^<]*)</g)].map(
+      (match) => match[1] as string,
+    );
+  }
+
+  it("names the preview in nav and footer while the launch is gated", () => {
+    const labels = socialLinkLabels(false);
+    expect(labels.length).toBeGreaterThanOrEqual(2);
+    expect(labels).toContain("Social preview");
+    expect(labels).not.toContain("Social");
+  });
+
+  it("names Social in nav and footer once the launch is on", () => {
+    const labels = socialLinkLabels(true);
+    expect(labels.length).toBeGreaterThanOrEqual(2);
+    expect(labels).toContain("Social");
+    expect(labels).not.toContain("Social preview");
   });
 });

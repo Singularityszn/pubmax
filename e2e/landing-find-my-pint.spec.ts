@@ -18,6 +18,25 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   ).toBeVisible();
 }
 
+// The landing document is CDN-held, so its Social label is the first one most
+// strangers read: it has to agree with the site nav, the palette and /social.
+// The e2e default leaves PUBMAX_SOCIAL_FRIENDS_LAUNCH off, so the gated wording
+// is what the served HTML must already carry.
+test("landing nav and footer name the gated Social surface", async ({ page }) => {
+  await openLanding(page, { width: 1440, height: 900 });
+
+  const nav = page.getByRole("navigation", { name: "Landing navigation" });
+  await expect(
+    nav.getByRole("link", { name: "Social preview", exact: true }),
+  ).toBeVisible();
+  await expect(nav.getByRole("link", { name: "Social", exact: true })).toHaveCount(0);
+
+  const footerSocial = page
+    .locator(".lpFooterCol")
+    .getByRole("link", { name: "Social preview", exact: true });
+  await expect(footerSocial).toHaveCount(1);
+});
+
 test.describe("landing Find my pint hierarchy", () => {
   test("keeps one Find my pint primary with Map and Plan as secondary text", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });

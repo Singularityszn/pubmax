@@ -39,6 +39,7 @@ import {
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { onReducedMotionChange, prefersReducedMotion } from "@/lib/motionVocabulary";
 import { planOccasionHref } from "@/lib/planOccasion";
+import { socialSurfaceName } from "@/lib/socialLaunch";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
@@ -145,6 +146,7 @@ export default function LandingPage({
   );
   const mapHref = preferredCityMapHref();
   const primaryCtaHref = preferredCity ? mapHref : "/choose-city";
+  const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
   const warmProps = preferredCity
     ? {
@@ -271,7 +273,7 @@ export default function LandingPage({
           <Link href="/plan">Plan</Link>
           <Link href="/tonight">Tonight</Link>
           <Link href="/moment">Moment</Link>
-          <Link href="/social">Social</Link>
+          <Link href="/social">{socialLabel}</Link>
           <Link href="/u/you">You</Link>
         </nav>
 
@@ -507,7 +509,7 @@ export default function LandingPage({
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              <Link href="/social">Social</Link>
+              <Link href="/social">{socialLabel}</Link>
               <Link href="/pal">Pub Pal</Link>
               <Link href="/choose-city">Pick your city</Link>
               <Link href="/about">Our story</Link>
