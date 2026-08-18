@@ -199,40 +199,46 @@ describe("sitemap()", () => {
   });
 });
 
-describe("sitemap() when historic data is unavailable", () => {
-  it("omits historic URLs, logs an alert, and still emits the price-derived graph", async () => {
+// THE SITEMAP IS BUILT ONCE, NOT SERVED PER REQUEST.
+//
+// This module declares no route-segment config and reads nothing off a request,
+// so Next prerenders /sitemap.xml and the CDN hands out that one artifact until
+// the next deploy (`next build` marks it Static, and collect-build-traces then
+// skips every outputFileTracingIncludes glob for such a route). Two things
+// follow, and both are pinned here: an empty pack has to fail the BUILD, and no
+// include may be declared for a route that can never receive one.
+describe("sitemap() is generated at build, not per request", () => {
+  it("declares no route-segment config that would make it dynamic", async () => {
+    const route = (await import("@/app/sitemap")) as Record<string, unknown>;
+
+    for (const key of ["dynamic", "revalidate", "fetchCache", "dynamicParams", "runtime"]) {
+      expect(route[key]).toBeUndefined();
+    }
+  });
+
+  // The base contract, restored: loadHistoricPubs() swallows a read error to [],
+  // and a generation that silently dropped all 346 /historic/{slug} URLs would
+  // be BAKED IN and served to crawlers as those pages having been removed. It
+  // must take the build down instead.
+  it("refuses to build a sitemap that lost the whole historic family", async () => {
     vi.resetModules();
-    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.doMock("@/lib/historic", () => ({ loadHistoricPubs: async () => [] }));
 
-    vi.doMock("@/lib/historic", () => ({
-      loadHistoricPubs: async () => [],
-    }));
+    const withoutHistoric = (await import("@/app/sitemap")).default;
+    await expect(withoutHistoric()).rejects.toThrow(/historic pub dataset is empty/);
 
-    const degraded = (await import("@/app/sitemap")).default;
-    const degradedEntries = await degraded();
-    const degradedUrls = degradedEntries.map((e) => e.url);
-
-    expect(familyCountFrom(degradedUrls, "/historic/")).toBe(0);
-    expect(degradedUrls.some((u) => u.includes("/ledger/"))).toBe(true);
-    expect(
-      errorSpy.mock.calls.some((call) =>
-        String(call[0]).includes("[freshness-audit][ALERT]") &&
-        String(call[0]).includes("sitemap historic degrade") &&
-        String(call[0]).includes("historic"),
-      ),
-    ).toBe(true);
-
-    errorSpy.mockRestore();
     vi.doUnmock("@/lib/historic");
     vi.resetModules();
   });
 
-  // The degrade above may only be the RARE outcome. lib/historic.ts opens the
-  // pack from process.cwd() at request time, so if the file is not declared for
-  // this function, a lambda-grouping change drops all 346 /historic/{slug} URLs
-  // on every generation and the alert becomes noise. Evaluating the real config
-  // the way Next does also proves it still loads.
-  it("ships the historic pack with the sitemap function, so the degrade is a fallback", () => {
+  // A pin nobody applies is worse than no pin: it reads as a guarantee the
+  // deployed function carries the pack, when the route has no function at all.
+  // (The key itself may exist - runtimeDataPackIncludes derives one for every
+  // reader of a declared pack, sitemap included, and Next drops it for this
+  // route the same way. What may not happen is a HAND-WRITTEN pin standing in
+  // for the historic pack's ops alarm.) Evaluating the real config the way Next
+  // does also proves it still loads.
+  it("pins no historic pack onto a route that can never receive one", () => {
     const root = join(__dirname, "..");
     const out = execFileSync(
       process.execPath,
@@ -246,16 +252,16 @@ describe("sitemap() when historic data is unavailable", () => {
       { cwd: root, encoding: "utf8" },
     );
     const includes = JSON.parse(out) as Record<string, string[]>;
-    expect(includes["/sitemap.xml"]).toContain("./public/data/historic_pubs.json");
-    // The pack the sitemap ships and the one the freshness audit ages are the
-    // same file, taken from the registry by id rather than typed twice.
-    const registered = (
-      registry.datasets as Array<{ id: string; artifact: string | null }>
-    ).find((d) => d.id === "historic_pubs");
-    expect(includes["/sitemap.xml"]).toContain(`./${registered?.artifact}`);
-  });
 
-  function familyCountFrom(urls: string[], prefix: string) {
-    return urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
-  }
+    expect(includes["/sitemap.xml"] ?? []).not.toContain(
+      "./public/data/historic_pubs.json",
+    );
+    // The pack still has an ops alarm, and it is the freshness audit over the
+    // registry rather than anything in sitemap generation.
+    const registered = (
+      registry.datasets as Array<{ id: string; artifact: string | null; pack?: boolean }>
+    ).find((d) => d.id === "historic_pubs");
+    expect(registered?.pack).toBe(true);
+    expect(registered?.artifact).toBe("public/data/historic_pubs.json");
+  });
 });

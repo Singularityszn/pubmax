@@ -91,25 +91,3 @@ export function notifyFreshnessFindings(
   // Seam marker: a later alerting integration delivers `findings` from here.
   return findings;
 }
-
-const SITEMAP_HISTORIC_DEGRADE_DETAIL =
-  "historic pub dataset is empty or unreadable; /historic/{slug} URLs are omitted from this generation and price-derived URLs still ship";
-
-const SITEMAP_HISTORIC_DEGRADE_NOTICE: StaleFeedNotice = {
-  id: "historic_pubs_sitemap",
-  label: "Historic pubs sitemap URLs",
-  status: "unknown",
-  observedAt: null,
-  ageHours: null,
-  detail: SITEMAP_HISTORIC_DEGRADE_DETAIL,
-};
-
-/**
- * Loud console alert when /sitemap.xml omits historic URLs but still answers 200.
- * Returns a structured notice (same shape as freshness-audit findings) and logs
- * through the shared `[freshness-audit][ALERT]` group formatter.
- */
-export function notifySitemapHistoricDegrade(): StaleFeedNotice {
-  logGroup("sitemap historic degrade:", [SITEMAP_HISTORIC_DEGRADE_NOTICE]);
-  return SITEMAP_HISTORIC_DEGRADE_NOTICE;
-}

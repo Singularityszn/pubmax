@@ -11,9 +11,8 @@ import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
 } from "@/lib/drinkBrandAreaLanding.server";
-import { notifySitemapHistoricDegrade } from "@/lib/freshnessNotify";
 
-// Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
+// Wave S1.2 sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
 // most of it from bots). Scope is provenance-first and honest:
 //
@@ -52,10 +51,17 @@ const SITE_URL = "https://pubmaxxing.com";
 // read/parse/grouping failure - or an unexpectedly empty dataset - throws,
 // aborting sitemap generation. This is intentional (CodeRabbit S1 review): that
 // dataset derives the ledger, borough, venue and drink families, so publishing
-// a 200 without it would be a near-empty sitemap over the whole core graph. A
-// thrown error surfaces as a 500 for /sitemap.xml instead, so no truncated
-// generation is served at all. The rule governs THAT lane only: the historic
-// pack below is optional and degrades to a logged omission.
+// a 200 without it would be a near-empty sitemap over the whole core graph.
+//
+// WHERE THAT THROW LANDS is the thing to hold on to: this module declares no
+// `dynamic` and no `revalidate` and reads no request, so Next PRERENDERS
+// /sitemap.xml at build and the CDN serves that one artifact. Every pack below
+// is therefore read ONCE, at build, out of the repository's own public/data -
+// there is no lambda, no per-request read, and nothing for
+// outputFileTracingIncludes to pin (Next skips include globs for a statically
+// prerendered route). So a bad pack fails `next build` loudly rather than
+// serving a 500, and the ops alarm for a stale or empty pack is the freshness
+// audit over the registry, never sitemap generation.
 
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
 async function dataFileModified(name: string, fallback: Date): Promise<Date> {
@@ -94,18 +100,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
 
-  // Historic URLs are optional for sitemap generation: a failed or empty read
-  // omits /historic/{slug} only, while the core price-derived families still
-  // publish. Ops get a loud freshness-audit ALERT so an empty historic pack is
-  // not mistaken for health.
-  //
-  // A degrade is only a real fallback because the pack is PINNED into this
-  // function (next.config.mjs outputFileTracingIncludes "/sitemap.xml", taken
-  // from the freshness registry by id). Without that, dropping every historic
-  // URL would be the ordinary outcome of a lambda-grouping change rather than a
-  // rare one, and the alert would fire on every generation.
+  // loadHistoricPubs() swallows read errors to [] (shared lib contract), and the
+  // historic index is never empty in practice (346 cited pubs), so an empty read
+  // here means the pack is missing or unreadable. Refuse the build: this file is
+  // baked once and then served from the CDN until the next deploy, so a
+  // generation that quietly dropped every /historic/{slug} URL would stand as
+  // the published sitemap and read to a crawler as those pages being removed.
   if (historicPubs.length === 0) {
-    notifySitemapHistoricDegrade();
+    throw new Error(
+      "sitemap: historic pub dataset is empty, refusing to build a truncated sitemap",
+    );
   }
 
   const entries: MetadataRoute.Sitemap = [];
@@ -210,8 +214,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     });
   }
 
-  // Historic pub detail pages (the cited-heritage moat). Omitted when the
-  // dataset read failed — see alert above; never pretend the section is complete.
+  // Historic pub detail pages (the cited-heritage moat).
   for (const pub of historicPubs) {
     entries.push({
       url: `${SITE_URL}/historic/${pub.slug}`,

@@ -63,18 +63,6 @@ const feedDataFiles = withRuntimeDataPacks(
   freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
 );
 
-// /sitemap.xml publishes one /historic/{slug} row per pub in the historic index
-// and DEGRADES to omitting that whole family when the read comes back empty. A
-// degrade is only a real fallback if the file is genuinely there, so the pack is
-// declared rather than left to lambda grouping: otherwise "omitted every
-// historic URL" would be the ordinary outcome of a bad deploy rather than the
-// rare one. Taken from the registry by id so the sitemap and the freshness
-// audit name the same file. __tests__/sitemap.test.ts pins it.
-const sitemapDataFiles = withRuntimeDataPacks(
-  "/sitemap.xml",
-  freshnessArtifactIncludeById(freshnessRegistry, "historic_pubs"),
-);
-
 // Per-deploy build id for the offline service worker (issue #32). Evaluated
 // once when `next build` loads this config and inlined into the client bundle
 // as NEXT_PUBLIC_SW_VERSION; components/OfflineReady.tsx appends it to the
@@ -185,8 +173,9 @@ const nextConfig = {
     ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
-    // The sitemap's optional historic family (see above).
-    "/sitemap.xml": sitemapDataFiles,
+    // No "/sitemap.xml" key: that route is PRERENDERED at build, and Next skips
+    // every include glob for a statically prerendered route (its packs are read
+    // from the repository at build time, so there is nothing to ship).
   },
   turbopack: {
     root: projectRoot,
