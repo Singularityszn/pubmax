@@ -236,6 +236,17 @@
   column-gap: 12px;
 }
 
+/* The action owns the LAST track by name, not by how many siblings precede it:
+   the publisher cell is dropped on the one row whose publisher the hero already
+   states, and auto-placement then slid the action into the publisher's column
+   and left the action's own track empty. Scoped above the collapse breakpoint,
+   because the single-column grid below it would grow implicit tracks. */
+@media (min-width: 561px) {
+  .drinkBrandDirectory__details--withAction .drinkBrandDirectory__contribution {
+    grid-column: 5;
+  }
+}
+
 .drinkBrandDirectory__contribution {
   display: inline-flex;
   align-items: center;

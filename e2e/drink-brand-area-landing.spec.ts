@@ -224,9 +224,11 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
     elements.map((element) => {
       const row = element as HTMLElement;
       const details = row.querySelector<HTMLElement>(".drinkBrandDirectory__details");
+      const action = row.querySelector<HTMLElement>(".drinkBrandDirectory__contribution");
       return {
         rowHeight: row.getBoundingClientRect().height,
         detailsColumns: details ? getComputedStyle(details).gridTemplateColumns : "",
+        actionLeft: action ? Math.round(action.getBoundingClientRect().left) : null,
       };
     }),
   );
@@ -242,6 +244,19 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
     geometry.every(({ detailsColumns }) => detailsColumns.split(" ").length === 5),
     "desktop row details should use five horizontal information tracks",
   ).toBe(true);
+  // Rank 1 carries no publisher cell (the hero already states it), so the
+  // action would slide into the publisher's column unless it is placed by name.
+  // One column edge for every row is what proves it did not.
+  const actionLefts = geometry
+    .map(({ actionLeft }) => actionLeft)
+    .filter((left): left is number => left !== null);
+  expect(actionLefts.length, "every desktop row should carry a log action").toBe(
+    geometry.length,
+  );
+  expect(
+    new Set(actionLefts).size,
+    `every row's log action should share one column edge, saw ${[...new Set(actionLefts)].join(", ")}`,
+  ).toBe(1);
 }
 
 // Never ?q=<area name>: `q` is a free-text VENUE filter, so an area name
