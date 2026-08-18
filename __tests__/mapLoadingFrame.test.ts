@@ -107,6 +107,29 @@ describe("the map's held loading frame", () => {
     );
   });
 
+  // THE REGRESSION: the pill is a flex ROW, so the slow line shipped as a
+  // third sibling of the eyebrow and the primary line and grew the pill a
+  // third COLUMN at 390px instead of dropping under them. Every line the
+  // frame prints has to live in the one stack the pill holds beside its dot.
+  it("stacks every printed line inside one child of the pill", () => {
+    vi.useFakeTimers();
+    act(() => {
+      root.render(
+        createElement(MapLoadingFrame, { mapDisplayName: "London", progress: 12 }),
+      );
+    });
+    act(() => {
+      vi.advanceTimersByTime(MAP_LOADING_SLOW_AFTER_MS);
+    });
+
+    const pill = host.querySelector<HTMLElement>(".mapLoadingCopy");
+    const stack = host.querySelector<HTMLElement>(".mapLoadingLines");
+    expect(Array.from(pill?.children ?? [])).toEqual([stack]);
+    expect(
+      Array.from(stack?.children ?? []).map((line) => line.textContent),
+    ).toEqual(["London pub map", "Loading London pubs…", "Still loading pubs…"]);
+  });
+
   it("draws the progress bar without announcing a second time", () => {
     act(() => {
       root.render(

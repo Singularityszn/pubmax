@@ -1933,6 +1933,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   animation: pulse 1.4s ease-in-out infinite;
 }
 
+/* The pill is ONE row: the pulsing dot, then this stack. Every line the frame
+   prints is a row of the stack, so a line added later drops UNDER the one
+   above it rather than growing the pill a third column at 390px. */
+.mapLoadingLines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
 .mapLoadingEyebrow {
   display: block;
   margin-bottom: 2px;

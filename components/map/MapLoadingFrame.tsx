@@ -45,9 +45,11 @@ export default function MapLoadingFrame({
         <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
       </div>
       <div className="mapLoadingCopy">
-        <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
-        <span>{mapLoadingPrimaryLine(mapDisplayName)}</span>
-        {slow ? <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span> : null}
+        <div className="mapLoadingLines">
+          <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
+          <span>{mapLoadingPrimaryLine(mapDisplayName)}</span>
+          {slow ? <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span> : null}
+        </div>
       </div>
       {/* Decorative: this sits inside a polite live region, and a stepping
           aria-valuenow would announce the same load four more times over the
