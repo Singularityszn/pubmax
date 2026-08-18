@@ -97,9 +97,11 @@ jobs:
   # Speed is the product's claim, so a pull request that slows a budgeted route
   # fails here rather than being noticed on a phone weeks later. The ceilings
   # live in perf/route-budgets.json and docs/PERFORMANCE_BUDGETS.md owns the rule
-  # for changing one. Only the four routes the product is judged on are measured,
-  # two runs each after a thrown-away warm-up, so the job stays inside its slice
-  # of the 15-minute wall budget.
+  # for changing one. Every route in that file is measured, two runs each after a
+  # thrown-away warm-up, under a 4x CPU throttle. The UX lane report is its OWN
+  # job below rather than a second sweep in this step: both build and serve the
+  # app themselves, and one 15-minute wall cannot hold two full sweeps of a
+  # route set whose map load alone runs 10 to 25 seconds cold.
   performance-budget:
     name: Performance budget
     runs-on: ubuntu-latest
@@ -138,4 +140,51 @@ jobs:
         env:
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
-        run: npx playwright test e2e/performance-budget.spec.ts e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
+        run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
+
+  # UX lane 13: the same four product routes reported with LCP and CLS beside
+  # decoded JS, attached as a markdown table for the PR body. It measures on the
+  # method e2e/helpers/perfMeasurement.ts owns, so its figures are comparable to
+  # the ceilings above; it fails only on a JS regression past 10%, because the
+  # ceilings themselves are already enforced by the job above.
+  ux-lane-performance:
+    name: UX lane performance
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Report UX lane routes
+        env:
+          PUBMAX_PERF_BUDGET: "1"
+          PUBMAX_E2E_KEYLESS: "1"
+        run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
+
+      - name: Upload UX lane table
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ux-lane-13-perf
+          path: test-results/**/ux-lane-13-perf.md
+          if-no-files-found: ignore
