@@ -87,10 +87,6 @@ export default function PricedLandingRows({
               <span className="drinkBrandDirectory__pint">
                 {formatPricedLandingPintName(row.pintName)}
               </span>
-              <PricedLandingPublisher
-                className="drinkBrandDirectory__publisher"
-                row={row}
-              />
               {action ? (
                 <Link
                   className="drinkBrandDirectory__contribution"

@@ -161,7 +161,7 @@ describe("governed drink brand landing page", () => {
       }),
     );
 
-    expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(1);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
   });
@@ -202,10 +202,9 @@ describe("governed drink brand landing page", () => {
     expect(html).toContain(
       '>Publisher: Exact Publisher</a>',
     );
-    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
-    expect(html).toMatch(
-      /class="[^"]*\bdrinkBrandDirectory__publisher\b[^"]*"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
-    );
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    expect(html).not.toMatch(/drinkBrandDirectory__publisher/);
   });
 
   it("arms the composer for a pub the map can open, and names none when it cannot", () => {

@@ -112,6 +112,20 @@ test.describe("Pub Pal concierge at 390px", () => {
     expect(new URL(page.url()).pathname).toBe("/pal/chat");
   });
 
+  test("a crawl ask offers a plan link that prefills the describe field", async ({ page }) => {
+    await page.goto("/pal/chat");
+    const ask = "Plan a crawl in Soho for 4";
+    await askOnPhone(page, ask);
+
+    const answer = page.locator(".palChatRow--pal").last();
+    const planLink = answer.getByRole("link", { name: "Use this route in Plan" });
+    await expect(planLink).toBeVisible();
+    await planLink.click();
+
+    await expect(page).toHaveURL(/\/plan\?/);
+    await expect(page.locator("#plan-describe-first-query")).toHaveValue(ask);
+  });
+
   test("the Pal recalls a subject the drinker raised earlier in the thread", async ({
     page,
   }) => {

@@ -34,6 +34,8 @@ export const TONIGHT_SOFT_PLAN_CHIPS: ReadonlyArray<{
 
 export const PLAN_DESCRIBE_PARAM = "describe";
 export const PLAN_OCCASION_PARAM = "occasion";
+/** Pub Pal route handoff: any grounded ask text, not only shipped chips. */
+export const PLAN_QUERY_PARAM = "query";
 
 export function isSoftPlanOccasionId(value: unknown): value is SoftPlanOccasionId {
   return typeof value === "string" && (SOFT_PLAN_OCCASION_IDS as readonly string[]).includes(value);
@@ -73,10 +75,27 @@ export function parsePlanDescribeFromSearch(search: string): string | null {
   }
 
   const describe = params.get(PLAN_DESCRIBE_PARAM);
-  if (!describe) return null;
-  const trimmed = cleanText(describe, 500);
-  if (!trimmed || !isShippedDescribeChip(trimmed)) return null;
-  return trimmed;
+  if (describe) {
+    const trimmedDescribe = cleanText(describe, 500);
+    if (trimmedDescribe && isShippedDescribeChip(trimmedDescribe)) {
+      return trimmedDescribe;
+    }
+  }
+
+  const query = params.get(PLAN_QUERY_PARAM);
+  if (!query) return null;
+  const trimmedQuery = cleanText(query, 500);
+  return trimmedQuery || null;
+}
+
+/** After a Pub Pal three-stop route answer, open Plan with the same ask prefilled. */
+export function planPalRouteHandoffHref(query: string): string {
+  const trimmed = cleanText(query, 500);
+  if (!trimmed) return "/plan";
+  const params = new URLSearchParams();
+  params.set(PLAN_QUERY_PARAM, trimmed);
+  params.set("src", "pal-plan");
+  return `/plan?${params.toString()}`;
 }
 
 /** Deep link into /plan with a soft occasion, a Culture Crawl id or chip text. */

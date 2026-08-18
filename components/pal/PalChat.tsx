@@ -24,6 +24,7 @@ import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nigh
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
 import {
@@ -465,6 +466,14 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                   <ul className="palChatProposals" aria-label="Confirm an action">
                     {proposals.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
+                        {proposal.kind === "draft_plan" ? (
+                          <Link
+                            className="palChatPlanHandoff pressable"
+                            href={planPalRouteHandoffHref(proposal.query)}
+                          >
+                            Use this route in Plan
+                          </Link>
+                        ) : null}
                         <button
                           type="button"
                           className="palChatProposalConfirm pressable"
