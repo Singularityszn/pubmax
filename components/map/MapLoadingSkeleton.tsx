@@ -8,6 +8,8 @@
 // while the WebGL canvas style loads. All colour comes from existing tokens;
 // reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
 
+import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
+
 // Dot positions are hand-placed to read as a loose scatter of London pubs, each
 // tagged with a price bucket so the three price colours all appear. The stagger
 // index drives the pulse delay so the field breathes rather than blinks in unison.
@@ -33,8 +35,6 @@ const SKELETON_DOTS: {
   { x: 338, y: 92, bucket: "brick", delay: 0.65, size: 4.5 },
   { x: 52, y: 168, bucket: "pint", delay: 0.5, size: 4.5 },
 ];
-
-import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
 
 const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
   pint: "var(--pint)",

@@ -432,7 +432,10 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   // The wordmark yields its column at 360px and below, so the place name is
   // read whole rather than cut (design judgement 2026-08-01, finding 2.3).
   await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
-  const areaName = topbar.locator(".mobileMapAreaLabel");
+  // The place name is the city switcher's own full label: the phone rules keep
+  // .citySwitcherLabelFull visible and hide the short code, so this is the text
+  // a 320px reader actually sees.
+  const areaName = topbar.locator(".citySwitcher--mobile .citySwitcherLabelFull");
   const areaFit = await areaName.evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
@@ -852,10 +855,13 @@ for (const viewport of VIEWPORTS) {
       "the create action parks above the tab bar",
     ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
 
-    // Every row of its sheet keeps the tap floor.
+    // Every row of its sheet keeps the tap floor. Scope to the sheet: /out's
+    // own empty state links to /plan under the same name, so a page-wide
+    // lookup is ambiguous rather than wrong.
     await create.click();
+    const createMenu = page.locator(".createFabMenu");
     for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
-      const row = page.getByRole("link", { name: label, exact: true });
+      const row = createMenu.getByRole("link", { name: label, exact: true });
       await expect(row).toBeVisible();
       const rowBox = await row.boundingBox();
       expect(rowBox, `${label} has a box`).not.toBeNull();
