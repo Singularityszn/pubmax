@@ -20,13 +20,12 @@ export async function generateMetadata(): Promise<Metadata> {
   const { pubs, complete } = await readScrapedPubsForPage();
   const count = complete ? pubs.length : null;
   const pageTitle = chainsHeading(count);
-  const title = appPageTitle(pageTitle);
   return {
-    title,
+    title: pageTitle,
     description: CHAINS_DESCRIPTION,
     alternates: { canonical: "/pubs" },
     openGraph: {
-      title,
+      title: appPageTitle(pageTitle),
       description: CHAINS_DESCRIPTION,
       url: "/pubs",
       siteName: metadataSiteName(),

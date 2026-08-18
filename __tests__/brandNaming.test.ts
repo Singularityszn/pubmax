@@ -78,6 +78,36 @@ const OG_SITE_NAME_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
   ],
 ];
 
+// The document title a reader sees is the page's own title run through the
+// root layout's template, so that is what the no-double-brand rule is about.
+// Resolved with Next's own resolver rather than a restatement of it.
+const TEMPLATED_TITLE_PAGES: ReadonlyArray<[string, () => Promise<Metadata>]> = [
+  ["/about", async () => (await import("@/app/about/page")).metadata],
+  ["/out", async () => (await import("@/app/out/page")).metadata],
+  ["/privacy", async () => (await import("@/app/privacy/page")).metadata],
+  ["/terms", async () => (await import("@/app/terms/page")).metadata],
+  ["/pubs", async () => (await import("@/app/pubs/page")).generateMetadata()],
+  ["/social", async () => (await import("@/app/social/page")).generateMetadata()],
+];
+
+describe("a document title carries the brand exactly once", () => {
+  it.each(TEMPLATED_TITLE_PAGES)("%s", async (_route, load) => {
+    const { resolveTitle } = await import(
+      "next/dist/lib/metadata/resolvers/resolve-title.js"
+    );
+    const root = (await import("@/app/layout")).metadata;
+    const template = (root.title as { template?: string }).template;
+    expect(template).toBe(`%s | ${BRAND_NAME}`);
+
+    const page = await load();
+    const resolved = resolveTitle(page.title, template).absolute as string;
+
+    expect(resolved.endsWith(` | ${BRAND_NAME}`)).toBe(true);
+    expect(resolved.split(`| ${BRAND_NAME}`)).toHaveLength(2);
+    expect(resolved).not.toContain(APP_NAME);
+  });
+});
+
 describe("page metadata names the brand, never the app", () => {
   it.each(OG_SITE_NAME_PAGES)("%s carries the brand siteName", async (_route, load) => {
     const resolved = await load();

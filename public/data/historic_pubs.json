@@ -2761,12 +2761,12 @@
     "sourced": true
   },
   {
-    "venueId": null,
-    "name": "Owl And Pussycat",
+    "venueId": "venue-t3ii33",
+    "name": "Owl and Pussycat",
     "slug": "owl-and-pussycat",
-    "borough": null,
-    "lat": null,
-    "lng": null,
+    "borough": "Tower Hamlets",
+    "lat": 51.52429,
+    "lng": -0.07547,
     "hook": "pub in Shoreditch, London",
     "facts": [
       {
@@ -4840,12 +4840,12 @@
     "sourced": true
   },
   {
-    "venueId": null,
+    "venueId": "venue-16ze6b1",
     "name": "The George Inn",
     "slug": "the-george-inn",
-    "borough": null,
-    "lat": null,
-    "lng": null,
+    "borough": "Southwark",
+    "lat": 51.5042,
+    "lng": -0.089992,
     "hook": "public house established in the medieval period on Borough High Street in Southwark, London",
     "facts": [
       {

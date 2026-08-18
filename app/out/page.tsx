@@ -18,7 +18,7 @@ const PAGE_DESCRIPTION =
 // until L2 and L4 give it content of its own. The Open Graph tags stay, because
 // a shared link still deserves a card and `og:` is not an indexing instruction.
 export const metadata: Metadata = {
-  title: appPageTitle(PAGE_TITLE),
+  title: PAGE_TITLE,
   description: PAGE_DESCRIPTION,
   robots: {
     index: false,

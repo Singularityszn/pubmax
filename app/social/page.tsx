@@ -30,14 +30,13 @@ function toUrlSearchParams(input: SearchParams): URLSearchParams {
 export async function generateMetadata(): Promise<Metadata> {
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
   const surface = socialSurfaceName(friendsLaunchEnabled);
-  const title = appPageTitle(surface);
   return {
-    title,
+    title: surface,
     description: SOCIAL_DESCRIPTION,
     alternates: { canonical: "/social" },
     robots: { index: true, follow: true },
     openGraph: {
-      title,
+      title: appPageTitle(surface),
       description: SOCIAL_DESCRIPTION,
       url: "/social",
       siteName: metadataSiteName(),
