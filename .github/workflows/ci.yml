@@ -142,11 +142,13 @@ jobs:
           PUBMAX_E2E_KEYLESS: "1"
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
-  # UX lane 13: the same four product routes reported with LCP and CLS beside
-  # decoded JS, attached as a markdown table for the PR body. It measures on the
-  # method e2e/helpers/perfMeasurement.ts owns, so its figures are comparable to
-  # the ceilings above; it fails only on a JS regression past 10%, because the
-  # ceilings themselves are already enforced by the job above.
+  # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
+  # LCP and CLS beside decoded JS, attached as a markdown table for the PR body.
+  # It measures on the method e2e/helpers/perfMeasurement.ts owns, so its figures
+  # are comparable to the ceilings above. It REPORTS rather than gates: a route
+  # over its own ceiling is printed as a warning, because the ceilings are
+  # already enforced by the job above. It fails only on a route it could not
+  # measure at all, which is a broken route rather than a slow one.
   ux-lane-performance:
     name: UX lane performance
     runs-on: ubuntu-latest

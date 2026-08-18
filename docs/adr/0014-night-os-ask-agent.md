@@ -30,9 +30,13 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
 2. **Grounded answers** — every card and figure carries provenance; tools never
    invent pint prices. Uncorroborated community rows may appear on the pub’s
    own sheet language only; map-authority claims require corroboration.
-3. **Propose-then-confirm** — `propose_plan` and `propose_map_action` return
-   proposals the client applies only after an explicit Confirm. No silent Plan
-   or durable Pal memory writes from Ask.
+3. **Propose, never apply** - Ask mutates nothing. `propose_map_action` returns
+   a proposal the client applies only after an explicit Confirm. `propose_plan`
+   returns a draft the client carries to `/plan` behind one "Open in Plan" link
+   (`planPalRouteHandoffHref` in `lib/planOccasion.ts`), which prefills the same
+   ask there and saves nothing until the drinker acts on it; a Confirm button
+   beside that link would be two labels for one action. No silent Plan or
+   durable Pal memory writes from Ask.
 4. **Keyless path** — without `OPENROUTER_API_KEY`, a deterministic router picks
    1–2 tools and fills house-voice templates (same honesty as heritage
    structured-only).

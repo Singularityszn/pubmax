@@ -8,7 +8,7 @@ CI refuses a change that goes past it.
 - The rules and the failure table: [`lib/performanceBudgets.ts`](../lib/performanceBudgets.ts)
 - The measuring: [`e2e/performance-budget.spec.ts`](../e2e/performance-budget.spec.ts)
 - The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
-- The UX lane report (same routes plus LCP and CLS, attached for the PR body): [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts)
+- The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
 - The gate: the `performance-budget` job in `.github/workflows/ci.yml`; the UX lane report is its own `ux-lane-performance` job, because one 15-minute wall cannot hold two full sweeps
 
 ## What each metric means

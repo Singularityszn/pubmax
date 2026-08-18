@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 // ElevenLabs, no Supabase.
 //   1. a text ask comes back grounded, with a source chip on every card,
 //   2. find_desk says "No seat data yet" rather than offering a pub as a desk,
-//   3. propose_plan still asks for a Confirm before anything moves,
+//   3. propose_plan offers one Open in Plan link and moves nothing until it is taken,
 //   4. the Pal recalls a subject raised earlier in the same thread,
 //   5. the meeting fits 360, 390 and 430 with tappable controls,
 //   6. voice, unconfigured, explains itself instead of failing on the tap.
