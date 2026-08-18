@@ -143,9 +143,10 @@ export function normaliseContextDevEventRow(
     startsAt === null && nonEmptyString(raw.startsDate) ? statedCalendarDate(raw.startsDate) : null;
   if (!startsAt && !startsDate) return { row: null, drop: "noStart" };
 
+  const statedSourceId = nonEmptyString(raw.sourceId) ? raw.sourceId.trim() : null;
   const id = stableId(
     "events-cd",
-    `${source.id}|${raw.sourceId ?? title}|${placeName}|${startsAt ?? startsDate}`,
+    `${source.id}|${statedSourceId ?? title}|${placeName}|${startsAt ?? startsDate}`,
   );
   const row: Record<string, unknown> = {
     id,
@@ -168,7 +169,10 @@ export function normaliseContextDevEventRow(
   // `dedupeEventRowsBySourceId` waves it through untouched - a page listing one
   // event twice would publish two identical cards under one React key. The
   // row's own deterministic id is the identity when the publisher states none.
-  row.sourceId = nonEmptyString(raw.sourceId) ? raw.sourceId.trim() : id;
+  // ONE predicate decides "did the publisher state an id", above and here: an
+  // empty string answered YES to a bare `??` in the hash input and NO here, so
+  // the title left the hash and two real listings collapsed into one.
+  row.sourceId = statedSourceId ?? id;
 
   const priceGbp = parseGbpFromText(raw.priceText);
   if (priceGbp !== null) row.priceGbp = priceGbp;

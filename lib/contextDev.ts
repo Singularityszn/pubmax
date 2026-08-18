@@ -21,6 +21,17 @@ export const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
 export const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
 
 /**
+ * The longest a provider-chosen `Retry-After` may park this run.
+ *
+ * The request timeout does not bound this wait, because the wait sits BETWEEN
+ * requests. A 429 answering `Retry-After: 3600` is an ordinary shape for a rate
+ * limited API, and honouring it verbatim would park a scheduled refresh for an
+ * hour per retry. Past this ceiling the answer is that we are rate limited,
+ * which the next scheduled run can act on, rather than a job that hangs.
+ */
+export const CONTEXT_DEV_MAX_RETRY_AFTER_MS = 30_000;
+
+/**
  * Requests ONE run may send, counting retries, so a retry storm spends the run
  * rather than the account - the ceiling lib/harvest/firecrawl.ts puts on its own
  * lane, for the same reason. A request is the unit here because the two
@@ -186,6 +197,17 @@ async function withRetries<T extends ContextDevScrapeOk | ContextDevExtractOk<un
     if (!result.retry || attempt === maxAttempts) break;
     const retryAfter =
       result.failure.statusCode === 429 ? parseRetryAfterMs(result.retryAfter ?? null) : null;
+    if (retryAfter !== null && retryAfter > CONTEXT_DEV_MAX_RETRY_AFTER_MS) {
+      last = {
+        ...result.failure,
+        retryable: false,
+        message:
+          `${result.failure.message} Retry-After asks for ${Math.ceil(retryAfter / 1000)}s, ` +
+          `past the ${Math.round(CONTEXT_DEV_MAX_RETRY_AFTER_MS / 1000)}s ceiling, so this run ` +
+          "stopped instead of waiting.",
+      };
+      break;
+    }
     await sleepImpl(retryAfter ?? CONTEXT_DEV_RETRY_BASE_DELAY_MS * attempt);
   }
 

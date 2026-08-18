@@ -163,6 +163,38 @@ describe("row identity", () => {
     expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(1);
   });
 
+  it("keeps two events apart when the page answers a BLANK id", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { rows } = normaliseContextDevExtract(
+      {
+        events: [
+          { ...duplicatedEvent, sourceId: "", title: "Quiz night" },
+          { ...duplicatedEvent, sourceId: "", title: "Live music" },
+        ],
+      },
+      fullers,
+      { observedAt },
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.sourceId).not.toBe(rows[1]?.sourceId);
+    expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
+  });
+
+  it("treats a whitespace-only id the same way", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { rows } = normaliseContextDevExtract(
+      {
+        events: [
+          { ...duplicatedEvent, sourceId: "   ", title: "Quiz night" },
+          { ...duplicatedEvent, sourceId: "   ", title: "Live music" },
+        ],
+      },
+      fullers,
+      { observedAt },
+    );
+    expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
+  });
+
   it("keeps the publisher's own id when the page states one", () => {
     if (!fullers) throw new Error("missing fullers register entry");
     const { rows } = normaliseContextDevExtract(

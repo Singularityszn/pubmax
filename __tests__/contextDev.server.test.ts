@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   CONTEXT_DEV_MAX_ATTEMPTS,
+  CONTEXT_DEV_MAX_RETRY_AFTER_MS,
   contextDevApiKey,
   createContextDevBudget,
   extract,
@@ -117,6 +118,54 @@ describe("scrapeMarkdown", () => {
     expect(result.error.statusCode).toBe(403);
     expect(result.error.code).toBe("INVALID_REQUEST");
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  it("stops instead of waiting when Retry-After asks past the ceiling", async () => {
+    const askedSeconds = Math.round(CONTEXT_DEV_MAX_RETRY_AFTER_MS / 1000) + 60;
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse({ error: "slow down" }, 429, { "retry-after": String(askedSeconds) }),
+    );
+    const sleeps: number[] = [];
+    const result = await scrapeMarkdown("https://example.com", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async (ms) => {
+        sleeps.push(ms);
+      },
+      maxAttempts: CONTEXT_DEV_MAX_ATTEMPTS,
+    });
+
+    expect(sleeps).toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.statusCode).toBe(429);
+    expect(result.error.retryable).toBe(false);
+    expect(result.error.message).toContain(`${askedSeconds}s`);
+    expect(result.error.message).toContain("ceiling");
+  });
+
+  it("still waits a Retry-After inside the ceiling", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "slow down" }, 429, {
+          "retry-after": String(Math.round(CONTEXT_DEV_MAX_RETRY_AFTER_MS / 1000)),
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ success: true, url: "https://example.com", markdown: "ok" }));
+    const sleeps: number[] = [];
+    const result = await scrapeMarkdown("https://example.com", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: async (ms) => {
+        sleeps.push(ms);
+      },
+      maxAttempts: 2,
+    });
+
+    expect(sleeps).toEqual([CONTEXT_DEV_MAX_RETRY_AFTER_MS]);
+    expect(result.status).toBe("ok");
   });
 
   it("retries 5xx with bounded backoff then fails", async () => {
