@@ -192,10 +192,19 @@ describe("what Open plans may say before it reads anything", () => {
   });
 });
 
-describe("Out page hierarchy", () => {
-  it("names the live events lane above the cards", () => {
-    expect(OUT_LIVE_EVENTS_SECTION_TITLE).toBe("Live events");
+// Where the heading SITS is rendered geometry and belongs to e2e/out-tab.spec.ts,
+// which compares the two regions' bounding boxes. What it may SAY is the part a
+// constant can answer: the lane is named for the reader, never for whichever
+// vendor happened to supply the rows under it.
+describe("what the live events heading may say", () => {
+  it("names the lane rather than the vendor behind it", () => {
     expect(OUT_LIVE_EVENTS_SECTION_TITLE).not.toMatch(/ticketmaster/i);
+    expect(OUT_LIVE_EVENTS_SECTION_TITLE).not.toMatch(/skiddle/i);
+  });
+
+  it("keeps the house voice", () => {
+    expect(OUT_LIVE_EVENTS_SECTION_TITLE).not.toMatch(/—/);
+    expect(OUT_LIVE_EVENTS_SECTION_TITLE).not.toMatch(/!/);
   });
 });
 
