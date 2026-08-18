@@ -1133,6 +1133,11 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
+  // An ask the address carries is applied ONCE. This effect re-runs whenever
+  // the surface it has to write into can change - releasing a held acceptance
+  // flips `heldVenueId` - and a second application would overwrite whatever
+  // the drinker has typed since with the line the URL opened on.
+  const appliedUrlAskRef = useRef<string | null>(null);
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
@@ -1140,6 +1145,8 @@ function PlanComposerForm({
       prev.ask === fresh.ask && prev.handoffAsk === fresh.handoffAsk ? prev : fresh,
     );
     if (!fresh.ask) return;
+    if (appliedUrlAskRef.current === fresh.ask) return;
+    appliedUrlAskRef.current = fresh.ask;
     setAskDraftQuery(fresh.ask);
     const entryForSurface: "describe" | "wizard" =
       hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
@@ -1178,7 +1185,12 @@ function PlanComposerForm({
         } catch {
           raw = null;
         }
-        if (urlAsk || !raw) return;
+        // The address is re-read HERE rather than closed over: this effect is
+        // scheduled by the mount render, which on a client-side navigation
+        // still saw the previous route, so a captured ask would read as none
+        // and hand the field back to the draft the URL just beat.
+        const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+        if (askOnScreen || !raw) return;
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
@@ -1187,7 +1199,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, [canPersist, urlAsk]);
+  }, [canPersist]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);

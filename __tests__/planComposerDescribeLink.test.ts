@@ -51,7 +51,11 @@ vi.mock("@/lib/analytics", () => ({
 
 import PlanComposer from "@/components/plan/PlanComposer";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
-import { createPlanIntakeDraft, writePlanIntakeDraft } from "@/lib/planIntake";
+import {
+  createPlanIntakeDraft,
+  skipRemainingPlanIntake,
+  writePlanIntakeDraft,
+} from "@/lib/planIntake";
 import { writePlanDraftEnvelope } from "@/lib/planDraft";
 
 const URL_ASK = "Plan a crawl in Soho for 4";
@@ -89,6 +93,64 @@ function restoreStorage(): void {
 function setSearch(search: string): void {
   window.history.replaceState({}, "", `/plan${search}`);
 }
+
+const realLocation = Object.getOwnPropertyDescriptor(window, "location")!;
+
+/**
+ * A client-side navigation commits its address AFTER React has begun the
+ * render for the route it lands on, so a render-phase read still answers the
+ * route the drinker came from. This double is exactly that ordering: the FIRST
+ * `location.search` read answers the previous route, every read after it the
+ * new one. `/pal/chat`'s Open in Plan is that navigation, so the ask it hands
+ * over is the one this file's whole rule is about.
+ */
+function stageClientNavigation(previousSearch: string, nextSearch: string): void {
+  setSearch(nextSearch);
+  const live = window.location;
+  let servedPrevious = false;
+  const staged = new Proxy(live, {
+    get(target, prop, receiver) {
+      if (prop === "search" && !servedPrevious) {
+        servedPrevious = true;
+        return previousSearch;
+      }
+      const value = Reflect.get(target, prop, receiver);
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  Object.defineProperty(window, "location", { configurable: true, get: () => staged });
+}
+
+function restoreLocation(): void {
+  Object.defineProperty(window, "location", realLocation);
+}
+
+function typeInto(selector: string, value: string): void {
+  const field = document.querySelector<HTMLInputElement>(selector);
+  if (!field) throw new Error(`${selector} did not render`);
+  const setter = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
+  setter?.call(field, value);
+  field.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
+function clickButton(label: string): void {
+  const button = Array.from(document.querySelectorAll("button")).find(
+    (candidate) => candidate.textContent?.trim() === label,
+  );
+  if (!button) throw new Error(`no button reading ${label}`);
+  button.click();
+}
+
+const HELD_ACCEPTANCE = {
+  venueId: "venue-held",
+  source: "pal" as const,
+  cityId: "london",
+  acceptedArea: null,
+  startsAt: null,
+};
 
 async function mountComposer(): Promise<void> {
   host = document.createElement("div");
@@ -134,6 +196,7 @@ afterEach(async () => {
   root = null;
   host?.remove();
   host = null;
+  restoreLocation();
   restoreStorage();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
@@ -308,6 +371,51 @@ describe("PlanComposer never drops a URL ask", () => {
     await mountComposer();
 
     expect(conciergeFieldValue()).toBe(DRAFT_ASK);
+  });
+
+  it("beats a held draft on a client navigation, where the mount render saw the old route", async () => {
+    sessionStorage.setItem(
+      ASK_PLAN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ query: DRAFT_ASK }),
+    );
+    stageClientNavigation("", `?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+
+    expect(describeFieldValue()).toBe(URL_ASK);
+    expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
+  });
+
+  it("does not come back over a concierge line typed after the held pub is released", async () => {
+    // A completed wizard draft keeps the full composer open after the release,
+    // so the surface holding the ask never changes - only what the drinker has
+    // typed into it since.
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft()));
+    writePlanDraftEnvelope(
+      {
+        title: "",
+        creatorName: "",
+        startTime: "",
+        conciergeQuery: "",
+        stops: [{ key: 1, venueId: "venue-held", venueName: "The Held Arms" }],
+        acceptedAnchor: {
+          ...HELD_ACCEPTANCE,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+      },
+      "planning-intent",
+      sessionStorage,
+    );
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+    expect(conciergeFieldValue()).toBe(URL_ASK);
+
+    const typed = "Something else entirely, in Peckham";
+    await act(async () => { typeInto("#plan-concierge-query", typed); });
+    await act(async () => { clickButton("Release this pub"); });
+
+    expect(conciergeFieldValue()).toBe(typed);
   });
 });
 
