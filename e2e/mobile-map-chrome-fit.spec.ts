@@ -34,9 +34,13 @@ type ShellLayout = {
   barScrollWidth: number;
 };
 
+const PIN_SLA_ENFORCED = process.env.PUBMAX_PIN_SLA_ENFORCE === "1";
+
 test.use({
   launchOptions: {
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+    args: PIN_SLA_ENFORCED
+      ? []
+      : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
   video:
     process.env.PUBMAX_MOBILE_MAP_EVIDENCE === "1"
@@ -79,8 +83,10 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   // re-measured from this annotation after a production-build run.
   test.info().annotations.push({ type: "pinReadyMs", description: `${pinReadyMs}` });
   // Software-rendered CI (SwiftShader) records the figure but does not enforce
-  // the ceiling; set PUBMAX_PIN_SLA_ENFORCE=1 on GPU or real-device runs.
-  if (process.env.PUBMAX_PIN_SLA_ENFORCE === "1") {
+  // the ceiling. PUBMAX_PIN_SLA_ENFORCE=1 drops the SwiftShader override for
+  // this whole file as well as arming the ceiling, so the enforced run really
+  // is the machine's own renderer.
+  if (PIN_SLA_ENFORCED) {
     expect(pinReadyMs).toBeLessThanOrEqual(5_000);
   }
 });

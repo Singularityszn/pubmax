@@ -81,9 +81,14 @@ waits up to sixty seconds on the painted-pin probe, and always records
 `pinReadyMs` as a Playwright annotation. That proves pins paint on every run.
 
 The `targetMs` ceiling is enforced only when `PUBMAX_PIN_SLA_ENFORCE=1` is set
-(GPU or real-device runs). Stock CI uses SwiftShader software rendering, which
-routinely exceeds five seconds even when pins do paint; failing that build on
-the ceiling would be noise, not a product regression.
+(GPU or real-device runs). That one variable does BOTH halves: it arms the
+ceiling AND drops the spec's `--use-angle=swiftshader` launch override, so the
+enforced run measures the machine's own renderer. Stock CI keeps SwiftShader
+software rendering, which routinely exceeds five seconds even when pins do
+paint; failing that build on the ceiling would be noise, not a product
+regression. Set the variable only on a box with a real GPU - a software
+fallback under an armed ceiling fails for the reason the gate exists to
+excuse.
 
 Nothing enforces `measuredMs`: re-measure it by running that spec against a
 production build and reading the `pinReadyMs` annotation, then update it in the
