@@ -100,7 +100,6 @@ export function planPalRouteHandoffHref(query: string): string {
   if (!trimmed) return "/plan";
   const params = new URLSearchParams();
   params.set(PLAN_QUERY_PARAM, trimmed);
-  params.set("src", "pal-plan");
   return `/plan?${params.toString()}`;
 }
 

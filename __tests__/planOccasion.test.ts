@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { laneSourceFromSearch } from "@/lib/analytics";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
 import {
@@ -65,8 +66,9 @@ describe("soft plan occasion deep links", () => {
       ask,
     );
     expect(planPalRouteHandoffHref(ask)).toBe(
-      `/plan?${PLAN_QUERY_PARAM}=Plan+a+crawl+in+Soho+for+4&src=pal-plan`,
+      `/plan?${PLAN_QUERY_PARAM}=Plan+a+crawl+in+Soho+for+4`,
     );
+    expect(laneSourceFromSearch(new URL(`https://x.test${planPalRouteHandoffHref(ask)}`).search)).toBeNull();
   });
 
   it.each([

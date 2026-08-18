@@ -1,3 +1,5 @@
+import { renderToStaticMarkup } from "react-dom/server";
+
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -6,8 +8,19 @@ vi.mock("@/lib/scrapedPubs.server", () => ({
   readScrapedPubsForPage: vi.fn(),
 }));
 
-import { generateMetadata } from "@/app/pubs/page";
+// The nav and the gallery are their own surfaces with their own coverage; what
+// is under test is the page's own heading against its own title.
+vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
+vi.mock("@/components/pubs/PubsGallery", () => ({ default: () => null }));
+
+import PubsPage, { generateMetadata } from "@/app/pubs/page";
 import { readScrapedPubsForPage } from "@/lib/scrapedPubs.server";
+
+/** The rendered heading, read off the page's own output. */
+async function renderedHeading(): Promise<string | undefined> {
+  const html = renderToStaticMarkup(await PubsPage());
+  return html.match(/<h1[^>]*>(.*?)<\/h1>/)?.[1];
+}
 
 describe("/pubs metadata", () => {
   it("uses the same Chains heading in the page title as the on-page h1", async () => {
@@ -52,6 +65,7 @@ describe("/pubs metadata", () => {
 
     const meta = await generateMetadata();
     expect(meta.title).toBe("Chains (3 chain pubs)");
+    expect(await renderedHeading()).toBe(meta.title);
   });
 
   it("falls back to Chains when the scraped read is incomplete", async () => {
@@ -74,5 +88,6 @@ describe("/pubs metadata", () => {
 
     const meta = await generateMetadata();
     expect(meta.title).toBe("Chains");
+    expect(await renderedHeading()).toBe(meta.title);
   });
 });
