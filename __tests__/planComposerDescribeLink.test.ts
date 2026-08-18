@@ -58,27 +58,28 @@ let host: HTMLElement | null = null;
 
 const realSessionStorage = Object.getOwnPropertyDescriptor(window, "sessionStorage")!;
 
+const realLocalStorage = Object.getOwnPropertyDescriptor(window, "localStorage")!;
+
 /**
- * Site data blocked, the way a browser does it: every session-storage call
- * raises. `vi.spyOn` cannot express this - jsdom's Storage is a proxy and the
- * spy silently never installs, which makes the assertion vacuous - so the whole
- * object is replaced.
+ * Site data blocked, the way a browser really does it: `window.sessionStorage`
+ * and `window.localStorage` are PROPERTY GETTERS, and a blocked browser raises
+ * on the read itself rather than on a later method call. So the fake replaces
+ * the getter, which is strictly stronger - naming the identifier anywhere is
+ * enough to throw. `vi.spyOn` cannot express even the weaker form: jsdom's
+ * Storage is a proxy, the spy silently never installs, and the assertion is
+ * then vacuous.
  */
-function blockSessionStorage(): void {
+function blockStorage(): void {
   const refuse = (): never => {
     throw new DOMException("site data is blocked", "SecurityError");
   };
-  Object.defineProperty(window, "sessionStorage", {
-    configurable: true,
-    value: {
-      getItem: refuse,
-      setItem: refuse,
-      removeItem: refuse,
-      clear: refuse,
-      key: refuse,
-      get length(): number { return refuse(); },
-    } as unknown as Storage,
-  });
+  Object.defineProperty(window, "sessionStorage", { configurable: true, get: refuse });
+  Object.defineProperty(window, "localStorage", { configurable: true, get: refuse });
+}
+
+function restoreStorage(): void {
+  Object.defineProperty(window, "sessionStorage", realSessionStorage);
+  Object.defineProperty(window, "localStorage", realLocalStorage);
 }
 
 function setSearch(search: string): void {
@@ -123,7 +124,7 @@ afterEach(async () => {
   root = null;
   host?.remove();
   host = null;
-  Object.defineProperty(window, "sessionStorage", realSessionStorage);
+  restoreStorage();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
   sessionStorage.clear();
@@ -157,12 +158,15 @@ describe("PlanComposer describe prefill", () => {
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
-  it("still lands the URL ask when reading session storage throws", async () => {
+  it("still lands the URL ask when the browser refuses site data", async () => {
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
-    blockSessionStorage();
+    blockStorage();
 
     await mountComposer();
 
+    // The whole composer has to survive, not just the prefill effect: a persist
+    // effect that names a blocked storage throws during the same flush and
+    // React unmounts the tree, which reads as a blank /plan.
     expect(describeFieldValue()).toBe(URL_ASK);
   });
 

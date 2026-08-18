@@ -63,7 +63,12 @@ export type RememberedArea =
 const STORAGE_KEY = "pubmax:nightPatch:v1";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined") return false;
+  try {
+    return !!window.localStorage;
+  } catch {
+    return false;
+  }
 }
 
 function parseRemembered(raw: string | null): RememberedArea | null {

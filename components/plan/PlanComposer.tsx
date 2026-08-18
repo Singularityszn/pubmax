@@ -991,6 +991,35 @@ function initialComposerRouteDraft(
   };
 }
 
+/**
+ * The browser's own storage, or nothing.
+ *
+ * `window.sessionStorage` and `window.localStorage` are PROPERTY GETTERS that
+ * RAISE when site data is blocked or the document is a sandboxed frame without
+ * allow-same-origin, so naming either identifier is itself a throwing
+ * expression. Every reader here goes through these, the shape
+ * `defaultStorage` (lib/planningIntent.ts) and `resolveStorage`
+ * (lib/planIntake.ts) already use: a blocked browser costs a saved draft, never
+ * the composer.
+ */
+function safeSessionStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage;
+  } catch {
+    return null;
+  }
+}
+
+function safeLocalStorage(): Storage | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.localStorage;
+  } catch {
+    return null;
+  }
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -1053,8 +1082,9 @@ function PlanComposerForm({
         // the next /plan visit to open on somebody's earlier ask.
         let raw: string | null = null;
         try {
-          raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-          if (raw) sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+          const askDraftStore = safeSessionStorage();
+          raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
+          if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
         } catch {
           raw = null;
         }
@@ -1200,14 +1230,14 @@ function PlanComposerForm({
       conciergeQuery,
       stops,
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", sessionStorage);
+    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
   }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
 
   useEffect(() => {
     if (!canPersist) return;
     if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
-      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+      safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
         nightContext,
         routeRevision,
@@ -1353,8 +1383,8 @@ function PlanComposerForm({
   function releaseAcceptance() {
     focusPlanRouteStatus();
     releaseAcceptedPlanContext({
-      planDraft: canPersist ? sessionStorage : null,
-      routeDraft: canPersist ? localStorage : null,
+      planDraft: canPersist ? safeSessionStorage() : null,
+      routeDraft: canPersist ? safeLocalStorage() : null,
     });
     setPlanAnchor(null);
     setGroundingProof(null);
@@ -1612,7 +1642,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
-      clearPersistedPlanDrafts({ planDraft: sessionStorage, routeDraft: localStorage });
+      clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}#share`);
@@ -1915,8 +1945,8 @@ export default function PlanComposer() {
     if (!hydrated) return null;
     try {
       const resolved = resolveComposerHydration({
-        planDraft: readPlanDraftEnvelope(sessionStorage),
-        routeDraft: readPlanRouteDraftEnvelope(localStorage),
+        planDraft: readPlanDraftEnvelope(safeSessionStorage()),
+        routeDraft: readPlanRouteDraftEnvelope(safeLocalStorage()),
         intakeDraft: readPlanIntakeDraftWithMetadata(),
         planningIntent: readPlanningIntent(),
         rememberedArea: readRememberedArea(),
@@ -1928,11 +1958,11 @@ export default function PlanComposer() {
   }, [hydrated]);
   const recoveredDraft = useMemo(() => {
     if (!hydrated) return null;
-    try { return parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY)); } catch { return null; }
+    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredRouteDraft = useMemo(() => {
     if (!hydrated) return null;
-    try { return parsePlanRouteDraft(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)); } catch { return null; }
+    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredIntake = useMemo(() => {
     if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };
