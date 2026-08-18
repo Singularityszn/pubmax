@@ -27,8 +27,23 @@ for (const [label, width] of [
     // `none` and not merely "not uppercase": app/globals.css declares the same
     // class with `text-transform: lowercase`, so the label's own sentence case
     // only survives while the shared skin states none.
-    const transform = await vibe.evaluate((el) => getComputedStyle(el).textTransform);
-    expect(transform).toBe("none");
+    const skin = await vibe.evaluate((el) => {
+      const style = getComputedStyle(el);
+      return { textTransform: style.textTransform, fontFamily: style.fontFamily };
+    });
+    expect(skin.textTransform).toBe("none");
+
+    // Bungee draws cap-height glyphs only, so a chip on the party face reads as
+    // ALL CAPS to the reader however text-transform computes. The label face is
+    // the display one.
+    expect(skin.fontFamily).not.toMatch(/bungee/i);
+    // next/font renames the family (`__Space_Grotesk_<hash>`), so match the
+    // face rather than the literal two-word name.
+    expect(skin.fontFamily).toMatch(/grotesk/i);
+
+    // The 44px floor is the chip's own geometry and is not the casing's to move.
+    const box = await vibe.boundingBox();
+    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
 
     // The chips sit well below one phone viewport on /tonight, and toBeVisible
     // only asserts a non-empty box, so a viewport shot taken where the page
