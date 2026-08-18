@@ -21,9 +21,19 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/profiles/[handle]/following/route";
 import { memoryFollowStore, __resetMemoryFollows } from "@/lib/followStore";
-import { __resetMemoryProfiles } from "@/lib/profileStore";
+import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const URL_BASE = "http://localhost/api/profiles";
+const AVATAR_GENERATION = "11111111-1111-1111-8111-111111111111";
+
+function followEntry(handle: string, extra?: { displayName?: string; avatarUrl?: string }) {
+  return { handle, ...extra };
+}
+
+function followingHandles(body: { following: Array<{ handle: string }> }): Set<string> {
+  return new Set(body.following.map((row) => row.handle));
+}
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -44,7 +54,7 @@ beforeEach(() => {
 });
 
 describe("GET /api/profiles/[handle]/following", () => {
-  it("returns the normalized handles a handle follows", async () => {
+  it("returns enriched rows for handles a profile follows", async () => {
     await memoryFollowStore.follow("ken", "sam");
     await memoryFollowStore.follow("ken", "lee");
 
@@ -52,14 +62,30 @@ describe("GET /api/profiles/[handle]/following", () => {
     expect(res.status).toBe(200);
     expectNoStore(res);
     const body = await res.json();
-    // Order isn't part of the contract — compare as a set.
-    expect(new Set(body.following)).toEqual(new Set(["sam", "lee"]));
-    // Every entry is a normalized handle, never a raw id.
-    for (const h of body.following) expect(h).toMatch(/^[a-z0-9_]+$/);
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee"]));
+    for (const row of body.following) {
+      expect(row).toMatchObject({ handle: expect.stringMatching(/^[a-z0-9_]+$/) });
+    }
+  });
+
+  it("projects an owned avatar onto a followee when one exists", async () => {
+    await memoryFollowStore.follow("ken", "sam");
+    const profile = await memoryProfileStore.getByHandle("sam");
+    await memoryProfileStore.setOwnedImage("sam", "avatar", {
+      objectKey: profileImageServingKey("avatar", profile!.id, AVATAR_GENERATION),
+      generation: AVATAR_GENERATION,
+      moderationState: "approved",
+    });
+
+    const body = await (await following("ken")).json();
+    expect(body.following).toEqual([
+      followEntry("sam", {
+        avatarUrl: `/api/avatar/${profile!.id}/${AVATAR_GENERATION}`,
+      }),
+    ]);
   });
 
   it("returns { following: [] } for a handle that follows nobody", async () => {
-    // Give ken a profile (as a followee) but no OUTGOING edges of his own.
     await memoryFollowStore.follow("sam", "ken");
 
     const res = await following("ken");
@@ -78,12 +104,11 @@ describe("GET /api/profiles/[handle]/following", () => {
   it("normalizes the queried handle before resolving its followees", async () => {
     await memoryFollowStore.follow("ken", "sam");
 
-    // "@Ken" and "KEN" collapse to the same identity as the seeded "ken".
     const atKen = await following("@Ken");
-    expect(await atKen.json()).toEqual({ following: ["sam"] });
+    expect(await atKen.json()).toEqual({ following: [followEntry("sam")] });
 
     const upperKen = await following("KEN");
-    expect(await upperKen.json()).toEqual({ following: ["sam"] });
+    expect(await upperKen.json()).toEqual({ following: [followEntry("sam")] });
   });
 
   it("never 500s on an empty handle — returns { following: [] }, not a 400/500", async () => {
@@ -93,8 +118,6 @@ describe("GET /api/profiles/[handle]/following", () => {
   });
 
   it("never 500s on a blank / junk handle that normalizes to empty", async () => {
-    // Whitespace, a bare "@", and off-alphabet junk all normalize to "" — the
-    // route's empty-handle branch returns the uniform empty shape (never a 400).
     for (const junk of ["   ", "@", "@@@", "!!!", "###"]) {
       const res = await following(junk);
       expect(res.status).toBe(200);
@@ -106,8 +129,12 @@ describe("GET /api/profiles/[handle]/following", () => {
     await memoryFollowStore.follow("ken", "sam");
     await memoryFollowStore.follow("lee", "zoe");
 
-    expect(await (await following("ken")).json()).toEqual({ following: ["sam"] });
-    expect(await (await following("lee")).json()).toEqual({ following: ["zoe"] });
+    expect(await (await following("ken")).json()).toEqual({
+      following: [followEntry("sam")],
+    });
+    expect(await (await following("lee")).json()).toEqual({
+      following: [followEntry("zoe")],
+    });
   });
 
   it("reflects an unfollow — the dropped followee leaves the list", async () => {
@@ -116,7 +143,7 @@ describe("GET /api/profiles/[handle]/following", () => {
     await memoryFollowStore.unfollow("ken", "sam");
 
     const res = await following("ken");
-    expect(await res.json()).toEqual({ following: ["lee"] });
+    expect(await res.json()).toEqual({ following: [followEntry("lee")] });
   });
 
   it("returns a JSON body of exactly { following } and leaks no profile_id / actor_hash / raw id", async () => {
@@ -124,12 +151,8 @@ describe("GET /api/profiles/[handle]/following", () => {
 
     const res = await following("ken");
     const body = await res.json();
-    // The public shape is exactly one key: `following`.
     expect(Object.keys(body)).toEqual(["following"]);
 
-    // The serialized response must not leak any internal identifier. The memory
-    // profile id is `mem-profile-<handle>`; the Supabase edge carries profile_id
-    // / follower_id / followee_id / actor_hash — none may cross the wire.
     const blob = JSON.stringify(body);
     expect(blob).not.toMatch(/mem-profile-/i);
     expect(blob).not.toMatch(/profile_?id/i);

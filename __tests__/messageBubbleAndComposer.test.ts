@@ -305,3 +305,25 @@ describe("a photo tile is measured against the screen, never the reader's font",
     expect(card).not.toMatch(/(height|aspect-ratio):/);
   });
 });
+
+describe("a phone crop and lightbox stay bounded, not full-screen", () => {
+  it("anchors the crop step in a bottom card over a dimmed thread", () => {
+    expect(THREAD).toContain('className="messageCropOverlay"');
+    expect(THREAD).toContain('className="messageCropCard"');
+    const overlay = rule(".messageCropOverlay");
+    expect(overlay).toMatch(/align-items:\s*flex-end/);
+    expect(overlay).not.toMatch(/align-items:\s*stretch/);
+    const card = rule(".messageCropCard");
+    expect(card).toMatch(/width:\s*min\(100%,\s*24rem\)/);
+    expect(card).toMatch(/max-height:\s*min\(70dvh/);
+  });
+
+  it("keeps the lightbox dialog inside the viewport on phone", () => {
+    const viewer = rule(".messagePhotoViewer");
+    expect(viewer).toMatch(/width:\s*min\(88vw,\s*36rem\)/);
+    expect(viewer).toMatch(/max-height:\s*min\(72dvh/);
+    expect(viewer).not.toMatch(/width:\s*100vw/);
+    expect(viewer).not.toMatch(/height:\s*100vh/);
+    expect(rule(".messagePhotoViewerImage")).toMatch(/object-fit:\s*contain/);
+  });
+});

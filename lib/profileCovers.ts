@@ -265,7 +265,14 @@ export function profileCoverThumbnailLabel(position: number): string {
 export const PROFILE_COVER_MOVE_UP_LABEL = "Move up";
 export const PROFILE_COVER_MOVE_DOWN_LABEL = "Move down";
 export const PROFILE_COVER_REMOVE_LABEL = "Remove";
+/** The field-level control beside Add cover, matching the avatar's Remove photo. */
+export const PROFILE_COVER_REMOVE_ALL_LABEL = "Remove cover";
 export const PROFILE_COVER_ADD_LABEL = "Add cover";
+
+/** Shown before a field-level remove clears every cover and restores the default band. */
+export function profileCoverRemoveConfirmLine(): string {
+  return "Remove your cover photo? Your profile will go back to the default backdrop.";
+}
 
 export const PROFILE_COVER_REFUSED_LINE =
   "That cover photo did not pass our checks. Choose another.";

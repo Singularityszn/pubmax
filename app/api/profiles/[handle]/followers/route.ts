@@ -8,6 +8,7 @@
 // list surface still renders its own empty state.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -22,7 +23,8 @@ export async function GET(
   if (!handle) return jsonNoStore({ followers: [] }, { status: 200 });
 
   try {
-    const followers = await followStore().listFollowers(handle);
+    const handles = await followStore().listFollowers(handle);
+    const followers = await followListEntries(handles);
     return jsonNoStore({ followers }, { status: 200 });
   } catch {
     return jsonNoStore({ followers: [] }, { status: 200 });

@@ -14,12 +14,15 @@ import {
   PROFILE_COVER_MOVE_DOWN_LABEL,
   PROFILE_COVER_MOVE_UP_LABEL,
   PROFILE_COVER_PHOTO_CAP,
+  PROFILE_COVER_REMOVE_ALL_LABEL,
   PROFILE_COVER_REMOVE_LABEL,
   PROFILE_COVER_SECTION_LABEL,
   profileCoverCapLine,
   profileCoverEmptyLine,
+  profileCoverRemoveConfirmLine,
   profileCoverRotationNote,
   profileCoverThumbnailLabel,
+  profileCoverUrls,
   type ProfileCoverPhotoDTO,
   type ProfileCoverReadStatus,
 } from "@/lib/profileCovers";
@@ -56,6 +59,8 @@ type Busy = "idle" | "adding" | "editing";
 
 type ProfileCoverPhotosEditorProps = {
   handle: string;
+  /** URLs the parent already holds from the public profile, including mirror-only covers. */
+  heldCoverUrls: readonly string[];
   /** Reported up on every successful write, so the card repaints in place. */
   onProfileChanged: (profile: PublicProfile) => void;
 };
@@ -67,6 +72,7 @@ function fileKey(file: File): string {
 
 export default function ProfileCoverPhotosEditor({
   handle,
+  heldCoverUrls,
   onProfileChanged,
 }: ProfileCoverPhotosEditorProps) {
   const [covers, setCovers] = useState<ProfileCoverPhotoDTO[]>([]);
@@ -77,6 +83,10 @@ export default function ProfileCoverPhotosEditor({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const base = `/api/profiles/${encodeURIComponent(handle)}/covers`;
+  const legacyCoverUrl = `/api/profiles/${encodeURIComponent(handle)}/cover`;
+
+  const hasCover = covers.length > 0 || heldCoverUrls.length > 0;
+  const mirrorOnly = covers.length === 0 && heldCoverUrls.length > 0;
 
   useEffect(() => {
     let active = true;
@@ -109,11 +119,15 @@ export default function ProfileCoverPhotosEditor({
     };
   }, [base]);
 
-  /** Every write answers the whole profile AND the whole rotation. */
+  /** Every write answers the whole profile AND, when the route carries it, the whole rotation. */
   function applyReply(body: unknown): void {
     if (!body || typeof body !== "object") return;
     const reply = body as { profile?: PublicProfile | null; covers?: ProfileCoverPhotoDTO[] };
-    if (Array.isArray(reply.covers)) setCovers(reply.covers);
+    if (Array.isArray(reply.covers)) {
+      setCovers(reply.covers);
+    } else if (reply.profile && profileCoverUrls(reply.profile).length === 0) {
+      setCovers([]);
+    }
     setStatus("ready");
     if (reply.profile) onProfileChanged(reply.profile);
   }
@@ -165,6 +179,46 @@ export default function ProfileCoverPhotosEditor({
     );
   }
 
+  async function removeAllCovers(): Promise<void> {
+    if (typeof window !== "undefined" && !window.confirm(profileCoverRemoveConfirmLine())) {
+      return;
+    }
+    setBusy("editing");
+    setError(null);
+    try {
+      if (covers.length > 0) {
+        const ids = covers.map((cover) => cover.id);
+        for (const id of ids) {
+          const response = await authedActionFetch(`${base}/${encodeURIComponent(id)}`, {
+            method: "DELETE",
+          });
+          const body: unknown = await response.json().catch(() => null);
+          if (!response.ok) {
+            setError(errorMessageFrom(body, "Could not remove your cover. Try again."));
+            return;
+          }
+          applyReply(body);
+        }
+        return;
+      }
+      const response = await authedActionFetch(legacyCoverUrl, { method: "DELETE" });
+      const body: unknown = await response.json().catch(() => null);
+      if (!response.ok) {
+        setError(errorMessageFrom(body, "Could not remove your cover. Try again."));
+        return;
+      }
+      applyReply(body);
+    } catch (error) {
+      setError(
+        error instanceof AuthActionSessionError
+          ? error.message
+          : "Network error. Try again.",
+      );
+    } finally {
+      setBusy("idle");
+    }
+  }
+
   async function move(coverId: string, direction: "up" | "down"): Promise<void> {
     await send(
       `${base}/${encodeURIComponent(coverId)}`,
@@ -188,10 +242,26 @@ export default function ProfileCoverPhotosEditor({
         {PROFILE_COVER_SECTION_LABEL}
       </span>
 
-      {covers.length === 0 && !pending ? (
+      {covers.length === 0 && !pending && !hasCover ? (
         <p className="profileEditorHint profileEditorCoverEmpty">
           {profileCoverEmptyLine(status)}
         </p>
+      ) : null}
+
+      {mirrorOnly ? (
+        <div className="profileEditorCoverItem profileEditorCoverMirrorOnly">
+          <div className="profileEditorCoverStage">
+            <Image
+              className="profileEditorCoverPreview"
+              src={heldCoverUrls[0]!}
+              alt={profileCoverThumbnailLabel(1)}
+              width={BOX.width}
+              height={BOX.height}
+              unoptimized
+            />
+          </div>
+          <span className="profileEditorCoverPosition">{profileCoverThumbnailLabel(1)}</span>
+        </div>
       ) : null}
 
       {covers.length > 0 ? (
@@ -283,6 +353,16 @@ export default function ProfileCoverPhotosEditor({
           >
             {busy === "adding" ? "Uploading…" : PROFILE_COVER_ADD_LABEL}
           </button>
+          {hasCover ? (
+            <button
+              type="button"
+              className="profileEditorAvatarRemove"
+              disabled={working}
+              onClick={() => void removeAllCovers()}
+            >
+              {PROFILE_COVER_REMOVE_ALL_LABEL}
+            </button>
+          ) : null}
         </div>
       )}
 

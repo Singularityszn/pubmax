@@ -183,6 +183,11 @@ describe("profile composer", () => {
     expect(editor({ avatarUrl: "/api/avatar/p/g" })).toContain("Remove photo");
   });
 
+  it("offers Remove cover only when a cover already exists", () => {
+    expect(editor()).not.toContain("Remove cover");
+    expect(editor({ coverUrl: "/api/cover/p/g" })).toContain("Remove cover");
+  });
+
   // The backdrop is a rotation of up to five, so the composer owns a LIST
   // rather than one slot. There is exactly one cover control on the page: two
   // live copies of the same choice drift the moment either one writes.
@@ -191,7 +196,6 @@ describe("profile composer", () => {
     expect(markup).toContain("Cover photos");
     expect(markup).toContain("Add cover");
     expect(markup).not.toContain("Choose cover");
-    expect(markup).not.toContain("Remove cover");
   });
 });
 

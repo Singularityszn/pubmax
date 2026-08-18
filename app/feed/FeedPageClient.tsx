@@ -37,6 +37,7 @@ import {
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { postReactionToggle } from "@/lib/optimisticToggle";
+import { followListHandle } from "@/lib/followList";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   loadReactionSummaries,
@@ -321,8 +322,8 @@ export default function FeedPageClient({
         const data = (await res.json()) as { following?: unknown };
         const list = Array.isArray(data.following) ? data.following : [];
         const set = new Set<string>();
-        for (const h of list) {
-          const norm = normalizeHandle(typeof h === "string" ? h : "");
+        for (const row of list) {
+          const norm = followListHandle(row);
           if (norm) set.add(norm);
         }
         setFollowingHandles(set);

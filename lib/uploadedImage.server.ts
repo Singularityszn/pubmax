@@ -267,6 +267,8 @@ export type ImagePreparationSpec = {
   /** Sentence noun for reader-facing copy ("Cover photo must be…"). */
   readonly noun: string;
   readonly maxBytes?: number;
+  /** JPEG quality for the stored output. Defaults to 84. */
+  readonly jpegQuality?: number;
   /** The caller's own error type, so `instanceof` checks upstream still hold. */
   readonly fail: (code: UploadedImageErrorCode, message: string) => Error;
 };
@@ -345,7 +347,7 @@ export async function prepareUploadedImage(
         fit: "inside",
         withoutEnlargement: true,
       })
-      .jpeg({ quality: 84, mozjpeg: true })
+      .jpeg({ quality: spec.jpegQuality ?? 84, mozjpeg: true })
       .toBuffer();
 
     if (!magicBytesOk(bytes, "image/jpeg")) {

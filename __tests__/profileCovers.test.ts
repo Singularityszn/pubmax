@@ -23,8 +23,10 @@ import {
   PROFILE_COVER_ROTATION_MS,
   profileCoverCapLine,
   profileCoverEmptyLine,
+  profileCoverRemoveConfirmLine,
   profileCoverRotationNote,
   profileCoverUrls,
+  PROFILE_COVER_REMOVE_ALL_LABEL,
 } from "@/lib/profileCovers";
 
 describe("the cap", () => {
@@ -36,6 +38,15 @@ describe("the cap", () => {
     const line = profileCoverCapLine();
     expect(line).toContain("5");
     expect(line).toMatch(/remove one/i);
+  });
+
+  it("names the field-level remove beside Add cover", () => {
+    expect(PROFILE_COVER_REMOVE_ALL_LABEL).toBe("Remove cover");
+  });
+
+  it("asks before a field-level remove clears every cover", () => {
+    expect(profileCoverRemoveConfirmLine()).toMatch(/remove your cover photo/i);
+    expect(profileCoverRemoveConfirmLine()).toMatch(/default backdrop/i);
   });
 });
 

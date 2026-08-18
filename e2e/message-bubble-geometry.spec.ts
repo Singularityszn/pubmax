@@ -33,7 +33,7 @@ const PHOTO_MAX_HEIGHT_PX = 240;
 const PHOTO_MAX_VIEWPORT_FRACTION = 0.4;
 
 /** The frame a message photo is cut to, and a landscape one for the width lane. */
-const PORTRAIT = { width: 1080, height: 1350 } as const;
+const PORTRAIT = { width: 1638, height: 2048 } as const;
 const LANDSCAPE = { width: 1080, height: 720 } as const;
 
 type Box = { width: number; height: number };
@@ -385,6 +385,85 @@ for (const viewport of VIEWPORTS) {
     });
   });
 }
+
+type OverlayMeasured = {
+  cropCard: Box;
+  viewer: Box;
+  viewport: Box;
+};
+
+/** Crop card and lightbox dialog, measured under the shipped stylesheet. */
+async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
+  return page.evaluate(() => {
+    document.getElementById("overlay-probe")?.remove();
+    const host = document.querySelector(".messagesMain") ?? document.body;
+
+    const overlay = document.createElement("div");
+    overlay.id = "overlay-probe";
+    overlay.className = "messageCropOverlay";
+    overlay.setAttribute("role", "dialog");
+    const card = document.createElement("div");
+    card.className = "messageCropCard";
+    card.textContent = "Crop photo";
+    overlay.append(card);
+    host.append(overlay);
+
+    const dialog = document.createElement("dialog");
+    dialog.id = "viewer-probe";
+    dialog.className = "messagePhotoViewer";
+    dialog.open = true;
+    const img = document.createElement("img");
+    img.className = "messagePhotoViewerImage";
+    img.src =
+      "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>');
+    dialog.append(img);
+    host.append(dialog);
+
+    const box = (selector: string): Box => {
+      const element = document.querySelector(selector);
+      if (!element) throw new Error(`missing ${selector}`);
+      const rect = element.getBoundingClientRect();
+      return { width: rect.width, height: rect.height };
+    };
+
+    const measured = {
+      cropCard: box("#overlay-probe .messageCropCard"),
+      viewer: box("#viewer-probe"),
+      viewport: {
+        width: window.innerWidth,
+        height: window.innerHeight,
+      },
+    };
+    document.getElementById("overlay-probe")?.remove();
+    document.getElementById("viewer-probe")?.remove();
+    return measured;
+  });
+}
+
+test.describe("message attach preview and lightbox at phone 390", () => {
+  test.beforeEach(async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const response = await page.goto("/messages");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".messagesMain")).toBeVisible();
+  });
+
+  test("the crop card and lightbox stay inside the viewport, not full-screen", async ({
+    page,
+  }) => {
+    const measured = await measurePhoneOverlays(page);
+    // THE DEFECT: crop and viewer took the whole phone, hiding nav and composer.
+    expect(measured.cropCard.width).toBeLessThanOrEqual(measured.viewport.width);
+    expect(measured.cropCard.height).toBeLessThan(measured.viewport.height * 0.85);
+    expect(measured.viewer.width).toBeLessThan(measured.viewport.width - 16);
+    expect(measured.viewer.height).toBeLessThan(measured.viewport.height * 0.8);
+    expect(measured.viewer.width).toBeLessThanOrEqual(390 * 0.88 + 2);
+  });
+});
 
 // The one viewport where the 40dvh limb of the cap binds instead of the flat
 // 240px: a phone held sideways. Without it the tile would be 240px of a 390px

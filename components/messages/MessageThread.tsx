@@ -515,17 +515,21 @@ export default function MessageThread({
       />
 
       {cropping ? (
-        <ProfileImageCropper
-          key={fileKey(cropping)}
-          target={MESSAGE_PHOTO_CROP_TARGET}
-          file={cropping}
-          busy={sending}
-          onCancel={() => setCropping(null)}
-          onCropped={(file) => {
-            setCropping(null);
-            setPending({ kind: "photo", file, previewUrl: URL.createObjectURL(file) });
-          }}
-        />
+        <div className="messageCropOverlay" role="dialog" aria-modal="true" aria-label="Crop photo">
+          <div className="messageCropCard">
+            <ProfileImageCropper
+              key={fileKey(cropping)}
+              target={MESSAGE_PHOTO_CROP_TARGET}
+              file={cropping}
+              busy={sending}
+              onCancel={() => setCropping(null)}
+              onCropped={(file) => {
+                setCropping(null);
+                setPending({ kind: "photo", file, previewUrl: URL.createObjectURL(file) });
+              }}
+            />
+          </div>
+        </div>
       ) : null}
 
       {pickingVenue ? (

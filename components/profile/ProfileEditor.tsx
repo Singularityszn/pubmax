@@ -13,6 +13,7 @@ import {
   profileImageCropTarget,
 } from "@/lib/profileImagePicker";
 import type { ProfileImageSlot } from "@/lib/profileImageSlots";
+import { profileCoverUrls } from "@/lib/profileCovers";
 import type { PublicProfile } from "@/lib/profiles";
 
 // Inline "edit my profile" form for the owner of a handle. The page mounts this
@@ -72,6 +73,8 @@ type ProfileEditorProps = {
     bio?: string;
     homeCity?: string;
     avatarUrl?: string;
+    coverUrl?: string;
+    coverUrls?: string[];
     favouriteDrink?: string;
     interests?: string;
     workplace?: string;
@@ -116,6 +119,9 @@ export default function ProfileEditor({
   const [interests, setInterests] = useState(initial.interests ?? "");
   const [workplace, setWorkplace] = useState(initial.workplace ?? "");
   const [avatarPreview, setAvatarPreview] = useState(initial.avatarUrl ?? "");
+  const [heldCoverUrls, setHeldCoverUrls] = useState(() =>
+    profileCoverUrls({ coverUrl: initial.coverUrl, coverUrls: initial.coverUrls }),
+  );
   const [imageError, setImageError] = useState<Record<ProfileImageSlot, string | null>>({
     avatar: null,
     cover: null,
@@ -176,7 +182,7 @@ export default function ProfileEditor({
       if (profile) {
         // The card repaints and the editor stays open: a photo is one of the
         // things being edited, not the end of the edit.
-        onProfileChanged(profile);
+        handleProfileChanged(profile);
         if (slot === "avatar") setAvatarPreview(profile.avatarUrl ?? "");
       }
       markImage(slot, "idle", null);
@@ -189,6 +195,11 @@ export default function ProfileEditor({
           : "Network error. Try again.",
       );
     }
+  }
+
+  function handleProfileChanged(profile: PublicProfile) {
+    setHeldCoverUrls(profileCoverUrls(profile));
+    onProfileChanged(profile);
   }
 
   async function removeImage(slot: ProfileImageSlot) {
@@ -207,7 +218,7 @@ export default function ProfileEditor({
         return;
       }
       const profile = profileFrom(body);
-      if (profile) onProfileChanged(profile);
+      if (profile) handleProfileChanged(profile);
       if (slot === "avatar") setAvatarPreview("");
       markImage(slot, "idle", null);
     } catch (error) {
@@ -271,7 +282,11 @@ export default function ProfileEditor({
       <fieldset className="profileEditorGroup profileEditorGroupLook" disabled={formBusy}>
         <legend>Your look</legend>
 
-        <ProfileCoverPhotosEditor handle={handle} onProfileChanged={onProfileChanged} />
+        <ProfileCoverPhotosEditor
+          handle={handle}
+          heldCoverUrls={heldCoverUrls}
+          onProfileChanged={handleProfileChanged}
+        />
 
         <div className="profileEditorField profileEditorAvatarField">
           <span className="profileEditorAvatarLabel" id="pe-avatar-label">

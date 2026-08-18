@@ -51,10 +51,14 @@ export const MESSAGE_PHOTO_NOUN_LOWER = "photo";
  * that follow it off the screen.
  */
 export const MESSAGE_PHOTO_ASPECT_RATIO = 4 / 5;
-export const MESSAGE_PHOTO_OUTPUT_WIDTH = 1_080;
-export const MESSAGE_PHOTO_OUTPUT_HEIGHT = Math.round(
-  MESSAGE_PHOTO_OUTPUT_WIDTH / MESSAGE_PHOTO_ASPECT_RATIO,
+/** Longest edge of the stored JPEG. Portrait, so height is the max edge. */
+export const MESSAGE_PHOTO_MAX_EDGE = 2_048;
+export const MESSAGE_PHOTO_OUTPUT_HEIGHT = MESSAGE_PHOTO_MAX_EDGE;
+export const MESSAGE_PHOTO_OUTPUT_WIDTH = Math.round(
+  MESSAGE_PHOTO_MAX_EDGE * MESSAGE_PHOTO_ASPECT_RATIO,
 );
+/** Server re-encode quality for message photos (mozjpeg). */
+export const MESSAGE_PHOTO_JPEG_QUALITY = 85;
 
 /**
  * The crop step's target. A row in the SAME table the profile slots and the pub

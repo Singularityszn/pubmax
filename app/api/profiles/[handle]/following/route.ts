@@ -8,6 +8,7 @@
 // (the Friends lane just falls through to its "follow people" empty state).
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -24,7 +25,8 @@ export async function GET(
   if (!handle) return jsonNoStore({ following: [] }, { status: 200 });
 
   try {
-    const following = await followStore().listFollowing(handle);
+    const handles = await followStore().listFollowing(handle);
+    const following = await followListEntries(handles);
     return jsonNoStore({ following }, { status: 200 });
   } catch {
     // Fail-soft: a backend error must not break the feed. The Friends lane will
