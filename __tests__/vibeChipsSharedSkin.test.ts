@@ -26,7 +26,7 @@ describe("shared vibe chip skin", () => {
     const css = readFileSync(join(root, "components/vibe/vibeChips.css"), "utf8");
     expect(css).toMatch(/\.vibeChip\s*\{/);
     expect(css).toMatch(/min-height:\s*44px/);
-    expect(css).toMatch(/text-transform:\s*uppercase/);
+    expect(css).not.toMatch(/text-transform:\s*uppercase/);
     expect(css).toMatch(/var\(--font-party/);
     expect(css).toMatch(/\.vibeChip\[data-active="true"\]/);
   });

@@ -118,15 +118,16 @@
    becomes. */
 .authSignIn.authMagicLinkButton {
   flex: 0 0 auto;
-  border-color: var(--brass);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  min-height: 44px;
+  border-color: var(--brass-accessible);
+  background: var(--brass-accessible);
+  color: var(--color-on-photo);
   font-weight: 700;
 }
 
 .authSignIn.authMagicLinkButton:hover:not(:disabled) {
-  border-color: var(--brass-bright);
-  background: var(--brass-bright);
+  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
+  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
 }
 
 .authMagicLinkCancel {

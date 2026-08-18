@@ -50,6 +50,12 @@ describe("mobile chrome fit at 390px", () => {
     expect(mobileMapCss).toMatch(
       /body:has\(\.analyticsConsentPrompt\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*bottom:\s*calc\(var\(--mobile-map-dock-clearance\) \+ 198px\)/,
     );
+    expect(globalCss).toMatch(
+      /@media \(max-width: 640px\)[\s\S]*\.analyticsConsentPrompt\s*{[^}]*max-height:\s*120px/,
+    );
+    expect(globalCss).toMatch(
+      /body:not\(:has\(\.mobileTabBar, \.mobileTabBarClearance\)\) \.analyticsConsentPrompt/,
+    );
   });
 
   it("fits the one top bar inside the narrowest phone at the tap floor", () => {

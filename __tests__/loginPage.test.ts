@@ -295,8 +295,9 @@ describe("login page", () => {
       /\.authSignIn\.authMagicLinkButton\s*{([^}]*)}/,
     )?.[1];
     expect(accent, "the accent rule must out-specify .authSignIn").toBeTruthy();
-    expect(accent).toMatch(/background:\s*var\(--brass\)/);
-    expect(accent).toMatch(/color:\s*var\(--color-on-accent\)/);
+    expect(accent).toMatch(/background:\s*var\(--brass-accessible\)/);
+    expect(accent).toMatch(/color:\s*var\(--color-on-photo\)/);
+    expect(accent).toMatch(/min-height:\s*44px/);
 
     // The handle-and-password door is the SECONDARY: a real control shape, and
     // never a second accent fill beside the primary.
@@ -310,5 +311,27 @@ describe("login page", () => {
     expect(toggle, "one filled accent on the page, and it is the primary").not.toMatch(
       /background:\s*var\(--brass\)/,
     );
+  });
+
+  it("keeps white primary label contrast on the coral fill", () => {
+    const globals = readFileSync(join(process.cwd(), "app/globals.css"), "utf8");
+    const brassAccessible = globals.match(
+      /--brass-accessible:\s*(#[0-9a-fA-F]{6})/,
+    )?.[1];
+    const onPhoto = globals.match(/--color-on-photo:\s*(#[0-9a-fA-F]{6})/)?.[1];
+    expect(brassAccessible).toBeTruthy();
+    expect(onPhoto).toBeTruthy();
+    const lum = (hex: string) => {
+      const [r, g, b] = [1, 3, 5].map((i) => {
+        const v = parseInt(hex.slice(i, i + 2), 16) / 255;
+        return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * r + 0.7152 * g + 0.0722 * b;
+    };
+    const ratio = (a: string, b: string) => {
+      const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+      return (hi + 0.05) / (lo + 0.05);
+    };
+    expect(ratio(onPhoto!, brassAccessible!)).toBeGreaterThanOrEqual(4.5);
   });
 });

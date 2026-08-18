@@ -309,9 +309,10 @@
 }
 
 .loginPagePrimary {
-  border: 1px solid var(--brass);
-  background: var(--brass);
-  color: var(--color-on-accent);
+  min-height: 44px;
+  border: 1px solid var(--brass-accessible);
+  background: var(--brass-accessible);
+  color: var(--color-on-photo);
 }
 
 .loginPageSecondary {
@@ -321,8 +322,8 @@
 }
 
 .loginPagePrimary:hover {
-  border-color: var(--brass-bright);
-  background: var(--brass-bright);
+  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
+  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
 }
 
 .loginPageSecondary:hover {

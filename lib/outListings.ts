@@ -81,6 +81,9 @@ export function outCardObservedAt(
 export const OUT_OPEN_PLANS_PLACEHOLDER_LINE = "Open plans arrive here.";
 export const OUT_OPEN_PLANS_WAY_LABEL = "Start a plan";
 
+/** Heading above live Ticketmaster (and other) event cards on /out. */
+export const OUT_LIVE_EVENTS_SECTION_TITLE = "Live events";
+
 /** A read that could not answer is not an empty city. */
 export type OutListingsReadStatus = "ready" | "degraded";
 

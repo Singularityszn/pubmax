@@ -57,6 +57,7 @@
      __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
   --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
+  --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;
@@ -4494,7 +4495,14 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     align-items: center;
     gap: 10px;
     width: auto;
+    max-height: 120px;
     padding: 10px;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .analyticsConsentPrompt p {

@@ -58,7 +58,7 @@ test("declining is remembered and sends nothing", async ({ page }) => {
 
   const prompt = page.getByLabel("Anonymous analytics choice");
   await expect(prompt).toBeVisible();
-  await expect(prompt.getByText("PUBMAXX is bootstrapped")).toBeVisible();
+  await expect(prompt.getByText("PUBMAXXING may use optional analytics")).toBeVisible();
 
   for (const name of ["Allow", "No thanks"]) {
     const button = prompt.getByRole("button", { name, exact: true });

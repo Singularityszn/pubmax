@@ -63,8 +63,11 @@ for (const width of WIDTHS) {
       ).toHaveAttribute("aria-current", "page");
       await page.goto("/out");
 
-      // Nothing reads the viewer's plans yet, so the section may not say they
-      // have none - it says where they will appear and offers the way to one.
+      // Live events land first; open plans stay a quieter lane below.
+      const listings = page.getByRole("region", { name: "Live events" });
+      await expect(listings).toBeVisible();
+      await expect(listings.getByRole("heading", { name: "Live events", exact: true })).toBeVisible();
+
       const plans = page.getByRole("region", { name: "Open plans" });
       await expect(plans).toContainText("Open plans arrive here.");
       await expect(plans).not.toContainText(/no open plans/i);
@@ -72,6 +75,11 @@ for (const width of WIDTHS) {
         "href",
         "/plan",
       );
+      const listingsBox = await listings.boundingBox();
+      const plansBox = await plans.boundingBox();
+      expect(listingsBox).not.toBeNull();
+      expect(plansBox).not.toBeNull();
+      expect(listingsBox!.y).toBeLessThan(plansBox!.y);
 
       // /out is not a crawlable family yet: it duplicates /tonight's baseline
       // rows, so it ships noindex with no canonical of its own.
@@ -134,7 +142,11 @@ test("shows event cards when GET /api/out is ready", async ({ page }) => {
   await expect(page.getByTestId("out-screen")).toBeVisible();
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
-  await expect(page.getByText("Open plans arrive here.")).toBeVisible();
+  const listings = page.getByRole("region", { name: "Live events" });
+  await expect(listings).toBeVisible();
+  await expect(page.getByRole("region", { name: "Open plans" })).toContainText(
+    "Open plans arrive here.",
+  );
 });
 
 test.describe("out tab screenshots @390", () => {
