@@ -21,6 +21,7 @@ import {
   statedCalendarDate,
   toIsoInstant,
   type EventDropCounts,
+  type EventDropReason,
 } from "../whatson/eventNormalise.mjs";
 
 export const CONTEXT_DEV_EVENTS_MAX_AGE_MS = 12 * 60 * 60 * 1000;
@@ -78,7 +79,7 @@ export type ContextDevNormaliseOpts = {
   resolveVenue?: (venueIndex: unknown, placeName: string, lat: number | null, lng: number | null) => string | null;
 };
 
-export type ContextDevRowDrop = "noKind" | "noPlace" | "noStart" | "noUrl" | "noTitle";
+export type ContextDevRowDrop = EventDropReason;
 
 function nonEmptyString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;

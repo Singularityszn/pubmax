@@ -78,8 +78,13 @@ retry 408/5xx with bounded backoff; never retry validation errors; pass
 The lane spends ONE `createContextDevBudget()` for the whole run, shared by
 every source and counting retries, so a retry storm spends the run rather than
 the account. `CONTEXT_DEV_RUN_REQUEST_BUDGET` is 12 requests, which at the table
-above is at most 120 credits. A request reserved past the cap sends nothing and
-answers `BUDGET_EXHAUSTED`.
+above is at most 120 credits. A request reserved past the cap sends nothing, and
+it answers one of TWO ways. A ceiling reached before this call sent anything is
+the whole finding, so it answers `BUDGET_EXHAUSTED`. A ceiling reached between
+retries is not: the upstream failure that caused the retry is the actionable
+one, so the answer keeps that failure's own code and status (a 503 stays
+`PROVIDER_UNAVAILABLE`) and the spent budget rides in the message as the reason
+no further attempt was made.
 
 Which sources the lane may read is `contextDevEventSources()`, and the bar is
 FIRST PARTY: an extract call hands a whole page to a model, so it cannot honour
