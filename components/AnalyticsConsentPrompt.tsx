@@ -29,8 +29,10 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        PUBMAXXING may use optional analytics to learn what people use and return
-        for. Never sold or used for ads.{" "}
+        <span className="analyticsConsentPromptCopy">
+          PUBMAXXING may use optional analytics to learn what people use and
+          return for. Never sold or used for ads.
+        </span>{" "}
         <Link href="/privacy">Privacy</Link>
       </p>
       <div className="analyticsConsentPromptActions">

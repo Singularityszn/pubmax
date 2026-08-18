@@ -3,9 +3,12 @@
    from lib/vibeChips.ts. Sentence case, 44px floor, brass border.
 
    text-transform is stated as `none` rather than deleted: app/globals.css also
-   declares .vibeChip at equal specificity with `text-transform: lowercase`, so
-   an absent declaration here hands the label's casing to whichever sheet the
-   bundler ordered last. */
+   declares .vibeChip with `text-transform: lowercase`, so an absent declaration
+   here hands the label's casing to whichever sheet the bundler ordered last.
+   Every chip is a button or a link, so the recipe is also stated one notch up
+   at (0,1,1) and the casing holds whatever that order turns out to be. The
+   shell class cannot carry that job: callers rename it (tonightVibes,
+   palChatExamples), so an ancestor bump would match neither real surface. */
 
 .vibeChips {
   /* Shell spacing is owned by each surface (Tonight margin, Pal examples pad). */
@@ -29,6 +32,8 @@
    stamp typography unless this rule outranks it. */
 .palChat button.vibeChip,
 .palChat a.vibeChip,
+button.vibeChip,
+a.vibeChip,
 .vibeChip {
   display: inline-flex;
   align-items: center;

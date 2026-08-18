@@ -4504,17 +4504,23 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
 
-  /* The clamp lives on the TEXT column, never on the card: clipped area is not
-     hit-testable, and the two buttons are the only way this fixed overlay is
-     dismissed. The body copy is the only part that can grow, so bounding it is
-     what keeps the whole card inside its 120px ceiling. */
   .analyticsConsentPrompt p {
+    font-size: 0.72rem;
+  }
+
+  /* The clamp bounds the SENTENCE alone. It may not sit on the card, because
+     clipped area is not hit-testable and the two buttons are the only way this
+     fixed overlay is dismissed; and it may not sit on the paragraph, because
+     the paragraph carries the banner's only route to the privacy notice, which
+     is the last thing on it and so the first thing a clamp would cut. Three
+     lines plus the 44px link line clears the 94px action column, so the card
+     holds its 120px ceiling at every phone width. */
+  .analyticsConsentPromptCopy {
     display: -webkit-box;
     -webkit-box-orient: vertical;
-    -webkit-line-clamp: 4;
-    line-clamp: 4;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
     overflow: hidden;
-    font-size: 0.72rem;
   }
 
   .analyticsConsentPromptActions {
