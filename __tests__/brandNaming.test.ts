@@ -13,7 +13,6 @@ import {
 // reason its metadata touches the dataset. The share-card name is what is under
 // test here, so the read is stubbed rather than parsing the priced index.
 vi.mock("@/lib/scrapedPubs.server", () => ({
-  listScrapedPubs: async () => [],
   readScrapedPubsForPage: async () => ({ pubs: [], complete: true }),
 }));
 

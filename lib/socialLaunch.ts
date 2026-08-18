@@ -13,11 +13,6 @@ export function isSocialFriendsLaunchEnabled(
 export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
-/** Primary tab label stays "Social"; preview is a badge on mobile, not a longer tab title. */
-export function socialPrimaryNavLabel(_friendsLaunchEnabled: boolean): string {
-  return SOCIAL_LAUNCH_NAV_LABEL;
-}
-
 /** Small preview pill on the mobile Social tab while friends launch is off. */
 export function socialNavShowsPreviewBadge(friendsLaunchEnabled: boolean): boolean {
   return !friendsLaunchEnabled;
