@@ -179,7 +179,13 @@ function normaliseFact(fact) {
   return out;
 }
 
-// --- core join ---------------------------------------------------------------
+// Curated venue status for historic pubs (captain audit lane E). Keyed by the
+// same normalised cache key heritage_cache uses — never guessed at render time.
+const VENUE_STATUS_BY_CACHE_KEY = {
+  "the colony room": "closed",
+  "the black cap": "closed",
+  "the sir george robey": "demolished",
+};
 
 // Pure builder: heritage cache (object keyed by normalised name) + dataset rows
 // → sorted, slugged HistoricPub records. Deterministic and side-effect free.
@@ -217,6 +223,7 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
       era,
       listed,
       sourced: true,
+      venueStatus: VENUE_STATUS_BY_CACHE_KEY[cacheKey] ?? null,
       _eraSort: eraSort, // private sort key, stripped before emit
     });
   }
@@ -251,6 +258,7 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
       era: rest.era,
       listed: rest.listed,
       sourced: rest.sourced,
+      ...(rest.venueStatus ? { venueStatus: rest.venueStatus } : {}),
     };
   });
 }

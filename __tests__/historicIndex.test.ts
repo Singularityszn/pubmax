@@ -154,6 +154,25 @@ describe("extractListed — grade preserves the star", () => {
   });
 });
 
+describe("venue status — curated closed and demolished pubs", () => {
+  it("emits venueStatus only for named cache keys", () => {
+    const cache = {
+      "the colony room": [{ source: "seed", fact: "A Soho members' club." }],
+      "the black cap": [{ source: "seed", fact: "A Camden landmark." }],
+      "the sir george robey": [{ source: "seed", fact: "A Finsbury Park pub." }],
+      "the old bell": [{ source: "seed", fact: "Still trading." }],
+    };
+    const records: HistoricPub[] = buildHistoricIndex({
+      heritageCache: cache,
+      dataset: [],
+    });
+    expect(byName(records, "The Colony Room").venueStatus).toBe("closed");
+    expect(byName(records, "The Black Cap").venueStatus).toBe("closed");
+    expect(byName(records, "The Sir George Robey").venueStatus).toBe("demolished");
+    expect(byName(records, "The Old Bell").venueStatus).toBeUndefined();
+  });
+});
+
 describe("slug — deterministic + unique with -2 collision suffix", () => {
   const records: HistoricPub[] = buildHistoricIndex({ heritageCache: FIXTURE_CACHE, dataset: FIXTURE_DATASET });
 

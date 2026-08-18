@@ -280,10 +280,27 @@
   }
 
   .mobileTabLabel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
     white-space: nowrap;
     max-width: 100%;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .mobileTabPreviewBadge {
+    flex-shrink: 0;
+    padding: 0.05rem 0.25rem;
+    border-radius: 999px;
+    font-size: 0.5rem;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    text-transform: uppercase;
+    color: var(--ink);
+    background: color-mix(in srgb, var(--brass) 72%, transparent);
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */

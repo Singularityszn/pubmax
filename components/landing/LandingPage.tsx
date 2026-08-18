@@ -321,8 +321,7 @@ export default function LandingPage({
             <ThamesHero />
             <figcaption className="lpHeroMapCaption">
               <span className="lpHeroMapInvite">
-                <span className="thamesHeroHintTouch">Each shape is a drink. Tap one to see the pubs that pour it.</span>
-                <span className="thamesHeroHintPointer">Each shape is a drink. Pick one to see the pubs that pour it.</span>
+                Each shape is a drink. Tap or pick one to see the pubs that pour it.
               </span>
             </figcaption>
           </figure>

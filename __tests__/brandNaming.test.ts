@@ -14,6 +14,7 @@ import {
 // test here, so the read is stubbed rather than parsing the priced index.
 vi.mock("@/lib/scrapedPubs.server", () => ({
   listScrapedPubs: async () => [],
+  readScrapedPubsForPage: async () => ({ pubs: [], complete: true }),
 }));
 
 // next/font is a build-time loader, so the root layout needs its faces stubbed

@@ -38,7 +38,7 @@ async function loadZonesById(): Promise<Map<string, number>> {
   return byId;
 }
 
-type ScrapedPubsRead = {
+export type ScrapedPubsRead = {
   pubs: ScrapedPub[];
   complete: boolean;
 };
@@ -108,6 +108,11 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
 // the 6.7 MB parse. A fail-soft read is incomplete and must leave the next
 // request free to retry its dependency.
 let cachedPubs: Promise<ScrapedPub[]> | null = null;
+
+/** Chains page read: pubs plus whether the bundled inputs answered completely. */
+export function readScrapedPubsForPage(): Promise<ScrapedPubsRead> {
+  return readScrapedPubs();
+}
 
 /** All scraped enrichment pubs, read once per instance. */
 export function listScrapedPubs(): Promise<ScrapedPub[]> {

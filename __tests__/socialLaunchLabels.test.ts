@@ -5,13 +5,20 @@ import {
   socialBoundaryCopy,
   socialInviteMessage,
   socialLoadingLabel,
+  socialNavShowsPreviewBadge,
   socialPrimaryNavLabel,
   socialSurfaceName,
 } from "@/lib/socialLaunch";
 
 describe("social preview labels", () => {
-  it("reads Social preview while friends launch is off", () => {
-    expect(socialPrimaryNavLabel(false)).toBe("Social preview");
+  it("keeps the primary tab label Social while friends launch is off", () => {
+    expect(socialPrimaryNavLabel(false)).toBe("Social");
+    expect(socialPrimaryNavLabel(true)).toBe("Social");
+    expect(socialNavShowsPreviewBadge(false)).toBe(true);
+    expect(socialNavShowsPreviewBadge(true)).toBe(false);
+  });
+
+  it("reads Social preview on surfaces while friends launch is off", () => {
     expect(socialSurfaceName(false)).toBe("Social preview");
     expect(socialLoadingLabel(false)).toBe("Loading Social preview");
     expect(socialInviteMessage(false)).toBe("Use Social preview.");

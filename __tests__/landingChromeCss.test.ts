@@ -100,8 +100,7 @@ describe("landing chrome CSS audit", () => {
     expect(heroTsx).not.toMatch(/className=\"thamesHeroHint\"/);
     expect(heroTsx).not.toMatch(/thamesHeroHintTouch/);
     expect(landingTsx).toMatch(/lpHeroMapCaption/);
-    expect(landingTsx).toMatch(/thamesHeroHintTouch/);
-    expect(landingTsx).toMatch(/thamesHeroHintPointer/);
+    expect(landingTsx).toMatch(/lpHeroMapInvite/);
     // What the caption may SAY is proven against rendered output, not this
     // source read: __tests__/landingHeroPriceCopy.test.ts.
   });

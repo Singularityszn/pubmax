@@ -15,7 +15,7 @@ test.describe("Social with the friends launch off", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Social", exact: true }),
+      page.getByRole("heading", { name: "Social preview", exact: true }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Your crews" })).toHaveCount(0);

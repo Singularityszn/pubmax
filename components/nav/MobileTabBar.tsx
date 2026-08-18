@@ -19,7 +19,7 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { useSocialPrimaryNavLabel } from "@/lib/useSocialFriendsLaunch";
+import { useSocialNavShowsPreviewBadge } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
   readSoftKeyboardOpen,
@@ -134,13 +134,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const socialLabel = useSocialPrimaryNavLabel();
-  const tabs = useMemo(() => {
-    const built = buildTabs(mapHref, youHref, nowHref);
-    return built.map((tab) =>
-      tab.key === "social" ? { ...tab, label: socialLabel } : tab,
-    );
-  }, [mapHref, youHref, nowHref, socialLabel]);
+  const socialPreviewBadge = useSocialNavShowsPreviewBadge();
+  const tabs = useMemo(() => buildTabs(mapHref, youHref, nowHref), [mapHref, youHref, nowHref]);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
@@ -240,7 +235,14 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                     fill="none"
                   />
                 </span>
-                <span className="mobileTabLabel">{tab.label}</span>
+                <span className="mobileTabLabel">
+                  {tab.label}
+                  {tab.key === "social" && socialPreviewBadge ? (
+                    <span className="mobileTabPreviewBadge" aria-hidden="true">
+                      Preview
+                    </span>
+                  ) : null}
+                </span>
               </Link>
             </li>
           );

@@ -50,17 +50,14 @@ describe("landing hero price copy", () => {
     expect(figure).not.toMatch(/£\s?\d/);
   });
 
-  it("keeps the one invite line and drops the example-price disclaimer", () => {
+  it("keeps one invite line and drops the example-price disclaimer", () => {
     const caption = heroFigure().match(
       /<figcaption class="lpHeroMapCaption"[^>]*>[\s\S]*?<\/figcaption>/,
     )?.[0];
     expect(caption, "hero caption present").toBeTruthy();
 
     expect(caption).toContain(
-      "Each shape is a drink. Tap one to see the pubs that pour it.",
-    );
-    expect(caption).toContain(
-      "Each shape is a drink. Pick one to see the pubs that pour it.",
+      "Each shape is a drink. Tap or pick one to see the pubs that pour it.",
     );
     expect(caption).not.toContain("examples, not live listed prices");
     expect(caption).not.toMatch(/Prices shown/i);

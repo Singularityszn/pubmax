@@ -14,7 +14,7 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useSocialPrimaryNavLabel } from "@/lib/useSocialFriendsLaunch";
+import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 
 import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
@@ -53,7 +53,7 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
-  const socialLabel = useSocialPrimaryNavLabel();
+  const socialLabel = useSocialSurfaceName();
 
   const paletteCommands = useMemo(
     () =>

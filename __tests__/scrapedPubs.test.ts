@@ -115,4 +115,19 @@ describe("listScrapedPubs", () => {
     expect(recovered).toHaveLength(1);
     expect(recovered[0]?.name).toBe("Recovered Arms");
   });
+
+  it("reports incomplete reads without a trustworthy count", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/venueMenuEnrichment", () => ({
+      loadVenueMenuEnrichmentIndex: async () => new Map(),
+    }));
+    vi.doMock("@/lib/venuePriceIndex", () => ({
+      getPricedVenues: async () => [],
+    }));
+
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const read = await readScrapedPubsForPage();
+    expect(read.pubs).toEqual([]);
+    expect(read.complete).toBe(false);
+  });
 });

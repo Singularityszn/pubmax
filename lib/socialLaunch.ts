@@ -13,16 +13,21 @@ export function isSocialFriendsLaunchEnabled(
 export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
-/** Tab and nav label while friends launch is off vs on. */
-export function socialPrimaryNavLabel(friendsLaunchEnabled: boolean): string {
+/** Primary tab label stays "Social"; preview is a badge on mobile, not a longer tab title. */
+export function socialPrimaryNavLabel(_friendsLaunchEnabled: boolean): string {
+  return SOCIAL_LAUNCH_NAV_LABEL;
+}
+
+/** Small preview pill on the mobile Social tab while friends launch is off. */
+export function socialNavShowsPreviewBadge(friendsLaunchEnabled: boolean): boolean {
+  return !friendsLaunchEnabled;
+}
+
+/** In-page headings, desktop nav and loading lines use the surface name. */
+export function socialSurfaceName(friendsLaunchEnabled: boolean): string {
   return friendsLaunchEnabled
     ? SOCIAL_LAUNCH_NAV_LABEL
     : SOCIAL_PREVIEW_NAV_LABEL;
-}
-
-/** In-page headings and loading lines use the same surface name. */
-export function socialSurfaceName(friendsLaunchEnabled: boolean): string {
-  return socialPrimaryNavLabel(friendsLaunchEnabled);
 }
 
 export function socialLoadingLabel(friendsLaunchEnabled: boolean): string {
