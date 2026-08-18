@@ -177,6 +177,40 @@ describe("server Social access resolution", () => {
     });
   });
 
+  // The refusal a caller reads names the same surface the nav, the palette and
+  // /social do, so a gated deployment never sends somebody to a destination it
+  // calls something else.
+  it("names the gated surface in every refusal while the launch is off", async () => {
+    await expect(
+      requireVerifiedSocialActor(
+        undefined,
+        dependencies({ betaEnabled: false, friendsLaunchEnabled: false }),
+      ),
+    ).resolves.toMatchObject({ error: "Social preview is not open yet." });
+    await expect(
+      requireVerifiedSocialActor(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: false,
+          verifyClerkSession: async () => ({ status: "absent" }),
+        }),
+      ),
+    ).resolves.toMatchObject({ error: "Sign in to use Social preview." });
+  });
+
+  it("names Social itself once the launch is on", async () => {
+    await expect(
+      requireVerifiedSocialActor(
+        undefined,
+        dependencies({
+          friendsLaunchEnabled: true,
+          verifyClerkSession: async () => ({ status: "absent" }),
+          verifySupabaseSession: async () => ({ status: "absent" }),
+        }),
+      ),
+    ).resolves.toMatchObject({ error: "Sign in to use Social." });
+  });
+
   it("maps every non-verified state to a protected-route refusal", async () => {
     await expect(requireVerifiedSocialActor(undefined, dependencies({ betaEnabled: false, friendsLaunchEnabled: false })))
       .resolves.toMatchObject({ ok: false, status: 403, code: "SOCIAL_BETA_DISABLED" });

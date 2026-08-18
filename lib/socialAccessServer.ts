@@ -21,6 +21,7 @@ import {
   isSocialFriendsLaunchEnabled,
   needsAdultSelfAssertion,
   SOCIAL_FRIENDS_LAUNCH_ENV,
+  socialSurfaceName,
 } from "@/lib/socialLaunch";
 import type { SocialPostActor } from "@/lib/socialPostStore";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -579,20 +580,21 @@ export async function requireVerifiedSocialActor(
     };
   }
   if (access.state === "verified") return { ok: true, actor: access.actor };
+  const surface = socialSurfaceName(deps.friendsLaunchEnabled);
   if (access.state === "preview") {
-    return { ok: false, status: 403, code: "SOCIAL_BETA_DISABLED", error: "Social is not open yet." };
+    return { ok: false, status: 403, code: "SOCIAL_BETA_DISABLED", error: `${surface} is not open yet.` };
   }
   if (access.state === "sign_in_required") {
-    return { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: "Sign in to use Social." };
+    return { ok: false, status: 401, code: "SOCIAL_SIGN_IN_REQUIRED", error: `Sign in to use ${surface}.` };
   }
   if (access.state === "suspended") {
-    return { ok: false, status: 403, code: "SOCIAL_ACCOUNT_SUSPENDED", error: "Social access is suspended." };
+    return { ok: false, status: 403, code: "SOCIAL_ACCOUNT_SUSPENDED", error: `${surface} access is suspended.` };
   }
   return {
     ok: false,
     status: 403,
     code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
-    error: "Adult verification is needed for Social.",
+    error: `Adult verification is needed for ${surface}.`,
   };
 }
 

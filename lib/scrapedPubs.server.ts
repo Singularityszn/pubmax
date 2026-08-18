@@ -6,6 +6,8 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
+import { cache } from "react";
+
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
 import { firstHttp } from "@/lib/httpUrl";
@@ -38,7 +40,7 @@ async function loadZonesById(): Promise<Map<string, number>> {
   return byId;
 }
 
-type ScrapedPubsRead = {
+export type ScrapedPubsRead = {
   pubs: ScrapedPub[];
   complete: boolean;
 };
@@ -107,22 +109,30 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
 // requests to one instance. Hold the promise so concurrent first requests share
 // the 6.7 MB parse. A fail-soft read is incomplete and must leave the next
 // request free to retry its dependency.
-let cachedPubs: Promise<ScrapedPub[]> | null = null;
+let cachedRead: Promise<ScrapedPubsRead> | null = null;
 
-/** All scraped enrichment pubs, read once per instance. */
-export function listScrapedPubs(): Promise<ScrapedPub[]> {
-  if (cachedPubs) return cachedPubs;
+function memoisedRead(): Promise<ScrapedPubsRead> {
+  if (cachedRead) return cachedRead;
 
   const attempt = readScrapedPubs().then(
-    ({ pubs, complete }) => {
-      if (!complete) cachedPubs = null;
-      return pubs;
+    (read) => {
+      if (!read.complete) cachedRead = null;
+      return read;
     },
     (error: unknown) => {
-      cachedPubs = null;
+      cachedRead = null;
       throw error;
     },
   );
-  cachedPubs = attempt;
+  cachedRead = attempt;
   return attempt;
 }
+
+/**
+ * Chains page read: pubs plus whether the bundled inputs answered completely.
+ * Read once per instance, and once per request through React's cache as well,
+ * so `generateMetadata` and the render share one read even when a degraded
+ * answer has just dropped the instance cache for the next request to retry.
+ */
+export const readScrapedPubsForPage: () => Promise<ScrapedPubsRead> =
+  cache(memoisedRead);

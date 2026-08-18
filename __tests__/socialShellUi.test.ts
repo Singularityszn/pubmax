@@ -41,15 +41,38 @@ const protectedPost: SocialPostDTO = {
 
 describe("Social access boundary", () => {
   it.each([
-    ["preview", "Social is invite-only for now. It opens more widely soon."],
-    ["sign_in_required", "Sign in to use Social."],
-    ["age_verification_required", "Adult check needed for Social."],
-    ["suspended", "Social access is suspended."],
+    [
+      "preview",
+      false,
+      "Social preview is invite-only for now. It opens more widely soon.",
+    ],
+    ["sign_in_required", false, "Sign in to use Social preview."],
+    [
+      "age_verification_required",
+      false,
+      "Adult check needed for Social preview.",
+    ],
+    ["suspended", false, "Social preview access is suspended."],
+    [
+      "preview",
+      true,
+      "Social is invite-only for now. It opens more widely soon.",
+    ],
+    ["sign_in_required", true, "Sign in to use Social."],
+    [
+      "age_verification_required",
+      true,
+      "Adult check needed for Social.",
+    ],
+    ["suspended", true, "Social access is suspended."],
   ] as const)(
-    "renders the honest %s boundary without protected metadata",
-    (state, copy) => {
+    "renders the honest %s boundary (%s launch) without protected metadata",
+    (state, friendsLaunchEnabled, copy) => {
       const html = renderToStaticMarkup(
-        createElement(SocialAccessBoundary, { state }),
+        createElement(SocialAccessBoundary, {
+          state,
+          friendsLaunchEnabled,
+        }),
       );
 
       expect(html).toContain(copy);
@@ -71,16 +94,31 @@ describe("Social access boundary", () => {
         state: "age_verification_required",
         adultPrompt: true,
         onAssertAdult: () => undefined,
+        friendsLaunchEnabled: false,
       }),
     );
 
-    expect(html).toContain("Social is for over-18s.");
+    expect(html).toContain("Social preview is for over-18s.");
     expect(html).toContain("I&#x27;m 18 or over");
     // One line, one button, in the empty-state idiom. Never a dialog.
     expect(html.match(/<button/g)).toHaveLength(1);
     expect(html).not.toContain("role=\"dialog\"");
-    expect(html).not.toContain("Adult check needed for Social.");
+    expect(html).not.toContain("Adult check needed for Social preview.");
     expect(html).not.toContain(protectedPost.body);
+  });
+
+  it("names Social when friends launch is on for the age question", () => {
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, {
+        state: "age_verification_required",
+        adultPrompt: true,
+        onAssertAdult: () => undefined,
+        friendsLaunchEnabled: true,
+      }),
+    );
+
+    expect(html).toContain("Social is for over-18s.");
+    expect(html).not.toContain("Social preview is for over-18s.");
   });
 
   it("keeps the plain refusal when the one tap would change nothing", () => {
@@ -90,10 +128,11 @@ describe("Social access boundary", () => {
       createElement(SocialAccessBoundary, {
         state: "age_verification_required",
         onAssertAdult: () => undefined,
+        friendsLaunchEnabled: false,
       }),
     );
 
-    expect(html).toContain("Adult check needed for Social.");
+    expect(html).toContain("Adult check needed for Social preview.");
     expect(html).not.toContain("I&#x27;m 18 or over");
     expect(html).not.toContain("<button");
   });
@@ -103,10 +142,11 @@ describe("Social access boundary", () => {
       createElement(SocialAccessBoundary, {
         state: "unavailable",
         onRetry: () => undefined,
+        friendsLaunchEnabled: false,
       }),
     );
 
-    expect(html).toContain("Social is unavailable right now.");
+    expect(html).toContain("Social preview is unavailable right now.");
     expect(html).toContain("Retry");
     expect(html.match(/<button/g)).toHaveLength(1);
   });

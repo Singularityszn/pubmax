@@ -108,10 +108,10 @@ test("preview shows one safe boundary and never requests or leaks protected post
   const response = await page.goto("/social");
   expect(response?.status()).toBe(200);
   await expect(
-    page.getByRole("heading", { name: "Social", exact: true }),
+    page.getByRole("heading", { name: "Social preview", exact: true }),
   ).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
+    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();
   await expect(
     page.getByRole("link", { name: "Posts", exact: true }),
@@ -435,7 +435,7 @@ test("feed retry repeats only the failed chronological read", async ({
   await page.goto("/social");
   await expect(
     page.getByRole("heading", {
-      name: "Social posts are unavailable right now.",
+      name: "Social preview posts are unavailable right now.",
     }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Retry" }).click();
@@ -515,7 +515,7 @@ test("invalid Social URL state resolves to the safe canonical route", async ({
   await expect(page).toHaveURL(/\/social$/);
   expect(page.url()).not.toContain("cursor");
   await expect(
-    page.getByRole("heading", { name: "Social is invite-only for now. It opens more widely soon." }),
+    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
   ).toBeVisible();
 });
 

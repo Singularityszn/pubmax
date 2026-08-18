@@ -93,16 +93,11 @@ describe("landing chrome CSS audit", () => {
       join(process.cwd(), "components/landing/ThamesHero.tsx"),
       "utf8",
     );
-    const landingTsx = readFileSync(
-      join(process.cwd(), "components/landing/LandingPage.tsx"),
-      "utf8",
-    );
     expect(heroTsx).not.toMatch(/className=\"thamesHeroHint\"/);
     expect(heroTsx).not.toMatch(/thamesHeroHintTouch/);
-    expect(landingTsx).toMatch(/lpHeroMapCaption/);
-    expect(landingTsx).toMatch(/thamesHeroHintTouch/);
-    expect(landingTsx).toMatch(/thamesHeroHintPointer/);
-    expect(landingTsx).toMatch(/examples, not live listed prices/);
+    // What the caption HOLDS and what it may SAY are both proven against
+    // rendered output rather than a source read: see
+    // __tests__/landingHeroPriceCopy.test.ts.
   });
 
   it("ships three reduced-motion-safe hero presence motions", () => {

@@ -27,6 +27,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
 const CACHE_PATH = path.join(ROOT, "public", "data", "heritage_cache.json");
 const DATASET_PATH = path.join(ROOT, "public", "data", "pint_prices_app_dataset.json");
+const ALIAS_PATH = path.join(ROOT, "public", "data", "venue_id_aliases.json");
 const OUT_PATH = path.join(ROOT, "public", "data", "historic_pubs.json");
 
 // --- venue id + name matching (mirror of scripts/lib/venueMatch.mjs) ---------
@@ -90,13 +91,89 @@ export function buildVenueNameIndex(dataset) {
   return byName;
 }
 
+// Index the dataset by the stable venue id, so a heritage key whose name has
+// drifted apart from the dataset spelling can still be joined by identity.
+export function buildVenueIdIndex(dataset) {
+  const byId = new Map();
+  for (const row of dataset) {
+    const venueId = stableVenueIdFromKey(venueGroupingKey(row));
+    if (byId.has(venueId)) continue;
+    const lat = Number(row.latitude);
+    const lng = Number(row.longitude);
+    byId.set(venueId, {
+      venueId,
+      name: String(row.pub_name),
+      borough: row.primary_borough ? String(row.primary_borough) : null,
+      lat: Number.isFinite(lat) ? lat : null,
+      lng: Number.isFinite(lng) ? lng : null,
+    });
+  }
+  return byId;
+}
+
+// Heritage keys whose venue the dataset no longer spells the same way, joined
+// by IDENTITY instead. A venue that is renamed ("The George Inn" is listed as
+// "George (Southwark)") or merged into another lineage drops out of the name
+// index, and the record silently loses its map link, its borough and its
+// coordinates. Each entry names the CANONICAL venue id, which is then resolved
+// through public/data/venue_id_aliases.json and looked up in the dataset, so a
+// later merge follows rather than breaking, and an id the dataset no longer
+// holds joins nothing rather than printing a link that leads nowhere. The
+// record keeps its heritage NAME: the dataset spelling is what drifted, so
+// adopting it would rename the pub and move its page.
+export const VENUE_ID_BY_CACHE_KEY = {
+  "the george inn": "venue-16ze6b1",
+  "owl and pussycat": "venue-t3ii33",
+};
+
+export function resolveVenueAlias(venueId, aliases) {
+  let current = venueId;
+  const seen = new Set();
+  while (aliases && typeof aliases[current] === "string" && !seen.has(current)) {
+    seen.add(current);
+    current = aliases[current];
+  }
+  return current;
+}
+
+// A curated join carries no name: the heritage key owns that.
+function curatedVenueMatch(cacheKey, idIndex, aliases, curatedIds) {
+  const curated = curatedIds[cacheKey];
+  if (!curated) return null;
+  const row = idIndex.get(resolveVenueAlias(curated, aliases));
+  if (!row) return null;
+  return { venueId: row.venueId, name: null, borough: row.borough, lat: row.lat, lng: row.lng };
+}
+
 // --- text helpers ------------------------------------------------------------
+
+// Joining words stay lowercase inside a name, so a key with no dataset row
+// still reads as a pub name rather than a headline ("Owl and Pussycat", never
+// "Owl And Pussycat"). The first word is always capitalised.
+const TITLE_CASE_SMALL_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "at",
+  "by",
+  "for",
+  "in",
+  "of",
+  "on",
+  "or",
+  "the",
+  "to",
+]);
 
 export function titleCase(value) {
   return String(value ?? "")
     .split(" ")
     .filter(Boolean)
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .map((word, index) =>
+      index > 0 && TITLE_CASE_SMALL_WORDS.has(word)
+        ? word
+        : word.charAt(0).toUpperCase() + word.slice(1),
+    )
     .join(" ");
 }
 
@@ -179,12 +256,24 @@ function normaliseFact(fact) {
   return out;
 }
 
-// --- core join ---------------------------------------------------------------
+// Curated venue status for historic pubs (captain audit lane E). Keyed by the
+// same normalised cache key heritage_cache uses — never guessed at render time.
+const VENUE_STATUS_BY_CACHE_KEY = {
+  "the colony room": "closed",
+  "the black cap": "closed",
+  "the sir george robey": "demolished",
+};
 
 // Pure builder: heritage cache (object keyed by normalised name) + dataset rows
 // → sorted, slugged HistoricPub records. Deterministic and side-effect free.
-export function buildHistoricIndex({ heritageCache, dataset }) {
+export function buildHistoricIndex({
+  heritageCache,
+  dataset,
+  venueAliases = {},
+  venueIdsByCacheKey = VENUE_ID_BY_CACHE_KEY,
+}) {
   const venueIndex = buildVenueNameIndex(dataset);
+  const venueIdIndex = buildVenueIdIndex(dataset);
 
   const records = [];
   // Iterate cache keys in sorted order so the pre-slug build order is stable
@@ -198,8 +287,10 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
       .map(normaliseFact);
     if (facts.length === 0) continue;
 
-    const match = venueIndex.get(cacheKey) ?? null;
-    const name = match ? match.name : titleCase(cacheKey);
+    const match =
+      venueIndex.get(cacheKey) ??
+      curatedVenueMatch(cacheKey, venueIdIndex, venueAliases, venueIdsByCacheKey);
+    const name = match && match.name ? match.name : titleCase(cacheKey);
 
     // era/listed are scanned across ALL fact text for this venue.
     const allText = facts.map((f) => f.fact).join("  ");
@@ -217,6 +308,7 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
       era,
       listed,
       sourced: true,
+      venueStatus: VENUE_STATUS_BY_CACHE_KEY[cacheKey] ?? null,
       _eraSort: eraSort, // private sort key, stripped before emit
     });
   }
@@ -251,6 +343,7 @@ export function buildHistoricIndex({ heritageCache, dataset }) {
       era: rest.era,
       listed: rest.listed,
       sourced: rest.sourced,
+      ...(rest.venueStatus ? { venueStatus: rest.venueStatus } : {}),
     };
   });
 }
@@ -261,10 +354,27 @@ async function readJson(filePath) {
   return JSON.parse(await readFile(filePath, "utf8"));
 }
 
-export async function generate({ cachePath = CACHE_PATH, datasetPath = DATASET_PATH, outPath = OUT_PATH } = {}) {
+// The alias file is a courtesy input: a run without it still joins by name.
+async function readVenueAliases(aliasPath) {
+  try {
+    const parsed = await readJson(aliasPath);
+    const aliases = parsed && typeof parsed === "object" ? parsed.aliases : null;
+    return aliases && typeof aliases === "object" ? aliases : {};
+  } catch {
+    return {};
+  }
+}
+
+export async function generate({
+  cachePath = CACHE_PATH,
+  datasetPath = DATASET_PATH,
+  aliasPath = ALIAS_PATH,
+  outPath = OUT_PATH,
+} = {}) {
   const heritageCache = await readJson(cachePath);
   const dataset = await readJson(datasetPath);
-  const records = buildHistoricIndex({ heritageCache, dataset });
+  const venueAliases = await readVenueAliases(aliasPath);
+  const records = buildHistoricIndex({ heritageCache, dataset, venueAliases });
   // Pretty-printed + trailing newline for a clean, diff-friendly, stable file.
   await writeFile(outPath, `${JSON.stringify(records, null, 2)}\n`);
 

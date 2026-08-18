@@ -15,10 +15,10 @@ test("legacy view-mode state cannot replace the current mobile navigation", asyn
   await page.goto("/feed");
 
   const nav = page.getByRole("navigation", { name: "Primary" });
-  for (const label of ["Now", "Map", "Out", "Social", "You"]) {
+  for (const label of ["Now", "Map", "Out", "Social preview", "You"]) {
     await expect(nav.getByRole("link", { name: label, exact: true })).toBeVisible();
   }
-  await expect(nav.getByRole("link", { name: "Social", exact: true })).toHaveAttribute(
+  await expect(nav.getByRole("link", { name: "Social preview", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
   );

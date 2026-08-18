@@ -280,10 +280,33 @@
   }
 
   .mobileTabLabel {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.2rem;
     white-space: nowrap;
     max-width: 100%;
     overflow: hidden;
+  }
+
+  /* Ellipsis needs a block-level text box: it does nothing on the flex
+     container above, so the word carries its own. */
+  .mobileTabLabelText {
+    min-width: 0;
+    overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  /* A dot, because the word does not fit: five tabs across a 420px row leave
+     each one 59 to 80px, and "Social" plus an uppercase Preview pill measures
+     about 85px. The state is spoken instead - the tab's accessible name is
+     "Social preview" - so the tab still reads "Social" in the DOM. */
+  .mobileTabPreviewBadge {
+    flex-shrink: 0;
+    width: 5px;
+    height: 5px;
+    border-radius: 999px;
+    background: color-mix(in srgb, var(--brass) 72%, transparent);
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
@@ -345,6 +368,7 @@
     padding: 2px 0;
     min-height: 44px;
   }
+
 }
 
 @media (prefers-reduced-motion: reduce) {

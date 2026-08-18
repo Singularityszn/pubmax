@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 
 import { loadHistoricPubs } from "@/lib/historic";
+import { metadataSiteName } from "@/lib/brandNaming";
 import {
   allBoroughHeritageCounts,
   boroughHeritageForSlug,
@@ -37,7 +38,7 @@ export const metadata: Metadata = {
     title: HISTORIC_TITLE,
     description: HISTORIC_DESCRIPTION,
     url: "/historic",
-    siteName: "PUBMAXXING",
+    siteName: metadataSiteName(),
     type: "website",
     images: ["/og.png"],
   },

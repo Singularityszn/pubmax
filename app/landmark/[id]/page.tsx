@@ -5,6 +5,7 @@ import { notFound } from "next/navigation";
 
 import SiteNav from "@/components/nav/SiteNav";
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
+import { metadataSiteName } from "@/lib/brandNaming";
 import { landmarkById, nearestStoryPubs } from "@/lib/landmarks";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
@@ -59,7 +60,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
       description,
       type: "article",
       url: canonical,
-      siteName: "PUBMAXXING",
+      siteName: metadataSiteName(),
       images: ["/og.png"],
     },
     twitter: { card: "summary", title, description },
