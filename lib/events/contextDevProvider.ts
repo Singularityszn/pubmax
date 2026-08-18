@@ -7,7 +7,12 @@
 // Server Component. Import the transport from `@/lib/contextDev.server` in app
 // code; this lane is a CLI consumer.
 
-import { extract, isContextDevConfigured, type ContextDevCallOptions } from "../contextDev.ts";
+import {
+  createContextDevBudget,
+  extract,
+  isContextDevConfigured,
+  type ContextDevCallOptions,
+} from "../contextDev.ts";
 import { contextDevEventSources, type HarvestSource } from "../harvest/sourcePolicy.ts";
 import {
   DATE_ONLY_TIME_EVIDENCE,
@@ -247,6 +252,10 @@ export async function runContextDevEventsLane({
     return { ...empty, status: "ran" };
   }
 
+  // ONE budget for the whole lane, shared by every source and counting retries,
+  // so the ceiling is what this run may put on the account rather than how many
+  // pages it covers. A caller may hand its own in through callOptions.
+  const budget = callOptions.budget ?? createContextDevBudget();
   const opts: ContextDevNormaliseOpts = { observedAt, venueIndex, resolveVenue: resolveVenue ?? undefined };
   const allRows: Record<string, unknown>[] = [];
   const dropped = emptyEventDrops();
@@ -260,6 +269,7 @@ export async function runContextDevEventsLane({
       {
         ...callOptions,
         env,
+        budget,
         maxAgeMs: callOptions.maxAgeMs ?? CONTEXT_DEV_EVENTS_MAX_AGE_MS,
         instructions:
           "Extract upcoming pub and bar events only. Do not invent start times. " +

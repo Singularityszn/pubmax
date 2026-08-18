@@ -7,7 +7,7 @@ import {
   normaliseContextDevExtract,
   runContextDevEventsLane,
 } from "@/lib/events/contextDevProvider";
-import { contextDevEventSources } from "@/lib/harvest/sourcePolicy";
+import { allowedHarvestSources, contextDevEventSources } from "@/lib/harvest/sourcePolicy";
 import { DATE_ONLY_TIME_EVIDENCE } from "@/lib/whatson/eventNormalise.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
@@ -15,11 +15,21 @@ const fullers = contextDevEventSources().find((source) => source.id === "fullers
 const observedAt = "2026-08-16T09:00:00.000Z";
 
 describe("contextDevEventSources register gate", () => {
-  it("lists allowed venue-events pages but not sitemap readers", () => {
+  it("lists allowed FIRST-PARTY venue-events pages only", () => {
     const sources = contextDevEventSources();
     expect(sources.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
-    expect(sources.every((source) => !source.url.endsWith(".xml"))).toBe(true);
-    expect(sources.some((source) => source.id === "common-social-posts")).toBe(false);
+    expect(sources.every((source) => source.firstParty)).toBe(true);
+    expect(sources.every((source) => source.access.allowed)).toBe(true);
+  });
+
+  it("refuses every allowed venue-events source that is not first party", () => {
+    const allowed = allowedHarvestSources("venue-events");
+    const nonFirstParty = allowed.filter((source) => !source.firstParty);
+    // The register holds at least one, and its narrow nonFirstPartyException is
+    // a promise an extract call cannot keep.
+    expect(nonFirstParty.length).toBeGreaterThan(0);
+    const laneIds = new Set(contextDevEventSources().map((source) => source.id));
+    for (const source of nonFirstParty) expect(laneIds.has(source.id)).toBe(false);
   });
 
   it("is not configured without a key", () => {
@@ -124,6 +134,51 @@ describe("runContextDevEventsLane", () => {
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.startsDate).toBe("2026-08-18");
     extractSpy.mockRestore();
+  });
+});
+
+describe("run request budget", () => {
+  it("shares ONE budget across the lane and stops sending once it is spent", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const budget = contextDev.createContextDevBudget(1);
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: {
+        budget,
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        sleepImpl: async () => {},
+      },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(budget.remaining()).toBe(0);
+    expect(result.status).toBe("failed");
+    expect(result.rows).toEqual([]);
+    expect(result.failures).toHaveLength(contextDevEventSources().length);
+  });
+
+  it("caps a retry storm at the default budget when the caller hands none in", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+
+    await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      callOptions: {
+        fetchImpl: fetchImpl as unknown as typeof fetch,
+        sleepImpl: async () => {},
+      },
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
+    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(
+      contextDev.CONTEXT_DEV_RUN_REQUEST_BUDGET,
+    );
   });
 });
 

@@ -382,14 +382,12 @@ async function runProviderLane({
 
   // The clobber guard is PER PROVIDER. A failed lane keeps its own held rows
   // (read above) and the lanes that answered still publish, so one upstream
-  // outage never ages the whole file. With NO lane answering AND no held rows
-  // to carry, the write is refused outright rather than rewriting the file
-  // with only what it already said.
-  if (
-    providerFailures.length > 0 &&
-    providersRun.length === 0 &&
-    carriedFailedRows.length === 0
-  ) {
+  // outage never ages the whole file. With NO lane answering the write is
+  // refused OUTRIGHT, held rows or not: the payload stamps `generatedAt` with
+  // this run's instant, lib/whatsOnStore.ts feeds that stamp into
+  // `sourceObservedAt`, and a failed revalidation is not an observation. The
+  // held rows survive by the file being left exactly as it is.
+  if (providerFailures.length > 0 && providersRun.length === 0) {
     logError(
       `eventsRefresh: not writing ${outPath} - every configured provider lane failed ` +
         `(${failureReason}).`,

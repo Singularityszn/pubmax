@@ -20,6 +20,42 @@ export const CONTEXT_DEV_RETRY_BASE_DELAY_MS = 2_000;
 
 export const CONTEXT_DEV_REQUEST_TIMEOUT_MS = 60_000;
 
+/**
+ * Requests ONE run may send, counting retries, so a retry storm spends the run
+ * rather than the account - the ceiling lib/harvest/firecrawl.ts puts on its own
+ * lane, for the same reason. A request is the unit here because the two
+ * endpoints do not cost the same: a markdown scrape is 1 credit and an extract
+ * is 10, so twelve requests is at most 120 credits a run.
+ */
+export const CONTEXT_DEV_RUN_REQUEST_BUDGET = 12;
+
+export type ContextDevBudget = {
+  /** Requests this run may send in total. */
+  readonly limit: number;
+  spent(): number;
+  remaining(): number;
+  /**
+   * Reserve one request. Returns false when the run's cap is reached, in which
+   * case the caller must NOT send anything.
+   */
+  take(): boolean;
+};
+
+export function createContextDevBudget(limit: number = CONTEXT_DEV_RUN_REQUEST_BUDGET): ContextDevBudget {
+  const ceiling = Number.isFinite(limit) && limit > 0 ? Math.floor(limit) : 0;
+  let spent = 0;
+  return {
+    limit: ceiling,
+    spent: () => spent,
+    remaining: () => Math.max(0, ceiling - spent),
+    take: () => {
+      if (spent >= ceiling) return false;
+      spent += 1;
+      return true;
+    },
+  };
+}
+
 export type ContextDevFailure = {
   code: string;
   message: string;
@@ -58,6 +94,8 @@ export type ContextDevCallOptions = {
   sleepImpl?: (ms: number) => Promise<void>;
   maxAttempts?: number;
   timeoutMs?: number;
+  /** Shared per-run request ceiling. Absent means this call is uncapped. */
+  budget?: ContextDevBudget;
 };
 
 export function contextDevApiKey(env: NodeJS.ProcessEnv = process.env): string | null {
@@ -119,9 +157,20 @@ async function withRetries<T extends ContextDevScrapeOk | ContextDevExtractOk<un
 ): Promise<T | ContextDevError> {
   const sleepImpl = options.sleepImpl ?? defaultSleep;
   const maxAttempts = Math.max(1, options.maxAttempts ?? CONTEXT_DEV_MAX_ATTEMPTS);
+  const budget = options.budget;
   let last: ContextDevFailure | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+    if (budget && !budget.take()) {
+      return {
+        status: "error",
+        error: {
+          code: "BUDGET_EXHAUSTED",
+          message: `Run budget of ${budget.limit} Context.dev requests is spent.`,
+          retryable: false,
+        },
+      };
+    }
     const result = await attemptOnce();
     if (result.kind === "value") {
       return result.value;

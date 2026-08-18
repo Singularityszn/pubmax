@@ -245,9 +245,19 @@ export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] 
   return harvestSourcesOfKind(kind).filter(isHarvestSourceAllowed);
 }
 
-/** Allowed venue-events pages the Context.dev events lane may read (not sitemaps). */
+/**
+ * Allowed venue-events pages the Context.dev events lane may read.
+ *
+ * FIRST PARTY IS THE BAR, and it is the semantic property rather than a proxy
+ * for it: an extract call hands a whole page to a model and takes back whatever
+ * it says, so it cannot honour the narrow `nonFirstPartyException` an allowed
+ * listings source carries ("facts only, from the og:description prefix" is a
+ * promise no extraction keeps). A URL suffix stood in for this and would have
+ * admitted the next allowed non-first-party page that did not happen to end
+ * `.xml`.
+ */
 export function contextDevEventSources(): HarvestSource[] {
-  return allowedHarvestSources("venue-events").filter((source) => !source.url.endsWith(".xml"));
+  return allowedHarvestSources("venue-events").filter((source) => source.firstParty);
 }
 
 /**

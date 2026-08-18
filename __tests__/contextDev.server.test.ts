@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   CONTEXT_DEV_MAX_ATTEMPTS,
   contextDevApiKey,
+  createContextDevBudget,
   extract,
   isContextDevConfigured,
   scrapeMarkdown,
@@ -148,6 +149,59 @@ describe("scrapeMarkdown", () => {
     if (result.status !== "error") throw new Error("expected error");
     expect(result.error.retryable).toBe(false);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("run request budget", () => {
+  it("counts retries against the budget and stops sending once it is spent", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const budget = createContextDevBudget(2);
+    const result = await scrapeMarkdown("https://example.com", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      maxAttempts: CONTEXT_DEV_MAX_ATTEMPTS,
+      budget,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(budget.remaining()).toBe(0);
+    expect(result.status).toBe("error");
+    if (result.status !== "error") throw new Error("expected error");
+    expect(result.error.code).toBe("BUDGET_EXHAUSTED");
+    expect(result.error.retryable).toBe(false);
+  });
+
+  it("sends nothing at all once a shared budget is spent", async () => {
+    const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const budget = createContextDevBudget(1);
+    await scrapeMarkdown("https://example.com/one", {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      budget,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    const second = await extract("https://example.com/two", { type: "object" }, {
+      env: { CONTEXT_DEV_API_KEY: "key" } as unknown as NodeJS.ProcessEnv,
+      fetchImpl: fetchImpl as unknown as typeof fetch,
+      sleepImpl: noSleep,
+      budget,
+    });
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(second.status).toBe("error");
+    if (second.status !== "error") throw new Error("expected error");
+    expect(second.error.code).toBe("BUDGET_EXHAUSTED");
+  });
+
+  it("spends nothing when the key is absent, because nothing is sent", async () => {
+    const budget = createContextDevBudget(2);
+    const result = await scrapeMarkdown("https://example.com", {
+      env: {} as unknown as NodeJS.ProcessEnv,
+      budget,
+    });
+    expect(result).toEqual({ status: "not-configured" });
+    expect(budget.remaining()).toBe(2);
   });
 });
 

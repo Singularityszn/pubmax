@@ -75,6 +75,16 @@ retry 408/5xx with bounded backoff; never retry validation errors; pass
 `maxAgeMs` when freshness matters. Without a key every call answers
 `not-configured` and sends nothing.
 
+The lane spends ONE `createContextDevBudget()` for the whole run, shared by
+every source and counting retries, so a retry storm spends the run rather than
+the account. `CONTEXT_DEV_RUN_REQUEST_BUDGET` is 12 requests, which at the table
+above is at most 120 credits. A request reserved past the cap sends nothing and
+answers `BUDGET_EXHAUSTED`.
+
+Which sources the lane may read is `contextDevEventSources()`, and the bar is
+FIRST PARTY: an extract call hands a whole page to a model, so it cannot honour
+the narrow `nonFirstPartyException` an allowed listings source carries.
+
 Proof (captain): with the key in `.env.local`:
 
 ```bash
