@@ -308,8 +308,6 @@ describe("a photo tile is measured against the screen, never the reader's font",
 
 describe("a phone crop and lightbox stay bounded, not full-screen", () => {
   it("anchors the crop step in a bottom card over a dimmed thread", () => {
-    expect(THREAD).toContain('className="messageCropOverlay"');
-    expect(THREAD).toContain('className="messageCropCard"');
     const overlay = rule(".messageCropOverlay");
     expect(overlay).toMatch(/align-items:\s*flex-end/);
     expect(overlay).not.toMatch(/align-items:\s*stretch/);

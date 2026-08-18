@@ -765,11 +765,16 @@
   cursor: pointer;
 }
 
-/* Crop step inside the thread: a card over the composer, not a full-screen page. */
+/* Crop step inside the thread: a card over the composer, not a full-screen page.
+   It is a modal, so it sits ABOVE the phone tab bar (--z-tabbar, 1350) and below
+   the splash takeover (1400). At z-index 30 the bar painted its opaque pill over
+   the card's own Use photo / Cancel row, so the two controls were untappable on
+   the one surface this card exists for. The phone rule below also reserves the
+   bar's lane, so the card is never merely painted on top of it. */
 .messageCropOverlay {
   position: fixed;
   inset: 0;
-  z-index: 30;
+  z-index: calc(var(--z-tabbar) + 10);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -779,6 +784,16 @@
     max(0.75rem, env(safe-area-inset-bottom, 0px))
     max(0.75rem, env(safe-area-inset-left, 0px));
   background: rgb(0 0 0 / 45%);
+}
+
+/* 640px is the shared mobile breakpoint (lib/breakpoints.ts), the width the tab
+   bar itself appears at. Above it there is no bar and no lane to reserve. */
+@media (max-width: 640px) {
+  .messageCropOverlay {
+    padding-bottom: calc(
+      var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 0.75rem
+    );
+  }
 }
 
 .messageCropCard {

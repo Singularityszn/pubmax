@@ -39,6 +39,8 @@ import {
 import { linkifyMentions, MAX_MESSAGE_BODY, type MessageDTO } from "@/lib/messages";
 import { subscribeToMessages } from "@/lib/messagesRealtime";
 import { normalizeHandle } from "@/lib/profiles";
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
+import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "@/app/messages/messages.css";
 
@@ -155,6 +157,7 @@ export default function MessageThread({
   const loadedForRef = useRef<string | null>(null);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
+  const cropCardRef = useRef<HTMLDivElement | null>(null);
   const enterSends = useEnterSends();
   const isMobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -173,6 +176,18 @@ export default function MessageThread({
       active = false;
     };
   }, [authHandle]);
+
+  // The crop step declares itself modal, so it has to BE one: the rest of the
+  // page goes inert, Tab cycles inside the card, Escape leaves, and focus lands
+  // in the card rather than staying on the file input behind it. Without this a
+  // keyboard reader tabbed straight out into the thread and composer beneath.
+  const cropOpen = cropping !== null;
+  useFocusTrap(cropOpen, cropCardRef);
+  useDismissOnEscape(cropOpen, () => setCropping(null));
+  useEffect(() => {
+    if (!cropOpen) return;
+    cropCardRef.current?.focus({ preventScroll: true });
+  }, [cropOpen]);
 
   // Refetch the thread through the participant-gated API. A 404 = we're not a
   // participant (or the conversation is gone) → show not-found, never a leak.
@@ -515,8 +530,15 @@ export default function MessageThread({
       />
 
       {cropping ? (
-        <div className="messageCropOverlay" role="dialog" aria-modal="true" aria-label="Crop photo">
-          <div className="messageCropCard">
+        <div className="messageCropOverlay">
+          <div
+            ref={cropCardRef}
+            className="messageCropCard"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Crop photo"
+            tabIndex={-1}
+          >
             <ProfileImageCropper
               key={fileKey(cropping)}
               target={MESSAGE_PHOTO_CROP_TARGET}

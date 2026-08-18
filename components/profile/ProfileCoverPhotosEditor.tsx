@@ -20,6 +20,8 @@ import {
   profileCoverCapLine,
   profileCoverEmptyLine,
   profileCoverRemoveConfirmLine,
+  profileCoverRemoveLane,
+  profileCoverRemoveUnavailableLine,
   profileCoverRotationNote,
   profileCoverThumbnailLabel,
   profileCoverUrls,
@@ -85,8 +87,16 @@ export default function ProfileCoverPhotosEditor({
   const base = `/api/profiles/${encodeURIComponent(handle)}/covers`;
   const legacyCoverUrl = `/api/profiles/${encodeURIComponent(handle)}/cover`;
 
+  // The mirror-only card and the remove lane are the SAME question, asked once
+  // (lib/profileCovers.ts): a degraded read leaves `covers` empty while rows
+  // really exist, so neither may guess the rotation is gone.
+  const removeLane = profileCoverRemoveLane({
+    status,
+    rotationCount: covers.length,
+    mirrorCount: heldCoverUrls.length,
+  });
   const hasCover = covers.length > 0 || heldCoverUrls.length > 0;
-  const mirrorOnly = covers.length === 0 && heldCoverUrls.length > 0;
+  const mirrorOnly = removeLane === "mirror";
 
   useEffect(() => {
     let active = true;
@@ -180,13 +190,18 @@ export default function ProfileCoverPhotosEditor({
   }
 
   async function removeAllCovers(): Promise<void> {
+    if (removeLane === "unavailable") {
+      setError(profileCoverRemoveUnavailableLine());
+      return;
+    }
+    if (removeLane === "none") return;
     if (typeof window !== "undefined" && !window.confirm(profileCoverRemoveConfirmLine())) {
       return;
     }
     setBusy("editing");
     setError(null);
     try {
-      if (covers.length > 0) {
+      if (removeLane === "rotation") {
         const ids = covers.map((cover) => cover.id);
         for (const id of ids) {
           const response = await authedActionFetch(`${base}/${encodeURIComponent(id)}`, {

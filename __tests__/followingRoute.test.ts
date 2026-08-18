@@ -161,6 +161,51 @@ describe("GET /api/profiles/[handle]/following", () => {
     expect(blob).not.toMatch(/actor_?hash/i);
   });
 
+  it("reads every followee in ONE store round trip, not one per handle", async () => {
+    // The route is public, unpaginated and unauthenticated, so a point read per
+    // follower fans out one backend call per row on a well-followed profile.
+    for (const followee of ["sam", "lee", "zoe", "ash"]) {
+      await memoryFollowStore.follow("ken", followee);
+    }
+    const batch = vi.spyOn(memoryProfileStore, "getPublicCardsByHandles");
+    const point = vi.spyOn(memoryProfileStore, "getByHandle");
+
+    const body = await (await following("ken")).json();
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee", "zoe", "ash"]));
+    expect(batch).toHaveBeenCalledTimes(1);
+    expect(batch).toHaveBeenCalledWith(
+      expect.arrayContaining(["sam", "lee", "zoe", "ash"]),
+    );
+    // The follow store resolves the FOLLOWER itself; no followee is point-read.
+    const pointReads = point.mock.calls.map(([handle]) => handle);
+    expect(pointReads).not.toContain("sam");
+    expect(pointReads).not.toContain("lee");
+    expect(pointReads).not.toContain("zoe");
+    expect(pointReads).not.toContain("ash");
+    batch.mockRestore();
+    point.mockRestore();
+  });
+
+  it("keeps the whole list when the profile read for its names and faces fails", async () => {
+    // Enrichment is decoration. A failed profile read used to reject the whole
+    // projection, and the route's catch then answered { following: [] } — which
+    // the Friends feed lane and the followers page read as "you follow nobody".
+    await memoryFollowStore.follow("ken", "sam");
+    await memoryFollowStore.follow("ken", "lee");
+    const batch = vi
+      .spyOn(memoryProfileStore, "getPublicCardsByHandles")
+      .mockRejectedValue(new Error("profile store down"));
+
+    const res = await following("ken");
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(followingHandles(body)).toEqual(new Set(["sam", "lee"]));
+    for (const row of body.following) {
+      expect(row).toEqual({ handle: row.handle });
+    }
+    batch.mockRestore();
+  });
+
   it("advertises a JSON response and never a non-200 status", async () => {
     await memoryFollowStore.follow("ken", "sam");
     const res = await following("ken");

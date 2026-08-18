@@ -390,6 +390,10 @@ type OverlayMeasured = {
   cropCard: Box;
   viewer: Box;
   viewport: Box;
+  /** Whether a hit test at each crop action's centre lands inside the card. */
+  cropActionsOwnTheirTaps: boolean[];
+  /** What the topmost element at each action's centre actually is. */
+  cropActionOccluders: string[];
 };
 
 /** Crop card and lightbox dialog, measured under the shipped stylesheet. */
@@ -401,10 +405,30 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
     const overlay = document.createElement("div");
     overlay.id = "overlay-probe";
     overlay.className = "messageCropOverlay";
-    overlay.setAttribute("role", "dialog");
     const card = document.createElement("div");
     card.className = "messageCropCard";
-    card.textContent = "Crop photo";
+    card.setAttribute("role", "dialog");
+    card.setAttribute("aria-modal", "true");
+    // The cropper's own last row. It is the whole point of the card, and it is
+    // the part the phone tab bar used to paint over.
+    const step = document.createElement("div");
+    step.className = "profileCropStep";
+    const frame = document.createElement("div");
+    frame.className = "profileCropFrame";
+    frame.style.height = "220px";
+    const actions = document.createElement("div");
+    actions.className = "profileCropActions";
+    const confirm = document.createElement("button");
+    confirm.type = "button";
+    confirm.className = "profileCropConfirm";
+    confirm.textContent = "Use photo";
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "profileCropCancel";
+    cancel.textContent = "Cancel";
+    actions.append(confirm, cancel);
+    step.append(frame, actions);
+    card.append(step);
     overlay.append(card);
     host.append(overlay);
 
@@ -426,6 +450,20 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
       return { width: rect.width, height: rect.height };
     };
 
+    const describe = (element: Element | null): string => {
+      if (!element) return "nothing";
+      const classes = element.className;
+      return `${element.tagName.toLowerCase()}.${typeof classes === "string" ? classes : ""}`;
+    };
+    const hits = [confirm, cancel].map((button) => {
+      const rect = button.getBoundingClientRect();
+      const top = document.elementFromPoint(
+        rect.left + rect.width / 2,
+        rect.top + rect.height / 2,
+      );
+      return { owned: top !== null && card.contains(top), occluder: describe(top) };
+    });
+
     const measured = {
       cropCard: box("#overlay-probe .messageCropCard"),
       viewer: box("#viewer-probe"),
@@ -433,6 +471,8 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
         width: window.innerWidth,
         height: window.innerHeight,
       },
+      cropActionsOwnTheirTaps: hits.map((hit) => hit.owned),
+      cropActionOccluders: hits.map((hit) => hit.occluder),
     };
     document.getElementById("overlay-probe")?.remove();
     document.getElementById("viewer-probe")?.remove();
@@ -462,6 +502,15 @@ test.describe("message attach preview and lightbox at phone 390", () => {
     expect(measured.viewer.width).toBeLessThan(measured.viewport.width - 16);
     expect(measured.viewer.height).toBeLessThan(measured.viewport.height * 0.8);
     expect(measured.viewer.width).toBeLessThanOrEqual(390 * 0.88 + 2);
+  });
+
+  test("the crop card's own Use photo and Cancel own their taps", async ({ page }) => {
+    // THE DEFECT: the overlay sat at z-index 30 while the phone tab bar is fixed
+    // at 1350 with an opaque pill, so the card's confirm and cancel row was
+    // painted over and untappable on the one surface the card exists for.
+    const measured = await measurePhoneOverlays(page);
+    expect(measured.cropActionOccluders).toHaveLength(2);
+    expect(measured.cropActionsOwnTheirTaps).toEqual([true, true]);
   });
 });
 

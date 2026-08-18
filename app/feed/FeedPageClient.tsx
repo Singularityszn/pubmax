@@ -37,7 +37,7 @@ import {
   writeOptimisticSpills,
 } from "@/lib/optimisticSpillPost";
 import { postReactionToggle } from "@/lib/optimisticToggle";
-import { followListHandle } from "@/lib/followList";
+import { followListHandleSet } from "@/lib/followList";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   loadReactionSummaries,
@@ -320,13 +320,7 @@ export default function FeedPageClient({
           throw new Error(String(res.status));
         }
         const data = (await res.json()) as { following?: unknown };
-        const list = Array.isArray(data.following) ? data.following : [];
-        const set = new Set<string>();
-        for (const row of list) {
-          const norm = followListHandle(row);
-          if (norm) set.add(norm);
-        }
-        setFollowingHandles(set);
+        setFollowingHandles(followListHandleSet(data.following));
       } catch (err) {
         if (controller.signal.aborted || (err instanceof Error && err.name === "AbortError")) {
           return; // expected on unmount / handle change — not an error to surface

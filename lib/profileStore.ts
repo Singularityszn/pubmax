@@ -122,6 +122,16 @@ export type ProfileRecord = {
   updatedAt: string;
 };
 
+/**
+ * The public CARD fields for one handle, as a list surface prints them. This is
+ * deliberately narrower than `PublicProfile`: a followers page names a person
+ * and shows their face, and nothing else about them crosses that wire.
+ */
+export type ProfilePublicCard = {
+  displayName?: string;
+  avatarUrl?: string;
+};
+
 /** The record fields backing one owned-image slot. */
 type ProfileImageFieldNames = {
   objectKey: "avatarObjectKey" | "coverObjectKey";
@@ -378,6 +388,16 @@ export type ProfileStore = {
    * normalised handles; values are public serve paths.
    */
   getApprovedAvatarUrlsByHandles(handles: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /**
+   * One query: the public CARD fields (display name, approved owned avatar) for
+   * a set of handles. Keys are normalised handles; a handle with no row is
+   * simply absent. This exists so a list surface reads its people in ONE round
+   * trip: a followers page point-reading each row fanned out one PostgREST call
+   * per follower on a public, unpaginated, unauthenticated route.
+   */
+  getPublicCardsByHandles(
+    handles: readonly string[],
+  ): Promise<ReadonlyMap<string, ProfilePublicCard>>;
   /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
@@ -696,6 +716,16 @@ function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined
   return publicOwnedImageUrl(profile, "avatar");
 }
 
+const CARD_BATCH_COLUMNS = `${AVATAR_BATCH_COLUMNS}, display_name`;
+
+function publicCardForProfile(profile: ProfileRecord): ProfilePublicCard {
+  const card: ProfilePublicCard = {};
+  if (profile.displayName) card.displayName = profile.displayName;
+  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
+  if (avatarUrl) card.avatarUrl = avatarUrl;
+  return card;
+}
+
 export const supabaseProfileStore: ProfileStore = {
   async getByHandle(handle) {
     const key = normalizeHandle(handle);
@@ -729,6 +759,22 @@ export const supabaseProfileStore: ProfileStore = {
       const profile = fromRow(row as Record<string, unknown>);
       const url = approvedAvatarUrlForProfile(profile);
       if (url) out.set(profile.handle, url);
+    }
+    return out;
+  },
+
+  async getPublicCardsByHandles(handles) {
+    const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
+    if (keys.length === 0) return new Map();
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select(CARD_BATCH_COLUMNS)
+      .in("handle", keys);
+    if (error) throw new Error(error.message);
+    const out = new Map<string, ProfilePublicCard>();
+    for (const row of data ?? []) {
+      const profile = fromRow(row as Record<string, unknown>);
+      out.set(profile.handle, publicCardForProfile(profile));
     }
     return out;
   },
@@ -1123,6 +1169,18 @@ export const memoryProfileStore: ProfileStore = {
       if (!profile) continue;
       const url = approvedAvatarUrlForProfile(profile);
       if (url) out.set(profile.handle, url);
+    }
+    return out;
+  },
+
+  async getPublicCardsByHandles(handles) {
+    const out = new Map<string, ProfilePublicCard>();
+    for (const raw of handles) {
+      const key = normalizeHandle(raw);
+      if (!key) continue;
+      const profile = memoryProfiles.get(key);
+      if (!profile) continue;
+      out.set(profile.handle, publicCardForProfile(profile));
     }
     return out;
   },

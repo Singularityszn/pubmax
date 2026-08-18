@@ -274,5 +274,40 @@ export function profileCoverRemoveConfirmLine(): string {
   return "Remove your cover photo? Your profile will go back to the default backdrop.";
 }
 
+/**
+ * Why a field-level remove will not run. A read that could NOT answer says so:
+ * an empty rotation list from a failed read is not an empty rotation, and
+ * routing the remove to the single-cover lane on that guess clears the mirror
+ * while every rotation row survives, so the backdrop keeps rotating over a
+ * receipt that said it was gone.
+ */
+export type ProfileCoverRemoveLane = "rotation" | "mirror" | "none" | "unavailable";
+
+/**
+ * Which lane a field-level "Remove cover" belongs in, decided ONCE.
+ *
+ * "The rotation is empty" and "we could not read the rotation" are two
+ * findings. An editor that merged them classified an owner with five rotation
+ * rows as mirror-only the moment the read failed, sent the remove at the
+ * single-cover DELETE, cleared `profiles.cover_*` alone and reported success:
+ * every row survived and the backdrop kept rotating. The mirror-only CARD and
+ * the remove lane read this one answer, so the thing shown and the thing done
+ * cannot disagree.
+ */
+export function profileCoverRemoveLane(input: {
+  status: ProfileCoverReadStatus;
+  rotationCount: number;
+  mirrorCount: number;
+}): ProfileCoverRemoveLane {
+  if (input.status !== "ready") return "unavailable";
+  if (input.rotationCount > 0) return "rotation";
+  if (input.mirrorCount > 0) return "mirror";
+  return "none";
+}
+
+export function profileCoverRemoveUnavailableLine(): string {
+  return "We could not read your cover photos just now, so nothing was removed. Try again in a moment.";
+}
+
 export const PROFILE_COVER_REFUSED_LINE =
   "That cover photo did not pass our checks. Choose another.";

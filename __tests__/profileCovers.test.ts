@@ -24,6 +24,8 @@ import {
   profileCoverCapLine,
   profileCoverEmptyLine,
   profileCoverRemoveConfirmLine,
+  profileCoverRemoveLane,
+  profileCoverRemoveUnavailableLine,
   profileCoverRotationNote,
   profileCoverUrls,
   PROFILE_COVER_REMOVE_ALL_LABEL,
@@ -47,6 +49,48 @@ describe("the cap", () => {
   it("asks before a field-level remove clears every cover", () => {
     expect(profileCoverRemoveConfirmLine()).toMatch(/remove your cover photo/i);
     expect(profileCoverRemoveConfirmLine()).toMatch(/default backdrop/i);
+  });
+});
+
+describe("which lane a field-level remove belongs in", () => {
+  it("takes the rotation lane while rotation rows are held", () => {
+    expect(
+      profileCoverRemoveLane({ status: "ready", rotationCount: 3, mirrorCount: 1 }),
+    ).toBe("rotation");
+  });
+
+  it("takes the single-cover lane only for a read that answered no rotation", () => {
+    expect(
+      profileCoverRemoveLane({ status: "ready", rotationCount: 0, mirrorCount: 1 }),
+    ).toBe("mirror");
+  });
+
+  it("refuses on a read that could not answer, however many mirrors are held", () => {
+    // THE DEFECT: a degraded read left the list empty, the owner was classified
+    // mirror-only, the single-cover DELETE cleared `profiles.cover_*` alone,
+    // every rotation row survived and the editor still reported success.
+    for (const mirrorCount of [0, 1]) {
+      expect(
+        profileCoverRemoveLane({ status: "degraded", rotationCount: 0, mirrorCount }),
+      ).toBe("unavailable");
+    }
+    expect(
+      profileCoverRemoveLane({ status: "degraded", rotationCount: 2, mirrorCount: 1 }),
+    ).toBe("unavailable");
+  });
+
+  it("has nothing to remove when a read answered and nothing is held", () => {
+    expect(
+      profileCoverRemoveLane({ status: "ready", rotationCount: 0, mirrorCount: 0 }),
+    ).toBe("none");
+  });
+
+  it("says nothing was removed rather than claiming a removal", () => {
+    const line = profileCoverRemoveUnavailableLine();
+    expect(line).toMatch(/could not read/i);
+    expect(line).toMatch(/nothing was removed/i);
+    expect(line).not.toContain("—");
+    expect(line).not.toContain("!");
   });
 });
 
