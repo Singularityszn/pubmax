@@ -74,6 +74,7 @@ figure and the ceiling live in one place.
 | `measuredMs` | The last RECORDED figure, not a second ceiling. It is a note of where we stood. |
 | `signal` | What was waited for: painted pins the collision index kept, off `components/map/canvas/paintedPinProbe.ts`. |
 | `viewport` | The phone the promise is made to. |
+| `note` | How the figure was taken, in one sentence. |
 
 What ENFORCES `targetMs` is the pin-ready test in
 `e2e/mobile-map-chrome-fit.spec.ts`, which opens the route cold and waits on the
