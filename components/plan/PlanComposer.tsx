@@ -1,8 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
@@ -1035,11 +1043,13 @@ const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
 /**
  * The ask a `/plan` URL carries, both the wide answer and the narrow one.
  *
- * Only ever read once the page has hydrated: the server knows no address, so a
- * read during the hydration render would paint a field the server left empty
- * and mismatch it. `PlanComposerForm` is remounted under a fresh key the moment
- * hydration lands, which is where this answers. Nothing but `window.location`
- * is touched.
+ * Only read once the page can persist: the server knows no address, so a read
+ * during the hydration render would paint a field the server left empty and
+ * mismatch it. `PlanComposerForm` is remounted under a fresh key the moment
+ * hydration lands. On a client-side navigation the render-phase read can still
+ * see the previous route, so `PlanComposerForm` re-reads in `useLayoutEffect`
+ * after the router commits the new address. Nothing but `window.location` is
+ * touched.
  */
 function describeAskFromLocation(): UrlPrefill {
   if (typeof window === "undefined") return NO_URL_PREFILL;
@@ -1089,7 +1099,10 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [urlPrefill] = useState(() => (canPersist ? describeAskFromLocation() : NO_URL_PREFILL));
+  const pathname = usePathname();
+  const [urlPrefill, setUrlPrefill] = useState(() =>
+    canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
+  );
   const urlAsk = urlPrefill.ask;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
@@ -1120,6 +1133,32 @@ function PlanComposerForm({
   const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
+  useLayoutEffect(() => {
+    if (!canPersist) return;
+    const fresh = describeAskFromLocation();
+    setUrlPrefill((prev) =>
+      prev.ask === fresh.ask && prev.handoffAsk === fresh.handoffAsk ? prev : fresh,
+    );
+    if (!fresh.ask) return;
+    setAskDraftQuery(fresh.ask);
+    const entryForSurface: "describe" | "wizard" =
+      hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
+        ? "wizard"
+        : "describe";
+    if (fresh.handoffAsk && hasDurableIntakeDraft && !recoveredIntake.completed) {
+      setEntryMode("describe");
+    }
+    if (
+      planComposerShowsDescribeFirst({
+        heldVenueId,
+        completed: recoveredIntake.completed,
+        entryMode: entryForSurface,
+      })
+    ) {
+      return;
+    }
+    setConciergeQuery(fresh.ask);
+  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
     // The URL ask is already in state; this effect exists to SPEND the draft,
     // which is a storage write and so waits for a browser that can persist.
