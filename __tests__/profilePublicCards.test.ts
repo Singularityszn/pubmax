@@ -36,6 +36,8 @@ import {
 import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const GENERATION = "22222222-2222-2222-8222-222222222222";
+/** Mirrors HANDLE_BATCH_CONCURRENCY in lib/profileStore.ts. */
+const HANDLE_BATCH_CONCURRENCY = 6;
 
 type Row = Record<string, unknown>;
 
@@ -63,6 +65,10 @@ function row(handle: string, extra: Row = {}): Row {
  */
 function fakeTable(rows: Row[]) {
   const requests: string[][] = [];
+  // Every read is deferred by a real turn of the event loop, so overlapping
+  // reads are observable: `peakInFlight` is how many were open at once.
+  let inFlight = 0;
+  let peakInFlight = 0;
   supabase.from.mockImplementation(() => {
     let matched = [...rows];
     const builder: Record<string, unknown> = {
@@ -80,12 +86,20 @@ function fakeTable(rows: Row[]) {
         matched = matched.filter((entry) => (entry[column] ?? null) !== null);
         return builder;
       },
-      then: (resolve: (answer: { data: Row[]; error: null }) => unknown) =>
-        Promise.resolve({ data: matched, error: null }).then(resolve),
+      then: (resolve: (answer: { data: Row[]; error: null }) => unknown) => {
+        inFlight += 1;
+        peakInFlight = Math.max(peakInFlight, inFlight);
+        return new Promise<{ data: Row[]; error: null }>((settle) => {
+          setTimeout(() => {
+            inFlight -= 1;
+            settle({ data: matched, error: null });
+          }, 5);
+        }).then(resolve);
+      },
     };
     return builder;
   });
-  return requests;
+  return { requests, peak: () => peakInFlight };
 }
 
 beforeEach(() => {
@@ -149,7 +163,7 @@ describe("a departed account is not named in a follow list", () => {
 describe("the batch is chunked, so a long follow list still reads", () => {
   it("splits 450 handles into bounded requests and merges every card", async () => {
     const handles = Array.from({ length: 450 }, (_, index) => `mate${index}`);
-    const requests = fakeTable(handles.map((handle) => row(handle)));
+    const { requests } = fakeTable(handles.map((handle) => row(handle)));
 
     const cards = await supabaseProfileStore.getPublicCardsByHandles(handles);
 
@@ -165,7 +179,7 @@ describe("the batch is chunked, so a long follow list still reads", () => {
 
   it("chunks the sibling avatar read the same way", async () => {
     const handles = Array.from({ length: 250 }, (_, index) => `mate${index}`);
-    const requests = fakeTable(handles.map((handle) => row(handle)));
+    const { requests } = fakeTable(handles.map((handle) => row(handle)));
 
     await supabaseProfileStore.getApprovedAvatarUrlsByHandles(handles);
 
@@ -174,7 +188,7 @@ describe("the batch is chunked, so a long follow list still reads", () => {
   });
 
   it("asks for nothing when there is nothing to ask about", async () => {
-    const requests = fakeTable([]);
+    const { requests } = fakeTable([]);
     expect((await supabaseProfileStore.getPublicCardsByHandles([])).size).toBe(0);
     expect((await supabaseProfileStore.getPublicCardsByHandles(["  ", "@"])).size).toBe(0);
     expect(requests.length).toBe(0);
@@ -182,8 +196,46 @@ describe("the batch is chunked, so a long follow list still reads", () => {
   });
 
   it("normalizes and de-duplicates before it counts a batch", async () => {
-    const requests = fakeTable([row("sam")]);
+    const { requests } = fakeTable([row("sam")]);
     await supabaseProfileStore.getPublicCardsByHandles(["@Sam", "sam", "SAM"]);
     expect(requests).toEqual([["sam"]]);
+  });
+
+  it("overlaps the chunks instead of awaiting them one after another", async () => {
+    const handles = Array.from({ length: 800 }, (_, index) => `mate${index}`);
+    const { requests, peak } = fakeTable(handles.map((handle) => row(handle)));
+
+    const cards = await supabaseProfileStore.getPublicCardsByHandles(handles);
+
+    expect(cards.size).toBe(800);
+    expect(requests.length).toBe(4);
+    // THE DEFECT: each chunk was awaited inside a `for` loop, so a well-followed
+    // profile paid ceil(n/200) SEQUENTIAL round trips on a public read.
+    expect(peak()).toBeGreaterThan(1);
+  });
+
+  it("holds the overlap to a ceiling rather than the follower count", async () => {
+    // 40 chunks: without a bound this route would open forty PostgREST reads at
+    // once for one anonymous request.
+    const handles = Array.from({ length: 8_000 }, (_, index) => `mate${index}`);
+    const { requests, peak } = fakeTable(handles.map((handle) => row(handle)));
+
+    const cards = await supabaseProfileStore.getPublicCardsByHandles(handles);
+
+    expect(cards.size).toBe(8_000);
+    expect(requests.length).toBe(40);
+    expect(peak()).toBeGreaterThan(1);
+    expect(peak()).toBeLessThanOrEqual(HANDLE_BATCH_CONCURRENCY);
+  });
+
+  it("overlaps the sibling avatar read under the same ceiling", async () => {
+    const handles = Array.from({ length: 1_200 }, (_, index) => `mate${index}`);
+    const { requests, peak } = fakeTable(handles.map((handle) => row(handle)));
+
+    await supabaseProfileStore.getApprovedAvatarUrlsByHandles(handles);
+
+    expect(requests.length).toBe(6);
+    expect(peak()).toBeGreaterThan(1);
+    expect(peak()).toBeLessThanOrEqual(HANDLE_BATCH_CONCURRENCY);
   });
 });

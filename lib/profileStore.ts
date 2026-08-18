@@ -725,6 +725,15 @@ const CARD_BATCH_COLUMNS = `${AVATAR_BATCH_COLUMNS}, display_name`;
  */
 const HANDLE_BATCH_SIZE = 200;
 
+/**
+ * How many of those requests may be in flight together. Chunking that AWAITED
+ * each batch turned one round trip into ceil(n/200) stacked on top of the
+ * follow-list join, so the batches overlap - but this route is public and
+ * unauthenticated, so the overlap has a ceiling rather than being the follower
+ * count divided by the batch size.
+ */
+const HANDLE_BATCH_CONCURRENCY = 6;
+
 function handleBatches(handles: readonly string[]): string[][] {
   const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
   const batches: string[][] = [];
@@ -732,6 +741,45 @@ function handleBatches(handles: readonly string[]): string[][] {
     batches.push(keys.slice(at, at + HANDLE_BATCH_SIZE));
   }
   return batches;
+}
+
+type BatchAnswer = { data: unknown[] | null; error: { message: string } | null };
+
+/**
+ * Every batched handle read, written once: chunk, run the chunks against a
+ * bounded pool, then fold each returned row into one map. A reader that only
+ * says WHICH query and WHAT to keep cannot reintroduce the fan-out, the
+ * unbounded `.in(...)`, or the serial await that each cost this lane a round.
+ */
+async function readHandleBatches<T>(
+  handles: readonly string[],
+  query: (keys: string[]) => PromiseLike<BatchAnswer>,
+  keep: (profile: ProfileRecord, into: Map<string, T>) => void,
+): Promise<ReadonlyMap<string, T>> {
+  const batches = handleBatches(handles);
+  const out = new Map<string, T>();
+  if (batches.length === 0) return out;
+
+  const answers: BatchAnswer[] = new Array(batches.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(HANDLE_BATCH_CONCURRENCY, batches.length) },
+    async () => {
+      for (;;) {
+        const at = next;
+        next += 1;
+        if (at >= batches.length) return;
+        answers[at] = await query(batches[at]!);
+      }
+    },
+  );
+  await Promise.all(workers);
+
+  for (const answer of answers) {
+    if (answer.error) throw new Error(answer.error.message);
+    for (const row of answer.data ?? []) keep(fromRow(row as Record<string, unknown>), out);
+  }
+  return out;
 }
 
 /**
@@ -770,38 +818,32 @@ export const supabaseProfileStore: ProfileStore = {
   },
 
   async getApprovedAvatarUrlsByHandles(handles) {
-    const out = new Map<string, string>();
-    for (const keys of handleBatches(handles)) {
-      const { data, error } = await admin()
-        .from(TABLE)
-        .select(AVATAR_BATCH_COLUMNS)
-        .in("handle", keys)
-        .not("user_id", "is", null);
-      if (error) throw new Error(error.message);
-      for (const row of data ?? []) {
-        const profile = fromRow(row as Record<string, unknown>);
+    return readHandleBatches<string>(
+      handles,
+      (keys) =>
+        admin()
+          .from(TABLE)
+          .select(AVATAR_BATCH_COLUMNS)
+          .in("handle", keys)
+          .not("user_id", "is", null),
+      (profile, into) => {
         const url = approvedAvatarUrlForProfile(profile);
-        if (url) out.set(profile.handle, url);
-      }
-    }
-    return out;
+        if (url) into.set(profile.handle, url);
+      },
+    );
   },
 
   async getPublicCardsByHandles(handles) {
-    const out = new Map<string, ProfilePublicCard>();
-    for (const keys of handleBatches(handles)) {
-      const { data, error } = await admin()
-        .from(TABLE)
-        .select(CARD_BATCH_COLUMNS)
-        .in("handle", keys)
-        .is("tombstoned_at", null);
-      if (error) throw new Error(error.message);
-      for (const row of data ?? []) {
-        const profile = fromRow(row as Record<string, unknown>);
-        out.set(profile.handle, publicCardForProfile(profile));
-      }
-    }
-    return out;
+    return readHandleBatches<ProfilePublicCard>(
+      handles,
+      (keys) =>
+        admin()
+          .from(TABLE)
+          .select(CARD_BATCH_COLUMNS)
+          .in("handle", keys)
+          .is("tombstoned_at", null),
+      (profile, into) => into.set(profile.handle, publicCardForProfile(profile)),
+    );
   },
 
   async getHandleByUserId(userId) {

@@ -68,6 +68,33 @@ function rule(selector: string): string {
   return CSS.slice(at, CSS.indexOf("}", at));
 }
 
+/**
+ * The same, but read out of a `@media (max-width: 640px)` block - the shared
+ * mobile breakpoint. Brace-matched, so a selector that only exists OUTSIDE the
+ * block cannot satisfy a phone assertion.
+ */
+function phoneRule(selector: string): string {
+  const marker = "@media (max-width: 640px)";
+  for (let from = CSS.indexOf(marker); from > -1; from = CSS.indexOf(marker, from + 1)) {
+    let depth = 0;
+    let end = from;
+    for (let at = CSS.indexOf("{", from); at < CSS.length && at > -1; at += 1) {
+      if (CSS[at] === "{") depth += 1;
+      if (CSS[at] === "}") {
+        depth -= 1;
+        if (depth === 0) {
+          end = at;
+          break;
+        }
+      }
+    }
+    const block = CSS.slice(from, end);
+    const at = block.indexOf(`${selector} {`);
+    if (at > -1) return block.slice(at, block.indexOf("}", at));
+  }
+  throw new Error(`${selector} is missing from every 640px block in app/messages/messages.css`);
+}
+
 describe("a bubble's width is the row's business, never the bubble's own", () => {
   it("puts the width limit on the line, with the row to measure against", () => {
     const line = rule(".messageLine");
@@ -317,11 +344,21 @@ describe("a phone crop and lightbox stay bounded, not full-screen", () => {
   });
 
   it("keeps the lightbox dialog inside the viewport on phone", () => {
-    const viewer = rule(".messagePhotoViewer");
+    // The narrow caps belong to the phone alone: a desktop "view full" keeps
+    // the 60rem / 92dvh room it has always had, so the bound is read out of the
+    // 640px block rather than the base rule.
+    const viewer = phoneRule(".messagePhotoViewer");
     expect(viewer).toMatch(/width:\s*min\(88vw,\s*36rem\)/);
-    expect(viewer).toMatch(/max-height:\s*min\(72dvh/);
+    expect(viewer).toMatch(/max-height:\s*min\(\s*72dvh/);
     expect(viewer).not.toMatch(/width:\s*100vw/);
     expect(viewer).not.toMatch(/height:\s*100vh/);
     expect(rule(".messagePhotoViewerImage")).toMatch(/object-fit:\s*contain/);
+  });
+
+  it("leaves a desktop the full-frame room it had", () => {
+    const viewer = rule(".messagePhotoViewer");
+    expect(viewer).toMatch(/width:\s*min\(96vw,\s*60rem\)/);
+    expect(viewer).toMatch(/max-height:\s*92dvh/);
+    expect(rule(".messagePhotoViewerImage")).toMatch(/max-height:\s*calc\(92dvh - 56px\)/);
   });
 });

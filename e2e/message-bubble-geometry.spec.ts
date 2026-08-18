@@ -394,6 +394,10 @@ type OverlayMeasured = {
   cropActionsOwnTheirTaps: boolean[];
   /** What the topmost element at each action's centre actually is. */
   cropActionOccluders: string[];
+  /** The phone tab bar's own pill, and what is painted over its centre. */
+  tabPill: (Box & { top: number }) | null;
+  scrimOwnsTabPillCentre: boolean;
+  tabPillOccluder: string;
 };
 
 /** Crop card and lightbox dialog, measured under the shipped stylesheet. */
@@ -464,6 +468,19 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
       return { owned: top !== null && card.contains(top), occluder: describe(top) };
     });
 
+    // The overlay's reserved lane keeps the CARD clear of the bar, so the card
+    // can never prove the stacking order. The scrim can: it is `inset: 0`, so it
+    // covers the bar's own pill, and whichever of the two answers a hit test at
+    // the pill's centre IS the stacking order.
+    const pillElement = document.querySelector(".mobileTabList");
+    const pillRect = pillElement?.getBoundingClientRect() ?? null;
+    const pillTop = pillRect
+      ? document.elementFromPoint(
+          pillRect.left + pillRect.width / 2,
+          pillRect.top + pillRect.height / 2,
+        )
+      : null;
+
     const measured = {
       cropCard: box("#overlay-probe .messageCropCard"),
       viewer: box("#viewer-probe"),
@@ -473,6 +490,11 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
       },
       cropActionsOwnTheirTaps: hits.map((hit) => hit.owned),
       cropActionOccluders: hits.map((hit) => hit.occluder),
+      tabPill: pillRect
+        ? { width: pillRect.width, height: pillRect.height, top: pillRect.top }
+        : null,
+      scrimOwnsTabPillCentre: pillTop !== null && overlay.contains(pillTop),
+      tabPillOccluder: describe(pillTop),
     };
     document.getElementById("overlay-probe")?.remove();
     document.getElementById("viewer-probe")?.remove();
@@ -505,12 +527,33 @@ test.describe("message attach preview and lightbox at phone 390", () => {
   });
 
   test("the crop card's own Use photo and Cancel own their taps", async ({ page }) => {
-    // THE DEFECT: the overlay sat at z-index 30 while the phone tab bar is fixed
-    // at 1350 with an opaque pill, so the card's confirm and cancel row was
-    // painted over and untappable on the one surface the card exists for.
+    // Half of the fix: the overlay reserves the tab bar's lane, so the card's
+    // last row is never laid out underneath the pill in the first place.
     const measured = await measurePhoneOverlays(page);
-    expect(measured.cropActionOccluders).toHaveLength(2);
+    expect(measured.cropActionOccluders).toEqual([
+      "button.profileCropConfirm",
+      "button.profileCropCancel",
+    ]);
     expect(measured.cropActionsOwnTheirTaps).toEqual([true, true]);
+  });
+
+  test("the crop scrim is painted OVER the phone tab bar, not under it", async ({
+    page,
+  }) => {
+    // THE DEFECT: the overlay sat at z-index 30 while the tab bar is fixed at
+    // 1350 with an opaque pill, so the bar punched through a modal scrim and
+    // owned every tap in its lane. The reserved padding alone cannot prove this
+    // - it moves the card clear of the bar - so the probe asks the one point
+    // where the two genuinely overlap: the pill's own centre.
+    const measured = await measurePhoneOverlays(page);
+    expect(measured.tabPill, "the phone tab bar must render on /messages").not.toBeNull();
+    expect(measured.tabPill!.height).toBeGreaterThan(0);
+    // The pill really is inside the scrim's box, so the hit test is meaningful.
+    expect(measured.tabPill!.top).toBeLessThan(measured.viewport.height);
+    expect(
+      measured.scrimOwnsTabPillCentre,
+      `the tab bar is painted over the crop scrim (topmost: ${measured.tabPillOccluder})`,
+    ).toBe(true);
   });
 });
 
