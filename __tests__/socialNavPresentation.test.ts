@@ -55,11 +55,17 @@ function serverRender(
   component: ComponentType,
   friendsLaunchEnabled: boolean,
 ): HTMLElement {
+  // The provider's own props type names `children`, so createElement's props
+  // overload would demand it there; the child belongs in the child argument.
+  const LaunchProvider = SocialFriendsLaunchProvider as ComponentType<{
+    value: boolean;
+  }>;
   const markup = renderToStaticMarkup(
-    createElement(SocialFriendsLaunchProvider, {
-      value: friendsLaunchEnabled,
-      children: createElement(component),
-    }),
+    createElement(
+      LaunchProvider,
+      { value: friendsLaunchEnabled },
+      createElement(component),
+    ),
   );
   const host = document.createElement("div");
   host.innerHTML = markup;
