@@ -80,10 +80,10 @@ describe("every source is a decision with evidence", () => {
     expect(harvestSource("nope")).toBeUndefined();
   });
 
-  it("keeps Context.dev on scrapeable venue-events pages, not sitemap readers", () => {
+  it("keeps Context.dev on FIRST-PARTY venue-events pages only", () => {
     const pages = contextDevEventSources();
     expect(pages.some((source) => source.id === "fullers-event-finder-events")).toBe(true);
-    expect(pages.every((source) => !source.url.endsWith(".xml"))).toBe(true);
+    expect(pages.every((source) => source.firstParty)).toBe(true);
     expect(allowedHarvestSources("venue-events").some((source) => source.id === "common-social-posts")).toBe(true);
     expect(pages.some((source) => source.id === "common-social-posts")).toBe(false);
   });

@@ -8,7 +8,11 @@ import {
   runContextDevEventsLane,
 } from "@/lib/events/contextDevProvider";
 import { allowedHarvestSources, contextDevEventSources } from "@/lib/harvest/sourcePolicy";
-import { DATE_ONLY_TIME_EVIDENCE } from "@/lib/whatson/eventNormalise.mjs";
+import {
+  DATE_ONLY_TIME_EVIDENCE,
+  dedupeEventRowsBySourceId,
+  type WhatsOnEventRow,
+} from "@/lib/whatson/eventNormalise.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
 const fullers = contextDevEventSources().find((source) => source.id === "fullers-event-finder-events");
@@ -133,6 +137,74 @@ describe("runContextDevEventsLane", () => {
     expect(result.status).toBe("ran");
     expect(result.rows).toHaveLength(1);
     expect(result.rows[0]?.startsDate).toBe("2026-08-18");
+    extractSpy.mockRestore();
+  });
+});
+
+describe("row identity", () => {
+  const duplicatedEvent = {
+    title: "Quiz night",
+    placeName: "The Dove",
+    kind: "event",
+    sourceUrl: "https://www.fullers.co.uk/pubs/the-dove/event/quiz",
+    startsAt: "2026-08-18T19:00:00Z",
+  };
+
+  it("names an id the shared dedupe can use when the page numbers nothing", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { rows } = normaliseContextDevExtract(
+      { events: [duplicatedEvent, { ...duplicatedEvent }] },
+      fullers,
+      { observedAt },
+    );
+    expect(rows).toHaveLength(2);
+    expect(rows[0]?.sourceId).toBe(rows[0]?.id);
+    expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(1);
+  });
+
+  it("keeps the publisher's own id when the page states one", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { rows } = normaliseContextDevExtract(
+      { events: [{ ...duplicatedEvent, sourceId: "  fullers-42  " }] },
+      fullers,
+      { observedAt },
+    );
+    expect(rows[0]?.sourceId).toBe("fullers-42");
+  });
+
+  it("gives two different events two different identities", () => {
+    if (!fullers) throw new Error("missing fullers register entry");
+    const { rows } = normaliseContextDevExtract(
+      {
+        events: [
+          duplicatedEvent,
+          { ...duplicatedEvent, title: "Open mic" },
+        ],
+      },
+      fullers,
+      { observedAt },
+    );
+    expect(dedupeEventRowsBySourceId(rows as unknown as WhatsOnEventRow[])).toHaveLength(2);
+  });
+});
+
+describe("mid-run key loss", () => {
+  it("names every unread source instead of reporting the lane never configured", async () => {
+    const extractSpy = vi
+      .spyOn(contextDev, "extract")
+      .mockResolvedValue({ status: "not-configured" });
+
+    const result = await runContextDevEventsLane({
+      observedAt,
+      env: { CONTEXT_DEV_API_KEY: "test-key" } as unknown as NodeJS.ProcessEnv,
+      log: vi.fn(),
+      logError: vi.fn(),
+    });
+
+    expect(result.status).toBe("failed");
+    expect(result.failures.map((failure) => failure.sourceId)).toEqual(
+      contextDevEventSources().map((source) => source.id),
+    );
     extractSpy.mockRestore();
   });
 });

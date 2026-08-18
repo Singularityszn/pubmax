@@ -14,7 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { DATE_ONLY_TIME_EVIDENCE } from "../../lib/whatson/eventNormalise.mjs";
-import { eventsOutputPath } from "./eventsRefresh.mjs";
+import { eventsOutputPath } from "./eventsOutputPath.mjs";
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 

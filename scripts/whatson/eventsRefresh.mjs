@@ -58,7 +58,10 @@ import {
   skiddleLaneFenced,
   summariseEventDrops,
 } from "../../lib/whatson/eventNormalise.mjs";
+import { eventsOutputPath } from "./eventsOutputPath.mjs";
 import { loadCanonicalVenueIndex, resolveVenueId } from "./resolveVenueId.mjs";
+
+export { eventsOutputPath } from "./eventsOutputPath.mjs";
 // Statically imported, and deliberately so: the lane is a TypeScript module this
 // plain-node CLI loads through Node's own type stripping, which resolves no
 // tsconfig `@/*` alias. A dynamic import hid that resolution failure inside the
@@ -116,9 +119,6 @@ export function providerLaneStatus(env = process.env) {
   };
 }
 
-export function eventsOutputPath(city = "london") {
-  return join(ROOT, "public", "data", "whats_on", `events_${city}.json`);
-}
 
 
 // ---------------------------------------------------------------------------

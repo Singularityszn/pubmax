@@ -141,8 +141,12 @@ export function normaliseContextDevEventRow(
     startsAt === null && nonEmptyString(raw.startsDate) ? statedCalendarDate(raw.startsDate) : null;
   if (!startsAt && !startsDate) return { row: null, drop: "noStart" };
 
+  const id = stableId(
+    "events-cd",
+    `${source.id}|${raw.sourceId ?? title}|${placeName}|${startsAt ?? startsDate}`,
+  );
   const row: Record<string, unknown> = {
-    id: stableId("events-cd", `${source.id}|${raw.sourceId ?? title}|${placeName}|${startsAt ?? startsDate}`),
+    id,
     placeName,
     kind,
     title,
@@ -157,7 +161,12 @@ export function normaliseContextDevEventRow(
     row.timeEvidence = DATE_ONLY_TIME_EVIDENCE;
   }
 
-  if (nonEmptyString(raw.sourceId)) row.sourceId = raw.sourceId.trim();
+  // A pub's own what's-on page rarely numbers its events, and a row with no
+  // `sourceId` carries no `eventIdentityKey`, so the shared
+  // `dedupeEventRowsBySourceId` waves it through untouched - a page listing one
+  // event twice would publish two identical cards under one React key. The
+  // row's own deterministic id is the identity when the publisher states none.
+  row.sourceId = nonEmptyString(raw.sourceId) ? raw.sourceId.trim() : id;
 
   const priceGbp = parseGbpFromText(raw.priceText);
   if (priceGbp !== null) row.priceGbp = priceGbp;
@@ -278,8 +287,18 @@ export async function runContextDevEventsLane({
     );
 
     if (result.status === "not-configured") {
-      log("eventsRefresh: Context.dev lane became not-configured mid-run.");
-      return empty;
+      logError(
+        "eventsRefresh: Context.dev lane became not-configured mid-run - " +
+          "every source still to be asked is recorded as unread.",
+      );
+      for (const unread of sources.slice(sources.indexOf(source))) {
+        failures.push({
+          sourceId: unread.id,
+          label: unread.label,
+          message: "Context.dev key went absent mid-run.",
+        });
+      }
+      break;
     }
 
     if (result.status === "error") {

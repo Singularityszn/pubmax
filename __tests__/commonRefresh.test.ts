@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -410,5 +411,45 @@ describe("the crawl budget advances", () => {
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0].startsDate).toBe("2026-08-20");
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("Common lane independence", () => {
+  // The scheduler spawns Common as its OWN command so a quiet provider window
+  // cannot stop it. Node's type stripping is what lets eventsRefresh.mjs load
+  // the TypeScript Context.dev provider, so a child with stripping DISABLED
+  // fails to load anything whose graph reaches TypeScript. That is the probe:
+  // Common must load, and eventsRefresh must be the one that does not.
+  const loadUnderNoStripTypes = (specifier: string) => {
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          "--no-experimental-strip-types",
+          "--input-type=module",
+          "-e",
+          `await import(${JSON.stringify(specifier)});`,
+        ],
+        { cwd: process.cwd(), stdio: "pipe" },
+      );
+      return { loaded: true, output: "" };
+    } catch (error) {
+      const err = error as { stderr?: Buffer | string; message?: string };
+      return { loaded: false, output: String(err.stderr ?? err.message ?? "") };
+    }
+  };
+
+  const flagSupported = loadUnderNoStripTypes("./scripts/whatson/quizParsers.mjs").loaded;
+
+  it.skipIf(!flagSupported)("loads with no TypeScript anywhere in its graph", () => {
+    const common = loadUnderNoStripTypes("./scripts/whatson/commonRefresh.mjs");
+    expect(common.output).toBe("");
+    expect(common.loaded).toBe(true);
+
+    // The counterpart: the provider lane's own graph DOES carry TypeScript, so
+    // this probe is measuring the graph rather than passing vacuously.
+    const events = loadUnderNoStripTypes("./scripts/whatson/eventsRefresh.mjs");
+    expect(events.loaded).toBe(false);
+    expect(events.output).toContain("ERR_UNKNOWN_FILE_EXTENSION");
   });
 });
