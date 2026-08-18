@@ -290,8 +290,10 @@ describe("mobile chrome fit at 390px", () => {
 
 describe("mobile tap-target floors", () => {
   it("gives the Tonight Arc chips a 44px floor where a phone reads them", () => {
-    expect(arcChipsCss).toMatch(/\.tonightArcChip\s*{[^}]*min-height:\s*44px/);
-    expect(arcChipsCss).toMatch(/\.tonightArcRow\s*{[^}]*gap:\s*8px/);
+    // The floor a PHONE reads is proved by rendered geometry in
+    // e2e/drink-chip-controls.spec.ts; the desktop floating arc is proved in
+    // e2e/desktop-map-rail.spec.ts. This keeps the sheet variant's rule from
+    // being dropped outright.
     expect(arcChipsCss).toMatch(
       /\.tonightArcChipsSheet \.tonightArcChip\s*{[^}]*min-height:\s*44px/,
     );

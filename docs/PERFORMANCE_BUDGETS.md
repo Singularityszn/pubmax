@@ -59,6 +59,30 @@ Adding a route is cheap: one entry with a `readySelector` the route really
 renders and one sentence of `why`. Removing one needs a reason, because an
 unmeasured route reads as a pass and never fails again.
 
+## The pin-ready record on /map
+
+`/map` carries one extra tracked block, `pinReady`. It is NOT one of the three
+budgeted metrics: `lib/performanceBudgets.ts` never reads it, so nothing here
+fails a build. It is the RECORD of the map's own arrival promise - a cold phone
+visit must reach tappable pins - kept beside the route it describes so the
+figure and the ceiling live in one place.
+
+| Field | What it is |
+| --- | --- |
+| `path` | The document measured. `/map/london` is the per-request city route, not the CDN-cached `/map`. |
+| `targetMs` | The CEILING. A cold visit must reach painted, tappable pins inside it. |
+| `measuredMs` | The last RECORDED figure, not a second ceiling. It is a note of where we stood. |
+| `signal` | What was waited for: painted pins the collision index kept, off `components/map/canvas/paintedPinProbe.ts`. |
+| `viewport` | The phone the promise is made to. |
+
+What ENFORCES `targetMs` is the pin-ready test in
+`e2e/mobile-map-chrome-fit.spec.ts`, which opens the route cold and waits on the
+painted-pin probe. Nothing enforces `measuredMs`: re-measure it by running that
+spec against a production build and reading its elapsed figure, then update it
+in the same commit as the change that moved it. Take `targetMs` DOWN under the
+ratchet rule above; raising it is raising the promise, which is a captain
+decision rather than a number to edit.
+
 ## The second navigation
 
 The budgeted numbers above are about ARRIVING. They say nothing about the

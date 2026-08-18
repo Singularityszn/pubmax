@@ -250,14 +250,20 @@ export function createSlimShardLoader(
   return {
     async core(): Promise<SlimVenue[]> {
       const guessedCoreUrl = guessedCoreShardUrl(slimVenuesPath);
-      const [m, guessedRows] = await Promise.all([
-        manifest(),
-        loadShard(guessedCoreUrl),
-      ]);
+      // Speculative: started beside the manifest so first paint does not wait
+      // for one round trip before starting the next. It is only ever AWAITED
+      // once the manifest names that very URL as its core, so a city with no
+      // manifest (or a differently named core) is not serialised behind a
+      // request its answer discards. loadShard never rejects.
+      const guessedRows = loadShard(guessedCoreUrl);
+      const m = await manifest();
       if (!m) return loadSlimVenuesFromPath(slimVenuesPath);
       const core = coreEntry(m);
       if (!core) return loadSlimVenuesFromPath(slimVenuesPath);
-      if (core.url === guessedCoreUrl && guessedRows.length > 0) return guessedRows;
+      if (core.url === guessedCoreUrl) {
+        const rows = await guessedRows;
+        if (rows.length > 0) return rows;
+      }
       return loadShard(core.url);
     },
 

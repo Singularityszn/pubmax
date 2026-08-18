@@ -105,6 +105,54 @@ test.describe("desktop map right-rail (D3.1/D3.2)", () => {
     }
   });
 
+  test("gives every desktop Tonight Arc chip a 44px floor and 8px gaps", async ({
+    page,
+  }) => {
+    await seedDismissedChrome(page);
+    await page.setViewportSize({ width: 1440, height: 900 });
+
+    const response = await page.goto("/map", { waitUntil: "domcontentloaded" });
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".mapToolbar")).toBeVisible({ timeout: 20000 });
+    const arc = page.locator(".tonightArcChips");
+    await expect(arc).toBeVisible({ timeout: 20000 });
+
+    const layout = await arc.evaluate((element) => {
+      const rows = [...element.querySelectorAll<HTMLElement>(".tonightArcRow")];
+      return rows.map((row) => {
+        const boxes = [...row.querySelectorAll<HTMLElement>(".tonightArcChip")].map(
+          (chip) => {
+            const rect = chip.getBoundingClientRect();
+            return {
+              label: chip.textContent?.trim() ?? "",
+              left: rect.left,
+              right: rect.right,
+              height: rect.height,
+              width: rect.width,
+            };
+          },
+        );
+        return boxes;
+      });
+    });
+
+    const chips = layout.flat();
+    expect(chips.length).toBeGreaterThan(0);
+    for (const chip of chips) {
+      expect(chip.height, `${chip.label} height`).toBeGreaterThanOrEqual(44);
+      expect(chip.width, `${chip.label} width`).toBeGreaterThanOrEqual(44);
+    }
+    for (const row of layout) {
+      for (let index = 1; index < row.length; index += 1) {
+        const gap = row[index]!.left - row[index - 1]!.right;
+        expect(
+          gap,
+          `gap before ${row[index]!.label}`,
+        ).toBeGreaterThanOrEqual(8 - 0.5);
+      }
+    }
+  });
+
   test("keeps Tonight arc venue chips clickable above the desktop toolbar", async ({
     page,
   }) => {

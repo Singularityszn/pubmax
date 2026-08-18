@@ -71,6 +71,9 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
     { timeout: 8_000 },
   );
   const pinReadyMs = Date.now() - started;
+  // The recorded figure in perf/route-budgets.json (routes./map.pinReady) is
+  // re-measured from this line; the ceiling below is what actually fails.
+  test.info().annotations.push({ type: "pinReadyMs", description: `${pinReadyMs}` });
   expect(pinReadyMs).toBeLessThanOrEqual(5_000);
 });
 
