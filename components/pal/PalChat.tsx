@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import IntentLink from "@/components/nav/IntentLink";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
@@ -467,12 +468,12 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                     {proposals.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
                         {proposal.kind === "draft_plan" ? (
-                          <Link
+                          <IntentLink
                             className="palChatPlanHandoff pressable"
                             href={planPalRouteHandoffHref(proposal.query)}
                           >
                             Open in Plan
-                          </Link>
+                          </IntentLink>
                         ) : null}
                         <button
                           type="button"

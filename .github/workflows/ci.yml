@@ -181,10 +181,15 @@ jobs:
           PUBMAX_E2E_KEYLESS: "1"
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
+      # The spec writes the table into its own Playwright output directory, so
+      # this glob names that file rather than the renamed attachments copy
+      # beside it. `warn` rather than `ignore`: a missing table is a finding,
+      # and rather than `error` because a sweep that failed early never wrote
+      # one and does not need a second red mark.
       - name: Upload UX lane table
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: ux-lane-13-perf
           path: test-results/**/ux-lane-13-perf.md
-          if-no-files-found: ignore
+          if-no-files-found: warn

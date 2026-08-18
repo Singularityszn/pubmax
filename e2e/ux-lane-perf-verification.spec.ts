@@ -12,7 +12,13 @@
  * tracked budget spec uses - because a figure compared against a ceiling has to
  * have been taken the way that ceiling was. It reports LCP and CLS for the PR
  * and fails only when JS decoded exceeds its budget by more than 10%.
+ *
+ * The table is WRITTEN to the test's own output directory, not only attached:
+ * an attachment carrying a body never reaches disk, and this run's whole point
+ * is a file the PR body can quote.
  */
+import { writeFile } from "node:fs/promises";
+
 import { expect, test } from "@playwright/test";
 
 import { PERFORMANCE_BUDGETS } from "../lib/performanceBudgets";
@@ -44,6 +50,9 @@ const UX_LANE_ROUTES: UxLaneRoute[] = [
 
 const REGRESSION_TOLERANCE = 1.1;
 
+/** The PR table's file name, uploaded by the ux-lane-performance CI job. */
+const UX_LANE_TABLE_FILE = "ux-lane-13-perf.md";
+
 const method = PERFORMANCE_BUDGETS.method;
 
 const SWEEP_TIMEOUT_MS =
@@ -59,7 +68,7 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
   page,
   baseURL,
 }, testInfo) => {
-  test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the performance-budget CI job.");
+  test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the ux-lane-performance CI job.");
   test.setTimeout(SWEEP_TIMEOUT_MS);
 
   const origin = new URL(baseURL ?? "http://localhost:3100").origin;
@@ -105,8 +114,14 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
     "LCP and CLS are reported for the PR; JS decoded is compared to perf/route-budgets.json.",
   ].join("\n");
 
-  await testInfo.attach("ux-lane-13-perf.md", {
-    body: markdown,
+  // `attach({ body })` keeps the table in memory and writes no file, and the
+  // `list` reporter prints an attachment only inside a failure block, so a green
+  // run used to produce the PR table nowhere. Write it first, then attach the
+  // written file by path.
+  const tablePath = testInfo.outputPath(UX_LANE_TABLE_FILE);
+  await writeFile(tablePath, `${markdown}\n`, "utf8");
+  await testInfo.attach(UX_LANE_TABLE_FILE, {
+    path: tablePath,
     contentType: "text/markdown",
   });
 
