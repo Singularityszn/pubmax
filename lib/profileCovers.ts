@@ -275,13 +275,6 @@ export function profileCoverRemoveConfirmLine(): string {
 }
 
 /**
- * Why a field-level remove will not run. A read that could NOT answer says so:
- * an empty rotation list from a failed read is not an empty rotation, and
- * routing the remove to the single-cover lane on that guess clears the mirror
- * while every rotation row survives, so the backdrop keeps rotating over a
- * receipt that said it was gone.
- */
-/**
  * The EDITOR's own view of the rotation read, which is one state wider than the
  * wire's: a route answers `ready` or `degraded`, but a surface holding neither
  * yet has not asked. "Not asked" is not "empty", and merging the two is what let
@@ -323,6 +316,13 @@ export function profileCoverStatusLine(state: ProfileCoverReadState): string | n
   return profileCoverEmptyLine(state);
 }
 
+/**
+ * Why a field-level remove will not run. A read that could NOT answer says so:
+ * an empty rotation list from a failed read is not an empty rotation, and
+ * routing the remove to the single-cover lane on that guess clears the mirror
+ * while every rotation row survives, so the backdrop keeps rotating over a
+ * receipt that said it was gone.
+ */
 export function profileCoverRemoveUnavailableLine(): string {
   return "We could not read your cover photos just now, so nothing was removed. Try again in a moment.";
 }

@@ -2,8 +2,9 @@
 
 // Followers and Following for one handle, and who among them is a mate.
 //
-// Both directions read the same shape (a list of handles) from their own public
-// route, and the mutual overlay is the intersection with this handle's /lot.
+// Both directions read the same shape (a list of `FollowListEntry` rows) from
+// their own public route, through the ONE parser in lib/followList.ts, and the
+// mutual overlay is the intersection with this handle's /lot.
 // That matters because the two lists look identical otherwise: a follower who
 // is also followed back is a MATE, and a list that cannot say so is a list of
 // strangers. The relation word comes from lib/followRelation.ts so this file

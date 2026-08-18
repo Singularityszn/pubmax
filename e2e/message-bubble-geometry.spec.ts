@@ -402,7 +402,7 @@ type OverlayMeasured = {
 
 /** Crop card and lightbox dialog, measured under the shipped stylesheet. */
 async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     document.getElementById("overlay-probe")?.remove();
     const host = document.querySelector(".messagesMain") ?? document.body;
 
@@ -446,6 +446,10 @@ async function measurePhoneOverlays(page: Page): Promise<OverlayMeasured> {
       "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="4" height="5"/>');
     dialog.append(img);
     host.append(dialog);
+    // The dialog's height is its PICTURE's height, so a rect read before the
+    // image loads answers zero - which silently satisfies every upper bound
+    // this probe checks. Wait for the decode, then measure.
+    await img.decode().catch(() => undefined);
 
     const box = (selector: string): Box => {
       const element = document.querySelector(selector);
@@ -559,7 +563,7 @@ test.describe("message attach preview and lightbox at phone 390", () => {
 
 /** The lightbox dialog alone, measured under whatever viewport is current. */
 async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }> {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     document.getElementById("viewer-probe")?.remove();
     const host = document.querySelector(".messagesMain") ?? document.body;
     const dialog = document.createElement("dialog");
@@ -575,6 +579,9 @@ async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }>
       encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1600"/>');
     dialog.append(img);
     host.append(dialog);
+    // A dialog with no loaded picture in it is zero high, and zero passes every
+    // upper bound below while proving nothing. Measure the loaded thing.
+    await img.decode().catch(() => undefined);
     const rect = dialog.getBoundingClientRect();
     const measured = {
       width: rect.width,
