@@ -6,6 +6,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
+import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import { MAP_LOADING_SLOW_AFTER_MS } from "@/lib/mapLoadingCopy";
@@ -87,6 +88,32 @@ describe("the map's held loading frame", () => {
     expect(
       host.querySelector<HTMLElement>(".mapLoadingProgressBar")?.style.width,
     ).toBe("55%");
+  });
+});
+
+describe("the map's held skeleton", () => {
+  function copy(): string {
+    return host.querySelector<HTMLElement>(".mapSkeletonCopy")?.textContent ?? "";
+  }
+
+  // THE REGRESSION: the skeleton said "Loading London pubs…" over every city,
+  // so /map/manchester read as London while its own map was still loading.
+  it("names the city it was given", () => {
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton, { cityDisplayName: "Manchester" }));
+    });
+
+    expect(copy()).toContain("Loading Manchester pubs…");
+    expect(copy()).not.toContain("London");
+  });
+
+  it("stays cityless when nobody could tell it which map this is", () => {
+    act(() => {
+      root.render(createElement(MapLoadingSkeleton));
+    });
+
+    expect(copy()).toContain("Loading pubs…");
+    expect(copy()).not.toContain("London");
   });
 });
 

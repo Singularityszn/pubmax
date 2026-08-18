@@ -1,23 +1,33 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { holdBackgroundWarmup } from "@/lib/backgroundWarmup";
 import { warmCityMapFirstPaint } from "@/lib/mapWarmup";
+import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import type { CityId } from "@/lib/cities";
-import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
   TRUSTED_HANDOFF_FLAGS_OFF,
   type TrustedHandoffFlagsDTO,
 } from "@/lib/trustedHandoffFlags";
 import type { UkPlaceMapArrival } from "@/lib/ukPlaceSearch";
 
+// next/dynamic hands its loading component no props, so the city the shell is
+// about reaches the held skeleton through context instead. The placeholder
+// renders in PubMap's own position, inside the provider below.
+const MapSkeletonCityContext = createContext<string>("");
+
+function DynamicMapSkeleton() {
+  return <MapLoadingSkeleton cityDisplayName={useContext(MapSkeletonCityContext)} />;
+}
+
 const PubMap = dynamic(() => import("./PubMap"), {
   ssr: false,
-  loading: () => <MapLoadingSkeleton />,
+  loading: () => <DynamicMapSkeleton />,
 });
 
 // ── One-time-ever "Start with a story" onboarding (UX defect fix) ──────────
@@ -135,13 +145,23 @@ export default function PubMaxingShell({
     };
   }, []);
 
+  // Same name PubMap prints once it mounts, so the held frame and the live map
+  // never call the same map two things.
+  const mapDisplayName = resolveMapDisplayName({
+    placeName: placeArrival?.name,
+    ukNationalBrowse,
+    cityDisplayName: getCity(cityId).displayName,
+  });
+
   return (
-    <PubMap
-      key={cityId}
-      cityId={cityId}
-      flags={flags}
-      placeArrival={placeArrival}
-      nationalBrowse={ukNationalBrowse}
-    />
+    <MapSkeletonCityContext.Provider value={mapDisplayName}>
+      <PubMap
+        key={cityId}
+        cityId={cityId}
+        flags={flags}
+        placeArrival={placeArrival}
+        nationalBrowse={ukNationalBrowse}
+      />
+    </MapSkeletonCityContext.Provider>
   );
 }

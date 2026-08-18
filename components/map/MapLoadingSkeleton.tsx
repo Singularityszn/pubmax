@@ -42,7 +42,18 @@ const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
   brick: "var(--brick)",
 };
 
-export default function MapLoadingSkeleton() {
+type MapLoadingSkeletonProps = {
+  /**
+   * What this map is about to show. The route-level boundary cannot know it
+   * (a Next loading segment takes no params), so it stays empty there and the
+   * line falls back to the cityless one rather than naming the wrong city.
+   */
+  cityDisplayName?: string;
+};
+
+export default function MapLoadingSkeleton({
+  cityDisplayName = "",
+}: MapLoadingSkeletonProps) {
   return (
     <main id="main"
       className="mapSkeleton"
@@ -86,7 +97,7 @@ export default function MapLoadingSkeleton() {
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
             <h1>UK venue map</h1>
-            <p>{mapLoadingPrimaryLine("London")}</p>
+            <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
           </div>
         </div>
       </div>

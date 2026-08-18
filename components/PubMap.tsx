@@ -263,7 +263,8 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { markPalRouteActivation } from "@/lib/pubPal";
@@ -661,7 +662,11 @@ export default function PubMap({
     () => false,
   );
   const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
-  const mapDisplayName = ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
+  const mapDisplayName = resolveMapDisplayName({
+    placeName: ukPlaceArrival?.name,
+    ukNationalBrowse,
+    cityDisplayName: city.displayName,
+  });
   const mapSearchPlaceholder = ukPlaceArrival
     ? "Search priced pub names"
     : ukNationalBrowse
@@ -1265,16 +1270,16 @@ export default function PubMap({
     [resetPinReveal],
   );
 
-  const mapLoadingProgress = useMemo(
-    () =>
-      mapLoadingProgressPercent({
-        pinsRevealed,
-        canvasReady: mapCanvasReady,
-        slimLoaded: loaded,
-        slimPinCount: slimPins.length,
-      }),
+  const mapLoadingStage = useMemo(
+    () => ({
+      pinsRevealed,
+      canvasReady: mapCanvasReady,
+      slimLoaded: loaded,
+      slimPinCount: slimPins.length,
+    }),
     [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
   );
+  const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
 
   useEffect(() => {
     let cancelled = false;
@@ -3433,7 +3438,7 @@ export default function PubMap({
 
   const venuePanel = renderVenuePanel();
 
-  const mapLoadingActive = !mapCanvasErrored && !pinsRevealed;
+  const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = !mapLoadingActive;
   const drinkFiltersActive = Boolean(

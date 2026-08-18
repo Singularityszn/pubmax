@@ -23,10 +23,21 @@ export type MapLoadingStage = {
   slimPinCount: number;
 };
 
+/**
+ * Whether the held frame stays up. Pin reveal is necessary and not sufficient:
+ * above the phone breakpoint the canvas reveals on painted basemap tiles alone,
+ * so a reveal that lands while the slim index is still in flight would lift the
+ * frame onto a pub-free map. The index has to have answered as well.
+ */
+export function mapLoadingHeld(stage: MapLoadingStage): boolean {
+  if (!stage.pinsRevealed) return true;
+  return !stage.slimLoaded && stage.slimPinCount === 0;
+}
+
 /** Monotonic progress ladder for the held frame's bar, 0-100. */
 export function mapLoadingProgressPercent(stage: MapLoadingStage): number {
-  if (stage.pinsRevealed) return 100;
-  if (stage.canvasReady) return 85;
+  if (!mapLoadingHeld(stage)) return 100;
+  if (stage.pinsRevealed || stage.canvasReady) return 85;
   if (stage.slimLoaded && stage.slimPinCount > 0) return 55;
   if (stage.slimLoaded) return 35;
   return 12;
