@@ -111,7 +111,7 @@ test.describe("mobile bottom-tab navigation", () => {
   test("Social routes to the social shell", async ({ page }) => {
     await page.goto("/map");
 
-    const social = primaryNav(page).getByRole("link", { name: "Social", exact: true });
+    const social = primaryNav(page).getByRole("link", { name: "Social preview", exact: true });
     await social.click();
 
     await expect(page).toHaveURL(/\/social$/);

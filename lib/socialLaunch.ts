@@ -13,9 +13,6 @@ export function isSocialFriendsLaunchEnabled(
 export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
-/** The word the mobile preview marker carries. */
-export const SOCIAL_PREVIEW_BADGE_LABEL = "Preview";
-
 /** Small preview pill on the mobile Social tab while friends launch is off. */
 export function socialNavShowsPreviewBadge(friendsLaunchEnabled: boolean): boolean {
   return !friendsLaunchEnabled;

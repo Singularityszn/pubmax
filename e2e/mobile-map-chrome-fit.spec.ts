@@ -872,8 +872,8 @@ for (const viewport of VIEWPORTS) {
 }
 
 // The Social tab's preview marker is phone chrome, so it is measured like the
-// rest of it: the word appears only where the tab is wide enough to hold it,
-// and the tab still reads "Social" whatever the marker is doing.
+// rest of it: a dot that never crowds the word beside it, with the preview
+// state spoken through the tab's accessible name.
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px Social tab wears its preview marker without clipping`, async ({
     page,
@@ -882,10 +882,10 @@ for (const viewport of VIEWPORTS) {
 
     const social = page.locator('.mobileTabBar a[href="/social"]');
     await expect(social).toBeVisible();
-    // The marker is decorative, so neither the tab's text nor its accessible
-    // name may carry the word.
+    // The word stays out of the tab's TEXT, and the preview state is what the
+    // accessible name adds to it.
     await expect(social).toHaveText("Social");
-    await expect(social).toHaveAccessibleName("Social");
+    await expect(social).toHaveAccessibleName("Social preview");
 
     const marker = social.locator(".mobileTabPreviewBadge");
     await expect(marker).toBeVisible();
@@ -904,9 +904,6 @@ for (const viewport of VIEWPORTS) {
         badgeRight: badge.getBoundingClientRect().right,
         tabLeft: link.getBoundingClientRect().left,
         tabRight: link.getBoundingClientRect().right,
-        badgeText: window
-          .getComputedStyle(badge, "::after")
-          .getPropertyValue("content"),
       };
     });
 
@@ -920,11 +917,9 @@ for (const viewport of VIEWPORTS) {
     ).toBeLessThanOrEqual(fit.labelClientWidth + 1);
     expect(fit.badgeLeft).toBeGreaterThanOrEqual(fit.tabLeft - 1);
     expect(fit.badgeRight).toBeLessThanOrEqual(fit.tabRight + 1);
-    // Whichever form it takes, the marker is drawn: a dot where the tab is
-    // narrow, the word where it is wide.
+    // The marker is drawn, and it is small enough that the word beside it
+    // still fits: the pill form measures about 85px against a 59 to 80px tab.
     expect(fit.badgeWidth).toBeGreaterThan(0);
-    if (fit.badgeText.includes("Preview")) {
-      expect(fit.badgeWidth).toBeGreaterThan(12);
-    }
+    expect(fit.badgeWidth).toBeLessThanOrEqual(8);
   });
 }

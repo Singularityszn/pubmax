@@ -328,6 +328,58 @@ describe("the shipped historic index (generated artifact)", () => {
     expect(dangling).toEqual([]);
   });
 
+  // A heritage record with no venue id has no map link, no borough and no
+  // place in the borough heritage counts. Exactly one record is allowed to be
+  // in that state, and only because the pub is in neither the dataset nor the
+  // alias map: the next dataset rename that drops a join fails here and has to
+  // be answered with a VENUE_ID_BY_CACHE_KEY entry or an explicit acceptance.
+  const RECORDS_WITH_NO_VENUE = ["the-barley-mow"];
+
+  it("joins every historic record to a venue, save the ones named here", () => {
+    const historic = JSON.parse(
+      readFileSync("public/data/historic_pubs.json", "utf8"),
+    ) as HistoricPub[];
+    const unjoined = historic
+      .filter((rec) => rec.venueId == null)
+      .map((rec) => rec.slug);
+    expect(unjoined.sort()).toEqual([...RECORDS_WITH_NO_VENUE].sort());
+
+    for (const rec of historic) {
+      if (rec.venueId == null) continue;
+      expect(rec.borough, `${rec.slug} carries a borough`).toBeTruthy();
+      expect(typeof rec.lat, `${rec.slug} carries a latitude`).toBe("number");
+      expect(typeof rec.lng, `${rec.slug} carries a longitude`).toBe("number");
+    }
+  });
+
+  it("drops no join the shipped index already holds", async () => {
+    const regeneratedPath = path.join(dir, "historic_pubs_rejoin.json");
+    await generate({ outPath: regeneratedPath });
+    const regenerated = JSON.parse(
+      readFileSync(regeneratedPath, "utf8"),
+    ) as HistoricPub[];
+    const bySlug = new Map(regenerated.map((rec) => [rec.slug, rec]));
+    const shipped = JSON.parse(
+      readFileSync("public/data/historic_pubs.json", "utf8"),
+    ) as HistoricPub[];
+
+    const lost: string[] = [];
+    for (const rec of shipped) {
+      if (rec.venueId == null) continue;
+      const now = bySlug.get(rec.slug);
+      if (
+        !now ||
+        now.venueId !== rec.venueId ||
+        now.borough !== rec.borough ||
+        now.lat !== rec.lat ||
+        now.lng !== rec.lng
+      ) {
+        lost.push(rec.slug);
+      }
+    }
+    expect(lost).toEqual([]);
+  });
+
   it("keeps every curated venue link joined to a live venue", () => {
     const historic = JSON.parse(
       readFileSync("public/data/historic_pubs.json", "utf8"),

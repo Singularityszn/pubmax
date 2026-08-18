@@ -238,10 +238,6 @@
     flex: 1 1 0;
     min-width: 0;
     display: flex;
-    /* The preview marker below asks this box how wide it actually is, rather
-       than guessing from the viewport: five tabs share the row, so the width a
-       word needs is a question about the tab. */
-    container-type: inline-size;
   }
 
   .mobileTab {
@@ -301,34 +297,16 @@
     text-overflow: ellipsis;
   }
 
-  /* A dot by default and the word only where the tab is wide enough to hold
-     it: a clipped pill says less than a dot does. The word itself is drawn
-     from the marker's own data attribute, so the tab still reads "Social" in
-     the DOM and to a screen reader. */
+  /* A dot, because the word does not fit: five tabs across a 420px row leave
+     each one 59 to 80px, and "Social" plus an uppercase Preview pill measures
+     about 85px. The state is spoken instead - the tab's accessible name is
+     "Social preview" - so the tab still reads "Social" in the DOM. */
   .mobileTabPreviewBadge {
     flex-shrink: 0;
     width: 5px;
     height: 5px;
     border-radius: 999px;
-    font-size: 0.5rem;
-    font-weight: 700;
-    letter-spacing: 0.02em;
-    line-height: 1.2;
-    text-transform: uppercase;
-    color: var(--ink);
     background: color-mix(in srgb, var(--brass) 72%, transparent);
-  }
-
-  @container (min-width: 108px) {
-    .mobileTabPreviewBadge {
-      width: auto;
-      height: auto;
-      padding: 0.05rem 0.25rem;
-    }
-
-    .mobileTabPreviewBadge::after {
-      content: attr(data-label);
-    }
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */

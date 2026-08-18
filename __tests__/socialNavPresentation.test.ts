@@ -79,16 +79,16 @@ describe("the phone Social tab", () => {
     expect(tab.textContent).toBe("Social");
     const marker = tab.querySelector(".mobileTabPreviewBadge");
     expect(marker, "a preview marker").toBeTruthy();
-    // The word rides a data attribute so the tab's text and its accessible
-    // name both stay "Social"; the pill is drawn from it in CSS.
-    expect(marker?.getAttribute("data-label")).toBe("Preview");
     expect(marker?.getAttribute("aria-hidden")).toBe("true");
+    // The marker is a dot, so the state it stands for is spoken instead.
+    expect(tab.getAttribute("aria-label")).toBe("Social preview");
   });
 
   it("drops the marker on the first paint when the launch is on", () => {
     const tab = socialTab(serverRender(MobileTabBar, true));
 
     expect(tab.textContent).toBe("Social");
+    expect(tab.getAttribute("aria-label")).toBeNull();
     expect(tab.querySelector(".mobileTabPreviewBadge")).toBeNull();
   });
 });
