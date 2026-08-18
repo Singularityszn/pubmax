@@ -263,6 +263,10 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { resolveMapDisplayName } from "@/lib/mapDisplayName";
+import MapLoadingFrame from "@/components/map/MapLoadingFrame";
+import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -658,7 +662,11 @@ export default function PubMap({
     () => false,
   );
   const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
-  const mapDisplayName = ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
+  const mapDisplayName = resolveMapDisplayName({
+    placeName: ukPlaceArrival?.name,
+    ukNationalBrowse,
+    cityDisplayName: city.displayName,
+  });
   const mapSearchPlaceholder = ukPlaceArrival
     ? "Search priced pub names"
     : ukNationalBrowse
@@ -727,6 +735,9 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Pin-reveal is the loading shell's exit: it fires when painted pubs are
+  // tappable, not merely when the basemap or slim rows exist.
+  const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
   // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
@@ -1240,6 +1251,29 @@ export default function PubMap({
       return added ? Array.from(byId.values()) : prev;
     });
   }, []);
+
+  // A canvas that reports itself no longer ready has been torn down and is
+  // re-initialising (Retry, soft retry, context loss). Its painted pins are
+  // gone with it, so the reveal latch drops and the held frame comes back
+  // until the next paint announces itself.
+  const handleMapCanvasReady = useCallback(
+    (ready: boolean) => {
+      setMapCanvasReady(ready);
+      if (!ready) resetPinReveal();
+    },
+    [resetPinReveal],
+  );
+
+  const mapLoadingStage = useMemo(
+    () => ({
+      pinsRevealed,
+      canvasReady: mapCanvasReady,
+      slimLoaded: loaded,
+      slimPinCount: slimPins.length,
+    }),
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+  );
+  const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
 
   useEffect(() => {
     let cancelled = false;
@@ -3398,7 +3432,8 @@ export default function PubMap({
 
   const venuePanel = renderVenuePanel();
 
-  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
+
   const mobileShellReady = !mapLoadingActive;
   const drinkFiltersActive = Boolean(
     favoritePint ||
@@ -3499,33 +3534,14 @@ export default function PubMap({
         ) : outsideCuratedBounds ? (
           <UkNationalBrowseBanner variant="outside" />
         ) : null}
-        {/* Keep pitched-London loading chrome until slim data and the canvas's
-            viewport-specific handoff are ready. Phone requires a guarded frame
-            with its pubs source paintable; desktop retains its basemap gate. */}
+        {/* Hold the pitched-London loading chrome until the canvas announces
+            painted, tappable pins. A canvas error lifts it immediately so the
+            fallback card is never hidden behind it. */}
         {mapLoadingActive ? (
-          <div
-            className="mapLoading"
-            role="status"
-            aria-busy="true"
-            aria-live="polite"
-            // Accessible name stays literal on purpose: the visible line below
-            // carries the dry aside, the announced one states the fact.
-            aria-label={`Loading the ${mapDisplayName} pub map.`}
-          >
-            <div className="mapLoadingScene" aria-hidden="true">
-              <span className="mapLoadingStreet mapLoadingStreet--one" />
-              <span className="mapLoadingStreet mapLoadingStreet--two" />
-              <span className="mapLoadingRiver" />
-              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--one" />
-              <span className="mapLoadingPin mapLoadingPin--amber mapLoadingPin--two" />
-              <span className="mapLoadingPin mapLoadingPin--brick mapLoadingPin--three" />
-              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
-            </div>
-            <div className="mapLoadingCopy">
-              <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
-              <span>Rounding up the pubs. Won&rsquo;t be a minute.</span>
-            </div>
-          </div>
+          <MapLoadingFrame
+            mapDisplayName={mapDisplayName}
+            progress={mapLoadingProgress}
+          />
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
@@ -3558,7 +3574,7 @@ export default function PubMap({
           onAskPubmaxxer={askPubmaxxerAtPub}
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
-          onMapReady={setMapCanvasReady}
+          onMapReady={handleMapCanvasReady}
           onMapErrored={setMapCanvasErrored}
           mapView={
             restoredMobileSession?.viewport

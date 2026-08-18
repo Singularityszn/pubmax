@@ -34,9 +34,13 @@ type ShellLayout = {
   barScrollWidth: number;
 };
 
+const PIN_SLA_ENFORCED = process.env.PUBMAX_PIN_SLA_ENFORCE === "1";
+
 test.use({
   launchOptions: {
-    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+    args: PIN_SLA_ENFORCED
+      ? []
+      : ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
   },
   video:
     process.env.PUBMAX_MOBILE_MAP_EVIDENCE === "1"
@@ -45,6 +49,47 @@ test.use({
 });
 
 test.setTimeout(120_000);
+
+test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  const started = Date.now();
+  const response = await page.goto("/map/london");
+  expect(response?.status()).toBe(200);
+
+  await page.waitForFunction(
+    () =>
+      (
+        window as typeof window & {
+          __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
+        }
+      ).__pubmaxPaintedMapTapPoints?.().length > 0,
+    // A wait, not a ceiling: the recorded envelope in perf/route-budgets.json
+    // is 9.8-25.5s on this SwiftShader build, so a shorter wait here would
+    // fail the very run whose figure it exists to record. The enforced ceiling
+    // is the gated expect below and nothing else.
+    { timeout: 60_000 },
+  );
+  const pinReadyMs = Date.now() - started;
+  // The recorded figure in perf/route-budgets.json (routes./map.pinReady) is
+  // re-measured from this annotation after a production-build run.
+  test.info().annotations.push({ type: "pinReadyMs", description: `${pinReadyMs}` });
+  // Software-rendered CI (SwiftShader) records the figure but does not enforce
+  // the ceiling. PUBMAX_PIN_SLA_ENFORCE=1 drops the SwiftShader override for
+  // this whole file as well as arming the ceiling, so the enforced run really
+  // is the machine's own renderer.
+  if (PIN_SLA_ENFORCED) {
+    expect(pinReadyMs).toBeLessThanOrEqual(5_000);
+  }
+});
 
 async function openPhoneMap(
   page: Page,
@@ -295,22 +340,35 @@ for (const viewport of VIEWPORTS) {
     const topbar = page.locator(".mobileMapTopbar");
     // No location is granted in this run, so the chip names what the map is
     // looking at rather than claiming the reader.
-    const area = topbar.getByRole("button", { name: /^Area in view:/ });
+    const area = topbar.getByRole("button", { name: /^Map area:/ });
     await tapRenderedCentre(page, area, viewport.width, "Area");
+    const cityMenu = page.getByRole("listbox", { name: "Choose city map" });
+    await expect(cityMenu).toBeVisible();
+    const thisArea = cityMenu.getByRole("button", { name: "This area" });
+    await tapRenderedCentre(page, thisArea, viewport.width, "This area");
     await expect(
       page.locator('.mobileSheetPortal[data-sheet-kind="area"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 
+    // Near me before Search: MapEdgeControls unmount while search owns the
+    // overlay, and Back from the layers sheet restores search when it was open.
+    const nearMe = page.locator(".mobileMapLocateFab");
+    await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
+    await expect(nearMe).toHaveAttribute("aria-label", /^Nearby \d+$/, {
+      timeout: 20_000,
+    });
+    if (await page.locator(".mobileSheetPortal:visible").count()) {
+      await dismissSheet(page);
+    }
+
     const search = topbar.getByRole("button", { name: "Search the map" });
     await tapRenderedCentre(page, search, viewport.width, "Search");
-    await expect(
-      page.getByRole("combobox", { name: "Search pubs" }),
-    ).toBeVisible();
-    await tapRenderedCentre(page, search, viewport.width, "Close search");
-    await expect(
-      page.getByRole("combobox", { name: "Search pubs" }),
-    ).toHaveCount(0);
+    const searchField = page.getByRole("combobox", { name: "Search pubs" });
+    await expect(searchField).toBeVisible();
+    await search.click();
+    await expect(searchField).toHaveCount(0);
+    await expect(search).toHaveAttribute("aria-expanded", "false");
 
     const more = topbar.getByRole("button", { name: "More map controls" });
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
@@ -318,16 +376,6 @@ for (const viewport of VIEWPORTS) {
       page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
-
-    // Near me is the map-edge FAB now. Its state is its accessible name.
-    const nearMe = page.getByRole("button", { name: "Near me" });
-    await tapRenderedCentre(page, nearMe, viewport.width, "Near me", false);
-    await expect(page.getByRole("button", { name: /^Nearby \d+$/ })).toBeVisible({
-      timeout: 20_000,
-    });
-    if (await page.locator(".mobileSheetPortal:visible").count()) {
-      await dismissSheet(page);
-    }
 
     const filters = topbar.getByRole("button", { name: /^Filters/ });
     await tapRenderedCentre(page, filters, viewport.width, "Filters");
@@ -384,7 +432,10 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   // The wordmark yields its column at 360px and below, so the place name is
   // read whole rather than cut (design judgement 2026-08-01, finding 2.3).
   await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
-  const areaName = topbar.locator(".mobileMapAreaLabel");
+  // The place name is the city switcher's own full label: the phone rules keep
+  // .citySwitcherLabelFull visible and hide the short code, so this is the text
+  // a 320px reader actually sees.
+  const areaName = topbar.locator(".citySwitcher--mobile .citySwitcherLabelFull");
   const areaFit = await areaName.evaluate((element) => ({
     clientWidth: element.clientWidth,
     scrollWidth: element.scrollWidth,
@@ -804,10 +855,13 @@ for (const viewport of VIEWPORTS) {
       "the create action parks above the tab bar",
     ).toBeLessThanOrEqual(Math.round(bar!.y) + 1);
 
-    // Every row of its sheet keeps the tap floor.
+    // Every row of its sheet keeps the tap floor. Scope to the sheet: /out's
+    // own empty state links to /plan under the same name, so a page-wide
+    // lookup is ambiguous rather than wrong.
     await create.click();
+    const createMenu = page.locator(".createFabMenu");
     for (const label of ["Post a moment", "Log a price", "Start a plan"]) {
-      const row = page.getByRole("link", { name: label, exact: true });
+      const row = createMenu.getByRole("link", { name: label, exact: true });
       await expect(row).toBeVisible();
       const rowBox = await row.boundingBox();
       expect(rowBox, `${label} has a box`).not.toBeNull();

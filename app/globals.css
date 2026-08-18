@@ -1933,6 +1933,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   animation: pulse 1.4s ease-in-out infinite;
 }
 
+/* The pill is ONE row: the pulsing dot, then this stack. Every line the frame
+   prints is a row of the stack, so a line added later drops UNDER the one
+   above it rather than growing the pill a third column at 390px. */
+.mapLoadingLines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
 .mapLoadingEyebrow {
   display: block;
   margin-bottom: 2px;
@@ -1942,6 +1951,38 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.mapLoadingSlow {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.mapLoadingProgress {
+  width: min(88vw, 390px);
+  max-width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  overflow: hidden;
+}
+
+.mapLoadingProgressBar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brass-bright);
+  transition: width 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapLoadingProgressBar {
+    transition: none;
+  }
 }
 
 [data-theme="dark"] .mapLoadingEyebrow {
