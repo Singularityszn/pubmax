@@ -164,9 +164,12 @@ describe("PlanComposer describe prefill", () => {
 
     await mountComposer();
 
-    // The whole composer has to survive, not just the prefill effect: a persist
+    // The composer has to survive whole, not just the prefill effect: a persist
     // effect that names a blocked storage throws during the same flush and
-    // React unmounts the tree, which reads as a blank /plan.
+    // React unmounts the tree, which reads as a blank /plan. This mounts the
+    // composer alone - the page's own AuthProvider is mocked out here, and the
+    // nudge it renders on every page carries its own blocked-storage coverage
+    // in __tests__/identityNudge.test.ts.
     expect(describeFieldValue()).toBe(URL_ASK);
   });
 

@@ -70,7 +70,12 @@ export const IDENTITY_NUDGE_EVENT = "pubmax:identity-nudge";
 const CRAWLER_UA = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora link preview|prerender|headlesschrome|lighthouse|pingdom|gtmetrix/i;
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  if (typeof window === "undefined") return false;
+  try {
+    return !!window.localStorage;
+  } catch {
+    return false;
+  }
 }
 
 function readOptionalInt(key: string): number | null {
