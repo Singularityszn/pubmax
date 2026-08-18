@@ -162,6 +162,11 @@ function manifestPathFor(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".manifest.json");
 }
 
+/** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
+export function guessedCoreShardUrl(slimVenuesPath: string): string {
+  return slimVenuesPath.replace(/\.json$/, ".core.json");
+}
+
 export type SlimShardLoader = {
   /** Eager first-paint payload: the core shard. */
   core(): Promise<SlimVenue[]>;
@@ -244,10 +249,16 @@ export function createSlimShardLoader(
 
   return {
     async core(): Promise<SlimVenue[]> {
-      const m = await manifest();
+      const guessedCoreUrl = guessedCoreShardUrl(slimVenuesPath);
+      const [m, guessedRows] = await Promise.all([
+        manifest(),
+        loadShard(guessedCoreUrl),
+      ]);
       if (!m) return loadSlimVenuesFromPath(slimVenuesPath);
       const core = coreEntry(m);
-      return core ? loadShard(core.url) : loadSlimVenuesFromPath(slimVenuesPath);
+      if (!core) return loadSlimVenuesFromPath(slimVenuesPath);
+      if (core.url === guessedCoreUrl && guessedRows.length > 0) return guessedRows;
+      return loadShard(core.url);
     },
 
     async inBounds(bounds: MapBounds): Promise<SlimVenue[]> {

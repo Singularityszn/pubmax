@@ -46,6 +46,34 @@ test.use({
 
 test.setTimeout(120_000);
 
+test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.addInitScript(() => {
+    window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+  });
+
+  const started = Date.now();
+  const response = await page.goto("/map/london");
+  expect(response?.status()).toBe(200);
+
+  await page.waitForFunction(
+    () =>
+      (
+        window as typeof window & {
+          __pubmaxPaintedMapTapPoints?: () => Array<unknown>;
+        }
+      ).__pubmaxPaintedMapTapPoints?.().length > 0,
+    { timeout: 8_000 },
+  );
+  const pinReadyMs = Date.now() - started;
+  expect(pinReadyMs).toBeLessThanOrEqual(5_000);
+});
+
 async function openPhoneMap(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],

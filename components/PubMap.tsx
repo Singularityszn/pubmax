@@ -263,6 +263,11 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
+import {
+  MAP_LOADING_SLOW_LINE,
+  mapLoadingPrimaryLine,
+} from "@/lib/mapLoadingCopy";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -727,6 +732,10 @@ export default function PubMap({
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Pin-reveal is the loading shell's exit: it fires when painted pubs are
+  // tappable, not merely when the basemap or slim rows exist.
+  const [pinsRevealed, setPinsRevealed] = useState(false);
+  const [mapLoadingSlow, setMapLoadingSlow] = useState(false);
   // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
@@ -1240,6 +1249,36 @@ export default function PubMap({
       return added ? Array.from(byId.values()) : prev;
     });
   }, []);
+
+  useEffect(() => {
+    setPinsRevealed(false);
+    setMapCanvasReady(false);
+    setMapCanvasErrored(false);
+    setMapLoadingSlow(false);
+  }, [cityId]);
+
+  useEffect(() => {
+    const onReveal = () => setPinsRevealed(true);
+    window.addEventListener(MAP_PIN_REVEAL_EVENT, onReveal);
+    return () => window.removeEventListener(MAP_PIN_REVEAL_EVENT, onReveal);
+  }, []);
+
+  const mapLoadingProgress = useMemo(() => {
+    if (pinsRevealed) return 100;
+    if (mapCanvasReady) return 85;
+    if (loaded && slimPins.length > 0) return 55;
+    if (loaded) return 35;
+    return 12;
+  }, [pinsRevealed, mapCanvasReady, loaded, slimPins.length]);
+
+  useEffect(() => {
+    if (pinsRevealed || mapCanvasErrored) {
+      setMapLoadingSlow(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setMapLoadingSlow(true), 8_000);
+    return () => window.clearTimeout(timer);
+  }, [pinsRevealed, mapCanvasErrored]);
 
   useEffect(() => {
     let cancelled = false;
@@ -3398,7 +3437,8 @@ export default function PubMap({
 
   const venuePanel = renderVenuePanel();
 
-  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mapLoadingActive = !mapCanvasErrored && !pinsRevealed;
+
   const mobileShellReady = !mapLoadingActive;
   const drinkFiltersActive = Boolean(
     favoritePint ||
@@ -3523,7 +3563,23 @@ export default function PubMap({
             </div>
             <div className="mapLoadingCopy">
               <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
-              <span>Rounding up the pubs. Won&rsquo;t be a minute.</span>
+              <span>{mapLoadingPrimaryLine(mapDisplayName)}</span>
+              {mapLoadingSlow ? (
+                <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span>
+              ) : null}
+            </div>
+            <div
+              className="mapLoadingProgress"
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={mapLoadingProgress}
+              aria-label="Map loading progress"
+            >
+              <span
+                className="mapLoadingProgressBar"
+                style={{ width: `${mapLoadingProgress}%` }}
+              />
             </div>
           </div>
         ) : null}

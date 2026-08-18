@@ -152,7 +152,7 @@ async function pinRevealCount(page: Page): Promise<number> {
 /**
  * Wait until the MapLibre scene has painted pubs.
  * A fixed sleep after `.mapCanvasWrap` is not enough: the wrap appears while
- * the loading shell still says "Rounding up the pubs", and a green gate that
+ * the loading shell still says "Loading London pubs", and a green gate that
  * only waits for the wrap lies. `paintedPinProbe` + `pubmax:pin-reveal` are
  * the product-owned ready signals (see repo CLAUDE.md).
  *
@@ -180,7 +180,7 @@ async function waitForLoadedMap(page: Page): Promise<void> {
     .toBeGreaterThan(0);
 
   await expect(page.locator(".mapLoading")).toHaveCount(0);
-  await expect(page.getByText("Rounding up the pubs")).toHaveCount(0);
+  await expect(page.getByText("Loading London pubs")).toHaveCount(0);
   await expect(page.locator(".mapFallback")).toHaveCount(0);
   await expect(page.locator(".maplibreMap canvas, .maplibregl-canvas").first()).toBeVisible();
 }

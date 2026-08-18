@@ -34,6 +34,8 @@ const SKELETON_DOTS: {
   { x: 52, y: 168, bucket: "pint", delay: 0.5, size: 4.5 },
 ];
 
+import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
+
 const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
   pint: "var(--pint)",
   amber: "var(--amber)",
@@ -84,7 +86,7 @@ export default function MapLoadingSkeleton() {
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
             <h1>UK venue map</h1>
-            <p>Rounding up the pubs. Won&rsquo;t be a minute.</p>
+            <p>{mapLoadingPrimaryLine("London")}</p>
           </div>
         </div>
       </div>

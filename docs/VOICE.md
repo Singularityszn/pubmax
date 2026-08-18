@@ -119,10 +119,10 @@ accessible name. The whole product rests on prices reading as honest, and a witt
 line beside a figure cheapens the figure.
 
 The accessible-name rule has a working example: the map's held loading frame shows
-`Rounding up the pubs. Won't be a minute.` while its `aria-label` says only
-`Loading the London pub map.` A screen-reader user gets the fact, not the gag,
-because a joke in an accessible name is a joke at someone's expense.
-`__tests__/mapLoadingChrome.test.ts` pins both halves.
+`Loading London pubs…` while its `aria-label` says only `Loading the London pub
+map.` A screen-reader user gets the fact, not the gag, because a joke in an
+accessible name is a joke at someone's expense. `__tests__/mapLoadingChrome.test.ts`
+pins both halves.
 
 The lines under **The north star** are settled. Each already carries its aside on
 a surface that allows one, so a later sweep copies their rhythm and leaves the

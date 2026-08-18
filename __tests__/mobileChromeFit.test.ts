@@ -290,8 +290,8 @@ describe("mobile chrome fit at 390px", () => {
 
 describe("mobile tap-target floors", () => {
   it("gives the Tonight Arc chips a 44px floor where a phone reads them", () => {
-    // Their phone home is the Filters sheet, so the floor rides the sheet
-    // variant rather than a viewport query.
+    expect(arcChipsCss).toMatch(/\.tonightArcChip\s*{[^}]*min-height:\s*44px/);
+    expect(arcChipsCss).toMatch(/\.tonightArcRow\s*{[^}]*gap:\s*8px/);
     expect(arcChipsCss).toMatch(
       /\.tonightArcChipsSheet \.tonightArcChip\s*{[^}]*min-height:\s*44px/,
     );
