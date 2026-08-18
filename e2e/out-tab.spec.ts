@@ -61,12 +61,19 @@ for (const width of WIDTHS) {
       await expect(
         when.getByRole("link", { name: "Weekend", exact: true }),
       ).toHaveAttribute("aria-current", "page");
+      // The heading names the window the chip selected, so the list never sits
+      // under another night's name.
+      await expect(
+        page.getByRole("heading", { name: "What's on the weekend", exact: true }),
+      ).toBeVisible();
       await page.goto("/out");
 
-      // Live events land first; open plans stay a quieter lane below.
-      const listings = page.getByRole("region", { name: "Live events" });
+      // Listings land first; open plans stay a quieter lane below.
+      const listings = page.getByRole("region", { name: "What's on tonight" });
       await expect(listings).toBeVisible();
-      await expect(listings.getByRole("heading", { name: "Live events", exact: true })).toBeVisible();
+      await expect(
+        listings.getByRole("heading", { name: "What's on tonight", exact: true }),
+      ).toBeVisible();
 
       const plans = page.getByRole("region", { name: "Open plans" });
       await expect(plans).toContainText("Open plans arrive here.");
@@ -142,7 +149,7 @@ test("shows event cards when GET /api/out is ready", async ({ page }) => {
   await expect(page.getByTestId("out-screen")).toBeVisible();
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
   await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
-  const listings = page.getByRole("region", { name: "Live events" });
+  const listings = page.getByRole("region", { name: "What's on tonight" });
   await expect(listings).toBeVisible();
   await expect(page.getByRole("region", { name: "Open plans" })).toContainText(
     "Open plans arrive here.",

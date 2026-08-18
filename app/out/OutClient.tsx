@@ -11,9 +11,9 @@ import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
 import {
   OUT_DAY_WINDOWS,
-  OUT_LIVE_EVENTS_SECTION_TITLE,
   OUT_OPEN_PLANS_PLACEHOLDER_LINE,
   OUT_OPEN_PLANS_WAY_LABEL,
+  outListingsSectionTitle,
   type OutDayWindow,
 } from "@/lib/outListings";
 import { outStatusLines } from "@/lib/out/outStatus";
@@ -67,7 +67,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
       <section className="outListings" aria-labelledby="out-listings-heading">
         <h2 id="out-listings-heading" className="outSectionTitle">
-          {OUT_LIVE_EVENTS_SECTION_TITLE}
+          {outListingsSectionTitle(day)}
         </h2>
         {pending ? <ListingsSkeleton /> : null}
         {outStatusLines({ body, failed }).map((line) => (

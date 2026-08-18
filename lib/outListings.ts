@@ -81,9 +81,6 @@ export function outCardObservedAt(
 export const OUT_OPEN_PLANS_PLACEHOLDER_LINE = "Open plans arrive here.";
 export const OUT_OPEN_PLANS_WAY_LABEL = "Start a plan";
 
-/** Heading above live Ticketmaster (and other) event cards on /out. */
-export const OUT_LIVE_EVENTS_SECTION_TITLE = "Live events";
-
 /** A read that could not answer is not an empty city. */
 export type OutListingsReadStatus = "ready" | "degraded";
 
@@ -92,6 +89,23 @@ const WINDOW_NOUN: Record<OutDayWindow, string> = {
   tomorrow: "tomorrow",
   weekend: "the weekend",
 };
+
+/**
+ * The heading above the listing cards on /out.
+ *
+ * It covers the WHOLE list, which is every What's-On kind except deals
+ * (OUT_LISTING_KINDS), so it may not be named for one of them: a pub quiz and a
+ * televised match are listings, and neither is a live event. It may not be
+ * named for a vendor either - Ticketmaster and Skiddle supply rows, they do not
+ * define the lane.
+ *
+ * It names the window it is listing, off the SAME noun table the empty line
+ * uses, so the heading and the sentence under it can never disagree about which
+ * night the reader asked for.
+ */
+export function outListingsSectionTitle(window: OutDayWindow): string {
+  return `What's on ${WINDOW_NOUN[window]}`;
+}
 
 /**
  * The one sentence an empty chip prints.
