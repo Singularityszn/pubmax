@@ -70,10 +70,13 @@ faults inside its own catch and reported an upstream failure every run.
 | `POST /web/extract` | 10 | https://docs.context.dev/api-reference/web-extraction/extract |
 
 Base URL: `https://api.context.dev/v1`. Auth: `Authorization: Bearer
-$CONTEXT_DEV_API_KEY` (never in a client bundle). On 429 honour `Retry-After`;
-retry 408/5xx with bounded backoff; never retry validation errors; pass
-`maxAgeMs` when freshness matters. Without a key every call answers
-`not-configured` and sends nothing.
+$CONTEXT_DEV_API_KEY` (never in a client bundle). On 429 honour `Retry-After`,
+but only up to `CONTEXT_DEV_MAX_RETRY_AFTER_MS` (30 s): the wait sits between
+requests, so no request timeout bounds it, and a provider asking for an hour
+would park a scheduled run rather than let the next one act on the rate limit.
+Past that ceiling the call stops and its message says so. Retry 408/5xx with
+bounded backoff; never retry validation errors; pass `maxAgeMs` when freshness
+matters. Without a key every call answers `not-configured` and sends nothing.
 
 The lane spends ONE `createContextDevBudget()` for the whole run, shared by
 every source and counting retries, so a retry storm spends the run rather than
