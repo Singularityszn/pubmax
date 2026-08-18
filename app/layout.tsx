@@ -106,12 +106,12 @@ const dataMono = JetBrains_Mono({
   weight: ["400", "500", "700"],
 });
 
-// Party accent (Bungee) is no longer loaded globally: it moved to the
-// route-scoped app/fonts/partyFace.ts, imported only by /tonight and /pal.
-// Every other route no longer ships the display font. Consumers fall back via
-// var(--font-party, var(--font-display)) where the variable is unset. No CSS
-// consumes the token today (see app/fonts/partyFace.ts). Containment is still
-// enforced by __tests__/fontPartyContainment.test.ts.
+// No party accent (Bungee) webfont is loaded on any route: the vibe chips were
+// its last consumer and left the face on 2026-08-18, so the party-accent token
+// is gone from the app and no route pays for a display font nothing draws.
+// Share cards still stamp Bungee, from the vendored TTF satori reads
+// (lib/ogBrand.tsx), which no browser downloads.
+// __tests__/fontPartyContainment.test.ts keeps the token out of shipped code.
 
 export const metadata: Metadata = {
   // Single-owner production origin (lib/siteUrlConfig.mjs). Relative

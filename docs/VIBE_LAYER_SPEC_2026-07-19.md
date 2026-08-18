@@ -51,17 +51,22 @@ Mechanics: chips map onto the EXISTING `CONCIERGE_MOODS` model (`lib/concierge/r
 - Usage constraint (verbatim from panel, binding): **2-4 words max, 20px+ only, letter-spaced caps; chips, vibe stamps, share headlines — never body, never navigation, never data.** ≤3 component families total.
 - Share cards may use the Bungee Shade layered variant: brass shade under coral face on ink dark; ink on candle paper light.
 - Rejected: Unbounded (crypto register), Archivo Black (redundant vs Space Grotesk 700), Shrikhand (wrong city).
-- **Amended 2026-08-18: the seven vibe chips left this face.** Bungee draws
-  cap-height glyphs only, so a sentence-case chip label still reached the reader
-  as ALL CAPS. The chips now set `var(--font-display)` in sentence case;
-  `components/vibe/vibeChips.css` owns that skin and the reason. Share stamps and
-  share headlines keep Bungee.
+- **Amended 2026-08-18: the seven vibe chips left this face, and the browser
+  lane went with them.** Bungee draws cap-height glyphs only, so a sentence-case
+  chip label still reached the reader as ALL CAPS. The chips now set
+  `var(--font-display)` in sentence case; `components/vibe/vibeChips.css` owns
+  that skin and the reason. With no consumer left, the `--font-party` token, its
+  `next/font` loader and the /tonight and /pal route wrappers were deleted
+  rather than left shipping a webfont nothing draws. Share cards keep the Bungee
+  stamp and headline through the vendored TTF satori reads (`lib/ogBrand.tsx`),
+  which no browser downloads. Re-adopting the face in the app means re-adding
+  the loader deliberately, not just naming the token.
 
 ## Verification bar
 
 - Chip → result honesty: each chip's preset returns only rows/venues its backing data actually supports; zero-data nights show the honest empty line. Hermetic tests at the mood/preset mapping seam.
 - Voice containment: grep gate — killed terms appear nowhere; slang strings appear only in the chip/preset/push modules.
-- Type containment: `--font-party` referenced by ≤3 component families; no body/nav/data usage.
+- Type containment: `--font-party` referenced by ≤3 component families; no body/nav/data usage. Since the 2026-08-18 amendment the fence holds it at zero references in app/components/lib.
 - Both themes, 390x844 screenshots for Tonight picker + pal chips + share stamp.
 - No em dashes in any product copy string.
 

@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 
-import { partyFace } from "@/app/fonts/partyFace";
 import { loadHistoricPubs } from "@/lib/historic";
 import { buildQuietPint, isQuietPintWindow } from "@/lib/quietPint";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
@@ -59,13 +58,5 @@ export default async function TonightPage() {
     now,
   });
 
-  // Scope the party accent to this route: the wrapper only sets --font-party
-  // (display:contents adds no layout box; the custom property still inherits).
-  // Nothing under /tonight reads the token today: the vibe chips left the face
-  // (app/fonts/partyFace.ts).
-  return (
-    <div className={partyFace.variable} style={{ display: "contents" }}>
-      <TonightClient flags={flags} quietPint={quietPint} softPlansWindow={softPlansWindow} />
-    </div>
-  );
+  return <TonightClient flags={flags} quietPint={quietPint} softPlansWindow={softPlansWindow} />;
 }
