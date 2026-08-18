@@ -89,11 +89,12 @@ Proof (captain): with the key in `.env.local`:
 
 ```bash
 set -a && source .env.local && set +a
-npm test -- __tests__/contextDevLiveProof.test.ts
+npx vitest run __tests__/contextDevLiveProof.test.ts --disableConsoleIntercept
 ```
 
 The test skips when `CONTEXT_DEV_API_KEY` is unset. It prints a trimmed JSON
-preview to the console for PR bodies.
+preview to the console for PR bodies, and `--disableConsoleIntercept` is what
+hands that preview through unreformatted.
 
 ## The budget
 

@@ -17,6 +17,7 @@ import { contextDevEventSources, type HarvestSource } from "../harvest/sourcePol
 import {
   DATE_ONLY_TIME_EVIDENCE,
   emptyEventDrops,
+  mergeEventDrops,
   statedCalendarDate,
   toIsoInstant,
   type EventDropCounts,
@@ -315,12 +316,7 @@ export async function runContextDevEventsLane({
 
     const normalised = normaliseContextDevExtract(result.data, source, opts);
     allRows.push(...normalised.rows);
-    dropped.noKind += normalised.dropped.noKind;
-    dropped.noPlace += normalised.dropped.noPlace;
-    dropped.noStart += normalised.dropped.noStart;
-    dropped.noUrl += normalised.dropped.noUrl;
-    dropped.noTitle += normalised.dropped.noTitle;
-    dropped.total += normalised.dropped.total;
+    mergeEventDrops(dropped, normalised.dropped);
     sourcesRun.push({ sourceId: source.id, label: source.label, rows: normalised.rows.length });
     log(
       `eventsRefresh: Context.dev ${source.label} -> ${normalised.rows.length} rows ` +

@@ -58,14 +58,11 @@ export type MapEventOpts = {
     | null;
 };
 
-export type EventDropCounts = {
-  noKind: number;
-  noPlace: number;
-  noStart: number;
-  noUrl: number;
-  noTitle: number;
-  total: number;
-};
+export type EventDropReason = "noKind" | "noPlace" | "noStart" | "noUrl" | "noTitle";
+
+export type EventDropCounts = Record<EventDropReason, number> & { total: number };
+
+export declare const EVENT_DROP_REASONS: readonly EventDropReason[];
 
 export type NormalisedEvents = {
   rows: WhatsOnEventRow[];
@@ -75,6 +72,7 @@ export type NormalisedEvents = {
 export declare const EMPTY_EVENT_DROPS: Readonly<EventDropCounts>;
 
 export declare function emptyEventDrops(): EventDropCounts;
+export declare function mergeEventDrops(into: EventDropCounts, from: EventDropCounts | null | undefined): EventDropCounts;
 export declare function summariseEventDrops(dropped: EventDropCounts): string;
 export declare function dedupeEventRowsBySourceId(rows: WhatsOnEventRow[]): WhatsOnEventRow[];
 export declare function cityGeo(city?: string): {

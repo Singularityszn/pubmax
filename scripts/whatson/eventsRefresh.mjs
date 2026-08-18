@@ -53,6 +53,7 @@ import {
   cityGeo,
   dedupeEventRowsBySourceId,
   emptyEventDrops,
+  mergeEventDrops,
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
   skiddleLaneFenced,
@@ -263,14 +264,7 @@ async function runProviderLane({
   const dropped = emptyEventDrops();
   const opts = { observedAt, venueIndex, resolveVenue: resolveVenueId };
 
-  const addDrops = (from) => {
-    dropped.noKind += from.noKind;
-    dropped.noPlace += from.noPlace;
-    dropped.noStart += from.noStart;
-    dropped.noUrl += from.noUrl;
-    dropped.noTitle += from.noTitle;
-    dropped.total += from.total;
-  };
+  const addDrops = (from) => mergeEventDrops(dropped, from);
 
   if (nonEmptyString(tmKey)) {
     try {
