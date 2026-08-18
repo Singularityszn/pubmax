@@ -22,6 +22,7 @@ vi.mock("next/link", () => ({
 }));
 
 vi.mock("next/navigation", () => ({
+  usePathname: () => "/plan",
   useRouter: () => ({
     back: () => undefined,
     forward: () => undefined,
