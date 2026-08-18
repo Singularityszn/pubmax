@@ -98,18 +98,6 @@
   text-underline-offset: 3px;
 }
 
-.outEmpty {
-  margin: 0;
-  color: var(--ink-soft);
-  font-size: 0.95rem;
-  line-height: 1.45;
-}
-
-.outEmptyLink {
-  color: var(--ink);
-  font-weight: 650;
-}
-
 .outStatus {
   margin: 0 0 12px;
   color: var(--ink-soft);

@@ -24,8 +24,11 @@ for (const [label, width] of [
     const vibe = page.locator(".vibeChip").first();
     await expect(vibe).toBeVisible({ timeout: 30_000 });
 
+    // `none` and not merely "not uppercase": app/globals.css declares the same
+    // class with `text-transform: lowercase`, so the label's own sentence case
+    // only survives while the shared skin states none.
     const transform = await vibe.evaluate((el) => getComputedStyle(el).textTransform);
-    expect(transform).not.toBe("uppercase");
+    expect(transform).toBe("none");
 
     await page.screenshot({
       path: `${SHOTS_DIR}/tonight-vibe-${label}.png`,

@@ -4497,7 +4497,6 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     width: auto;
     max-height: 120px;
     padding: 10px;
-    overflow: hidden;
     box-sizing: border-box;
   }
 
@@ -4505,7 +4504,16 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     bottom: max(12px, env(safe-area-inset-bottom));
   }
 
+  /* The clamp lives on the TEXT column, never on the card: clipped area is not
+     hit-testable, and the two buttons are the only way this fixed overlay is
+     dismissed. The body copy is the only part that can grow, so bounding it is
+     what keeps the whole card inside its 120px ceiling. */
   .analyticsConsentPrompt p {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    overflow: hidden;
     font-size: 0.72rem;
   }
 

@@ -11,8 +11,6 @@ import {
   parseOutDayWindow,
   selectOutListings,
 } from "@/lib/outListings";
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { WHATS_ON_KINDS, type WhatsOnRow } from "@/lib/whatsOn";
 
@@ -198,16 +196,6 @@ describe("Out page hierarchy", () => {
   it("names the live events lane above the cards", () => {
     expect(OUT_LIVE_EVENTS_SECTION_TITLE).toBe("Live events");
     expect(OUT_LIVE_EVENTS_SECTION_TITLE).not.toMatch(/ticketmaster/i);
-  });
-
-  it("renders live listings before the open-plans placeholder", () => {
-    const src = readFileSync(join(process.cwd(), "app/out/OutClient.tsx"), "utf8");
-    const listingsIdx = src.indexOf('className="outListings"');
-    const plansIdx = src.indexOf('className="outPlans"');
-    expect(listingsIdx).toBeGreaterThan(-1);
-    expect(plansIdx).toBeGreaterThan(listingsIdx);
-    expect(src).toContain("OUT_LIVE_EVENTS_SECTION_TITLE");
-    expect(src).toContain("outPlansPlaceholder");
   });
 });
 

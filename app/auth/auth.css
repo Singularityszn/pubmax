@@ -126,8 +126,8 @@
 }
 
 .authSignIn.authMagicLinkButton:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
-  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink) 12%);
+  border-color: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
+  background: color-mix(in srgb, var(--brass-accessible) 88%, var(--ink-deep) 12%);
 }
 
 .authMagicLinkCancel {

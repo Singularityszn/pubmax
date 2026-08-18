@@ -1,6 +1,11 @@
 /* Vibe chips — house stamp skin (docs/DESIGN_SYSTEM.md caps policy).
    One recipe for every surface that renders the seven owner-locked chips
-   from lib/vibeChips.ts. Party caps, 44px floor, brass border. */
+   from lib/vibeChips.ts. Sentence case, 44px floor, brass border.
+
+   text-transform is stated as `none` rather than deleted: app/globals.css also
+   declares .vibeChip at equal specificity with `text-transform: lowercase`, so
+   an absent declaration here hands the label's casing to whichever sheet the
+   bundler ordered last. */
 
 .vibeChips {
   /* Shell spacing is owned by each surface (Tonight margin, Pal examples pad). */
@@ -38,6 +43,7 @@
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  text-transform: none;
   text-decoration: none;
   cursor: pointer;
 }
