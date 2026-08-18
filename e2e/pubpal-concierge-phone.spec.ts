@@ -106,9 +106,14 @@ test.describe("Pub Pal concierge at 390px", () => {
 
     const answer = page.locator(".palChatRow--pal").last();
     await expect(answer.getByRole("link", { name: "Open in Plan" })).toBeVisible();
-    // ONE way on: a second control landing the same /plan?query= was two
-    // labels for one action.
-    await expect(answer.locator(".palChatProposalConfirm")).toHaveCount(0);
+    // ONE way on TO PLAN: a second control landing the same /plan?query= was
+    // two labels for one action, so the old "Confirm three-stop draft" button
+    // is gone. The per-stop "Open <pub>" confirms beside it stay - each is a
+    // different destination (/map?sel=), not a second door onto the same one.
+    await expect(
+      answer.getByRole("button", { name: /Confirm three-stop draft/i }),
+    ).toHaveCount(0);
+    await expect(answer.locator('a[href^="/plan?"]')).toHaveCount(1);
     await expect(answer.getByRole("button", { name: "Dismiss" }).first()).toBeVisible();
     // Still on the chat: a proposal moves nothing until it is taken.
     expect(new URL(page.url()).pathname).toBe("/pal/chat");
