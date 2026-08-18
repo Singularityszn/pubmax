@@ -18,6 +18,27 @@ async function consentFit(prompt: import("@playwright/test").Locator) {
   return { boxHeight: box?.height ?? 0, scrollHeight };
 }
 
+// Which element actually owns the tap at a control's centre. The prompt is
+// tested FIRST, because the failure this answers is the banner lying over
+// something else: a probe that claimed the control whenever the control was
+// merely in the stack would report the covered case as owned.
+async function pointOwner(
+  page: import("@playwright/test").Page,
+  box: { x: number; y: number; width: number; height: number },
+  controlSelector: string,
+) {
+  return page.evaluate(
+    ({ x, y, controlSelector }) => {
+      const hit = document.elementFromPoint(x, y);
+      if (!hit) return "nothing";
+      if (hit.closest(".analyticsConsentPrompt")) return "prompt";
+      if (hit.closest(controlSelector)) return "control";
+      return hit.tagName.toLowerCase();
+    },
+    { x: box.x + box.width / 2, y: box.y + box.height / 2, controlSelector },
+  );
+}
+
 async function prepareUndecidedConsent(
   page: import("@playwright/test").Page,
   viewport: { width: number; height: number } = VIEWPORT,
@@ -33,7 +54,7 @@ async function prepareUndecidedConsent(
   });
 }
 
-test("mobile consent stays within 120px and clears the tab bar after dismiss", async ({ page }) => {
+test("mobile consent never covers the tab bar, before or after dismiss", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareUndecidedConsent(page);
   await page.goto("/map/london", { waitUntil: "domcontentloaded" });
@@ -44,30 +65,35 @@ test("mobile consent stays within 120px and clears the tab bar after dismiss", a
   expect(fit.boxHeight).toBeLessThanOrEqual(120);
   expect(fit.scrollHeight).toBeLessThanOrEqual(120);
 
-  await prompt.getByRole("button", { name: "No thanks" }).click();
-  await expect(prompt).toBeHidden();
-
   const mapTab = page.getByRole("navigation", { name: "Primary" }).getByRole("link", {
     name: "Map",
     exact: true,
   });
   await expect(mapTab).toBeVisible();
+
+  // WHILE the banner is up. Dismissing it unmounts the card, so an ownership
+  // check that only runs afterwards is asking whether an absent element covers
+  // anything: the offset shrinking or the card outgrowing its 120px ceiling
+  // would put it over the tab bar with nothing failing.
+  const coveredBox = await mapTab.boundingBox();
+  expect(coveredBox).not.toBeNull();
+  expect(await pointOwner(page, coveredBox!, ".mobileTabBar")).toBe("control");
+
+  // The probe can say "prompt", so the assertion above is one the banner can
+  // actually lose: its own centre is owned by the banner.
+  const promptBox = await prompt.boundingBox();
+  expect(promptBox).not.toBeNull();
+  expect(await pointOwner(page, promptBox!, ".mobileTabBar")).toBe("prompt");
+
+  await prompt.getByRole("button", { name: "No thanks" }).click();
+  await expect(prompt).toBeHidden();
+
   const tabBox = await mapTab.boundingBox();
   expect(tabBox).not.toBeNull();
-  const owner = await page.evaluate(
-    ({ x, y }) => {
-      const hit = document.elementFromPoint(x, y);
-      if (!hit) return "nothing";
-      if (hit.closest(".mobileTabBar")) return "tab";
-      if (hit.closest(".analyticsConsentPrompt")) return "prompt";
-      return hit.tagName.toLowerCase();
-    },
-    { x: tabBox!.x + tabBox!.width / 2, y: tabBox!.y + tabBox!.height / 2 },
-  );
-  expect(owner).toBe("tab");
+  expect(await pointOwner(page, tabBox!, ".mobileTabBar")).toBe("control");
 });
 
-test("mobile consent does not cover the landing primary CTA after dismiss", async ({ page }) => {
+test("mobile consent never covers the landing CTA, before or after dismiss", async ({ page }) => {
   test.setTimeout(60_000);
   await prepareUndecidedConsent(page);
   await page.goto("/", { waitUntil: "domcontentloaded" });
@@ -78,27 +104,29 @@ test("mobile consent does not cover the landing primary CTA after dismiss", asyn
   expect(fit.boxHeight).toBeLessThanOrEqual(120);
   expect(fit.scrollHeight).toBeLessThanOrEqual(120);
 
+  const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+  await expect(findMyPint).toBeVisible();
+
+  // The root path renders no tab bar, so the card sits at the safe-area floor
+  // here rather than above the bar. Find my pint is the ONE primary action on
+  // this page, and it is checked while the banner is still up.
+  const coveredBox = await findMyPint.boundingBox();
+  expect(coveredBox).not.toBeNull();
+  expect(await pointOwner(page, coveredBox!, ".lpHeroActions")).toBe("control");
+
+  const promptBox = await prompt.boundingBox();
+  expect(promptBox).not.toBeNull();
+  expect(await pointOwner(page, promptBox!, ".lpHeroActions")).toBe("prompt");
+
   await prompt.getByRole("button", { name: "No thanks" }).click();
   await expect(prompt).toBeHidden();
   await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), CONSENT_KEY)).toBe(
     "denied",
   );
 
-  const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
-  await expect(findMyPint).toBeVisible();
   const ctaBox = await findMyPint.boundingBox();
   expect(ctaBox).not.toBeNull();
-  const owner = await page.evaluate(
-    ({ x, y }) => {
-      const hit = document.elementFromPoint(x, y);
-      if (!hit) return "nothing";
-      if (hit.closest(".lpHeroActions")) return "cta";
-      if (hit.closest(".analyticsConsentPrompt")) return "prompt";
-      return hit.tagName.toLowerCase();
-    },
-    { x: ctaBox!.x + ctaBox!.width / 2, y: ctaBox!.y + ctaBox!.height / 2 },
-  );
-  expect(owner).toBe("cta");
+  expect(await pointOwner(page, ctaBox!, ".lpHeroActions")).toBe("control");
 });
 
 for (const width of PHONE_WIDTHS) {
