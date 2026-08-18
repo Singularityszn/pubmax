@@ -76,7 +76,7 @@ Social ships behind two independent server-checked switches:
 
 | Flag | Read in | When off (default) | When on |
 |---|---|---|---|
-| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts` | Every Social surface stays in **preview** (today's behaviour). Landing and `/we-are-out` keep pointing at Memories, not Open Social. | Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Friends-only reads use mutual follows (WP6). |
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts` (access) and `app/layout.tsx` (surface name) | Every Social surface stays in **preview** (today's behaviour). Landing and `/we-are-out` keep pointing at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, the command palette and every Social page; the phone tab keeps the word `Social` with a small preview dot and the spoken name `Social preview`. | Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Every surface goes back to the plain name **Social**. Friends-only reads use mutual follows (WP6). |
 | `SOCIAL_INVITE_BETA_ENABLED` | `lib/socialAccessServer.ts` (legacy Clerk beta path) | Clerk invite beta stays dormant beside the Supabase path. | **Do not enable** for the friends launch; it is the retired Clerk+Yoti stack. |
 
 **Dark launch default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset in Production and Preview. `npm run ci` green with the flag unset proves the dark state.
@@ -98,8 +98,9 @@ Run after `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` is live in the demo environment. Flag
 **Flag off check (byte-identical social surfaces):**
 
 1. Open `https://pubmaxxing.com/social` signed out.
-2. Confirm the preview heading: "Social is invite-only for now. It opens more widely soon."
+2. Confirm the preview heading: "Social preview is invite-only for now. It opens more widely soon."
 3. Confirm no post lanes, compose button, or protected feed content appears.
+4. Confirm the desktop nav and the command palette both read `Social preview`, and the phone tab reads `Social` with the preview dot.
 
 **Flag on check (full loop):**
 
@@ -140,7 +141,7 @@ Run each check on the production host after every promoted deploy.
 | Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
 | Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "Open these stops on the map" is present before and after the RSVP, and opens `/map?mode=build&pubs=<ordered stops>` (one stop opens `/map?sel=<id>`). |
 | Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
-| Social tab | `https://pubmaxxing.com/social` | While `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is off: safe preview copy only, no post content, no sign-in-required content leak. Once the friends launch flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the launch flag unset until after the WP5 rehearsal. |
+| Social tab | `https://pubmaxxing.com/social` | While `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is off: the surface is named `Social preview`, safe preview copy only, no post content, no sign-in-required content leak. Once the friends launch flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the launch flag unset until after the WP5 rehearsal. |
 
 ---
 

@@ -7,8 +7,12 @@ PUBMAXX helps people discover pubs and plan pub crawls using pint prices, locati
 ### Brand Language
 
 **PUBMAXX**:
-The canonical name of the brand, product, and cultural movement. The double `xx` is inseparable from the name in every form.
+The canonical name of the brand and the cultural movement. The double `xx` is inseparable from the name in every form. Share cards and the document title suffix carry this name.
 _Avoid_: PubMax, Pub Max, PubMaxing
+
+**PUBMAXXING**:
+The name of the app itself, in capitals. Install titles, the manifest name, and in-app page titles carry this name. `lib/brandNaming.ts` owns both names.
+_Avoid_: PUBMAXXING as the brand in metadata `siteName`, two brand names in one document title
 
 **Pubmaxxing**:
 The activity of intentionally discovering and experiencing a night out through PUBMAXX.
