@@ -257,8 +257,8 @@ export default function ProfileCoverPhotosEditor({
         {PROFILE_COVER_SECTION_LABEL}
       </span>
 
-      {covers.length === 0 && !pending && !hasCover ? (
-        <p className="profileEditorHint profileEditorCoverEmpty">
+      {status === "degraded" || (covers.length === 0 && !pending && !hasCover) ? (
+        <p className="profileEditorHint profileEditorCoverEmpty" role="status">
           {profileCoverEmptyLine(status)}
         </p>
       ) : null}

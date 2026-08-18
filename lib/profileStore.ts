@@ -718,10 +718,34 @@ function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined
 
 const CARD_BATCH_COLUMNS = `${AVATAR_BATCH_COLUMNS}, display_name`;
 
+/**
+ * How many handles one PostgREST `.in(...)` may carry. The filter travels in the
+ * request LINE, so an unpaginated caller (a followers list) would grow the URL
+ * past the gateway's ceiling and fail the whole read rather than one page of it.
+ */
+const HANDLE_BATCH_SIZE = 200;
+
+function handleBatches(handles: readonly string[]): string[][] {
+  const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
+  const batches: string[][] = [];
+  for (let at = 0; at < keys.length; at += HANDLE_BATCH_SIZE) {
+    batches.push(keys.slice(at, at + HANDLE_BATCH_SIZE));
+  }
+  return batches;
+}
+
+/**
+ * A departed account keeps its row so its handle stays reserved, and the auth
+ * tombstone trigger nulls its images but LEAVES its display name. So a card is
+ * gated the way `approvedAvatarUrlForProfile` already gates a face: a tombstoned
+ * row answers an empty card rather than printing a departed person's real name
+ * beside their handle to any anonymous reader of a follow list.
+ */
 function publicCardForProfile(profile: ProfileRecord): ProfilePublicCard {
   const card: ProfilePublicCard = {};
+  if (isProfileTombstoned(profile)) return card;
   if (profile.displayName) card.displayName = profile.displayName;
-  const avatarUrl = publicOwnedImageUrl(profile, "avatar");
+  const avatarUrl = approvedAvatarUrlForProfile(profile);
   if (avatarUrl) card.avatarUrl = avatarUrl;
   return card;
 }
@@ -746,35 +770,36 @@ export const supabaseProfileStore: ProfileStore = {
   },
 
   async getApprovedAvatarUrlsByHandles(handles) {
-    const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
-    if (keys.length === 0) return new Map();
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select(AVATAR_BATCH_COLUMNS)
-      .in("handle", keys)
-      .not("user_id", "is", null);
-    if (error) throw new Error(error.message);
     const out = new Map<string, string>();
-    for (const row of data ?? []) {
-      const profile = fromRow(row as Record<string, unknown>);
-      const url = approvedAvatarUrlForProfile(profile);
-      if (url) out.set(profile.handle, url);
+    for (const keys of handleBatches(handles)) {
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select(AVATAR_BATCH_COLUMNS)
+        .in("handle", keys)
+        .not("user_id", "is", null);
+      if (error) throw new Error(error.message);
+      for (const row of data ?? []) {
+        const profile = fromRow(row as Record<string, unknown>);
+        const url = approvedAvatarUrlForProfile(profile);
+        if (url) out.set(profile.handle, url);
+      }
     }
     return out;
   },
 
   async getPublicCardsByHandles(handles) {
-    const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
-    if (keys.length === 0) return new Map();
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select(CARD_BATCH_COLUMNS)
-      .in("handle", keys);
-    if (error) throw new Error(error.message);
     const out = new Map<string, ProfilePublicCard>();
-    for (const row of data ?? []) {
-      const profile = fromRow(row as Record<string, unknown>);
-      out.set(profile.handle, publicCardForProfile(profile));
+    for (const keys of handleBatches(handles)) {
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select(CARD_BATCH_COLUMNS)
+        .in("handle", keys)
+        .is("tombstoned_at", null);
+      if (error) throw new Error(error.message);
+      for (const row of data ?? []) {
+        const profile = fromRow(row as Record<string, unknown>);
+        out.set(profile.handle, publicCardForProfile(profile));
+      }
     }
     return out;
   },

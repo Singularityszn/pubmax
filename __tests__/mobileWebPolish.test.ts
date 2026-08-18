@@ -59,14 +59,16 @@ describe("mobile web polish source contracts", () => {
 
     expect(declarations).toEqual(expect.arrayContaining(["app/globals.css"]));
     expect(declarations).toEqual(expect.arrayContaining([
-      "app/u/[handle]/profile.css",
+      // The crop frame owns a drag, so it suppresses selection. It moved out of
+      // the profile page's stylesheet when the cropper got one of its own.
+      "components/profile/profileImageCropper.css",
       "components/map/venueSheet.css",
     ]));
     expect(new Set(declarations)).toEqual(new Set([
       "app/globals.css",
       "app/messages/messages.css",
-      "app/u/[handle]/profile.css",
       "components/map/venueSheet.css",
+      "components/profile/profileImageCropper.css",
     ]));
   });
 });

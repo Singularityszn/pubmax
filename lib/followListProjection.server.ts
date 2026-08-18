@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { FollowListEntry } from "@/lib/followList";
+import { log } from "@/lib/log";
 import { normalizeHandle } from "@/lib/profiles";
 import { profileStore, type ProfilePublicCard } from "@/lib/profileStore";
 
@@ -15,7 +16,9 @@ import { profileStore, type ProfilePublicCard } from "@/lib/profileStore";
  * 2. Enrichment is DECORATION, so a read that could not answer costs the caller
  *    a name and a face, never the list. A projection failure that emptied the
  *    list would reach the feed's Friends lane and the followers page as "you
- *    follow nobody", which is the tri-state confusion this repo forbids.
+ *    follow nobody", which is the tri-state confusion this repo forbids. It is
+ *    invisible to the reader by design, so it names itself once in the log
+ *    rather than degrading in silence.
  */
 export async function followListEntries(handles: string[]): Promise<FollowListEntry[]> {
   const rows: FollowListEntry[] = [];
@@ -28,7 +31,11 @@ export async function followListEntries(handles: string[]): Promise<FollowListEn
   let cards: ReadonlyMap<string, ProfilePublicCard>;
   try {
     cards = await profileStore().getPublicCardsByHandles(rows.map((row) => row.handle));
-  } catch {
+  } catch (error) {
+    log("warn", "follow_list.enrichment_failed", {
+      handles: rows.length,
+      detail: error instanceof Error ? error.message : String(error),
+    });
     return rows;
   }
 

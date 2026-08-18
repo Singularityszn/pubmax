@@ -21,7 +21,12 @@ vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
 import { GET } from "@/app/api/profiles/[handle]/following/route";
 import { memoryFollowStore, __resetMemoryFollows } from "@/lib/followStore";
-import { memoryProfileStore, __resetMemoryProfiles } from "@/lib/profileStore";
+import {
+  memoryProfileStore,
+  __resetMemoryProfiles,
+  __seedMemoryOwnedProfile,
+  __tombstoneMemoryProfile,
+} from "@/lib/profileStore";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const URL_BASE = "http://localhost/api/profiles";
@@ -69,6 +74,10 @@ describe("GET /api/profiles/[handle]/following", () => {
   });
 
   it("projects an owned avatar onto a followee when one exists", async () => {
+    // An owned avatar only exists on a CLAIMED handle - the upload is bound to
+    // the owner's own session - so the followee is seeded linked, the way the
+    // rest of the public avatar reads already require.
+    __seedMemoryOwnedProfile("sam", "user-sam");
     await memoryFollowStore.follow("ken", "sam");
     const profile = await memoryProfileStore.getByHandle("sam");
     await memoryProfileStore.setOwnedImage("sam", "avatar", {
@@ -204,6 +213,28 @@ describe("GET /api/profiles/[handle]/following", () => {
       expect(row).toEqual({ handle: row.handle });
     }
     batch.mockRestore();
+  });
+
+  it("never names a departed account, though its handle stays on the list", async () => {
+    // The auth-deletion trigger nulls the images and leaves `display_name`, so a
+    // card projection without a tombstone gate printed a departed person's real
+    // name beside their handle to any anonymous caller of this public route.
+    __seedMemoryOwnedProfile("gone", "user-gone");
+    await memoryFollowStore.follow("ken", "gone");
+    await memoryProfileStore.update("gone", { displayName: "Departed Person" });
+    const profile = await memoryProfileStore.getByHandle("gone");
+    await memoryProfileStore.setOwnedImage("gone", "avatar", {
+      objectKey: profileImageServingKey("avatar", profile!.id, AVATAR_GENERATION),
+      generation: AVATAR_GENERATION,
+      moderationState: "approved",
+    });
+    __tombstoneMemoryProfile("gone");
+
+    const body = await (await following("ken")).json();
+    expect(body.following).toEqual([followEntry("gone")]);
+    const blob = JSON.stringify(body);
+    expect(blob).not.toContain("Departed Person");
+    expect(blob).not.toContain("/api/avatar/");
   });
 
   it("advertises a JSON response and never a non-200 status", async () => {
