@@ -704,7 +704,7 @@ async function toolProposePlan(
     const proposal: AskProposal = {
       id: proposalId("plan", stopIds.join("-")),
       kind: "draft_plan",
-      label: "Confirm three-stop draft",
+      label: "Open in Plan",
       query,
       stopIds,
       stopNames,
@@ -732,7 +732,7 @@ async function toolProposePlan(
       provenance: [{ label: "On record", kind: "plan" }],
       cards,
       proposals: [proposal, ...openProposals],
-      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Confirm to open Plan with this ask - nothing is saved until you do.`,
+      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to carry this ask over - nothing is saved until you do.`,
     };
   } catch {
     return {
