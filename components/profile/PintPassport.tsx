@@ -5,7 +5,7 @@ import type { CSSProperties } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import type { PassportData } from "@/lib/passport";
-import { formatCheapestPint } from "@/lib/profiles";
+import { formatCheapestPint, formatStatCount } from "@/lib/profiles";
 import { buildPassportShareText } from "@/lib/shareArtifacts";
 
 // The Pint Passport (user story 29): a collectible field-guide "passport page"
@@ -124,10 +124,10 @@ export default function PintPassport({
         <Stat label="Pubs" value={pubs} />
         <Stat label="Boroughs" value={boroughs.length} />
         <Stat label="Beers" value={beers} />
-        <Stat label="Crawls" value={crawls} />
+        <Stat label="Crawls" value={formatStatCount(crawls)} />
         <Stat label="Pints" value={pints} />
         <Stat label="Cheapest pint" value={formatCheapestPint(cheapestPintGbp)} />
-        <Stat label="Story posts" value={storyPosts} />
+        <Stat label="Story posts" value={formatStatCount(storyPosts)} />
         <Stat label="Badges" value={badges.length} />
       </div>
 

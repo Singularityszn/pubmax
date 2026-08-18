@@ -279,6 +279,18 @@
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
     },
     {
+      "id": "historic_pubs",
+      "label": "Historic pubs index (heritage cache × venue dataset JOIN)",
+      "class": "episodic",
+      "artifact": "public/data/historic_pubs.json",
+      "pack": true,
+      "stamp": { "kind": "literal", "value": "2026-07-18T00:00:00Z", "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes. `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh." },
+      "cadence": "episodic — node scripts/build_historic_index.mjs",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (node scripts/build_historic_index.mjs)",
+      "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
+    },
+    {
       "id": "area_news",
       "label": "Area news (fresh-facts layer)",
       "class": "snapshot",

@@ -152,7 +152,8 @@ function evaluateDataset(dataset, observedAt, now, unresolvedReason = null) {
   if (dataset.class === "live") {
     return { ...base, ageHours: null, status: "live", detail: "Served live per request." };
   }
-  if (dataset.stamp && observedAt === null) {
+  const packUnmeasurable = dataset.pack === true && unresolvedReason !== null;
+  if ((dataset.stamp || packUnmeasurable) && observedAt === null) {
     return {
       ...base,
       ageHours: null,
@@ -192,6 +193,23 @@ function readArtifact(rootDir, relPath) {
   }
 }
 
+// Mirror of lib/freshness.ts packArtifactReason: a declared row pack that is
+// absent, unreadable or empty is unmeasurable, never fresh.
+function packArtifactReason(read) {
+  if (read.kind === "absent") {
+    return "The registry declares a row pack but no artifact to read it from.";
+  }
+  if (read.kind === "missing") {
+    return `Artifact ${read.path} is not present at runtime, so its rows cannot be counted.`;
+  }
+  if (read.kind === "unreadable") {
+    return `Artifact ${read.path} could not be parsed: ${read.error}`;
+  }
+  if (!Array.isArray(read.json)) return `Artifact ${read.path} does not hold a row array.`;
+  if (read.json.length === 0) return `Artifact ${read.path} is empty (0 rows).`;
+  return null;
+}
+
 export function loadRegistry(rootDir = DEFAULT_ROOT) {
   const path = join(rootDir, "data", "freshness_registry.json");
   return JSON.parse(readFileSync(path, "utf8"));
@@ -215,10 +233,20 @@ export async function evaluateFreshness({ now = new Date(), rootDir = DEFAULT_RO
         return evaluateDataset(dataset, observedAt, now, reason);
       }
       // Mirror of lib/freshnessArtifact.ts resolveDatasetStamp: only a field stamp
-      // lives inside the artifact, so only a field stamp opens one.
+      // lives inside the artifact, so only a field stamp opens one — plus a
+      // declared row pack, whose rows are the finding whatever dates it.
+      const opensArtifact =
+        Boolean(dataset.artifact) && (spec?.kind === "field" || dataset.pack === true);
+      const artifactRead = opensArtifact
+        ? readArtifact(rootDir, dataset.artifact)
+        : { kind: "absent" };
+      if (dataset.pack === true) {
+        const packReason = packArtifactReason(artifactRead);
+        if (packReason) return evaluateDataset(dataset, null, now, packReason);
+      }
       const { observedAt, reason } = resolveStamp(
         spec,
-        spec?.kind === "field" ? readArtifact(rootDir, dataset.artifact) : { kind: "absent" },
+        spec?.kind === "field" ? artifactRead : { kind: "absent" },
       );
       return evaluateDataset(dataset, observedAt, now, reason);
     }),

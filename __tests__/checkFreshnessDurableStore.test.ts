@@ -6,6 +6,10 @@
 // pinning that a store this mirror cannot query without credentials reports
 // unmeasurable-without-credentials explicitly rather than guessing.
 
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { evaluateFreshness } from "@/scripts/check_freshness.mjs";
@@ -135,5 +139,104 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
     const { results } = await evaluateFreshness({ now: NOW, registry: storeRegistry() });
     expect(results[0].status).not.toBe("stale");
     expect(results[0].status).not.toBe("fresh");
+  });
+});
+
+// The same mirror has to draw the OTHER line the app draws: a declared row pack
+// is opened whatever dates it, and nothing else is. Drift here is how the CLI
+// and the deployed audit come to disagree about the same file.
+describe("evaluateFreshness — a declared row pack", () => {
+  const roots: string[] = [];
+
+  function packRegistry(extra: Record<string, unknown> = {}) {
+    return {
+      version: 1,
+      datasets: [
+        {
+          id: "historic_pubs",
+          label: "Historic pubs index",
+          class: "episodic",
+          artifact: "public/data/historic_pubs.json",
+          pack: true,
+          stamp: { kind: "literal", value: "2026-07-18T00:00:00Z" },
+          cadence: "episodic",
+          stalenessBudgetHours: 2160,
+          refreshWorkflow: "Test build",
+          gate: "none",
+          ...extra,
+        },
+      ],
+    };
+  }
+
+  function rootHolding(contents: string | null) {
+    const root = mkdtempSync(join(tmpdir(), "check-freshness-pack-"));
+    roots.push(root);
+    if (contents !== null) {
+      mkdirSync(join(root, "public/data"), { recursive: true });
+      writeFileSync(join(root, "public/data/historic_pubs.json"), contents, "utf8");
+    }
+    return root;
+  }
+
+  afterEach(() => {
+    while (roots.length > 0) {
+      rmSync(roots.pop() as string, { recursive: true, force: true });
+    }
+  });
+
+  it("reports an empty pack as unknown rather than answering its literal stamp", async () => {
+    const { results, breached } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding("[]"),
+      registry: packRegistry(),
+    });
+    expect(results[0].status).toBe("unknown");
+    expect(results[0].detail).toContain("empty (0 rows)");
+    expect(breached).toBe(true);
+  });
+
+  it("reports a pack that is not on disk as unknown, never fresh", async () => {
+    const { results } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding(null),
+      registry: packRegistry(),
+    });
+    expect(results[0].status).toBe("unknown");
+    expect(results[0].detail).toContain("not present at runtime");
+  });
+
+  it("answers the literal stamp once the pack holds rows", async () => {
+    const { results } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding(JSON.stringify([{ slug: "the-lamb" }])),
+      registry: packRegistry(),
+    });
+    expect(results[0].observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(results[0].status).toBe("fresh");
+  });
+
+  // Parity with lib/freshnessArtifact.ts resolveDatasetStamp: a pack naming no
+  // artifact is unmeasurable in BOTH readers. They used to disagree here, and
+  // the app was the one answering fresh.
+  it("reports a pack that declares no artifact as unknown, matching the app reader", async () => {
+    const { results, breached } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding(null),
+      registry: packRegistry({ artifact: null }),
+    });
+    expect(results[0].status).toBe("unknown");
+    expect(results[0].detail).toContain("no artifact to read it from");
+    expect(breached).toBe(true);
+  });
+
+  it("leaves a literal-stamped dataset that is NOT a pack unopened and fresh", async () => {
+    const { results } = await evaluateFreshness({
+      now: NOW,
+      rootDir: rootHolding("[]"),
+      registry: packRegistry({ pack: undefined }),
+    });
+    expect(results[0].observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(results[0].status).toBe("fresh");
   });
 });

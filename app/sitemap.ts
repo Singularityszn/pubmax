@@ -12,7 +12,7 @@ import {
   loadDrinkBrandAreaLandings,
 } from "@/lib/drinkBrandAreaLanding.server";
 
-// Wave S1.2 dynamic sitemap. Enumerates every token-free, crawlable surface so
+// Wave S1.2 sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
 // most of it from bots). Scope is provenance-first and honest:
 //
@@ -49,12 +49,19 @@ const SITE_URL = "https://pubmaxxing.com";
 // The grouped venue set comes from the shared per-instance index (the read path
 // every priced surface uses). The sitemap's own wrapper FAILS LOUD: a
 // read/parse/grouping failure - or an unexpectedly empty dataset - throws,
-// aborting sitemap generation. This is intentional (CodeRabbit S1 review): a
-// silently shrunken sitemap is a deindexing hazard. If we published a 200 that
-// dropped every borough/venue/historic URL, Google would treat those pages as
-// removed. A thrown error instead surfaces as a 500 for /sitemap.xml, and
-// crawlers keep the last-known-good sitemap rather than acting on a truncated
-// one.
+// aborting sitemap generation. This is intentional (CodeRabbit S1 review): that
+// dataset derives the ledger, borough, venue and drink families, so publishing
+// a 200 without it would be a near-empty sitemap over the whole core graph.
+//
+// WHERE THAT THROW LANDS is the thing to hold on to: this module declares no
+// `dynamic` and no `revalidate` and reads no request, so Next PRERENDERS
+// /sitemap.xml at build and the CDN serves that one artifact. Every pack below
+// is therefore read ONCE, at build, out of the repository's own public/data -
+// there is no lambda, no per-request read, and nothing for
+// outputFileTracingIncludes to pin (Next skips include globs for a statically
+// prerendered route). So a bad pack fails `next build` loudly rather than
+// serving a 500, and the ops alarm for a stale or empty pack is the freshness
+// audit over the registry, never sitemap generation.
 
 // mtime of a public/data file as a Date, or `fallback` when it can't be read.
 async function dataFileModified(name: string, fallback: Date): Promise<Date> {
@@ -93,13 +100,15 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     ? new Date(pintIndexSnapshot.generatedAt)
     : new Date("2026-07-16T00:00:00.000Z");
 
-  // loadHistoricPubs() swallows read errors to [] (shared lib contract). The
-  // historic index is always non-empty in practice (346 cited pubs), so an
-  // empty result here means the data source failed — fail loud rather than
-  // publish a sitemap missing every /historic/{slug} page.
+  // loadHistoricPubs() swallows read errors to [] (shared lib contract), and the
+  // historic index is never empty in practice (346 cited pubs), so an empty read
+  // here means the pack is missing or unreadable. Refuse the build: this file is
+  // baked once and then served from the CDN until the next deploy, so a
+  // generation that quietly dropped every /historic/{slug} URL would stand as
+  // the published sitemap and read to a crawler as those pages being removed.
   if (historicPubs.length === 0) {
     throw new Error(
-      "sitemap: historic pub dataset is empty — refusing to publish a truncated sitemap",
+      "sitemap: historic pub dataset is empty, refusing to build a truncated sitemap",
     );
   }
 

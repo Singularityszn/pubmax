@@ -102,6 +102,29 @@ describe("buildPassport — aggregation", () => {
     expect(junk.storyPosts).toBe(0);
   });
 
+  // An OMITTED count claimed nothing and reads as a clean zero. An EXPLICIT
+  // null is a read that could not run, and flattening it to zero would state a
+  // figure about somebody's own record that nobody measured.
+  it("keeps an unmeasured count apart from a zero", () => {
+    const unknown = buildPassport([drop()], { crawls: null, storyPosts: null });
+    expect(unknown.crawls).toBeNull();
+    expect(unknown.storyPosts).toBeNull();
+
+    const omitted = buildPassport([drop()]);
+    expect(omitted.crawls).toBe(0);
+    expect(omitted.storyPosts).toBe(0);
+  });
+
+  // Badges are EARNED. An unmeasured count contributes nothing towards one,
+  // rather than a guess that hands out a crawl badge because a read failed.
+  it("awards no badge on the strength of an unmeasured count", () => {
+    const unknown = buildPassport([drop()], { crawls: null });
+    const zeroed = buildPassport([drop()], { crawls: 0 });
+    expect(unknown.badges.map((badge) => badge.id)).toEqual(
+      zeroed.badges.map((badge) => badge.id),
+    );
+  });
+
   it("returns only EARNED badges, and awards First Pint + Cheap Legend appropriately", () => {
     const p = buildPassport([drop({ priceGbp: 3.5 })]);
     const ids = p.badges.map((b) => b.id);

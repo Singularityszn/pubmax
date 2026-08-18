@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeAll, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+import { execFileSync } from "node:child_process";
 import { promises as fs } from "fs";
-import path from "path";
+import path, { join } from "path";
 
+import registry from "@/data/freshness_registry.json";
 import sitemap from "@/app/sitemap";
 import { listEnabledCities } from "@/lib/cities";
 import { listBoroughs } from "@/lib/boroughs";
@@ -194,5 +196,72 @@ describe("sitemap()", () => {
     for (const entry of entries) {
       expect(entry.lastModified).toBeDefined();
     }
+  });
+});
+
+// THE SITEMAP IS BUILT ONCE, NOT SERVED PER REQUEST.
+//
+// This module declares no route-segment config and reads nothing off a request,
+// so Next prerenders /sitemap.xml and the CDN hands out that one artifact until
+// the next deploy (`next build` marks it Static, and collect-build-traces then
+// skips every outputFileTracingIncludes glob for such a route). Two things
+// follow, and both are pinned here: an empty pack has to fail the BUILD, and no
+// include may be declared for a route that can never receive one.
+describe("sitemap() is generated at build, not per request", () => {
+  it("declares no route-segment config that would make it dynamic", async () => {
+    const route = (await import("@/app/sitemap")) as Record<string, unknown>;
+
+    for (const key of ["dynamic", "revalidate", "fetchCache", "dynamicParams", "runtime"]) {
+      expect(route[key]).toBeUndefined();
+    }
+  });
+
+  // The base contract, restored: loadHistoricPubs() swallows a read error to [],
+  // and a generation that silently dropped all 346 /historic/{slug} URLs would
+  // be BAKED IN and served to crawlers as those pages having been removed. It
+  // must take the build down instead.
+  it("refuses to build a sitemap that lost the whole historic family", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/historic", () => ({ loadHistoricPubs: async () => [] }));
+
+    const withoutHistoric = (await import("@/app/sitemap")).default;
+    await expect(withoutHistoric()).rejects.toThrow(/historic pub dataset is empty/);
+
+    vi.doUnmock("@/lib/historic");
+    vi.resetModules();
+  });
+
+  // A pin nobody applies is worse than no pin: it reads as a guarantee the
+  // deployed function carries the pack, when the route has no function at all.
+  // (The key itself may exist - runtimeDataPackIncludes derives one for every
+  // reader of a declared pack, sitemap included, and Next drops it for this
+  // route the same way. What may not happen is a HAND-WRITTEN pin standing in
+  // for the historic pack's ops alarm.) Evaluating the real config the way Next
+  // does also proves it still loads.
+  it("pins no historic pack onto a route that can never receive one", () => {
+    const root = join(__dirname, "..");
+    const out = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        "const m = await import(process.argv[1]);" +
+          "console.log(JSON.stringify(m.default.outputFileTracingIncludes ?? null));",
+        join(root, "next.config.mjs"),
+      ],
+      { cwd: root, encoding: "utf8" },
+    );
+    const includes = JSON.parse(out) as Record<string, string[]>;
+
+    expect(includes["/sitemap.xml"] ?? []).not.toContain(
+      "./public/data/historic_pubs.json",
+    );
+    // The pack still has an ops alarm, and it is the freshness audit over the
+    // registry rather than anything in sitemap generation.
+    const registered = (
+      registry.datasets as Array<{ id: string; artifact: string | null; pack?: boolean }>
+    ).find((d) => d.id === "historic_pubs");
+    expect(registered?.pack).toBe(true);
+    expect(registered?.artifact).toBe("public/data/historic_pubs.json");
   });
 });

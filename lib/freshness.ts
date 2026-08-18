@@ -34,6 +34,16 @@ export interface FreshnessDataset {
   readonly stalenessBudgetHours: number | null;
   readonly refreshWorkflow: string;
   readonly gate: string;
+  /**
+   * Opt-in: the artifact is a ROW PACK whose presence and non-emptiness is
+   * itself a finding, whatever kind of stamp dates it. A pack is opened at
+   * runtime even when its stamp does not live inside it, so both freshness
+   * functions have to SHIP it — lib/freshnessTracing.mjs traces a pack exactly
+   * the way it traces a field stamp, or the finding is unreachable in
+   * production. Everything else stays closed: parsing multi-megabyte JSON to
+   * discard it would cost every request for nothing.
+   */
+  readonly pack?: boolean;
 }
 
 export interface FreshnessRegistry {
@@ -119,6 +129,41 @@ export type StoreRead =
  */
 export function stampNeedsArtifact(spec: FreshnessStampSpec): boolean {
   return spec !== null && spec.kind === "field";
+}
+
+/**
+ * Whether a reader opens this dataset's artifact at all. A field stamp lives
+ * inside the artifact, and a declared PACK is judged by its rows, so those two
+ * are opened and nothing else is. lib/freshnessTracing.mjs draws the same line,
+ * so a function ships exactly the artifacts its readers will open.
+ */
+export function datasetOpensArtifact(
+  dataset: Pick<FreshnessDataset, "stamp" | "artifact" | "pack">,
+): boolean {
+  if (!dataset.artifact) return false;
+  return stampNeedsArtifact(dataset.stamp) || dataset.pack === true;
+}
+
+/**
+ * What is wrong with a declared row pack, or null when it holds rows. A pack
+ * that is absent, unreadable or empty is unmeasurable rather than fresh: a
+ * literal stamp would otherwise answer "fresh" for a file that is not there.
+ */
+export function packArtifactReason(read: ArtifactRead): string | null {
+  switch (read.kind) {
+    case "absent":
+      return "The registry declares a row pack but no artifact to read it from.";
+    case "missing":
+      return `Artifact ${read.path} is not present at runtime, so its rows cannot be counted.`;
+    case "unreadable":
+      return `Artifact ${read.path} could not be parsed: ${read.error}`;
+    case "ok":
+      if (!Array.isArray(read.json)) {
+        return `Artifact ${read.path} does not hold a row array.`;
+      }
+      if (read.json.length === 0) return `Artifact ${read.path} is empty (0 rows).`;
+      return null;
+  }
 }
 
 /**
@@ -265,7 +310,8 @@ export function evaluateDataset(
   // problem (missing/broken artifact) — surface it, never silently pass. This
   // is NOT the same finding as "stale": the data may be perfectly current and
   // the audit simply unable to see it, so callers must report the two apart.
-  if (dataset.stamp !== null && observedAt === null) {
+  const packUnmeasurable = dataset.pack === true && unresolvedReason !== null;
+  if ((dataset.stamp !== null || packUnmeasurable) && observedAt === null) {
     return {
       ...base,
       ageHours: null,

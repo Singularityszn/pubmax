@@ -160,6 +160,21 @@ layers.
   request validation so Google recrawls, sees the 308, and drops the www URL in
   favour of the apex.
 - Submit the sitemap on the apex property: `https://pubmaxxing.com/sitemap.xml`.
+- `/sitemap.xml` is PRERENDERED at build. `app/sitemap.ts` declares no `dynamic`
+  and no `revalidate` and reads no request, so `next build` marks the route
+  Static, bakes one file out of the repository's own `public/data`, and the CDN
+  serves it until the next deploy. There is no per-request generation, so no
+  runtime read can fail and no data pack is pinned into a function for it (Next
+  skips `outputFileTracingIncludes` for a statically prerendered route).
+- A bad data pack therefore FAILS THE BUILD rather than serving a 500. Two
+  refusals, both in `app/sitemap.ts`: the grouped price dataset
+  (`loadPintPriceLandingVenuesOrThrow`) empty, unreadable or unparseable, and an
+  empty historic pack. Read the build log, fix the pack, redeploy. The last
+  deployed sitemap stays up meanwhile, which is the point.
+- Pack staleness is a separate alarm and does not run here: the freshness audit
+  ages `historic_pubs` off `data/freshness_registry.json` and reports through
+  `[freshness-audit]`. A pack that is present but old keeps building a full
+  sitemap; that alert is what says it needs rebuilding.
 - Favicon refresh: the classic `/favicon.ico` fallback now exists (app/layout.tsx
   icons), so once Google recrawls the apex the old mug favicon is replaced. No
   extra action beyond requesting indexing.

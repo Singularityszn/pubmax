@@ -47,14 +47,16 @@ export type PassportData = {
   boroughs: string[];
   /** Distinct named drinks ("beers"), case-insensitive. */
   beers: number;
-  /** Crawls this handle has posted (passed in — no crawl-authorship on drops). */
-  crawls: number;
+  /** Crawls this handle has posted (passed in — no crawl-authorship on drops).
+   *  TRI-STATE: null is a count the read could not answer, never "none". */
+  crawls: number | null;
   /** Total pints logged (drop count). */
   pints: number;
   /** Cheapest priced pint in GBP, or null when no priced drop exists. */
   cheapestPintGbp: number | null;
-  /** Story posts authored (passed in from the crawl-story count). */
-  storyPosts: number;
+  /** Story posts authored (passed in from the crawl-story count). TRI-STATE
+   *  the same way `crawls` is. */
+  storyPosts: number | null;
   /** EARNED badges only — the passport shows what you've done. */
   badges: Badge[];
   /** Active opted-in seasonal quest progress, hidden when legacy mode is on. */
@@ -64,8 +66,11 @@ export type PassportData = {
 };
 
 // Optional counts the profile page resolves from other stores (follows / crawl
-// stories). Defaulted + coerced so a caller can omit them and the passport still
-// renders a clean zero rather than NaN/undefined.
+// stories). An OMITTED count is a clean zero: the caller claimed nothing, and
+// the passport still renders rather than showing NaN/undefined. An EXPLICIT
+// null is the other answer entirely - a read that could not run - and it is
+// carried through to the face rather than flattened, because a zero there is a
+// claim about somebody's own record that nobody measured.
 export type PassportCounts = {
   crawls?: number | null;
   storyPosts?: number | null;
@@ -76,6 +81,10 @@ function nonNegInt(value: number | null | undefined): number {
   return typeof value === "number" && Number.isFinite(value) && value > 0
     ? Math.floor(value)
     : 0;
+}
+
+function countOrUnknown(value: number | null | undefined): number | null {
+  return value === null ? null : nonNegInt(value);
 }
 
 // Distinct pubs = distinct non-empty venueIds across the handle's drops. A drop
@@ -133,8 +142,10 @@ export function buildPassport(
   counts: PassportCounts = {},
 ): PassportData {
   const list = Array.isArray(drops) ? drops : [];
-  const crawls = nonNegInt(counts.crawls);
-  const stats = profileStats(list, crawls);
+  const crawls = countOrUnknown(counts.crawls);
+  // Badges are EARNED, so an unmeasured count contributes nothing towards one
+  // rather than a guess: a crawl badge must not appear because a read failed.
+  const stats = profileStats(list, crawls ?? 0);
   const earnedBadges = computeBadges(list, stats).filter((b) => b.earned);
   const badgeEvents = counts.badgeEvents
     ? computeBadgeEventProgress(list, counts.badgeEvents)
@@ -142,7 +153,7 @@ export function buildPassport(
   const earnedEventBadges = badgeEvents
     .filter((progress) => progress.earned)
     .map((progress) => progress.badge);
-  const storyPosts = nonNegInt(counts.storyPosts);
+  const storyPosts = countOrUnknown(counts.storyPosts);
 
   return {
     pubs: distinctPubs(list),
@@ -156,7 +167,9 @@ export function buildPassport(
     badgeEvents,
     // "Empty" is the honest first-run signal: nothing logged, no crawls, no
     // stories. Follower/following counts don't count as activity here — a
-    // passport is about what YOU did, so a fresh handle reads as empty.
+    // passport is about what YOU did, so a fresh handle reads as empty. An
+    // UNMEASURED count is not a zero, so it holds the blank-passport copy back
+    // rather than telling an author with twelve crawls to start collecting.
     isEmpty: list.length === 0 && crawls === 0 && storyPosts === 0,
   };
 }

@@ -173,6 +173,9 @@ const nextConfig = {
     ),
     // The dynamic feed opens its overlay + venue packs per request (see above).
     "/feed": feedDataFiles,
+    // No "/sitemap.xml" key: that route is PRERENDERED at build, and Next skips
+    // every include glob for a statically prerendered route (its packs are read
+    // from the repository at build time, so there is nothing to ship).
   },
   turbopack: {
     root: projectRoot,

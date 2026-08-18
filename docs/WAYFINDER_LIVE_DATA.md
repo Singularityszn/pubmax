@@ -140,6 +140,15 @@ observed instant — `field` pointer or `literal`), `cadence`, `stalenessBudgetH
 `refreshWorkflow`, and `gate`. It is the single source of truth the table above
 is derived from.
 
+One optional field: `pack: true` says the artifact is a **row pack** whose
+presence and non-emptiness is itself a finding, whatever kind of stamp dates it.
+A pack that is missing, unparseable or empty resolves to `unknown` rather than
+answering its literal stamp, in both readers. It is also the one thing besides a
+`field` stamp that opens the artifact at runtime, so `lib/freshnessTracing.mjs`
+ships a pack into the freshness functions exactly the way it ships a field stamp
+(see the runtime-tracing rule in `AGENTS.md`); an untraced pack would read as
+fresh for ever.
+
 ### `scripts/check_freshness.mjs`
 Reads the registry, resolves each artifact's real observed/generated stamp, and
 compares age against budget. Prints a status table and **exits non-zero on any

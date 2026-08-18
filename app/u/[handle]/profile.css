@@ -972,6 +972,41 @@
   font-variant-numeric: tabular-nums;
 }
 
+.profilePage .profileCrawlUnlisted {
+  margin-top: 12px;
+}
+
+.profilePage .profileCrawlUnlisted > summary {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.profilePage .profileCrawlUnlisted > summary:hover {
+  color: var(--brass);
+}
+
+.profilePage .profileCrawlMore {
+  margin-top: 8px;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brass);
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.profilePage .profileCrawlMore:hover {
+  border-color: var(--brass);
+}
+
 .profilePage .listDetailItems {
   max-width: 760px;
 }
