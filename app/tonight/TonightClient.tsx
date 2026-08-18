@@ -215,6 +215,9 @@ export default function TonightClient({
   // drop the night's last row while the status still calls the page ready, and
   // a ready page over no rows shows neither cards nor the quiet-night sentence.
   const { listingRows, listingsStatus } = useMemo(() => {
+    // The past guard needs the real clock, and this memo reads it again only
+    // when one of the two reads answers, so both halves keep the same instant.
+    // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
     return {
       listingRows: mergeTonightListingRows(rows, outBody?.events ?? [], now),

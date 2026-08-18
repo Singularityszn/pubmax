@@ -36,7 +36,7 @@ export function useOutListings(window: OutDayWindow) {
   const retry = useCallback(() => {
     setAnswer(null);
     setGeneration((n) => n + 1);
-  }, []);
+  }, [setAnswer, setGeneration]);
 
   useEffect(() => {
     let cancelled = false;

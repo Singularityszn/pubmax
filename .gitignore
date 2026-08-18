@@ -1,6 +1,9 @@
 .next/
 .next-*/
 node_modules/
+# `out/` is the static-export build directory. It also matches every source
+# directory named `out`, so each one has to be un-ignored by hand or its files
+# never reach a commit.
 out/
 !app/out/
 !app/out/**

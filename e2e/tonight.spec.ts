@@ -339,7 +339,9 @@ test("shows a ready Out event card even when What's-On is empty", async ({ page 
 
   await page.goto("/tonight");
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-  await expect(page.getByText("A Night at the Playhouse")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "A Night at the Playhouse" }),
+  ).toBeVisible();
   await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "ready");
   // The Out lane is credited on its own line, by its own source and its own
   // observation. Dating it to the What's-On stamp would be a claim about when
@@ -382,7 +384,9 @@ test("a degraded Out lane still names itself beside the cards it did return", as
   );
 
   await page.goto("/tonight");
-  await expect(page.getByText("A Night at the Playhouse")).toBeVisible({ timeout: 10_000 });
+  await expect(
+    page.getByRole("heading", { name: "A Night at the Playhouse" }),
+  ).toBeVisible({ timeout: 10_000 });
   // Cards show, so the error block never renders. Without this note the short
   // list reads as a quiet city rather than a lane we could not check.
   await expect(page.locator('[data-tonight-listings-note="partial"]')).toHaveText(

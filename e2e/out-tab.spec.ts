@@ -16,9 +16,11 @@ function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
 }
 
-// Three ordinary links behind a disclosure, so they are found as links.
+// Three ordinary links behind a disclosure, so they are found as links. Scoped
+// to the sheet itself: /out prints its own "Start a plan" way out under Open
+// plans, and a page-wide role query matches both.
 function createRow(page: Page, name: string) {
-  return page.getByRole("link", { name, exact: true });
+  return page.locator(".createFabMenu").getByRole("link", { name, exact: true });
 }
 
 async function openCreateMenu(page: Page) {
