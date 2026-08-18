@@ -51,6 +51,11 @@ Mechanics: chips map onto the EXISTING `CONCIERGE_MOODS` model (`lib/concierge/r
 - Usage constraint (verbatim from panel, binding): **2-4 words max, 20px+ only, letter-spaced caps; chips, vibe stamps, share headlines — never body, never navigation, never data.** ≤3 component families total.
 - Share cards may use the Bungee Shade layered variant: brass shade under coral face on ink dark; ink on candle paper light.
 - Rejected: Unbounded (crypto register), Archivo Black (redundant vs Space Grotesk 700), Shrikhand (wrong city).
+- **Amended 2026-08-18: the seven vibe chips left this face.** Bungee draws
+  cap-height glyphs only, so a sentence-case chip label still reached the reader
+  as ALL CAPS. The chips now set `var(--font-display)` in sentence case;
+  `components/vibe/vibeChips.css` owns that skin and the reason. Share stamps and
+  share headlines keep Bungee.
 
 ## Verification bar
 

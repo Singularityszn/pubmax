@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 
 export default function PalPage() {
   // Scope the party accent to this route (display:contents adds no layout box;
-  // --font-party still inherits to the Pal surfaces that consume it).
+  // --font-party inherits to the Pal surfaces). Nothing under /pal reads the
+  // token today: the quick-ask vibe chips left the face (app/fonts/partyFace.ts).
   return (
     <div className={partyFace.variable} style={{ display: "contents" }}>
       <PalExperience />

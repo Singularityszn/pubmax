@@ -107,10 +107,10 @@ const dataMono = JetBrains_Mono({
 });
 
 // Party accent (Bungee) is no longer loaded globally: it moved to the
-// route-scoped app/fonts/partyFace.ts, imported only by /tonight and /pal (the
-// two surfaces that consume var(--font-party)). Every other route no longer
-// ships the display font. Consumers fall back via var(--font-party,
-// var(--font-display)) where the variable is unset. Containment is still
+// route-scoped app/fonts/partyFace.ts, imported only by /tonight and /pal.
+// Every other route no longer ships the display font. Consumers fall back via
+// var(--font-party, var(--font-display)) where the variable is unset. No CSS
+// consumes the token today (see app/fonts/partyFace.ts). Containment is still
 // enforced by __tests__/fontPartyContainment.test.ts.
 
 export const metadata: Metadata = {
