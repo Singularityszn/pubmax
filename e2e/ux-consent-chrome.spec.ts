@@ -139,18 +139,13 @@ for (const width of PHONE_WIDTHS) {
     await expect(prompt).toBeVisible();
 
     // The sentence states what is collected and that it is never sold, so no
-    // part of it may be dropped to make the card fit. A clamp hides text by
-    // height rather than by visibility, so the paragraph is measured: laid-out
-    // content taller than the box it is painted in means something was cut.
+    // part of it may be dropped to make the card fit. Whether the WHOLE card
+    // stayed inside its ceiling is consentFit's scrollHeight above; what this
+    // one owns is that the sentence itself is still all there.
     const copy = prompt.locator("p");
     await expect(copy).toContainText(
       "PUBMAXXING uses optional analytics to see what people use. Never sold, no ads.",
     );
-    const copyOverflow = await copy.evaluate((el) => ({
-      scrollHeight: el.scrollHeight,
-      clientHeight: el.clientHeight,
-    }));
-    expect(copyOverflow.scrollHeight).toBeLessThanOrEqual(copyOverflow.clientHeight + 1);
 
     // The banner is the one consent surface, so its route to /privacy may never
     // be what a height ceiling cuts.

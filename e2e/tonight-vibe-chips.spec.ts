@@ -30,6 +30,11 @@ for (const [label, width] of [
     const transform = await vibe.evaluate((el) => getComputedStyle(el).textTransform);
     expect(transform).toBe("none");
 
+    // The chips sit well below one phone viewport on /tonight, and toBeVisible
+    // only asserts a non-empty box, so a viewport shot taken where the page
+    // landed would be evidence of everything except the chips.
+    await vibe.scrollIntoViewIfNeeded();
+    await expect(vibe).toBeInViewport();
     await page.screenshot({
       path: `${SHOTS_DIR}/tonight-vibe-${label}.png`,
       fullPage: false,

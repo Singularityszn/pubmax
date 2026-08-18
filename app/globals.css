@@ -4507,7 +4507,6 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     width: auto;
     max-height: 120px;
     padding: 10px;
-    box-sizing: border-box;
   }
 
   body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
