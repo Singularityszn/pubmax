@@ -10,6 +10,7 @@ const state = {
   prices: { prices: [] as CommunityPrice[], degraded: false },
   whatsOn: { rows: [] as WhatsOnRow[], kindObservedAt: {} },
   whatsOnThrows: false,
+  whatsOnReadStatus: "ready" as "ready" | "degraded",
   desk: { venues: [], status: "ready" } as DeskVenueRead,
 };
 
@@ -32,6 +33,7 @@ vi.mock("@/lib/whatsOnStore", () => ({
     const now = deps.now ?? Date.now();
     return {
       ...state.whatsOn,
+      readStatus: state.whatsOnReadStatus,
       rows: state.whatsOn.rows.filter((row) => {
         if (!row.startsAt && row.startsDate) {
           return row.startsDate === new Date(now).toISOString().slice(0, 10);
@@ -97,6 +99,7 @@ beforeEach(() => {
   state.prices = { prices: [], degraded: false };
   state.whatsOn = { rows: [], kindObservedAt: {} };
   state.whatsOnThrows = false;
+  state.whatsOnReadStatus = "ready";
   state.desk = { venues: [], status: "ready" };
 });
 
@@ -357,6 +360,16 @@ describe("tonight_now", () => {
     const result = await runAskTool("tonight_now", { area: "Soho" }, ctx());
     expect(result.degraded).toBe(true);
     expect(result.answerHint).toContain("couldn't read tonight's listings");
+  });
+
+  it("degrades on a read that answered degraded, not only on one that threw", async () => {
+    // The bundled read stopped throwing and started reporting itself. Zero rows
+    // from a read that did not run must not answer "Nothing sourced tonight".
+    state.whatsOnReadStatus = "degraded";
+    const result = await runAskTool("tonight_now", { area: "Soho" }, ctx());
+    expect(result.degraded).toBe(true);
+    expect(result.answerHint).toContain("couldn't read tonight's listings");
+    expect(result.answerHint).not.toContain("Nothing sourced");
   });
 });
 

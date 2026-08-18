@@ -26,6 +26,9 @@ export const PLANNING_INTENT_EVIDENCE_KINDS = [
   "price",
   "whats-on",
   "directory",
+  // A listing the Out lane carried (Ticketmaster, Skiddle, Common). It is dated
+  // by that read, so it may not be recorded as a what's-on observation.
+  "out-listing",
 ] as const;
 
 export type PlanningIntentSource = (typeof PLANNING_INTENT_SOURCES)[number];

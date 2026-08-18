@@ -115,6 +115,11 @@ export function parseOutDayWindow(value: string | null | undefined): OutDayWindo
   return isOutDayWindow(value) ? value : "tonight";
 }
 
+/** The Out API names tonight as `today`. */
+export function outWindowToApiDay(window: OutDayWindow): "today" | "tomorrow" | "weekend" {
+  return window === "tonight" ? "today" : window;
+}
+
 function londonYmd(ms: number): string {
   return new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",

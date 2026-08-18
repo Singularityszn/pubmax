@@ -8,6 +8,7 @@ import {
   filterOutListings,
   outCardObservedAt,
   outListingsEmptyLine,
+  outWindowToApiDay,
   parseOutDayWindow,
   selectOutListings,
 } from "@/lib/outListings";
@@ -28,6 +29,12 @@ describe("out listings", () => {
     expect(parseOutDayWindow(null)).toBe("tonight");
     expect(parseOutDayWindow("weekend")).toBe("weekend");
     expect(parseOutDayWindow("handle-like")).toBe("tonight");
+  });
+
+  it("names tonight as today on the Out API", () => {
+    expect(outWindowToApiDay("tonight")).toBe("today");
+    expect(outWindowToApiDay("tomorrow")).toBe("tomorrow");
+    expect(outWindowToApiDay("weekend")).toBe("weekend");
   });
 
   it("keeps music, quiz and sport and drops deals", () => {

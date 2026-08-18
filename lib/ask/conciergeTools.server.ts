@@ -266,11 +266,25 @@ export async function toolTonightNow(
 ): Promise<AskToolResult> {
   const area = str(args.area) || null;
   const now = ctx.now ?? Date.now();
+  const unavailable = (): AskToolResult => ({
+    ok: false,
+    tool: "tonight_now",
+    data: null,
+    provenance: [],
+    cards: [],
+    proposals: [],
+    answerHint: tonightNowLine({ area, onNow: 0, later: 0, read: "unavailable" }),
+    degraded: true,
+  });
   try {
-    const { rows, kindObservedAt } = await loadWhatsOn(
+    const { rows, kindObservedAt, readStatus } = await loadWhatsOn(
       { window: "tonight" },
       { now },
     );
+    // A bundled read that could not run is not a city with nothing on. Saying
+    // "Nothing sourced for tonight" here would be the exact claim the honesty
+    // law forbids, so it takes the same way out a thrown read takes.
+    if (readStatus === "degraded") return unavailable();
     const scoped = area ? filterRowsByArea(rows, area) : rows;
     const split = splitTonightRowsByNow(scoped, now);
     const cards: AskCard[] = [...split.onNow, ...split.later, ...split.dateOnly]
@@ -322,16 +336,7 @@ export async function toolTonightNow(
       answerHint: `${line} ${CROWD_READING_NOT_LIVE}`,
     };
   } catch {
-    return {
-      ok: false,
-      tool: "tonight_now",
-      data: null,
-      provenance: [],
-      cards: [],
-      proposals: [],
-      answerHint: tonightNowLine({ area, onNow: 0, later: 0, read: "unavailable" }),
-      degraded: true,
-    };
+    return unavailable();
   }
 }
 

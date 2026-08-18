@@ -183,14 +183,27 @@ async function toolWhatsOn(
       answerHint: "That doesn't look like a What's On ask.",
     };
   }
+  const unavailable = (): AskToolResult => ({
+    ok: false,
+    tool: "whats_on",
+    data: null,
+    provenance: [],
+    cards: [],
+    proposals: [],
+    answerHint: "I couldn't load sourced listings just now.",
+    degraded: true,
+  });
   try {
-    const { rows, asOf } = await loadWhatsOn(
+    const { rows, asOf, readStatus } = await loadWhatsOn(
       {
         ...(detected.kind ? { kind: detected.kind } : {}),
         ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
       },
       {},
     );
+    // A bundled read that could not run answers nothing. Refusing honestly is
+    // the whole contract here; "no matches" would be an invented empty market.
+    if (readStatus === "degraded") return unavailable();
     let matched = detected.area ? filterRowsByArea(rows, detected.area) : rows;
     if (detected.window === "weekday" && detected.weekday !== undefined) {
       matched = filterRowsByWeekday(matched, detected.weekday);
@@ -230,16 +243,7 @@ async function toolWhatsOn(
       answerHint: answer.message,
     };
   } catch {
-    return {
-      ok: false,
-      tool: "whats_on",
-      data: null,
-      provenance: [],
-      cards: [],
-      proposals: [],
-      answerHint: "I couldn't load sourced listings just now.",
-      degraded: true,
-    };
+    return unavailable();
   }
 }
 

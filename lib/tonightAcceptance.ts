@@ -56,7 +56,12 @@ export type TonightAcceptanceInput = {
   observedAt: string | null;
   /** City to record when the venue id does not resolve to one on its own. */
   fallbackCityId: CityId;
+  /** Which read put this row on the list. Defaults to the what's-on spine. */
+  evidenceKind?: TonightEvidenceKind;
 };
+
+/** The two reads Tonight's list is built from, as the intent records them. */
+export type TonightEvidenceKind = "whats-on" | "out-listing";
 
 export type TonightAcceptanceError = {
   venueId: string;
@@ -101,7 +106,10 @@ export function acceptTonightVenue(
     acceptedVenueId: input.venueId,
     acceptedArea: canonicalArea(input.area),
     startsAt: input.startsAt,
-    displayEvidence: { kind: "whats-on", observedAt: input.observedAt },
+    displayEvidence: {
+      kind: input.evidenceKind ?? "whats-on",
+      observedAt: input.observedAt,
+    },
   };
 
   const intent = writePlanningIntent(intentInput, options);

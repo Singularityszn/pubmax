@@ -8,6 +8,7 @@ vi.mock("@/lib/whatsOnStore", () => ({
     rows: [{ id: "a" }, { id: "b" }],
     asOf: "2026-07-21T14:00:00.000Z",
     revalidation: { status: "measured" },
+    readStatus: "ready",
   })),
 }));
 
@@ -122,6 +123,7 @@ describe("GET /api/cron/refresh-whats-on", () => {
       localityBasis: "london-default",
       asOf: null,
       revalidation: { status: "measured" },
+      readStatus: "degraded",
     });
     const res = await GET(req("Bearer test-secret"));
 
@@ -154,6 +156,7 @@ describe("GET /api/cron/refresh-whats-on", () => {
       kindObservedAt: {},
       localityBasis: "london-default",
       asOf: "2026-07-21T14:30:00.000Z",
+      readStatus: "degraded",
       revalidation: {
         status: "unmeasured",
         reason: "live-provider-failed",

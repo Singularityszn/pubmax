@@ -147,6 +147,53 @@ describe("mergeWhatsOn precedence", () => {
 });
 
 describe("loadWhatsOn orchestration", () => {
+  it("names a baseline throw as a degraded read, never as an empty night", async () => {
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: NOW,
+        loadBaseline: () => {
+          throw new Error("pack missing");
+        },
+        fetchLive: async () => [],
+      },
+    );
+    expect(result.readStatus).toBe("degraded");
+    expect(result.rows).toEqual([]);
+    // The freshness cron stamps a feed on a MEASURED revalidation. A read that
+    // could not run must not stamp an observation of zero rows.
+    expect(result.revalidation).toEqual({
+      status: "unmeasured",
+      reason: "baseline-read-failed",
+    });
+  });
+
+  it("reports the baseline failure even when the live layer answered", async () => {
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: NOW,
+        loadBaseline: () => {
+          throw new Error("pack missing");
+        },
+        fetchLive: async () => ({ rows: [], sourceObservedAt: null, stale: false }),
+      },
+    );
+    expect(result.revalidation).toEqual({
+      status: "unmeasured",
+      reason: "baseline-read-failed",
+    });
+  });
+
+  it("keeps ready when the bundled read answered empty", async () => {
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      { now: NOW, loadBaseline: () => [], fetchLive: async () => [] },
+    );
+    expect(result.readStatus).toBe("ready");
+    expect(result.rows).toEqual([]);
+  });
+
   it("merges live rows and applies kind + tonight + near + limit filters", async () => {
     const baseline = [
       makeRow({ id: "quiz-in", kind: "quiz", startsAt: "2026-07-11T19:30:00+01:00" }),
@@ -619,17 +666,18 @@ describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
     expect(body.rows[0].id).toBe("music1");
   });
 
-  it("returns { rows: [], error } (never 500) when the store throws outright", async () => {
+  it("returns { rows: [], error } (never 500) when the bundled read cannot answer", async () => {
     const res = await handleWhatsOnRequest(req(), {
       now: NOW,
       loadBaseline: () => {
         throw new Error("baseline corrupt");
       },
+      fetchLive: async () => [],
     });
     expect(res.status).toBe(200);
     const body = await res.json();
     expect(body.rows).toEqual([]);
-    expect(body.error).toBe("baseline corrupt");
+    expect(body.error).toBe("Could not check listings.");
   });
 
   it("429s past its own ~60/min-per-IP budget, separate from the CityMCP surface", async () => {

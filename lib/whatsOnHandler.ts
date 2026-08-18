@@ -89,6 +89,11 @@ export async function handleWhatsOnRequest(
       localityBasis: result.localityBasis,
       asOf: result.sourceObservedAt,
     };
+    // A bundled read that could not answer is not a quiet night. The client
+    // already treats a named `error` as status "error", distinct from empty.
+    if (result.readStatus === "degraded") {
+      return jsonNoStore({ ...response, error: "Could not check listings." });
+    }
     return jsonNoStore(response);
   } catch (err) {
     const message = err instanceof Error ? err.message : "What's-On request failed";

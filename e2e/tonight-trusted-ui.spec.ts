@@ -207,8 +207,8 @@ test.describe("Tonight trusted UI (flag off / shipped)", () => {
     // An undatable source leaves the interpunct chain and states the fact in
     // its own sentence, so the header stops reading like debug output. Anchored
     // on the line's own data attribute, not on that sentence.
-    await expect(page.locator('[data-tonight-provenance="coverage"]')).toHaveAttribute("data-tonight-dated", "no");
-    await expect(page.locator('[data-tonight-provenance="undated"]')).toBeVisible();
+    await expect(page.locator('[data-tonight-provenance="whats-on"]')).toHaveAttribute("data-tonight-dated", "no");
+    await expect(page.locator('[data-tonight-provenance="undated-whats-on"]')).toBeVisible();
     await expect(page.getByText(/Checked 24 Jul/i)).toHaveCount(0);
   });
 });

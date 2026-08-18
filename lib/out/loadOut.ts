@@ -204,6 +204,8 @@ function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string>
 function notCoveredResponse(city: OutCity): OutResponse {
   return {
     status: "degraded",
+    listingsStatus: "degraded",
+    listingsReason: outCityNotCoveredReason(city),
     events: [],
     openPlans: [],
     attribution: [],
@@ -311,12 +313,16 @@ export async function buildOutResponse(
 
   const body: OutResponse = {
     status,
+    listingsStatus: status,
     events: merged,
     openPlans: [],
     attribution: outSourceAttribution(merged),
     observedAt: observedAtBySource(merged),
     providers: reports,
   };
-  if (reason) body.reason = reason;
+  if (reason) {
+    body.reason = reason;
+    body.listingsReason = reason;
+  }
   return body;
 }

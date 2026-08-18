@@ -16,9 +16,11 @@ function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
 }
 
-// Three ordinary links behind a disclosure, so they are found as links.
+// Three ordinary links behind a disclosure, so they are found as links. Scoped
+// to the sheet itself: /out prints its own "Start a plan" way out under Open
+// plans, and a page-wide role query matches both.
 function createRow(page: Page, name: string) {
-  return page.getByRole("link", { name, exact: true });
+  return page.locator(".createFabMenu").getByRole("link", { name, exact: true });
 }
 
 async function openCreateMenu(page: Page) {
@@ -99,6 +101,41 @@ for (const width of WIDTHS) {
     });
   });
 }
+
+const PLAYHOUSE_EVENT = {
+  id: "events-tm-playhouse",
+  placeName: "Soho Theatre",
+  kind: "event",
+  startsAt: "2026-08-16T19:00:00.000Z",
+  title: "A Night at the Playhouse",
+  source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
+  observedAt: "2026-08-16T09:00:00.000Z",
+  confidence: "listed",
+  sourceId: "1",
+};
+
+test("shows event cards when GET /api/out is ready", async ({ page }) => {
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [PLAYHOUSE_EVENT],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("out-screen")).toBeVisible();
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
+  await expect(page.getByText("Open plans arrive here.")).toBeVisible();
+});
 
 test.describe("out tab screenshots @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });

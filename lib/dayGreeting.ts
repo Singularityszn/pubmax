@@ -156,6 +156,36 @@ export const PICKS_EMPTY_LINE: Record<DaySlot, string> = {
   night: "Nothing left on tonight's list. Open Tonight for live listings.",
 };
 
+/** A read that could not answer is not an empty night. */
+export const PICKS_DEGRADED_LINE =
+  "We could not check tonight's list just now. Open Tonight to try again.";
+
+export type PicksListReadStatus = "ready" | "degraded";
+export type PicksCardStatus = "ready" | "degraded" | "empty";
+
+export function picksListLine(
+  status: PicksListReadStatus,
+  slot: DaySlot,
+): string {
+  return status === "degraded" ? PICKS_DEGRADED_LINE : PICKS_EMPTY_LINE[slot];
+}
+
+/**
+ * What the Today picks card may claim.
+ *
+ * Cards, or listings the viewer filtered out, mean the read answered.
+ * A failed read is never an empty night. Empty is only a ready answer
+ * with nothing left to show.
+ */
+export function picksCardStatus(
+  status: PicksListReadStatus,
+  pickCount: number,
+  filteredPickCount: number = 0,
+): PicksCardStatus {
+  if (pickCount > 0 || filteredPickCount > 0) return "ready";
+  return status === "degraded" ? "degraded" : "empty";
+}
+
 /** Handles are stored lower-case; render them as typed, trimmed, never padded. */
 function displayName(name: string | null | undefined): string {
   const trimmed = (name ?? "").trim();
