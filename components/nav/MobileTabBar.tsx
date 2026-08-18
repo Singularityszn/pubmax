@@ -19,6 +19,7 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
+import { SOCIAL_PREVIEW_BADGE_LABEL } from "@/lib/socialLaunch";
 import { useSocialNavShowsPreviewBadge } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
@@ -236,11 +237,13 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                   />
                 </span>
                 <span className="mobileTabLabel">
-                  {tab.label}
+                  <span className="mobileTabLabelText">{tab.label}</span>
                   {tab.key === "social" && socialPreviewBadge ? (
-                    <span className="mobileTabPreviewBadge" aria-hidden="true">
-                      Preview
-                    </span>
+                    <span
+                      className="mobileTabPreviewBadge"
+                      aria-hidden="true"
+                      data-label={SOCIAL_PREVIEW_BADGE_LABEL}
+                    />
                   ) : null}
                 </span>
               </Link>

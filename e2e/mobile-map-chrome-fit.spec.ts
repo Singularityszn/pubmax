@@ -870,3 +870,61 @@ for (const viewport of VIEWPORTS) {
     ).toBe(false);
   });
 }
+
+// The Social tab's preview marker is phone chrome, so it is measured like the
+// rest of it: the word appears only where the tab is wide enough to hold it,
+// and the tab still reads "Social" whatever the marker is doing.
+for (const viewport of VIEWPORTS) {
+  test(`${viewport.width}px Social tab wears its preview marker without clipping`, async ({
+    page,
+  }) => {
+    await openPhoneMap(page, viewport);
+
+    const social = page.locator('.mobileTabBar a[href="/social"]');
+    await expect(social).toBeVisible();
+    // The marker is decorative, so neither the tab's text nor its accessible
+    // name may carry the word.
+    await expect(social).toHaveText("Social");
+    await expect(social).toHaveAccessibleName("Social");
+
+    const marker = social.locator(".mobileTabPreviewBadge");
+    await expect(marker).toBeVisible();
+
+    const fit = await social.evaluate((link) => {
+      const label = link.querySelector(".mobileTabLabel") as HTMLElement;
+      const text = link.querySelector(".mobileTabLabelText") as HTMLElement;
+      const badge = link.querySelector(".mobileTabPreviewBadge") as HTMLElement;
+      return {
+        labelClientWidth: label.clientWidth,
+        labelScrollWidth: label.scrollWidth,
+        textClientWidth: text.clientWidth,
+        textScrollWidth: text.scrollWidth,
+        badgeWidth: badge.getBoundingClientRect().width,
+        badgeLeft: badge.getBoundingClientRect().left,
+        badgeRight: badge.getBoundingClientRect().right,
+        tabLeft: link.getBoundingClientRect().left,
+        tabRight: link.getBoundingClientRect().right,
+        badgeText: window
+          .getComputedStyle(badge, "::after")
+          .getPropertyValue("content"),
+      };
+    });
+
+    expect(
+      fit.textScrollWidth,
+      "the word Social is not truncated",
+    ).toBeLessThanOrEqual(fit.textClientWidth + 1);
+    expect(
+      fit.labelScrollWidth,
+      "the label row and its marker fit the tab",
+    ).toBeLessThanOrEqual(fit.labelClientWidth + 1);
+    expect(fit.badgeLeft).toBeGreaterThanOrEqual(fit.tabLeft - 1);
+    expect(fit.badgeRight).toBeLessThanOrEqual(fit.tabRight + 1);
+    // Whichever form it takes, the marker is drawn: a dot where the tab is
+    // narrow, the word where it is wide.
+    expect(fit.badgeWidth).toBeGreaterThan(0);
+    if (fit.badgeText.includes("Preview")) {
+      expect(fit.badgeWidth).toBeGreaterThan(12);
+    }
+  });
+}

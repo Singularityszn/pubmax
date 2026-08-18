@@ -1,6 +1,6 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { createContext, createElement, useContext, useSyncExternalStore, type ReactNode } from "react";
 
 import {
   readSocialFriendsLaunchFromDocument,
@@ -10,24 +10,44 @@ import {
 } from "@/lib/socialLaunch";
 
 /**
- * The ONE browser read of the friends-launch flag, so the nav bar, the phone
- * tab bar and the command palette cannot disagree about what Social is called.
- *
- * The server snapshot is `false` on purpose: the flag is only knowable from the
- * body dataset the root layout writes, and React uses this snapshot for the
- * hydration render as well, so a deployment with the flag on paints the launch
- * label on the first store read rather than through a text mismatch.
+ * The root layout knows the flag when it renders, so it hands the answer down
+ * and the served HTML already carries the right label - including in the two
+ * CDN-cached prerendered documents, where a client-only read would have shown
+ * every stranger the gated wording until hydration.
+ */
+const SocialFriendsLaunchContext = createContext<boolean | null>(null);
+
+export function SocialFriendsLaunchProvider({
+  value,
+  children,
+}: {
+  value: boolean;
+  children: ReactNode;
+}) {
+  return createElement(
+    SocialFriendsLaunchContext.Provider,
+    { value },
+    children,
+  );
+}
+
+/**
+ * The body dataset read is the fallback for a tree rendered outside the
+ * provider; the server snapshot is `false` there because nothing has answered
+ * yet, and React uses it for the hydration render too.
  */
 function serverSnapshot(): boolean {
   return false;
 }
 
 export function useSocialFriendsLaunch(): boolean {
-  return useSyncExternalStore(
+  const provided = useContext(SocialFriendsLaunchContext);
+  const fromDocument = useSyncExternalStore(
     subscribeSocialFriendsLaunchFromDocument,
     readSocialFriendsLaunchFromDocument,
     serverSnapshot,
   );
+  return provided ?? fromDocument;
 }
 
 /** Desktop nav and command palette surface name (Social preview when gated). */
