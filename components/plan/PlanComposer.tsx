@@ -1,8 +1,16 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import {
+  FormEvent,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PlanIntake from "@/components/plan/PlanIntake";
@@ -11,7 +19,10 @@ import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
-import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
+import {
+  parsePlanDescribeFromSearch,
+  parsePlanHandoffQueryFromSearch,
+} from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
@@ -57,6 +68,7 @@ import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import { writeDeviceNightContext } from "@/lib/nightProfileClient";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 import {
   buildPlanGenerationIntakeBody,
   clearPlanIntakeDraft,
@@ -991,6 +1003,40 @@ function initialComposerRouteDraft(
   };
 }
 
+
+type UrlPrefill = {
+  /** Any prefill the address carries: `occasion`, `describe` or `query`. */
+  ask: string | null;
+  /** The Pub Pal handoff `query` alone, which is the narrower question. */
+  handoffAsk: string | null;
+};
+
+const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
+
+/**
+ * The ask a `/plan` URL carries, both the wide answer and the narrow one.
+ *
+ * Only read once the page can persist: the server knows no address, so a read
+ * during the hydration render would paint a field the server left empty and
+ * mismatch it. `PlanComposerForm` is remounted under a fresh key the moment
+ * hydration lands. On a client-side navigation the render-phase read can still
+ * see the previous route, so `PlanComposerForm` re-reads in `useLayoutEffect`
+ * after the router commits the new address. Nothing but `window.location` is
+ * touched.
+ */
+function describeAskFromLocation(): UrlPrefill {
+  if (typeof window === "undefined") return NO_URL_PREFILL;
+  try {
+    const { search } = window.location;
+    return {
+      ask: parsePlanDescribeFromSearch(search),
+      handoffAsk: parsePlanHandoffQueryFromSearch(search),
+    };
+  } catch {
+    return NO_URL_PREFILL;
+  }
+}
+
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -1026,30 +1072,97 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [conciergeQuery, setConciergeQuery] = useState(draftFields.conciergeQuery);
-  const [planIntake, setPlanIntake] = useState(recoveredIntake);
-  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const pathname = usePathname();
+  const [urlPrefill] = useState(() =>
+    canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
+  );
+  const urlAsk = urlPrefill.ask;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed.
-  const [entryMode, setEntryMode] = useState<"describe" | "wizard">(
-    hasDurableIntakeDraft && !recoveredIntake.completed ? "wizard" : "describe",
+  // ONLY the Pub Pal handoff overrides that: it is a fresh ask the drinker
+  // just chose, and describe-first is the only surface that can show it. A
+  // chip link (`occasion`, `describe`) does not, so those keep the rule.
+  const initialEntryMode: "describe" | "wizard" =
+    hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk
+      ? "wizard"
+      : "describe";
+  // A URL ask is never dropped in silence. Where describe-first cannot render
+  // it - a held acceptance opens the full composer instead - it lands in that
+  // surface's own field, and it WINS there: the drinker chose this ask just
+  // now, where a recovered concierge line is whatever they left behind.
+  const askNeedsConciergeField =
+    Boolean(urlAsk)
+    && !planComposerShowsDescribeFirst({
+      heldVenueId,
+      completed: recoveredIntake.completed,
+      entryMode: initialEntryMode,
+    });
+  const [conciergeQuery, setConciergeQuery] = useState(
+    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
   );
-  const [askDraftQuery, setAskDraftQuery] = useState("");
+  const [planIntake, setPlanIntake] = useState(recoveredIntake);
+  const initialPlanIntakeRef = useRef(recoveredIntake);
+  const [entryMode, setEntryMode] = useState<"describe" | "wizard">(initialEntryMode);
+  const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
+  // An ask the address carries is applied ONCE. This effect re-runs whenever
+  // the surface it has to write into can change - releasing a held acceptance
+  // flips `heldVenueId` - and a second application would overwrite whatever
+  // the drinker has typed since with the line the URL opened on.
+  const appliedUrlAskRef = useRef<string | null>(null);
+  useLayoutEffect(() => {
+    if (!canPersist) return;
+    const fresh = describeAskFromLocation();
+    if (!fresh.ask) return;
+    if (appliedUrlAskRef.current === fresh.ask) return;
+    const ask = fresh.ask;
+    appliedUrlAskRef.current = ask;
+    const opensDescribeFirstForHandoff =
+      Boolean(fresh.handoffAsk) && hasDurableIntakeDraft && !recoveredIntake.completed;
+    const entryForSurface: "describe" | "wizard" =
+      hasDurableIntakeDraft && !recoveredIntake.completed && !fresh.handoffAsk
+        ? "wizard"
+        : "describe";
+    const askNeedsConciergeSurface = !planComposerShowsDescribeFirst({
+      heldVenueId,
+      completed: recoveredIntake.completed,
+      entryMode: entryForSurface,
+    });
+    // Deferred out of the effect body (react-hooks/set-state-in-effect). The
+    // draft restore below is scheduled from a PASSIVE effect, so its microtask
+    // is queued after this one and the URL ask still lands first.
+    void Promise.resolve().then(() => {
+      setAskDraftQuery(ask);
+      if (opensDescribeFirstForHandoff) setEntryMode("describe");
+      if (askNeedsConciergeSurface) setConciergeQuery(ask);
+    });
+  }, [canPersist, pathname, heldVenueId, recoveredIntake.completed, hasDurableIntakeDraft]);
   useEffect(() => {
+    // The URL ask is already in state; this effect exists to SPEND the draft,
+    // which is a storage write and so waits for a browser that can persist.
+    if (!canPersist) return;
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
     void Promise.resolve().then(() => {
       try {
-        const fromUrl = parsePlanDescribeFromSearch(window.location.search);
-        if (fromUrl) {
-          setAskDraftQuery(fromUrl);
-          return;
+        // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
+        // URL that carries its own describe used to leave the draft behind for
+        // the next /plan visit to open on somebody's earlier ask.
+        let raw: string | null = null;
+        try {
+          const askDraftStore = safeSessionStorage();
+          raw = askDraftStore?.getItem(ASK_PLAN_DRAFT_STORAGE_KEY) ?? null;
+          if (raw) askDraftStore?.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+        } catch {
+          raw = null;
         }
-        const raw = sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY);
-        if (!raw) return;
-        sessionStorage.removeItem(ASK_PLAN_DRAFT_STORAGE_KEY);
+        // The address is re-read HERE rather than closed over: this effect is
+        // scheduled by the mount render, which on a client-side navigation
+        // still saw the previous route, so a captured ask would read as none
+        // and hand the field back to the draft the URL just beat.
+        const askOnScreen = describeAskFromLocation().ask ?? appliedUrlAskRef.current;
+        if (askOnScreen || !raw) return;
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
@@ -1058,7 +1171,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, []);
+  }, [canPersist]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
@@ -1191,14 +1304,14 @@ function PlanComposerForm({
       conciergeQuery,
       stops,
       ...(persistedAcceptedAnchor ? { acceptedAnchor: persistedAcceptedAnchor } : {}),
-    }, persistedAcceptedAnchor ? "planning-intent" : "manual", sessionStorage);
+    }, persistedAcceptedAnchor ? "planning-intent" : "manual", safeSessionStorage());
   }, [canPersist, conciergeQuery, creatorName, handoff?.acceptedAnchor, startTime, stops, title]);
 
   useEffect(() => {
     if (!canPersist) return;
     if (!nightContext && routeRevision === null && !stops.some((stop) => stop.alternatives.length > 0)) return;
     try {
-      localStorage.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
+      safeLocalStorage()?.setItem(PLAN_ROUTE_DRAFT_KEY, JSON.stringify({
         stops,
         nightContext,
         routeRevision,
@@ -1344,8 +1457,8 @@ function PlanComposerForm({
   function releaseAcceptance() {
     focusPlanRouteStatus();
     releaseAcceptedPlanContext({
-      planDraft: canPersist ? sessionStorage : null,
-      routeDraft: canPersist ? localStorage : null,
+      planDraft: canPersist ? safeSessionStorage() : null,
+      routeDraft: canPersist ? safeLocalStorage() : null,
     });
     setPlanAnchor(null);
     setGroundingProof(null);
@@ -1603,7 +1716,7 @@ function PlanComposerForm({
       }
       trackEvent("plan_saved", { stops: completeStops.length, grounded });
       trackMeaningfulCoreAction("plan_saved");
-      clearPersistedPlanDrafts({ planDraft: sessionStorage, routeDraft: localStorage });
+      clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
       router.push(`/plan/${body.plan.plan.id}#share`);
@@ -1906,8 +2019,8 @@ export default function PlanComposer() {
     if (!hydrated) return null;
     try {
       const resolved = resolveComposerHydration({
-        planDraft: readPlanDraftEnvelope(sessionStorage),
-        routeDraft: readPlanRouteDraftEnvelope(localStorage),
+        planDraft: readPlanDraftEnvelope(safeSessionStorage()),
+        routeDraft: readPlanRouteDraftEnvelope(safeLocalStorage()),
         intakeDraft: readPlanIntakeDraftWithMetadata(),
         planningIntent: readPlanningIntent(),
         rememberedArea: readRememberedArea(),
@@ -1919,11 +2032,11 @@ export default function PlanComposer() {
   }, [hydrated]);
   const recoveredDraft = useMemo(() => {
     if (!hydrated) return null;
-    try { return parsePlanDraft(sessionStorage.getItem(PLAN_DRAFT_KEY)); } catch { return null; }
+    try { return parsePlanDraft(safeSessionStorage()?.getItem(PLAN_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredRouteDraft = useMemo(() => {
     if (!hydrated) return null;
-    try { return parsePlanRouteDraft(localStorage.getItem(PLAN_ROUTE_DRAFT_KEY)); } catch { return null; }
+    try { return parsePlanRouteDraft(safeLocalStorage()?.getItem(PLAN_ROUTE_DRAFT_KEY) ?? null); } catch { return null; }
   }, [hydrated]);
   const recoveredIntake = useMemo(() => {
     if (!hydrated) return { draft: createPlanIntakeDraft(), hasDurableDraft: false };

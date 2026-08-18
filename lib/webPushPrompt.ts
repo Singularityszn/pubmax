@@ -4,6 +4,7 @@
 
 import { isStandaloneDisplay } from "@/lib/entryDecision";
 import { isNativeApp } from "@/lib/nativePlatform";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 const ENABLED_KEY = "pubmax:webPush:enabled:v1";
 const DISMISSED_SEQ_KEY = "pubmax:webPush:dismissedSeq:v1";
@@ -22,7 +23,7 @@ export type WebPushPromptGateState = {
 let documentTriggeredSeq: number | null = null;
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function readInt(key: string): number {

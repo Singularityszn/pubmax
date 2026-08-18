@@ -10,6 +10,7 @@
 // Persistence mirrors lib/cityPreference.ts: localStorage-backed, SSR-safe,
 // silent degradation, no-op writes skipped.
 
+import { safeLocalStorage } from "@/lib/safeStorage";
 export type NightPatch = {
   id: string;
   label: string;
@@ -63,7 +64,7 @@ export type RememberedArea =
 const STORAGE_KEY = "pubmax:nightPatch:v1";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function parseRemembered(raw: string | null): RememberedArea | null {

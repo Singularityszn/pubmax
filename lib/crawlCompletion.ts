@@ -6,6 +6,7 @@
 // SSR / missing storage is fail-soft (reads return empty, writes are no-ops).
 
 import { DAY_MS } from "@/lib/dayMs";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const CRAWL_PROGRESS_KEY = "pubmax_crawl_progress";
 /** Per-crawl one-shot celebration flags (Wave G2) — survives remounts. */
@@ -63,15 +64,10 @@ function emptyProgress(): CrawlProgressMap {
   return { crawls: {} };
 }
 
-function hasWindowStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
-}
-
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage === null) return null;
   if (storage) return storage;
-  if (!hasWindowStorage()) return null;
-  return window.localStorage;
+  return safeLocalStorage();
 }
 
 function normaliseId(raw: string): string {

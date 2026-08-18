@@ -33,6 +33,7 @@
 // (native-only), so there is no conflict there.
 
 import { DAY_MS } from "@/lib/dayMs";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 export type IdentityNudgeTrigger = "plan" | "moment";
 
@@ -70,7 +71,7 @@ export const IDENTITY_NUDGE_EVENT = "pubmax:identity-nudge";
 const CRAWLER_UA = /bot|crawl|spider|slurp|bingpreview|facebookexternalhit|embedly|quora link preview|prerender|headlesschrome|lighthouse|pingdom|gtmetrix/i;
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function readOptionalInt(key: string): number | null {

@@ -1,6 +1,7 @@
 import { LONDON_BOROUGHS } from "@/lib/boroughs";
 import { CITIES, type CityId } from "@/lib/cities";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
+import { safeSessionStorage } from "@/lib/safeStorage";
 
 export const PLANNING_INTENT_STORAGE_KEY = "pubmax:planning-intent:v1";
 /**
@@ -109,12 +110,7 @@ function currentTime(now: PlanningIntentOptions["now"]): number {
 }
 
 function defaultStorage(): PlanningIntentStorage | null {
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
+  return safeSessionStorage();
 }
 
 function selectedStorage(

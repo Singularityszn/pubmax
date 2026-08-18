@@ -224,9 +224,11 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
     elements.map((element) => {
       const row = element as HTMLElement;
       const details = row.querySelector<HTMLElement>(".drinkBrandDirectory__details");
+      const action = row.querySelector<HTMLElement>(".drinkBrandDirectory__contribution");
       return {
         rowHeight: row.getBoundingClientRect().height,
         detailsColumns: details ? getComputedStyle(details).gridTemplateColumns : "",
+        actionColumnStart: action ? getComputedStyle(action).gridColumnStart : null,
       };
     }),
   );
@@ -241,6 +243,21 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
   expect(
     geometry.every(({ detailsColumns }) => detailsColumns.split(" ").length === 5),
     "desktop row details should use five horizontal information tracks",
+  ).toBe(true);
+  // The action owns the last track by name, so a row whose details ever come
+  // back short cannot slide it into a sibling's column. The CSS states the
+  // rule as a track, so the track is what is asserted: a rendered edge would
+  // also move with the action's own label width, and the label differs by
+  // whether the row's pub is one the map can open.
+  const actionColumnStarts = geometry
+    .map(({ actionColumnStart }) => actionColumnStart)
+    .filter((start): start is string => start !== null);
+  expect(actionColumnStarts.length, "every desktop row should carry a log action").toBe(
+    geometry.length,
+  );
+  expect(
+    actionColumnStarts.every((start) => start === "5"),
+    `every row's log action should sit in the last track, saw ${[...new Set(actionColumnStarts)].join(", ")}`,
   ).toBe(true);
 }
 
@@ -342,7 +359,9 @@ async function assertLandingContract(
   const firstRow = rows.first();
   const firstVenue = firstRow.locator(".drinkBrandDirectory__venue");
   const firstContribution = firstRow.getByRole("link", { name: "Log this price", exact: true });
-  const firstPublisher = firstRow.locator(".drinkBrandDirectory__publisher");
+  // Every rank states its own publisher beside its own figure, rank 1
+  // included: the hero's copy sits above the h1 (docs/VOICE.md).
+  await expect(firstRow.locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
   const firstLedgerHref = `/ledger/${encodeURIComponent(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId)}`;
   const firstContributionHref = expectedContributionHref(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.venueId,
@@ -352,7 +371,6 @@ async function assertLandingContract(
   await expect(firstRow.locator(".drinkBrandDirectory__price")).toHaveText(
     CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.priceLabel,
   );
-  await expect(firstPublisher).toHaveText(CHECKED_VICTORIA_GUINNESS_FIXTURE.firstRow.publisherStatus);
   await expect(firstContribution).toHaveAttribute("href", firstContributionHref);
 
   for (let index = 0; index < await rows.count(); index += 1) {
@@ -365,16 +383,20 @@ async function assertLandingContract(
 
     await expect(venue, `row ${index + 1} pub should be visible`).toBeVisible();
     await expect(pint, `row ${index + 1} pint should be visible`).toBeVisible();
-    await expect(publisher, `row ${index + 1} publisher should be visible`).toBeVisible();
+    await expect(
+      publisher,
+      `row ${index + 1} publisher should state its own record`,
+    ).toHaveCount(1);
     await expect(contribution, `row ${index + 1} log action should be visible`).toBeVisible();
     await expect(price, `row ${index + 1} price should be visible`).toBeVisible();
     await expectTouchTarget(venue, `row ${index + 1} pub`);
     await expectTouchTarget(contribution, `row ${index + 1} log action`);
     await expectHorizontallyInsideViewport(page, venue, `row ${index + 1} pub`);
     await expectHorizontallyInsideViewport(page, pint, `row ${index + 1} pint`);
-    await expectHorizontallyInsideViewport(page, publisher, `row ${index + 1} publisher`);
     await expectHorizontallyInsideViewport(page, contribution, `row ${index + 1} log action`);
     await expectHorizontallyInsideViewport(page, price, `row ${index + 1} price`);
+    await expect(publisher, `row ${index + 1} publisher should be visible`).toBeVisible();
+    await expectHorizontallyInsideViewport(page, publisher, `row ${index + 1} publisher`);
 
     const expectedVenueId = CHECKED_VICTORIA_GUINNESS_FIXTURE.orderedVenueIds[index];
     expect(expectedVenueId, `row ${index + 1} should have a checked fixture identity`).toBeDefined();

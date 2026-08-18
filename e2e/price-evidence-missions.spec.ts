@@ -1,5 +1,13 @@
 import { expect, test, type Page } from "@playwright/test";
 
+/**
+ * Price evidence missions on the map sheet and /near.
+ *
+ * Auth: the signed-in lanes seed a mocked Supabase session (`seedSignedInSession`)
+ * so the suite runs keyless in CI, the way playwright.config.ts webServer.env
+ * already runs the app.
+ */
+
 const SEED_VENUE_ID = "venue-16pnwmm";
 const SEED_VENUE_NAME = "Prospect of Whitby";
 const VIEWPORTS = [

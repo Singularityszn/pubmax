@@ -8,7 +8,7 @@ import { expect, test } from "@playwright/test";
 // ElevenLabs, no Supabase.
 //   1. a text ask comes back grounded, with a source chip on every card,
 //   2. find_desk says "No seat data yet" rather than offering a pub as a desk,
-//   3. propose_plan still asks for a Confirm before anything moves,
+//   3. propose_plan offers one Open in Plan link and moves nothing until it is taken,
 //   4. the Pal recalls a subject raised earlier in the same thread,
 //   5. the meeting fits 360, 390 and 430 with tappable controls,
 //   6. voice, unconfigured, explains itself instead of failing on the tap.
@@ -100,16 +100,37 @@ test.describe("Pub Pal concierge at 390px", () => {
     await expect(answer.locator(".palChatCard")).toHaveCount(0);
   });
 
-  test("a crawl ask still proposes and waits for a Confirm", async ({ page }) => {
+  test("a crawl ask proposes one way on and waits to be taken", async ({ page }) => {
     await page.goto("/pal/chat");
     await askOnPhone(page, "Plan a crawl in Soho for 4");
 
     const answer = page.locator(".palChatRow--pal").last();
-    const confirm = answer.getByRole("button", { name: /Confirm three-stop draft/i });
-    await expect(confirm).toBeVisible();
+    await expect(answer.getByRole("link", { name: "Open in Plan" })).toBeVisible();
+    // ONE way on TO PLAN: a second control landing the same /plan?query= was
+    // two labels for one action, so the old "Confirm three-stop draft" button
+    // is gone. The per-stop "Open <pub>" confirms beside it stay - each is a
+    // different destination (/map?sel=), not a second door onto the same one.
+    await expect(
+      answer.getByRole("button", { name: /Confirm three-stop draft/i }),
+    ).toHaveCount(0);
+    await expect(answer.locator('a[href^="/plan?"]')).toHaveCount(1);
     await expect(answer.getByRole("button", { name: "Dismiss" }).first()).toBeVisible();
-    // Still on the chat: a proposal moves nothing until it is confirmed.
+    // Still on the chat: a proposal moves nothing until it is taken.
     expect(new URL(page.url()).pathname).toBe("/pal/chat");
+  });
+
+  test("a crawl ask offers a plan link that prefills the describe field", async ({ page }) => {
+    await page.goto("/pal/chat");
+    const ask = "Plan a crawl in Soho for 4";
+    await askOnPhone(page, ask);
+
+    const answer = page.locator(".palChatRow--pal").last();
+    const planLink = answer.getByRole("link", { name: "Open in Plan" });
+    await expect(planLink).toBeVisible();
+    await planLink.click();
+
+    await expect(page).toHaveURL(/\/plan\?/);
+    await expect(page.locator("#plan-describe-first-query")).toHaveValue(ask);
   });
 
   test("the Pal recalls a subject the drinker raised earlier in the thread", async ({

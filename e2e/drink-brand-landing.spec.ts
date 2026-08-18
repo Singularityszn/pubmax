@@ -213,7 +213,12 @@ async function assertLandingContract(page: Page): Promise<void> {
     .toBe("none");
   await expect(rows.first()).toContainText("J.J. Moon's - JD Wetherspoon");
   await expect(rows.first()).toContainText("£3.09");
+  // One publisher block per price: the hero states the "From" figure's, and
+  // every row states its own beside its own figure, rank 1 included
+  // (docs/VOICE.md).
+  await expect(page.locator(".drinkBrandDirectory__fromPublisher")).toHaveCount(1);
   await expect(page.locator(".drinkBrandDirectory__publisher")).toHaveCount(20);
+  await expect(rows.first().locator(".drinkBrandDirectory__publisher")).toHaveCount(1);
   await expect(page.locator(".drinkBrandDirectory__venue")).toHaveCount(20);
 
   for (let index = 0; index < 20; index += 1) {
@@ -235,8 +240,8 @@ async function assertLandingContract(page: Page): Promise<void> {
   await expectVisibleFocus(secondaryAction, "Log pint price action");
   await expectVisibleFocus(rows.first().locator(".drinkBrandDirectory__venue"), "Ledger row link");
   await expectVisibleFocus(
-    rows.first().locator(".drinkBrandDirectory__publisher a"),
-    "publisher link",
+    page.locator(".drinkBrandDirectory__fromPublisher a"),
+    "hero publisher link",
   );
   await expectNoHorizontalOverflow(page);
   await page.evaluate(() => window.scrollTo(0, 0));

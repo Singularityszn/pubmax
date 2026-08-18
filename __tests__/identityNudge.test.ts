@@ -224,3 +224,44 @@ describe("identity nudge — SSR safety", () => {
     expect(isIdentityNudgePending()).toBe(false);
   });
 });
+
+// `window.localStorage` is a PROPERTY GETTER that RAISES when the browser
+// refuses site data (Chrome "Block all cookies", or a sandboxed frame without
+// allow-same-origin), so naming the identifier is itself a throwing expression.
+// AuthProvider renders the nudge on EVERY page, and its client snapshot runs
+// during render, so a throw here is not a lost nudge - it is the whole site on
+// the error boundary.
+describe("identity nudge — the browser refuses site data", () => {
+  function installBlockedWindow(): void {
+    const refuse = (): never => {
+      throw new Error("SecurityError: site data is blocked");
+    };
+    const w = globalThis as { window?: unknown };
+    const blocked = { dispatchEvent: () => true };
+    Object.defineProperty(blocked, "localStorage", { configurable: true, get: refuse });
+    w.window = blocked;
+  }
+
+  beforeEach(() => {
+    installBlockedWindow();
+  });
+
+  afterEach(() => {
+    clearWindow();
+  });
+
+  it("reads as no nudge rather than throwing out of the render", () => {
+    expect(() => getIdentityNudgeClientSnapshot()).not.toThrow();
+    expect(getIdentityNudgeClientSnapshot()).toBeNull();
+    expect(() => isIdentityNudgePending()).not.toThrow();
+    expect(isIdentityNudgePending()).toBe(false);
+  });
+
+  it("swallows every write the same way", () => {
+    expect(() => recordPlanNudgeTrigger()).not.toThrow();
+    expect(() => recordMomentNudgeTrigger()).not.toThrow();
+    expect(() => markIdentityNudgeDismissed()).not.toThrow();
+    expect(() => markIdentityNudgeAccepted()).not.toThrow();
+    expect(() => resetIdentityNudge()).not.toThrow();
+  });
+});

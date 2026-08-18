@@ -14,18 +14,13 @@ import {
 } from "@/lib/explicitMapIntent";
 import { hasSeenTour } from "@/lib/firstRunTour";
 import { readMobileMapSession } from "@/lib/mobileShell";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
 /** sessionStorage key: written when the one-shot amplify has fired. */
 export const MAP_LEGEND_ONESHOT_KEY = "pubmax:map-legend-oneshot:v1";
 
-function hasSessionStorage(): boolean {
-  return typeof window !== "undefined" && !!window.sessionStorage;
-}
-
 function consentIsDecided(consentStorage?: Storage | null): boolean {
-  const store =
-    consentStorage ??
-    (typeof window !== "undefined" ? window.localStorage : null);
+  const store = consentStorage ?? safeLocalStorage();
   if (!store) return false;
   try {
     return isAnalyticsConsentDecision(store.getItem(ANALYTICS_CONSENT_STORAGE_KEY));
@@ -37,7 +32,7 @@ function consentIsDecided(consentStorage?: Storage | null): boolean {
 export function hasConsumedMapLegendOneshot(
   storage?: Storage | null,
 ): boolean {
-  const store = storage ?? (hasSessionStorage() ? window.sessionStorage : null);
+  const store = storage ?? safeSessionStorage();
   if (!store) return true;
   try {
     return store.getItem(MAP_LEGEND_ONESHOT_KEY) === "1";
@@ -49,7 +44,7 @@ export function hasConsumedMapLegendOneshot(
 export function markMapLegendOneshotConsumed(
   storage?: Storage | null,
 ): void {
-  const store = storage ?? (hasSessionStorage() ? window.sessionStorage : null);
+  const store = storage ?? safeSessionStorage();
   if (!store) return;
   try {
     store.setItem(MAP_LEGEND_ONESHOT_KEY, "1");

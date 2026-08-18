@@ -53,6 +53,11 @@ export function PricedLandingPublisher({
  * Safari, and the rank is marked presentational: the ordered list already gives
  * a screen reader the position, and a name on a bare span is prohibited so an
  * `aria-label` there is dropped.
+ *
+ * EVERY row states its own publisher status beside its own figure
+ * (docs/VOICE.md), rank 1 included: the hero's copy sits above the h1 and the
+ * actions, so a reader scrolled to the list would otherwise meet the cheapest
+ * price on the page with nothing saying where it came from.
  */
 export default function PricedLandingRows({
   rows,
