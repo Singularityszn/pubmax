@@ -50,12 +50,20 @@ describe("landing hero price copy", () => {
     expect(figure).not.toMatch(/£\s?\d/);
   });
 
+  it("hangs no price band on a hero pin", () => {
+    // The rim used to carry the map's own price key (green / amber / red) over
+    // six named pubs. With the figures and their disclaimer gone, a band would
+    // be a price claim nothing on the page answers for.
+    expect(heroFigure()).not.toMatch(/data-band=/);
+  });
+
   it("keeps one invite line and drops the example-price disclaimer", () => {
     const caption = heroFigure().match(
       /<figcaption class="lpHeroMapCaption"[^>]*>[\s\S]*?<\/figcaption>/,
     )?.[0];
     expect(caption, "hero caption present").toBeTruthy();
 
+    expect(caption).toContain("lpHeroMapInvite");
     expect(caption).toContain(
       "Each shape is a drink. Tap or pick one to see the pubs that pour it.",
     );

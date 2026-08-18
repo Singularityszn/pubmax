@@ -259,12 +259,6 @@
 .thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
 .thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
 .thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform var(--duration-lift) var(--ease-standard); }
-/* Decorative rim only, drawn from the real map price key vocabulary
-   (green/amber/red, see lib/mapPriceLegend.ts). Styling, not a claim:
-   the hero carries no live price band or authority. */
-.thamesHeroPinGlyph[data-band="green"] { border-color: color-mix(in srgb, var(--pint) 65%, rgba(255,255,255,.4)); }
-.thamesHeroPinGlyph[data-band="amber"] { border-color: color-mix(in srgb, var(--amber) 65%, rgba(255,255,255,.4)); }
-.thamesHeroPinGlyph[data-band="red"] { border-color: color-mix(in srgb, var(--brick) 65%, rgba(255,255,255,.4)); }
 .thamesHeroPinLink:hover .thamesHeroPinGlyph { transform: translateY(-3px) scale(1.04); }
 .thamesHeroPinMeta { padding: 7px 9px; display: grid; gap: 1px; border-radius: 11px; background: rgba(7,11,18,.76); backdrop-filter: blur(8px); }
 .thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; letter-spacing: .01em; }
