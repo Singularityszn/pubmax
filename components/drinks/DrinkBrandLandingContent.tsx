@@ -88,10 +88,7 @@ export default function DrinkBrandLandingContent({
             {pricedLandingCountLabel(landing.totalPricedVenues, landing.rows.length)}
           </span>
         </div>
-        <PricedLandingRows
-          rows={landing.rows}
-          heroPublisherVenueId={firstRow.venueId}
-        />
+        <PricedLandingRows rows={landing.rows} />
       </section>
 
       {areaPages.length > 0 ? (

@@ -1100,7 +1100,7 @@ function PlanComposerForm({
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
   const pathname = usePathname();
-  const [urlPrefill, setUrlPrefill] = useState(() =>
+  const [urlPrefill] = useState(() =>
     canPersist ? describeAskFromLocation() : NO_URL_PREFILL,
   );
   const urlAsk = urlPrefill.ask;
@@ -1141,9 +1141,6 @@ function PlanComposerForm({
   useLayoutEffect(() => {
     if (!canPersist) return;
     const fresh = describeAskFromLocation();
-    setUrlPrefill((prev) =>
-      prev.ask === fresh.ask && prev.handoffAsk === fresh.handoffAsk ? prev : fresh,
-    );
     if (!fresh.ask) return;
     if (appliedUrlAskRef.current === fresh.ask) return;
     appliedUrlAskRef.current = fresh.ask;

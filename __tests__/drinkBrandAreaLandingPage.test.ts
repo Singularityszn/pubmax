@@ -169,11 +169,11 @@ describe("governed drink brand by Night Area landing page", () => {
       }),
     );
 
-    // Once in the hero for rank 1, once on rank 2's own row. Rank 1's row does
-    // not repeat what the hero already said word for word (docs/VOICE.md).
-    expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
+    // Once in the hero, and once beside each row's own figure: every price
+    // states what its own record supports (docs/VOICE.md), rank 1 included.
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(3);
     expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
   });

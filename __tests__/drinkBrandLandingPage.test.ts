@@ -161,7 +161,8 @@ describe("governed drink brand landing page", () => {
       }),
     );
 
-    expect(html.match(/Publisher not recorded/g)).toHaveLength(1);
+    // Once in the hero, once beside rank 1's own figure in the list.
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
   });
@@ -202,12 +203,13 @@ describe("governed drink brand landing page", () => {
     expect(html).toContain(
       '>Publisher: Exact Publisher</a>',
     );
-    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(1);
+    // The hero states it for the "From" figure, the row states it for its own.
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
     expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    expect(html).not.toMatch(/drinkBrandDirectory__publisher\b/);
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(1);
   });
 
-  it("states every other rank's own publisher and never repeats the hero's", () => {
+  it("states every rank's own publisher beside its own figure", () => {
     const model: DrinkBrandLanding = {
       slug: "guinness",
       brandLabel: "Guinness",
@@ -257,12 +259,14 @@ describe("governed drink brand landing page", () => {
       }),
     );
 
-    // The hero states rank 1's publisher, so rank 1's row does not repeat it.
-    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(1);
+    // The hero states rank 1's publisher for the "From" figure, and rank 1's
+    // own row states it again beside the figure a scrolled reader is looking
+    // at: the list is where the cheapest price is read (docs/VOICE.md).
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
     expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
-    // Ranks 2 and 3 each state their own record: a named publisher, and the
-    // plain refusal when the record names none (docs/VOICE.md).
-    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
+    // Every rank states its own record: a named publisher, and the plain
+    // refusal when the record names none.
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(3);
     expect(html).toContain('>Second Publisher</a>');
     expect(html.match(/href="https:\/\/publisher\.example\/price-2"/g)).toHaveLength(1);
     expect(html.match(/Publisher not recorded/g)).toHaveLength(1);

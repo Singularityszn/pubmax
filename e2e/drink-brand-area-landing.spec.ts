@@ -244,11 +244,11 @@ async function expectDesktopRowGeometry(page: Page, rows: Locator): Promise<void
     geometry.every(({ detailsColumns }) => detailsColumns.split(" ").length === 5),
     "desktop row details should use five horizontal information tracks",
   ).toBe(true);
-  // Rank 1 carries no publisher cell (the hero already states it), so auto
-  // placement would slide its action into the publisher's column. The CSS
-  // states the rule as a track, so the track is what is asserted: a rendered
-  // edge would also move with the action's own label width, and the label
-  // differs by whether the row's pub is one the map can open.
+  // The action owns the last track by name, so a row whose details ever come
+  // back short cannot slide it into a sibling's column. The CSS states the
+  // rule as a track, so the track is what is asserted: a rendered edge would
+  // also move with the action's own label width, and the label differs by
+  // whether the row's pub is one the map can open.
   const actionColumnStarts = geometry
     .map(({ actionColumnStart }) => actionColumnStart)
     .filter((start): start is string => start !== null);
