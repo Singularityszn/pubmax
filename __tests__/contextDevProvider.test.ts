@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import * as contextDev from "@/lib/contextDev";
+import type { ContextDevBudget } from "@/lib/contextDev";
 import {
   contextDevLaneStatus,
   normaliseContextDevEventRow,
@@ -233,8 +234,9 @@ describe("run request budget", () => {
     expect(result.failures).toHaveLength(contextDevEventSources().length);
   });
 
-  it("caps a retry storm at the default budget when the caller hands none in", async () => {
+  it("opens a default budget when the caller hands none in, and spends it", async () => {
     const fetchImpl = vi.fn(async () => new Response("down", { status: 503 }));
+    const budgetSpy = vi.spyOn(contextDev, "createContextDevBudget");
 
     await runContextDevEventsLane({
       observedAt,
@@ -247,10 +249,14 @@ describe("run request budget", () => {
       logError: vi.fn(),
     });
 
-    expect(fetchImpl.mock.calls.length).toBeGreaterThan(0);
-    expect(fetchImpl.mock.calls.length).toBeLessThanOrEqual(
-      contextDev.CONTEXT_DEV_RUN_REQUEST_BUDGET,
-    );
+    expect(budgetSpy).toHaveBeenCalledTimes(1);
+    const budget = budgetSpy.mock.results[0]?.value as ContextDevBudget;
+    expect(budget.limit).toBe(contextDev.CONTEXT_DEV_RUN_REQUEST_BUDGET);
+    // Every request this run sent came out of that one budget, so removing the
+    // default - or failing to thread it into the calls - leaves it untouched.
+    expect(budget.spent()).toBe(fetchImpl.mock.calls.length);
+    expect(budget.spent()).toBeGreaterThan(0);
+    budgetSpy.mockRestore();
   });
 });
 

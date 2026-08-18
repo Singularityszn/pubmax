@@ -69,6 +69,7 @@ export { eventsOutputPath } from "./eventsOutputPath.mjs";
 // lane's catch, so the lane reported an upstream fault every run. Loading it up
 // front makes a broken specifier a loud start-up error instead.
 import {
+  contextDevLaneStatus,
   contextDevSourceLabels,
   runContextDevEventsLane,
 } from "../../lib/events/contextDevProvider.ts";
@@ -116,7 +117,7 @@ export function providerLaneStatus(env = process.env) {
   return {
     ticketmaster: present("TICKETMASTER_API_KEY") ? "configured" : "not-configured",
     skiddle: present("SKIDDLE_API_KEY") ? "configured" : "not-configured",
-    contextdev: present("CONTEXT_DEV_API_KEY") ? "configured" : "not-configured",
+    contextdev: contextDevLaneStatus(env ?? {}),
   };
 }
 
