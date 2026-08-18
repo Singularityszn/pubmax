@@ -20,6 +20,7 @@ vi.mock("@/components/auth/useViewerHandle", () => ({
 }));
 
 import TodayClient from "@/app/today/TodayClient";
+import { TODAY_PINTS_DEFAULT_PATCH_ID } from "@/app/today/todayPints";
 import { buildDayGreeting, PICKS_DEGRADED_LINE, PICKS_EMPTY_LINE } from "@/lib/dayGreeting";
 import type { PicksListReadStatus } from "@/lib/dayGreeting";
 
@@ -47,7 +48,15 @@ function renderToday(picksStatus: PicksListReadStatus): string {
       picks: [],
       picksStatus,
       fact: null,
-      pintsIndex: { areas: [], generatedAt: null },
+      // TodayPintsIndex is a map keyed by patch id. This test reads the picks
+      // card alone, so the pints module carries no rows and renders nothing.
+      pintsIndex: {
+        [TODAY_PINTS_DEFAULT_PATCH_ID]: {
+          patchId: TODAY_PINTS_DEFAULT_PATCH_ID,
+          areaName: "Central London",
+          rows: [],
+        },
+      },
       quietPint: null,
     }),
   ));

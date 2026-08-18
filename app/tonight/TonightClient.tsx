@@ -20,7 +20,6 @@ import {
   Footprints,
   LocateFixed,
   MapPin,
-  RefreshCw,
   Route as RouteIcon,
   TrainFront,
   Tv,
@@ -30,11 +29,12 @@ import {
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
-import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import { useOutListings } from "@/components/out/useOutListings";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
+import TonightListingsNotice from "./TonightListingsNotice";
+import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -82,7 +82,6 @@ import {
   tonightRetryLanes,
   tonightRowLinks,
   tonightProvenanceCredits,
-  TONIGHT_WHATS_ON_FAILED_LINE,
 } from "@/lib/tonightOutListings";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
@@ -110,7 +109,18 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
   return kind === "unknown" ? null : checkedLabel(asOf);
 }
 
-const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
+// The coarse Night Area the news rail reads, derived from the area the viewer
+// already told us. Never stored, and never a new location ask.
+function areaNewsSlug(
+  tonightNear: ReturnType<typeof resolveTonightNear>,
+): string | null {
+  if (!tonightNear) return null;
+  const area = nearestNightAreaForViewport("london", [
+    tonightNear.near.lng,
+    tonightNear.near.lat,
+  ]);
+  return area?.slug ?? null;
+}
 
 // Presentation order is independent of grouping: Deals/Music full lanes follow
 // the main list on phones. Desktop keeps a compact rail summary instead
@@ -326,6 +336,12 @@ export default function TonightClient({
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   const checked = freshnessLabel(sourceFreshnessKind, asOf);
+  // The ordering claim rides the What's-On credit, so it is only made when
+  // there are rows in that order and a patch to name.
+  const nearestPatchSuffix =
+    ready && tonightNear?.patchLabel
+      ? ` · nearest ${tonightNear.patchLabel} first`
+      : null;
   // Each lane is credited and dated by its OWN read. The What's-On stamp above
   // says nothing about a Ticketmaster row, so it never covers one.
   const provenance = useMemo(
@@ -354,8 +370,6 @@ export default function TonightClient({
       kind: fromOut.has(row) ? "out-listing" : "whats-on",
     });
   }, [listingRows, outBody]);
-  const errored = listingsStatus === "error";
-  const loading = listingsStatus === "idle";
   // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
@@ -406,39 +420,10 @@ export default function TonightClient({
           listed venue on the map.
         </p>
         {ready || empty ? (
-          <>
-            {provenance.whatsOn ? (
-              <p
-                className="tonightProvenance"
-                data-tonight-provenance="whats-on"
-                data-tonight-dated={provenance.whatsOnDated ? "yes" : "no"}
-              >
-                {provenance.whatsOn}
-                {ready && tonightNear?.patchLabel
-                  ? ` · nearest ${tonightNear.patchLabel} first`
-                  : null}
-              </p>
-            ) : null}
-            {provenance.whatsOn && !provenance.whatsOnDated ? (
-              <p className="tonightProvenance" data-tonight-provenance="undated-whats-on">
-                {UNDATED_SOURCE_LINE}
-              </p>
-            ) : null}
-            {provenance.out ? (
-              <p
-                className="tonightProvenance"
-                data-tonight-provenance="out"
-                data-tonight-dated={provenance.outDated ? "yes" : "no"}
-              >
-                {provenance.out}
-              </p>
-            ) : null}
-            {provenance.out && !provenance.outDated ? (
-              <p className="tonightProvenance" data-tonight-provenance="undated-out">
-                {UNDATED_SOURCE_LINE}
-              </p>
-            ) : null}
-          </>
+          <TonightProvenanceLines
+            provenance={provenance}
+            nearestSuffix={nearestPatchSuffix}
+          />
         ) : null}
       </header>
 
@@ -455,56 +440,18 @@ export default function TonightClient({
             Area (never stored), else the heart of the viewer's remembered patch.
             This is the area they told us, so there is no new location ask. */}
         <div className="tonightRail">
-          <AreaNewsRail
-            area={
-              tonightNear
-                ? (nearestNightAreaForViewport("london", [
-                    tonightNear.near.lng,
-                    tonightNear.near.lat,
-                  ])?.slug ?? null)
-                : null
-            }
-          />
+          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
         </div>
       </aside>
 
       <div className="tonightPrimary" data-status={listingsStatus}>
-      {loading ? <ListingsSkeleton /> : null}
-
-      {errored ? (
-        <div className="tonightStatus tonightStatusError">
-          <p role="status">{listingsNote ?? TONIGHT_WHATS_ON_FAILED_LINE}</p>
-          <button type="button" className="tonightRetry" onClick={retryListings}>
-            <RefreshCw size={15} aria-hidden="true" />
-            Retry listings
-          </button>
-        </div>
-      ) : null}
-
-      {!errored && !loading && listingsNote ? (
-        <div
-          className="tonightStatus tonightStatusNote"
-          data-tonight-listings-note="partial"
-        >
-          <p role="status">{listingsNote}</p>
-          {noteOffersRetry ? (
-            <button type="button" className="tonightRetry" onClick={retryListings}>
-              <RefreshCw size={15} aria-hidden="true" />
-              Retry listings
-            </button>
-          ) : null}
-        </div>
-      ) : null}
-
-      {empty ? (
-        <p className="tonightStatus" role="status">
-          {tonightEmptyLead(status, outAnswer)}{" "}
-          <Link href="/map" className="tonightStatusLink">
-            The map still knows where the cheap pints are
-          </Link>
-          .
-        </p>
-      ) : null}
+      <TonightListingsNotice
+        status={listingsStatus}
+        note={listingsNote}
+        noteOffersRetry={noteOffersRetry}
+        emptyLead={tonightEmptyLead(status, outAnswer)}
+        onRetry={retryListings}
+      />
 
       {ready || empty ? (
         /* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md): the user's voice,
