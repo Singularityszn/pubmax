@@ -952,7 +952,7 @@ export function askToolDefinitions(): Array<{
       function: {
         name: "propose_plan",
         description:
-          "Propose a three-stop draft from listed pubs. Does not save a plan; user must confirm.",
+          "Propose a three-stop draft from listed pubs. Saves nothing: the user opens Plan with the ask through one link, and nothing is stored until they lock a route there.",
         parameters: {
           type: "object",
           properties: { query: { type: "string" } },
