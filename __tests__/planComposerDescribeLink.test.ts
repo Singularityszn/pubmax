@@ -2,7 +2,8 @@
 
 import { createElement } from "react";
 import { act } from "react";
-import { createRoot, type Root } from "react-dom/client";
+import { createRoot, hydrateRoot, type Root } from "react-dom/client";
+import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // What the describe prefill owes is a VALUE IN A FIELD, not a line order, so
@@ -239,5 +240,50 @@ describe("PlanComposer never drops a URL ask", () => {
 
     expect(document.querySelector("#plan-describe-first-query")).toBeNull();
     expect(conciergeFieldValue()).toBe(URL_ASK);
+  });
+});
+
+// The server knows no address, so anything the composer reads off
+// `window.location` during the HYDRATION render paints a field the server left
+// empty - and React reconciles that as a mismatch. The URL ask therefore waits
+// for the remount that follows hydration.
+describe("PlanComposer hydration", () => {
+  // An ask naming its own crawl size, so the stop-count picker's `aria-pressed`
+  // really differs between the server's default and anything read off the URL.
+  // An ask that infers the default 3 would make this assertion vacuous.
+  const SIZED_ASK = "A five stop crawl in Soho";
+
+  it("hydrates a /plan?query= document without a mismatch", async () => {
+    // The real server has no `window`, so the helper answers null there
+    // whatever the address is - which is what an empty search models here.
+    // Rendering the server HTML with the address in place would make both
+    // sides read it and leave nothing for this test to catch.
+    setSearch("");
+    const serverHtml = renderToString(createElement(PlanComposer));
+    setSearch(`?query=${encodeURIComponent(SIZED_ASK)}`);
+
+    host = document.createElement("div");
+    host.innerHTML = serverHtml;
+    document.body.append(host);
+
+    const complaints: string[] = [];
+    vi.spyOn(console, "error").mockImplementation((...args: unknown[]) => {
+      complaints.push(args.map((arg) => String(arg)).join(" "));
+    });
+
+    await act(async () => {
+      root = hydrateRoot(host!, createElement(PlanComposer));
+    });
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      complaints.filter((line) => /hydrat|did not match|mismatch/i.test(line)),
+      "hydrating the composer should not reconcile against a different tree",
+    ).toEqual([]);
+    // The ask still lands, on the remount that follows hydration.
+    expect(describeFieldValue()).toBe(SIZED_ASK);
   });
 });

@@ -1021,11 +1021,13 @@ function safeLocalStorage(): Storage | null {
 }
 
 /**
- * The ask a `/plan` URL carries, read once at mount.
+ * The ask a `/plan` URL carries.
  *
- * `PlanComposerForm` is remounted under a fresh key the moment the page
- * hydrates, so a lazy initialiser here sees the real address and no server
- * render disagrees with it. Nothing but `window.location` is touched.
+ * Only ever read once the page has hydrated: the server knows no address, so a
+ * read during the hydration render would paint a field the server left empty
+ * and mismatch it. `PlanComposerForm` is remounted under a fresh key the moment
+ * hydration lands, which is where this answers. Nothing but `window.location`
+ * is touched.
  */
 function describeAskFromLocation(): string | null {
   if (typeof window === "undefined") return null;
@@ -1071,7 +1073,7 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [urlAsk] = useState(describeAskFromLocation);
+  const [urlAsk] = useState(() => (canPersist ? describeAskFromLocation() : null));
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
   // answers so far are not hidden behind the question they already passed -
@@ -1098,16 +1100,13 @@ function PlanComposerForm({
   const [askDraftQuery, setAskDraftQuery] = useState(urlAsk ?? "");
   const askDraftConsumedRef = useRef(false);
   useEffect(() => {
+    // The URL ask is already in state; this effect exists to SPEND the draft,
+    // which is a storage write and so waits for a browser that can persist.
+    if (!canPersist) return;
     if (askDraftConsumedRef.current) return;
     askDraftConsumedRef.current = true;
     void Promise.resolve().then(() => {
       try {
-        // The URL wins, and it is applied BEFORE any storage call: reading
-        // `sessionStorage` throws outright when site data is blocked or the
-        // document is a sandboxed frame, and one shared catch would take the
-        // URL prefill down with it.
-        const fromUrl = parsePlanDescribeFromSearch(window.location.search);
-        if (fromUrl) setAskDraftQuery(fromUrl);
         // The ask draft is one-shot, so it is SPENT whichever prefill wins: a
         // URL that carries its own describe used to leave the draft behind for
         // the next /plan visit to open on somebody's earlier ask.
@@ -1119,7 +1118,7 @@ function PlanComposerForm({
         } catch {
           raw = null;
         }
-        if (fromUrl || !raw) return;
+        if (urlAsk || !raw) return;
         const parsed = JSON.parse(raw) as AskPlanDraft;
         const query = typeof parsed?.query === "string" ? parsed.query.trim().slice(0, 500) : "";
         if (!query) return;
@@ -1128,7 +1127,7 @@ function PlanComposerForm({
         /* private mode or bad JSON */
       }
     });
-  }, []);
+  }, [canPersist, urlAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);
