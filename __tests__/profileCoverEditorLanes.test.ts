@@ -60,7 +60,8 @@ const HELD_COVER = "/api/cover/p1/g1";
 let container: HTMLDivElement;
 let root: Root | null = null;
 
-async function mount(heldCoverUrls: string[]): Promise<void> {
+/** Mount WITHOUT settling, so the rotation read is still in flight. */
+async function mountUnsettled(heldCoverUrls: string[]): Promise<void> {
   await act(async () => {
     root?.render(
       createElement(ProfileCoverPhotosEditor, {
@@ -70,6 +71,10 @@ async function mount(heldCoverUrls: string[]): Promise<void> {
       }),
     );
   });
+}
+
+async function mount(heldCoverUrls: string[]): Promise<void> {
+  await mountUnsettled(heldCoverUrls);
   // The load effect awaits a microtask, then the read, then the reader's own
   // chain, and a transient answer would also wait out a 50ms backoff. Give it
   // real elapsed turns rather than a fixed count of microtasks.
@@ -220,10 +225,10 @@ describe("a remove goes to the lane the rotation is actually in", () => {
     expect(removeCoverButton()).toBeNull();
   });
 
-  it("writes nothing at all while the read has not answered", async () => {
-    // THE DEFECT: a degraded read left `covers` empty, the owner was classified
-    // mirror-only, and the single-slot DELETE cleared the mirror while every
-    // rotation row survived - reported to the owner as a successful removal.
+  it("writes nothing at all after a read that FAILED", async () => {
+    // A degraded read leaves `covers` empty, so an owner with rotation rows
+    // would be classified mirror-only and the single-slot DELETE would clear
+    // the mirror while every row survived - reported as a successful removal.
     wire.next = async () => new Response("{}", { status: 403 });
     await mount([HELD_COVER]);
 
@@ -232,5 +237,50 @@ describe("a remove goes to the lane the rotation is actually in", () => {
 
     expect(wire.calls.filter((call) => call.method === "DELETE")).toEqual([]);
     expect(container.textContent).toContain("nothing was removed");
+  });
+
+  it("offers no remove and no mirror card while the read is still IN FLIGHT", async () => {
+    // THE DEFECT: `status` started at "ready", so the lane's guard never fired
+    // during the GET. An owner with rotation rows and a mirrored cover_* saw the
+    // mirror card immediately, and a tap before the read landed cleared the
+    // mirror alone while all five backdrops kept rotating.
+    let answer: (() => void) | null = null;
+    wire.next = () =>
+      new Promise<Response>((resolve) => {
+        answer = () =>
+          resolve(
+            Response.json({
+              status: "ready",
+              covers: [{ id: "c1", position: 1, url: "/api/cover/p1/g9" }],
+            }),
+          );
+      });
+
+    await mountUnsettled([HELD_COVER]);
+
+    expect(container.querySelector(".profileEditorCoverMirrorOnly")).toBeNull();
+    expect(removeCoverButton(), "no lane is known yet, so none is offered").toBeNull();
+    // And no premature claim about the rotation either way.
+    expect(container.textContent).not.toContain(EMPTY_LINE);
+    expect(container.textContent).not.toContain(DEGRADED_LINE);
+    expect(wire.calls.filter((call) => call.method === "DELETE")).toEqual([]);
+
+    // The read lands: it was a ROTATION all along, never a mirror.
+    expect(answer, "the read must still be in flight").not.toBeNull();
+    await act(async () => {
+      answer!();
+    });
+    for (let turn = 0; turn < 6; turn += 1) {
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+    }
+
+    expect(container.querySelector(".profileEditorCoverMirrorOnly")).toBeNull();
+    wire.next = async () => Response.json({ profile: { handle: "alice" }, covers: [] });
+    await clickRemoveCover();
+    expect(
+      wire.calls.filter((call) => call.method === "DELETE").map((call) => call.url),
+    ).toEqual(["/api/profiles/alice/covers/c1"]);
   });
 });

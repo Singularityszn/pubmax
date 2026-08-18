@@ -281,21 +281,29 @@ export function profileCoverRemoveConfirmLine(): string {
  * while every rotation row survives, so the backdrop keeps rotating over a
  * receipt that said it was gone.
  */
+/**
+ * The EDITOR's own view of the rotation read, which is one state wider than the
+ * wire's: a route answers `ready` or `degraded`, but a surface holding neither
+ * yet has not asked. "Not asked" is not "empty", and merging the two is what let
+ * a remove be armed at the wrong lane while the GET was still in flight.
+ */
+export type ProfileCoverReadState = ProfileCoverReadStatus | "loading";
+
 export type ProfileCoverRemoveLane = "rotation" | "mirror" | "none" | "unavailable";
 
 /**
  * Which lane a field-level "Remove cover" belongs in, decided ONCE.
  *
- * "The rotation is empty" and "we could not read the rotation" are two
- * findings. An editor that merged them classified an owner with five rotation
- * rows as mirror-only the moment the read failed, sent the remove at the
+ * "The rotation is empty", "we could not read the rotation" and "we have not
+ * asked yet" are THREE findings. An editor that merged any of them classified an
+ * owner with five rotation rows as mirror-only, sent the remove at the
  * single-cover DELETE, cleared `profiles.cover_*` alone and reported success:
  * every row survived and the backdrop kept rotating. The mirror-only CARD and
  * the remove lane read this one answer, so the thing shown and the thing done
  * cannot disagree.
  */
 export function profileCoverRemoveLane(input: {
-  status: ProfileCoverReadStatus;
+  status: ProfileCoverReadState;
   rotationCount: number;
   mirrorCount: number;
 }): ProfileCoverRemoveLane {
@@ -303,6 +311,16 @@ export function profileCoverRemoveLane(input: {
   if (input.rotationCount > 0) return "rotation";
   if (input.mirrorCount > 0) return "mirror";
   return "none";
+}
+
+/**
+ * The sentence under the field, or nothing. A read still in flight gets NO
+ * sentence: "no cover photo yet" is a claim about the rotation, and the only
+ * honest thing to say before it answers is nothing at all.
+ */
+export function profileCoverStatusLine(state: ProfileCoverReadState): string | null {
+  if (state === "loading") return null;
+  return profileCoverEmptyLine(state);
 }
 
 export function profileCoverRemoveUnavailableLine(): string {

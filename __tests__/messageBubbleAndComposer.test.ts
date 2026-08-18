@@ -354,11 +354,8 @@ describe("a phone crop and lightbox stay bounded, not full-screen", () => {
     expect(viewer).not.toMatch(/height:\s*100vh/);
     expect(rule(".messagePhotoViewerImage")).toMatch(/object-fit:\s*contain/);
   });
-
-  it("leaves a desktop the full-frame room it had", () => {
-    const viewer = rule(".messagePhotoViewer");
-    expect(viewer).toMatch(/width:\s*min\(96vw,\s*60rem\)/);
-    expect(viewer).toMatch(/max-height:\s*92dvh/);
-    expect(rule(".messagePhotoViewerImage")).toMatch(/max-height:\s*calc\(92dvh - 56px\)/);
-  });
 });
+// The desktop half of that bound is a RENDERED claim about a 1280px dialog, so
+// it is measured in e2e/message-bubble-geometry.spec.ts rather than read off the
+// stylesheet here: a clamp or a custom property would keep the pixels and fail a
+// regex, and a rule the cascade has killed would pass one.

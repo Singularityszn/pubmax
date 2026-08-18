@@ -557,6 +557,65 @@ test.describe("message attach preview and lightbox at phone 390", () => {
   });
 });
 
+/** The lightbox dialog alone, measured under whatever viewport is current. */
+async function measureViewerDialog(page: Page): Promise<Box & { viewport: Box }> {
+  return page.evaluate(() => {
+    document.getElementById("viewer-probe")?.remove();
+    const host = document.querySelector(".messagesMain") ?? document.body;
+    const dialog = document.createElement("dialog");
+    dialog.id = "viewer-probe";
+    dialog.className = "messagePhotoViewer";
+    dialog.open = true;
+    const img = document.createElement("img");
+    img.className = "messagePhotoViewerImage";
+    // A tall source, so the dialog's own height cap is what binds rather than
+    // the picture running out.
+    img.src =
+      "data:image/svg+xml," +
+      encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="400" height="1600"/>');
+    dialog.append(img);
+    host.append(dialog);
+    const rect = dialog.getBoundingClientRect();
+    const measured = {
+      width: rect.width,
+      height: rect.height,
+      viewport: { width: window.innerWidth, height: window.innerHeight },
+    };
+    dialog.remove();
+    return measured;
+  });
+}
+
+// "View full" is a FULL-FRAME view, and the bug being fixed was a phone one, so
+// the narrow caps are scoped to the 640px breakpoint and a desktop keeps the
+// room it always had. That is a claim about rendered pixels at a wide viewport,
+// which no read of the stylesheet can make.
+test.describe("the lightbox keeps its desktop room", () => {
+  test("opens near 60rem wide at 1280, not the phone's 36rem", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    });
+    const response = await page.goto("/messages");
+    expect(response?.status()).toBe(200);
+    await expect(page.locator(".messagesMain")).toBeVisible();
+
+    const measured = await measureViewerDialog(page);
+
+    // THE DEFECT: the phone bound was unconditional, so this dialog rendered
+    // 576px wide (36rem) on a desktop that had been giving it 960px.
+    const PHONE_CAP_PX = 36 * 16;
+    expect(measured.width).toBeGreaterThan(PHONE_CAP_PX + 1);
+    expect(measured.width).toBeCloseTo(60 * 16, -1);
+    // And it may still not run off the screen.
+    expect(measured.width).toBeLessThanOrEqual(measured.viewport.width);
+    // 92dvh of room, against the phone rule's 72dvh.
+    expect(measured.height).toBeGreaterThan(measured.viewport.height * 0.75);
+    expect(measured.height).toBeLessThanOrEqual(measured.viewport.height * 0.93);
+  });
+});
+
 // The one viewport where the 40dvh limb of the cap binds instead of the flat
 // 240px: a phone held sideways. Without it the tile would be 240px of a 390px
 // screen, which is most of the thread.
