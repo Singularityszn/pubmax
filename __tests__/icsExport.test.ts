@@ -38,18 +38,39 @@ describe("formatIcsUtc", () => {
 });
 
 describe("defaultCrawlStart", () => {
-  it("returns tonight at 19:00 when called before 7pm", () => {
-    const from = new Date(2026, 6, 10, 15, 0, 0); // 3pm local
+  // Resolved against Europe/London regardless of the caller's own locale, so
+  // every assertion below checks the absolute UTC instant rather than a
+  // system-local getHours() read (which is what let the pre-fix bug through:
+  // it only "worked" on a machine whose OS timezone happened to be London).
+
+  it("returns tonight at 19:00 BST (18:00Z) when called before 7pm London, in summer", () => {
+    // 2026-07-10 14:00Z = 15:00 BST (UTC+1) — well before 19:00 London.
+    const from = new Date(Date.UTC(2026, 6, 10, 14, 0, 0));
     const start = defaultCrawlStart(from);
-    expect(start.getHours()).toBe(19);
-    expect(start.getDate()).toBe(10);
+    expect(formatIcsUtc(start)).toBe("20260710T180000Z");
   });
 
-  it("rolls to the next day when it is already past 19:00", () => {
-    const from = new Date(2026, 6, 10, 21, 0, 0); // 9pm local
+  it("rolls to the next day when it is already past 19:00 BST", () => {
+    // 2026-07-10 19:00Z = 20:00 BST — already past 19:00 London.
+    const from = new Date(Date.UTC(2026, 6, 10, 19, 0, 0));
     const start = defaultCrawlStart(from);
-    expect(start.getHours()).toBe(19);
-    expect(start.getDate()).toBe(11);
+    expect(formatIcsUtc(start)).toBe("20260711T180000Z");
+  });
+
+  it("returns tonight at 19:00 GMT (19:00Z) in winter, when London has no DST offset", () => {
+    // 2026-01-10 15:00Z = 15:00 GMT (UTC+0) — before 19:00 London.
+    const from = new Date(Date.UTC(2026, 0, 10, 15, 0, 0));
+    const start = defaultCrawlStart(from);
+    expect(formatIcsUtc(start)).toBe("20260110T190000Z");
+  });
+
+  it("resolves correctly for a visitor whose device timezone is not Europe/London", () => {
+    // A caller in a US timezone at 15:00 their local time (UTC-4, so 19:00Z /
+    // 20:00 BST) is already past 19:00 London and should roll to the next
+    // London evening, not to 19:00 in their own local clock.
+    const from = new Date(Date.UTC(2026, 6, 10, 19, 0, 0)); // 15:00 EDT
+    const start = defaultCrawlStart(from);
+    expect(formatIcsUtc(start)).toBe("20260711T180000Z");
   });
 });
 

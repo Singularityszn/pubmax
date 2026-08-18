@@ -418,6 +418,21 @@ export function mapCandidateDrivesMap(
 }
 
 /**
+ * The pin/pin-band bucket a pint price falls into: 0 = cheap (<=£5.50),
+ * 1 = mid (<=£7), 2 = dear, 3 = unknown (no price). Lives here (not in the
+ * map canvas) because the OG city-map card's server-only band counter
+ * (lib/ogCityPriceBands.server.ts) needs the exact same thresholds the pin
+ * paints with; components/map/canvas/geojson.ts re-exports it for the pin
+ * drawing code and its existing tests.
+ */
+export function priceBucket(price: number | null): number {
+  if (price === null) return 3;
+  if (price <= 5.5) return 0;
+  if (price <= 7) return 1;
+  return 2;
+}
+
+/**
  * Does this report earn the pin a PROVISIONAL mark - the small badge that says
  * "someone reported here" without saying what the price is?
  *

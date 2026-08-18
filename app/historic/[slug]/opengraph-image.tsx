@@ -3,6 +3,7 @@ import { ImageResponse } from "next/og";
 import { getHistoricPubBySlug, loadHistoricPubs } from "@/lib/historic";
 import { listedBadge } from "@/lib/historicFilter";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // Per-pub Historic Pubs OG share card (Next `opengraph-image` convention).
 // Renders the cited heritage of a single pub as a collectible "field-guide
@@ -33,13 +34,7 @@ const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 // whitespace, cap length with an ellipsis. Cited text can run long, so it is
 // never rendered unbounded.
 function clampText(raw: string | null | undefined, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw.replace(/\s+/g, " "))
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+  return clampOgText(raw, max, fallback, { collapseWhitespace: true, collapseBeforeFilter: true });
 }
 
 // A bordered brass chip. Only ever rendered for present, cited facts.

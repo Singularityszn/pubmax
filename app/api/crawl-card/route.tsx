@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { clampOgText, clampOgInt } from "@/lib/ogCardText";
 
 export const runtime = "nodejs";
 
@@ -19,33 +20,15 @@ const RIVER = "#3f5566"; // muted Thames blue
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-// Clamp/sanitise a query value: strip control chars, cap length. Share-card text
-// is untrusted (it comes from a URL), so we never render it unbounded.
-function clampParam(raw: string | null, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw)
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
-function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
-
 export async function GET(request: Request) {
   const limited = await ogCardRateLimitedResponse(request, "og-crawl-card");
   if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
-  const title = clampParam(searchParams.get("title"), 64, "A London crawl");
-  const tag = clampParam(searchParams.get("tag"), 28);
-  const stops = clampInt(searchParams.get("stops"), 0, 12, 0);
-  const totalRaw = clampParam(searchParams.get("total"), 12);
+  const title = clampOgText(searchParams.get("title"), 64, "A London crawl");
+  const tag = clampOgText(searchParams.get("tag"), 28);
+  const stops = clampOgInt(searchParams.get("stops"), 0, 12, 0);
+  const totalRaw = clampOgText(searchParams.get("total"), 12);
   // `total` may arrive as a formatted string or a number — normalise to £x.xx.
   const totalNum = Number(totalRaw.replace(/[^0-9.]/g, ""));
   const total = Number.isFinite(totalNum) && totalNum > 0 ? `£${totalNum.toFixed(2)}` : null;

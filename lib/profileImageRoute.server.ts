@@ -259,8 +259,13 @@ export async function handleProfileImageUpload(
     if (previousKeys.length > 0) {
       try {
         await storage.remove(previousKeys);
-      } catch {
+      } catch (error) {
         // The new image is live; old-generation cleanup is best-effort.
+        log("warn", "profile_image.cleanup_failed", {
+          handle,
+          keys: previousKeys,
+          error: error instanceof Error ? error.message : String(error),
+        });
       }
     }
 
@@ -272,8 +277,13 @@ export async function handleProfileImageUpload(
     if (staged) {
       try {
         await discardStagedProfileImage(staged, storage);
-      } catch {
+      } catch (cleanupError) {
         // Swallow cleanup errors so the original failure is reported.
+        log("warn", "profile_image.cleanup_failed", {
+          handle,
+          key: staged.stagingKey,
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        });
       }
     }
     if (error instanceof ProfileImageError || error instanceof RequestBodyTooLargeError) {

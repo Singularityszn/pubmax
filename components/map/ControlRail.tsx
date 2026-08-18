@@ -29,11 +29,19 @@ import {
   isKnownSeatedService,
   isKnownStepFree,
 } from "@/lib/venueAccessibility";
-import { NO_PINT_PRICE_CAP, type CrawlStyle, type Filters, type Venue } from "@/lib/venues";
+import {
+  initialFilters,
+  NO_PINT_PRICE_CAP,
+  type CrawlStyle,
+  type Filters,
+  type Venue,
+} from "@/lib/venues";
 import { SAVED_ONLY_ARIA_LABEL } from "@/lib/savedOnlyFilter";
 
 /** Re-export so existing ControlRail importers keep resolving the aria label. */
 export { SAVED_ONLY_ARIA_LABEL };
+/** Re-export so existing ControlRail importers keep resolving the default filters. */
+export { initialFilters };
 
 /** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
 export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
@@ -80,38 +88,6 @@ export const styleLabels: Record<CrawlStyle, string> = {
   beerGarden: "Beer Garden",
   sports: "Live Sports",
   dateNight: "Date Night",
-};
-
-export const initialFilters: Filters = {
-  query: "",
-  // A fresh visitor starts with NO price cap. See NO_PINT_PRICE_CAP.
-  maxPrice: NO_PINT_PRICE_CAP,
-  crawlStyle: "balanced",
-  stopCount: 6,
-  routeWindow: 20,
-  requireBeerGarden: false,
-  requireNonAlcoholic: false,
-  requireLiveSports: false,
-  requireFood: false,
-  requireCocktails: false,
-  requireWater: false,
-  requireHeritage: false,
-  requirePintDrops: false,
-  // Default OFF so scraped / gazetteer pubs (Young's, Nicholson's, Eating Europe
-  // seeds) appear on first paint. Users can still tighten to verified-only.
-  canonicalOnly: false,
-  // Off by default. When on, only known-closed pubs drop; unknown hours stay.
-  openNow: false,
-  requireStepFree: false,
-  requireAccessibleToilet: false,
-  requireSeatedService: false,
-  drinkCategory: "",
-  drinkBrand: "",
-  // "" = no subtype refinement; set only alongside a drinkCategory.
-  drinkSubtype: "",
-  topShelfOnly: false,
-  // "" = all zones (no narrowing). The zone picker sets "1".."6".
-  zone: "",
 };
 
 type ControlRailProps = {

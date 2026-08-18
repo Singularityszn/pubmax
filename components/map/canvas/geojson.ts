@@ -1,4 +1,5 @@
 import { priceForBeer } from "@/lib/beers";
+import { priceBucket } from "@/lib/communityPrice";
 import { POI_CATEGORY_META, type Poi } from "@/lib/pois";
 import {
   drinkPinKindFromCategories,
@@ -15,12 +16,8 @@ import type { VenueSignal } from "./types";
 import { hashEntranceSeed } from "./filters";
 import { PIN_ENTRANCE_BUCKETS } from "./tokens";
 
-export function priceBucket(price: number | null): number {
-  if (price === null) return 3;
-  if (price <= 5.5) return 0;
-  if (price <= 7) return 1;
-  return 2;
-}
+/** Re-export so existing geojson.ts importers (the pin drawing code, its tests) keep resolving it. */
+export { priceBucket };
 
 /**
  * The pin's price tag text, or null when this pub has no figure it is allowed

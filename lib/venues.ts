@@ -302,6 +302,44 @@ export type Filters = {
   zone: string;
 };
 
+/**
+ * The default Filters state a fresh map/crawl session starts from. Lives here
+ * (not in a component) because lib/crawlUrl.ts — a pure, server-safe module
+ * (see lib/pubMap.ts's header on why it must stay that way) — needs it too;
+ * components/map/ControlRail.tsx re-exports it for its existing importers.
+ */
+export const initialFilters: Filters = {
+  query: "",
+  // A fresh visitor starts with NO price cap. See NO_PINT_PRICE_CAP.
+  maxPrice: NO_PINT_PRICE_CAP,
+  crawlStyle: "balanced",
+  stopCount: 6,
+  routeWindow: 20,
+  requireBeerGarden: false,
+  requireNonAlcoholic: false,
+  requireLiveSports: false,
+  requireFood: false,
+  requireCocktails: false,
+  requireWater: false,
+  requireHeritage: false,
+  requirePintDrops: false,
+  // Default OFF so scraped / gazetteer pubs (Young's, Nicholson's, Eating Europe
+  // seeds) appear on first paint. Users can still tighten to verified-only.
+  canonicalOnly: false,
+  // Off by default. When on, only known-closed pubs drop; unknown hours stay.
+  openNow: false,
+  requireStepFree: false,
+  requireAccessibleToilet: false,
+  requireSeatedService: false,
+  drinkCategory: "",
+  drinkBrand: "",
+  // "" = no subtype refinement; set only alongside a drinkCategory.
+  drinkSubtype: "",
+  topShelfOnly: false,
+  // "" = all zones (no narrowing). The zone picker sets "1".."6".
+  zone: "",
+};
+
 export function truthyFlag(value: string): boolean {
   return ["yes", "true", "y", "1"].includes(String(value).trim().toLowerCase());
 }

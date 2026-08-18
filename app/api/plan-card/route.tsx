@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, loadOgFonts, loadPartyFont } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { buildPlanPrivacyPreview } from "@/lib/planPrivacy";
 import { planStore } from "@/lib/planStore";
@@ -51,12 +52,7 @@ const STAMP_CORAL = "#ff5a5f";
 // Strip control chars and cap length. Plan title + venue names are user-entered,
 // so they are never rendered unbounded onto the card.
 function clamp(raw: string, max: number): string {
-  const clean = Array.from(raw)
-    .filter((char) => char.charCodeAt(0) >= 32 && char.charCodeAt(0) !== 127)
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
-  return clean.length > max ? `${clean.slice(0, max - 1)}…` : clean;
+  return clampOgText(raw, max, "", { collapseWhitespace: true });
 }
 
 export async function GET(request: Request): Promise<Response> {

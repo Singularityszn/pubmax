@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { clampOgText, clampOgInt } from "@/lib/ogCardText";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 
 export const runtime = "nodejs";
@@ -19,22 +20,6 @@ const RIVER = "#3f5566";
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-function clampParam(raw: string | null, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw)
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
-function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
-
 function ListGlyph() {
   return (
     <svg width="58" height="58" viewBox="0 0 58 58" fill="none">
@@ -51,15 +36,15 @@ export async function GET(request: Request) {
   if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
-  const owner = clampParam(searchParams.get("owner"), 32, "pubmaxxer");
-  const list = clampParam(searchParams.get("list"), 54, "London saved list");
-  const venueCount = clampInt(
+  const owner = clampOgText(searchParams.get("owner"), 32, "pubmaxxer");
+  const list = clampOgText(searchParams.get("list"), 54, "London saved list");
+  const venueCount = clampOgInt(
     searchParams.get("venues") ?? searchParams.get("pubs"),
     0,
     999,
     0,
   );
-  const followers = clampInt(searchParams.get("followers"), 0, 999, 0);
+  const followers = clampOgInt(searchParams.get("followers"), 0, 999, 0);
 
   const venueLabel = formatSavedVenueCount(venueCount);
   const followerLabel = `${followers} follower${followers === 1 ? "" : "s"}`;

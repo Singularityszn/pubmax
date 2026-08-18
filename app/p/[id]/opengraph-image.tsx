@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { getPintDropById } from "@/lib/pintDropLookup";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // Per-drop OG share card (Next `opengraph-image` convention). Renders the Pint
 // Drop as a collectible "pint memory card" — a beer-mat with a pressed brass
@@ -28,14 +29,7 @@ const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 // Clamp/sanitise untrusted text: drop control chars, collapse whitespace, cap
 // length with an ellipsis. Share-card text comes from user content.
 function clampText(raw: string | null | undefined, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw)
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+  return clampOgText(raw, max, fallback, { collapseWhitespace: true });
 }
 
 function priceStamp(value: number | null): string | null {

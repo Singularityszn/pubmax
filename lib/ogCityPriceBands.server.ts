@@ -15,12 +15,12 @@ import "server-only";
 
 import { readFile } from "node:fs/promises";
 
-import { priceBucket } from "@/components/map/canvas/geojson";
 import { getCity, type CityId } from "@/lib/cities";
 import { slimVenuesDiskPath } from "@/lib/cityRivalry";
 import {
   drivesMap,
   mapCandidateOf,
+  priceBucket,
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { readCommunityPriceCategoryIndex } from "@/lib/communityPriceStore";

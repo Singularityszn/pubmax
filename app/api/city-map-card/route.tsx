@@ -6,6 +6,7 @@ import { bandByIdForCity } from "@/lib/cityStoryBands";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
 import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 import { readOgCityPriceBandCounts } from "@/lib/ogCityPriceBands.server";
+import { clampOgText } from "@/lib/ogCardText";
 import {
   deriveOgPriceWaveLayers,
   type OgPriceWaveLayer,
@@ -60,14 +61,7 @@ export function buildOgMapCardWaveLayers(
 }
 
 function clampParam(raw: string | null, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw)
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .replace(/\s+/g, " ")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
+  return clampOgText(raw, max, fallback, { collapseWhitespace: true });
 }
 
 export async function GET(request: Request) {
