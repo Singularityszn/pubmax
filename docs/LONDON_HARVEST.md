@@ -44,6 +44,65 @@ already splits this way; the harvest follows it.
 | The shape of a run report | `lib/harvest/runReport.ts` |
 | The bounded batch the cron runs | `lib/harvestRefresh.server.ts` |
 | The durable pass | `scripts/harvest/run.mjs` |
+| Context.dev web reads (events lane) | `lib/contextDev.ts` (app door: `lib/contextDev.server.ts`) |
+| Context.dev registered events harvest | `lib/events/contextDevProvider.ts` |
+
+## Context.dev (events lane)
+
+The What's-On events refresh (`scripts/whatson/eventsRefresh.mjs`) may read
+**registered venue-events pages** from `lib/harvest/sourcePolicy.ts` through
+Context.dev when `CONTEXT_DEV_API_KEY` is set server-side. The wrapper is
+`lib/contextDev.server.ts` (`scrapeMarkdown`, `extract`); the lane is
+`lib/events/contextDevProvider.ts`.
+
+Both are imported by a plain-`node` CLI, so two rules hold in that pair.
+`lib/contextDev.ts` carries the implementation and NO `server-only` marker, for
+the reason `lib/harvest/firecrawl.ts` carries none: the marker package throws on
+import outside a React Server Component. `lib/contextDev.server.ts` re-exports
+it behind that marker, and app code imports THAT. Every specifier inside the
+lane is relative and carries its extension, because Node strips TypeScript types
+but resolves no tsconfig `@/*` alias. A dynamic import of the lane hid both
+faults inside its own catch and reported an upstream failure every run.
+
+| Endpoint | Credits | Docs |
+|---|---|---|
+| `GET /web/scrape/markdown` | 1 | https://docs.context.dev/api-reference/web-scraping/markdown |
+| `POST /web/extract` | 10 | https://docs.context.dev/api-reference/web-extraction/extract |
+
+Base URL: `https://api.context.dev/v1`. Auth: `Authorization: Bearer
+$CONTEXT_DEV_API_KEY` (never in a client bundle). On 429 honour `Retry-After`,
+but only up to `CONTEXT_DEV_MAX_RETRY_AFTER_MS` (30 s): the wait sits between
+requests, so no request timeout bounds it, and a provider asking for an hour
+would park a scheduled run rather than let the next one act on the rate limit.
+Past that ceiling the call stops and its message says so. Retry 408/5xx with
+bounded backoff; never retry validation errors; pass `maxAgeMs` when freshness
+matters. Without a key every call answers `not-configured` and sends nothing.
+
+The lane spends ONE `createContextDevBudget()` for the whole run, shared by
+every source and counting retries, so a retry storm spends the run rather than
+the account. `CONTEXT_DEV_RUN_REQUEST_BUDGET` is 12 requests, which at the table
+above is at most 120 credits. A request reserved past the cap sends nothing, and
+it answers one of TWO ways. A ceiling reached before this call sent anything is
+the whole finding, so it answers `BUDGET_EXHAUSTED`. A ceiling reached between
+retries is not: the upstream failure that caused the retry is the actionable
+one, so the answer keeps that failure's own code and status (a 503 stays
+`PROVIDER_UNAVAILABLE`) and the spent budget rides in the message as the reason
+no further attempt was made.
+
+Which sources the lane may read is `contextDevEventSources()`, and the bar is
+FIRST PARTY: an extract call hands a whole page to a model, so it cannot honour
+the narrow `nonFirstPartyException` an allowed listings source carries.
+
+Proof (captain): with the key in `.env.local`:
+
+```bash
+set -a && source .env.local && set +a
+npx vitest run __tests__/contextDevLiveProof.test.ts --disableConsoleIntercept
+```
+
+The test skips when `CONTEXT_DEV_API_KEY` is unset. It prints a trimmed JSON
+preview to the console for PR bodies, and `--disableConsoleIntercept` is what
+hands that preview through unreformatted.
 
 ## The budget
 
@@ -95,6 +154,8 @@ crawlers and still refuse it.
 ## Pins
 
 `__tests__/harvestFirecrawlClient.test.ts` (fail closed, budget, retries),
+`__tests__/contextDev.server.test.ts` and `__tests__/contextDevProvider.test.ts`
+(Context.dev wrapper and events lane),
 `__tests__/harvestRows.test.ts` (what earns a row, provenance),
 `__tests__/harvestSourcePolicy.test.ts` (the source table and the report),
 `__tests__/cronHarvestRefreshRoute.test.ts` (auth, keyless run, budget ceiling).

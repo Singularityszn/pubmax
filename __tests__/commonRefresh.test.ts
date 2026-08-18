@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -410,5 +411,53 @@ describe("the crawl budget advances", () => {
     expect(report.rows).toHaveLength(1);
     expect(report.rows[0].startsDate).toBe("2026-08-20");
     rmSync(dir, { recursive: true, force: true });
+  });
+});
+
+describe("Common lane independence", () => {
+  // The scheduler spawns Common as its OWN command so a quiet provider window
+  // cannot stop it, which means nothing in Common's module graph may depend on
+  // the provider lane loading. Node's type stripping is what lets a plain .mjs
+  // script import a TypeScript module, so a child with stripping DISABLED
+  // refuses any graph that reaches TypeScript. Common must load in that child.
+  const loadUnderNoStripTypes = (specifier: string, cwd: string) => {
+    try {
+      execFileSync(
+        process.execPath,
+        [
+          "--no-experimental-strip-types",
+          "--input-type=module",
+          "-e",
+          `await import(${JSON.stringify(specifier)});`,
+        ],
+        { cwd, stdio: "pipe" },
+      );
+      return { loaded: true, output: "" };
+    } catch (error) {
+      const err = error as { stderr?: Buffer | string; message?: string };
+      return { loaded: false, output: String(err.stderr ?? err.message ?? "") };
+    }
+  };
+
+  // The control is a throwaway pair rather than a repository module, so the
+  // probe is proved to detect TypeScript in a graph without pinning any real
+  // script's current shape as a requirement.
+  function probeDetectsTypeScript() {
+    const dir = mkdtempSync(join(tmpdir(), "no-strip-types-probe-"));
+    try {
+      writeFileSync(join(dir, "typed.ts"), "export const answer: number = 1;\n");
+      writeFileSync(join(dir, "entry.mjs"), 'export { answer } from "./typed.ts";\n');
+      return !loadUnderNoStripTypes("./entry.mjs", dir).loaded;
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  }
+
+  const probeWorks = probeDetectsTypeScript();
+
+  it.skipIf(!probeWorks)("loads with no TypeScript anywhere in its graph", () => {
+    const common = loadUnderNoStripTypes("./scripts/whatson/commonRefresh.mjs", process.cwd());
+    expect(common.output).not.toContain("ERR_UNKNOWN_FILE_EXTENSION");
+    expect(common.loaded).toBe(true);
   });
 });

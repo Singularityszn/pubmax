@@ -9,6 +9,12 @@ import {
   TICKETMASTER_SOURCE,
   toIsoInstant,
 } from "../scripts/whatson/eventsRefresh.mjs";
+import {
+  EVENT_DROP_REASONS,
+  emptyEventDrops,
+  mergeEventDrops,
+  summariseEventDrops,
+} from "@/lib/whatson/eventNormalise.mjs";
 import { buildVenueResolverIndex, resolveVenueId } from "../scripts/whatson/resolveVenueId.mjs";
 import { isValidWhatsOnRow } from "@/lib/whatsOn";
 
@@ -225,5 +231,43 @@ describe("attribution constants", () => {
     expect(SKIDDLE_SOURCE.label).toBe("Skiddle");
     expect(TICKETMASTER_SOURCE.url).toMatch(/^https:\/\//);
     expect(SKIDDLE_SOURCE.url).toMatch(/^https:\/\//);
+  });
+});
+
+describe("event drop counters", () => {
+  it("carries EVERY reason the vocabulary names, so a new one cannot be dropped in transit", () => {
+    const from = emptyEventDrops();
+    for (const reason of EVENT_DROP_REASONS) from[reason] = 1;
+    from.total = EVENT_DROP_REASONS.length;
+
+    const into = mergeEventDrops(emptyEventDrops(), from);
+    for (const reason of EVENT_DROP_REASONS) expect(into[reason]).toBe(1);
+    expect(into.total).toBe(EVENT_DROP_REASONS.length);
+  });
+
+  it("accumulates across merges and answers the counters it added into", () => {
+    const into = emptyEventDrops();
+    const one = { ...emptyEventDrops(), noKind: 2, total: 2 };
+    expect(mergeEventDrops(into, one)).toBe(into);
+    mergeEventDrops(into, { ...emptyEventDrops(), noStart: 3, total: 3 });
+    expect(into.noKind).toBe(2);
+    expect(into.noStart).toBe(3);
+    expect(into.total).toBe(5);
+  });
+
+  it("leaves the counters alone when there is nothing to merge", () => {
+    const into = { ...emptyEventDrops(), noPlace: 1, total: 1 };
+    expect(mergeEventDrops(into, null)).toEqual({ ...emptyEventDrops(), noPlace: 1, total: 1 });
+  });
+
+  it("summarises every reason the vocabulary names", () => {
+    const dropped = mergeEventDrops(emptyEventDrops(), {
+      ...emptyEventDrops(),
+      noKind: 1,
+      total: 1,
+    });
+    const summary = summariseEventDrops(dropped);
+    for (const reason of EVENT_DROP_REASONS) expect(summary).toContain(`${reason}=`);
+    expect(summariseEventDrops(emptyEventDrops())).toBe("dropped 0");
   });
 });

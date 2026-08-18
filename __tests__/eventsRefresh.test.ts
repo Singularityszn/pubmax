@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -239,6 +240,7 @@ describe("keyless lanes", () => {
     const lanes = providerLaneStatus({});
     expect(lanes.ticketmaster).toBe("not-configured");
     expect(lanes.skiddle).toBe("not-configured");
+    expect(lanes.contextdev).toBe("not-configured");
   });
 });
 
@@ -320,6 +322,7 @@ describe("runEventsRefresh end to end", () => {
     expect(written.sources.map((source: { label: string }) => source.label)).toEqual([
       "Ticketmaster",
       "Skiddle",
+      "Context.dev registered sources",
     ]);
     expect(written.generatedAt).toBe(new Date(NOW_MS).toISOString());
     expect(written.rows).toHaveLength(1);
@@ -801,5 +804,57 @@ describe("the review PR is refused when the gate rejects the refreshed file", ()
     expect(result.validation.status).toBe("ran");
     expect(result.published.status).toBe("ran");
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("plain-node entry point", () => {
+  // `npm run refresh:events` and the local scheduler both spawn this script
+  // with plain `node`, which resolves no tsconfig `@/*` alias. Vitest reaches
+  // the same module through Vite, which resolves one - so a specifier
+  // regression inside the Context.dev lane is invisible to every other test
+  // here while it kills the CLI at module load. This is the fence for that.
+  it("loads under plain node and answers for the Context.dev lane", () => {
+    const childEnv = { ...process.env };
+    delete childEnv.CONTEXT_DEV_API_KEY;
+
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        [
+          'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
+          "process.stdout.write(JSON.stringify(mod.providerLaneStatus({})));",
+        ].join("\n"),
+      ],
+      { cwd: process.cwd(), env: childEnv, stdio: ["ignore", "pipe", "pipe"] },
+    );
+
+    expect(JSON.parse(String(stdout))).toMatchObject({
+      contextdev: "not-configured",
+      ticketmaster: "not-configured",
+      skiddle: "not-configured",
+    });
+  });
+
+  it("answers configured under plain node once the key is in the environment", () => {
+    const stdout = execFileSync(
+      process.execPath,
+      [
+        "--input-type=module",
+        "-e",
+        [
+          'const mod = await import("./scripts/whatson/eventsRefresh.mjs");',
+          "process.stdout.write(mod.providerLaneStatus(process.env).contextdev);",
+        ].join("\n"),
+      ],
+      {
+        cwd: process.cwd(),
+        env: { ...process.env, CONTEXT_DEV_API_KEY: "  probe-key  " },
+        stdio: ["ignore", "pipe", "pipe"],
+      },
+    );
+
+    expect(String(stdout)).toBe("configured");
   });
 });
