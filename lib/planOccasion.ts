@@ -94,6 +94,27 @@ export function parsePlanDescribeFromSearch(search: string): string | null {
   return trimmedQuery || null;
 }
 
+/**
+ * The Pub Pal handoff ask ALONE, ignoring `occasion` and `describe`.
+ *
+ * `parsePlanDescribeFromSearch` answers for all three params, so a caller that
+ * needs to know specifically whether the ADDRESS carries a handoff ask - rather
+ * than any prefill at all - has to ask this narrower question. The composer
+ * uses it to decide whether a saved wizard draft is overridden, which is a rule
+ * about the handoff and not about the chip links.
+ */
+export function parsePlanHandoffQueryFromSearch(search: string): string | null {
+  let params: URLSearchParams;
+  try {
+    params = new URLSearchParams(search);
+  } catch {
+    return null;
+  }
+  const query = params.get(PLAN_QUERY_PARAM);
+  if (!query) return null;
+  return cleanText(query, 500) || null;
+}
+
 /** After a Pub Pal three-stop route answer, open Plan with the same ask prefilled. */
 export function planPalRouteHandoffHref(query: string): string {
   const trimmed = cleanText(query, 500);

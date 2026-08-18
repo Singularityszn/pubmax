@@ -202,6 +202,18 @@ describe("PlanComposer never drops a URL ask", () => {
     expect(describeFieldValue()).toBe(URL_ASK);
   });
 
+  it("leaves an unfinished wizard draft alone for a chip link", async () => {
+    // Only the Pub Pal handoff overrides the wizard. `?occasion=` is a shipped
+    // chip link, and CLAUDE.md's rule for those is unqualified: a saved,
+    // incomplete wizard draft lands the visitor back on the wizard.
+    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
+    setSearch("?occasion=coffee");
+
+    await mountComposer();
+
+    expect(document.querySelector("#plan-describe-first-query")).toBeNull();
+  });
+
   it("still opens on the wizard when no ask rides the URL", async () => {
     writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
 
@@ -240,6 +252,61 @@ describe("PlanComposer never drops a URL ask", () => {
 
     expect(document.querySelector("#plan-describe-first-query")).toBeNull();
     expect(conciergeFieldValue()).toBe(URL_ASK);
+  });
+
+  it("wins over a concierge line the recovered draft was holding", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "",
+        creatorName: "",
+        startTime: "",
+        conciergeQuery: DRAFT_ASK,
+        stops: [{ key: 1, venueId: "venue-held", venueName: "The Held Arms" }],
+        acceptedAnchor: {
+          venueId: "venue-held",
+          source: "pal",
+          cityId: "london",
+          acceptedArea: null,
+          startsAt: null,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+      },
+      "planning-intent",
+      sessionStorage,
+    );
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+
+    await mountComposer();
+
+    // The drinker chose this ask a moment ago; the draft line is what they
+    // left behind on an earlier visit.
+    expect(conciergeFieldValue()).toBe(URL_ASK);
+  });
+
+  it("keeps the recovered concierge line when no ask rides the URL", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "",
+        creatorName: "",
+        startTime: "",
+        conciergeQuery: DRAFT_ASK,
+        stops: [{ key: 1, venueId: "venue-held", venueName: "The Held Arms" }],
+        acceptedAnchor: {
+          venueId: "venue-held",
+          source: "pal",
+          cityId: "london",
+          acceptedArea: null,
+          startsAt: null,
+          expiresAt: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+        },
+      },
+      "planning-intent",
+      sessionStorage,
+    );
+
+    await mountComposer();
+
+    expect(conciergeFieldValue()).toBe(DRAFT_ASK);
   });
 });
 

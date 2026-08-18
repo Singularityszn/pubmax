@@ -11,7 +11,10 @@ import PlanCultureOpener from "@/components/plan/PlanCultureOpener";
 import { discardBody } from "@/lib/responseBody";
 import { laneSourceFromSearch, trackEvent, trackMeaningfulCoreAction } from "@/lib/analytics";
 import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
-import { parsePlanDescribeFromSearch } from "@/lib/planOccasion";
+import {
+  parsePlanDescribeFromSearch,
+  parsePlanHandoffQueryFromSearch,
+} from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { CREW_NAME_MAX } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
@@ -1020,8 +1023,17 @@ function safeLocalStorage(): Storage | null {
   }
 }
 
+type UrlPrefill = {
+  /** Any prefill the address carries: `occasion`, `describe` or `query`. */
+  ask: string | null;
+  /** The Pub Pal handoff `query` alone, which is the narrower question. */
+  handoffAsk: string | null;
+};
+
+const NO_URL_PREFILL: UrlPrefill = { ask: null, handoffAsk: null };
+
 /**
- * The ask a `/plan` URL carries.
+ * The ask a `/plan` URL carries, both the wide answer and the narrow one.
  *
  * Only ever read once the page has hydrated: the server knows no address, so a
  * read during the hydration render would paint a field the server left empty
@@ -1029,12 +1041,16 @@ function safeLocalStorage(): Storage | null {
  * hydration lands, which is where this answers. Nothing but `window.location`
  * is touched.
  */
-function describeAskFromLocation(): string | null {
-  if (typeof window === "undefined") return null;
+function describeAskFromLocation(): UrlPrefill {
+  if (typeof window === "undefined") return NO_URL_PREFILL;
   try {
-    return parsePlanDescribeFromSearch(window.location.search);
+    const { search } = window.location;
+    return {
+      ask: parsePlanDescribeFromSearch(search),
+      handoffAsk: parsePlanHandoffQueryFromSearch(search),
+    };
   } catch {
-    return null;
+    return NO_URL_PREFILL;
   }
 }
 
@@ -1073,17 +1089,22 @@ function PlanComposerForm({
     initialComposerStops(recoveredRouteDraft, recoveredDraft, handoff),
   );
   const [venues, setVenues] = useState<PlanVenueOption[]>([]);
-  const [urlAsk] = useState(() => (canPersist ? describeAskFromLocation() : null));
+  const [urlPrefill] = useState(() => (canPersist ? describeAskFromLocation() : NO_URL_PREFILL));
+  const urlAsk = urlPrefill.ask;
   // Describe-first is the default open. A returning visitor with real,
   // unfinished wizard progress lands back on the wizard instead, so their
-  // answers so far are not hidden behind the question they already passed -
-  // unless the address itself carries an ask, which is a fresher intention
-  // than a draft they left behind, and the only surface that can show it.
+  // answers so far are not hidden behind the question they already passed.
+  // ONLY the Pub Pal handoff overrides that: it is a fresh ask the drinker
+  // just chose, and describe-first is the only surface that can show it. A
+  // chip link (`occasion`, `describe`) does not, so those keep the rule.
   const initialEntryMode: "describe" | "wizard" =
-    hasDurableIntakeDraft && !recoveredIntake.completed && !urlAsk ? "wizard" : "describe";
+    hasDurableIntakeDraft && !recoveredIntake.completed && !urlPrefill.handoffAsk
+      ? "wizard"
+      : "describe";
   // A URL ask is never dropped in silence. Where describe-first cannot render
   // it - a held acceptance opens the full composer instead - it lands in that
-  // surface's own field rather than nowhere.
+  // surface's own field, and it WINS there: the drinker chose this ask just
+  // now, where a recovered concierge line is whatever they left behind.
   const askNeedsConciergeField =
     Boolean(urlAsk)
     && !planComposerShowsDescribeFirst({
@@ -1092,7 +1113,7 @@ function PlanComposerForm({
       entryMode: initialEntryMode,
     });
   const [conciergeQuery, setConciergeQuery] = useState(
-    draftFields.conciergeQuery || (askNeedsConciergeField ? urlAsk ?? "" : ""),
+    (askNeedsConciergeField ? urlAsk ?? "" : "") || draftFields.conciergeQuery,
   );
   const [planIntake, setPlanIntake] = useState(recoveredIntake);
   const initialPlanIntakeRef = useRef(recoveredIntake);
