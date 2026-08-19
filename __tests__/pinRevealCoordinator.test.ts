@@ -13,6 +13,9 @@ import {
   pinRetrySpentNotice,
   revealTimeoutNotice,
   venueDataFailureNotice,
+  venueRetryMayDispatch,
+  venueRetrySettleNotice,
+  venueRetrySpentAfterRead,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
@@ -202,6 +205,23 @@ describe("pin reveal coordinator", () => {
       // In flight is not a failure and offers no verdict.
       expect(pending).not.toMatch(/Retry/);
     }
+  });
+
+  it("lets a venue Retry follow the live read, not a clock", () => {
+    expect(venueRetryMayDispatch(false)).toBe(true);
+    expect(venueRetryMayDispatch(true)).toBe(false);
+    // Dispatch is not a read: spent stays put until the index answers.
+    expect(venueRetrySpentAfterRead(false, "pending")).toBe(false);
+    expect(venueRetrySpentAfterRead(true, "pending")).toBe(true);
+    expect(venueRetrySpentAfterRead(false, "failed")).toBe(true);
+    expect(venueRetrySpentAfterRead(true, "ready")).toBe(false);
+    expect(venueRetrySettleNotice("pending")).toEqual(
+      VENUE_DATA_RETRY_PENDING_NOTICE,
+    );
+    expect(venueRetrySettleNotice("failed")).toEqual(
+      VENUE_DATA_RETRY_SPENT_NOTICE,
+    );
+    expect(venueRetrySettleNotice("ready")).toBeNull();
   });
 
   it("says a refused venue index differently once a Retry has been spent", () => {

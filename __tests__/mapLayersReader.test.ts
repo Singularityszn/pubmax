@@ -55,7 +55,8 @@ describe("Layers is where the map's reader controls live", () => {
       readerKey: createElement(MapKey, { legend }),
     });
 
-    expect(html).toContain("Price key");
+    expect(html).toContain("Pint price key and filters");
+    expect(html).not.toMatch(/mapLayersSectionLabel[^>]*>Price key/);
     expect(legend.rows.length).toBeGreaterThan(0);
     for (const row of legend.rows) {
       expect(html).toContain(row.label);

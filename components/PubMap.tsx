@@ -772,9 +772,9 @@ export default function PubMap({
   // the pin-ceiling Retry may report an outcome from.
   const [venueIndexFailed, setVenueIndexFailed] = useState(false);
   const reloadVenueIndex = useCallback(() => {
-    // Cleared in the same commit as the bump, so a second failure is a fresh
-    // false-to-true edge rather than a verdict left over from the first.
-    setVenueIndexFailed(false);
+    // The load effect's microtask already sets loaded=false and failed=false
+    // together. Clearing failed here while loaded is still true makes one
+    // frame look like a successful read, which resets spent and drops the toast.
     setVenueIndexAttempt((attempt) => attempt + 1);
   }, []);
   // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits

@@ -669,8 +669,9 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
 // onto the fallback style, that refuses too, and only then does
 // `surfaceBasemapFailure` report the `kind: "tiles"` card. Never a third style
 // request, and never an unmounted canvas on a map that IS drawing - which is
-// why `surfaceBasemapFailure` still prefers the soft toast once a frame has
-// landed (the spec above it holds that half).
+// why `surfaceBasemapFailure` still prefers the soft toast once a style has
+// loaded (the spec above it holds that half). A MapLibre render event is
+// not a loaded style.
 test("/map spends its one bounded style reload, then surfaces the honest tile card", async ({
   page,
 }) => {

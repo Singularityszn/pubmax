@@ -221,10 +221,7 @@ export default function MapLayersControl({
                 </button>
               ) : null}
               {readerKey ? (
-                <div className="mapLayersReaderKey">
-                  <p className="mapLayersSectionLabel">Price key</p>
-                  {readerKey}
-                </div>
+                <div className="mapLayersReaderKey">{readerKey}</div>
               ) : null}
               {readerPriceFilter?.(closePanel)}
             </div>

@@ -8,6 +8,7 @@ import {
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
+  basemapFailureSurface,
   markTileFailureSurfaced,
   markTileRetrySpent,
   pruneTileFailures,
@@ -423,5 +424,15 @@ describe("spendTileFailureDecision", () => {
     });
     expect(spendTileFailureDecision(spent, "retry").effect).toBe("none");
     expect(spendTileFailureDecision(spent, "surface").effect).toBe("surface");
+  });
+});
+
+describe("basemapFailureSurface", () => {
+  it("shows the tiles card when no style ever loaded", () => {
+    expect(basemapFailureSurface(false)).toBe("card");
+  });
+
+  it("shows the toast only after a style actually loaded", () => {
+    expect(basemapFailureSurface(true)).toBe("toast");
   });
 });

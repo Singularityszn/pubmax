@@ -59,6 +59,33 @@ export function venueDataFailureNotice(retrySpent: boolean) {
 }
 
 /**
+ * Extra taps while a venue Retry read is live start no second fetch.
+ * The live read is the outcome; a clock is not.
+ */
+export function venueRetryMayDispatch(inFlight: boolean): boolean {
+  return !inFlight;
+}
+
+/**
+ * Spent resets only when a read answers ready. Clearing failed on a
+ * dispatch commit is not a read.
+ */
+export function venueRetrySpentAfterRead(
+  previous: boolean,
+  outcome: VenueDataOutcome,
+): boolean {
+  if (outcome === "pending") return previous;
+  return outcome === "failed";
+}
+
+/** What the venues toast says once the dispatched index read has spoken. */
+export function venueRetrySettleNotice(outcome: VenueDataOutcome) {
+  if (outcome === "pending") return VENUE_DATA_RETRY_PENDING_NOTICE;
+  if (outcome === "failed") return VENUE_DATA_RETRY_SPENT_NOTICE;
+  return null;
+}
+
+/**
  * The notice a readiness-ceiling reveal owes the reader, named after the signal
  * that actually missed. Blaming the background for a basemap that painted sends
  * the reader at a Retry that tears down a map already drawing, so a ceiling over

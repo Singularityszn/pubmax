@@ -109,6 +109,9 @@ import {
   pinRetrySpentNotice,
   revealTimeoutNotice,
   venueDataFailureNotice,
+  venueRetryMayDispatch,
+  venueRetrySettleNotice,
+  venueRetrySpentAfterRead,
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
@@ -133,6 +136,7 @@ import {
 import {
   INITIAL_TILE_FAILURE_SPEND,
   areBasemapTilesLoaded as readBasemapTilesLoaded,
+  basemapFailureSurface,
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
@@ -635,10 +639,36 @@ export default function PubMapCanvas({
   // that watches for recovery.
   const armPinNoticeRef = useRef<(() => void) | null>(null);
   const venueRetrySpentRef = useRef(false);
+  const venueRetryInFlightRef = useRef(false);
   // The ask resets with the failure it describes: a later refusal, on this city
   // or the next, is that read's FIRST ask and may not be worded as a second.
+  // A Retry dispatch is not a read, so spent stays put while the live index
+  // fetch is still in flight.
   useEffect(() => {
+    if (venueRetryInFlightRef.current) return;
     if (venueDataReady && !venueDataFailed) venueRetrySpentRef.current = false;
+  }, [venueDataReady, venueDataFailed]);
+  // Venue Retry follows the dispatched index read, never a clock. Extra taps
+  // while that read is live start no second fetch.
+  useEffect(() => {
+    if (!venueRetryInFlightRef.current) return;
+    const outcome = !venueDataReady
+      ? "pending"
+      : venueDataFailed
+        ? "failed"
+        : "ready";
+    if (outcome === "pending") return;
+    venueRetryInFlightRef.current = false;
+    venueRetrySpentRef.current = venueRetrySpentAfterRead(
+      venueRetrySpentRef.current,
+      outcome,
+    );
+    setSoftRetry((current) => {
+      if (current && current.kind !== "venues" && current.kind !== "pins") {
+        return current;
+      }
+      return venueRetrySettleNotice(outcome);
+    });
   }, [venueDataReady, venueDataFailed]);
   // A venue index that REFUSED owes its own notice. It cannot wait for the
   // readiness ceiling, because a refused read still settles the source, so the
@@ -647,6 +677,7 @@ export default function PubMapCanvas({
   // DERIVATION rather than an edge, so a basemap notice that outranks it and
   // then retires hands the surface back rather than taking the message with it.
   useEffect(() => {
+    if (venueRetryInFlightRef.current) return;
     if (!venueDataFailed) return;
     let cancelled = false;
     void Promise.resolve().then(() => {
@@ -1402,21 +1433,26 @@ export default function PubMapCanvas({
     // The pin Retry spends the lane its notice named. An unsettled `pubs`
     // source is ours to re-push; a venue index that never arrived is the
     // owner's to fetch, and pushing the empty collection we already hold at it
-    // would clear the only message the reader had and change nothing. BOTH
-    // lanes arm the same bounded wait and BOTH report back into the notice
-    // they were dispatched from, which is why the button never clears it: a
-    // Retry that ends in silence is the defect this lane exists to refuse.
+    // would clear the only message the reader had and change nothing. Pins
+    // still arm the bounded paint wait. Venues follow the live index read:
+    // extra taps while it is in flight start no second fetch, and spent is
+    // set only when that read answers.
     pinRetryRef.current = (kind) => {
       if (mapRef.current !== map) return;
+      if (kind === "venues") {
+        if (!venueRetryMayDispatch(venueRetryInFlightRef.current)) return;
+        venueRetryInFlightRef.current = true;
+        pinNoticeActive = true;
+        setSoftRetry(pinRetryPendingNotice("venues"));
+        onReloadVenueDataRef.current?.();
+        return;
+      }
       clearPinRetryWait();
       pinNoticeActive = true;
       // The tap changes the sentence: leaving the notice that raised the Retry
       // unchanged under the wait reads as a button that did nothing.
       setSoftRetry(pinRetryPendingNotice(kind));
-      if (kind === "venues") {
-        venueRetrySpentRef.current = true;
-        onReloadVenueDataRef.current?.();
-      } else if (styleStructureReadyRef.current) {
+      if (styleStructureReadyRef.current) {
         (
           map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
         )?.setData(pubsDataRef.current);
@@ -1909,7 +1945,7 @@ export default function PubMapCanvas({
       sceneSettled = true;
       clearTimeout(hangFailTimer);
       queueMicrotask(() => {
-        if (firstFrameSeen) {
+        if (basemapFailureSurface(styleLoaded) === "toast") {
           tileNoticeOwner = "errors";
           setSoftRetry(BASEMAP_RETRY_NOTICE);
           return;
@@ -2094,9 +2130,9 @@ export default function PubMapCanvas({
       }
       if (spent.effect !== "surface") return;
       // surface: the bounded retry (or the budget) is spent and tiles are
-      // still failing. Prefer a soft toast once the basemap has painted so we
-      // never leave a silent grey canvas; fall back to the full card only when
-      // nothing ever drew (first paint never landed).
+      // still failing. Prefer a soft toast once a style actually loaded so we
+      // never leave a silent grey canvas; fall back to the full card when
+      // both style URLs refused. A MapLibre render event is not a loaded style.
       console.warn("[pubmap] tile failure survived reload, surfacing", {
         critical,
         detail: message || undefined,
