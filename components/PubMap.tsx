@@ -2798,20 +2798,35 @@ export default function PubMap({
   const [areaFocus, setAreaFocus] = useState<
     { center: [number, number]; zoom: number; token: number } | null
   >(null);
-  const flyToArea = useCallback((option: AreaElsewhereOption) => {
-    // A Near me answer is a membership over the painted map (see
-    // lib/mapNearbyMembership.ts), so it stops describing the screen the moment
-    // the reader moves somewhere else on purpose. Without this the new area
-    // paints only whichever of those twenty pins happen to be in frame, which
-    // is usually none, and the reader is shown an empty Camden.
-    setNearbyMapResult(null);
-    setAreaFocus((prev) => ({
-      center: option.center,
+  /**
+   * The ONE way the camera is deliberately moved to another place.
+   *
+   * A Near me answer is a membership over the painted map (see
+   * lib/mapNearbyMembership.ts), so it stops describing the screen the moment
+   * the reader goes somewhere else on purpose. Every such move drops it here
+   * rather than at one of its call sites: the Area sheet's "go somewhere else",
+   * a choose-area pick and a map-search area or place select are the same act,
+   * and a membership left held paints the new area with whichever of those
+   * twenty pins happen to be in frame - usually none - while the sheet beside
+   * it lists that area's pubs, so the two disagree about the same place.
+   */
+  const moveMapCameraTo = useCallback(
+    (camera: { center: [number, number]; zoom: number }) => {
+      setNearbyMapResult(null);
+      setAreaFocus((prev) => ({
+        center: camera.center,
+        zoom: camera.zoom,
+        token: (prev?.token ?? 0) + 1,
+      }));
+    },
+    [],
+  );
+  const flyToArea = useCallback(
+    (option: AreaElsewhereOption) =>
       // Localities carry a slightly deeper zoom; areas/boroughs keep the default.
-      zoom: option.zoom ?? 14,
-      token: (prev?.token ?? 0) + 1,
-    }));
-  }, []);
+      moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }),
+    [moveMapCameraTo],
+  );
 
   // The Area sheet target set by a map-search select: a modelled area (shown
   // as-is) or an ad-hoc locality/borough ring. null = the Area button, which
@@ -2842,11 +2857,10 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
-      setAreaFocus((prev) => ({
+      moveMapCameraTo({
         center: journey.camera.center,
         zoom: journey.camera.zoom,
-        token: (prev?.token ?? 0) + 1,
-      }));
+      });
       // 2. Resolve what the sheet shows on arrival.
       const target = journey.target;
       if (target.kind === "place") {
@@ -2871,7 +2885,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
@@ -2904,11 +2918,7 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       // Already on that curated city guide → fly in place (no remount).
       if (place.placeKind === "curated" && place.cityId === cityId) {
-        setAreaFocus((prev) => ({
-          center: place.center,
-          zoom: place.flyZoom,
-          token: (prev?.token ?? 0) + 1,
-        }));
+        moveMapCameraTo({ center: place.center, zoom: place.flyZoom });
         clearLogIntent();
         setMapOverlay("none");
         changeMapSearchQuery("");
@@ -2919,7 +2929,7 @@ export default function PubMap({
       // leave the old arrival banner and emptied venues.
       window.location.assign(place.href);
     },
-    [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
+    [changeMapSearchQuery, cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   const selectCityFromSearch = useCallback(
     (targetCityId: CityId) => {

@@ -60,6 +60,14 @@ describe("the desktop map area chip", () => {
     expect(html).toContain(`Map area: ${london}. Change city`);
   });
 
+  it("offers the city's three-letter code only for the city itself", () => {
+    // citySwitcher.css swaps the full label for this code between 641 and
+    // 900px, which is a desktop width.
+    const html = renderToolbar();
+    expect(html).toContain("citySwitcherLabelShort");
+    expect(html).toContain(">LON<");
+  });
+
   it("names the remembered area once one is chosen", () => {
     const html = renderToolbar({ cityLabel: "Camden" });
     expect(html).toContain("Map area: Camden. Change city");
@@ -68,8 +76,28 @@ describe("the desktop map area chip", () => {
     expect(html).not.toContain("Map area: London. Change city");
   });
 
+  it("shows that name at every width rather than the city's code", () => {
+    // The regression: the code span survived beside the area name, and CSS
+    // showed it at 641-900px, so the chip visibly read LON while announcing
+    // "Map area: Camden" - a voice-control reader would say the wrong word.
+    const html = renderToolbar({ cityLabel: "Camden" });
+    expect(html).not.toContain("citySwitcherLabelShort");
+    expect(html).not.toContain(">LON<");
+    // And the chip marks itself as naming an area, which is what lets the
+    // stylesheet keep the full label at that width.
+    expect(html).toContain("citySwitcher--named");
+  });
+
   it("carries a Near me answer's own label the same way", () => {
     const html = renderToolbar({ cityLabel: "Near me" });
     expect(html).toContain("Map area: Near me. Change city");
+    expect(html).not.toContain("citySwitcherLabelShort");
+  });
+
+  it("treats a blank label as no area at all", () => {
+    const html = renderToolbar({ cityLabel: "   " });
+    expect(html).toContain(`Map area: ${getCity("london").displayName}. Change city`);
+    expect(html).toContain("citySwitcherLabelShort");
+    expect(html).not.toContain("citySwitcher--named");
   });
 });

@@ -179,12 +179,19 @@ function CitySwitcherTrigger({
 
   if (cities.length < 2 || !current) return null;
 
+  // A chosen area is a NAME, and the chip's own sentence is a claim about it.
+  // The three-letter city code is the plain city's affordance for a narrow
+  // desktop; it may not stand in for an area, because "CAM" is not contained in
+  // "Map area: Camden", so a voice-control reader would say the wrong word and
+  // the reader who picked Camden would still be looking at LON.
+  const namedArea = triggerLabel?.trim() ? triggerLabel.trim() : null;
+
   return (
     <div
       ref={rootRef}
       className={`${className ?? ""} ${
         open ? "citySwitcher isOpen" : "citySwitcher"
-      }`.trim()}
+      }${namedArea ? " citySwitcher--named" : ""}`.trim()}
     >
       <button
         type="button"
@@ -192,15 +199,17 @@ function CitySwitcherTrigger({
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-controls={listId}
-        aria-label={`Map area: ${triggerLabel ?? current.displayName}. Change city`}
+        aria-label={`Map area: ${namedArea ?? current.displayName}. Change city`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="citySwitcherLabel citySwitcherLabelFull">
-          {triggerLabel ?? current.displayName}
+          {namedArea ?? current.displayName}
         </span>
-        <span className="citySwitcherLabel citySwitcherLabelShort" aria-hidden="true">
-          {cityShortLabel(current.displayName)}
-        </span>
+        {namedArea ? null : (
+          <span className="citySwitcherLabel citySwitcherLabelShort" aria-hidden="true">
+            {cityShortLabel(current.displayName)}
+          </span>
+        )}
         <span className="citySwitcherCaret" aria-hidden="true" />
       </button>
       {open ? (
