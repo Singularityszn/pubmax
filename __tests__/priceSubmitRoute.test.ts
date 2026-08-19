@@ -79,6 +79,26 @@ const readBackState = vi.hoisted(() => ({
     degraded: boolean;
   } | null,
 }));
+const oneTapState = vi.hoisted(() => ({
+  forcedOutcome: undefined as
+    | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
+    | undefined,
+}));
+vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
+  return {
+    ...actual,
+    writeOneTapPintDrop: async (
+      input: Parameters<typeof actual.writeOneTapPintDrop>[0],
+      photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
+    ) => {
+      if (oneTapState.forcedOutcome !== undefined) {
+        return oneTapState.forcedOutcome;
+      }
+      return actual.writeOneTapPintDrop(input, photos);
+    },
+  };
+});
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
@@ -194,6 +214,7 @@ beforeEach(async () => {
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   readBackState.statusOverride = null;
+  oneTapState.forcedOutcome = undefined;
   authState.userId = null;
   __resetCommunityPrices();
   __resetMemoryPriceTrustEvents();
@@ -258,6 +279,19 @@ describe("POST /api/price-submit", () => {
     expect(second.status).toBe(201);
     expect((await second.json() as PriceBody).price?.priceGbp).toBe(4.5);
     expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+  });
+
+  it("hides the community price when the paired visit report write fails", async () => {
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(503);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
   it("ignores a client-asserted handle and credits the authenticated account", async () => {

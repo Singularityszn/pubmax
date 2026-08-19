@@ -924,7 +924,8 @@ export function useCommunityPrices(): CommunityPricesState {
       // refused in-place with the identical sentence and never leaves the phone.
       const parsed = validateCommunityPrice(input);
       if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
-      const { venueId, drinkCategory, priceGbp, pintPhoto = null } = parsed.value;
+      const { venueId, drinkCategory, priceGbp } = parsed.value;
+      const pintPhoto = input.pintPhoto ?? null;
 
       const submittedAt = Date.now();
       const optimistic: CommunityPrice = {

@@ -60,7 +60,10 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
-import { writeOneTapPintDrop } from "@/lib/oneTapPintDrop.server";
+import {
+  revertOneTapCommunityPricePairing,
+  writeOneTapPintDrop,
+} from "@/lib/oneTapPintDrop.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
@@ -238,6 +241,7 @@ export async function POST(request: Request): Promise<Response> {
     pintDropPhotos,
   );
   if (!pintDrop.ok) {
+    await revertOneTapCommunityPricePairing(price.id);
     if (pintDrop.kind === "invalid_photo") {
       return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
     }

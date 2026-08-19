@@ -3,6 +3,7 @@ import "server-only";
 import { randomUUID } from "node:crypto";
 
 import { submitCategoryLabel } from "@/lib/communityPrice";
+import { moderateCommunityPrice } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
 import type { PintDrop } from "@/lib/pintDrops";
@@ -52,6 +53,20 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
     visibility: "public",
     createdAt: new Date().toISOString(),
   };
+}
+
+export async function revertOneTapCommunityPricePairing(
+  priceId: string | undefined,
+): Promise<void> {
+  if (!priceId) return;
+  try {
+    await moderateCommunityPrice(priceId, true, "one-tap pairing failed");
+  } catch (err) {
+    log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
+      priceId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 /**
