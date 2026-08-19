@@ -31,7 +31,7 @@ describe("analytics consent desktop clearance", () => {
     )?.[1] ?? "";
     expect(mapParagraph).not.toMatch(/line-clamp|overflow:\s*hidden/);
     expect(mobileMapCss).toMatch(
-      /body:has\(\.analyticsConsentPrompt\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*202px/,
+      /body:has\(\.analyticsConsentPrompt\) \.appShell \.mapStage \.maplibregl-ctrl-bottom-right\s*{[^}]*198px/,
     );
   });
 });

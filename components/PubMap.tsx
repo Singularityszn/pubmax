@@ -2663,19 +2663,32 @@ export default function PubMap({
     showLoadedRoute,
   ]);
 
-  // Two ways in, one flow. `tap` is somebody asking, so a refusal is announced
-  // and hands them the area picker. `resume` is a remembered Near me on
-  // arrival: the reader asked for this mode LAST time, not for a notice now, so
-  // a refusal is silent and simply leaves the default city view with the picker
-  // still one tap away. Nothing about where they stood was ever stored, so this
-  // is a live fix or it is nothing.
+  // Three ways in, one flow, and they differ ONLY in what a refusal owes.
+  //
+  // `tap` is the ordinary Near me seams - the phone chip, the desktop toolbar
+  // row, the Area sheet's own button. A refusal is one alert beside the control
+  // that was pressed, and nothing opens: none of those controls promised a
+  // picker, and forcing a modal over the map is not what they were pressed for.
+  //
+  // `arrival` is the first-visit card's Use my location, whose whole offer is
+  // "location, OR pick an area", so a refusal really does hand over the picker.
+  // The sheet then CARRIES the sentence, so the alert must not also hold it or
+  // the same words render twice, one of them over the other.
+  //
+  // `resume` is a remembered Near me on arrival: the reader asked for this mode
+  // LAST time, not for a notice now, so a refusal is silent and leaves the
+  // default city view with the picker still one tap away. Nothing about where
+  // they stood was ever stored, so this is a live fix or it is nothing.
   const runNearMe = useCallback(
-    (mode: "tap" | "resume") => {
+    (mode: "tap" | "arrival" | "resume") => {
       setNearbyError(null);
       const refuse = (message: string) => {
-        if (mode !== "tap") return;
+        if (mode === "resume") return;
+        if (mode === "arrival") {
+          openChooseAreaRef.current(message);
+          return;
+        }
         setNearbyError(message);
-        openChooseAreaRef.current(message);
       };
       if (typeof navigator === "undefined" || !navigator.geolocation) {
         refuse(nearMeLocationMessage("unsupported"));
@@ -2708,7 +2721,7 @@ export default function PubMap({
             kind: "near-me",
           });
           setNearbyLoading(false);
-          if (mode !== "tap") return;
+          if (mode === "resume") return;
           // Highlight nearby pins AND present the instant-answer cards (Lane 1):
           // the chip now yields an ANSWER, not just a recentre.
           setMapOverlay("near-me");
@@ -2724,6 +2737,10 @@ export default function PubMap({
   );
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
+  const useLocationFromArrivalCard = useCallback(
+    () => runNearMe("arrival"),
+    [runNearMe],
+  );
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
@@ -2997,8 +3014,11 @@ export default function PubMap({
 
   const openChooseArea = useCallback((locationNote?: string | null) => {
     setChooseAreaLocationNote(locationNote ?? null);
+    // The sheet takes the sentence, so the floating alert lets go of it: two
+    // copies of one refusal, one painted over the other, read as two faults.
+    if (locationNote) setNearbyError(null);
     changeMapOverlay("choose-area");
-  }, [changeMapOverlay]);
+  }, [changeMapOverlay, setNearbyError]);
 
   useEffect(() => {
     openChooseAreaRef.current = openChooseArea;
@@ -4358,7 +4378,7 @@ export default function PubMap({
 
         {showMapArrivalCard ? (
           <MapArrivalCard
-            onUseLocation={showNearbyMap}
+            onUseLocation={useLocationFromArrivalCard}
             onChooseArea={() => openChooseArea()}
           />
         ) : null}

@@ -11,7 +11,6 @@ import { searchHasExplicitMapIntent } from "@/lib/explicitMapIntent";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const MAP_FIRST_VISIT_ARRIVAL_KEY = "pubmax:map-first-visit-arrival:v1";
-export const MAP_FIRST_VISIT_ARRIVAL_SURFACE = "map-first-visit-arrival";
 const CHANGE_EVENT = "pubmax:map-first-visit-arrival";
 
 function resolveStorage(storage?: Storage | null): Storage | null {
