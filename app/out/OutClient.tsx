@@ -99,7 +99,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
                 {group.rows.map((row) => (
                   <li key={row.id} className="outListingRow">
                     <div className="outListingGig">
-                      <OutCardBody row={row} onOpen={() => onOpen(row)} />
+                      <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
                     </div>
                     <OutListingPubPair row={row} />
                   </li>

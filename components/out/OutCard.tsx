@@ -42,14 +42,18 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
+type OutCardTitleLevel = 2 | 4;
+
 type OutCardBodyProps = {
   row: WhatsOnRow;
   onOpen?: () => void;
+  titleLevel?: OutCardTitleLevel;
 };
 
-export function OutCardBody({ row, onOpen }: OutCardBodyProps) {
+export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
+  const TitleTag = titleLevel === 4 ? "h4" : "h2";
   return (
     <>
       <a
@@ -59,7 +63,7 @@ export function OutCardBody({ row, onOpen }: OutCardBodyProps) {
         target="_blank"
         onClick={onOpen}
       >
-        <h2>{row.title}</h2>
+        <TitleTag>{row.title}</TitleTag>
         <p className="outCardMeta">
           {row.placeName}
           {when ? ` · ${when}` : ""}

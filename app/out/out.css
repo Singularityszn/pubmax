@@ -133,7 +133,8 @@
   text-decoration: none;
 }
 
-.outCard h2 {
+.outCard h2,
+.outCard h4 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.05rem;
