@@ -41,7 +41,7 @@ async function expectAppTabClearance(page: Page, label: string): Promise<void> {
 
 async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promise<void> {
   const tops = await page
-    .locator(".lpWordmark .pubmaxxWordmarkLetters > *")
+    .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
   expect(tops.length, `${label} should render PUBMA, the doubled X and ING`).toBe(3);
   expect(
