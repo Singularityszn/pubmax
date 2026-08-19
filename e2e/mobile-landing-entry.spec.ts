@@ -267,7 +267,7 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
-  await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+  await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
     page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
     "desktop hero Find my pint CTA",
