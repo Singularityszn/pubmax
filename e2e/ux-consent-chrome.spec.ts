@@ -130,6 +130,57 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   expect(await pointOwner(page, ctaBox!, ".lpHeroActions")).toBe("control");
 });
 
+test("mobile consent never covers Today last-train while visible", async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepareUndecidedConsent(page);
+  await page.goto("/today", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+  const lastTrain = page.locator(".todayButton").first();
+  await expect(lastTrain).toBeVisible();
+  await lastTrain.scrollIntoViewIfNeeded();
+
+  const coveredBox = await lastTrain.boundingBox();
+  expect(coveredBox).not.toBeNull();
+  expect(await pointOwner(page, coveredBox!, ".todayButton")).toBe("control");
+});
+
+test("mobile consent never covers Plan primary action while visible", async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepareUndecidedConsent(page);
+  await page.goto("/plan", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+  const makePlan = page.getByRole("button", { name: "Make a plan", exact: true });
+  await expect(makePlan).toBeVisible();
+  await makePlan.scrollIntoViewIfNeeded();
+
+  const coveredBox = await makePlan.boundingBox();
+  expect(coveredBox).not.toBeNull();
+  expect(await pointOwner(page, coveredBox!, "button")).toBe("control");
+});
+
+test("mobile consent never covers /pubs Book a table while visible", async ({ page }) => {
+  test.setTimeout(60_000);
+  await prepareUndecidedConsent(page);
+  await page.goto("/pubs", { waitUntil: "domcontentloaded" });
+
+  const prompt = page.getByLabel("Anonymous analytics choice");
+  await expect(prompt).toBeVisible({ timeout: 30_000 });
+
+  const bookLink = page.locator(".pubsBookLink").first();
+  await expect(bookLink).toBeVisible({ timeout: 30_000 });
+  await bookLink.scrollIntoViewIfNeeded();
+
+  const coveredBox = await bookLink.boundingBox();
+  expect(coveredBox).not.toBeNull();
+  expect(await pointOwner(page, coveredBox!, ".pubsBookLink")).toBe("control");
+});
+
 for (const width of PHONE_WIDTHS) {
   test(`the whole disclosure and its privacy link fit the card @${width}`, async ({ page }) => {
     test.setTimeout(60_000);
