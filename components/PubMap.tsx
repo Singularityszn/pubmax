@@ -766,7 +766,15 @@ export default function PubMap({
   // list. The index load is the owner's, so the way to try again is to re-run
   // the effect that owns it.
   const [venueIndexAttempt, setVenueIndexAttempt] = useState(0);
+  // `loaded` settles either way on purpose - a core fetch that REFUSED still
+  // owes the honest empty state rather than a permanent skeleton - so it cannot
+  // answer whether the pub list arrived. This does, and it is the only signal
+  // the pin-ceiling Retry may report an outcome from.
+  const [venueIndexFailed, setVenueIndexFailed] = useState(false);
   const reloadVenueIndex = useCallback(() => {
+    // Cleared in the same commit as the bump, so a second failure is a fresh
+    // false-to-true edge rather than a verdict left over from the first.
+    setVenueIndexFailed(false);
     setVenueIndexAttempt((attempt) => attempt + 1);
   }, []);
   // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits
@@ -776,12 +784,16 @@ export default function PubMap({
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
+  // A recovery toast on the canvas owns the surface: the map keeps search plus
+  // ONE toast, so the arrival card stands down while a failure is on screen.
+  const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
   const showMapArrivalCard = useSyncExternalStore(
     subscribeMapFirstVisitArrival,
     () =>
       shouldShowMapFirstVisitArrival({
         pinsRevealed,
         search: arrivalSearch,
+        recoveryToastActive: mapSoftRetryActive,
       }),
     () => false,
   );
@@ -1013,7 +1025,6 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
-  const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
@@ -1353,20 +1364,25 @@ export default function PubMap({
       if (cancelled) return;
       setLoaded(false);
       setLoadedCityId(null);
+      setVenueIndexFailed(false);
       setSlimPins([]);
       setCompleteCountSlugs(null);
     });
     loader
       .core()
       .then((slim) => {
-        if (cancelled || slim.length === 0) return;
+        if (cancelled) return;
+        setVenueIndexFailed(false);
+        if (slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
         markPubmaxTiming("pubmax:first-pins");
         markPubmaxTiming("pubmax:slim-venues-ready");
       })
       .catch(() => {
         // Core fetch failed with no offline mirror — render the honest empty
-        // state instead of falling back to the full 6 MB client payload.
+        // state instead of falling back to the full 6 MB client payload. The
+        // refusal is recorded so a pin-ceiling Retry can say so.
+        if (!cancelled) setVenueIndexFailed(true);
       })
       .finally(() => {
         if (!cancelled) {
@@ -3853,6 +3869,7 @@ export default function PubMap({
           hideLayersControl={mobileViewport}
           layersReaderKey={desktopLayersReaderKey}
           layersReaderPriceFilter={desktopLayersPriceFilter}
+          venueDataFailed={venueIndexFailed}
           onReloadVenueData={reloadVenueIndex}
           listOpen={mapListOpen}
           onListOpenChange={setMapListOpen}

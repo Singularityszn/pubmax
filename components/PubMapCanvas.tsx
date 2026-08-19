@@ -325,6 +325,11 @@ type PubMapCanvasProps = {
    * own, so a ceiling that named the pub list has no honest Retry without it.
    */
   onReloadVenueData?: () => void;
+  /**
+   * The owner's venue-index read REFUSED. Distinct from `venueDataReady`, which
+   * settles either way so a failed read still gets the honest empty state.
+   */
+  venueDataFailed?: boolean;
   listOpen?: boolean;
   onListOpenChange?: (open: boolean) => void;
   listCount?: number;
@@ -471,6 +476,7 @@ export default function PubMapCanvas({
   layersReaderKey,
   layersReaderPriceFilter,
   onReloadVenueData,
+  venueDataFailed = false,
   listOpen = false,
   onListOpenChange,
   listCount = 0,
@@ -588,7 +594,13 @@ export default function PubMapCanvas({
       // the fallback show through.
       publishMapReady(true);
       publishMapErrored(true);
-      setMapError(error);
+      // First writer wins. Several independent watchdogs can lapse inside the
+      // same dead episode, and the LATER one is the vaguer one: a tile source
+      // that refused is diagnosed by `surfaceBasemapFailure` at 8s, and the
+      // first-frame watchdog would overwrite it at 10s with "this browser
+      // cannot show the map", blaming the device for an unreachable server.
+      // Retry clears mapError, so the next episode reports freely.
+      setMapError((current) => current ?? error);
     },
     [publishMapErrored, publishMapReady],
   );
@@ -611,6 +623,28 @@ export default function PubMapCanvas({
   useEffect(() => {
     onReloadVenueDataRef.current = onReloadVenueData;
   }, [onReloadVenueData]);
+  const venueDataFailedRef = useRef(venueDataFailed);
+  useEffect(() => {
+    venueDataFailedRef.current = venueDataFailed;
+  }, [venueDataFailed]);
+  // The venue lane's answer is the owner's settled outcome, never a timer: the
+  // read that raised the notice is the slow one, so a wall clock would call a
+  // download still in flight a failure and a refusal a recovery.
+  useEffect(() => {
+    if (!venueDataFailed) return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setSoftRetry((current) =>
+        current?.kind === "venues" || current?.kind === "pins"
+          ? pinRetrySpentNotice("venues")
+          : current,
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [venueDataFailed]);
   // The full fallback card replaces this canvas, toast included, so a surface
   // that budgets one toast must not keep hiding its own notice behind a toast
   // nobody can see.
@@ -1316,6 +1350,11 @@ export default function PubMapCanvas({
       pinRetryWaitTimer = undefined;
     };
     const markPinsRecovered = () => {
+      // A venue index that REFUSED still settles `venueDataReady`, because a
+      // failed read owes the honest empty state rather than a stuck skeleton.
+      // Reading that as recovery is what would clear the notice and leave a
+      // bare map with nothing to read.
+      if (venueDataFailedRef.current) return;
       if (!pinNoticeActive || !hasPinsPaintable()) return;
       pinNoticeActive = false;
       clearPinRetryWait();
@@ -1332,8 +1371,13 @@ export default function PubMapCanvas({
       clearPinRetryWait();
       pinNoticeActive = true;
       if (kind === "venues") {
+        // The refetch reports its own outcome (`venueDataFailed`), so this
+        // lane waits on that answer rather than a wall clock that would call a
+        // download still in flight a failure.
         onReloadVenueDataRef.current?.();
-      } else if (styleStructureReadyRef.current) {
+        return;
+      }
+      if (styleStructureReadyRef.current) {
         (
           map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
         )?.setData(pubsDataRef.current);

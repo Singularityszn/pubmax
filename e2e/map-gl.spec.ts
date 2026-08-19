@@ -394,8 +394,13 @@ test("/map keeps its pins and names the basemap when tiles miss the phone readin
   ]);
   expect(retryBox).not.toBeNull();
   expect(tabBarBox).not.toBeNull();
-  expect(retryBox!.height).toBeGreaterThanOrEqual(28);
+  // The phone tap floor is 44px and this is a recovery button, so it is the
+  // last control that may fall under it.
+  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
+  // One toast owns the surface: the first-visit arrival card is 256px of opaque
+  // panel over this exact band and stands down while a failure is on screen.
+  await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
 
   // A dead background is worth a full re-init, and the recovered map settles on
   // a real painted reveal.
@@ -686,6 +691,12 @@ test("/map surfaces the honest tile card when no basemap style ever loads", asyn
   await expect(fallback).toBeVisible({ timeout: 40_000 });
   await expect(fallback).toContainText("Map tiles unavailable");
   await expect(fallback).toContainText("The map couldn't load its tiles right now.");
+  // SETTLED, not transient. Nothing drew, so the 10s first-frame watchdog lapses
+  // too - and it must not overwrite this diagnosis with "this browser cannot
+  // show the map", which blames the device for a server that refused.
+  await page.waitForTimeout(8_000);
+  await expect(fallback).toContainText("Map tiles unavailable");
+  await expect(fallback).not.toContainText("did not draw anything");
   // Retryable: a re-init can reach a source that has come back.
   await expect(page.locator(".mapFallbackRetry")).toBeVisible();
   // The map going dark never takes the venue content with it.

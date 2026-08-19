@@ -63,6 +63,30 @@ describe("mapFirstVisitArrival", () => {
     expect(storage.getItem(MAP_FIRST_VISIT_ARRIVAL_KEY)).toBe("dismissed");
   });
 
+  it("stands down while a recovery toast owns the surface, and returns after", () => {
+    const storage = makeMemoryStorage();
+    // The map keeps search plus ONE toast. This card is 256px of opaque panel
+    // over the toast's own band, so a failure the reader can act on wins.
+    expect(
+      shouldShowMapFirstVisitArrival({
+        pinsRevealed: true,
+        search: "",
+        recoveryToastActive: true,
+        storage,
+      }),
+    ).toBe(false);
+    // Withheld, never dismissed: the visit is still a first one.
+    expect(hasDismissedMapFirstVisitArrival(storage)).toBe(false);
+    expect(
+      shouldShowMapFirstVisitArrival({
+        pinsRevealed: true,
+        search: "",
+        recoveryToastActive: false,
+        storage,
+      }),
+    ).toBe(true);
+  });
+
   it("suppresses for planner handoff and explicit map intent", () => {
     const storage = makeMemoryStorage();
     expect(searchHasPlanHandoffParams("?query=quiet+in+clapham")).toBe(true);
