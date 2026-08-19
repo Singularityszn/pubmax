@@ -52,4 +52,13 @@ describe("cheap pint ping store", () => {
     expect(opted.subscriptionToken).toBe(TOKEN);
     expect(await memoryStepOutNudgeStore.listCheapPintSendReady()).toHaveLength(1);
   });
+
+  it("opt-in clears a prior durable decline so send-ready rows can dispatch", async () => {
+    await memoryStepOutNudgeStore.qualifyCheapPint(ACTOR);
+    await memoryStepOutNudgeStore.declineCheapPint(ACTOR);
+    const opted = await memoryStepOutNudgeStore.optInCheapPint(ACTOR, TOKEN);
+    expect(opted.cheapPintDeclined).toBe(false);
+    expect(opted.cheapPintEnabled).toBe(true);
+    expect(await memoryStepOutNudgeStore.listCheapPintSendReady()).toHaveLength(1);
+  });
 });

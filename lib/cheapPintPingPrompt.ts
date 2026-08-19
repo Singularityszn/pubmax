@@ -68,6 +68,32 @@ export function markCheapPintPingEnabled(): void {
   notify();
 }
 
+export type CheapPintPingPromptServerState = {
+  canPrompt?: boolean;
+  declined?: boolean;
+  enabled?: boolean;
+};
+
+/** Align device prompt keys with the account-scoped cheap-pint ping read. */
+export function syncCheapPintPingPromptFromServer(
+  state: CheapPintPingPromptServerState,
+): void {
+  if (state.enabled) {
+    markCheapPintPingEnabled();
+    return;
+  }
+  if (state.declined) {
+    markCheapPintPingDismissed();
+    return;
+  }
+  if (state.canPrompt) {
+    markCheapPintPingQualified();
+    return;
+  }
+  writeBool(QUALIFIED_KEY, false);
+  notify();
+}
+
 export function getCheapPintPingPromptVisibleSnapshot(): boolean {
   if (!isCheapPintPingPromptRuntimeEligible()) return false;
   if (readBool(ENABLED_KEY) || readBool(DISMISSED_KEY)) return false;

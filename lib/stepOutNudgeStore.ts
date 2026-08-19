@@ -156,6 +156,7 @@ function memoryOptInCheapPint(ownerActor: string, subscriptionToken: string): St
     ...existing,
     cheapPintQualified: true,
     cheapPintEnabled: true,
+    cheapPintDeclined: false,
     subscriptionToken,
     updatedAt: now,
   };

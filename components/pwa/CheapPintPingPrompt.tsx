@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useSyncExternalStore } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -12,11 +13,13 @@ import {
   markCheapPintPingDismissed,
   markCheapPintPingEnabled,
   subscribeCheapPintPingPrompt,
+  syncCheapPintPingPromptFromServer,
 } from "@/lib/cheapPintPingPrompt";
 import { registerWebPush } from "@/lib/webPush";
 import "@/components/native/nativePushPrompt.css";
 
 export default function CheapPintPingPrompt(): React.JSX.Element | null {
+  const { user } = useAuth();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState("");
   const visible = useSyncExternalStore(
@@ -29,6 +32,24 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
   useEffect(() => {
     if (canShow) claimPromptBudget(CHEAP_PINT_PING_PROMPT_SURFACE);
   }, [canShow]);
+
+  useEffect(() => {
+    if (!user) return;
+    const controller = new AbortController();
+    void authedActionFetch("/api/cheap-pint-ping", { signal: controller.signal })
+      .then(async (response) => {
+        if (controller.signal.aborted) return;
+        const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
+        if (!response.ok) return;
+        syncCheapPintPingPromptFromServer({
+          canPrompt: body.canPrompt === true,
+          declined: body.declined === true,
+          enabled: body.enabled === true,
+        });
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [user]);
 
   if (!canShow) return null;
 
@@ -105,7 +126,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
             onClick={() => void handleDecline()}
             disabled={pending}
           >
-            Not now
+            No thanks
           </button>
           <button
             type="button"
