@@ -13,6 +13,9 @@ The map builds its state from the URL in layers:
 - `lib/explicitMapIntent.ts` composes several of the predicates below to
   decide if an arrival is intentional enough to suppress first-run
   onboarding.
+- `lib/mapFirstVisitArrival.ts` adds the planner handoff params to that
+  answer for the first-visit arrival card. See "First-visit arrival card"
+  below.
 - A few params are read directly with `searchParams.get(...)` outside the
   crawl-planner system, in `components/PubMap.tsx` and
   `components/map/pubmap/useMapSurfaceNavigation.ts`.
@@ -32,6 +35,24 @@ the notice `"That pub is not one we know."` (`UNKNOWN_MAP_SELECTION_NOTE`).
 When the lookup itself fails, it shows `"We could not check that pub right
 now."` (`MAP_SELECTION_LOOKUP_FAILED_NOTE`). Either way, the map stays open
 and the reader can dismiss the notice.
+
+## First-visit arrival card
+
+After the pins reveal, a first visit to the map shows one arrival card
+(`components/map/MapArrivalCard.tsx`). It is shown once per device, and the
+dismissal is kept in `localStorage` under
+`pubmax:map-first-visit-arrival:v1`.
+
+`searchSuppressesMapFirstVisitArrival` (`lib/mapFirstVisitArrival.ts`) holds
+the card back for an arrival that already has its own question. It is
+`searchHasExplicitMapIntent` (a deep-linked venue, query, place, crawl, and
+the other intentional arrivals in `lib/explicitMapIntent.ts`) plus the three
+planner handoff params `query`, `occasion`, and `describe`
+(`lib/planOccasion.ts`). The map honours those three only here: it reads
+their presence to stay quiet, never their values.
+
+While the card is on screen, the analytics consent prompt stands down. See
+[`docs/PROMPT_ORCHESTRATION.md`](PROMPT_ORCHESTRATION.md) for that contract.
 
 ## Parameter table
 

@@ -91,6 +91,26 @@ function contextualSheetKind(
     : null;
 }
 
+/** The sheets that open at full height; every other kind opens at half. */
+const FULL_HEIGHT_SHEETS: readonly MapSheetKind[] = [
+  "moment",
+  "layers",
+  "near-me",
+  "area",
+  "choose-area",
+];
+
+/** Which body belongs to which sheet kind. Pal is the fall-through. */
+function sheetBodyFor(
+  kind: MapSheetKind | null,
+  bodies: Partial<Record<MapSheetKind, React.ReactNode>> & {
+    "pub-pal": React.ReactNode;
+  },
+): React.ReactNode {
+  if (!kind) return bodies["pub-pal"];
+  return kind in bodies ? bodies[kind] : bodies["pub-pal"];
+}
+
 /**
  * ONE docked lane under the one bar, shared by both chips, so the phone chrome
  * still costs a bar plus a single 44px row however many chips it earns.
@@ -278,7 +298,18 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   const tflCorner = buildTflCorner(tflStatus, tflCount);
   const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled);
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "drink" ? drinkContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : sheetKind === "choose-area" ? chooseAreaContent : palContent;
+  const sheetContent = sheetBodyFor(sheetKind, {
+    filters: filtersContent,
+    drink: drinkContent,
+    tfl: tflContent,
+    tonight: tonightContent,
+    layers: layersContent,
+    moment: momentContent,
+    "near-me": nearMeContent,
+    area: areaContent,
+    "choose-area": chooseAreaContent,
+    "pub-pal": palContent,
+  });
 
   return (
     <>
@@ -407,7 +438,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" || sheetKind === "choose-area" ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind && FULL_HEIGHT_SHEETS.includes(sheetKind) ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
 }
