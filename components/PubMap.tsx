@@ -4351,6 +4351,7 @@ export default function PubMap({
             ) : null
           }
           chooseAreaContent={chooseAreaSheet}
+          sheetsEnabled={mobileViewport}
           areaContent={
             <AreaSheet
               cityId={cityId}

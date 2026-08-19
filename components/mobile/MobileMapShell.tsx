@@ -75,6 +75,23 @@ function MapEdgeControls({
 }
 
 /**
+ * Which sheet this shell should MOUNT, which is a narrower question than which
+ * overlay is open. Above the phone breakpoint the portal is display:none, but a
+ * mounted sheet still claims Escape on `window` and still captures and restores
+ * focus, and CSS reaches neither - so a shell that does not own the lane mounts
+ * nothing at all rather than mounting something invisible.
+ */
+function contextualSheetKind(
+  overlay: MapOverlay,
+  enabled: boolean,
+): MapSheetKind | null {
+  if (!enabled) return null;
+  return CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
+    ? (overlay as MapSheetKind)
+    : null;
+}
+
+/**
  * ONE docked lane under the one bar, shared by both chips, so the phone chrome
  * still costs a bar plus a single 44px row however many chips it earns.
  *
@@ -141,7 +158,7 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -215,6 +232,16 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   areaContent: React.ReactNode;
   /** First-visit choose-area picker (London neighbourhoods + other cities). */
   chooseAreaContent: React.ReactNode;
+  /**
+   * Whether this shell owns the sheet lane. The portal is display:none above
+   * the phone breakpoint, but a MOUNTED sheet still claims Escape on `window`
+   * and still captures and restores focus, and CSS cannot reach either. Every
+   * overlay used to be settable from phone chrome alone, so it never showed;
+   * `choose-area` is the first one a desktop control opens, and there the phone
+   * sheet answered the same Escape as the desktop dialog and sent the surface
+   * trail Home behind it. One Escape, one level (lib/useDismissOnEscape.ts).
+   */
+  sheetsEnabled?: boolean;
 }) {
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
@@ -250,9 +277,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   });
   const tflCorner = buildTflCorner(tflStatus, tflCount);
   const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
-  const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
-    ? (overlay as MapSheetKind)
-    : null;
+  const sheetKind = contextualSheetKind(overlay, sheetsEnabled);
   const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "drink" ? drinkContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : sheetKind === "choose-area" ? chooseAreaContent : palContent;
 
   return (
