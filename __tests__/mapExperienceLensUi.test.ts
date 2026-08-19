@@ -69,9 +69,6 @@ describe("MapExperienceLens", () => {
     );
     expect(pubMap).toContain("food: true,");
     expect(pubMap).toContain("restaurant: true,");
-    expect(pubMap).not.toContain("<MapPriceControl");
-    expect(pubMap).toContain("layersReaderKey={!mobileViewport ? <MapKey legend={activePriceLegend} /> : undefined}");
-    expect(pubMap).toContain("showToggle={false}");
     expect(pubMap).toMatch(
       /experienceLens === "all"\s*\?\s*\(\s*<TabsTrigger value="prices">/,
     );

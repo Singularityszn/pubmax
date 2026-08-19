@@ -14,7 +14,6 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/mapPriceControl.css";
 import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
@@ -102,6 +101,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapKey from "@/components/map/MapKey";
+import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
@@ -3673,6 +3673,16 @@ export default function PubMap({
   const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = !mapLoadingActive;
+  // Desktop reader controls. Both live inside Layers rather than on the map
+  // surface, which keeps its budget at search plus one toast. The phone reaches
+  // the same two through the More sheet's Key and Prices tabs.
+  const desktopLayersReaderKey = mobileViewport ? undefined : (
+    <MapKey legend={activePriceLegend} />
+  );
+  const desktopLayersPriceFilter =
+    !mobileViewport && experienceLens === "all" && activeLensLabel === null ? (
+      <MapPriceFilterChips filters={filters} onFiltersChange={setFilters} />
+    ) : undefined;
   const drinkFiltersActive = Boolean(
     favoritePint ||
       filters.drinkCategory ||
@@ -3725,10 +3735,13 @@ export default function PubMap({
             onChange={setVenueKindVisibility}
           />
         ) : null}
+        {/* One toast at a time. A soft retry owns the surface outright, so the
+            arrival and national-browse banners stand down with the selection
+            note rather than stacking under it. */}
         {pickMapSurfaceToast({
           selectionNotice: selectionNotice !== null,
           softRetry: mapSoftRetryActive,
-        }) === "selection" ? (
+        }) === "soft-retry" ? null : selectionNotice ? (
           <aside
             className="ukPlaceArrival"
             role="status"
@@ -3825,7 +3838,8 @@ export default function PubMap({
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
-          layersReaderKey={!mobileViewport ? <MapKey legend={activePriceLegend} /> : undefined}
+          layersReaderKey={desktopLayersReaderKey}
+          layersReaderPriceFilter={desktopLayersPriceFilter}
           listOpen={mapListOpen}
           onListOpenChange={setMapListOpen}
           listCount={mapVenueListModel.total + ukBasePubListModel.total}
@@ -3999,7 +4013,6 @@ export default function PubMap({
           onBack={mapSurfaceTrail.back}
           onHome={mapSurfaceTrail.home}
           homeTitle={`the ${mapDisplayName} map`}
-          showToggle={false}
         />
 
         {mobileShellReady ? (

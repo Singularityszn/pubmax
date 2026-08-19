@@ -16,7 +16,3 @@ export function pickMapSurfaceToast(input: {
   if (input.selectionNotice) return "selection";
   return "none";
 }
-
-export const MAP_SURFACE_FLOATING_PRICE_KEY = false;
-export const MAP_SURFACE_FLOATING_LIST_TOGGLE = false;
-

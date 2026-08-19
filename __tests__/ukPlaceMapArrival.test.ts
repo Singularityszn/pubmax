@@ -142,8 +142,10 @@ describe("UK place map arrival", () => {
     // when venues/localities are emptied.
     expect(pubMap).toContain("includeLocalResults: !limitedCoverageSearch");
     expect(pubMap).toContain("onSelectPlace: selectPlaceFromSearch");
+    // The selection note still wins the arrival banner's lane; a soft retry
+    // stands the whole group down so the surface keeps one toast.
     expect(pubMap).toMatch(
-      /\{selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
+      /=== "soft-retry" \? null : selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
     );
     // The arrival's own place name still wins the bar. What follows it is now
     // the claim the VIEW earned (lib/areaButton.areaClaimedByViewport), which

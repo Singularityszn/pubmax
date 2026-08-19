@@ -15,7 +15,10 @@ describe("pin reveal canvas policy", () => {
     )?.[0];
 
     expect(onReveal).toMatch(
-      /const basemapRetry = basemapRetryForReveal\(\s*reason,\s*tileNoticeOwner\s*\);/,
+      /const timeoutNotice = revealTimeoutNotice\(reason, tileNoticeOwner, \{\s*basemapPainted: basemapTileReadyForPaint,\s*pinsPaintable: hasPinsPaintable\(\),\s*\}\);/,
     );
+    // The ceiling reveals; it never tears the canvas down (a "Map couldn't
+    // draw" card over pubs that were about to paint was the reported defect).
+    expect(onReveal).not.toContain("reportMapError");
   });
 });

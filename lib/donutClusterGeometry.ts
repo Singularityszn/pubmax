@@ -6,7 +6,7 @@
 
 /** Price-band bucket order: ≤£5.50, >£5.50–≤£7, >£7, no price (matches
  *  priceBucket() in components/map/canvas/geojson.ts and the legend in
- *  MapPriceControl.tsx: green / amber / red / muted). */
+ *  MapKey.tsx: green / amber / red / muted). */
 export type DonutCounts = readonly [number, number, number, number];
 
 /** Mirrors the existing `["step", point_count, 11, 25, 15, 100, 20]` circle

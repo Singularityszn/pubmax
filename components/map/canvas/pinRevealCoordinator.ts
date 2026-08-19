@@ -6,38 +6,33 @@ export const BASEMAP_RETRY_NOTICE = {
   message: "Map background couldn't load. Tap Retry to try again.",
 } as const;
 
-export function basemapRetryForReveal(
-  reason: PinRevealReason,
-  currentOwner: BasemapNoticeOwner,
-): {
-  kind: "tiles";
-  message: string;
-} | null {
-  if (reason !== "timeout" || currentOwner === "errors") return null;
-  return BASEMAP_RETRY_NOTICE;
-}
+export const PIN_PAINT_RETRY_NOTICE = {
+  kind: "pins",
+  message: "Pub pins are still drawing. Tap Retry to load them again.",
+} as const;
 
-export function isPhonePinRevealFailure(
-  phoneFirstImpression: boolean,
-  reason: PinRevealReason,
-): boolean {
-  return phoneFirstImpression && reason === "timeout";
-}
+export type RevealTimeoutNotice =
+  | typeof BASEMAP_RETRY_NOTICE
+  | typeof PIN_PAINT_RETRY_NOTICE;
 
 /**
- * Whether a reveal should tear the canvas down. A phone ceiling is a failed
- * visible handoff (`isPhonePinRevealFailure`), not a dead map: the short
- * fallback has already un-gated pin layers on the live style, so unmounting
- * here leaves a bare basemap or the "Map couldn't draw" card over pubs that
- * were about to paint.
+ * The notice a readiness-ceiling reveal owes the reader, named after the signal
+ * that actually missed. Blaming the background for a basemap that painted sends
+ * the reader at a Retry that tears down a map already drawing, so a ceiling over
+ * a painted basemap names the PINS instead. A ceiling with both sources ready
+ * owes NO notice: only the compositor confirmation ran out, and the pins are on
+ * screen. An error-owned notice is truthful until Retry rebuilds the map, so a
+ * timeout never overwrites it.
  */
-export function pinRevealUnmountsCanvas(
-  phoneFirstImpression: boolean,
+export function revealTimeoutNotice(
   reason: PinRevealReason,
-): boolean {
-  void phoneFirstImpression;
-  void reason;
-  return false;
+  currentOwner: BasemapNoticeOwner,
+  signals: { basemapPainted: boolean; pinsPaintable: boolean },
+): RevealTimeoutNotice | null {
+  if (reason !== "timeout" || currentOwner === "errors") return null;
+  if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (!signals.pinsPaintable) return PIN_PAINT_RETRY_NOTICE;
+  return null;
 }
 
 type PinRevealCoordinatorOptions = {
@@ -85,8 +80,10 @@ type PinRevealCoordinatorOptions = {
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
  *    even if a required signal never arrives. A consumer may turn that timeout
- *    into a soft retry notice. It must not unmount the canvas
- *    (`pinRevealUnmountsCanvas`).
+ *    into a soft retry notice (`revealTimeoutNotice`), and never into an
+ *    unmounted canvas: the short fallback has already un-gated pin layers on
+ *    the live style, so tearing it down here leaves a bare basemap or a
+ *    "Map couldn't draw" card over pubs that were about to paint.
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,

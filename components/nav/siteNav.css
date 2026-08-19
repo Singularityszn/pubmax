@@ -155,10 +155,6 @@
   gap: 6px;
 }
 
-.siteNavMapUtility {
-  display: none;
-}
-
 .siteNavBrand:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
@@ -672,16 +668,6 @@ button.siteNavMoreItem {
   }
 
   .siteNavBrand .pubmaxxWordmark { line-height: 1; }
-
-  /* Reserve flexible map-utility space without shrinking brand or touch targets.
-     Phone map controls use the existing More sheet. */
-  .siteNavBarFloating .siteNavMapUtility {
-    display: flex;
-    flex: 1 1 auto;
-    min-width: 0;
-    align-items: center;
-    justify-content: flex-start;
-  }
 
   /* The actions cluster holds its shape — the brand is the only flexible part
      of the compact bar, so the controls never compress or wrap. */

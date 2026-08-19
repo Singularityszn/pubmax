@@ -337,7 +337,12 @@ test("/map reveals pins only for the final rapid theme style generation", async 
   ).toEqual([]);
 });
 
-test("/map shows the no-frame fallback when basemap tiles miss the phone readiness ceiling", async ({
+// Phone readiness-ceiling contract when the BASEMAP is the signal that missed.
+// The ceiling never unmounts the canvas: the 3s fallback has already un-gated
+// the pin layers on the live style, so tearing it down here would replace pubs
+// that were about to paint with a "Map couldn't draw" card. What the reader
+// gets instead is the pins plus ONE toast that names the background.
+test("/map keeps its pins and names the basemap when tiles miss the phone readiness ceiling", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -365,37 +370,41 @@ test("/map shows the no-frame fallback when basemap tiles miss the phone readine
       __pubmaxPinRevealTrace: Array<{ reason: string; generation: number }>;
     }
   ).__pubmaxPinRevealTrace);
-  const fallback = page.locator(".mapFallback");
-  await expect(fallback).toBeVisible({ timeout: 20_000 });
-  await expect(fallback).toContainText("Map couldn't draw");
-  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
-  expect(await trace(), "phone timeout must not claim a visible pin frame").toEqual([]);
+
+  // The ceiling reveals rather than reporting a dead map.
+  await expect
+    .poll(async () => (await trace()).at(-1)?.reason ?? null, { timeout: 25_000 })
+    .toBe("timeout");
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible();
   await expect(page.locator(".mapLoading")).toHaveCount(0);
 
-  const retry = fallback.getByRole("button", { name: "Retry" });
+  // The background is what never painted, so the background is what the toast
+  // names — and it is the only toast on the surface.
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(notice).toContainText("Map background couldn't load");
+  await expect(page.locator(".ukPlaceArrival")).toHaveCount(0);
+
+  const retry = notice.getByRole("button", { name: "Retry" });
   await expect(retry).toBeVisible();
-  // The phone map chrome is ONE bar (design judgement 2026-08-01, finding
-  // 2.3), so the fallback clears the bar rather than a floating category band.
-  const [headingBox, barBox, retryBox, tabBarBox] = await Promise.all([
-    fallback.locator("strong").boundingBox(),
-    page.locator(".mobileMapTopbar").boundingBox(),
+  const [retryBox, tabBarBox] = await Promise.all([
     retry.boundingBox(),
     page.locator(".mobileTabBar").boundingBox(),
   ]);
-  expect(headingBox).not.toBeNull();
-  expect(barBox).not.toBeNull();
   expect(retryBox).not.toBeNull();
   expect(tabBarBox).not.toBeNull();
-  expect(headingBox!.y).toBeGreaterThanOrEqual(barBox!.y + barBox!.height + 8);
-  expect(retryBox!.height).toBeGreaterThanOrEqual(44);
+  expect(retryBox!.height).toBeGreaterThanOrEqual(28);
   expect(retryBox!.y + retryBox!.height).toBeLessThanOrEqual(tabBarBox!.y);
 
+  // A dead background is worth a full re-init, and the recovered map settles on
+  // a real painted reveal.
   holdTiles = false;
   await retry.click();
-  await expect(fallback).toHaveCount(0);
   await expect
-    .poll(async () => (await trace()).at(-1)?.reason, { timeout: 20_000 })
+    .poll(async () => (await trace()).at(-1)?.reason, { timeout: 25_000 })
     .toMatch(/^(tiles|idle)$/);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
 test("/map keeps the honest retry visible while basemap tiles keep failing", async ({
@@ -557,6 +566,92 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
+// Acceptance criterion 2 (v0 map reliability): lib/mapTileFailure.ts owns ONE
+// bounded style reload. This is the caller-level proof — `evaluateTileFailure`
+// in PubMapCanvas issues exactly one style request on a real tile-source
+// failure and then stops, however long the source keeps failing. Because the
+// basemap had already painted, the honest surface it settles on is the soft
+// retry rather than the full card (a silent grey canvas is the defect that
+// preference exists to avoid); the card lane is covered by the dead-frame-loop
+// and TileJSON specs.
+test("/map spends exactly one style reload on a tile-source failure, then surfaces the honest retry", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let styleRequests = 0;
+  await page.route(
+    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
+    async (route) => {
+      styleRequests += 1;
+      await route.continue();
+    },
+  );
+  let failTiles = false;
+  await page.route(/\.pbf(?:\?|$)/, async (route) => {
+    if (!failTiles) {
+      await route.continue();
+      return;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 1_000));
+    await route.abort("failed");
+  });
+  await page.addInitScript(() => {
+    const trace: Array<{ reason: string; generation: number }> = [];
+    Object.defineProperty(window, "__pubmaxPinRevealTrace", { value: trace });
+    window.addEventListener("pubmax:pin-reveal", (event) => {
+      trace.push(
+        (event as CustomEvent<{ reason: string; generation: number }>).detail,
+      );
+    });
+  });
+
+  await page.goto("/map");
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
+  await expect
+    .poll(
+      () =>
+        page.evaluate(
+          () =>
+            (
+              window as typeof window & {
+                __pubmaxPinRevealTrace: Array<{
+                  reason: string;
+                  generation: number;
+                }>;
+              }
+            ).__pubmaxPinRevealTrace.at(-1)?.reason ?? null,
+        ),
+      { timeout: 30_000 },
+    )
+    .toMatch(/^(tiles|idle)$/);
+
+  const styleRequestsBeforeOutage = styleRequests;
+  failTiles = true;
+  await zoomThroughHiddenMobileControl(page);
+
+  const notice = page.locator(".mapSoftRetry");
+  await expect(notice).toContainText("Map background couldn't load", {
+    timeout: 30_000,
+  });
+  await expect(notice).toHaveAttribute("data-kind", "tiles");
+  await expect(notice.getByRole("button", { name: "Retry" })).toBeVisible();
+  expect(
+    styleRequests - styleRequestsBeforeOutage,
+    "the tile-failure lane must spend its one bounded style reload",
+  ).toBe(1);
+
+  // Keep failing. No second retry loop is ever invented.
+  await page.waitForTimeout(8_000);
+  expect(
+    styleRequests - styleRequestsBeforeOutage,
+    "a spent retry stays spent while the source keeps failing",
+  ).toBe(1);
+  await expect(notice).toBeVisible();
+});
+
 test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({
   page,
 }) => {
@@ -582,12 +677,12 @@ test("/map states a TileJSON metadata failure instead of revealing a blank field
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// Phone readiness-ceiling contract. A browser can grant WebGL while its render
-// loop never produces the pub frame required to retire loading chrome. Stubbing
-// rAF keeps that compositor handoff from completing; the 12-second ceiling must
-// finish on the honest, readable no-frame fallback rather than expose the
-// unfinished map.
-test("/map shows a readable fallback when phone rendering misses its readiness ceiling", async ({
+// Dead-frame-loop contract. A browser can grant WebGL while its render loop
+// never produces a frame at all. Stubbing rAF keeps every MapLibre "render"
+// event from firing, so the 10-second first-frame watchdog — not the pin
+// readiness ceiling, which never unmounts anything — owns the honest, readable
+// no-frame fallback.
+test("/map shows a readable fallback when the phone render loop never draws a frame", async ({
   page,
 }) => {
   test.setTimeout(60_000);
@@ -603,12 +698,16 @@ test("/map shows a readable fallback when phone rendering misses its readiness c
   // The map constructs (context granted) — the canvas exists…
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({ timeout: 20_000 });
 
-  // No pub frame ever renders, so the phone readiness ceiling must surface the
-  // honest fallback (12s ceiling + render slack).
+  // No frame ever renders, so the first-frame watchdog must surface the honest
+  // fallback (10s watchdog + render slack) and keep it: the later pin readiness
+  // ceiling has no card of its own to overwrite this one with.
   const fallback = page.locator(".mapFallback");
   await expect(fallback).toBeVisible({ timeout: 25_000 });
   await expect(fallback).toContainText("Map couldn't draw");
-  await expect(fallback).toContainText("The map couldn't finish drawing its pubs.");
+  await expect(fallback).toContainText("The map opened but did not draw anything.");
+  await page.waitForTimeout(6_000);
+  await expect(fallback).toContainText("The map opened but did not draw anything.");
+  await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
   await expect(fallback.getByRole("button", { name: "Technical details" })).toHaveAttribute(
     "aria-expanded",
     "false",

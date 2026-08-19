@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  basemapRetryForReveal,
+  BASEMAP_RETRY_NOTICE,
+  PIN_PAINT_RETRY_NOTICE,
   createPinRevealCoordinator,
-  isPhonePinRevealFailure,
-  pinRevealUnmountsCanvas,
+  revealTimeoutNotice,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
@@ -59,9 +59,11 @@ function harness({
       timeoutRecoveries.push(generation);
     },
     onReveal: (reason, generation) => {
-      if (basemapRetryForReveal(reason, noticeOwner)) {
-        noticeOwner = "timeout";
-      }
+      const notice = revealTimeoutNotice(reason, noticeOwner, {
+        basemapPainted,
+        pinsPaintable,
+      });
+      if (notice?.kind === "tiles") noticeOwner = "timeout";
       reveals.push({ reason, generation });
     },
   });
@@ -99,26 +101,37 @@ function harness({
 }
 
 describe("pin reveal coordinator", () => {
-  it("treats every phone readiness ceiling as a failed visible handoff", () => {
-    expect(isPhonePinRevealFailure(true, "timeout")).toBe(true);
-    expect(isPhonePinRevealFailure(true, "tiles")).toBe(false);
-    expect(isPhonePinRevealFailure(false, "timeout")).toBe(false);
+  it("names the signal that missed, and says nothing when none did", () => {
+    const nothingReady = { basemapPainted: false, pinsPaintable: false };
+    const basemapOnly = { basemapPainted: true, pinsPaintable: false };
+    const bothReady = { basemapPainted: true, pinsPaintable: true };
+
+    // A painted reveal owes no notice at all.
+    expect(revealTimeoutNotice("tiles", "none", nothingReady)).toBeNull();
+    expect(revealTimeoutNotice("idle", "none", nothingReady)).toBeNull();
+
+    expect(revealTimeoutNotice("timeout", "none", nothingReady)).toEqual(
+      BASEMAP_RETRY_NOTICE,
+    );
+    expect(revealTimeoutNotice("timeout", "none", basemapOnly)).toEqual(
+      PIN_PAINT_RETRY_NOTICE,
+    );
+    // Both sources ready: only the compositor confirmation ran out, and the
+    // pins are on screen. Nothing failed, so nothing is claimed.
+    expect(revealTimeoutNotice("timeout", "none", bothReady)).toBeNull();
+
+    // An error-owned notice is truthful until Retry rebuilds the map.
+    expect(revealTimeoutNotice("timeout", "errors", nothingReady)).toBeNull();
+    expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
   });
 
-  it("never unmounts the canvas on a phone readiness ceiling", () => {
-    expect(pinRevealUnmountsCanvas(true, "timeout")).toBe(false);
-    expect(pinRevealUnmountsCanvas(true, "tiles")).toBe(false);
-    expect(pinRevealUnmountsCanvas(false, "timeout")).toBe(false);
-  });
-
-  it("turns only a basemap timeout into an honest retry notice", () => {
-    expect(basemapRetryForReveal("tiles", "none")).toBeNull();
-    expect(basemapRetryForReveal("idle", "none")).toBeNull();
-    expect(basemapRetryForReveal("timeout", "none")).toEqual({
-      kind: "tiles",
-      message: "Map background couldn't load. Tap Retry to try again.",
-    });
-    expect(basemapRetryForReveal("timeout", "errors")).toBeNull();
+  it("gives the two ceiling notices different words and different lanes", () => {
+    expect(BASEMAP_RETRY_NOTICE.kind).toBe("tiles");
+    expect(PIN_PAINT_RETRY_NOTICE.kind).toBe("pins");
+    expect(PIN_PAINT_RETRY_NOTICE.message).not.toBe(
+      BASEMAP_RETRY_NOTICE.message,
+    );
+    expect(PIN_PAINT_RETRY_NOTICE.message).not.toMatch(/background/i);
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {

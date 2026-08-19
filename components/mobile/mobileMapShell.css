@@ -64,7 +64,6 @@
   .appShell .mapStage > .cityStatusSignalSheet,
   .appShell .mapStage > .mapConciergeAsk,
   .appShell .mapStage > .tonightLane,
-  .appShell .mapStage > .mapPriceControl,
   .appShell .mapStage .mapLayersControl,
   /* The camera stack's city-fit + recenter chips are re-homed into the mobile
      top bar, so hide those two — but NOT the whole stack: the compass is the

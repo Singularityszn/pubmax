@@ -73,6 +73,8 @@ type MapLayersControlProps = {
   onRequestClose?: () => void;
   /** Price key lives here so it does not float over the pins. */
   readerKey?: ReactNode;
+  /** Max pint price cap. Same rule as the key: a reader control, not chrome. */
+  readerPriceFilter?: ReactNode;
   listOpen?: boolean;
   onListOpenChange?: (open: boolean) => void;
   listCount?: number;
@@ -88,6 +90,7 @@ export default function MapLayersControl({
   embedded = false,
   onRequestClose,
   readerKey,
+  readerPriceFilter,
   listOpen = false,
   onListOpenChange,
   listCount = 0,
@@ -193,7 +196,7 @@ export default function MapLayersControl({
 
           <p className="mapLayersHint">{layersCopy.hint}</p>
 
-          {readerKey || onListOpenChange ? (
+          {readerKey || readerPriceFilter || onListOpenChange ? (
             <div className="mapLayersReader">
               {onListOpenChange ? (
                 <button
@@ -219,6 +222,7 @@ export default function MapLayersControl({
                   {readerKey}
                 </div>
               ) : null}
+              {readerPriceFilter}
             </div>
           ) : null}
 
