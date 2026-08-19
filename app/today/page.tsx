@@ -14,9 +14,9 @@ import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
-import { loadWhatsOn } from "@/lib/whatsOnStore";
 import {
   loadTodayOutAnswer,
+  loadTodayWhatsOnAnswer,
   mergeTodayListingRows,
   todayPicksReadStatus,
 } from "@/lib/todayListings.server";
@@ -66,17 +66,8 @@ export default async function TodayPage() {
     // the committed snapshot with its honest staleness banner. Never needlessly
     // stale even between cron runs or before migration 0047 lands.
     loadFreshWeatherSnapshot({ now }),
-    // Baseline What's-On for tonight (fail-soft). Out events are merged below so
-    // Today matches /tonight's bundled Ticketmaster lane without inventing rows.
-    loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }).catch(
-      (err) => {
-        console.warn(
-          "[today] whats-on baseline read failed; picks degraded:",
-          err instanceof Error ? err.message : String(err),
-        );
-        return null;
-      },
-    ),
+    // Same bundled-plus-live spine as /api/whats-on; Out events merge below.
+    loadTodayWhatsOnAnswer(now.getTime()),
     loadTodayOutAnswer(now.getTime()),
     // Cheapest priced pints per area, precomputed from the bundled price dataset
     // so the client can answer the viewer's remembered area with no venue data

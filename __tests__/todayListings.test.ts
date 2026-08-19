@@ -1,8 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import * as loadOut from "@/lib/out/loadOut";
+import * as whatsOnStore from "@/lib/whatsOnStore";
 import {
   loadTodayOutAnswer,
+  loadTodayWhatsOnAnswer,
   mergeTodayListingRows,
   todayPicksReadStatus,
   whatsOnStatusForTonightListings,
@@ -66,6 +68,27 @@ describe("today listings spine", () => {
       NOW,
     );
     expect(status).toBe("degraded");
+  });
+
+  it("loads What's-On with the live spine, not baseline-only", async () => {
+    const loadWhatsOn = vi.spyOn(whatsOnStore, "loadWhatsOn").mockResolvedValue({
+      rows: [],
+      readStatus: "ready",
+      servedAt: NOW_ISO,
+      revalidation: { status: "measured" },
+      sourceObservedAt: null,
+      sourceFreshnessKind: "unknown",
+      kindObservedAt: {},
+      localityBasis: "london-default",
+      asOf: null,
+    });
+
+    await loadTodayWhatsOnAnswer(NOW);
+
+    expect(loadWhatsOn).toHaveBeenCalledWith({ window: "tonight" }, { now: NOW });
+    expect(loadWhatsOn.mock.calls[0]?.[1]?.fetchLive).toBeUndefined();
+
+    loadWhatsOn.mockRestore();
   });
 
   it("loads Out with the same tonight API day as /tonight", async () => {

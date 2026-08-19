@@ -9,7 +9,11 @@ import {
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
 } from "@/lib/tonightOutListings";
-import type { WhatsOnReadStatus } from "@/lib/whatsOnStore";
+import {
+  loadWhatsOn,
+  type LoadWhatsOnResult,
+  type WhatsOnReadStatus,
+} from "@/lib/whatsOnStore";
 
 /** Map the bundled What's-On read into Tonight's spine status vocabulary. */
 export function whatsOnStatusForTonightListings(
@@ -39,6 +43,19 @@ export function todayPicksReadStatus(
     now,
   );
   return listingsStatus === "error" ? "degraded" : "ready";
+}
+
+/** Bundled plus live What's-On for tonight — same spine as /api/whats-on. */
+export async function loadTodayWhatsOnAnswer(now: number): Promise<LoadWhatsOnResult | null> {
+  try {
+    return await loadWhatsOn({ window: "tonight" }, { now });
+  } catch (err) {
+    console.warn(
+      "[today] whats-on read failed; picks degraded:",
+      err instanceof Error ? err.message : String(err),
+    );
+    return null;
+  }
 }
 
 /** Out events for tonight, fail-soft like the /api/out route. */
