@@ -14,6 +14,7 @@
     { "path": "/api/cron/moderate-social-interactions", "schedule": "*/10 * * * *" },
     { "path": "/api/cron/enrich-city-pubs", "schedule": "15 3 * * *" },
     { "path": "/api/cron/step-out-nudge", "schedule": "0 16 * * 4" },
+    { "path": "/api/cron/cheap-pint-ping", "schedule": "0 16,17 * * 1-5" },
     { "path": "/api/cron/harvest-refresh", "schedule": "0 5 * * 1" }
   ]
 }

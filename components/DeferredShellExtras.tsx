@@ -38,6 +38,10 @@ const NativePushPrompt = nextDynamic(() => import("@/components/native/NativePus
 const WebPushPrompt = nextDynamic(() => import("@/components/pwa/WebPushPrompt"), {
   ssr: false,
 });
+const CheapPintPingPrompt = nextDynamic(
+  () => import("@/components/pwa/CheapPintPingPrompt"),
+  { ssr: false },
+);
 const NativeSystemBars = nextDynamic(() => import("@/components/native/NativeSystemBars"), {
   ssr: false,
 });
@@ -59,6 +63,7 @@ export default function DeferredShellExtras() {
       <A2HSInstallPrompt />
       <NativePushPrompt />
       <WebPushPrompt />
+      <CheapPintPingPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
       <PlanMutationOutboxHost />

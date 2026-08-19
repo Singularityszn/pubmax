@@ -14,6 +14,10 @@ function pref(partial: Partial<StepOutNudgePref> = {}): StepOutNudgePref {
     lastSentAt: null,
     createdAt: "2026-08-01T00:00:00.000Z",
     updatedAt: "2026-08-01T00:00:00.000Z",
+    cheapPintQualified: false,
+    cheapPintEnabled: false,
+    cheapPintDeclined: false,
+    cheapPintSentAt: null,
     ...partial,
   };
 }
