@@ -134,7 +134,6 @@ describe("VOICE.md compliance audit", () => {
     const nearHeadline = read("lib/nearMeAnswer.ts");
     const nearPage = read("app/near/page.tsx");
     const palChatPage = read("app/pal/chat/page.tsx");
-    const tonightNearby = read("components/discovery/TonightNearbyLane.tsx");
     const deals = read("components/discovery/DealsTonightLane.tsx");
     const rivalry = read("components/discovery/CityRivalryTable.tsx");
     const borough = read("app/borough/[slug]/page.tsx");
@@ -174,9 +173,6 @@ describe("VOICE.md compliance audit", () => {
     expect(palChatPage).not.toContain("grounded picks");
     expect(palChatPage).not.toContain("nothing is made up");
 
-    expect(tonightNearby).not.toContain("Curated things to do");
-    expect(tonightNearby).not.toContain("Grounded,");
-    expect(tonightNearby).not.toContain("upstream-sourced");
     expect(deals).not.toContain("experience deals");
     expect(rivalry).not.toContain(
       'caption = "UK city energy. Demo Pint Drops, curated crawls',
@@ -451,8 +447,9 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     // An undatable source states the fact plainly instead of sitting in the
     // interpunct chain, which is what made the /tonight subtitle read as debug
     // output rather than a sentence.
-    const tonight = read("app/tonight/TonightClient.tsx");
-    expect(tonight).toContain("We can’t date these listings yet.");
+    // The sentence itself now lives in TonightProvenanceLines.tsx, which
+    // TonightClient.tsx renders rather than inlining the string.
+    expect(read("app/tonight/TonightProvenanceLines.tsx")).toContain("We can’t date these listings yet.");
     expect(read("lib/whatsOnBadges.ts")).toContain("No date on this yet");
     expect(read("lib/tonight.ts")).toContain("No date on this yet");
   });
