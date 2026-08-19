@@ -22,9 +22,10 @@ import { ASK_PLAN_DRAFT_STORAGE_KEY, type AskPlanDraft } from "@/lib/ask/types";
 import {
   parsePlanDescribeFromSearch,
   parsePlanHandoffQueryFromSearch,
+  shouldAutoGeneratePalHandoffPlan,
 } from "@/lib/planOccasion";
 import { recordPlanNudgeTrigger } from "@/lib/identityNudge";
-import { CREW_NAME_MAX } from "@/lib/crew";
+import { CREW_NAME_MAX, creatorNameFromAuthUser } from "@/lib/crew";
 import { cleanCultureOpener, type CultureOpenerDTO } from "@/lib/cultureCrawl";
 import { readLastCrew, subscribeLastCrew } from "@/lib/lastCrew";
 import { getNightArea, isNightAreaRouteReady, NIGHT_AREAS, type NightArea } from "@/lib/nightAreas";
@@ -1172,6 +1173,29 @@ function PlanComposerForm({
       }
     });
   }, [canPersist]);
+  const palHandoffAutoGenerateStartedRef = useRef(false);
+  const signedInCreatorNameSeededRef = useRef(false);
+  useEffect(() => {
+    if (!user || signedInCreatorNameSeededRef.current) return;
+    signedInCreatorNameSeededRef.current = true;
+    setCreatorName((current) => {
+      if (current.trim()) return current;
+      const seeded = creatorNameFromAuthUser(user);
+      return seeded || current;
+    });
+  }, [user]);
+  useEffect(() => {
+    if (!canPersist) return;
+    if (!shouldAutoGeneratePalHandoffPlan(urlPrefill.handoffAsk)) return;
+    if (palHandoffAutoGenerateStartedRef.current) return;
+    palHandoffAutoGenerateStartedRef.current = true;
+    // Defer until the URL ask prefill lands in describe-first or the concierge field.
+    void Promise.resolve().then(() => {
+      const handoffAsk = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
+      if (!handoffAsk?.trim()) return;
+      submitFromEntry(handoffAsk.trim());
+    });
+  }, [canPersist, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
   const [nightContext, setNightContext] = useState<NightContext | null>(routeDraftFields.nightContext);

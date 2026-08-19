@@ -471,7 +471,15 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                           <IntentLink
                             className="palChatPlanHandoff pressable"
                             href={planPalRouteHandoffHref(proposal.query)}
-                            onClick={() => trackEvent("concierge_result_tap")}
+                            onClick={() => {
+                              trackEvent("concierge_result_tap");
+                              writeAskPlanDraft({
+                                query: proposal.query,
+                                stopIds: proposal.stopIds,
+                                stopNames: proposal.stopNames,
+                                createdAt: new Date().toISOString(),
+                              });
+                            }}
                           >
                             Open in Plan
                           </IntentLink>
