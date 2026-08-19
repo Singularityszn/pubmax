@@ -143,6 +143,7 @@ export type CommunityPricesState = {
     venueId: string;
     drinkCategory: DrinkCategory;
     priceGbp: string | number;
+    pintPhoto?: File | null;
   }, auth: AccountAuthSnapshot) => Promise<CommunityPriceSubmitResult>;
   /** Log one categorical pub observation through the same write seam. */
   submitVenueSignal: (input: {
@@ -923,7 +924,7 @@ export function useCommunityPrices(): CommunityPricesState {
       // refused in-place with the identical sentence and never leaves the phone.
       const parsed = validateCommunityPrice(input);
       if (!parsed.ok) return { ok: false, error: parsed.error, reason: "invalid" };
-      const { venueId, drinkCategory, priceGbp } = parsed.value;
+      const { venueId, drinkCategory, priceGbp, pintPhoto = null } = parsed.value;
 
       const submittedAt = Date.now();
       const optimistic: CommunityPrice = {
@@ -967,11 +968,15 @@ export function useCommunityPrices(): CommunityPricesState {
 
       setSubmitting(true);
       try {
-        const res = await postCommunityContribution(auth, {
-          venueId,
-          drinkCategory,
-          priceGbp,
-        });
+        const res = await postCommunityContribution(
+          auth,
+          {
+            venueId,
+            drinkCategory,
+            priceGbp,
+          },
+          pintPhoto ? { pintPhoto } : undefined,
+        );
         const data = (await res.json().catch(() => null)) as
           | {
               price?: CommunityPrice;
