@@ -59,6 +59,12 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // The first-visit arrival card is ANSWERED on purpose, for the same reason
+    // consent is below: it is a full-width member of this very lane, and it
+    // lifts the map-edge column, the plan pill and the OSM credit to their own
+    // higher berths - the one state where the collisions these tests exist for
+    // cannot happen.
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
   });
 
   const started = Date.now();
@@ -103,6 +109,9 @@ async function openPhoneMap(
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+    // See the cold-paint test above: the arrival card is answered so these
+    // measurements really are the default berths.
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     Object.defineProperty(navigator, "geolocation", {
       configurable: true,
       value: {
@@ -704,6 +713,8 @@ for (const viewport of VIEWPORTS) {
       expect.arrayContaining([...REQUIRED_MEMBERS]),
     );
     await expect(page.locator(".analyticsConsentPrompt")).toHaveCount(0);
+    // Same reason: the arrival card would lift every member measured above.
+    await expect(page.locator(".mapArrivalCard")).toHaveCount(0);
 
     for (let i = 0; i < boxes.length; i += 1) {
       for (let j = i + 1; j < boxes.length; j += 1) {

@@ -110,6 +110,15 @@ type RowMeasurement = {
   name: string;
   selector: string;
   controls: ControlRect[];
+  /**
+   * What the members of this set owe each other. A ROW is controls sitting side
+   * by side, so they share one height. A COLUMN of deliberately different
+   * shapes (the map edge's TfL pill and its round Near me FAB) shares no
+   * height by design, but every member still owes the 44px tap floor - and it
+   * has to stay measured, because dropping a control from the proof is how a
+   * control stops being proven at all.
+   */
+  rule?: "shared-height" | "tap-floor";
 };
 
 type PanelMeasurement = Rect & {
@@ -197,6 +206,7 @@ async function preparePage(
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
         sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
         localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
       }
       if (!signedIn) return;
       localStorage.setItem(
@@ -346,10 +356,12 @@ async function row(
   page: Page,
   name: string,
   selector: string,
+  rule: RowMeasurement["rule"] = "shared-height",
 ): Promise<RowMeasurement> {
   return {
     name,
     selector,
+    rule,
     controls: await controlRects(page.locator(selector)),
   };
 }
@@ -390,6 +402,26 @@ async function measureSurfaceAssertions(
   if (!ASSERT_LAYOUT) return assertions;
 
   for (const measuredRow of rows) {
+    if (measuredRow.rule === "tap-floor") {
+      const smallestSide = round(
+        Math.min(
+          ...measuredRow.controls.map((control) =>
+            Math.min(control.width, control.height),
+          ),
+        ),
+      );
+      assertMeasured(
+        assertions,
+        surface,
+        viewport.width,
+        `${measuredRow.name} keeps the 44px tap floor`,
+        smallestSide >= 43.9,
+        `${measuredRow.controls
+          .map((control) => `${control.label} ${control.width}x${control.height}`)
+          .join("; ")}`,
+      );
+      continue;
+    }
     if (measuredRow.controls.length < 2) continue;
     const heights = measuredRow.controls.map((control) => control.height);
     const spread = round(Math.max(...heights) - Math.min(...heights));
@@ -630,6 +662,17 @@ async function captureSurface(
   if (options.firstVisit) {
     await page.waitForTimeout(1_000);
   }
+  if (options.firstVisit && surface === "map-first-visit") {
+    // Every berth this spec measures has a lifted variant under
+    // `body:has(.mapArrivalCard)`, so the card MUST be gone before a single box
+    // is read or the lifted state is recorded as the default. A best-effort
+    // click cannot promise that: the card lands on pin reveal, which can be
+    // later than any fixed wait, and a skipped click is silent.
+    const arrivalCard = page.locator(".mapArrivalCard");
+    await expect(arrivalCard).toBeVisible({ timeout: 45_000 });
+    await arrivalCard.getByRole("button", { name: "Close" }).click();
+    await expect(arrivalCard).toHaveCount(0, { timeout: 15_000 });
+  }
   await settle(page);
 
   const firstVisitPromptLocator = page
@@ -664,7 +707,12 @@ async function captureSurface(
 
   const rows = [
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
-    await row(page, "map edge controls", ".mobileMapUtilityCorner > button"),
+    await row(
+      page,
+      "map edge controls",
+      ".mobileMapUtilityCorner > button",
+      "tap-floor",
+    ),
     await row(page, "Tonight Arc controls", ".tonightArcRow > button"),
     await row(
       page,
@@ -686,8 +734,7 @@ async function captureSurface(
       ].join(", "),
     ),
     await row(page, "landing hero actions", ".lpHeroActions .lpButton"),
-    await row(page, "Plan area choices", ".planIntake__choices--areas > button"),
-    await row(page, "Plan footer actions", ".planIntake__actions button"),
+    await row(page, "Plan stop count choices", ".planStopCount__choices > button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
     await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),
   ].filter((measurement) => measurement.controls.length > 0);
@@ -842,7 +889,7 @@ async function openSignedInProfileOptions(browser: Browser) {
   });
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("pubmax_handle")))
-    .toBeNull();
+    .toBe(PROFILE_HANDLE);
   const trigger = page.getByRole("button", { name: "Profile options" });
   await trigger.focus();
   await page.keyboard.press("ArrowDown");
@@ -952,7 +999,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
       {
         surface: "plan",
         pathname: "/plan",
-        readySelector: ".planIntake",
+        readySelector: ".planDescribeFirst",
         firstVisit: false,
       },
     ]) {

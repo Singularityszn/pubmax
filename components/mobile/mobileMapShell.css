@@ -111,6 +111,14 @@
     bottom: calc(var(--mobile-map-dock-clearance) + 198px);
   }
 
+  /* The first-visit arrival card owns the same lane and is taller than the
+     consent card, so it takes its own published berth. Ordered after the
+     consent rule at equal specificity: whichever of the two is on screen, the
+     credit clears the taller one. */
+  body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
+  }
+
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;
     max-width: calc(100vw - 24px);
@@ -432,6 +440,12 @@
   body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
     bottom: var(--map-corner-bottom-consent);
   }
+  /* Same deal for the first-visit arrival card, which is full width and taller
+     still: the Near me FAB may not paint over the card whose own primary
+     action is Use my location. */
+  body:has(.mapArrivalCard) .mobileMapUtilityCorner {
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
+  }
 
   .mobileMapLocateFab[aria-pressed="true"] { border-color: var(--ink); color: var(--ink); }
   .mobileMapLocateFab:disabled { cursor: wait; opacity: .72; }
@@ -563,6 +577,11 @@
     box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
     font: inherit;
     transform: none;
+  }
+  /* The first-visit arrival card is full width in the same lane, so the plan
+     pill takes the berth above it rather than being painted over. */
+  body:has(.mapArrivalCard) .mobilePlanActivation {
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
   .mobilePlanActivation:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }

@@ -4520,9 +4520,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-color: var(--brass);
 }
 
-/* Any open map sheet owns the reader's attention; the consent card must not
-   bleed through semi-transparent scrims or sit above sheet chrome. */
-body:has(.mobileSheetPortal) .analyticsConsentPrompt {
+/* Any open map surface owns the reader's attention; the consent card must not
+   bleed through semi-transparent scrims or sit above sheet chrome. The desktop
+   choose-area picker is the second shape of that surface, and it dims the map
+   with a scrim of its own rather than the phone sheet portal. */
+body:has(.mobileSheetPortal) .analyticsConsentPrompt,
+body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   visibility: hidden;
   pointer-events: none;
 }
@@ -4576,13 +4579,21 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     padding-inline: 8px;
   }
 
+  body:has(.mapArrivalCard) .analyticsConsentPrompt,
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
-    /* Sit above Describe the outing; keep the plan CTA fully visible. */
+    /* Sit above first-visit arrival or Describe the outing. */
     bottom: calc(var(--mobile-map-dock-clearance) + 86px);
     max-height: none;
     background: var(--panel-raised);
     box-shadow: none;
     backdrop-filter: none;
+  }
+
+  body:has(.mapArrivalCard) .analyticsConsentPrompt {
+    /* The card's own published top edge (mobileNav.css), never a second
+       height written down here. Consent already waits behind the card
+       (lib/promptBudget.ts), so this is the belt to that braces. */
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 }
 

@@ -73,8 +73,11 @@
      where this control parks. A berth derived from a height nobody publishes
      would be a guess, and the guess that matters here decides whether somebody
      can answer a privacy question. So compose stands down until the card is
-     answered - it is one tap and one time, and it is the card's own lane. */
+     answered - it is one tap and one time, and it is the card's own lane.
+     The map's first-visit arrival card is the same shape and the same deal:
+     full width, its own two actions in this lane, and gone on one tap. */
   body:has(.analyticsConsentPrompt) .createFabRoot,
+  body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot,
   .createFabRoot.isKeyboardHidden {
@@ -90,6 +93,7 @@
   }
 
   body:has(.analyticsConsentPrompt) .createFabRoot :is(.createFab, .createFabMenu),
+  body:has(.mapArrivalCard) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.detail-open) .createFabRoot :is(.createFab, .createFabMenu),
   body:has(.appShell.planning-open) .createFabRoot :is(.createFab, .createFabMenu),
   .createFabRoot.isKeyboardHidden :is(.createFab, .createFabMenu) {
@@ -175,6 +179,7 @@
   .createFab,
   .createFabRoot.isKeyboardHidden,
   body:has(.analyticsConsentPrompt) .createFabRoot,
+  body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
   body:has(.appShell.planning-open) .createFabRoot {
     transition: none;
