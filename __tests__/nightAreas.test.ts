@@ -4,6 +4,7 @@ import {
   getNightArea,
   isNightAreaRouteReady,
   publicNightAreaCoverage,
+  tryGetNightArea,
   validateNightAreaCatalogue,
 } from "@/lib/nightAreas";
 
@@ -64,5 +65,13 @@ describe("Night Area catalogue", () => {
         centre: { lat: 91, lng: -0.2 }, radiusKm: 1, transportAnchors: [],
       },
     ])).toThrow(/slug|alias|anchor|coordinate/i);
+  });
+
+  it("answers null rather than throwing for a stale or unknown area slug", () => {
+    expect(tryGetNightArea("clapham")).toEqual(getNightArea("clapham"));
+    expect(tryGetNightArea("a-renamed-or-removed-area")).toBeNull();
+    expect(tryGetNightArea(null)).toBeNull();
+    expect(tryGetNightArea(undefined)).toBeNull();
+    expect(tryGetNightArea("")).toBeNull();
   });
 });

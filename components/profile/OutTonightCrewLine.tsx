@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { discardBody } from "@/lib/responseBody";
-import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 
 type Props = {
@@ -63,7 +63,7 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
 
   if (state.kind === "hidden") return null;
 
-  const areaName = state.areaSlug ? getNightArea(state.areaSlug).name : null;
+  const areaName = tryGetNightArea(state.areaSlug)?.name ?? null;
   return (
     <div className="beaconCrewBlock">
       <p className="beaconCrewLine">
