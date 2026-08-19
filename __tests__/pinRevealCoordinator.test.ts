@@ -4,6 +4,7 @@ import {
   basemapRetryForReveal,
   createPinRevealCoordinator,
   isPhonePinRevealFailure,
+  pinRevealUnmountsCanvas,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
@@ -102,6 +103,12 @@ describe("pin reveal coordinator", () => {
     expect(isPhonePinRevealFailure(true, "timeout")).toBe(true);
     expect(isPhonePinRevealFailure(true, "tiles")).toBe(false);
     expect(isPhonePinRevealFailure(false, "timeout")).toBe(false);
+  });
+
+  it("never unmounts the canvas on a phone readiness ceiling", () => {
+    expect(pinRevealUnmountsCanvas(true, "timeout")).toBe(false);
+    expect(pinRevealUnmountsCanvas(true, "tiles")).toBe(false);
+    expect(pinRevealUnmountsCanvas(false, "timeout")).toBe(false);
   });
 
   it("turns only a basemap timeout into an honest retry notice", () => {

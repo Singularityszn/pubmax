@@ -20,6 +20,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type ReactNode,
 } from "react";
 
 import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
@@ -104,7 +105,7 @@ import {
   BASEMAP_RETRY_NOTICE,
   basemapRetryForReveal,
   createPinRevealCoordinator,
-  isPhonePinRevealFailure,
+  pinRevealUnmountsCanvas,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
@@ -126,11 +127,15 @@ import {
   shouldRecoverPaint,
 } from "@/lib/mapPaintWatchdog";
 import {
+  INITIAL_TILE_FAILURE_SPEND,
   areBasemapTilesLoaded as readBasemapTilesLoaded,
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
+  markTileFailureSurfaced,
+  markTileRetrySpent,
   pruneTileFailures,
+  spendTileFailureDecision,
   tileFailureRecheckDelay,
 } from "@/lib/mapTileFailure";
 import {
@@ -311,6 +316,12 @@ type PubMapCanvasProps = {
   poiHidden?: Record<PoiCategory, boolean>;
   onPoiHiddenChange?: (next: PoiHiddenChange) => void;
   hideLayersControl?: boolean;
+  /** Price key and list live in Layers, not as extra floating chrome. */
+  layersReaderKey?: ReactNode;
+  listOpen?: boolean;
+  onListOpenChange?: (open: boolean) => void;
+  listCount?: number;
+  onSoftRetryChange?: (active: boolean) => void;
   /**
    * Area button fly-to: bump `token` to fly the camera to `center` (a Night
    * Area centre). Reduced-motion is honoured by the shared `cinematic` helper
@@ -342,11 +353,10 @@ type PubMapCanvasProps = {
 // the pub layers cannot hang hidden indefinitely. This runs behind the
 // still-present parent skeleton and never lifts the chrome.
 const PIN_REVEAL_TIMEOUT_MS = 3000;
-// Honest upper bound for the visible-map handoff. Desktop can degrade to its
-// existing basemap retry state; phone turns every ceiling expiry into the
-// no-frame fallback because neither basemap paint nor an empty `pubs` source is
-// enough to prove a settled first impression. Kept above the measured slow
-// stream and first-frame watchdog windows.
+// Honest upper bound for the visible-map handoff. Desktop and phone both
+// degrade to the existing basemap retry toast; neither unmounts the canvas.
+// Phone still requires a confirmed visible frame before a successful reveal.
+// Kept above the measured slow stream and first-frame watchdog windows.
 const PIN_READY_CEILING_MS = 12_000;
 // MapLibre's GeoJSON worker and render events can lead the phone compositor by
 // several frames. Keep honest loading chrome through that observed handoff.
@@ -447,6 +457,11 @@ export default function PubMapCanvas({
   poiHidden: controlledPoiHidden,
   onPoiHiddenChange,
   hideLayersControl = false,
+  layersReaderKey,
+  listOpen = false,
+  onListOpenChange,
+  listCount = 0,
+  onSoftRetryChange,
   focusPoint = null,
   onViewportChange,
   onUserCameraMove,
@@ -576,6 +591,9 @@ export default function PubMapCanvas({
     kind: "context-lost" | "tiles";
     message: string;
   } | null>(null);
+  useEffect(() => {
+    onSoftRetryChange?.(softRetry !== null);
+  }, [softRetry, onSoftRetryChange]);
   // Camera snapshot restored after a context-loss re-init so selection/camera
   // state survives the tear-down (selection is React state; camera is MapLibre).
   const recoveryViewRef = useRef<MapCameraSnapshot | null>(null);
@@ -1242,9 +1260,7 @@ export default function PubMapCanvas({
     let basemapTileReadyForPaint = false;
     let tileNoticeOwner: BasemapNoticeOwner = "none";
     let tileFailureStamps: number[] = [];
-    let tileRetrySpent = false;
-    let tileFailureSurfaced = false;
-    let tileRetryQueued = false;
+    let tileSpend = INITIAL_TILE_FAILURE_SPEND;
     let tileFailureGeneration = 0;
     let tileFailureRecheckTimer: ReturnType<typeof setTimeout> | undefined;
     const failedBasemapTiles = createBasemapTileFailureTracker();
@@ -1267,7 +1283,7 @@ export default function PubMapCanvas({
       if (failedBasemapTiles.hasFailures()) return;
       initialBasemapPending = false;
       tileFailureStamps = [];
-      tileFailureSurfaced = false;
+      tileSpend = { ...tileSpend, surfaced: false };
       // MapLibre treats errored tiles as settled, so `areTilesLoaded()` cannot
       // prove recovery from a real error burst. Only a timeout-owned notice
       // may clear when a slow source eventually settles. Error-owned notices
@@ -1347,7 +1363,7 @@ export default function PubMapCanvas({
         setSoftRetry((current) => current?.kind === "tiles" ? null : current);
       },
       onReveal: (reason, generation) => {
-        if (isPhonePinRevealFailure(phoneFirstImpression, reason)) {
+        if (pinRevealUnmountsCanvas(phoneFirstImpression, reason)) {
           reportMapError({
             kind: "no-frame",
             message: "The map couldn't finish drawing its pubs.",
@@ -1725,8 +1741,8 @@ export default function PubMapCanvas({
       });
     }, STYLE_LOAD_TIMEOUT_MS * 2 + 2000);
     const surfaceBasemapFailure = (detail: string) => {
-      if (tileFailureSurfaced) return;
-      tileFailureSurfaced = true;
+      if (tileSpend.surfaced) return;
+      tileSpend = markTileFailureSurfaced(tileSpend);
       sceneSettled = true;
       clearTimeout(hangFailTimer);
       queueMicrotask(() => {
@@ -1861,7 +1877,7 @@ export default function PubMapCanvas({
         // A flyTo legitimately outruns the tile stream and paints black for a
         // few seconds; the classifier stays silent until the flight ends.
         cameraInFlight: map.isMoving(),
-        retrySpent: tileRetrySpent,
+        retrySpent: tileSpend.retrySpent,
         recoveryBudgetLeft: PAINT_WATCHDOG_MAX_RETRIES - recoverySpent,
         initialBasemapPending,
       });
@@ -1881,7 +1897,7 @@ export default function PubMapCanvas({
           tileFailureRecheckTimer = undefined;
           if (
             generation !== tileFailureGeneration ||
-            tileFailureSurfaced ||
+            tileSpend.surfaced ||
             mapRef.current !== map
           ) {
             return;
@@ -1896,13 +1912,12 @@ export default function PubMapCanvas({
         return;
       }
       clearTileFailureRecheck();
-      if (decision === "retry") {
-        if (tileRetryQueued) return;
-        tileRetryQueued = true;
+      const spent = spendTileFailureDecision(tileSpend, decision);
+      tileSpend = spent.state;
+      if (spent.effect === "reload-style") {
         queueMicrotask(() => {
-          tileRetryQueued = false;
-          if (mapRef.current !== map || tileFailureSurfaced) return;
-          tileRetrySpent = true;
+          if (mapRef.current !== map || tileSpend.surfaced) return;
+          tileSpend = markTileRetrySpent(tileSpend);
           recoverySpent += 1; // shared budget with the paint watchdog
           beginTileFailureGeneration();
           console.warn("[pubmap] tile failure burst, reloading style", {
@@ -1914,6 +1929,7 @@ export default function PubMapCanvas({
         });
         return;
       }
+      if (spent.effect !== "surface") return;
       // surface: the bounded retry (or the budget) is spent and tiles are
       // still failing. Prefer a soft toast once the basemap has painted so we
       // never leave a silent grey canvas; fall back to the full card only when
@@ -1931,7 +1947,7 @@ export default function PubMapCanvas({
         swapToBasemapFallback();
         return;
       }
-      if (tileFailureSurfaced || mapRef.current !== map) return;
+      if (tileSpend.surfaced || mapRef.current !== map) return;
       const now = performance.now();
       tileFailureStamps = pruneTileFailures(tileFailureStamps, now);
       tileFailureStamps.push(now);
@@ -3452,6 +3468,10 @@ export default function PubMapCanvas({
           onBandChange={onBandChange}
           storyBands={cityStoryBands}
           cityId={cityId}
+          readerKey={layersReaderKey}
+          listOpen={listOpen}
+          onListOpenChange={onListOpenChange}
+          listCount={listCount}
         />
       ) : null}
       {activePoi ? (

@@ -24,6 +24,22 @@ export function isPhonePinRevealFailure(
   return phoneFirstImpression && reason === "timeout";
 }
 
+/**
+ * Whether a reveal should tear the canvas down. A phone ceiling is a failed
+ * visible handoff (`isPhonePinRevealFailure`), not a dead map: the short
+ * fallback has already un-gated pin layers on the live style, so unmounting
+ * here leaves a bare basemap or the "Map couldn't draw" card over pubs that
+ * were about to paint.
+ */
+export function pinRevealUnmountsCanvas(
+  phoneFirstImpression: boolean,
+  reason: PinRevealReason,
+): boolean {
+  void phoneFirstImpression;
+  void reason;
+  return false;
+}
+
 type PinRevealCoordinatorOptions = {
   /**
    * Un-gates the local GeoJSON pins if the basemap never reports painted tiles,
@@ -69,7 +85,8 @@ type PinRevealCoordinatorOptions = {
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
  *    even if a required signal never arrives. A consumer may turn that timeout
- *    into an explicit degraded or error surface.
+ *    into a soft retry notice. It must not unmount the canvas
+ *    (`pinRevealUnmountsCanvas`).
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,

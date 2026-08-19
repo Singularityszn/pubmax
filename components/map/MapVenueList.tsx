@@ -42,6 +42,7 @@ export default function MapVenueList({
   onBack,
   onHome,
   homeTitle = "the map",
+  showToggle = true,
 }: {
   model: MapVenueListModel;
   ukBaseModel: UkBasePubListModel;
@@ -60,6 +61,8 @@ export default function MapVenueList({
   onBack?: () => void;
   onHome?: () => void;
   homeTitle?: string;
+  /** Floating map toggle. The map surface opens the list from Layers instead. */
+  showToggle?: boolean;
 }) {
   const panelId = useId();
   const total = model.total + ukBaseModel.total;
@@ -233,6 +236,7 @@ export default function MapVenueList({
         </div>
       ) : null}
 
+      {showToggle ? (
       <button
         type="button"
         className="mapVenueListToggle"
@@ -244,6 +248,7 @@ export default function MapVenueList({
         <span>List view</span>
         {loaded && total > 0 ? <span className="mapVenueListToggleCount">{total}</span> : null}
       </button>
+      ) : null}
     </section>
   );
 }

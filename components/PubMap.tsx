@@ -160,10 +160,6 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
   ssr: false,
 });
-const MapPriceControl = dynamic(
-  () => import("@/components/map/MapPriceControl"),
-  { ssr: false },
-);
 const CitySuggestBanner = dynamic(
   () => import("@/components/map/CitySuggestBanner"),
   { ssr: false },
@@ -271,6 +267,7 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -1009,6 +1006,7 @@ export default function PubMap({
   /** Once the viewer collapses a deep-linked lane, don't keep forcing it open. */
   const [dismissedTonightSrc, setDismissedTonightSrc] = useState<string | null>(null);
   const [mapListOpen, setMapListOpen] = useState(false);
+  const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
   const [mapListSortMode, setMapListSortMode] =
     useState<MapVenueListSortMode>("nearest");
   const [visibleVenueState, setVisibleVenueState] = useState<{
@@ -3709,18 +3707,6 @@ export default function PubMap({
       {!mobileViewport ? (
         <SiteNav
           active="map"
-          mobileMapUtility={
-            <MapPriceControl
-              placement="header"
-              filters={filters}
-              onFiltersChange={setFilters}
-              legend={activePriceLegend}
-              lensLabel={activeLensLabel ?? undefined}
-              priceFiltersEnabled={
-                experienceLens === "all" && activeLensLabel === null
-              }
-            />
-          }
         />
       ) : null}
 
@@ -3739,7 +3725,10 @@ export default function PubMap({
             onChange={setVenueKindVisibility}
           />
         ) : null}
-        {selectionNotice ? (
+        {pickMapSurfaceToast({
+          selectionNotice: selectionNotice !== null,
+          softRetry: mapSoftRetryActive,
+        }) === "selection" ? (
           <aside
             className="ukPlaceArrival"
             role="status"
@@ -3836,6 +3825,11 @@ export default function PubMap({
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
+          layersReaderKey={!mobileViewport ? <MapKey legend={activePriceLegend} /> : undefined}
+          listOpen={mapListOpen}
+          onListOpenChange={setMapListOpen}
+          listCount={mapVenueListModel.total + ukBasePubListModel.total}
+          onSoftRetryChange={setMapSoftRetryActive}
           focusPoint={areaFocus}
           onViewportChange={setMapViewport}
           onUserCameraMove={dismissAmbientBanners}
@@ -3971,21 +3965,6 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop keeps price controls at bottom left. Phones use the existing
-            More sheet, leaving top chrome unchanged. */}
-        {!mobileViewport ? (
-          <MapPriceControl
-            placement="map"
-            filters={filters}
-            onFiltersChange={setFilters}
-            legend={activePriceLegend}
-            lensLabel={activeLensLabel ?? undefined}
-            priceFiltersEnabled={
-              experienceLens === "all" && activeLensLabel === null
-            }
-          />
-        ) : null}
-
         {activePersona ? (
           <PersonaLensCard
             persona={activePersona}
@@ -4020,6 +3999,7 @@ export default function PubMap({
           onBack={mapSurfaceTrail.back}
           onHome={mapSurfaceTrail.home}
           homeTitle={`the ${mapDisplayName} map`}
+          showToggle={false}
         />
 
         {mobileShellReady ? (
