@@ -161,9 +161,9 @@ describe("groupVenuePrices", () => {
     expect(venues[0].amenities.beerGarden).toBe(true);
   });
 
-  it("attaches curation", () => {
+  it("attaches curation, honestly uncurated for a plain fixture with no heritage or water terms", () => {
     const venues = groupVenuePrices([makeRow()]);
-    expect(venues[0].curation).toBeDefined();
+    expect(venues[0].curation).toMatchObject({ nearWater: false, provenance: undefined });
   });
 
   it("uses stable venue ids from the grouping key instead of array order", () => {
