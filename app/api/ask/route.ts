@@ -51,12 +51,16 @@ export async function POST(request: Request): Promise<Response> {
   const llmAssistAllowed =
     isSupabaseConfigured() || process.env.NODE_ENV !== "production";
 
-  const answer = await runAsk({
-    query,
-    cityId: record.cityId,
-    turns: record.turns,
-    skipModel: !llmAssistAllowed,
-  });
-
-  return jsonNoStore(answer);
+  try {
+    const answer = await runAsk({
+      query,
+      cityId: record.cityId,
+      turns: record.turns,
+      skipModel: !llmAssistAllowed,
+    });
+    return jsonNoStore(answer);
+  } catch (error) {
+    console.error("ask.unexpected_error", error);
+    return publicApiError("Couldn't answer that right now.", "ASK_UNAVAILABLE", 503, { retryable: true });
+  }
 }
