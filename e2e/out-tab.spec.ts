@@ -75,18 +75,8 @@ for (const width of WIDTHS) {
         listings.getByRole("heading", { name: "What's on tonight", exact: true }),
       ).toBeVisible();
 
-      const plans = page.getByRole("region", { name: "Open plans" });
-      await expect(plans).toContainText("Open plans arrive here.");
-      await expect(plans).not.toContainText(/no open plans/i);
-      await expect(plans.getByRole("link", { name: "Start a plan", exact: true })).toHaveAttribute(
-        "href",
-        "/plan",
-      );
-      const listingsBox = await listings.boundingBox();
-      const plansBox = await plans.boundingBox();
-      expect(listingsBox).not.toBeNull();
-      expect(plansBox).not.toBeNull();
-      expect(listingsBox!.y).toBeLessThan(plansBox!.y);
+      // Open plans stays hidden until at least three sendable plans land.
+      await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
 
       // /out is not a crawlable family yet: it duplicates /tonight's baseline
       // rows, so it ships noindex with no canonical of its own.
@@ -151,8 +141,86 @@ test("shows event cards when GET /api/out is ready", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
   const listings = page.getByRole("region", { name: "What's on tonight" });
   await expect(listings).toBeVisible();
-  await expect(page.getByRole("region", { name: "Open plans" })).toContainText(
-    "Open plans arrive here.",
+  await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
+});
+
+function sendableOpenPlan(id: string, title: string) {
+  return {
+    crewId: id,
+    title,
+    startTime: "2026-08-16T19:00:00.000Z",
+    stopVenueId: "venue-test",
+    stopVenueName: "The Test Arms",
+    hostHandle: "karan",
+    memberCount: 2,
+    meetingPoint: {
+      kind: "venue",
+      name: "The Test Arms",
+      lat: 51.5,
+      lng: -0.1,
+    },
+  };
+}
+
+test("shows Open plans only when at least three sendable plans exist", async ({ page }) => {
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [
+          sendableOpenPlan("crew-1", "Camden crawl"),
+          sendableOpenPlan("crew-2", "Soho soft plan"),
+          sendableOpenPlan("crew-3", "Clapham mates"),
+        ],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 0, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  const plans = page.getByRole("region", { name: "Open plans" });
+  await expect(plans).toBeVisible();
+  await expect(plans.getByRole("heading", { name: "Camden crawl" })).toBeVisible();
+  await expect(plans.getByRole("link", { name: "Start a plan", exact: true })).toHaveAttribute(
+    "href",
+    "/plan",
+  );
+});
+
+test("groups desktop listings and pairs a pub beside each gig", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [
+          {
+            ...PLAYHOUSE_EVENT,
+            venueId: "venue-soho-theatre",
+          },
+        ],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+  await expect(page.getByRole("heading", { name: "Soho Theatre", exact: true })).toBeVisible();
+  await expect(page.getByText("No matching pub in PUBMAXX yet.")).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Open on map", exact: true })).toHaveAttribute(
+    "href",
+    /\/map\?sel=venue-soho-theatre/,
   );
 });
 

@@ -42,16 +42,16 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
-type OutCardProps = {
+type OutCardBodyProps = {
   row: WhatsOnRow;
   onOpen?: () => void;
 };
 
-export function OutCard({ row, onOpen }: OutCardProps) {
+export function OutCardBody({ row, onOpen }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
   return (
-    <li>
+    <>
       <a
         className="outCard"
         href={row.source.url}
@@ -67,6 +67,16 @@ export function OutCard({ row, onOpen }: OutCardProps) {
         {from ? <p className="outPrice">{from}</p> : null}
       </a>
       <SourceCredit source={row.source} />
+    </>
+  );
+}
+
+type OutCardProps = OutCardBodyProps;
+
+export function OutCard({ row, onOpen }: OutCardProps) {
+  return (
+    <li>
+      <OutCardBody row={row} onOpen={onOpen} />
     </li>
   );
 }
