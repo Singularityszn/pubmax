@@ -172,6 +172,33 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "e1", "g1"]);
   });
 
+  // A figure taken over the loaded pins is only the truth for a patch whose
+  // shards have all landed, so the loader answers that question itself.
+  it("coverageComplete() is tri-state and follows the shards that landed", async () => {
+    const loader = createSlimShardLoader("london");
+    const coreOnly = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+    const overGreenwich = { west: 0.01, south: 51.47, east: 0.08, north: 51.51 };
+
+    // Nobody has asked the manifest yet, so the honest answer is "cannot tell".
+    expect(loader.coverageComplete(coreOnly)).toBeNull();
+
+    await loader.core();
+    expect(loader.coverageComplete(coreOnly)).toBe(true);
+    expect(loader.coverageComplete(overGreenwich)).toBe(false);
+
+    await loader.inBounds(overGreenwich);
+    expect(loader.coverageComplete(overGreenwich)).toBe(true);
+  });
+
+  it("coverageComplete() stays false while a shard fetch keeps failing", async () => {
+    installFetch({ "/data/venues_slim.greenwich.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const overGreenwich = { west: 0.01, south: 51.47, east: 0.08, north: 51.51 };
+    await loader.inBounds(overGreenwich);
+    expect(loader.coverageComplete(overGreenwich)).toBe(false);
+  });
+
   it("degrades honestly: a failed shard yields [] and is retried on the next call", async () => {
     installFetch({ "/data/venues_slim.greenwich.json": "fail" });
     const loader = createSlimShardLoader("london");

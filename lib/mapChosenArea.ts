@@ -8,13 +8,27 @@ const CHANGE_EVENT = "pubmax:map-chosen-area";
 
 export type MapChosenAreaKind = "near-me" | "night-area" | "city";
 
-export type MapChosenArea = {
+type MapChosenAreaBase = {
   cityId: CityId;
   label: string;
   slug: string;
-  center: [number, number];
-  kind: MapChosenAreaKind;
 };
+
+/**
+ * A remembered map area, and the one rule that shapes it: NO VIEWER POINT is
+ * ever written down. A named area is a public place on a public map, so it
+ * carries its own centre; a `near-me` row is a MODE MARKER and nothing else,
+ * because a stored fix replayed days later is a "you are here" claim about
+ * somewhere the reader may not be, made without asking. The next visit re-runs
+ * the live locate flow instead.
+ */
+export type MapChosenArea =
+  | (MapChosenAreaBase & { kind: "near-me" })
+  | (MapChosenAreaBase & { kind: "city" })
+  | (MapChosenAreaBase & { kind: "night-area"; center: [number, number] });
+
+/** A remembered row that really does name a place, so it may carry a centre. */
+export type MapChosenNightArea = Extract<MapChosenArea, { kind: "night-area" }>;
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
@@ -30,21 +44,43 @@ function notifyChange(): void {
   }
 }
 
-function isMapChosenArea(value: unknown): value is MapChosenArea {
-  if (!value || typeof value !== "object") return false;
-  const row = value as Partial<MapChosenArea>;
-  return (
-    typeof row.cityId === "string" &&
-    typeof row.label === "string" &&
-    typeof row.slug === "string" &&
-    Array.isArray(row.center) &&
-    row.center.length === 2 &&
-    typeof row.center[0] === "number" &&
-    typeof row.center[1] === "number" &&
-    (row.kind === "near-me" ||
-      row.kind === "night-area" ||
-      row.kind === "city")
-  );
+/**
+ * Rebuild a stored row field by field rather than trusting the parsed object.
+ * A row written by an older build may still carry a `center` beside
+ * `kind: "near-me"`; projecting the closed field set is what stops those
+ * coordinates reaching a single consumer, and the next write drops them.
+ */
+function parseMapChosenArea(value: unknown): MapChosenArea | null {
+  if (!value || typeof value !== "object") return null;
+  const row = value as Record<string, unknown>;
+  if (typeof row.cityId !== "string") return null;
+  if (typeof row.label !== "string") return null;
+  if (typeof row.slug !== "string") return null;
+  const base: MapChosenAreaBase = {
+    cityId: row.cityId as CityId,
+    label: row.label,
+    slug: row.slug,
+  };
+  if (row.kind === "near-me" || row.kind === "city") {
+    return { ...base, kind: row.kind };
+  }
+  if (row.kind !== "night-area") return null;
+  const center = row.center;
+  if (!Array.isArray(center) || center.length !== 2) return null;
+  const [lng, lat] = center;
+  if (typeof lng !== "number" || typeof lat !== "number") return null;
+  return { ...base, kind: "night-area", center: [lng, lat] };
+}
+
+/** The closed field set that reaches storage. A mode marker keeps no point. */
+function toStoredRow(area: MapChosenArea): Record<string, unknown> {
+  const base = {
+    cityId: area.cityId,
+    label: area.label,
+    slug: area.slug,
+    kind: area.kind,
+  };
+  return area.kind === "night-area" ? { ...base, center: area.center } : base;
 }
 
 type SnapshotCache = { raw: string | null; value: MapChosenArea | null };
@@ -67,8 +103,7 @@ function readSnapshot(store: Storage): MapChosenArea | null {
   let value: MapChosenArea | null = null;
   if (raw) {
     try {
-      const parsed: unknown = JSON.parse(raw);
-      value = isMapChosenArea(parsed) ? parsed : null;
+      value = parseMapChosenArea(JSON.parse(raw) as unknown);
     } catch {
       value = null;
     }
@@ -90,7 +125,7 @@ export function writeMapChosenArea(
   const store = resolveStorage(storage);
   if (!store) return;
   try {
-    store.setItem(MAP_CHOSEN_AREA_KEY, JSON.stringify(area));
+    store.setItem(MAP_CHOSEN_AREA_KEY, JSON.stringify(toStoredRow(area)));
     invalidateSnapshot(store);
     notifyChange();
   } catch {
@@ -114,18 +149,23 @@ export function clearMapChosenArea(storage?: Storage | null): void {
  * What a fresh Map arrival owes a remembered area.
  *
  * A remembered area is the DEFAULT arrival and never an override, so this
- * answers three ways rather than two. `skip` means somebody else owns the
+ * answers four ways rather than two. `skip` means somebody else owns the
  * camera - an explicit arrival (?sel=, ?q=, ?place=, ?crawl=, a planner
  * handoff) already has its own fly-to in flight, and a restored session
  * viewport is fresher evidence of where this reader was than a row they tapped
  * days ago - or there is nothing here for this city. `wait` is the one answer
- * that must NOT spend the caller's one-shot: a Near me row needs venues to rank
- * against, and the index settles after the first paint.
+ * that must NOT spend the caller's one-shot: a remembered Near me needs venues
+ * to rank against, and the index settles after the first paint. `locate` is a
+ * remembered Near me: the caller re-runs the LIVE locate flow, because nothing
+ * about where the reader stood is stored, and a refusal leaves the default city
+ * view with the area picker still one tap away. `restore` is the only answer
+ * carrying a point, and that point is a named area's own published centre.
  */
 export type MapChosenAreaRestore =
   | { action: "skip" }
   | { action: "wait" }
-  | { action: "restore"; area: MapChosenArea };
+  | { action: "locate" }
+  | { action: "restore"; area: MapChosenNightArea };
 
 export function resolveMapChosenAreaRestore(input: {
   stored: MapChosenArea | null;
@@ -140,8 +180,8 @@ export function resolveMapChosenAreaRestore(input: {
   const stored = input.stored;
   if (!stored || stored.cityId !== input.cityId) return { action: "skip" };
   if (stored.kind === "city") return { action: "skip" };
-  if (stored.kind === "near-me" && input.venueCount === 0) {
-    return { action: "wait" };
+  if (stored.kind === "near-me") {
+    return input.venueCount === 0 ? { action: "wait" } : { action: "locate" };
   }
   return { action: "restore", area: stored };
 }

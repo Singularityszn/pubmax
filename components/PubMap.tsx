@@ -251,6 +251,7 @@ import ChooseAreaSheet, {
   ChooseAreaDesktopDialog,
   type ChooseAreaPick,
 } from "@/components/map/ChooseAreaSheet";
+import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 import MapArrivalCard from "@/components/map/MapArrivalCard";
 import MapSearchSuggest, {
   type MapSearchSuggestProps,
@@ -497,6 +498,19 @@ const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
 // One frozen empty gazetteer, so a non-London city hands every reader of
 // `localities` the same reference rather than a fresh array every render.
 const NO_LOCALITIES: Locality[] = [];
+
+// Shard coverage is recomputed after every shard settles, so the held set is
+// replaced only when its membership really moved.
+function sameSlugSet(
+  held: ReadonlySet<string> | null,
+  next: ReadonlySet<string>,
+): boolean {
+  if (!held || held.size !== next.size) return false;
+  for (const slug of next) {
+    if (!held.has(slug)) return false;
+  }
+  return true;
+}
 function subscribeDesktopRailViewport(onChange: () => void): () => void {
   const query = window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY);
   query.addEventListener("change", onChange);
@@ -1270,9 +1284,23 @@ export default function PubMap({
   // manifest (non-London packs behave exactly as before). City switches reset
   // pins asynchronously so we never setState in the effect body.
   const slimLoaderRef = useRef<SlimShardLoader | null>(null);
+  // Which night areas the loader can vouch a complete pub count for. A shard
+  // can land carrying no pin this map had not already seen, so this is refreshed
+  // off the LOADER settling rather than off the pins changing.
+  const [completeCountSlugs, setCompleteCountSlugs] =
+    useState<ReadonlySet<string> | null>(null);
 
   // Merge lazily-loaded shard venues into the painted pins, dedup by id. A
   // no-op update returns the previous array so React skips a re-render.
+  const refreshCountCoverage = useCallback(() => {
+    const loader = slimLoaderRef.current;
+    if (!loader) return;
+    const next = completeNeighbourhoodCountSlugs(cityId, (bounds) =>
+      loader.coverageComplete(bounds),
+    );
+    setCompleteCountSlugs((held) => (sameSlugSet(held, next) ? held : next));
+  }, [cityId]);
+
   const mergeSlimVenues = useCallback((rows: SlimVenue[]) => {
     if (rows.length === 0) return;
     setSlimPins((prev) => {
@@ -1320,6 +1348,7 @@ export default function PubMap({
       setLoaded(false);
       setLoadedCityId(null);
       setSlimPins([]);
+      setCompleteCountSlugs(null);
     });
     loader
       .core()
@@ -1337,13 +1366,14 @@ export default function PubMap({
         if (!cancelled) {
           setLoadedCityId(cityId);
           setLoaded(true);
+          refreshCountCoverage();
         }
       });
     return () => {
       cancelled = true;
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
     };
-  }, [cityId]);
+  }, [cityId, refreshCountCoverage]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -1366,12 +1396,15 @@ export default function PubMap({
       if (!loader) return;
       void loader
         .inBounds(bounds)
-        .then((rows) => mergeSlimVenues(rows))
+        .then((rows) => {
+          mergeSlimVenues(rows);
+          refreshCountCoverage();
+        })
         .catch(() => {
           // Keep loaded shards; a later moveend retries this one.
         });
     },
-    [mergeSlimVenues],
+    [mergeSlimVenues, refreshCountCoverage],
   );
   const handleVisibleVenueIdsChange = useCallback(
     (membership: {
@@ -1395,7 +1428,9 @@ export default function PubMap({
     void loader
       .nearPoint(loc.lat, loc.lng)
       .then((rows) => {
-        if (!cancelled) mergeSlimVenues(rows);
+        if (cancelled) return;
+        mergeSlimVenues(rows);
+        refreshCountCoverage();
       })
       .catch(() => {
         // Honest fallback: keep whatever pins already loaded.
@@ -1403,7 +1438,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [userLocation, venueJourneyLocation, mergeSlimVenues]);
+  }, [userLocation, venueJourneyLocation, mergeSlimVenues, refreshCountCoverage]);
 
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
@@ -2628,54 +2663,67 @@ export default function PubMap({
     showLoadedRoute,
   ]);
 
-  const showNearbyMap = useCallback(() => {
-    setNearbyError(null);
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      const message = nearMeLocationMessage("unsupported");
-      setNearbyError(message);
-      openChooseAreaRef.current(message);
-      return;
-    }
-    setNearbyLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        // The map answers the same ring the sheet names — about a 12-minute
-        // walk. The chip counts THIS set, so its number and the sheet's
-        // sentence stay one claim.
-        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-        const withinRing = withinNearMeRing(location, filteredVenues);
-        setUserLocation(location);
-        setNearbyMapResult({
-          location,
-          venueIds: nearby.map((venue) => venue.id),
-          radiusKm: NEAR_ME_MAP_RADIUS_KM,
-          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-        });
-        writeMapChosenArea({
-          cityId,
-          label: "Near me",
-          slug: "near-me",
-          center: [location.lng, location.lat],
-          kind: "near-me",
-        });
-        setNearbyLoading(false);
-        // Highlight nearby pins AND present the instant-answer cards (Lane 1):
-        // the chip now yields an ANSWER, not just a recentre.
-        setMapOverlay("near-me");
-      },
-      (error) => {
-        setNearbyLoading(false);
-        const message = nearMeLocationMessage(nearMeLocationFailure(error));
+  // Two ways in, one flow. `tap` is somebody asking, so a refusal is announced
+  // and hands them the area picker. `resume` is a remembered Near me on
+  // arrival: the reader asked for this mode LAST time, not for a notice now, so
+  // a refusal is silent and simply leaves the default city view with the picker
+  // still one tap away. Nothing about where they stood was ever stored, so this
+  // is a live fix or it is nothing.
+  const runNearMe = useCallback(
+    (mode: "tap" | "resume") => {
+      setNearbyError(null);
+      const refuse = (message: string) => {
+        if (mode !== "tap") return;
         setNearbyError(message);
         openChooseAreaRef.current(message);
-      },
-      NEAR_ME_LOCATION_OPTIONS,
-    );
-  }, [cityId, filteredVenues]);
+      };
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        refuse(nearMeLocationMessage("unsupported"));
+        return;
+      }
+      setNearbyLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          // The map answers the same ring the sheet names — about a 12-minute
+          // walk. The chip counts THIS set, so its number and the sheet's
+          // sentence stay one claim.
+          const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+          const withinRing = withinNearMeRing(location, filteredVenues);
+          setUserLocation(location);
+          setNearbyMapResult({
+            location,
+            venueIds: nearby.map((venue) => venue.id),
+            radiusKm: NEAR_ME_MAP_RADIUS_KM,
+            strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+          });
+          // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
+          writeMapChosenArea({
+            cityId,
+            label: "Near me",
+            slug: "near-me",
+            kind: "near-me",
+          });
+          setNearbyLoading(false);
+          if (mode !== "tap") return;
+          // Highlight nearby pins AND present the instant-answer cards (Lane 1):
+          // the chip now yields an ANSWER, not just a recentre.
+          setMapOverlay("near-me");
+        },
+        (error) => {
+          setNearbyLoading(false);
+          refuse(nearMeLocationMessage(nearMeLocationFailure(error)));
+        },
+        NEAR_ME_LOCATION_OPTIONS,
+      );
+    },
+    [cityId, filteredVenues],
+  );
+
+  const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
@@ -2998,6 +3046,7 @@ export default function PubMap({
         cityId={cityId}
         venues={pubVenues}
         localities={localities}
+        completeCountSlugs={completeCountSlugs}
         locationNote={chooseAreaLocationNote}
         locationBusy={nearbyLoading}
         onPick={handleChooseAreaPick}
@@ -3006,6 +3055,7 @@ export default function PubMap({
     [
       chooseAreaLocationNote,
       cityId,
+      completeCountSlugs,
       handleChooseAreaPick,
       localities,
       nearbyLoading,
@@ -3028,36 +3078,21 @@ export default function PubMap({
     if (decision.action === "wait") return;
     restoredChosenAreaRef.current = true;
     if (decision.action === "skip") return;
-    const stored = decision.area;
-    if (stored.kind === "near-me") {
-      const [lng, lat] = stored.center;
-      const location = { lat, lng };
-      const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-      const withinRing = withinNearMeRing(location, filteredVenues);
-      queueMicrotask(() => {
-        setUserLocation(location);
-        setNearbyMapResult({
-          location,
-          venueIds: nearby.map((venue) => venue.id),
-          radiusKm: NEAR_ME_MAP_RADIUS_KM,
-          strategy:
-            withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-        });
-      });
+    if (decision.action === "locate") {
+      queueMicrotask(() => runNearMe("resume"));
       return;
     }
-    if (stored.kind === "night-area") {
-      queueMicrotask(() => {
-        flyToArea({
-          slug: stored.slug,
-          name: stored.label,
-          center: stored.center,
-          coverage: null,
-          kind: stored.slug.startsWith("locality:") ? "locality" : "area",
-          zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
-        });
+    const stored = decision.area;
+    queueMicrotask(() => {
+      flyToArea({
+        slug: stored.slug,
+        name: stored.label,
+        center: stored.center,
+        coverage: null,
+        kind: stored.slug.startsWith("locality:") ? "locality" : "area",
+        zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
       });
-    }
+    });
   }, [
     cityId,
     explicitArrivalIntent,
@@ -3065,6 +3100,7 @@ export default function PubMap({
     flyToArea,
     loaded,
     restoredMobileSession,
+    runNearMe,
   ]);
 
   const mapChipLabel =

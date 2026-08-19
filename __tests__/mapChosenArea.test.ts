@@ -85,7 +85,6 @@ const NEAR_ME: MapChosenArea = {
   cityId: "london",
   label: "Near me",
   slug: "near-me",
-  center: [-0.09, 51.515],
   kind: "near-me",
 };
 
@@ -132,13 +131,16 @@ describe("resolveMapChosenAreaRestore", () => {
     });
   });
 
-  it("waits for the index before ranking a Near me row, and never on intent", () => {
+  it("re-runs the live locate flow for a remembered Near me, never a stored fix", () => {
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, venueCount: 12 }),
+    ).toEqual({ action: "locate" });
+  });
+
+  it("waits for the index before a remembered Near me, and never on intent", () => {
     expect(
       resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, venueCount: 0 }),
     ).toEqual({ action: "wait" });
-    expect(
-      resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, venueCount: 12 }),
-    ).toEqual({ action: "restore", area: NEAR_ME });
     // Intent is answered first: an explicit arrival never leaves the one-shot
     // hanging on a venue count that may never arrive.
     expect(
@@ -149,5 +151,63 @@ describe("resolveMapChosenAreaRestore", () => {
         explicitArrivalIntent: true,
       }),
     ).toEqual({ action: "skip" });
+  });
+});
+
+describe("the remembered map area holds no viewer point", () => {
+  it("writes a Near me row as a mode marker with no coordinates", () => {
+    const storage = makeMemoryStorage();
+    writeMapChosenArea(NEAR_ME, storage);
+    const stored: unknown = JSON.parse(
+      storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null",
+    );
+    expect(stored).toEqual({
+      cityId: "london",
+      label: "Near me",
+      slug: "near-me",
+      kind: "near-me",
+    });
+    expect(Object.keys(stored as object)).not.toContain("center");
+  });
+
+  it("still writes a named area's own published centre", () => {
+    const storage = makeMemoryStorage();
+    writeMapChosenArea(CAMDEN, storage);
+    expect(
+      JSON.parse(storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null"),
+    ).toMatchObject({ kind: "night-area", center: [-0.143, 51.539] });
+  });
+
+  it("never hands a legacy Near me row's coordinates to a reader", () => {
+    const storage = makeMemoryStorage();
+    // Exactly what the previous build wrote: a viewer fix beside the marker.
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Near me",
+        slug: "near-me",
+        kind: "near-me",
+        center: [-0.09, 51.515],
+      }),
+    );
+    const read = readMapChosenArea(storage);
+    expect(read).toEqual({
+      cityId: "london",
+      label: "Near me",
+      slug: "near-me",
+      kind: "near-me",
+    });
+    expect(read && "center" in read).toBe(false);
+    // And the restore lane can only ask for a fresh fix, never replay that one.
+    expect(
+      resolveMapChosenAreaRestore({
+        stored: read,
+        cityId: "london",
+        explicitArrivalIntent: false,
+        hasRestoredViewport: false,
+        venueCount: 12,
+      }),
+    ).toEqual({ action: "locate" });
   });
 });

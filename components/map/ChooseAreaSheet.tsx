@@ -26,6 +26,8 @@ type ChooseAreaSheetProps = {
   cityId: CityId;
   venues: readonly Venue[];
   localities?: readonly Locality[];
+  /** Areas whose shards have all landed, so their pub count is the whole truth. */
+  completeCountSlugs?: ReadonlySet<string> | null;
   locationNote?: string | null;
   locationBusy?: boolean;
   onPick: (pick: ChooseAreaPick) => void;
@@ -40,14 +42,15 @@ export default function ChooseAreaSheet({
   cityId,
   venues,
   localities = [],
+  completeCountSlugs = null,
   locationNote,
   locationBusy = false,
   onPick,
 }: ChooseAreaSheetProps) {
   const [query, setQuery] = useState("");
   const neighbourhoods = useMemo(
-    () => londonNeighbourhoodRows(venues, cityId),
-    [cityId, venues],
+    () => londonNeighbourhoodRows(venues, cityId, completeCountSlugs),
+    [cityId, completeCountSlugs, venues],
   );
   const filtered = useMemo(
     () => filterChooseAreaNeighbourhoods(neighbourhoods, query, localities),
@@ -95,7 +98,7 @@ export default function ChooseAreaSheet({
                 onClick={() => onPick({ kind: "night-area", row })}
               >
                 <span className="chooseAreaRowName">{row.name}</span>
-                {row.pubCount > 0 ? (
+                {row.pubCount !== null && row.pubCount > 0 ? (
                   <span className="chooseAreaRowMeta">{pubCountLabel(row.pubCount)}</span>
                 ) : null}
               </button>
