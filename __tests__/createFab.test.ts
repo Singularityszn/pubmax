@@ -153,8 +153,8 @@ describe("what the create action renders for each keyboard answer", () => {
     expect(markup).not.toContain("createFabMenu");
   });
 
-  it("stays off the exact landing pathname, where Find my pint owns entry", async () => {
-    expect(await renderFab(false, "/")).not.toContain("createFabRoot");
+  it("rides with the tab bar on the landing pathname", async () => {
+    expect(await renderFab(false, "/")).toContain("createFabRoot");
   });
 
   it("keeps the control inert after a strict modal outlives the keyboard", async () => {

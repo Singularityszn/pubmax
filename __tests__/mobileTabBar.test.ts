@@ -12,8 +12,9 @@ function activeLabel(pathname: string, mapHref = "/map"): string | undefined {
 }
 
 describe("mobile tab bar contract", () => {
-  it("keeps app navigation off the exact landing pathname only", () => {
-    expect(shouldShowMobileTabBar("/")).toBe(false);
+  it("shows the app tab bar on every route, including the landing pathname", () => {
+    expect(shouldShowMobileTabBar("/")).toBe(true);
+    expect(shouldShowMobileTabBar("/pal/chat")).toBe(true);
     expect(shouldShowMobileTabBar("/near")).toBe(true);
     expect(shouldShowMobileTabBar("/map")).toBe(true);
     expect(shouldShowMobileTabBar("/plan")).toBe(true);
