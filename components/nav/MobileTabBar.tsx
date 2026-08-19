@@ -34,10 +34,9 @@ import {
 } from "@/lib/useFocusTrap";
 import "./mobileNav.css";
 
-// Mobile-first bottom tab bar. Mounted on every non-root route and visible only
-// ≤640px (see mobileNav.css); exact root landing intentionally omits it so
-// Find my pint owns entry. On desktop it is display:none, leaving existing
-// desktop navs untouched.
+// Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
+// (see mobileNav.css). On desktop it is display:none, leaving existing desktop
+// navs untouched.
 //
 // Five destinations. Compose lives on the floating + action, never in this row.
 //
@@ -81,8 +80,8 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
-export function shouldShowMobileTabBar(pathname: string): boolean {
-  return pathname !== "/";
+export function shouldShowMobileTabBar(_pathname: string): boolean {
+  return true;
 }
 
 export function MobileTabBarClearanceFallback() {

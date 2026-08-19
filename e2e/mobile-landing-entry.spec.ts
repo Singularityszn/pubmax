@@ -32,11 +32,22 @@ async function expectWithinFirstViewport(
   ).toBeLessThanOrEqual(viewportHeight);
 }
 
-async function expectNoAppTabClearance(page: Page, label: string): Promise<void> {
+async function expectAppTabClearance(page: Page, label: string): Promise<void> {
   const bodyPaddingBottom = await page.evaluate(() =>
     Number.parseFloat(getComputedStyle(document.body).paddingBottom),
   );
-  expect(bodyPaddingBottom, `${label} should not reserve app-tab clearance`).toBeLessThan(64);
+  expect(bodyPaddingBottom, `${label} should reserve app-tab clearance`).toBeGreaterThanOrEqual(64);
+}
+
+async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promise<void> {
+  const tops = await page
+    .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
+    .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
+  expect(tops.length, `${label} should render PUBMA, the doubled X and ING`).toBe(3);
+  expect(
+    Math.max(...tops) - Math.min(...tops),
+    `${label} should keep the wordmark letters on one row`,
+  ).toBeLessThanOrEqual(2);
 }
 
 async function expectNoHorizontalOverflow(page: Page, width = MOBILE.width): Promise<void> {
@@ -147,9 +158,10 @@ test.describe("mobile landing entry", () => {
         exact: true,
       }),
     ).toBeVisible();
-    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
-    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
-    await expectNoAppTabClearance(page, "root landing");
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expectAppTabClearance(page, "root landing");
+    await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
     const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
@@ -176,13 +188,14 @@ test.describe("mobile landing entry", () => {
   });
 
   for (const width of [320, 430]) {
-    test(`keeps root landing chrome-free at ${width}px`, async ({ page }, testInfo) => {
+    test(`keeps root landing chrome aligned at ${width}px`, async ({ page }, testInfo) => {
       await page.setViewportSize({ width, height: 844 });
       await page.goto("/?source=mobile-entry");
 
-      await expect(page.locator(".mobileTabBar")).toHaveCount(0);
-      await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
-      await expectNoAppTabClearance(page, `root landing at ${width}px`);
+      await expect(page.locator(".mobileTabBar")).toBeVisible();
+      await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+      await expectAppTabClearance(page, `root landing at ${width}px`);
+      await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
       const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
       await expectTappable(
         findMyPint,
@@ -197,13 +210,14 @@ test.describe("mobile landing entry", () => {
     });
   }
 
-  test("keeps root landing chrome-free in dark mode", async ({ page }, testInfo) => {
+  test("keeps root landing chrome aligned in dark mode", async ({ page }, testInfo) => {
     await page.addInitScript(() => window.localStorage.setItem("pubmax-theme", "dark"));
     await page.goto("/");
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
-    await expect(page.locator(".mobileTabBar")).toHaveCount(0);
-    await expect(page.getByRole("navigation", { name: "Primary" })).toHaveCount(0);
-    await expectNoAppTabClearance(page, "dark root landing");
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expectAppTabClearance(page, "dark root landing");
+    await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
     const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
     await expectTappable(
       findMyPint,
@@ -237,7 +251,7 @@ test("reserves app-tab clearance before hydration", async ({ browser, baseURL })
   });
   try {
     const page = await context.newPage();
-    await page.goto("/privacy");
+    await page.goto("/");
 
     await expect(page.locator(".mobileTabBarClearance")).toHaveCount(1);
     const bodyPaddingBottom = await page.evaluate(() =>
@@ -253,7 +267,7 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
 
-  await expect(page.locator(".mobileTabBar")).toHaveCount(0);
+  await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
     page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
     "desktop hero Find my pint CTA",

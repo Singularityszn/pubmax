@@ -53,6 +53,7 @@
 
 .lpWordmark {
   min-height: 44px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -60,6 +61,10 @@
   font: 750 15px/1 var(--font-display);
   letter-spacing: -.02em;
   text-decoration: none;
+}
+
+.lpWordmark .pubmaxxWordmark {
+  max-width: 100%;
 }
 
 .lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }

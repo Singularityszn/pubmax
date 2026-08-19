@@ -34,6 +34,8 @@ test.describe("Pub Pal concierge at 390px", () => {
     page,
   }) => {
     await page.goto("/pal/chat");
+    await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
+    await expect(page.locator(".mobileTabBar")).toBeVisible();
     await askOnPhone(page, "Quiet-ish near Bank, not pricey");
 
     const answer = page.locator(".palChatRow--pal").last();

@@ -107,9 +107,10 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
   await expect(findMyPint).toBeVisible();
 
-  // The root path renders no tab bar, so the card sits at the safe-area floor
-  // here rather than above the bar. Find my pint is the ONE primary action on
-  // this page, and it is checked while the banner is still up.
+  // Landing mounts the same phone tab bar as every other route, so the consent
+  // card sits above the bar rather than on the safe-area floor. Find my pint is
+  // the ONE primary action on this page, and it is checked while the banner is
+  // still up.
   const coveredBox = await findMyPint.boundingBox();
   expect(coveredBox).not.toBeNull();
   expect(await pointOwner(page, coveredBox!, ".lpHeroActions")).toBe("control");
