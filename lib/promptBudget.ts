@@ -19,6 +19,10 @@ import {
   getMapLocationControlAvailable,
   subscribeMapLocationControl,
 } from "@/lib/mapLocationPrompt";
+import {
+  mapFirstVisitArrivalBlocksConsent,
+  subscribeMapFirstVisitArrival,
+} from "@/lib/mapFirstVisitArrival";
 
 /** sessionStorage slot holding the surface id that has spent the budget. */
 const STORAGE_KEY = "pubmax:prompt-budget:v1";
@@ -40,7 +44,9 @@ export type PromptSurface =
 export const ANALYTICS_CONSENT_PROMPT_SURFACE: PromptSurface = "analytics-consent";
 
 export function locationAllowsInterruptivePrompt(): boolean {
-  return !getMapLocationControlAvailable();
+  return (
+    !getMapLocationControlAvailable() && !mapFirstVisitArrivalBlocksConsent()
+  );
 }
 
 function resolveStorage(storage?: Storage | null): Storage | null {
@@ -177,10 +183,12 @@ export function subscribePromptBudget(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();
   const unsubscribeLocation = subscribeMapLocationControl(handler);
+  const unsubscribeArrival = subscribeMapFirstVisitArrival(handler);
   window.addEventListener(CHANGE_EVENT, handler);
   window.addEventListener("storage", handler);
   return () => {
     unsubscribeLocation();
+    unsubscribeArrival();
     window.removeEventListener(CHANGE_EVENT, handler);
     window.removeEventListener("storage", handler);
   };

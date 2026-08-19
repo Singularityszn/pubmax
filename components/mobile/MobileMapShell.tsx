@@ -23,6 +23,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "moment",
   "near-me",
   "area",
+  "choose-area",
 ];
 
 /**
@@ -140,7 +141,7 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -212,6 +213,8 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   nearMeContent: React.ReactNode;
   /** The Area sheet body (cheapest pints here + go somewhere else). */
   areaContent: React.ReactNode;
+  /** First-visit choose-area picker (London neighbourhoods + other cities). */
+  chooseAreaContent: React.ReactNode;
 }) {
   // The glyph is half the claim. LocateFixed is this map's "you are here" mark
   // (the Near me chip wears it), so it may appear only when a granted location
@@ -250,7 +253,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   const sheetKind = CONTEXTUAL_SHEETS.includes(overlay as MapSheetKind)
     ? (overlay as MapSheetKind)
     : null;
-  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "drink" ? drinkContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : palContent;
+  const sheetContent = sheetKind === "filters" ? filtersContent : sheetKind === "drink" ? drinkContent : sheetKind === "tfl" ? tflContent : sheetKind === "tonight" ? tonightContent : sheetKind === "layers" ? layersContent : sheetKind === "moment" ? momentContent : sheetKind === "near-me" ? nearMeContent : sheetKind === "area" ? areaContent : sheetKind === "choose-area" ? chooseAreaContent : palContent;
 
   return (
     <>
@@ -271,7 +274,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             triggerLabel={cityLabel}
             className="citySwitcher--mobile"
             onUseMyLocation={onNearMe}
-            onOpenArea={() => set("area")}
+            onOpenArea={() => set("choose-area")}
           />
           <IconButton aria-label="Search the map" aria-expanded={overlay === "search"} onClick={() => set("search")}><Search size={19} /></IconButton>
           <IconButton
@@ -342,7 +345,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             className="mobileMapNearMeAlertArea"
             onClick={() => {
               onDismissNearMeError();
-              onOverlayChange("area");
+              onOverlayChange("choose-area");
             }}
           >
             Pick an area
@@ -379,7 +382,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </span>
         </button>
       ) : null}
-      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
+      <Sheet kind={sheetKind} title={sheetKind ? MAP_SHEET_TITLES[sheetKind] ?? "Map controls" : "Map controls"} initialSnap={sheetKind === "moment" || sheetKind === "layers" || sheetKind === "near-me" || sheetKind === "area" || sheetKind === "choose-area" ? "full" : "half"} onClose={onHome} backLabel={backLabel} onBack={onBack}>{sheetContent}</Sheet>
     </>
   );
 }

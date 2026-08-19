@@ -197,6 +197,7 @@ async function preparePage(
         localStorage.setItem("pubmax_onboarding_dismissed", "1");
         sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
         localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+        localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
       }
       if (!signedIn) return;
       localStorage.setItem(
@@ -585,6 +586,15 @@ async function verifyPostCaptureInteractions(
       .isVisible(),
     "expanded attribution is visible",
   );
+  if (firstVisitPrompt?.kind === "map arrival") {
+    const arrivalCard = page.locator(".mapArrivalCard");
+    if (await arrivalCard.isVisible().catch(() => false)) {
+      await arrivalCard.getByRole("button", { name: "Close" }).click();
+      await expect(arrivalCard).toBeHidden({ timeout: 15_000 });
+    }
+    await page.waitForTimeout(500);
+    if (!(await page.locator(".analyticsConsentPrompt:visible").count())) return;
+  }
   if (firstVisitPrompt?.kind !== "analytics consent") return;
   await page.getByRole("button", { name: "No thanks" }).click();
   assertMeasured(
@@ -630,10 +640,20 @@ async function captureSurface(
   if (options.firstVisit) {
     await page.waitForTimeout(1_000);
   }
+  if (options.firstVisit && surface === "map-first-visit") {
+    const arrivalCard = page.locator(".mapArrivalCard");
+    if (await arrivalCard.isVisible().catch(() => false)) {
+      await arrivalCard.getByRole("button", { name: "Close" }).click();
+      await expect(arrivalCard).toBeHidden({ timeout: 15_000 });
+      await page.waitForTimeout(500);
+    }
+  }
   await settle(page);
 
   const firstVisitPromptLocator = page
-    .locator('.analyticsConsentPrompt:visible, [role="dialog"]:visible')
+    .locator(
+      '.mapArrivalCard:visible, .analyticsConsentPrompt:visible, [role="dialog"]:visible',
+    )
     .first();
   const firstVisitPrompt =
     options.firstVisit &&
@@ -647,9 +667,11 @@ async function captureSurface(
           const className =
             typeof element.className === "string" ? element.className : "";
           return {
-            kind: element.classList.contains("analyticsConsentPrompt")
-              ? "analytics consent"
-              : element.classList.contains("identityNudge")
+            kind: element.classList.contains("mapArrivalCard")
+              ? "map arrival"
+              : element.classList.contains("analyticsConsentPrompt")
+                ? "analytics consent"
+                : element.classList.contains("identityNudge")
                 ? "identity nudge"
                 : element.classList.contains("nativePushPrompt__card")
                   ? "push prompt"
@@ -664,7 +686,7 @@ async function captureSurface(
 
   const rows = [
     await row(page, "mobile map topbar", ".mobileMapTopbar > a, .mobileMapTopbar > button"),
-    await row(page, "map edge controls", ".mobileMapUtilityCorner > button"),
+    await row(page, "map edge controls", ".mobileMapUtilityCorner > .mobileMapTflButton"),
     await row(page, "Tonight Arc controls", ".tonightArcRow > button"),
     await row(
       page,
@@ -686,8 +708,7 @@ async function captureSurface(
       ].join(", "),
     ),
     await row(page, "landing hero actions", ".lpHeroActions .lpButton"),
-    await row(page, "Plan area choices", ".planIntake__choices--areas > button"),
-    await row(page, "Plan footer actions", ".planIntake__actions button"),
+    await row(page, "Plan stop count choices", ".planStopCount__choices > button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
     await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),
   ].filter((measurement) => measurement.controls.length > 0);
@@ -842,7 +863,7 @@ async function openSignedInProfileOptions(browser: Browser) {
   });
   await expect
     .poll(() => page.evaluate(() => localStorage.getItem("pubmax_handle")))
-    .toBeNull();
+    .toBe(PROFILE_HANDLE);
   const trigger = page.getByRole("button", { name: "Profile options" });
   await trigger.focus();
   await page.keyboard.press("ArrowDown");
@@ -952,7 +973,7 @@ test("capture UI consistency evidence", async ({ browser }) => {
       {
         surface: "plan",
         pathname: "/plan",
-        readySelector: ".planIntake",
+        readySelector: ".planDescribeFirst",
         firstVisit: false,
       },
     ]) {

@@ -67,6 +67,7 @@ describe("map sheet chrome titles", () => {
       "moment",
       "near-me",
       "area",
+      "choose-area",
     ];
     for (const kind of opened) {
       expect(MAP_SHEET_TITLES[kind], kind).toBeTruthy();

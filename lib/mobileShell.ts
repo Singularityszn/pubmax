@@ -19,7 +19,8 @@ export type MapOverlay =
   | "pub-pal"
   | "moment"
   | "near-me"
-  | "area";
+  | "area"
+  | "choose-area";
 
 export type MapSheetKind = Exclude<MapOverlay, "none" | "search">;
 export type MapSheetDetent = SheetSnap;
@@ -47,6 +48,7 @@ export const MAP_SHEET_TITLES: Partial<Record<MapSheetKind, string>> = {
   moment: "Choose a pub",
   "near-me": "Near me",
   area: "This area",
+  "choose-area": "Choose an area",
 };
 
 export type MapViewportSnapshot = {

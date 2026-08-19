@@ -4576,13 +4576,18 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     padding-inline: 8px;
   }
 
+  body:has(.mapArrivalCard) .analyticsConsentPrompt,
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
-    /* Sit above Describe the outing; keep the plan CTA fully visible. */
+    /* Sit above first-visit arrival or Describe the outing. */
     bottom: calc(var(--mobile-map-dock-clearance) + 86px);
     max-height: none;
     background: var(--panel-raised);
     box-shadow: none;
     backdrop-filter: none;
+  }
+
+  body:has(.mapArrivalCard) .analyticsConsentPrompt {
+    bottom: calc(var(--mobile-map-dock-clearance) + 200px);
   }
 }
 

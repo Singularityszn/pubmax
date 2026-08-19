@@ -247,6 +247,10 @@ import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
+import ChooseAreaSheet, {
+  type ChooseAreaPick,
+} from "@/components/map/ChooseAreaSheet";
+import MapArrivalCard from "@/components/map/MapArrivalCard";
 import MapSearchSuggest, {
   type MapSearchSuggestProps,
 } from "@/components/map/MapSearchSuggest";
@@ -307,6 +311,15 @@ import {
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
+import {
+  readMapChosenArea,
+  subscribeMapChosenArea,
+  writeMapChosenArea,
+} from "@/lib/mapChosenArea";
+import {
+  shouldShowMapFirstVisitArrival,
+  subscribeMapFirstVisitArrival,
+} from "@/lib/mapFirstVisitArrival";
 import {
   areaSheetOpenDelay,
   areaClaimedByViewport,
@@ -738,6 +751,20 @@ export default function PubMap({
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
+  const showMapArrivalCard = useSyncExternalStore(
+    subscribeMapFirstVisitArrival,
+    () =>
+      shouldShowMapFirstVisitArrival({
+        pinsRevealed,
+        search: arrivalSearch,
+      }),
+    () => false,
+  );
+  const mapChosenArea = useSyncExternalStore(
+    subscribeMapChosenArea,
+    readMapChosenArea,
+    () => null,
+  );
   // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
@@ -821,6 +848,9 @@ export default function PubMap({
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
   });
+  const [chooseAreaLocationNote, setChooseAreaLocationNote] = useState<string | null>(null);
+  const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
+  const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     restoredMobileSession?.viewport
       ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
@@ -2595,7 +2625,9 @@ export default function PubMap({
   const showNearbyMap = useCallback(() => {
     setNearbyError(null);
     if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError(nearMeLocationMessage("unsupported"));
+      const message = nearMeLocationMessage("unsupported");
+      setNearbyError(message);
+      openChooseAreaRef.current(message);
       return;
     }
     setNearbyLoading(true);
@@ -2617,6 +2649,13 @@ export default function PubMap({
           radiusKm: NEAR_ME_MAP_RADIUS_KM,
           strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
         });
+        writeMapChosenArea({
+          cityId,
+          label: "Near me",
+          slug: "near-me",
+          center: [location.lng, location.lat],
+          kind: "near-me",
+        });
         setNearbyLoading(false);
         // Highlight nearby pins AND present the instant-answer cards (Lane 1):
         // the chip now yields an ANSWER, not just a recentre.
@@ -2624,11 +2663,13 @@ export default function PubMap({
       },
       (error) => {
         setNearbyLoading(false);
-        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
+        const message = nearMeLocationMessage(nearMeLocationFailure(error));
+        setNearbyError(message);
+        openChooseAreaRef.current(message);
       },
       NEAR_ME_LOCATION_OPTIONS,
     );
-  }, [filteredVenues]);
+  }, [cityId, filteredVenues]);
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
@@ -2899,6 +2940,118 @@ export default function PubMap({
     setSearchAreaTarget(null);
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
+
+  const openChooseArea = useCallback((locationNote?: string | null) => {
+    setChooseAreaLocationNote(locationNote ?? null);
+    changeMapOverlay("choose-area");
+  }, [changeMapOverlay]);
+
+  useEffect(() => {
+    openChooseAreaRef.current = openChooseArea;
+  }, [openChooseArea]);
+
+  const handleChooseAreaPick = useCallback(
+    (pick: ChooseAreaPick) => {
+      changeMapOverlay("none");
+      setChooseAreaLocationNote(null);
+      if (pick.kind === "near-me") {
+        restoredChosenAreaRef.current = true;
+        showNearbyMap();
+        return;
+      }
+      if (pick.kind === "city") {
+        if (pick.cityId !== cityId) {
+          window.location.assign(cityMapShareUrl(pick.cityId));
+        }
+        return;
+      }
+      const { row } = pick;
+      writeMapChosenArea({
+        cityId,
+        label: row.name,
+        slug: row.slug,
+        center: row.center,
+        kind: "night-area",
+      });
+      restoredChosenAreaRef.current = true;
+      flyToArea({
+        slug: row.slug,
+        name: row.name,
+        center: row.center,
+        coverage: null,
+        kind: row.slug.startsWith("locality:") ? "locality" : "area",
+        zoom: row.slug.startsWith("locality:") ? 15 : undefined,
+      });
+    },
+    [changeMapOverlay, cityId, flyToArea, showNearbyMap],
+  );
+
+  const chooseAreaSheet = useMemo(
+    () => (
+      <ChooseAreaSheet
+        cityId={cityId}
+        venues={pubVenues}
+        localities={localities}
+        locationNote={chooseAreaLocationNote}
+        locationBusy={nearbyLoading}
+        onPick={handleChooseAreaPick}
+      />
+    ),
+    [
+      chooseAreaLocationNote,
+      cityId,
+      handleChooseAreaPick,
+      localities,
+      nearbyLoading,
+      pubVenues,
+    ],
+  );
+
+  useEffect(() => {
+    if (!loaded || restoredChosenAreaRef.current) return;
+    const stored = readMapChosenArea();
+    if (!stored || stored.cityId !== cityId) {
+      restoredChosenAreaRef.current = true;
+      return;
+    }
+    if (stored.kind === "near-me" && filteredVenues.length === 0) return;
+    restoredChosenAreaRef.current = true;
+    if (stored.kind === "near-me") {
+      const [lng, lat] = stored.center;
+      const location = { lat, lng };
+      const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+      const withinRing = withinNearMeRing(location, filteredVenues);
+      queueMicrotask(() => {
+        setUserLocation(location);
+        setNearbyMapResult({
+          location,
+          venueIds: nearby.map((venue) => venue.id),
+          radiusKm: NEAR_ME_MAP_RADIUS_KM,
+          strategy:
+            withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+        });
+      });
+      return;
+    }
+    if (stored.kind === "night-area") {
+      queueMicrotask(() => {
+        flyToArea({
+          slug: stored.slug,
+          name: stored.label,
+          center: stored.center,
+          coverage: null,
+          kind: stored.slug.startsWith("locality:") ? "locality" : "area",
+          zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
+        });
+      });
+    }
+  }, [cityId, filteredVenues, flyToArea, loaded]);
+
+  const mapChipLabel =
+    mapChosenArea && mapChosenArea.cityId === cityId
+      ? mapChosenArea.label
+      : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
+
 
   // ── Where the reader is, and how they get out ────────────────────────────
   // Every Map panel used to carry its own close and nothing else, so a reader
@@ -3638,6 +3791,7 @@ export default function PubMap({
           zoneIndex={zoneIndex}
           cityId={cityId}
           onUseMyLocation={showNearbyMap}
+          onOpenChooseArea={() => openChooseArea()}
           locationBusy={nearbyLoading}
           experienceLens={experienceLens}
           experienceSummary={experienceSummary}
@@ -3783,7 +3937,7 @@ export default function PubMap({
         {mobileShellReady ? (
         <MobileMapShell
           cityId={cityId}
-          cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
+          cityLabel={mapChipLabel}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
@@ -4120,6 +4274,7 @@ export default function PubMap({
               />
             ) : null
           }
+          chooseAreaContent={chooseAreaSheet}
           areaContent={
             <AreaSheet
               cityId={cityId}
@@ -4143,6 +4298,33 @@ export default function PubMap({
             />
           }
         />
+        ) : null}
+
+        {showMapArrivalCard ? (
+          <MapArrivalCard
+            onUseLocation={showNearbyMap}
+            onChooseArea={() => openChooseArea()}
+          />
+        ) : null}
+        {!mobileViewport && mapOverlay === "choose-area" ? (
+          <>
+            <button
+              type="button"
+              className="chooseAreaDesktopScrim"
+              aria-label="Close choose area"
+              onClick={() => changeMapOverlay("none")}
+            />
+            <div
+              className="chooseAreaDesktop"
+              role="dialog"
+              aria-labelledby="choose-area-desktop-title"
+            >
+              <h2 id="choose-area-desktop-title" className="chooseAreaSectionTitle">
+                Choose an area
+              </h2>
+              {chooseAreaSheet}
+            </div>
+          </>
         ) : null}
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that

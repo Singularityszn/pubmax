@@ -166,6 +166,7 @@ type MapToolbarProps = {
   outsideCurated?: boolean;
   /** First city-switcher row: use the map's existing location flow. */
   onUseMyLocation?: () => void;
+  onOpenChooseArea?: () => void;
   locationBusy?: boolean;
   experienceLens: MapExperienceLens;
   experienceSummary: string;
@@ -200,6 +201,7 @@ export default function MapToolbar({
   cityId = DEFAULT_CITY_ID,
   outsideCurated = false,
   onUseMyLocation,
+  onOpenChooseArea,
   locationBusy = false,
   experienceLens,
   experienceSummary,
@@ -431,6 +433,7 @@ export default function MapToolbar({
           cityId={cityId}
           outsideCurated={outsideCurated}
           onUseMyLocation={onUseMyLocation}
+          onOpenArea={onOpenChooseArea}
           locationBusy={locationBusy}
         />
       </div>
