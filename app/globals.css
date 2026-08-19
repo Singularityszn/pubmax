@@ -4531,8 +4531,7 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
 }
 
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
-   list cards and page footers are not half-covered. Mobile map surfaces already
-   lift their own controls; other mobile pages clear acceptably without this. */
+   list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
   body:has(.analyticsConsentPrompt) {
     padding-bottom: calc(
@@ -4542,6 +4541,21 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
 }
 
 @media (max-width: 640px) {
+  /* Phone: the card sits 8px above the tab bar and may grow to 120px, so scroll
+     surfaces must reserve that lane or Today, Plan and /pubs actions sit under it. */
+  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
+    padding-bottom: calc(
+      var(--tabbar-h, 58px) + env(safe-area-inset-bottom, 0px) +
+        var(--analytics-consent-mobile-clearance, 128px)
+    );
+  }
+
+  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
+    padding-bottom: calc(
+      var(--analytics-consent-mobile-clearance, 128px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+
   .analyticsConsentPrompt {
     bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 8px);
     display: grid;
