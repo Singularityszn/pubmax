@@ -4,7 +4,9 @@ import {
   MAP_CHOSEN_AREA_KEY,
   clearMapChosenArea,
   readMapChosenArea,
+  resolveMapChosenAreaRestore,
   writeMapChosenArea,
+  type MapChosenArea,
 } from "@/lib/mapChosenArea";
 
 function makeMemoryStorage(): Storage {
@@ -68,5 +70,84 @@ describe("mapChosenArea", () => {
     const first = readMapChosenArea(storage);
     const second = readMapChosenArea(storage);
     expect(first).toBe(second);
+  });
+});
+
+const CAMDEN: MapChosenArea = {
+  cityId: "london",
+  label: "Camden",
+  slug: "camden",
+  center: [-0.143, 51.539],
+  kind: "night-area",
+};
+
+const NEAR_ME: MapChosenArea = {
+  cityId: "london",
+  label: "Near me",
+  slug: "near-me",
+  center: [-0.09, 51.515],
+  kind: "near-me",
+};
+
+describe("resolveMapChosenAreaRestore", () => {
+  const base = {
+    stored: CAMDEN,
+    cityId: "london" as const,
+    explicitArrivalIntent: false,
+    hasRestoredViewport: false,
+    venueCount: 40,
+  };
+
+  it("restores the remembered area on a clean arrival", () => {
+    expect(resolveMapChosenAreaRestore(base)).toEqual({
+      action: "restore",
+      area: CAMDEN,
+    });
+  });
+
+  it("stands down for an explicit arrival, so a shared ?sel= keeps its camera", () => {
+    expect(
+      resolveMapChosenAreaRestore({ ...base, explicitArrivalIntent: true }),
+    ).toEqual({ action: "skip" });
+  });
+
+  it("stands down for a restored session viewport", () => {
+    expect(
+      resolveMapChosenAreaRestore({ ...base, hasRestoredViewport: true }),
+    ).toEqual({ action: "skip" });
+  });
+
+  it("skips a row belonging to another city", () => {
+    expect(
+      resolveMapChosenAreaRestore({
+        ...base,
+        stored: { ...CAMDEN, cityId: "manchester" },
+      }),
+    ).toEqual({ action: "skip" });
+  });
+
+  it("skips when nothing is remembered", () => {
+    expect(resolveMapChosenAreaRestore({ ...base, stored: null })).toEqual({
+      action: "skip",
+    });
+  });
+
+  it("waits for the index before ranking a Near me row, and never on intent", () => {
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, venueCount: 0 }),
+    ).toEqual({ action: "wait" });
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored: NEAR_ME, venueCount: 12 }),
+    ).toEqual({ action: "restore", area: NEAR_ME });
+    // Intent is answered first: an explicit arrival never leaves the one-shot
+    // hanging on a venue count that may never arrive.
+    expect(
+      resolveMapChosenAreaRestore({
+        ...base,
+        stored: NEAR_ME,
+        venueCount: 0,
+        explicitArrivalIntent: true,
+      }),
+    ).toEqual({ action: "skip" });
   });
 });

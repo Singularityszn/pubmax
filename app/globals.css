@@ -4587,7 +4587,10 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
   }
 
   body:has(.mapArrivalCard) .analyticsConsentPrompt {
-    bottom: calc(var(--mobile-map-dock-clearance) + 200px);
+    /* The card's own published top edge (mobileNav.css), never a second
+       height written down here. Consent already waits behind the card
+       (lib/promptBudget.ts), so this is the belt to that braces. */
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 }
 

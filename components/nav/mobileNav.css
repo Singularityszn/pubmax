@@ -50,6 +50,18 @@
   --map-corner-bottom: calc(var(--float-stack-base) + 72px);
   --map-corner-bottom-consent: calc(var(--float-stack-base) + 200px);
 
+  /* Member: the map's first-visit arrival card. It is the full width of the
+     phone and its own two actions park in this band, so every other member
+     steps above it while it is on screen and the create action stands down
+     entirely (createFab.css), exactly as it does for the consent card. The
+     height is a published berth rather than a measurement, the same deal
+     --map-corner-bottom-consent already takes: the card's copy is fixed and
+     its actions are two 48px buttons, so the ceiling is generous enough for a
+     three-line lead at 320px. e2e/mobile-map-chrome-fit.spec.ts is the
+     rendered overlap proof. */
+  --map-arrival-h: 256px;
+  --map-arrival-bottom: var(--float-stack-base);
+
   /* Each member's top edge, which is the only thing a control above it needs. */
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
   --float-stack-top-plan: calc(
@@ -57,6 +69,9 @@
   );
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom) + var(--map-corner-locate-size)
+  );
+  --float-stack-top-map-arrival: calc(
+    var(--map-arrival-bottom) + var(--map-arrival-h)
   );
 }
 

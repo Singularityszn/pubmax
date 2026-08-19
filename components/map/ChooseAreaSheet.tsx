@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { LocateFixed } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { LocateFixed, X } from "lucide-react";
+
+import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 
 import type { CityId } from "@/lib/cities";
 import type { Locality } from "@/lib/localities";
 import {
-  CHOOSE_AREA_MIN_VISIBLE,
   filterChooseAreaNeighbourhoods,
   londonNeighbourhoodRows,
   otherCityRows,
@@ -52,9 +53,6 @@ export default function ChooseAreaSheet({
     () => filterChooseAreaNeighbourhoods(neighbourhoods, query, localities),
     [localities, neighbourhoods, query],
   );
-  const visibleRows = query.trim()
-    ? filtered
-    : filtered.slice(0, Math.max(CHOOSE_AREA_MIN_VISIBLE, filtered.length));
   const cities = useMemo(() => otherCityRows(cityId), [cityId]);
 
   return (
@@ -89,7 +87,7 @@ export default function ChooseAreaSheet({
               </span>
             </button>
           </li>
-          {visibleRows.map((row) => (
+          {filtered.map((row) => (
             <li key={row.slug}>
               <button
                 type="button"
@@ -128,5 +126,105 @@ export default function ChooseAreaSheet({
         </section>
       ) : null}
     </div>
+  );
+}
+
+const FOCUSABLE = [
+  "a[href]",
+  "button:not([disabled])",
+  "input:not([disabled])",
+  "select:not([disabled])",
+  "textarea:not([disabled])",
+  '[tabindex]:not([tabindex="-1"])',
+].join(", ");
+
+/**
+ * The desktop shape of the same picker. It is a centred modal over a scrim
+ * rather than a panel anchored to a visible trigger, so it owes more than the
+ * outside dismiss it shipped with: Escape (lib/useDismissOnEscape.ts), focus
+ * moved in on open and handed back on close, a named Close, and a Tab cycle
+ * that keeps the keyboard inside the dialog it just covered the map with. The
+ * phone path gets all of that from Sheet; this one had none of it.
+ */
+export function ChooseAreaDesktopDialog({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  const dialogRef = useRef<HTMLDivElement | null>(null);
+
+  useDismissOnEscape(open, onClose);
+
+  useEffect(() => {
+    if (!open) return;
+    const previous =
+      document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    dialogRef.current?.focus();
+    return () => {
+      if (previous && document.contains(previous)) previous.focus();
+    };
+  }, [open]);
+
+  if (!open) return null;
+
+  const cycleTab = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (event.key !== "Tab") return;
+    const node = dialogRef.current;
+    if (!node) return;
+    const stops = [...node.querySelectorAll<HTMLElement>(FOCUSABLE)].filter(
+      (element) => element.offsetParent !== null || element === node,
+    );
+    if (stops.length === 0) return;
+    const first = stops[0]!;
+    const last = stops[stops.length - 1]!;
+    const active = document.activeElement;
+    if (event.shiftKey && (active === first || active === node)) {
+      event.preventDefault();
+      last.focus();
+      return;
+    }
+    if (!event.shiftKey && active === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  };
+
+  return (
+    <>
+      <button
+        type="button"
+        className="chooseAreaDesktopScrim"
+        aria-label="Close choose area"
+        onClick={onClose}
+      />
+      <div
+        ref={dialogRef}
+        className="chooseAreaDesktop"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="choose-area-desktop-title"
+        tabIndex={-1}
+        onKeyDown={cycleTab}
+      >
+        <div className="chooseAreaDesktopHead">
+          <h2 id="choose-area-desktop-title" className="chooseAreaSectionTitle">
+            Choose an area
+          </h2>
+          <button
+            type="button"
+            className="chooseAreaDesktopClose"
+            aria-label="Close"
+            onClick={onClose}
+          >
+            <X size={16} aria-hidden="true" />
+          </button>
+        </div>
+        {children}
+      </div>
+    </>
   );
 }

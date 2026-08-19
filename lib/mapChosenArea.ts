@@ -110,6 +110,42 @@ export function clearMapChosenArea(storage?: Storage | null): void {
   }
 }
 
+/**
+ * What a fresh Map arrival owes a remembered area.
+ *
+ * A remembered area is the DEFAULT arrival and never an override, so this
+ * answers three ways rather than two. `skip` means somebody else owns the
+ * camera - an explicit arrival (?sel=, ?q=, ?place=, ?crawl=, a planner
+ * handoff) already has its own fly-to in flight, and a restored session
+ * viewport is fresher evidence of where this reader was than a row they tapped
+ * days ago - or there is nothing here for this city. `wait` is the one answer
+ * that must NOT spend the caller's one-shot: a Near me row needs venues to rank
+ * against, and the index settles after the first paint.
+ */
+export type MapChosenAreaRestore =
+  | { action: "skip" }
+  | { action: "wait" }
+  | { action: "restore"; area: MapChosenArea };
+
+export function resolveMapChosenAreaRestore(input: {
+  stored: MapChosenArea | null;
+  cityId: CityId;
+  explicitArrivalIntent: boolean;
+  hasRestoredViewport: boolean;
+  venueCount: number;
+}): MapChosenAreaRestore {
+  if (input.explicitArrivalIntent || input.hasRestoredViewport) {
+    return { action: "skip" };
+  }
+  const stored = input.stored;
+  if (!stored || stored.cityId !== input.cityId) return { action: "skip" };
+  if (stored.kind === "city") return { action: "skip" };
+  if (stored.kind === "near-me" && input.venueCount === 0) {
+    return { action: "wait" };
+  }
+  return { action: "restore", area: stored };
+}
+
 export function subscribeMapChosenArea(onChange: () => void): () => void {
   if (typeof window === "undefined") return () => {};
   const handler = () => onChange();

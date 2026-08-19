@@ -248,6 +248,7 @@ import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
 import ChooseAreaSheet, {
+  ChooseAreaDesktopDialog,
   type ChooseAreaPick,
 } from "@/components/map/ChooseAreaSheet";
 import MapArrivalCard from "@/components/map/MapArrivalCard";
@@ -313,6 +314,7 @@ import {
 } from "@/lib/mapArrival";
 import {
   readMapChosenArea,
+  resolveMapChosenAreaRestore,
   subscribeMapChosenArea,
   writeMapChosenArea,
 } from "@/lib/mapChosenArea";
@@ -491,6 +493,10 @@ function mobileViewportSnapshot(): boolean {
 // 640 phone split is a separate threshold). Its own matchMedia so the rail
 // mounts only when actually shown — no phantom conditions/area fetches below it.
 const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
+
+// One frozen empty gazetteer, so a non-London city hands every reader of
+// `localities` the same reference rather than a fresh array every render.
+const NO_LOCALITIES: Locality[] = [];
 function subscribeDesktopRailViewport(onChange: () => void): () => void {
   const query = window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY);
   query.addEventListener("change", onChange);
@@ -1443,7 +1449,7 @@ export default function PubMap({
   }, [cityId]);
   // Gate at the point of use (mirrors priceUpdates): the fetch is London-only, so
   // a non-London city never sees stale gazetteer rows in its search.
-  const localities = cityId === "london" ? londonLocalities : [];
+  const localities = cityId === "london" ? londonLocalities : NO_LOCALITIES;
 
   const venues = useMemo<Venue[]>(
     () =>
@@ -3009,13 +3015,20 @@ export default function PubMap({
 
   useEffect(() => {
     if (!loaded || restoredChosenAreaRef.current) return;
-    const stored = readMapChosenArea();
-    if (!stored || stored.cityId !== cityId) {
-      restoredChosenAreaRef.current = true;
-      return;
-    }
-    if (stored.kind === "near-me" && filteredVenues.length === 0) return;
+    // lib/mapChosenArea.ts owns WHETHER the remembered area may move the
+    // camera; this effect only carries the answer out. `wait` is the one answer
+    // that leaves the one-shot unspent.
+    const decision = resolveMapChosenAreaRestore({
+      stored: readMapChosenArea(),
+      cityId,
+      explicitArrivalIntent,
+      hasRestoredViewport: Boolean(restoredMobileSession?.viewport),
+      venueCount: filteredVenues.length,
+    });
+    if (decision.action === "wait") return;
     restoredChosenAreaRef.current = true;
+    if (decision.action === "skip") return;
+    const stored = decision.area;
     if (stored.kind === "near-me") {
       const [lng, lat] = stored.center;
       const location = { lat, lng };
@@ -3045,7 +3058,14 @@ export default function PubMap({
         });
       });
     }
-  }, [cityId, filteredVenues, flyToArea, loaded]);
+  }, [
+    cityId,
+    explicitArrivalIntent,
+    filteredVenues,
+    flyToArea,
+    loaded,
+    restoredMobileSession,
+  ]);
 
   const mapChipLabel =
     mapChosenArea && mapChosenArea.cityId === cityId
@@ -4306,26 +4326,12 @@ export default function PubMap({
             onChooseArea={() => openChooseArea()}
           />
         ) : null}
-        {!mobileViewport && mapOverlay === "choose-area" ? (
-          <>
-            <button
-              type="button"
-              className="chooseAreaDesktopScrim"
-              aria-label="Close choose area"
-              onClick={() => changeMapOverlay("none")}
-            />
-            <div
-              className="chooseAreaDesktop"
-              role="dialog"
-              aria-labelledby="choose-area-desktop-title"
-            >
-              <h2 id="choose-area-desktop-title" className="chooseAreaSectionTitle">
-                Choose an area
-              </h2>
-              {chooseAreaSheet}
-            </div>
-          </>
-        ) : null}
+        <ChooseAreaDesktopDialog
+          open={!mobileViewport && mapOverlay === "choose-area"}
+          onClose={() => changeMapOverlay("none")}
+        >
+          {chooseAreaSheet}
+        </ChooseAreaDesktopDialog>
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile

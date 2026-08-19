@@ -2,7 +2,13 @@
   position: fixed;
   z-index: calc(var(--z-tabbar, 30) + 2);
   right: max(12px, env(safe-area-inset-right));
-  bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 12px);
+  /* Float-stack member: mobileNav.css publishes this berth and the card's
+     height, so the map-edge column, the plan pill and the OSM credit can all
+     step clear of it (mobileMapShell.css) instead of being painted over. */
+  bottom: var(
+    --map-arrival-bottom,
+    calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 12px)
+  );
   left: max(12px, env(safe-area-inset-left));
   display: grid;
   gap: 10px;
@@ -81,6 +87,15 @@
     bottom: max(20px, env(safe-area-inset-bottom));
     left: auto;
     width: min(360px, calc(100vw - 40px));
+  }
+
+  /* The desktop card parks in MapLibre's own bottom-right lane, and the ODbL
+     credit is attached to the MAP rather than to a source, so it may not be
+     covered. Same published height the phone berths read. */
+  body:has(.mapArrivalCard) .mapStage .maplibregl-ctrl-bottom-right {
+    bottom: calc(
+      var(--map-arrival-h, 256px) + max(20px, env(safe-area-inset-bottom)) + 12px
+    );
   }
 }
 

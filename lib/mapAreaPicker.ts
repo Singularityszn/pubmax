@@ -8,8 +8,6 @@ import { getNightAreasForCity } from "@/lib/nightAreas";
 import { assignVenueToNightArea } from "@/lib/pricedLanding";
 import type { Venue } from "@/lib/venues";
 
-export const CHOOSE_AREA_MIN_VISIBLE = 8;
-
 export type ChooseAreaNeighbourhood = {
   slug: string;
   name: string;
@@ -24,6 +22,11 @@ export type ChooseAreaCityRow = {
 
 function normaliseQuery(query: string): string {
   return query.trim().toLowerCase();
+}
+
+/** One row, one visible name: the only thing a reader can tell two rows by. */
+function rowIdentity(name: string): string {
+  return name.trim().toLowerCase();
 }
 
 /** Count pubs per modelled night area for one city pack. */
@@ -57,7 +60,11 @@ export function filterChooseAreaNeighbourhoods(
   if (!needle) return [...rows];
 
   const areaHits = rows.filter((row) => row.name.toLowerCase().includes(needle));
-  const areaSlugs = new Set(areaHits.map((row) => row.slug));
+  // Deduped on the NAME, not the slug: every locality row carries a
+  // `locality:` prefix of its own, so a slug comparison can never match and a
+  // gazetteer entry sharing a night area's name would print twice with
+  // identical visible text.
+  const seen = new Set(areaHits.map((row) => rowIdentity(row.name)));
 
   const localityHits: ChooseAreaNeighbourhood[] = [];
   for (const locality of localities) {
@@ -73,7 +80,9 @@ export function filterChooseAreaNeighbourhoods(
 
   const merged = [...areaHits];
   for (const row of localityHits) {
-    if (areaSlugs.has(row.slug)) continue;
+    const identity = rowIdentity(row.name);
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     merged.push(row);
   }
   return merged;
@@ -84,14 +93,4 @@ export function otherCityRows(activeCityId: CityId): ChooseAreaCityRow[] {
   return listEnabledCities()
     .filter((city) => city.id !== activeCityId)
     .map((city) => ({ cityId: city.id, name: city.displayName }));
-}
-
-/** Keep at least CHOOSE_AREA_MIN_VISIBLE neighbourhood rows when unfiltered. */
-export function visibleNeighbourhoodCap(
-  filteredCount: number,
-  totalCount: number,
-  query: string,
-): number {
-  if (normaliseQuery(query)) return filteredCount;
-  return Math.min(totalCount, Math.max(CHOOSE_AREA_MIN_VISIBLE, totalCount));
 }

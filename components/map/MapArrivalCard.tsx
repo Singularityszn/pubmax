@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { LocateFixed, X } from "lucide-react";
 
 import {
@@ -20,9 +20,25 @@ export default function MapArrivalCard({
   onChooseArea: () => void;
   onDismiss?: () => void;
 }) {
+  const cardRef = useRef<HTMLElement | null>(null);
+
   useEffect(() => {
     setMapFirstVisitArrivalCardVisible(true);
     return () => setMapFirstVisitArrivalCardVisible(false);
+  }, []);
+
+  // A live region announces a CHANGE to content already on screen. This card
+  // arrives whole, with three actions on it, so it is a labelled landmark that
+  // takes focus once instead - otherwise a screen reader read the heading, the
+  // lead and all three buttons as one announcement and left the reader parked
+  // on the map with no way to reach any of them. It only takes focus nobody
+  // else holds: the card lands a second or two after paint, and pulling a
+  // caret out of a field somebody is already typing in would be worse than
+  // saying nothing.
+  useEffect(() => {
+    const active = document.activeElement;
+    if (active && active !== document.body) return;
+    cardRef.current?.focus();
   }, []);
 
   const dismiss = () => {
@@ -34,9 +50,10 @@ export default function MapArrivalCard({
 
   return (
     <aside
+      ref={cardRef}
       className="mapArrivalCard"
       aria-label="First visit"
-      aria-live="polite"
+      tabIndex={-1}
     >
       <button
         type="button"
