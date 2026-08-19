@@ -227,6 +227,7 @@ import {
   getFavoritePint,
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
+import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import { getSaved } from "@/lib/savedPubs";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import { createSlimShardLoader, type MapBounds, type SlimShardLoader } from "@/lib/slimShards";
@@ -2038,8 +2039,10 @@ export default function PubMap({
   // Persist the favorite-pint choice as the user picks it (null = clear).
   const changeFavoritePint = useCallback((beerId: string | null) => {
     setFavoritePintState(beerId);
-    if (beerId) persistFavoritePint(beerId);
-    else clearFavoritePint();
+    if (beerId) {
+      persistFavoritePint(beerId);
+      notifyCheapPintPingQualified();
+    } else clearFavoritePint();
   }, []);
 
   // Putting the map under a drink is ONE write, wherever the reader taps it:

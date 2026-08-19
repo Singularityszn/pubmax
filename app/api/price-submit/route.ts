@@ -64,6 +64,7 @@ import {
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
+import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
@@ -248,6 +249,8 @@ export async function POST(request: Request): Promise<Response> {
       }
       return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
     }
+  } else {
+    void qualifyCheapPintForOwnerActor(contributor.actor);
   }
 
   await syncTrustAfterPriceWrite(submission.venueId, price.drinkCategory);
