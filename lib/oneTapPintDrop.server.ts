@@ -57,16 +57,27 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
 
 export async function revertOneTapCommunityPricePairing(
   priceId: string | undefined,
-): Promise<void> {
-  if (!priceId) return;
-  try {
-    await moderateCommunityPrice(priceId, true, "one-tap pairing failed");
-  } catch (err) {
-    log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
-      priceId,
-      error: err instanceof Error ? err.message : String(err),
-    });
+): Promise<boolean> {
+  if (!priceId) return true;
+  const note = "one-tap pairing failed";
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (await moderateCommunityPrice(priceId, true, note)) {
+        return true;
+      }
+    } catch (err) {
+      log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
+        priceId,
+        attempt,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
   }
+  log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {
+    priceId,
+    error: "hide did not land",
+  });
+  return false;
 }
 
 /**
