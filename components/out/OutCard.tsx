@@ -42,16 +42,20 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
-type OutCardProps = {
+type OutCardTitleLevel = 2 | 4;
+
+type OutCardBodyProps = {
   row: WhatsOnRow;
   onOpen?: () => void;
+  titleLevel?: OutCardTitleLevel;
 };
 
-export function OutCard({ row, onOpen }: OutCardProps) {
+export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
+  const TitleTag = titleLevel === 4 ? "h4" : "h2";
   return (
-    <li>
+    <>
       <a
         className="outCard"
         href={row.source.url}
@@ -59,7 +63,7 @@ export function OutCard({ row, onOpen }: OutCardProps) {
         target="_blank"
         onClick={onOpen}
       >
-        <h2>{row.title}</h2>
+        <TitleTag>{row.title}</TitleTag>
         <p className="outCardMeta">
           {row.placeName}
           {when ? ` · ${when}` : ""}
@@ -67,6 +71,16 @@ export function OutCard({ row, onOpen }: OutCardProps) {
         {from ? <p className="outPrice">{from}</p> : null}
       </a>
       <SourceCredit source={row.source} />
+    </>
+  );
+}
+
+type OutCardProps = OutCardBodyProps;
+
+export function OutCard({ row, onOpen }: OutCardProps) {
+  return (
+    <li>
+      <OutCardBody row={row} onOpen={onOpen} />
     </li>
   );
 }

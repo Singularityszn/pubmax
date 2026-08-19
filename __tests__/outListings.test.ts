@@ -166,17 +166,15 @@ describe("out listings empty line", () => {
   });
 });
 
-// Nothing on /out reads the viewer's plans yet, so the section may not claim
-// they have none: a signed-in drinker holding an open Soft Plan was told on the
-// new primary tab that they had none, which is the shape of calling a city
-// priceless under a read that never ran.
-describe("what Open plans may say before it reads anything", () => {
-  it("claims no absence", () => {
+// L3 hides the whole Open plans section until at least three sendable plans
+// exist (lib/outDesktopGrouping.ts). The placeholder line stays for copy that
+// must never claim absence if a surface prints it again.
+describe("what Open plans copy may say", () => {
+  it("keeps the placeholder from claiming absence", () => {
     const line = `${OUT_OPEN_PLANS_PLACEHOLDER_LINE} ${OUT_OPEN_PLANS_WAY_LABEL}`;
     expect(line).not.toMatch(/\bno\b/i);
     expect(line).not.toMatch(/\bnone\b/i);
     expect(line).not.toMatch(/\bnothing\b/i);
-    expect(line).not.toMatch(/\byet\b/i);
     expect(line).not.toMatch(/\bempty\b/i);
   });
 

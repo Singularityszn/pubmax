@@ -4,14 +4,20 @@ import Link from "next/link";
 import { useCallback, useEffect } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
-import { OutCard } from "@/components/out/OutCard";
+import { OutCardBody } from "@/components/out/OutCard";
+import { OutListingPubPair } from "@/components/out/OutListingPubPair";
+import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import { useOutListings } from "@/components/out/useOutListings";
 import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
 import {
+  groupOutListings,
+  outOpenPlansSectionVisible,
+  sendableOpenPlans,
+} from "@/lib/outDesktopGrouping";
+import {
   OUT_DAY_WINDOWS,
-  OUT_OPEN_PLANS_PLACEHOLDER_LINE,
   OUT_OPEN_PLANS_WAY_LABEL,
   outListingsSectionTitle,
   type OutDayWindow,
@@ -38,6 +44,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   const onOpen = useCallback((row: WhatsOnRow) => {
     trackEvent("out_card_opened", { source: outCardSource(row.source.label) });
   }, []);
+
+  const listingGroups = groupOutListings(body?.events ?? []);
+  const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
+  const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);
 
   return (
     <main id="main" className="outPage" data-testid="out-screen">
@@ -75,24 +85,48 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             {line}
           </p>
         ))}
-        <ul className="outList">
-          {(body?.events ?? []).map((row) => (
-            <OutCard key={row.id} row={row} onOpen={() => onOpen(row)} />
+        <div className="outListingSurface">
+          {listingGroups.map((group) => (
+            <section
+              key={group.key}
+              className="outGroup"
+              aria-labelledby={`out-group-${group.key}`}
+            >
+              <h3 id={`out-group-${group.key}`} className="outGroupTitle">
+                {group.label}
+              </h3>
+              <ul className="outGroupList">
+                {group.rows.map((row) => (
+                  <li key={row.id} className="outListingRow">
+                    <div className="outListingGig">
+                      <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
+                    </div>
+                    <OutListingPubPair row={row} />
+                  </li>
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
+        </div>
       </section>
 
-      <section className="outPlans" aria-labelledby="out-plans-heading">
-        <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
-          Open plans
-        </h2>
-        <p className="outPlansPlaceholder">
-          {OUT_OPEN_PLANS_PLACEHOLDER_LINE}{" "}
-          <Link href="/plan" className="outPlansPlaceholderLink">
-            {OUT_OPEN_PLANS_WAY_LABEL}
-          </Link>
-        </p>
-      </section>
+      {showOpenPlans ? (
+        <section className="outPlans" aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+            Open plans
+          </h2>
+          <ul className="outOpenPlanList">
+            {sendablePlans.map((plan) => (
+              <OutOpenPlanCard key={plan.crewId} plan={plan} />
+            ))}
+          </ul>
+          <p className="outPlansFoot">
+            <Link href="/plan" className="outPlansFootLink">
+              {OUT_OPEN_PLANS_WAY_LABEL}
+            </Link>
+          </p>
+        </section>
+      ) : null}
     </main>
   );
 }
