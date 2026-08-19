@@ -115,6 +115,14 @@ export function parsePlanHandoffQueryFromSearch(search: string): string | null {
   return cleanText(query, 500) || null;
 }
 
+/**
+ * Pub Pal `?query=` arrivals auto-generate once on /plan. Chip links (`occasion`,
+ * `describe`) only prefill the describe field and still need a tap on Make a plan.
+ */
+export function shouldAutoGeneratePalHandoffPlan(handoffAsk: string | null): boolean {
+  return Boolean(handoffAsk?.trim());
+}
+
 /** After a Pub Pal three-stop route answer, open Plan with the same ask prefilled. */
 export function planPalRouteHandoffHref(query: string): string {
   const trimmed = cleanText(query, 500);
