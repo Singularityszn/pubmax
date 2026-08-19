@@ -4520,9 +4520,12 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-color: var(--brass);
 }
 
-/* Any open map sheet owns the reader's attention; the consent card must not
-   bleed through semi-transparent scrims or sit above sheet chrome. */
-body:has(.mobileSheetPortal) .analyticsConsentPrompt {
+/* Any open map surface owns the reader's attention; the consent card must not
+   bleed through semi-transparent scrims or sit above sheet chrome. The desktop
+   choose-area picker is the second shape of that surface, and it dims the map
+   with a scrim of its own rather than the phone sheet portal. */
+body:has(.mobileSheetPortal) .analyticsConsentPrompt,
+body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   visibility: hidden;
   pointer-events: none;
 }

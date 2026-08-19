@@ -232,6 +232,7 @@ import {
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
 import { getSaved } from "@/lib/savedPubs";
+import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import { createSlimShardLoader, type MapBounds, type SlimShardLoader } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import {
@@ -1549,15 +1550,9 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
-  const nearbyVenueIds = useMemo(
-    () => nearbyMapResult ? new Set(nearbyMapResult.venueIds) : null,
-    [nearbyMapResult],
-  );
   const mapMembershipVenues = useMemo(
-    () => nearbyVenueIds
-      ? filteredVenues.filter((venue) => nearbyVenueIds.has(venue.id))
-      : filteredVenues,
-    [filteredVenues, nearbyVenueIds],
+    () => venuesInNearbyMembership(filteredVenues, nearbyMapResult),
+    [filteredVenues, nearbyMapResult],
   );
   const experienceVisibleMapVenues = useMemo(
     () =>
@@ -2804,6 +2799,12 @@ export default function PubMap({
     { center: [number, number]; zoom: number; token: number } | null
   >(null);
   const flyToArea = useCallback((option: AreaElsewhereOption) => {
+    // A Near me answer is a membership over the painted map (see
+    // lib/mapNearbyMembership.ts), so it stops describing the screen the moment
+    // the reader moves somewhere else on purpose. Without this the new area
+    // paints only whichever of those twenty pins happen to be in frame, which
+    // is usually none, and the reader is shown an empty Camden.
+    setNearbyMapResult(null);
     setAreaFocus((prev) => ({
       center: option.center,
       // Localities carry a slightly deeper zoom; areas/boroughs keep the default.
@@ -3831,6 +3832,7 @@ export default function PubMap({
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
+          cityLabel={mapChipLabel}
           outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}

@@ -162,6 +162,13 @@ type MapToolbarProps = {
   zoneIndex: ZonePintIndex;
   /** Active city for the map switcher (defaults to London). */
   cityId?: CityId;
+  /**
+   * What the chip is a claim ABOUT. The switcher falls back to the city's own
+   * display name, but once a reader picks an area the chip names that area -
+   * "Map area: Camden" is the one sentence on this control that really is a
+   * claim about the area, so it may not keep saying London.
+   */
+  cityLabel?: string;
   /** Camera is outside the priced city box — national browse entry softens the switcher. */
   outsideCurated?: boolean;
   /** First city-switcher row: use the map's existing location flow. */
@@ -199,6 +206,7 @@ export default function MapToolbar({
   searchableVenueCount,
   zoneIndex,
   cityId = DEFAULT_CITY_ID,
+  cityLabel,
   outsideCurated = false,
   onUseMyLocation,
   onOpenChooseArea,
@@ -431,6 +439,7 @@ export default function MapToolbar({
 
         <CitySwitcher
           cityId={cityId}
+          triggerLabel={cityLabel}
           outsideCurated={outsideCurated}
           onUseMyLocation={onUseMyLocation}
           onOpenArea={onOpenChooseArea}
