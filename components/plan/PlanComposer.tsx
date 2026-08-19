@@ -1193,7 +1193,11 @@ function PlanComposerForm({
     void Promise.resolve().then(() => {
       const handoffAsk = describeAskFromLocation().handoffAsk ?? urlPrefill.handoffAsk;
       if (!handoffAsk?.trim()) return;
-      submitFromEntry(handoffAsk.trim());
+      submitFromEntry(
+        handoffAsk.trim(),
+        undefined,
+        skipRemainingPlanIntake(createPlanIntakeDraft()),
+      );
     });
   }, [canPersist, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
@@ -1417,15 +1421,19 @@ function PlanComposerForm({
     setPlanIntake(reconciled.draft);
   }
 
-  function submitFromEntry(query: string, requestedStopCount?: PlanStopCount) {
+  function submitFromEntry(
+    query: string,
+    requestedStopCount?: PlanStopCount,
+    intakeBase: PlanIntakeDraft = planIntake,
+  ) {
     // Computed once and threaded through explicitly: setPlanIntake has not
     // re-rendered yet when sortWithConcierge runs below, so reading the
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
     const skippedIntake = skipRemainingPlanIntake({
-      ...planIntake,
+      ...intakeBase,
       answers: {
-        ...planIntake.answers,
+        ...intakeBase.answers,
         ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
       },
     });
@@ -1542,8 +1550,13 @@ function PlanComposerForm({
     // values (the pre-skip intake would fail the server's consistency check).
     const query = queryOverride ?? conciergeQuery;
     const intake = intakeOverride ?? planIntake;
+    const intakeContextForSort = planIntakeNightContextPatch(intake);
+    const unsupportedPatchForSort = unsupportedPatchForCurrentGenerator(
+      intake,
+      intakeContextForSort,
+    );
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
-    if (queryOverride !== undefined && unsupportedIntakePatch) return;
+    if (queryOverride !== undefined && unsupportedPatchForSort) return;
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");

@@ -531,5 +531,23 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     });
     expect(generateCall).toBeUndefined();
   });
+
+  it("auto-generates when a durable wizard draft holds an unsupported patch", async () => {
+    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "hackney" }));
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+    await mountComposer();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const fetchMock = vi.mocked(fetch);
+    const generateCall = fetchMock.mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCall).toBeTruthy();
+    expect(document.body.textContent).toContain("Route refreshed");
+  });
 });
 
