@@ -219,14 +219,10 @@ describe("time-band card copy", () => {
 
   it("scopes Today's empty picks to tonight's list in reader-facing words", () => {
     expect(PICKS_EMPTY_LINE).toEqual({
-      morning:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      afternoon:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      evening:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      night:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
+      morning: "Nothing on tonight's list yet.",
+      afternoon: "Nothing on tonight's list yet.",
+      evening: "Nothing on tonight's list yet.",
+      night: "Nothing on tonight's list yet.",
     });
 
     for (const slot of SLOTS) {

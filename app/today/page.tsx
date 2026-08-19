@@ -15,6 +15,11 @@ import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
 import { loadWhatsOn } from "@/lib/whatsOnStore";
+import {
+  loadTodayOutAnswer,
+  mergeTodayListingRows,
+  todayPicksReadStatus,
+} from "@/lib/todayListings.server";
 import heritageCache from "@/public/data/heritage_cache.json";
 
 import TodayClient from "./TodayClient";
@@ -55,16 +60,14 @@ export default async function TodayPage() {
   // Open-Meteo weather top-up behind the listings, price, and heritage reads for
   // no reason; Promise.all collapses the brief's server render to the slowest
   // single read. Each retains its own fail-soft path.
-  const [weatherSnapshot, whatsOn, pricedVenues, historicPubs] = await Promise.all([
+  const [weatherSnapshot, whatsOn, out, pricedVenues, historicPubs] = await Promise.all([
     // Store-first read-through: the freshest durable/cached reading when it is
     // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
     // the committed snapshot with its honest staleness banner. Never needlessly
     // stale even between cron runs or before migration 0047 lands.
     loadFreshWeatherSnapshot({ now }),
-    // Baseline-only (fail-soft live disabled): the brief must be reliable and
-    // instant, and the bundled listings are already sourced. Tonight's own page
-    // still layers the live CityMCP enrichment on top. A throw here is a
-    // degraded read, never "nothing left".
+    // Baseline What's-On for tonight (fail-soft). Out events are merged below so
+    // Today matches /tonight's bundled Ticketmaster lane without inventing rows.
     loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }).catch(
       (err) => {
         console.warn(
@@ -74,6 +77,7 @@ export default async function TodayPage() {
         return null;
       },
     ),
+    loadTodayOutAnswer(now.getTime()),
     // Cheapest priced pints per area, precomputed from the bundled price dataset
     // so the client can answer the viewer's remembered area with no venue data
     // of its own and no request-time work.
@@ -96,8 +100,17 @@ export default async function TodayPage() {
   // section with five identical cards. No location on the server, so the digest
   // resolves each group's display to its soonest venue; the client re-orders the
   // resulting picks around the viewer's remembered patch below.
-  const picksStatus = whatsOn?.readStatus ?? "degraded";
-  const picks = digestSectionPicks(whatsOn?.rows ?? [], { limit: Number.POSITIVE_INFINITY }).map((pick) => {
+  // Same merged spine as /tonight: bundled What's-On rows plus Out events.
+  const whatsOnReadStatus = whatsOn?.readStatus ?? "degraded";
+  const whatsOnRows = whatsOn?.rows ?? [];
+  const listingRows = mergeTodayListingRows(whatsOnRows, out, now.getTime());
+  const picksStatus = todayPicksReadStatus(
+    whatsOnReadStatus,
+    whatsOnRows.length,
+    out,
+    now.getTime(),
+  );
+  const picks = digestSectionPicks(listingRows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
   });

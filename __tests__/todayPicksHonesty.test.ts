@@ -1,6 +1,6 @@
 // Today may not call a night empty on a read that never answered.
 //
-// The picks card is the surface that says "Nothing left on tonight's list", and
+// The picks card is the surface that names an empty tonight list, and
 // before this it said it whether the bundled What's-On read had answered or
 // thrown. This renders the real client with each read status and reads the copy
 // the card actually prints.
@@ -73,6 +73,6 @@ describe("Today picks card honesty", () => {
     const degraded = renderToday("degraded");
     expect(degraded).toContain('data-picks-status="degraded"');
     expect(degraded).toContain(PICKS_DEGRADED_LINE);
-    expect(degraded).not.toContain("Nothing left on tonight");
+    expect(degraded).not.toContain("Nothing on tonight");
   });
 });
