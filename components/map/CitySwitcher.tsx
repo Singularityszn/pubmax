@@ -184,7 +184,14 @@ function CitySwitcherTrigger({
   // desktop; it may not stand in for an area, because "CAM" is not contained in
   // "Map area: Camden", so a voice-control reader would say the wrong word and
   // the reader who picked Camden would still be looking at LON.
-  const namedArea = triggerLabel?.trim() ? triggerLabel.trim() : null;
+  //
+  // The question is whether the label names something OTHER than this city, not
+  // whether a label was supplied: the map hands one down on every render and it
+  // falls back to the city's own display name, so "a label exists" would answer
+  // yes always and retire the code even when nobody has chosen anything.
+  const suppliedLabel = triggerLabel?.trim() ?? "";
+  const namedArea =
+    suppliedLabel && suppliedLabel !== current.displayName ? suppliedLabel : null;
 
   return (
     <div
