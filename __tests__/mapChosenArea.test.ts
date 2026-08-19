@@ -178,6 +178,83 @@ describe("the remembered map area holds no viewer point", () => {
     ).toMatchObject({ kind: "night-area", center: [-0.143, 51.539] });
   });
 
+  it("erases a legacy Near me row's coordinates from storage on the first read", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Near me",
+        slug: "near-me",
+        kind: "near-me",
+        center: [-0.09, 51.515],
+      }),
+    );
+    readMapChosenArea(storage);
+    // Not merely projected away on the way out: gone from the device, because
+    // the write that would have overwritten it may never come.
+    const settled: unknown = JSON.parse(
+      storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null",
+    );
+    expect(settled).toEqual({
+      cityId: "london",
+      label: "Near me",
+      slug: "near-me",
+      kind: "near-me",
+    });
+    expect(storage.getItem(MAP_CHOSEN_AREA_KEY)).not.toContain("51.515");
+  });
+
+  it("drops a row nothing can parse rather than leaving it on the device", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({ shape: "unknown", center: [-0.09, 51.515] }),
+    );
+    expect(readMapChosenArea(storage)).toBeNull();
+    expect(storage.getItem(MAP_CHOSEN_AREA_KEY)).toBeNull();
+  });
+
+  it("keeps a named area's centre, and rewrites nothing once it is canonical", () => {
+    const storage = makeMemoryStorage();
+    writeMapChosenArea(CAMDEN, storage);
+    const written = storage.getItem(MAP_CHOSEN_AREA_KEY);
+    expect(readMapChosenArea(storage)).toEqual(CAMDEN);
+    expect(storage.getItem(MAP_CHOSEN_AREA_KEY)).toBe(written);
+  });
+
+  it("survives a storage that refuses the cleanup write", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Near me",
+        slug: "near-me",
+        kind: "near-me",
+        center: [-0.09, 51.515],
+      }),
+    );
+    const refusing: Storage = {
+      ...storage,
+      getItem: (key: string) => storage.getItem(key),
+      setItem: () => {
+        throw new Error("quota");
+      },
+      removeItem: () => {
+        throw new Error("quota");
+      },
+    };
+    const read = readMapChosenArea(refusing);
+    expect(read).toEqual({
+      cityId: "london",
+      label: "Near me",
+      slug: "near-me",
+      kind: "near-me",
+    });
+    expect(read && "center" in read).toBe(false);
+  });
+
   it("never hands a legacy Near me row's coordinates to a reader", () => {
     const storage = makeMemoryStorage();
     // Exactly what the previous build wrote: a viewer fix beside the marker.

@@ -48,7 +48,8 @@ function notifyChange(): void {
  * Rebuild a stored row field by field rather than trusting the parsed object.
  * A row written by an older build may still carry a `center` beside
  * `kind: "near-me"`; projecting the closed field set is what stops those
- * coordinates reaching a single consumer, and the next write drops them.
+ * coordinates reaching a single consumer, and `readSnapshot` erases them from
+ * storage itself rather than waiting for a write that may never come.
  */
 function parseMapChosenArea(value: unknown): MapChosenArea | null {
   if (!value || typeof value !== "object") return null;
@@ -90,6 +91,35 @@ function invalidateSnapshot(store: Storage): void {
   snapshotByStorage.delete(store);
 }
 
+/**
+ * Bring the stored bytes into line with what a reader is allowed to see.
+ *
+ * Projecting a field away on read keeps it out of the product, but the point is
+ * still on the device, and the write that would have overwritten it may never
+ * happen. So a row whose canonical form differs from what is on disk is
+ * rewritten here, and a row nothing can parse is removed: either can be an
+ * older shape holding a viewer's coordinates, and this is the one place every
+ * read passes through. Nothing is announced, because the ANSWER has not
+ * changed - only where it is kept - and this runs inside the snapshot read that
+ * feeds `useSyncExternalStore`.
+ */
+function settleStoredRow(
+  store: Storage,
+  raw: string,
+  value: MapChosenArea | null,
+): string | null {
+  const canonical = value ? JSON.stringify(toStoredRow(value)) : null;
+  if (canonical === raw) return raw;
+  try {
+    if (canonical === null) store.removeItem(MAP_CHOSEN_AREA_KEY);
+    else store.setItem(MAP_CHOSEN_AREA_KEY, canonical);
+    return canonical;
+  } catch {
+    // Storage refused the cleanup; the projection above still holds.
+    return raw;
+  }
+}
+
 function readSnapshot(store: Storage): MapChosenArea | null {
   let raw: string | null;
   try {
@@ -101,14 +131,17 @@ function readSnapshot(store: Storage): MapChosenArea | null {
   if (cached && cached.raw === raw) return cached.value;
 
   let value: MapChosenArea | null = null;
-  if (raw) {
+  if (raw !== null) {
     try {
       value = parseMapChosenArea(JSON.parse(raw) as unknown);
     } catch {
       value = null;
     }
   }
-  snapshotByStorage.set(store, { raw, value });
+  // Key the cache on what is NOW on disk, so the next read is a cache hit and
+  // hands back the same object identity useSyncExternalStore requires.
+  const settledRaw = raw === null ? null : settleStoredRow(store, raw, value);
+  snapshotByStorage.set(store, { raw: settledRaw, value });
   return value;
 }
 
