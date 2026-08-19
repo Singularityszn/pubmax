@@ -75,6 +75,25 @@ describe("evaluateOpenState", () => {
       }),
     ).toBe(true);
   });
+
+  it("stays open just after midnight on an overnight window carried over from the PREVIOUS day's own hours", () => {
+    // Saturday (6) closes at 01:00 Sunday; Sunday's (0) own hours are a plain
+    // same-day window that starts later that morning. A minute-past-midnight
+    // check must still find the Saturday-night window rather than only
+    // consulting Sunday's own (not-yet-open) row.
+    const openingHours = {
+      6: [{ opens: "22:00", closes: "01:00" }],
+      0: [{ opens: "10:00", closes: "23:00" }],
+    };
+    const sundayJustAfterMidnight = new Date("2026-01-11T00:30:00.000Z"); // Sunday 00:30 Europe/London
+    expect(evaluateOpenState({ now: sundayJustAfterMidnight, openingHours })).toBe(true);
+
+    const sundayOvernightWindowClosed = new Date("2026-01-11T01:30:00.000Z"); // Sunday 01:30, past 01:00 close
+    expect(evaluateOpenState({ now: sundayOvernightWindowClosed, openingHours })).toBe(false);
+
+    const sundayBeforeItsOwnOpening = new Date("2026-01-11T08:30:00.000Z"); // Sunday 08:30, before 10:00 open
+    expect(evaluateOpenState({ now: sundayBeforeItsOwnOpening, openingHours })).toBe(false);
+  });
 });
 
 describe("canGroupGetIn", () => {

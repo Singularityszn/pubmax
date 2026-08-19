@@ -88,25 +88,36 @@ function parseClock(value: string): number | null {
   return hour * 60 + minute;
 }
 
+function windowCoversMinute(window: OpeningWindow, minutesSinceDayStart: number): boolean {
+  const opens = parseClock(window.opens);
+  const closes = parseClock(window.closes);
+  if (opens === null || closes === null) return false;
+  const adjustedClose = closes <= opens ? closes + 24 * 60 : closes;
+  return minutesSinceDayStart >= opens && minutesSinceDayStart < adjustedClose;
+}
+
 export function openStateAtClock(
   clock: LocalClock,
   hours?: WeeklyOpeningHours,
 ): boolean | "unknown" {
   if (!hours) return "unknown";
+
+  // A window that opened yesterday and crosses midnight is filed under
+  // YESTERDAY's own weekday entry, not today's - so a venue can still be
+  // open right now even though today's own schedule hasn't started yet
+  // (or says the day is closed). Check that before today's own windows.
+  const previousWeekday = (clock.weekday + 6) % 7;
+  const yesterdayWindows = hours[previousWeekday];
+  const stillOpenFromYesterday = (yesterdayWindows ?? []).some((window) =>
+    windowCoversMinute(window, clock.minutes + 24 * 60),
+  );
+  if (stillOpenFromYesterday) return true;
+
   const windows = hours[clock.weekday];
   if (!windows) return "unknown";
   // Empty day list is evidence of a closed day, not a missing schedule.
   if (windows.length === 0) return false;
-  return windows.some((window) => {
-    const opens = parseClock(window.opens);
-    const closes = parseClock(window.closes);
-    if (opens === null || closes === null) return false;
-    const adjustedClose = closes <= opens ? closes + 24 * 60 : closes;
-    const adjustedNow = clock.minutes < opens && adjustedClose >= 24 * 60
-      ? clock.minutes + 24 * 60
-      : clock.minutes;
-    return adjustedNow >= opens && adjustedNow < adjustedClose;
-  });
+  return windows.some((window) => windowCoversMinute(window, clock.minutes));
 }
 
 /**
