@@ -16,6 +16,16 @@ export const VENUE_DATA_RETRY_NOTICE = {
   message: "The pub list hasn't loaded. Tap Retry to fetch it again.",
 } as const;
 
+export const PIN_PAINT_RETRY_PENDING_NOTICE = {
+  kind: "pins",
+  message: "Loading the pub pins…",
+} as const;
+
+export const VENUE_DATA_RETRY_PENDING_NOTICE = {
+  kind: "venues",
+  message: "Fetching the pub list…",
+} as const;
+
 export const PIN_PAINT_RETRY_SPENT_NOTICE = {
   kind: "pins",
   message: "The pub pins still aren't drawing. Tap Retry to try once more.",
@@ -85,6 +95,17 @@ export function pinRetrySpentNotice(kind: PinRevealNoticeKind) {
   return kind === "venues"
     ? VENUE_DATA_RETRY_SPENT_NOTICE
     : PIN_PAINT_RETRY_SPENT_NOTICE;
+}
+
+/**
+ * What the toast says while a dispatched pin Retry is still working. Same
+ * reason the spent notice differs from the first ask: the sentence that raised
+ * the Retry, left unchanged under the tap, reads as a button that did nothing.
+ */
+export function pinRetryPendingNotice(kind: PinRevealNoticeKind) {
+  return kind === "venues"
+    ? VENUE_DATA_RETRY_PENDING_NOTICE
+    : PIN_PAINT_RETRY_PENDING_NOTICE;
 }
 
 type PinRevealCoordinatorOptions = {

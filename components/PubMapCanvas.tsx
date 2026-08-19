@@ -103,7 +103,9 @@ import {
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
   BASEMAP_RETRY_NOTICE,
+  PIN_PAINT_RETRY_NOTICE,
   createPinRevealCoordinator,
+  pinRetryPendingNotice,
   pinRetrySpentNotice,
   revealTimeoutNotice,
   venueDataFailureNotice,
@@ -633,10 +635,17 @@ export default function PubMapCanvas({
   // that watches for recovery.
   const armPinNoticeRef = useRef<(() => void) | null>(null);
   const venueRetrySpentRef = useRef(false);
-  // A venue index that REFUSED raises its own notice. It cannot wait for the
+  // The ask resets with the failure it describes: a later refusal, on this city
+  // or the next, is that read's FIRST ask and may not be worded as a second.
+  useEffect(() => {
+    if (venueDataReady && !venueDataFailed) venueRetrySpentRef.current = false;
+  }, [venueDataReady, venueDataFailed]);
+  // A venue index that REFUSED owes its own notice. It cannot wait for the
   // readiness ceiling, because a refused read still settles the source, so the
   // reveal happens on time over an empty `pubs` layer and no ceiling ever
-  // fires - which is how a failed pub list became a silent empty map.
+  // fires - which is how a failed pub list became a silent empty map. This is a
+  // DERIVATION rather than an edge, so a basemap notice that outranks it and
+  // then retires hands the surface back rather than taking the message with it.
   useEffect(() => {
     if (!venueDataFailed) return;
     let cancelled = false;
@@ -653,7 +662,7 @@ export default function PubMapCanvas({
     return () => {
       cancelled = true;
     };
-  }, [venueDataFailed]);
+  }, [venueDataFailed, softRetry]);
   // The full fallback card replaces this canvas, toast included, so a surface
   // that budgets one toast must not keep hiding its own notice behind a toast
   // nobody can see.
@@ -1358,6 +1367,17 @@ export default function PubMapCanvas({
       if (pinRetryWaitTimer !== undefined) clearTimeout(pinRetryWaitTimer);
       pinRetryWaitTimer = undefined;
     };
+    // What the pin lanes are owed RIGHT NOW, from the live signals rather than
+    // from whichever lane last wrote the toast. Every retire goes through this,
+    // so a basemap notice that outranked a still-true pub-data failure hands
+    // the surface back to it instead of blanking the only message on screen.
+    const pinLaneNotice = () => {
+      if (venueDataFailedRef.current) {
+        return venueDataFailureNotice(venueRetrySpentRef.current);
+      }
+      if (pinNoticeActive && !hasPinsPaintable()) return PIN_PAINT_RETRY_NOTICE;
+      return null;
+    };
     const markPinsRecovered = () => {
       // A venue index that REFUSED still settles `venueDataReady`, because a
       // failed read owes the honest empty state rather than a stuck skeleton.
@@ -1369,6 +1389,11 @@ export default function PubMapCanvas({
       clearPinRetryWait();
       setSoftRetry((current) =>
         current?.kind === "pins" || current?.kind === "venues" ? null : current,
+      );
+    };
+    const retireTilesNotice = () => {
+      setSoftRetry((current) =>
+        current?.kind === "tiles" ? pinLaneNotice() : current,
       );
     };
     armPinNoticeRef.current = () => {
@@ -1385,6 +1410,9 @@ export default function PubMapCanvas({
       if (mapRef.current !== map) return;
       clearPinRetryWait();
       pinNoticeActive = true;
+      // The tap changes the sentence: leaving the notice that raised the Retry
+      // unchanged under the wait reads as a button that did nothing.
+      setSoftRetry(pinRetryPendingNotice(kind));
       if (kind === "venues") {
         venueRetrySpentRef.current = true;
         onReloadVenueDataRef.current?.();
@@ -1422,7 +1450,7 @@ export default function PubMapCanvas({
       // remain truthful until Retry reconstructs the map.
       if (tileNoticeOwner !== "timeout") return;
       tileNoticeOwner = "none";
-      setSoftRetry((current) => current?.kind === "tiles" ? null : current);
+      retireTilesNotice();
     };
     map.on("render", markBasemapRecovered);
     map.on("idle", markBasemapRecovered);
@@ -1488,7 +1516,7 @@ export default function PubMapCanvas({
       onPaintAfterTimeout: () => {
         if (tileNoticeOwner !== "timeout") return;
         tileNoticeOwner = "none";
-        setSoftRetry((current) => current?.kind === "tiles" ? null : current);
+        retireTilesNotice();
       },
       onReveal: (reason, generation) => {
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {

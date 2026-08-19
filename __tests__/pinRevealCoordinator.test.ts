@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 import {
   BASEMAP_RETRY_NOTICE,
   PIN_PAINT_RETRY_NOTICE,
+  PIN_PAINT_RETRY_PENDING_NOTICE,
   PIN_PAINT_RETRY_SPENT_NOTICE,
   VENUE_DATA_RETRY_NOTICE,
+  VENUE_DATA_RETRY_PENDING_NOTICE,
   VENUE_DATA_RETRY_SPENT_NOTICE,
   createPinRevealCoordinator,
+  pinRetryPendingNotice,
   pinRetrySpentNotice,
   revealTimeoutNotice,
   venueDataFailureNotice,
@@ -180,6 +183,27 @@ describe("pin reveal coordinator", () => {
     ).toEqual(BASEMAP_RETRY_NOTICE);
   });
 
+  it("changes the sentence while a dispatched Retry is still working", () => {
+    expect(pinRetryPendingNotice("pins")).toEqual(PIN_PAINT_RETRY_PENDING_NOTICE);
+    expect(pinRetryPendingNotice("venues")).toEqual(
+      VENUE_DATA_RETRY_PENDING_NOTICE,
+    );
+    // Same lane, so one recovery still clears whichever is showing.
+    expect(pinRetryPendingNotice("pins").kind).toBe(PIN_PAINT_RETRY_NOTICE.kind);
+    expect(pinRetryPendingNotice("venues").kind).toBe(
+      VENUE_DATA_RETRY_NOTICE.kind,
+    );
+    // The tap must not leave the sentence that raised it on screen unchanged.
+    for (const kind of ["pins", "venues"] as const) {
+      const pending = pinRetryPendingNotice(kind).message;
+      expect(pending).not.toBe(pinRetrySpentNotice(kind).message);
+      expect(pending).not.toBe(VENUE_DATA_RETRY_NOTICE.message);
+      expect(pending).not.toBe(PIN_PAINT_RETRY_NOTICE.message);
+      // In flight is not a failure and offers no verdict.
+      expect(pending).not.toMatch(/Retry/);
+    }
+  });
+
   it("says a refused venue index differently once a Retry has been spent", () => {
     expect(venueDataFailureNotice(false)).toEqual(VENUE_DATA_RETRY_NOTICE);
     expect(venueDataFailureNotice(true)).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
@@ -200,6 +224,8 @@ describe("pin reveal coordinator", () => {
       BASEMAP_RETRY_NOTICE.message,
       PIN_PAINT_RETRY_NOTICE.message,
       VENUE_DATA_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_PENDING_NOTICE.message,
+      VENUE_DATA_RETRY_PENDING_NOTICE.message,
       PIN_PAINT_RETRY_SPENT_NOTICE.message,
       VENUE_DATA_RETRY_SPENT_NOTICE.message,
     ];
