@@ -32,9 +32,10 @@
 // price, and the sourced baseline still renders); a durable WRITE failure
 // answers 503 per the house rule, so the client knows the tap didn't land.
 //
-// PROVENANCE: this route writes only community observations. It never edits the
-// venue dataset, the scraped price CSV, or visit_reports - the scraped baseline
-// survives every submission and keeps its own dated badge.
+// PROVENANCE: this route writes community observations and, on a priced pint
+// submission, the paired visit_reports row through lib/oneTapPintDrop.server.ts.
+// It never edits the venue dataset or the scraped price CSV - the scraped
+// baseline survives every submission and keeps its own dated badge.
 // Reads and reader reports remain keyless. New contributions require configured
 // authentication plus a completed account profile.
 
@@ -59,6 +60,11 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import {
+  revertOneTapCommunityPricePairing,
+  writeOneTapPintDrop,
+} from "@/lib/oneTapPintDrop.server";
+import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import {
@@ -104,12 +110,11 @@ async function communityWriteIsLimited(
 }
 
 export async function POST(request: Request): Promise<Response> {
-  let body: Record<string, unknown>;
-  try {
-    body = (await request.json()) as Record<string, unknown>;
-  } catch {
+  const parsedBody = await parsePriceSubmitPostBody(request);
+  if (!parsedBody) {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
+  const { fields: body, photos: pintDropPhotos } = parsedBody;
 
   // Reader flag on an existing observation. Returns before every submission
   // concern below (venue lookup, submission rate limits): a report is not a
@@ -225,6 +230,26 @@ export async function POST(request: Request): Promise<Response> {
   if (failed || !price) {
     return publicApiError("Could not log that price right now.", "UNAVAILABLE", 503, { retryable: true });
   }
+
+  const pintDrop = await writeOneTapPintDrop(
+    {
+      venueId: submission.venueId,
+      handle: contributor.handle,
+      drinkCategory: submission.drinkCategory,
+      priceGbp: submission.priceGbp,
+    },
+    pintDropPhotos,
+  );
+  if (!pintDrop.ok) {
+    const reverted = await revertOneTapCommunityPricePairing(price.id);
+    if (reverted) {
+      if (pintDrop.kind === "invalid_photo") {
+        return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
+      }
+      return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
+    }
+  }
+
   await syncTrustAfterPriceWrite(submission.venueId, price.drinkCategory);
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap

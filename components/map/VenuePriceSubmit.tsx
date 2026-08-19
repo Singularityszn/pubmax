@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Check, Tag } from "lucide-react";
+import { Check, Camera, Tag } from "lucide-react";
 
 import {
   communityReachNote,
@@ -35,6 +35,9 @@ import {
   type MissionReceipt,
   type PriceEvidenceMissionReason,
 } from "@/lib/priceEvidenceMissions";
+
+const PINT_PHOTO_ACCEPT = "image/jpeg,image/png,image/webp";
+const PINT_PHOTO_MAX_BYTES = 5 * 1024 * 1024;
 
 export type VenuePriceSubmitMission = {
   reason: PriceEvidenceMissionReason;
@@ -156,6 +159,8 @@ export default function VenuePriceSubmit({
   );
   const [price, setPrice] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pintPhoto, setPintPhoto] = useState<File | null>(null);
+  const pintPhotoInputRef = useRef<HTMLInputElement>(null);
 
   function enterPrice(next: string) {
     setPrice(next);
@@ -234,6 +239,27 @@ export default function VenuePriceSubmit({
     price.trim() !== "" && !priceValidation.ok ? priceValidation.error : null;
   const visibleError = error ?? validationError;
 
+  function clearPintPhoto() {
+    setPintPhoto(null);
+    if (pintPhotoInputRef.current) pintPhotoInputRef.current.value = "";
+  }
+
+  function onPintPhotoChosen(file: File | undefined) {
+    if (!file) return;
+    if (!["image/jpeg", "image/png", "image/webp"].includes(file.type)) {
+      setError("Photos must be JPEG, PNG, or WebP.");
+      clearPintPhoto();
+      return;
+    }
+    if (file.size > PINT_PHOTO_MAX_BYTES) {
+      setError("Each photo must be under 5MB.");
+      clearPintPhoto();
+      return;
+    }
+    setError(null);
+    setPintPhoto(file);
+  }
+
   // What this tap actually did to the map, asked of the same predicates the map
   // itself obeys - `paintsMap` for the price, `marksMapProvisionally` for the
   // badge - so the receipt can never claim a reach the pin does not have.
@@ -257,6 +283,7 @@ export default function VenuePriceSubmit({
         venueId,
         drinkCategory: category,
         priceGbp: price,
+        pintPhoto,
       }, auth);
       if (!result.ok) {
         trackEvent("price_submit_failed", { category, reason: result.reason });
@@ -290,6 +317,7 @@ export default function VenuePriceSubmit({
       });
       setPrice("");
       setHeldCategory(null);
+      clearPintPhoto();
     });
   }
 
@@ -402,6 +430,38 @@ export default function VenuePriceSubmit({
           ))}
         </div>
       )}
+
+      <div className="vpsubPhotoRow">
+        <input
+          ref={pintPhotoInputRef}
+          className="vpsubPhotoInput"
+          type="file"
+          accept={PINT_PHOTO_ACCEPT}
+          aria-label={`Optional pint photo for ${venueName}`}
+          onChange={(event) => {
+            onPintPhotoChosen(event.target.files?.[0]);
+          }}
+        />
+        <button
+          type="button"
+          className="vpsubPhotoBtn"
+          onClick={() => pintPhotoInputRef.current?.click()}
+          disabled={submitting || missionPending}
+        >
+          <Camera size={15} aria-hidden="true" />
+          {pintPhoto ? "Change photo" : "Add photo (optional)"}
+        </button>
+        {pintPhoto ? (
+          <button
+            type="button"
+            className="vpsubPhotoClear"
+            onClick={clearPintPhoto}
+            disabled={submitting || missionPending}
+          >
+            Remove photo
+          </button>
+        ) : null}
+      </div>
 
       {visibleError ? (
         <p id="vpsubError" className="vpsubError" role="alert">
