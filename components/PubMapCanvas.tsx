@@ -106,6 +106,7 @@ import {
   createPinRevealCoordinator,
   pinRetrySpentNotice,
   revealTimeoutNotice,
+  venueDataFailureNotice,
   type BasemapNoticeOwner,
   type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
@@ -627,19 +628,27 @@ export default function PubMapCanvas({
   useEffect(() => {
     venueDataFailedRef.current = venueDataFailed;
   }, [venueDataFailed]);
-  // The venue lane's answer is the owner's settled outcome, never a timer: the
-  // read that raised the notice is the slow one, so a wall clock would call a
-  // download still in flight a failure and a refusal a recovery.
+  // Arms the mount effect's pin-notice ownership from outside it, so a notice
+  // raised by the owner's read can still be cleared by the render/idle pair
+  // that watches for recovery.
+  const armPinNoticeRef = useRef<(() => void) | null>(null);
+  const venueRetrySpentRef = useRef(false);
+  // A venue index that REFUSED raises its own notice. It cannot wait for the
+  // readiness ceiling, because a refused read still settles the source, so the
+  // reveal happens on time over an empty `pubs` layer and no ceiling ever
+  // fires - which is how a failed pub list became a silent empty map.
   useEffect(() => {
     if (!venueDataFailed) return;
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      setSoftRetry((current) =>
-        current?.kind === "venues" || current?.kind === "pins"
-          ? pinRetrySpentNotice("venues")
-          : current,
-      );
+      armPinNoticeRef.current?.();
+      setSoftRetry((current) => {
+        if (current && current.kind !== "venues" && current.kind !== "pins") {
+          return current;
+        }
+        return venueDataFailureNotice(venueRetrySpentRef.current);
+      });
     });
     return () => {
       cancelled = true;
@@ -1362,22 +1371,24 @@ export default function PubMapCanvas({
         current?.kind === "pins" || current?.kind === "venues" ? null : current,
       );
     };
+    armPinNoticeRef.current = () => {
+      pinNoticeActive = true;
+    };
     // The pin Retry spends the lane its notice named. An unsettled `pubs`
     // source is ours to re-push; a venue index that never arrived is the
     // owner's to fetch, and pushing the empty collection we already hold at it
-    // would clear the only message the reader had and change nothing.
+    // would clear the only message the reader had and change nothing. BOTH
+    // lanes arm the same bounded wait and BOTH report back into the notice
+    // they were dispatched from, which is why the button never clears it: a
+    // Retry that ends in silence is the defect this lane exists to refuse.
     pinRetryRef.current = (kind) => {
       if (mapRef.current !== map) return;
       clearPinRetryWait();
       pinNoticeActive = true;
       if (kind === "venues") {
-        // The refetch reports its own outcome (`venueDataFailed`), so this
-        // lane waits on that answer rather than a wall clock that would call a
-        // download still in flight a failure.
+        venueRetrySpentRef.current = true;
         onReloadVenueDataRef.current?.();
-        return;
-      }
-      if (styleStructureReadyRef.current) {
+      } else if (styleStructureReadyRef.current) {
         (
           map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
         )?.setData(pubsDataRef.current);
@@ -1386,11 +1397,15 @@ export default function PubMapCanvas({
       pinRetryWaitTimer = setTimeout(() => {
         pinRetryWaitTimer = undefined;
         if (mapRef.current !== map || !pinNoticeActive) return;
-        if (hasPinsPaintable()) {
+        if (!venueDataFailedRef.current && hasPinsPaintable()) {
           markPinsRecovered();
           return;
         }
-        setSoftRetry(pinRetrySpentNotice(kind));
+        setSoftRetry(
+          venueDataFailedRef.current
+            ? venueDataFailureNotice(true)
+            : pinRetrySpentNotice(kind),
+        );
       }, PIN_RETRY_WAIT_MS);
     };
     const markBasemapRecovered = () => {
@@ -1478,7 +1493,11 @@ export default function PubMapCanvas({
       onReveal: (reason, generation) => {
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {
           basemapPainted: basemapTileReadyForPaint,
-          venueDataReady: venueDataReadyRef.current,
+          venueData: venueDataFailedRef.current
+            ? "failed"
+            : venueDataReadyRef.current
+              ? "ready"
+              : "pending",
           pinsPaintable: hasPinsPaintable(),
         });
         if (timeoutNotice) {
@@ -2533,6 +2552,7 @@ export default function PubMapCanvas({
       clearTileFailureRecheck();
       clearPinRetryWait();
       pinRetryRef.current = null;
+      armPinNoticeRef.current = null;
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
       map.off("sourcedata", onBasemapTileLoaded);
@@ -3347,14 +3367,16 @@ export default function PubMapCanvas({
             type="button"
             className="mapSoftRetryBtn"
             onClick={() => {
-              setSoftRetry(null);
               if (softRetry.kind === "pins" || softRetry.kind === "venues") {
                 // The background drew; only the pubs are missing. A full
                 // re-init would throw away a healthy basemap, so spend the lane
-                // the notice named and report back either way.
+                // the notice named and let ITS outcome write over this notice.
+                // Clearing here first is what left a failed refetch with no
+                // message to replace.
                 pinRetryRef.current?.(softRetry.kind);
                 return;
               }
+              setSoftRetry(null);
               setMapError(null);
               setDetailOpen(false);
               publishMapErrored(false);

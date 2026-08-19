@@ -36,6 +36,19 @@ export type PinRevealNoticeKind =
   | typeof VENUE_DATA_RETRY_NOTICE.kind;
 
 /**
+ * What the owner's venue-index read has answered. THREE-WAY on purpose: the
+ * read settles either way, because a refusal still owes the honest empty state
+ * rather than a stuck skeleton, so a single "ready" flag answers true for a
+ * list that arrived AND for one that never will.
+ */
+export type VenueDataOutcome = "pending" | "ready" | "failed";
+
+/** The notice a venue-index read owes the reader once it has REFUSED. */
+export function venueDataFailureNotice(retrySpent: boolean) {
+  return retrySpent ? VENUE_DATA_RETRY_SPENT_NOTICE : VENUE_DATA_RETRY_NOTICE;
+}
+
+/**
  * The notice a readiness-ceiling reveal owes the reader, named after the signal
  * that actually missed. Blaming the background for a basemap that painted sends
  * the reader at a Retry that tears down a map already drawing, so a ceiling over
@@ -52,13 +65,13 @@ export function revealTimeoutNotice(
   currentOwner: BasemapNoticeOwner,
   signals: {
     basemapPainted: boolean;
-    venueDataReady: boolean;
+    venueData: VenueDataOutcome;
     pinsPaintable: boolean;
   },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
-  if (!signals.venueDataReady) return VENUE_DATA_RETRY_NOTICE;
+  if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
   if (!signals.pinsPaintable) return PIN_PAINT_RETRY_NOTICE;
   return null;
 }

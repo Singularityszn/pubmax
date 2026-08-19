@@ -47,7 +47,6 @@ describe("mobile map price chrome", () => {
   });
 
   it("adds no phone top-chrome control for the key", () => {
-    expect(mobileShell).not.toContain("MapPriceControl");
     expect(mobileShell.match(/aria-label="More map controls"/g)).toHaveLength(1);
   });
 

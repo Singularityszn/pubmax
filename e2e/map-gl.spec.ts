@@ -356,10 +356,14 @@ test("/map keeps its pins and names the basemap when tiles miss the phone readin
   });
   let holdTiles = true;
   await page.route(/\.pbf(?:\?|$)/, async (route) => {
-    // Hold every vector tile beyond the coordinator's 12s readiness ceiling.
-    // Browser contexts are fresh and service workers are blocked for this
-    // project, so the timeout path cannot be defeated by cache timing.
-    if (holdTiles) await new Promise((resolve) => setTimeout(resolve, 15_000));
+    // Hold every vector tile until THIS SPEC releases it, not for a fixed
+    // window: once tiles land, `markBasemapRecovered` retires the timeout-owned
+    // notice, so a wall-clock hold would race its own assertions off the
+    // screen. Browser contexts are fresh and service workers are blocked for
+    // this project, so the timeout path cannot be defeated by cache timing.
+    while (holdTiles) {
+      await new Promise((resolve) => setTimeout(resolve, 250));
+    }
     await route.continue();
   });
 
@@ -659,24 +663,24 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
   await expect(notice).toBeVisible();
 });
 
-// Acceptance criterion 2, half two: the honest error card. `surfaceBasemapFailure`
-// prefers the soft toast once a frame has landed and falls back to the full card
-// only when NOTHING ever drew, so this is the scenario that reaches it - both
-// basemap styles refused from the first request, which means MapLibre never
-// loads a style, never renders a frame, and the bounded style protection spends
-// its primary window and its fallback window before reporting. The card is the
-// `kind: "tiles"` one, not the first-frame watchdog's `no-frame`, and it keeps
-// the venue content the map was carrying.
-test("/map surfaces the honest tile card when no basemap style ever loads", async ({
+// Acceptance criterion 2, half two: ONE bounded style reload, THEN the honest
+// error card. Both basemap style URLs are refused, so nothing ever draws: the
+// primary style is requested, the bounded protection spends its single reload
+// onto the fallback style, that refuses too, and only then does
+// `surfaceBasemapFailure` report the `kind: "tiles"` card. Never a third style
+// request, and never an unmounted canvas on a map that IS drawing - which is
+// why `surfaceBasemapFailure` still prefers the soft toast once a frame has
+// landed (the spec above it holds that half).
+test("/map spends its one bounded style reload, then surfaces the honest tile card", async ({
   page,
 }) => {
   test.setTimeout(75_000);
   await page.setViewportSize({ width: 390, height: 844 });
-  let styleRequests = 0;
+  const styleRequests: string[] = [];
   await page.route(
     /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
     async (route) => {
-      styleRequests += 1;
+      styleRequests.push(route.request().url());
       await route.abort("failed");
     },
   );
@@ -686,6 +690,12 @@ test("/map surfaces the honest tile card when no basemap style ever loads", asyn
   await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
     timeout: 20_000,
   });
+
+  // The reload is spent BEFORE anything is claimed: primary, then exactly one
+  // fallback, and the two are different styles rather than the same one twice.
+  await expect.poll(() => styleRequests.length, { timeout: 40_000 }).toBe(2);
+  expect(styleRequests[0]).not.toBe(styleRequests[1]);
+  await expect(page.locator(".mapFallback")).toHaveCount(0);
 
   const fallback = page.locator(".mapFallback");
   await expect(fallback).toBeVisible({ timeout: 40_000 });
@@ -704,8 +714,9 @@ test("/map surfaces the honest tile card when no basemap style ever loads", asyn
   await expect
     .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
     .toBeGreaterThan(0);
-  // Primary then fallback, and no third style: the protection is bounded too.
-  expect(styleRequests).toBeGreaterThanOrEqual(2);
+  // No second retry loop: the spent reload stays spent while the source keeps
+  // refusing, and one surface owns the failure.
+  expect(styleRequests).toHaveLength(2);
   await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 });
 
