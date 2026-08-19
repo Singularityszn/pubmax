@@ -136,9 +136,11 @@ than a timeout.
 ## Retry usability
 
 At 390 by 844, a deterministic 15-second vector-tile delay reaches the honest
-no-frame fallback, keeps it clear of phone navigation, and gives Retry a 44px
-target. Removing the delay and tapping Retry reconstructs the map and reaches a
-real tile reveal.
+soft retry toast, which names the basemap because the basemap is what never
+painted, and keeps it clear of phone navigation. Removing the delay and tapping
+Retry reconstructs the map and reaches a real tile reveal. Superseded
+2026-08-19: this measurement was taken while that ceiling still unmounted the
+canvas into the no-frame card.
 
 ## Screenshots
 

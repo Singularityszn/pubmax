@@ -75,8 +75,8 @@
   position: absolute;
   right: 0;
   bottom: calc(100% + 10px);
-  width: min(292px, calc(100vw - 24px));
-  max-height: min(52vh, 420px);
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(62vh, 520px);
   overflow-y: auto;
   /* U6d — extra bottom padding so the last chip row never sits clipped
      against the panel's rounded bottom edge while scrolling. */
@@ -131,6 +131,118 @@
   color: var(--muted);
   font-size: 0.75rem;
   line-height: 1.35;
+}
+
+.mapLayersReader {
+  display: grid;
+  gap: 10px;
+  margin: 0 0 12px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid color-mix(in srgb, var(--line) 78%, transparent);
+}
+
+.mapLayersReaderAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  width: 100%;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--panel-raised);
+  color: var(--ink);
+  font-size: 0.78rem;
+  font-weight: 750;
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--ink-deep) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--brass) 16%, transparent);
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+
+.mapLayersReaderAction:active {
+  transform: scale(0.97);
+}
+
+.mapLayersReaderAction.isOn {
+  box-shadow:
+    0 8px 18px color-mix(in srgb, var(--ink-deep) 12%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--brass) 42%, transparent);
+}
+
+.mapLayersReaderCount {
+  margin-left: auto;
+  color: var(--ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.mapLayersReaderKey {
+  min-width: 0;
+}
+
+.mapLayersPriceBlock {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+}
+
+.mapLayersPriceOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.mapLayersPriceChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 5px 10px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--pint) 28%);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 80%, var(--panel-raised));
+  color: var(--ink-soft);
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    background var(--duration-base) var(--ease-out),
+    border-color var(--duration-base) var(--ease-out),
+    color var(--duration-base) var(--ease-out),
+    transform var(--duration-fast) var(--ease-out);
+}
+
+.mapLayersPriceChip:active {
+  transform: scale(0.97);
+  --shared-press-scale: 1;
+}
+
+.mapLayersPriceChip.isOn {
+  border-color: var(--pint);
+  background: color-mix(in srgb, var(--pint) 16%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.mapLayersPriceDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.mapLayersPriceDot.green {
+  background: var(--pint);
+}
+
+.mapLayersPriceDot.amber {
+  background: var(--amber);
+}
+
+.mapLayersPriceDot.any {
+  background: color-mix(in srgb, var(--muted) 55%, transparent);
 }
 
 .mapLayersGroup,
@@ -224,6 +336,8 @@
 @media (prefers-reduced-motion: reduce) {
   .mapLayersFab,
   .mapLayersChip,
+  .mapLayersReaderAction,
+  .mapLayersPriceChip,
   .mapLayersPanel {
     transition: none;
     animation: none;

@@ -130,7 +130,6 @@ for (const viewport of VIEWPORTS) {
         ".mapStage > .cityStatusBanner",
         ".mapStage > .mapConciergeAsk",
         ".mapStage > .tonightLane",
-        ".mapStage > .mapPriceControl",
         ".mapStage > .mapLayersControl",
       ]) {
         await expect(page.locator(selector)).toHaveCount(0);

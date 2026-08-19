@@ -1,9 +1,21 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  basemapRetryForReveal,
+  BASEMAP_RETRY_NOTICE,
+  PIN_PAINT_RETRY_NOTICE,
+  PIN_PAINT_RETRY_PENDING_NOTICE,
+  PIN_PAINT_RETRY_SPENT_NOTICE,
+  VENUE_DATA_RETRY_NOTICE,
+  VENUE_DATA_RETRY_PENDING_NOTICE,
+  VENUE_DATA_RETRY_SPENT_NOTICE,
   createPinRevealCoordinator,
-  isPhonePinRevealFailure,
+  pinRetryPendingNotice,
+  pinRetrySpentNotice,
+  revealTimeoutNotice,
+  venueDataFailureNotice,
+  venueRetryMayDispatch,
+  venueRetrySettleNotice,
+  venueRetrySpentAfterRead,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
 
@@ -58,9 +70,12 @@ function harness({
       timeoutRecoveries.push(generation);
     },
     onReveal: (reason, generation) => {
-      if (basemapRetryForReveal(reason, noticeOwner)) {
-        noticeOwner = "timeout";
-      }
+      const notice = revealTimeoutNotice(reason, noticeOwner, {
+        basemapPainted,
+        venueData: pinsPaintable ? "ready" : "pending",
+        pinsPaintable,
+      });
+      if (notice?.kind === "tiles") noticeOwner = "timeout";
       reveals.push({ reason, generation });
     },
   });
@@ -98,20 +113,164 @@ function harness({
 }
 
 describe("pin reveal coordinator", () => {
-  it("treats every phone readiness ceiling as a failed visible handoff", () => {
-    expect(isPhonePinRevealFailure(true, "timeout")).toBe(true);
-    expect(isPhonePinRevealFailure(true, "tiles")).toBe(false);
-    expect(isPhonePinRevealFailure(false, "timeout")).toBe(false);
+  it("names the signal that missed, and says nothing when none did", () => {
+    const nothingReady = {
+      basemapPainted: false,
+      venueData: "pending" as const,
+      pinsPaintable: false,
+    };
+    const basemapOnly = {
+      basemapPainted: true,
+      venueData: "pending" as const,
+      pinsPaintable: false,
+    };
+    const venuesButNoSource = {
+      basemapPainted: true,
+      venueData: "ready" as const,
+      pinsPaintable: false,
+    };
+    const allReady = {
+      basemapPainted: true,
+      venueData: "ready" as const,
+      pinsPaintable: true,
+    };
+
+    // A painted reveal owes no notice at all.
+    expect(revealTimeoutNotice("tiles", "none", nothingReady)).toBeNull();
+    expect(revealTimeoutNotice("idle", "none", nothingReady)).toBeNull();
+
+    expect(revealTimeoutNotice("timeout", "none", nothingReady)).toEqual(
+      BASEMAP_RETRY_NOTICE,
+    );
+    // The venue index is the owner's, and no redraw produces one, so it gets
+    // its own lane rather than promising a repaint that cannot help.
+    expect(revealTimeoutNotice("timeout", "none", basemapOnly)).toEqual(
+      VENUE_DATA_RETRY_NOTICE,
+    );
+    expect(revealTimeoutNotice("timeout", "none", venuesButNoSource)).toEqual(
+      PIN_PAINT_RETRY_NOTICE,
+    );
+    // Everything ready: only the compositor confirmation ran out, and the pins
+    // are on screen. Nothing failed, so nothing is claimed.
+    expect(revealTimeoutNotice("timeout", "none", allReady)).toBeNull();
+
+    // An error-owned notice is truthful until Retry rebuilds the map.
+    expect(revealTimeoutNotice("timeout", "errors", nothingReady)).toBeNull();
+    expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
   });
 
-  it("turns only a basemap timeout into an honest retry notice", () => {
-    expect(basemapRetryForReveal("tiles", "none")).toBeNull();
-    expect(basemapRetryForReveal("idle", "none")).toBeNull();
-    expect(basemapRetryForReveal("timeout", "none")).toEqual({
-      kind: "tiles",
-      message: "Map background couldn't load. Tap Retry to try again.",
-    });
-    expect(basemapRetryForReveal("timeout", "errors")).toBeNull();
+  it("reads a REFUSED venue index as missing, never as ready", () => {
+    // The read settles either way, so a two-state flag answers true for a list
+    // that arrived AND for one that never will. A refusal names the pub list.
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "failed",
+        pinsPaintable: true,
+      }),
+    ).toEqual(VENUE_DATA_RETRY_NOTICE);
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: true,
+        venueData: "failed",
+        pinsPaintable: false,
+      }),
+    ).toEqual(VENUE_DATA_RETRY_NOTICE);
+    // A basemap that never painted still comes first: it is the outer signal.
+    expect(
+      revealTimeoutNotice("timeout", "none", {
+        basemapPainted: false,
+        venueData: "failed",
+        pinsPaintable: true,
+      }),
+    ).toEqual(BASEMAP_RETRY_NOTICE);
+  });
+
+  it("changes the sentence while a dispatched Retry is still working", () => {
+    expect(pinRetryPendingNotice("pins")).toEqual(PIN_PAINT_RETRY_PENDING_NOTICE);
+    expect(pinRetryPendingNotice("venues")).toEqual(
+      VENUE_DATA_RETRY_PENDING_NOTICE,
+    );
+    // Same lane, so one recovery still clears whichever is showing.
+    expect(pinRetryPendingNotice("pins").kind).toBe(PIN_PAINT_RETRY_NOTICE.kind);
+    expect(pinRetryPendingNotice("venues").kind).toBe(
+      VENUE_DATA_RETRY_NOTICE.kind,
+    );
+    // The tap must not leave the sentence that raised it on screen unchanged.
+    for (const kind of ["pins", "venues"] as const) {
+      const pending = pinRetryPendingNotice(kind).message;
+      expect(pending).not.toBe(pinRetrySpentNotice(kind).message);
+      expect(pending).not.toBe(VENUE_DATA_RETRY_NOTICE.message);
+      expect(pending).not.toBe(PIN_PAINT_RETRY_NOTICE.message);
+      // In flight is not a failure and offers no verdict.
+      expect(pending).not.toMatch(/Retry/);
+    }
+  });
+
+  it("lets a venue Retry follow the live read, not a clock", () => {
+    expect(venueRetryMayDispatch(false)).toBe(true);
+    expect(venueRetryMayDispatch(true)).toBe(false);
+    // Dispatch is not a read: spent stays put until the index answers.
+    expect(venueRetrySpentAfterRead(false, "pending")).toBe(false);
+    expect(venueRetrySpentAfterRead(true, "pending")).toBe(true);
+    expect(venueRetrySpentAfterRead(false, "failed")).toBe(true);
+    expect(venueRetrySpentAfterRead(true, "ready")).toBe(false);
+    expect(venueRetrySettleNotice("pending")).toEqual(
+      VENUE_DATA_RETRY_PENDING_NOTICE,
+    );
+    expect(venueRetrySettleNotice("failed")).toEqual(
+      VENUE_DATA_RETRY_SPENT_NOTICE,
+    );
+    expect(venueRetrySettleNotice("ready")).toBeNull();
+  });
+
+  it("says a refused venue index differently once a Retry has been spent", () => {
+    expect(venueDataFailureNotice(false)).toEqual(VENUE_DATA_RETRY_NOTICE);
+    expect(venueDataFailureNotice(true)).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
+    // Same lane either way, so one recovery clears whichever is showing.
+    expect(venueDataFailureNotice(false).kind).toBe(
+      venueDataFailureNotice(true).kind,
+    );
+    // Never a dead end: both keep the way on.
+    expect(venueDataFailureNotice(false).message).toMatch(/Retry/);
+    expect(venueDataFailureNotice(true).message).toMatch(/Retry/);
+  });
+
+  it("gives every ceiling notice its own words and its own lane", () => {
+    expect(BASEMAP_RETRY_NOTICE.kind).toBe("tiles");
+    expect(PIN_PAINT_RETRY_NOTICE.kind).toBe("pins");
+    expect(VENUE_DATA_RETRY_NOTICE.kind).toBe("venues");
+    const messages = [
+      BASEMAP_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_NOTICE.message,
+      VENUE_DATA_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_PENDING_NOTICE.message,
+      VENUE_DATA_RETRY_PENDING_NOTICE.message,
+      PIN_PAINT_RETRY_SPENT_NOTICE.message,
+      VENUE_DATA_RETRY_SPENT_NOTICE.message,
+    ];
+    expect(new Set(messages).size).toBe(messages.length);
+    expect(PIN_PAINT_RETRY_NOTICE.message).not.toMatch(/background/i);
+    expect(VENUE_DATA_RETRY_NOTICE.message).not.toMatch(/background/i);
+  });
+
+  it("keeps a spent pin Retry in its own lane and says it is a second ask", () => {
+    expect(pinRetrySpentNotice("pins")).toEqual(PIN_PAINT_RETRY_SPENT_NOTICE);
+    expect(pinRetrySpentNotice("venues")).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
+    expect(pinRetrySpentNotice("pins").kind).toBe(PIN_PAINT_RETRY_NOTICE.kind);
+    expect(pinRetrySpentNotice("venues").kind).toBe(
+      VENUE_DATA_RETRY_NOTICE.kind,
+    );
+    // A notice that came back word for word reads as a button that did nothing.
+    expect(pinRetrySpentNotice("pins").message).not.toBe(
+      PIN_PAINT_RETRY_NOTICE.message,
+    );
+    expect(pinRetrySpentNotice("venues").message).not.toBe(
+      VENUE_DATA_RETRY_NOTICE.message,
+    );
+    // Still a way on, never a dead end.
+    expect(pinRetrySpentNotice("pins").message).toMatch(/Retry/);
+    expect(pinRetrySpentNotice("venues").message).toMatch(/Retry/);
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {

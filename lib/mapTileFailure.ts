@@ -260,3 +260,65 @@ export function classifyTileFailure(input: TileFailureInput): TileFailureDecisio
   if (!retrySpent && recoveryBudgetLeft > 0) return "retry";
   return "surface";
 }
+
+export type TileFailureSpendState = {
+  retryQueued: boolean;
+  retrySpent: boolean;
+  surfaced: boolean;
+};
+
+export const INITIAL_TILE_FAILURE_SPEND: TileFailureSpendState = {
+  retryQueued: false,
+  retrySpent: false,
+  surfaced: false,
+};
+
+export type TileFailureSpendEffect = "none" | "reload-style" | "surface";
+
+/**
+ * Caller-side spend of `classifyTileFailure`. One style reload, then the
+ * honest surface. Never a second retry loop — even if a later sample still
+ * says retry after the first reload was queued or spent.
+ */
+export function spendTileFailureDecision(
+  state: TileFailureSpendState,
+  decision: TileFailureDecision,
+): { state: TileFailureSpendState; effect: TileFailureSpendEffect } {
+  if (state.surfaced || decision === "ignore") {
+    return { state, effect: "none" };
+  }
+  if (decision === "retry") {
+    if (state.retryQueued || state.retrySpent) {
+      return { state, effect: "none" };
+    }
+    return {
+      state: { ...state, retryQueued: true },
+      effect: "reload-style",
+    };
+  }
+  return { state, effect: "surface" };
+}
+
+export function markTileRetrySpent(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return { ...state, retryQueued: false, retrySpent: true };
+}
+
+export function markTileFailureSurfaced(
+  state: TileFailureSpendState,
+): TileFailureSpendState {
+  return { ...state, surfaced: true };
+}
+
+/**
+ * After the one bounded style reload is spent, which surface the caller
+ * shows. A MapLibre `render` event is not a loaded style: empty frames fire
+ * while both style URLs refuse. Toast is only honest when a style actually
+ * loaded and later lost tiles. Otherwise the tiles card.
+ */
+export function basemapFailureSurface(
+  styleLoaded: boolean,
+): "toast" | "card" {
+  return styleLoaded ? "toast" : "card";
+}

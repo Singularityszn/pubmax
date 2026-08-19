@@ -14,7 +14,6 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/mapPriceControl.css";
 import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
@@ -102,6 +101,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapKey from "@/components/map/MapKey";
+import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
@@ -160,10 +160,6 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
   ssr: false,
 });
-const MapPriceControl = dynamic(
-  () => import("@/components/map/MapPriceControl"),
-  { ssr: false },
-);
 const CitySuggestBanner = dynamic(
   () => import("@/components/map/CitySuggestBanner"),
   { ssr: false },
@@ -271,6 +267,7 @@ import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import MapLoadingFrame from "@/components/map/MapLoadingFrame";
 import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
@@ -765,6 +762,21 @@ export default function PubMap({
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
   const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
+  // Bumped by the canvas's pin Retry when the readiness ceiling named the pub
+  // list. The index load is the owner's, so the way to try again is to re-run
+  // the effect that owns it.
+  const [venueIndexAttempt, setVenueIndexAttempt] = useState(0);
+  // `loaded` settles either way on purpose - a core fetch that REFUSED still
+  // owes the honest empty state rather than a permanent skeleton - so it cannot
+  // answer whether the pub list arrived. This does, and it is the only signal
+  // the pin-ceiling Retry may report an outcome from.
+  const [venueIndexFailed, setVenueIndexFailed] = useState(false);
+  const reloadVenueIndex = useCallback(() => {
+    // The load effect's microtask already sets loaded=false and failed=false
+    // together. Clearing failed here while loaded is still true makes one
+    // frame look like a successful read, which resets spent and drops the toast.
+    setVenueIndexAttempt((attempt) => attempt + 1);
+  }, []);
   // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
@@ -772,12 +784,16 @@ export default function PubMap({
   // Pin-reveal is the loading shell's exit: it fires when painted pubs are
   // tappable, not merely when the basemap or slim rows exist.
   const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
+  // A recovery toast on the canvas owns the surface: the map keeps search plus
+  // ONE toast, so the arrival card stands down while a failure is on screen.
+  const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
   const showMapArrivalCard = useSyncExternalStore(
     subscribeMapFirstVisitArrival,
     () =>
       shouldShowMapFirstVisitArrival({
         pinsRevealed,
         search: arrivalSearch,
+        recoveryToastActive: mapSoftRetryActive,
       }),
     () => false,
   );
@@ -1348,20 +1364,25 @@ export default function PubMap({
       if (cancelled) return;
       setLoaded(false);
       setLoadedCityId(null);
+      setVenueIndexFailed(false);
       setSlimPins([]);
       setCompleteCountSlugs(null);
     });
     loader
       .core()
       .then((slim) => {
-        if (cancelled || slim.length === 0) return;
+        if (cancelled) return;
+        setVenueIndexFailed(false);
+        if (slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
         markPubmaxTiming("pubmax:first-pins");
         markPubmaxTiming("pubmax:slim-venues-ready");
       })
       .catch(() => {
         // Core fetch failed with no offline mirror — render the honest empty
-        // state instead of falling back to the full 6 MB client payload.
+        // state instead of falling back to the full 6 MB client payload. The
+        // refusal is recorded so a pin-ceiling Retry can say so.
+        if (!cancelled) setVenueIndexFailed(true);
       })
       .finally(() => {
         if (!cancelled) {
@@ -1374,7 +1395,7 @@ export default function PubMap({
       cancelled = true;
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
     };
-  }, [cityId, refreshCountCoverage]);
+  }, [cityId, refreshCountCoverage, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -3675,6 +3696,22 @@ export default function PubMap({
   const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
 
   const mobileShellReady = !mapLoadingActive;
+  // Desktop reader controls. Both live inside Layers rather than on the map
+  // surface, which keeps its budget at search plus one toast. The phone reaches
+  // the same two through the More sheet's Key and Prices tabs.
+  const desktopLayersReaderKey = mobileViewport ? undefined : (
+    <MapKey legend={activePriceLegend} />
+  );
+  const desktopLayersPriceFilter =
+    !mobileViewport && experienceLens === "all" && activeLensLabel === null
+      ? (close: () => void) => (
+          <MapPriceFilterChips
+            filters={filters}
+            onFiltersChange={setFilters}
+            onPicked={close}
+          />
+        )
+      : undefined;
   const drinkFiltersActive = Boolean(
     favoritePint ||
       filters.drinkCategory ||
@@ -3709,18 +3746,6 @@ export default function PubMap({
       {!mobileViewport ? (
         <SiteNav
           active="map"
-          mobileMapUtility={
-            <MapPriceControl
-              placement="header"
-              filters={filters}
-              onFiltersChange={setFilters}
-              legend={activePriceLegend}
-              lensLabel={activeLensLabel ?? undefined}
-              priceFiltersEnabled={
-                experienceLens === "all" && activeLensLabel === null
-              }
-            />
-          }
         />
       ) : null}
 
@@ -3739,7 +3764,13 @@ export default function PubMap({
             onChange={setVenueKindVisibility}
           />
         ) : null}
-        {selectionNotice ? (
+        {/* One toast at a time. A soft retry owns the surface outright, so the
+            arrival and national-browse banners stand down with the selection
+            note rather than stacking under it. */}
+        {pickMapSurfaceToast({
+          selectionNotice: selectionNotice !== null,
+          softRetry: mapSoftRetryActive,
+        }) === "soft-retry" ? null : selectionNotice ? (
           <aside
             className="ukPlaceArrival"
             role="status"
@@ -3836,6 +3867,14 @@ export default function PubMap({
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
+          layersReaderKey={desktopLayersReaderKey}
+          layersReaderPriceFilter={desktopLayersPriceFilter}
+          venueDataFailed={venueIndexFailed}
+          onReloadVenueData={reloadVenueIndex}
+          listOpen={mapListOpen}
+          onListOpenChange={setMapListOpen}
+          listCount={mapVenueListModel.total + ukBasePubListModel.total}
+          onSoftRetryChange={setMapSoftRetryActive}
           focusPoint={areaFocus}
           onViewportChange={setMapViewport}
           onUserCameraMove={dismissAmbientBanners}
@@ -3971,21 +4010,6 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop keeps price controls at bottom left. Phones use the existing
-            More sheet, leaving top chrome unchanged. */}
-        {!mobileViewport ? (
-          <MapPriceControl
-            placement="map"
-            filters={filters}
-            onFiltersChange={setFilters}
-            legend={activePriceLegend}
-            lensLabel={activeLensLabel ?? undefined}
-            priceFiltersEnabled={
-              experienceLens === "all" && activeLensLabel === null
-            }
-          />
-        ) : null}
-
         {activePersona ? (
           <PersonaLensCard
             persona={activePersona}

@@ -2,7 +2,7 @@
 
 // First-run map orientation — one band-colour beat after analytics consent.
 // Landing acquisition W3: teach green / amber / dear / grey from the same
-// vocabulary as MapKey / MapPriceControl, then dismiss. Moment/Social and the
+// vocabulary as MapKey, then dismiss. Moment/Social and the
 // multi-step welcome are demoted; curated crawl waits until this is done.
 
 import {

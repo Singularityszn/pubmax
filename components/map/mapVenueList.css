@@ -41,64 +41,6 @@
   }
 }
 
-/* Toggle — the desktop affordance (the mobile rule that hides it lives BELOW
-   this block: both selectors have equal specificity, so the hide must come
-   later in source order to win). */
-.mapVenueListToggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 44px;
-  padding: 0 16px;
-  border: 1px solid color-mix(in srgb, var(--brass) 52%, var(--line));
-  border-radius: 999px;
-  background:
-    linear-gradient(135deg, color-mix(in srgb, var(--brass) 10%, var(--panel-raised)), var(--panel-raised));
-  box-shadow: var(--map-overlay-shadow-tight);
-  color: var(--ink);
-  font-size: 0.82rem;
-  font-weight: 800;
-  letter-spacing: 0.01em;
-  cursor: pointer;
-  touch-action: manipulation;
-  backdrop-filter: blur(12px) saturate(1.08);
-  -webkit-backdrop-filter: blur(12px) saturate(1.08);
-}
-
-.mapVenueListToggle:hover {
-  border-color: color-mix(in srgb, var(--brass) 70%, var(--line));
-}
-
-.mapVenueListToggle:focus-visible {
-  outline: 2px solid var(--brass);
-  outline-offset: 2px;
-}
-
-.mapVenueListToggle svg {
-  color: var(--brass);
-}
-
-/* Mobile owns the List toggle from the Layers sheet. This rule must stay AFTER
-   the base .mapVenueListToggle rule above (equal specificity; source order
-   decides) so the desktop floater does not reappear on phones. */
-@media (max-width: 640px) {
-  .mapVenueListToggle { display: none; }
-}
-
-.mapVenueListToggleCount {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 20px;
-  height: 20px;
-  padding: 0 6px;
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 20%, var(--panel));
-  color: var(--ink);
-  font-size: 0.75rem;
-  font-weight: 850;
-}
-
 /* Panel — the disclosed list. */
 .mapVenueListPanel {
   display: flex;

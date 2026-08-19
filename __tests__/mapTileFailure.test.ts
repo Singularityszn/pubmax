@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  INITIAL_TILE_FAILURE_SPEND,
   TILE_FAILURE_BURST,
   TILE_FAILURE_SUSTAIN_MS,
   TILE_FAILURE_WINDOW_MS,
@@ -7,7 +8,11 @@ import {
   classifyTileFailure,
   createBasemapTileFailureTracker,
   isCriticalBasemapFailure,
+  basemapFailureSurface,
+  markTileFailureSurfaced,
+  markTileRetrySpent,
   pruneTileFailures,
+  spendTileFailureDecision,
   tileFailureRecheckDelay,
   type TileFailureInput,
 } from "@/lib/mapTileFailure";
@@ -380,5 +385,54 @@ describe("tileFailureRecheckDelay", () => {
         NOW,
       ),
     ).toBeNull();
+  });
+});
+
+describe("spendTileFailureDecision", () => {
+  it("spends the one style reload on a real systemic verdict, then surfaces", () => {
+    const first = classifyTileFailure(bursting);
+    expect(first).toBe("retry");
+
+    const queued = spendTileFailureDecision(INITIAL_TILE_FAILURE_SPEND, first);
+    expect(queued.effect).toBe("reload-style");
+    expect(queued.state.retryQueued).toBe(true);
+
+    // A second sample while the reload is in flight must not start another.
+    expect(spendTileFailureDecision(queued.state, "retry").effect).toBe("none");
+
+    const spent = markTileRetrySpent(queued.state);
+    expect(spent.retrySpent).toBe(true);
+    expect(spent.retryQueued).toBe(false);
+
+    const afterReload = classifyTileFailure({ ...bursting, retrySpent: true });
+    expect(afterReload).toBe("surface");
+
+    const surfaced = spendTileFailureDecision(spent, afterReload);
+    expect(surfaced.effect).toBe("surface");
+    expect(spendTileFailureDecision(markTileFailureSurfaced(surfaced.state), "retry").effect).toBe(
+      "none",
+    );
+    expect(
+      spendTileFailureDecision(markTileFailureSurfaced(surfaced.state), "surface").effect,
+    ).toBe("none");
+  });
+
+  it("never invents a second retry after the first reload is spent", () => {
+    const spent = markTileRetrySpent({
+      ...INITIAL_TILE_FAILURE_SPEND,
+      retryQueued: true,
+    });
+    expect(spendTileFailureDecision(spent, "retry").effect).toBe("none");
+    expect(spendTileFailureDecision(spent, "surface").effect).toBe("surface");
+  });
+});
+
+describe("basemapFailureSurface", () => {
+  it("shows the tiles card when no style ever loaded", () => {
+    expect(basemapFailureSurface(false)).toBe("card");
+  });
+
+  it("shows the toast only after a style actually loaded", () => {
+    expect(basemapFailureSurface(true)).toBe("toast");
   });
 });

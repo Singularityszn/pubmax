@@ -156,9 +156,12 @@ This plan is the smallest sequence of taste-led changes that make a stranger sta
 - **Cut Today-tab empty-state work** from this wave.
 
 ### W6 — Measurement (PR2 with W3)
-- Add `landing_cta_clicked` `{ target: "map" | "near" | "plan" }` and `map_legend_dismissed`.
+- Add `landing_cta_clicked` `{ target: "map" | "near" | "plan" }`.
+- Superseded 2026-08-19: `map_legend_dismissed` and the W3 legend one-shot are
+  retired. The price key folded into Layers, which nothing auto-opens, so the
+  event had no emitter and would have read zero for ever.
 - `discovery_viewed` and `tour_complete` already exist.
-- Funnel: land → map open → legend dismiss → pin select / search. No vanity metrics.
+- Funnel: land → map open → pin select / search. No vanity metrics.
 
 ---
 
@@ -172,7 +175,7 @@ PR1 (one landing composition):
 
 PR2 (fast follow):
   W3  Legend one-shot + FirstRunTour collapse + defer curated onboarding
-  W6  landing_cta_clicked + map_legend_dismissed
+  W6  landing_cta_clicked
 
 Defer:
   W4  freshness/footer note unless PR1 trust still feels thin

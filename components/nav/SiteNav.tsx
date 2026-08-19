@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { CirclePlus } from "lucide-react";
-import { useSyncExternalStore, type ReactNode } from "react";
+import { useSyncExternalStore } from "react";
 
 import ThemeToggle from "@/components/ThemeToggle";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -95,10 +95,8 @@ function primaryKeyForLegacyActive(active?: NavKey): NavKey | undefined {
 
 export default function SiteNav({
   active,
-  mobileMapUtility,
 }: {
   active?: NavKey;
-  mobileMapUtility?: ReactNode;
 }): React.JSX.Element {
   const pathname = usePathname() ?? "";
   const primaryActive = primaryKeyForLegacyActive(active);
@@ -150,10 +148,6 @@ export default function SiteNav({
       <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
         <PubmaxxWordmark />
       </Link>
-
-      {isMap && mobileMapUtility ? (
-        <div className="siteNavMapUtility">{mobileMapUtility}</div>
-      ) : null}
 
       {/* Full link list — hidden on mobile (the bottom tab bar covers it). */}
       <ul className="siteNavLinks">
