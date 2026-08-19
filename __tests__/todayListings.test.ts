@@ -1,6 +1,8 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import * as loadOut from "@/lib/out/loadOut";
 import {
+  loadTodayOutAnswer,
   mergeTodayListingRows,
   todayPicksReadStatus,
   whatsOnStatusForTonightListings,
@@ -64,5 +66,25 @@ describe("today listings spine", () => {
       NOW,
     );
     expect(status).toBe("degraded");
+  });
+
+  it("loads Out with the same tonight API day as /tonight", async () => {
+    const buildOut = vi.spyOn(loadOut, "buildOutResponse").mockResolvedValue({
+      status: "ready",
+      events: [],
+      openPlans: [],
+      providers: [],
+      observedAt: NOW_ISO,
+      listingsStatus: "ready",
+    });
+
+    await loadTodayOutAnswer(NOW);
+
+    expect(buildOut).toHaveBeenCalledWith(
+      { city: "london", day: "today" },
+      { now: NOW },
+    );
+
+    buildOut.mockRestore();
   });
 });

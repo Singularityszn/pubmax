@@ -1,6 +1,7 @@
 import "server-only";
 
 import type { PicksListReadStatus } from "@/lib/dayGreeting";
+import { outWindowToApiDay } from "@/lib/outListings";
 import { buildOutResponse } from "@/lib/out/loadOut";
 import {
   mergeTonightListingRows,
@@ -43,7 +44,10 @@ export function todayPicksReadStatus(
 /** Out events for tonight, fail-soft like the /api/out route. */
 export async function loadTodayOutAnswer(now: number): Promise<TonightOutAnswer> {
   try {
-    const body = await buildOutResponse({ city: "london", day: "tonight" }, { now });
+    const body = await buildOutResponse(
+      { city: "london", day: outWindowToApiDay("tonight") },
+      { now },
+    );
     return { body, failed: false, pending: false };
   } catch (err) {
     console.warn(
