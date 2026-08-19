@@ -40,7 +40,6 @@ export const ANALYTICS_EVENTS = {
   concierge_ask: [],
   concierge_result_tap: [],
   tour_complete: ["completed"],
-  map_legend_dismissed: [],
   plan_created: ["count"],
   night_description_submitted: ["area", "daypart"],
   planned_night_status_changed: ["status"],

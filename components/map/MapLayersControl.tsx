@@ -73,8 +73,12 @@ type MapLayersControlProps = {
   onRequestClose?: () => void;
   /** Price key lives here so it does not float over the pins. */
   readerKey?: ReactNode;
-  /** Max pint price cap. Same rule as the key: a reader control, not chrome. */
-  readerPriceFilter?: ReactNode;
+  /**
+   * Max pint price cap. Same rule as the key: a reader control, not chrome.
+   * A render prop, because picking a cap closes this popover the way the
+   * retired corner control closed its own panel.
+   */
+  readerPriceFilter?: (close: () => void) => ReactNode;
   listOpen?: boolean;
   onListOpenChange?: (open: boolean) => void;
   listCount?: number;
@@ -222,7 +226,7 @@ export default function MapLayersControl({
                   {readerKey}
                 </div>
               ) : null}
-              {readerPriceFilter}
+              {readerPriceFilter?.(closePanel)}
             </div>
           ) : null}
 

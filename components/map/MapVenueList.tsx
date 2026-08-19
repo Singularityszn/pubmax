@@ -97,9 +97,13 @@ export default function MapVenueList({
     return () => cancelAnimationFrame(frame);
   }, [firstBaseId, firstCuratedId, open]);
 
+  // Closed, this component owns nothing on screen: the way IN is Layers, so a
+  // named landmark region holding no content would only pad every screen
+  // reader's landmark list on both viewports.
+  if (!open) return null;
+
   return (
-    <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
-      {open ? (
+    <section className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
           <header className="mapVenueListHead">
             <div className="mapVenueListHeadMeta">
@@ -233,7 +237,6 @@ export default function MapVenueList({
             </div>
           )}
         </div>
-      ) : null}
     </section>
   );
 }

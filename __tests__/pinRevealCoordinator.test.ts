@@ -3,7 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   BASEMAP_RETRY_NOTICE,
   PIN_PAINT_RETRY_NOTICE,
+  PIN_PAINT_RETRY_SPENT_NOTICE,
+  VENUE_DATA_RETRY_NOTICE,
+  VENUE_DATA_RETRY_SPENT_NOTICE,
   createPinRevealCoordinator,
+  pinRetrySpentNotice,
   revealTimeoutNotice,
   type BasemapNoticeOwner,
 } from "@/components/map/canvas/pinRevealCoordinator";
@@ -61,6 +65,7 @@ function harness({
     onReveal: (reason, generation) => {
       const notice = revealTimeoutNotice(reason, noticeOwner, {
         basemapPainted,
+        venueDataReady: pinsPaintable,
         pinsPaintable,
       });
       if (notice?.kind === "tiles") noticeOwner = "timeout";
@@ -102,9 +107,26 @@ function harness({
 
 describe("pin reveal coordinator", () => {
   it("names the signal that missed, and says nothing when none did", () => {
-    const nothingReady = { basemapPainted: false, pinsPaintable: false };
-    const basemapOnly = { basemapPainted: true, pinsPaintable: false };
-    const bothReady = { basemapPainted: true, pinsPaintable: true };
+    const nothingReady = {
+      basemapPainted: false,
+      venueDataReady: false,
+      pinsPaintable: false,
+    };
+    const basemapOnly = {
+      basemapPainted: true,
+      venueDataReady: false,
+      pinsPaintable: false,
+    };
+    const venuesButNoSource = {
+      basemapPainted: true,
+      venueDataReady: true,
+      pinsPaintable: false,
+    };
+    const allReady = {
+      basemapPainted: true,
+      venueDataReady: true,
+      pinsPaintable: true,
+    };
 
     // A painted reveal owes no notice at all.
     expect(revealTimeoutNotice("tiles", "none", nothingReady)).toBeNull();
@@ -113,25 +135,56 @@ describe("pin reveal coordinator", () => {
     expect(revealTimeoutNotice("timeout", "none", nothingReady)).toEqual(
       BASEMAP_RETRY_NOTICE,
     );
+    // The venue index is the owner's, and no redraw produces one, so it gets
+    // its own lane rather than promising a repaint that cannot help.
     expect(revealTimeoutNotice("timeout", "none", basemapOnly)).toEqual(
+      VENUE_DATA_RETRY_NOTICE,
+    );
+    expect(revealTimeoutNotice("timeout", "none", venuesButNoSource)).toEqual(
       PIN_PAINT_RETRY_NOTICE,
     );
-    // Both sources ready: only the compositor confirmation ran out, and the
-    // pins are on screen. Nothing failed, so nothing is claimed.
-    expect(revealTimeoutNotice("timeout", "none", bothReady)).toBeNull();
+    // Everything ready: only the compositor confirmation ran out, and the pins
+    // are on screen. Nothing failed, so nothing is claimed.
+    expect(revealTimeoutNotice("timeout", "none", allReady)).toBeNull();
 
     // An error-owned notice is truthful until Retry rebuilds the map.
     expect(revealTimeoutNotice("timeout", "errors", nothingReady)).toBeNull();
     expect(revealTimeoutNotice("timeout", "errors", basemapOnly)).toBeNull();
   });
 
-  it("gives the two ceiling notices different words and different lanes", () => {
+  it("gives every ceiling notice its own words and its own lane", () => {
     expect(BASEMAP_RETRY_NOTICE.kind).toBe("tiles");
     expect(PIN_PAINT_RETRY_NOTICE.kind).toBe("pins");
-    expect(PIN_PAINT_RETRY_NOTICE.message).not.toBe(
+    expect(VENUE_DATA_RETRY_NOTICE.kind).toBe("venues");
+    const messages = [
       BASEMAP_RETRY_NOTICE.message,
-    );
+      PIN_PAINT_RETRY_NOTICE.message,
+      VENUE_DATA_RETRY_NOTICE.message,
+      PIN_PAINT_RETRY_SPENT_NOTICE.message,
+      VENUE_DATA_RETRY_SPENT_NOTICE.message,
+    ];
+    expect(new Set(messages).size).toBe(messages.length);
     expect(PIN_PAINT_RETRY_NOTICE.message).not.toMatch(/background/i);
+    expect(VENUE_DATA_RETRY_NOTICE.message).not.toMatch(/background/i);
+  });
+
+  it("keeps a spent pin Retry in its own lane and says it is a second ask", () => {
+    expect(pinRetrySpentNotice("pins")).toEqual(PIN_PAINT_RETRY_SPENT_NOTICE);
+    expect(pinRetrySpentNotice("venues")).toEqual(VENUE_DATA_RETRY_SPENT_NOTICE);
+    expect(pinRetrySpentNotice("pins").kind).toBe(PIN_PAINT_RETRY_NOTICE.kind);
+    expect(pinRetrySpentNotice("venues").kind).toBe(
+      VENUE_DATA_RETRY_NOTICE.kind,
+    );
+    // A notice that came back word for word reads as a button that did nothing.
+    expect(pinRetrySpentNotice("pins").message).not.toBe(
+      PIN_PAINT_RETRY_NOTICE.message,
+    );
+    expect(pinRetrySpentNotice("venues").message).not.toBe(
+      VENUE_DATA_RETRY_NOTICE.message,
+    );
+    // Still a way on, never a dead end.
+    expect(pinRetrySpentNotice("pins").message).toMatch(/Retry/);
+    expect(pinRetrySpentNotice("venues").message).toMatch(/Retry/);
   });
 
   it("keeps pins gated until basemap tiles have painted", () => {

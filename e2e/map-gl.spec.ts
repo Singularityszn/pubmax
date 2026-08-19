@@ -566,14 +566,16 @@ test("/map surfaces Retry when the automatic style reload also fails", async ({
   await expect(page.locator(".mapFallback")).toHaveCount(0);
 });
 
-// Acceptance criterion 2 (v0 map reliability): lib/mapTileFailure.ts owns ONE
-// bounded style reload. This is the caller-level proof — `evaluateTileFailure`
-// in PubMapCanvas issues exactly one style request on a real tile-source
-// failure and then stops, however long the source keeps failing. Because the
-// basemap had already painted, the honest surface it settles on is the soft
-// retry rather than the full card (a silent grey canvas is the defect that
-// preference exists to avoid); the card lane is covered by the dead-frame-loop
-// and TileJSON specs.
+// Acceptance criterion 2 (v0 map reliability), half one: lib/mapTileFailure.ts
+// owns ONE bounded style reload, and this is the caller-level proof that
+// `evaluateTileFailure` in PubMapCanvas issues exactly one style request on a
+// real tile-source failure and then stops, however long the source keeps
+// failing. WHICH surface it settles on is `surfaceBasemapFailure`'s own
+// decision and it turns on one thing: whether anything ever drew. Here the
+// basemap painted first, so replacing a working map with the full card would
+// be the silent-grey defect in reverse - the toast is the honest surface. The
+// card lane of the same function is proven by the spec below it, where the
+// style never loads and no frame ever lands.
 test("/map spends exactly one style reload on a tile-source failure, then surfaces the honest retry", async ({
   page,
 }) => {
@@ -650,6 +652,50 @@ test("/map spends exactly one style reload on a tile-source failure, then surfac
     "a spent retry stays spent while the source keeps failing",
   ).toBe(1);
   await expect(notice).toBeVisible();
+});
+
+// Acceptance criterion 2, half two: the honest error card. `surfaceBasemapFailure`
+// prefers the soft toast once a frame has landed and falls back to the full card
+// only when NOTHING ever drew, so this is the scenario that reaches it - both
+// basemap styles refused from the first request, which means MapLibre never
+// loads a style, never renders a frame, and the bounded style protection spends
+// its primary window and its fallback window before reporting. The card is the
+// `kind: "tiles"` one, not the first-frame watchdog's `no-frame`, and it keeps
+// the venue content the map was carrying.
+test("/map surfaces the honest tile card when no basemap style ever loads", async ({
+  page,
+}) => {
+  test.setTimeout(75_000);
+  await page.setViewportSize({ width: 390, height: 844 });
+  let styleRequests = 0;
+  await page.route(
+    /tiles\.openfreemap\.org\/styles\/|basemaps\.cartocdn\.com\/gl\/.*\/style\.json/,
+    async (route) => {
+      styleRequests += 1;
+      await route.abort("failed");
+    },
+  );
+
+  const response = await page.goto("/map");
+  expect(response?.status()).toBe(200);
+  await expect(page.locator(".maplibreMap canvas").first()).toBeVisible({
+    timeout: 20_000,
+  });
+
+  const fallback = page.locator(".mapFallback");
+  await expect(fallback).toBeVisible({ timeout: 40_000 });
+  await expect(fallback).toContainText("Map tiles unavailable");
+  await expect(fallback).toContainText("The map couldn't load its tiles right now.");
+  // Retryable: a re-init can reach a source that has come back.
+  await expect(page.locator(".mapFallbackRetry")).toBeVisible();
+  // The map going dark never takes the venue content with it.
+  await expect(page.locator(".mapFallbackBrowse")).toBeVisible();
+  await expect
+    .poll(async () => page.locator(".mapFallbackVenue").count(), { timeout: 15_000 })
+    .toBeGreaterThan(0);
+  // Primary then fallback, and no third style: the protection is bounded too.
+  expect(styleRequests).toBeGreaterThanOrEqual(2);
+  await expect(page.locator(".mapSoftRetry")).toHaveCount(0);
 });
 
 test("/map states a TileJSON metadata failure instead of revealing a blank field", async ({

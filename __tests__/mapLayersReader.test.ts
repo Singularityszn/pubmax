@@ -64,10 +64,12 @@ describe("Layers is where the map's reader controls live", () => {
 
   it("carries the max pint price cap with the active option pressed", () => {
     const html = renderLayers({
-      readerPriceFilter: createElement(MapPriceFilterChips, {
-        filters: { ...initialFilters, maxPrice: 5.5 },
-        onFiltersChange: () => undefined,
-      }),
+      readerPriceFilter: (close: () => void) =>
+        createElement(MapPriceFilterChips, {
+          filters: { ...initialFilters, maxPrice: 5.5 },
+          onFiltersChange: () => undefined,
+          onPicked: close,
+        }),
     });
 
     expect(html).toContain("Maximum pint price");

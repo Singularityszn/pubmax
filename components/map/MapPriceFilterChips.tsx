@@ -14,7 +14,7 @@ const PRICE_OPTIONS: { label: string; maxPrice: number; tone: string }[] = [
   { label: "≤ £7", maxPrice: 7, tone: "amber" },
 ];
 
-export function priceCapIsActive(filters: Filters, maxPrice: number): boolean {
+function priceCapIsActive(filters: Filters, maxPrice: number): boolean {
   return maxPrice >= NO_PINT_PRICE_CAP
     ? filters.maxPrice >= NO_PINT_PRICE_CAP
     : Math.abs(filters.maxPrice - maxPrice) < 0.01;
@@ -27,7 +27,7 @@ export default function MapPriceFilterChips({
 }: {
   filters: Filters;
   onFiltersChange: (filters: Filters) => void;
-  onPicked?: () => void;
+  onPicked: () => void;
 }) {
   return (
     <div className="mapLayersPriceBlock">
@@ -47,7 +47,7 @@ export default function MapPriceFilterChips({
               aria-pressed={on}
               onClick={() => {
                 onFiltersChange({ ...filters, maxPrice: option.maxPrice });
-                onPicked?.();
+                onPicked();
               }}
             >
               <i

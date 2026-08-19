@@ -762,6 +762,13 @@ export default function PubMap({
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
   const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
+  // Bumped by the canvas's pin Retry when the readiness ceiling named the pub
+  // list. The index load is the owner's, so the way to try again is to re-run
+  // the effect that owns it.
+  const [venueIndexAttempt, setVenueIndexAttempt] = useState(0);
+  const reloadVenueIndex = useCallback(() => {
+    setVenueIndexAttempt((attempt) => attempt + 1);
+  }, []);
   // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
@@ -1372,7 +1379,7 @@ export default function PubMap({
       cancelled = true;
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
     };
-  }, [cityId, refreshCountCoverage]);
+  }, [cityId, refreshCountCoverage, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -3680,9 +3687,15 @@ export default function PubMap({
     <MapKey legend={activePriceLegend} />
   );
   const desktopLayersPriceFilter =
-    !mobileViewport && experienceLens === "all" && activeLensLabel === null ? (
-      <MapPriceFilterChips filters={filters} onFiltersChange={setFilters} />
-    ) : undefined;
+    !mobileViewport && experienceLens === "all" && activeLensLabel === null
+      ? (close: () => void) => (
+          <MapPriceFilterChips
+            filters={filters}
+            onFiltersChange={setFilters}
+            onPicked={close}
+          />
+        )
+      : undefined;
   const drinkFiltersActive = Boolean(
     favoritePint ||
       filters.drinkCategory ||
@@ -3840,6 +3853,7 @@ export default function PubMap({
           hideLayersControl={mobileViewport}
           layersReaderKey={desktopLayersReaderKey}
           layersReaderPriceFilter={desktopLayersPriceFilter}
+          onReloadVenueData={reloadVenueIndex}
           listOpen={mapListOpen}
           onListOpenChange={setMapListOpen}
           listCount={mapVenueListModel.total + ukBasePubListModel.total}

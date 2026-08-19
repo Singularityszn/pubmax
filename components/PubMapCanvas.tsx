@@ -104,8 +104,10 @@ import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/
 import {
   BASEMAP_RETRY_NOTICE,
   createPinRevealCoordinator,
+  pinRetrySpentNotice,
   revealTimeoutNotice,
   type BasemapNoticeOwner,
+  type PinRevealNoticeKind,
 } from "@/components/map/canvas/pinRevealCoordinator";
 import { applySelectionMute } from "@/lib/mapBasemapTaste";
 import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
@@ -317,7 +319,12 @@ type PubMapCanvasProps = {
   hideLayersControl?: boolean;
   /** Price key, price cap and list live in Layers, not as floating chrome. */
   layersReaderKey?: ReactNode;
-  layersReaderPriceFilter?: ReactNode;
+  layersReaderPriceFilter?: (close: () => void) => ReactNode;
+  /**
+   * Re-run the owner's venue-index load. The canvas holds no fetcher of its
+   * own, so a ceiling that named the pub list has no honest Retry without it.
+   */
+  onReloadVenueData?: () => void;
   listOpen?: boolean;
   onListOpenChange?: (open: boolean) => void;
   listCount?: number;
@@ -358,6 +365,10 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Phone still requires a confirmed visible frame before a successful reveal.
 // Kept above the measured slow stream and first-frame watchdog windows.
 const PIN_READY_CEILING_MS = 12_000;
+// How long a spent pin Retry is given before it reports back. Long enough for a
+// re-fetched venue index plus a MapLibre source settle, short enough that the
+// reader is not left watching an empty map with nothing to read.
+const PIN_RETRY_WAIT_MS = 6_000;
 // MapLibre's GeoJSON worker and render events can lead the phone compositor by
 // several frames. Keep honest loading chrome through that observed handoff.
 const PHONE_PIN_COMPOSITE_HOLD_MS = 500;
@@ -459,6 +470,7 @@ export default function PubMapCanvas({
   hideLayersControl = false,
   layersReaderKey,
   layersReaderPriceFilter,
+  onReloadVenueData,
   listOpen = false,
   onListOpenChange,
   listCount = 0,
@@ -589,9 +601,16 @@ export default function PubMapCanvas({
   // Keeps DOM overlays alive instead of replacing the whole canvas with the
   // full fallback card — silent grey is the defect we refuse to ship.
   const [softRetry, setSoftRetry] = useState<{
-    kind: "context-lost" | "tiles" | "pins";
+    kind: "context-lost" | "tiles" | PinRevealNoticeKind;
     message: string;
   } | null>(null);
+  // The pin lanes' Retry lives inside the mount effect, beside the signals it
+  // spends and the wait it arms; the button only calls through this seam.
+  const pinRetryRef = useRef<((kind: PinRevealNoticeKind) => void) | null>(null);
+  const onReloadVenueDataRef = useRef(onReloadVenueData);
+  useEffect(() => {
+    onReloadVenueDataRef.current = onReloadVenueData;
+  }, [onReloadVenueData]);
   // The full fallback card replaces this canvas, toast included, so a surface
   // that budgets one toast must not keep hiding its own notice behind a toast
   // nobody can see.
@@ -1281,7 +1300,57 @@ export default function PubMapCanvas({
       failedBasemapTiles.reset();
       basemapTileReadyForPaint = false;
     };
+    const hasPinsPaintable = () => {
+      if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
+      return map.isSourceLoaded("pubs");
+    };
+    // A pin-owned ceiling notice clears on its own signal, never the basemap's:
+    // the background is already painted in that case, so a notice keyed on the
+    // basemap would retire on the very next frame while the pub data was still
+    // missing. It rides the same render/idle pair the basemap recovery uses, so
+    // the hot render loop keeps ONE listener each way.
+    let pinNoticeActive = false;
+    let pinRetryWaitTimer: ReturnType<typeof setTimeout> | undefined;
+    const clearPinRetryWait = () => {
+      if (pinRetryWaitTimer !== undefined) clearTimeout(pinRetryWaitTimer);
+      pinRetryWaitTimer = undefined;
+    };
+    const markPinsRecovered = () => {
+      if (!pinNoticeActive || !hasPinsPaintable()) return;
+      pinNoticeActive = false;
+      clearPinRetryWait();
+      setSoftRetry((current) =>
+        current?.kind === "pins" || current?.kind === "venues" ? null : current,
+      );
+    };
+    // The pin Retry spends the lane its notice named. An unsettled `pubs`
+    // source is ours to re-push; a venue index that never arrived is the
+    // owner's to fetch, and pushing the empty collection we already hold at it
+    // would clear the only message the reader had and change nothing.
+    pinRetryRef.current = (kind) => {
+      if (mapRef.current !== map) return;
+      clearPinRetryWait();
+      pinNoticeActive = true;
+      if (kind === "venues") {
+        onReloadVenueDataRef.current?.();
+      } else if (styleStructureReadyRef.current) {
+        (
+          map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
+        )?.setData(pubsDataRef.current);
+        map.triggerRepaint();
+      }
+      pinRetryWaitTimer = setTimeout(() => {
+        pinRetryWaitTimer = undefined;
+        if (mapRef.current !== map || !pinNoticeActive) return;
+        if (hasPinsPaintable()) {
+          markPinsRecovered();
+          return;
+        }
+        setSoftRetry(pinRetrySpentNotice(kind));
+      }, PIN_RETRY_WAIT_MS);
+    };
     const markBasemapRecovered = () => {
+      markPinsRecovered();
       if (!areBasemapTilesLoaded()) return;
       if (tileFailureRecheckTimer !== undefined) return;
       if (failedBasemapTiles.hasFailures()) return;
@@ -1332,22 +1401,6 @@ export default function PubMapCanvas({
     };
     map.on("sourcedata", onBasemapTileLoaded);
 
-    const hasPinsPaintable = () => {
-      if (!venueDataReadyRef.current || !map.getSource("pubs")) return false;
-      return map.isSourceLoaded("pubs");
-    };
-    // A pin-owned ceiling notice clears on its own signal, never the basemap's:
-    // the background is already painted in that case, so the coordinator's
-    // basemap recovery hook would retire the notice on the very next frame
-    // while the pubs source was still unsettled.
-    let pinNoticeActive = false;
-    const markPinsRecovered = () => {
-      if (!pinNoticeActive || !hasPinsPaintable()) return;
-      pinNoticeActive = false;
-      setSoftRetry((current) => (current?.kind === "pins" ? null : current));
-    };
-    map.on("render", markPinsRecovered);
-    map.on("idle", markPinsRecovered);
     const pinRevealCoordinator = createPinRevealCoordinator({
       pinRevealTimeoutMs: PIN_REVEAL_TIMEOUT_MS,
       readyCeilingMs: PIN_READY_CEILING_MS,
@@ -1381,16 +1434,17 @@ export default function PubMapCanvas({
       onReveal: (reason, generation) => {
         const timeoutNotice = revealTimeoutNotice(reason, tileNoticeOwner, {
           basemapPainted: basemapTileReadyForPaint,
+          venueDataReady: venueDataReadyRef.current,
           pinsPaintable: hasPinsPaintable(),
         });
         if (timeoutNotice) {
-          // Name the signal that missed. A painted basemap with an unsettled
-          // `pubs` source is a pin handoff, and its Retry re-pushes that source
-          // rather than tearing down a background that already drew.
-          if (timeoutNotice.kind === "pins") {
-            pinNoticeActive = true;
-          } else {
+          // Name the signal that missed. A painted basemap with missing pub
+          // data is a pin handoff, and its Retry spends that lane rather than
+          // tearing down a background that already drew.
+          if (timeoutNotice.kind === "tiles") {
             tileNoticeOwner = "timeout";
+          } else {
+            pinNoticeActive = true;
           }
           setSoftRetry(timeoutNotice);
         } else if (reason !== "timeout" || basemapTileReadyForPaint) {
@@ -2433,6 +2487,8 @@ export default function PubMapCanvas({
       clearTimeout(hangFailTimer);
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
+      clearPinRetryWait();
+      pinRetryRef.current = null;
       map.off("render", markBasemapRecovered);
       map.off("idle", markBasemapRecovered);
       map.off("sourcedata", onBasemapTileLoaded);
@@ -3248,17 +3304,11 @@ export default function PubMapCanvas({
             className="mapSoftRetryBtn"
             onClick={() => {
               setSoftRetry(null);
-              if (softRetry.kind === "pins") {
-                // The background drew; only the pub source is unsettled. A full
-                // re-init would throw away a healthy basemap, so re-push the
-                // pins we already hold and ask for one present.
-                const map = mapRef.current;
-                if (map && styleStructureReadyRef.current) {
-                  (
-                    map.getSource("pubs") as maplibregl.GeoJSONSource | undefined
-                  )?.setData(pubsDataRef.current);
-                  map.triggerRepaint();
-                }
+              if (softRetry.kind === "pins" || softRetry.kind === "venues") {
+                // The background drew; only the pubs are missing. A full
+                // re-init would throw away a healthy basemap, so spend the lane
+                // the notice named and report back either way.
+                pinRetryRef.current?.(softRetry.kind);
                 return;
               }
               setMapError(null);

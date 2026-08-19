@@ -11,28 +11,67 @@ export const PIN_PAINT_RETRY_NOTICE = {
   message: "Pub pins are still drawing. Tap Retry to load them again.",
 } as const;
 
+export const VENUE_DATA_RETRY_NOTICE = {
+  kind: "venues",
+  message: "The pub list hasn't loaded. Tap Retry to fetch it again.",
+} as const;
+
+export const PIN_PAINT_RETRY_SPENT_NOTICE = {
+  kind: "pins",
+  message: "The pub pins still aren't drawing. Tap Retry to try once more.",
+} as const;
+
+export const VENUE_DATA_RETRY_SPENT_NOTICE = {
+  kind: "venues",
+  message: "The pub list still hasn't loaded. Tap Retry to try once more.",
+} as const;
+
 export type RevealTimeoutNotice =
   | typeof BASEMAP_RETRY_NOTICE
-  | typeof PIN_PAINT_RETRY_NOTICE;
+  | typeof PIN_PAINT_RETRY_NOTICE
+  | typeof VENUE_DATA_RETRY_NOTICE;
+
+export type PinRevealNoticeKind =
+  | typeof PIN_PAINT_RETRY_NOTICE.kind
+  | typeof VENUE_DATA_RETRY_NOTICE.kind;
 
 /**
  * The notice a readiness-ceiling reveal owes the reader, named after the signal
  * that actually missed. Blaming the background for a basemap that painted sends
  * the reader at a Retry that tears down a map already drawing, so a ceiling over
- * a painted basemap names the PINS instead. A ceiling with both sources ready
- * owes NO notice: only the compositor confirmation ran out, and the pins are on
- * screen. An error-owned notice is truthful until Retry rebuilds the map, so a
- * timeout never overwrites it.
+ * a painted basemap names the missing PUB DATA instead - and it separates the
+ * two pin signals, because they have two different ways out: an unsettled
+ * `pubs` source is the canvas's own to redraw, while a venue index that never
+ * arrived belongs to the owner and no amount of redrawing will produce it. A
+ * ceiling with everything ready owes NO notice: only the compositor
+ * confirmation ran out, and the pins are on screen. An error-owned notice is
+ * truthful until Retry rebuilds the map, so a timeout never overwrites it.
  */
 export function revealTimeoutNotice(
   reason: PinRevealReason,
   currentOwner: BasemapNoticeOwner,
-  signals: { basemapPainted: boolean; pinsPaintable: boolean },
+  signals: {
+    basemapPainted: boolean;
+    venueDataReady: boolean;
+    pinsPaintable: boolean;
+  },
 ): RevealTimeoutNotice | null {
   if (reason !== "timeout" || currentOwner === "errors") return null;
   if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (!signals.venueDataReady) return VENUE_DATA_RETRY_NOTICE;
   if (!signals.pinsPaintable) return PIN_PAINT_RETRY_NOTICE;
   return null;
+}
+
+/**
+ * What a spent pin Retry says when the signal it was meant to restore is still
+ * missing. Distinct copy from the first ask, because a notice that came back
+ * word for word reads as a button that did nothing.
+ */
+export function pinRetrySpentNotice(kind: PinRevealNoticeKind) {
+  return kind === "venues"
+    ? VENUE_DATA_RETRY_SPENT_NOTICE
+    : PIN_PAINT_RETRY_SPENT_NOTICE;
 }
 
 type PinRevealCoordinatorOptions = {
