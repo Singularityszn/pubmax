@@ -35,7 +35,7 @@ Each lane: isolated git worktree, own branch, non-draft PR, vitest green, no em 
 
 Smallest excellent v1: one route `/today`, becomes the signed-in mobile home before 17:00 London. Four stacked cards, all existing data:
 1. Drink-weather verdict (`lib/drinkWeather.ts`, `lib/weatherSnapshots.ts`) with honest staleness line when snapshots are old (Actions dead; manual refresh).
-2. Tonight's top 3 picks (`lib/whatsOnStore.ts` windowing; #409 overlap semantics).
+2. Tonight's top 3 picks plus one cheapest listed pint near the viewer (`lib/todayListings.server.ts` merges bundled What's-On and Out on the same spine as `/tonight`; pint from the bundled priced index; honest empty/degraded copy in `lib/dayGreeting.ts`).
 3. Get-there strip (`lib/tfl.ts`, follow `TonightGetHomeStrip` pattern).
 4. One sourced pub-of-the-day fact (`lib/heritageFacts.ts` / `lib/pintFacts.ts` + `lib/provenanceLabels.ts`).
 Cut: personalization, streaks, seasonal theming. Nav entry in `MobileTabBar` + `SiteNav`.

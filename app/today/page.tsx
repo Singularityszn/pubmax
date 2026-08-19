@@ -30,11 +30,11 @@ import { buildTodayPintsIndex } from "./todayPints";
 // (docs/UNIVERSAL_DAY0_PRD.md) this is the smallest excellent v1; the signed-in
 // mobile-home redirect before 17:00 London is deliberately out of this PR.
 //
-// The weather, tonight's picks, the pub fact and the cheapest-pints index are
-// composed on the server from bundled, sourced data so the brief paints instantly
-// and deterministically (no request-time network, no waterfalls). The get-there
-// strip and the Tube card are client-only: they need the viewer's rough location
-// or remembered area and live TfL, so they own their own fetches.
+// Weather, the pub fact and the cheapest-pints index are bundled on the server.
+// Tonight's picks use the same merged What's-On plus Out spine as /tonight
+// (lib/todayListings.server.ts). Independent reads still run in parallel. The
+// get-there strip and the Tube card are client-only: they need the viewer's rough
+// location or remembered area and live TfL, so they own their own fetches.
 
 export const metadata: Metadata = {
   title: "Today in London · PUBMAXXING",

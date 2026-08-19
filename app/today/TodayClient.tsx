@@ -330,11 +330,11 @@ function initialPintsView(index: TodayPintsIndex): {
   cheapPintScope: string | null;
 } {
   const id = resolveTodayPintsPatchId(null, index);
-  const module = id ? index[id] : null;
-  if (!module?.rows[0]) return { cheapPint: null, cheapPintScope: null };
+  const pintsModule = id ? index[id] : null;
+  if (!pintsModule?.rows[0]) return { cheapPint: null, cheapPintScope: null };
   return {
-    cheapPint: module.rows[0],
-    cheapPintScope: `in ${module.areaName}`,
+    cheapPint: pintsModule.rows[0],
+    cheapPintScope: `in ${pintsModule.areaName}`,
   };
 }
 
