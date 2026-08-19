@@ -103,6 +103,7 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
+    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -117,6 +118,7 @@ import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
+  moderateCommunityPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
@@ -223,6 +225,14 @@ beforeEach(async () => {
   __resetMemoryPrivateIdentities();
   __resetPintDrops();
   await authorizeContributor("user-default", "default_contributor");
+  const actualCommunityPriceStore =
+    await vi.importActual<typeof import("@/lib/communityPriceStore")>(
+      "@/lib/communityPriceStore",
+    );
+  vi.mocked(moderateCommunityPrice).mockReset();
+  vi.mocked(moderateCommunityPrice).mockImplementation(
+    actualCommunityPriceStore.moderateCommunityPrice,
+  );
 });
 
 afterEach(async () => {
@@ -291,6 +301,21 @@ describe("POST /api/price-submit", () => {
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     expect(res.status).toBe(503);
     expect(await readCommunityPrices(venueId)).toEqual([]);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+  });
+
+  it("answers 201 with the price when revert cannot hide it after a visit report failure", async () => {
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).ok).toBe(true);
+    expect(await readCommunityPrices(venueId)).toHaveLength(1);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 

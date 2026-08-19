@@ -241,11 +241,13 @@ export async function POST(request: Request): Promise<Response> {
     pintDropPhotos,
   );
   if (!pintDrop.ok) {
-    await revertOneTapCommunityPricePairing(price.id);
-    if (pintDrop.kind === "invalid_photo") {
-      return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
+    const reverted = await revertOneTapCommunityPricePairing(price.id);
+    if (reverted) {
+      if (pintDrop.kind === "invalid_photo") {
+        return publicApiError(pintDrop.message, "INVALID_REQUEST", 400);
+      }
+      return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
     }
-    return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
   }
 
   await syncTrustAfterPriceWrite(submission.venueId, price.drinkCategory);
