@@ -119,7 +119,13 @@ test.describe("Pub Pal concierge at 390px", () => {
     expect(new URL(page.url()).pathname).toBe("/pal/chat");
   });
 
-  test("a crawl ask offers a plan link that prefills the describe field", async ({ page }) => {
+  test("a crawl ask opens Plan and auto-generates the route", async ({ page }) => {
+    await page.addInitScript(() => {
+      window.localStorage.setItem("pubmax-tour-v1-done", "1");
+      window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+      window.localStorage.setItem("pubmax:identityNudge:dismissedAt:v1", String(Date.now()));
+    });
     await page.goto("/pal/chat");
     const ask = "Plan a crawl in Soho for 4";
     await askOnPhone(page, ask);
@@ -130,7 +136,9 @@ test.describe("Pub Pal concierge at 390px", () => {
     await planLink.click();
 
     await expect(page).toHaveURL(/\/plan\?/);
-    await expect(page.locator("#plan-describe-first-query")).toHaveValue(ask);
+    await expect(page.getByText("Route refreshed. Review the preview")).toBeVisible({
+      timeout: 30_000,
+    });
   });
 
   test("the Pal recalls a subject the drinker raised earlier in the thread", async ({

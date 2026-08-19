@@ -159,8 +159,13 @@ async function mountComposer(): Promise<void> {
     root = createRoot(host!);
     root.render(createElement(PlanComposer));
   });
-  // The prefill is read in a microtask off the effect, so let it settle.
+  await settleComposerEffects();
+}
+
+/** Prefill and Pal auto-generate both schedule microtasks off effects. */
+async function settleComposerEffects(): Promise<void> {
   await act(async () => {
+    await Promise.resolve();
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -172,17 +177,46 @@ function describeFieldValue(): string {
   return field.value;
 }
 
+/** A Pub Pal `?query=` handoff may prefill describe-first or land in concierge after auto-generate. */
+function landedUrlAskValue(): string {
+  const describe = document.querySelector<HTMLInputElement>("#plan-describe-first-query");
+  if (describe) return describe.value;
+  const concierge = document.querySelector<HTMLInputElement>("#plan-concierge-query");
+  if (concierge) return concierge.value;
+  throw new Error("URL ask did not land in describe-first or concierge field");
+}
+
 function conciergeFieldValue(): string {
   const field = document.querySelector<HTMLInputElement>("#plan-concierge-query");
   if (!field) throw new Error("concierge field did not render");
   return field.value;
 }
 
+const DEFAULT_GENERATE_BODY = {
+  grounded: true,
+  groundingProof: "test-proof",
+  stops: [
+    { venueId: "venue-a", venueName: "Pub A" },
+    { venueId: "venue-b", venueName: "Pub B" },
+    { venueId: "venue-c", venueName: "Pub C" },
+  ],
+  inferredContext: { nightArea: "clapham", daypart: "evening", groupSize: 4 },
+};
+
 beforeEach(() => {
-  vi.stubGlobal("fetch", vi.fn(() => Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve([]),
-  } as unknown as Response)));
+  vi.stubGlobal("fetch", vi.fn(async (input: RequestInfo) => {
+    const url = typeof input === "string" ? input : input.url;
+    if (url.includes("/api/plans/generate")) {
+      return new Response(JSON.stringify(DEFAULT_GENERATE_BODY), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    }
+    return new Response(JSON.stringify([]), {
+      status: 200,
+      headers: { "content-type": "application/json" },
+    });
+  }));
   sessionStorage.clear();
   localStorage.clear();
   setSearch("");
@@ -214,7 +248,7 @@ describe("PlanComposer describe prefill", () => {
 
     await mountComposer();
 
-    expect(describeFieldValue()).toBe(URL_ASK);
+    expect(landedUrlAskValue()).toBe(URL_ASK);
     // One-shot: the next /plan visit must not reopen on this ask.
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
@@ -243,7 +277,7 @@ describe("PlanComposer describe prefill", () => {
     // composer alone - the page's own AuthProvider is mocked out here, and the
     // nudge it renders on every page carries its own blocked-storage coverage
     // in __tests__/identityNudge.test.ts.
-    expect(describeFieldValue()).toBe(URL_ASK);
+    expect(landedUrlAskValue()).toBe(URL_ASK);
   });
 
   it("leaves the field empty when there is neither an ask nor a draft", async () => {
@@ -263,7 +297,7 @@ describe("PlanComposer never drops a URL ask", () => {
 
     await mountComposer();
 
-    expect(describeFieldValue()).toBe(URL_ASK);
+    expect(landedUrlAskValue()).toBe(URL_ASK);
   });
 
   it("leaves an unfinished wizard draft alone for a chip link", async () => {
@@ -459,7 +493,43 @@ describe("PlanComposer hydration", () => {
       complaints.filter((line) => /hydrat|did not match|mismatch/i.test(line)),
       "hydrating the composer should not reconcile against a different tree",
     ).toEqual([]);
-    // The ask still lands, on the remount that follows hydration.
-    expect(describeFieldValue()).toBe(SIZED_ASK);
+    await settleComposerEffects();
+    // The ask still lands, on the remount that follows hydration (or concierge after auto-generate).
+    expect(landedUrlAskValue()).toBe(SIZED_ASK);
   });
 });
+
+describe("Pal handoff auto-generates once on /plan?query=", () => {
+  it("POSTs generate on mount for a Pub Pal query handoff", async () => {
+    setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
+    await mountComposer();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const fetchMock = vi.mocked(fetch);
+    const generateCall = fetchMock.mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCall).toBeTruthy();
+    expect(document.body.textContent).toContain("Route refreshed");
+  });
+
+  it("does not auto-generate for occasion chip links", async () => {
+    setSearch("?occasion=quiet");
+    await mountComposer();
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const fetchMock = vi.mocked(fetch);
+    const generateCall = fetchMock.mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : (input as Request).url;
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCall).toBeUndefined();
+  });
+});
+
