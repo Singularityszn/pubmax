@@ -194,6 +194,7 @@ async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  try {
 	const requestNow = Date.now();
 	const parsedRequest = await parsePlanGenerationRequest(request, new Date(requestNow));
 	if (!parsedRequest.ok) {
@@ -559,4 +560,8 @@ export async function POST(request: Request): Promise<Response> {
 			chosen.some(({ venue }) => claim.entity.type === "venue" && claim.entity.id === venue.id),
 		),
 	  });
+  } catch (error) {
+    console.error("plan_generate.unexpected_error", error);
+    return publicApiError("Could not generate a route right now.", "PLAN_GENERATION_FAILED", 503, { retryable: true });
+  }
 }

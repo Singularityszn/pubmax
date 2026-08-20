@@ -16,7 +16,7 @@ import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
 import type { VibeTally } from "@/lib/vibeTally";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import { getNightArea } from "@/lib/nightAreas";
+import { tryGetNightArea } from "@/lib/nightAreas";
 
 /** Map the §4.10 preview onto the existing preview component's DTO. */
 function toInvitePreview(preview: PlanPrivacyPreviewDTO): InvitePrivacyPreviewDTO {
@@ -229,7 +229,7 @@ export function planSummaryGenerationBody(state: PlanState): Record<string, unkn
       }
     : null;
   const cityId = state.context?.nightArea
-    ? getNightArea(state.context.nightArea).cityId
+    ? tryGetNightArea(state.context.nightArea)?.cityId ?? null
     : null;
   return {
     context: state.context,

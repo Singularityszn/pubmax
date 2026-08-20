@@ -1,6 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const { isLimitedMock } = vi.hoisted(() => ({
+  isLimitedMock: vi.fn(async () => false),
+}));
+
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
+
+vi.mock("@/lib/pintDrops", async () => {
+  const actual = await vi.importActual<typeof import("@/lib/pintDrops")>(
+    "@/lib/pintDrops",
+  );
+  return { ...actual, isLimited: isLimitedMock };
+});
 
 vi.mock("@/lib/citymcp/client", async () => {
   const actual = await vi.importActual<typeof import("@/lib/citymcp/client")>(
@@ -30,6 +41,7 @@ import { runAsk } from "@/lib/ask/runAsk";
 import { PAL_WEB_GROUNDING } from "@/lib/palChat";
 
 beforeEach(() => {
+  isLimitedMock.mockReset().mockResolvedValue(false);
   delete process.env.OPENROUTER_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -46,6 +58,19 @@ function post(body: unknown, ip: string): Promise<Response> {
 }
 
 describe("POST /api/ask", () => {
+  it("returns the public error envelope when rate limiting fails", async () => {
+    isLimitedMock.mockRejectedValueOnce(new Error("limiter unavailable"));
+
+    const response = await post({ query: "Quiet near Bank" }, "198.51.100.19");
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: "Couldn't answer that right now.",
+      code: "ASK_UNAVAILABLE",
+      retryable: true,
+    });
+  });
+
   it("refuses an empty ask", async () => {
     const response = await post({ query: "   " }, "198.51.100.20");
     expect(response.status).toBe(400);

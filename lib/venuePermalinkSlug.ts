@@ -102,17 +102,14 @@ export function matchVenuePermalinkSlug(
     ? `${parsed.nameSlug}-${parsed.district}`
     : parsed.nameSlug;
 
+  // `venuePermalinkKeys` always seeds its set with `slugifyVenueName(venue.name)`
+  // (the bare name-only key), so a name-only `needle` (no district) can only
+  // ever match through that first key - there is no separate name-only case
+  // for `keys.includes(needle)` to miss.
   const hits: string[] = [];
   for (const venue of venues) {
     const keys = venuePermalinkKeys(venue);
-    if (keys.includes(needle)) {
-      hits.push(venue.id);
-      continue;
-    }
-    // Name-only slug: unique name match only.
-    if (!parsed.district && slugifyVenueName(venue.name) === parsed.nameSlug) {
-      hits.push(venue.id);
-    }
+    if (keys.includes(needle)) hits.push(venue.id);
   }
   return hits.length === 1 ? hits[0]! : null;
 }

@@ -174,6 +174,16 @@ export function getNightArea(slug: NightAreaSlug): NightArea {
   return NIGHT_AREAS.find((area) => area.slug === slug)!;
 }
 
+/**
+ * Same lookup as `getNightArea`, but answers `null` instead of throwing when
+ * `slug` no longer names a catalogue entry (a stale/renamed area referenced
+ * by persisted client state, such as a check-in row or a `localStorage` plan draft).
+ */
+export function tryGetNightArea(slug: string | null | undefined): NightArea | null {
+  if (!slug) return null;
+  return NIGHT_AREAS.find((area) => area.slug === slug) ?? null;
+}
+
 export function getNightAreasForCity(cityId: CityId): NightArea[] {
   return NIGHT_AREAS.filter((area) => area.cityId === cityId);
 }

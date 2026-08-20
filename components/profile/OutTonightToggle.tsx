@@ -15,7 +15,7 @@ import { useEffect, useState } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
-import { getNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
+import { getNightArea, tryGetNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
@@ -132,7 +132,7 @@ export default function OutTonightToggle({ handle }: Props) {
   }
 
   if (state.kind === "on") {
-    const areaName = state.areaSlug ? getNightArea(state.areaSlug).name : null;
+    const areaName = tryGetNightArea(state.areaSlug)?.name ?? null;
     return (
       <section className="beaconCard" aria-labelledby="beacon-title">
         <p className="beaconKicker" id="beacon-title">Out tonight</p>

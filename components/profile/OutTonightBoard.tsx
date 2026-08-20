@@ -10,7 +10,7 @@ import { useEffect, useState } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import HandleAvatar from "@/components/profile/HandleAvatar";
-import { getNightArea, type NightAreaSlug } from "@/lib/nightAreas";
+import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
 import "./outTonightBeacon.css";
@@ -50,7 +50,7 @@ function toBoardRows(checkIns: CheckInDto[]): BoardRow[] {
       const handle = normalizeHandle(row.handle ?? "");
       if (!handle) return null;
       const areaSlug = row.areaSlug as NightAreaSlug | null | undefined;
-      const areaName = areaSlug ? getNightArea(areaSlug).name : null;
+      const areaName = tryGetNightArea(areaSlug)?.name ?? null;
       const createdAt = typeof row.createdAt === "string" ? row.createdAt : "";
       return {
         handle,

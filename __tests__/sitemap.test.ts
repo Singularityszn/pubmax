@@ -192,9 +192,13 @@ describe("sitemap()", () => {
     expect(new Set(urls).size).toBe(urls.length);
   });
 
-  it("stamps every entry with a lastModified date", () => {
+  it("stamps every entry with a plausible lastModified date, never a future or epoch-zero one", () => {
+    const now = Date.now();
     for (const entry of entries) {
-      expect(entry.lastModified).toBeDefined();
+      expect(entry.lastModified).toBeInstanceOf(Date);
+      const time = (entry.lastModified as Date).getTime();
+      expect(time).toBeGreaterThan(0);
+      expect(time).toBeLessThanOrEqual(now);
     }
   });
 });

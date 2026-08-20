@@ -74,7 +74,6 @@ const PAINTED_READ_FILES = [
   "components/map/usePersonaTonight.ts",
   "components/discovery/MusicTonightLane.tsx",
   "components/discovery/DealsTonightLane.tsx",
-  "components/discovery/TonightNearbyLane.tsx",
   "components/discovery/GardenTonightCard.tsx",
   "components/desktop/ConditionsChip.tsx",
   "components/map/VenueTonightChips.tsx",
