@@ -31,7 +31,7 @@ describe("clampOgText", () => {
 
   it("collapses whitespace after stripping control chars when collapseWhitespace is on", () => {
     // \n is a control char (<32), so it is stripped before the collapse pass
-    // ever sees it — the two words end up jammed together with no space.
+    // ever sees it, so the two words end up jammed together with no space.
     // This mirrors city-map-card / plan-card / the Pint Drop card's original
     // (pre-dedup) behaviour exactly.
     expect(clampOgText("Line1\nLine2", 20, "", { collapseWhitespace: true })).toBe("Line1Line2");

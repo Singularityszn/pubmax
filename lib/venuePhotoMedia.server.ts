@@ -154,7 +154,7 @@ export async function promoteStagedVenuePhoto(
       // them yet.
       log("warn", "venue_photo.cleanup_failed", {
         venueId: staged.venueId,
-        key: staged.objectKey,
+        objectPath: staged.objectKey,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -170,7 +170,7 @@ export async function promoteStagedVenuePhoto(
     // Serving bytes are already private-owned; staging cleanup is best-effort.
     log("warn", "venue_photo.cleanup_failed", {
       venueId: staged.venueId,
-      key: staged.stagingKey,
+      objectPath: staged.stagingKey,
       error: error instanceof Error ? error.message : String(error),
     });
   }

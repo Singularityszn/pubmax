@@ -184,7 +184,7 @@ export async function promoteStagedProfileImage(
       // to this slot writes its own generation.
       log("warn", "profile_image.cleanup_failed", {
         profileId: staged.profileId,
-        key: staged.objectKey,
+        objectPath: staged.objectKey,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -200,7 +200,7 @@ export async function promoteStagedProfileImage(
     // Serving bytes are already private-owned; staging cleanup is best-effort.
     log("warn", "profile_image.cleanup_failed", {
       profileId: staged.profileId,
-      key: staged.stagingKey,
+      objectPath: staged.stagingKey,
       error: error instanceof Error ? error.message : String(error),
     });
   }

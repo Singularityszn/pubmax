@@ -159,7 +159,7 @@ export async function promoteStagedMessagePhoto(
       // them yet.
       log("warn", "message_photo.cleanup_failed", {
         conversationId: staged.conversationId,
-        key: staged.objectKey,
+        objectPath: staged.objectKey,
         error: error instanceof Error ? error.message : String(error),
       });
     }
@@ -175,7 +175,7 @@ export async function promoteStagedMessagePhoto(
     // Serving bytes are already private-owned; staging cleanup is best-effort.
     log("warn", "message_photo.cleanup_failed", {
       conversationId: staged.conversationId,
-      key: staged.stagingKey,
+      objectPath: staged.stagingKey,
       error: error instanceof Error ? error.message : String(error),
     });
   }

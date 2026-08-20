@@ -304,8 +304,8 @@ export type Filters = {
 
 /**
  * The default Filters state a fresh map/crawl session starts from. Lives here
- * (not in a component) because lib/crawlUrl.ts — a pure, server-safe module
- * (see lib/pubMap.ts's header on why it must stay that way) — needs it too;
+ * (not in a component) because lib/crawlUrl.ts, a pure, server-safe module
+ * (see lib/pubMap.ts's header on why it must stay that way), needs it too;
  * components/map/ControlRail.tsx re-exports it for its existing importers.
  */
 export const initialFilters: Filters = {

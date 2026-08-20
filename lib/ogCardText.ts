@@ -1,7 +1,7 @@
 // Shared "clamp/sanitise untrusted text for an OG share card" helper. Every
 // og-card route (crawl-card, list-card, city-map-card, plan-card, the Pint
 // Drop card, the Historic Pubs card) rendered its own byte-identical copy of
-// this before it was hoisted here — text on a share card can come from a URL
+// this before it was hoisted here. Text on a share card can come from a URL
 // query param or user content, so it is never rendered unbounded: strip
 // control chars, optionally collapse whitespace, cap length with an ellipsis.
 
@@ -13,7 +13,7 @@
  *   pub copy) that can carry embedded newlines.
  * @param collapseBeforeFilter Only meaningful when `collapseWhitespace` is
  *   on. Collapsing BEFORE stripping control chars (the Historic Pubs card's
- *   original order) turns "Line1\nLine2" into "Line1 Line2" — the newline
+ *   original order) turns "Line1\nLine2" into "Line1 Line2". The newline
  *   leaves a space behind. Collapsing after (every other card's original
  *   order) strips the newline first and has nothing left to collapse, so the
  *   same input becomes "Line1Line2". Both are real, previously-shipped

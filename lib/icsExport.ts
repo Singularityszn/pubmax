@@ -58,7 +58,7 @@ export function formatIcsUtc(date: Date): string {
 }
 
 // Europe/London wall clock, resolved without pulling in a shared module (this
-// generator is deliberately dependency-free — see file header). Mirrors
+// generator is deliberately dependency-free; see file header). Mirrors
 // lib/whatsOn.ts's londonWallTimeToUtcMs: two offset passes are enough to
 // land the resolved instant correctly across Europe/London's GMT/BST switch.
 let londonPartsFormatter: Intl.DateTimeFormat | null = null;
@@ -99,7 +99,7 @@ function londonWallTimeToUtcMs(year: number, month: number, day: number, hour: n
 }
 
 // The next evening at 19:00 Europe/London time, relative to `from`. If it's
-// already past 19:00 London, roll to tomorrow — a crawl you add now is for
+// already past 19:00 London, roll to tomorrow. A crawl you add now is for
 // tonight or the next night, never a start in the past. Resolved against the
 // London wall clock (not the caller's own locale/timezone) because a visitor
 // planning a London night from any other timezone must still get a 7pm London
