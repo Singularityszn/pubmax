@@ -35,11 +35,3 @@ export function createTicketmasterProvider(): LiveEventsProvider {
   });
   return provider;
 }
-
-export function isTicketmasterConfigured(): boolean {
-  return createTicketmasterProvider().isConfigured();
-}
-
-export function resetTicketmasterCache(): void {
-  createTicketmasterProvider().reset();
-}

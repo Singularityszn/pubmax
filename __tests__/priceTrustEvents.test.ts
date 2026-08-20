@@ -132,7 +132,10 @@ describe("trustEventFingerprint", () => {
 describe("reversalFingerprint", () => {
   it("is a deterministic derivative of the original fingerprint", () => {
     const original = trustEventFingerprint("venue-one", "beer", ["obs-a", "obs-b"]);
-    expect(reversalFingerprint(original)).toBe(reversalFingerprint(original));
+    const expected = createHash("sha256")
+      .update(`reversal\u0000${original}`)
+      .digest("hex");
+    expect(reversalFingerprint(original)).toBe(expected);
     expect(reversalFingerprint(original)).not.toBe(original);
   });
 });

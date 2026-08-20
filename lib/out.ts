@@ -1,23 +1,10 @@
-import { parseCityId, DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
-import type { WhatsOnKindObservedAt, WhatsOnRow } from "@/lib/whatsOn";
+import type { OutDay } from "@/lib/out/types";
 import {
   OPEN_PLAN_LIST_LIMIT,
   type OpenPlanPlaceKind,
 } from "@/lib/openSocialCrew";
 
-export const OUT_EVENT_LIMIT = 100;
 export const OUT_OPEN_PLAN_LIMIT = OPEN_PLAN_LIST_LIMIT;
-export const OUT_DAYS = ["today", "tomorrow", "weekend"] as const;
-export type OutDay = (typeof OUT_DAYS)[number];
-export type OutStatus = "ready" | "degraded";
-
-/** House sentence when the public Out read cannot finish. Never raw exception text. */
-export const OUT_UNAVAILABLE_ERROR = "Out could not load right now.";
-
-export type OutAttribution = {
-  label: string;
-  logoRequired: boolean;
-};
 
 /**
  * The resolved Stop 1 a card renders: the place name plus its map point. It is
@@ -42,23 +29,6 @@ export type OutOpenPlan = {
   /** Absent until the city read resolves Stop 1; a listed plan always has one. */
   meetingPoint: OutOpenPlanMeetingPoint | null;
 };
-
-export type OutResponse = {
-  status: OutStatus;
-  events: WhatsOnRow[];
-  openPlans: OutOpenPlan[];
-  attribution: OutAttribution[];
-  kindObservedAt: WhatsOnKindObservedAt;
-};
-
-export function parseOutDay(value: string | null): OutDay {
-  if (value === "tomorrow" || value === "weekend") return value;
-  return "today";
-}
-
-export function parseOutCity(value: string | null): CityId {
-  return parseCityId(value) ?? DEFAULT_CITY_ID;
-}
 
 /**
  * Inclusive window for list_open_social_crews. Today starts at the London
@@ -248,15 +218,6 @@ export function outPlansWindow(day: OutDay, now: number = Date.now()): OutPlanWi
   };
 }
 
-/** Lower bound only; prefer outPlansWindow for RPC reads. */
-export function outPlansFromIso(day: OutDay, now: number = Date.now()): string {
-  return outPlansWindow(day, now).from;
-}
-
 export function boundOutOpenPlans(rows: OutOpenPlan[]): OutOpenPlan[] {
   return rows.slice(0, OUT_OPEN_PLAN_LIMIT);
-}
-
-export function boundOutEvents(rows: WhatsOnRow[]): WhatsOnRow[] {
-  return rows.slice(0, OUT_EVENT_LIMIT);
 }
