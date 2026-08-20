@@ -17,7 +17,7 @@ per venue, keeps the **newest valid `observedAt`**.
 ```jsonc
 {
   "version": 1,
-  "generatedAt": "2026-07-06T00:00:00.000Z", // when this file was written (ISO-8601)
+  "generatedAt": "2026-07-03T12:00:00.000Z", // when this file was written (ISO-8601)
   "updates": [
     {
       "venueKey": "the churchill arms|119 kensington church st|51.50700|-0.19400",
