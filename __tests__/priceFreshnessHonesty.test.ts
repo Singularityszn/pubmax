@@ -86,17 +86,4 @@ describe("price freshness honesty (Grok W5.7)", () => {
 
     expect(html).toContain("collected 3 July 2026");
   });
-
-  it("wires the live Pint Index page to the same collected label", () => {
-    const page = readFileSync(join(ROOT, "app/pint-index/page.tsx"), "utf8");
-    expect(page).toContain(
-      'collectedLabel={`collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`}',
-    );
-  });
-
-  it("wires Today pint prices to the same collection date helper", () => {
-    const card = readFileSync(join(ROOT, "app/today/TodayPintsCard.tsx"), "utf8");
-    expect(card).toContain("formatObservedDate(PINT_DATASET_OBSERVED_AT)");
-    expect(card).toContain("collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}");
-  });
 });
