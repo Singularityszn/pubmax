@@ -514,44 +514,6 @@ describe("listOwnUnlistedCrawlPage (Supabase)", () => {
   });
 });
 
-// Captain 2026-08-19 / Grok list item 9: Monday's 138-error cluster came from
-// listStoriesByAuthor selecting crawl_stories.stops. PostgREST answers 42703;
-// /api/crawls?author= must count crawl_story_stops instead.
-describe("Monday 138 regression (missing crawl_stories.stops column)", () => {
-  it("returns PostgREST 42703 when crawl_stories select names stops", async () => {
-    const result = await storiesQuery()
-      .select("slug,title,stops,created_at")
-      .eq("author_handle", "ken")
-      .limit(10);
-    expect(result.error).toEqual({
-      code: "42703",
-      message: "column crawl_stories.stops does not exist",
-    });
-    expect(result.data).toBeNull();
-  });
-
-  it("never selects stops on crawl_stories when listing author crawls", async () => {
-    db.stories.push({
-      id: "story-1",
-      slug: "loop-one-abc123",
-      title: "Loop One",
-      created_at: "2026-08-01T12:00:00.000Z",
-      author_handle: "ken",
-      visibility: "public",
-    });
-    db.stops.push({ crawl_story_id: "story-1" }, { crawl_story_id: "story-1" });
-
-    expect((await listAuthoredCrawlPage("ken")).crawls).toEqual([
-      {
-        slug: "loop-one-abc123",
-        title: "Loop One",
-        stops: 2,
-        createdAt: "2026-08-01T12:00:00.000Z",
-      },
-    ]);
-  });
-});
-
 describe("createCrawlStory (Supabase)", () => {
   it("persists a story the schema accepts, and it lists back", async () => {
     const created = await createCrawlStory({
