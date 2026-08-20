@@ -79,7 +79,7 @@ describe("price freshness honesty (Grok W5.7)", () => {
             cheapestVenueId: "venue-camden",
           },
         ],
-        surface: "pint_index",
+        surface: "index",
         collectedLabel: COLLECTED_LABEL,
       }),
     );

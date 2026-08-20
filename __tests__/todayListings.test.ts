@@ -96,8 +96,9 @@ describe("today listings spine", () => {
       status: "ready",
       events: [],
       openPlans: [],
+      attribution: [],
       providers: [],
-      observedAt: NOW_ISO,
+      observedAt: {},
       listingsStatus: "ready",
     });
 
