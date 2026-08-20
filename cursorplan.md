@@ -695,7 +695,7 @@ Capacitor stays parked until store enrolment. Convex stays a scout. Monetization
 ## Tests / validation
 
 - Default: targeted Vitest for the files in the task.
-- Visual ships: 390x844 + desktop screenshots. Playwright in the worktree.
+- Visual ships: 390x844 + desktop screenshots through `chrome-devtools-axi`. Use Playwright in the worktree for scripted end-to-end checks.
 - After implementation commit: one no-mistakes run on that worker. No second ACP-only run if Cursor ACP hangs. Recover custody only when status says `recover_custody`.
 - First mate reviews with code-review + codebase-design before merge.
 - Do not deploy from the merge. Batch to the named daily deploy.
