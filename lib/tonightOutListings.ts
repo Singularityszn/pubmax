@@ -39,8 +39,8 @@ function outListingsStatus(out: TonightOutAnswer): {
 
 /** One list: What's-On plus Out events, newest observation wins a clash. */
 export function mergeTonightListingRows(
-  whatsOnRows: WhatsOnRow[],
-  outEvents: WhatsOnRow[],
+  whatsOnRows: readonly WhatsOnRow[],
+  outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
 ): WhatsOnRow[] {
   return dedupeRows([...whatsOnRows, ...filterNotPast(outEvents, now)]);
