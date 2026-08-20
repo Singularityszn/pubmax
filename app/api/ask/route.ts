@@ -17,41 +17,41 @@ const MAX_QUERY_LENGTH = 500;
  * and withheld in production without a durable limiter (same fence as concierge).
  */
 export async function POST(request: Request): Promise<Response> {
-  let body: unknown;
   try {
-    body = await request.json();
-  } catch {
-    return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
-  }
+    let body: unknown;
+    try {
+      body = await request.json();
+    } catch {
+      return publicApiError("Malformed JSON.", "MALFORMED_REQUEST", 400);
+    }
 
-  const record =
-    body && typeof body === "object" && !Array.isArray(body)
-      ? (body as Record<string, unknown>)
-      : {};
+    const record =
+      body && typeof body === "object" && !Array.isArray(body)
+        ? (body as Record<string, unknown>)
+        : {};
 
-  const query =
-    typeof record.query === "string"
-      ? record.query.trim().slice(0, MAX_QUERY_LENGTH)
-      : "";
-  if (!query) {
-    return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
-  }
+    const query =
+      typeof record.query === "string"
+        ? record.query.trim().slice(0, MAX_QUERY_LENGTH)
+        : "";
+    if (!query) {
+      return publicApiError("Ask a question.", "QUERY_REQUIRED", 400);
+    }
 
-  const limiterKey = `ask:${hashIp(clientIp(request))}`;
-  if (
-    await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
-      failClosed: true,
-    })
-  ) {
-    return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
-  }
+    const limiterKey = `ask:${hashIp(clientIp(request))}`;
+    if (
+      await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS, {
+        failClosed: true,
+      })
+    ) {
+      return publicApiError("Too many asks, slow down.", "RATE_LIMITED", 429, { retryable: true });
+    }
 
-  // Paid-spend guard: without Supabase the durable limiter is only per-instance.
-  // Withhold OpenRouter in that production posture; deterministic tools still answer.
-  const llmAssistAllowed =
-    isSupabaseConfigured() || process.env.NODE_ENV !== "production";
+    // Paid-spend guard: without Supabase the durable limiter is only per-instance.
+    // Withhold OpenRouter in that production posture; deterministic tools still answer.
+    const llmAssistAllowed =
+      isSupabaseConfigured() || process.env.NODE_ENV !== "production";
 
-  try {
     const answer = await runAsk({
       query,
       cityId: record.cityId,

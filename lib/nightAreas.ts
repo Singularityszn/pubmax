@@ -177,7 +177,7 @@ export function getNightArea(slug: NightAreaSlug): NightArea {
 /**
  * Same lookup as `getNightArea`, but answers `null` instead of throwing when
  * `slug` no longer names a catalogue entry (a stale/renamed area referenced
- * by persisted client state — a check-in row, a `localStorage` plan draft).
+ * by persisted client state, such as a check-in row or a `localStorage` plan draft).
  */
 export function tryGetNightArea(slug: string | null | undefined): NightArea | null {
   if (!slug) return null;
