@@ -37,9 +37,11 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import {
   buildDayGreeting,
-  PICKS_EMPTY_LINE,
+  picksCardStatus,
+  picksListLine,
   type DayGreeting,
   type DaySlot,
+  type PicksListReadStatus,
 } from "@/lib/dayGreeting";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import type { NightAreaSlug } from "@/lib/nightAreas";
@@ -56,7 +58,11 @@ import TodayGetThereStrip from "./TodayGetThereStrip";
 import TodayPintsCard from "./TodayPintsCard";
 import TodayQuietPintCard from "./TodayQuietPintCard";
 import TodayTubeCard from "./TodayTubeCard";
-import type { TodayPintsIndex } from "./todayPints";
+import {
+  resolveTodayPintsPatchId,
+  type TodayPintRow,
+  type TodayPintsIndex,
+} from "./todayPints";
 import type { QuietPintModule } from "@/lib/quietPint";
 import "./today.css";
 
@@ -69,6 +75,7 @@ type Props = {
   weather: WeatherBrief | null;
   weatherByArea: Partial<Record<NightAreaSlug, WeatherBrief | null>>;
   picks: TonightPickDto[];
+  picksStatus: PicksListReadStatus;
   fact: TodayFact | null;
   pintsIndex: TodayPintsIndex;
   quietPint: QuietPintModule | null;
@@ -141,13 +148,37 @@ function PicksCard({
   picks,
   filteredPickCount,
   slot,
+  picksStatus,
+  cheapPint,
+  cheapPintScope,
 }: {
   picks: TonightPickDto[];
   filteredPickCount: number;
   slot: DaySlot;
+  picksStatus: PicksListReadStatus;
+  cheapPint: TodayPintRow | null;
+  cheapPintScope: string | null;
 }) {
+  const cheapPintBlock =
+    cheapPint && cheapPintScope ? (
+      <div className="todayPickCheapPint" data-testid="today-picks-cheap-pint">
+        <p className="todayPickCheapPintEyebrow">Cheapest listed pint {cheapPintScope}</p>
+        <div className="todayPintRow">
+          <Link className="todayPintLink pressable" href={cheapPint.mapHref}>
+            <span className="todayPintName">{cheapPint.name}</span>
+            <span className="todayPintPrice">{cheapPint.priceLabel}</span>
+          </Link>
+        </div>
+      </div>
+    ) : null;
+
   return (
-    <section className="todayCard" aria-labelledby="today-picks-title" data-testid="today-picks">
+    <section
+      className="todayCard"
+      aria-labelledby="today-picks-title"
+      data-testid="today-picks"
+      data-picks-status={picksCardStatus(picksStatus, picks.length, filteredPickCount)}
+    >
       <div className="todayCardHead">
         <span className="todayCardIcon" aria-hidden="true">
           <CalendarClock size={18} />
@@ -211,6 +242,7 @@ function PicksCard({
               );
             })}
           </ul>
+          {cheapPintBlock}
           <p className="todayCardFootRow">
             <Link href="/tonight" className="todayCardFootLink">
               See everything on tonight
@@ -223,8 +255,9 @@ function PicksCard({
           <p className="todayCardEmpty">
             {filteredPickCount > 0
               ? "Tonight has listings, but none match your current preferences."
-              : PICKS_EMPTY_LINE[slot]}
+              : picksListLine(picksStatus, slot)}
           </p>
+          {cheapPintBlock}
           <p className="todayCardFootRow">
             <Link href="/map" className="todayCardFootLink">
               Meanwhile, the map knows the cheap pints
@@ -292,6 +325,19 @@ function FactCard({ fact }: { fact: TodayFact | null }) {
   );
 }
 
+function initialPintsView(index: TodayPintsIndex): {
+  cheapPint: TodayPintRow | null;
+  cheapPintScope: string | null;
+} {
+  const id = resolveTodayPintsPatchId(null, index);
+  const pintsModule = id ? index[id] : null;
+  if (!pintsModule?.rows[0]) return { cheapPint: null, cheapPintScope: null };
+  return {
+    cheapPint: pintsModule.rows[0],
+    cheapPintScope: `in ${pintsModule.areaName}`,
+  };
+}
+
 export default function TodayClient({
   dateLabel,
   nowIso,
@@ -299,11 +345,13 @@ export default function TodayClient({
   weather,
   weatherByArea,
   picks,
+  picksStatus,
   fact,
   pintsIndex,
   quietPint,
 }: Props) {
   const [brief, setBrief] = useState({ weather, picks: picks.slice(0, 3), filteredPickCount: 0 });
+  const [pintsView, setPintsView] = useState(() => initialPintsView(pintsIndex));
 
   // Who the salutation may name. SSR and hydration both see nobody, then the
   // live session answers. Nothing about the layout depends on it, so its
@@ -335,6 +383,18 @@ export default function TodayClient({
     void Promise.resolve().then(() => {
       if (cancelled) return;
       const remembered = readRememberedArea();
+      const rememberedPatchId = resolveTodayPintsPatchId(remembered, pintsIndex);
+      const pintsModule = rememberedPatchId ? pintsIndex[rememberedPatchId] : null;
+      const hasRememberedLocality =
+        remembered?.kind === "patch" && rememberedPatchId === remembered.id;
+      setPintsView({
+        cheapPint: pintsModule?.rows[0] ?? null,
+        cheapPintScope: pintsModule
+          ? hasRememberedLocality
+            ? "near you"
+            : `in ${pintsModule.areaName}`
+          : null,
+      });
       const rememberedPatch = remembered?.kind === "patch"
         ? NIGHT_PATCHES.find((patch) => patch.id === remembered.id)?.id ?? null
         : null;
@@ -360,7 +420,7 @@ export default function TodayClient({
     return () => {
       cancelled = true;
     };
-  }, [picks, weather, weatherByArea]);
+  }, [picks, weather, weatherByArea, pintsIndex]);
 
   return (
     <main id="main" className="todayPage" data-testid="today-screen">
@@ -383,6 +443,9 @@ export default function TodayClient({
             picks={brief.picks}
             filteredPickCount={brief.filteredPickCount}
             slot={shownGreeting.slot}
+            picksStatus={picksStatus}
+            cheapPint={pintsView.cheapPint}
+            cheapPintScope={pintsView.cheapPintScope}
           />
           <TodayGetThereStrip />
         </div>

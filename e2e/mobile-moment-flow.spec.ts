@@ -34,7 +34,7 @@ test.describe("mobile Moment journey", () => {
 
   test("Social opens the social shell instead of the map", async ({ page }) => {
     await page.goto("/moment");
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Social", exact: true }).click();
+    await page.getByRole("navigation", { name: "Primary" }).getByRole("link", { name: "Social preview", exact: true }).click();
     await expect(page).toHaveURL(/\/social$/);
   });
 });

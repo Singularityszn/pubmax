@@ -3,7 +3,10 @@ import { describe, expect, it } from "vitest";
 import {
   buildDayGreeting,
   daySlot,
+  PICKS_DEGRADED_LINE,
   PICKS_EMPTY_LINE,
+  picksCardStatus,
+  picksListLine,
   TUBE_WHEN_LABEL,
 } from "@/lib/dayGreeting";
 import type { WeatherBrief } from "@/lib/todayBrief";
@@ -216,14 +219,10 @@ describe("time-band card copy", () => {
 
   it("scopes Today's empty picks to tonight's list in reader-facing words", () => {
     expect(PICKS_EMPTY_LINE).toEqual({
-      morning:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      afternoon:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      evening:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
-      night:
-        "Nothing left on tonight's list. Open Tonight for live listings.",
+      morning: "Nothing on tonight's list yet.",
+      afternoon: "Nothing on tonight's list yet.",
+      evening: "Nothing on tonight's list yet.",
+      night: "Nothing on tonight's list yet.",
     });
 
     for (const slot of SLOTS) {
@@ -234,6 +233,20 @@ describe("time-band card copy", () => {
     expect(PICKS_EMPTY_LINE.night).not.toBe(
       "Nothing left confirmed tonight.",
     );
+  });
+
+  it("says nothing left only when the read answered empty", () => {
+    for (const slot of SLOTS) {
+      expect(picksListLine("ready", slot)).toBe(PICKS_EMPTY_LINE[slot]);
+      expect(picksListLine("degraded", slot)).toBe(PICKS_DEGRADED_LINE);
+    }
+    expect(PICKS_DEGRADED_LINE).not.toMatch(/nothing left/i);
+    expect(PICKS_DEGRADED_LINE).not.toMatch(/[–—]/);
+    expect(picksCardStatus("ready", 2)).toBe("ready");
+    expect(picksCardStatus("degraded", 1)).toBe("ready");
+    expect(picksCardStatus("ready", 0, 3)).toBe("ready");
+    expect(picksCardStatus("ready", 0)).toBe("empty");
+    expect(picksCardStatus("degraded", 0)).toBe("degraded");
   });
 
   it("writes no em dashes or en dashes in any band", () => {

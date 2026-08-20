@@ -17,6 +17,7 @@ import "server-only";
 import {
   isMessagePhotoServingKey,
   MESSAGE_PHOTO_NOUN,
+  MESSAGE_PHOTO_JPEG_QUALITY,
   MESSAGE_PHOTO_OUTPUT_HEIGHT,
   MESSAGE_PHOTO_OUTPUT_WIDTH,
   MESSAGE_PHOTO_STORAGE_PREFIX,
@@ -79,6 +80,7 @@ export async function prepareMessagePhoto(file: File): Promise<PreparedMessagePh
   return prepareUploadedImage(file, {
     outputWidth: MESSAGE_PHOTO_OUTPUT_WIDTH,
     outputHeight: MESSAGE_PHOTO_OUTPUT_HEIGHT,
+    jpegQuality: MESSAGE_PHOTO_JPEG_QUALITY,
     noun: MESSAGE_PHOTO_NOUN,
     maxBytes: MESSAGE_PHOTO_MAX_BYTES,
     fail: (code, message) => new MessagePhotoError(code, message),

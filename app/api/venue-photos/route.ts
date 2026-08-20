@@ -36,7 +36,12 @@ import { log } from "@/lib/log";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { privateIdentityStore } from "@/lib/privateIdentityStore";
-import { accountIsAdult } from "@/lib/socialLaunch";
+import {
+  accountIsAdult,
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  socialSurfaceName,
+} from "@/lib/socialLaunch";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { crosspostVenuePhotoToFeed } from "@/lib/venuePhotoCrosspost.server";
@@ -236,8 +241,11 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
   if (!adult) {
+    const surface = socialSurfaceName(
+      isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]),
+    );
     return publicApiError(
-      "Photo walls are for over-18s. Confirm your age on Social, or add your date of birth to your account.",
+      `Photo walls are for over-18s. Confirm your age on ${surface}, or add your date of birth to your account.`,
       "ADULT_REQUIRED",
       403,
     );

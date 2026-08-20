@@ -42,12 +42,14 @@ export default function PubmaxxWordmark({
   const word = (
     <span className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}>
       <span className="pubmaxxWordmarkSr">PUBMAXXING</span>
-      <span aria-hidden="true">PUBMA</span>
-      <span className="pubmaxxDoubleX" aria-hidden="true">
-        <XGlyph />
-        <XGlyph />
+      <span className="pubmaxxWordmarkLetters" aria-hidden="true">
+        <span>PUBMA</span>
+        <span className="pubmaxxDoubleX">
+          <XGlyph />
+          <XGlyph />
+        </span>
+        <span>ING</span>
       </span>
-      <span aria-hidden="true">ING</span>
     </span>
   );
 

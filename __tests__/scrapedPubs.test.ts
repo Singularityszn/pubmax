@@ -48,7 +48,7 @@ describe("scrapedPubs helpers", () => {
   });
 });
 
-describe("listScrapedPubs", () => {
+describe("readScrapedPubsForPage", () => {
   afterEach(() => {
     vi.doUnmock("@/lib/venueMenuEnrichment");
     vi.doUnmock("@/lib/venuePriceIndex");
@@ -56,8 +56,9 @@ describe("listScrapedPubs", () => {
   });
 
   it("loads enrichment pubs with drink accents and source labels", async () => {
-    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
-    const pubs = await listScrapedPubs();
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const { pubs, complete } = await readScrapedPubsForPage();
+    expect(complete).toBe(true);
     expect(pubs.length).toBeGreaterThanOrEqual(90);
     expect(pubs.every((pub) => pub.name.trim().length > 0)).toBe(true);
     expect(pubs.every((pub) => pub.drinkAccent)).toBe(true);
@@ -70,8 +71,9 @@ describe("listScrapedPubs", () => {
   // once and the rows are handed back. Identity is the proof: a second call
   // that re-derived the list would return a different array.
   it("reads the bundled datasets once per instance", async () => {
-    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
-    expect(await listScrapedPubs()).toBe(await listScrapedPubs());
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const first = await readScrapedPubsForPage();
+    expect(await readScrapedPubsForPage()).toBe(first);
   });
 
   it("deduplicates a degraded read but retries it on the next request", async () => {
@@ -104,15 +106,30 @@ describe("listScrapedPubs", () => {
       ],
     }));
 
-    const { listScrapedPubs } = await import("@/lib/scrapedPubs.server");
-    const first = listScrapedPubs();
-    const concurrent = listScrapedPubs();
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const first = readScrapedPubsForPage();
+    const concurrent = readScrapedPubsForPage();
 
     expect(concurrent).toBe(first);
-    expect(await first).toEqual([]);
+    expect((await first).pubs).toEqual([]);
 
-    const recovered = await listScrapedPubs();
-    expect(recovered).toHaveLength(1);
-    expect(recovered[0]?.name).toBe("Recovered Arms");
+    const recovered = await readScrapedPubsForPage();
+    expect(recovered.pubs).toHaveLength(1);
+    expect(recovered.pubs[0]?.name).toBe("Recovered Arms");
+  });
+
+  it("reports incomplete reads without a trustworthy count", async () => {
+    vi.resetModules();
+    vi.doMock("@/lib/venueMenuEnrichment", () => ({
+      loadVenueMenuEnrichmentIndex: async () => new Map(),
+    }));
+    vi.doMock("@/lib/venuePriceIndex", () => ({
+      getPricedVenues: async () => [],
+    }));
+
+    const { readScrapedPubsForPage } = await import("@/lib/scrapedPubs.server");
+    const read = await readScrapedPubsForPage();
+    expect(read.pubs).toEqual([]);
+    expect(read.complete).toBe(false);
   });
 });

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 import { CONTACT_EMAIL, CONTACT_MAILTO } from "@/lib/siteContact";
+import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 
 import "../legal.css";
 
@@ -31,10 +32,10 @@ export const metadata: Metadata = {
   description: PAGE_DESCRIPTION,
   alternates: { canonical: "/privacy" },
   openGraph: {
-    title: `${PAGE_TITLE} · PUBMAXXING`,
+    title: appPageTitle(PAGE_TITLE),
     description: PAGE_DESCRIPTION,
     url: "https://pubmaxxing.com/privacy",
-    siteName: "PUBMAXXING",
+    siteName: metadataSiteName(),
     type: "website",
   },
 };

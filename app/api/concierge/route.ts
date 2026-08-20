@@ -18,7 +18,11 @@ import {
   filterRowsByWeekday,
 } from "@/lib/concierge/whatsOn";
 import type { WhatsOnKind } from "@/lib/whatsOn";
-import { loadWhatsOn } from "@/lib/whatsOnStore";
+import {
+  loadWhatsOn,
+  type LoadWhatsOnParams,
+  type LoadWhatsOnResult,
+} from "@/lib/whatsOnStore";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp, isSupabaseConfigured } from "@/lib/supabase";
@@ -29,11 +33,25 @@ const RATE_LIMIT = 10;
 const RATE_WINDOW_MS = 60_000;
 const MAX_QUERY_LENGTH = 500;
 
+// One rule for both grounded reads here: a bundled read that could not run has
+// nothing in it to ground an answer on, so it throws and each call site takes
+// its own honest refusal. An empty list from a failed read would otherwise pass
+// as a night with nothing on it.
+async function loadGroundedWhatsOn(
+  params: LoadWhatsOnParams,
+): Promise<LoadWhatsOnResult> {
+  const answer = await loadWhatsOn(params, {});
+  if (answer.readStatus === "degraded") {
+    throw new Error("whats-on baseline unavailable");
+  }
+  return answer;
+}
+
 // C3 — build the venueId → tonight-kinds map the soft planner weight reads.
 // Isolated from POST so an outage here is a plain try/catch at the call site,
 // not extra branching inside the route's already-large handler.
 async function tonightEventKindsByVenueMap(): Promise<Map<string, Set<WhatsOnKind>>> {
-  const { rows } = await loadWhatsOn({ window: "tonight" }, {});
+  const { rows } = await loadGroundedWhatsOn({ window: "tonight" });
   const byVenue = new Map<string, Set<WhatsOnKind>>();
   for (const row of rows) {
     if (!row.venueId) continue;
@@ -104,13 +122,13 @@ export async function POST(request: Request): Promise<Response> {
   const whatsOnQuery = query ? detectWhatsOnIntent(query) : null;
   if (whatsOnQuery) {
     try {
-      const { rows, asOf } = await loadWhatsOn(
-        {
-          ...(whatsOnQuery.kind ? { kind: whatsOnQuery.kind } : {}),
-          ...(whatsOnQuery.window === "tonight" ? { window: "tonight" as const } : {}),
-        },
-        {},
-      );
+      // A read that could not run takes the same 503 refusal a thrown read
+      // takes, rather than answering "no matches" for a question nobody could
+      // look up (loadGroundedWhatsOn owns that rule).
+      const { rows, asOf } = await loadGroundedWhatsOn({
+        ...(whatsOnQuery.kind ? { kind: whatsOnQuery.kind } : {}),
+        ...(whatsOnQuery.window === "tonight" ? { window: "tonight" as const } : {}),
+      });
       let matched = whatsOnQuery.area ? filterRowsByArea(rows, whatsOnQuery.area) : rows;
       if (whatsOnQuery.window === "weekday" && whatsOnQuery.weekday !== undefined) {
         matched = filterRowsByWeekday(matched, whatsOnQuery.weekday);

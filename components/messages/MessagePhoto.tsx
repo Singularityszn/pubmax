@@ -102,6 +102,13 @@ export default function MessagePhoto({
 
   const close = useCallback(() => setOpen(false), []);
 
+  const onDialogClick = useCallback(
+    (event: React.MouseEvent<HTMLDialogElement>) => {
+      if (event.target === event.currentTarget) close();
+    },
+    [close],
+  );
+
   if (failed) {
     return <p className="messagePhotoFailed">{MESSAGE_PHOTO_UNREADABLE_LINE}</p>;
   }
@@ -146,7 +153,12 @@ export default function MessagePhoto({
         />
       </button>
       {dialogError ? <p role="status">{dialogError}</p> : null}
-      <dialog ref={dialogRef} className="messagePhotoViewer" onClose={close}>
+      <dialog
+        ref={dialogRef}
+        className="messagePhotoViewer"
+        onClose={close}
+        onClick={onDialogClick}
+      >
         {/* eslint-disable-next-line @next/next/no-img-element -- same object URL, full frame */}
         <img className="messagePhotoViewerImage" src={objectUrl} alt={alt} />
         <button type="button" className="messagePhotoViewerClose" onClick={close}>

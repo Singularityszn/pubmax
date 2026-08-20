@@ -322,9 +322,8 @@ test("1440px planner hands ownership to venue and Back restores composed state",
 
   const toolbar = page.locator(".mapToolbar");
   await expect(toolbar).toBeVisible({ timeout: 20_000 });
-  await page.locator(".mapVenueListToggle").evaluate((button) => {
-    (button as HTMLElement).click();
-  });
+  await page.getByRole("button", { name: /Map layers:/ }).click();
+  await page.getByRole("button", { name: "List view" }).click();
   const retargetVenue = page
     .locator(".mapVenueListItem")
     .filter({ hasNotText: "Three Sheets Soho" })

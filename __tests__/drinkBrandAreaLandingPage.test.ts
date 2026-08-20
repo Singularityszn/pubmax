@@ -150,6 +150,15 @@ describe("governed drink brand by Night Area landing page", () => {
           priceGbp: 4.5,
           publisher: null,
         },
+        {
+          rank: 2,
+          venueId: "venue-2",
+          venueName: "Second pub",
+          borough: "Lambeth",
+          pintName: "Guinness Draught",
+          priceGbp: 4.8,
+          publisher: null,
+        },
       ],
     };
 
@@ -160,7 +169,11 @@ describe("governed drink brand by Night Area landing page", () => {
       }),
     );
 
-    expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
+    // Once in the hero, and once beside each row's own figure: every price
+    // states what its own record supports (docs/VOICE.md), rank 1 included.
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(3);
+    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
   });

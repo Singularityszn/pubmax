@@ -12,9 +12,11 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/authClient", () => ({ getAccessToken: async () => null }));
 
+import PintPassport from "@/components/profile/PintPassport";
 import ProfileEditor from "@/components/profile/ProfileEditor";
 import ProfileHeader from "@/components/profile/ProfileHeader";
-import type { Profile, ProfileStats } from "@/lib/profiles";
+import { buildPassport } from "@/lib/passport";
+import { UNCOUNTED_STAT, type Profile, type ProfileStats } from "@/lib/profiles";
 
 type ViewerState = "loading" | "resolved";
 type HeaderProps = ComponentProps<typeof ProfileHeader> & { viewerState?: ViewerState };
@@ -181,6 +183,18 @@ describe("profile composer", () => {
     expect(editor({ avatarUrl: "/api/avatar/p/g" })).toContain("Remove photo");
   });
 
+  // The FIRST PAINT never offers it, whatever the profile holds: a remove has
+  // two lanes (the rotation's per-row DELETE, the single-slot one) and which it
+  // belongs in is only known once the covers read answers. Offering it before
+  // then armed the single-slot route for an owner whose rotation was still
+  // loading, which cleared the mirror and left every backdrop rotating.
+  // The control's arrival, and which lane it then takes, are mounted facts:
+  // `__tests__/profileCoverEditorLanes.test.ts`.
+  it("withholds Remove cover until the covers read answers", () => {
+    expect(editor()).not.toContain("Remove cover");
+    expect(editor({ coverUrl: "/api/cover/p/g" })).not.toContain("Remove cover");
+  });
+
   // The backdrop is a rotation of up to five, so the composer owns a LIST
   // rather than one slot. There is exactly one cover control on the page: two
   // live copies of the same choice drift the moment either one writes.
@@ -189,7 +203,6 @@ describe("profile composer", () => {
     expect(markup).toContain("Cover photos");
     expect(markup).toContain("Add cover");
     expect(markup).not.toContain("Choose cover");
-    expect(markup).not.toContain("Remove cover");
   });
 });
 
@@ -244,5 +257,76 @@ describe("shipped profile CSS", () => {
     // app/globals.css scales every button on :active behind the reduced-motion
     // gate. A second scale here would be a second owner of the same moment.
     expect(css).not.toMatch(/profileEditor[A-Za-z]*:active/);
+  });
+});
+
+// A COUNT THE READ COULD NOT PRODUCE IS NOT A ZERO.
+//
+// /api/crawls?author= answers `count: null` when its one read fails, and the
+// whole point of that tri-state is that it survives to the face somebody looks
+// at. Both surfaces that print a crawl figure are checked here, because they
+// take it through different props and used to flatten it independently: the
+// header tile through `crawls`, the passport grid through buildPassport.
+describe("an unmeasured count never renders as zero", () => {
+  const passportMarkup = (counts: Parameters<typeof buildPassport>[1]): string =>
+    renderToStaticMarkup(
+      createElement(PintPassport, {
+        handle: "alice",
+        displayName: "Alice Fennimore",
+        data: buildPassport([{ handle: "alice", venueId: "v1", priceGbp: 5 }], counts),
+      }),
+    );
+
+  function statValues(markup: string): string[] {
+    return [...markup.matchAll(/class="(?:passportStatValue|profileStatValue)"[^>]*>([^<]*)</g)].map(
+      (match) => match[1],
+    );
+  }
+
+  it("prints the header tile figure when the count is known", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProfileHeader, {
+        profile: { handle: "alice", displayName: "Alice Fennimore" },
+        stats: STATS,
+        crawls: 12,
+      } as HeaderProps),
+    );
+    expect(markup).toContain("12");
+    expect(markup).not.toContain(UNCOUNTED_STAT);
+  });
+
+  it("names the header tile uncounted rather than zero when the read failed", () => {
+    const markup = renderToStaticMarkup(
+      createElement(ProfileHeader, {
+        profile: { handle: "alice", displayName: "Alice Fennimore" },
+        stats: STATS,
+        crawls: null,
+      } as HeaderProps),
+    );
+    // The accessible name carries it too, so the tile is not a bare figure to
+    // a screen reader either.
+    expect(markup).toContain(`Crawls: ${UNCOUNTED_STAT}.`);
+    expect(markup).not.toContain("Crawls: 0.");
+    expect(statValues(markup)).toContain(UNCOUNTED_STAT);
+  });
+
+  it("names the passport crawls and story posts uncounted when the read failed", () => {
+    const markup = passportMarkup({ crawls: null, storyPosts: null });
+    expect(statValues(markup).filter((value) => value === UNCOUNTED_STAT)).toHaveLength(2);
+  });
+
+  it("still prints a real zero for an author who has posted none", () => {
+    const markup = passportMarkup({ crawls: 0, storyPosts: 0 });
+    expect(markup).not.toContain(UNCOUNTED_STAT);
+    expect(statValues(markup)).toContain("0");
+  });
+
+  // A blank-passport CTA claims the page is empty. An unmeasured count cannot
+  // support that claim, so the copy is held back rather than telling somebody
+  // with twelve crawls to start collecting.
+  it("never calls a passport blank on the strength of a failed read", () => {
+    expect(buildPassport([], { crawls: null, storyPosts: null }).isEmpty).toBe(false);
+    expect(buildPassport([], { crawls: 0, storyPosts: 0 }).isEmpty).toBe(true);
+    expect(buildPassport([]).isEmpty).toBe(true);
   });
 });

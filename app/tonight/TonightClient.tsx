@@ -20,7 +20,6 @@ import {
   Footprints,
   LocateFixed,
   MapPin,
-  RefreshCw,
   Route as RouteIcon,
   TrainFront,
   Tv,
@@ -30,9 +29,12 @@ import {
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
+import { useOutListings } from "@/components/out/useOutListings";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
+import TonightListingsNotice from "./TonightListingsNotice";
+import TonightProvenanceLines from "./TonightProvenanceLines";
 import TonightGetHomeStrip from "./TonightGetHomeStrip";
 import TonightOnTonightSummary from "./TonightOnTonightSummary";
 import AreaNewsRail from "@/components/desktop/AreaNewsRail";
@@ -41,7 +43,6 @@ import TonightShareButton from "./TonightShareButton";
 import TonightSoftPlansModule from "./TonightSoftPlansModule";
 import TodayQuietPintCard from "@/app/today/TodayQuietPintCard";
 import { trackEvent } from "@/lib/analytics";
-import { firstHttp } from "@/lib/httpUrl";
 import {
   resolveTonightNear,
   tonightHeading,
@@ -54,7 +55,10 @@ import {
   tonightAcceptanceFamilyKey,
   type TonightAcceptanceError,
 } from "@/lib/tonightAcceptance";
-import { TonightRowAccept } from "@/app/tonight/TonightRowAccept";
+import {
+  TonightRowAccept,
+  type TonightRowEvidence,
+} from "@/app/tonight/TonightRowAccept";
 import { VENUE_ACCEPTANCE_STORAGE_ERROR } from "@/lib/venueAcceptance";
 import { readRememberedArea, type RememberedArea } from "@/lib/nightPatches";
 import { VibeChipButton, VibeChipLink, VibeChips } from "@/components/vibe/VibeChips";
@@ -68,6 +72,17 @@ import {
   orderDealsInPlace,
 } from "@/lib/dealsHonesty";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
+import {
+  mergeTonightListingRows,
+  tonightListingLanes,
+  tonightEmptyLead,
+  tonightListingsNoteLine,
+  tonightListingsStatus,
+  tonightNoteOffersRetry,
+  tonightRetryLanes,
+  tonightRowLinks,
+  tonightProvenanceCredits,
+} from "@/lib/tonightOutListings";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
@@ -85,21 +100,6 @@ import "./tonightOnTonightSummary.css";
 type Origin = { lat: number; lng: number };
 type LocationStatus = "idle" | "requesting" | "unavailable";
 
-function rowHref(row: WhatsOnRow): { href: string; external: boolean } | null {
-  if (typeof row.venueId === "string" && row.venueId.length > 0) {
-    return { href: `/map?sel=${encodeURIComponent(row.venueId)}`, external: false };
-  }
-  const url = firstHttp(row.source?.url);
-  if (url) return { href: url, external: true };
-  return null;
-}
-
-function coverageLabel(count: number): string {
-  if (count === 0) return "Quiet night";
-  if (count === 1) return "1 listing tonight";
-  return `${count} listings tonight`;
-}
-
 // Honest source-freshness label (L13 contract): an unknown source is stated as
 // such, never the request instant dressed as a check. An undatable source drops
 // out of the interpunct chain and gets its own sentence below it (VOICE.md rule
@@ -109,7 +109,18 @@ function freshnessLabel(kind: TonightFreshnessKind, asOf: string | null): string
   return kind === "unknown" ? null : checkedLabel(asOf);
 }
 
-const UNDATED_SOURCE_LINE = "We can’t date these listings yet.";
+// The coarse Night Area the news rail reads, derived from the area the viewer
+// already told us. Never stored, and never a new location ask.
+function areaNewsSlug(
+  tonightNear: ReturnType<typeof resolveTonightNear>,
+): string | null {
+  if (!tonightNear) return null;
+  const area = nearestNightAreaForViewport("london", [
+    tonightNear.near.lng,
+    tonightNear.near.lat,
+  ]);
+  return area?.slug ?? null;
+}
 
 // Presentation order is independent of grouping: Deals/Music full lanes follow
 // the main list on phones. Desktop keeps a compact rail summary instead
@@ -196,10 +207,40 @@ export default function TonightClient({
   // the same answer the map's Near me gives, so tabs stop disagreeing.
   const router = useRouter();
   const tonightNear = resolveTonightNear(origin, remembered);
-  const { rows, asOf, sourceObservedAt, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
+  const { rows, asOf, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
   );
+  const {
+    body: outBody,
+    failed: outFailed,
+    pending: outPending,
+    retry: retryOut,
+  } = useOutListings("tonight");
+  const outAnswer = useMemo(
+    () => ({ body: outBody, failed: outFailed, pending: outPending }),
+    [outBody, outFailed, outPending],
+  );
+  // One instant answers both questions. Reading the clock twice lets the merge
+  // drop the night's last row while the status still calls the page ready, and
+  // a ready page over no rows shows neither cards nor the quiet-night sentence.
+  const { listingRows, listingsStatus } = useMemo(() => {
+    // The past guard needs the real clock, and this memo reads it again only
+    // when one of the two reads answers, so both halves keep the same instant.
+    // eslint-disable-next-line react-hooks/purity -- deliberate clock read
+    const now = Date.now();
+    return {
+      listingRows: mergeTonightListingRows(rows, outBody?.events ?? [], now),
+      listingsStatus: tonightListingsStatus(status, outAnswer, now),
+    };
+  }, [rows, outBody, status, outAnswer]);
+  const retryLanes = tonightRetryLanes(status, outAnswer);
+  const retryWhatsOnLane = retryLanes.whatsOn;
+  const retryOutLane = retryLanes.out;
+  const retryListings = useCallback(() => {
+    if (retryWhatsOnLane) retry();
+    if (retryOutLane) retryOut();
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -207,13 +248,14 @@ export default function TonightClient({
   // the Venue off via the accept deep link. Storage failure stays on Tonight,
   // reports the error, and emits nothing.
   const acceptVenue = useCallback(
-    (venueId: string, familyKey: string) => {
+    (venueId: string, familyKey: string, evidence: TonightRowEvidence) => {
       const result = acceptTonightVenue({
         venueId,
         area: remembered,
         // Tonight answers "tonight"; like Near, no explicit future date is chosen.
         startsAt: null,
-        observedAt: sourceObservedAt,
+        observedAt: evidence.observedAt,
+        evidenceKind: evidence.kind,
         fallbackCityId: "london",
       });
       if (!result.accepted || !result.telemetry) {
@@ -224,7 +266,7 @@ export default function TonightClient({
       trackEvent("venue_accepted", result.telemetry);
       router.push(result.href);
     },
-    [remembered, sourceObservedAt, router],
+    [remembered, router],
   );
 
   const requestLocation = useCallback(() => {
@@ -267,14 +309,14 @@ export default function TonightClient({
     [tonightNear],
   );
   const groupedAll = useMemo(() => {
-    const groups = groupTonightListings(rows, tonightNear?.near ?? null, {
+    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null, {
       v2: flags.tonightGrouping,
     });
     // Deals order among themselves: nearest patch first, then closing soonest.
     // In place, so no quiz, match or gig moves to make room, and so the order
     // holds on the mixed list rather than only behind the Deal filter.
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
-  }, [rows, tonightNear, flags.tonightGrouping, dealAnchor]);
+  }, [listingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
   const grouped = useMemo(
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
@@ -284,25 +326,57 @@ export default function TonightClient({
   // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
   // lane's own facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
-  const ready = status === "ready";
+  const ready = listingsStatus === "ready";
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
     [facets, ready],
   );
 
-  const empty = status === "empty";
+  const empty = listingsStatus === "empty";
   // Null when the source cannot be dated; the header then prints the plain
   // sentence instead of a dated chain segment.
   const checked = freshnessLabel(sourceFreshnessKind, asOf);
-  const errored = status === "error";
-  const loading = status === "idle";
-  // Unfiltered `rows.length`, not the kind-filtered `visible.length` — a thin
+  // The ordering claim rides the What's-On credit, so it is only made when
+  // there are rows in that order and a patch to name.
+  const nearestPatchSuffix =
+    ready && tonightNear?.patchLabel
+      ? ` · nearest ${tonightNear.patchLabel} first`
+      : null;
+  // Each lane is credited and dated by its OWN read. The What's-On stamp above
+  // says nothing about a Ticketmaster row, so it never covers one.
+  const provenance = useMemo(
+    () =>
+      tonightProvenanceCredits({
+        merged: listingRows,
+        outEvents: outBody?.events ?? [],
+        whatsOnChecked: checked,
+        outObservedAt: outBody?.observedAt,
+      }),
+    [listingRows, outBody, checked],
+  );
+  // A lane that could not answer is named beside the cards, not only in place
+  // of them: a degraded Out answer still carrying Ticketmaster rows makes the
+  // list short for a reason the reader is owed.
+  const listingsNote = tonightListingsNoteLine(status, outAnswer);
+  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer);
+  // Which read a row came from decides how keeping it is recorded, so the Out
+  // lane is identified by the same reference identity the credits use.
+  const rowEvidence = useMemo(() => {
+    const fromOut = new Set(
+      tonightListingLanes(listingRows, outBody?.events ?? []).outRows,
+    );
+    return (row: WhatsOnRow): TonightRowEvidence => ({
+      observedAt: row.observedAt,
+      kind: fromOut.has(row) ? "out-listing" : "whats-on",
+    });
+  }, [listingRows, outBody]);
+  // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && rows.length <= THIN_NIGHT_MAX_ROWS);
+  const thinNight = empty || (ready && listingRows.length <= THIN_NIGHT_MAX_ROWS);
   const hasGeoRows =
     ready &&
-    rows.some(
+    listingRows.some(
       (row) => typeof row.lat === "number" && typeof row.lng === "number",
     );
   const showLocation = hasGeoRows || thinNight;
@@ -329,7 +403,7 @@ export default function TonightClient({
       id="main"
       className="tonightPage"
       data-testid="tonight-screen"
-      data-listings-status={status}
+      data-listings-status={listingsStatus}
     >
       <SiteNav active="tonight" />
 
@@ -342,32 +416,14 @@ export default function TonightClient({
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
         <p className="tonightLede">
-          Quiz, sport, deals, and live music from sourced listings. Open a listed
-          venue on the map.
+          Quiz, sport, deals, live music and events from sourced listings. Open a
+          listed venue on the map.
         </p>
         {ready || empty ? (
-          <>
-            {/* Both lines are named, so a browser test can ask which line it is
-                looking at instead of matching the sentence inside it. This
-                header's wording has been rewritten twice and took the specs
-                that read it down both times. */}
-            <p className="tonightProvenance" data-tonight-provenance="coverage" data-tonight-dated={checked ? "yes" : "no"}>
-              {coverageLabel(rows.length)}
-              <span aria-hidden="true"> · </span>
-              {/* One template literal so the separator spacing survives JSX
-                  text-node splitting (the built output was eating the space before
-                  the interpunct, rendering "unknown· via"). */}
-              {`${checked ? `${checked} · ` : ""}via what’s-on`}
-              {/* The one quiet continuity line: when the order comes from a
-                  remembered patch (not a live position), say which. */}
-              {ready && tonightNear?.patchLabel
-                ? ` · nearest ${tonightNear.patchLabel} first`
-                : null}
-            </p>
-            {checked ? null : (
-              <p className="tonightProvenance" data-tonight-provenance="undated">{UNDATED_SOURCE_LINE}</p>
-            )}
-          </>
+          <TonightProvenanceLines
+            provenance={provenance}
+            nearestSuffix={nearestPatchSuffix}
+          />
         ) : null}
       </header>
 
@@ -384,46 +440,18 @@ export default function TonightClient({
             Area (never stored), else the heart of the viewer's remembered patch.
             This is the area they told us, so there is no new location ask. */}
         <div className="tonightRail">
-          <AreaNewsRail
-            area={
-              tonightNear
-                ? (nearestNightAreaForViewport("london", [
-                    tonightNear.near.lng,
-                    tonightNear.near.lat,
-                  ])?.slug ?? null)
-                : null
-            }
-          />
+          <AreaNewsRail area={areaNewsSlug(tonightNear)} />
         </div>
       </aside>
 
-      <div className="tonightPrimary" data-status={status}>
-      {loading ? (
-        <p className="tonightStatus" role="status">
-          Reading tonight&rsquo;s listings…
-        </p>
-      ) : null}
-
-      {errored ? (
-        <div className="tonightStatus tonightStatusError">
-          <p role="status">Couldn&rsquo;t reach tonight&rsquo;s listings just now.</p>
-          <button type="button" className="tonightRetry" onClick={retry}>
-            <RefreshCw size={15} aria-hidden="true" />
-            Retry listings
-          </button>
-        </div>
-      ) : null}
-
-      {empty ? (
-        <p className="tonightStatus" role="status">
-          The city&apos;s having a quiet one tonight. We only list what&apos;s
-          really on, and nothing&apos;s confirmed yet.{" "}
-          <Link href="/map" className="tonightStatusLink">
-            The map still knows where the cheap pints are
-          </Link>
-          .
-        </p>
-      ) : null}
+      <div className="tonightPrimary" data-status={listingsStatus}>
+      <TonightListingsNotice
+        status={listingsStatus}
+        note={listingsNote}
+        noteOffersRetry={noteOffersRetry}
+        emptyLead={tonightEmptyLead(status, outAnswer)}
+        onRetry={retryListings}
+      />
 
       {ready || empty ? (
         /* Vibe picker (docs/VIBE_LAYER_SPEC_2026-07-19.md): the user's voice,
@@ -521,7 +549,7 @@ export default function TonightClient({
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
-              const link = rowHref(row);
+              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(row);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
               const walk =
@@ -564,7 +592,7 @@ export default function TonightClient({
                         {walk}
                       </span>
                     ) : null}
-                    <span className="tonightRowSource">via {row.source.label}</span>
+                    <span className="tonightRowSource">via {sourceLabel}</span>
                   </div>
                   {dealListingAge ? (
                     <p className="tonightRowListingAge">{dealListingAge}</p>
@@ -573,7 +601,7 @@ export default function TonightClient({
                     <span className="tonightRowCta">
                       {link.external ? (
                         <>
-                          {row.source.label}
+                          {sourceLabel}
                           <ExternalLink size={13} aria-hidden="true" />
                         </>
                       ) : (
@@ -616,11 +644,22 @@ export default function TonightClient({
                   ) : (
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
+                  {mapHref ? (
+                    <Link
+                      className="tonightRowMapLink pressable"
+                      href={mapHref}
+                      onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
+                    >
+                      Open on map
+                      <ArrowRight size={13} aria-hidden="true" />
+                    </Link>
+                  ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
                   {typeof row.venueId === "string" && row.venueId.length > 0 ? (
                     <TonightRowAccept
                       venueId={row.venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
+                      evidence={rowEvidence(row)}
                       placeName={row.placeName}
                       className="tonightRowAccept"
                       label="Keep this venue"
@@ -640,7 +679,7 @@ export default function TonightClient({
                       </summary>
                       <ul className="tonightRowMoreList">
                         {group.alternates.map((alt) => {
-                          const altLink = rowHref(alt);
+                          const altLink = tonightRowLinks(alt).primary;
                           const altWalk =
                             typeof alt.lat === "number" && typeof alt.lng === "number"
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
@@ -686,6 +725,7 @@ export default function TonightClient({
                                 <TonightRowAccept
                                   venueId={alt.venueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
+                                  evidence={rowEvidence(alt)}
                                   placeName={alt.placeName}
                                   className="tonightRowMoreAccept"
                                   label="Keep"

@@ -53,6 +53,7 @@
 
 .lpWordmark {
   min-height: 44px;
+  min-width: 0;
   display: inline-flex;
   align-items: center;
   gap: 9px;
@@ -60,6 +61,10 @@
   font: 750 15px/1 var(--font-display);
   letter-spacing: -.02em;
   text-decoration: none;
+}
+
+.lpWordmark .pubmaxxWordmark {
+  max-width: 100%;
 }
 
 .lpPrimaryNav { display: flex; justify-content: center; align-items: center; gap: 2px; }
@@ -242,7 +247,6 @@
 }
 /* Invite copy sits in the caption lane, never as a detached badge on the photo. */
 .lpHeroMapInvite { display: inline; }
-.thamesHeroHintPointer { display: none; }
 .thamesHeroPhoto { position: relative; width: 100%; min-height: 0; aspect-ratio: 4 / 3; overflow: hidden; border-radius: 32px; background: var(--ink-deep); box-shadow: 0 34px 90px color-mix(in srgb, var(--ink-deep) 28%, transparent); }
 .thamesHeroImg { object-fit: cover; object-position: 50% 50%; }
 .thamesHeroScrim { position: absolute; inset: 0; background: linear-gradient(145deg, color-mix(in srgb, var(--ink-deep) 10%, transparent), color-mix(in srgb, var(--ink-deep) 60%, transparent)); }
@@ -260,17 +264,10 @@
 .thamesHeroPin { position: absolute; transform: translate(-50%, -50%); }
 .thamesHeroPinLink { min-width: 44px; min-height: 44px; display: flex; align-items: center; gap: 7px; color: white; text-decoration: none; }
 .thamesHeroPinGlyph { width: 48px; height: 48px; display: grid; place-items: center; border: 1px solid rgba(255,255,255,.4); border-radius: 16px; background: rgba(7,11,18,.68); box-shadow: 0 9px 30px rgba(0,0,0,.28); backdrop-filter: blur(10px); transition: transform var(--duration-lift) var(--ease-standard); }
-/* Decorative rim only, drawn from the real map price key vocabulary
-   (green/amber/red, see lib/mapPriceLegend.ts). Styling, not a claim:
-   the hero carries no live price band or authority. */
-.thamesHeroPinGlyph[data-band="green"] { border-color: color-mix(in srgb, var(--pint) 65%, rgba(255,255,255,.4)); }
-.thamesHeroPinGlyph[data-band="amber"] { border-color: color-mix(in srgb, var(--amber) 65%, rgba(255,255,255,.4)); }
-.thamesHeroPinGlyph[data-band="red"] { border-color: color-mix(in srgb, var(--brick) 65%, rgba(255,255,255,.4)); }
 .thamesHeroPinLink:hover .thamesHeroPinGlyph { transform: translateY(-3px) scale(1.04); }
 .thamesHeroPinMeta { padding: 7px 9px; display: grid; gap: 1px; border-radius: 11px; background: rgba(7,11,18,.76); backdrop-filter: blur(8px); }
 .thamesHeroPinCat { color: rgba(255,255,255,.7); font-size: 8px; letter-spacing: .01em; }
 .thamesHeroPinPlace { font-size: 10px; font-weight: 700; white-space: nowrap; }
-.thamesHeroPinPrice { color: #fff; font: 700 10px/1.2 var(--font-data); }
 
 /* Human why beat: one column of copy between hero and the signal grid.
    No card grid, no pill cluster. Brass rule + night ink type on paper. */
@@ -480,7 +477,6 @@
 .lpFooterLegal a { display: inline-flex; align-items: center; min-height: 44px; color: inherit; text-decoration: underline; text-underline-offset: 2px; vertical-align: middle; }
 .lpFooterLegal a:hover { color: var(--ink); }
 
-@media (hover: hover) and (pointer: fine) { .thamesHeroHintTouch { display: none; }.thamesHeroHintPointer { display: inline; } }
 
 @media (max-width: 960px) {
   .lpNav { grid-template-columns: auto 1fr; }.lpPrimaryNav { display: none; }.lpNavActions { justify-self: end; }
@@ -526,7 +522,7 @@
      guessing game. Right-side pins flip the label inboard so it never clips
      the photo's hidden overflow. */
   .thamesHeroPinMeta { padding: 3px 7px; }
-  .thamesHeroPinPlace, .thamesHeroPinPrice { display: none; }
+  .thamesHeroPinPlace { display: none; }
   .thamesHeroPin:nth-child(3) .thamesHeroPinLink,
   .thamesHeroPin:nth-child(4) .thamesHeroPinLink { flex-direction: row-reverse; }
   .thamesHeroPin:nth-child(1) { left: 18% !important; top: 24% !important; }

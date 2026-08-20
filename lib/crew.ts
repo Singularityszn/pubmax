@@ -25,6 +25,20 @@ export function cleanCrewName(value: unknown): string {
   return cleanText(value, CREW_NAME_MAX);
 }
 
+/** Signed-in lock-in: prefer account metadata over an empty composer field. */
+export function creatorNameFromAuthUser(user: {
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+}): string {
+  const meta = user.user_metadata ?? {};
+  const raw =
+    (typeof meta.full_name === "string" && meta.full_name.trim())
+    || (typeof meta.name === "string" && meta.name.trim())
+    || (typeof user.email === "string" && user.email.split("@")[0]?.trim())
+    || "";
+  return cleanCrewName(raw);
+}
+
 export function isCrewPresenceStatus(value: unknown): value is CrewPresenceStatus {
   return typeof value === "string" && CREW_PRESENCE_STATUSES.includes(value as CrewPresenceStatus);
 }

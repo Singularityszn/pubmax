@@ -3,30 +3,14 @@ import { join, relative } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // Party-accent containment gate (docs/VIBE_LAYER_SPEC_2026-07-19.md, "Accent
-// type"): Bungee is QUARANTINED — at most three component families may
-// reference var(--font-party), and it must never reach body, navigation, or
-// data surfaces. This test greps the tracked tree so a leak fails CI the
-// moment a fourth family (or a banned surface) adopts the token.
-
-// Files allowed to mention --font-party without counting as consumers:
-// the token's definition sites. Docs and this test never count — the grep
-// below is scoped to code surfaces, so prose can name the token freely.
-const DEFINITION_SITES = new Set([
-  "app/layout.tsx",
-  "app/globals.css",
-  // Route-scoped definition of the token (the next/font module loaded only by
-  // /tonight and /pal). It defines --font-party, it does not consume it.
-  "app/fonts/partyFace.ts",
-]);
-
-// Surfaces the spec bans outright — a --font-party reference here is a leak
-// regardless of the family budget.
-const BANNED_PREFIXES = [
-  "components/nav/",
-  "components/landing/",
-  "app/pint-index",
-  "app/discover",
-];
+// type"). The spec quarantined Bungee to at most three component families and
+// banned it from body, navigation and data surfaces. On 2026-08-18 the vibe
+// chips - its last consumer - left the face, so the app loads no Bungee
+// webfont at all and defines no --font-party token. The quarantine therefore
+// tightens to zero: a reference in shipped code is now a token nothing
+// defines, which resolves to its fallback and drags a webfont back with it if
+// anyone re-adds the loader. Share cards keep Bungee through the vendored TTF
+// satori reads (lib/ogBrand.tsx); no browser downloads that.
 
 function codeFiles(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -36,6 +20,8 @@ function codeFiles(directory: string): string[] {
   });
 }
 
+// The grep is scoped to code surfaces, so docs and this test may name the
+// token freely.
 function filesContaining(pattern: RegExp): string[] {
   const root = process.cwd();
   return ["app", "components", "lib"]
@@ -44,40 +30,11 @@ function filesContaining(pattern: RegExp): string[] {
     .map((file) => relative(root, file));
 }
 
-function trackedFilesReferencingToken(): string[] {
-  // Scan shipped code directly. Deployment archives intentionally omit .git,
-  // while this containment gate must run identically in local and Vercel CI.
-  return filesContaining(/--font-party/);
-}
-
-// A "component family" is the directory under components/ (or the app route
-// segment) that owns the file — the unit the spec budgets.
-function familyOf(file: string): string {
-  const parts = file.split("/");
-  if (parts[0] === "components") return parts.slice(0, 2).join("/");
-  if (parts[0] === "app") return parts.slice(0, 2).join("/");
-  return file;
-}
-
 describe("party accent containment (vibe layer spec)", () => {
-  it("keeps var(--font-party) inside the quarantine", () => {
-    const files = trackedFilesReferencingToken();
-    const consumers = files.filter((file) => !DEFINITION_SITES.has(file));
-
-    for (const file of consumers) {
-      for (const banned of BANNED_PREFIXES) {
-        expect(
-          file.startsWith(banned),
-          `--font-party leaked into banned surface ${file}`,
-        ).toBe(false);
-      }
-    }
-
-    const families = new Set(consumers.map(familyOf));
-    expect(
-      families.size,
-      `--font-party referenced by ${families.size} component families (${[...families].join(", ")}); spec caps it at 3`,
-    ).toBeLessThanOrEqual(3);
+  it("keeps --font-party out of shipped code", () => {
+    // Scan shipped code directly. Deployment archives intentionally omit .git,
+    // while this containment gate must run identically in local and Vercel CI.
+    expect(filesContaining(/--font-party/)).toEqual([]);
   });
 
   it("keeps the killed register out of the tracked tree's product strings", () => {

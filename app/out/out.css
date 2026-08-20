@@ -78,16 +78,24 @@
   margin: 0 0 22px;
 }
 
-.outEmpty {
-  margin: 0;
-  color: var(--ink-soft);
+.outPlansSectionTitle {
   font-size: 0.95rem;
+  font-weight: 650;
+  color: var(--ink-soft);
+}
+
+.outPlansPlaceholder {
+  margin: 0;
+  color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
+  font-size: 0.88rem;
   line-height: 1.45;
 }
 
-.outEmptyLink {
-  color: var(--ink);
-  font-weight: 650;
+.outPlansPlaceholderLink {
+  color: color-mix(in srgb, var(--ink-soft) 92%, transparent);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 
 .outStatus {
@@ -125,7 +133,8 @@
   text-decoration: none;
 }
 
-.outCard h2 {
+.outCard h2,
+.outCard h4 {
   margin: 0;
   font-family: var(--font-display);
   font-size: 1.05rem;
@@ -150,5 +159,191 @@
   align-items: center;
   gap: 8px;
   color: inherit;
+}
+
+.outListingSurface {
+  display: grid;
+  gap: 22px;
+}
+
+.outGroup {
+  display: grid;
+  gap: 10px;
+}
+
+.outGroupTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.outGroupList {
+  display: grid;
+  gap: 12px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outListingRow {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised, var(--paper));
+}
+
+.outListingGig {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.outListingPubPair {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.outListingPubPair--absent {
+  color: color-mix(in srgb, var(--ink-soft) 82%, transparent);
+}
+
+.outListingPubPair--matched {
+  display: grid;
+  gap: 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.outListingPubPairHead {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.outListingPubPairLabel {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--brass);
+}
+
+.outListingPubPairName {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.outListingPubPairLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: fit-content;
+  min-height: 44px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+  text-decoration: none;
+}
+
+.outListingPubPairLink:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .outListingPubPairLink:hover {
+    border-color: var(--state-active-border, var(--brass));
+    color: var(--ink);
+  }
+}
+
+.outOpenPlanList {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.outOpenPlanCard {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel-raised, var(--paper));
+}
+
+.outOpenPlanLink {
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.outOpenPlanTitle {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.outOpenPlanMeta,
+.outOpenPlanMeet {
+  margin: 0;
+  font-size: 0.85rem;
+  line-height: 1.4;
+  color: var(--ink-soft);
+}
+
+.outPlansFoot {
+  margin: 12px 0 0;
+  font-size: 0.88rem;
+}
+
+.outPlansFootLink {
+  color: var(--ink-soft);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (min-width: 1024px) {
+  .outPage {
+    max-width: var(--content-max-wide, 1240px);
+  }
+
+  .outListingSurface {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 24px;
+    row-gap: 28px;
+  }
+
+  .outListingRow {
+    grid-template-columns: minmax(0, 1fr) minmax(220px, 280px);
+    column-gap: 18px;
+    align-items: start;
+  }
+
+  .outListingPubPair--matched {
+    padding-top: 0;
+    border-top: none;
+    border-left: 1px solid var(--line);
+    padding-left: 18px;
+  }
+
+  .outListingPubPair--absent {
+    border-left: 1px solid var(--line);
+    padding-left: 18px;
+    align-self: center;
+  }
 }
 

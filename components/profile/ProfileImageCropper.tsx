@@ -21,6 +21,8 @@ import {
   type CropTransform,
 } from "@/lib/profileImagePicker";
 
+import "@/components/profile/profileImageCropper.css";
+
 // The step between choosing a photo and uploading it. It exists because the
 // slots have fixed shapes: a face is a square and a backdrop is a wide band, so
 // without a crop the server decides which half of a portrait to keep and a

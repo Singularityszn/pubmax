@@ -14,6 +14,7 @@ import type { CityId } from "@/lib/cities";
 import type { PlanGenerationAnchor as PlanGenerationWireAnchor } from "@/lib/planGenerationRequest";
 import { isPlanStopCount, normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import { DAY_MS } from "@/lib/dayMs";
+import { safeLocalStorage } from "@/lib/safeStorage";
 
 export const PLAN_INTAKE_VERSION = 1 as const;
 export const PLAN_INTAKE_STORAGE_KEY = "pubmax:plan-intake:v1";
@@ -486,13 +487,7 @@ export function parsePlanIntakeDraft(raw: string | null, now = Date.now()): Plan
 }
 
 function resolveStorage(storage?: Storage | null): Storage | null {
-  if (storage) return storage;
-  if (typeof window === "undefined") return null;
-  try {
-    return window.localStorage;
-  } catch {
-    return null;
-  }
+  return storage ?? safeLocalStorage();
 }
 
 export function readPlanIntakeDraftWithMetadata(

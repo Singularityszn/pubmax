@@ -30,9 +30,9 @@ page, official API, open data) supports.
 | **Weather** | Open-Meteo (keyless) | Vercel `refresh-weather` cron to durable weather store | Every 6 h | none | Every 6 h | 48 h |
 | **Night signals** | Staged candidate claims, offline-reviewed | Vercel candidate cron; manual approved publish to `night_signals/latest.json` | Candidate sweep daily; reviewed feed advances only on human publish | `EXA_API_KEY` arms candidate ingestion; **human review always** | Human-gated episodic | untracked |
 | **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | Vercel slim revalidation + CityMCP blend at request time; full ingest stays manual | Daily slim window; episodic baseline | none | Daily served-window revalidation | 48 h (envelope) |
-| **What's-On — events** (Ticketmaster/Skiddle/Common) | Official discovery APIs, plus the Common sitemap reader (facts + link out) | `events-refresh.yml` on `main` (daily 04:00 UTC, validates before it opens the review PR) and the local launchd events job; `/api/out` also supplements the bundled file live per request | Scheduled but **held**: GitHub Actions is disabled at the repo level, so the local scheduler is the only path running today | `TICKETMASTER_API_KEY` and/or `SKIDDLE_API_KEY` (Skiddle also stays fenced off until we hold its logo); the Common lane is keyless | Daily 04:00 UTC once Actions is on | 48 h |
+| **What's-On — events** (Ticketmaster/Skiddle/Context.dev/Common) | Official discovery APIs, the Context.dev registered-source lane (see [`LONDON_HARVEST.md`](./LONDON_HARVEST.md)), plus the Common sitemap reader (facts + link out) | `events-refresh.yml` on `main` (daily 04:00 UTC, validates before it opens the review PR) and the local launchd events job; `/api/out` also supplements the bundled file live per request | Scheduled but **held**: GitHub Actions is disabled at the repo level, so the local scheduler is the only path running today | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` and/or `CONTEXT_DEV_API_KEY` (Skiddle also stays fenced off until we hold its logo); the Common lane is keyless | Daily 04:00 UTC once Actions is on | 48 h |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
-| **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json`; the weekly Vercel `refresh-prices` cron only retrieves and stamps the separate `price_update_retrieval` feed | **Weekly Mon 07:00 UTC** retrieval; parser stub makes the current run a logged no-op that stamps nothing, and the served file only advances on a reviewed publish | none to run; needs a per-source parser | Weekly retrieval, publish-bound serving | 14 d (served file) |
+| **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json`; the weekly Vercel `refresh-prices` cron only retrieves and stamps the separate `price_update_retrieval` feed | Episodic — parser stub keeps the served envelope empty; `generatedAt` names the bundled pint collection day until a reviewed publish lands | none to run; needs a per-source parser | Publish-bound serving once parsers ship | untracked |
 | **Drink price updates** | Wetherspoons first-party (allowlist) | `Drink price refresh` workflow → `refresh:drink-prices` → PR | **Weekly Mon 07:30 UTC** — pipeline real but **emits 0 rows** (no per-drink web prices; prices live only in the Order-&-Pay app backend) | none to run; source has no permissible per-drink prices | Weekly | 14 d |
 | **Food price updates** | Menu harvest | Manual harvest (no workflow) | Episodic | `FIRECRAWL_API_KEY` for scraping | Episodic | 60 d |
 | **Pint Index (borough medians)** | Confirmed Pint Drops + official-publisher / open-data | Recomputed as eligible observations arrive | **Event-sourced** (grows with the product) | none | User-cadence — **the growth loop IS the refresh** | untracked |
@@ -73,6 +73,7 @@ sets a secret. Exact env var → mechanism mapping:
 | `EXA_API_KEY` | Vercel env | Night-signal candidate ingestion (scheduled) | Candidate sweep skips without changing reviewed snapshot; nothing in interactive path breaks |
 | `TICKETMASTER_API_KEY` | Read from the GH Actions secret by the refresh, from the Vercel env by `/api/out`, and from the local key file by the launchd job | What's-On **events** vertical (Ticketmaster Discovery), in the refresh and in the `/api/out` live supplement | Lane reports `not-configured`; contributes 0 rows, and a reader is never told the market is empty |
 | `SKIDDLE_API_KEY` | Same three readers; **not provisioned anywhere yet** | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com**, and the lane stays fenced off until we hold the Skiddle logo the licence requires | Lane reports `not-configured` |
+| `CONTEXT_DEV_API_KEY` | Local key file read by the launchd events job; not a GH Actions or Vercel secret | What's-On events, registered-source lane only - allowed first-party venue-events pages in `lib/harvest/sourcePolicy.ts`, read through Context.dev extract ([`LONDON_HARVEST.md`](./LONDON_HARVEST.md)) | Lane reports `not-configured` and sends nothing |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
 | `EXA_API_KEY` + `FIRECRAWL_API_KEY` | Local environment; future GitHub Actions secrets | Governed restaurant/attraction discovery plus source-page JSON-LD transport (`ingest:night-out-places`) | Script halts before write and reports `OWNER ACTION`; the committed honest-empty feed remains untouched |
 | `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Every TfL surface (last-train, nearby buses) works fully keyless; only limits are lower |
@@ -140,6 +141,15 @@ observed instant — `field` pointer or `literal`), `cadence`, `stalenessBudgetH
 `refreshWorkflow`, and `gate`. It is the single source of truth the table above
 is derived from.
 
+One optional field: `pack: true` says the artifact is a **row pack** whose
+presence and non-emptiness is itself a finding, whatever kind of stamp dates it.
+A pack that is missing, unparseable or empty resolves to `unknown` rather than
+answering its literal stamp, in both readers. It is also the one thing besides a
+`field` stamp that opens the artifact at runtime, so `lib/freshnessTracing.mjs`
+ships a pack into the freshness functions exactly the way it ships a field stamp
+(see the runtime-tracing rule in `AGENTS.md`); an untraced pack would read as
+fresh for ever.
+
 ### `scripts/check_freshness.mjs`
 Reads the registry, resolves each artifact's real observed/generated stamp, and
 compares age against budget. Prints a status table and **exits non-zero on any
@@ -185,10 +195,12 @@ or read `GET /api/freshness`. Two things to know when reading it:
   `lib/freshnessStoreOverlay.ts`, because a serverless cron cannot rewrite a
   committed artifact. An ingestion feed reports that a sweep RAN, never that
   anything shipped.
-- **A human-gated feed is `untracked`, not `stale`.** `night_signals` advances
-  only on an approved publish, so it carries no machine budget. The served
-  `price_updates` file keeps its 336 h budget and keeps alerting until a reviewed
-  publish lands; the weekly retrieval cron can never quiet it.
+- **A human-gated feed is `untracked`, not `stale`.** `night_signals` and the
+  served `price_updates` envelope advance only on an approved publish (or, while
+  parsers are stubbed, carry an honest collection-day stamp with no machine
+  budget), so neither reads as a broken weekly cron. The weekly retrieval cron
+  stamps `price_update_retrieval` only; it can never quiet or freshen the served
+  file.
 
 That is the feature working: the directive "always get live data" has a dial that
 says out loud when a cadence has slipped, and stays silent about cadences that

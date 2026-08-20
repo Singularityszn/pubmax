@@ -25,6 +25,10 @@ import {
 } from "@/lib/pushProvider";
 import { pushTokenStore } from "@/lib/pushTokenStore";
 import {
+  CHEAP_PINT_PING_THREAD_ID,
+  type CheapPintPingPayload,
+} from "@/lib/cheapPintPing";
+import {
   STEP_OUT_NUDGE_THREAD_ID,
   type StepOutNudgePayload,
 } from "@/lib/stepOutNudge";
@@ -188,6 +192,24 @@ export async function sendStepOutNudge(
       nudgeKind: payload.kind,
       url: payload.url,
       ...(payload.sourceLabel ? { sourceLabel: payload.sourceLabel } : {}),
+    },
+  });
+}
+
+export async function sendCheapPintPing(
+  subscriptionToken: string,
+  payload: CheapPintPingPayload,
+): Promise<PushDispatchSummary> {
+  if (!subscriptionToken) return { ...EMPTY_SUMMARY };
+  return dispatch([subscriptionToken], {
+    title: payload.title,
+    body: payload.body,
+    threadId: CHEAP_PINT_PING_THREAD_ID,
+    data: {
+      kind: "cheap_pint_ping",
+      url: payload.url,
+      venueId: payload.venueId,
+      priceLabel: payload.priceLabel,
     },
   });
 }

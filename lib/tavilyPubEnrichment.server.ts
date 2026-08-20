@@ -26,6 +26,10 @@ const CITY_ROTATION = [
   "bristol",
 ] as const;
 export const SEARCH_CRON_QUERY_CAP = 25;
+/** Bristol nights 504 at the full cron cap; keep the city inside a smaller slice. */
+export const BRISTOL_CRON_QUERY_CAP = 8;
+/** Wall-clock bound so a slow Bristol lane cannot eat the whole function budget. */
+export const BRISTOL_CRON_WALL_MS = 45_000;
 
 type UkPack = { pubs?: OsmPub[] };
 
@@ -37,6 +41,8 @@ function loadUkPubs(): OsmPub[] {
 
 export type ScheduledCityEnrichment = TavilyEnrichmentResult & {
   startIndex: number;
+  primaryCity: string;
+  cityRuns?: ScheduledCityRunOutcome[];
 };
 
 export type ScheduledEnrichmentProgress = {
@@ -49,24 +55,136 @@ export type ScheduledEnrichmentProgress = {
   delegatedChains: TavilyEnrichmentResult["delegatedChains"];
 };
 
-export async function runScheduledCityEnrichment(options: {
+export type ScheduledCityRunOutcome = {
+  city: string;
+  ok: boolean;
+  queriesSpent: number;
+  creditsSpent: number;
+  startIndex?: number;
+  nextIndex?: number;
+  matchedPubs?: number;
+  pricesExtracted?: number;
+  error?: string;
+};
+
+type RunScheduledOptions = {
   apiKey?: string;
   searchProvider?: SearchProvider;
   fetchImpl?: typeof fetch;
   now?: number;
   maxQueries?: number;
   onProgress?: (progress: ScheduledEnrichmentProgress) => void | Promise<void>;
-}): Promise<ScheduledCityEnrichment> {
-  const now = options.now ?? Date.now();
-  const maxQueries = options.maxQueries ?? SEARCH_CRON_QUERY_CAP;
-  const epochDay = Math.floor(now / DAY_MS);
-  const city = CITY_ROTATION[epochDay % CITY_ROTATION.length];
-  const pubs = selectCityPubs(city, loadUkPubs()).filter(
+};
+
+type CityBatchResult = ScheduledCityEnrichment;
+
+function eligibleCityPubs(city: string, allPubs: OsmPub[]): OsmPub[] {
+  return selectCityPubs(city, allPubs).filter(
     (pub) => Boolean(pub.website) && !classifyChainPub(pub),
   );
-  const completedRotations = Math.floor(epochDay / CITY_ROTATION.length);
-  const startIndex = pubs.length > 0 ? (completedRotations * maxQueries) % pubs.length : 0;
-  return runCityEnrichment({
+}
+
+function startIndexForCity(
+  city: string,
+  pubs: OsmPub[],
+  epochDay: number,
+  rotationStride: number,
+): number {
+  return pubs.length > 0 ? (Math.floor(epochDay / CITY_ROTATION.length) * rotationStride) % pubs.length : 0;
+}
+
+function withWallClock<T>(
+  promise: Promise<T>,
+  wallMs: number,
+  onTimeout?: () => void,
+): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      onTimeout?.();
+      reject(new Error(`City enrichment timed out after ${wallMs}ms.`));
+    }, wallMs);
+    promise
+      .then((value) => {
+        clearTimeout(timer);
+        resolve(value);
+      })
+      .catch((error) => {
+        clearTimeout(timer);
+        reject(error);
+      });
+  });
+}
+
+function outcomeFromResult(city: string, result: CityBatchResult): ScheduledCityRunOutcome {
+  return {
+    city,
+    ok: true,
+    queriesSpent: result.queriesSpent,
+    creditsSpent: result.creditsSpent,
+    startIndex: result.startIndex,
+    nextIndex: result.nextIndex,
+    matchedPubs: result.matchedPubs,
+    pricesExtracted: result.prices.length,
+  };
+}
+
+function resultFromPartial(
+  partial: ScheduledEnrichmentProgress,
+  city: string,
+  allPubs: OsmPub[],
+  epochDay: number,
+  rotationStride: number,
+): CityBatchResult {
+  const pubs = eligibleCityPubs(city, allPubs);
+  const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
+  return {
+    city,
+    primaryCity: city,
+    totalPubs: pubs.length,
+    startIndex,
+    nextIndex: partial.nextIndex,
+    queriesSpent: partial.queriesSpent,
+    creditsSpent: partial.creditsSpent,
+    matchedPubs: partial.pages.length,
+    prices: partial.prices,
+    pages: partial.pages,
+    delegatedChains: partial.delegatedChains,
+    complete: false,
+  };
+}
+
+function outcomeFromPartial(
+  city: string,
+  partial: ScheduledEnrichmentProgress | null,
+  error: unknown,
+): ScheduledCityRunOutcome {
+  return {
+    city,
+    ok: false,
+    queriesSpent: partial?.queriesSpent ?? 0,
+    creditsSpent: partial?.creditsSpent ?? 0,
+    startIndex: partial ? partial.nextIndex - (partial.queriesSpent > 0 ? 1 : 0) : undefined,
+    nextIndex: partial?.nextIndex,
+    matchedPubs: partial?.pages.length,
+    pricesExtracted: partial?.prices.length,
+    error: error instanceof Error ? error.message : String(error),
+  };
+}
+
+async function runCityBatch(
+  city: string,
+  options: RunScheduledOptions,
+  allPubs: OsmPub[],
+  epochDay: number,
+  rotationStride: number,
+  maxQueries: number,
+  wallMs?: number,
+): Promise<CityBatchResult> {
+  const pubs = eligibleCityPubs(city, allPubs);
+  const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
+  let lastPartial: ScheduledEnrichmentProgress | null = null;
+  const abortController = wallMs !== undefined ? new AbortController() : undefined;
+  const enrichment = runCityEnrichment({
     city,
     pubs,
     apiKey: options.apiKey,
@@ -74,14 +192,156 @@ export async function runScheduledCityEnrichment(options: {
     fetchImpl: options.fetchImpl,
     maxQueries,
     startIndex,
-    observedAt: new Date(now).toISOString(),
-    onProgress: options.onProgress
-      ? async (state) => {
-          await options.onProgress?.({
-            city,
-            ...(state as Omit<ScheduledEnrichmentProgress, "city">),
-          });
-        }
-      : undefined,
+    observedAt: new Date(options.now ?? Date.now()).toISOString(),
+    signal: abortController?.signal,
+    onProgress: async (state) => {
+      lastPartial = {
+        city,
+        ...(state as Omit<ScheduledEnrichmentProgress, "city">),
+      };
+      await options.onProgress?.(lastPartial);
+    },
   });
+  try {
+    const result = wallMs
+      ? await withWallClock(enrichment, wallMs, () => abortController!.abort())
+      : await enrichment;
+    return { ...result, startIndex, primaryCity: city };
+  } catch (error) {
+    if (wallMs) {
+      await enrichment.catch(() => {});
+    }
+    if (lastPartial) {
+      (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = lastPartial;
+    }
+    throw error;
+  }
+}
+
+function mergeCityResults(primaryCity: string, runs: CityBatchResult[]): ScheduledCityEnrichment {
+  const primary = runs.find((run) => run.city === primaryCity) ?? runs[0];
+  const prices = runs.flatMap((run) => run.prices);
+  const pages = runs.flatMap((run) => run.pages);
+  const delegatedChains = runs.flatMap((run) => run.delegatedChains);
+  const queriesSpent = runs.reduce((sum, run) => sum + run.queriesSpent, 0);
+  const creditsSpent = runs.reduce((sum, run) => sum + run.creditsSpent, 0);
+  const matchedPubs = runs.reduce((sum, run) => sum + run.matchedPubs, 0);
+
+  return {
+    ...primary,
+    city: primaryCity,
+    primaryCity,
+    prices,
+    pages,
+    delegatedChains,
+    queriesSpent,
+    creditsSpent,
+    matchedPubs,
+    complete: runs.every((run) => run.complete),
+  };
+}
+
+export async function runScheduledCityEnrichment(
+  options: RunScheduledOptions,
+): Promise<ScheduledCityEnrichment> {
+  const now = options.now ?? Date.now();
+  const maxQueries = options.maxQueries ?? SEARCH_CRON_QUERY_CAP;
+  const epochDay = Math.floor(now / DAY_MS);
+  const primaryCity = CITY_ROTATION[epochDay % CITY_ROTATION.length];
+  const allPubs = loadUkPubs();
+  const cityRuns: ScheduledCityRunOutcome[] = [];
+  const mergeableRuns: CityBatchResult[] = [];
+
+  const runTrackedCity = async (
+    city: string,
+    queryCap: number,
+    wallMs?: number,
+  ): Promise<CityBatchResult | null> => {
+    try {
+      const result = await runCityBatch(
+        city,
+        options,
+        allPubs,
+        epochDay,
+        maxQueries,
+        queryCap,
+        wallMs,
+      );
+      cityRuns.push(outcomeFromResult(city, result));
+      mergeableRuns.push(result);
+      return result;
+    } catch (error) {
+      const partial = (error as Error & { partial?: ScheduledEnrichmentProgress }).partial ?? null;
+      cityRuns.push(outcomeFromPartial(city, partial, error));
+      if (partial) {
+        mergeableRuns.push(resultFromPartial(partial, city, allPubs, epochDay, maxQueries));
+      }
+      return null;
+    }
+  };
+
+  const primaryCap =
+    primaryCity === "bristol" ? Math.min(BRISTOL_CRON_QUERY_CAP, maxQueries) : maxQueries;
+  const primaryWallMs = primaryCity === "bristol" ? BRISTOL_CRON_WALL_MS : undefined;
+  const primaryResult = await runTrackedCity(primaryCity, primaryCap, primaryWallMs);
+
+  if (primaryCity === "bristol") {
+    const spent = cityRuns.reduce((sum, run) => sum + run.queriesSpent, 0);
+    let remainingBudget = maxQueries - spent;
+    const spilloverCities = CITY_ROTATION.filter((city) => city !== "bristol");
+    for (let index = 0; index < spilloverCities.length && remainingBudget > 0; index += 1) {
+      const city = spilloverCities[index];
+      const citiesLeft = spilloverCities.length - index;
+      const slice = Math.max(1, Math.ceil(remainingBudget / citiesLeft));
+      const cap = Math.min(slice, remainingBudget);
+      const result = await runTrackedCity(city, cap);
+      if (result) {
+        remainingBudget -= result.queriesSpent;
+      } else {
+        const failed = cityRuns.find((run) => run.city === city);
+        remainingBudget -= failed?.queriesSpent ?? 0;
+      }
+    }
+  }
+
+  if (!primaryResult && primaryCity !== "bristol") {
+    const failed = cityRuns.find((run) => run.city === primaryCity);
+    const message = failed?.error ?? "City enrichment provider unavailable.";
+    const error = new Error(message);
+    if (failed) {
+      (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = {
+        city: primaryCity,
+        nextIndex: failed.nextIndex ?? failed.startIndex ?? 0,
+        queriesSpent: failed.queriesSpent,
+        creditsSpent: failed.creditsSpent,
+        prices: [],
+        pages: [],
+        delegatedChains: [],
+      };
+    }
+    throw error;
+  }
+
+  const merged =
+    mergeableRuns.length > 0
+      ? mergeCityResults(primaryCity, mergeableRuns)
+      : {
+          city: primaryCity,
+          primaryCity,
+          totalPubs: eligibleCityPubs(primaryCity, allPubs).length,
+          startIndex: 0,
+          nextIndex: 0,
+          queriesSpent: cityRuns.reduce((sum, run) => sum + run.queriesSpent, 0),
+          creditsSpent: cityRuns.reduce((sum, run) => sum + run.creditsSpent, 0),
+          matchedPubs: cityRuns.reduce((sum, run) => sum + (run.matchedPubs ?? 0), 0),
+          prices: [],
+          pages: [],
+          delegatedChains: [],
+          complete: false,
+        };
+
+  return {
+    ...merged,
+    cityRuns,
+  };
 }

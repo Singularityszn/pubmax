@@ -14,7 +14,6 @@ import "@/components/map/spillComposer.css";
 import "@/components/map/logIntentFallback.css";
 import "@/components/map/mapBannerStaging.css";
 import "@/components/map/mapToolbar.css";
-import "@/components/map/mapPriceControl.css";
 import "@/components/map/citySuggestBanner.css";
 import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
@@ -102,6 +101,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import DrinkLanePicker from "@/components/map/DrinkLanePicker";
 import DrinkShapeChips from "@/components/map/DrinkShapeChips";
 import MapKey from "@/components/map/MapKey";
+import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
 import MapExperienceLensControl from "@/components/map/MapExperienceLens";
 import FavoritePintPicker from "@/components/map/FavoritePintPicker";
 import MobilePriceChoices from "@/components/map/MobilePriceChoices";
@@ -160,10 +160,6 @@ const MapDesktopRail = dynamic(() => import("@/components/map/MapDesktopRail"), 
 const MapVenueList = dynamic(() => import("@/components/map/MapVenueList"), {
   ssr: false,
 });
-const MapPriceControl = dynamic(
-  () => import("@/components/map/MapPriceControl"),
-  { ssr: false },
-);
 const CitySuggestBanner = dynamic(
   () => import("@/components/map/CitySuggestBanner"),
   { ssr: false },
@@ -231,7 +227,9 @@ import {
   getFavoritePint,
   setFavoritePint as persistFavoritePint,
 } from "@/lib/favoritePint";
+import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import { getSaved } from "@/lib/savedPubs";
+import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import { createSlimShardLoader, type MapBounds, type SlimShardLoader } from "@/lib/slimShards";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import {
@@ -247,6 +245,12 @@ import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import ZonePicker from "@/components/map/ZonePicker";
 import AreaSheet from "@/components/map/AreaSheet";
+import ChooseAreaSheet, {
+  ChooseAreaDesktopDialog,
+  type ChooseAreaPick,
+} from "@/components/map/ChooseAreaSheet";
+import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
+import MapArrivalCard from "@/components/map/MapArrivalCard";
 import MapSearchSuggest, {
   type MapSearchSuggestProps,
 } from "@/components/map/MapSearchSuggest";
@@ -263,6 +267,11 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
+import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
+import { resolveMapDisplayName } from "@/lib/mapDisplayName";
+import MapLoadingFrame from "@/components/map/MapLoadingFrame";
+import { useMapPinsRevealed } from "@/components/map/useMapPinsRevealed";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import {
   drinkLensPriceNoun,
@@ -303,6 +312,16 @@ import {
   shouldFitQueryVenuesOnArrival,
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
+import {
+  readMapChosenArea,
+  resolveMapChosenAreaRestore,
+  subscribeMapChosenArea,
+  writeMapChosenArea,
+} from "@/lib/mapChosenArea";
+import {
+  shouldShowMapFirstVisitArrival,
+  subscribeMapFirstVisitArrival,
+} from "@/lib/mapFirstVisitArrival";
 import {
   areaSheetOpenDelay,
   areaClaimedByViewport,
@@ -474,6 +493,23 @@ function mobileViewportSnapshot(): boolean {
 // 640 phone split is a separate threshold). Its own matchMedia so the rail
 // mounts only when actually shown — no phantom conditions/area fetches below it.
 const DESKTOP_RAIL_MEDIA_QUERY = "(min-width: 1024px)";
+
+// One frozen empty gazetteer, so a non-London city hands every reader of
+// `localities` the same reference rather than a fresh array every render.
+const NO_LOCALITIES: Locality[] = [];
+
+// Shard coverage is recomputed after every shard settles, so the held set is
+// replaced only when its membership really moved.
+function sameSlugSet(
+  held: ReadonlySet<string> | null,
+  next: ReadonlySet<string>,
+): boolean {
+  if (!held || held.size !== next.size) return false;
+  for (const slug of next) {
+    if (!held.has(slug)) return false;
+  }
+  return true;
+}
 function subscribeDesktopRailViewport(onChange: () => void): () => void {
   const query = window.matchMedia(DESKTOP_RAIL_MEDIA_QUERY);
   query.addEventListener("change", onChange);
@@ -658,7 +694,11 @@ export default function PubMap({
     () => false,
   );
   const isLondon = cityId === "london" && !ukPlaceArrival && !ukNationalBrowse;
-  const mapDisplayName = ukPlaceArrival?.name ?? (ukNationalBrowse ? "UK" : city.displayName);
+  const mapDisplayName = resolveMapDisplayName({
+    placeName: ukPlaceArrival?.name,
+    ukNationalBrowse,
+    cityDisplayName: city.displayName,
+  });
   const mapSearchPlaceholder = ukPlaceArrival
     ? "Search priced pub names"
     : ukNationalBrowse
@@ -723,10 +763,46 @@ export default function PubMap({
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
   const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
+  // Bumped by the canvas's pin Retry when the readiness ceiling named the pub
+  // list. The index load is the owner's, so the way to try again is to re-run
+  // the effect that owns it.
+  const [venueIndexAttempt, setVenueIndexAttempt] = useState(0);
+  // `loaded` settles either way on purpose - a core fetch that REFUSED still
+  // owes the honest empty state rather than a permanent skeleton - so it cannot
+  // answer whether the pub list arrived. This does, and it is the only signal
+  // the pin-ceiling Retry may report an outcome from.
+  const [venueIndexFailed, setVenueIndexFailed] = useState(false);
+  const reloadVenueIndex = useCallback(() => {
+    // The load effect's microtask already sets loaded=false and failed=false
+    // together. Clearing failed here while loaded is still true makes one
+    // frame look like a successful read, which resets spent and drops the toast.
+    setVenueIndexAttempt((attempt) => attempt + 1);
+  }, []);
   // Canvas handoff readiness. Desktop waits for basemap paint; phone also waits
   // for the active city's slim data, a paintable pubs source, and its guarded
   // visible frame. Canvas errors lift this state so fallback UI is not hidden.
   const [mapCanvasReady, setMapCanvasReady] = useState(false);
+  // Pin-reveal is the loading shell's exit: it fires when painted pubs are
+  // tappable, not merely when the basemap or slim rows exist.
+  const { pinsRevealed, resetPinReveal } = useMapPinsRevealed();
+  // A recovery toast on the canvas owns the surface: the map keeps search plus
+  // ONE toast, so the arrival card stands down while a failure is on screen.
+  const [mapSoftRetryActive, setMapSoftRetryActive] = useState(false);
+  const showMapArrivalCard = useSyncExternalStore(
+    subscribeMapFirstVisitArrival,
+    () =>
+      shouldShowMapFirstVisitArrival({
+        pinsRevealed,
+        search: arrivalSearch,
+        recoveryToastActive: mapSoftRetryActive,
+      }),
+    () => false,
+  );
+  const mapChosenArea = useSyncExternalStore(
+    subscribeMapChosenArea,
+    readMapChosenArea,
+    () => null,
+  );
   // Canvas has committed to its user-facing error fallback (WebGL/tiles/etc.).
   // We drop the loading skeleton immediately in that case even if slim pins
   // are still in flight, so the fallback card isn't hidden behind chrome.
@@ -810,6 +886,9 @@ export default function PubMap({
     const restored = restoredMobileSession?.openSheet;
     return restored && !["venue", "planner"].includes(restored) ? restored : "none";
   });
+  const [chooseAreaLocationNote, setChooseAreaLocationNote] = useState<string | null>(null);
+  const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
+  const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     restoredMobileSession?.viewport
       ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
@@ -1223,9 +1302,23 @@ export default function PubMap({
   // manifest (non-London packs behave exactly as before). City switches reset
   // pins asynchronously so we never setState in the effect body.
   const slimLoaderRef = useRef<SlimShardLoader | null>(null);
+  // Which night areas the loader can vouch a complete pub count for. A shard
+  // can land carrying no pin this map had not already seen, so this is refreshed
+  // off the LOADER settling rather than off the pins changing.
+  const [completeCountSlugs, setCompleteCountSlugs] =
+    useState<ReadonlySet<string> | null>(null);
 
   // Merge lazily-loaded shard venues into the painted pins, dedup by id. A
   // no-op update returns the previous array so React skips a re-render.
+  const refreshCountCoverage = useCallback(() => {
+    const loader = slimLoaderRef.current;
+    if (!loader) return;
+    const next = completeNeighbourhoodCountSlugs(cityId, (bounds) =>
+      loader.coverageComplete(bounds),
+    );
+    setCompleteCountSlugs((held) => (sameSlugSet(held, next) ? held : next));
+  }, [cityId]);
+
   const mergeSlimVenues = useCallback((rows: SlimVenue[]) => {
     if (rows.length === 0) return;
     setSlimPins((prev) => {
@@ -1241,6 +1334,29 @@ export default function PubMap({
     });
   }, []);
 
+  // A canvas that reports itself no longer ready has been torn down and is
+  // re-initialising (Retry, soft retry, context loss). Its painted pins are
+  // gone with it, so the reveal latch drops and the held frame comes back
+  // until the next paint announces itself.
+  const handleMapCanvasReady = useCallback(
+    (ready: boolean) => {
+      setMapCanvasReady(ready);
+      if (!ready) resetPinReveal();
+    },
+    [resetPinReveal],
+  );
+
+  const mapLoadingStage = useMemo(
+    () => ({
+      pinsRevealed,
+      canvasReady: mapCanvasReady,
+      slimLoaded: loaded,
+      slimPinCount: slimPins.length,
+    }),
+    [pinsRevealed, mapCanvasReady, loaded, slimPins.length],
+  );
+  const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
+
   useEffect(() => {
     let cancelled = false;
     const loader = createSlimShardLoader(cityId);
@@ -1249,31 +1365,38 @@ export default function PubMap({
       if (cancelled) return;
       setLoaded(false);
       setLoadedCityId(null);
+      setVenueIndexFailed(false);
       setSlimPins([]);
+      setCompleteCountSlugs(null);
     });
     loader
       .core()
       .then((slim) => {
-        if (cancelled || slim.length === 0) return;
+        if (cancelled) return;
+        setVenueIndexFailed(false);
+        if (slim.length === 0) return;
         setSlimPins(slimVenuesToPins(slim));
         markPubmaxTiming("pubmax:first-pins");
         markPubmaxTiming("pubmax:slim-venues-ready");
       })
       .catch(() => {
         // Core fetch failed with no offline mirror — render the honest empty
-        // state instead of falling back to the full 6 MB client payload.
+        // state instead of falling back to the full 6 MB client payload. The
+        // refusal is recorded so a pin-ceiling Retry can say so.
+        if (!cancelled) setVenueIndexFailed(true);
       })
       .finally(() => {
         if (!cancelled) {
           setLoadedCityId(cityId);
           setLoaded(true);
+          refreshCountCoverage();
         }
       });
     return () => {
       cancelled = true;
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
     };
-  }, [cityId]);
+  }, [cityId, refreshCountCoverage, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -1296,12 +1419,15 @@ export default function PubMap({
       if (!loader) return;
       void loader
         .inBounds(bounds)
-        .then((rows) => mergeSlimVenues(rows))
+        .then((rows) => {
+          mergeSlimVenues(rows);
+          refreshCountCoverage();
+        })
         .catch(() => {
           // Keep loaded shards; a later moveend retries this one.
         });
     },
-    [mergeSlimVenues],
+    [mergeSlimVenues, refreshCountCoverage],
   );
   const handleVisibleVenueIdsChange = useCallback(
     (membership: {
@@ -1325,7 +1451,9 @@ export default function PubMap({
     void loader
       .nearPoint(loc.lat, loc.lng)
       .then((rows) => {
-        if (!cancelled) mergeSlimVenues(rows);
+        if (cancelled) return;
+        mergeSlimVenues(rows);
+        refreshCountCoverage();
       })
       .catch(() => {
         // Honest fallback: keep whatever pins already loaded.
@@ -1333,7 +1461,7 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [userLocation, venueJourneyLocation, mergeSlimVenues]);
+  }, [userLocation, venueJourneyLocation, mergeSlimVenues, refreshCountCoverage]);
 
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
@@ -1379,7 +1507,7 @@ export default function PubMap({
   }, [cityId]);
   // Gate at the point of use (mirrors priceUpdates): the fetch is London-only, so
   // a non-London city never sees stale gazetteer rows in its search.
-  const localities = cityId === "london" ? londonLocalities : [];
+  const localities = cityId === "london" ? londonLocalities : NO_LOCALITIES;
 
   const venues = useMemo<Venue[]>(
     () =>
@@ -1444,15 +1572,9 @@ export default function PubMap({
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
-  const nearbyVenueIds = useMemo(
-    () => nearbyMapResult ? new Set(nearbyMapResult.venueIds) : null,
-    [nearbyMapResult],
-  );
   const mapMembershipVenues = useMemo(
-    () => nearbyVenueIds
-      ? filteredVenues.filter((venue) => nearbyVenueIds.has(venue.id))
-      : filteredVenues,
-    [filteredVenues, nearbyVenueIds],
+    () => venuesInNearbyMembership(filteredVenues, nearbyMapResult),
+    [filteredVenues, nearbyMapResult],
   );
   const experienceVisibleMapVenues = useMemo(
     () =>
@@ -1917,8 +2039,10 @@ export default function PubMap({
   // Persist the favorite-pint choice as the user picks it (null = clear).
   const changeFavoritePint = useCallback((beerId: string | null) => {
     setFavoritePintState(beerId);
-    if (beerId) persistFavoritePint(beerId);
-    else clearFavoritePint();
+    if (beerId) {
+      persistFavoritePint(beerId);
+      notifyCheapPintPingQualified();
+    } else clearFavoritePint();
   }, []);
 
   // Putting the map under a drink is ONE write, wherever the reader taps it:
@@ -2558,43 +2682,84 @@ export default function PubMap({
     showLoadedRoute,
   ]);
 
-  const showNearbyMap = useCallback(() => {
-    setNearbyError(null);
-    if (typeof navigator === "undefined" || !navigator.geolocation) {
-      setNearbyError(nearMeLocationMessage("unsupported"));
-      return;
-    }
-    setNearbyLoading(true);
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const location = {
-          lat: position.coords.latitude,
-          lng: position.coords.longitude,
-        };
-        // The map answers the same ring the sheet names — about a 12-minute
-        // walk. The chip counts THIS set, so its number and the sheet's
-        // sentence stay one claim.
-        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-        const withinRing = withinNearMeRing(location, filteredVenues);
-        setUserLocation(location);
-        setNearbyMapResult({
-          location,
-          venueIds: nearby.map((venue) => venue.id),
-          radiusKm: NEAR_ME_MAP_RADIUS_KM,
-          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-        });
-        setNearbyLoading(false);
-        // Highlight nearby pins AND present the instant-answer cards (Lane 1):
-        // the chip now yields an ANSWER, not just a recentre.
-        setMapOverlay("near-me");
-      },
-      (error) => {
-        setNearbyLoading(false);
-        setNearbyError(nearMeLocationMessage(nearMeLocationFailure(error)));
-      },
-      NEAR_ME_LOCATION_OPTIONS,
-    );
-  }, [filteredVenues]);
+  // Three ways in, one flow, and they differ ONLY in what a refusal owes.
+  //
+  // `tap` is the ordinary Near me seams - the phone chip, the desktop toolbar
+  // row, the Area sheet's own button. A refusal is one alert beside the control
+  // that was pressed, and nothing opens: none of those controls promised a
+  // picker, and forcing a modal over the map is not what they were pressed for.
+  //
+  // `arrival` is the first-visit card's Use my location, whose whole offer is
+  // "location, OR pick an area", so a refusal really does hand over the picker.
+  // The sheet then CARRIES the sentence, so the alert must not also hold it or
+  // the same words render twice, one of them over the other.
+  //
+  // `resume` is a remembered Near me on arrival: the reader asked for this mode
+  // LAST time, not for a notice now, so a refusal is silent and leaves the
+  // default city view with the picker still one tap away. Nothing about where
+  // they stood was ever stored, so this is a live fix or it is nothing.
+  const runNearMe = useCallback(
+    (mode: "tap" | "arrival" | "resume") => {
+      setNearbyError(null);
+      const refuse = (message: string) => {
+        if (mode === "resume") return;
+        if (mode === "arrival") {
+          openChooseAreaRef.current(message);
+          return;
+        }
+        setNearbyError(message);
+      };
+      if (typeof navigator === "undefined" || !navigator.geolocation) {
+        refuse(nearMeLocationMessage("unsupported"));
+        return;
+      }
+      setNearbyLoading(true);
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const location = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude,
+          };
+          // The map answers the same ring the sheet names — about a 12-minute
+          // walk. The chip counts THIS set, so its number and the sheet's
+          // sentence stay one claim.
+          const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+          const withinRing = withinNearMeRing(location, filteredVenues);
+          setUserLocation(location);
+          setNearbyMapResult({
+            location,
+            venueIds: nearby.map((venue) => venue.id),
+            radiusKm: NEAR_ME_MAP_RADIUS_KM,
+            strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+          });
+          // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
+          writeMapChosenArea({
+            cityId,
+            label: "Near me",
+            slug: "near-me",
+            kind: "near-me",
+          });
+          setNearbyLoading(false);
+          if (mode === "resume") return;
+          // Highlight nearby pins AND present the instant-answer cards (Lane 1):
+          // the chip now yields an ANSWER, not just a recentre.
+          setMapOverlay("near-me");
+        },
+        (error) => {
+          setNearbyLoading(false);
+          refuse(nearMeLocationMessage(nearMeLocationFailure(error)));
+        },
+        NEAR_ME_LOCATION_OPTIONS,
+      );
+    },
+    [cityId, filteredVenues],
+  );
+
+  const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
+  const useLocationFromArrivalCard = useCallback(
+    () => runNearMe("arrival"),
+    [runNearMe],
+  );
 
   const mapCurrentRoute = useCallback(() => {
     if (route.length < 2) return;
@@ -2657,14 +2822,35 @@ export default function PubMap({
   const [areaFocus, setAreaFocus] = useState<
     { center: [number, number]; zoom: number; token: number } | null
   >(null);
-  const flyToArea = useCallback((option: AreaElsewhereOption) => {
-    setAreaFocus((prev) => ({
-      center: option.center,
+  /**
+   * The ONE way the camera is deliberately moved to another place.
+   *
+   * A Near me answer is a membership over the painted map (see
+   * lib/mapNearbyMembership.ts), so it stops describing the screen the moment
+   * the reader goes somewhere else on purpose. Every such move drops it here
+   * rather than at one of its call sites: the Area sheet's "go somewhere else",
+   * a choose-area pick and a map-search area or place select are the same act,
+   * and a membership left held paints the new area with whichever of those
+   * twenty pins happen to be in frame - usually none - while the sheet beside
+   * it lists that area's pubs, so the two disagree about the same place.
+   */
+  const moveMapCameraTo = useCallback(
+    (camera: { center: [number, number]; zoom: number }) => {
+      setNearbyMapResult(null);
+      setAreaFocus((prev) => ({
+        center: camera.center,
+        zoom: camera.zoom,
+        token: (prev?.token ?? 0) + 1,
+      }));
+    },
+    [],
+  );
+  const flyToArea = useCallback(
+    (option: AreaElsewhereOption) =>
       // Localities carry a slightly deeper zoom; areas/boroughs keep the default.
-      zoom: option.zoom ?? 14,
-      token: (prev?.token ?? 0) + 1,
-    }));
-  }, []);
+      moveMapCameraTo({ center: option.center, zoom: option.zoom ?? 14 }),
+    [moveMapCameraTo],
+  );
 
   // The Area sheet target set by a map-search select: a modelled area (shown
   // as-is) or an ad-hoc locality/borough ring. null = the Area button, which
@@ -2695,11 +2881,10 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       setSearchAreaNewsArea(option.areaNewsArea || null);
       // 1. Fly the camera to the chosen place.
-      setAreaFocus((prev) => ({
+      moveMapCameraTo({
         center: journey.camera.center,
         zoom: journey.camera.zoom,
-        token: (prev?.token ?? 0) + 1,
-      }));
+      });
       // 2. Resolve what the sheet shows on arrival.
       const target = journey.target;
       if (target.kind === "place") {
@@ -2724,7 +2909,7 @@ export default function PubMap({
         setMapOverlay("area");
       }, areaSheetOpenDelay(reduced));
     },
-    [cityId, clearAreaSheetTimer, clearLogIntent, trimmedMapQuery],
+    [cityId, clearAreaSheetTimer, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   // §4.8: picking a search result records the typed "map-search" origin, unlike
   // a browse pin tap. The current search input text is NOT proof of origin — only
@@ -2757,11 +2942,7 @@ export default function PubMap({
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       // Already on that curated city guide → fly in place (no remount).
       if (place.placeKind === "curated" && place.cityId === cityId) {
-        setAreaFocus((prev) => ({
-          center: place.center,
-          zoom: place.flyZoom,
-          token: (prev?.token ?? 0) + 1,
-        }));
+        moveMapCameraTo({ center: place.center, zoom: place.flyZoom });
         clearLogIntent();
         setMapOverlay("none");
         changeMapSearchQuery("");
@@ -2772,7 +2953,7 @@ export default function PubMap({
       // leave the old arrival banner and emptied venues.
       window.location.assign(place.href);
     },
-    [changeMapSearchQuery, cityId, clearLogIntent, trimmedMapQuery],
+    [changeMapSearchQuery, cityId, clearLogIntent, moveMapCameraTo, trimmedMapQuery],
   );
   const selectCityFromSearch = useCallback(
     (targetCityId: CityId) => {
@@ -2865,6 +3046,123 @@ export default function PubMap({
     setSearchAreaTarget(null);
     setMapOverlay(next);
   }, [clearAreaSheetTimer, clearLogIntent, closeComposer, setPlanningOpen]);
+
+  const openChooseArea = useCallback((locationNote?: string | null) => {
+    setChooseAreaLocationNote(locationNote ?? null);
+    // The sheet takes the sentence, so the floating alert lets go of it: two
+    // copies of one refusal, one painted over the other, read as two faults.
+    if (locationNote) setNearbyError(null);
+    changeMapOverlay("choose-area");
+  }, [changeMapOverlay, setNearbyError]);
+
+  useEffect(() => {
+    openChooseAreaRef.current = openChooseArea;
+  }, [openChooseArea]);
+
+  const handleChooseAreaPick = useCallback(
+    (pick: ChooseAreaPick) => {
+      changeMapOverlay("none");
+      setChooseAreaLocationNote(null);
+      if (pick.kind === "near-me") {
+        restoredChosenAreaRef.current = true;
+        showNearbyMap();
+        return;
+      }
+      if (pick.kind === "city") {
+        if (pick.cityId !== cityId) {
+          window.location.assign(cityMapShareUrl(pick.cityId));
+        }
+        return;
+      }
+      const { row } = pick;
+      writeMapChosenArea({
+        cityId,
+        label: row.name,
+        slug: row.slug,
+        center: row.center,
+        kind: "night-area",
+      });
+      restoredChosenAreaRef.current = true;
+      flyToArea({
+        slug: row.slug,
+        name: row.name,
+        center: row.center,
+        coverage: null,
+        kind: row.slug.startsWith("locality:") ? "locality" : "area",
+        zoom: row.slug.startsWith("locality:") ? 15 : undefined,
+      });
+    },
+    [changeMapOverlay, cityId, flyToArea, showNearbyMap],
+  );
+
+  const chooseAreaSheet = useMemo(
+    () => (
+      <ChooseAreaSheet
+        cityId={cityId}
+        venues={pubVenues}
+        localities={localities}
+        completeCountSlugs={completeCountSlugs}
+        locationNote={chooseAreaLocationNote}
+        locationBusy={nearbyLoading}
+        onPick={handleChooseAreaPick}
+      />
+    ),
+    [
+      chooseAreaLocationNote,
+      cityId,
+      completeCountSlugs,
+      handleChooseAreaPick,
+      localities,
+      nearbyLoading,
+      pubVenues,
+    ],
+  );
+
+  useEffect(() => {
+    if (!loaded || restoredChosenAreaRef.current) return;
+    // lib/mapChosenArea.ts owns WHETHER the remembered area may move the
+    // camera; this effect only carries the answer out. `wait` is the one answer
+    // that leaves the one-shot unspent.
+    const decision = resolveMapChosenAreaRestore({
+      stored: readMapChosenArea(),
+      cityId,
+      explicitArrivalIntent,
+      hasRestoredViewport: Boolean(restoredMobileSession?.viewport),
+      venueCount: filteredVenues.length,
+    });
+    if (decision.action === "wait") return;
+    restoredChosenAreaRef.current = true;
+    if (decision.action === "skip") return;
+    if (decision.action === "locate") {
+      queueMicrotask(() => runNearMe("resume"));
+      return;
+    }
+    const stored = decision.area;
+    queueMicrotask(() => {
+      flyToArea({
+        slug: stored.slug,
+        name: stored.label,
+        center: stored.center,
+        coverage: null,
+        kind: stored.slug.startsWith("locality:") ? "locality" : "area",
+        zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
+      });
+    });
+  }, [
+    cityId,
+    explicitArrivalIntent,
+    filteredVenues,
+    flyToArea,
+    loaded,
+    restoredMobileSession,
+    runNearMe,
+  ]);
+
+  const mapChipLabel =
+    mapChosenArea && mapChosenArea.cityId === cityId
+      ? mapChosenArea.label
+      : ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName;
+
 
   // ── Where the reader is, and how they get out ────────────────────────────
   // Every Map panel used to carry its own close and nothing else, so a reader
@@ -3398,8 +3696,25 @@ export default function PubMap({
 
   const venuePanel = renderVenuePanel();
 
-  const mapLoadingActive = !mapCanvasErrored && (!mapCanvasReady || (slimPins.length === 0 && !loaded));
+  const mapLoadingActive = !mapCanvasErrored && mapLoadingHeld(mapLoadingStage);
+
   const mobileShellReady = !mapLoadingActive;
+  // Desktop reader controls. Both live inside Layers rather than on the map
+  // surface, which keeps its budget at search plus one toast. The phone reaches
+  // the same two through the More sheet's Key and Prices tabs.
+  const desktopLayersReaderKey = mobileViewport ? undefined : (
+    <MapKey legend={activePriceLegend} />
+  );
+  const desktopLayersPriceFilter =
+    !mobileViewport && experienceLens === "all" && activeLensLabel === null
+      ? (close: () => void) => (
+          <MapPriceFilterChips
+            filters={filters}
+            onFiltersChange={setFilters}
+            onPicked={close}
+          />
+        )
+      : undefined;
   const drinkFiltersActive = Boolean(
     favoritePint ||
       filters.drinkCategory ||
@@ -3434,18 +3749,6 @@ export default function PubMap({
       {!mobileViewport ? (
         <SiteNav
           active="map"
-          mobileMapUtility={
-            <MapPriceControl
-              placement="header"
-              filters={filters}
-              onFiltersChange={setFilters}
-              legend={activePriceLegend}
-              lensLabel={activeLensLabel ?? undefined}
-              priceFiltersEnabled={
-                experienceLens === "all" && activeLensLabel === null
-              }
-            />
-          }
         />
       ) : null}
 
@@ -3464,7 +3767,13 @@ export default function PubMap({
             onChange={setVenueKindVisibility}
           />
         ) : null}
-        {selectionNotice ? (
+        {/* One toast at a time. A soft retry owns the surface outright, so the
+            arrival and national-browse banners stand down with the selection
+            note rather than stacking under it. */}
+        {pickMapSurfaceToast({
+          selectionNotice: selectionNotice !== null,
+          softRetry: mapSoftRetryActive,
+        }) === "soft-retry" ? null : selectionNotice ? (
           <aside
             className="ukPlaceArrival"
             role="status"
@@ -3499,33 +3808,14 @@ export default function PubMap({
         ) : outsideCuratedBounds ? (
           <UkNationalBrowseBanner variant="outside" />
         ) : null}
-        {/* Keep pitched-London loading chrome until slim data and the canvas's
-            viewport-specific handoff are ready. Phone requires a guarded frame
-            with its pubs source paintable; desktop retains its basemap gate. */}
+        {/* Hold the pitched-London loading chrome until the canvas announces
+            painted, tappable pins. A canvas error lifts it immediately so the
+            fallback card is never hidden behind it. */}
         {mapLoadingActive ? (
-          <div
-            className="mapLoading"
-            role="status"
-            aria-busy="true"
-            aria-live="polite"
-            // Accessible name stays literal on purpose: the visible line below
-            // carries the dry aside, the announced one states the fact.
-            aria-label={`Loading the ${mapDisplayName} pub map.`}
-          >
-            <div className="mapLoadingScene" aria-hidden="true">
-              <span className="mapLoadingStreet mapLoadingStreet--one" />
-              <span className="mapLoadingStreet mapLoadingStreet--two" />
-              <span className="mapLoadingRiver" />
-              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--one" />
-              <span className="mapLoadingPin mapLoadingPin--amber mapLoadingPin--two" />
-              <span className="mapLoadingPin mapLoadingPin--brick mapLoadingPin--three" />
-              <span className="mapLoadingPin mapLoadingPin--pint mapLoadingPin--four" />
-            </div>
-            <div className="mapLoadingCopy">
-              <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
-              <span>Rounding up the pubs. Won&rsquo;t be a minute.</span>
-            </div>
-          </div>
+          <MapLoadingFrame
+            mapDisplayName={mapDisplayName}
+            progress={mapLoadingProgress}
+          />
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
@@ -3558,7 +3848,7 @@ export default function PubMap({
           onAskPubmaxxer={askPubmaxxerAtPub}
           initialLandmarkId={seed.landmarkId}
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
-          onMapReady={setMapCanvasReady}
+          onMapReady={handleMapCanvasReady}
           onMapErrored={setMapCanvasErrored}
           mapView={
             restoredMobileSession?.viewport
@@ -3580,12 +3870,21 @@ export default function PubMap({
           poiHidden={poiHidden}
           onPoiHiddenChange={setPoiHidden}
           hideLayersControl={mobileViewport}
+          layersReaderKey={desktopLayersReaderKey}
+          layersReaderPriceFilter={desktopLayersPriceFilter}
+          venueDataFailed={venueIndexFailed}
+          onReloadVenueData={reloadVenueIndex}
+          listOpen={mapListOpen}
+          onListOpenChange={setMapListOpen}
+          listCount={mapVenueListModel.total + ukBasePubListModel.total}
+          onSoftRetryChange={setMapSoftRetryActive}
           focusPoint={areaFocus}
           onViewportChange={setMapViewport}
           onUserCameraMove={dismissAmbientBanners}
           onBoundsChange={handleMapBoundsChange}
         />
         {!mobileViewport ? <MapToolbar
+          cityLabel={mapChipLabel}
           outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
@@ -3622,6 +3921,7 @@ export default function PubMap({
           zoneIndex={zoneIndex}
           cityId={cityId}
           onUseMyLocation={showNearbyMap}
+          onOpenChooseArea={() => openChooseArea()}
           locationBusy={nearbyLoading}
           experienceLens={experienceLens}
           experienceSummary={experienceSummary}
@@ -3713,21 +4013,6 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {/* Desktop keeps price controls at bottom left. Phones use the existing
-            More sheet, leaving top chrome unchanged. */}
-        {!mobileViewport ? (
-          <MapPriceControl
-            placement="map"
-            filters={filters}
-            onFiltersChange={setFilters}
-            legend={activePriceLegend}
-            lensLabel={activeLensLabel ?? undefined}
-            priceFiltersEnabled={
-              experienceLens === "all" && activeLensLabel === null
-            }
-          />
-        ) : null}
-
         {activePersona ? (
           <PersonaLensCard
             persona={activePersona}
@@ -3767,7 +4052,7 @@ export default function PubMap({
         {mobileShellReady ? (
         <MobileMapShell
           cityId={cityId}
-          cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}
+          cityLabel={mapChipLabel}
           limitedCoverage={Boolean(ukPlaceArrival)}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
@@ -4104,6 +4389,8 @@ export default function PubMap({
               />
             ) : null
           }
+          chooseAreaContent={chooseAreaSheet}
+          sheetsEnabled={mobileViewport}
           areaContent={
             <AreaSheet
               cityId={cityId}
@@ -4128,6 +4415,19 @@ export default function PubMap({
           }
         />
         ) : null}
+
+        {showMapArrivalCard ? (
+          <MapArrivalCard
+            onUseLocation={useLocationFromArrivalCard}
+            onChooseArea={() => openChooseArea()}
+          />
+        ) : null}
+        <ChooseAreaDesktopDialog
+          open={!mobileViewport && mapOverlay === "choose-area"}
+          onClose={() => changeMapOverlay("none")}
+        >
+          {chooseAreaSheet}
+        </ChooseAreaDesktopDialog>
 
         {/* §4.5 onboarding overlay: a dismissible "Start with a story" card that
             offers curated crawls on a clean first paint. It's the mobile

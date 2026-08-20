@@ -35,7 +35,7 @@ Each lane: isolated git worktree, own branch, non-draft PR, vitest green, no em 
 
 Smallest excellent v1: one route `/today`, becomes the signed-in mobile home before 17:00 London. Four stacked cards, all existing data:
 1. Drink-weather verdict (`lib/drinkWeather.ts`, `lib/weatherSnapshots.ts`) with honest staleness line when snapshots are old (Actions dead; manual refresh).
-2. Tonight's top 3 picks (`lib/whatsOnStore.ts` windowing; #409 overlap semantics).
+2. Tonight's top 3 picks plus one cheapest listed pint near the viewer (`lib/todayListings.server.ts` merges bundled What's-On and Out on the same spine as `/tonight`; pint from the bundled priced index; honest empty/degraded copy in `lib/dayGreeting.ts`).
 3. Get-there strip (`lib/tfl.ts`, follow `TonightGetHomeStrip` pattern).
 4. One sourced pub-of-the-day fact (`lib/heritageFacts.ts` / `lib/pintFacts.ts` + `lib/provenanceLabels.ts`).
 Cut: personalization, streaks, seasonal theming. Nav entry in `MobileTabBar` + `SiteNav`.
@@ -113,7 +113,7 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 ### Arc 3 — vibe layer (#424, #425, #435; spec = docs/VIBE_LAYER_SPEC_2026-07-19.md, BINDING)
 
 - **Seven owner-locked chips** (`lib/vibeChips.ts`): bender/lit/quiet/cheeky/match/quiz/date with parser-tuned actions (filter or /pal/chat?ask=). `VIBE_CHIP_IDS` + `isVibeChipId` are the runtime guard. Owner kept "On a bender" over a store-risk warning; pre-approved fallback "Big one tonight" if Apple bounces.
-- **Bungee accent** (`--font-party`): QUARANTINED to ≤3 component families, enforced by `__tests__/fontPartyContainment.test.ts` (grep scoped to app/components/lib — docs may name the token). Current consumers: app/tonight, components/pal. The plan surface will be the third and LAST. Usage: 2-4 words, 20px+, letter-spaced caps. Never body/nav/data.
+- **Bungee accent** (`--font-party`): RETIRED from the app on 2026-08-18. The vibe chips were its last consumer, so the token, the `next/font` loader and the two route wrappers are gone and no route downloads Bungee. `__tests__/fontPartyContainment.test.ts` now holds the quarantine at zero references under app/components/lib (docs may still name the token). Share cards keep the Bungee stamp through the vendored TTF satori reads (`lib/ogBrand.tsx`).
 - **OG vibe stamp + tally (#425, #435):** `?vibe=` validated against seven locked slugs (invalid → base card; user-controlled OG text is an abuse surface). Satori note: every multi-child div needs explicit `display: "flex"` (the #413 500 bug class).
 - **Vibe votes backend (#435):** one vote per plan member on the plan-collaboration seam; `record_plan_vibe_vote_atomic` RPC mirrors 0031 (advisory lock + idempotency ledger); POST/GET `/api/plans/[id]/vibe-votes`; `lib/vibeTally.ts` pure tally line — the "coward" jab renders ONLY on unique leader + exactly one dissenting vote, ties state the split. **Migration 0044 is additive-only and awaits OWNER application; until then durable vote writes 503 and the card drops the tally line but renders.**
 

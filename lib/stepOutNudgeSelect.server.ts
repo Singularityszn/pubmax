@@ -119,6 +119,9 @@ async function defaultListTonightDeals(now: Date): Promise<DealCandidate[]> {
       { window: "tonight" },
       { now: now.getTime(), fetchLive: async () => [] },
     );
+    // A read that could not run carries no deals to offer, and it is not a
+    // night without any: the nudge falls through rather than naming one.
+    if (whatsOn.readStatus === "degraded") return [];
     return whatsOn.rows
       .filter((row) => row.kind === "deal" && row.endsAt && isSameLondonDay(row.endsAt, now))
       .filter((row) => row.confidence === "confirmed" || row.confidence === "listed")

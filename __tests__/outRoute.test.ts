@@ -53,6 +53,7 @@ import {
   parseOutQuery,
 } from "@/lib/out/loadOut";
 import {
+  OUT_DEGRADED_LINE,
   OUT_READY_CACHE_CONTROL,
   OUT_UNSETTLED_CACHE_CONTROL,
   outAnswerView,
@@ -613,6 +614,41 @@ describe("GET /api/out openPlans", () => {
     const body = await response.json();
     expect(body.status).toBe("degraded");
     expect(body.openPlans).toEqual([]);
+    // The plans failure widens the WHOLE answer's status and leaves the
+    // listings lane exactly as its own read left it, so a surface showing only
+    // listings never apologises for a read that ran.
+    const listingsOnly = await buildOutResponse(
+      { city: "london", day: "today" },
+      { now: FIXTURE_NOW.getTime() },
+    );
+    expect(body.listingsStatus).toBe(listingsOnly.status);
+    expect(body.listingsReason).toBe(listingsOnly.reason);
+  });
+
+  it("keeps a healthy listings lane unmarked when only the plans read failed", async () => {
+    store.listOpen.mockRejectedValue(new Error("rpc down"));
+    const ready = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          {
+            name: "ticketmaster",
+            isConfigured: () => true,
+            fetchTonight: async () => [],
+          },
+        ],
+      },
+    );
+    expect(ready.status).toBe("ready");
+    expect(ready.listingsStatus).toBe("ready");
+    // The reader-facing consequence: the lines a listings-only surface prints
+    // carry no "could not be checked" claim once the plans status is split off.
+    const widened = { ...ready, status: "degraded" as const, reason: OUT_DEGRADED_LINE };
+    expect(outStatusLines({ body: widened, failed: false })).not.toContain(
+      OUT_DEGRADED_LINE,
+    );
   });
 
   it("keeps a successful empty open-plan list without inventing rows", async () => {
@@ -703,18 +739,18 @@ describe("outStatusLines", () => {
     ]);
   });
 
-  it("says it is checking while the pressed day has no answer yet", () => {
-    // Never day chips over a blank area, and never worded as an empty market.
-    expect(outStatusLines({ body: null, failed: false, pending: true })).toEqual([
-      "Checking listings...",
-    ]);
-    // A failed read owns the line instead; pending never doubles it up.
-    expect(outStatusLines({ body: null, failed: true, pending: true })).toEqual([
+  it("keeps a pending day as a skeleton, never a checking sentence", () => {
+    // A read still in flight has no body and has not failed, and it says
+    // nothing: the skeleton is the wake state, so a sentence here would be a
+    // claim about a market nobody has read yet.
+    expect(outStatusLines({ body: null, failed: false })).toEqual([]);
+    // A failed read owns the line instead.
+    expect(outStatusLines({ body: null, failed: true })).toEqual([
       "Could not check listings.",
     ]);
-    // Once an answer lands the pending line is gone.
+    // Once an answer lands the empty line is the read's own.
     expect(
-      outStatusLines({ body: { status: "ready", events: [] }, failed: false, pending: false }),
+      outStatusLines({ body: { status: "ready", events: [] }, failed: false }),
     ).toEqual(["No listings for this day yet."]);
   });
 
@@ -741,7 +777,7 @@ describe("outAnswerView", () => {
     // answered yet, so the surface says so rather than showing a blank area.
     const view = outAnswerView<Pick<OutResponse, "status" | "events" | "reason">>(null, "today");
     expect(view).toEqual({ body: null, failed: false, pending: true });
-    expect(outStatusLines({ ...view })).toEqual(["Checking listings..."]);
+    expect(outStatusLines({ ...view })).toEqual([]);
   });
 
   it("is pending again the moment another day is pressed, holding no stale cards", () => {

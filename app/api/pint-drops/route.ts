@@ -10,6 +10,7 @@ import { isModerator } from "@/lib/adminAuth";
 // truth: backend failures return a 503 instead of acknowledging data that
 // would only live in process memory.
 
+import { qualifyCheapPintForAccountId } from "@/lib/cheapPintPingQualify.server";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { enrichItemsWithAvatarUrls } from "@/lib/avatarResolve";
@@ -333,6 +334,9 @@ export async function POST(request: Request): Promise<Response> {
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
     void ensureProfileForHandle(ownership.handle);
+    if (ownership.callerUserId) {
+      void qualifyCheapPintForAccountId(ownership.callerUserId);
+    }
     return jsonNoStore({ drop }, { status: 201 });
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has

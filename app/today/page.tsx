@@ -14,7 +14,12 @@ import { buildQuietPint } from "@/lib/quietPint";
 import { formatConditionDate } from "@/lib/tonightConditions";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import { loadFreshWeatherSnapshot } from "@/lib/weatherFreshness.server";
-import { loadWhatsOn } from "@/lib/whatsOnStore";
+import {
+  loadTodayOutAnswer,
+  loadTodayWhatsOnAnswer,
+  mergeTodayListingRows,
+  todayPicksReadStatus,
+} from "@/lib/todayListings.server";
 import heritageCache from "@/public/data/heritage_cache.json";
 
 import TodayClient from "./TodayClient";
@@ -25,11 +30,11 @@ import { buildTodayPintsIndex } from "./todayPints";
 // (docs/UNIVERSAL_DAY0_PRD.md) this is the smallest excellent v1; the signed-in
 // mobile-home redirect before 17:00 London is deliberately out of this PR.
 //
-// The weather, tonight's picks, the pub fact and the cheapest-pints index are
-// composed on the server from bundled, sourced data so the brief paints instantly
-// and deterministically (no request-time network, no waterfalls). The get-there
-// strip and the Tube card are client-only: they need the viewer's rough location
-// or remembered area and live TfL, so they own their own fetches.
+// Weather, the pub fact and the cheapest-pints index are bundled on the server.
+// Tonight's picks use the same merged What's-On plus Out spine as /tonight
+// (lib/todayListings.server.ts). Independent reads still run in parallel. The
+// get-there strip and the Tube card are client-only: they need the viewer's rough
+// location or remembered area and live TfL, so they own their own fetches.
 
 export const metadata: Metadata = {
   title: "Today in London · PUBMAXXING",
@@ -55,16 +60,15 @@ export default async function TodayPage() {
   // Open-Meteo weather top-up behind the listings, price, and heritage reads for
   // no reason; Promise.all collapses the brief's server render to the slowest
   // single read. Each retains its own fail-soft path.
-  const [weatherSnapshot, whatsOn, pricedVenues, historicPubs] = await Promise.all([
+  const [weatherSnapshot, whatsOn, out, pricedVenues, historicPubs] = await Promise.all([
     // Store-first read-through: the freshest durable/cached reading when it is
     // recent, else a live Open-Meteo top-up (reusing the cron's fetcher), else
     // the committed snapshot with its honest staleness banner. Never needlessly
     // stale even between cron runs or before migration 0047 lands.
     loadFreshWeatherSnapshot({ now }),
-    // Baseline-only (fail-soft live disabled): the brief must be reliable and
-    // instant, and the bundled listings are already sourced. Tonight's own page
-    // still layers the live CityMCP enrichment on top.
-    loadWhatsOn({ window: "tonight" }, { now: now.getTime(), fetchLive: async () => [] }),
+    // Same bundled-plus-live spine as /api/whats-on; Out events merge below.
+    loadTodayWhatsOnAnswer(now.getTime()),
+    loadTodayOutAnswer(now.getTime()),
     // Cheapest priced pints per area, precomputed from the bundled price dataset
     // so the client can answer the viewer's remembered area with no venue data
     // of its own and no request-time work.
@@ -87,7 +91,17 @@ export default async function TodayPage() {
   // section with five identical cards. No location on the server, so the digest
   // resolves each group's display to its soonest venue; the client re-orders the
   // resulting picks around the viewer's remembered patch below.
-  const picks = digestSectionPicks(whatsOn.rows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
+  // Same merged spine as /tonight: bundled What's-On rows plus Out events.
+  const whatsOnReadStatus = whatsOn?.readStatus ?? "degraded";
+  const whatsOnRows = whatsOn?.rows ?? [];
+  const listingRows = mergeTodayListingRows(whatsOnRows, out, now.getTime());
+  const picksStatus = todayPicksReadStatus(
+    whatsOnReadStatus,
+    whatsOnRows.length,
+    out,
+    now.getTime(),
+  );
+  const picks = digestSectionPicks(listingRows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);
     return pick.digest ? { ...dto, venueNote: dealDigestNote(pick.digest.venueCount) } : dto;
   });
@@ -141,6 +155,7 @@ export default async function TodayPage() {
       weather={weather}
       weatherByArea={weatherByArea}
       picks={picks}
+      picksStatus={picksStatus}
       fact={fact}
       pintsIndex={pintsIndex}
       quietPint={quietPint}

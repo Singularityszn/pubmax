@@ -146,6 +146,20 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
 
   // --- events: the one permitted listings reader, then the refused ---------
   {
+    id: "fullers-event-finder-events",
+    label: "Fuller's",
+    url: "https://www.fullers.co.uk/event-finder",
+    kind: "venue-events",
+    firstParty: true,
+    access: {
+      allowed: true,
+      evidence: "robots.txt disallows /sitecore/, /homepage/ and three internal paths only.",
+      checkedOn: CHECKED_ON,
+    },
+    notes:
+      "The operator's own event finder. Checked 2026-08-09: results render in the browser, so a markdown read may yield zero dated rows until Fuller's publishes dates in the document. Context.dev events lane reads this page; the chain-deals lane reads the same URL separately.",
+  },
+  {
     id: "common-social-posts",
     label: "common",
     url: "https://www.common-social.com/sitemap.xml",
@@ -229,6 +243,21 @@ export function harvestSourcesOfKind(kind: HarvestSourceKind): HarvestSource[] {
 /** The sources of a kind this run may actually read. */
 export function allowedHarvestSources(kind: HarvestSourceKind): HarvestSource[] {
   return harvestSourcesOfKind(kind).filter(isHarvestSourceAllowed);
+}
+
+/**
+ * Allowed venue-events pages the Context.dev events lane may read.
+ *
+ * FIRST PARTY IS THE BAR, and it is the semantic property rather than a proxy
+ * for it: an extract call hands a whole page to a model and takes back whatever
+ * it says, so it cannot honour the narrow `nonFirstPartyException` an allowed
+ * listings source carries ("facts only, from the og:description prefix" is a
+ * promise no extraction keeps). A URL suffix stood in for this and would have
+ * admitted the next allowed non-first-party page that did not happen to end
+ * `.xml`.
+ */
+export function contextDevEventSources(): HarvestSource[] {
+  return allowedHarvestSources("venue-events").filter((source) => source.firstParty);
 }
 
 /**

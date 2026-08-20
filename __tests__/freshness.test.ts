@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -305,12 +305,140 @@ describe("resolveDatasetStamp — a route opens only what it will read", () => {
     expect(resolution).toEqual({ observedAt: null, reason: null });
   });
 
-  it("still reports a field stamp with no artifact as unresolvable", () => {
+  it("still reports a field stamp with no artifact as unresolvable, opening nothing", () => {
     const { opened, read } = countingRead();
     const { observedAt, reason } = resolveDatasetStamp("/root", dataset({ artifact: null }), read);
-    expect(opened).toEqual([null]);
+    expect(opened).toEqual([]);
     expect(observedAt).toBeNull();
     expect(reason).toContain("no artifact to read it from");
+  });
+});
+
+// A row pack is the ONE dataset a reader opens without a field stamp, because
+// its rows are the finding. The `pack: true` opt-in is what makes that read
+// happen, and lib/freshnessTracing.mjs is what makes the file reach the
+// function; a pack read is never widened to the rest of the registry.
+describe("a declared row pack", () => {
+  function countingRead() {
+    const opened: (string | null)[] = [];
+    const read = (_root: string, relPath: string | null) => {
+      opened.push(relPath);
+      return relPath === null
+        ? ({ kind: "absent" } as const)
+        : ({ kind: "missing", path: relPath } as const);
+    };
+    return { opened, read };
+  }
+
+  const historicPack = {
+    id: "historic_pubs",
+    label: "Historic pubs index",
+    class: "episodic" as const,
+    artifact: "public/data/historic_pubs.json",
+    pack: true,
+    stamp: { kind: "literal" as const, value: "2026-07-18T00:00:00Z" },
+    stalenessBudgetHours: 2160,
+  };
+
+  it("is opened even though a literal stamp dates it", () => {
+    const { opened, read } = countingRead();
+    resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(opened).toEqual(["public/data/historic_pubs.json"]);
+  });
+
+  it("answers its literal stamp when the pack holds rows", () => {
+    const read = (_root: string, relPath: string | null) =>
+      ({ kind: "ok", path: relPath ?? "", json: [{ slug: "a" }] }) as const;
+    expect(resolveDatasetStamp("/root", dataset(historicPack), read)).toEqual({
+      observedAt: "2026-07-18T00:00:00Z",
+      reason: null,
+    });
+  });
+
+  it.each([
+    ["empty", [] as unknown, "empty (0 rows)"],
+    ["not an array", {} as unknown, "does not hold a row array"],
+  ])("refuses the stamp when the pack is %s", (_label, json, expected) => {
+    const read = (_root: string, relPath: string | null) =>
+      ({ kind: "ok", path: relPath ?? "", json }) as const;
+    const resolution = resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain(expected);
+  });
+
+  // A pack that names no artifact is a registry mistake, and the two readers
+  // used to answer it differently: the app short-circuited on the missing path
+  // and reported the literal stamp FRESH forever while the CLI gate failed the
+  // build. They now agree, and they agree on the safe answer.
+  it("refuses the stamp for a pack that declares no artifact at all", () => {
+    const { opened, read } = countingRead();
+    const resolution = resolveDatasetStamp(
+      "/root",
+      dataset({ ...historicPack, artifact: null }),
+      read,
+    );
+    expect(opened).toEqual([]);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain("no artifact to read it from");
+  });
+
+  it("evaluateRegistry reports an artifact-less pack as unknown, never fresh", () => {
+    const registry: FreshnessRegistry = {
+      version: 1,
+      datasets: [dataset({ ...historicPack, artifact: null })],
+    };
+    const results = evaluateRegistry(
+      registry,
+      (d) => resolveDatasetStamp("/root", d, readFreshnessArtifact),
+      NOW,
+    );
+    expect(results[0]?.status).toBe("unknown");
+    expect(hasBreach(results)).toBe(true);
+  });
+
+  it("refuses the stamp when the pack never reached the deployed function", () => {
+    const { read } = countingRead();
+    const resolution = resolveDatasetStamp("/root", dataset(historicPack), read);
+    expect(resolution.observedAt).toBeNull();
+    expect(resolution.reason).toContain("not present at runtime");
+  });
+
+  it("evaluateRegistry reports an empty committed pack as unknown, never fresh", () => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-empty-historic-"));
+    const artifactDir = join(root, "public/data");
+    mkdirSync(artifactDir, { recursive: true });
+    writeFileSync(join(artifactDir, "historic_pubs.json"), "[]\n", "utf8");
+    const registry: FreshnessRegistry = { version: 1, datasets: [dataset(historicPack)] };
+    const results = evaluateRegistry(
+      registry,
+      (d) => resolveDatasetStamp(root, d, readFreshnessArtifact),
+      NOW,
+    );
+    const historic = results.find((r) => r.id === "historic_pubs");
+    expect(historic?.status).toBe("unknown");
+    expect(historic?.detail).toContain("empty (0 rows)");
+    rmSync(root, { recursive: true, force: true });
+  });
+
+  it("evaluateRegistry reports a populated committed pack on its own stamp", () => {
+    const root = mkdtempSync(join(tmpdir(), "freshness-full-historic-"));
+    const artifactDir = join(root, "public/data");
+    mkdirSync(artifactDir, { recursive: true });
+    writeFileSync(
+      join(artifactDir, "historic_pubs.json"),
+      JSON.stringify([{ slug: "the-lamb" }]),
+      "utf8",
+    );
+    const registry: FreshnessRegistry = { version: 1, datasets: [dataset(historicPack)] };
+    const results = evaluateRegistry(
+      registry,
+      (d) => resolveDatasetStamp(root, d, readFreshnessArtifact),
+      NOW,
+    );
+    const historic = results.find((r) => r.id === "historic_pubs");
+    expect(historic?.observedAt).toBe("2026-07-18T00:00:00Z");
+    expect(historic?.status).not.toBe("unknown");
+    rmSync(root, { recursive: true, force: true });
   });
 });
 
@@ -459,7 +587,10 @@ describe("data/freshness_registry.json integrity", () => {
       class: "episodic",
       stalenessBudgetHours: null,
     });
-    expect(byId.get("price_updates")?.class).toBe("cron");
+    expect(byId.get("price_updates")).toMatchObject({
+      class: "episodic",
+      stalenessBudgetHours: null,
+    });
     expect(byId.get("night_signal_candidates")?.class).toBe("cron");
   });
 
@@ -482,7 +613,7 @@ describe("data/freshness_registry.json integrity", () => {
     expect(byId.get("price_updates")?.artifact).toBe(
       "public/data/price_updates/latest.json",
     );
-    expect(byId.get("price_updates")?.stalenessBudgetHours).toBe(336);
+    expect(byId.get("price_updates")?.stalenessBudgetHours).toBeNull();
   });
 
   it("gives every live TfL read its own alarm", () => {

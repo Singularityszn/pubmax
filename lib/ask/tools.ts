@@ -183,14 +183,27 @@ async function toolWhatsOn(
       answerHint: "That doesn't look like a What's On ask.",
     };
   }
+  const unavailable = (): AskToolResult => ({
+    ok: false,
+    tool: "whats_on",
+    data: null,
+    provenance: [],
+    cards: [],
+    proposals: [],
+    answerHint: "I couldn't load sourced listings just now.",
+    degraded: true,
+  });
   try {
-    const { rows, asOf } = await loadWhatsOn(
+    const { rows, asOf, readStatus } = await loadWhatsOn(
       {
         ...(detected.kind ? { kind: detected.kind } : {}),
         ...(detected.window === "tonight" ? { window: "tonight" as const } : {}),
       },
       {},
     );
+    // A bundled read that could not run answers nothing. Refusing honestly is
+    // the whole contract here; "no matches" would be an invented empty market.
+    if (readStatus === "degraded") return unavailable();
     let matched = detected.area ? filterRowsByArea(rows, detected.area) : rows;
     if (detected.window === "weekday" && detected.weekday !== undefined) {
       matched = filterRowsByWeekday(matched, detected.weekday);
@@ -230,16 +243,7 @@ async function toolWhatsOn(
       answerHint: answer.message,
     };
   } catch {
-    return {
-      ok: false,
-      tool: "whats_on",
-      data: null,
-      provenance: [],
-      cards: [],
-      proposals: [],
-      answerHint: "I couldn't load sourced listings just now.",
-      degraded: true,
-    };
+    return unavailable();
   }
 }
 
@@ -700,7 +704,7 @@ async function toolProposePlan(
     const proposal: AskProposal = {
       id: proposalId("plan", stopIds.join("-")),
       kind: "draft_plan",
-      label: "Confirm three-stop draft",
+      label: "Open in Plan",
       query,
       stopIds,
       stopNames,
@@ -728,7 +732,7 @@ async function toolProposePlan(
       provenance: [{ label: "On record", kind: "plan" }],
       cards,
       proposals: [proposal, ...openProposals],
-      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Confirm to open Plan with this ask - nothing is saved until you do.`,
+      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to carry this ask over - nothing is saved until you do.`,
     };
   } catch {
     return {
@@ -948,7 +952,7 @@ export function askToolDefinitions(): Array<{
       function: {
         name: "propose_plan",
         description:
-          "Propose a three-stop draft from listed pubs. Does not save a plan; user must confirm.",
+          "Propose a three-stop draft from listed pubs. Saves nothing: the user opens Plan with the ask through one link, and nothing is stored until they lock a route there.",
         parameters: {
           type: "object",
           properties: { query: { type: "string" } },

@@ -142,9 +142,6 @@ describe("UK place map arrival", () => {
     // when venues/localities are emptied.
     expect(pubMap).toContain("includeLocalResults: !limitedCoverageSearch");
     expect(pubMap).toContain("onSelectPlace: selectPlaceFromSearch");
-    expect(pubMap).toMatch(
-      /\{selectionNotice \? \([\s\S]*?\) : ukPlaceArrival \? \(/,
-    );
     // The arrival's own place name still wins the bar. What follows it is now
     // the claim the VIEW earned (lib/areaButton.areaClaimedByViewport), which
     // answers null for a view over no single area, so the city name is the

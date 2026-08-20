@@ -374,6 +374,18 @@
   opacity: 0.85;
 }
 
+.todayPickCheapPint {
+  margin-top: 12px;
+}
+
+.todayPickCheapPintEyebrow {
+  margin: 0 0 8px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--ink-soft);
+}
+
 /* Chain-deal disclosure: "Same deal at 12 pubs". Honest, understated, so a
    syndicated promotion reads as one deal at many pubs, not many picks. */
 .todayPickDigest {

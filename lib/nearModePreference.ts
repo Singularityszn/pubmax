@@ -1,3 +1,5 @@
+
+import { safeLocalStorage } from "@/lib/safeStorage";
 import {
   NEAR_MODE_STORAGE_KEY,
   parseNearModeParam,
@@ -7,7 +9,7 @@ import {
 const CHANGE_EVENT = "pubmax:near-mode";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function notifyNearModeChange(): void {

@@ -5,7 +5,7 @@
   top: 80px;
   left: 50%;
   display: grid;
-  gap: 4px;
+  gap: 8px;
   max-width: calc(100vw - 24px);
   padding: 6px 8px 7px;
   border: 0;
@@ -18,7 +18,7 @@
 
 .tonightArcRow {
   display: flex;
-  gap: 5px;
+  gap: 8px;
   min-width: 0;
 }
 
@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: center;
   min-width: 44px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 4px 8px;
   border: 1px solid var(--line);
   border-radius: 999px;

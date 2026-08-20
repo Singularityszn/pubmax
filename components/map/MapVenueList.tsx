@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useId, useRef } from "react";
-import { List, MapPin } from "lucide-react";
+import { MapPin } from "lucide-react";
 
 import CompactVenuePrice from "@/components/map/CompactVenuePrice";
 import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
@@ -18,12 +18,14 @@ import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import "./mapVenueList.css";
 
 // Accessibility contract (WCAG 2.1.1): keyboard/screen-reader parallel to
-// canvas pins. A visible, focusable "List view" toggle opens a DOM list of the
-// filtered venues projected inside the current viewport, nearest-first to its
-// centre by default, with an optional cheapest sort for priced pubs. Each row
-// is a real <button> that drives the SAME select handler a pin tap does, so an
-// AT user can enumerate and open any listed venue without touching the WebGL
-// layer.
+// canvas pins. A DOM list of the filtered venues projected inside the current
+// viewport, nearest-first to its centre by default, with an optional cheapest
+// sort for priced pubs. Each row is a real <button> that drives the SAME select
+// handler a pin tap does, so an AT user can enumerate and open any listed venue
+// without touching the WebGL layer.
+// The way IN is the Layers control ("List view" inside the popover), not a
+// toggle floating over the pins: the map surface is search plus one toast (see
+// lib/mapSurfaceChrome.ts). Do not rebuild the floating toggle.
 // It's also a useful feature for everyone: list view is not a
 // shim.
 export default function MapVenueList({
@@ -71,10 +73,10 @@ export default function MapVenueList({
   const firstCuratedId = model.rows[0]?.id;
   const firstBaseId = firstCuratedId ? undefined : ukBaseModel.rows[0]?.id;
 
-  // The list opens from a toggle that stays on screen beside it, so the way
-  // back is that toggle and it does not join the surface trail. Escape leaves
-  // it, because opening the list moves focus INTO the list and a keyboard
-  // reader had no way out but to tab to the close glyph.
+  // The list opens from Layers, so the way back is this panel's own SurfaceNav
+  // and it does not join the surface trail. Escape leaves it too, because
+  // opening the list moves focus INTO the list and a keyboard reader had no way
+  // out but to tab to the close glyph.
   const closeList = useCallback(() => onOpenChange(false), [onOpenChange]);
   useDismissOnEscape(open, closeList);
 
@@ -95,9 +97,13 @@ export default function MapVenueList({
     return () => cancelAnimationFrame(frame);
   }, [firstBaseId, firstCuratedId, open]);
 
+  // Closed, this component owns nothing on screen: the way IN is Layers, so a
+  // named landmark region holding no content would only pad every screen
+  // reader's landmark list on both viewports.
+  if (!open) return null;
+
   return (
-    <section className={`mapVenueList${open ? " mapVenueList--open" : ""}`} aria-label={`${cityName} venue list`}>
-      {open ? (
+    <section className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
           <header className="mapVenueListHead">
             <div className="mapVenueListHeadMeta">
@@ -231,19 +237,6 @@ export default function MapVenueList({
             </div>
           )}
         </div>
-      ) : null}
-
-      <button
-        type="button"
-        className="mapVenueListToggle"
-        aria-expanded={open}
-        aria-controls={open ? panelId : undefined}
-        onClick={() => onOpenChange(!open)}
-      >
-        <List size={17} aria-hidden="true" />
-        <span>List view</span>
-        {loaded && total > 0 ? <span className="mapVenueListToggleCount">{total}</span> : null}
-      </button>
     </section>
   );
 }

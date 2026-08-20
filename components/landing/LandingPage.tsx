@@ -39,6 +39,7 @@ import {
 import { warmMapRoute } from "@/lib/mapWarmup";
 import { onReducedMotionChange, prefersReducedMotion } from "@/lib/motionVocabulary";
 import { planOccasionHref } from "@/lib/planOccasion";
+import { socialSurfaceName } from "@/lib/socialLaunch";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
@@ -145,6 +146,7 @@ export default function LandingPage({
   );
   const mapHref = preferredCityMapHref();
   const primaryCtaHref = preferredCity ? mapHref : "/choose-city";
+  const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
   const warmProps = preferredCity
     ? {
@@ -271,7 +273,7 @@ export default function LandingPage({
           <Link href="/plan">Plan</Link>
           <Link href="/tonight">Tonight</Link>
           <Link href="/moment">Moment</Link>
-          <Link href="/social">Social</Link>
+          <Link href="/social">{socialLabel}</Link>
           <Link href="/u/you">You</Link>
         </nav>
 
@@ -320,14 +322,9 @@ export default function LandingPage({
           <figure className="lpHeroMap">
             <ThamesHero />
             <figcaption className="lpHeroMapCaption">
-              {/* Pointer-aware invite lives in the caption lane (not a floating
-                  badge on the photo). Touch devices see Tap; fine pointers see Pick. */}
               <span className="lpHeroMapInvite">
-                <span className="thamesHeroHintTouch">Each shape is a drink. Tap one to see the pubs that pour it.</span>
-                <span className="thamesHeroHintPointer">Each shape is a drink. Pick one to see the pubs that pour it.</span>
+                Each shape is a drink. Tap or pick one to see the pubs that pour it.
               </span>
-              {" "}
-              Prices shown here are examples, not live listed prices.
             </figcaption>
           </figure>
         </section>
@@ -512,7 +509,7 @@ export default function LandingPage({
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              <Link href="/social">Social</Link>
+              <Link href="/social">{socialLabel}</Link>
               <Link href="/pal">Pub Pal</Link>
               <Link href="/choose-city">Pick your city</Link>
               <Link href="/about">Our story</Link>

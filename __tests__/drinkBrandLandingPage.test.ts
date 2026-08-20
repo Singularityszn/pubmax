@@ -161,6 +161,7 @@ describe("governed drink brand landing page", () => {
       }),
     );
 
+    // Once in the hero, once beside rank 1's own figure in the list.
     expect(html.match(/Publisher not recorded/g)).toHaveLength(2);
     expect(html).not.toContain('target="_blank"');
     expect(html).not.toContain('href="http');
@@ -202,10 +203,73 @@ describe("governed drink brand landing page", () => {
     expect(html).toContain(
       '>Publisher: Exact Publisher</a>',
     );
+    // The hero states it for the "From" figure, the row states it for its own.
     expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
-    expect(html).toMatch(
-      /class="[^"]*\bdrinkBrandDirectory__publisher\b[^"]*"><span>Publisher: <\/span><a href="https:\/\/publisher\.example\/price-1"[^>]*>Exact Publisher<\/a>/,
+    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(1);
+  });
+
+  it("states every rank's own publisher beside its own figure", () => {
+    const model: DrinkBrandLanding = {
+      slug: "guinness",
+      brandLabel: "Guinness",
+      collectedAt: "2026-07-03T12:00:00.000Z",
+      totalPricedVenues: 20,
+      rows: [
+        {
+          rank: 1,
+          venueId: "venue-1",
+          venueName: "First pub",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.09,
+          publisher: {
+            label: "Hero Publisher",
+            url: "https://publisher.example/price-1",
+          },
+        },
+        {
+          rank: 2,
+          venueId: "venue-2",
+          venueName: "Second pub",
+          borough: "Camden",
+          pintName: "Guinness",
+          priceGbp: 3.5,
+          publisher: {
+            label: "Second Publisher",
+            url: "https://publisher.example/price-2",
+          },
+        },
+        {
+          rank: 3,
+          venueId: "venue-3",
+          venueName: "Third pub",
+          borough: "Hackney",
+          pintName: "Guinness",
+          priceGbp: 3.8,
+          publisher: null,
+        },
+      ],
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(DrinkBrandLandingContent, {
+        landing: model,
+        mapSelectableVenueIds: new Set(["venue-1"]),
+      }),
     );
+
+    // The hero states rank 1's publisher for the "From" figure, and rank 1's
+    // own row states it again beside the figure a scrolled reader is looking
+    // at: the list is where the cheapest price is read (docs/VOICE.md).
+    expect(html.match(/href="https:\/\/publisher\.example\/price-1"/g)).toHaveLength(2);
+    expect(html.match(/drinkBrandDirectory__fromPublisher/g)).toHaveLength(1);
+    // Every rank states its own record: a named publisher, and the plain
+    // refusal when the record names none.
+    expect(html.match(/drinkBrandDirectory__publisher\b/g)).toHaveLength(3);
+    expect(html).toContain('>Second Publisher</a>');
+    expect(html.match(/href="https:\/\/publisher\.example\/price-2"/g)).toHaveLength(1);
+    expect(html.match(/Publisher not recorded/g)).toHaveLength(1);
   });
 
   it("arms the composer for a pub the map can open, and names none when it cannot", () => {

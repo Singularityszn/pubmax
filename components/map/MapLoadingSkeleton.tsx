@@ -8,6 +8,8 @@
 // while the WebGL canvas style loads. All colour comes from existing tokens;
 // reduced-motion holds the dots still (see the .mapSkeleton rules in globals).
 
+import { mapLoadingPrimaryLine } from "@/lib/mapLoadingCopy";
+
 // Dot positions are hand-placed to read as a loose scatter of London pubs, each
 // tagged with a price bucket so the three price colours all appear. The stagger
 // index drives the pulse delay so the field breathes rather than blinks in unison.
@@ -40,7 +42,18 @@ const BUCKET_VAR: Record<"pint" | "amber" | "brick", string> = {
   brick: "var(--brick)",
 };
 
-export default function MapLoadingSkeleton() {
+type MapLoadingSkeletonProps = {
+  /**
+   * What this map is about to show. The route-level boundary cannot know it
+   * (a Next loading segment takes no params), so it stays empty there and the
+   * line falls back to the cityless one rather than naming the wrong city.
+   */
+  cityDisplayName?: string;
+};
+
+export default function MapLoadingSkeleton({
+  cityDisplayName = "",
+}: MapLoadingSkeletonProps) {
   return (
     <main id="main"
       className="mapSkeleton"
@@ -84,7 +97,7 @@ export default function MapLoadingSkeleton() {
           <span aria-hidden="true" className="mapSkeletonSpinnerDot" />
           <div>
             <h1>UK venue map</h1>
-            <p>Rounding up the pubs. Won&rsquo;t be a minute.</p>
+            <p>{mapLoadingPrimaryLine(cityDisplayName)}</p>
           </div>
         </div>
       </div>

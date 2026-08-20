@@ -7,7 +7,11 @@
 // and two copies of it drift. Anything a caller may vary is a field on the
 // descriptor; anything that is policy lives here.
 
-import { cityGeo } from "@/lib/whatson/eventNormalise.mjs";
+import {
+  EVENT_DROP_REASONS,
+  cityGeo,
+  type EventDropCounts,
+} from "@/lib/whatson/eventNormalise.mjs";
 import type { EventsProvider, EventsProviderContext } from "@/lib/events/provider";
 import { log } from "@/lib/log";
 import { londonServiceDayBounds, type WhatsOnRow } from "@/lib/whatsOn";
@@ -19,14 +23,7 @@ export type LiveProviderWindow = { startIso: string; endIso: string };
 
 export type LiveProviderGeo = { lat: number; lng: number; radiusMiles: number };
 
-export type EventDropCounts = {
-  noKind: number;
-  noPlace: number;
-  noStart: number;
-  noUrl: number;
-  noTitle: number;
-  total: number;
-};
+export type { EventDropCounts };
 
 export type LiveProviderDescriptor = {
   /** Attribution / report name. Also the log tag. */
@@ -110,15 +107,13 @@ export function createLiveEventsProvider(
     // build-time lane already says so in its own log, and this is the lane that
     // actually serves readers.
     if (dropped && dropped.total > 0) {
+      const byReason: Record<string, number> = {};
+      for (const reason of EVENT_DROP_REASONS) byReason[reason] = dropped[reason] ?? 0;
       log("warn", "out.provider_drops", {
         provider: descriptor.name,
         city,
         total: dropped.total,
-        noKind: dropped.noKind,
-        noPlace: dropped.noPlace,
-        noStart: dropped.noStart,
-        noUrl: dropped.noUrl,
-        noTitle: dropped.noTitle,
+        ...byReason,
       });
     }
     cache = { at: ctx.now, key: cacheKey, rows };

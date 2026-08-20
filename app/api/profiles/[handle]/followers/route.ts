@@ -1,13 +1,17 @@
-// The handles that follow this profile. The exact mirror of /following, which
+// The people who follow this profile. The exact mirror of /following, which
 // has always been here; the reverse direction had no read at all, so a
 // "Followers: 14" figure on a profile could be printed and never opened.
 //
-// Same store seam, same projection (handles only, nothing about the person),
-// and the same fail-soft posture as its sibling: this is a pure read and MUST
-// never 500. A bad handle or a backend hiccup degrades to an empty list so the
-// list surface still renders its own empty state.
+// Same store seam, same projection and the same fail-soft posture as its
+// sibling: every row is one `FollowListEntry` (handle, plus a display name and
+// an approved owned avatar when the profile read offers them, and nothing else
+// about the person), built in ONE round trip by `followListEntries`. This is a
+// pure read and MUST never 500. A bad handle or a backend hiccup degrades to an
+// empty list so the list surface still renders its own empty state, and a
+// failed enrichment costs a name and a face rather than the list.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
@@ -22,7 +26,8 @@ export async function GET(
   if (!handle) return jsonNoStore({ followers: [] }, { status: 200 });
 
   try {
-    const followers = await followStore().listFollowers(handle);
+    const handles = await followStore().listFollowers(handle);
+    const followers = await followListEntries(handles);
     return jsonNoStore({ followers }, { status: 200 });
   } catch {
     return jsonNoStore({ followers: [] }, { status: 200 });

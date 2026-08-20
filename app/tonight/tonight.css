@@ -212,6 +212,12 @@
   color: color-mix(in srgb, var(--ink) 70%, crimson 30%);
 }
 
+/* A lane that could not answer, printed ABOVE the cards that did. Quieter than
+   the error register: the list is real, it is only short. */
+.tonightStatusNote {
+  margin: 12px 0 0;
+}
+
 /* The one exit on an empty night: same quiet register as the status line,
    underlined so it reads as a door, not a shout. */
 .tonightStatusLink {
@@ -479,6 +485,37 @@
   color: var(--state-active-ink);
   background: var(--state-active-surface);
   cursor: pointer;
+}
+
+/* The map's own way in, beside a card whose link belongs to the publisher.
+   Same geometry and weight as the acceptance control it sits with, because it
+   is the same kind of thing: a secondary act on a row, at thumb size. */
+.tonightRowMapLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  width: fit-content;
+  min-height: 48px;
+  margin: 0 16px 16px;
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: var(--control-radius, 14px);
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--ink-soft);
+}
+
+.tonightRowMapLink:focus-visible {
+  outline: 2px solid var(--accent-action);
+  outline-offset: 2px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .tonightRowMapLink:hover {
+    border-color: var(--state-active-border);
+    color: var(--ink);
+  }
 }
 
 .tonightAcceptanceError {

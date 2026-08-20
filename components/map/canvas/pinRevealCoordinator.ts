@@ -6,22 +6,133 @@ export const BASEMAP_RETRY_NOTICE = {
   message: "Map background couldn't load. Tap Retry to try again.",
 } as const;
 
-export function basemapRetryForReveal(
-  reason: PinRevealReason,
-  currentOwner: BasemapNoticeOwner,
-): {
-  kind: "tiles";
-  message: string;
-} | null {
-  if (reason !== "timeout" || currentOwner === "errors") return null;
-  return BASEMAP_RETRY_NOTICE;
+export const PIN_PAINT_RETRY_NOTICE = {
+  kind: "pins",
+  message: "Pub pins are still drawing. Tap Retry to load them again.",
+} as const;
+
+export const VENUE_DATA_RETRY_NOTICE = {
+  kind: "venues",
+  message: "The pub list hasn't loaded. Tap Retry to fetch it again.",
+} as const;
+
+export const PIN_PAINT_RETRY_PENDING_NOTICE = {
+  kind: "pins",
+  message: "Loading the pub pins…",
+} as const;
+
+export const VENUE_DATA_RETRY_PENDING_NOTICE = {
+  kind: "venues",
+  message: "Fetching the pub list…",
+} as const;
+
+export const PIN_PAINT_RETRY_SPENT_NOTICE = {
+  kind: "pins",
+  message: "The pub pins still aren't drawing. Tap Retry to try once more.",
+} as const;
+
+export const VENUE_DATA_RETRY_SPENT_NOTICE = {
+  kind: "venues",
+  message: "The pub list still hasn't loaded. Tap Retry to try once more.",
+} as const;
+
+export type RevealTimeoutNotice =
+  | typeof BASEMAP_RETRY_NOTICE
+  | typeof PIN_PAINT_RETRY_NOTICE
+  | typeof VENUE_DATA_RETRY_NOTICE;
+
+export type PinRevealNoticeKind =
+  | typeof PIN_PAINT_RETRY_NOTICE.kind
+  | typeof VENUE_DATA_RETRY_NOTICE.kind;
+
+/**
+ * What the owner's venue-index read has answered. THREE-WAY on purpose: the
+ * read settles either way, because a refusal still owes the honest empty state
+ * rather than a stuck skeleton, so a single "ready" flag answers true for a
+ * list that arrived AND for one that never will.
+ */
+export type VenueDataOutcome = "pending" | "ready" | "failed";
+
+/** The notice a venue-index read owes the reader once it has REFUSED. */
+export function venueDataFailureNotice(retrySpent: boolean) {
+  return retrySpent ? VENUE_DATA_RETRY_SPENT_NOTICE : VENUE_DATA_RETRY_NOTICE;
 }
 
-export function isPhonePinRevealFailure(
-  phoneFirstImpression: boolean,
-  reason: PinRevealReason,
+/**
+ * Extra taps while a venue Retry read is live start no second fetch.
+ * The live read is the outcome; a clock is not.
+ */
+export function venueRetryMayDispatch(inFlight: boolean): boolean {
+  return !inFlight;
+}
+
+/**
+ * Spent resets only when a read answers ready. Clearing failed on a
+ * dispatch commit is not a read.
+ */
+export function venueRetrySpentAfterRead(
+  previous: boolean,
+  outcome: VenueDataOutcome,
 ): boolean {
-  return phoneFirstImpression && reason === "timeout";
+  if (outcome === "pending") return previous;
+  return outcome === "failed";
+}
+
+/** What the venues toast says once the dispatched index read has spoken. */
+export function venueRetrySettleNotice(outcome: VenueDataOutcome) {
+  if (outcome === "pending") return VENUE_DATA_RETRY_PENDING_NOTICE;
+  if (outcome === "failed") return VENUE_DATA_RETRY_SPENT_NOTICE;
+  return null;
+}
+
+/**
+ * The notice a readiness-ceiling reveal owes the reader, named after the signal
+ * that actually missed. Blaming the background for a basemap that painted sends
+ * the reader at a Retry that tears down a map already drawing, so a ceiling over
+ * a painted basemap names the missing PUB DATA instead - and it separates the
+ * two pin signals, because they have two different ways out: an unsettled
+ * `pubs` source is the canvas's own to redraw, while a venue index that never
+ * arrived belongs to the owner and no amount of redrawing will produce it. A
+ * ceiling with everything ready owes NO notice: only the compositor
+ * confirmation ran out, and the pins are on screen. An error-owned notice is
+ * truthful until Retry rebuilds the map, so a timeout never overwrites it.
+ */
+export function revealTimeoutNotice(
+  reason: PinRevealReason,
+  currentOwner: BasemapNoticeOwner,
+  signals: {
+    basemapPainted: boolean;
+    venueData: VenueDataOutcome;
+    pinsPaintable: boolean;
+  },
+): RevealTimeoutNotice | null {
+  if (reason !== "timeout" || currentOwner === "errors") return null;
+  if (!signals.basemapPainted) return BASEMAP_RETRY_NOTICE;
+  if (signals.venueData !== "ready") return VENUE_DATA_RETRY_NOTICE;
+  if (!signals.pinsPaintable) return PIN_PAINT_RETRY_NOTICE;
+  return null;
+}
+
+/**
+ * What a spent pin Retry says when the signal it was meant to restore is still
+ * missing. Distinct copy from the first ask, because a notice that came back
+ * word for word reads as a button that did nothing.
+ */
+export function pinRetrySpentNotice(kind: PinRevealNoticeKind) {
+  return kind === "venues"
+    ? VENUE_DATA_RETRY_SPENT_NOTICE
+    : PIN_PAINT_RETRY_SPENT_NOTICE;
+}
+
+/**
+ * What the toast says while a dispatched pin Retry is still working. Same
+ * reason the spent notice differs from the first ask: the sentence that raised
+ * the Retry, left unchanged under the tap, reads as a button that did nothing.
+ */
+export function pinRetryPendingNotice(kind: PinRevealNoticeKind) {
+  return kind === "venues"
+    ? VENUE_DATA_RETRY_PENDING_NOTICE
+    : PIN_PAINT_RETRY_PENDING_NOTICE;
 }
 
 type PinRevealCoordinatorOptions = {
@@ -69,7 +180,10 @@ type PinRevealCoordinatorOptions = {
  *    never hang hidden. It does not lift the parent chrome.
  *  - `readyCeilingMs`: a longer honest upper bound that lifts the parent chrome
  *    even if a required signal never arrives. A consumer may turn that timeout
- *    into an explicit degraded or error surface.
+ *    into a soft retry notice (`revealTimeoutNotice`), and never into an
+ *    unmounted canvas: the short fallback has already un-gated pin layers on
+ *    the live style, so tearing it down here leaves a bare basemap or a
+ *    "Map couldn't draw" card over pubs that were about to paint.
  */
 export function createPinRevealCoordinator({
   pinRevealTimeoutMs,

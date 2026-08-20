@@ -75,4 +75,5 @@ export function runCityEnrichment(options: {
   observedAt?: string;
   fetchImpl?: typeof fetch;
   onProgress?: (state: Record<string, unknown>) => void | Promise<void>;
+  signal?: AbortSignal;
 }): Promise<TavilyEnrichmentResult>;

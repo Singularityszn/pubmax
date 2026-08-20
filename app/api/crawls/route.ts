@@ -6,8 +6,9 @@
 // we cap lengths / clamp counts / allowlist here so junk never reaches it.
 
 import {
-  countStoriesByAuthor,
-  listStoriesByAuthor,
+  clampAuthorCrawlListLimit,
+  listAuthoredCrawlPage,
+  listOwnUnlistedCrawlPage,
   createCrawlStory,
   getCrawlStoryBySlug,
   getStoryAuthor,
@@ -15,6 +16,7 @@ import {
   type CreateCrawlStoryInput,
 } from "@/lib/crawlStoryStore";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
+import { callerUserId } from "@/lib/authServer";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { emitNotification } from "@/lib/notificationsStore";
@@ -185,22 +187,69 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
 
-  // ?author=<handle> — the published crawl-story count for a handle. Powers the
-  // Pint Passport's "story posts" number on /u/[handle] (a client component that
-  // can't import the server store directly). Fail-soft: an unknown/blank handle
-  // resolves to 0, never an error, so the passport degrades to a clean zero.
+  // ?author=<handle> — one page of a handle's PUBLIC crawls plus how many there
+  // are in total, from ONE read so the two can never contradict each other.
+  // Powers the Crawls tile and the section it opens on /u/[handle] (a client
+  // component that can't import the server store directly).
+  //
+  // `count`/`total` are TRI-STATE by way of null and `status` says which answer
+  // this is. `degraded` means the COUNT could not be measured, rows or no rows:
+  // a query that returned its page without a count header is still an answer
+  // about those rows. What may never happen is a confident 0 above a list of
+  // crawls.
+  //
+  // `?scope=own` additionally answers the owner's UNLISTED crawls - the rows,
+  // their whole total, whether the page is short of it, plus the published tally
+  // the two lanes add up to. It is handed ONLY
+  // to the verified owner of the handle, because an unlisted crawl is a
+  // direct-link crawl and which ones somebody has is theirs to know. Rows
+  // rather than a bare number, so the figure on their own passport opens
+  // something.
   const author = params.get("author");
   if (author !== null) {
     const handle = normalizeHandle(readString(author, HANDLE_MAX));
-    // `crawls` rides beside the count so a profile can list what it counts. The
-    // count stays exactly where it was, so every existing reader is untouched.
-    const [count, crawls] = handle
-      ? await Promise.all([
-          countStoriesByAuthor(handle),
-          listStoriesByAuthor(handle),
-        ])
-      : [0, []];
-    return jsonNoStore({ handle, count, crawls }, { status: 200 });
+    const limit = clampAuthorCrawlListLimit(params.get("limit"));
+    const page = handle
+      ? await listAuthoredCrawlPage(handle, limit)
+      : { crawls: [], total: 0 };
+    const total = page.total;
+    const hasMore = total === null ? false : total > page.crawls.length;
+    const body: Record<string, unknown> = {
+      handle,
+      count: total,
+      total,
+      crawls: page.crawls,
+      hasMore,
+      status: total === null ? "degraded" : "ready",
+    };
+
+    if (handle && params.get("scope") === "own") {
+      const userId = await callerUserId(request);
+      const linked = userId ? await resolveMessageHandle(request, "", userId) : "";
+      if (linked && linked === handle) {
+        // Its OWN page bound: the public `?limit=` on this same reply is trimmed
+        // by the profile to almost nothing (the cached public read owns those
+        // rows), so one number could not size both lanes. Same clamp, so the
+        // ceiling cannot drift between them.
+        const unlisted = await listOwnUnlistedCrawlPage(
+          handle,
+          clampAuthorCrawlListLimit(params.get("unlistedLimit")),
+        );
+        body.unlisted = unlisted.crawls;
+        body.unlistedTotal = unlisted.total;
+        // Says the page is short WITHOUT making the reader compare two figures,
+        // and never on the strength of a count that could not be measured.
+        body.unlistedHasMore =
+          unlisted.total === null ? false : unlisted.total > unlisted.crawls.length;
+        // The published tally is DERIVED from the two lanes rather than counted
+        // again: visibility is a closed set, so public plus unlisted is exactly
+        // "not a draft", and a third query could only disagree with them.
+        body.ownCount =
+          total === null || unlisted.total === null ? null : total + unlisted.total;
+      }
+    }
+
+    return jsonNoStore(body, { status: 200 });
   }
 
   const slug = params.get("slug");

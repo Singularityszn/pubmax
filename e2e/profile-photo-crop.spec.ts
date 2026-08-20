@@ -361,6 +361,86 @@ test.describe("profile photo picker and crop", () => {
     }
   });
 
+  test("add then remove cover restores the empty default", async ({ page }) => {
+    const url = `/api/cover/${PROFILE_ID}/${GENERATION}`;
+    let covers: Array<{ id: string; position: number; url: string }> = [];
+
+    page.on("dialog", (dialog) => void dialog.accept());
+
+    await page.route(`**/api/profiles/${HANDLE}/covers**`, async (route) => {
+      const requestUrl = route.request().url();
+      const method = route.request().method();
+
+      if (method === "GET" && requestUrl.endsWith(`/covers`)) {
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({ status: "ready", covers }),
+        });
+        return;
+      }
+
+      if (method === "POST") {
+        covers = [{ id: "cover-1", position: 1, url }];
+        await route.fulfill({
+          status: 201,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "ready",
+            covers,
+            profile: {
+              id: PROFILE_ID,
+              handle: HANDLE,
+              displayName: "Crop proof",
+              coverUrl: url,
+              coverUrls: [url],
+            },
+          }),
+        });
+        return;
+      }
+
+      if (method === "DELETE" && requestUrl.includes("/covers/cover-1")) {
+        covers = [];
+        await route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify({
+            status: "ready",
+            covers: [],
+            profile: {
+              id: PROFILE_ID,
+              handle: HANDLE,
+              displayName: "Crop proof",
+            },
+          }),
+        });
+        return;
+      }
+
+      await route.continue();
+    });
+
+    await page.route(`**/api/cover/${PROFILE_ID}/${GENERATION}`, async (route) => {
+      await route.fulfill({
+        status: 200,
+        headers: { "content-type": "image/png" },
+        body: await widePng(),
+      });
+    });
+
+    await openOwnProfileEditor(page);
+    await pick(page, "cover", "IMG_2207.png");
+    await page.getByRole("button", { name: "Use photo" }).click();
+    await expect(page.getByRole("img", { name: "Cover 1" })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Remove cover" })).toBeVisible();
+
+    await page.getByRole("button", { name: "Remove cover" }).click();
+    await expect(page.getByRole("img", { name: "Cover 1" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Remove cover" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Add cover" })).toBeVisible();
+  });
+
   // THE DEFECT: choosing a photo from the editor threw the owner out to the
   // read-only profile, because an image write reported through the same
   // callback the Save button used. Somebody there to change five things had to

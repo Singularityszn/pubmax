@@ -37,12 +37,13 @@ with different type on /tonight. One component, one skin: extract a shared
 `VibeChips` component (or align the CSS to one recipe from the house
 ledger), used by both surfaces. No behaviour change.
 
-### 3. Consent banner overlaps content on desktop (`d-tonight.png`, `d-plan.png`)
+### 3. Consent banner overlaps page actions (`d-tonight.png`, `d-plan.png`)
 
-The analytics consent bar floats over list content at the bottom of desktop
-pages until answered. Give pages bottom clearance while the banner is
-mounted (a body padding token the banner sets), so no card is half-covered.
-Mobile already clears it acceptably.
+The analytics consent card is fixed above the tab bar on phone and over page
+footers on desktop until answered. Reserve body foot clearance while it is
+mounted so scroll-surface actions stay tappable. Shipped in `app/globals.css`;
+`__tests__/analyticsConsentDesktopClearance.test.ts` and
+`e2e/ux-consent-chrome.spec.ts` pin the contract.
 
 ### 4. /near has no h1 (accessibility)
 

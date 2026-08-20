@@ -104,10 +104,7 @@ Unmounted phone surfaces are inventoried separately: desktop `.mapToolbarSearchS
 | `components/map/mapToolbar.css` `.planBtnFull` | 640px | Short visible label and full `aria-label` preserve the same action. |
 | `components/map/citySwitcher.css` `.citySwitcherLabelFull` | 641px to 900px | City code is visible and full city name remains in accessible name and menu. |
 | `components/map/citySwitcher.css` `.citySwitcherLabelFull` | 640px | City code is visible and full city name remains in accessible name and menu. |
-| `components/map/mapVenueList.css` `.mapVenueListToggle` | 640px | Layers sheet provides the same list-view action. |
 | `components/map/spillComposer.css` `.spillCameraFrame` | 640px | Decorative camera illustration is hidden; both labelled capture actions remain. |
-| `components/map/mapPriceControl.css` `.mapPriceControl--map` | 640px | Phone filters sheet owns price controls. |
-| `components/map/mapPriceControl.css` `.mapPriceLegendFull` | 640px | Compact symbols remain visible; full key is in button accessible name and disclosed panel. |
 | `components/map/venueSheet.css` `.venueTabFull` | 640px | Short visible tab label and full accessible name identify same section. |
 | `components/map/tonightOverlayChip.css` overlay chip under detail or planning | 640px | Venue or planning sheet owns same screen region and context. |
 | `components/landing/landing.css` `.lpPrimaryNav` | 960px | Compact landing navigation replaces desktop link row. |

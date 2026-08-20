@@ -57,6 +57,17 @@
      __tests__/mapPinBandContrast.test.ts holds the two tokens apart. */
   --brick: #b8323c; /* expensive / destructive (price job, not Plan CTA) */
   --brass: #ff5a5f; /* Plan CTA primary — Candle Coral (legacy name kept) */
+  /* LOGIN PRIMARY ONLY. The one place a coral fill carries a WHITE label - the
+     /login primary and the magic-link button - because --brass under white is
+     below AA and those two controls are the front door. It is not a second
+     site-wide primary: the landing hero CTA and the map's sanctioned coral
+     marks stay on --brass with dark ink (--color-on-accent), pinned by
+     __tests__/landingFindMyPintHierarchy.test.ts and mapCoralEconomy.test.ts.
+     Do not repoint another surface at it without deciding the coral economy
+     first. One value for both themes, so the ratio cannot drift with the
+     theme; the hover mix darkens toward --ink-deep for the same reason
+     (__tests__/loginPage.test.ts holds both states to 4.5:1). */
+  --brass-accessible: #d63d42; /* deepened coral: white (--color-on-photo) passes AA */
   --brass-bright: #ff7a55; /* louder warm hover for Plan hierarchy */
   --river: #2864d8; /* tube blue / by-water + heritage — Field Guide semantic */
   --river-bright: #29b6f6;
@@ -1933,6 +1944,15 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   animation: pulse 1.4s ease-in-out infinite;
 }
 
+/* The pill is ONE row: the pulsing dot, then this stack. Every line the frame
+   prints is a row of the stack, so a line added later drops UNDER the one
+   above it rather than growing the pill a third column at 390px. */
+.mapLoadingLines {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
 .mapLoadingEyebrow {
   display: block;
   margin-bottom: 2px;
@@ -1942,6 +1962,38 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
+}
+
+.mapLoadingSlow {
+  display: block;
+  margin-top: 4px;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 650;
+}
+
+.mapLoadingProgress {
+  width: min(88vw, 390px);
+  max-width: 100%;
+  height: 4px;
+  margin-top: 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--line) 70%, transparent);
+  overflow: hidden;
+}
+
+.mapLoadingProgressBar {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--brass-bright);
+  transition: width 0.35s ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mapLoadingProgressBar {
+    transition: none;
+  }
 }
 
 [data-theme="dark"] .mapLoadingEyebrow {
@@ -4468,16 +4520,18 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   border-color: var(--brass);
 }
 
-/* Any open map sheet owns the reader's attention; the consent card must not
-   bleed through semi-transparent scrims or sit above sheet chrome. */
-body:has(.mobileSheetPortal) .analyticsConsentPrompt {
+/* Any open map surface owns the reader's attention; the consent card must not
+   bleed through semi-transparent scrims or sit above sheet chrome. The desktop
+   choose-area picker is the second shape of that surface, and it dims the map
+   with a scrim of its own rather than the phone sheet portal. */
+body:has(.mobileSheetPortal) .analyticsConsentPrompt,
+body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   visibility: hidden;
   pointer-events: none;
 }
 
 /* Desktop: reserve foot clearance while the fixed consent bar is mounted so
-   list cards and page footers are not half-covered. Mobile map surfaces already
-   lift their own controls; other mobile pages clear acceptably without this. */
+   list cards and page footers are not half-covered. */
 @media (min-width: 641px) {
   body:has(.analyticsConsentPrompt) {
     padding-bottom: calc(
@@ -4487,6 +4541,21 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
 }
 
 @media (max-width: 640px) {
+  /* Phone: the card sits 8px above the tab bar and may grow to 120px, so scroll
+     surfaces must reserve that lane or Today, Plan and /pubs actions sit under it. */
+  body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
+    padding-bottom: calc(
+      var(--tabbar-h, 58px) + env(safe-area-inset-bottom, 0px) +
+        var(--analytics-consent-mobile-clearance, 128px)
+    );
+  }
+
+  body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
+    padding-bottom: calc(
+      var(--analytics-consent-mobile-clearance, 128px) + max(12px, env(safe-area-inset-bottom))
+    );
+  }
+
   .analyticsConsentPrompt {
     bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 8px);
     display: grid;
@@ -4494,12 +4563,25 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     align-items: center;
     gap: 10px;
     width: auto;
+    max-height: 120px;
     padding: 10px;
+  }
+
+  body:not(:has(.mobileTabBar, .mobileTabBarClearance)) .analyticsConsentPrompt {
+    bottom: max(12px, env(safe-area-inset-bottom));
   }
 
   .analyticsConsentPrompt p {
     font-size: 0.72rem;
   }
+
+  /* NOTHING here clamps the sentence. A clamp on the card cuts the two buttons
+     that are the only way out of a fixed overlay; a clamp on the paragraph cuts
+     the banner's only route to the privacy notice, which is the last thing on
+     it; and a clamp on the sentence alone silently drops the "never sold"
+     half of the disclosure on a 320px phone. The card holds its 120px ceiling
+     by the COPY being short enough to wrap inside it at every phone width,
+     with the Privacy link riding the last line rather than a line of its own. */
 
   .analyticsConsentPromptActions {
     display: grid;
@@ -4511,13 +4593,21 @@ body:has(.mobileSheetPortal) .analyticsConsentPrompt {
     padding-inline: 8px;
   }
 
+  body:has(.mapArrivalCard) .analyticsConsentPrompt,
   body:has(.mobilePlanActivation) .analyticsConsentPrompt {
-    /* Sit above Describe the outing; keep the plan CTA fully visible. */
+    /* Sit above first-visit arrival or Describe the outing. */
     bottom: calc(var(--mobile-map-dock-clearance) + 86px);
     max-height: none;
     background: var(--panel-raised);
     box-shadow: none;
     backdrop-filter: none;
+  }
+
+  body:has(.mapArrivalCard) .analyticsConsentPrompt {
+    /* The card's own published top edge (mobileNav.css), never a second
+       height written down here. Consent already waits behind the card
+       (lib/promptBudget.ts), so this is the belt to that braces. */
+    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 }
 

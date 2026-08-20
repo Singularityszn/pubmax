@@ -17,13 +17,13 @@
     {
       "id": "price_updates",
       "label": "Cheapest-pint baseline price updates",
-      "class": "cron",
+      "class": "episodic",
       "artifact": "public/data/price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "advances only when a reviewed publish re-commits the artifact; the weekly Vercel retrieval sweep cannot write this file",
-      "stalenessBudgetHours": 336,
-      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The weekly Vercel cron GET /api/cron/refresh-prices only RETRIEVES rows and stamps the separate price_update_retrieval feed; it never advances this dataset, because a read-only serverless FS cannot rewrite the served file.",
-      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled runs remain honest no-ops and this feed stays visibly stale until a real parser retrieves valid rows AND a human publishes them"
+      "cadence": "human-gated reviewed publish; no machine schedule until real first-party parsers ship",
+      "stalenessBudgetHours": null,
+      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr; the weekly Vercel cron GET /api/cron/refresh-prices only RETRIEVES rows and stamps the separate price_update_retrieval feed and never advances this served file. While parsers are stubbed the committed envelope stays empty and its generatedAt names the same collection day as the bundled pint dataset (2026-07-03), not a fresher-looking date with no rows behind it.",
+      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled retrieval remains an honest no-op until a real parser retrieves valid rows AND a human publishes them"
     },
     {
       "id": "price_update_retrieval",
@@ -277,6 +277,18 @@
       "stalenessBudgetHours": 8760,
       "refreshWorkflow": "manual (node scripts/build_heritage_listings.mjs)",
       "gate": "none (Historic England NHLE open data is keyless; Open Government Licence v3.0, attribution required)"
+    },
+    {
+      "id": "historic_pubs",
+      "label": "Historic pubs index (heritage cache × venue dataset JOIN)",
+      "class": "episodic",
+      "artifact": "public/data/historic_pubs.json",
+      "pack": true,
+      "stamp": { "kind": "literal", "value": "2026-07-18T00:00:00Z", "consumedBy": "Regenerated when scripts/build_historic_index.mjs runs after heritage_cache.json or pint_prices_app_dataset.json changes. `pack: true` opens the file in both freshness readers, so a missing, unreadable or empty index is its own audit finding rather than a literal stamp reading as fresh." },
+      "cadence": "episodic — node scripts/build_historic_index.mjs",
+      "stalenessBudgetHours": 2160,
+      "refreshWorkflow": "manual (node scripts/build_historic_index.mjs)",
+      "gate": "none (deterministic JOIN of committed heritage_cache.json + pint_prices_app_dataset.json)"
     },
     {
       "id": "area_news",

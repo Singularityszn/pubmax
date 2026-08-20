@@ -11,13 +11,21 @@
 }
 
 .pubmaxxWordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: .025em;
+  display: inline-block;
+  max-width: 100%;
   color: currentColor;
   font: inherit;
   font-weight: 800;
   letter-spacing: -.045em;
+  white-space: nowrap;
+}
+
+.pubmaxxWordmarkLetters {
+  display: inline-flex;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: .025em;
+  flex-shrink: 0;
   white-space: nowrap;
 }
 

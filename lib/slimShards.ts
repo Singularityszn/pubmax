@@ -123,6 +123,24 @@ export function shardsForBounds(manifest: ShardManifest, bounds: MapBounds): Sha
 }
 
 /**
+ * Has every shard that could hold a venue inside `bounds` already loaded?
+ *
+ * The counter-question to `shardsForBounds`: that one asks what to FETCH, this
+ * one asks whether a figure derived from the loaded pins is the whole truth for
+ * that patch of the map. Core counts too - a bbox that only core covers is
+ * complete the moment core lands.
+ */
+export function boundsCoveredByLoadedShards(
+  manifest: ShardManifest,
+  loadedShardUrls: ReadonlySet<string>,
+  bounds: MapBounds,
+): boolean {
+  return manifest.shards
+    .filter((shard) => bboxIntersects(shard.bbox, bounds))
+    .every((shard) => loadedShardUrls.has(shard.url));
+}
+
+/**
  * The outer shard a point falls in. Prefers a bbox that CONTAINS the point;
  * when several do (bboxes can overlap) or none does but one is close, picks the
  * shard whose bbox centre is nearest. Returns null when there is no plausible
@@ -162,6 +180,11 @@ function manifestPathFor(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".manifest.json");
 }
 
+/** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
+export function guessedCoreShardUrl(slimVenuesPath: string): string {
+  return slimVenuesPath.replace(/\.json$/, ".core.json");
+}
+
 export type SlimShardLoader = {
   /** Eager first-paint payload: the core shard. */
   core(): Promise<SlimVenue[]>;
@@ -177,6 +200,13 @@ export type SlimShardLoader = {
   nearPoint(lat: number, lng: number): Promise<SlimVenue[]>;
   /** Core + every outer shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
+  /**
+   * Whether every shard that could hold a venue inside `bounds` has loaded, so
+   * a count taken over the loaded pins is complete for that patch. TRI-STATE:
+   * `null` while the manifest has not answered, because "we cannot tell yet"
+   * is not "incomplete" and neither is it a figure anybody may print.
+   */
+  coverageComplete(bounds: MapBounds): boolean | null;
 };
 
 /**
@@ -194,6 +224,11 @@ export function createSlimShardLoader(
   const manifestOfflineKey = `${MANIFEST_OFFLINE_PREFIX}:${manifestPath}`;
 
   let manifestPromise: Promise<ShardManifest | null> | null = null;
+  // Settled manifest snapshot, so coverage can be answered without awaiting.
+  let manifestAnswered = false;
+  let settledManifest: ShardManifest | null = null;
+  // A city with no manifest ships one file, so loading it covers everything.
+  let wholeIndexLoaded = false;
   // url -> in-flight/settled fetch of that shard's venues.
   const shardPromises = new Map<string, Promise<SlimVenue[]>>();
   // shard urls that have successfully contributed venues (so inBounds skips them).
@@ -216,8 +251,21 @@ export function createSlimShardLoader(
   }
 
   function manifest(): Promise<ShardManifest | null> {
-    if (!manifestPromise) manifestPromise = fetchManifest();
+    if (!manifestPromise) {
+      manifestPromise = fetchManifest().then((parsed) => {
+        settledManifest = parsed;
+        manifestAnswered = true;
+        return parsed;
+      });
+    }
     return manifestPromise;
+  }
+
+  function loadWholeIndex(): Promise<SlimVenue[]> {
+    return loadSlimVenuesFromPath(slimVenuesPath).then((rows) => {
+      wholeIndexLoaded = true;
+      return rows;
+    });
   }
 
   // Fetch one shard body once; a failure (no offline mirror) resolves to [] and
@@ -244,10 +292,22 @@ export function createSlimShardLoader(
 
   return {
     async core(): Promise<SlimVenue[]> {
+      const guessedCoreUrl = guessedCoreShardUrl(slimVenuesPath);
+      // Speculative: started beside the manifest so first paint does not wait
+      // for one round trip before starting the next. It is only ever AWAITED
+      // once the manifest names that very URL as its core, so a city with no
+      // manifest (or a differently named core) is not serialised behind a
+      // request its answer discards. loadShard never rejects.
+      const guessedRows = loadShard(guessedCoreUrl);
       const m = await manifest();
-      if (!m) return loadSlimVenuesFromPath(slimVenuesPath);
+      if (!m) return loadWholeIndex();
       const core = coreEntry(m);
-      return core ? loadShard(core.url) : loadSlimVenuesFromPath(slimVenuesPath);
+      if (!core) return loadWholeIndex();
+      if (core.url === guessedCoreUrl) {
+        const rows = await guessedRows;
+        if (rows.length > 0) return rows;
+      }
+      return loadShard(core.url);
     },
 
     async inBounds(bounds: MapBounds): Promise<SlimVenue[]> {
@@ -275,9 +335,16 @@ export function createSlimShardLoader(
 
     async all(): Promise<SlimVenue[]> {
       const m = await manifest();
-      if (!m) return loadSlimVenuesFromPath(slimVenuesPath);
+      if (!m) return loadWholeIndex();
       const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
       return results.flat();
+    },
+
+    coverageComplete(bounds: MapBounds): boolean | null {
+      if (wholeIndexLoaded) return true;
+      if (!manifestAnswered) return null;
+      if (!settledManifest) return false;
+      return boundsCoveredByLoadedShards(settledManifest, loadedUrls, bounds);
     },
   };
 }

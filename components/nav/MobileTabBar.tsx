@@ -19,6 +19,8 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
+import { SOCIAL_PREVIEW_NAV_LABEL } from "@/lib/socialLaunch";
+import { useSocialNavShowsPreviewBadge } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
   readSoftKeyboardOpen,
@@ -32,10 +34,9 @@ import {
 } from "@/lib/useFocusTrap";
 import "./mobileNav.css";
 
-// Mobile-first bottom tab bar. Mounted on every non-root route and visible only
-// ≤640px (see mobileNav.css); exact root landing intentionally omits it so
-// Find my pint owns entry. On desktop it is display:none, leaving existing
-// desktop navs untouched.
+// Mobile-first bottom tab bar. Mounted on every route and visible only ≤640px
+// (see mobileNav.css). On desktop it is display:none, leaving existing desktop
+// navs untouched.
 //
 // Five destinations. Compose lives on the floating + action, never in this row.
 //
@@ -79,8 +80,8 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
-export function shouldShowMobileTabBar(pathname: string): boolean {
-  return pathname !== "/";
+export function shouldShowMobileTabBar(_pathname: string): boolean {
+  return true;
 }
 
 export function MobileTabBarClearanceFallback() {
@@ -133,10 +134,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const tabs = useMemo(
-    () => buildTabs(mapHref, youHref, nowHref),
-    [mapHref, youHref, nowHref],
-  );
+  const socialPreviewBadge = useSocialNavShowsPreviewBadge();
+  const tabs = useMemo(() => buildTabs(mapHref, youHref, nowHref), [mapHref, youHref, nowHref]);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
@@ -209,6 +208,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
         {tabs.map((tab) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
+          const previewMarked = tab.key === "social" && socialPreviewBadge;
           return (
             <li key={tab.label} className="mobileTabItem">
               <Link
@@ -223,6 +223,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 prefetch={false}
                 className={"mobileTab pressable" + (active ? " isActive" : "")}
                 aria-current={active ? "page" : undefined}
+                aria-label={previewMarked ? SOCIAL_PREVIEW_NAV_LABEL : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onClick={onPrimaryTabNavigate}
                 onMouseEnter={() => warmTab(tab.href)}
@@ -236,7 +237,12 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                     fill="none"
                   />
                 </span>
-                <span className="mobileTabLabel">{tab.label}</span>
+                <span className="mobileTabLabel">
+                  <span className="mobileTabLabelText">{tab.label}</span>
+                  {previewMarked ? (
+                    <span className="mobileTabPreviewBadge" aria-hidden="true" />
+                  ) : null}
+                </span>
               </Link>
             </li>
           );

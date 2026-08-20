@@ -176,6 +176,18 @@
     max-width: none;
     letter-spacing: 0.04em;
   }
+
+  /* A named area keeps its name at this width: the code below is the CITY's
+     abbreviation and says nothing about an area, and the control announces the
+     area either way. Ordered after the rules above so it wins on source order
+     at equal specificity for the width, and on specificity for the label. */
+  .citySwitcher--named {
+    max-width: none;
+  }
+
+  .citySwitcher--named .citySwitcherLabelFull {
+    display: inline;
+  }
 }
 
 @media (max-width: 640px) {

@@ -17,8 +17,12 @@ After the fix, the clean recording shows loading chrome at 11.88 seconds and
 coloured price clusters in the next 25 fps frame at 11.92 seconds. The settled
 screenshot contains 6,651 cluster-colour pixels in the same crop. There is no
 empty-and-settled frame at the handoff. If the phone cannot confirm that frame
-before the readiness ceiling, it now shows the honest no-frame fallback instead
-of retiring loading chrome.
+before the readiness ceiling, it keeps the canvas and its already un-gated pins
+and shows one soft retry toast named after the signal that missed: the basemap
+when the background never painted, the pins when only the `pubs` source is
+unsettled. Superseded 2026-08-19: the ceiling used to unmount the canvas into
+the "Map couldn't draw" card, which hid pubs that were about to paint. A dead
+render loop is still a card, from the 10-second first-frame watchdog.
 
 ## Measured timing
 

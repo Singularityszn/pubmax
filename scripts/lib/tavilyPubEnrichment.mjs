@@ -292,7 +292,7 @@ function searchQuery(pub) {
   return `site:${host} "${pub.name}" drinks menu "pint" "£"`;
 }
 
-async function searchTavily({ pub, apiKey, fetchImpl }) {
+async function searchTavily({ pub, apiKey, fetchImpl, signal }) {
   const declaredHost = hostnameOf(pub.website);
   const response = await fetchImpl(TAVILY_SEARCH_URL, {
     method: "POST",
@@ -300,6 +300,7 @@ async function searchTavily({ pub, apiKey, fetchImpl }) {
       authorization: `Bearer ${apiKey}`,
       "content-type": "application/json",
     },
+    signal,
     body: JSON.stringify({
       query: searchQuery(pub),
       topic: "general",
@@ -403,6 +404,14 @@ function selectBestOfficialPage(results) {
   return matchedPage;
 }
 
+function throwIfAborted(signal) {
+  if (signal?.aborted) {
+    const error = new Error("City enrichment aborted.");
+    error.name = "AbortError";
+    throw error;
+  }
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -413,6 +422,7 @@ export async function runCityEnrichment({
   observedAt = new Date().toISOString(),
   fetchImpl = fetch,
   onProgress,
+  signal,
 }) {
   const city = CITY_DEFINITIONS[cityId];
   if (!city) throw new Error(`Unsupported enrichment city "${cityId}".`);
@@ -432,6 +442,7 @@ export async function runCityEnrichment({
   let index = Math.max(0, Math.floor(Number(startIndex) || 0));
 
   while (index < pubs.length) {
+    throwIfAborted(signal);
     const pub = pubs[index];
     const chain = classifyChainPub(pub);
     if (chain) {
@@ -448,14 +459,22 @@ export async function runCityEnrichment({
     if (queriesSpent >= queryCap) break;
 
     queriesSpent += 1;
-    const payload = searchProvider
-      ? await searchProvider.search({
-          query: searchQuery(pub),
-          maxResults: 10,
-          ...(hostnameOf(pub.website) ? { includeDomains: [hostnameOf(pub.website)] } : {}),
-          endPublishedDate: observedAt,
-        })
-      : await searchTavily({ pub, apiKey, fetchImpl });
+    let payload;
+    try {
+      payload = searchProvider
+        ? await searchProvider.search({
+            query: searchQuery(pub),
+            maxResults: 10,
+            ...(hostnameOf(pub.website) ? { includeDomains: [hostnameOf(pub.website)] } : {}),
+            endPublishedDate: observedAt,
+          })
+        : await searchTavily({ pub, apiKey, fetchImpl, signal });
+    } catch (error) {
+      await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
+      throw error;
+    }
+    await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
+    throwIfAborted(signal);
     creditsSpent += Number(payload?.creditsSpent ?? payload?.usage?.credits) || 0;
     const officialResults = acceptedOfficialResults(pub, payload, hostCounts, observedAt);
     const matchedPage = selectBestOfficialPage(officialResults);

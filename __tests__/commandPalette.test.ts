@@ -82,6 +82,27 @@ describe("real command registry", () => {
     expect(filterCommands(commands, "")).toHaveLength(commands.length);
   });
 
+  it("still reaches /pubs for the query a reader types for it", () => {
+    // The label is "Chains" (captain 2026-08-17), so the word a reader types
+    // has to be carried by the keywords or the destination is unreachable.
+    const matches = filterCommands(commands, "pubs");
+    const pubs = matches.find((command) => command.id === "nav-pubs");
+    expect(pubs, "nav-pubs survives the filter for \"pubs\"").toBeTruthy();
+
+    let navigated: string | null = null;
+    pubs?.run({
+      navigate: (href: string) => {
+        navigated = href;
+      },
+      close: () => {},
+      toggleTheme: () => {},
+    });
+    expect(navigated).toBe("/pubs");
+    expect(filterCommands(commands, "menus").map((c) => c.id)).toContain(
+      "nav-pubs",
+    );
+  });
+
   it("has a unique id per command", () => {
     const ids = commands.map((c) => c.id);
     expect(new Set(ids).size).toBe(ids.length);

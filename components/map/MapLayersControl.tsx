@@ -3,8 +3,8 @@
 // Corner Layers control — all viewports (Wave J declutter). Keeps Tube/Parks/
 // story bands out of the mid-map strip; opens a compact popover.
 
-import { Layers, X } from "lucide-react";
-import { useEffect, useId, useRef, useState } from "react";
+import { Layers, List, X } from "lucide-react";
+import { useEffect, useId, useRef, useState, type ReactNode } from "react";
 
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID } from "@/lib/cities";
@@ -71,6 +71,17 @@ type MapLayersControlProps = {
   cityId?: CityId;
   embedded?: boolean;
   onRequestClose?: () => void;
+  /** Price key lives here so it does not float over the pins. */
+  readerKey?: ReactNode;
+  /**
+   * Max pint price cap. Same rule as the key: a reader control, not chrome.
+   * A render prop, because picking a cap closes this popover the way the
+   * retired corner control closed its own panel.
+   */
+  readerPriceFilter?: (close: () => void) => ReactNode;
+  listOpen?: boolean;
+  onListOpenChange?: (open: boolean) => void;
+  listCount?: number;
 };
 
 export default function MapLayersControl({
@@ -82,6 +93,11 @@ export default function MapLayersControl({
   cityId = DEFAULT_CITY_ID,
   embedded = false,
   onRequestClose,
+  readerKey,
+  readerPriceFilter,
+  listOpen = false,
+  onListOpenChange,
+  listCount = 0,
 }: MapLayersControlProps) {
   // Deep-link `?band=` opens Layers without an effect: bandForcesOpen until the
   // user dismisses for that band id (Wave J removed mid-map band picker).
@@ -183,6 +199,33 @@ export default function MapLayersControl({
           </div>
 
           <p className="mapLayersHint">{layersCopy.hint}</p>
+
+          {readerKey || readerPriceFilter || onListOpenChange ? (
+            <div className="mapLayersReader">
+              {onListOpenChange ? (
+                <button
+                  type="button"
+                  className={listOpen ? "mapLayersReaderAction isOn" : "mapLayersReaderAction"}
+                  aria-pressed={listOpen}
+                  onClick={() => {
+                    const next = !listOpen;
+                    closePanel();
+                    onListOpenChange(next);
+                  }}
+                >
+                  <List size={16} aria-hidden="true" />
+                  <span>{listOpen ? "Hide venue list" : "List view"}</span>
+                  {listCount > 0 ? (
+                    <span className="mapLayersReaderCount">{listCount}</span>
+                  ) : null}
+                </button>
+              ) : null}
+              {readerKey ? (
+                <div className="mapLayersReaderKey">{readerKey}</div>
+              ) : null}
+              {readerPriceFilter?.(closePanel)}
+            </div>
+          ) : null}
 
           <div className="mapLayersGroup" role="group" aria-label="Points of interest">
             {POI_TOGGLE_GROUPS.map((group) => {

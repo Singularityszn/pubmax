@@ -14,6 +14,8 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+
 import { commands } from "./commands";
 import { filterCommands } from "./commandFilter";
 import type { Command, CommandContext, CommandGroup } from "./types";
@@ -51,10 +53,22 @@ export default function CommandPalette({
   const [query, setQuery] = useState("");
   const [activeIndex, setActiveIndex] = useState(0);
 
+  const socialLabel = useSocialSurfaceName();
+
+  const paletteCommands = useMemo(
+    () =>
+      commands.map((command) =>
+        command.id === "nav-social"
+          ? { ...command, label: socialLabel }
+          : command,
+      ),
+    [socialLabel],
+  );
+
   // Filter, then re-group so each section's rows are contiguous under a single
   // header while still honouring the pure filter's ranking within a group.
   const ordered = useMemo(() => {
-    const matches = filterCommands(commands, query);
+    const matches = filterCommands(paletteCommands, query);
     const groups: CommandGroup[] = [];
     for (const cmd of matches) if (!groups.includes(cmd.group)) groups.push(cmd.group);
     return groups.flatMap((group) => matches.filter((cmd) => cmd.group === group));

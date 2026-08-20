@@ -12,6 +12,7 @@ import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import IntentLink from "@/components/nav/IntentLink";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
@@ -24,6 +25,7 @@ import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nigh
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
+import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
 import {
@@ -462,16 +464,34 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                   </p>
                 ) : null}
                 {proposals.length > 0 ? (
-                  <ul className="palChatProposals" aria-label="Confirm an action">
+                  <ul className="palChatProposals" aria-label="Suggested actions">
                     {proposals.map((proposal) => (
                       <li key={proposal.id} className="palChatProposal">
-                        <button
-                          type="button"
-                          className="palChatProposalConfirm pressable"
-                          onClick={() => confirmProposal(proposal, entry.id)}
-                        >
-                          {proposal.label}
-                        </button>
+                        {proposal.kind === "draft_plan" ? (
+                          <IntentLink
+                            className="palChatPlanHandoff pressable"
+                            href={planPalRouteHandoffHref(proposal.query)}
+                            onClick={() => {
+                              trackEvent("concierge_result_tap");
+                              writeAskPlanDraft({
+                                query: proposal.query,
+                                stopIds: proposal.stopIds,
+                                stopNames: proposal.stopNames,
+                                createdAt: new Date().toISOString(),
+                              });
+                            }}
+                          >
+                            Open in Plan
+                          </IntentLink>
+                        ) : (
+                          <button
+                            type="button"
+                            className="palChatProposalConfirm pressable"
+                            onClick={() => confirmProposal(proposal, entry.id)}
+                          >
+                            {proposal.label}
+                          </button>
+                        )}
                         <button
                           type="button"
                           className="palChatProposalDismiss pressable"

@@ -22,6 +22,7 @@ import {
   DEFAULT_HISTORIC_FILTERS,
   filterAndSortHistoric,
   listedBadge,
+  venueStatusBadge,
   type HistoricSort,
 } from "@/lib/historicFilter";
 
@@ -182,6 +183,7 @@ export default function HistoricPageClient({
               {visible.map((pub) => {
                 const href = citationHref(pub);
                 const grade = listedBadge(pub.listed);
+                const status = venueStatusBadge(pub.venueStatus);
                 return (
                   <li key={pub.slug} className="historicCard">
                     <div className="historicCardMeta">
@@ -190,6 +192,9 @@ export default function HistoricPageClient({
                       ) : null}
                       {grade ? (
                         <span className="historicGrade">{grade}</span>
+                      ) : null}
+                      {status ? (
+                        <span className="historicGrade">{status}</span>
                       ) : null}
                     </div>
 

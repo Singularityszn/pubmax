@@ -10,13 +10,16 @@
 // every field-stamped feed as "unknown" every morning for weeks.
 //
 // So next.config.mjs declares them, derived from the registry rather than
-// hand-copied. This fence pins that: add a FIELD-stamped dataset and it is traced
-// into both functions, or this test fails.
+// hand-copied. This fence pins that: add a FIELD-stamped dataset, or a declared
+// row PACK, and it is traced into both functions, or this test fails.
 //
-// Field-stamped is the whole list, because it is exactly the list a reader opens:
-// a literal stamp is answered from the registry and an unstamped dataset is never
-// dated, so tracing either would ship megabytes (pint_prices alone is ~7 MB) into
-// both functions to be parsed by nobody — the bloat that ruled out a glob.
+// Those two are the whole list, because they are exactly the list a reader opens
+// (lib/freshness.ts datasetOpensArtifact): a bare literal stamp is answered from
+// the registry and an unstamped dataset is never dated, so tracing either would
+// ship megabytes (pint_prices alone is ~7 MB) into both functions to be parsed by
+// nobody — the bloat that ruled out a glob. A pack is the exception on purpose:
+// its rows ARE the finding, so leaving it untraced makes an empty-pack alert
+// unreachable in production and the feed reads fresh forever.
 
 import { execFileSync } from "node:child_process";
 import { join } from "node:path";
@@ -28,13 +31,17 @@ import { freshnessArtifactIncludes } from "@/lib/freshnessTracing.mjs";
 
 const FRESHNESS_ROUTES = ["/api/freshness", "/api/cron/freshness-audit"] as const;
 
-const readArtifacts = registry.datasets
-  .filter((d) => d.stamp?.kind === "field")
+type RegistryDataset = (typeof registry.datasets)[number] & { pack?: boolean };
+
+const opensArtifact = (d: RegistryDataset) => d.stamp?.kind === "field" || d.pack === true;
+
+const readArtifacts = (registry.datasets as RegistryDataset[])
+  .filter(opensArtifact)
   .map((d) => d.artifact)
   .filter((a): a is string => typeof a === "string");
 
-const unreadArtifacts = registry.datasets
-  .filter((d) => d.stamp?.kind !== "field")
+const unreadArtifacts = (registry.datasets as RegistryDataset[])
+  .filter((d) => !opensArtifact(d))
   .map((d) => d.artifact)
   .filter((a): a is string => typeof a === "string");
 
@@ -101,6 +108,28 @@ describe("freshness artifact tracing", () => {
       ],
     };
     expect(freshnessArtifactIncludes(synthetic)).toEqual(["./public/data/brand_new/latest.json"]);
+  });
+
+  it("traces a declared row pack, so its empty-pack finding can fire in production", () => {
+    const synthetic = {
+      datasets: [
+        { id: "pack", artifact: "public/data/rows.json", pack: true, stamp: { kind: "literal", value: "2026-07-01" } },
+        { id: "literal", artifact: "public/data/huge.json", stamp: { kind: "literal", value: "2026-07-01" } },
+        { id: "pack-no-artifact", artifact: null, pack: true, stamp: null },
+      ],
+    };
+    expect(freshnessArtifactIncludes(synthetic)).toEqual(["./public/data/rows.json"]);
+  });
+
+  it("ships the historic pubs pack to both readers, so an empty index is a finding", () => {
+    const historic = (registry.datasets as RegistryDataset[]).find(
+      (d) => d.id === "historic_pubs",
+    );
+    expect(historic?.pack).toBe(true);
+    expect(historic?.artifact).toBe("public/data/historic_pubs.json");
+    for (const route of FRESHNESS_ROUTES) {
+      expect(includes?.[route]).toContain("./public/data/historic_pubs.json");
+    }
   });
 
   it("declares exactly what the shared derivation returns for the real registry", () => {

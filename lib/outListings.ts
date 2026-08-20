@@ -67,16 +67,12 @@ export function outCardObservedAt(
 }
 
 /**
- * What the Open plans section may say while NOTHING reads the viewer's plans.
+ * Open plans copy on /out.
  *
- * A surface may claim absence only once its OWN read has answered. Nothing on
- * /out asks for open plans yet, so "No open plans yet" was a statement about a
- * question nobody put - a signed-in drinker holding an open Soft Plan was told
- * on the new primary tab that they had none. The section says where open plans
- * WILL appear instead, and keeps the way to make one.
- *
- * Kept beside the listings copy so the L3 read replaces one named line rather
- * than hunting a sentence typed into a component.
+ * L3 hides the whole section until at least three sendable plans exist
+ * (lib/outDesktopGrouping.ts). These strings stay beside the listings copy so
+ * the foot link and any future placeholder reuse one named line rather than
+ * hunting a sentence typed into a component.
  */
 export const OUT_OPEN_PLANS_PLACEHOLDER_LINE = "Open plans arrive here.";
 export const OUT_OPEN_PLANS_WAY_LABEL = "Start a plan";
@@ -89,6 +85,23 @@ const WINDOW_NOUN: Record<OutDayWindow, string> = {
   tomorrow: "tomorrow",
   weekend: "the weekend",
 };
+
+/**
+ * The heading above the listing cards on /out.
+ *
+ * It covers the WHOLE list, which is every What's-On kind except deals
+ * (OUT_LISTING_KINDS), so it may not be named for one of them: a pub quiz and a
+ * televised match are listings, and neither is a live event. It may not be
+ * named for a vendor either - Ticketmaster and Skiddle supply rows, they do not
+ * define the lane.
+ *
+ * It names the window it is listing, off the SAME noun table the empty line
+ * uses, so the heading and the sentence under it can never disagree about which
+ * night the reader asked for.
+ */
+export function outListingsSectionTitle(window: OutDayWindow): string {
+  return `What's on ${WINDOW_NOUN[window]}`;
+}
 
 /**
  * The one sentence an empty chip prints.
@@ -113,6 +126,11 @@ export function isOutDayWindow(value: unknown): value is OutDayWindow {
 
 export function parseOutDayWindow(value: string | null | undefined): OutDayWindow {
   return isOutDayWindow(value) ? value : "tonight";
+}
+
+/** The Out API names tonight as `today`. */
+export function outWindowToApiDay(window: OutDayWindow): "today" | "tomorrow" | "weekend" {
+  return window === "tonight" ? "today" : window;
 }
 
 function londonYmd(ms: number): string {

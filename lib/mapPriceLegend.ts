@@ -153,8 +153,8 @@ function priceRows(noun: string): MapPriceLegendRow[] {
 
 /**
  * The four band-colour rows the first-map orientation beat teaches.
- * Reuses the default pint vocabulary so the tour, MapKey, and MapPriceControl
- * never invent separate labels for the same colours.
+ * Reuses the default pint vocabulary so the tour, MapKey, and the Layers
+ * price cap never invent separate labels for the same colours.
  */
 export function orientationLegendRows(): readonly MapPriceLegendRow[] {
   return priceRows("pint");

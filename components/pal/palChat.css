@@ -534,8 +534,27 @@
    its own, which at 390px read as two unrelated controls. */
 .palChatProposal {
   display: flex;
+  flex-wrap: wrap;
   gap: 0.5rem;
   align-items: stretch;
+}
+
+.palChatPlanHandoff {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 0.6rem 0.85rem;
+  border-radius: 0.65rem;
+  font: 700 0.82rem/1.25 var(--font-body);
+  text-decoration: none;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--line);
+}
+
+.palChatPlanHandoff:hover {
+  background: color-mix(in srgb, var(--paper) 88%, var(--brass) 12%);
 }
 
 .palChatProposalConfirm,

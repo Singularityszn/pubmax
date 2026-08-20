@@ -79,10 +79,31 @@ const readBackState = vi.hoisted(() => ({
     degraded: boolean;
   } | null,
 }));
+const oneTapState = vi.hoisted(() => ({
+  forcedOutcome: undefined as
+    | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
+    | undefined,
+}));
+vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
+  return {
+    ...actual,
+    writeOneTapPintDrop: async (
+      input: Parameters<typeof actual.writeOneTapPintDrop>[0],
+      photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
+    ) => {
+      if (oneTapState.forcedOutcome !== undefined) {
+        return oneTapState.forcedOutcome;
+      }
+      return actual.writeOneTapPintDrop(input, photos);
+    },
+  };
+});
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
+    moderateCommunityPrice: vi.fn(actual.moderateCommunityPrice),
     readCommunityPrices: async (venueId: string, now?: number) =>
       readBackState.override ?? actual.readCommunityPrices(venueId, now),
     readCommunityPricesWithStatus: async (venueId: string, now?: number) =>
@@ -97,16 +118,17 @@ import { GET, POST } from "@/app/api/price-submit/route";
 import {
   __resetCommunityPrices,
   memoryCommunityPriceStore,
+  moderateCommunityPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
 import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
 import { readPriceTrustImpact } from "@/lib/priceTrustImpact.server";
-import { COMMUNITY_PRICE_MAX_GBP } from "@/lib/communityPrice";
+import { COMMUNITY_PRICE_MAX_GBP, submitCategoryLabel } from "@/lib/communityPrice";
 import {
   __resetMemoryIdentityHandles,
   memoryIdentityHandleStore,
 } from "@/lib/identityHandleStore";
-import { __resetPintDrops } from "@/lib/pintDrops";
+import { __resetPintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,
   memoryProfileStore,
@@ -194,6 +216,7 @@ beforeEach(async () => {
   ukBaseIndexState.unavailable = false;
   readBackState.override = null;
   readBackState.statusOverride = null;
+  oneTapState.forcedOutcome = undefined;
   authState.userId = null;
   __resetCommunityPrices();
   __resetMemoryPriceTrustEvents();
@@ -202,6 +225,14 @@ beforeEach(async () => {
   __resetMemoryPrivateIdentities();
   __resetPintDrops();
   await authorizeContributor("user-default", "default_contributor");
+  const actualCommunityPriceStore =
+    await vi.importActual<typeof import("@/lib/communityPriceStore")>(
+      "@/lib/communityPriceStore",
+    );
+  vi.mocked(moderateCommunityPrice).mockReset();
+  vi.mocked(moderateCommunityPrice).mockImplementation(
+    actualCommunityPriceStore.moderateCommunityPrice,
+  );
 });
 
 afterEach(async () => {
@@ -238,6 +269,54 @@ describe("POST /api/price-submit", () => {
         visible: true,
       },
     ]);
+    const drops = listVisiblePintDrops("venue-xjf3n0");
+    expect(drops).toHaveLength(1);
+    expect(drops[0]).toMatchObject({
+      venueId: "venue-xjf3n0",
+      handle: "default_contributor",
+      priceGbp: 4.2,
+      drink: submitCategoryLabel("beer"),
+    });
+  });
+
+  it("still lands the community price when a visit report was already logged today", async () => {
+    const venueId = "venue-xjf3n0";
+    const first = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(first.status).toBe(201);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+
+    const second = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.5 }));
+    expect(second.status).toBe(201);
+    expect((await second.json() as PriceBody).price?.priceGbp).toBe(4.5);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+  });
+
+  it("hides the community price when the paired visit report write fails", async () => {
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(503);
+    expect(await readCommunityPrices(venueId)).toEqual([]);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+  });
+
+  it("answers 201 with the price when revert cannot hide it after a visit report failure", async () => {
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+    vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
+    const venueId = "venue-xjf3n0";
+    const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
+    expect(res.status).toBe(201);
+    expect((await res.json() as PriceBody).ok).toBe(true);
+    expect(await readCommunityPrices(venueId)).toHaveLength(1);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
   it("ignores a client-asserted handle and credits the authenticated account", async () => {

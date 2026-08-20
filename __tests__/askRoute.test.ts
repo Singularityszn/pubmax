@@ -68,7 +68,7 @@ describe("POST /api/ask", () => {
     expect(body.answer).not.toMatch(/—/);
   });
 
-  it("returns propose-then-confirm draft_plan proposals without saving a plan", async () => {
+  it("returns a draft_plan proposal that names its own control without saving a plan", async () => {
     const response = await post(
       { query: "Plan a crawl in Soho for 4", cityId: "london" },
       "198.51.100.22",
@@ -85,8 +85,13 @@ describe("POST /api/ask", () => {
       stopIds: expect.any(Array),
     });
     expect(draft.stopIds.length).toBe(3);
-    // Proposal only — route never mutates durable plan state.
-    expect(body.answer.toLowerCase()).toContain("confirm");
+    // Proposal only - the route never mutates durable plan state, and the
+    // sentence names the control that exists. Both surfaces open Plan through
+    // an "Open in Plan" control, so a bubble saying "Confirm" would name
+    // nothing on screen.
+    expect(draft.label).toBe("Open in Plan");
+    expect(body.answer).toContain("Open in Plan");
+    expect(body.answer.toLowerCase()).not.toContain("confirm");
   });
 
   it("degrades honestly when CityMCP is down", async () => {

@@ -5,10 +5,11 @@
 // more. Mirrors lib/savedPubs.ts's SSR-safe boundary — importing/calling on the
 // server is safe (reads return null, writes are no-ops).
 
+import { safeLocalStorage } from "@/lib/safeStorage";
 const STORAGE_KEY = "pubmax:favoritePint:v1";
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 // The stored beer id, or null on the server / when nothing is set / storage is

@@ -172,6 +172,33 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((v) => v.id).sort()).toEqual(["c1", "c2", "e1", "g1"]);
   });
 
+  // A figure taken over the loaded pins is only the truth for a patch whose
+  // shards have all landed, so the loader answers that question itself.
+  it("coverageComplete() is tri-state and follows the shards that landed", async () => {
+    const loader = createSlimShardLoader("london");
+    const coreOnly = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+    const overGreenwich = { west: 0.01, south: 51.47, east: 0.08, north: 51.51 };
+
+    // Nobody has asked the manifest yet, so the honest answer is "cannot tell".
+    expect(loader.coverageComplete(coreOnly)).toBeNull();
+
+    await loader.core();
+    expect(loader.coverageComplete(coreOnly)).toBe(true);
+    expect(loader.coverageComplete(overGreenwich)).toBe(false);
+
+    await loader.inBounds(overGreenwich);
+    expect(loader.coverageComplete(overGreenwich)).toBe(true);
+  });
+
+  it("coverageComplete() stays false while a shard fetch keeps failing", async () => {
+    installFetch({ "/data/venues_slim.greenwich.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const overGreenwich = { west: 0.01, south: 51.47, east: 0.08, north: 51.51 };
+    await loader.inBounds(overGreenwich);
+    expect(loader.coverageComplete(overGreenwich)).toBe(false);
+  });
+
   it("degrades honestly: a failed shard yields [] and is retried on the next call", async () => {
     installFetch({ "/data/venues_slim.greenwich.json": "fail" });
     const loader = createSlimShardLoader("london");
@@ -183,6 +210,83 @@ describe("createSlimShardLoader (London)", () => {
     installFetch();
     const rows = await loader.inBounds(bounds);
     expect(rows.map((v) => v.id)).toEqual(["g1"]);
+  });
+
+  // The core shard is fetched SPECULATIVELY beside the manifest so first paint
+  // does not pay two serial round trips. A path that discards that guess must
+  // not wait for it: a hanging (or simply slow) speculative request would hold
+  // the whole first paint behind a response nobody reads.
+  it("does not wait for the speculative core shard on the no-manifest path", async () => {
+    fetched = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (url === "/data/cities/manchester/venues_slim.core.json") {
+        return new Promise<Response>(() => {});
+      }
+      if (url === "/data/cities/manchester/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: false, status: 404 } as Response);
+      }
+      if (url === "/data/cities/manchester/venues_slim.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([slimRow("m1", 53.4, -2.2)]),
+        } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+
+    const loader = createSlimShardLoader("manchester");
+    const core = await Promise.race([
+      loader.core(),
+      new Promise<"serialised">((resolve) =>
+        setTimeout(() => resolve("serialised"), 2_000),
+      ),
+    ]);
+    expect(core).not.toBe("serialised");
+    expect((core as ReturnType<typeof slimRow>[]).map((v) => v.id)).toEqual(["m1"]);
+  });
+
+  it("does not wait for the speculative shard when the manifest names another core", async () => {
+    const renamedCore: ShardManifest = {
+      version: 1,
+      shards: [
+        { ...MANIFEST.shards[0]!, url: "/data/venues_slim.central.json" },
+        ...MANIFEST.shards.slice(1),
+      ],
+    };
+    fetched = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (url === "/data/venues_slim.core.json") return new Promise<Response>(() => {});
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(renamedCore),
+        } as Response);
+      }
+      if (url === "/data/venues_slim.central.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve(BODIES["/data/venues_slim.core.json"]),
+        } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+
+    const loader = createSlimShardLoader("london");
+    const core = await Promise.race([
+      loader.core(),
+      new Promise<"serialised">((resolve) =>
+        setTimeout(() => resolve("serialised"), 2_000),
+      ),
+    ]);
+    expect(core).not.toBe("serialised");
+    expect((core as ReturnType<typeof slimRow>[]).map((v) => v.id).sort()).toEqual([
+      "c1",
+      "c2",
+    ]);
   });
 
   it("falls back to the single city file when there is no manifest", async () => {

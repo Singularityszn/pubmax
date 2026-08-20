@@ -29,6 +29,7 @@ import {
   type MapPintDropVenue,
 } from "@/lib/mapPintDropPolicy";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import {
   captureRoundAppendSnapshot,
@@ -509,6 +510,7 @@ export function usePintDrops(
         return;
       }
       trackEvent("night_moment_saved", { kind: "pint_drop", visibility: submittedVisibility });
+      notifyCheapPintPingQualified();
 
       const reconciledDrop = {
         ...(data.drop as PintDropDTO),

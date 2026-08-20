@@ -119,10 +119,23 @@ async function tabTo(page: Page, target: Locator, maxTabs = 80): Promise<void> {
   await expect(target).toBeFocused();
 }
 
+async function openVenueListFromLayers(page: Page): Promise<void> {
+  const layers = page.getByRole("button", { name: /Map layers:/ });
+  await expect(layers).toBeVisible({ timeout: 30_000 });
+  await layers.click();
+  const list = page.getByRole("button", { name: "List view" });
+  await expect(list).toBeVisible();
+  await list.click();
+}
+
 async function openVenueListWithKeyboard(page: Page): Promise<Locator> {
-  const toggle = page.locator(".mapVenueListToggle");
-  await expect(toggle).toBeVisible({ timeout: 30_000 });
-  await tabTo(page, toggle);
+  const layers = page.getByRole("button", { name: /Map layers:/ });
+  await expect(layers).toBeVisible({ timeout: 30_000 });
+  await tabTo(page, layers);
+  await page.keyboard.press("Enter");
+  const list = page.getByRole("button", { name: "List view" });
+  await expect(list).toBeVisible();
+  await tabTo(page, list);
   await page.keyboard.press("Enter");
 
   const firstVenue = page.locator(".mapVenueListItem").first();
@@ -225,7 +238,7 @@ test.describe("map keyboard and screen-reader venue path", () => {
       )
       .toBeGreaterThan(0);
 
-    await page.locator(".mapVenueListToggle").click();
+    await openVenueListFromLayers(page);
     const baseRows = page.locator(
       '.mapVenueListItem[data-venue-id^="venue-uk-"]',
     );

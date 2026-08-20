@@ -27,7 +27,12 @@ import { relativeTime } from "@/lib/relativeTime";
 import type { SocialAccessState } from "@/lib/socialAccess";
 import {
   ADULT_SELF_ASSERTION_ACTION,
-  ADULT_SELF_ASSERTION_LINE,
+  adultSelfAssertionLine,
+  socialBoundaryCopy,
+  socialInviteMessage,
+  socialLoadingLabel,
+  socialSurfaceName,
+  type SocialBoundaryCopyState,
 } from "@/lib/socialLaunch";
 import {
   socialFeedRequestHref,
@@ -42,16 +47,7 @@ import SocialComposer from "./SocialComposer";
 import SocialTagInbox from "./SocialTagInbox";
 import SocialOutbox from "./SocialOutbox";
 
-export type SocialBoundaryState =
-  Exclude<SocialAccessState, "verified"> | "unavailable";
-
-const BOUNDARY_COPY: Record<SocialBoundaryState, string> = {
-  preview: "Social is invite-only for now. It opens more widely soon.",
-  sign_in_required: "Sign in to use Social.",
-  age_verification_required: "Adult check needed for Social.",
-  suspended: "Social access is suspended.",
-  unavailable: "Social is unavailable right now.",
-};
+export type SocialBoundaryState = SocialBoundaryCopyState;
 
 const ACCESS_STATES = new Set<SocialAccessState>([
   "preview",
@@ -76,6 +72,7 @@ type SocialPageClientProps = {
   initialState: SocialShellState;
   rivalry: CityRivalryEntry[];
   heritageCrawls: CuratedCrawl[];
+  friendsLaunchEnabled?: boolean;
 };
 
 type SocialPostPage = {
@@ -177,6 +174,7 @@ export function SocialAccessBoundary({
   onAssertAdult,
   assertBusy = false,
   assertError = null,
+  friendsLaunchEnabled = false,
 }: {
   state: SocialBoundaryState;
   onRetry?: () => void;
@@ -185,7 +183,12 @@ export function SocialAccessBoundary({
   onAssertAdult?: () => void;
   assertBusy?: boolean;
   assertError?: string | null;
+  friendsLaunchEnabled?: boolean;
 }) {
+  const boundaryCopy = socialBoundaryCopy(state, friendsLaunchEnabled);
+  const loadingLabel = socialLoadingLabel(friendsLaunchEnabled);
+  const inviteMessage = socialInviteMessage(friendsLaunchEnabled);
+  const assertionLine = adultSelfAssertionLine(friendsLaunchEnabled);
   // One line and one button in the same empty-state idiom as every other
   // boundary here. Never a dialog: arrival is not an admin form.
   const asking = state === "age_verification_required" && adultPrompt;
@@ -197,11 +200,11 @@ export function SocialAccessBoundary({
       {state === "sign_in_required" ? (
         <SocialViewerState
           phase="signed-out"
-          loadingLabel="Loading Social"
-          inviteMessage={BOUNDARY_COPY[state]}
+          loadingLabel={loadingLabel}
+          inviteMessage={boundaryCopy}
         />
       ) : (
-        <h2>{asking ? ADULT_SELF_ASSERTION_LINE : BOUNDARY_COPY[state]}</h2>
+        <h2>{asking ? assertionLine : boundaryCopy}</h2>
       )}
       {asking && onAssertAdult ? (
         <button
@@ -400,7 +403,9 @@ export default function SocialPageClient({
   initialState,
   rivalry,
   heritageCrawls,
+  friendsLaunchEnabled = false,
 }: SocialPageClientProps) {
+  const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { identityResolved, user } = useAuth();
   const viewerPhase: SocialViewerPhase =
     !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
@@ -640,9 +645,9 @@ export default function SocialPageClient({
     <>
       <SiteNav active="social" />
       <main className="socialPage" id="main-content">
-        <h1 className="socialTitle">Social</h1>
+        <h1 className="socialTitle">{surfaceName}</h1>
         <div className="socialLayout">
-          <aside className="socialControlRail" aria-label="Social views">
+          <aside className="socialControlRail" aria-label={`${surfaceName} views`}>
             {showPostsControls && draftScope ? <SocialComposer key={draftScope} draftScope={draftScope} onSaved={(saved) => {
               if (saved) setSubmittedPost(saved);
               setFeedAttempt((value) => value + 1);
@@ -652,7 +657,7 @@ export default function SocialPageClient({
               if (updated) setSubmittedPost(updated);
               setFeedAttempt((value) => value + 1);
             }} /> : null}
-            <nav className="socialSwitcher" aria-label="Social view">
+            <nav className="socialSwitcher" aria-label={`${surfaceName} view`}>
               <Link href="/social" aria-current={isPosts ? "page" : undefined}>
                 Posts
               </Link>
@@ -694,17 +699,18 @@ export default function SocialPageClient({
             </div>
           ) : viewerPhase === "unresolved" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
-              <h2>Loading Social</h2>
+              <h2>{socialLoadingLabel(friendsLaunchEnabled)}</h2>
               <SocialViewerState
                 phase="unresolved"
-                loadingLabel="Loading Social"
-                inviteMessage="Use Social."
+                loadingLabel={socialLoadingLabel(friendsLaunchEnabled)}
+                inviteMessage={socialInviteMessage(friendsLaunchEnabled)}
               />
             </section>
           ) : viewerPhase === "signed-out" ? (
             <>
               <SocialAccessBoundary
                 state="sign_in_required"
+                friendsLaunchEnabled={friendsLaunchEnabled}
               />
               <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
                 <SocialViewerState
@@ -716,12 +722,13 @@ export default function SocialPageClient({
             </>
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
-              <h2>Checking Social access…</h2>
+              <h2>Checking {surfaceName} access…</h2>
             </section>
           ) : access !== "verified" ? (
             <>
               <SocialAccessBoundary
                 state={access}
+                friendsLaunchEnabled={friendsLaunchEnabled}
                 onRetry={
                   access === "unavailable"
                     ? () => setAccessAttempt((value) => value + 1)
@@ -746,7 +753,7 @@ export default function SocialPageClient({
           ) : (
             <section
               className="socialFeed"
-              aria-label="Social posts"
+              aria-label={`${surfaceName} posts`}
               aria-busy={feedStatus === "loading" || loadingMore}
             >
               <p
@@ -756,12 +763,12 @@ export default function SocialPageClient({
                 aria-atomic="true"
               >
                 {feedStatus === "loading"
-                  ? "Loading Social posts…"
+                  ? `Loading ${surfaceName} posts…`
                   : loadingMore
-                    ? "Loading more Social posts…"
+                    ? `Loading more ${surfaceName} posts…`
                     : feedStatus === "error"
-                      ? "Social posts are unavailable right now."
-                      : `${posts.length} Social posts loaded.`}
+                      ? `${surfaceName} posts are unavailable right now.`
+                      : `${posts.length} ${surfaceName} posts loaded.`}
               </p>
               {feedStatus === "loading" ? (
                 <div className="socialSkeletons" aria-hidden="true">
@@ -771,7 +778,7 @@ export default function SocialPageClient({
                 </div>
               ) : feedStatus === "error" ? (
                 <div className="socialFeedError" role="alert">
-                  <h2>Social posts are unavailable right now.</h2>
+                  <h2>{surfaceName} posts are unavailable right now.</h2>
                   <button
                     type="button"
                     className="socialButton"

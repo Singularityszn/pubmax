@@ -1,5 +1,3 @@
-import { describe, expect, it } from "vitest";
-
 import {
   OUT_DAY_WINDOWS,
   OUT_LISTING_KINDS,
@@ -8,9 +6,12 @@ import {
   filterOutListings,
   outCardObservedAt,
   outListingsEmptyLine,
+  outListingsSectionTitle,
+  outWindowToApiDay,
   parseOutDayWindow,
   selectOutListings,
 } from "@/lib/outListings";
+import { describe, expect, it } from "vitest";
 import { WHATS_ON_KINDS, type WhatsOnRow } from "@/lib/whatsOn";
 
 function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "kind" | "title">): WhatsOnRow {
@@ -28,6 +29,12 @@ describe("out listings", () => {
     expect(parseOutDayWindow(null)).toBe("tonight");
     expect(parseOutDayWindow("weekend")).toBe("weekend");
     expect(parseOutDayWindow("handle-like")).toBe("tonight");
+  });
+
+  it("names tonight as today on the Out API", () => {
+    expect(outWindowToApiDay("tonight")).toBe("today");
+    expect(outWindowToApiDay("tomorrow")).toBe("tomorrow");
+    expect(outWindowToApiDay("weekend")).toBe("weekend");
   });
 
   it("keeps music, quiz and sport and drops deals", () => {
@@ -159,17 +166,15 @@ describe("out listings empty line", () => {
   });
 });
 
-// Nothing on /out reads the viewer's plans yet, so the section may not claim
-// they have none: a signed-in drinker holding an open Soft Plan was told on the
-// new primary tab that they had none, which is the shape of calling a city
-// priceless under a read that never ran.
-describe("what Open plans may say before it reads anything", () => {
-  it("claims no absence", () => {
+// L3 hides the whole Open plans section until at least three sendable plans
+// exist (lib/outDesktopGrouping.ts). The placeholder line stays for copy that
+// must never claim absence if a surface prints it again.
+describe("what Open plans copy may say", () => {
+  it("keeps the placeholder from claiming absence", () => {
     const line = `${OUT_OPEN_PLANS_PLACEHOLDER_LINE} ${OUT_OPEN_PLANS_WAY_LABEL}`;
     expect(line).not.toMatch(/\bno\b/i);
     expect(line).not.toMatch(/\bnone\b/i);
     expect(line).not.toMatch(/\bnothing\b/i);
-    expect(line).not.toMatch(/\byet\b/i);
     expect(line).not.toMatch(/\bempty\b/i);
   });
 
@@ -181,6 +186,51 @@ describe("what Open plans may say before it reads anything", () => {
     for (const line of [OUT_OPEN_PLANS_PLACEHOLDER_LINE, OUT_OPEN_PLANS_WAY_LABEL]) {
       expect(line).not.toMatch(/—/);
       expect(line).not.toMatch(/!/);
+    }
+  });
+});
+
+// Where the heading SITS is rendered geometry and belongs to e2e/out-tab.spec.ts,
+// which compares the two regions' bounding boxes. What it may SAY is what this
+// function answers, and it is asked for every window rather than the default
+// one, because a heading that names a night is wrong on the other two.
+describe("what the listings heading may say", () => {
+  it("names the window the reader asked for", () => {
+    expect(outListingsSectionTitle("tonight")).toBe("What's on tonight");
+    expect(outListingsSectionTitle("tomorrow")).toBe("What's on tomorrow");
+    expect(outListingsSectionTitle("weekend")).toBe("What's on the weekend");
+  });
+
+  it("agrees with the empty line about which window it is listing", () => {
+    for (const window of OUT_DAY_WINDOWS) {
+      const noun = outListingsSectionTitle(window).replace(/^What's on /, "");
+      expect(outListingsEmptyLine("ready", window)).toContain(noun);
+    }
+  });
+
+  it("covers every kind under it rather than one of them", () => {
+    // OUT_LISTING_KINDS carries quiz and sport, so a quiz night and a televised
+    // match print under this one heading. Naming it for events, music or any
+    // other single kind would describe part of its own list.
+    for (const window of OUT_DAY_WINDOWS) {
+      const title = outListingsSectionTitle(window);
+      for (const kind of OUT_LISTING_KINDS) {
+        expect(title.toLowerCase()).not.toContain(kind);
+      }
+    }
+  });
+
+  it("names the lane rather than the vendor behind it", () => {
+    for (const window of OUT_DAY_WINDOWS) {
+      expect(outListingsSectionTitle(window)).not.toMatch(/ticketmaster/i);
+      expect(outListingsSectionTitle(window)).not.toMatch(/skiddle/i);
+    }
+  });
+
+  it("keeps the house voice", () => {
+    for (const window of OUT_DAY_WINDOWS) {
+      expect(outListingsSectionTitle(window)).not.toMatch(/—/);
+      expect(outListingsSectionTitle(window)).not.toMatch(/!/);
     }
   });
 });

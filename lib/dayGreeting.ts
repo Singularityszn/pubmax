@@ -145,16 +145,45 @@ export const TUBE_WHEN_LABEL: Record<DaySlot, string> = {
 };
 
 /**
- * Today's card only speaks for the list it renders. Tonight can add live
- * listings, so this copy points there without claiming the whole night is empty
- * or exposing how either list is assembled.
+ * Today's card only speaks for the list it renders. After the Out merge lands
+ * on /today, an empty list is an honest quiet night, not a pointer to /tonight.
  */
 export const PICKS_EMPTY_LINE: Record<DaySlot, string> = {
-  morning: "Nothing left on tonight's list. Open Tonight for live listings.",
-  afternoon: "Nothing left on tonight's list. Open Tonight for live listings.",
-  evening: "Nothing left on tonight's list. Open Tonight for live listings.",
-  night: "Nothing left on tonight's list. Open Tonight for live listings.",
+  morning: "Nothing on tonight's list yet.",
+  afternoon: "Nothing on tonight's list yet.",
+  evening: "Nothing on tonight's list yet.",
+  night: "Nothing on tonight's list yet.",
 };
+
+/** A read that could not answer is not an empty night. */
+export const PICKS_DEGRADED_LINE =
+  "We could not check tonight's list just now. Try again in a moment.";
+
+export type PicksListReadStatus = "ready" | "degraded";
+export type PicksCardStatus = "ready" | "degraded" | "empty";
+
+export function picksListLine(
+  status: PicksListReadStatus,
+  slot: DaySlot,
+): string {
+  return status === "degraded" ? PICKS_DEGRADED_LINE : PICKS_EMPTY_LINE[slot];
+}
+
+/**
+ * What the Today picks card may claim.
+ *
+ * Cards, or listings the viewer filtered out, mean the read answered.
+ * A failed read is never an empty night. Empty is only a ready answer
+ * with nothing left to show.
+ */
+export function picksCardStatus(
+  status: PicksListReadStatus,
+  pickCount: number,
+  filteredPickCount: number = 0,
+): PicksCardStatus {
+  if (pickCount > 0 || filteredPickCount > 0) return "ready";
+  return status === "degraded" ? "degraded" : "empty";
+}
 
 /** Handles are stored lower-case; render them as typed, trimmed, never padded. */
 function displayName(name: string | null | undefined): string {

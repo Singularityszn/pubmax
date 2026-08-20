@@ -51,8 +51,6 @@ const APP_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
   // Route/sitemap machinery: URLs and config, not reader-facing strings.
   "app/robots.ts",
   "app/sitemap.ts",
-  // Local font manifest: font-family and file metadata, never copy.
-  "app/fonts/partyFace.ts",
 ]);
 const LIB_NON_COPY_ALLOWLIST: ReadonlySet<string> = new Set([
   // Server stores and providers: degraded-write and fallback log lines only.

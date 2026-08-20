@@ -15,7 +15,7 @@ Every run checks one-minute load and macOS memory pressure before doing work. De
 
 Secrets load at runtime from `~/karan-agent-workspace/data/keys.env`. Scheduler refuses any mode other than `0600`, never puts keys in a plist or command argument, and redacts loaded values from captured child-process output. Provider keys remain available to acquisition and validation commands, but are removed from every Git and `gh-axi` subprocess environment. Monday prices require `EXA_API_KEY`, `BROWSERBASE_API_KEY`, and `TAVILY_API_KEY`; a missing one refuses the whole mode.
 
-Events readiness is per LANE, not per mode. The provider lane needs `TICKETMASTER_API_KEY` or a `SKIDDLE_API_KEY` whose commercial use has written approval; without either, that lane alone is skipped and the log names it (`SKIPPED LANE`). The Common lane is keyless and still runs, so a machine holding no event-provider key still refreshes events. Each lane is independent: one lane failing is logged (`LANE FAILED`) and the other still runs, and the run fails only when every lane it started failed.
+Events readiness is per LANE, not per mode. The provider lane needs `TICKETMASTER_API_KEY`, a `SKIDDLE_API_KEY` whose commercial use has written approval, or `CONTEXT_DEV_API_KEY` for the registered-source lane ([`LONDON_HARVEST.md`](./LONDON_HARVEST.md)); without any of them, that lane alone is skipped and the log names it (`SKIPPED LANE`). The Common lane is keyless and still runs, so a machine holding no event-provider key still refreshes events. Each lane is independent: one lane failing is logged (`LANE FAILED`) and the other still runs, and the run fails only when every lane it started failed.
 
 Price acquisition chooses provider by work type in `scripts/lib/localRefreshProviders.mjs`:
 

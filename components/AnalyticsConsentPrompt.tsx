@@ -29,9 +29,8 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        PUBMAXX is bootstrapped. Optional analytics use a persistent device ID
-        plus browser and device details to show what people use and what people
-        return for. Never sold or used for ads.{" "}
+        PUBMAXXING uses optional analytics to see what people use. Never sold,
+        no ads.{" "}
         <Link href="/privacy">Privacy</Link>
       </p>
       <div className="analyticsConsentPromptActions">

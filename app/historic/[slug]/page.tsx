@@ -14,7 +14,12 @@ import {
   loadHistoricPubs,
   type HistoricPub,
 } from "@/lib/historic";
-import { citationLabel, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
+import {
+  citationLabel,
+  heritageSourceLabel,
+  listedBadge,
+  venueStatusBadge,
+} from "@/lib/historicFilter";
 
 import "./historic-detail.css";
 
@@ -126,6 +131,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
 
   const grade = listedBadge(pub.listed);
+  const status = venueStatusBadge(pub.venueStatus);
   const boroughSlug = pub.borough ? slugifyBorough(pub.borough) : null;
   const mapHref = pub.venueId ? `/map?sel=${pub.venueId}` : null;
   const canonical = `/historic/${pub.slug}`;
@@ -143,10 +149,11 @@ export default async function HistoricDetailPage({ params }: PageProps) {
       </p>
 
       <header className="hdHead">
-        {pub.era || grade ? (
+        {pub.era || grade || status ? (
           <div className="hdMeta">
             {pub.era ? <span className="hdEra">{pub.era}</span> : null}
             {grade ? <span className="hdGrade">{grade}</span> : null}
+            {status ? <span className="hdGrade">{status}</span> : null}
           </div>
         ) : null}
 

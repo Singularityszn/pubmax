@@ -1,10 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import { laneSourceFromSearch } from "@/lib/analytics";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
 import {
   parsePlanDescribeFromSearch,
+  parsePlanHandoffQueryFromSearch,
   planOccasionHref,
+  planPalRouteHandoffHref,
+  shouldAutoGeneratePalHandoffPlan,
+  PLAN_QUERY_PARAM,
   SOFT_PLAN_OCCASIONS,
   SOFT_PLAN_OCCASION_IDS,
   TONIGHT_SOFT_PLAN_CHIPS,
@@ -55,6 +60,25 @@ describe("soft plan occasion deep links", () => {
         `?occasion=coffee&describe=${encodeURIComponent(DESCRIBE_FIRST_CHIPS[0]!)}`,
       ),
     ).toBe("coffee and a catch-up in Clapham for 2");
+  });
+
+  it("parses a Pub Pal route handoff query param", () => {
+    const ask = "Plan a crawl in Soho for 4";
+    expect(parsePlanDescribeFromSearch(`?${PLAN_QUERY_PARAM}=${encodeURIComponent(ask)}`)).toBe(
+      ask,
+    );
+    expect(planPalRouteHandoffHref(ask)).toBe(
+      `/plan?${PLAN_QUERY_PARAM}=Plan+a+crawl+in+Soho+for+4`,
+    );
+    expect(laneSourceFromSearch(new URL(`https://x.test${planPalRouteHandoffHref(ask)}`).search)).toBeNull();
+  });
+
+  it("auto-generates only for a Pub Pal query handoff, not chip links", () => {
+    expect(shouldAutoGeneratePalHandoffPlan("Plan a crawl in Soho for 4")).toBe(true);
+    expect(shouldAutoGeneratePalHandoffPlan("  ")).toBe(false);
+    expect(shouldAutoGeneratePalHandoffPlan(null)).toBe(false);
+    expect(shouldAutoGeneratePalHandoffPlan(parsePlanHandoffQueryFromSearch("?occasion=quiet"))).toBe(false);
+    expect(shouldAutoGeneratePalHandoffPlan(parsePlanHandoffQueryFromSearch(`?query=${encodeURIComponent("Plan a crawl in Soho for 4")}`))).toBe(true);
   });
 
   it.each([

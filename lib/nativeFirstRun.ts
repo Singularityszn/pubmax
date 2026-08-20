@@ -18,6 +18,7 @@
 // isNativeApp() (lib/nativePlatform.ts), the only Capacitor-detection seam.
 
 import { isNativeApp } from "@/lib/nativePlatform";
+import { safeLocalStorage, safeSessionStorage } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "pubmax:nativeFirstRun:routed:v1";
 const HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
@@ -25,17 +26,11 @@ const HANDOFF_KEY = "pubmax:nativeFirstRun:handoff:v1";
 export const NATIVE_FIRST_RUN_HANDOFF_MAX_AGE_MS = 5 * 60 * 1000;
 
 function hasStorage(): boolean {
-  return typeof window !== "undefined" && !!window.localStorage;
+  return safeLocalStorage() !== null;
 }
 
 function resolveSessionStorage(storage?: Storage | null): Storage | null {
-  if (storage) return storage;
-  if (typeof window === "undefined") return null;
-  try {
-    return window.sessionStorage;
-  } catch {
-    return null;
-  }
+  return storage ?? safeSessionStorage();
 }
 
 export type NativeFirstRunState = {

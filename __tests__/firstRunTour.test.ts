@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   FIRST_RUN_COMPANIONS,
+  hasSeenTour,
   TOUR_PROMPT_SURFACE,
   claimTourPromptBudget,
   isFirstRunCompanion,
@@ -193,5 +194,30 @@ describe("first-run companion preference", () => {
     expect(readFirstRunCompanion(s)).toBeNull();
     resetFirstRunCompanion(s);
     expect(s.length).toBe(0);
+  });
+});
+
+
+// `window.localStorage` is a PROPERTY GETTER that RAISES when the browser
+// refuses site data (Chrome "Block all cookies", or a sandboxed frame without
+// allow-same-origin), so naming the identifier is itself a throwing expression.
+// PubMap calls hasSeenTour() in its RENDER body, so a throw here is not a lost
+// tour flag - it is /map on the error boundary.
+describe("hasSeenTour — the browser refuses site data", () => {
+  afterEach(() => {
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("reads as seen rather than throwing out of the render", () => {
+    const refuse = (): never => {
+      throw new Error("SecurityError: site data is blocked");
+    };
+    const blocked = {};
+    Object.defineProperty(blocked, "localStorage", { configurable: true, get: refuse });
+    (globalThis as { window?: unknown }).window = blocked;
+
+    expect(() => hasSeenTour()).not.toThrow();
+    // No storage means no proof the tour is owed, so the quiet answer is "seen".
+    expect(hasSeenTour()).toBe(true);
   });
 });

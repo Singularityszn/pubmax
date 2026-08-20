@@ -32,7 +32,7 @@ JSON and cannot carry inline comments.
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
 | `GET /api/cron/moderate-social-interactions` | `* * * * *` | Every minute | Claim and moderate up to 20 queued comments or quote posts; text stays held until approval | 30s |
-| `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for one UK city batch (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns the batch) - structured observations to logs only; a function cannot commit repository files | 120s |
+| `GET /api/cron/enrich-city-pubs` | `15 3 * * *` | 04:15 / 03:15 | Rotating official-page discovery for the night's primary UK city (`lib/searchProvider.server.ts` selects Exa or Tavily; `lib/tavilyPubEnrichment.server.ts` owns rotation, caps, and Bristol spillover) - structured observations to logs only; a function cannot commit repository files | 120s |
 
 The What's-On slot is chosen to land **before London is awake**, and that is a
 change: it used to run at `0 14 * * *` (15:00 BST), which is the middle of the
@@ -102,10 +102,14 @@ the artifact-less `price_update_retrieval` feed, and only after at least one
 valid attributed row is fetched. It never stamps `price_updates`: that dataset's
 freshness is the committed `public/data/price_updates/latest.json` readers are
 actually served, which a read-only serverless FS cannot rewrite. So a retrieval
-run can never mask a stale published price, and the freshness audit keeps
-flagging the served file until a human publishes through
-`scripts/refresh_prices.mjs`. Current source parsers return no rows, so
-scheduled runs are logged no-ops that stamp nothing at all.
+run can never mask a stale published price. Current source parsers return no
+rows, so scheduled runs are logged no-ops that stamp nothing at all. While
+parsers stay stubbed the served envelope stays empty and its `generatedAt`
+names the bundled pint collection day (2026-07-03), not a fresher-looking date
+with no rows behind it. The served file is registered **episodic** with no
+machine staleness budget, like reviewed `night_signals`, so the freshness audit
+reads `untracked` rather than `stale` until a human publishes through
+`scripts/refresh_prices.mjs`.
 
 Night Signal candidate ingestion is separately machine-scheduled. It never
 publishes reviewed `night_signals`; approved human publication remains the only
@@ -179,12 +183,15 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   - Night Signals success: `swept N pending candidate(s) at <iso>`.
   - Social moderation success: each moderation route reports `processed`,
     `approved`, `needsReview`, `retried`, and `terminalErrors` counts.
-  - City enrichment success: a `[city-enrichment]` JSON line with city, cursor,
-    selected provider, queries/credits spent, Gateway calls, Gateway model,
-    estimated tokens, matched pubs, and extracted prices. The Gateway fields
-    are the per-run spend record. Exa search calls through AI Gateway are free
-    through 31 August 2026, but `openai/gpt-5-nano` model tokens are still
-    billed. The call guard stops before a run exceeds
+  - City enrichment success: a `[city-enrichment]` JSON line with
+    `primaryCity`, per-city `cityRuns`, cursor, selected provider,
+    queries/credits spent, Gateway calls, Gateway model, estimated tokens,
+    matched pubs, and extracted prices. The HTTP body mirrors `primaryCity` and
+    `cityRuns`. On Bristol rotation nights the route may answer `200 { ok: true
+    }` even when Bristol's own run failed, as long as spillover cities
+    enriched. The Gateway fields are the per-run spend record. Exa search calls
+    through AI Gateway are free through 31 August 2026, but `openai/gpt-5-nano`
+    model tokens are still billed. The call guard stops before a run exceeds
     `SEARCH_GATEWAY_MAX_CALLS`.
 - **Manual trigger** (with the secret):
   ```bash
@@ -231,7 +238,14 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   "no_jobs_claimed" }`**: nothing was leased, which covers an empty queue and
   jobs held in backoff or out of retries alike. Neither word may be read as
   "there is nothing to review".
-- City enrichment provider failure → **`502 PROVIDER_UNAVAILABLE`** with an
-  `[ALERT]` log; any partial batch already processed is logged as a
-  `[partial]` line (progress observations stream per pub, so a mid-batch
-  failure never loses what was found).
+- City enrichment provider failure on a **non-Bristol primary night** →
+  **`502 PROVIDER_UNAVAILABLE`** with a `[city-enrichment][ALERT]` log; any
+  partial batch already processed is logged as a `[partial]` line (progress
+  observations stream per pub, so a mid-batch failure never loses what was
+  found).
+- City enrichment on a **Bristol primary night** splits the nightly
+  `SEARCH_CRON_QUERY_CAP` (25): Bristol runs under `BRISTOL_CRON_QUERY_CAP`
+  (8) and `BRISTOL_CRON_WALL_MS` (45s), then spillover cities share the
+  remaining budget. A Bristol timeout or upstream 504 is isolated to that
+  city's `cityRuns` entry; spillover cities still enrich and the route stays
+  **`200 { ok: true }`** without an `[ALERT]`. One city failure stays one city.

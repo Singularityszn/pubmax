@@ -190,12 +190,16 @@ export const defaultFetchLive: FetchLive = async ({ now, area }) => {
   };
 };
 
+export type WhatsOnReadStatus = "ready" | "degraded";
+
 export type LoadWhatsOnResult = {
   rows: WhatsOnRow[];
+  /** Whether the bundled read answered. A throw is degraded, never "nothing on". */
+  readStatus: WhatsOnReadStatus;
   servedAt: string;
   revalidation:
     | { status: "measured" }
-    | { status: "unmeasured"; reason: "live-provider-failed" };
+    | { status: "unmeasured"; reason: "live-provider-failed" | "baseline-read-failed" };
   sourceObservedAt: string | null;
   sourceFreshnessKind: WhatsOnSourceFreshnessKind;
   kindObservedAt: WhatsOnKindObservedAt;
@@ -253,7 +257,22 @@ export async function loadWhatsOn(
 ): Promise<LoadWhatsOnResult> {
   const now = deps.now ?? Date.now();
   const servedAt = new Date(now).toISOString();
-  const baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+  let readStatus: WhatsOnReadStatus = "ready";
+  let baseline: WhatsOnRow[] = [];
+  try {
+    baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+  } catch (err) {
+    // A bundled read that threw is a fact about US, never a quiet night. It is
+    // reported twice on purpose: `readStatus` for the surfaces that word an
+    // answer, and `revalidation` for the freshness cron, which stamps a feed on
+    // a measured read and would otherwise record zero rows as an observation.
+    readStatus = "degraded";
+    baseline = [];
+    console.warn(
+      "[whats-on] baseline read failed; serving degraded:",
+      err instanceof Error ? err.message : String(err),
+    );
+  }
   const datasetObservedAt =
     deps.baselineSourceObservedAt === undefined
       ? deps.loadBaseline
@@ -271,6 +290,11 @@ export async function loadWhatsOn(
     }
   } catch {
     revalidation = { status: "unmeasured", reason: "live-provider-failed" };
+  }
+  // The baseline is the spine. A read that could not run leaves nothing to
+  // measure, whatever the live layer managed, so it wins the report.
+  if (readStatus === "degraded") {
+    revalidation = { status: "unmeasured", reason: "baseline-read-failed" };
   }
 
   let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
@@ -330,6 +354,7 @@ export async function loadWhatsOn(
 
   return {
     rows,
+    readStatus,
     servedAt,
     revalidation,
     sourceObservedAt,

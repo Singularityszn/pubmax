@@ -122,6 +122,16 @@ export type ProfileRecord = {
   updatedAt: string;
 };
 
+/**
+ * The public CARD fields for one handle, as a list surface prints them. This is
+ * deliberately narrower than `PublicProfile`: a followers page names a person
+ * and shows their face, and nothing else about them crosses that wire.
+ */
+export type ProfilePublicCard = {
+  displayName?: string;
+  avatarUrl?: string;
+};
+
 /** The record fields backing one owned-image slot. */
 type ProfileImageFieldNames = {
   objectKey: "avatarObjectKey" | "coverObjectKey";
@@ -378,6 +388,16 @@ export type ProfileStore = {
    * normalised handles; values are public serve paths.
    */
   getApprovedAvatarUrlsByHandles(handles: readonly string[]): Promise<ReadonlyMap<string, string>>;
+  /**
+   * One query: the public CARD fields (display name, approved owned avatar) for
+   * a set of handles. Keys are normalised handles; a handle with no row is
+   * simply absent. This exists so a list surface reads its people in ONE round
+   * trip: a followers page point-reading each row fanned out one PostgREST call
+   * per follower on a public, unpaginated, unauthenticated route.
+   */
+  getPublicCardsByHandles(
+    handles: readonly string[],
+  ): Promise<ReadonlyMap<string, ProfilePublicCard>>;
   /**
    * Resolve the handle linked to an auth user id, or null when no profile has
    * claimed that uid yet. Used by messaging (and similar) so an authenticated
@@ -696,6 +716,88 @@ function approvedAvatarUrlForProfile(profile: ProfileRecord): string | undefined
   return publicOwnedImageUrl(profile, "avatar");
 }
 
+const CARD_BATCH_COLUMNS = `${AVATAR_BATCH_COLUMNS}, display_name`;
+
+/**
+ * How many handles one PostgREST `.in(...)` may carry. The filter travels in the
+ * request LINE, so an unpaginated caller (a followers list) would grow the URL
+ * past the gateway's ceiling and fail the whole read rather than one page of it.
+ */
+const HANDLE_BATCH_SIZE = 200;
+
+/**
+ * How many of those requests may be in flight together. Chunking that AWAITED
+ * each batch turned one round trip into ceil(n/200) stacked on top of the
+ * follow-list join, so the batches overlap - but this route is public and
+ * unauthenticated, so the overlap has a ceiling rather than being the follower
+ * count divided by the batch size.
+ */
+const HANDLE_BATCH_CONCURRENCY = 6;
+
+function handleBatches(handles: readonly string[]): string[][] {
+  const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
+  const batches: string[][] = [];
+  for (let at = 0; at < keys.length; at += HANDLE_BATCH_SIZE) {
+    batches.push(keys.slice(at, at + HANDLE_BATCH_SIZE));
+  }
+  return batches;
+}
+
+type BatchAnswer = { data: unknown[] | null; error: { message: string } | null };
+
+/**
+ * Every batched handle read, written once: chunk, run the chunks against a
+ * bounded pool, then fold each returned row into one map. A reader that only
+ * says WHICH query and WHAT to keep cannot reintroduce the fan-out, the
+ * unbounded `.in(...)`, or the serial await that each cost this lane a round.
+ */
+async function readHandleBatches<T>(
+  handles: readonly string[],
+  query: (keys: string[]) => PromiseLike<BatchAnswer>,
+  keep: (profile: ProfileRecord, into: Map<string, T>) => void,
+): Promise<ReadonlyMap<string, T>> {
+  const batches = handleBatches(handles);
+  const out = new Map<string, T>();
+  if (batches.length === 0) return out;
+
+  const answers: BatchAnswer[] = new Array(batches.length);
+  let next = 0;
+  const workers = Array.from(
+    { length: Math.min(HANDLE_BATCH_CONCURRENCY, batches.length) },
+    async () => {
+      for (;;) {
+        const at = next;
+        next += 1;
+        if (at >= batches.length) return;
+        answers[at] = await query(batches[at]!);
+      }
+    },
+  );
+  await Promise.all(workers);
+
+  for (const answer of answers) {
+    if (answer.error) throw new Error(answer.error.message);
+    for (const row of answer.data ?? []) keep(fromRow(row as Record<string, unknown>), out);
+  }
+  return out;
+}
+
+/**
+ * A departed account keeps its row so its handle stays reserved, and the auth
+ * tombstone trigger nulls its images but LEAVES its display name. So a card is
+ * gated the way `approvedAvatarUrlForProfile` already gates a face: a tombstoned
+ * row answers an empty card rather than printing a departed person's real name
+ * beside their handle to any anonymous reader of a follow list.
+ */
+function publicCardForProfile(profile: ProfileRecord): ProfilePublicCard {
+  const card: ProfilePublicCard = {};
+  if (isProfileTombstoned(profile)) return card;
+  if (profile.displayName) card.displayName = profile.displayName;
+  const avatarUrl = approvedAvatarUrlForProfile(profile);
+  if (avatarUrl) card.avatarUrl = avatarUrl;
+  return card;
+}
+
 export const supabaseProfileStore: ProfileStore = {
   async getByHandle(handle) {
     const key = normalizeHandle(handle);
@@ -716,21 +818,32 @@ export const supabaseProfileStore: ProfileStore = {
   },
 
   async getApprovedAvatarUrlsByHandles(handles) {
-    const keys = [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
-    if (keys.length === 0) return new Map();
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select(AVATAR_BATCH_COLUMNS)
-      .in("handle", keys)
-      .not("user_id", "is", null);
-    if (error) throw new Error(error.message);
-    const out = new Map<string, string>();
-    for (const row of data ?? []) {
-      const profile = fromRow(row as Record<string, unknown>);
-      const url = approvedAvatarUrlForProfile(profile);
-      if (url) out.set(profile.handle, url);
-    }
-    return out;
+    return readHandleBatches<string>(
+      handles,
+      (keys) =>
+        admin()
+          .from(TABLE)
+          .select(AVATAR_BATCH_COLUMNS)
+          .in("handle", keys)
+          .not("user_id", "is", null),
+      (profile, into) => {
+        const url = approvedAvatarUrlForProfile(profile);
+        if (url) into.set(profile.handle, url);
+      },
+    );
+  },
+
+  async getPublicCardsByHandles(handles) {
+    return readHandleBatches<ProfilePublicCard>(
+      handles,
+      (keys) =>
+        admin()
+          .from(TABLE)
+          .select(CARD_BATCH_COLUMNS)
+          .in("handle", keys)
+          .is("tombstoned_at", null),
+      (profile, into) => into.set(profile.handle, publicCardForProfile(profile)),
+    );
   },
 
   async getHandleByUserId(userId) {
@@ -1123,6 +1236,18 @@ export const memoryProfileStore: ProfileStore = {
       if (!profile) continue;
       const url = approvedAvatarUrlForProfile(profile);
       if (url) out.set(profile.handle, url);
+    }
+    return out;
+  },
+
+  async getPublicCardsByHandles(handles) {
+    const out = new Map<string, ProfilePublicCard>();
+    for (const raw of handles) {
+      const key = normalizeHandle(raw);
+      if (!key) continue;
+      const profile = memoryProfiles.get(key);
+      if (!profile) continue;
+      out.set(profile.handle, publicCardForProfile(profile));
     }
     return out;
   },
