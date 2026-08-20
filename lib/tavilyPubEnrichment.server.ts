@@ -128,6 +128,31 @@ function outcomeFromResult(city: string, result: CityBatchResult): ScheduledCity
   };
 }
 
+function resultFromPartial(
+  partial: ScheduledEnrichmentProgress,
+  city: string,
+  allPubs: OsmPub[],
+  epochDay: number,
+  rotationStride: number,
+): CityBatchResult {
+  const pubs = eligibleCityPubs(city, allPubs);
+  const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
+  return {
+    city,
+    primaryCity: city,
+    totalPubs: pubs.length,
+    startIndex,
+    nextIndex: partial.nextIndex,
+    queriesSpent: partial.queriesSpent,
+    creditsSpent: partial.creditsSpent,
+    matchedPubs: partial.pages.length,
+    prices: partial.prices,
+    pages: partial.pages,
+    delegatedChains: partial.delegatedChains,
+    complete: false,
+  };
+}
+
 function outcomeFromPartial(
   city: string,
   partial: ScheduledEnrichmentProgress | null,
@@ -183,6 +208,9 @@ async function runCityBatch(
       : await enrichment;
     return { ...result, startIndex, primaryCity: city };
   } catch (error) {
+    if (wallMs) {
+      await enrichment.catch(() => {});
+    }
     if (lastPartial) {
       (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = lastPartial;
     }
@@ -222,7 +250,7 @@ export async function runScheduledCityEnrichment(
   const primaryCity = CITY_ROTATION[epochDay % CITY_ROTATION.length];
   const allPubs = loadUkPubs();
   const cityRuns: ScheduledCityRunOutcome[] = [];
-  const successfulRuns: CityBatchResult[] = [];
+  const mergeableRuns: CityBatchResult[] = [];
 
   const runTrackedCity = async (
     city: string,
@@ -240,11 +268,14 @@ export async function runScheduledCityEnrichment(
         wallMs,
       );
       cityRuns.push(outcomeFromResult(city, result));
-      successfulRuns.push(result);
+      mergeableRuns.push(result);
       return result;
     } catch (error) {
       const partial = (error as Error & { partial?: ScheduledEnrichmentProgress }).partial ?? null;
       cityRuns.push(outcomeFromPartial(city, partial, error));
+      if (partial) {
+        mergeableRuns.push(resultFromPartial(partial, city, allPubs, epochDay, maxQueries));
+      }
       return null;
     }
   };
@@ -292,8 +323,8 @@ export async function runScheduledCityEnrichment(
   }
 
   const merged =
-    successfulRuns.length > 0
-      ? mergeCityResults(primaryCity, successfulRuns)
+    mergeableRuns.length > 0
+      ? mergeCityResults(primaryCity, mergeableRuns)
       : {
           city: primaryCity,
           primaryCity,
