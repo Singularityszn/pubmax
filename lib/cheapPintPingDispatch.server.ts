@@ -42,8 +42,10 @@ export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
   return {
     listSendReady: () => cheapPintPingStore().listCheapPintSendReady(),
     resolveAccountId: accountIdForOwnerActor,
-    selectPayload: (ownerActor, accountId, now) =>
-      selectCheapPintPing(ownerActor, accountId),
+    selectPayload: (ownerActor, accountId, now) => {
+      void now; // Signature carries dispatch clock; selection reads live index.
+      return selectCheapPintPing(ownerActor, accountId);
+    },
     send: async (token, payload) => {
       const result = await sendCheapPintPing(token, payload);
       return {
