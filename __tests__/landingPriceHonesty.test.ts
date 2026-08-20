@@ -125,3 +125,24 @@ describe("landing outing beat (Wave S4)", () => {
     expect(voiceSurface).not.toMatch(/thousands of|Discord|co-founder/iu);
   });
 });
+
+describe("ThamesHero drink pins stay category invites, not price claims", () => {
+  const hero = readFileSync(
+    path.join(__dirname, "..", "components", "landing", "ThamesHero.tsx"),
+    "utf8",
+  );
+
+  it("prints no pound figure or price-lane field on a pin", () => {
+    expect(hero).not.toMatch(/£\d/);
+    expect(hero).not.toMatch(/\b(priceGbp|cheapestPrice|priceBand)\b/);
+  });
+
+  it("never opens a pin as a cheapest-first map arrival", () => {
+    expect(hero).not.toMatch(/style:\s*["']cheapest["']/);
+  });
+
+  it("still invites beer as a category, not a ranked arrival", () => {
+    expect(hero).toMatch(/query:\s*\{\s*drink:\s*"beer"\s*\}/);
+  });
+});
+

@@ -42,4 +42,22 @@ describe("next.config redirects", () => {
       permanent: true,
     });
   });
+
+  it("sends /our-story to /about permanently", async () => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === "/our-story");
+    expect(rule).toMatchObject({
+      source: "/our-story",
+      destination: "/about",
+      permanent: true,
+    });
+  });
+
+  it("sends /story to /about permanently", async () => {
+    const rule = (await loadRedirects()).find((entry) => entry.source === "/story");
+    expect(rule).toMatchObject({
+      source: "/story",
+      destination: "/about",
+      permanent: true,
+    });
+  });
 });
