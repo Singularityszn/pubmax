@@ -2,6 +2,8 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { log } from "@/lib/log";
+
 import {
   isProfileImageServingKey,
   profileImageServingKey,
@@ -177,9 +179,14 @@ export async function promoteStagedProfileImage(
   if (proof === "corrupt") {
     try {
       await storage.remove([staged.objectKey]);
-    } catch {
+    } catch (error) {
       // Best-effort: the bytes are unservable either way, and the next upload
       // to this slot writes its own generation.
+      log("warn", "profile_image.cleanup_failed", {
+        profileId: staged.profileId,
+        objectPath: staged.objectKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     throw new ProfileImageError(
       "PROCESSING_FAILED",
@@ -189,8 +196,13 @@ export async function promoteStagedProfileImage(
 
   try {
     await storage.remove([staged.stagingKey]);
-  } catch {
+  } catch (error) {
     // Serving bytes are already private-owned; staging cleanup is best-effort.
+    log("warn", "profile_image.cleanup_failed", {
+      profileId: staged.profileId,
+      objectPath: staged.stagingKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
   return staged;
 }

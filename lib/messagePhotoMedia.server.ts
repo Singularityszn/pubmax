@@ -1,5 +1,7 @@
 import "server-only";
 
+import { log } from "@/lib/log";
+
 // The bytes half of a message photo: the same journey an owned profile image
 // and a pub wall photo take, pointed at a conversation-scoped key.
 //
@@ -154,9 +156,14 @@ export async function promoteStagedMessagePhoto(
   if (proof === "corrupt") {
     try {
       await storage.remove([staged.objectKey]);
-    } catch {
+    } catch (error) {
       // Best-effort: the bytes are unservable either way, and no row points at
       // them yet.
+      log("warn", "message_photo.cleanup_failed", {
+        conversationId: staged.conversationId,
+        objectPath: staged.objectKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     throw new MessagePhotoError(
       "PROCESSING_FAILED",
@@ -166,8 +173,13 @@ export async function promoteStagedMessagePhoto(
 
   try {
     await storage.remove([staged.stagingKey]);
-  } catch {
+  } catch (error) {
     // Serving bytes are already private-owned; staging cleanup is best-effort.
+    log("warn", "message_photo.cleanup_failed", {
+      conversationId: staged.conversationId,
+      objectPath: staged.stagingKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
   return staged;
 }

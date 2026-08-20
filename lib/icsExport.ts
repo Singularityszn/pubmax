@@ -57,16 +57,66 @@ export function formatIcsUtc(date: Date): string {
   );
 }
 
-// The next evening at 19:00 local time, relative to `from`. If it's already
-// past 19:00, roll to tomorrow — a crawl you add now is for tonight or the
-// next night, never a start in the past.
+// Europe/London wall clock, resolved without pulling in a shared module (this
+// generator is deliberately dependency-free; see file header). Mirrors
+// lib/whatsOn.ts's londonWallTimeToUtcMs: two offset passes are enough to
+// land the resolved instant correctly across Europe/London's GMT/BST switch.
+let londonPartsFormatter: Intl.DateTimeFormat | null = null;
+function londonParts(date: Date) {
+  londonPartsFormatter ??= new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hourCycle: "h23",
+  });
+  const parts = londonPartsFormatter.formatToParts(date);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? "0");
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour"),
+    minute: get("minute"),
+    second: get("second"),
+  };
+}
+
+function londonOffsetMs(date: Date): number {
+  const p = londonParts(date);
+  const asIfUtc = Date.UTC(p.year, p.month - 1, p.day, p.hour, p.minute, p.second);
+  return asIfUtc - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+function londonWallTimeToUtcMs(year: number, month: number, day: number, hour: number): number {
+  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
+  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
+  instant = wallAsUtc - londonOffsetMs(new Date(instant));
+  return instant;
+}
+
+// The next evening at 19:00 Europe/London time, relative to `from`. If it's
+// already past 19:00 London, roll to tomorrow. A crawl you add now is for
+// tonight or the next night, never a start in the past. Resolved against the
+// London wall clock (not the caller's own locale/timezone) because a visitor
+// planning a London night from any other timezone must still get a 7pm London
+// event, not 7pm wherever their device happens to be set.
 export function defaultCrawlStart(from: Date = new Date()): Date {
-  const start = new Date(from);
-  start.setHours(19, 0, 0, 0);
-  if (start.getTime() <= from.getTime()) {
-    start.setDate(start.getDate() + 1);
+  const p = londonParts(from);
+  let ms = londonWallTimeToUtcMs(p.year, p.month, p.day, 19);
+  if (ms <= from.getTime()) {
+    const next = new Date(Date.UTC(p.year, p.month - 1, p.day + 1));
+    ms = londonWallTimeToUtcMs(
+      next.getUTCFullYear(),
+      next.getUTCMonth() + 1,
+      next.getUTCDate(),
+      19,
+    );
   }
-  return start;
+  return new Date(ms);
 }
 
 // RFC 5545 §3.1: content lines SHOULD be folded to <=75 octets. We fold on a

@@ -63,6 +63,7 @@ import type { ProfileImageStorage } from "@/lib/profileImageMedia.server";
 import type { ProfileImageServeDeps } from "@/lib/profileImageServe.server";
 import {
   profileImageServingKey,
+  profileImageStagingKey,
   type ProfileImageSlot,
 } from "@/lib/profileImageSlots";
 import {
@@ -408,6 +409,40 @@ describe("ordering", () => {
 });
 
 describe("removing a cover", () => {
+  it("logs every orphaned object path when byte cleanup fails", async () => {
+    const one = await add();
+    const profile = await profileStore().getByHandle(HANDLE);
+    const [stored] = await profileCoverPhotoStore().listApproved(profile!.id);
+    const objectPaths = [
+      stored!.objectKey,
+      profileImageStagingKey("cover", profile!.id, stored!.generation),
+    ];
+    __setProfileCoverPhotoRouteDepsForTest({
+      storage: {
+        ...storage,
+        remove: async () => {
+          throw new Error("cleanup unavailable");
+        },
+      },
+      moderation: () => ({ moderate: async () => ({ decision: "approved" as const }) }),
+    });
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((line) => output.push(String(line)));
+
+    const response = await deleteCover(
+      new Request("http://localhost/x", { method: "DELETE" }),
+      coverParams(one.covers[0]!.id),
+    );
+
+    expect(response.status).toBe(200);
+    expect(output.map((line) => JSON.parse(line))).toContainEqual(
+      expect.objectContaining({
+        event: "profile_cover.cleanup_failed",
+        objectPaths,
+      }),
+    );
+  });
+
   it("deletes its bytes, closes the gap, and answers the settled rotation", async () => {
     const one = await add("#31485f");
     const two = await add("#7a3b1d");

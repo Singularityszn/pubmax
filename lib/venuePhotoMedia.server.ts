@@ -1,5 +1,7 @@
 import "server-only";
 
+import { log } from "@/lib/log";
+
 // The bytes half of a pub photo wall: the same journey an owned profile image
 // takes, pointed at a venue-scoped key instead of a profile-scoped one.
 //
@@ -147,9 +149,14 @@ export async function promoteStagedVenuePhoto(
   if (proof === "corrupt") {
     try {
       await storage.remove([staged.objectKey]);
-    } catch {
+    } catch (error) {
       // Best-effort: the bytes are unservable either way, and no row points at
       // them yet.
+      log("warn", "venue_photo.cleanup_failed", {
+        venueId: staged.venueId,
+        objectPath: staged.objectKey,
+        error: error instanceof Error ? error.message : String(error),
+      });
     }
     throw new VenuePhotoError(
       "PROCESSING_FAILED",
@@ -159,8 +166,13 @@ export async function promoteStagedVenuePhoto(
 
   try {
     await storage.remove([staged.stagingKey]);
-  } catch {
+  } catch (error) {
     // Serving bytes are already private-owned; staging cleanup is best-effort.
+    log("warn", "venue_photo.cleanup_failed", {
+      venueId: staged.venueId,
+      objectPath: staged.stagingKey,
+      error: error instanceof Error ? error.message : String(error),
+    });
   }
   return staged;
 }

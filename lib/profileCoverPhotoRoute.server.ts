@@ -357,8 +357,13 @@ export async function handleProfileCoverPhotoUpload(
       // deleted rather than left orphaned in the bucket.
       try {
         await storage.remove([promoted.objectKey]);
-      } catch {
+      } catch (cleanupError) {
         // Best-effort: the object is unreferenced either way.
+        log("warn", "profile_cover.cleanup_failed", {
+          handle,
+          objectPath: promoted.objectKey,
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        });
       }
       throw error;
     }
@@ -369,8 +374,13 @@ export async function handleProfileCoverPhotoUpload(
     if (staged) {
       try {
         await discardStagedProfileImage(staged, storage);
-      } catch {
+      } catch (cleanupError) {
         // Swallow cleanup errors so the original failure is what is reported.
+        log("warn", "profile_cover.cleanup_failed", {
+          handle,
+          objectPath: staged.stagingKey,
+          error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+        });
       }
     }
     if (error instanceof ProfileImageError || error instanceof RequestBodyTooLargeError) {
@@ -429,9 +439,17 @@ export async function handleProfileCoverPhotoDelete(
         removed.objectKey,
         profileImageStagingKey("cover", owned.profile.id, removed.generation),
       ]);
-    } catch {
+    } catch (cleanupError) {
       // The row is gone, so the photo is off the card; object cleanup is
       // best-effort exactly as it is on the single-cover path.
+      log("warn", "profile_cover.cleanup_failed", {
+        handle,
+        objectPaths: [
+          removed.objectKey,
+          profileImageStagingKey("cover", owned.profile.id, removed.generation),
+        ],
+        error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
+      });
     }
     // Close the gap the removal left, so the rotation stays 1..n.
     const remaining = await store.listApproved(owned.profile.id);
