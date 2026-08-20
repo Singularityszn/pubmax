@@ -30,7 +30,7 @@ export type CheapPintPingDispatchDeps = {
     ownerActor: string,
     accountId: string,
     now: Date,
-  ) => Promise<ReturnType<typeof selectCheapPintPing>>;
+  ) => ReturnType<typeof selectCheapPintPing>;
   send: (
     token: string,
     payload: NonNullable<Awaited<ReturnType<typeof selectCheapPintPing>>>,
@@ -42,7 +42,10 @@ export function defaultCheapPintPingDispatchDeps(): CheapPintPingDispatchDeps {
   return {
     listSendReady: () => cheapPintPingStore().listCheapPintSendReady(),
     resolveAccountId: accountIdForOwnerActor,
-    selectPayload: (ownerActor, accountId) => selectCheapPintPing(ownerActor, accountId),
+    selectPayload: (ownerActor, accountId, now) => {
+      void now; // Signature carries dispatch clock; selection reads live index.
+      return selectCheapPintPing(ownerActor, accountId);
+    },
     send: async (token, payload) => {
       const result = await sendCheapPintPing(token, payload);
       return {
