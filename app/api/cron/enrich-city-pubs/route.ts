@@ -67,6 +67,8 @@ export async function GET(request: Request): Promise<Response> {
       "[cron:enrich-city-pubs][city-enrichment]",
       JSON.stringify({
         city: result.city,
+        primaryCity: result.primaryCity,
+        cityRuns: result.cityRuns,
         startIndex: result.startIndex,
         nextIndex: result.nextIndex,
         queriesSpent: result.queriesSpent,
@@ -91,6 +93,8 @@ export async function GET(request: Request): Promise<Response> {
     return jsonNoStore({
       ok: true,
       city: result.city,
+      primaryCity: result.primaryCity,
+      cityRuns: result.cityRuns,
       startIndex: result.startIndex,
       nextIndex: result.nextIndex,
       queryCap: SEARCH_CRON_QUERY_CAP,
@@ -123,8 +127,6 @@ export async function GET(request: Request): Promise<Response> {
         tavilyCalls: providerStats.tavilyCalls,
       }),
     );
-    // TS control flow cannot see the onProgress closure assignment above and
-    // narrows lastProgress to null here; widen back to the declared type.
     const partial = lastProgress as ScheduledEnrichmentProgress | null;
     if (partial) {
       console.error(

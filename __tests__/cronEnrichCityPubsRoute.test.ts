@@ -167,4 +167,39 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(partial.matchedPubs).toBeGreaterThan(0);
     expect(partial.pricesExtracted).toBeGreaterThan(0);
   });
+
+  it("isolates Bristol 504 and still enriches spillover cities on Bristol nights", async () => {
+    vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
+    vi.stubEnv("TAVILY_API_KEY", "test-tavily-key");
+    const fetchImpl = vi.fn(async (request: RequestInfo | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { query: string };
+      if (body.query.toLowerCase().includes("bristol")) {
+        return { ok: false, status: 504, json: async () => ({}) };
+      }
+      return tavilyOk(request, init);
+    });
+    vi.stubGlobal("fetch", fetchImpl);
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await GET(req("Bearer test-secret"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      city: "bristol",
+      primaryCity: "bristol",
+    });
+    expect(body.cityRuns).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ city: "bristol", ok: false }),
+        expect.objectContaining({ city: "london", ok: true, queriesSpent: expect.any(Number) }),
+      ]),
+    );
+    expect(body.queriesSpent).toBeGreaterThan(0);
+    expect(errorSpy.mock.calls.some(([message]) =>
+      typeof message === "string" && message.includes("[city-enrichment][ALERT]"),
+    )).toBe(false);
+    expect(fetchImpl.mock.calls.length).toBeGreaterThan(1);
+  });
 });
