@@ -35,7 +35,7 @@
 - Start the no-mistakes run yourself after the implementation commit (Composer does this; Grok-in-Cursor often stops and waits).
 - Rebase on fresh `origin/main` immediately before opening the PR.
 - `git checkout -- next-env.d.ts tsconfig.json` before any wt3 screenshot checkout if those files dirty.
-- Use Playwright in the worktree. Do not use chrome-devtools-axi.
+- Use `chrome-devtools-axi` for required device emulation and screenshots. Use Playwright for scripted end-to-end checks.
 - Capture screenshots under `/tmp`, then move them. Verify the file exists.
 - Do not treat a red GitHub check as a merge blocker. Local verify is the gate.
 - Fable / first mate reviews the PR before merge.
@@ -106,23 +106,23 @@ From `data/vision.md` (first mate home) and `AGENTS.md` in this repo:
 
 ## Wave 0. Operations before any new feature
 
-This wave is captain + first mate. A coding worker does not start Wave 1 until 0.1 is at least scheduled and 0.2 is named.
+This wave is captain + first mate. A coding worker does not start Wave 1 until 0.1 and 0.2 are complete and verified.
 
 ### Task 0.1: Named production deploy of the undeployed GitHub set
 
-**Objective:** Put `#1097` through `#1118` (and every merge after `3d36237d`) on `pubmaxxing.com` in one end-of-day deploy.
+**Objective:** Put the reviewed GitHub set from `#1097` through `#1118`, pinned at `d0d0d3fd`, on `pubmaxxing.com` in one end-of-day deploy.
 
 **Files:** none in git. Deploy from the GitHub SHA, not a dirty local tree.
 
 **Step 1:** Captain says the concrete deploy word (deploying or Vercel).
 
-**Step 2:** Build and promote that SHA with the existing Vercel project `chengdu`. Then `vercel promote`.
+**Step 2:** Build and promote exact commit `d0d0d3fd` with the existing Vercel project `chengdu`. Then `vercel promote`. Do not widen the deploy to later merges.
 
 **Step 3:** Smoke the live routes: `/`, `/map`, `/near`, `/near?mode=desk`, `/out`, `/tonight`, `/today`, `/pal`, `/privacy`, `/add/karan`, `/drink/guinness`, `/admin` (expect 401 anon), `/api/out`.
 
 **Step 4:** Phone 390 + desktop screenshots of Map arrival, Today Top picks, one-tap Pint Drop, five-tab chrome, desktop `/out` grouping, consent pill above the tab bar.
 
-**Done when:** live HTML shows the five tabs and "What's on tonight" / arrival card copy from the undeployed set, and `/admin` stays 401 for anon.
+**Done when:** deployment metadata names `d0d0d3fd`, live HTML shows the five tabs and "What's on tonight" / arrival card copy from that commit, and `/admin` stays 401 for anon.
 
 ### Task 0.2: Apply Supabase migration 0111
 
@@ -657,7 +657,7 @@ Answer these in chat. A worker that invents an answer is a defect.
 
 ## Recommended order for the next ten working days
 
-Assume Wave 0 deploy happens when the captain names it. Then:
+After both Wave 0 tasks are complete and verified:
 
 1. Wave 1.1 desktop voids  
 2. Wave 1.2 session / password  
@@ -717,7 +717,7 @@ Capacitor stays parked until store enrolment. Convex stays a scout. Monetization
 
 ## Open questions (only these need the captain before Wave 2+)
 
-Wave 1 can start without new answers.
+Wave 1 can start without new answers after both Wave 0 tasks are complete and verified.
 
 Before Wave 2 lands in production, the captain should confirm:
 
