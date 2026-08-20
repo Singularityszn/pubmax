@@ -1,12 +1,21 @@
 # Data-freshness burndown — root cause and owner actions (2026-07-24)
 
+> **Update 2026-08-20 (does not rewrite the report below).** `price_updates` is
+> now registered **episodic** with **no machine staleness budget**, like reviewed
+> `night_signals`. The served `latest.json` envelope stays empty while parsers
+> are stubbed, and its `generatedAt` names the bundled pint collection day
+> (2026-07-03) so public surfaces and the audit stay honest. The freshness audit
+> no longer treats that empty baseline as a 336 h breach. Current policy lives in
+> [`data/freshness_registry.json`](../data/freshness_registry.json) and
+> [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
+>
 > **Update 2026-07-27 (does not rewrite the report below).** The two GitHub
 > Actions named in this report — "Price refresh" (Mon 07:00) and "Night Signal
 > refresh" (daily 08:15) — have been **deleted**. Price retrieval moved onto the
 > Vercel cron plane as `GET /api/cron/refresh-prices` (Mon 07:00 UTC), which
 > stamps the new artifact-less `price_update_retrieval` feed only after valid
 > rows are retrieved; the served `price_updates` file still advances only on a
-> reviewed publish, so its staleness below is unchanged and still alerts.
+> reviewed publish (see the 2026-08-20 update above for current audit class).
 > `night_signals` is now registered as **episodic with no staleness budget**
 > (was 48h): it is human-gated, so a machine budget was claiming a cadence that
 > never existed. Its separate candidate ingestion stays scheduled on Vercel

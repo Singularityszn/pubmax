@@ -102,10 +102,14 @@ the artifact-less `price_update_retrieval` feed, and only after at least one
 valid attributed row is fetched. It never stamps `price_updates`: that dataset's
 freshness is the committed `public/data/price_updates/latest.json` readers are
 actually served, which a read-only serverless FS cannot rewrite. So a retrieval
-run can never mask a stale published price, and the freshness audit keeps
-flagging the served file until a human publishes through
-`scripts/refresh_prices.mjs`. Current source parsers return no rows, so
-scheduled runs are logged no-ops that stamp nothing at all.
+run can never mask a stale published price. Current source parsers return no
+rows, so scheduled runs are logged no-ops that stamp nothing at all. While
+parsers stay stubbed the served envelope stays empty and its `generatedAt`
+names the bundled pint collection day (2026-07-03), not a fresher-looking date
+with no rows behind it. The served file is registered **episodic** with no
+machine staleness budget, like reviewed `night_signals`, so the freshness audit
+reads `untracked` rather than `stale` until a human publishes through
+`scripts/refresh_prices.mjs`.
 
 Night Signal candidate ingestion is separately machine-scheduled. It never
 publishes reviewed `night_signals`; approved human publication remains the only

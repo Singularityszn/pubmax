@@ -53,4 +53,8 @@ A bare top-level array (`[ {…update…}, … ]`) is also accepted by the loade
 No prices could be verified against a permissible first-party source without web
 access at authoring time. Rather than ship an unverified (and therefore
 governance-violating) price, this example file ships with `"updates": []`. The
+committed `latest.json` keeps `generatedAt` on the bundled pint collection day
+(2026-07-03) so public copy and the freshness spine do not read a fresher-looking
+stamp with no rows behind it. Audit class and cadence live in
+[`data/freshness_registry.json`](../../data/freshness_registry.json). The
 refresh scaffold (`scripts/refresh_prices.mjs`) writes real files of this shape.

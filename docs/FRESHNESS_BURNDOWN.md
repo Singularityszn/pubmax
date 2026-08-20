@@ -1,5 +1,11 @@
 # Freshness burndown - per-feed verdicts and fix classes (2026-08-07)
 
+> **Update 2026-08-20 (does not rewrite the inventory below).** `price_updates`
+> is now **UNTRACKED** in the spine: episodic, no machine budget, empty served
+> envelope with an honest 2026-07-03 collection-day stamp while parsers are
+> stubbed. See [`data/freshness_registry.json`](../data/freshness_registry.json)
+> and [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
+
 This is a scoping pass. It lists every feed in the freshness spine, its
 current verdict, and its fix class. It proposes no code change. Class (c)
 rows carry a follow-up diff sketch only. A later task must decide and apply
