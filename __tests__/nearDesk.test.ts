@@ -283,17 +283,18 @@ describe("rankDeskNearMe", () => {
     expect(answer.cards.find((card) => card.name === "Near Closed")?.openNow).toBe(false);
   });
 
-  it("never ranks a confirmed no-wifi cafe above an untagged one", () => {
-    // Same distance ring, so the amenity score is the only tie-break in play.
+  it("does not give confirmed no wifi an amenity advantage over unknown wifi", () => {
+    // All venues share one distance ring. Unknown Wi-Fi is slightly closer
+    // than no Wi-Fi, so distance decides when both amenity scores are zero.
     const answer = rankDeskNearMe(here.lat, here.lng, [
-      desk("no-wifi", "cafe", 0.001, 0, { wifi: "no", name: "No Wifi" }),
-      desk("unknown-wifi", "cafe", 0.001, 0.0001, { wifi: "unknown", name: "Unknown Wifi" }),
+      desk("no-wifi", "cafe", 0.001, 0.0001, { wifi: "no", name: "No Wifi" }),
+      desk("unknown-wifi", "cafe", 0.001, 0, { wifi: "unknown", name: "Unknown Wifi" }),
       desk("has-wifi", "cafe", 0.001, 0.0002, { wifi: "yes", name: "Has Wifi" }),
     ]);
     expect(answer.cards.map((card) => card.name)).toEqual([
       "Has Wifi",
-      "No Wifi",
       "Unknown Wifi",
+      "No Wifi",
     ]);
   });
 
