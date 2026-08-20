@@ -663,12 +663,19 @@ export default function PubMapCanvas({
       venueRetrySpentRef.current,
       outcome,
     );
-    setSoftRetry((current) => {
-      if (current && current.kind !== "venues" && current.kind !== "pins") {
-        return current;
-      }
-      return venueRetrySettleNotice(outcome);
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setSoftRetry((current) => {
+        if (current && current.kind !== "venues" && current.kind !== "pins") {
+          return current;
+        }
+        return venueRetrySettleNotice(outcome);
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [venueDataReady, venueDataFailed]);
   // A venue index that REFUSED owes its own notice. It cannot wait for the
   // readiness ceiling, because a refused read still settles the source, so the
