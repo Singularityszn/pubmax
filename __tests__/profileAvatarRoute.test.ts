@@ -146,6 +146,41 @@ afterEach(() => {
 });
 
 describe("profile avatar upload route", () => {
+  it("logs the staged object path when refused-photo cleanup fails", async () => {
+    const baseStorage = memoryStorage();
+    const storage = {
+      ...baseStorage,
+      remove: async () => {
+        throw new Error("cleanup unavailable");
+      },
+    };
+    __setProfileAvatarRouteDepsForTest({
+      storage,
+      moderation: () => ({
+        moderate: async () => ({ decision: "needs_review" }),
+      }),
+    });
+    authState.userId = "user-alice";
+    const output: string[] = [];
+    vi.spyOn(console, "log").mockImplementation((line) => output.push(String(line)));
+
+    const response = await POST(await multipart(await imageFile()), {
+      params: Promise.resolve({ handle: "alice" }),
+    });
+
+    expect(response.status).toBe(503);
+    const stagingPath = baseStorage.uploads.find((upload) =>
+      upload.path.endsWith("/staging.jpg"),
+    )?.path;
+    expect(stagingPath).toEqual(expect.any(String));
+    expect(output.map((line) => JSON.parse(line))).toContainEqual(
+      expect.objectContaining({
+        event: "profile_image.cleanup_failed",
+        objectPath: stagingPath,
+      }),
+    );
+  });
+
   it("promotes an approved photo to the serving key and exposes only the served URL", async () => {
     const storage = memoryStorage();
     __setProfileAvatarRouteDepsForTest({

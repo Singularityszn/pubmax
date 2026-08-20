@@ -361,7 +361,7 @@ export async function handleProfileCoverPhotoUpload(
         // Best-effort: the object is unreferenced either way.
         log("warn", "profile_cover.cleanup_failed", {
           handle,
-          key: promoted.objectKey,
+          objectPath: promoted.objectKey,
           error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
         });
       }
@@ -378,7 +378,7 @@ export async function handleProfileCoverPhotoUpload(
         // Swallow cleanup errors so the original failure is what is reported.
         log("warn", "profile_cover.cleanup_failed", {
           handle,
-          key: staged.stagingKey,
+          objectPath: staged.stagingKey,
           error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
         });
       }
@@ -444,7 +444,10 @@ export async function handleProfileCoverPhotoDelete(
       // best-effort exactly as it is on the single-cover path.
       log("warn", "profile_cover.cleanup_failed", {
         handle,
-        key: removed.objectKey,
+        objectPaths: [
+          removed.objectKey,
+          profileImageStagingKey("cover", owned.profile.id, removed.generation),
+        ],
         error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
       });
     }

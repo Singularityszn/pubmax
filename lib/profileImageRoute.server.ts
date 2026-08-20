@@ -281,7 +281,7 @@ export async function handleProfileImageUpload(
         // Swallow cleanup errors so the original failure is reported.
         log("warn", "profile_image.cleanup_failed", {
           handle,
-          key: staged.stagingKey,
+          objectPath: staged.stagingKey,
           error: cleanupError instanceof Error ? cleanupError.message : String(cleanupError),
         });
       }
