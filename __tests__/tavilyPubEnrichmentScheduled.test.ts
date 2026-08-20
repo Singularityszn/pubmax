@@ -63,19 +63,17 @@ describe("runScheduledCityEnrichment", () => {
 
   it("isolates Bristol failure and still enriches spillover cities", async () => {
     vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
-    runCityEnrichment.mockImplementation(async ({ city, maxQueries }) => {
+    runCityEnrichment.mockImplementation(async ({ city, maxQueries, onProgress }) => {
       if (city === "bristol") {
-        const error = new Error("Upstream 504");
-        (error as Error & { partial?: unknown }).partial = {
-          city: "bristol",
+        await onProgress?.({
           nextIndex: 2,
           queriesSpent: 2,
           creditsSpent: 2,
           prices: [],
           pages: [{ osmId: "node/1" }],
           delegatedChains: [],
-        };
-        throw error;
+        });
+        throw new Error("Upstream 504");
       }
       return enrichmentOk(city, maxQueries);
     });
@@ -92,6 +90,34 @@ describe("runScheduledCityEnrichment", () => {
     expect(result.queriesSpent).toBeGreaterThan(2);
   });
 
+  it("counts a first-query Bristol failure against the nightly budget", async () => {
+    vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
+    runCityEnrichment.mockImplementation(async ({ city, maxQueries, onProgress }) => {
+      if (city === "bristol") {
+        await onProgress?.({
+          nextIndex: 0,
+          queriesSpent: 1,
+          creditsSpent: 0,
+          prices: [],
+          pages: [],
+          delegatedChains: [],
+        });
+        throw new Error("Upstream 504");
+      }
+      return enrichmentOk(city, maxQueries);
+    });
+
+    const result = await runScheduledCityEnrichment({ apiKey: "test-key" });
+
+    expect(result.cityRuns).toEqual(
+      expect.arrayContaining([expect.objectContaining({ city: "bristol", ok: false, queriesSpent: 1 })]),
+    );
+    const spilloverSpend = (result.cityRuns ?? [])
+      .filter((run) => run.city !== "bristol")
+      .reduce((sum, run) => sum + run.queriesSpent, 0);
+    expect(spilloverSpend).toBeLessThanOrEqual(SEARCH_CRON_QUERY_CAP - 1);
+  });
+
   it("still throws when a non-Bristol primary city fails", async () => {
     vi.setSystemTime(new Date("2026-07-26T03:15:00.000Z"));
     runCityEnrichment.mockRejectedValue(new Error("Upstream 503"));
@@ -104,11 +130,15 @@ describe("runScheduledCityEnrichment", () => {
 
   it("applies the Bristol wall-clock bound on Bristol rotation nights", async () => {
     vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
-    runCityEnrichment.mockImplementation(async ({ city, maxQueries }) => {
+    runCityEnrichment.mockImplementation(({ city, maxQueries, signal }) => {
       if (city === "bristol") {
-        return new Promise(() => {});
+        return new Promise((_, reject) => {
+          signal?.addEventListener("abort", () => {
+            reject(Object.assign(new Error("City enrichment aborted."), { name: "AbortError" }));
+          });
+        });
       }
-      return enrichmentOk(city, maxQueries);
+      return Promise.resolve(enrichmentOk(city, maxQueries));
     });
 
     const resultPromise = runScheduledCityEnrichment({ apiKey: "test-key" });
@@ -126,10 +156,24 @@ describe("runScheduledCityEnrichment", () => {
       ]),
     );
   });
-});
+  it("reports failed-city spend when every Bristol-night run fails", async () => {
+    vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
+    runCityEnrichment.mockImplementation(async ({ city, onProgress }) => {
+      await onProgress?.({
+        nextIndex: 1,
+        queriesSpent: 1,
+        creditsSpent: 1,
+        prices: [],
+        pages: [],
+        delegatedChains: [],
+      });
+      throw new Error(`Upstream failure for ${city}`);
+    });
 
-describe("cron caps", () => {
-  it("keeps Bristol below the default nightly cap", () => {
-    expect(BRISTOL_CRON_QUERY_CAP).toBeLessThan(SEARCH_CRON_QUERY_CAP);
+    const result = await runScheduledCityEnrichment({ apiKey: "test-key" });
+
+    expect(result.cityRuns?.every((run) => run.ok === false)).toBe(true);
+    expect(result.queriesSpent).toBe(result.cityRuns?.length ?? 0);
+    expect(result.creditsSpent).toBe(result.cityRuns?.length ?? 0);
   });
 });

@@ -93,9 +93,14 @@ function startIndexForCity(
   return pubs.length > 0 ? (Math.floor(epochDay / CITY_ROTATION.length) * rotationStride) % pubs.length : 0;
 }
 
-function withWallClock<T>(promise: Promise<T>, wallMs: number): Promise<T> {
+function withWallClock<T>(
+  promise: Promise<T>,
+  wallMs: number,
+  onTimeout?: () => void,
+): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
+      onTimeout?.();
       reject(new Error(`City enrichment timed out after ${wallMs}ms.`));
     }, wallMs);
     promise
@@ -153,6 +158,7 @@ async function runCityBatch(
   const pubs = eligibleCityPubs(city, allPubs);
   const startIndex = startIndexForCity(city, pubs, epochDay, rotationStride);
   let lastPartial: ScheduledEnrichmentProgress | null = null;
+  const abortController = wallMs !== undefined ? new AbortController() : undefined;
   const enrichment = runCityEnrichment({
     city,
     pubs,
@@ -162,18 +168,19 @@ async function runCityBatch(
     maxQueries,
     startIndex,
     observedAt: new Date(options.now ?? Date.now()).toISOString(),
-    onProgress: options.onProgress
-      ? async (state) => {
-          lastPartial = {
-            city,
-            ...(state as Omit<ScheduledEnrichmentProgress, "city">),
-          };
-          await options.onProgress?.(lastPartial);
-        }
-      : undefined,
+    signal: abortController?.signal,
+    onProgress: async (state) => {
+      lastPartial = {
+        city,
+        ...(state as Omit<ScheduledEnrichmentProgress, "city">),
+      };
+      await options.onProgress?.(lastPartial);
+    },
   });
   try {
-    const result = wallMs ? await withWallClock(enrichment, wallMs) : await enrichment;
+    const result = wallMs
+      ? await withWallClock(enrichment, wallMs, () => abortController!.abort())
+      : await enrichment;
     return { ...result, startIndex, primaryCity: city };
   } catch (error) {
     if (lastPartial) {
@@ -293,9 +300,9 @@ export async function runScheduledCityEnrichment(
           totalPubs: eligibleCityPubs(primaryCity, allPubs).length,
           startIndex: 0,
           nextIndex: 0,
-          queriesSpent: 0,
-          creditsSpent: 0,
-          matchedPubs: 0,
+          queriesSpent: cityRuns.reduce((sum, run) => sum + run.queriesSpent, 0),
+          creditsSpent: cityRuns.reduce((sum, run) => sum + run.creditsSpent, 0),
+          matchedPubs: cityRuns.reduce((sum, run) => sum + (run.matchedPubs ?? 0), 0),
           prices: [],
           pages: [],
           delegatedChains: [],

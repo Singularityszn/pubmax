@@ -151,7 +151,7 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     );
     expect(progressLines.length).toBeGreaterThan(0);
     const lastProgress = JSON.parse(String(progressLines.at(-1)?.[1]));
-    expect(lastProgress.queriesSpent).toBe(2);
+    expect(lastProgress.queriesSpent).toBe(3);
     expect(lastProgress.creditsSpent).toBe(2);
 
     const partialCall = errorSpy.mock.calls.find(([message]) =>
@@ -161,7 +161,7 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     const partial = JSON.parse(String(partialCall?.[1]));
     expect(partial).toMatchObject({
       city: "edinburgh",
-      queriesSpent: 2,
+      queriesSpent: 3,
       creditsSpent: 2,
     });
     expect(partial.matchedPubs).toBeGreaterThan(0);
