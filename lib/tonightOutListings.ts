@@ -43,7 +43,7 @@ export function mergeTonightListingRows(
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
 ): WhatsOnRow[] {
-  return dedupeRows([...whatsOnRows, ...filterNotPast(outEvents, now)]);
+  return dedupeRows([...whatsOnRows, ...filterNotPast([...outEvents], now)]);
 }
 
 /**
