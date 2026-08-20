@@ -587,7 +587,10 @@ describe("data/freshness_registry.json integrity", () => {
       class: "episodic",
       stalenessBudgetHours: null,
     });
-    expect(byId.get("price_updates")?.class).toBe("cron");
+    expect(byId.get("price_updates")).toMatchObject({
+      class: "episodic",
+      stalenessBudgetHours: null,
+    });
     expect(byId.get("night_signal_candidates")?.class).toBe("cron");
   });
 
@@ -610,7 +613,7 @@ describe("data/freshness_registry.json integrity", () => {
     expect(byId.get("price_updates")?.artifact).toBe(
       "public/data/price_updates/latest.json",
     );
-    expect(byId.get("price_updates")?.stalenessBudgetHours).toBe(336);
+    expect(byId.get("price_updates")?.stalenessBudgetHours).toBeNull();
   });
 
   it("gives every live TfL read its own alarm", () => {
