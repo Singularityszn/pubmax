@@ -278,8 +278,17 @@ export function formatFreshnessTable(results) {
 }
 
 async function main() {
-  const { results, breached } = await evaluateFreshness();
+  const artifactOnly = process.argv.includes("--artifacts-only");
+  const registry = loadRegistry(DEFAULT_ROOT);
+  const selectedRegistry = artifactOnly
+    ? {
+        ...registry,
+        datasets: (registry.datasets ?? []).filter((dataset) => dataset.stamp?.kind !== "store"),
+      }
+    : registry;
+  const { results, breached } = await evaluateFreshness({ registry: selectedRegistry });
   console.log("Freshness registry check (data/freshness_registry.json)\n");
+  if (artifactOnly) console.log("Scope: candidate artifact-backed feeds. Production store feeds use their own gate.\n");
   console.log(formatFreshnessTable(results));
   const stale = results.filter((r) => r.status === "stale");
   const unknown = results.filter((r) => r.status === "unknown");

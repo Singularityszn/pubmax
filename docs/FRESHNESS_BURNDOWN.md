@@ -62,7 +62,6 @@ below.
 |---|---|---|---|---|---|
 | pint_prices | FRESH | 840h / 2160h | n/a | none | n/a |
 | price_updates | STALE | 780h / 336h | (a) operational | low | operator |
-| price_update_retrieval | UNTRACKED | no age / no budget | (b) registry-model gap | low | code |
 | drink_price_updates | FRESH | 292.8h / 336h | n/a | none | n/a |
 | food_price_updates | FRESH | 647.7h / 1440h | n/a | none | n/a |
 | night_signals | UNTRACKED | 540h / no budget | (c) episodic, budget already correct | low | code |
@@ -94,11 +93,7 @@ below.
 **price_updates.** Two separate acquisition paths feed this dataset, and
 they must not be confused.
 
-The Vercel cron (`GET /api/cron/refresh-prices`) calls an internal
-`fetchFromSource` that is stubbed and returns no rows by design. This path
-alone will never advance the served file.
-
-A second, real path exists: `scripts/local-refresh/scheduler.mjs`, run by a
+A real acquisition path exists: `scripts/local-refresh/scheduler.mjs`, run by a
 Mac launchd job, scrapes London pub prices through Exa, Browserbase, and
 Tavily on a Monday schedule, then opens a review pull request. This is a
 working parser, not a stub. The status check run for this report confirms
@@ -141,24 +136,10 @@ feed.
 
 ### Class (b): registry-model gap
 
-**price_update_retrieval** and **night_signal_candidates.** Both are real,
-scheduled Vercel cron jobs (`refresh-prices` weekly,
-`refresh-night-signals` daily) that write to a durable store, not to a
-committed file. The registry declares no artifact and no stamp for either,
-so the file-based check script cannot see their age at all. This is not a
-missing parser; the registry itself already documents this as a known gap,
-calling it a registry-model follow-up. The real fix is to teach
-`scripts/check_freshness.mjs` (or its callers) to read the store-backed
-`observedAt`, the same way `/api/freshness` already does, then give each
-feed an explicit budget matching its cadence.
-
-price_update_retrieval carries one more wrinkle: its only stamping cron
-runs the stubbed Vercel parser (see the price_updates note above), so even
-once the check can read the store, this specific feed may stay perpetually
-unstamped unless that path is retired in favour of the working local
-scheduler. A follow-up task should decide whether this feed still needs its
-own budget or should be superseded by a feed that tracks the local
-scheduler's last successful run instead.
+**night_signal_candidates.** This scheduled Vercel cron writes to a durable
+store, not to a committed file. Candidate freshness must be read from that
+store. The retired `price_update_retrieval` cron is not a feed: every parser was
+a no-op, so keeping its schedule created only unresolved noise.
 
 ### Class (c): deliberately episodic, needs an explicit budget
 

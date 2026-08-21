@@ -112,8 +112,8 @@ function legacyUkBaseRewrite(request: NextRequest): URL | null {
 // not a browser may simply not do that. Vercel's cron dispatcher is one of
 // those: it issues its scheduled GET against the deployment's own *.vercel.app
 // host, so the host canonicalisation below answered every job on pubmaxxing.com
-// with a 308 and NO handler ran - refresh-prices weekly, the social moderation
-// pair every ten minutes, and freshness-audit, which is the watchdog that would
+// with a 308 and NO handler ran - the social moderation pair every ten minutes
+// and freshness-audit, which is the watchdog that would
 // otherwise have said so. Nothing alerted because the alarm was among the dead.
 //
 // Serving those routes on the generated host is safe because their gate is the

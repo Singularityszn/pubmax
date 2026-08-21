@@ -9,8 +9,8 @@
 //
 // HARD RULE: a dataset id may only appear here when the cron's write IS what
 // that dataset serves. An ingestion run that cannot update a committed artifact
-// gets its OWN artifact-less registry dataset (night_signal_candidates,
-// price_update_retrieval) so "ingestion ran" can never be read as "data
+// gets its OWN artifact-less registry dataset (night_signal_candidates) so
+// "ingestion ran" can never be read as "data
 // shipped", and so the served file's real staleness keeps alerting.
 //
 // Fail-soft and env-gated: when no durable store is configured (local/test) or a
@@ -27,12 +27,6 @@ import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
 export const WHATS_ON_FEED_KEY = "whats_on";
 export const WEATHER_DATASET_ID = "weather";
 export const WHATS_ON_DATASET_ID = "whats_on";
-// Permissible-source price RETRIEVAL (the Vercel-cron sweep). This is the
-// artifact-less ingestion feed, distinct from the committed `price_updates`
-// snapshot the app serves — the cron cannot write that file, so it reports when
-// retrieval last succeeded, never that new prices shipped.
-export const PRICE_UPDATE_RETRIEVAL_FEED_KEY = "price_update_retrieval";
-export const PRICE_UPDATE_RETRIEVAL_DATASET_ID = "price_update_retrieval";
 // Night Signal candidate ingestion (the Vercel-cron EXA sweep). This is the
 // PENDING-candidate feed, distinct from the human-reviewed `night_signals`
 // snapshot — it reports when ingestion last ran, never that claims were shipped.
@@ -62,15 +56,6 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   }
 
   try {
-    const stamp = await feedFreshnessStore().read(PRICE_UPDATE_RETRIEVAL_FEED_KEY);
-    if (stamp?.observedAt) {
-      overlay[PRICE_UPDATE_RETRIEVAL_DATASET_ID] = stamp.observedAt;
-    }
-  } catch {
-    // fail-soft: keep the disk stamp
-  }
-
-  try {
     const stamp = await feedFreshnessStore().read(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
     if (stamp?.observedAt) overlay[NIGHT_SIGNAL_CANDIDATES_DATASET_ID] = stamp.observedAt;
   } catch {
@@ -82,7 +67,7 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
 
 /**
  * Resolve the real four-way outcome (unconfigured / unreachable / empty / ok)
- * of reading price_update_retrieval and night_signal_candidates from the
+ * of reading night_signal_candidates from the
  * durable feed_freshness table.
  *
  * `feedFreshnessStore().read()` never throws, so it cannot tell "no row yet"
@@ -93,12 +78,8 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
  * findings apart: "unmeasurable" is never "fresh", and never "stale" either.
  */
 export async function resolveDurableFeedStoreReads(): Promise<Record<string, StoreRead>> {
-  const [priceUpdateRetrieval, nightSignalCandidates] = await Promise.all([
-    readDurableFeedStamp(PRICE_UPDATE_RETRIEVAL_FEED_KEY),
-    readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY),
-  ]);
+  const nightSignalCandidates = await readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
   return {
-    [PRICE_UPDATE_RETRIEVAL_DATASET_ID]: priceUpdateRetrieval,
     [NIGHT_SIGNAL_CANDIDATES_DATASET_ID]: nightSignalCandidates,
   };
 }

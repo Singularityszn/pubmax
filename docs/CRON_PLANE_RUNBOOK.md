@@ -27,7 +27,6 @@ JSON and cannot carry inline comments.
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
 | `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | SLIM: revalidate the servable tonight window; stamp `feed_freshness` only after a measured result (pre-morning) | 60s |
-| `GET /api/cron/refresh-prices` | `0 7 * * 1` | 08:00 / 07:00 | Retrieve and validate permissible-source rows; stamp the `price_update_retrieval` feed only when valid rows exist (never the served `price_updates` snapshot) | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
@@ -97,14 +96,11 @@ success.
 
 ## Human review boundaries
 
-Vercel owns machine scheduling, not publication. Price source retrieval stamps
-the artifact-less `price_update_retrieval` feed, and only after at least one
-valid attributed row is fetched. It never stamps `price_updates`: that dataset's
-freshness is the committed `public/data/price_updates/latest.json` readers are
-actually served, which a read-only serverless FS cannot rewrite. So a retrieval
-run can never mask a stale published price. Current source parsers return no
-rows, so scheduled runs are logged no-ops that stamp nothing at all. While
-parsers stay stubbed the served envelope stays empty and its `generatedAt`
+Vercel owns machine scheduling, not publication. Price publication stays a
+manual reviewed path because a read-only serverless filesystem cannot rewrite
+`public/data/price_updates/latest.json`. Scheduled retrieval was retired while
+every permissible parser returned no rows. While parsers stay stubbed the
+served envelope stays empty and its `generatedAt`
 names the bundled pint collection day (2026-07-03), not a fresher-looking date
 with no rows behind it. The served file is registered **episodic** with no
 machine staleness budget, like reviewed `night_signals`, so the freshness audit

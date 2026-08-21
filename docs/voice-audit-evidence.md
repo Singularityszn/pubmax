@@ -145,7 +145,6 @@ This deliberately treats every API route as a candidate because client code can 
 - `app/api/cron/enrich-city-pubs/route.ts`
 - `app/api/cron/freshness-audit/route.ts`
 - `app/api/cron/refresh-night-signals/route.ts`
-- `app/api/cron/refresh-prices/route.ts`
 - `app/api/cron/refresh-weather/route.ts`
 - `app/api/cron/refresh-whats-on/route.ts`
 - `app/api/email-subscribers/route.ts`

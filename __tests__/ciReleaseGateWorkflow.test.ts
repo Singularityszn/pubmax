@@ -19,9 +19,12 @@ describe("clean-main CI release gate", () => {
   });
 
   it("gates coverage and freshness independently", () => {
-    expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: npm run coverage/);
+    expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: >-[\s\S]*npm run coverage/);
     expect(workflow).toMatch(
-      /freshness:[\s\S]*name: Freshness release gate[\s\S]*run: npm run check:freshness/,
+      /coverage:[\s\S]*PUBMAX_RLS_NO_PG: "1"[\s\S]*--exclude '__tests__\/\*\*\/\*Migration\.test\.ts'/,
+    );
+    expect(workflow).toMatch(
+      /freshness:[\s\S]*name: Freshness release gate[\s\S]*npm run check:freshness -- --artifacts-only[\s\S]*node scripts\/check-production-store-freshness\.mjs/,
     );
   });
 });

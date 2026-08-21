@@ -18,6 +18,7 @@ import {
   type StoreRead,
 } from "@/lib/freshness";
 import { readFreshnessArtifact, resolveDatasetStamp } from "@/lib/freshnessArtifact";
+import { SIGHTING_MAX_AGE_HOURS } from "@/lib/feedSightings";
 
 const NOW = new Date("2026-07-18T12:00:00Z");
 
@@ -591,6 +592,12 @@ describe("data/freshness_registry.json integrity", () => {
       class: "episodic",
       stalenessBudgetHours: null,
     });
+    expect(byId.get("drink_price_updates")).toMatchObject({
+      class: "episodic",
+      stalenessBudgetHours: 336,
+    });
+    expect(byId.get("drink_price_updates")?.stalenessBudgetHours).toBe(SIGHTING_MAX_AGE_HOURS);
+    expect(byId.has("price_update_retrieval")).toBe(false);
     expect(byId.get("night_signal_candidates")?.class).toBe("cron");
   });
 
@@ -601,7 +608,7 @@ describe("data/freshness_registry.json integrity", () => {
     // so a run can never be mistaken for a publish of the file readers get. Its
     // age instead comes from a store-kind stamp naming its own feed key, read
     // from the durable feed_freshness table (see resolveStoreStamp).
-    for (const id of ["price_update_retrieval", "night_signal_candidates"]) {
+    for (const id of ["night_signal_candidates"]) {
       expect(byId.get(id)).toMatchObject({
         class: "cron",
         artifact: null,

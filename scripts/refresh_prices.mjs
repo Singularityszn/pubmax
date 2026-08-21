@@ -2,10 +2,8 @@
 //
 // This script is the ONLY path that advances the served
 // public/data/price_updates/ snapshot: it is run by hand and opens a review PR.
-// The weekly Vercel cron (app/api/cron/refresh-prices) shares this script's
-// source fetchers but only RETRIEVES rows and stamps the artifact-less
-// price_update_retrieval feed, because a serverless filesystem cannot rewrite a
-// committed file. See docs/CRON_PLANE_RUNBOOK.md.
+// Scheduled retrieval was retired while every parser remained a documented
+// no-op. A serverless filesystem cannot publish this committed file.
 //
 // WHAT IS REAL in this scaffold:
 //   - reads the permissible-source allowlist (data/price_sources.json) and
