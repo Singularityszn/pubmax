@@ -9,9 +9,8 @@
 // starts its fetch immediately, so this host waits through the current route's
 // useful-state window before it mounts those components.
 //
-// Behaviour is unchanged: the same components mount with the same props and
-// the same client-side gates. Native shells mount immediately because their
-// system-bar and deep-link listeners are startup work, not optional web chrome.
+// Plan mutation replay mounts immediately because it is startup infrastructure,
+// not optional presentation. Native presentation extras release immediately.
 
 import nextDynamic from "next/dynamic";
 import { useEffect, useState } from "react";
@@ -73,10 +72,20 @@ export default function DeferredShellExtras() {
     return () => window.clearTimeout(fallback);
   }, []);
 
-  if (!ready) return <CellarNotice />;
+  const outbox = <PlanMutationOutboxHost />;
+
+  if (!ready) {
+    return (
+      <>
+        {outbox}
+        <CellarNotice />
+      </>
+    );
+  }
 
   return (
     <>
+      {outbox}
       <NightModeCard />
       <MorningReentryCard />
       <PubPalSummon />
@@ -87,7 +96,6 @@ export default function DeferredShellExtras() {
       <CheapPintPingPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
-      <PlanMutationOutboxHost />
       <CellarNotice />
     </>
   );
