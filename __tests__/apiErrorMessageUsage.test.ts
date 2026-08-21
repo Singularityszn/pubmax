@@ -1,22 +1,26 @@
-import { execFileSync } from "node:child_process";
+import { readdirSync, readFileSync } from "node:fs";
+import { extname, join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
 describe("API error message usage", () => {
   it("does not pass response bodies directly to Error", () => {
-    let output = "";
-    try {
-      output = execFileSync(
-        "rg",
-        ["-n", "new Error\\(body", "components", "app", "lib", "--glob", "*.ts", "--glob", "*.tsx"],
-        { encoding: "utf8" },
-      );
-    } catch (error) {
-      const result = error as { status?: number; stdout?: string };
-      if (result.status !== 1) throw error;
-      output = result.stdout ?? "";
+    const matches: string[] = [];
+    const scan = (directory: string): void => {
+      for (const entry of readdirSync(directory, { withFileTypes: true })) {
+        const path = join(directory, entry.name);
+        if (entry.isDirectory()) {
+          scan(path);
+          continue;
+        }
+        if (![".ts", ".tsx"].includes(extname(entry.name))) continue;
+        if (readFileSync(path, "utf8").includes("new Error(body")) matches.push(path);
+      }
+    };
+    for (const directory of ["components", "app", "lib"]) {
+      scan(join(process.cwd(), directory));
     }
 
-    expect(output).toBe("");
+    expect(matches).toEqual([]);
   });
 });

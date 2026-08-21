@@ -587,7 +587,7 @@ function freshestPerCategory(allRows: StoredPrice[], now: number): CommunityPric
       const candidate = bestCorroboratedCandidate(categoryRows, now);
       return {
         ...published(row),
-        corroborations: countCorroborations(categoryRows, row),
+        corroborations: countCorroborations(categoryRows, row, now),
         ...(candidate ? { mapCandidate: candidate } : {}),
       };
     })

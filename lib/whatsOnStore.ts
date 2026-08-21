@@ -34,6 +34,25 @@ const BASELINE_DATASETS: unknown[] = [
   rawWhatsOnLatest,
 ];
 
+const GREATER_LONDON_BOUNDS = {
+  minLat: 51.2868,
+  maxLat: 51.6919,
+  minLng: -0.5103,
+  maxLng: 0.334,
+} as const;
+
+function filterLondonDefaultRows(rows: WhatsOnRow[]): WhatsOnRow[] {
+  return rows.filter((row) => {
+    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return true;
+    return (
+      (row.lat as number) >= GREATER_LONDON_BOUNDS.minLat &&
+      (row.lat as number) <= GREATER_LONDON_BOUNDS.maxLat &&
+      (row.lng as number) >= GREATER_LONDON_BOUNDS.minLng &&
+      (row.lng as number) <= GREATER_LONDON_BOUNDS.maxLng
+    );
+  });
+}
+
 // Parse a bundled file with `now` fixed to the file's own generatedAt, so a row
 // whose observedAt equals generatedAt is never rejected as "future" (mirrors the
 // drink-updates pattern). The helper itself is shared (lib/whatsOn.ts) because
@@ -284,7 +303,9 @@ export async function loadWhatsOn(
   let revalidation: LoadWhatsOnResult["revalidation"] = { status: "measured" };
   try {
     // Do not pass params.limit. Grouping needs the provider's full inventory.
-    live = normaliseLiveResult(await (deps.fetchLive ?? defaultFetchLive)({ now }), now);
+    const fetchLive = deps.fetchLive ?? defaultFetchLive;
+    const fetchArgs = deps.fetchLive ? { now } : { now, area: "London" };
+    live = normaliseLiveResult(await fetchLive(fetchArgs), now);
     if (live.stale) {
       revalidation = { status: "unmeasured", reason: "live-provider-failed" };
     }
@@ -298,6 +319,9 @@ export async function loadWhatsOn(
   }
 
   let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
+  if (!params.near && (params.localityBasis ?? "london-default") === "london-default") {
+    rows = filterLondonDefaultRows(rows);
+  }
   if (params.kind) rows = filterByKind(rows, params.kind);
   if (params.window === "tonight") rows = filterTonight(rows, now);
   if (params.near) rows = sortByNear(rows, params.near);

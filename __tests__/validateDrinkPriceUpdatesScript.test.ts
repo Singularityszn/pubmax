@@ -130,15 +130,6 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "public", "data", "night_signals", "latest.json"),
     join(scratchData, "night_signals", "latest.json"),
   );
-  mkdirSync(join(scratchData, "night_out_places"), { recursive: true });
-  cpSync(
-    join(ROOT, "public", "data", "night_out_places", "latest.json"),
-    join(scratchData, "night_out_places", "latest.json"),
-  );
-  cpSync(
-    join(ROOT, "data", "night_out_place_provenance_registry.json"),
-    join(scratchRoot, "data", "night_out_place_provenance_registry.json"),
-  );
   const scratchOsmDir = join(scratchRoot, "data", "osm", "uk");
   mkdirSync(scratchOsmDir, { recursive: true });
   cpSync(
@@ -337,68 +328,6 @@ const GOOD_ROW = {
 };
 
 describe("validate-data.mjs drink-price-update extension", () => {
-  it("fails when the required night-out places artifact is absent", () => {
-    const scriptsDir = setupScratch({});
-    rmSync(join(scriptsDir, "..", "public", "data", "night_out_places", "latest.json"));
-    const { code, stdout } = runValidate(scriptsDir);
-    expect(code).not.toBe(0);
-    expect(stdout).toContain("FAIL public/data/night_out_places/latest.json: required artifact is missing");
-  });
-
-  it("fails malformed night-out rows through the shared contract", () => {
-    const scriptsDir = setupScratch({});
-    const snapshotPath = join(
-      scriptsDir,
-      "..",
-      "public",
-      "data",
-      "night_out_places",
-      "latest.json",
-    );
-    const snapshot = JSON.parse(readFileSync(snapshotPath, "utf8"));
-    snapshot.status = "published";
-    snapshot.places = [{ id: "broken" }];
-    writeFileSync(snapshotPath, JSON.stringify(snapshot), "utf8");
-
-    const { code, stdout } = runValidate(scriptsDir);
-    expect(code).not.toBe(0);
-    expect(stdout).toContain("row 0: category and night-out job do not match");
-  });
-
-  it("fails when the night-out provenance registry is missing", () => {
-    const missingScriptsDir = setupScratch({});
-    const missingRegistry = join(
-      missingScriptsDir,
-      "..",
-      "data",
-      "night_out_place_provenance_registry.json",
-    );
-    rmSync(missingRegistry);
-    const missing = runValidate(missingScriptsDir);
-    expect(missing.code).not.toBe(0);
-    expect(missing.stdout).toContain("required provenance registry is missing");
-  });
-
-  it("fails when the night-out provenance registry is mismatched", () => {
-    const mismatchedScriptsDir = setupScratch({});
-    const mismatchedRegistry = join(
-      mismatchedScriptsDir,
-      "..",
-      "data",
-      "night_out_place_provenance_registry.json",
-    );
-    writeFileSync(
-      mismatchedRegistry,
-      JSON.stringify({ version: 2, producers: [{ id: "exa" }, { id: "firecrawl" }] }),
-      "utf8",
-    );
-    const mismatched = runValidate(mismatchedScriptsDir);
-    expect(mismatched.code).not.toBe(0);
-    expect(mismatched.stdout).toContain(
-      "provenance registry version/providers do not match the snapshot",
-    );
-  });
-
   it("passes with no drink_price_updates files present", () => {
     const scriptsDir = setupScratch({});
     const { code, stdout } = runValidate(scriptsDir);

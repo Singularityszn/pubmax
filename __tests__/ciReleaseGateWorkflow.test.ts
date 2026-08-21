@@ -1,0 +1,20 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+import { describe, expect, it } from "vitest";
+
+describe("clean-main CI release gate", () => {
+  const workflow = readFileSync(join(process.cwd(), ".github/workflows/ci.yml"), "utf8");
+
+  it("runs a dedicated production build", () => {
+    expect(workflow).toContain("name: Production build");
+    expect(workflow).toMatch(/production-build:[\s\S]*run: npm run build/);
+  });
+
+  it("gives TypeScript and production Playwright builds enough heap", () => {
+    expect(workflow).toMatch(
+      /name: Typecheck[\s\S]*NODE_OPTIONS: "--max-old-space-size=6144"[\s\S]*run: npx tsc --noEmit/,
+    );
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(4);
+  });
+});

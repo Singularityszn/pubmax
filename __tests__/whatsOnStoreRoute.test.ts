@@ -227,6 +227,33 @@ describe("loadWhatsOn orchestration", () => {
     expect(nearSorted.rows[0].id).toBe("near");
   });
 
+  it("keeps London default results inside Greater London before counting families", async () => {
+    const london = makeRow({
+      id: "london",
+      placeName: "The London Arms",
+      lat: 51.513,
+      lng: -0.118,
+    });
+    const liverpool = makeRow({
+      id: "liverpool",
+      placeName: "The Liverpool Arms",
+      lat: 53.4303544,
+      lng: -2.9574746,
+    });
+
+    const result = await loadWhatsOn(
+      { window: "tonight", limit: 10 },
+      {
+        now: NOW,
+        loadBaseline: () => [liverpool, london],
+        fetchLive: async () => [],
+      },
+    );
+
+    expect(result.localityBasis).toBe("london-default");
+    expect(result.rows.map((row) => row.id)).toEqual(["london"]);
+  });
+
   it("drops past-dated rows on the DEFAULT (no window) query path (grace-aware, #408/#409/#417 semantics)", async () => {
     // NOW = 2026-07-11T20:00:00.000Z. The guard reads each row as an interval
     // [startsAt, effectiveEnd] (a point row's end is startsAt + its kind grace,

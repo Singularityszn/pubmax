@@ -48,7 +48,39 @@ jobs:
         run: npm run lint
 
       - name: Typecheck
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: npx tsc --noEmit
+
+  production-build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        run: npm run build
 
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/4)
@@ -138,6 +170,7 @@ jobs:
       # downloads.
       - name: Measure budgeted routes
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
@@ -179,6 +212,7 @@ jobs:
 
       - name: Report UX lane routes
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1

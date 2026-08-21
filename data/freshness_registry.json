@@ -147,17 +147,6 @@
       "gate": "none"
     },
     {
-      "id": "night_out_places",
-      "label": "Night-out restaurants and attractions",
-      "class": "snapshot",
-      "artifact": "public/data/night_out_places/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "manual review refresh; rows expire after 30 days",
-      "stalenessBudgetHours": 720,
-      "refreshWorkflow": "manual (npm run ingest:night-out-places; scheduled automation waits for funded providers and GitHub Actions)",
-      "gate": "EXA_API_KEY and FIRECRAWL_API_KEY. Missing keys, authentication, credits, rate limits, or upstream failure halt before write and require owner action. Empty is an honest supported state."
-    },
-    {
       "id": "pubmaxxing_seed",
       "label": "PUBMAXXING all-drinks / history seed import",
       "class": "episodic",

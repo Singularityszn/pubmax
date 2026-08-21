@@ -577,14 +577,14 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
 
   it("counts a lone report as one voice", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
-    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(1);
   });
 
   it("counts two contributors agreeing within tolerance as two", async () => {
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 4.5, 2_000, "b");
 
-    const [row] = await readCommunityPrices("v1");
+    const [row] = await readCommunityPrices("v1", 10_000);
     // The freshest figure is the one being corroborated, and £4.20 is inside
     // its 50p window - so this is one price two people saw, not two prices.
     expect(row.priceGbp).toBe(4.5);
@@ -595,7 +595,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.2, 1_000, "a");
     await beerAt("v1", 6.5, 2_000, "b");
 
-    const [row] = await readCommunityPrices("v1");
+    const [row] = await readCommunityPrices("v1", 10_000);
     // £4.20 does not corroborate £6.50; it contradicts it. A disagreement must
     // never read as support, or two people arguing would restamp the pin.
     expect(row.corroborations).toBe(1);
@@ -606,7 +606,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.25, 2_000, "a");
     await beerAt("v1", 4.3, 3_000, "a");
 
-    const rows = await readCommunityPrices("v1");
+    const rows = await readCommunityPrices("v1", 10_000);
     // The store already collapses a contributor's own corrections to one row; this
     // asserts the trust count agrees, which is the whole spray defence.
     expect(rows).toHaveLength(1);
@@ -620,11 +620,11 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     await beerAt("v1", 4.2, 1_000);
     await beerAt("v1", 4.25, 2_000);
     await beerAt("v1", 4.3, 3_000);
-    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(1);
+    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(1);
 
     // One attributed contributor agreeing alongside them does make it two.
     await beerAt("v1", 4.3, 4_000, "a");
-    expect((await readCommunityPrices("v1"))[0].corroborations).toBe(2);
+    expect((await readCommunityPrices("v1", 10_000))[0].corroborations).toBe(2);
   });
 
   it("counts each drink category on its own", async () => {
@@ -635,7 +635,7 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
       3_000,
     );
 
-    const rows = await readCommunityPrices("v1");
+    const rows = await readCommunityPrices("v1", 10_000);
     const byCategory = new Map(rows.map((row) => [row.drinkCategory, row.corroborations]));
     // A wine report is not evidence about the pint, whatever it cost.
     expect(byCategory.get("beer")).toBe(2);
