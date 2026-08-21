@@ -234,7 +234,16 @@ async function tapRenderedCentre(
     centre,
   );
   expect(receivesTap, `${label} owns its centre point`).toBe(true);
-  await page.mouse.click(centre.x, centre.y);
+  if ((await control.getAttribute("aria-disabled")) === "true") {
+    // The unavailable Clubs chip stays intentionally focusable and clickable
+    // so it can reveal why it is unavailable. Playwright treats aria-disabled
+    // as non-actionable, while the browser correctly dispatches this pointer.
+    await page.mouse.click(centre.x, centre.y);
+  } else {
+    await control.click({
+      position: { x: box.width / 2, y: box.height / 2 },
+    });
+  }
 }
 
 async function dismissSheet(page: Page): Promise<void> {
@@ -356,7 +365,7 @@ for (const viewport of VIEWPORTS) {
     const thisArea = cityMenu.getByRole("button", { name: "This area" });
     await tapRenderedCentre(page, thisArea, viewport.width, "This area");
     await expect(
-      page.locator('.mobileSheetPortal[data-sheet-kind="area"]:visible'),
+      page.locator('.mobileSheetPortal[data-sheet-kind="choose-area"]:visible'),
     ).toHaveCount(1);
     await dismissSheet(page);
 

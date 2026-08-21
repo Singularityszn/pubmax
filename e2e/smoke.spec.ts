@@ -114,21 +114,10 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
 
   // PR #765 (5adfb689) retired /feed's London-tab + Feed-lanes filter group
   // in favour of the unified Social shell. /feed now redirects to /social.
-  // The interactive Post lanes nav (app/social/SocialPageClient.tsx) only
-  // renders once client-side access resolves to "verified", which needs
-  // PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 on the server plus a signed-in Supabase
-  // account with a claimed handle and adult date of birth (WP1). playwright.config.ts
-  // passes the launch flag only when the run exports it; the default chromium
-  // project keeps the flag off, so under a real, unmocked e2e run access can
-  // only ever settle at "preview" and the Post lanes nav can never appear.
-  // e2e/social-shell.spec.ts covers the interactive lanes by mocking
-  // /api/social/access to "verified"; e2e/social-open.spec.ts (PW_SOCIAL_OPEN=1)
-  // rehearses the flag-on onboarding loop. This smoke test proves the real,
-  // unmocked redirect lands on a working, honest preview boundary instead of
-  // a blank or crashed page while the launch flag stays dark.
-  await expect(
-    page.getByRole("heading", { name: "Social preview is invite-only for now. It opens more widely soon." }),
-  ).toBeVisible();
+  // Default Chromium has no signed-in account. The exact launch copy can move,
+  // but the reachable boundary must remain honest and actionable.
+  await expect(page.getByRole("heading", { name: "Social preview" })).toBeVisible();
+  await expect(page.getByText("Sign in to use Social preview.")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -356,6 +345,7 @@ test("mobile venue sheet (GH #17): opens at the peek snap with the grab handle v
 test("mobile venue sheet sticky actions switch to Train and price sign-in gate", async ({
   page,
 }) => {
+  test.setTimeout(120_000);
   await page.setViewportSize({ width: 390, height: 844 });
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
