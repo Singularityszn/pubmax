@@ -17,7 +17,7 @@ const VIEWER_COORDINATE_EGRESS_FILES = [
   "app/api/tonight-conditions/route.ts",
   "app/api/tfl-disruption/route.ts",
   "app/api/citymcp/journey/route.ts",
-  "app/api/last-train/route.ts",
+  "lib/lastTrain.server.ts",
   // The locate fix reaches a URL (server logs, history, shareable), so it
   // must coarsen before it leaves the browser (#901 review finding).
   "lib/locateMapDestination.ts",

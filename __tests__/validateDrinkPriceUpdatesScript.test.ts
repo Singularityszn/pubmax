@@ -77,6 +77,12 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "pintIndexCanonical.mjs"),
     join(scratchLib, "pintIndexCanonical.mjs"),
   );
+  // What's-On files share one row-shape predicate with the app. The validator
+  // imports it, so scratch runs must carry the same module.
+  cpSync(
+    join(ROOT, "lib", "whatsOnRowShape.mjs"),
+    join(scratchLib, "whatsOnRowShape.mjs"),
+  );
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.
   cpSync(

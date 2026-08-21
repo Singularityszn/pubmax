@@ -13,10 +13,9 @@ export type SurfaceReadExemption = {
 };
 
 export const SURFACE_READ_EXEMPTIONS = [
-  { path: "app/admin/AdminClient.tsx", fetchCount: 23, reason: "admin session and moderation reads plus writes use the admin lane" },
+  { path: "app/admin/AdminClient.tsx", fetchCount: 21, reason: "admin moderation reads and writes use the admin lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 6, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
-  { path: "app/out/OutClient.tsx", fetchCount: 1, reason: "an answer is held with the day it is about, so a pressed day chip repaints pending rather than another day's cached answer" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 2, reason: "shared round view and report actions use their own lifecycle" },
   { path: "app/social/SocialComposer.tsx", fetchCount: 3, reason: "Social composer venue search and submit actions are no-store or mutations" },
   { path: "app/social/SocialOutbox.tsx", fetchCount: 1, reason: "Social outbox is no-store by policy" },
@@ -49,6 +48,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/usePintDrops.ts", fetchCount: 3, reason: "map Pint Drop reads and writes use the map feed lane" },
   { path: "components/map/useVenueJourney.ts", fetchCount: 1, reason: "venue journey is location and route interaction" },
   { path: "components/map/useVenueOccupancy.ts", fetchCount: 2, reason: "occupancy now-read is fail-soft and must never cache as an empty pub; flag fallback uses bare fetch when auth is absent, and the report beside it is a write" },
+  { path: "components/out/useOutListings.ts", fetchCount: 1, reason: "an answer is held with the day it is about, so a pressed day chip repaints pending rather than another day's cached answer" },
   { path: "components/messages/MessageVenuePicker.tsx", fetchCount: 1, reason: "message composer typeahead must not cache partial queries" },
   { path: "components/night/NightCalmLine.tsx", fetchCount: 1, reason: "night calm is an optional live signal" },
   { path: "components/night/NightModeCard.tsx", fetchCount: 8, reason: "night plan state, venue data, and actions are no-store interactive flows" },
@@ -82,6 +82,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/visits/visitReportsClient.ts", fetchCount: 2, reason: "Visit Report reader and flag action have their own freshness and moderation lane" },
   { path: "components/map/inspector/VenueStoryTab.tsx", fetchCount: 1, reason: "venue story is an additive map detail read" },
   { path: "lib/analytics.ts", fetchCount: 2, reason: "analytics transport is fire-and-forget telemetry, never painted data" },
+  { path: "lib/adminSessionClient.ts", fetchCount: 1, reason: "admin session transport must confirm the browser kept the secure session cookie" },
   { path: "lib/authedFetch.ts", fetchCount: 3, reason: "shared graceful and strict bearer transports serve auth-gated actions and public reads" },
   { path: "lib/savedPubs.ts", fetchCount: 2, reason: "saved-list reads are private viewer context with their own mutation-sensitive state" },
   { path: "lib/heritage.ts", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },

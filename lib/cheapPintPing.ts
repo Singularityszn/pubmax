@@ -84,7 +84,7 @@ export function composeCheapPintPing(input: {
   const areaSuffix = input.areaName?.trim()
     ? ` near ${input.areaName.trim()}`
     : " nearby";
-  const body = `${priceLabel} at ${name} — about ${minutes} min walk${areaSuffix}.`;
+  const body = `${priceLabel} at ${name}, about ${minutes} min walk${areaSuffix}.`;
   if (!isAllowedCheapPintCopy(body)) return null;
   return {
     title: "Cheap pint nearby",

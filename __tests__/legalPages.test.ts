@@ -184,7 +184,7 @@ describe("legal content pages", () => {
     for (const page of [privacy, terms]) {
       expect(page).toMatch(/Social Crews/);
       expect(page).toMatch(/Planned Night title/i);
-      expect(page).toMatch(/private or friends/i);
+      expect(page).toMatch(/private[^]*friends-only[^]*open/i);
       expect(page).toMatch(/Crew-bound Plan/i);
     }
     expect(privacy).toMatch(/owner[^]*active members who remain Mutual with the owner[^]*full roster[^]*Crew-bound Plan/i);
@@ -206,7 +206,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/left or\s+removed[^]*membership\s+row[^]*history/i);
     expect(privacy).toMatch(/invitations and Join Requests[^]*Crew-bound Plan is deleted/i);
     expect(privacy).toMatch(/write\s+receipts[^]*account deletion request/i);
-    expect(terms).toMatch(/owner chooses whether[^]*private or friends/i);
+    expect(terms).toMatch(/owner chooses one visibility setting[^]*private[^]*friends-only[^]*open/i);
     expect(terms).toMatch(/active members\s+who remain Mutual with the owner[^]*roster[^]*Crew-bound Plan/i);
     expect(terms).toMatch(/owner can\s+change roles[^]*owner or a cohost[^]*remove a non-owner/i);
     expect(terms).toMatch(/leaving or removal[^]*doesn&rsquo;t erase/i);
