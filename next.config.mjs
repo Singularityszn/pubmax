@@ -268,6 +268,9 @@ const nextConfig = {
       // sends it to the canonical profile route. __tests__/storiesRedirect.test.ts
       // pins this alongside the /stories rules.
       { source: "/you", destination: "/u/you", permanent: true },
+      // Landing still says "Our story"; keep the old paths as aliases.
+      { source: "/our-story", destination: "/about", permanent: true },
+      { source: "/story", destination: "/about", permanent: true },
     ];
   },
   async headers() {

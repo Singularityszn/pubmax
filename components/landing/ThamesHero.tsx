@@ -38,7 +38,9 @@ const HERO_PUBS: HeroPub[] = [
     place: "The Dove",
     left: "14%",
     top: "26%",
-    query: { drink: "beer", style: "cheapest" },
+    // Beer is the map's rest lane. Naming a pub must not open the map as a
+    // price-ranked arrival for that place. That reads as a live price claim.
+    query: { drink: "beer" },
   },
   {
     id: "mayflower",
