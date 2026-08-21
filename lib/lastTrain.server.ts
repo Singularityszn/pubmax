@@ -1,3 +1,5 @@
+import "server-only";
+
 // GET /api/last-train?lat=..&lng=..  ->  LastTrainResult
 // GET /api/last-train?lat=..&lng=..&scope=stable  ->  stable timetable result
 //

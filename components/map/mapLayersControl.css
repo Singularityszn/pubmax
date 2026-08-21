@@ -163,6 +163,7 @@
 }
 
 .mapLayersReaderAction:active {
+  --shared-press-scale: 1;
   transform: scale(0.97);
 }
 

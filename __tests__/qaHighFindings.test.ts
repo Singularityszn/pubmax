@@ -43,12 +43,11 @@ describe("QA high findings — mobile sheet and consent layering", () => {
   });
 
   it("hides the analytics consent card while any map sheet is open", () => {
-    expect(globalCss).toMatch(
-      /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt\s*{[^}]*visibility:\s*hidden/,
-    );
-    expect(globalCss).toMatch(
-      /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt\s*{[^}]*pointer-events:\s*none/,
-    );
+    const rule = globalCss.match(
+      /body:has\(\.mobileSheetPortal\) \.analyticsConsentPrompt,\s*body:has\(\.chooseAreaDesktopScrim\) \.analyticsConsentPrompt\s*{([^}]*)}/,
+    )?.[1] ?? "";
+    expect(rule).toMatch(/visibility:\s*hidden/);
+    expect(rule).toMatch(/pointer-events:\s*none/);
   });
 
   it("dismisses open map sheets before primary-tab navigation", () => {

@@ -108,7 +108,7 @@ describe("the phone shows the near me failure", () => {
 
   it("offers the area picker as the way on", () => {
     expect(mobileShell).toContain("Pick an area");
-    expect(mobileShell).toContain('onOverlayChange("area")');
+    expect(mobileShell).toContain('onOverlayChange("choose-area")');
   });
 
   it("lets the reader clear the message", () => {

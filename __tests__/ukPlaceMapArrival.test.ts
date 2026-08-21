@@ -146,9 +146,11 @@ describe("UK place map arrival", () => {
     // the claim the VIEW earned (lib/areaButton.areaClaimedByViewport), which
     // answers null for a view over no single area, so the city name is the
     // fallback rather than the nearest area to the centre.
+    expect(pubMap).toContain("const mapChipLabel =");
     expect(pubMap).toContain(
-      "cityLabel={ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName}",
+      ": ukPlaceArrival?.name ?? claimedArea?.name ?? mapContextName",
     );
+    expect(pubMap).toContain("cityLabel={mapChipLabel}");
     expect(mobileShell).toContain("limitedCoverage: boolean;");
     expect(mobileShell).toContain("if (limitedCoverage)");
     expect(mobileShell).toContain("mobileMapTopbar mobileMapTopbarLimited");

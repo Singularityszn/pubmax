@@ -180,7 +180,7 @@ describe("friction-state voice fence", () => {
   }
 
   it("Tonight's empty night hands the user an exit to the map", () => {
-    const source = read("app/tonight/TonightClient.tsx");
+    const source = read("app/tonight/TonightListingsNotice.tsx");
     expect(source).toContain("tonightStatusLink");
     // The sentence beside that exit is the lane-scoped one, so it is asked for
     // rather than read off this file: a night both lanes answered says the city

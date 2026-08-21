@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 139 mutating handlers across 113 route files.** Each exported
+> **Inventory: 140 mutating handlers across 114 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -64,6 +64,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/auth/change-password/verify`
 - `POST app/api/auth/handle-password`
 - `POST app/api/ask`
+- `POST app/api/cheap-pint-ping`
 - `POST app/api/check-ins`
 - `POST app/api/citymcp/journey`
 - `POST app/api/concierge`
@@ -409,6 +410,20 @@ ID.
 
 `POST` leaves as verified actor. Self-leave stays available after friendship
 loss or a block; owner leave remains a durable conflict until ownership moves.
+
+### `app/api/cheap-pint-ping` - weekday push preference
+
+- **Authority:** `resolveContributionIdentity` derives the stable profile actor
+  from the authenticated account. The request cannot choose an account, actor,
+  or public handle.
+- **Validation:** `action` is limited to `qualify`, `opt-in`, or `decline`.
+  Opt-in also requires a decoded browser PushSubscription that passes the shared
+  web push token and endpoint allowlist.
+- **Abuse boundary:** durable `isLimited` keys each action by stable actor and a
+  salted IP hash. The raw IP is never stored or used as a key.
+- **Storage and failure:** preference writes and push-token registration use
+  server stores. Store failure returns the flat 503 public error. Responses are
+  no-store so another browser cannot reuse private preference state.
 
 ### `app/api/push-tokens` — native/web push registration (route 61)
 

@@ -112,7 +112,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
           Weekday cheap-pint ping?
         </p>
         <p id="cheap-pint-ping-body" className="nativePushPrompt__body">
-          One push at 5pm on a weekday with a listed cheap pint near your night area. Ask once — no follow-ups.
+          One push at 5pm on a weekday with a listed cheap pint near your night area. Ask once. No follow-ups.
         </p>
         {error ? (
           <p className="nativePushPrompt__error" role="status">
