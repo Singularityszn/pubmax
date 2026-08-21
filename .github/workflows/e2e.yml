@@ -37,6 +37,7 @@ jobs:
 
       - name: Run law-pinning journeys
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
         run: >-
           npx playwright test
@@ -82,6 +83,7 @@ jobs:
       - name: Run full browser shard
         if: matrix.suite == 'default'
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
         run: >-
           npx playwright test
@@ -95,6 +97,7 @@ jobs:
       - name: Run flag-on browser shard
         if: matrix.suite == 'flag-on'
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
           PUBMAX_MAP_ROUTE_TRANSFER: "1"
           PUBMAX_PAL_HANDOFF: "1"

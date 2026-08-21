@@ -28,4 +28,10 @@ describe("browser CI policy", () => {
     expect(workflow).toContain('PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"');
     expect(workflow).toContain("npx playwright install --with-deps chromium");
   });
+
+  it("gives each production browser build enough heap", () => {
+    const workflow = readFileSync(workflowPath, "utf8");
+
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(3);
+  });
 });
