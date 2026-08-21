@@ -116,7 +116,9 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   // in favour of the unified Social shell. /feed now redirects to /social.
   // Default Chromium has no signed-in account. The exact launch copy can move,
   // but the reachable boundary must remain honest and actionable.
-  await expect(page.getByRole("heading", { name: "Social preview" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Social preview", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Sign in to use Social preview.")).toBeVisible();
   expect(errors).toEqual([]);
 });
