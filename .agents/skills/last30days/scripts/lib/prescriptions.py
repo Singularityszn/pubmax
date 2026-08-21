@@ -91,6 +91,23 @@ REGISTRY: Dict[Tuple[str, str], Prescription] = dict((
         anchor="api-keys-env",
     ),
     _entry(
+        "x", "grok_cli_missing",
+        cause="the Grok CLI is not installed, so the keyless X path is unavailable",
+        fix_nl=(
+            "install the Grok CLI (curl -fsSL https://x.ai/cli/install.sh | bash) "
+            "and sign in with `grok login` to search X without any X credential"
+        ),
+        fix_cli="npm install -g @xai-official/grok",
+        anchor="api-keys-env",
+    ),
+    _entry(
+        "x", "grok_not_authenticated",
+        cause="the Grok CLI is installed but not signed in",
+        fix_nl="sign in to Grok once; no X account or API key is needed after that",
+        fix_cli="grok login",
+        anchor="api-keys-env",
+    ),
+    _entry(
         "scrapecreators", "key_missing",
         cause="SCRAPECREATORS_API_KEY is not set",
         fix_nl=(
@@ -256,7 +273,7 @@ def _dependency_failure(probe: health.DependencyProbe) -> Optional[Tuple[str, st
         return ("youtube", "ytdlp_broken")  # BROKEN and TIMEOUT: reinstall class
     if probe.name == "digg-pp-cli":
         # health reports off-PATH binaries as MISSING with ``off_path=True``;
-        # the distinction only picks cause/NL wording — the probe's own
+        # the distinction only picks cause/NL wording - the probe's own
         # prescription wins the CLI form either way.
         if probe.status == health.MISSING:
             if probe.off_path:

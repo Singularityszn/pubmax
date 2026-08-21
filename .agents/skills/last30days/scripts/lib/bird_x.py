@@ -103,7 +103,7 @@ def classify_run_failure(detail: str) -> str:
 def _extract_core_subject(topic: str) -> str:
     """Extract core subject from verbose query for X search.
 
-    X search is literal keyword AND matching — all words must appear.
+    X search is literal keyword AND matching - all words must appear.
     Aggressively strip question/meta/research words to keep only the
     core product/concept name (max 5 words).
     """
@@ -112,13 +112,50 @@ def _extract_core_subject(topic: str) -> str:
 
 
 def _plain_query_tokens(text: str) -> list[str]:
-    """Return lexical tokens without Bird query grouping syntax."""
+    """Return lexical tokens without Bird query grouping syntax.
+
+    Strips phrase quotes as well as grouping characters. Used where a flat
+    token list is wanted; use ``build_topic_query`` for the provider query,
+    which preserves quoted phrases.
+    """
     separators = str.maketrans({char: " " for char in '\"“”()[]{}'})
     return [
         clean
         for token in text.translate(separators).split()
         if (clean := token.strip("'‘’"))
     ]
+
+
+# Bird/X grouping syntax that carries no lexical meaning. Double quotes are
+# deliberately absent: X advanced search treats "..." as a phrase match, which
+# is exactly what the planner intended when it quoted a proper noun.
+_GROUPING_CHARS = "“”()[]{}"
+
+
+def build_topic_query(topic: str, from_date: str) -> str:
+    """Build the X topic query, preserving quoted proper-noun phrases.
+
+    Previously the topic went through ``_plain_query_tokens``, which stripped
+    the quotes the planner had added, so an intended phrase match for
+    '"Peter Steinberger"' degraded into `peter AND steinberger` -- narrower and
+    noisier at once. X supports phrase queries natively, so the quotes are
+    passed through.
+    """
+    separators = str.maketrans({char: " " for char in _GROUPING_CHARS})
+    cleaned = topic.translate(separators)
+    # An unbalanced quote is worse than no quote: X reads the orphan as an
+    # unterminated phrase and matches nothing. Upstream trimming (core-subject
+    # extraction, retry shortening) can cut a topic mid-phrase, so verify the
+    # quotes pair up and fall back to bare tokens when they do not.
+    if cleaned.count('"') % 2:
+        cleaned = cleaned.replace('"', " ")
+    tokens = [
+        clean
+        for token in cleaned.split()
+        if (clean := token.strip("'‘’"))
+    ]
+    core = " ".join(tokens).strip()
+    return f"{core} since:{from_date}" if core else f"since:{from_date}"
 
 
 def is_bird_installed() -> bool:
@@ -174,7 +211,7 @@ def probe_works(timeout: int = 8) -> Optional[bool]:
     if isinstance(resp, dict) and resp.get("error"):
         err = str(resp.get("error")).lower()
         if "timed out" in err or "timeout" in err:
-            _probe_cache = None  # inconclusive — don't downgrade on a transient timeout
+            _probe_cache = None  # inconclusive - don't downgrade on a transient timeout
             return None
         _probe_cache = False
         return False
@@ -225,7 +262,7 @@ def _invoke_bird_subprocess(query: str, count: int, timeout: int):
     """Invoke the vendored bird-search.mjs subprocess once.
 
     Returns (result, error_dict). If error_dict is non-None, treat it as the
-    final result and do not retry — those errors are terminal (timeout,
+    final result and do not retry - those errors are terminal (timeout,
     spawn failure). If error_dict is None, the subprocess ran to completion
     and `result` is the SubprocResult; the caller decides whether to retry
     based on the result.stdout content.
@@ -343,7 +380,7 @@ def _run_bird_search(query: str, count: int, timeout: int) -> Dict[str, Any]:
             return {"items": parsed}
         return parsed
 
-    # Defensive fallthrough — loop should always return above.
+    # Defensive fallthrough - loop should always return above.
     return {
         "error": f"Bird search exhausted retries: {last_decode_error}",
         "items": [],
@@ -371,9 +408,10 @@ def search_x(
     timeout = 30 if depth == "quick" else 45 if depth == "default" else 60
 
     # Extract core subject - X search is literal, not semantic
-    core_words = _plain_query_tokens(_extract_core_subject(topic))
+    core_subject = _extract_core_subject(topic)
+    core_words = _plain_query_tokens(core_subject)
     core_topic = " ".join(core_words)
-    query = f"{core_topic} since:{from_date}"
+    query = build_topic_query(core_subject, from_date)
 
     _log(f"Searching: {query}")
     response = _run_bird_search(query, count, timeout)
@@ -444,7 +482,7 @@ def search_handles(
 ) -> List[Dict[str, Any]]:
     """Search specific X handles for topic-related content.
 
-    Pulls each handle's actual timeline via `from:handle since:` — the FROM
+    Pulls each handle's actual timeline via `from:handle since:` - the FROM
     lane (tweets BY the person), engagement-weighted downstream. The topic is
     used for relevance RANKING, never AND'd into the query: X search is literal,
     so `from:handle <their name>` only matched tweets where they wrote their own
@@ -452,7 +490,7 @@ def search_handles(
 
     Args:
         handles: List of X handles to search (without @)
-        topic: Search topic — used for relevance ranking only, not the query
+        topic: Search topic - used for relevance ranking only, not the query
         from_date: Start date (YYYY-MM-DD)
         count_per: Results to request per handle
 
@@ -520,7 +558,7 @@ def search_mentions(
     from_date: str,
     count_per: int = 5,
 ) -> List[Dict[str, Any]]:
-    """Search for tweets ABOUT/TO each handle — the mention lane.
+    """Search for tweets ABOUT/TO each handle - the mention lane.
 
     Queries `@handle since:` (tweets that mention the account) and excludes the
     handle's OWN tweets (those belong to the FROM lane via search_handles), so

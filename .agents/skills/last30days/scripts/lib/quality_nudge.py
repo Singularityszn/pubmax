@@ -122,7 +122,7 @@ def _is_instagram_silent_failure(config: dict, research_results: dict) -> bool:
     section in the brief, no error in the footer, just unexplained absence.
     """
     if not config.get("SCRAPECREATORS_API_KEY"):
-        return False  # not configured — not a silent failure
+        return False  # not configured - not a silent failure
     # Honor EXCLUDE_SOURCES: a user who set EXCLUDE_SOURCES=instagram
     # intentionally turned the source off, so a zero-item count is
     # expected, not a silent failure. Mirror the canonical parsing
@@ -134,7 +134,7 @@ def _is_instagram_silent_failure(config: dict, research_results: dict) -> bool:
     }
     # Symmetric case: INCLUDE_SOURCES is an opt-in allowlist. If it is
     # non-empty and does not name instagram, the source was intentionally
-    # filtered out, so a zero-item count is expected — not a silent failure.
+    # filtered out, so a zero-item count is expected - not a silent failure.
     included = {
         s.strip().lower()
         for s in (config.get("INCLUDE_SOURCES") or "").split(",")
@@ -301,9 +301,25 @@ def _build_nudge_text(
             free_suggestions.append(f"X/Twitter errored - {x_fix.fix_nl}.")
         else:
             x_fix = prescriptions.get("x", "cookies_missing")
+            # Pick by state: telling a user who already installed grok to
+            # install it again is the stale-shim reading the health layer
+            # exists to avoid. Mirrors _probe_grok's three-way split.
+            from . import grok_x as _grok_x
+            grok_key = (
+                "grok_not_authenticated"
+                if _grok_x.binary_path() and not _grok_x.has_stored_auth()
+                else "grok_cli_missing"
+            )
+            grok_fix = prescriptions.get("x", grok_key)
+            # Deliberately not described as free: grok needs no X credential,
+            # but it does need an installed, signed-in grok CLI drawing on a
+            # Grok plan. This block is headed "Free suggestions", so the
+            # precondition has to be stated inline rather than inherited.
             free_suggestions.append(
                 "X/Twitter: real-time posts with likes and reposts - the fastest "
-                f"signal for breaking topics. Three options: {x_fix.fix_nl}."
+                "signal for breaking topics. Easiest path if you have a Grok "
+                f"account: {grok_fix.fix_nl} (no X credential at all). "
+                f"Otherwise: {x_fix.fix_nl}."
             )
 
     if "youtube" in core_missing:

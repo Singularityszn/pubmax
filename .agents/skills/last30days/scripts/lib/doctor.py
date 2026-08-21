@@ -29,11 +29,11 @@ Semantics and guarantees:
 - ``active_backend`` is a PREDICTION ("will use"), never an observation
   (KTD 4). Reddit is conditional mode: honest wording, no single winner.
 - On a native-search host with no web keys, engine-side web search is
-  intentionally off — doctor reports tier ``off`` with a host-native note,
+  intentionally off - doctor reports tier ``off`` with a host-native note,
   never a false-alarm error. Web search has NO env pin, only the
   ``--web-backend`` flag; the record says so.
 - No cookie reads (plan-only, like ``--diagnose``); no secret values
-  anywhere — key presence is booleans only.
+  anywhere - key presence is booleans only.
 - Per-source exception isolation: one failing probe becomes that source's
   ``error`` record; it can never blank the report.
 - Reporting problems is a successful run: the exit code is always 0.
@@ -53,7 +53,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
-from . import backends, env, health, http, prescriptions
+from . import backends, brightdata, env, health, http, prescriptions
 from .backends import TIER_ERROR, TIER_OK, TIER_WARN
 
 # Rollup tiers (R1). ok/warn/error are U2's; only "off" is doctor's own.
@@ -157,6 +157,7 @@ SOURCE_ORDER = (
     "techmeme",
     "arxiv",
     "trustpilot",
+    "amazon",
     "tiktok",
     "instagram",
     "threads",
@@ -181,6 +182,9 @@ CLI_DEPENDENCIES = {
     "techmeme": "techmeme-pp-cli",
     "arxiv": "arxiv-pp-cli",
     "trustpilot": "trustpilot-pp-cli",
+    # The only entry that also needs auth; _amazon_record reports the
+    # installed-but-unauthenticated state the shared CLI helper cannot.
+    "amazon": "brightdata",
     "github": "gh",
 }
 _OPTIONAL_CLI_SOURCES = frozenset({"github"})
@@ -421,16 +425,91 @@ def _x_record(config):
     # diagnose cannot drift. It reads no cookie *values*, so it confirms a run
     # will *attempt* browser auth, not that the session is currently valid -
     # keep the note honest and point at the verified key-backed path.
-    if record["status"] == "unconfigured" and env.x_pending_browser_auth(
-        config, local_only=True
-    ):
-        record["status"] = health.OK
-        record["tier"] = TIER_BY_STATUS[health.OK]
-        record["note"] = (
-            "will use: bird (browser cookies; session not verified until a run "
-            "- add XAI_API_KEY for a verified, cookie-free path)"
+    #
+    # This check MUST come before grok normalization: a pending bird path takes
+    # precedence over marking X as unconfigured due to an unused grok store.
+    # Handle both "unconfigured" (all backends missing) and "error" (grok present
+    # but opt-in, no auto-chain backend usable) when pending bird applies.
+    #
+    # HOWEVER: pending bird must NOT replace a record that has a configured
+    # auto-chain backend in ERROR/DEGRADED/BROKEN/TIMEOUT. Same rule as the
+    # grok normalizer: only upgrade when no auto backend is configured-but-broken.
+    pending_bird = env.x_pending_browser_auth(config, local_only=True)
+    if pending_bird and record["status"] in ("unconfigured", health.ERROR):
+        backends_list = record.get("backends", [])
+        auto_chain_names = {"bird", "xai", "xurl", "xquik"}
+        auto_backends = [b for b in backends_list if b.get("name") in auto_chain_names]
+        # Only apply pending-bird upgrade if ALL auto-chain backends are MISSING.
+        # If any auto backend is configured but broken, keep that error.
+        all_auto_missing = all(
+            b.get("status") == health.MISSING for b in auto_backends
         )
-        record["fix"] = ""
+        if all_auto_missing:
+            record["status"] = health.OK
+            record["tier"] = TIER_BY_STATUS[health.OK]
+            record["note"] = (
+                "will use: bird (browser cookies; session not verified until a run "
+                "- add XAI_API_KEY for a verified, cookie-free path)"
+            )
+            record["fix"] = ""
+            return record
+    #
+    # Grok is opt-in only: a leftover ~/.grok/auth.json must never steal the X
+    # lane. The grok backend appears in the chain findings (for visibility) but
+    # is never auto-selected. Doctor reports it as "available, unused - pin
+    # LAST30DAYS_X_BACKEND=grok to enable" rather than "will use: grok".
+    #
+    # R3/R8: When no auto-chain backend is CONFIGURED (all MISSING) but grok has
+    # any non-MISSING status, X is unconfigured/skipped - NOT broken/auth-failed.
+    # The tier must be "off" (unconfigured), not "error" (NOT WORKING).
+    #
+    # HOWEVER: if an auto-chain backend IS configured but broken (ERROR/DEGRADED),
+    # do NOT normalize to unconfigured. Keep that backend's error and repair
+    # guidance. Unused grok must not swallow a genuine auto-chain failure.
+    #
+    # Do NOT apply this normalization when pending browser auth would make bird
+    # usable - check pending_bird first (handled above via early return).
+    if (
+        record["tier"] == TIER_ERROR
+        and not record.get("pinned")
+        and record.get("active_backend") is None
+        and not pending_bird
+    ):
+        backends_list = record.get("backends", [])
+        auto_chain_names = {"bird", "xai", "xurl", "xquik"}
+        auto_backends = [b for b in backends_list if b.get("name") in auto_chain_names]
+        # Only normalize if ALL auto-chain backends are MISSING (not configured).
+        # If any auto backend is ERROR/DEGRADED/BROKEN/TIMEOUT, keep that error.
+        all_auto_missing = all(
+            b.get("status") == health.MISSING for b in auto_backends
+        )
+        if not all_auto_missing:
+            # An auto-chain backend is configured but broken - do NOT normalize.
+            # Keep the original error and its repair guidance.
+            return record
+        grok_finding = next(
+            (b for b in backends_list if b.get("name") == "grok"),
+            None,
+        )
+        if grok_finding and grok_finding.get("status") in (
+            health.OK,
+            health.DEGRADED,
+            health.ERROR,
+        ):
+            record["status"] = "unconfigured"
+            record["tier"] = TIER_OFF
+            if grok_finding.get("status") == health.ERROR:
+                record["note"] = (
+                    "X unconfigured; grok CLI store is broken but unused (opt-in only) - "
+                    "pin LAST30DAYS_X_BACKEND=grok to enable, then fix the store"
+                )
+            else:
+                record["note"] = (
+                    "X unconfigured; grok CLI available but opt-in only - "
+                    "pin LAST30DAYS_X_BACKEND=grok to enable"
+                )
+            record["fix"] = ""
+            return record
     return record
 
 
@@ -540,6 +619,39 @@ def _trustpilot_record(config):
     return _cli_gated_record(config, "trustpilot-pp-cli", "trustpilot")
 
 
+def _amazon_record(config):
+    """Amazon buyer signals: CLI-gated *and* auth-gated.
+
+    Unlike the other CLI-gated sources, a present binary is not enough --
+    the Bright Data CLI owns its own login, so a user can have `brightdata`
+    on PATH and still get nothing. Report those states separately: an
+    unauthenticated install is configured-but-broken (a real fix exists and
+    the user wants to hear it), while a missing binary is just an optional
+    source nobody opted into.
+    """
+    probe = health.probe_dependency(brightdata.CLI_BIN)
+    requires = f"{brightdata.CLI_BIN} on the agent-subprocess PATH, logged in"
+    if probe.ok:
+        if brightdata.has_credentials(config):
+            return _record(status=health.OK, detail=probe.detail, requires=requires)
+        return _record(
+            status="unconfigured",
+            fix="run `brightdata login` to activate the amazon source",
+            detail="brightdata is installed but has no credentials",
+            requires=requires,
+        )
+    entry = prescriptions.for_dependency_probe(probe)
+    fix = _fix_text(entry) if entry else probe.prescription
+    if probe.status == health.MISSING and not probe.off_path:
+        return _record(
+            status="opt-in",
+            fix="npm i -g @brightdata/cli && brightdata login",
+            detail=probe.detail,
+            requires=requires,
+        )
+    return _record(status=probe.status, fix=fix, detail=probe.detail, requires=requires)
+
+
 def _tiktok_record(config):
     return _sc_gated_record(config, "tiktok")
 
@@ -575,8 +687,13 @@ def _truthsocial_record(config):
 
 
 def _perplexity_record(config):
-    requires = "PERPLEXITY_API_KEY or OPENROUTER_API_KEY + INCLUDE_SOURCES=perplexity"
-    has_key = bool(config.get("PERPLEXITY_API_KEY") or config.get("OPENROUTER_API_KEY"))
+    requires = (
+        "PERPLEXITY_API_KEY or OPENROUTER_API_KEY + "
+        "INCLUDE_SOURCES=perplexity"
+    )
+    has_direct_key = bool(config.get("PERPLEXITY_API_KEY"))
+    has_openrouter_key = bool(config.get("OPENROUTER_API_KEY"))
+    has_key = has_direct_key or has_openrouter_key
     include = env.include_sources(config)
     if not has_key:
         return _record(
@@ -587,7 +704,15 @@ def _perplexity_record(config):
             ),
         )
     if "perplexity" in include:
-        return _record(status=health.OK, requires=requires)
+        return _record(
+            status=health.OK,
+            requires=requires,
+            note=(
+                "direct Agent/Search APIs"
+                if has_direct_key
+                else "OpenRouter Sonar compatibility fallback"
+            ),
+        )
     return _record(
         status="opt-in", requires=requires,
         fix="add perplexity to INCLUDE_SOURCES (or request it via --search perplexity)",
@@ -716,6 +841,7 @@ _SOURCE_BUILDERS: Dict[str, Callable[[Dict[str, Any]], Dict[str, Any]]] = {
     "techmeme": _techmeme_record,
     "arxiv": _arxiv_record,
     "trustpilot": _trustpilot_record,
+    "amazon": _amazon_record,
     "tiktok": _tiktok_record,
     "instagram": _instagram_record,
     "threads": _threads_record,
@@ -916,7 +1042,7 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Builders are independent probes (subprocess/filesystem bound), so run
     # them concurrently. ``pool.map`` preserves SOURCE_ORDER, keeping the
-    # sources dict insertion order — and render grouping — deterministic.
+    # sources dict insertion order - and render grouping - deterministic.
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(8, len(SOURCE_ORDER))
     ) as pool:
@@ -1038,12 +1164,12 @@ def _audit_source_line(name: str, record: Dict[str, Any], state: str) -> str:
     elif record.get("detail") and record.get("tier") != TIER_OK:
         descriptors.append(record["detail"])
     if descriptors:
-        parts.append(" — " + "; ".join(descriptors))
+        parts.append(" - " + "; ".join(descriptors))
     evidence = _run_evidence_suffix(record, state)
     if evidence:
         parts.append(evidence)
     # fix is only ever populated when there is something actionable, so
-    # render it whenever present — an ok-tier record can carry one (the
+    # render it whenever present - an ok-tier record can carry one (the
     # youtube transcription-key note) and must not lose it in text mode.
     if record.get("fix"):
         parts.append(f"; fix: {record['fix']}")
@@ -1060,7 +1186,7 @@ def _sub_lane_lines(record: Dict[str, Any]) -> List[str]:
     for backup in record.get("backups") or []:
         state = "armed" if backup.get("armed") else "off"
         note = f" - {backup['note']}" if backup.get("note") else ""
-        lines.append(f"      backup: {backup['name']} — {state}{note}")
+        lines.append(f"      backup: {backup['name']} - {state}{note}")
     comments = record.get("comments")
     if comments is not None:
         state = "on" if comments.get("enabled") else "off"
@@ -1087,7 +1213,7 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
                 tail = " (installed off-PATH)"
             elif cli.get("optional"):
                 tail = " (optional)"
-        rows.append(f"  {glyph} {cli['name']} — {source}{tail}: {detail}")
+        rows.append(f"  {glyph} {cli['name']} - {source}{tail}: {detail}")
     if not rows:
         return []
     return (
@@ -1098,7 +1224,7 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
 
 
 def render_text(report: Dict[str, Any]) -> str:
-    lines: List[str] = [f"last30days doctor — engine v{report['engine_version']}"]
+    lines: List[str] = [f"last30days doctor - engine v{report['engine_version']}"]
     config_block = report.get("config") or {}
     if config_block.get("global_env"):
         line = f"config: {config_block['global_env']}"
@@ -1208,7 +1334,7 @@ def build_postmortem(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def render_postmortem_text(pm: Dict[str, Any]) -> str:
-    lines = [f"last30days post-mortem — engine v{pm['engine_version']}"]
+    lines = [f"last30days post-mortem - engine v{pm['engine_version']}"]
     if not pm.get("present"):
         lines.append("")
         lines.append(
@@ -1237,7 +1363,7 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         lines.append("Failed:")
         for source, outcome in failed:
             detail = outcome.get("detail") or outcome.get("state")
-            lines.append(f"  ✕ {source} — {outcome.get('state')}: {detail}")
+            lines.append(f"  ✕ {source} - {outcome.get('state')}: {detail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
     if partial:
@@ -1246,7 +1372,7 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         for source, outcome in partial:
             count = outcome.get("items_returned") or 0
             detail = outcome.get("detail")
-            tail = f" — {detail}" if detail else ""
+            tail = f" - {detail}" if detail else ""
             lines.append(f"  ⚠ {source} ({count} items){tail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
@@ -1275,11 +1401,11 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
 # check costs one file read on the healthy path instead of a dozen probe
 # subprocesses. ``--cached`` serves the stored report within the TTL and
 # falls through to a live run (rewriting the cache) when the file is stale,
-# absent, or corrupt — corruption is treated as absence, never a crash.
+# absent, or corrupt - corruption is treated as absence, never a crash.
 # An explicit ``doctor`` (no ``--cached``) always runs live and refreshes.
 #
 # The payload carries a schema stamp (mirrors REPORT_CACHE_VERSION in
-# last30days.py) and a config fingerprint — a sha256 over the same
+# last30days.py) and a config fingerprint - a sha256 over the same
 # non-secret signals doctor already reports (key-presence booleans, backend
 # pin values, INCLUDE_SOURCES). A schema or fingerprint mismatch is treated
 # as stale, so a credential or pin change can never serve yesterday's
@@ -1340,7 +1466,7 @@ def _is_fresh(timestamp: Any, ttl_seconds: int) -> bool:
 def _config_fingerprint(config: Dict[str, Any]) -> str:
     """sha256 over the non-secret config signals doctor already reports.
 
-    Inputs are key-presence BOOLEANS (never credential values — the same
+    Inputs are key-presence BOOLEANS (never credential values - the same
     ``keys_present`` set the setup block renders), backend pin values
     (backend names, not secrets), and INCLUDE_SOURCES (not a secret).
     Adding or removing a credential, changing a pin, or toggling an opt-in
@@ -1363,7 +1489,7 @@ def _report_shape_ok(report: Any) -> bool:
     Validates everything the renderers read unguarded: the required
     top-level keys exist (dict-valued where render calls ``.get`` on them),
     and every sources record is a dict carrying a known tier and a str
-    status. Anything else is corrupt — treated as absent, never rendered.
+    status. Anything else is corrupt - treated as absent, never rendered.
     """
     if not isinstance(report, dict):
         return False
@@ -1390,8 +1516,8 @@ def _report_shape_ok(report: Any) -> bool:
 def read_cached_report(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Return the cached report when present, well-formed, and within TTL.
 
-    Any failure mode — unreadable file, invalid JSON, schema mismatch,
-    config-fingerprint mismatch, wrong shape, bad or stale timestamp —
+    Any failure mode - unreadable file, invalid JSON, schema mismatch,
+    config-fingerprint mismatch, wrong shape, bad or stale timestamp -
     returns None (cache treated as absent, never a crash).
 
     A served report is stamped with ``from_cache: True`` and
@@ -1481,7 +1607,7 @@ _HTTP_PROBE_URLS = {
 
 # Per-source exception to "a 4xx still means the endpoint responded". The
 # keyless Reddit lanes send no credentials, so a 403/429 there is the host
-# refusing this client — the exact failure the engine hits — not reachability.
+# refusing this client - the exact failure the engine hits - not reachability.
 _PROBE_BLOCKED_STATUSES = {"reddit": frozenset({403, 429})}
 
 # Probe with the identity the lane sends, or the probe measures the User-Agent
@@ -1530,7 +1656,7 @@ def _http_ok(
     connection/timeout error means it did not.
 
     ``blocked_statuses`` names the per-source codes that mean "responded, but
-    refused us" (Reddit's keyless 403/429) — those are a failure, not
+    refused us" (Reddit's keyless 403/429) - those are a failure, not
     reachability. ``headers`` overrides the probe identity so a source can be
     probed with the same User-Agent its lane sends.
     """
@@ -1628,7 +1754,7 @@ def run(
     is verified, not guessed.
     ``cached=True`` serves the stored report within the TTL; stale, absent,
     corrupt, schema-mismatched, or fingerprint-mismatched caches fall
-    through to a live run that rewrites the cache — as does ANY exception
+    through to a live run that rewrites the cache - as does ANY exception
     raised while serving the cache (never-crash contract, KTD 8).
     ``cached=False`` (explicit ``doctor``) always runs live and refreshes.
     """

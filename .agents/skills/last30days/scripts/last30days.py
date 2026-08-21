@@ -119,6 +119,42 @@ def resolve_requested_sources(args_search: str | None, config: dict) -> list[str
     return None
 
 
+def add_deep_research_source(
+    requested_sources: list[str] | None,
+) -> list[str] | None:
+    """Add Perplexity without replacing the default-source sentinel.
+
+    ``None`` means that the planner can use the normal configured source set.
+    Deep Research enables Perplexity through ``INCLUDE_SOURCES`` separately, so
+    converting this sentinel to ``["perplexity"]`` would suppress every normal
+    source.
+    """
+    if requested_sources is None:
+        return None
+    if "perplexity" in requested_sources:
+        return requested_sources
+    return [*requested_sources, "perplexity"]
+
+
+def enable_deep_research_source(config: dict) -> None:
+    """Enable the exact Perplexity token or reject a hard exclusion."""
+    excluded = {
+        token.strip().lower()
+        for token in str(config.get("EXCLUDE_SOURCES") or "").split(",")
+        if token.strip()
+    }
+    if "perplexity" in excluded:
+        raise ValueError(
+            "--deep-research conflicts with EXCLUDE_SOURCES=perplexity"
+        )
+
+    include = str(config.get("INCLUDE_SOURCES") or "")
+    tokens = [token.strip() for token in include.split(",") if token.strip()]
+    if "perplexity" not in {token.lower() for token in tokens}:
+        tokens.append("perplexity")
+        config["INCLUDE_SOURCES"] = ",".join(tokens)
+
+
 def plan_has_explicit_trustpilot_domain(comp_plan: dict | None) -> bool:
     """True when any --competitors-plan entry pins a trustpilot_domain."""
     if not comp_plan:
@@ -141,7 +177,7 @@ def activate_trustpilot_for_explicit_domain(
     """Activate the opt-in Trustpilot source when the user pinned a domain.
 
     Passing ``--trustpilot-domain`` (or a plan-level ``trustpilot_domain``) is
-    unambiguous intent — silently ignoring it when Trustpilot is not in
+    unambiguous intent - silently ignoring it when Trustpilot is not in
     ``INCLUDE_SOURCES`` / ``--search`` is the #873 failure mode. Auto-resolve
     hints must not call this helper.
 
@@ -681,7 +717,7 @@ def build_parser() -> argparse.ArgumentParser:
                         help="Web search backend (default: auto, tries Brave then Exa then Serper then Parallel; "
                              "keyless forces the zero-key DuckDuckGo/SearXNG floor)")
     parser.add_argument("--deep-research", action="store_true",
-                        help="Use Perplexity Deep Research (~$0.90/query) for in-depth analysis. Requires PERPLEXITY_API_KEY or OPENROUTER_API_KEY.")
+                        help="Use at most one Perplexity Deep Research run. Direct PERPLEXITY_API_KEY uses the Agent API background path; OPENROUTER_API_KEY keeps the synchronous Sonar fallback; cannot be combined with competitor or vs-mode.")
     parser.add_argument("--hiring-signals", action="store_true",
                         help="Analyze public jobs/careers postings as evidence-backed company focus signals.")
     parser.add_argument("--plan", help="JSON query plan (skips internal LLM planner). Can be a JSON string or a file path.")
@@ -733,6 +769,18 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     parser.add_argument(
+        "--amazon-query",
+        help=(
+            "Product keyword the amazon source searches, when that source is active. "
+            "Defaults to the topic. Supply it whenever the topic is not the product: "
+            "a person topic searches their company's product line "
+            "(--amazon-query='June Oven'), and a brand searches brand-plus-category "
+            "(--amazon-query='Weber grill', not 'Weber' -- a bare brand keyword lands "
+            "on an ad-heavy page that can miss the brand's own bestsellers). "
+            "Requires the brightdata CLI on PATH and logged in."
+        ),
+    )
+    parser.add_argument(
         "--competitors",
         nargs="?",
         const=2,
@@ -754,7 +802,7 @@ def build_parser() -> argparse.ArgumentParser:
             "to be included. Use for ambiguous single-token topics like 'Warriors' "
             "(nba,gsw,golden-state) to filter out Glasgow Warriors rugby, Honor "
             "of Kings Rogue Warriors, etc. When omitted, Polymarket returns all "
-            "matching markets — so expect cross-entity noise on generic topics."
+            "matching markets - so expect cross-entity noise on generic topics."
         ),
     )
     parser.add_argument(
@@ -836,7 +884,7 @@ def subrun_kwargs_for(
     Plan values win over auto_resolve values. Returns keys for all per-entity
     targeting flags so callers never fall through to closure defaults.
 
-    This helper is the single source of truth for sub-run kwargs — main-topic
+    This helper is the single source of truth for sub-run kwargs - main-topic
     flags can only leak if a caller bypasses it.
     """
     def _choose(plan_key: str, resolved_key: str | None = None):
@@ -924,9 +972,9 @@ def apply_vs_competitor_routing(
 
     Precedence for *who* runs:
       1. ``--competitors-list`` (explicit peers; topic unchanged)
-      2. Pure discover-N (``--competitors`` without list or plan) — topic
+      2. Pure discover-N (``--competitors`` without list or plan) - topic
          unchanged, even if it contains ``vs``
-      3. vs-string split (first entity becomes main topic) — used for bare
+      3. vs-string split (first entity becomes main topic) - used for bare
          vs-topics and vs-topic + ``--competitors-plan``
       4. ``--competitors-plan`` keys as peers when there is no vs-string
          (including when ``--competitors N`` is also set)
@@ -1078,7 +1126,7 @@ def _show_runtime_ui(
     promo = _missing_sources_for_promo(diag)
     # The `web` promo nudges users to set BRAVE_API_KEY / SERPER_API_KEY, which
     # is wrong advice when a hosting reasoning model (Claude Code, Codex,
-    # Hermes, Gemini) is driving — those already have WebSearch and can
+    # Hermes, Gemini) is driving - those already have WebSearch and can
     # pre-resolve Step 0.55 themselves. Suppress the web promo when a hosting
     # model signal is present (--plan or --competitors-plan was passed).
     if promo:
@@ -1354,7 +1402,7 @@ def _run_drill(
     drill_config = _drill_config(config, sources)
     diag = pipeline.diagnose(drill_config, sources, safe=False)
     progress = ui.ProgressDisplay(
-        f"{report.topic} — drill: {args.drill}",
+        f"{report.topic} - drill: {args.drill}",
         show_banner=True,
     )
     progress.start_processing()
@@ -2746,6 +2794,40 @@ def _run_library_search(
     return 0
 
 
+def _looks_like_entity_topic(topic: str) -> bool:
+    """Whether a topic names a person, company, or product rather than a theme.
+
+    Keys on brevity, not capitalization. People type lowercase: "bentgo",
+    "peter steinberger" and "getenergy.com" are entity searches every bit as
+    much as their title-cased forms, and requiring a capital meant the most
+    common real-world spelling never resolved a handle.
+
+    A short topic is an entity search; a longer one is a theme. "Peter
+    Steinberger", "bentgo" and "getenergy.com" qualify; "best AI coding tools
+    2026" and "how to build agents that scale" do not. Question-shaped topics
+    are themes regardless of length.
+
+    Used only to decide whether resolving an X handle is worth one web search,
+    so a false negative costs the old behavior and a false positive costs a
+    single search.
+    """
+    text = (topic or "").strip()
+    if not text or text.endswith("?"):
+        return False
+    words = [w for w in re.findall(r"[A-Za-z0-9_.@'-]+", text) if w]
+    if not words or len(words) > 4:
+        return False
+    if any(w.startswith("@") for w in words):
+        return True
+    # A theme reads as a phrase built from common words; an entity does not.
+    common = {
+        "best", "top", "how", "why", "what", "when", "vs", "versus", "guide",
+        "tips", "review", "reviews", "news", "latest", "update", "updates",
+        "trends", "tools", "and", "or", "for", "the", "with", "about",
+    }
+    return not any(w.lower() in common for w in words)
+
+
 def main() -> int:
     parser = build_parser()
     # Use parse_known_args so setup sub-flags (--device-auth, --github,
@@ -2897,7 +2979,7 @@ def _main(
             allow_browser_cookies=_setup_allows_browser_cookies(args, extra_argv),
         )
         # Persist FROM_BROWSER only when every service's cookies came from the
-        # SAME single browser — then we can fast-path future runs to it. If
+        # SAME single browser - then we can fast-path future runs to it. If
         # different services matched different browsers, or none matched, leave
         # FROM_BROWSER unset so the safe default remains no browser-cookie
         # reads. We deliberately do NOT pin "auto" here (it would re-probe
@@ -2918,6 +3000,13 @@ def _main(
 
     # Bare --discover (no domain) is global trending, so the dispatch keys on
     # "flag present" (is not None), never on the domain string's truthiness.
+    if args.deep_research and not topic:
+        sys.stderr.write(
+            "[last30days] --deep-research requires a normal positional topic; "
+            "it cannot be combined with discovery, drill, or cached-only modes.\n"
+        )
+        return 2
+
     if args.discover is not None:
         if topic:
             sys.stderr.write(
@@ -3037,6 +3126,41 @@ def _main(
     if args.lookback_days is None:
         args.lookback_days = 30
 
+    if args.deep_research and not args.diagnose:
+        from lib import planner as _planner
+
+        if not (
+            config.get("PERPLEXITY_API_KEY")
+            or config.get("OPENROUTER_API_KEY")
+        ):
+            print(
+                "Error: --deep-research requires PERPLEXITY_API_KEY or "
+                "OPENROUTER_API_KEY",
+                file=sys.stderr,
+            )
+            return 1
+        comparison_requested = any(
+            value is not None
+            for value in (
+                args.competitors,
+                args.competitors_list,
+                args.competitors_plan,
+            )
+        ) or len(_planner._comparison_entities(topic, uncapped=True)) >= 2
+        if comparison_requested:
+            sys.stderr.write(
+                "Error: --deep-research cannot be combined with competitor or vs-mode. "
+                "It permits one paid Deep Research run per user action; run each topic "
+                "separately.\n"
+            )
+            return 2
+        config["_deep_research"] = True
+        try:
+            enable_deep_research_source(config)
+        except ValueError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return 2
+
     # Reject a misspelled configured register before remote submission or any
     # local source retrieval. Excluded modes resolve to default and remain
     # unaffected by the register setting.
@@ -3068,6 +3192,7 @@ def _main(
         and env.read_secret_env("LAST30DAYS_API_KEY")
         and os.environ.get("LAST30DAYS_API_BASE")
         and not resolved_corpus_dirs
+        and not args.deep_research
     ):
         if _freshness_enabled(args, config):
             if args.verify_freshness is True:
@@ -3102,6 +3227,8 @@ def _main(
         return hosted.run_hosted(topic, depth, **hosted_kwargs)
 
     requested_sources = resolve_requested_sources(args.search, config)
+    if args.deep_research:
+        requested_sources = add_deep_research_source(requested_sources)
     # Explicit --trustpilot-domain is user intent: activate the opt-in source
     # before diagnose/run so the flag cannot silently no-op (#873). Auto-resolve
     # hints are applied later and must not call this path.
@@ -3119,6 +3246,11 @@ def _main(
     if args.diagnose:
         print(json.dumps(diag, indent=2, sort_keys=True))
         return 0
+
+    # Competitor sub-runs shallow-copy this config. The shared object makes the
+    # paid Perplexity cap command-wide and thread-safe across that fanout. Keep
+    # this runtime-only object out of the safe diagnose configuration contract.
+    config["_perplexity_paid_budget"] = pipeline.PaidSourceBudget()
 
     if not topic:
         parser.print_usage(sys.stderr)
@@ -3141,7 +3273,11 @@ def _main(
             sys.stderr.write(refuse_msg)
             return 2
 
-    if args.emit == "html" and synthesis_md is not None:
+    if (
+        args.emit == "html"
+        and synthesis_md is not None
+        and not args.deep_research
+    ):
         cached = _load_last_report_cache(
             topic,
             ttl_seconds=_report_cache_ttl_seconds(config),
@@ -3224,6 +3360,28 @@ def _main(
         # without WebSearch (OpenClaw, Codex, raw CLI).
         repos_from_auto_resolve = False
         trustpilot_domain_is_hint = False
+        # Resolve automatically for entity-shaped topics even without the flag.
+        # A person or company topic whose handle the user did not supply is the
+        # case where first-party evidence is hardest to protect: the handle is
+        # absent from the topic and may never appear in retrieved mentions, so
+        # nothing downstream can identify the subject's own posts. One web
+        # search closes that. If it returns nothing, pipeline.run skips the X
+        # relevance floor entirely - a noisier report beats losing evidence.
+        # Skipped when a handle was already supplied, when an external plan
+        # owns resolution, or in mock runs.
+        if (
+            not args.auto_resolve
+            and not external_plan
+            and not args.x_handle
+            and not args.mock
+            and _looks_like_entity_topic(topic)
+        ):
+            args.auto_resolve = True
+            sys.stderr.write(
+                "[AutoResolve] entity-shaped topic with no --x-handle; "
+                "resolving the subject's handle so its own posts are not pruned\n"
+            )
+
         if args.auto_resolve and not external_plan:
             from lib import resolve
             resolution = resolve.auto_resolve(topic, config)
@@ -3233,6 +3391,8 @@ def _main(
             if resolution.get("x_handle") and not args.x_handle:
                 args.x_handle = resolution["x_handle"]
                 sys.stderr.write(f"[AutoResolve] X handle: @{args.x_handle}\n")
+            # Empty x_handle is intentional: do not invent a lexical stand-in.
+            # pipeline.run treats an unidentified subject as "skip the X floor".
             if resolution.get("github_user") and not args.github_user:
                 args.github_user = resolution["github_user"]
                 sys.stderr.write(f"[AutoResolve] GitHub user: @{args.github_user}\n")
@@ -3286,17 +3446,6 @@ def _main(
                     f"{','.join(original_github_repos)} -> {','.join(github_repos)}\n"
                 )
 
-        # --deep-research: auto-enable perplexity source and set deep flag
-        if args.deep_research:
-            if not (config.get("PERPLEXITY_API_KEY") or config.get("OPENROUTER_API_KEY")):
-                print("Error: --deep-research requires PERPLEXITY_API_KEY or OPENROUTER_API_KEY", file=sys.stderr)
-                sys.exit(1)
-            config["_deep_research"] = True
-            # Auto-enable perplexity in INCLUDE_SOURCES
-            include = config.get("INCLUDE_SOURCES") or ""
-            if "perplexity" not in include.lower():
-                config["INCLUDE_SOURCES"] = f"{include},perplexity" if include else "perplexity"
-
         # Polymarket disambiguation: if user passed --polymarket-keywords,
         # store on config so the polymarket adapter can filter matches.
         if args.polymarket_keywords:
@@ -3308,6 +3457,28 @@ def _main(
             if keywords:
                 config["_polymarket_keywords"] = keywords
 
+        # Product keyword for the amazon source. Carried on config rather than
+        # threaded through the run signature (the _polymarket_keywords idiom):
+        # it is one optional string consumed in exactly two places.
+        if getattr(args, "amazon_query", None):
+            config["_amazon_query"] = args.amazon_query.strip()
+            # Unlike --trustpilot-domain, this flag deliberately does NOT
+            # auto-activate its source: the lane spends metered credits, so
+            # turning it on stays an explicit request. But silence is the
+            # wrong failure mode -- a model that resolves the keyword and
+            # forgets the --search token would otherwise get no signal at
+            # all that the flag did nothing.
+            _amazon_requested = (
+                (requested_sources and "amazon" in requested_sources)
+                or "amazon" in str(config.get("INCLUDE_SOURCES") or "").lower()
+            )
+            if not _amazon_requested:
+                sys.stderr.write(
+                    "[Amazon] --amazon-query was set but the amazon source was not "
+                    "requested; add it to --search (e.g. --search reddit,x,amazon) "
+                    "or set INCLUDE_SOURCES=amazon. Ignoring the keyword.\n"
+                )
+
         # vs-mode / plan routing: split a vs-topic into main + peers unless
         # discover-N or an explicit --competitors-list already decided who runs.
         topic, comp_enabled, comp_count, comp_explicit = apply_vs_competitor_routing(
@@ -3318,6 +3489,10 @@ def _main(
             comp_explicit=comp_explicit,
             comp_plan=comp_plan,
         )
+        if comp_enabled:
+            config["_perplexity_paid_budget"] = pipeline.PaidSourceBudget(
+                owner=topic,
+            )
 
         # Plan alone with zero peers (empty/invalid JSON object, or all entries
         # skipped) must not fall through to discover-N with a misleading abort.
@@ -3389,7 +3564,7 @@ def _main(
                     sys.stderr.write(
                         "[Competitors] Cannot auto-discover peers without help.\n"
                         "\n"
-                        "RECOMMENDED PATH (hosting reasoning models — Claude Code, Codex, "
+                        "RECOMMENDED PATH (hosting reasoning models - Claude Code, Codex, "
                         "Hermes, Gemini, any agent with a WebSearch tool): YOU have "
                         "WebSearch. Use it to run full Step 0.55 per entity, then invoke "
                         "the engine with a vs-topic plus --competitors-plan:\n"
@@ -3428,6 +3603,14 @@ def _main(
                 # leak across sub-runs. Each sub-run writes its own
                 # `_auto_resolve_context` into its local config copy.
                 entity_config = dict(config)
+                # The Amazon keyword is entity-SPECIFIC, unlike the depth caps
+                # this shallow copy exists to inherit. Leaving the main topic's
+                # keyword in place would search Weber SKUs for a Traeger peer,
+                # render a rival's products as that peer's buyer evidence, and
+                # multiply the metered spend by the number of entities. Drop it
+                # so each peer derives its own keyword from its own topic; a
+                # per-entity keyword can ride in the --competitors-plan entry.
+                entity_config.pop("_amazon_query", None)
                 plan_entry = comp_plan.get(entity.strip().lower(), {})
                 resolved = {
                     "entity": entity,

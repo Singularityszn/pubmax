@@ -60,7 +60,7 @@ KEYCHAIN_KEYS = (
     "AUTH_TOKEN", "CT0", "BSKY_HANDLE", "BSKY_APP_PASSWORD",
     "TRUTHSOCIAL_TOKEN", "BRAVE_API_KEY", "EXA_API_KEY", "SERPER_API_KEY",
     "OPENROUTER_API_KEY", "PERPLEXITY_API_KEY", "PARALLEL_API_KEY", "XQUIK_API_KEY",
-    "XIAOHONGSHU_API_BASE", "GITHUB_TOKEN",
+    "XIAOHONGSHU_API_BASE", "GITHUB_TOKEN", "BRIGHTDATA_API_KEY",
 )
 
 # pass(1) integration: Linux/Unix analog of the Keychain source. Each key in
@@ -259,7 +259,7 @@ def _load_keychain(keys: list[str], aliases: dict[str, list[dict[str, str]]] | N
     Each key is looked up as a generic password with service name
     ``f"{KEYCHAIN_SERVICE_PREFIX}{key}"`` for the current user. Missing items
     then fall back to optional alias metadata from
-    ``LAST30DAYS_KEYCHAIN_ALIASES``. Lookup failures are silent — Keychain is
+    ``LAST30DAYS_KEYCHAIN_ALIASES``. Lookup failures are silent - Keychain is
     the lowest-priority source and is meant to be additive over `.env` files
     and process environment.
     """
@@ -324,12 +324,12 @@ def _load_pass(keys: list[str], prefix: str) -> dict[str, str]:
     """Load credentials from a pass(1) store (no-op if `pass` is absent).
 
     The Linux/Unix analog of the macOS Keychain source. Each env-var name is
-    looked up at pass path ``f"{prefix}{key}"`` — mirroring Keychain's
-    ``last30days-<key>`` service-name convention — so any user stores keys under
+    looked up at pass path ``f"{prefix}{key}"`` - mirroring Keychain's
+    ``last30days-<key>`` service-name convention - so any user stores keys under
     that namespace without editing code (prefix overridable via
     ``LAST30DAYS_PASS_PREFIX``). The secret is decrypted in a subprocess and
     read from stdout's first line (pass keeps the secret there; any metadata
-    follows) — never written to disk, never logged. Honors ``PASSWORD_STORE_DIR``.
+    follows) - never written to disk, never logged. Honors ``PASSWORD_STORE_DIR``.
     Missing entries and failures are silent: pass is a lowest-priority, additive
     source like Keychain, so an explicit .env or process-env value still wins.
     """
@@ -349,7 +349,7 @@ def _load_pass(keys: list[str], prefix: str) -> dict[str, str]:
             )
         except (subprocess.TimeoutExpired, OSError):
             # A timeout (GPG/pinentry hanging) or exec failure isn't a per-key
-            # condition — it means the store is unusable right now. Stop instead
+            # condition - it means the store is unusable right now. Stop instead
             # of paying the timeout once per key; otherwise a locked store would
             # stall every config load by 5s x len(keys). A genuinely missing key
             # returns fast with a non-zero exit and is handled below.
@@ -436,7 +436,7 @@ def get_config(policy: ConfigLoadPolicy | None = None) -> dict[str, Any]:
     # env all win over it. Two efficiency guards so a user who merely has `pass`
     # on PATH doesn't pay for it: resolve the prefix from the loaded config/env
     # (not import time, so a .env-set LAST30DAYS_PASS_PREFIX is honored), and
-    # probe ONLY keys still unset after the higher-priority sources — an empty
+    # probe ONLY keys still unset after the higher-priority sources - an empty
     # list short-circuits with no gpg/pinentry calls at all.
     pass_prefix = (
         os.environ.get("LAST30DAYS_PASS_PREFIX")
@@ -517,8 +517,15 @@ def get_config(policy: ConfigLoadPolicy | None = None) -> dict[str, Any]:
         ('SERPER_API_KEY', None),
         ('OPENROUTER_API_KEY', None),
         ('PERPLEXITY_API_KEY', None),
-        ('LAST30DAYS_PERPLEXITY_MODE', 'sonar'),
+        ('LAST30DAYS_PERPLEXITY_MODE', 'agent'),
+        # Legacy Sonar setting. Retain it during migration so existing env
+        # files load, but the Agent adapter does not map it to a dynamic preset.
         ('LAST30DAYS_PERPLEXITY_MODEL', None),
+        ('LAST30DAYS_PERPLEXITY_AGENT_MODEL', None),
+        ('LAST30DAYS_PERPLEXITY_AGENT_PRESET', None),
+        ('LAST30DAYS_PERPLEXITY_AGENT_MAX_STEPS', None),
+        ('LAST30DAYS_PERPLEXITY_AGENT_MAX_OUTPUT_TOKENS', None),
+        ('LAST30DAYS_PERPLEXITY_AGENT_TIMEOUT_SECONDS', '120'),
         ('LAST30DAYS_PERPLEXITY_MAX_RESULTS', None),
         ('LAST30DAYS_PERPLEXITY_SEARCH_CONTEXT_SIZE', None),
         ('LAST30DAYS_PERPLEXITY_SEARCH_MODE', None),
@@ -530,6 +537,14 @@ def get_config(policy: ConfigLoadPolicy | None = None) -> dict[str, Any]:
         ('LAST30DAYS_PERPLEXITY_DEEP_TIMEOUT_SECONDS', '600'),
         ('PARALLEL_API_KEY', None),
         ('XQUIK_API_KEY', None),
+        # Bright Data CLI. Optional: the CLI normally owns its own auth via
+        # `brightdata login`, so this only matters for users who prefer an
+        # explicit key in a `.env` file or the keychain. Registered here so
+        # those layers reach the gate and the subprocess (-k) alike.
+        ('BRIGHTDATA_API_KEY', None),
+        # Amazon marketplace the amazon source searches. Non-US users point
+        # this at their own storefront (e.g. https://www.amazon.co.uk).
+        ('LAST30DAYS_AMAZON_DOMAIN', 'https://www.amazon.com'),
         # Host-native search signal: set by the SKILL.md agent-host path when the
         # invoking runtime has its own (better) web-search tool, so the engine's
         # keyless search floor stays off there. Defaults unset -> floor allowed.
@@ -743,12 +758,18 @@ def extract_browser_credentials(config: dict[str, Any]) -> dict[str, str]:
 
 
 def get_x_source_with_method(config: dict[str, Any]) -> tuple[str | None, str]:
-    """Return (source, method) for X search, where method describes the auth origin."""
-    if config.get("XAI_API_KEY"):
-        return "xai", "xai"
+    """Return (source, method) for X search, where method describes the auth origin.
+
+    Order mirrors _X_BACKEND_ORDER: bird first (cookies beat XAI_API_KEY when
+    both are present), then xai, then xurl. Grok is opt-in only and is never
+    auto-selected here.
+    """
+    # Bird first: cookies beat XAI_API_KEY when both are present.
     if config.get("AUTH_TOKEN") and config.get("CT0"):
         method = config.get("_AUTH_TOKEN_SOURCE", "env")
         return "bird", method
+    if config.get("XAI_API_KEY"):
+        return "xai", "xai"
     # Fall back to xurl CLI (official X API v2, OAuth2, free developer app)
     from . import xurl_x
     if xurl_x.is_available():
@@ -781,17 +802,27 @@ def get_reddit_source(config: dict[str, Any]) -> str | None:
 # source; the rest are ordered failover backups, tried only if the one before
 # returns nothing or errors. There is one X source ("x"); these are its
 # interchangeable backends, never run in parallel.
-#   xai   — xAI/Grok live search (XAI_API_KEY)
-#   bird  — X GraphQL scrape via the user's browser cookies (AUTH_TOKEN/CT0)
-#   xurl  — official X API v2 (xurl CLI, OAuth2)
-#   xquik — key-based REST X search (XQUIK_API_KEY); keyless of browser cookies
-_X_BACKEND_ORDER = ("xai", "bird", "xurl", "xquik")
+#   bird  - X GraphQL scrape via the user's browser cookies (AUTH_TOKEN/CT0)
+#   xai   - xAI/Grok live search (XAI_API_KEY)
+#   xurl  - official X API v2 (xurl CLI, OAuth2)
+#   xquik - key-based REST X search (XQUIK_API_KEY)
+_X_BACKEND_ORDER = ("bird", "xai", "xurl", "xquik")
+
+# Opt-in backends: never in the unpinned auto chain; require explicit pin.
+# grok is here because a leftover ~/.grok/auth.json must never steal the X
+# lane. Pin LAST30DAYS_X_BACKEND=grok to enable it.
+_X_BACKEND_OPT_IN = ("grok",)
+
+# All known backends (auto chain + opt-in): valid values for the pin var.
+_X_BACKEND_KNOWN = _X_BACKEND_ORDER + _X_BACKEND_OPT_IN
 
 # Public routing definitions for the doctor/backend-descriptor layer
 # (lib/backends.py). These are aliases for knowledge this module already
-# owns — the declared X chain order and the pin/floor env var names — so
+# owns - the declared X chain order and the pin/floor env var names - so
 # descriptors import one source of truth instead of restating it.
 X_BACKEND_ORDER = _X_BACKEND_ORDER
+X_BACKEND_OPT_IN = _X_BACKEND_OPT_IN
+X_BACKEND_KNOWN = _X_BACKEND_KNOWN
 X_BACKEND_PIN_VAR = 'LAST30DAYS_X_BACKEND'
 REDDIT_BACKEND_PIN_VAR = 'LAST30DAYS_REDDIT_BACKEND'
 REDDIT_SC_MIN_ITEMS_VAR = 'LAST30DAYS_REDDIT_SC_MIN_ITEMS'
@@ -805,6 +836,12 @@ def _x_backend_available(
 ) -> bool:
     if backend == 'xai':
         return bool(config.get('XAI_API_KEY'))
+    if backend == 'grok':
+        # Keyless relative to X: needs only an installed, signed-in grok CLI.
+        # Both surfaces are filesystem-only (PATH lookup + credential store),
+        # so local_only needs no separate branch.
+        from . import grok_x
+        return grok_x.has_stored_auth()
     if backend == 'bird':
         from . import bird_x
         return has_bird_creds and bird_x.is_bird_installed()
@@ -812,7 +849,7 @@ def _x_backend_available(
         from . import xurl_x
         if local_only:
             # Doctor/safe-diagnose path: local evidence only (PATH lookup +
-            # token store) — never the live `xurl whoami` network call.
+            # token store) - never the live `xurl whoami` network call.
             return xurl_x.has_stored_auth()
         return xurl_x.is_available()
     if backend == 'xquik':
@@ -825,16 +862,21 @@ def x_backend_chain(config: dict[str, Any], local_only: bool = False) -> list[st
 
     ``chain[0]`` is the default X source; the remaining entries are failover
     backups, used only when the one before yields no items or errors. There is
-    exactly one X source — these are its backends, never fetched in parallel.
+    exactly one X source - these are its backends, never fetched in parallel.
 
     A ``LAST30DAYS_X_BACKEND`` pin forces a single backend (no failover): the
-    user explicitly chose it. Browser-cookie probing is intentionally avoided
-    (automatic Keychain access causes popups); bird counts as available only
-    when AUTH_TOKEN and CT0 are present explicitly.
+    user explicitly chose it. Valid pin values are in ``_X_BACKEND_KNOWN``
+    (the auto chain plus opt-in backends like grok). Browser-cookie probing
+    is intentionally avoided (automatic Keychain access causes popups); bird
+    counts as available only when AUTH_TOKEN and CT0 are present explicitly.
+
+    Unpinned runs walk only ``_X_BACKEND_ORDER``: opt-in backends like grok
+    are never auto-selected. A leftover ~/.grok/auth.json must not steal the
+    X lane; pin ``LAST30DAYS_X_BACKEND=grok`` to enable it explicitly.
 
     ``local_only=True`` is the doctor/safe-diagnose flavor: availability is
     answered from local evidence only (no subprocess spawns that reach the
-    network — xurl's live `whoami` check is replaced by its on-disk token
+    network - xurl's live `whoami` check is replaced by its on-disk token
     store). Research-time callers keep the default live semantics.
     """
     from . import bird_x
@@ -843,11 +885,14 @@ def x_backend_chain(config: dict[str, Any], local_only: bool = False) -> list[st
         bird_x.set_credentials(config.get('AUTH_TOKEN'), config.get('CT0'))
 
     preferred = (config.get(X_BACKEND_PIN_VAR) or '').lower()
-    if preferred in _X_BACKEND_ORDER:
+    # Pin accepted from _X_BACKEND_KNOWN (auto chain + opt-in like grok).
+    if preferred in _X_BACKEND_KNOWN:
         if _x_backend_available(preferred, config, has_bird_creds, local_only):
             return [preferred]
         return []
 
+    # Unpinned: walk only _X_BACKEND_ORDER (bird -> xai -> xurl -> xquik).
+    # Opt-in backends like grok are never auto-selected.
     return [
         b for b in _X_BACKEND_ORDER
         if _x_backend_available(b, config, has_bird_creds, local_only)
@@ -873,7 +918,7 @@ def x_pending_browser_auth(config: dict[str, Any], local_only: bool = False) -> 
     ``reads_values: false``). As a result ``get_x_source`` returns None and X is
     dropped from ``available_sources`` even though a normal run would extract the
     same cookies and authenticate X fine. This predicate reports that
-    "available pending browser auth" state without reading a single cookie — it
+    "available pending browser auth" state without reading a single cookie - it
     keys only on the already-resolved browser list (``cookie_extraction_browsers``
     derives it from ``FROM_BROWSER`` alone, no secrets), bird being installed, and
     X having a cookie-domain mapping. Side-effect free, so the safe-inspection
@@ -881,7 +926,7 @@ def x_pending_browser_auth(config: dict[str, Any], local_only: bool = False) -> 
 
     Returns False whenever X is already available outright (static AUTH_TOKEN/CT0,
     or xAI/xurl/xquik backend), and in ``read`` mode (a real run has already
-    extracted creds, so its status must be unchanged — never "pending").
+    extracted creds, so its status must be unchanged - never "pending").
     """
     # Already available via a static backend (bird creds, xAI, xurl, xquik).
     # local_only (doctor/safe-diagnose) answers the xurl leg from the token
@@ -910,7 +955,7 @@ def is_youtube_comments_available(config: dict[str, Any]) -> bool:
     """Check if YouTube comment enrichment is available.
 
     yt-dlp fetches YouTube comments free and keyless, so when it is installed
-    comments need no credential and no ``INCLUDE_SOURCES`` opt-in — the opt-in
+    comments need no credential and no ``INCLUDE_SOURCES`` opt-in - the opt-in
     only ever existed to gate ScrapeCreators credit spend, and there is none to
     gate. ``EXCLUDE_SOURCES=youtube_comments`` remains the off-switch.
 
@@ -1203,7 +1248,7 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
     xai_available = bool(config.get('XAI_API_KEY'))
 
     # Report the TRUE auth lane (browser / env / keychain) rather than the static
-    # "env AUTH_TOKEN" label — tokens usually come from live browser cookies, and
+    # "env AUTH_TOKEN" label - tokens usually come from live browser cookies, and
     # mislabeling the lane sent past debugging down a 30-minute wrong path.
     if bird_status["authenticated"]:
         lane = config.get('_AUTH_TOKEN_SOURCE') or 'env'
@@ -1216,8 +1261,8 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
             bird_status["username"] = "probe failed (no working X auth)"
 
     # Xquik: the key-based X source used when bird's cookie auth isn't available.
-    # Probe so --diagnose reports the true state — funded, or configured-but-
-    # unpaid (402) — instead of false-green on mere key presence.
+    # Probe so --diagnose reports the true state - funded, or configured-but-
+    # unpaid (402) - instead of false-green on mere key presence.
     xquik_available = is_xquik_available(config)
     xquik_working: bool | None = None
     xquik_status = ""
@@ -1231,25 +1276,50 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
 
     # Xurl availability, computed ONCE. probe=True (a live diagnose) may run
     # the real `xurl whoami`; probe=False is the safe path (doctor,
-    # --diagnose, --preflight) and must stay local-only — the live check is
+    # --diagnose, --preflight) and must stay local-only - the live check is
     # an authenticated X API network call.
     from . import xurl_x as _xurl_x
     xurl_available = _xurl_x.is_available() if probe else _xurl_x.has_stored_auth()
 
-    # Determine active source. bird (browser cookies) and xAI win when present;
-    # when neither is available, xquik is the active X source. A probe that
-    # clearly failed (False) means xquik is not actually usable.
-    if bird_status["authenticated"]:
+    # Grok availability is filesystem-only on both paths (PATH lookup plus the
+    # credential store), so it is safe to compute here regardless of `probe`.
+    # Grok is opt-in only: it appears in grok_available but never wins the
+    # unpinned source selection.
+    from . import grok_x as _grok_x
+    grok_available = _grok_x.has_stored_auth()
+
+    # Determine active source. A pin forces a single backend (R4): ANY known
+    # pin is exclusive, mirroring x_backend_chain's [] semantics. Pinned
+    # backend available → that source. Pinned backend unavailable → None.
+    # Otherwise, order mirrors _X_BACKEND_ORDER: bird first (cookies beat
+    # XAI_API_KEY when both are present), then xai, then xurl, then xquik.
+    # Grok is opt-in only and never auto-selected; a leftover ~/.grok/auth.json
+    # must not steal the X lane.
+    pin = (config.get(X_BACKEND_PIN_VAR) or '').lower()
+    if pin and pin in _X_BACKEND_KNOWN:
+        # Pin is exclusive: pinned backend if available, else None (no fallback).
+        if pin == 'bird':
+            source = 'bird' if bird_status["authenticated"] else None
+        elif pin == 'xai':
+            source = 'xai' if xai_available else None
+        elif pin == 'xurl':
+            source = 'xurl' if xurl_available else None
+        elif pin == 'xquik':
+            source = 'xquik' if (xquik_available and xquik_working is not False) else None
+        elif pin == 'grok':
+            source = 'grok' if grok_available else None
+        else:
+            source = None
+    elif bird_status["authenticated"]:
         source = 'bird'
     elif xai_available:
         source = 'xai'
+    elif xurl_available:
+        source = 'xurl'
+    elif xquik_available and xquik_working is not False:
+        source = 'xquik'
     else:
-        if xurl_available:
-            source = 'xurl'
-        elif xquik_available and xquik_working is not False:
-            source = 'xquik'
-        else:
-            source = None
+        source = None
 
     return {
         "source": source,
@@ -1257,6 +1327,7 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
         "bird_authenticated": bird_status["authenticated"],
         "bird_username": bird_status["username"],
         "xai_available": xai_available,
+        "grok_available": grok_available,
         "xurl_available": xurl_available,
         "xquik_available": xquik_available,
         "xquik_working": xquik_working,

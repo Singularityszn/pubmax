@@ -130,6 +130,7 @@ SOURCE_COMPLETION_ORDER = [
     "arxiv",
     "techmeme",
     "trustpilot",
+    "amazon",
 ]
 
 SOURCE_COMPLETION_META = {
@@ -148,6 +149,7 @@ SOURCE_COMPLETION_META = {
     "arxiv": ("arXiv", "paper", "papers", Colors.RED),
     "techmeme": ("Techmeme", "headline", "headlines", Colors.CYAN),
     "trustpilot": ("Trustpilot", "review", "reviews", Colors.GREEN),
+    "amazon": ("Amazon", "product", "products", Colors.YELLOW),
 }
 
 
@@ -527,19 +529,19 @@ def show_diagnostic_banner(diag: dict):
 
         # Reddit
         if has_reddit and has_scrapecreators:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Reddit{Colors.RESET}    — full threads with comments          {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Reddit{Colors.RESET}    - full threads with comments          {Colors.DIM}│{Colors.RESET}")
         elif has_reddit:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Reddit{Colors.RESET}    — public threads (titles + scores)   {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Reddit{Colors.RESET}    - public threads (titles + scores)   {Colors.DIM}│{Colors.RESET}")
         else:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ Reddit{Colors.RESET}    — unavailable                         {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ Reddit{Colors.RESET}    - unavailable                         {Colors.DIM}│{Colors.RESET}")
 
         # X/Twitter
         if has_x:
             username = diag.get("bird_username", "")
             label = f"Bird ({username})" if x_backend == "bird" and username else str(x_backend or "xai").upper()
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ X/Twitter{Colors.RESET} — {label}                          {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ X/Twitter{Colors.RESET} - {label}                          {Colors.DIM}│{Colors.RESET}")
         else:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ X/Twitter{Colors.RESET} — No X auth or fallback key        {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ X/Twitter{Colors.RESET} - No X auth or fallback key        {Colors.DIM}│{Colors.RESET}")
             if diag.get("bird_installed"):
                 lines.append(f"{Colors.DIM}│{Colors.RESET}     └─ Add AUTH_TOKEN/CT0 or XAI_API_KEY      {Colors.DIM}│{Colors.RESET}")
             else:
@@ -547,21 +549,21 @@ def show_diagnostic_banner(diag: dict):
 
         # YouTube
         if has_youtube:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ YouTube{Colors.RESET}   — yt-dlp found                      {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ YouTube{Colors.RESET}   - yt-dlp found                      {Colors.DIM}│{Colors.RESET}")
         else:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ YouTube{Colors.RESET}   — yt-dlp not installed                {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.RED}❌ YouTube{Colors.RESET}   - yt-dlp not installed                {Colors.DIM}│{Colors.RESET}")
             lines.append(f"{Colors.DIM}│{Colors.RESET}     └─ Fix: brew install yt-dlp (free)                {Colors.DIM}│{Colors.RESET}")
 
         # Xiaohongshu (only show when configured)
         if has_xiaohongshu:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Xiaohongshu{Colors.RESET} — API connected + logged in         {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Xiaohongshu{Colors.RESET} - API connected + logged in         {Colors.DIM}│{Colors.RESET}")
 
         # Web
         if has_web:
             backend = native_web_backend or "native"
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Web{Colors.RESET}       — {backend} API                       {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.GREEN}✅ Web{Colors.RESET}       - {backend} API                       {Colors.DIM}│{Colors.RESET}")
         else:
-            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.YELLOW}⚡ Web{Colors.RESET}       — Add BRAVE_API_KEY or SERPER_API_KEY {Colors.DIM}│{Colors.RESET}")
+            lines.append(f"{Colors.DIM}│{Colors.RESET}  {Colors.YELLOW}⚡ Web{Colors.RESET}       - Add BRAVE_API_KEY or SERPER_API_KEY {Colors.DIM}│{Colors.RESET}")
 
         lines.append(f"{Colors.DIM}│{Colors.RESET}                                                     {Colors.DIM}│{Colors.RESET}")
         lines.append(f"{Colors.DIM}│{Colors.RESET}  Config: {Colors.BOLD}~/.config/last30days/.env{Colors.RESET}                  {Colors.DIM}│{Colors.RESET}")
@@ -574,35 +576,35 @@ def show_diagnostic_banner(diag: dict):
         lines.append("│                                                     │")
 
         if has_reddit and has_scrapecreators:
-            lines.append("│  ✅ Reddit    — full threads with comments          │")
+            lines.append("│  ✅ Reddit    - full threads with comments          │")
         elif has_reddit:
-            lines.append("│  ✅ Reddit    — public threads (titles + scores)   │")
+            lines.append("│  ✅ Reddit    - public threads (titles + scores)   │")
         else:
-            lines.append("│  ❌ Reddit    — unavailable                         │")
+            lines.append("│  ❌ Reddit    - unavailable                         │")
 
         if has_x:
-            lines.append("│  ✅ X/Twitter — available                            │")
+            lines.append("│  ✅ X/Twitter - available                            │")
         else:
-            lines.append("│  ❌ X/Twitter — No X auth or fallback key          │")
+            lines.append("│  ❌ X/Twitter - No X auth or fallback key          │")
             if diag.get("bird_installed"):
                 lines.append("│     └─ Add AUTH_TOKEN/CT0 or XAI_API_KEY           │")
             else:
                 lines.append("│     └─ Needs Node.js 22+ (Bird is bundled)           │")
 
         if has_youtube:
-            lines.append("│  ✅ YouTube   — yt-dlp found                        │")
+            lines.append("│  ✅ YouTube   - yt-dlp found                        │")
         else:
-            lines.append("│  ❌ YouTube   — yt-dlp not installed                │")
+            lines.append("│  ❌ YouTube   - yt-dlp not installed                │")
             lines.append("│     └─ Fix: brew install yt-dlp (free)                │")
 
         if has_xiaohongshu:
-            lines.append("│  ✅ Xiaohongshu — API connected + logged in         │")
+            lines.append("│  ✅ Xiaohongshu - API connected + logged in         │")
 
         if has_web:
             backend = native_web_backend or "native"
-            lines.append(f"│  ✅ Web       — {backend} API available{' ' * max(0, 13 - len(backend))}│")
+            lines.append(f"│  ✅ Web       - {backend} API available{' ' * max(0, 13 - len(backend))}│")
         else:
-            lines.append("│  ⚡ Web       — Add BRAVE_API_KEY or SERPER_API_KEY │")
+            lines.append("│  ⚡ Web       - Add BRAVE_API_KEY or SERPER_API_KEY │")
 
         lines.append("│                                                     │")
         lines.append("│  Config: ~/.config/last30days/.env                  │")

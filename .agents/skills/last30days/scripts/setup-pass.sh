@@ -19,7 +19,7 @@
 set -euo pipefail
 
 PREFIX="${LAST30DAYS_PASS_PREFIX:-last30days/}"
-# Mirrors lib/env.py::KEYCHAIN_KEYS — kept in sync via
+# Mirrors lib/env.py::KEYCHAIN_KEYS - kept in sync via
 # tests/test_env_pass.py::test_pass_keys_match_setup_script.
 ALL_KEYS=(
   OPENAI_API_KEY
@@ -43,6 +43,7 @@ ALL_KEYS=(
   XQUIK_API_KEY
   XIAOHONGSHU_API_BASE
   GITHUB_TOKEN
+  BRIGHTDATA_API_KEY
 )
 
 REPLACE=0
@@ -103,7 +104,7 @@ for key in "${TARGETS[@]}"; do
     existing=0
   fi
   if [[ "$existing" -eq 1 && "$REPLACE" -eq 0 ]]; then
-    printf "  %-28s (set, skipping — use --replace to overwrite)\n" "$key"
+    printf "  %-28s (set, skipping - use --replace to overwrite)\n" "$key"
     skipped=$((skipped + 1))
     continue
   fi

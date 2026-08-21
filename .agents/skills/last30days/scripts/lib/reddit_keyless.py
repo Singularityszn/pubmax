@@ -6,7 +6,7 @@ on whatever was discovered:
 
   Dedicated lane  entity-home subreddits (e.g. r/Kanye) pulled in full via the
                   shreddit listing partials (top+hot+new, real scores), kept
-                  whole — floor-exempt — because the sub IS the topic.
+                  whole - floor-exempt - because the sub IS the topic.
   RSS lane        reddit_rss breadth (incl. global keyword search) + broad-sub
                   listing partials for real upvote scores. Relevance-floored.
   Enrichment      shreddit comment + count enrichment (reddit_shreddit) for the
@@ -37,8 +37,8 @@ ENRICH_BUDGET = 45  # seconds total across all enrichment threads
 MAX_ENRICH_WORKERS = 4
 MAX_DERIVED_SUBS = 5  # subreddits derived from RSS results for score backfill
 # Dedicated subreddits (the entity's home, e.g. r/Kanye for "Kanye West") are
-# wholly on-topic, so pull top+hot+new — the top-of-month listing alone misses
-# fresh threads — and keep every item (floor-exempt).
+# wholly on-topic, so pull top+hot+new - the top-of-month listing alone misses
+# fresh threads - and keep every item (floor-exempt).
 DEDICATED_SORTS = ["top", "hot", "new"]
 
 
@@ -72,6 +72,51 @@ def _apply_scores(post: Dict[str, Any], scored: Dict[str, int]) -> None:
     post["engagement"]["num_comments"] = scored["num_comments"]
 
 
+def _scored_listings(
+    subreddits: List[str],
+    depth: str = "default",
+    query: str = "",
+    sorts: Optional[List[str]] = None,
+) -> List[Dict[str, Any]]:
+    """Scored subreddit listings: shreddit partials, arctic-shift supplement.
+
+    The shreddit ``community-more-posts`` partials 403 from datacenter IPs
+    (and any host Reddit decides to block). Shreddit is tried first; arctic-
+    shift supplements with any posts shreddit missed. Individual sort lanes
+    can fail silently (shreddit's ``fetch_listings`` flattens results without
+    exposing per-sort status), so arctic is called for all requested subreddits
+    and merged via deduplication. This ensures fresh posts sought through
+    ``hot`` or ``new`` are recovered even when only ``top`` succeeded. Never
+    raises.
+    """
+    posts = reddit_listing.fetch_listings(subreddits, depth=depth, query=query, sorts=sorts)
+
+    # Supplement with arctic for all requested subreddits. Shreddit's per-sort
+    # success/failure is opaque, so arctic provides coverage for any failed
+    # sort lanes (e.g., hot/new failing while top succeeded). Deduplication
+    # ensures no redundant posts when shreddit fully succeeded.
+    if subreddits:
+        try:
+            arctic_posts = reddit_arctic.fetch_listings(
+                subreddits, depth=depth, query=query, sorts=sorts
+            )
+        except Exception as exc:  # the fallback must never break the pipeline
+            _log(f"arctic-shift listing supplement failed: {exc}")
+            arctic_posts = []
+        if arctic_posts:
+            # Merge and dedupe by URL - shreddit posts take priority.
+            seen = {p["url"] for p in posts}
+            added = 0
+            for p in arctic_posts:
+                if p["url"] not in seen:
+                    seen.add(p["url"])
+                    posts.append(p)
+                    added += 1
+            if added:
+                _log(f"arctic-shift supplement: {added} new posts from {len(arctic_posts)} arctic results")
+    return posts
+
+
 def _discover(
     topic: str,
     depth: str,
@@ -83,7 +128,7 @@ def _discover(
     # an on-topic post whose title lacks the entity name is never dropped.
     dedicated_posts: List[Dict[str, Any]] = []
     if dedicated_subreddits:
-        dedicated_posts = reddit_listing.fetch_listings(
+        dedicated_posts = _scored_listings(
             dedicated_subreddits, depth=depth, query=topic, sorts=DEDICATED_SORTS
         )
         for p in dedicated_posts:
@@ -97,17 +142,17 @@ def _discover(
 
     if subreddits:
         # Targeted run: the caller chose these subreddits, so their listing cards
-        # are on-topic — include them as scored discovery AND as a score source.
-        listing_posts = reddit_listing.fetch_listings(subreddits, depth=depth, query=topic)
+        # are on-topic - include them as scored discovery AND as a score source.
+        listing_posts = _scored_listings(subreddits, depth=depth, query=topic)
         score_source = listing_posts
     else:
         # Bare global run: subreddits derived from noisy RSS results are NOT
         # reliably on-topic, so their listings are used ONLY to backfill scores
-        # onto the keyword-matched RSS posts — never merged as discovery, which
+        # onto the keyword-matched RSS posts - never merged as discovery, which
         # would flood results with high-upvote but irrelevant posts.
         listing_posts = []
         derived = _top_subreddits(rss_posts)
-        score_source = reddit_listing.fetch_listings(derived, depth=depth, query=topic)
+        score_source = _scored_listings(derived, depth=depth, query=topic)
     _log(
         f"Tier 1 (RSS) {len(rss_posts)} posts; "
         f"{'listing discovery ' + str(len(listing_posts)) if subreddits else 'score-only'}; "
@@ -220,7 +265,7 @@ def _slot_priority(topic: str, posts: List[Dict[str, Any]]) -> List[Dict[str, An
     2,000+ upvote Gemma/GPU threads took every slot, then were demoted to
     zero). Mirror rerank's demotion signal via the shared `_entity_grounded`
     check (head token of the topic's stripped primary entity present in the
-    post text) so slots go to posts likely to survive final ranking — keying
+    post text) so slots go to posts likely to survive final ranking - keying
     on the same head token keeps the two paths from diverging. Falls back to
     token-overlap relevance when the topic yields no usable primary entity.
     Within each tier the incoming
