@@ -3,7 +3,7 @@
  * Create/refresh .cursor/skills/* symlinks -> ../skills/<name>
  * so Cursor Desktop discovers the committed skill mirrors.
  */
-import { existsSync, lstatSync, mkdirSync, readdirSync, readlinkSync, rmSync, symlinkSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readdirSync, readlinkSync, rmSync, statSync, symlinkSync } from "node:fs";
 import { join, relative } from "node:path";
 
 const root = process.cwd();
@@ -32,7 +32,9 @@ let skipped = 0;
 for (const name of readdirSync(skillsRoot)) {
   const dir = join(skillsRoot, name);
   try {
-    if (!lstatSync(dir).isDirectory()) continue;
+    // Follow committed skills/* directory symlinks. lstatSync sees each mirror
+    // as a symlink and used to skip every one before Cursor links were made.
+    if (!statSync(dir).isDirectory()) continue;
   } catch {
     continue;
   }
