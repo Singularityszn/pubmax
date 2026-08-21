@@ -163,7 +163,7 @@ def _resolve_depth_settings(depth: str, config: dict[str, Any]) -> dict[str, int
     """
     settings = dict(DEPTH_SETTINGS[depth])
     # `is not None` (not truthiness) so an explicit 0 is honored as a real lower
-    # bound rather than ignored as "unset" — matches how main() stashes these.
+    # bound rather than ignored as "unset" - matches how main() stashes these.
     max_per_source = config.get("_max_per_source")
     if max_per_source is not None:
         settings["per_stream_limit"] = int(max_per_source)
@@ -363,7 +363,7 @@ def available_sources(
     ):
         available.append("pinterest")
     # xquik is a backend of the single "x" source (see env.x_backend_chain),
-    # not a separate parallel source — registered via the "x" entry above.
+    # not a separate parallel source - registered via the "x" entry above.
     exclude = {s.strip().lower() for s in (config.get("EXCLUDE_SOURCES") or "").split(",") if s.strip()}
     if exclude:
         available = [s for s in available if s not in exclude]
@@ -2163,7 +2163,7 @@ def run(
     }
     # Real X handles: --x-handle, --x-related, or @mentions in the topic. These
     # determine whether the deferred X floor applies. Topic words like "peter"
-    # are NOT real handles and should not trigger the floor — when no real
+    # are NOT real handles and should not trigger the floor - when no real
     # handle is identified, the floor is skipped entirely (policy: a noisier
     # report beats losing the subject's evidence).
     explicit_x_handles = {
@@ -2556,7 +2556,7 @@ def run(
         if h and h.strip()
     }
     # Real X handles from explicit flags, @mentions in topic, or Phase 2 discovery.
-    # When no real handle is identified, skip the X floor entirely — a noisier
+    # When no real handle is identified, skip the X floor entirely - a noisier
     # report beats losing the subject's evidence. Topic tokens like "peter" are
     # NOT real handles: they populate resolved_handles for downstream first-party
     # protection but should NOT trigger the floor.
@@ -2568,7 +2568,7 @@ def run(
     # Deferred X relevance floor. Phase 1 skipped it so this could run with the
     # run's actual resolved handles rather than a guess made before anyone knew
     # who the subject was. Applied per subquery stream so fusion sees the same
-    # shape it always has. Only applied when we have real X handles — topic
+    # shape it always has. Only applied when we have real X handles - topic
     # tokens alone cannot identify the subject.
     if real_x_handles:
         for key, stream in list(bundle.items_by_source_and_query.items()):
@@ -3516,7 +3516,7 @@ def _run_supplemental_searches(
     from_date, to_date = date_range
 
     # Convert SourceItems to dicts for entity_extract. All X items (whatever
-    # backend fetched them — bird, xai, xurl, xquik) land under the single "x"
+    # backend fetched them - bird, xai, xurl, xquik) land under the single "x"
     # slug, so this reads the whole X corpus.
     x_dicts = [
         {"author_handle": item.author or "", "text": item.body or ""}
@@ -3939,7 +3939,7 @@ def _retry_thin_sources(
     if not core:
         return
     # Note: we intentionally do NOT skip when core == topic. For short topics
-    # like "Kanye West", the 3-word core IS the topic — but the planner may
+    # like "Kanye West", the 3-word core IS the topic - but the planner may
     # have sent a different (worse) query to the source. Retrying with the
     # raw core subject is still valuable.
 
@@ -4259,7 +4259,7 @@ def _retrieve_stream_impl(
 
         # Default: public Reddit first (free). ScrapeCreators backfills when the
         # free path is empty OR returns fewer than the configured thinness floor
-        # (env.REDDIT_SC_MIN_ITEMS_VAR, default 0 = empty-only — today's
+        # (env.REDDIT_SC_MIN_ITEMS_VAR, default 0 = empty-only - today's
         # behavior, no extra credit spend unless the user opts in).
         try:
             min_items = int(config.get(env.REDDIT_SC_MIN_ITEMS_VAR) or 0)
@@ -4390,7 +4390,7 @@ def _retrieve_stream_impl(
                 if last_error.startswith("bird:")
                 else http.classify_failure(message=last_error)
             )
-            raise SourceRunError(f"All X backends failed — {last_error}", state)
+            raise SourceRunError(f"All X backends failed - {last_error}", state)
 
         # Retrieve-judge-retry: judge corpus and retry if off-topic flood.
         # Skip retry on quick/mock (same as Phase 2).
@@ -4574,7 +4574,7 @@ def _retrieve_stream_impl(
         items = linkedin.parse_linkedin_response(
             result, from_date=from_date, to_date=to_date
         )
-        # Articles never appear in post search — surface them (high signal)
+        # Articles never appear in post search - surface them (high signal)
         # via a bounded profile-enrichment lane on person topics.
         items += linkedin.enrich_articles(
             items, raw_topic or topic, token, from_date=from_date, to_date=to_date
@@ -4716,7 +4716,7 @@ def _retrieve_stream_impl(
         response = github.search_github(subquery.search_query, from_date, to_date, depth=depth, token=token)
         items = github.parse_github_response(response)
         # Note: an unauth rate-limit (response["error"]) is expected on the
-        # tokenless anon tier and returns empty here rather than raising — github
+        # tokenless anon tier and returns empty here rather than raising - github
         # is now always eligible, so raising would spam "github failed" on every
         # tokenless run. The condition is logged in github.search_github.
         items = github.enrich_with_comments(items, depth=depth, token=token)

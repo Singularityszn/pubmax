@@ -221,7 +221,7 @@ export class AgentManager {
     const planPath = join(workspace, "plan.json");
     if (!existsSync(planPath)) {
       throw new PlanValidationError(
-        `missing ${planPath} — the planner writes plan.json first; see SKILL.md → Phase 1`
+        `missing ${planPath} - the planner writes plan.json first; see SKILL.md → Phase 1`
       );
     }
     const parsedPlan = parsePlanJson(readFileSync(planPath, "utf8"), planPath);
@@ -752,21 +752,21 @@ export class AgentManager {
     if (!s.agentId && !s.runId) {
       this.recordRecoverFailure(
         s,
-        "orphaned — status was `running` but no agentId or runId recorded (likely crashed mid-spawn)"
+        "orphaned - status was `running` but no agentId or runId recorded (likely crashed mid-spawn)"
       );
       return null;
     }
     if (!s.runId) {
       this.recordRecoverFailure(
         s,
-        "orphaned — had agentId but no runId on restart"
+        "orphaned - had agentId but no runId on restart"
       );
       return null;
     }
     if (!s.agentId) {
       this.recordRecoverFailure(
         s,
-        "orphaned — had runId but no agentId on restart"
+        "orphaned - had runId but no agentId on restart"
       );
       return null;
     }
@@ -1175,7 +1175,7 @@ export class AgentManager {
           failureMode,
         });
         this.logAttention(
-          `${s.name}: cancel failed (${msg}); marked error. Cloud agent may still be running — check via Agent.list.`
+          `${s.name}: cancel failed (${msg}); marked error. Cloud agent may still be running - check via Agent.list.`
         );
         return { name: taskName, action: "cancelled" };
       }

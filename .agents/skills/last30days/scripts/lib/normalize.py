@@ -255,7 +255,7 @@ def _normalize_dripstack(
     """Normalizer for DripStack newsletter search results.
 
     DripStack returns article metadata from paid financial newsletters.
-    No engagement signal — ranking relies on DripStack's own relevanceScore
+    No engagement signal - ranking relies on DripStack's own relevanceScore
     (0-100, normalized to 0-1) plus recency. The publication name serves as
     author/attribution (e.g. "SemiAnalysis", "Bloomberg").
     """
@@ -934,7 +934,7 @@ def _normalize_linkedin(
 
     A LinkedIn article (Pulse long-form, under a /pulse/ URL) is treated as
     high signal: it ranks above ordinary posts. Detection is belt-and-suspenders
-    — honor the parser's `is_article` flag, and re-derive from the URL so an
+    - honor the parser's `is_article` flag, and re-derive from the URL so an
     article still ranks high even if the flag wasn't set upstream.
     """
     text = str(item.get("text") or "").strip()

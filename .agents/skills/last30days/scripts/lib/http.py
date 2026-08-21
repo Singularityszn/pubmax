@@ -30,7 +30,7 @@ def log(msg: str):
 MAX_RETRIES = 5
 MAX_429_RETRIES = 2
 RETRY_DELAY = 2.0
-# DNS resolution failures (gaierror) are transient — typically resolved by a
+# DNS resolution failures (gaierror) are transient - typically resolved by a
 # brief backoff and retry. Use a dedicated minimum attempt count + exponential
 # delays (1s, 2s, 4s) so callers that pass a small `retries` value still get a
 # meaningful chance to recover from a transient resolution failure.
@@ -599,7 +599,7 @@ def request(
             url = f"{url}{separator}{urlencode(filtered)}"
     # Encode any non-ASCII characters to prevent UnicodeEncodeError from
     # http.client.HTTPConnection.putrequest (which uses latin-1 internally).
-    # Only encode path, query, and fragment — not the hostname (netloc), which
+    # Only encode path, query, and fragment - not the hostname (netloc), which
     # needs IDNA encoding instead of percent-encoding for non-ASCII domains.
     parts = urlsplit(url)
     safe = '/:@!$&\'()*+,;=-._~%?#[]=+'
@@ -754,7 +754,7 @@ def request(
             else:
                 # Caller's original retry budget exhausted; an earlier DNS
                 # failure may have widened `effective_retries`, but that
-                # widening is DNS-only — don't grant extra HTTP attempts.
+                # widening is DNS-only - don't grant extra HTTP attempts.
                 break
         except urllib.error.URLError as e:
             log(f"URL Error: {e.reason}")
@@ -860,7 +860,7 @@ def get_text(
 ) -> Optional[str]:
     """Fetch a URL and return decoded text, or None on any failure.
 
-    Keyless helper for Reddit RSS and shreddit HTML endpoints — the free path
+    Keyless helper for Reddit RSS and shreddit HTML endpoints - the free path
     that replaced the now-403 ``.json`` endpoints. Sends a browser User-Agent
     and never raises: returns None on HTTP error, network failure, or timeout
     so tiered callers can fall through to the next source.
@@ -868,7 +868,7 @@ def get_text(
     Args:
         url: Request URL
         timeout: HTTP timeout per attempt in seconds
-        retries: Number of retries on failure (kept low — these tiers fail fast)
+        retries: Number of retries on failure (kept low - these tiers fail fast)
         accept: Accept header value (e.g. "application/atom+xml", "text/html")
         headers: Optional extra headers merged over the defaults
 
@@ -896,7 +896,7 @@ class RateLimiter:
 
     The keyless source tiers run under the pipeline's ThreadPoolExecutor, so a
     multi-subquery run can fire many requests at the same host at once. A bare
-    per-request retry budget does not prevent that stampede — it only reacts
+    per-request retry budget does not prevent that stampede - it only reacts
     after a 429. A token bucket bounds the *sustained* rate while still allowing
     a short burst, so legitimate parallelism is preserved (unlike a strict
     min-interval gate that would serialize every concurrent caller and could

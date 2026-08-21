@@ -22,7 +22,7 @@ const SLOP_PHRASES = [
   "Let me know if you need anything else",
   "I hope this helps",
   // Em dash AI tell
-  "—",
+  "-",
   // Decorative
   "✨",
   "🎉",

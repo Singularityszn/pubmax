@@ -29,11 +29,11 @@ Semantics and guarantees:
 - ``active_backend`` is a PREDICTION ("will use"), never an observation
   (KTD 4). Reddit is conditional mode: honest wording, no single winner.
 - On a native-search host with no web keys, engine-side web search is
-  intentionally off — doctor reports tier ``off`` with a host-native note,
+  intentionally off - doctor reports tier ``off`` with a host-native note,
   never a false-alarm error. Web search has NO env pin, only the
   ``--web-backend`` flag; the record says so.
 - No cookie reads (plan-only, like ``--diagnose``); no secret values
-  anywhere — key presence is booleans only.
+  anywhere - key presence is booleans only.
 - Per-source exception isolation: one failing probe becomes that source's
   ``error`` record; it can never blank the report.
 - Reporting problems is a successful run: the exit code is always 0.
@@ -468,7 +468,7 @@ def _x_record(config):
     # guidance. Unused grok must not swallow a genuine auto-chain failure.
     #
     # Do NOT apply this normalization when pending browser auth would make bird
-    # usable — check pending_bird first (handled above via early return).
+    # usable - check pending_bird first (handled above via early return).
     if (
         record["tier"] == TIER_ERROR
         and not record.get("pinned")
@@ -484,7 +484,7 @@ def _x_record(config):
             b.get("status") == health.MISSING for b in auto_backends
         )
         if not all_auto_missing:
-            # An auto-chain backend is configured but broken — do NOT normalize.
+            # An auto-chain backend is configured but broken - do NOT normalize.
             # Keep the original error and its repair guidance.
             return record
         grok_finding = next(
@@ -500,12 +500,12 @@ def _x_record(config):
             record["tier"] = TIER_OFF
             if grok_finding.get("status") == health.ERROR:
                 record["note"] = (
-                    "X unconfigured; grok CLI store is broken but unused (opt-in only) — "
+                    "X unconfigured; grok CLI store is broken but unused (opt-in only) - "
                     "pin LAST30DAYS_X_BACKEND=grok to enable, then fix the store"
                 )
             else:
                 record["note"] = (
-                    "X unconfigured; grok CLI available but opt-in only — "
+                    "X unconfigured; grok CLI available but opt-in only - "
                     "pin LAST30DAYS_X_BACKEND=grok to enable"
                 )
             record["fix"] = ""
@@ -1042,7 +1042,7 @@ def build_report(config: Dict[str, Any]) -> Dict[str, Any]:
 
     # Builders are independent probes (subprocess/filesystem bound), so run
     # them concurrently. ``pool.map`` preserves SOURCE_ORDER, keeping the
-    # sources dict insertion order — and render grouping — deterministic.
+    # sources dict insertion order - and render grouping - deterministic.
     with concurrent.futures.ThreadPoolExecutor(
         max_workers=min(8, len(SOURCE_ORDER))
     ) as pool:
@@ -1164,12 +1164,12 @@ def _audit_source_line(name: str, record: Dict[str, Any], state: str) -> str:
     elif record.get("detail") and record.get("tier") != TIER_OK:
         descriptors.append(record["detail"])
     if descriptors:
-        parts.append(" — " + "; ".join(descriptors))
+        parts.append(" - " + "; ".join(descriptors))
     evidence = _run_evidence_suffix(record, state)
     if evidence:
         parts.append(evidence)
     # fix is only ever populated when there is something actionable, so
-    # render it whenever present — an ok-tier record can carry one (the
+    # render it whenever present - an ok-tier record can carry one (the
     # youtube transcription-key note) and must not lose it in text mode.
     if record.get("fix"):
         parts.append(f"; fix: {record['fix']}")
@@ -1186,7 +1186,7 @@ def _sub_lane_lines(record: Dict[str, Any]) -> List[str]:
     for backup in record.get("backups") or []:
         state = "armed" if backup.get("armed") else "off"
         note = f" - {backup['note']}" if backup.get("note") else ""
-        lines.append(f"      backup: {backup['name']} — {state}{note}")
+        lines.append(f"      backup: {backup['name']} - {state}{note}")
     comments = record.get("comments")
     if comments is not None:
         state = "on" if comments.get("enabled") else "off"
@@ -1213,7 +1213,7 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
                 tail = " (installed off-PATH)"
             elif cli.get("optional"):
                 tail = " (optional)"
-        rows.append(f"  {glyph} {cli['name']} — {source}{tail}: {detail}")
+        rows.append(f"  {glyph} {cli['name']} - {source}{tail}: {detail}")
     if not rows:
         return []
     return (
@@ -1224,7 +1224,7 @@ def _cli_health_lines(report: Dict[str, Any]) -> List[str]:
 
 
 def render_text(report: Dict[str, Any]) -> str:
-    lines: List[str] = [f"last30days doctor — engine v{report['engine_version']}"]
+    lines: List[str] = [f"last30days doctor - engine v{report['engine_version']}"]
     config_block = report.get("config") or {}
     if config_block.get("global_env"):
         line = f"config: {config_block['global_env']}"
@@ -1334,7 +1334,7 @@ def build_postmortem(config: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def render_postmortem_text(pm: Dict[str, Any]) -> str:
-    lines = [f"last30days post-mortem — engine v{pm['engine_version']}"]
+    lines = [f"last30days post-mortem - engine v{pm['engine_version']}"]
     if not pm.get("present"):
         lines.append("")
         lines.append(
@@ -1363,7 +1363,7 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         lines.append("Failed:")
         for source, outcome in failed:
             detail = outcome.get("detail") or outcome.get("state")
-            lines.append(f"  ✕ {source} — {outcome.get('state')}: {detail}")
+            lines.append(f"  ✕ {source} - {outcome.get('state')}: {detail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
     if partial:
@@ -1372,7 +1372,7 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
         for source, outcome in partial:
             count = outcome.get("items_returned") or 0
             detail = outcome.get("detail")
-            tail = f" — {detail}" if detail else ""
+            tail = f" - {detail}" if detail else ""
             lines.append(f"  ⚠ {source} ({count} items){tail}")
             if outcome.get("fix_hint"):
                 lines.append(f"    fix: {outcome['fix_hint']}")
@@ -1401,11 +1401,11 @@ def render_postmortem_text(pm: Dict[str, Any]) -> str:
 # check costs one file read on the healthy path instead of a dozen probe
 # subprocesses. ``--cached`` serves the stored report within the TTL and
 # falls through to a live run (rewriting the cache) when the file is stale,
-# absent, or corrupt — corruption is treated as absence, never a crash.
+# absent, or corrupt - corruption is treated as absence, never a crash.
 # An explicit ``doctor`` (no ``--cached``) always runs live and refreshes.
 #
 # The payload carries a schema stamp (mirrors REPORT_CACHE_VERSION in
-# last30days.py) and a config fingerprint — a sha256 over the same
+# last30days.py) and a config fingerprint - a sha256 over the same
 # non-secret signals doctor already reports (key-presence booleans, backend
 # pin values, INCLUDE_SOURCES). A schema or fingerprint mismatch is treated
 # as stale, so a credential or pin change can never serve yesterday's
@@ -1466,7 +1466,7 @@ def _is_fresh(timestamp: Any, ttl_seconds: int) -> bool:
 def _config_fingerprint(config: Dict[str, Any]) -> str:
     """sha256 over the non-secret config signals doctor already reports.
 
-    Inputs are key-presence BOOLEANS (never credential values — the same
+    Inputs are key-presence BOOLEANS (never credential values - the same
     ``keys_present`` set the setup block renders), backend pin values
     (backend names, not secrets), and INCLUDE_SOURCES (not a secret).
     Adding or removing a credential, changing a pin, or toggling an opt-in
@@ -1489,7 +1489,7 @@ def _report_shape_ok(report: Any) -> bool:
     Validates everything the renderers read unguarded: the required
     top-level keys exist (dict-valued where render calls ``.get`` on them),
     and every sources record is a dict carrying a known tier and a str
-    status. Anything else is corrupt — treated as absent, never rendered.
+    status. Anything else is corrupt - treated as absent, never rendered.
     """
     if not isinstance(report, dict):
         return False
@@ -1516,8 +1516,8 @@ def _report_shape_ok(report: Any) -> bool:
 def read_cached_report(config: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Return the cached report when present, well-formed, and within TTL.
 
-    Any failure mode — unreadable file, invalid JSON, schema mismatch,
-    config-fingerprint mismatch, wrong shape, bad or stale timestamp —
+    Any failure mode - unreadable file, invalid JSON, schema mismatch,
+    config-fingerprint mismatch, wrong shape, bad or stale timestamp -
     returns None (cache treated as absent, never a crash).
 
     A served report is stamped with ``from_cache: True`` and
@@ -1607,7 +1607,7 @@ _HTTP_PROBE_URLS = {
 
 # Per-source exception to "a 4xx still means the endpoint responded". The
 # keyless Reddit lanes send no credentials, so a 403/429 there is the host
-# refusing this client — the exact failure the engine hits — not reachability.
+# refusing this client - the exact failure the engine hits - not reachability.
 _PROBE_BLOCKED_STATUSES = {"reddit": frozenset({403, 429})}
 
 # Probe with the identity the lane sends, or the probe measures the User-Agent
@@ -1656,7 +1656,7 @@ def _http_ok(
     connection/timeout error means it did not.
 
     ``blocked_statuses`` names the per-source codes that mean "responded, but
-    refused us" (Reddit's keyless 403/429) — those are a failure, not
+    refused us" (Reddit's keyless 403/429) - those are a failure, not
     reachability. ``headers`` overrides the probe identity so a source can be
     probed with the same User-Agent its lane sends.
     """
@@ -1754,7 +1754,7 @@ def run(
     is verified, not guessed.
     ``cached=True`` serves the stored report within the TTL; stale, absent,
     corrupt, schema-mismatched, or fingerprint-mismatched caches fall
-    through to a live run that rewrites the cache — as does ANY exception
+    through to a live run that rewrites the cache - as does ANY exception
     raised while serving the cache (never-crash contract, KTD 8).
     ``cached=False`` (explicit ``doctor``) always runs live and refreshes.
     """

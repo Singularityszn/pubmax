@@ -1,6 +1,6 @@
 # Streaming and Run Lifecycle
 
-`run.stream()` is an async generator of `SDKMessage` events. Same event shapes for local and cloud runtimes — write one consumer and it works everywhere.
+`run.stream()` is an async generator of `SDKMessage` events. Same event shapes for local and cloud runtimes - write one consumer and it works everywhere.
 
 ## When to stream vs. just `wait()`
 
@@ -14,7 +14,7 @@
 | Polling another run you didn't launch                 | Stream is fine  | Yes       |
 
 
-You almost always want `wait()`. You sometimes don't want `stream()`. There is no "stream without wait" pattern that's correct — the stream tells you what happened, `wait()` tells you whether it succeeded.
+You almost always want `wait()`. You sometimes don't want `stream()`. There is no "stream without wait" pattern that's correct - the stream tells you what happened, `wait()` tells you whether it succeeded.
 
 ## The Canonical Consumer
 
@@ -73,8 +73,8 @@ Model text or tool-use announcements.
 }
 ```
 
-- `TextBlock` = `{ type: "text", text: string }` — render this.
-- `ToolUseBlock` = `{ type: "tool_use", id, name, input }` — the assistant is asking to call a tool. You don't need to act on it; the runtime will execute and emit `tool_call` events. Useful for UIs that want to show "calling `grep`…" the moment the LLM asks.
+- `TextBlock` = `{ type: "text", text: string }` - render this.
+- `ToolUseBlock` = `{ type: "tool_use", id, name, input }` - the assistant is asking to call a tool. You don't need to act on it; the runtime will execute and emit `tool_call` events. Useful for UIs that want to show "calling `grep`…" the moment the LLM asks.
 
 ### `"thinking"`
 
@@ -100,7 +100,7 @@ Actual tool execution lifecycle.
 }
 ```
 
-Emitted once with `status: "running"` (args available, result undefined), then again with `status: "completed"` or `"error"` (result available). `truncated` flags mean the payload was trimmed server-side — don't try to parse it fully.
+Emitted once with `status: "running"` (args available, result undefined), then again with `status: "completed"` or `"error"` (result available). `truncated` flags mean the payload was trimmed server-side - don't try to parse it fully.
 
 ### `"status"`
 
@@ -117,7 +117,7 @@ Run lifecycle transitions. Matches `SDKStatusMessage`:
 | `"EXPIRED"`    | Run aged out                            |
 
 
-**Don't treat the `FINISHED` status event as "I can skip `wait()`"** — it's a heads-up, not a terminal result. `wait()` returns a `RunResult` with usage/duration/git info you can't get from the stream.
+**Don't treat the `FINISHED` status event as "I can skip `wait()`"** - it's a heads-up, not a terminal result. `wait()` returns a `RunResult` with usage/duration/git info you can't get from the stream.
 
 ### `"task"`
 
@@ -146,10 +146,10 @@ await agent.send(prompt, {
 });
 ```
 
-- `onDelta` fires on every raw executor delta — much finer grain than the `SDKMessage` stream. Useful for local UIs that want sub-block updates. Rare in integrations.
+- `onDelta` fires on every raw executor delta - much finer grain than the `SDKMessage` stream. Useful for local UIs that want sub-block updates. Rare in integrations.
 - `onStep` fires when a logical step completes (text + thinking + tools bundled). Similar to walking `assistant`+`tool_call` from the stream but pre-assembled.
 
-Both callbacks are awaited before the next update is pipelined — you can apply backpressure by returning a Promise. Don't put slow I/O in `onDelta` without care; it can stall the run.
+Both callbacks are awaited before the next update is pipelined - you can apply backpressure by returning a Promise. Don't put slow I/O in `onDelta` without care; it can stall the run.
 
 Prefer `run.stream()` for most consumers. Reach for `onDelta` / `onStep` only when you're building a local UI and need the finer shape.
 
@@ -161,7 +161,7 @@ if (run.supports("cancel")) {
 }
 ```
 
-`run.cancel()` is supported on both local and cloud runs. For cloud it POSTs to the server's cancel endpoint and reconciles local status from the server's authoritative response. Guard with `run.supports("cancel")` anyway — detached/replayed run handles (`Agent.getRun(...)`) may not have a live cancellation channel, and the guard is the right defensive posture.
+`run.cancel()` is supported on both local and cloud runs. For cloud it POSTs to the server's cancel endpoint and reconciles local status from the server's authoritative response. Guard with `run.supports("cancel")` anyway - detached/replayed run handles (`Agent.getRun(...)`) may not have a live cancellation channel, and the guard is the right defensive posture.
 
 After cancel, continue consuming the stream until it ends; you'll see a terminal `status` event and `run.wait()` will resolve with `status: "cancelled"`.
 
@@ -196,12 +196,12 @@ Replayed streams reconstruct events from persisted state. Tool payloads (args/re
 
 ## Backpressure and Long Streams
 
-The async iterator applies backpressure naturally — the runtime won't produce events faster than your `for await` can drain them. But if your consumer does heavy per-event work (DB writes, network calls), you can stall the run for its lifetime. Queue and process out of band when that matters.
+The async iterator applies backpressure naturally - the runtime won't produce events faster than your `for await` can drain them. But if your consumer does heavy per-event work (DB writes, network calls), you can stall the run for its lifetime. Queue and process out of band when that matters.
 
 ## Common Mistakes
 
-- **Not draining the stream** — leaves resources open. If you open `run.stream()`, you must consume it fully or call `run.cancel()`.
-- **Assuming tool `args`/`result` are always present** — they're optional; check before destructuring.
-- **Parsing `tool_call.result` as a specific shape without checking `name`** — every tool has its own shape. If you need strong typing, branch on `event.name` first.
-- **Reacting to `"status": "FINISHED"` as the end** — it's the terminal status, but `wait()` still has to resolve to give you usage/git/duration. Always `await run.wait()` too.
+- **Not draining the stream** - leaves resources open. If you open `run.stream()`, you must consume it fully or call `run.cancel()`.
+- **Assuming tool `args`/`result` are always present** - they're optional; check before destructuring.
+- **Parsing `tool_call.result` as a specific shape without checking `name`** - every tool has its own shape. If you need strong typing, branch on `event.name` first.
+- **Reacting to `"status": "FINISHED"` as the end** - it's the terminal status, but `wait()` still has to resolve to give you usage/git/duration. Always `await run.wait()` too.
 

@@ -259,7 +259,7 @@ def _load_keychain(keys: list[str], aliases: dict[str, list[dict[str, str]]] | N
     Each key is looked up as a generic password with service name
     ``f"{KEYCHAIN_SERVICE_PREFIX}{key}"`` for the current user. Missing items
     then fall back to optional alias metadata from
-    ``LAST30DAYS_KEYCHAIN_ALIASES``. Lookup failures are silent — Keychain is
+    ``LAST30DAYS_KEYCHAIN_ALIASES``. Lookup failures are silent - Keychain is
     the lowest-priority source and is meant to be additive over `.env` files
     and process environment.
     """
@@ -324,12 +324,12 @@ def _load_pass(keys: list[str], prefix: str) -> dict[str, str]:
     """Load credentials from a pass(1) store (no-op if `pass` is absent).
 
     The Linux/Unix analog of the macOS Keychain source. Each env-var name is
-    looked up at pass path ``f"{prefix}{key}"`` — mirroring Keychain's
-    ``last30days-<key>`` service-name convention — so any user stores keys under
+    looked up at pass path ``f"{prefix}{key}"`` - mirroring Keychain's
+    ``last30days-<key>`` service-name convention - so any user stores keys under
     that namespace without editing code (prefix overridable via
     ``LAST30DAYS_PASS_PREFIX``). The secret is decrypted in a subprocess and
     read from stdout's first line (pass keeps the secret there; any metadata
-    follows) — never written to disk, never logged. Honors ``PASSWORD_STORE_DIR``.
+    follows) - never written to disk, never logged. Honors ``PASSWORD_STORE_DIR``.
     Missing entries and failures are silent: pass is a lowest-priority, additive
     source like Keychain, so an explicit .env or process-env value still wins.
     """
@@ -349,7 +349,7 @@ def _load_pass(keys: list[str], prefix: str) -> dict[str, str]:
             )
         except (subprocess.TimeoutExpired, OSError):
             # A timeout (GPG/pinentry hanging) or exec failure isn't a per-key
-            # condition — it means the store is unusable right now. Stop instead
+            # condition - it means the store is unusable right now. Stop instead
             # of paying the timeout once per key; otherwise a locked store would
             # stall every config load by 5s x len(keys). A genuinely missing key
             # returns fast with a non-zero exit and is handled below.
@@ -436,7 +436,7 @@ def get_config(policy: ConfigLoadPolicy | None = None) -> dict[str, Any]:
     # env all win over it. Two efficiency guards so a user who merely has `pass`
     # on PATH doesn't pay for it: resolve the prefix from the loaded config/env
     # (not import time, so a .env-set LAST30DAYS_PASS_PREFIX is honored), and
-    # probe ONLY keys still unset after the higher-priority sources — an empty
+    # probe ONLY keys still unset after the higher-priority sources - an empty
     # list short-circuits with no gpg/pinentry calls at all.
     pass_prefix = (
         os.environ.get("LAST30DAYS_PASS_PREFIX")
@@ -802,10 +802,10 @@ def get_reddit_source(config: dict[str, Any]) -> str | None:
 # source; the rest are ordered failover backups, tried only if the one before
 # returns nothing or errors. There is one X source ("x"); these are its
 # interchangeable backends, never run in parallel.
-#   bird  — X GraphQL scrape via the user's browser cookies (AUTH_TOKEN/CT0)
-#   xai   — xAI/Grok live search (XAI_API_KEY)
-#   xurl  — official X API v2 (xurl CLI, OAuth2)
-#   xquik — key-based REST X search (XQUIK_API_KEY)
+#   bird  - X GraphQL scrape via the user's browser cookies (AUTH_TOKEN/CT0)
+#   xai   - xAI/Grok live search (XAI_API_KEY)
+#   xurl  - official X API v2 (xurl CLI, OAuth2)
+#   xquik - key-based REST X search (XQUIK_API_KEY)
 _X_BACKEND_ORDER = ("bird", "xai", "xurl", "xquik")
 
 # Opt-in backends: never in the unpinned auto chain; require explicit pin.
@@ -818,7 +818,7 @@ _X_BACKEND_KNOWN = _X_BACKEND_ORDER + _X_BACKEND_OPT_IN
 
 # Public routing definitions for the doctor/backend-descriptor layer
 # (lib/backends.py). These are aliases for knowledge this module already
-# owns — the declared X chain order and the pin/floor env var names — so
+# owns - the declared X chain order and the pin/floor env var names - so
 # descriptors import one source of truth instead of restating it.
 X_BACKEND_ORDER = _X_BACKEND_ORDER
 X_BACKEND_OPT_IN = _X_BACKEND_OPT_IN
@@ -849,7 +849,7 @@ def _x_backend_available(
         from . import xurl_x
         if local_only:
             # Doctor/safe-diagnose path: local evidence only (PATH lookup +
-            # token store) — never the live `xurl whoami` network call.
+            # token store) - never the live `xurl whoami` network call.
             return xurl_x.has_stored_auth()
         return xurl_x.is_available()
     if backend == 'xquik':
@@ -862,7 +862,7 @@ def x_backend_chain(config: dict[str, Any], local_only: bool = False) -> list[st
 
     ``chain[0]`` is the default X source; the remaining entries are failover
     backups, used only when the one before yields no items or errors. There is
-    exactly one X source — these are its backends, never fetched in parallel.
+    exactly one X source - these are its backends, never fetched in parallel.
 
     A ``LAST30DAYS_X_BACKEND`` pin forces a single backend (no failover): the
     user explicitly chose it. Valid pin values are in ``_X_BACKEND_KNOWN``
@@ -876,7 +876,7 @@ def x_backend_chain(config: dict[str, Any], local_only: bool = False) -> list[st
 
     ``local_only=True`` is the doctor/safe-diagnose flavor: availability is
     answered from local evidence only (no subprocess spawns that reach the
-    network — xurl's live `whoami` check is replaced by its on-disk token
+    network - xurl's live `whoami` check is replaced by its on-disk token
     store). Research-time callers keep the default live semantics.
     """
     from . import bird_x
@@ -918,7 +918,7 @@ def x_pending_browser_auth(config: dict[str, Any], local_only: bool = False) -> 
     ``reads_values: false``). As a result ``get_x_source`` returns None and X is
     dropped from ``available_sources`` even though a normal run would extract the
     same cookies and authenticate X fine. This predicate reports that
-    "available pending browser auth" state without reading a single cookie — it
+    "available pending browser auth" state without reading a single cookie - it
     keys only on the already-resolved browser list (``cookie_extraction_browsers``
     derives it from ``FROM_BROWSER`` alone, no secrets), bird being installed, and
     X having a cookie-domain mapping. Side-effect free, so the safe-inspection
@@ -926,7 +926,7 @@ def x_pending_browser_auth(config: dict[str, Any], local_only: bool = False) -> 
 
     Returns False whenever X is already available outright (static AUTH_TOKEN/CT0,
     or xAI/xurl/xquik backend), and in ``read`` mode (a real run has already
-    extracted creds, so its status must be unchanged — never "pending").
+    extracted creds, so its status must be unchanged - never "pending").
     """
     # Already available via a static backend (bird creds, xAI, xurl, xquik).
     # local_only (doctor/safe-diagnose) answers the xurl leg from the token
@@ -955,7 +955,7 @@ def is_youtube_comments_available(config: dict[str, Any]) -> bool:
     """Check if YouTube comment enrichment is available.
 
     yt-dlp fetches YouTube comments free and keyless, so when it is installed
-    comments need no credential and no ``INCLUDE_SOURCES`` opt-in — the opt-in
+    comments need no credential and no ``INCLUDE_SOURCES`` opt-in - the opt-in
     only ever existed to gate ScrapeCreators credit spend, and there is none to
     gate. ``EXCLUDE_SOURCES=youtube_comments`` remains the off-switch.
 
@@ -1248,7 +1248,7 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
     xai_available = bool(config.get('XAI_API_KEY'))
 
     # Report the TRUE auth lane (browser / env / keychain) rather than the static
-    # "env AUTH_TOKEN" label — tokens usually come from live browser cookies, and
+    # "env AUTH_TOKEN" label - tokens usually come from live browser cookies, and
     # mislabeling the lane sent past debugging down a 30-minute wrong path.
     if bird_status["authenticated"]:
         lane = config.get('_AUTH_TOKEN_SOURCE') or 'env'
@@ -1261,8 +1261,8 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
             bird_status["username"] = "probe failed (no working X auth)"
 
     # Xquik: the key-based X source used when bird's cookie auth isn't available.
-    # Probe so --diagnose reports the true state — funded, or configured-but-
-    # unpaid (402) — instead of false-green on mere key presence.
+    # Probe so --diagnose reports the true state - funded, or configured-but-
+    # unpaid (402) - instead of false-green on mere key presence.
     xquik_available = is_xquik_available(config)
     xquik_working: bool | None = None
     xquik_status = ""
@@ -1276,7 +1276,7 @@ def get_x_source_status(config: dict[str, Any], probe: bool = False) -> dict[str
 
     # Xurl availability, computed ONCE. probe=True (a live diagnose) may run
     # the real `xurl whoami`; probe=False is the safe path (doctor,
-    # --diagnose, --preflight) and must stay local-only — the live check is
+    # --diagnose, --preflight) and must stay local-only - the live check is
     # an authenticated X API network call.
     from . import xurl_x as _xurl_x
     xurl_available = _xurl_x.is_available() if probe else _xurl_x.has_stored_auth()

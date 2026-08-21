@@ -15,10 +15,10 @@ Cloud agents are given a `name` at `Agent.create` time so the Cursor agent list 
 | Spawn site | Agent name |
 |------------|------------|
 | Root planner (`cli.ts kickoff`) | `<first line of goal, up to 100 chars>` |
-| Worker / subplanner / verifier (`spawnTask`) | `<rootSlug>/<taskName>` — echoes the task's branch without the `orch/` prefix |
+| Worker / subplanner / verifier (`spawnTask`) | `<rootSlug>/<taskName>` - echoes the task's branch without the `orch/` prefix |
 | Model catalog probe (`probe-models`) | `probe: <modelSlug>` |
 
-The server caps names at 100 chars and rejects empty/whitespace-only values; the helpers handle both. When `name` is omitted the cloud backend auto-generates one from the first prompt, so this is purely a readability upgrade — dropping a name doesn't change behavior.
+The server caps names at 100 chars and rejects empty/whitespace-only values; the helpers handle both. When `name` is omitted the cloud backend auto-generates one from the first prompt, so this is purely a readability upgrade - dropping a name doesn't change behavior.
 
 ## Starting refs and dependencies
 
@@ -70,7 +70,7 @@ If Slack comments fail, keep working and say what happened in the handoff. Disk 
 
 After each successful spawn the script persists `agentId`, `runId`, and `parentAgentId` to `state.json`, so a later rerun can re-attach via `Agent.getRun` and read lineage from disk. A row with partial identity (exactly one of `agentId` / `runId`) on restart is marked `error` with an explanatory note. Rename and respawn, or prune.
 
-After every handoff the script reconciles dependent verifiers' `startingRef`. The actual worker branch is sourced from the handoff body's `## Branch` line — the SDK leaves `Run.git.branches[].branch` empty for worker runs, so the body is authoritative. Any verifier whose `verifies` points at the just-handed-off task and whose `startingRef` is still the `orch/<rootSlug>/<task>` placeholder is updated to that real branch. Planner-authored `startingRef` overrides win; each propagation logs to `attention.log`. Load also sweeps over already-handed-off rows so state recovered from disk converges before the next spawn.
+After every handoff the script reconciles dependent verifiers' `startingRef`. The actual worker branch is sourced from the handoff body's `## Branch` line - the SDK leaves `Run.git.branches[].branch` empty for worker runs, so the body is authoritative. Any verifier whose `verifies` points at the just-handed-off task and whose `startingRef` is still the `orch/<rootSlug>/<task>` placeholder is updated to that real branch. Planner-authored `startingRef` overrides win; each propagation logs to `attention.log`. Load also sweeps over already-handed-off rows so state recovered from disk converges before the next spawn.
 
 ## Lineage
 

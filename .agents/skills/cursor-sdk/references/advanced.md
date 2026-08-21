@@ -33,9 +33,9 @@ The key-name (`"code-reviewer"`) is how the main agent refers to the sub-agent. 
 
 ### Good use cases
 
-- **Specialized review** — spawn a reviewer sub-agent to audit changes the main agent just made.
-- **Parallel research** — the main agent delegates "summarize X", "summarize Y", "summarize Z" to three sub-agents simultaneously.
-- **Risk quarantine** — isolate destructive operations in a named sub-agent with a restricted prompt.
+- **Specialized review** - spawn a reviewer sub-agent to audit changes the main agent just made.
+- **Parallel research** - the main agent delegates "summarize X", "summarize Y", "summarize Z" to three sub-agents simultaneously.
+- **Risk quarantine** - isolate destructive operations in a named sub-agent with a restricted prompt.
 
 ### Bad use cases
 
@@ -92,9 +92,9 @@ const run = await agent.send("continue where we left off");
 
 ### What does not persist
 
-- **Inline `mcpServers`** — pass them again on resume.
+- **Inline `mcpServers`** - pass them again on resume.
 - Local: the `cwd` is identified by path. If the path is gone, resume can't find the local agent.
-- **`local.settingSources`** — ambient configuration is reloaded based on current environment.
+- **`local.settingSources`** - ambient configuration is reloaded based on current environment.
 
 ### Finding agents to resume
 
@@ -123,11 +123,11 @@ if (run.supports("stream")) {
 }
 ```
 
-`run.conversation()` returns accumulated `ConversationTurn[]` — useful for rendering a transcript UI. Live local runs include tool-call details; replayed runs reconstruct from the persisted stream and may be sparser if the originating runtime didn't capture tool args/results.
+`run.conversation()` returns accumulated `ConversationTurn[]` - useful for rendering a transcript UI. Live local runs include tool-call details; replayed runs reconstruct from the persisted stream and may be sparser if the originating runtime didn't capture tool args/results.
 
 ### Cloud run IDs vs. agent IDs
 
-Cloud agent IDs start with `bc-`. Cloud run IDs look like regular UUIDs. **Don't pass a `bc-` ID to `getRun` expecting it to work** — you need the run ID.
+Cloud agent IDs start with `bc-`. Cloud run IDs look like regular UUIDs. **Don't pass a `bc-` ID to `getRun` expecting it to work** - you need the run ID.
 
 To get a run ID from a cloud `bc-` agent:
 
@@ -144,11 +144,11 @@ for (const r of runs.items) console.log(r.id);
 const messages = await Agent.messages.list(agentId, { runtime: "local", cwd: process.cwd() });
 ```
 
-Messages are a raw, schema-stable shape — user turns, assistant turns, metadata. You'll usually pass them through `extractReadableMessages(...)`-style helpers in your code to render.
+Messages are a raw, schema-stable shape - user turns, assistant turns, metadata. You'll usually pass them through `extractReadableMessages(...)`-style helpers in your code to render.
 
 ## Artifacts
 
-On cloud agents, the agent can produce artifact files beyond the git diff — think test results, coverage reports, generated assets:
+On cloud agents, the agent can produce artifact files beyond the git diff - think test results, coverage reports, generated assets:
 
 ```typescript
 const artifacts = await agent.listArtifacts();
@@ -169,7 +169,7 @@ await Agent.delete("bc-abc123",    { apiKey });
 
 - **Archive** hides the agent from default lists but keeps history (`includeArchived: true` on `Agent.list({ runtime: "cloud" })` to include them).
 - **Unarchive** reverses it.
-- **Delete** is destructive — no undo. Scope cautiously.
+- **Delete** is destructive - no undo. Scope cautiously.
 
 Missing IDs throw. Don't swallow the error; a missing ID usually means your bookkeeping is wrong.
 
@@ -183,9 +183,9 @@ const models  = await Cursor.models.list({ apiKey });       // available model I
 const repos   = await Cursor.repositories.list({ apiKey }); // GitHub repos the caller has connected
 ```
 
-- `Cursor.models.list()` — call before constructing options if you don't know what's available. Don't hardcode exotic model IDs.
-- `Cursor.repositories.list()` — gives you `cloud.repos[].url` entries the caller can actually use. If you're building a UI that asks the user to pick a repo, this is your source.
-- `Cursor.me()` — confirms the key's identity. Useful in ops tooling.
+- `Cursor.models.list()` - call before constructing options if you don't know what's available. Don't hardcode exotic model IDs.
+- `Cursor.repositories.list()` - gives you `cloud.repos[].url` entries the caller can actually use. If you're building a UI that asks the user to pick a repo, this is your source.
+- `Cursor.me()` - confirms the key's identity. Useful in ops tooling.
 
 All three are cloud-only and require an API key.
 
@@ -197,9 +197,9 @@ Call after you change local settings (`.cursor/*`, MCP config files, hook files)
 await agent.reload();
 ```
 
-Doesn't apply to in-flight runs — it affects future `send()` calls.
+Doesn't apply to in-flight runs - it affects future `send()` calls.
 
-## Putting It Together — Long-Lived Service
+## Putting It Together - Long-Lived Service
 
 ```typescript
 import { Agent } from "@cursor/sdk";

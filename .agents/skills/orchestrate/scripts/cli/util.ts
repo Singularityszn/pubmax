@@ -76,7 +76,7 @@ export function crawlBranch(
     ).toString();
   } catch {
     out.push(
-      `${indent(depth)}${branch}:${path} (not found — planner hasn't committed state yet)`
+      `${indent(depth)}${branch}:${path} (not found - planner hasn't committed state yet)`
     );
     return;
   }

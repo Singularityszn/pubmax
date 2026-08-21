@@ -177,7 +177,7 @@ def activate_trustpilot_for_explicit_domain(
     """Activate the opt-in Trustpilot source when the user pinned a domain.
 
     Passing ``--trustpilot-domain`` (or a plan-level ``trustpilot_domain``) is
-    unambiguous intent — silently ignoring it when Trustpilot is not in
+    unambiguous intent - silently ignoring it when Trustpilot is not in
     ``INCLUDE_SOURCES`` / ``--search`` is the #873 failure mode. Auto-resolve
     hints must not call this helper.
 
@@ -802,7 +802,7 @@ def build_parser() -> argparse.ArgumentParser:
             "to be included. Use for ambiguous single-token topics like 'Warriors' "
             "(nba,gsw,golden-state) to filter out Glasgow Warriors rugby, Honor "
             "of Kings Rogue Warriors, etc. When omitted, Polymarket returns all "
-            "matching markets — so expect cross-entity noise on generic topics."
+            "matching markets - so expect cross-entity noise on generic topics."
         ),
     )
     parser.add_argument(
@@ -884,7 +884,7 @@ def subrun_kwargs_for(
     Plan values win over auto_resolve values. Returns keys for all per-entity
     targeting flags so callers never fall through to closure defaults.
 
-    This helper is the single source of truth for sub-run kwargs — main-topic
+    This helper is the single source of truth for sub-run kwargs - main-topic
     flags can only leak if a caller bypasses it.
     """
     def _choose(plan_key: str, resolved_key: str | None = None):
@@ -972,9 +972,9 @@ def apply_vs_competitor_routing(
 
     Precedence for *who* runs:
       1. ``--competitors-list`` (explicit peers; topic unchanged)
-      2. Pure discover-N (``--competitors`` without list or plan) — topic
+      2. Pure discover-N (``--competitors`` without list or plan) - topic
          unchanged, even if it contains ``vs``
-      3. vs-string split (first entity becomes main topic) — used for bare
+      3. vs-string split (first entity becomes main topic) - used for bare
          vs-topics and vs-topic + ``--competitors-plan``
       4. ``--competitors-plan`` keys as peers when there is no vs-string
          (including when ``--competitors N`` is also set)
@@ -1126,7 +1126,7 @@ def _show_runtime_ui(
     promo = _missing_sources_for_promo(diag)
     # The `web` promo nudges users to set BRAVE_API_KEY / SERPER_API_KEY, which
     # is wrong advice when a hosting reasoning model (Claude Code, Codex,
-    # Hermes, Gemini) is driving — those already have WebSearch and can
+    # Hermes, Gemini) is driving - those already have WebSearch and can
     # pre-resolve Step 0.55 themselves. Suppress the web promo when a hosting
     # model signal is present (--plan or --competitors-plan was passed).
     if promo:
@@ -1402,7 +1402,7 @@ def _run_drill(
     drill_config = _drill_config(config, sources)
     diag = pipeline.diagnose(drill_config, sources, safe=False)
     progress = ui.ProgressDisplay(
-        f"{report.topic} — drill: {args.drill}",
+        f"{report.topic} - drill: {args.drill}",
         show_banner=True,
     )
     progress.start_processing()
@@ -2979,7 +2979,7 @@ def _main(
             allow_browser_cookies=_setup_allows_browser_cookies(args, extra_argv),
         )
         # Persist FROM_BROWSER only when every service's cookies came from the
-        # SAME single browser — then we can fast-path future runs to it. If
+        # SAME single browser - then we can fast-path future runs to it. If
         # different services matched different browsers, or none matched, leave
         # FROM_BROWSER unset so the safe default remains no browser-cookie
         # reads. We deliberately do NOT pin "auto" here (it would re-probe
@@ -3366,7 +3366,7 @@ def _main(
         # absent from the topic and may never appear in retrieved mentions, so
         # nothing downstream can identify the subject's own posts. One web
         # search closes that. If it returns nothing, pipeline.run skips the X
-        # relevance floor entirely — a noisier report beats losing evidence.
+        # relevance floor entirely - a noisier report beats losing evidence.
         # Skipped when a handle was already supplied, when an external plan
         # owns resolution, or in mock runs.
         if (
@@ -3564,7 +3564,7 @@ def _main(
                     sys.stderr.write(
                         "[Competitors] Cannot auto-discover peers without help.\n"
                         "\n"
-                        "RECOMMENDED PATH (hosting reasoning models — Claude Code, Codex, "
+                        "RECOMMENDED PATH (hosting reasoning models - Claude Code, Codex, "
                         "Hermes, Gemini, any agent with a WebSearch tool): YOU have "
                         "WebSearch. Use it to run full Step 0.55 per entity, then invoke "
                         "the engine with a vs-topic plus --competitors-plan:\n"

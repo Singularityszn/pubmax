@@ -2,7 +2,7 @@
 
 Five starting templates for the shapes people actually build. Copy one, delete what you don't need.
 
-Each pattern applies the [error-handling](error-handling.md) and [streaming](streaming.md) best practices from the rest of this skill — don't strip them when adapting.
+Each pattern applies the [error-handling](error-handling.md) and [streaming](streaming.md) best practices from the rest of this skill - don't strip them when adapting.
 
 ---
 
@@ -190,7 +190,7 @@ process.exit(result.status === "finished" ? 0 : 2);
 Why this shape:
 
 - `Agent.prompt` disposes for you. Perfect for throwaway CLIs.
-- No streaming — it's a one-shot.
+- No streaming - it's a one-shot.
 - Exit code carries status; use in shell pipelines (`&&`, `|| fallback`).
 
 ---
@@ -254,12 +254,12 @@ app.listen(3000);
 
 Why this shape:
 
-- Service-account key, not user keys — this is shared infrastructure.
+- Service-account key, not user keys - this is shared infrastructure.
 - `await using` per request; no lingering agent handles between requests.
 - `userAgents` is a stand-in for your database; persist `agentId` per user for resume.
 - Error surface passes `isRetryable` through so callers can back off intelligently.
 
-Don't do this if you need response streaming to the client — switch to `run.stream()` into a server-sent-events endpoint.
+Don't do this if you need response streaming to the client - switch to `run.stream()` into a server-sent-events endpoint.
 
 ---
 
@@ -307,7 +307,7 @@ console.log(JSON.stringify(results, null, 2));
 
 Why this shape:
 
-- `Promise.allSettled` — one repo failing doesn't torpedo the others.
+- `Promise.allSettled` - one repo failing doesn't torpedo the others.
 - Cloud runtime because cloud agents are actually independent VMs; local fan-out would serialize through the caller's machine.
 - Per-agent `await using` so each completes cleanup even when others are still running.
 - `autoCreatePR: false` because we want to review results first; run a follow-up to open PRs once you've picked which ones pass the audit.

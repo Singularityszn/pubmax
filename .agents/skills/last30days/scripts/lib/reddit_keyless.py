@@ -6,7 +6,7 @@ on whatever was discovered:
 
   Dedicated lane  entity-home subreddits (e.g. r/Kanye) pulled in full via the
                   shreddit listing partials (top+hot+new, real scores), kept
-                  whole — floor-exempt — because the sub IS the topic.
+                  whole - floor-exempt - because the sub IS the topic.
   RSS lane        reddit_rss breadth (incl. global keyword search) + broad-sub
                   listing partials for real upvote scores. Relevance-floored.
   Enrichment      shreddit comment + count enrichment (reddit_shreddit) for the
@@ -37,8 +37,8 @@ ENRICH_BUDGET = 45  # seconds total across all enrichment threads
 MAX_ENRICH_WORKERS = 4
 MAX_DERIVED_SUBS = 5  # subreddits derived from RSS results for score backfill
 # Dedicated subreddits (the entity's home, e.g. r/Kanye for "Kanye West") are
-# wholly on-topic, so pull top+hot+new — the top-of-month listing alone misses
-# fresh threads — and keep every item (floor-exempt).
+# wholly on-topic, so pull top+hot+new - the top-of-month listing alone misses
+# fresh threads - and keep every item (floor-exempt).
 DEDICATED_SORTS = ["top", "hot", "new"]
 
 
@@ -104,7 +104,7 @@ def _scored_listings(
             _log(f"arctic-shift listing supplement failed: {exc}")
             arctic_posts = []
         if arctic_posts:
-            # Merge and dedupe by URL — shreddit posts take priority.
+            # Merge and dedupe by URL - shreddit posts take priority.
             seen = {p["url"] for p in posts}
             added = 0
             for p in arctic_posts:
@@ -142,13 +142,13 @@ def _discover(
 
     if subreddits:
         # Targeted run: the caller chose these subreddits, so their listing cards
-        # are on-topic — include them as scored discovery AND as a score source.
+        # are on-topic - include them as scored discovery AND as a score source.
         listing_posts = _scored_listings(subreddits, depth=depth, query=topic)
         score_source = listing_posts
     else:
         # Bare global run: subreddits derived from noisy RSS results are NOT
         # reliably on-topic, so their listings are used ONLY to backfill scores
-        # onto the keyword-matched RSS posts — never merged as discovery, which
+        # onto the keyword-matched RSS posts - never merged as discovery, which
         # would flood results with high-upvote but irrelevant posts.
         listing_posts = []
         derived = _top_subreddits(rss_posts)
@@ -265,7 +265,7 @@ def _slot_priority(topic: str, posts: List[Dict[str, Any]]) -> List[Dict[str, An
     2,000+ upvote Gemma/GPU threads took every slot, then were demoted to
     zero). Mirror rerank's demotion signal via the shared `_entity_grounded`
     check (head token of the topic's stripped primary entity present in the
-    post text) so slots go to posts likely to survive final ranking — keying
+    post text) so slots go to posts likely to survive final ranking - keying
     on the same head token keeps the two paths from diverging. Falls back to
     token-overlap relevance when the topic yields no usable primary entity.
     Within each tier the incoming

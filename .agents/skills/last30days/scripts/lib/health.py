@@ -70,7 +70,7 @@ def probe_command(
     Separating these is what lets the caller emit a correct repair prescription
     instead of a generic "failed":
       - ``missing``: the executable is not on PATH.
-      - ``broken``: on PATH but won't run — FileNotFoundError/OSError on exec, or
+      - ``broken``: on PATH but won't run - FileNotFoundError/OSError on exec, or
         shell exit 126/127 (not-executable / not-found-after-resolution), the
         signature of a stale interpreter shim after an upgrade.
       - ``timeout``: exceeded ``timeout`` seconds.
@@ -116,7 +116,7 @@ def probe_command(
 #   - If not, WHICH fix applies (install vs reinstall vs a PATH edit), keyed to
 #     the package manager that owns the binary on this machine?
 #   - Is an on-disk binary merely off the agent-subprocess PATH (the Digg
-#     ~/.local/bin case) — MISSING with a PATH-fix, never "installed"?
+#     ~/.local/bin case) - MISSING with a PATH-fix, never "installed"?
 #
 # Semantics follow the engine gate: availability means PATH-resolvable in THIS
 # process, not present-on-disk. Probes are one short-timeout version exec each
@@ -142,7 +142,7 @@ _VERSION_ARGS: Dict[str, List[str]] = {
 # Package managers each dependency may be owned by, in preference order, and
 # the (install, reinstall) prescription for each. "reinstall" wording matters:
 # a BROKEN binary is present, so telling the user to "install" it reads as a
-# no-op ("it's already installed") — the stale-shim trap this module exists
+# no-op ("it's already installed") - the stale-shim trap this module exists
 # to name.
 _MANAGER_PRESCRIPTIONS: Dict[str, Dict[str, Tuple[str, str]]] = {
     "yt-dlp": {
@@ -301,7 +301,7 @@ def installer_bin_dirs() -> List[Path]:
     """Installer-managed bin dirs shared with setup_wizard's Digg candidates.
 
     Single source of truth for where installers drop binaries: the Printing
-    Press library default (~/.local/bin), Go bins, and — on Windows — the
+    Press library default (~/.local/bin), Go bins, and - on Windows - the
     managed %LOCALAPPDATA%/Programs/PrintingPress/bin dir.
     ``setup_wizard._digg_bin_candidate_paths`` derives its Digg-specific
     paths from this list; keep the two in lockstep by editing only here.
@@ -358,11 +358,11 @@ def probe_dependency(name: str, timeout: float = PROBE_TIMEOUT) -> DependencyPro
     """Probe one external dependency: OK | MISSING | BROKEN | TIMEOUT.
 
     - MISSING: not resolvable on this process's PATH. If the binary exists in
-      a known install dir, the prescription is a PATH edit, not an install —
+      a known install dir, the prescription is a PATH edit, not an install -
       installing again would not fix anything.
     - BROKEN: shutil.which resolves it but a cheap version exec fails
       (OSError/exec-format, or any non-zero exit). Prescription says
-      *reinstall* — the #692 stale-shim class must never read as available.
+      *reinstall* - the #692 stale-shim class must never read as available.
     - TIMEOUT: the version exec exceeded the per-probe budget.
     - OK: version exec exited 0; ``detail`` carries the version line.
 

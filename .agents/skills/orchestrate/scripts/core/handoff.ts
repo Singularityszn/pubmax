@@ -185,7 +185,7 @@ finishedAt: ${args.finishedAt}
   const banner =
     args.resultStatus === "finished"
       ? ""
-      : `> ⚠️ Run ended with \`status=${args.resultStatus}\`. No structured handoff produced — the content below is the worker's raw output up to the point of failure.\n\n`;
+      : `> ⚠️ Run ended with \`status=${args.resultStatus}\`. No structured handoff produced - the content below is the worker's raw output up to the point of failure.\n\n`;
   const tmp = `${path}.tmp`;
   writeFileSync(
     tmp,

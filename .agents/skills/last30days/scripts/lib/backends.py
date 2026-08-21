@@ -1,7 +1,7 @@
 """Backend-chain descriptors with predicted selection (doctor, R4).
 
-Chained sources declare their routing here ONCE — imported from the
-definitions ``lib/env.py`` already owns (chain order, pin var names) — and
+Chained sources declare their routing here ONCE - imported from the
+definitions ``lib/env.py`` already owns (chain order, pin var names) - and
 ``resolve()`` turns side-effect-free probes into a truthful prediction of
 what the next run will do.
 
@@ -16,7 +16,7 @@ Two resolution modes:
   picking prevents an installed-but-unauthenticated preferred backend from
   shadowing a fully working fallback.
 
-- ``conditional`` (Reddit): routing is per-query and outcome-dependent —
+- ``conditional`` (Reddit): routing is per-query and outcome-dependent -
   public keyless composite by default, ScrapeCreators backfill only when
   results fall below the configured thinness floor (see the gating in
   ``lib/pipeline.py``). No probe can pick one winner, so resolution renders
@@ -24,8 +24,8 @@ Two resolution modes:
   internal keyless lanes (rss/listing/arctic/shreddit) are sub-probe detail
   inside the public composite, never chain entries.
 
-``active_backend`` semantics: a PREDICTION — "the first backend the probes
-say the next run will try" — rendered as "will use". It is not an
+``active_backend`` semantics: a PREDICTION - "the first backend the probes
+say the next run will try" - rendered as "will use". It is not an
 observation of what served a past run, and runtime failover can still
 diverge mid-run (a present-but-expired paid key passes a presence probe).
 
@@ -64,7 +64,7 @@ TIER_ERROR = "error"
 WEB_BACKEND_ORDER: Tuple[str, ...] = ("brave", "exa", "serper", "parallel", "keyless")
 
 # YouTube backend order (pipeline: yt-dlp first, ScrapeCreators search
-# fallback when yt-dlp is absent or fails — see lib/pipeline.py).
+# fallback when yt-dlp is absent or fails - see lib/pipeline.py).
 YOUTUBE_BACKEND_ORDER: Tuple[str, ...] = ("yt-dlp", "scrapecreators")
 
 # Chain-failure fixes embed the registry's CLI forms (KTD 7): the command a
@@ -97,7 +97,7 @@ class BackendFinding:
 
     @property
     def usable(self) -> bool:
-        """Fully or partially usable (OK/DEGRADED) — eligible for selection."""
+        """Fully or partially usable (OK/DEGRADED) - eligible for selection."""
         return self.status in (health.OK, health.DEGRADED)
 
 
@@ -135,7 +135,7 @@ class BackendResolution:
 
     ``active_backend`` is the will-use PREDICTION for alternative chains
     and always None for conditional mode (Reddit never gets a computed
-    winner — ``conditional`` carries the honest wording instead).
+    winner - ``conditional`` carries the honest wording instead).
     """
 
     source: str
@@ -204,7 +204,7 @@ def _probe_bird(config: Dict[str, Any]) -> BackendFinding:
     Cookie presence is checked FIRST, mirroring ``env._x_backend_available``'s
     gating (``has_bird_creds and is_bird_installed()``): without cookies bird
     is unconfigured regardless of node/script state, and the fix is the
-    cookie-consent flow — a broken node runtime must not turn an unconfigured
+    cookie-consent flow - a broken node runtime must not turn an unconfigured
     backend into an error carrying a node prescription.
     """
     from . import bird_x
@@ -332,7 +332,7 @@ def _probe_xurl(config: Dict[str, Any]) -> BackendFinding:
     """xurl = official X API v2 CLI (OAuth2). Free lane; LOCAL-ONLY probe.
 
     Doctor's no-network guarantee forbids the live ``xurl whoami`` check
-    (``xurl_x.is_available()`` — an authenticated X API call, reserved for
+    (``xurl_x.is_available()`` - an authenticated X API call, reserved for
     research time). This probe keys on local evidence instead: the binary
     on PATH plus xurl's on-disk token store (~/.xurl). Stored credentials
     read as OK with an explicit "not live-verified" caveat; an unreadable
@@ -547,7 +547,7 @@ def resolve(
     mean unpinned. Probing is side-effect-free and collect-then-pick.
 
     Time budget: backends are probed sequentially, so a chain's budget is
-    ADDITIVE across its backends — each binary-backed probe is bounded by
+    ADDITIVE across its backends - each binary-backed probe is bounded by
     ``health.PROBE_TIMEOUT`` and paid/key lanes are dict lookups that cost
     nothing, giving a worst case of roughly (binary probes in the chain) x
     ``health.PROBE_TIMEOUT``. Deliberately no intra-chain concurrency:
@@ -605,7 +605,7 @@ def _resolve_alternative(
             pin_name = raw
 
     if pin_name:
-        # A pin forces a single backend (no failover) — mirror
+        # A pin forces a single backend (no failover) - mirror
         # env.x_backend_chain's pin semantics exactly.
         res.pinned = True
         res.pin = pin_name

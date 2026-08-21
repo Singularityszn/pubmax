@@ -169,7 +169,7 @@ def short_name(name: str, brand: str = "") -> str:
     segment before the first delimiter, drop a leading brand token if one
     did sneak in, and clip to a scannable width on a word boundary.
     """
-    text = re.split(r"[|(–—]", str(name or ""), maxsplit=1)[0].strip(" -,")
+    text = re.split(r"[|(–-]", str(name or ""), maxsplit=1)[0].strip(" -,")
     brand_token = str(brand or "").strip()
     if brand_token:
         # Word-boundary anchored: a bare startswith() eats into sub-brands and

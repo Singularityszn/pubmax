@@ -273,7 +273,7 @@ def _dependency_failure(probe: health.DependencyProbe) -> Optional[Tuple[str, st
         return ("youtube", "ytdlp_broken")  # BROKEN and TIMEOUT: reinstall class
     if probe.name == "digg-pp-cli":
         # health reports off-PATH binaries as MISSING with ``off_path=True``;
-        # the distinction only picks cause/NL wording — the probe's own
+        # the distinction only picks cause/NL wording - the probe's own
         # prescription wins the CLI form either way.
         if probe.status == health.MISSING:
             if probe.off_path:

@@ -95,14 +95,14 @@ function buildUpstreamHandoffsSection(
     const body = ctx.readHandoff(dep);
     if (!body) {
       chunks.push(
-        `### Upstream: \`${dep}\`\n\n_(no handoff on disk — planner spawned this task without waiting; treat as missing context)_`
+        `### Upstream: \`${dep}\`\n\n_(no handoff on disk - planner spawned this task without waiting; treat as missing context)_`
       );
       continue;
     }
     const stripped = body.replace(/^<!--[\s\S]*?-->\s*/, "").trim();
     chunks.push(`### Upstream: \`${dep}\`\n\n${stripped}`);
   }
-  return `\n\nUpstream handoffs (context from tasks you depend on — you cannot see their branches directly, this is the only way you get their work):\n\n${chunks.join("\n\n---\n\n")}\n\n`;
+  return `\n\nUpstream handoffs (context from tasks you depend on - you cannot see their branches directly, this is the only way you get their work):\n\n${chunks.join("\n\n---\n\n")}\n\n`;
 }
 
 export function buildWorkerPrompt(
@@ -112,7 +112,7 @@ export function buildWorkerPrompt(
 ): string {
   const allow =
     (t.pathsAllowed ?? []).map(p => `  - ${p}`).join("\n") ||
-    "  - (none declared — ask before touching anything broad)";
+    "  - (none declared - ask before touching anything broad)";
   const forbid =
     (t.pathsForbidden ?? []).map(p => `  - ${p}`).join("\n") || "  - (none)";
   const accept =
@@ -129,8 +129,8 @@ export function buildWorkerPrompt(
   const scopedGoal = buildPromptScopedGoal(t);
   const prBase = ctx.plan.prBase ?? ctx.plan.baseBranch;
   const prDiscipline = t.openPR
-    ? `- Keep \`.orchestrate/\` files out of the PR diff — that directory is run-local orchestrator bookkeeping, not the change you're shipping. Leave its state intact in your working tree afterward so the orchestrator's next reconcile loop can keep observing your task.
-- After your branch is pushed, open a draft pull request with base \`${prBase}\` and head set to your current branch using the ManagePullRequest tool. Title and body should summarize your handoff. Do NOT merge, rebase, or close the PR — the planner owns integration.`
+    ? `- Keep \`.orchestrate/\` files out of the PR diff - that directory is run-local orchestrator bookkeeping, not the change you're shipping. Leave its state intact in your working tree afterward so the orchestrator's next reconcile loop can keep observing your task.
+- After your branch is pushed, open a draft pull request with base \`${prBase}\` and head set to your current branch using the ManagePullRequest tool. Title and body should summarize your handoff. Do NOT merge, rebase, or close the PR - the planner owns integration.`
     : "- Do NOT merge, rebase, or open a PR. The planner owns integration.";
   return renderPromptTemplate("worker", {
     goal: ctx.plan.goal,
@@ -161,7 +161,7 @@ export function buildVerifierPrompt(
     : `(unknown branch for ${targetName})`;
   const targetGoal =
     target?.scopedGoal ??
-    "(target task missing from plan — validation should have rejected this)";
+    "(target task missing from plan - validation should have rejected this)";
   const targetAccept =
     (target?.acceptance ?? []).map(a => `  - ${a}`).join("\n") ||
     "  - (none declared)";

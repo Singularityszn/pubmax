@@ -122,7 +122,7 @@ def _is_instagram_silent_failure(config: dict, research_results: dict) -> bool:
     section in the brief, no error in the footer, just unexplained absence.
     """
     if not config.get("SCRAPECREATORS_API_KEY"):
-        return False  # not configured — not a silent failure
+        return False  # not configured - not a silent failure
     # Honor EXCLUDE_SOURCES: a user who set EXCLUDE_SOURCES=instagram
     # intentionally turned the source off, so a zero-item count is
     # expected, not a silent failure. Mirror the canonical parsing
@@ -134,7 +134,7 @@ def _is_instagram_silent_failure(config: dict, research_results: dict) -> bool:
     }
     # Symmetric case: INCLUDE_SOURCES is an opt-in allowlist. If it is
     # non-empty and does not name instagram, the source was intentionally
-    # filtered out, so a zero-item count is expected — not a silent failure.
+    # filtered out, so a zero-item count is expected - not a silent failure.
     included = {
         s.strip().lower()
         for s in (config.get("INCLUDE_SOURCES") or "").split(",")

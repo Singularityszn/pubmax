@@ -50,7 +50,7 @@ export const MODEL_CATALOG: ModelProfile[] = [
       "Maximum-reasoning Opus; reserved for exceptionally difficult judgment tasks.",
     strengths: ["complex judgment", "deep reasoning", "ambiguity resolution"],
     speed: "slow",
-    use: "Reserved for exceptionally difficult tasks. May overthink simple problems — only reach for this when standard `claude-opus-4-8` has produced unsatisfying results.",
+    use: "Reserved for exceptionally difficult tasks. May overthink simple problems - only reach for this when standard `claude-opus-4-8` has produced unsatisfying results.",
   },
   {
     slug: "gpt-5.5-high-fast",
@@ -144,7 +144,7 @@ export const MODEL_CATALOG: ModelProfile[] = [
       "deep architectural reasoning",
     ],
     speed: "slow",
-    use: "Reserved for exceptionally difficult tasks. May overthink simple problems — only reach for this when standard `gpt-5.5-high-fast` has produced unsatisfying results.",
+    use: "Reserved for exceptionally difficult tasks. May overthink simple problems - only reach for this when standard `gpt-5.5-high-fast` has produced unsatisfying results.",
   },
   {
     slug: "composer-2-fast",
@@ -188,7 +188,7 @@ export function renderModelCatalog(): string {
     const defaults = m.defaultFor?.length
       ? ` (default for ${m.defaultFor.join(", ")})`
       : "";
-    lines.push(`- \`${m.slug}\` — ${m.summary}${defaults}`);
+    lines.push(`- \`${m.slug}\` - ${m.summary}${defaults}`);
     lines.push(`  speed: ${m.speed}; strengths: ${m.strengths.join(", ")}`);
     lines.push(`  use: ${m.use}`);
   }

@@ -215,7 +215,7 @@ function flagUnreachablePending(mgr: AgentManager): void {
     }
     if (blockers.length > 0) {
       mgr.logAttention(
-        `${s.name}: unreachable — blocked on ${blockers.join(", ")}. Fix the upstream and rerun, or \`kill ${s.name}\` to abandon.`
+        `${s.name}: unreachable - blocked on ${blockers.join(", ")}. Fix the upstream and rerun, or \`kill ${s.name}\` to abandon.`
       );
     }
   }

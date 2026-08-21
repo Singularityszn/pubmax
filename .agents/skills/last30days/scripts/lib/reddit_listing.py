@@ -1,4 +1,4 @@
-"""Keyless Reddit listing scrape via shreddit /svc partials — with real scores.
+"""Keyless Reddit listing scrape via shreddit /svc partials - with real scores.
 
 The subreddit listing partial
 ``/svc/shreddit/community-more-posts/{sort}/?name={sub}[&t={range}]`` serves
@@ -23,7 +23,7 @@ from typing import Any, Dict, List, Optional, Set
 from . import http
 from .relevance import token_overlap_relevance, tokenize
 
-# Generic domain terms that are excluded from the keyword gate — matches
+# Generic domain terms that are excluded from the keyword gate - matches
 # pipeline._DISCOVERY_GENERIC_DOMAIN_TERMS (duplicated to avoid circular import).
 _DISCOVERY_GENERIC_DOMAIN_TERMS: Set[str] = {
     "ai", "artificial", "intelligence", "tech", "technology", "trending", "trend",
@@ -214,7 +214,7 @@ def fetch_listings(
 ) -> List[Dict[str, Any]]:
     """Fetch scored post cards across subreddits × sorts.
 
-    Returns deduped normalized posts (with real scores), unranked/unsliced —
+    Returns deduped normalized posts (with real scores), unranked/unsliced -
     the caller merges these with other sources, ranks, and slices.
 
     ``sorts`` overrides the depth-derived sort set. Dedicated-subreddit lanes
@@ -227,7 +227,7 @@ def fetch_listings(
     jobs = [(sub, sort) for sub in subreddits for sort in sorts]
     all_posts: List[Dict[str, Any]] = []
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(jobs)) or 1) as executor:
-        # submit_with_context, not executor.submit — see the note in
+        # submit_with_context, not executor.submit - see the note in
         # fetch_discovery_listings below (issue #899).
         futures = {http.submit_with_context(executor, _fetch_one, sub, sort, query, timeframe): (sub, sort)
                    for sub, sort in jobs}
@@ -265,7 +265,7 @@ def fetch_discovery_listings(
     items: List[Dict[str, Any]] = []
     errors: List[str] = []
     # Track which (sub, sort) pairs shreddit successfully delivered posts for.
-    # Used to decide which errors to clear — Arctic can supplement but cannot
+    # Used to decide which errors to clear - Arctic can supplement but cannot
     # "recover" a failed hot/top/new/rising lane (it's recency-only).
     shreddit_successes: Set[tuple[str, str]] = set()
     with ThreadPoolExecutor(max_workers=min(MAX_WORKERS, len(jobs)) or 1) as executor:
@@ -312,7 +312,7 @@ def fetch_discovery_listings(
         _log(f"discovery arctic supplement: {len(arctic_items)} posts")
         # Apply the same keyword gate that pipeline._fetch_discovery_source
         # uses downstream. When query is empty (global --discover), skip the
-        # gate — there's no keyword to match, and the river feed IS the signal.
+        # gate - there's no keyword to match, and the river feed IS the signal.
         if query:
             arctic_items = [
                 item for item in arctic_items
@@ -333,7 +333,7 @@ def fetch_discovery_listings(
 
     # Clear errors only for (sub, sort) pairs where shreddit succeeded.
     # Arctic supplements recency posts but cannot "recover" a failed hot/top/
-    # rising lane — it has no sort lanes. Errors for failed shreddit lanes are
+    # rising lane - it has no sort lanes. Errors for failed shreddit lanes are
     # preserved even when another sort for the same subreddit succeeded.
     if errors and shreddit_successes:
         errors = [

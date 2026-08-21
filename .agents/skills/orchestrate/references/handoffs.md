@@ -34,7 +34,7 @@ failureMode: cap-hit | oom | network-drop | tool-error | unknown
 terminatedAt: <iso>
 -->
 
-# <name> — failure handoff
+# <name> - failure handoff
 
 Status: error (cloud agent terminated without writing a handoff)
 Failure mode: cap-hit | oom | network-drop | tool-error | unknown
@@ -42,7 +42,7 @@ Cloud agent: bc-...
 Started: <iso>
 Terminated: <iso>
 Duration: <ms>
-Last activity: <iso> — <status text from state.json lastUpdate>
+Last activity: <iso> - <status text from state.json lastUpdate>
 Last tool call: <name from SDK stream tail, or (unknown)>
 Branch: <branch>
 SDK error: <truncated error text>

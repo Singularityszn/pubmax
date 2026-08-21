@@ -28,7 +28,7 @@ export function registerForensicsCommands(program: Command): void {
       "Skip `git fetch` (useful for offline tests or repeated calls)"
     )
     .description(
-      "Recursively walk a running orchestrate tree across branches. Reads state.json for each planner from git (root planner + each subplanner on its own branch) and renders a deep, indented tree. Relies on the script's auto-commit of state.json on status transitions — older runs that predate that behavior won't show up."
+      "Recursively walk a running orchestrate tree across branches. Reads state.json for each planner from git (root planner + each subplanner on its own branch) and renders a deep, indented tree. Relies on the script's auto-commit of state.json on status transitions - older runs that predate that behavior won't show up."
     )
     .action(
       async (
@@ -121,7 +121,7 @@ export function registerForensicsCommands(program: Command): void {
           opts.agentId ?? null
         );
         if (allVictims.length === 0) {
-          console.log("nothing to kill — no running agents found in the tree.");
+          console.log("nothing to kill - no running agents found in the tree.");
           return;
         }
         if (opts.agentId && victims.length === 0) {

@@ -1,9 +1,9 @@
-"""X (Twitter) search via the Grok CLI — no X credential of any kind.
+"""X (Twitter) search via the Grok CLI - no X credential of any kind.
 
 The `grok` CLI (https://x.ai/cli) exposes X search tools natively
 (`x_keyword_search`, `x_semantic_search`, `x_thread_fetch`, `x_user_search`).
 Reaching X through it needs no X account, no browser cookies, and no
-`XAI_API_KEY` — only an installed and signed-in `grok`.
+`XAI_API_KEY` - only an installed and signed-in `grok`.
 
 Install: curl -fsSL https://x.ai/cli/install.sh | bash   (or npm i -g @xai-official/grok)
 Auth:    grok login
@@ -21,7 +21,7 @@ Two invocation constraints, both measured, both load-bearing:
 Because retrieval is performed by a language model rather than an API client,
 its output can be *confidently wrong* in a way no other backend's can. Every
 returned post is therefore validated against the requested window via its
-snowflake timestamp before it is allowed into the item flow — see
+snowflake timestamp before it is allowed into the item flow - see
 `_validate_items`. Author matching and schema shape are not sufficient: a
 fabricated post carries a plausible handle and a numeric id by construction.
 """

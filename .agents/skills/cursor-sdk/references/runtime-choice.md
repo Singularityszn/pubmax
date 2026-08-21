@@ -20,8 +20,8 @@ If two points pull opposite ways, Cloud is usually the safer pick for production
 | Capability                         | Local                                 | Cloud (Cursor-hosted)                                         |
 | ---------------------------------- | ------------------------------------- | ------------------------------------------------------------- |
 | Opens real PRs                     | No                                    | Yes (`cloud.autoCreatePR: true`)                              |
-| Works on uncommitted local changes | Yes                                   | No — clones from `startingRef`                                |
-| Outlives caller process            | No                                    | Yes — resumable by `agentId`                                  |
+| Works on uncommitted local changes | Yes                                   | No - clones from `startingRef`                                |
+| Outlives caller process            | No                                    | Yes - resumable by `agentId`                                  |
 | Cancellable mid-run                | Yes                                   | Yes (server-side; check `run.supports("cancel")` defensively) |
 | Artifact download                  | Not implemented yet                   | Yes                                                           |
 | MCP stdio transport                | Yes                                   | Yes (command runs inside the cloud VM)                        |
@@ -31,7 +31,7 @@ If two points pull opposite ways, Cloud is usually the safer pick for production
 | Requires API key                   | For remote model calls (most prompts) | Always                                                        |
 
 
-## Local Runtime — How It Actually Works
+## Local Runtime - How It Actually Works
 
 ```typescript
 const agent = Agent.create({
@@ -45,7 +45,7 @@ const agent = Agent.create({
 - The agent spawns in-process helpers (tool execution, shell runner, MCP stdio processes). Dispose cleanly to reap them.
 - Persisted state lives under `cwd`'s Cursor data directory. `Agent.list({ runtime: "local", cwd })` surfaces previously-created agents there.
 - Ambient settings (project rules, team policies, team-configured MCP servers) are **not** loaded by default. Pass `settingSources` **inside `local`** (e.g. `local: { cwd, settingSources: ["project"] }`, or `"all"` for everything) to opt in.
-- Local runs execute tools on the caller's machine with the caller's permissions. Treat the agent like you'd treat `rm -rf` — scoped `cwd`, no secrets in env vars you don't want exposed.
+- Local runs execute tools on the caller's machine with the caller's permissions. Treat the agent like you'd treat `rm -rf` - scoped `cwd`, no secrets in env vars you don't want exposed.
 
 When to prefer local:
 
@@ -53,7 +53,7 @@ When to prefer local:
 - CI steps where the repo is already checked out and you want to inspect the tree directly.
 - Fast iteration: no network clone, no PR, no reviewer notification.
 
-## Cloud Runtime — How It Actually Works
+## Cloud Runtime - How It Actually Works
 
 ```typescript
 const agent = Agent.create({
@@ -69,9 +69,9 @@ const agent = Agent.create({
 
 - Cursor provisions a VM, clones `repos[].url` at `startingRef`, runs the agent, pushes a branch, and (if `autoCreatePR`) opens a PR.
 - Agent IDs are prefixed `bc-` (background composer). SDK helpers (`Agent.get`, `Agent.archive`, etc.) auto-route on that prefix.
-- The caller (the user behind `CURSOR_API_KEY`) must have a GitHub connection to the target repo. If not, the cloud side returns `ERROR_GITHUB_NO_USER_CREDENTIALS` — it's an environment setup issue, not a code bug.
+- The caller (the user behind `CURSOR_API_KEY`) must have a GitHub connection to the target repo. If not, the cloud side returns `ERROR_GITHUB_NO_USER_CREDENTIALS` - it's an environment setup issue, not a code bug.
 - `run.cancel()` is supported on cloud (server-side cancel); still guard with `run.supports("cancel")` for defensive portability.
-- Set `workOnCurrentBranch: true` only when you want the agent to push to an existing branch — rare, and usually means you're trying to emulate local; use local instead.
+- Set `workOnCurrentBranch: true` only when you want the agent to push to an existing branch - rare, and usually means you're trying to emulate local; use local instead.
 
 When to prefer cloud:
 
@@ -82,11 +82,11 @@ When to prefer cloud:
 
 ## Common "I meant the other one" Symptoms
 
-- **"Agent created but nothing happened on GitHub"** — you passed `local:` when you meant `cloud:`. Local doesn't push.
-- **"Cloud agent can't see my uncommitted changes"** — by design. Commit or use local.
-- **"Cloud agent said it can't find my GitHub repo"** — the caller's Cursor account doesn't have a GitHub connection for that repo. Not a code bug; sort it in the dashboard.
-- **"`run.cancel()` throws on my run"** — usually a detached run handle (`Agent.getRun(...)` on a run whose live channel is gone). Guard with `run.supports("cancel")` before calling.
-- **"I tried to reuse an agent across machines"** — cloud agents resume anywhere (`Agent.resume(bcId, { ... })`). Local agents are scoped to their `cwd`'s data directory; resume from another machine gives you a fresh agent.
+- **"Agent created but nothing happened on GitHub"** - you passed `local:` when you meant `cloud:`. Local doesn't push.
+- **"Cloud agent can't see my uncommitted changes"** - by design. Commit or use local.
+- **"Cloud agent said it can't find my GitHub repo"** - the caller's Cursor account doesn't have a GitHub connection for that repo. Not a code bug; sort it in the dashboard.
+- **"`run.cancel()` throws on my run"** - usually a detached run handle (`Agent.getRun(...)` on a run whose live channel is gone). Guard with `run.supports("cancel")` before calling.
+- **"I tried to reuse an agent across machines"** - cloud agents resume anywhere (`Agent.resume(bcId, { ... })`). Local agents are scoped to their `cwd`'s data directory; resume from another machine gives you a fresh agent.
 
 ## Hybrid: running a local and a cloud agent from the same script
 

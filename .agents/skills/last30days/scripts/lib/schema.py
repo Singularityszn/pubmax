@@ -599,7 +599,7 @@ def candidate_out_of_window(candidate: Candidate) -> bool:
     fusion.weighted_rrf). Some adapters provide ``date_confidence="high"`` for
     old dates, so relying solely on adapter-provided confidence is insufficient.
 
-    Candidates with no dated item at all are not treated as out of window — an
+    Candidates with no dated item at all are not treated as out of window - an
     unknown date is a coverage gap, not a stale item.
     """
     dated = [item for item in candidate.source_items if item.published_at]

@@ -172,7 +172,7 @@ def _compute_relevance(
 # `created:>{from_date}`, and when two `created:` qualifiers collide GitHub
 # honours the FIRST and silently ignores ours. The API then returns
 # out-of-window items that `parse_github_response`'s date filter drops
-# wholesale — a source that fetches results and reports zero (issue #949).
+# wholesale - a source that fetches results and reports zero (issue #949).
 QUALIFIER_KEYS = frozenset({
     "archived", "assignee", "author", "base", "closed", "comments", "commenter",
     "created", "fork", "forks", "head", "in", "interactions", "involves", "is",

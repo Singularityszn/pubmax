@@ -77,7 +77,7 @@ def run_auto_setup(config: Dict[str, Any], *, allow_browser_cookies: bool = Fals
           ytdlp_action: already_installed | installed | install_failed | no_homebrew
           digg_installed: bool (True when the engine can resolve digg-pp-cli on PATH)
           digg_action: already_installed | installed | installed_off_path | install_failed | no_npx
-          env_written: bool (always False here — caller writes config separately)
+          env_written: bool (always False here - caller writes config separately)
           ytdlp_stderr: present when ytdlp_action is install_failed
           digg_stderr: present when digg_action is install_failed
           digg_path: present when digg_action is installed_off_path (binary on disk, not on PATH)
@@ -192,11 +192,11 @@ def _digg_bin_candidate_paths() -> list[Path]:
     """Known install locations for digg-pp-cli (Printing Press library defaults).
 
     Order: current installer default (~/.local/bin), legacy Go bins, Windows
-    managed dir. The directory list is ``health.installer_bin_dirs()`` — the
-    shared single source — with the Digg filename variants appended (plain
+    managed dir. The directory list is ``health.installer_bin_dirs()`` - the
+    shared single source - with the Digg filename variants appended (plain
     name for Unix-style dirs, ``.exe`` in the Windows managed dir).
     ``pipeline.available_sources()`` only activates Digg when
-    ``shutil.which`` resolves on PATH — probing these dirs is for setup
+    ``shutil.which`` resolves on PATH - probing these dirs is for setup
     verification and honest off-PATH messaging, not engine activation.
     """
     from . import health
@@ -285,7 +285,7 @@ def _install_digg_cli() -> Tuple[bool, str, str, str]:
 
     Mirrors the yt-dlp/brew auto-install: it never raises, and degrades to a
     recommend-only outcome when the installer is unavailable. Uses
-    ``@mvanhorn/printing-press-library`` (``--cli-only``) — the same catalog
+    ``@mvanhorn/printing-press-library`` (``--cli-only``) - the same catalog
     installer as pp-digg; Hermes/OpenClaw skill wiring is irrelevant here.
 
     Returns ``(engine_active, action, stderr, off_path_binary)`` where
@@ -536,7 +536,7 @@ def write_setup_config(env_path: Path, from_browser: str | None = None) -> bool:
         env_path: Path to the .env file (e.g. ~/.config/last30days/.env)
         from_browser: Browser extraction mode to persist. Pass the browser that
             actually yielded cookies (e.g. "firefox") to fast-path future runs.
-            Pass None (default) to NOT pin FROM_BROWSER — the steady-state
+            Pass None (default) to NOT pin FROM_BROWSER - the steady-state
             default (Firefox/Safari, no Keychain prompt) then applies. We avoid
             persisting "auto" because it makes every later run probe Chrome and
             re-trigger the Keychain prompt.
@@ -688,18 +688,18 @@ def get_setup_status_text(results: Dict[str, Any]) -> str:
         if digg_path:
             bin_dir = _digg_bin_dir_hint(digg_path)
             lines.append(
-                f"  - Digg CLI found at {digg_path} but not on PATH — add "
+                f"  - Digg CLI found at {digg_path} but not on PATH - add "
                 f"{bin_dir} to PATH and restart your agent session/gateway "
                 "for Digg to activate"
             )
         else:
             lines.append(
-                "  - Digg CLI is installed but not on PATH — add its install "
+                "  - Digg CLI is installed but not on PATH - add its install "
                 "directory to PATH and restart your agent session/gateway for "
                 "Digg to activate"
             )
     elif digg_action == "install_failed":
-        lines.append(f"  - Digg CLI install failed — run `{DIGG_INSTALL_CMD}` manually")
+        lines.append(f"  - Digg CLI install failed - run `{DIGG_INSTALL_CMD}` manually")
     elif digg_action == "no_npx":
         lines.append(
             "  - Digg CLI not installed (free, optional). Install Node/npx, then: "
@@ -719,19 +719,19 @@ def get_setup_status_text(results: Dict[str, Any]) -> str:
             path = entry.get("path", "")
             if path:
                 lines.append(
-                    f"  - {name} CLI at {path} but not on PATH — add "
+                    f"  - {name} CLI at {path} but not on PATH - add "
                     f"{os.path.dirname(os.path.expanduser(path))} to PATH and "
                     f"restart your agent session/gateway for {name} to activate"
                 )
             else:
                 lines.append(
-                    f"  - {name} CLI installed but not on PATH — add its install "
+                    f"  - {name} CLI installed but not on PATH - add its install "
                     "directory to PATH and restart your agent session/gateway for "
                     f"{name} to activate"
                 )
         elif action == "install_failed":
             lines.append(
-                f"  - {name} CLI install failed — run "
+                f"  - {name} CLI install failed - run "
                 f"`npx -y {PRINTING_PRESS_NPM} install {source_key} --cli-only` manually"
             )
         elif action == "no_npx":
@@ -751,13 +751,13 @@ def get_setup_status_text(results: Dict[str, Any]) -> str:
         lines.append("  - Bright Data CLI ready (Amazon buyer signals available)")
     elif bd_action == "already_installed":
         lines.append(
-            "  - Bright Data CLI installed but not logged in — run "
+            "  - Bright Data CLI installed but not logged in - run "
             "`brightdata login` to enable Amazon buyer signals (optional)"
         )
     elif bd_action == "installed_off_path":
         bd_path = brightdata_status_entry.get("path", "")
         lines.append(
-            f"  - Bright Data CLI found at {bd_path} but not on PATH — add "
+            f"  - Bright Data CLI found at {bd_path} but not on PATH - add "
             f"{os.path.dirname(os.path.expanduser(bd_path))} to PATH and restart "
             "your agent session/gateway for Amazon buyer signals to activate"
         )
@@ -883,7 +883,7 @@ def run_device_auth() -> Optional[Tuple[str, str, str, int]]:
     interval = data.get("interval", 5)
 
     if not device_code or not user_code:
-        # Log only the response's key names, never its values — a returning
+        # Log only the response's key names, never its values - a returning
         # account's response could carry a raw API key we must not write to logs.
         logger.warning(
             "Device auth returned incomplete response (keys: %s)", sorted(data.keys())
@@ -988,9 +988,9 @@ def fetch_api_key(access_token: str) -> Optional[str]:
 
     api_key = data.get("api_key")
     if not api_key:
-        # The /profile response parsed but carried no api_key — the common case
+        # The /profile response parsed but carried no api_key - the common case
         # for a GitHub account already linked to a ScrapeCreators account. Log
-        # the response's FIELD NAMES only (never values — the body may contain a
+        # the response's FIELD NAMES only (never values - the body may contain a
         # key under a different field) so the already-registered response shape
         # can be handled in a follow-up (see plan OQ1).
         logger.warning(

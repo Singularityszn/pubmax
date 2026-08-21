@@ -16,17 +16,17 @@ Regenerate `schemas/*.json` from `scripts/schemas.ts` with `bun run generate-sch
 
 Slack visibility uses `SLACK_BOT_TOKEN`. Required scopes:
 
-- `chat:write` — post and edit messages.
-- `chat:write.customize` — set custom username and icon on bot messages.
-- `chat:write.public` — post in public channels without joining first.
-- `files:write` — upload handoff artifacts.
-- `files:read` — paired with `files:write` for the upload v2 flow.
-- `reactions:read` — watch the Andon `:rotating_light:` reaction on the kickoff message.
-- `channels:history` — read thread replies via `conversations.replies`. Add `groups:history` instead if the run thread lives in a private channel.
+- `chat:write` - post and edit messages.
+- `chat:write.customize` - set custom username and icon on bot messages.
+- `chat:write.public` - post in public channels without joining first.
+- `files:write` - upload handoff artifacts.
+- `files:read` - paired with `files:write` for the upload v2 flow.
+- `reactions:read` - watch the Andon `:rotating_light:` reaction on the kickoff message.
+- `channels:history` - read thread replies via `conversations.replies`. Add `groups:history` instead if the run thread lives in a private channel.
 
 Optional:
 
-- `users:read.email` — best-effort first-name lookup against the dispatcher's git email. Without it, pass `--dispatcher-name` explicitly.
+- `users:read.email` - best-effort first-name lookup against the dispatcher's git email. Without it, pass `--dispatcher-name` explicitly.
 
 Until those scopes land, Slack calls fail with Slack's `missing_scope` error in `attention.log`. The run still proceeds because git and disk are authoritative.
 

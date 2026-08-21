@@ -71,7 +71,7 @@ export function registerTaskCommands(program: Command): void {
       "Keep draining to quiescence instead of returning on the first terminal error. Default is exit-on-error so the planner reacts to failures promptly (in-flight workers reattach on the next run)."
     )
     .description(
-      "Run the reconcile loop: spawn pending tasks (respecting dependsOn), wait for handoffs, write them to <workspace>/handoffs/, repeat until terminal. Idempotent — rerun to pick up plan.json changes or retries."
+      "Run the reconcile loop: spawn pending tasks (respecting dependsOn), wait for handoffs, write them to <workspace>/handoffs/, repeat until terminal. Idempotent - rerun to pick up plan.json changes or retries."
     )
     .action(
       async (

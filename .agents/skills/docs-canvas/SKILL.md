@@ -11,7 +11,7 @@ description: >-
 
 # Docs Canvas
 
-Build a canvas that presents documentation — architecture notes, API references, design docs, runbooks, or codebase walkthroughs — as an interactive, navigable surface rather than as a flat markdown file.
+Build a canvas that presents documentation - architecture notes, API references, design docs, runbooks, or codebase walkthroughs - as an interactive, navigable surface rather than as a flat markdown file.
 
 > **Status:** placeholder. The skill structure is in place so the canvas
 > welcome page can surface this plugin via the marketplace query, but the
@@ -20,7 +20,7 @@ Build a canvas that presents documentation — architecture notes, API reference
 
 ## Prerequisites
 
-Read `~/.cursor/skills-cursor/canvas/SKILL.md` first. It contains the generation policy, design guidance, slop rules, self-check, and file-path conventions you must follow. The full component and hook surface is declared in `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` and its sibling `.d.ts` files — read them to discover exact exports and prop shapes rather than guessing.
+Read `~/.cursor/skills-cursor/canvas/SKILL.md` first. It contains the generation policy, design guidance, slop rules, self-check, and file-path conventions you must follow. The full component and hook surface is declared in `~/.cursor/skills-cursor/canvas/sdk/index.d.ts` and its sibling `.d.ts` files - read them to discover exact exports and prop shapes rather than guessing.
 
 ## Gather the source material
 
@@ -30,10 +30,10 @@ Accept any of: a directory of markdown files, a single doc URL, an inline outlin
 
 Decide the top-level structure before writing any components. A docs canvas usually has:
 
-1. **Overview** — A short summary card with the purpose of the doc, scope, and audience.
-2. **Table of contents** — Navigable list of sections, ideally pinned or sticky so the reader can jump around.
-3. **Body sections** — One section per logical unit (architecture, API, examples, gotchas). Each section can mix prose, code blocks, diagrams, and callouts.
-4. **References** — Links to related docs, source files, RFCs, and external material.
+1. **Overview** - A short summary card with the purpose of the doc, scope, and audience.
+2. **Table of contents** - Navigable list of sections, ideally pinned or sticky so the reader can jump around.
+3. **Body sections** - One section per logical unit (architecture, API, examples, gotchas). Each section can mix prose, code blocks, diagrams, and callouts.
+4. **References** - Links to related docs, source files, RFCs, and external material.
 
 ## Render with canvas primitives
 
@@ -51,4 +51,4 @@ Write reader-facing prose. Lead with the answer or the headline, then explain. K
 
 ## Be creative
 
-The sections above are a floor, not a ceiling. The goal is the fastest possible path for the reader to understand the topic — so look at the source material in front of you and ask what representation would actually help. A diagram, a sequence chart, a side-by-side comparison, a decision tree, a glossary, a curated FAQ, a single large worked example — whatever fits.
+The sections above are a floor, not a ceiling. The goal is the fastest possible path for the reader to understand the topic - so look at the source material in front of you and ask what representation would actually help. A diagram, a sequence chart, a side-by-side comparison, a decision tree, a glossary, a curated FAQ, a single large worked example - whatever fits.

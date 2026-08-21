@@ -28,7 +28,7 @@ def _skill_version() -> str:
     """Read plugin version from .claude-plugin/plugin.json, falling back to SKILL.md frontmatter.
 
     Per-harness skill install dirs (`~/.claude/skills`, `~/.codex/skills`, `~/.agents/skills`,
-    Hermes, etc.) do not always carry `.claude-plugin/plugin.json` — that file ships with
+    Hermes, etc.) do not always carry `.claude-plugin/plugin.json` - that file ships with
     plugin-cache installs but not with per-harness skill installs. SKILL.md frontmatter is
     the fallback that keeps the badge from emitting v? on those installs. Returns "?" only
     if no usable version string is found from either source (missing files, corrupt JSON,
@@ -49,7 +49,7 @@ def _skill_version() -> str:
             if version:
                 return version
 
-    # No usable manifest found at any ancestor — fall back to SKILL.md frontmatter.
+    # No usable manifest found at any ancestor - fall back to SKILL.md frontmatter.
     # First SKILL.md found in the walk is THIS skill's; never traverse past it.
     for parent in here.parents:
         skill_md = parent / "SKILL.md"
@@ -1106,7 +1106,7 @@ def _render_synthesis_directive() -> list[str]:
 
     Added 2026-06-30 for issue #726 (Grok Build v0.2.67 emitted only logs and
     raw evidence clusters instead of the canonical synthesis). Root cause: the
-    strong directive only lived in `_render_canonical_boundary` — the very END
+    strong directive only lived in `_render_canonical_boundary` - the very END
     of stdout, AFTER the whole evidence block and footer. Hosts that truncate
     the tail (`engine | head -N`, timeout-backgrounding that captures partial
     output, scrollback caps) keep the badge and the `### N.` clusters but never
@@ -1119,7 +1119,7 @@ def _render_synthesis_directive() -> list[str]:
     positioned early so the pass-through contract still carries it.
     """
     return [
-        "> **SYNTHESIS CONTRACT — read before emitting anything.** Everything below this",
+        "> **SYNTHESIS CONTRACT - read before emitting anything.** Everything below this",
         "> line, up to where this evidence envelope closes, is raw evidence for you to",
         "> READ, not text to emit. Transform it into `What I learned:` prose paragraphs",
         "> per LAW 2. Do NOT pass the `### N.` evidence clusters or the stats and",
@@ -1874,7 +1874,7 @@ def render_full(report: schema.Report, save_path: str | None = None) -> str:
             transcript = item.metadata.get("transcript_snippet", "")
             if transcript and len(transcript) > 100:
                 lines.append(
-                    f"  <details><summary>Transcript ({len(transcript.split())} words; auto-generated — may contain transcription errors)</summary>"
+                    f"  <details><summary>Transcript ({len(transcript.split())} words; auto-generated - may contain transcription errors)</summary>"
                 )
                 lines.append(
                     f"  {_format_untrusted_evidence(transcript, 5000, continuation_indent='  ')}"
@@ -2137,7 +2137,7 @@ def render_brief(report: schema.Report, cluster_limit: int = 8) -> str:
             else:
                 attribution = source_label
             reason = (
-                f" — {candidate.fun_explanation}"
+                f" - {candidate.fun_explanation}"
                 if candidate.fun_explanation
                 and candidate.fun_explanation != "heuristic-fallback"
                 else ""
@@ -2464,7 +2464,7 @@ def _polymarket_top_markets(
 
         # Append the outcome name only when it adds information. It's redundant when
         # empty, a binary Yes/No proxy, a bare article ("an"/"the"), or already the
-        # leading token of the descriptor — appending it then yields noise like
+        # leading token of the descriptor - appending it then yields noise like
         # "...score at: an 19%" or a doubled token.
         label = (lead_name or "").strip()
         descriptor_lead = descriptor.split()[0].lower() if descriptor.split() else ""
@@ -2996,7 +2996,7 @@ def _render_emoji_footer(report: schema.Report, save_path: str | None) -> list[s
     source_lines = _build_source_footer_lines(report)
     voices_line = _top_voices_footer_line(report)
     # The freshness verdict is computed for the report body, but a reader who
-    # only scans this footer never sees it — and it is the one line that says
+    # only scans this footer never sees it - and it is the one line that says
     # how much of the evidence is actually recent.
     freshness_warning = _assess_data_freshness(report)
     freshness_line = f"🕒 {freshness_warning}" if freshness_warning else None
@@ -3281,7 +3281,7 @@ def _format_explanation(candidate: schema.Candidate) -> str | None:
 
 
 # Per-source minimum vote counts for showing a top comment in compact emit.
-# Reddit upvotes, YouTube likes, and TikTok likes are not comparable units —
+# Reddit upvotes, YouTube likes, and TikTok likes are not comparable units -
 # 10 upvotes on Reddit signals genuine community interest, 10 likes on a
 # viral TikTok is noise. First-pass values; tune after live observation.
 _TOP_COMMENT_MIN_SCORE: dict[str, int] = {
@@ -3540,8 +3540,8 @@ def _render_top_comments(
     *,
     candidates: list[schema.Candidate] | None = None,
 ) -> list[str]:
-    """Vote-ranked community comments across ALL ranked candidates — not just the
-    top-cluster representatives — surfaced into the EVIDENCE block so the reading
+    """Vote-ranked community comments across ALL ranked candidates - not just the
+    top-cluster representatives - surfaced into the EVIDENCE block so the reading
     model can weave the funniest/highest-engagement lines into the synthesis.
 
     This exists because `_render_best_takes` only populates when the engine has an
@@ -3625,7 +3625,7 @@ def _render_top_comments(
         vote_label = _vote_label_for(item.source)
         attribution = _comment_attribution(item.source, tc.get("author"))
         url = tc.get("url") or cand.url or ""
-        url_part = f" — {url}" if url else ""
+        url_part = f" - {url}" if url else ""
         vote_part = (
             f" ({score} {vote_label})"
             if score is not None and score != ""
@@ -3633,7 +3633,7 @@ def _render_top_comments(
         )
         lines.append(
             f'- "{_format_untrusted_evidence(body, 240, continuation_indent="  ")}" '
-            f"— {attribution}{vote_part}{url_part}"
+            f"- {attribution}{vote_part}{url_part}"
         )
     return lines
 

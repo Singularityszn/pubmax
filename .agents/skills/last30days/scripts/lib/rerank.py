@@ -177,8 +177,8 @@ def judge_blended_score(velocity: float, worthiness: float | None) -> float:
 RESCUE_FLOOR_MAX = 40.0
 
 # Interaction signal: a first-party post directed AT another account (a reply /
-# leading @mention) carries relational signal — who the subject is personally
-# engaging — that no keyword or like-count surfaces. It is floated to a minimum
+# leading @mention) carries relational signal - who the subject is personally
+# engaging - that no keyword or like-count surfaces. It is floated to a minimum
 # final_score so it survives into the visible band regardless of engagement,
 # and tagged (candidate.metadata["interaction_targets"]) so the synthesizing
 # model reads it as relational, not noise. Floor (not additive) so it composes
@@ -772,7 +772,7 @@ ENTITY_MISS_FINAL_PENALTY = 20.0
 
 #: Multiplier applied to a candidate whose every dated item falls outside the
 #: run's window. The tool's whole promise is the window, so a stale item must
-#: not lead the ranked clusters however relevant it reads — a 2025-10 video
+#: not lead the ranked clusters however relevant it reads - a 2025-10 video
 #: ranked #1 in a 2026-07 brief, and a 2025-12 one ranked #5, both correctly
 #: flagged [date:low] and both ranked anyway. Scaling rather than subtracting
 #: keeps the ordering *among* older items intact, so the "still worth reading"

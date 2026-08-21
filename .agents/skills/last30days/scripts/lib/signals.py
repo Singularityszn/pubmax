@@ -366,7 +366,7 @@ def prune_low_relevance(
 
     def passes(item: schema.SourceItem) -> bool:
         # YouTube items with successfully extracted transcripts should not
-        # be pruned by title-only relevance scoring — the transcript content
+        # be pruned by title-only relevance scoring - the transcript content
         # already proves substantive topical coverage.
         if item.source == "youtube" and item.snippet:
             return True

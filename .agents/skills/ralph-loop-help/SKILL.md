@@ -13,7 +13,7 @@ The user asks what Ralph Loop is, how it works, or needs usage guidance.
 
 ### What is Ralph Loop?
 
-Ralph Loop implements the Ralph Wiggum technique — an iterative development methodology based on continuous AI loops, pioneered by Geoffrey Huntley.
+Ralph Loop implements the Ralph Wiggum technique - an iterative development methodology based on continuous AI loops, pioneered by Geoffrey Huntley.
 
 Core concept: the same prompt is fed to the agent repeatedly. The "self-referential" aspect comes from the agent seeing its own previous work in the files and git history, not from feeding output back as input.
 
@@ -34,8 +34,8 @@ Start a ralph loop: "Build a REST API for todos" --max-iterations 20 --completio
 ```
 
 Options:
-- `--max-iterations N` — max iterations before auto-stop
-- `--completion-promise "TEXT"` — phrase to signal completion
+- `--max-iterations N` - max iterations before auto-stop
+- `--completion-promise "TEXT"` - phrase to signal completion
 
 How it works:
 1. Creates `.cursor/ralph/scratchpad.md` state file

@@ -14,7 +14,7 @@ Use this skill to help someone **bootstrap a working integration quickly** and *
 This skill helps the user **build** with the SDK. It is not the place to validate, congratulate, or sell the SDK as a choice. The user's intent is the input; your job is execution.
 
 - **When the user names the SDK explicitly** (says "Cursor SDK", `@cursor/sdk`, `Agent.create`, `Agent.prompt`, etc.): assume they know what the SDK is and have decided to use it. Skip framing, skip pep talk, go straight to producing the integration. No "good news", no "the SDK is perfect for this", no "this is almost exactly the pattern X is designed for".
-- **When the user describes a problem the SDK fits but doesn't name it** ("I want a bot that reviews my PRs", "I want a script that asks Cursor questions about my repo"): the SDK isn't yet a confirmed choice. Surface it as a question, briefly, then wait: *"The Cursor SDK is what I'd reach for here — want me to design it that way, or do you have a different runtime in mind?"* If they confirm, proceed. If they push back or want options, give options.
+- **When the user describes a problem the SDK fits but doesn't name it** ("I want a bot that reviews my PRs", "I want a script that asks Cursor questions about my repo"): the SDK isn't yet a confirmed choice. Surface it as a question, briefly, then wait: *"The Cursor SDK is what I'd reach for here - want me to design it that way, or do you have a different runtime in mind?"* If they confirm, proceed. If they push back or want options, give options.
 - **In either case, don't restate the user's intent back to them.** They know what they want. Get to the design.
 
 Avoid these specific openers (and their close cousins):
@@ -52,7 +52,7 @@ Everything below is the minimum needed for 80% of tasks.
 
 Almost every SDK integration collapses to one of three shapes. Pick the one that fits the job, don't mix them.
 
-### 1. `Agent.prompt(...)` — one-shot
+### 1. `Agent.prompt(...)` - one-shot
 
 ```typescript
 import { Agent } from "@cursor/sdk";
@@ -67,7 +67,7 @@ console.log(result.status, result.result);
 
 Use for fire-and-forget scripts, GitHub Actions steps, or any "send this prompt, get a result, exit" flow. No streaming, no follow-ups, no cleanup to remember. If you're reaching for this and then immediately resuming, you wanted pattern 2 instead.
 
-### 2. `Agent.create(...)` + `agent.send(...)` — durable with follow-ups
+### 2. `Agent.create(...)` + `agent.send(...)` - durable with follow-ups
 
 ```typescript
 import { Agent } from "@cursor/sdk";
@@ -99,7 +99,7 @@ try {
 
 Use when you need streaming, multi-turn conversation, or lifecycle operations (cancel, status listener). This is the shape of most non-trivial integrations.
 
-### 3. `Agent.resume(...)` — pick up an existing agent later
+### 3. `Agent.resume(...)` - pick up an existing agent later
 
 ```typescript
 const agent = Agent.resume(previousAgentId, {
@@ -111,7 +111,7 @@ const run = await agent.send("Also update the changelog");
 await run.wait();
 ```
 
-Use across process boundaries: a cron that continues last night's cleanup, a webhook that extends a user's agent, an interactive CLI that reloads conversation state. **Inline `mcpServers` are not persisted across resume** — pass them again on the resume call.
+Use across process boundaries: a cron that continues last night's cleanup, a webhook that extends a user's agent, an interactive CLI that reloads conversation state. **Inline `mcpServers` are not persisted across resume** - pass them again on the resume call.
 
 ## Top Five Traps (read these before writing code)
 
@@ -119,7 +119,7 @@ These trip up almost every new integration. They're all easy to prevent once you
 
 ### 1. Missing `cloud: { repos }` silently defaults to local
 
-`AgentOptions` doesn't require `local` or `cloud`; if you omit both, the SDK selects the local runtime. The trap: if you intended a cloud agent and forgot the `cloud:` field, you get a local agent silently — no error, just a local agent ID and a local executor. Always pass `cloud: { repos }` explicitly when you want cloud, and pass `local: { cwd }` explicitly for local even though it's the default. Picking the right runtime: see [`references/runtime-choice.md`](references/runtime-choice.md).
+`AgentOptions` doesn't require `local` or `cloud`; if you omit both, the SDK selects the local runtime. The trap: if you intended a cloud agent and forgot the `cloud:` field, you get a local agent silently - no error, just a local agent ID and a local executor. Always pass `cloud: { repos }` explicitly when you want cloud, and pass `local: { cwd }` explicitly for local even though it's the default. Picking the right runtime: see [`references/runtime-choice.md`](references/runtime-choice.md).
 
 ### 2. Two different kinds of failure, one instinct to conflate them
 
@@ -158,19 +158,19 @@ await using agent = Agent.create({ /* ... */ });
 
 ### 5. Not every `run` operation is supported on every runtime
 
-`Run` exposes four operations — `stream`, `wait`, `cancel`, `conversation` — and the runtime may or may not support each. Always guard with `run.supports("...")` before calling, rather than assuming:
+`Run` exposes four operations - `stream`, `wait`, `cancel`, `conversation` - and the runtime may or may not support each. Always guard with `run.supports("...")` before calling, rather than assuming:
 
 ```typescript
 if (run.supports("cancel")) await run.cancel();
 if (run.supports("conversation")) console.log(await run.conversation());
 ```
 
-Current gap worth knowing about: detached/re-hydrated runs (you got the handle from `Agent.getRun(...)` after the live event store has closed) may not support `stream()` and may have empty `conversation()`. `run.unsupportedReason(op)` tells you why. Cloud `run.conversation()` IS supported — it accumulates best-effort from the stream.
+Current gap worth knowing about: detached/re-hydrated runs (you got the handle from `Agent.getRun(...)` after the live event store has closed) may not support `stream()` and may have empty `conversation()`. `run.unsupportedReason(op)` tells you why. Cloud `run.conversation()` IS supported - it accumulates best-effort from the stream.
 
 ## Local vs Cloud, in one sentence each
 
-- **Local** — runs on the caller's machine against `cwd`, reuses their environment and credentials, good for dev loops and CI that already has a repo checkout.
-- **Cloud** — runs on a Cursor-hosted VM against a freshly cloned `repos[].url`, good for long jobs, fire-and-forget automation, and opening real PRs (`autoCreatePR: true`).
+- **Local** - runs on the caller's machine against `cwd`, reuses their environment and credentials, good for dev loops and CI that already has a repo checkout.
+- **Cloud** - runs on a Cursor-hosted VM against a freshly cloned `repos[].url`, good for long jobs, fire-and-forget automation, and opening real PRs (`autoCreatePR: true`).
 
 Decision tree, capability differences, and capability gaps (artifacts, cancel, MCP transport): [`references/runtime-choice.md`](references/runtime-choice.md).
 
@@ -201,13 +201,13 @@ Model is **required for local**, **optional for cloud** (the server resolves a d
 Apply these to any integration that runs unattended:
 
 1. **Wrap every `Agent.create` / `Agent.prompt` / `Agent.resume` in a try/finally with `[Symbol.asyncDispose]()`**. Non-negotiable.
-2. **Distinguish startup failures from run failures** — exit code 1 for `CursorAgentError`, exit code 2 for `result.status === "error"`, exit code 0 only for `finished`. Makes CI failures actually readable.
+2. **Distinguish startup failures from run failures** - exit code 1 for `CursorAgentError`, exit code 2 for `result.status === "error"`, exit code 0 only for `finished`. Makes CI failures actually readable.
 3. **Log `run.id` and `agent.agentId` immediately after `send()`** before streaming. If the stream hangs, the IDs are what you need to investigate in the dashboard or via `Agent.getRun(...)`.
-4. **Respect `error.isRetryable`** — it's the backend telling you the specific failure is safe to retry. Blind retries can cause duplicate cloud runs; respecting the flag doesn't.
+4. **Respect `error.isRetryable`** - it's the backend telling you the specific failure is safe to retry. Blind retries can cause duplicate cloud runs; respecting the flag doesn't.
 5. **Use `local: { settingSources: [] }` (default) unless you need ambient config.** Opting into `"all"` loads project/user/team/MDM settings from the caller's environment, which is rarely what you want from a service. Note: `settingSources` lives under `local`, not at the top level; it has no effect on cloud agents (cloud always honors team/project/plugins).
-6. **For cloud agents in CI, set `skipReviewerRequest: true`** unless a human should be paged — it suppresses the reviewer-request step and keeps PR notifications quiet.
+6. **For cloud agents in CI, set `skipReviewerRequest: true`** unless a human should be paged - it suppresses the reviewer-request step and keeps PR notifications quiet.
 7. **Always pass `apiKey` explicitly** in shared-infrastructure code instead of relying on the env var. Makes the credential dependency obvious and prevents cross-tenant mistakes.
-8. **Prefer `Agent.prompt(...)` for true one-shots** — it disposes for you and is harder to leak.
+8. **Prefer `Agent.prompt(...)` for true one-shots** - it disposes for you and is harder to leak.
 
 Longer version with examples: [`references/patterns.md`](references/patterns.md).
 
@@ -228,7 +228,7 @@ A cloud `bc-`-prefixed agent ID is **not** a run ID. If you only have a run ID (
 
 ## Offering a Canvas
 
-If the user's integration monitors, lists, or visualizes agents — dashboards of active runs, conversation replays, tool-call timelines — offer a Cursor Canvas to render it. If they accept, defer entirely to the `canvas` skill.
+If the user's integration monitors, lists, or visualizes agents - dashboards of active runs, conversation replays, tool-call timelines - offer a Cursor Canvas to render it. If they accept, defer entirely to the `canvas` skill.
 
 ## What This Skill Doesn't Cover
 

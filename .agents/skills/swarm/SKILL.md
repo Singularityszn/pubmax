@@ -24,6 +24,7 @@ Open a todolist with one entry per phase before launching anything.
 3. Set N from the user or derive it from the shape. N is total workers, not the cloud concurrency limit.
 4. Pick the worker model from `swarm workers` in `~/.cursor/rules/pstack-models.mdc` when present. Otherwise use `grok-4.6-fast-xhigh`. For a model race, name each arm's model up front.
 5. Give each worker its own writable output when it writes. Use a worktree, branch, or `/tmp/swarm-<slug>/worker-<n>/`.
+6. Before any spawn, tell the user the exact worker count, expected cost, expected latency, and merge-conflict or shared-state risk. Ask for explicit approval. Do not continue until the user approves the swarm.
 
 ## Phase B: Fan out
 

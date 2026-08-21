@@ -1,4 +1,4 @@
-"""Arctic-shift score resolver — post upvote counts by id, keyless and free.
+"""Arctic-shift score resolver - post upvote counts by id, keyless and free.
 
 ``search.json`` and ``/comments/{id}.json`` are 403 keyless, and ``search.rss``
 (used for discovery) carries titles but NO score; the shreddit listing partials
@@ -6,7 +6,7 @@ score only posts that appear in a pulled listing. For a thread found only via
 global RSS search in a broad sub, the free score comes from arctic-shift
 (https://arctic-shift.photon-reddit.com), a public Reddit archive whose
 ``/api/posts/ids`` returns the post object (score, num_comments, title) for a
-batch of base36 post ids. Scores are point-in-time snapshots — slightly stale vs
+batch of base36 post ids. Scores are point-in-time snapshots - slightly stale vs
 live, which is fine for ranking and display.
 
 Best-effort, never raises. On rate-limit (HTTP 422 "slow down"), error, or an
@@ -30,12 +30,12 @@ PACE_SECONDS = 0.4  # gap between batches; arctic-shift answers 422 "slow down"
 CACHE_MAX = 4096    # hard size bound so the in-run memo can never grow unbounded
 # Listing-lane knobs. Base limits mirror reddit_listing's DEPTH_LIMITS so callers
 # get the same per-depth volume. The supplement multiplier is applied when the
-# caller requested multiple sorts (top/hot/new) — arctic-shift has no sort lanes,
+# caller requested multiple sorts (top/hot/new) - arctic-shift has no sort lanes,
 # so we fetch more posts to increase the chance of covering what the failed
 # shreddit lanes would have returned.
 #
 # KNOWN LIMITATION: Arctic-shift is recency-only (sort=desc). It has no top/hot/
-# new/rising lanes — failed shreddit sort lanes are supplemented with recent
+# new/rising lanes - failed shreddit sort lanes are supplemented with recent
 # posts, not lane-specific results. This is a fundamental backend constraint.
 _LISTING_DEPTH_LIMITS = {"quick": 10, "default": 25, "deep": 50}
 _LISTING_SUPPLEMENT_MULTIPLIER = 2  # fetch 2x posts when supplementing multi-sort requests
@@ -81,7 +81,7 @@ def fetch_scores(post_ids: List[str]) -> Dict[str, Dict[str, int]]:
                 headers={"User-Agent": http.BROWSER_USER_AGENT},
                 timeout=TIMEOUT,
             )
-        except Exception as e:  # network error / non-200 — degrade, never raise
+        except Exception as e:  # network error / non-200 - degrade, never raise
             _log(f"lookup failed ({e}); {len(batch)} ids left unscored")
             break
         rows = (data or {}).get("data")
@@ -175,7 +175,7 @@ def fetch_listings(
     Arctic-shift has no top/hot/new lanes, only recency. When ``sorts`` contains
     multiple entries (e.g., dedicated lanes requesting top+hot+new), we fetch
     more posts per subreddit to partially compensate for the missing lane
-    coverage — the caller's engagement ranking does the final sorting.
+    coverage - the caller's engagement ranking does the final sorting.
 
     Best-effort, never raises: returns ``[]`` on any failure.
     """
@@ -210,7 +210,7 @@ def fetch_listings(
                 timeout=TIMEOUT,
                 retries=1,
             )
-        except Exception as e:  # network error / non-200 — degrade, never raise
+        except Exception as e:  # network error / non-200 - degrade, never raise
             _log(f"listing search failed r/{sub}: {e}")
             continue
         rows = (data or {}).get("data")
