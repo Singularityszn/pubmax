@@ -11,6 +11,17 @@ describe("clean-main CI release gate", () => {
     expect(workflow).toMatch(/production-build:[\s\S]*run: npm run build/);
   });
 
+  it("does not persist the workflow token in build checkouts", () => {
+    const checkouts = workflow.match(/uses: actions\/checkout@v4/g) ?? [];
+    const protectedCheckouts =
+      workflow.match(
+        /uses: actions\/checkout@v4\n\s+with:\n\s+persist-credentials: false/g,
+      ) ?? [];
+
+    expect(checkouts.length).toBeGreaterThan(0);
+    expect(protectedCheckouts).toHaveLength(checkouts.length);
+  });
+
   it("gives TypeScript and production Playwright builds enough heap", () => {
     expect(workflow).toMatch(
       /name: Typecheck[\s\S]*NODE_OPTIONS: "--max-old-space-size=6144"[\s\S]*run: npx tsc --noEmit/,

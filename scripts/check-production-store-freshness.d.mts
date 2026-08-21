@@ -10,6 +10,7 @@ export type ProductionStoreFreshnessOptions = {
   fetchImpl?: typeof fetch;
   url?: string;
   now?: number;
+  artifactStamps?: Record<string, string>;
 };
 
 export function checkProductionStoreFreshness(

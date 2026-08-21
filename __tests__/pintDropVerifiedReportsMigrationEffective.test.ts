@@ -81,17 +81,18 @@ async function startSession(): Promise<Session> {
     { stdio: "ignore" },
   );
   const args = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres", "-d", "postgres"];
-  let ready = false;
-  for (let attempt = 0; attempt < 50; attempt += 1) {
-    try {
-      execFileSync(psql, [...args, "-c", "select 1"], { stdio: "pipe" });
-      ready = true;
-      break;
-    } catch {
-      await sleep(100);
+
+  const teardown = async (): Promise<void> => {
+    if (processHandle.exitCode === null) {
+      processHandle.kill("SIGTERM");
+      await Promise.race([
+        new Promise<void>((resolve) => processHandle.once("exit", () => resolve())),
+        sleep(1_000).then(() => undefined),
+      ]);
+      if (processHandle.exitCode === null) processHandle.kill("SIGKILL");
     }
-  }
-  if (!ready) throw new Error("PostgreSQL did not start.");
+    rmSync(dataDir, { recursive: true, force: true });
+  };
 
   const sql = (statement: string): string =>
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
@@ -110,41 +111,50 @@ async function startSession(): Promise<Session> {
     throw new Error(`PostgreSQL accepted a statement it had to refuse: ${statement}`);
   };
 
-  sql(`
-    create role anon nologin;
-    create role authenticated nologin;
-    create role service_role nologin bypassrls;
-    create table public.visit_reports (
-      id uuid primary key,
-      report_count integer not null default 0,
-      reported_at timestamptz,
-      report_reason text,
-      status text not null default 'visible'
-    );
-    create table public.pint_drop_reports (
-      id uuid primary key default gen_random_uuid(),
-      pint_drop_id uuid not null references public.visit_reports(id),
-      actor_hash text not null,
-      reason text,
-      unique (pint_drop_id, actor_hash)
-    );
-  `);
-  execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
-    stdio: "pipe",
-  });
+  try {
+    let ready = false;
+    for (let attempt = 0; attempt < 50; attempt += 1) {
+      try {
+        execFileSync(psql, [...args, "-c", "select 1"], { stdio: "pipe" });
+        ready = true;
+        break;
+      } catch {
+        await sleep(100);
+      }
+    }
+    if (!ready) throw new Error("PostgreSQL did not start.");
+
+    sql(`
+      create role anon nologin;
+      create role authenticated nologin;
+      create role service_role nologin bypassrls;
+      create table public.visit_reports (
+        id uuid primary key,
+        report_count integer not null default 0,
+        reported_at timestamptz,
+        report_reason text,
+        status text not null default 'visible'
+      );
+      create table public.pint_drop_reports (
+        id uuid primary key default gen_random_uuid(),
+        pint_drop_id uuid not null references public.visit_reports(id),
+        actor_hash text not null,
+        reason text,
+        unique (pint_drop_id, actor_hash)
+      );
+    `);
+    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
+      stdio: "pipe",
+    });
+  } catch (error) {
+    await teardown();
+    throw error;
+  }
 
   return {
     sql,
     expectRefusal,
-    stop: async () => {
-      processHandle.kill("SIGTERM");
-      await Promise.race([
-        new Promise<void>((resolve) => processHandle.once("exit", () => resolve())),
-        sleep(1_000).then(() => undefined),
-      ]);
-      if (processHandle.exitCode === null) processHandle.kill("SIGKILL");
-      rmSync(dataDir, { recursive: true, force: true });
-    },
+    stop: teardown,
   };
 }
 

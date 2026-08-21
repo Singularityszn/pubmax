@@ -98,9 +98,9 @@ success.
 
 Vercel owns machine scheduling, not publication. Price publication stays a
 manual reviewed path because a read-only serverless filesystem cannot rewrite
-`public/data/price_updates/latest.json`. Scheduled retrieval was retired while
-every permissible parser returned no rows. While parsers stay stubbed the
-served envelope stays empty and its `generatedAt`
+`public/data/price_updates/latest.json`. Vercel `refresh-prices` scheduling was
+retired because its in-function parsers returned no rows. While those Vercel
+parsers stay stubbed, its served envelope stays empty and its `generatedAt`
 names the bundled pint collection day (2026-07-03), not a fresher-looking date
 with no rows behind it. The served file is registered **episodic** with no
 machine staleness budget, like reviewed `night_signals`, so the freshness audit

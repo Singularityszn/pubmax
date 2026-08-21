@@ -80,7 +80,17 @@ export async function GET(): Promise<Response> {
     if (stored) return { observedAt: stored, reason: null };
     return resolveDatasetStamp(rootDir, dataset);
   };
-  const results = evaluateRegistry(registry, stampFor, now);
+  const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
+    ...result,
+    stampSource:
+      result.observedAt &&
+      (overlay[result.id] ||
+        registry.datasets.find((dataset) => dataset.id === result.id)?.stamp?.kind === "store")
+        ? "durable-store"
+        : result.observedAt
+          ? "artifact"
+          : "unresolved",
+  }));
 
   // The contribution flywheel's own number, alongside the dataset staleness:
   // how many (venue, drink category) pairs currently carry a community price
