@@ -63,15 +63,19 @@ const feedDataFiles = withRuntimeDataPacks(
   freshnessArtifactIncludeById(freshnessRegistry, "drink_price_updates"),
 );
 
-// Per-deploy build id for the offline service worker (issue #32). Evaluated
-// once when `next build` loads this config and inlined into the client bundle
-// as NEXT_PUBLIC_SW_VERSION; components/OfflineReady.tsx appends it to the
-// registration URL (/sw.js?v=…). A new deploy → new URL → the browser installs
-// a fresh worker. Its `activate` preserves usable offline entries and retires
-// superseded caches only when safe. The env override lets CI/Vercel pin it to a
-// commit SHA if ever desired; the timestamp default needs zero extra scripts or
-// package.json changes.
-const swVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? Date.now().toString(36);
+// Per-deploy build id for the offline service worker (issue #32). Next loads
+// this config in more than one build process. A clock-derived value therefore
+// gives one output several deployment ids, which makes the browser request the
+// same client chunk once per id. Use one revision supplied by the release
+// environment instead. Local builds use a stable marker because no worker from
+// a local build can cross into production.
+const swVersion =
+  process.env.NEXT_PUBLIC_SW_VERSION ??
+  process.env.DEPLOYMENT_VERSION ??
+  process.env.VERCEL_DEPLOYMENT_ID ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  "local";
 
 // Next 16 tags framework-owned assets and navigations with this identifier,
 // allowing skew protection to keep stale clients on one deployment during a

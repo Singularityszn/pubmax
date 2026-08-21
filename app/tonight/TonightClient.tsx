@@ -633,7 +633,7 @@ export default function TonightClient({
                         {RowInner}
                       </a>
                     ) : (
-                      <Link
+                      <Link prefetch={false}
                         className="tonightRowLink pressable"
                         href={link.href}
                         onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
@@ -645,7 +645,7 @@ export default function TonightClient({
                     <div className="tonightRowLink">{RowInner}</div>
                   )}
                   {mapHref ? (
-                    <Link
+                    <Link prefetch={false}
                       className="tonightRowMapLink pressable"
                       href={mapHref}
                       onClick={() => trackEvent("tonight_result_opened", { kind: row.kind, localityBasis })}
@@ -706,7 +706,7 @@ export default function TonightClient({
                                     ) : null}
                                   </a>
                                 ) : (
-                                  <Link className="tonightRowMoreLink pressable" href={altLink.href}>
+                                  <Link prefetch={false} className="tonightRowMoreLink pressable" href={altLink.href}>
                                     {altPlace}
                                     {altWalk ? (
                                       <span className="tonightRowMoreWalk">{altWalk}</span>
@@ -759,7 +759,7 @@ export default function TonightClient({
           ) : null}
 
           <p className="tonightFoot">
-            <Link href="/map" className="tonightFootLink">
+            <Link prefetch={false} href="/map" className="tonightFootLink">
               See them on the map
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -796,7 +796,7 @@ export default function TonightClient({
               const Icon = alt.icon;
               return (
                 <li key={alt.title} className="tonightQuietRow">
-                  <Link href={alt.href} className="tonightQuietLink pressable">
+                  <Link prefetch={false} href={alt.href} className="tonightQuietLink pressable">
                     <span className="tonightQuietIcon" aria-hidden="true">
                       <Icon size={17} />
                     </span>

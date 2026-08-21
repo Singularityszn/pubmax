@@ -21,7 +21,7 @@ type NowBeat = "day" | "tonight";
 export default function NowSegment({ current }: { current: NowBeat }) {
   return (
     <nav className="nowSegment" aria-label="Now">
-      <Link
+      <Link prefetch={false}
         href="/today"
         className="nowSegmentOpt"
         aria-current={current === "day" ? "page" : undefined}
@@ -29,7 +29,7 @@ export default function NowSegment({ current }: { current: NowBeat }) {
       >
         Day
       </Link>
-      <Link
+      <Link prefetch={false}
         href="/tonight"
         className="nowSegmentOpt"
         aria-current={current === "tonight" ? "page" : undefined}

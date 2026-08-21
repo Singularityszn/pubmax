@@ -228,7 +228,7 @@ export default function LandingPage({
   }, []);
 
   const heroPrimary = (
-    <Link
+    <Link prefetch={false}
       className="lpButton lpButtonPrimary"
       href="/near?locate=1"
       onClick={() => trackLandingCta("near")}
@@ -240,7 +240,7 @@ export default function LandingPage({
     <div className="lpHeroActions">
       {heroPrimary}
       <div className="lpHeroSecondaryRow">
-        <Link
+        <Link prefetch={false}
           className="lpTextLink"
           href={primaryCtaHref}
           {...warmProps}
@@ -248,7 +248,7 @@ export default function LandingPage({
         >
           <MapPin size={17} aria-hidden="true" /> Open the map
         </Link>
-        <Link className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
+        <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
         </Link>
       </div>
@@ -264,17 +264,17 @@ export default function LandingPage({
   return (
     <div className="lp">
       <header className="lpNav">
-        <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
           <PubmaxxWordmark />
         </Link>
 
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
-          <Link href={primaryCtaHref} {...warmProps}>Map</Link>
-          <Link href="/plan">Plan</Link>
-          <Link href="/tonight">Tonight</Link>
-          <Link href="/moment">Moment</Link>
-          <Link href="/social">{socialLabel}</Link>
-          <Link href="/u/you">You</Link>
+          <Link prefetch={false} href={primaryCtaHref} {...warmProps}>Map</Link>
+          <Link prefetch={false} href="/plan">Plan</Link>
+          <Link prefetch={false} href="/tonight">Tonight</Link>
+          <Link prefetch={false} href="/moment">Moment</Link>
+          <Link prefetch={false} href="/social">{socialLabel}</Link>
+          <Link prefetch={false} href="/u/you">You</Link>
         </nav>
 
         <div className="lpNavActions">
@@ -349,31 +349,31 @@ export default function LandingPage({
               leave a gap than invent a figure. The longer why is on Our story.
             </p>
             <div className="lpWhyActions">
-              <Link href={primaryCtaHref} className="lpTextLink" {...warmProps}>
+              <Link prefetch={false} href={primaryCtaHref} className="lpTextLink" {...warmProps}>
                 Open the map <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link href="/plan" className="lpTextLink">
+              <Link prefetch={false} href="/plan" className="lpTextLink">
                 Plan an outing <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link
+              <Link prefetch={false}
                 href={planOccasionHref("coffee", { src: "landing-why" })}
                 className="lpTextLink"
               >
                 Coffee catch-up <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link
+              <Link prefetch={false}
                 href={planOccasionHref("af", { src: "landing-why" })}
                 className="lpTextLink"
               >
                 Alcohol-free outing <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link
+              <Link prefetch={false}
                 href={planOccasionHref("chill", { src: "landing-why" })}
                 className="lpTextLink"
               >
                 Chill afternoon <ArrowRight size={16} aria-hidden="true" />
               </Link>
-              <Link href="/about" className="lpTextLink">
+              <Link prefetch={false} href="/about" className="lpTextLink">
                 Our story <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </div>
@@ -406,13 +406,13 @@ export default function LandingPage({
               <h2 id="memory-title">Plan the outing. Keep the parts that mattered.</h2>
               <p>Your outing stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
               <div className="lpMemoryActions">
-                <Link href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
+                <Link prefetch={false} href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
                 {socialFriendsLaunchEnabled ? (
-                  <Link href="/social" className="lpTextLink">
+                  <Link prefetch={false} href="/social" className="lpTextLink">
                     Open Social <ArrowRight size={16} aria-hidden="true" />
                   </Link>
                 ) : (
-                  <Link href="/u/you#night-memories" className="lpTextLink">
+                  <Link prefetch={false} href="/u/you#night-memories" className="lpTextLink">
                     Open Memories <ArrowRight size={16} aria-hidden="true" />
                   </Link>
                 )}
@@ -441,7 +441,7 @@ export default function LandingPage({
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
             <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
-            <Link href="/pal/chat" className="lpTextLink">Ask your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link prefetch={false} href="/pal/chat" className="lpTextLink">Ask your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
@@ -453,14 +453,14 @@ export default function LandingPage({
           <div className="lpFinalLines" aria-hidden="true"><span /><span /><span /></div>
           <p>PUBMAXX · Make a memory, not a spreadsheet</p>
           <h2 id="final-title">Your city is already happening.</h2>
-          <Link
+          <Link prefetch={false}
             href="/near?locate=1"
             className="lpButton lpButtonPrimary"
             onClick={() => trackLandingCta("near")}
           >
             Find my pint <ArrowRight size={18} aria-hidden="true" />
           </Link>
-          <Link
+          <Link prefetch={false}
             href={primaryCtaHref}
             className="lpTextLink"
             {...warmProps}
@@ -468,7 +468,7 @@ export default function LandingPage({
           >
             Open the map <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          <Link href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
+          <Link prefetch={false} href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
             Plan with friends <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </section>
@@ -477,7 +477,7 @@ export default function LandingPage({
       <footer className="lpFooter">
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
-            <Link href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterPitch">
@@ -499,20 +499,20 @@ export default function LandingPage({
           <nav className="lpFooterNav" aria-label="Footer">
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
-              <Link href={primaryCtaHref} {...warmProps}>The map</Link>
+              <Link prefetch={false} href={primaryCtaHref} {...warmProps}>The map</Link>
               {/* Bare /near: a footer directory tap is browsing, so it must not
                   fire the geolocation prompt. Only the two deliberate one-tap
                   CTAs above ask for a location on arrival. */}
-              <Link href="/near">Find my pint</Link>
-              <Link href="/tonight">Tonight</Link>
-              <Link href="/plan">Plan a night</Link>
+              <Link prefetch={false} href="/near">Find my pint</Link>
+              <Link prefetch={false} href="/tonight">Tonight</Link>
+              <Link prefetch={false} href="/plan">Plan a night</Link>
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              <Link href="/social">{socialLabel}</Link>
-              <Link href="/pal">Pub Pal</Link>
-              <Link href="/choose-city">Pick your city</Link>
-              <Link href="/about">Our story</Link>
+              <Link prefetch={false} href="/social">{socialLabel}</Link>
+              <Link prefetch={false} href="/pal">Pub Pal</Link>
+              <Link prefetch={false} href="/choose-city">Pick your city</Link>
+              <Link prefetch={false} href="/about">Our story</Link>
             </div>
           </nav>
         </div>
@@ -536,8 +536,8 @@ export default function LandingPage({
               any page of the site, plus a contact address that actually works.
               Sits with the over-18 line because that is where legal copy lives. */}
           <nav className="lpFooterSmallPrint" aria-label="Small print">
-            <Link href="/privacy">Privacy</Link>
-            <Link href="/terms">Terms of use</Link>
+            <Link prefetch={false} href="/privacy">Privacy</Link>
+            <Link prefetch={false} href="/terms">Terms of use</Link>
             <a href={CONTACT_MAILTO}>Contact</a>
           </nav>
           <p className="lpFooterLegal">

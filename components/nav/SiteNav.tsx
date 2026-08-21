@@ -145,7 +145,7 @@ export default function SiteNav({
       aria-label="Site navigation"
     >
       {/* Wordmark: the compact-mobile anchor + the desktop home affordance. */}
-      <Link href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
+      <Link prefetch={false} href="/" className="siteNavBrand" aria-label="Open PUBMAXX landing page">
         <PubmaxxWordmark />
       </Link>
 
@@ -155,7 +155,7 @@ export default function SiteNav({
           const isActive = link.key === activeKey;
           return (
             <li key={link.key} className="siteNavItem">
-              <Link
+              <Link prefetch={false}
                 href={link.href}
                 className={isActive ? "siteNavLink isActive" : "siteNavLink"}
                 aria-current={isActive ? "page" : undefined}
@@ -178,7 +178,7 @@ export default function SiteNav({
             users reach /moment here. Carries the same returnTo the mobile FAB
             uses (momentHref) so composing returns to the current page. Hidden
             ≤640px in siteNavMoment.css — the FAB covers mobile. */}
-        <Link
+        <Link prefetch={false}
           href={momentHref(pathname)}
           className="siteNavMoment"
           aria-label="Share a Moment"
