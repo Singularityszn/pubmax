@@ -22,6 +22,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -39,6 +41,7 @@ jobs:
         env:
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: >-
           npx playwright test
           e2e/smoke.spec.ts
@@ -67,6 +70,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4

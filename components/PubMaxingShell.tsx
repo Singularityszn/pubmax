@@ -4,10 +4,8 @@ import dynamic from "next/dynamic";
 import { createContext, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
-import { holdBackgroundWarmup } from "@/lib/backgroundWarmup";
 import { warmCityMapFirstPaint } from "@/lib/mapWarmup";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
-import { MAP_PIN_REVEAL_EVENT } from "@/lib/mapPinRevealEvent";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
 import {
@@ -98,38 +96,12 @@ export default function PubMaxingShell({
   // can possibly have mounted and read the sessionStorage flag.
   useState(restoreOnboardingDismissal);
 
-  // ── Hold background warmup until the map has painted ──────────────────────
-  // A cold /map open is main-thread bound: MapLibre's chunk parse, style load,
-  // tile decode and scene build all queue behind each other. The site chrome
-  // that mounts alongside it warms the OTHER tab destinations, which downloads
-  // and parses their route JS. Left to plain browser idle that warmup fires at
-  // about one second — after the skeleton paints, before the map's own chunks
-  // have even been requested — so it lands squarely inside MapLibre's init.
-  //
-  // The hold is taken in a lazy initializer rather than an effect because React
-  // runs every render before any effect: the nav mounts in the same commit and
-  // its effect would otherwise win the race. Released on the canvas's own
-  // pin-reveal event, and by lib/backgroundWarmup's ceiling if that never
-  // arrives, so warmup is delayed but never lost.
-  const [releaseWarmupHold] = useState(() =>
-    typeof window === "undefined" ? () => {} : holdBackgroundWarmup(),
-  );
-
   // Start the first frame's two certain dependencies after React commits this
   // shell. Starting the dynamic import inside a state initializer updates
   // Next's development style runtime while this component is still rendering.
   useEffect(() => {
     warmCityMapFirstPaint(cityId);
   }, [cityId]);
-  useEffect(() => {
-    const release = () => releaseWarmupHold();
-    window.addEventListener(MAP_PIN_REVEAL_EVENT, release, { once: true });
-    return () => {
-      window.removeEventListener(MAP_PIN_REVEAL_EVENT, release);
-      release();
-    };
-  }, [releaseWarmupHold]);
-
   // Every dismissal path is user-initiated (scrim tap, ✕, "Dismiss / explore",
   // picking a crawl — click or Enter/Escape), so a deferred post-interaction
   // check catches the sessionStorage write without touching the locked PubMap.

@@ -5,17 +5,23 @@
 // flag, a prompt budget, a saved Pub Pal), so none of it belongs in the
 // critical first-load bundle of every route. next/dynamic with ssr:false
 // moves each component and its import graph (NightModeCard alone pulls the
-// plan/TfL/recap stack) into lazily fetched chunks that load after hydration.
+// plan/TfL/recap stack) into lazily fetched chunks. Mounting a dynamic component
+// starts its fetch immediately, so this host waits through the current route's
+// useful-state window before it mounts those components.
 //
 // Behaviour is unchanged: the same components mount with the same props and
-// the same client-side gates; they just arrive a beat after the page is
-// interactive instead of blocking it.
+// the same client-side gates. Native shells mount immediately because their
+// system-bar and deep-link listeners are startup work, not optional web chrome.
 
 import nextDynamic from "next/dynamic";
+import { useEffect, useState } from "react";
 
 // Console-only easter egg. Imported directly rather than lazily: it is a few
 // lines that render null, so its own chunk would cost more than it saves.
 import CellarNotice from "@/components/CellarNotice";
+import { isNativeApp } from "@/lib/nativePlatform";
+
+const DEFERRED_SHELL_FALLBACK_MS = 30_000;
 
 const NightModeCard = nextDynamic(() => import("@/components/night/NightModeCard"), {
   ssr: false,
@@ -54,6 +60,21 @@ const PlanMutationOutboxHost = nextDynamic(
 );
 
 export default function DeferredShellExtras() {
+  const [ready, setReady] = useState(false);
+
+  useEffect(() => {
+    const release = () => setReady(true);
+    if (isNativeApp()) {
+      const nativeRelease = window.setTimeout(release, 0);
+      return () => window.clearTimeout(nativeRelease);
+    }
+
+    const fallback = window.setTimeout(release, DEFERRED_SHELL_FALLBACK_MS);
+    return () => window.clearTimeout(fallback);
+  }, []);
+
+  if (!ready) return <CellarNotice />;
+
   return (
     <>
       <NightModeCard />

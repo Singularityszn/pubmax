@@ -97,6 +97,19 @@ describe("externally trusted signing keys", () => {
     );
   });
 
+  it("can omit the unused keyless server from a targeted browser gate", async () => {
+    vi.stubEnv("PW_SCREENSHOTS", "");
+    vi.stubEnv("PW_SKIP_WEBSERVER", "");
+    vi.stubEnv("PW_SKIP_KEYLESS_WEBSERVER", "1");
+    vi.resetModules();
+
+    const config = (await import("../playwright.config")).default;
+    const webServers = config.webServer as { url?: string }[] | undefined;
+
+    expect(webServers).toHaveLength(1);
+    expect(webServers?.[0]?.url).toBe("http://localhost:3100");
+  });
+
   it("assigns contribution E2E to matching auth projects", async () => {
     vi.stubEnv("PW_SCREENSHOTS", "");
     vi.stubEnv("PW_SKIP_WEBSERVER", "");

@@ -238,6 +238,7 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
   # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
@@ -282,6 +283,7 @@ jobs:
           NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
       # The spec writes the table into its own Playwright output directory, so

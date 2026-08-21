@@ -15,12 +15,8 @@ vi.mock("@/lib/cityPreference", () => ({
 vi.mock("@/components/auth/useViewerHandle", () => ({
   useViewerHandle: () => null,
 }));
-vi.mock("@/lib/backgroundWarmup", () => ({
-  whenBackgroundWarmupAllowed: (run: () => void) => run(),
-}));
 vi.mock("@/lib/mapWarmup", () => ({
   warmNavRoute: () => undefined,
-  warmPrimaryTabRoutes: () => undefined,
 }));
 vi.mock("@/lib/mobileShell", () => ({
   requestMobileSheetDismiss: () => undefined,

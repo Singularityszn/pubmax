@@ -22,9 +22,6 @@ vi.mock("react", async (importOriginal) => {
 vi.mock("next/dynamic", () => ({
   default: () => () => createElement("div", { className: "map-stub" }),
 }));
-vi.mock("@/lib/backgroundWarmup", () => ({
-  holdBackgroundWarmup: () => () => {},
-}));
 vi.mock("@/lib/mapWarmup", () => warmup);
 
 import PubMaxingShell from "@/components/PubMaxingShell";

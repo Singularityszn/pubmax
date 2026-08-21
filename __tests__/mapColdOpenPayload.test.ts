@@ -123,5 +123,6 @@ describe("map cold-open payload", () => {
     const source = readFileSync(join(ROOT, "components/nav/MobileTabBar.tsx"), "utf8");
     expect(source).toContain("prefetch={false}");
     expect(source).not.toMatch(/^\s*prefetch\s*$/m);
+    expect(source).not.toContain("warmPrimaryTabRoutes");
   });
 });
