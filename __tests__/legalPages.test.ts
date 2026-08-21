@@ -37,8 +37,8 @@ const sitemap = read("app/sitemap.ts");
 
 describe("legal content pages", () => {
   it("reaches the reader from the site footer", () => {
-    expect(landing).toMatch(/<Link href="\/privacy">/);
-    expect(landing).toMatch(/<Link href="\/terms">/);
+    expect(landing).toMatch(/<Link\b[^>]*href="\/privacy"[^>]*>/);
+    expect(landing).toMatch(/<Link\b[^>]*href="\/terms"[^>]*>/);
     expect(landing).toMatch(/CONTACT_MAILTO/);
   });
 
