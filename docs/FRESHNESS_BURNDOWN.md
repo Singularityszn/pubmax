@@ -73,7 +73,6 @@ below.
 | events_live_eventbrite | LIVE | n/a | n/a | none | n/a |
 | pint_index_snapshot | UNTRACKED | 540h / no budget | (c) episodic, light-touch ceiling | low | code |
 | late_food_evidence | UNTRACKED | 264h / no budget | (c) episodic, needs ceiling | low | code |
-| night_out_places | FRESH | 432h / 720h | n/a | none | n/a |
 | pubmaxxing_seed | UNTRACKED | 756h / no budget | (c) episodic, needs ceiling | low | code |
 | wetherspoons_directory | UNTRACKED | 648.1h / no budget | (c) episodic, needs ceiling | low | code |
 | tfl_last_train | LIVE | n/a | n/a | none | n/a |

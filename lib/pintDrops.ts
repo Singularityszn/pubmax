@@ -500,8 +500,8 @@ export type PintDropReportIdentity =
   | { kind: "verified_account"; actorHash: string }
   | { kind: "anonymous_ip"; actorHash: string };
 
-// Per-actor report ledger (memory mirror of pint_drop_reports' unique
-// (pint_drop_id, actor_hash) - migrations 0006/0008/0017): drop id to the set of
+// Per-actor report ledger (memory mirror of pint_drop_verified_reports' unique
+// (pint_drop_id, actor_hash) - migration 0112): drop id to the set of
 // actor hashes that already reported it. A same-actor duplicate is an idempotent
 // no-op. A verified account cannot advance the counter twice, and anonymous
 // reports never advance it.

@@ -124,7 +124,55 @@ jobs:
           --exclude '__tests__/rlsWave2Session.test.ts'
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
+          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
           --exclude '__tests__/**/*Migration.test.ts'
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Enforce coverage
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_RLS_NO_PG: "1"
+        run: npm run coverage
+
+  freshness:
+    name: Freshness release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check every tracked feed
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: npm run check:freshness
 
   # Speed is the product's claim, so a pull request that slows a budgeted route
   # fails here rather than being noticed on a phone weeks later. The ceilings

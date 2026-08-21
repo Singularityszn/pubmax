@@ -141,7 +141,7 @@ describe("famous venue seeds", () => {
   it("carries every field required by the provenance registry", () => {
     const registry = JSON.parse(
       readFileSync(
-        path.join(ROOT, "data", "night_out_place_provenance_registry.json"),
+        path.join(ROOT, "data", "famous_venue_provenance_registry.json"),
         "utf8",
       ),
     ) as { requiredRowFields: string[] };

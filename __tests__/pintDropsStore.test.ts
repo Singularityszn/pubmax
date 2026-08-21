@@ -48,7 +48,7 @@ vi.mock("@/lib/supabase", () => ({
   STORAGE_BUCKET: "pint-drops",
 }));
 
-import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, supabasePintDropStore } from "@/lib/pintDropsStore";
+import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, pintDropReportCountFromRow, supabasePintDropStore } from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
 import { REPORT_HIDE_THRESHOLD, type PintDropReportIdentity } from "@/lib/pintDrops";
 
@@ -130,6 +130,10 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
 }
 
 describe("toDTO", () => {
+  it("uses the verified ledger count instead of the mixed legacy count", () => {
+    expect(pintDropReportCountFromRow({ report_count: 9, verified_report_count: 1 })).toBe(1);
+    expect(pintDropReportCountFromRow({ report_count: 2 })).toBe(2);
+  });
   it("maps storage keys to signed URLs and never leaks the keys", async () => {
     const dto = await toDTOWithPhotos(
       drop({ pintPhotoKey: "the-crown/d1/pint.jpg", venuePhotoKey: "the-crown/d1/venue.png" }),

@@ -4,7 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
 
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
 const MIGRATION_PATH = join(
   process.cwd(),
@@ -47,6 +47,7 @@ async function freePort(): Promise<number> {
 
 type Session = {
   sql: (statement: string) => string;
+  expectRefusal: (statement: string) => string;
   stop: () => Promise<void>;
 };
 
@@ -97,6 +98,18 @@ async function startSession(): Promise<Session> {
       encoding: "utf8",
     }).trim();
 
+  const expectRefusal = (statement: string): string => {
+    try {
+      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      });
+    } catch (error) {
+      return String((error as { stderr?: string | Buffer }).stderr ?? "");
+    }
+    throw new Error(`PostgreSQL accepted a statement it had to refuse: ${statement}`);
+  };
+
   sql(`
     create role anon nologin;
     create role authenticated nologin;
@@ -122,6 +135,7 @@ async function startSession(): Promise<Session> {
 
   return {
     sql,
+    expectRefusal,
     stop: async () => {
       processHandle.kill("SIGTERM");
       await Promise.race([
@@ -134,11 +148,29 @@ async function startSession(): Promise<Session> {
   };
 }
 
-let session: Session;
+function missingPostgresReason(): string | null {
+  if (process.env.PUBMAX_RLS_NO_PG === "1") {
+    return "PostgreSQL was deliberately hidden by PUBMAX_RLS_NO_PG=1.";
+  }
+  const missing = (["initdb", "postgres", "psql"] as const).filter((name) => !binary(name));
+  return missing.length > 0 ? `Missing PostgreSQL binaries: ${missing.join(", ")}.` : null;
+}
+
+let session: Session | null = null;
+let skipReason: string | null = null;
 
 beforeAll(async () => {
+  skipReason = missingPostgresReason();
+  if (skipReason) {
+    console.error(`PINT DROP 0112 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`);
+    return;
+  }
   session = await startSession();
 }, 60_000);
+
+beforeEach((context) => {
+  if (skipReason) context.skip(true, skipReason);
+});
 
 afterAll(async () => {
   await session?.stop();
@@ -147,19 +179,19 @@ afterAll(async () => {
 describe("0112 verified Pint Drop report ledger", () => {
   it("does not let a legacy anonymous count hide a visible Pint Drop", () => {
     const id = "00000000-0000-4000-8000-000000000112";
-    session.sql(`
+      session!.sql(`
       insert into public.visit_reports (id, report_count) values ('${id}', 1);
       insert into public.pint_drop_reports (pint_drop_id, actor_hash)
       values ('${id}', 'mixed-legacy-actor');
     `);
 
     expect(
-      session.sql(
+      session!.sql(
         `select public.report_pint_drop_v2('${id}', 'mixed-legacy-actor', 'wrong venue', 2)`,
       ),
     ).toBe("1");
     expect(
-      session.sql(
+      session!.sql(
         `select verified_report_count || ':' || report_count || ':' || status from public.visit_reports where id = '${id}'`,
       ),
     ).toBe("1:1:visible");
@@ -167,21 +199,39 @@ describe("0112 verified Pint Drop report ledger", () => {
 
   it("hides only after two distinct verified accounts and stays idempotent", () => {
     const id = "00000000-0000-4000-8000-000000000113";
-    session.sql(`insert into public.visit_reports (id, report_count) values ('${id}', 9)`);
+    session!.sql(`insert into public.visit_reports (id, report_count) values ('${id}', 9)`);
 
     expect(
-      session.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`),
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`),
     ).toBe("1");
     expect(
-      session.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`),
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`),
     ).toBe("1");
     expect(
-      session.sql(`select public.report_pint_drop_v2('${id}', 'account-b', '', 2)`),
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-b', '', 2)`),
     ).toBe("2");
     expect(
-      session.sql(
+      session!.sql(
         `select verified_report_count || ':' || report_count || ':' || status from public.visit_reports where id = '${id}'`,
       ),
     ).toBe("2:9:hidden");
+  });
+
+  it("keeps the verified ledger service-role only", () => {
+    expect(
+      session!.expectRefusal(
+        "set role anon; select count(*) from public.pint_drop_verified_reports",
+      ),
+    ).toContain("permission denied");
+    expect(
+      session!.expectRefusal(
+        "set role authenticated; select public.report_pint_drop_v2(gen_random_uuid(), 'x', '', 2)",
+      ),
+    ).toContain("permission denied");
+    expect(
+      session!.sql(
+        "set role service_role; select has_table_privilege('service_role', 'public.pint_drop_verified_reports', 'select')",
+      ),
+    ).toMatch(/t$/);
   });
 });

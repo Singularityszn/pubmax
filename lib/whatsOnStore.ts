@@ -41,9 +41,13 @@ const GREATER_LONDON_BOUNDS = {
   maxLng: 0.334,
 } as const;
 
+const londonVerifiedRows = new WeakSet<WhatsOnRow>();
+
 function filterLondonDefaultRows(rows: WhatsOnRow[]): WhatsOnRow[] {
   return rows.filter((row) => {
-    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return true;
+    if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) {
+      return londonVerifiedRows.has(row) || Boolean(row.area);
+    }
     return (
       (row.lat as number) >= GREATER_LONDON_BOUNDS.minLat &&
       (row.lat as number) <= GREATER_LONDON_BOUNDS.maxLat &&
@@ -114,6 +118,9 @@ export function loadBaselineWhatsOn(): WhatsOnRow[] {
   const music = parseWhatsOnRows(rawMusicLondon, generatedAtOf(rawMusicLondon));
   const events = parseWhatsOnRows(rawEventsLondon, generatedAtOf(rawEventsLondon));
   const latest = parseWhatsOnRows(rawWhatsOnLatest, generatedAtOf(rawWhatsOnLatest));
+  for (const row of [...quiz, ...deals, ...music, ...events, ...latest]) {
+    londonVerifiedRows.add(row);
+  }
   const byKey = new Map<string, WhatsOnRow>();
   for (const row of [...quiz, ...deals, ...sportFixtures, ...music, ...events, ...latest]) {
     const key = dedupeKey(row);
@@ -267,6 +274,38 @@ function flattenGroupsBeforeLimit(
   return selected.flatMap((group) => [group.row, ...group.alternates]);
 }
 
+function markVerifiedLondonLiveRows(rows: WhatsOnRow[], trusted: boolean): void {
+  if (!trusted) return;
+  for (const row of rows) londonVerifiedRows.add(row);
+}
+
+function filterRowsForRequest(
+  rows: WhatsOnRow[],
+  params: LoadWhatsOnParams,
+  now: number,
+  tonightGroupingV2: boolean,
+): WhatsOnRow[] {
+  let filtered = rows;
+  if (!params.near && (params.localityBasis ?? "london-default") === "london-default") {
+    filtered = filterLondonDefaultRows(filtered);
+  }
+  if (params.kind) filtered = filterByKind(filtered, params.kind);
+  if (params.window === "tonight") filtered = filterTonight(filtered, now);
+  if (params.near) filtered = sortByNear(filtered, params.near);
+
+  if (params.window === "tonight") {
+    return flattenGroupsBeforeLimit(
+      filtered,
+      params.near ?? null,
+      params.limit,
+      tonightGroupingV2,
+    );
+  }
+  return typeof params.limit === "number" && params.limit > 0
+    ? filtered.slice(0, params.limit)
+    : filtered;
+}
+
 // Orchestrator: baseline union live (fail-soft), remove ended rows, apply the
 // service window and locality ordering, group exact offer families, then apply
 // the final card limit. Reads never present servedAt as source freshness.
@@ -306,6 +345,7 @@ export async function loadWhatsOn(
     const fetchLive = deps.fetchLive ?? defaultFetchLive;
     const fetchArgs = deps.fetchLive ? { now } : { now, area: "London" };
     live = normaliseLiveResult(await fetchLive(fetchArgs), now);
+    markVerifiedLondonLiveRows(live.rows, !deps.fetchLive);
     if (live.stale) {
       revalidation = { status: "unmeasured", reason: "live-provider-failed" };
     }
@@ -318,19 +358,12 @@ export async function loadWhatsOn(
     revalidation = { status: "unmeasured", reason: "baseline-read-failed" };
   }
 
-  let rows = filterNotPast(mergeWhatsOn(baseline, live.rows), now);
-  if (!params.near && (params.localityBasis ?? "london-default") === "london-default") {
-    rows = filterLondonDefaultRows(rows);
-  }
-  if (params.kind) rows = filterByKind(rows, params.kind);
-  if (params.window === "tonight") rows = filterTonight(rows, now);
-  if (params.near) rows = sortByNear(rows, params.near);
-
-  if (params.window === "tonight") {
-    rows = flattenGroupsBeforeLimit(rows, params.near ?? null, params.limit, deps.tonightGroupingV2 ?? false);
-  } else if (typeof params.limit === "number" && params.limit > 0) {
-    rows = rows.slice(0, params.limit);
-  }
+  const rows = filterRowsForRequest(
+    filterNotPast(mergeWhatsOn(baseline, live.rows), now),
+    params,
+    now,
+    deps.tonightGroupingV2 ?? false,
+  );
 
   // Which of the rows we are about to serve may DATE themselves.
   //

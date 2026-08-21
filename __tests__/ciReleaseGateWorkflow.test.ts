@@ -15,6 +15,13 @@ describe("clean-main CI release gate", () => {
     expect(workflow).toMatch(
       /name: Typecheck[\s\S]*NODE_OPTIONS: "--max-old-space-size=6144"[\s\S]*run: npx tsc --noEmit/,
     );
-    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(4);
+    expect(workflow.match(/NODE_OPTIONS: "--max-old-space-size=6144"/g)).toHaveLength(5);
+  });
+
+  it("gates coverage and freshness independently", () => {
+    expect(workflow).toMatch(/coverage:[\s\S]*name: Coverage[\s\S]*run: npm run coverage/);
+    expect(workflow).toMatch(
+      /freshness:[\s\S]*name: Freshness release gate[\s\S]*run: npm run check:freshness/,
+    );
   });
 });

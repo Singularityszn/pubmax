@@ -217,7 +217,7 @@ export async function POST(request: Request): Promise<Response> {
     //     ONE report per drop per window, so a duplicate is rejected cheaply
     //     here before it touches storage.
     // DURABLE per-account uniqueness lives in the store/RPC layer
-    // (report_pint_drop_v2 + the pint_drop_reports unique (pint_drop_id,
+    // (report_pint_drop_v2 + the pint_drop_verified_reports unique (pint_drop_id,
     // actor_hash) pair; the in-memory store mirrors it): a same-actor repeat
     // that slips past this window (new window, limiter cold-start/outage) is an
     // idempotent no-op in the store. Anonymous IP hashes record reports and key
