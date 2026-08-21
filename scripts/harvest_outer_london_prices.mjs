@@ -57,6 +57,23 @@ function logPathArg() {
 }
 const LOG_PATH = logPathArg();
 
+function drinkIdentityName(name) {
+  return String(name)
+    .normalize("NFKC")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+pint$/, "")
+    .replace(/\s+/g, " ");
+}
+
+export function mergeDrinkUpdates(existing, incoming) {
+  const keyOf = (update) =>
+    `${update.venueKey}|${drinkIdentityName(update.drinkName)}|${update.source.url}`;
+  const merged = new Map(existing.map((update) => [keyOf(update), update]));
+  for (const update of incoming) merged.set(keyOf(update), update);
+  return [...merged.values()];
+}
+
 // Chains proven to publish NO per-drink prices on their public web pages
 // (prices live only in native Order & Pay apps / image-only menus). Skipped to
 // save credits; logged honestly as chain-no-web-price.
@@ -426,11 +443,10 @@ function main() {
           existing = [];
         }
       }
-      // de-dupe on venueKey|drinkName|source.url — new observation wins.
-      const keyOf = (u) => `${u.venueKey}|${u.drinkName.toLowerCase()}|${u.source.url}`;
-      const map = new Map(existing.map((u) => [keyOf(u), u]));
-      for (const u of drinkUpdates) map.set(keyOf(u), u);
-      const merged = [...map.values()];
+      // De-dupe on venue, normalised drink identity, and publisher. A current
+      // source may add or remove the redundant trailing word "pint" without
+      // creating two current observations for one drink.
+      const merged = mergeDrinkUpdates(existing, drinkUpdates);
       const stamp = observedDate.replace(/-/g, "");
       const payload = { version: 1, generatedAt: observedAt, updates: merged };
       writeFileSync(join(DRINK_UPDATES_DIR, `prices_${stamp}.json`), `${JSON.stringify(payload, null, 2)}\n`);

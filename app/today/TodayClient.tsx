@@ -164,7 +164,7 @@ function PicksCard({
       <div className="todayPickCheapPint" data-testid="today-picks-cheap-pint">
         <p className="todayPickCheapPintEyebrow">Cheapest listed pint {cheapPintScope}</p>
         <div className="todayPintRow">
-          <Link className="todayPintLink pressable" href={cheapPint.mapHref}>
+          <Link prefetch={false} className="todayPintLink pressable" href={cheapPint.mapHref}>
             <span className="todayPintName">{cheapPint.name}</span>
             <span className="todayPintPrice">{cheapPint.priceLabel}</span>
           </Link>
@@ -230,7 +230,7 @@ function PicksCard({
                         <ExternalLink size={13} aria-hidden="true" className="todayPickArrow" />
                       </a>
                     ) : (
-                      <Link className="todayPickLink pressable" href={pick.href}>
+                      <Link prefetch={false} className="todayPickLink pressable" href={pick.href}>
                         {inner}
                         <ArrowRight size={14} aria-hidden="true" className="todayPickArrow" />
                       </Link>
@@ -244,7 +244,7 @@ function PicksCard({
           </ul>
           {cheapPintBlock}
           <p className="todayCardFootRow">
-            <Link href="/tonight" className="todayCardFootLink">
+            <Link prefetch={false} href="/tonight" className="todayCardFootLink">
               See everything on tonight
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -259,7 +259,7 @@ function PicksCard({
           </p>
           {cheapPintBlock}
           <p className="todayCardFootRow">
-            <Link href="/map" className="todayCardFootLink">
+            <Link prefetch={false} href="/map" className="todayCardFootLink">
               Meanwhile, the map knows the cheap pints
               <ArrowRight size={14} aria-hidden="true" />
             </Link>
@@ -457,15 +457,15 @@ export default function TodayClient({
       </div>
 
       <p className="todayFoot">
-        <Link href="/tonight" className="todayCardFootLink">
+        <Link prefetch={false} href="/tonight" className="todayCardFootLink">
           Jump to tonight
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link href="/plan" className="todayCardFootLink">
+        <Link prefetch={false} href="/plan" className="todayCardFootLink">
           Plan an outing
           <ArrowRight size={14} aria-hidden="true" />
         </Link>
-        <Link href="/map" className="todayCardFootLink">
+        <Link prefetch={false} href="/map" className="todayCardFootLink">
           <Beer size={14} aria-hidden="true" />
           Open the map
         </Link>

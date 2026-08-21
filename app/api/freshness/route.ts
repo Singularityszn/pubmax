@@ -66,8 +66,8 @@ export async function GET(): Promise<Response> {
   // read-only on serverless and would report a frozen stamp); every other feed
   // keeps its disk-derived stamp. Fail-soft: no store configured → empty overlay.
   const overlay = await resolveStoreObservedAt();
-  // The two artifact-less cron feeds (price_update_retrieval, night_signal_candidates)
-  // declare a `{kind:"store"}` stamp in the registry: they have no committed file at
+  // The artifact-less night_signal_candidates cron feed declares a `{kind:"store"}`
+  // stamp in the registry: it has no committed file at
   // all, so their stamp resolves ONLY from the durable store's real four-way read
   // (unconfigured/unreachable/empty/ok), never from a disk fallback that does not exist.
   const durableReads = await resolveDurableFeedStoreReads();
@@ -80,7 +80,17 @@ export async function GET(): Promise<Response> {
     if (stored) return { observedAt: stored, reason: null };
     return resolveDatasetStamp(rootDir, dataset);
   };
-  const results = evaluateRegistry(registry, stampFor, now);
+  const results = evaluateRegistry(registry, stampFor, now).map((result) => ({
+    ...result,
+    stampSource:
+      result.observedAt &&
+      (overlay[result.id] ||
+        registry.datasets.find((dataset) => dataset.id === result.id)?.stamp?.kind === "store")
+        ? "durable-store"
+        : result.observedAt
+          ? "artifact"
+          : "unresolved",
+  }));
 
   // The contribution flywheel's own number, alongside the dataset staleness:
   // how many (venue, drink category) pairs currently carry a community price

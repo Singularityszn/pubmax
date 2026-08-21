@@ -133,7 +133,7 @@ export default function ThamesHero() {
                 ["--pin-i" as string]: i,
               }}
             >
-              <Link
+              <Link prefetch={false}
                 href={href}
                 className="thamesHeroPinLink"
                 aria-label={`${categoryLabel(pub.category)} at ${pub.place}. Open on the map`}

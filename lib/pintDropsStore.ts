@@ -254,6 +254,11 @@ function toRow(drop: PersistableDrop) {
   };
 }
 
+export function pintDropReportCountFromRow(row: Record<string, unknown>): number | undefined {
+  const value = row.verified_report_count ?? row.report_count;
+  return value === null || value === undefined ? undefined : Number(value);
+}
+
 function fromRow(row: Record<string, unknown>): PersistableDrop {
   return {
     id: String(row.id),
@@ -277,7 +282,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
     reportedAt: row.reported_at ? String(row.reported_at) : undefined,
     reportReason: row.report_reason ? String(row.report_reason) : undefined,
-    reportCount: row.report_count === null || row.report_count === undefined ? undefined : Number(row.report_count),
+    reportCount: pintDropReportCountFromRow(row),
     moderatedAt: row.moderated_at ? String(row.moderated_at) : undefined,
     moderatorNote: row.moderator_note ? String(row.moderator_note) : undefined,
     leaveByIso: row.leave_by_iso ? String(row.leave_by_iso) : undefined,
@@ -704,8 +709,8 @@ export const supabasePintDropStore: PintDropStore = {
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
 
-  /** ONE atomic RPC (migration 0017) writes the verified-account report ledger
-   *  (pint_drop_reports, unique (pint_drop_id, actor_hash)) and increments /
+  /** ONE atomic RPC (migration 0112) writes the verified-account report ledger
+   *  (pint_drop_verified_reports, unique (pint_drop_id, actor_hash)) and increments /
    *  stamps / hides visit_reports in a single statement. Two concurrent
    *  reports cannot lose an increment, and a same-account duplicate is an
    *  idempotent no-op. Null data means unknown id. */

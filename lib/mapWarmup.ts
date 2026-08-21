@@ -246,32 +246,6 @@ export function warmMapRoute(
 }
 
 /**
- * Mobile tab bar: warm every durable destination once the bar mounts so a
- * cold thumb-tap does not wait on first-fetch of the target route bundle.
- * Skips the Moment compose action (query-string heavy, not a location tab).
- *
- * `currentPath` is the route the reader is ALREADY on. Warming it is never a
- * head start: the page's own chunks are already loading, so the prefetch adds
- * a second RSC round trip and, for /map, drags the deliberately deferred
- * transit + POI payloads (~140 KB) back onto the cold-open critical path that
- * PubMapCanvas works to keep clear. Pass it and that destination is skipped.
- */
-export function warmPrimaryTabRoutes(
-  router: MapRoutePrefetcher,
-  hrefs: readonly string[],
-  seen: Set<string> = warmedRoutes,
-  currentPath?: string,
-): void {
-  const current = currentPath ? currentPath.split("?")[0] || currentPath : "";
-  for (const href of hrefs) {
-    // Moment is `?returnTo=`-keyed compose; skip — not a sticky destination.
-    if (href.startsWith("/moment")) continue;
-    if (current && (href.split("?")[0] || href) === current) continue;
-    warmNavRoute(router, href, seen);
-  }
-}
-
-/**
  * Arriving ON the map: start the first frame's two dependencies immediately.
  *
  * Cold, they are discovered one after another — the page shell hydrates, its

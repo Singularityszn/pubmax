@@ -19,6 +19,7 @@ const KEYLESS_PORT = Number(process.env.PW_KEYLESS_PORT ?? PORT + 1);
 const KEYLESS_BASE_URL = `http://localhost:${KEYLESS_PORT}`;
 const SCREENSHOT_RUN = !!process.env.PW_SCREENSHOTS;
 const SKIP_WEBSERVER = process.env.PW_SKIP_WEBSERVER === "1";
+const SKIP_KEYLESS_WEBSERVER = process.env.PW_SKIP_KEYLESS_WEBSERVER === "1";
 const UI_UX_BROWSER_USE = uiUxChromiumProjectUse(process.env.UI_UX_BROWSER_CHANNEL);
 const FIREFOX_DESKTOP_MAP_CHROME_FIT =
   process.env.PW_FIREFOX_DESKTOP_MAP_CHROME_FIT === "1";
@@ -369,7 +370,9 @@ export default defineConfig({
         stdout: "pipe",
         stderr: "pipe",
       },
-      ...(!SCREENSHOT_RUN && !FIREFOX_DESKTOP_MAP_CHROME_FIT
+      ...(!SCREENSHOT_RUN &&
+      !FIREFOX_DESKTOP_MAP_CHROME_FIT &&
+      !SKIP_KEYLESS_WEBSERVER
         ? [{
             command:
               `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${KEYLESS_PORT}`,

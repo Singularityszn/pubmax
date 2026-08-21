@@ -323,9 +323,12 @@ export function submitterBucket(actor: string | null): string {
 export function countCorroborations(
   rows: readonly CommunityPriceAgreementRow[],
   reference: CommunityPriceAgreementRow,
+  now: number = Date.now(),
 ): number {
+  if (!isWithinMaxAge(reference, now)) return 0;
   const submitters = new Set<string>();
   for (const row of rows) {
+    if (!isWithinMaxAge(row, now)) continue;
     if (row.drinkCategory !== reference.drinkCategory) continue;
     if (!agreesWithinTolerance(reference.priceGbp, row.priceGbp)) continue;
     submitters.add(submitterBucket(row.actor));
@@ -354,7 +357,7 @@ export function bestCorroboratedRow<T extends CommunityPriceAgreementRow>(
   let bestCount = 0;
   for (const row of rows) {
     if (!isWithinMaxAge(row, now)) continue;
-    const count = countCorroborations(rows, row);
+    const count = countCorroborations(rows, row, now);
     // `>=` on the freshness tie for the same reason the freshest-wins reduction
     // uses it: a same-millisecond tie prefers the later row in the scan.
     if (

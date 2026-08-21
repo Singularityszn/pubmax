@@ -1,7 +1,7 @@
 // lib/freshnessStoreOverlay.ts's resolveDurableFeedStoreReads is the resolver
 // that answers /api/freshness and the freshness-audit cron with the REAL
 // four-way outcome (unconfigured / unreachable / empty / ok) of reading
-// price_update_retrieval and night_signal_candidates from the durable
+// night_signal_candidates from the durable
 // feed_freshness table (migration 0047). It must never collapse "the store
 // could not be reached" into "empty" or "fresh" — those are three separate
 // findings and resolveStoreStamp downstream depends on telling them apart.
@@ -40,7 +40,6 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
-  PRICE_UPDATE_RETRIEVAL_DATASET_ID,
   resolveDurableFeedStoreReads,
 } from "@/lib/freshnessStoreOverlay";
 
@@ -59,14 +58,13 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("reports unconfigured when Supabase env vars are absent, without attempting a query", async () => {
     db.configured = false;
     const reads = await resolveDurableFeedStoreReads();
-    expect(reads[PRICE_UPDATE_RETRIEVAL_DATASET_ID]).toEqual({ kind: "unconfigured" });
     expect(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]).toEqual({ kind: "unconfigured" });
   });
 
   it("reports ok with the real observedAt when the store answers", async () => {
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
-    expect(reads[PRICE_UPDATE_RETRIEVAL_DATASET_ID]).toEqual({
+    expect(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]).toEqual({
       kind: "ok",
       observedAt: "2026-07-16T00:00:00Z",
     });
@@ -76,13 +74,13 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
     db.row = null;
     db.error = null;
     const reads = await resolveDurableFeedStoreReads();
-    expect(reads[PRICE_UPDATE_RETRIEVAL_DATASET_ID]).toEqual({ kind: "empty" });
+    expect(reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID]).toEqual({ kind: "empty" });
   });
 
   it("the unreachable case: a query error is unreachable, distinct from empty or unconfigured", async () => {
     db.error = new Error("connection reset");
     const reads = await resolveDurableFeedStoreReads();
-    const read = reads[PRICE_UPDATE_RETRIEVAL_DATASET_ID];
+    const read = reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID];
     expect(read.kind).toBe("unreachable");
     expect(read.kind === "unreachable" && read.error).toContain("connection reset");
   });
@@ -98,16 +96,14 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("the unreachable case: a thrown exception (network failure) never becomes empty or ok", async () => {
     db.throws = new Error("fetch failed: ENOTFOUND");
     const reads = await resolveDurableFeedStoreReads();
-    const read = reads[PRICE_UPDATE_RETRIEVAL_DATASET_ID];
+    const read = reads[NIGHT_SIGNAL_CANDIDATES_DATASET_ID];
     expect(read.kind).toBe("unreachable");
     expect(read.kind === "unreachable" && read.error).toContain("ENOTFOUND");
   });
 
-  it("resolves both feed keys independently under the same store outcome", async () => {
+  it("resolves only the candidate-ingestion feed", async () => {
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
-    expect(Object.keys(reads).sort()).toEqual(
-      [NIGHT_SIGNAL_CANDIDATES_DATASET_ID, PRICE_UPDATE_RETRIEVAL_DATASET_ID].sort(),
-    );
+    expect(Object.keys(reads)).toEqual([NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
   });
 });

@@ -221,7 +221,7 @@ Picked `lib/feedFreshnessStore.ts` for the pilot:
   removes, with no extra policy in the way.
 - Its callers (`app/api/cron/refresh-night-signals/route.ts`,
   `app/api/cron/refresh-whats-on/route.ts`,
-  `app/api/cron/refresh-prices/route.ts`, `lib/freshnessStoreOverlay.ts`)
+  `lib/freshnessStoreOverlay.ts`)
   all call it as a plain function, so converting it from a `function`
   declaration to a `const` arrow-returning factory result changes nothing at
   any call site.

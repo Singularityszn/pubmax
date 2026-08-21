@@ -22,6 +22,7 @@ const RLS_SUITES = [
   "__tests__/rlsWave2Session.test.ts",
   "__tests__/socialCrewMigration.test.ts",
   "__tests__/socialCrewLegacyRoutesRls.test.ts",
+  "__tests__/pintDropVerifiedReportsMigrationEffective.test.ts",
 ];
 
 const { missingPostgresReason } = await import(
@@ -44,6 +45,7 @@ function printLoudSkip(reason) {
     "║  Suites: __tests__/rlsWave2Session.test.ts                          ║",
     "║          __tests__/socialCrewMigration.test.ts  (npm run test:rls)  ║",
     "║          __tests__/socialCrewLegacyRoutesRls.test.ts                ║",
+    "║          __tests__/pintDropVerifiedReportsMigrationEffective.test.ts║",
     "╠══════════════════════════════════════════════════════════════════════╣",
     "║  Effective RLS tests need local PostgreSQL 16+ (initdb/postgres/psql)║",
     "║  They were NOT executed. A green CI step with this banner still means║",

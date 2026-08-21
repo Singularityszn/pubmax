@@ -60,7 +60,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             const selected = windowKey === day;
             const href = windowKey === "tonight" ? "/out" : `/out?day=${windowKey}`;
             return (
-              <Link
+              <Link prefetch={false}
                 key={windowKey}
                 href={href}
                 className="outDayChip"
@@ -121,7 +121,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             ))}
           </ul>
           <p className="outPlansFoot">
-            <Link href="/plan" className="outPlansFootLink">
+            <Link prefetch={false} href="/plan" className="outPlansFootLink">
               {OUT_OPEN_PLANS_WAY_LABEL}
             </Link>
           </p>

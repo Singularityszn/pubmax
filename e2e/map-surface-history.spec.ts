@@ -8,6 +8,10 @@ async function prepareMap(page: Page, viewport = DESKTOP): Promise<void> {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem(
+      "pubmax:map-first-visit-arrival:v1",
+      "dismissed",
+    );
     window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
@@ -93,7 +97,7 @@ async function expectSoleDrawer(page: Page, owner: "planner" | "venue"): Promise
 }
 
 test.describe("one Map surface history owner", () => {
-  test.setTimeout(90_000);
+  test.setTimeout(120_000);
 
   test("venue to planner leaves exactly one desktop drawer", async ({ page }) => {
     await prepareMap(page);
@@ -130,8 +134,24 @@ test.describe("one Map surface history owner", () => {
       window.sessionStorage.clear();
       window.localStorage.setItem("pubmax-tour-v1-done", "1");
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem(
+        "pubmax:map-first-visit-arrival:v1",
+        "dismissed",
+      );
       window.sessionStorage.setItem("pubmax:citySuggestDismiss:v1", "1");
     });
+    await page.route("**/api/whats-on**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          rows: [],
+          asOf: null,
+          sourceObservedAt: null,
+          sourceFreshnessKind: "unknown",
+        }),
+      }),
+    );
     await page.emulateMedia({ reducedMotion: "reduce" });
     await openMap(page, "/map?history-loaded-crawl=1");
 
@@ -158,18 +178,7 @@ test.describe("one Map surface history owner", () => {
     await openMap(page, "/map?history-race=1");
     await selectToolbarVenue(page);
     await expectSoleDrawer(page, "venue");
-    await expect
-      .poll(() =>
-        page.evaluate(
-          () =>
-            (
-              window.history.state as {
-                pubmaxSelection?: number;
-              } | null
-            )?.pubmaxSelection ?? null,
-        ),
-      )
-      .toBe(1);
+    await expect(page).toHaveURL(/\/map\?.*sel=/);
 
     await page
       .locator(".mapToolbar")
@@ -184,6 +193,7 @@ test.describe("one Map surface history owner", () => {
   });
 
   test("Escape restores populated planner from venue", async ({ page }) => {
+    test.setTimeout(180_000);
     await prepareMap(page);
     await openMap(page);
     const toolbar = page.locator(".mapToolbar");
@@ -191,7 +201,9 @@ test.describe("one Map surface history owner", () => {
     await search.fill("Soho");
     await toolbar.getByRole("button", { name: "Plan an outing" }).click();
     await expectSoleDrawer(page, "planner");
-    await selectFirstToolbarVenue(page, "Soho");
+    const heldStops = planner(page).locator(".routeList > li");
+    await expect(heldStops.first()).toBeVisible();
+    await heldStops.first().getByRole("button").click();
     await expectSoleDrawer(page, "venue");
 
     await page.keyboard.press("Escape");

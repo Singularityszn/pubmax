@@ -26,6 +26,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -48,7 +50,41 @@ jobs:
         run: npm run lint
 
       - name: Typecheck
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
         run: npx tsc --noEmit
+
+  production-build:
+    name: Production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Build
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+        run: npm run build
 
   unit-tests:
     name: Unit tests (${{ matrix.shard }}/4)
@@ -61,6 +97,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -92,7 +130,64 @@ jobs:
           --exclude '__tests__/rlsWave2Session.test.ts'
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
+          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
           --exclude '__tests__/**/*Migration.test.ts'
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('package-lock.json') }}
+      - name: Install dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+      - name: Enforce coverage
+        env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
+          PUBMAX_RLS_NO_PG: "1"
+        run: >-
+          npm run coverage --
+          --exclude '__tests__/rlsWave2Session.test.ts'
+          --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
+          --exclude '__tests__/socialCrewMigration.test.ts'
+          --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/**/*Migration.test.ts'
+
+  freshness:
+    name: Freshness release gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Check every tracked feed
+        run: |
+          npm run check:freshness -- --artifacts-only
+          node scripts/check-production-store-freshness.mjs
 
   # Speed is the product's claim, so a pull request that slows a budgeted route
   # fails here rather than being noticed on a phone weeks later. The ceilings
@@ -109,6 +204,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -138,8 +235,10 @@ jobs:
       # downloads.
       - name: Measure budgeted routes
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: npx playwright test e2e/performance-budget.spec.ts --project=chromium --workers=1
 
   # UX lane 13: four arrival routes (/, /near, /map/london, /out) reported with
@@ -156,6 +255,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -179,8 +280,10 @@ jobs:
 
       - name: Report UX lane routes
         env:
+          NODE_OPTIONS: "--max-old-space-size=6144"
           PUBMAX_PERF_BUDGET: "1"
           PUBMAX_E2E_KEYLESS: "1"
+          PW_SKIP_KEYLESS_WEBSERVER: "1"
         run: npx playwright test e2e/ux-lane-perf-verification.spec.ts --project=chromium --workers=1
 
       # The spec writes the table into its own Playwright output directory, so

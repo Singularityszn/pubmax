@@ -7,10 +7,8 @@ name: What's-On events refresh
 # WhatsOnRow contract, matches venues conservatively, and opens a PR for human
 # review. It NEVER pushes to a protected branch and NEVER scrapes aggregators.
 #
-# Daily 04:00 UTC. GitHub Actions is currently DISABLED at the repo level
-# (captain decision pending). Keep this schedule so it fires the moment
-# Actions is switched on. TICKETMASTER_API_KEY is a repo secret; SKIDDLE_API_KEY
-# is not provisioned yet and the Skiddle lane stays not-configured.
+# Daily 04:00 UTC. TICKETMASTER_API_KEY is a repo secret. SKIDDLE_API_KEY is not
+# provisioned yet and the Skiddle lane stays not-configured.
 on:
   schedule:
     - cron: "0 4 * * *"
@@ -39,6 +37,9 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Build generated venue details
+        run: npm run build:slim
 
       # The refresh VALIDATES the file it wrote before it branches, commits or
       # opens the PR (runEventsRefresh runs validate-data itself, and refuses

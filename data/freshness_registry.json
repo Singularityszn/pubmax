@@ -22,30 +22,19 @@
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "human-gated reviewed publish; no machine schedule until real first-party parsers ship",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr; the weekly Vercel cron GET /api/cron/refresh-prices only RETRIEVES rows and stamps the separate price_update_retrieval feed and never advances this served file. While parsers are stubbed the committed envelope stays empty and its generatedAt names the same collection day as the bundled pint dataset (2026-07-03), not a fresher-looking date with no rows behind it.",
+      "refreshWorkflow": "manual reviewed publish via npm run refresh:prices -- --open-pr. The retired scheduled retrieval route had only stubbed parsers and could never advance this served file. While parsers are stubbed the committed envelope stays empty and its generatedAt names the same collection day as the bundled pint dataset (2026-07-03), not a fresher-looking date with no rows behind it.",
       "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so scheduled retrieval remains an honest no-op until a real parser retrieves valid rows AND a human publishes them"
-    },
-    {
-      "id": "price_update_retrieval",
-      "label": "Permissible-source price retrieval (scheduled sweep, unpublished)",
-      "class": "cron",
-      "artifact": null,
-      "stamp": { "kind": "store", "feedKey": "price_update_retrieval" },
-      "cadence": "weekly, Monday 07:00 UTC via Vercel cron",
-      "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-prices retrieves and validates first-party/open-data rows, then stamps feed_freshness (durable store, migration 0047 plane) only when at least one valid row was fetched; empty, invalid, or failed runs log the no-op and preserve the prior stamp. Store-only, no committed artifact: /api/freshness and the freshness-audit cron both read the store's real observedAt directly (never a disk fallback, because none exists), and scripts/check_freshness.mjs queries the same table dependency-free. A store the checker cannot reach reports unmeasurable, never fresh and never stale. This feed reports when RETRIEVAL last succeeded, not that any price shipped; the parsers are stubbed today (see gate), so the store stays empty and this feed reads unmeasurable until a real parser lands.",
-      "gate": "none to run; first-party parsers are STUBBED (fetchFromSource returns []), so the sweep never stamps until a real per-source parser lands. Publishing retrieved rows to the served price_updates artifact still requires the human-reviewed script path."
     },
     {
       "id": "drink_price_updates",
       "label": "Per-drink price updates",
-      "class": "cron",
+      "class": "episodic",
       "artifact": "public/data/drink_price_updates/latest.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "weekly, Monday 07:30 UTC",
+      "cadence": "reviewed first-party observations; maximum current-price age is 14 days",
       "stalenessBudgetHours": 336,
-      "refreshWorkflow": "Drink price refresh",
-      "gate": "none to run; only allowlisted first-party source (Wetherspoons) has no per-drink web prices, so the pipeline is real but emits zero rows"
+      "refreshWorkflow": "Manual reviewed publish. The Drink price refresh workflow is retrieval-only while the allowlisted source exposes no web prices.",
+      "gate": "Only allowlisted first-party source (Wetherspoons) has no per-drink web prices. Never restamp old rows after a zero-row retrieval."
     },
     {
       "id": "food_price_updates",
@@ -95,11 +84,11 @@
       "id": "whats_on",
       "label": "What's-On (sport / quiz / deals / music / events)",
       "class": "cron",
-      "artifact": "public/data/whats_on/latest.json",
+      "artifact": "public/data/whats_on/events_london.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "SLIM tonight-window revalidation daily via Vercel cron (0 14 * * * UTC = 15:00 London BST / 14:00 GMT); observedAt is store-backed (feed_freshness) after migration 0047, else the committed baseline file. Full ingest is out-of-function (see docs/CRON_PLANE_RUNBOOK.md).",
+      "cadence": "daily official-API event refresh plus slim tonight-window revalidation",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on revalidates the servable tonight window (baseline blended with live CityMCP at request time) and stamps feed_freshness. FULL ingest (baseline scrape aggregation via scripts/refresh_whats_on.mjs; events via scripts/whatson/eventsRefresh.mjs) stays a LOCAL/manual job — it needs pre-scraped agent outputs and writes committed files a read-only serverless FS cannot persist. GitHub Actions retired.",
+      "refreshWorkflow": "GitHub events-refresh.yml publishes the current official-API event artifact. Vercel cron GET /api/cron/refresh-whats-on separately revalidates the servable tonight window and stamps feed_freshness.",
       "gate": "Full-ingest keys: EXA_API_KEY / FIRECRAWL_API_KEY (baseline scrape), TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (events; Skiddle needs written commercial approval). Absent keys degrade loud-but-soft: the slim cron logs + skips full ingest. Baseline rows are hand-verified transforms; live layer also blends CityMCP at request time."
     },
     {
@@ -145,17 +134,6 @@
       "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (evidence curation)",
       "gate": "none"
-    },
-    {
-      "id": "night_out_places",
-      "label": "Night-out restaurants and attractions",
-      "class": "snapshot",
-      "artifact": "public/data/night_out_places/latest.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "manual review refresh; rows expire after 30 days",
-      "stalenessBudgetHours": 720,
-      "refreshWorkflow": "manual (npm run ingest:night-out-places; scheduled automation waits for funded providers and GitHub Actions)",
-      "gate": "EXA_API_KEY and FIRECRAWL_API_KEY. Missing keys, authentication, credits, rate limits, or upstream failure halt before write and require owner action. Empty is an honest supported state."
     },
     {
       "id": "pubmaxxing_seed",

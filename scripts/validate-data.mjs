@@ -33,9 +33,7 @@ import {
   validatePostcodeCoordinateQuarantine,
 } from "./lib/postcodeCoordinateConsistency.mjs";
 import {
-  nightOutPlaceProvenanceRegistryValidationErrors,
   nightOutPlaceRowValidationErrors,
-  nightOutPlaceSnapshotValidationErrors,
 } from "../lib/nightOutPlaceContract.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
@@ -131,7 +129,6 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "weather_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
-  { id: "night_out_places", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -3261,53 +3258,6 @@ function validateLateFoodEvidenceSnapshot() {
   return { ok, count };
 }
 
-function validateNightOutPlacesSnapshot() {
-  const name = "public/data/night_out_places/latest.json";
-  const path = join(DATA_DIR, "night_out_places", "latest.json");
-  if (!existsSync(path)) {
-    console.log(`FAIL ${name}: required artifact is missing`);
-    return { ok: false, count: 0 };
-  }
-  const errs = makeCollector();
-  let data;
-  try {
-    data = JSON.parse(readFileSync(path, "utf8"));
-  } catch (e) {
-    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
-    return { ok: false, count: 0 };
-  }
-  for (const error of nightOutPlaceSnapshotValidationErrors(data)) {
-    errs.add(error);
-  }
-  const provenancePath = join(
-    ROOT_DIR,
-    "data",
-    "night_out_place_provenance_registry.json",
-  );
-  if (!existsSync(provenancePath)) {
-    errs.add("required provenance registry is missing");
-  } else {
-    try {
-      const registry = JSON.parse(readFileSync(provenancePath, "utf8"));
-      for (const error of nightOutPlaceProvenanceRegistryValidationErrors(
-        registry,
-        data,
-      )) {
-        errs.add(error);
-      }
-    } catch (e) {
-      errs.add(`provenance registry could not be read (${e.message})`);
-    }
-  }
-  const ok = errs.count === 0;
-  const count = Array.isArray(data?.places) ? data.places.length : 0;
-  console.log(
-    `${ok ? "PASS" : "FAIL"} ${name}: ${count} sourced place(s), ${errs.count} error(s)`,
-  );
-  if (!ok) errs.report();
-  return { ok, count };
-}
-
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -3332,7 +3282,6 @@ const DATASET_RUNS = [
   { id: "pint_index_snapshot", run: validatePintIndexSnapshot },
   { id: "pint_index_editions", run: validatePintIndexEditions },
   { id: "late_food_evidence", run: validateLateFoodEvidenceSnapshot },
-  { id: "night_out_places", run: validateNightOutPlacesSnapshot },
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
 ];
 

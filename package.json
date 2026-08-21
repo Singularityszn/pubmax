@@ -57,7 +57,6 @@
     "evaluate:open-pubs:london": "node scripts/evaluate_open_pubs.mjs --london",
     "whats-on-refresh": "node scripts/refresh_whats_on.mjs",
     "ingest:night-signals": "node scripts/ingest_night_signal_candidates.mjs",
-    "ingest:night-out-places": "node scripts/ingest_night_out_places.mjs",
     "refresh:night-signals": "node scripts/refresh_night_signal_claims.mjs",
     "refresh:weather": "node scripts/refresh_weather_snapshots.mjs",
     "push:daily": "tsx scripts/push/sendDailyBrief.mjs",

@@ -58,6 +58,7 @@ export function firstQualifyingCluster(
   const agreeing = [...rows]
     .filter(
       (row) =>
+        isWithinMaxAge(row, now) &&
         row.drinkCategory === candidate.drinkCategory &&
         agreesWithinTolerance(candidate.priceGbp, row.priceGbp),
     )

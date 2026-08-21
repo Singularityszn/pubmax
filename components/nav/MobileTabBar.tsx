@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Images, CalendarClock, DoorOpen } from "lucide-react";
-import { useCallback, useEffect, useMemo, useSyncExternalStore, type CSSProperties } from "react";
+import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import {
   preferredCityMapHref,
   subscribePreferredCity,
 } from "@/lib/cityPreference";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
-import { whenBackgroundWarmupAllowed } from "@/lib/backgroundWarmup";
-import { warmNavRoute, warmPrimaryTabRoutes } from "@/lib/mapWarmup";
+import { warmNavRoute } from "@/lib/mapWarmup";
 import {
   PRIMARY_NAV_ITEMS,
   navPathMatches,
@@ -40,8 +39,8 @@ import "./mobileNav.css";
 //
 // Five destinations. Compose lives on the floating + action, never in this row.
 //
-// Path active-state is pure (usePathname). Mount-time prefetch of destination
-// tabs is the only effect — it must not set state (react-hooks/set-state-in-effect).
+// Path active-state is pure (usePathname). Route warming starts only from
+// pointer, hover, touch, or focus intent.
 
 type Tab = {
   key: PrimaryNavKey;
@@ -80,7 +79,8 @@ function isActive(pathname: string, tab: Tab): boolean {
   return navPathMatches(pathname, tab.match ?? [tab.href]);
 }
 
-export function shouldShowMobileTabBar(_pathname: string): boolean {
+export function shouldShowMobileTabBar(pathname: string): boolean {
+  void pathname;
   return true;
 }
 
@@ -147,27 +147,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     [router],
   );
 
-  // Background warmup of every OTHER durable tab destination (Now / Map /
-  // Out / Social / You). Extends the landing map-warmup pattern so a cold
-  // thumb-tap does not wait on first-fetch of the target route bundle. No
-  // setState.
-  //
-  // Held until the foreground surface has painted, and never issued for the
-  // route already on screen. Non-root mounts spend the current page's main
-  // thread and bandwidth on the next tap;
-  // on the map that cost lands squarely inside MapLibre's init. See
-  // lib/backgroundWarmup.ts for why plain idle is not enough.
-  useEffect(() => {
-    return whenBackgroundWarmupAllowed(() => {
-      warmPrimaryTabRoutes(
-        router,
-        tabs.map((tab) => tab.href),
-        warmedTabs,
-        pathname,
-      );
-    });
-  }, [router, tabs, pathname]);
-
   const onPrimaryTabNavigate = useCallback(() => {
     requestMobileSheetDismiss();
   }, []);
@@ -216,10 +195,9 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 // The bar sits in the viewport on every page, so Next's
                 // automatic prefetch fires for all five tab destinations while the
                 // current page is still painting. This component already owns a
-                // better-timed warm for exactly those routes: gated behind the
-                // foreground paint below, and on pointer/hover/focus intent
-                // above. Leaving the automatic one on top only duplicates it at
-                // the worst moment.
+                // intent warm below replaces it. Leaving the automatic one on
+                // top downloads unrelated route code before the current page is
+                // useful.
                 prefetch={false}
                 className={"mobileTab pressable" + (active ? " isActive" : "")}
                 aria-current={active ? "page" : undefined}

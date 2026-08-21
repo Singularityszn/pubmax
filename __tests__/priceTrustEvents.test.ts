@@ -96,6 +96,24 @@ describe("firstQualifyingCluster", () => {
     ];
     expect(firstQualifyingCluster(rows, NOW)).toBeNull();
   });
+
+  it("does not let an expired observation corroborate a current price", () => {
+    const rows = [
+      observation({
+        id: "obs-expired",
+        actor: "profile:aaa",
+        submittedAt: NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1,
+      }),
+      observation({
+        id: "obs-current",
+        actor: "profile:bbb",
+        submittedAt: NOW - 1_000,
+      }),
+    ];
+
+    expect(firstQualifyingCluster(rows, NOW)).toBeNull();
+    expect(categoryIsTrusted(rows, NOW)).toBe(false);
+  });
 });
 
 describe("trustEventFingerprint", () => {

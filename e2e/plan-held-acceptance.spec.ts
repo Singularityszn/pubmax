@@ -4,6 +4,22 @@ const INTENT_KEY = "pubmax:planning-intent:v1";
 const ROUTE_DRAFT_KEY = "pubmaxx:plan-route-draft:v1";
 const VIEWPORT = { width: 390, height: 844 };
 
+function futureLondonFirstPint(): string {
+  const when = new Date(Date.now() + 3 * 60 * 60 * 1000);
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(when);
+  const lookup = (type: string) =>
+    parts.find((part) => part.type === type)?.value ?? "00";
+  return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
+}
+
 test.setTimeout(90_000);
 
 test.beforeEach(async ({ page }) => {
@@ -93,7 +109,7 @@ test("held pub shows one describe box, names the area, and release un-anchors wh
   }).toEqual({ planAnchor: null, groundingProof: null });
 
   await page.getByLabel("Your name").fill("Karan");
-  await page.getByLabel("First pint").fill("2026-08-17T20:00");
+  await page.getByLabel("First pint").fill(futureLondonFirstPint());
   await expect(page.getByRole("button", { name: "Lock it in" })).toBeEnabled();
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect.poll(() => creates.length).toBeGreaterThan(0);
