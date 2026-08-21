@@ -267,12 +267,12 @@ const nextConfig = {
       // path had no route and 404'd on shared links. A permanent (308) redirect
       // sends it to the canonical profile route. __tests__/storiesRedirect.test.ts
       // pins this alongside the /stories rules.
-    { source: "/you", destination: "/u/you", permanent: true },
-    // Landing still says "Our story"; keep the old paths as aliases.
-    { source: "/our-story", destination: "/about", permanent: true },
-    { source: "/story", destination: "/about", permanent: true },
-  ];
-},
+      { source: "/you", destination: "/u/you", permanent: true },
+      // Landing still says "Our story"; keep the old paths as aliases.
+      { source: "/our-story", destination: "/about", permanent: true },
+      { source: "/story", destination: "/about", permanent: true },
+    ];
+  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

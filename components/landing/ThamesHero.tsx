@@ -39,7 +39,7 @@ const HERO_PUBS: HeroPub[] = [
     left: "14%",
     top: "26%",
     // Beer is the map's rest lane. Naming a pub must not open the map as a
-    // price-ranked arrival for that place — that reads as a live price claim.
+    // price-ranked arrival for that place. That reads as a live price claim.
     query: { drink: "beer" },
   },
   {
