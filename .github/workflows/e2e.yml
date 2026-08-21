@@ -54,13 +54,14 @@ jobs:
           --workers=2
 
   full-suite:
-    name: Full browser suite (${{ matrix.shard }}/4)
+    name: Full browser suite (${{ matrix.suite }}, ${{ matrix.shard }}/4)
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
+        suite: [default, flag-on]
         shard: [1, 2, 3, 4]
     steps:
       - name: Checkout
@@ -79,6 +80,28 @@ jobs:
         run: npx playwright install --with-deps chromium
 
       - name: Run full browser shard
+        if: matrix.suite == 'default'
         env:
           PUBMAX_E2E_KEYLESS: "1"
-        run: npx playwright test --shard=${{ matrix.shard }}/4
+        run: >-
+          npx playwright test
+          --project=chromium
+          --project=chromium-keyless
+          --project=chromium-gl
+          --project=chromium-sw-gl
+          --project=chromium-no-gl
+          --shard=${{ matrix.shard }}/4
+
+      - name: Run flag-on browser shard
+        if: matrix.suite == 'flag-on'
+        env:
+          PUBMAX_E2E_KEYLESS: "1"
+          PUBMAX_MAP_ROUTE_TRANSFER: "1"
+          PUBMAX_PAL_HANDOFF: "1"
+          PUBMAX_TONIGHT_GROUPING: "1"
+          PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"
+          PUBMAX_SOCIAL_FRIENDS_LAUNCH: "1"
+        run: >-
+          npx playwright test
+          --project=chromium-flag-on
+          --shard=${{ matrix.shard }}/4

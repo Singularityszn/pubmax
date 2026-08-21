@@ -20,8 +20,12 @@ describe("browser CI policy", () => {
     const workflow = readFileSync(workflowPath, "utf8");
 
     expect(workflow).toMatch(/schedule:/);
+    expect(workflow).toContain("suite: [default, flag-on]");
     expect(workflow).toContain("shard: [1, 2, 3, 4]");
     expect(workflow).toContain("--shard=${{ matrix.shard }}/4");
+    expect(workflow).toContain("--project=chromium-flag-on");
+    expect(workflow).toContain('PUBMAX_TONIGHT_GROUPING: "1"');
+    expect(workflow).toContain('PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"');
     expect(workflow).toContain("npx playwright install --with-deps chromium");
   });
 });

@@ -502,8 +502,9 @@ export default function PrivacyPage() {
         <h2 id="crews" className="legalH2">Social Crews</h2>
         <p className="legalBody">
           A Social Crew uses its linked Planned Night title as its name. We
-          store whether it is private or friends-only, or open, its owner, and a roster
-          with each member&rsquo;s account, role, join time and current state.
+          store its visibility, owner, and roster. Visibility is private,
+          friends-only, or open. Roster data includes each member&rsquo;s account,
+          role, join time and current state.
           The owner, and active members who remain Mutual with the owner, can
           read the full roster and Crew-bound Plan, including its stops, night
           details, actions and ending.

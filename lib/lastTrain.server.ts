@@ -18,7 +18,7 @@ import "server-only";
 //       *disambiguation* (Brixton→Walthamstow vs the reverse) instead of a
 //       timetable; when it does we follow the offered direction URIs and merge
 //       their schedules. Hours roll past 24 for after-midnight / Night Tube
-//       services — formatLastJourney handles that.
+//       services. formatLastJourney handles that.
 //     - Next departures: the normal request uses
 //       `GET /StopPoint/{id}/Arrivals` filtered to the line,
 //       which is genuinely live (vehicles in service right now). When Arrivals
@@ -165,40 +165,34 @@ async function collectSchedules(lineId: string, stationId: string): Promise<Sche
         `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
       );
       if (!direct) return [];
-
-      const routes = direct.timetable?.routes ?? [];
-      if (routes.length > 0) {
-        return routes.flatMap((r) => r.schedules ?? []);
-      }
-
-      // Disambiguation branch: follow the direction URIs (they already carry
-      // the query TfL wants) and merge whatever schedules come back.
-      const options = direct.disambiguation?.disambiguationOptions ?? [];
-      const schedules: Schedule[] = [];
-      for (const opt of options) {
-        if (!opt.uri) continue;
-        const resolved = await tflGet<TimetableResponse>(opt.uri);
-        for (const route of resolved?.timetable?.routes ?? []) {
-          schedules.push(...(route.schedules ?? []));
-        }
-      }
-      return schedules;
+      return mergeTimetableSchedules(direct, (uri) => tflGet<TimetableResponse>(uri));
     },
     (schedules) => schedules.length > 0,
   );
 }
 
-// The latest lastJourney for one line at one station on today's day-type, formatted
-// for the card. Returns null if the line has no schedule matching today (or TfL
-// failed for it) — the caller simply omits that line.
-async function lastTrainForLine(
-  lineId: string,
-  lineName: string,
-  stationId: string,
-  dayType: DayType,
-): Promise<LastTrain | null> {
-  const schedules = await collectSchedules(lineId, stationId);
+export async function mergeTimetableSchedules(
+  direct: TimetableResponse,
+  resolveOption: (uri: string) => Promise<TimetableResponse | null>,
+): Promise<Schedule[]> {
+  const routes = direct.timetable?.routes ?? [];
+  if (routes.length > 0) return routes.flatMap((route) => route.schedules ?? []);
 
+  const schedules: Schedule[] = [];
+  for (const option of direct.disambiguation?.disambiguationOptions ?? []) {
+    if (!option.uri) continue;
+    const resolved = await resolveOption(option.uri);
+    for (const route of resolved?.timetable?.routes ?? []) {
+      schedules.push(...(route.schedules ?? []));
+    }
+  }
+  return schedules;
+}
+
+export function latestJourneyForDay(
+  schedules: Schedule[],
+  dayType: DayType,
+): KnownJourney | null {
   let best: KnownJourney | null = null;
   let bestRank = -Infinity;
   for (const schedule of schedules) {
@@ -211,6 +205,21 @@ async function lastTrainForLine(
       best = schedule.lastJourney;
     }
   }
+  return best;
+}
+
+// The latest lastJourney for one line at one station on today's day-type, formatted
+// for the card. Returns null if the line has no schedule matching today (or TfL
+// failed for it). The caller simply omits that line.
+async function lastTrainForLine(
+  lineId: string,
+  lineName: string,
+  stationId: string,
+  dayType: DayType,
+): Promise<LastTrain | null> {
+  const schedules = await collectSchedules(lineId, stationId);
+
+  const best = latestJourneyForDay(schedules, dayType);
   if (!best) return null;
 
   const hour = toInt(best.hour);
@@ -228,7 +237,7 @@ const NEAREST_PUB_COUNT = 3;
 
 // Format a Date to a "HH:MM" wall-clock string in London local time (arrivals
 // come back as absolute ISO instants; timetable fallback entries are already
-// day-relative minutes — both funnel through this so the card sees one shape).
+// day-relative minutes. Both funnel through this so the card sees one shape).
 function toLondonClock(d: Date): string {
   return new Intl.DateTimeFormat("en-GB", {
     timeZone: "Europe/London",
@@ -238,7 +247,7 @@ function toLondonClock(d: Date): string {
   }).format(d);
 }
 
-// Live next departures for one line at one station, via TfL Arrivals — genuinely
+// Live next departures for one line at one station, via TfL Arrivals. These are genuinely
 // real-time (vehicles currently in service), unlike the static timetable. Sorted
 // soonest-first and capped to DEPARTURES_PER_LINE. Returns [] (not null) when
 // Arrivals has nothing for this line right now (service ended, or a quiet gap);
@@ -270,10 +279,10 @@ async function nextDeparturesForLine(
 // Timetable-based fallback for "next departures" when live Arrivals is empty for
 // a line (e.g. after the last live vehicle but before we've given up on the
 // night, or Arrivals is temporarily quiet). Reuses the same schedules the
-// last-train lookup already collected — no extra TfL calls — and picks the
+// last-train lookup already collected, with no extra TfL calls, and picks the
 // smallest-rank journeys that are still >= "now" (in minutes-since-midnight),
 // falling back further to today's lastJourney alone if nothing else matches.
-function nextFromSchedulesAfter(
+export function nextFromSchedulesAfter(
   schedules: Schedule[],
   dayType: DayType,
   nowMinutes: number,
@@ -352,6 +361,12 @@ async function lineDisruptions(
   );
   if (!statuses) return { summary: null, affectedLineIds: new Set() };
 
+  return summarizeLineStatuses(statuses);
+}
+
+export function summarizeLineStatuses(
+  statuses: LineStatusEntry[],
+): { summary: string | null; affectedLineIds: Set<string> } {
   const affectedLineIds = new Set<string>();
   const notes: string[] = [];
   for (const line of statuses) {
@@ -366,7 +381,7 @@ async function lineDisruptions(
   return { summary: notes.length > 0 ? notes.join(" · ") : null, affectedLineIds };
 }
 
-// The 3 nearest pubs to the station (user story 22) — reuses the shared
+// The 3 nearest pubs to the station (user story 22) reuse the shared
 // haversine (lib/haversine.ts) against the bundled, price-carrying venue list
 // (lib/venuePriceIndex.ts, memoized from the same dataset venueIndex.ts reads).
 async function nearestPubsToStation(stationLat: number, stationLng: number): Promise<NearestPub[]> {
@@ -456,7 +471,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   const destinationLabel = null;
 
   // 1) Nearest station. Retried once for transient failures; any failure here is
-  // graceful (200 + error, NOT cached), never a 500 — degrade per user story 24.
+  // graceful (200 + error, NOT cached), never a 500. Degrade per user story 24.
   const nearest = await nearestStation(lat, lng);
   if (!nearest?.id) {
     const staticStation = nearestStaticStation(lat, lng);
@@ -598,7 +613,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   // Minutes until the last train that matters: the LATEST across all resolved
   // lines (any one of them gets the drinker home), measured from "now" by ACTUAL
   // clock time (C2). minutesUntilDeparture wraps a past-midnight train forward
-  // only while we're still in the evening — a train that has already left tonight
+  // only while we're still in the evening. A train that has already left tonight
   // reads negative (departed/withdrawn), never ~24h ahead.
   let minutesUntilLastTrain: number | null = null;
   for (const t of trains) {
@@ -617,7 +632,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     disruptionSummary: disruption.summary,
     destinationLabel,
     // `live` here means "TfL was reachable" (drives live_data_unavailable), and
-    // it is — we resolved a station and a last-train time. The card's "Live from
+    // it is. We resolved a station and a last-train time. The card's "Live from
     // TfL" provenance label is a SEPARATE, honest signal driven by whether any
     // departures are genuinely live Arrivals, carried on the response's
     // `departures[].live` and read by the card (H5).

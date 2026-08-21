@@ -137,7 +137,7 @@ export default function TermsPage() {
         <h2 id="crews" className="legalH2">Social Crews</h2>
         <p className="legalBody">
           A Social Crew takes its name from the linked Planned Night title. Its
-          owner chooses whether it is private or friends-only, or open. While a
+          owner chooses one visibility setting: private, friends-only, or open. While a
           plan is open, anyone can see its title, the pub or place it starts at,
           its start time, how many people are in it, and the host handle. Close
           the plan and it drops out of the public list. Active members
