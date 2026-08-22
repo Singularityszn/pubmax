@@ -13,6 +13,8 @@
 // next.config.mjs `outputFileTracingIncludes` for both routes; without that, the
 // artifacts only reach a function by accident of Vercel's lambda grouping.
 
+import "server-only";
+
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 
