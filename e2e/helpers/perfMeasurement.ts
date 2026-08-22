@@ -176,7 +176,11 @@ export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<Per
   }, interactiveAt);
 }
 
-/** The tracked method end to end: warm-up loads thrown away, then the median. */
+/**
+ * The tracked method end to end: warm-up loads drain fully before a real
+ * three-sample median. Without the drain, late warm-up requests can race into
+ * the first sample and make identical builds report different route costs.
+ */
 export async function measurePerfRoute(
   page: Page,
   route: PerfRoute,
@@ -184,6 +188,7 @@ export async function measurePerfRoute(
 ): Promise<PerfSample> {
   for (let run = 0; run < method.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
+    await waitForQuietNetwork(page);
   }
   const samples: PerfSample[] = [];
   for (let run = 0; run < method.measuredRuns; run += 1) {
