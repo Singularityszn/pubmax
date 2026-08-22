@@ -38,6 +38,46 @@ const longFeaturePost = {
   author: { handle: "a_very_long_pub_night_handle_that_must_wrap" },
 };
 
+// Social posts and access are account-owned. Keep the shell tests on the
+// authenticated contract they exercise instead of relying on a browser that
+// happens to retain a session from another spec. This is the same provider-
+// shaped session used by the flag-on Social rehearsal; no real account exists.
+const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
+const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000010";
+
+async function seedSocialSession(page: Page): Promise<void> {
+  await page.addInitScript(({ authStorageKey, userId }) => {
+    window.localStorage.setItem(
+      authStorageKey,
+      JSON.stringify({
+        access_token: `pubmaxx-e2e-access-token-${userId}`,
+        refresh_token: "pubmaxx-e2e-refresh-token",
+        expires_at: Math.floor(Date.now() / 1000) + 86_400,
+        expires_in: 86_400,
+        token_type: "bearer",
+        user: {
+          id: userId,
+          aud: "authenticated",
+          role: "authenticated",
+          email: "social-shell@example.test",
+          app_metadata: {},
+          user_metadata: {},
+          created_at: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+  }, { authStorageKey: E2E_AUTH_STORAGE_KEY, userId: E2E_AUTH_USER_ID });
+}
+
+async function mockCanonicalIdentity(page: Page): Promise<void> {
+  await page.route("**/api/identity/handle/current", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ handle: "night_owl" }),
+    });
+  });
+}
+
 async function mockAccess(
   page: Page,
   state: string,
@@ -81,6 +121,8 @@ async function fulfil(
 }
 
 test.beforeEach(async ({ page }) => {
+  await seedSocialSession(page);
+  await mockCanonicalIdentity(page);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -550,6 +592,8 @@ test("Social shell fits target viewports in light and dark themes", async ({
         window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
         window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
       }, theme);
+      await seedSocialSession(page);
+      await mockCanonicalIdentity(page);
       await mockAccess(page, "verified");
       await mockActivity(page, [
         {

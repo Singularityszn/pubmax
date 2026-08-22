@@ -26,7 +26,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
 
   await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("Three stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await expect(page.getByRole("combobox", { name: /Area/i })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: /People/i })).toHaveValue("4");
   await page.getByText("Area coverage", { exact: true }).click();
@@ -51,7 +51,7 @@ test("concierge picks become a public Plan that a mate joins with only a name", 
   });
   await page.getByRole("button", { name: "Lock it in" }).click();
   await expect.poll(() => createIdempotencyKey).toMatch(/^create-[0-9a-f-]{36}$/);
-  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(page.getByText("Karan", { exact: true })).toBeVisible();
   expect(await page.evaluate(() => window.localStorage.getItem("pubmax:plan-intake:v1"))).toBeNull();
@@ -114,10 +114,10 @@ test("host still gets night mode ambushed at their own plan's start time", async
   await page.goto("/plan");
   await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Make a plan" }).click();
-  await expect(page.getByText("Three stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
+  await expect(page.getByText("3 stops we can stand behind, shaped by the outing you set below.")).toBeVisible();
   await page.getByLabel("Your name").fill("Karan");
   await page.getByRole("button", { name: "Lock it in" }).click();
-  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(?:#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
 
   // The host holds capability from the moment the plan is created

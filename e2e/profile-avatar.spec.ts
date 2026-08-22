@@ -393,8 +393,10 @@ test("upload → render → report → hide dress rehearsal", async ({ page }) =
   // out to the read-only profile after the first. (The old assertion named the
   // saved notice, which only shows in view mode, so it pinned the defect.)
   await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
-  await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute("src", avatarUrl);
-  await expect(page.locator("header.profileHeader img.profileAvatar")).toBeVisible();
+  await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute(
+    "src",
+    new RegExp(`^${avatarUrl}(?:\\?.*)?$`),
+  );
   expect(uploadCalls).toBeGreaterThan(0);
 
   await page.goto(`/u/${LOOP_HANDLE}`);

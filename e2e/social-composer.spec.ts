@@ -4,6 +4,8 @@ import { join } from "node:path";
 import { expect, test, type Page } from "@playwright/test";
 
 const POST_ID = "11111111-1111-4111-8111-111111111111";
+const E2E_AUTH_STORAGE_KEY = "sb-pubmaxx-e2e-auth-token";
+const E2E_AUTH_USER_ID = "00000000-0000-4000-8000-000000000011";
 const basePost = {
   id: POST_ID, kind: "standard", visibility: "friends", body: "Original night",
   area: "camden", venueId: "venue-a", venueName: "The Proof Arms", venueProjected: true, hashtags: ["camden"],
@@ -14,6 +16,52 @@ const basePost = {
   author: { handle: "old-alice" }, ownedByViewer: true,
 };
 
+async function seedSocialSession(page: Page): Promise<void> {
+  await page.context().addInitScript(({ authStorageKey, userId }) => {
+    window.localStorage.setItem(
+      authStorageKey,
+      JSON.stringify({
+        access_token: `pubmaxx-e2e-access-token-${userId}`,
+        refresh_token: "pubmaxx-e2e-refresh-token",
+        expires_at: Math.floor(Date.now() / 1000) + 86_400,
+        expires_in: 86_400,
+        token_type: "bearer",
+        user: {
+          id: userId,
+          aud: "authenticated",
+          role: "authenticated",
+          email: "social-composer@example.test",
+          app_metadata: {},
+          user_metadata: {},
+          created_at: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+  }, { authStorageKey: E2E_AUTH_STORAGE_KEY, userId: E2E_AUTH_USER_ID });
+  await page.context().route("**/api/identity/handle/current", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ handle: "alice-renamed" }),
+    });
+  });
+  await page.context().route("**/api/auth/session", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({ ok: true }),
+    });
+  });
+  await page.context().route("**/api/identity/onboarding", async (route) => {
+    await route.fulfill({
+      contentType: "application/json",
+      body: JSON.stringify({
+        complete: true,
+        handle: "alice-renamed",
+        dateOfBirth: "1995-03-21",
+      }),
+    });
+  });
+}
+
 async function mockVerified(page: Page) {
   await page.route("**/api/social/access", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ state: "verified", viewerHandle: "alice-renamed", draftScope: "a".repeat(43) }) }));
   await page.route("**/api/social/interactions?**", (route) => route.fulfill({ contentType: "application/json", body: JSON.stringify({ items: [], nextCursor: null }) }));
@@ -23,6 +71,7 @@ async function mockVerified(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
+  await seedSocialSession(page);
   await page.addInitScript(() => { localStorage.setItem("pubmax-tour-v1-done", "1"); sessionStorage.setItem("pubmax_onboarding_dismissed", "1"); });
 });
 

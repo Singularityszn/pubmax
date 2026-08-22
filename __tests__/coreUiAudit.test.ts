@@ -35,7 +35,7 @@ describe("core UI audit fixes", () => {
 
   it("clears mobile consent with the measured 64px tab bar", () => {
     expect(consent).toMatch(/var\(--tabbar-h,\s*64px\)/);
-    expect(consent).toMatch(/--analytics-consent-mobile-clearance,\s*120px/);
+    expect(consent).toMatch(/--analytics-consent-mobile-clearance,\s*128px/);
   });
 
   it("uses a distinct neutral tone for the dearest first-visit price band", () => {

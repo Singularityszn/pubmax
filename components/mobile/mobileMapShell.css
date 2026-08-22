@@ -107,7 +107,7 @@
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     /* Keep the expandable OSM credit above the honest first-visit disclosure.
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
-    bottom: calc(var(--mobile-map-dock-clearance) + 198px);
+    bottom: calc(var(--mobile-map-dock-clearance) + 206px);
   }
 
   /* The first-visit arrival card owns the same lane and is taller than the

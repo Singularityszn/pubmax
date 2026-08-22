@@ -109,7 +109,7 @@ test.describe("camera-first Spill composer", () => {
 
     const cameraStep = form.locator('[data-testid="spill-camera-step"]');
     await expect(cameraStep.getByText("Snap the pour")).toBeVisible();
-    await expect(cameraStep.getByText("Flip — you at the bar")).toBeVisible();
+    await expect(cameraStep.getByText("Flip: you at the bar")).toBeVisible();
 
     const pintCapture = cameraStep.getByLabel(/snap the pour/i);
     await expect(pintCapture).toHaveAttribute("type", "file");

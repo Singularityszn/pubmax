@@ -77,6 +77,7 @@ for (const viewport of [
     test.setTimeout(90_000);
     await page.setViewportSize(viewport);
     const sheet = await openFilters(page);
+    const mapViewGroup = sheet.getByRole("group", { name: "Map view" });
     const key = sheet.getByLabel("Map key");
     const heading = key.locator("#mapKeyPriceHeading");
     const rows = key.locator(".mapKeyPriceRows li");
@@ -98,7 +99,7 @@ for (const viewport of [
         candidate.url().includes("/api/price-submit?lens=no-alcohol") &&
         candidate.status() === 200,
     );
-    await sheet
+    await mapViewGroup
       .getByRole("button", { name: "No alcohol", exact: true })
       .click();
     await noAlcoholIndex;
@@ -111,7 +112,9 @@ for (const viewport of [
       "venue type",
     );
 
-    await sheet.getByRole("button", { name: "Food", exact: true }).click();
+    await mapViewGroup
+      .getByRole("button", { name: "Food", exact: true })
+      .click();
     await expect(heading).toHaveText("Food view");
     await expect(rows).toHaveText([
       "?Food pins and clusters stay grey",

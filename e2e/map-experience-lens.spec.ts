@@ -42,12 +42,13 @@ test("no-alcohol and food views own the 390px map without pint controls", async 
 
   const sheet = page.locator('.mobileSheetPortal[data-sheet-kind="filters"]');
   await expect(sheet).toBeVisible();
-  const all = sheet.getByRole("button", { name: "All", exact: true }).first();
-  const noAlcohol = sheet.getByRole("button", {
+  const mapViewGroup = sheet.getByRole("group", { name: "Map view" });
+  const all = mapViewGroup.getByRole("button", { name: "All", exact: true });
+  const noAlcohol = mapViewGroup.getByRole("button", {
     name: "No alcohol",
     exact: true,
   });
-  const food = sheet.getByRole("button", { name: "Food", exact: true });
+  const food = mapViewGroup.getByRole("button", { name: "Food", exact: true });
   for (const control of [all, noAlcohol, food]) {
     const box = await control.boundingBox();
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);

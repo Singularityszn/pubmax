@@ -4546,13 +4546,13 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(
         var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) +
-        var(--analytics-consent-mobile-clearance, 120px)
+        var(--analytics-consent-mobile-clearance, 128px)
     );
   }
 
   body:has(.analyticsConsentPrompt):not(:has(.mobileTabBar, .mobileTabBarClearance)) {
     padding-bottom: calc(
-      var(--analytics-consent-mobile-clearance, 120px) + max(12px, env(safe-area-inset-bottom))
+      var(--analytics-consent-mobile-clearance, 128px) + max(12px, env(safe-area-inset-bottom))
     );
   }
 
