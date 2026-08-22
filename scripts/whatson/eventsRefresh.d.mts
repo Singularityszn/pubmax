@@ -49,12 +49,39 @@ export declare function readExistingCommonRows(
   filePath: string,
 ): import("../../lib/whatson/eventNormalise.d.mts").WhatsOnEventRow[];
 export declare function parseEventsCityArg(argv?: string[]): string | null;
+export declare function eventsReviewBranchName(city?: string): string;
+export declare function isPullRequestPermissionError(error: unknown): boolean;
+export declare function publishEventsReview(opts: {
+  outPath: string;
+  observedAt: string;
+  city?: string;
+  env?: Record<string, string | undefined>;
+  rootDir?: string;
+  runCommand?: (command: string, args: string[], options?: Record<string, unknown>) => unknown;
+  log?: (message: string) => void;
+}): {
+  status: "created" | "updated" | "branch-only" | "no-change";
+  branch: string;
+  branchUrl?: string;
+  pullRequestUrl?: string;
+  reason?: string;
+};
 
 /** Opt in to the Common crawl, so exactly one owner runs it per run. */
 export declare const WITH_COMMON_FLAG: string;
 
 export type EventsLaneReport = {
-  status: "wrote" | "refused" | "failed" | "not-configured" | "skipped" | "ran";
+  status:
+    | "wrote"
+    | "refused"
+    | "failed"
+    | "not-configured"
+    | "skipped"
+    | "ran"
+    | "created"
+    | "updated"
+    | "branch-only"
+    | "no-change";
   wrote?: boolean;
   rows?: number;
   reason?: string;
@@ -77,8 +104,25 @@ export declare function runEventsRefresh(opts?: {
     outPath: string;
     observedAt: string;
     nowMs: number;
+    city: string;
     env: Record<string, string | undefined>;
-  }) => void | Promise<void>;
+    log?: (message: string) => void;
+  }) =>
+    | {
+        status?: EventsLaneReport["status"];
+        branch?: string;
+        branchUrl?: string;
+        pullRequestUrl?: string;
+        reason?: string;
+      }
+    | void
+    | Promise<{
+        status?: EventsLaneReport["status"];
+        branch?: string;
+        branchUrl?: string;
+        pullRequestUrl?: string;
+        reason?: string;
+      } | void>;
   /** Runs before openPr; a throw refuses the PR. */
   validate?: () => void;
   log?: (message: string) => void;

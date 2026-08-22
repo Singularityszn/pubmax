@@ -1,4 +1,4 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Request } from "@playwright/test";
 
 import { PERFORMANCE_BUDGETS, median, type BudgetMethod } from "../../lib/performanceBudgets";
 
@@ -45,6 +45,33 @@ export const ROUTE_READY_TIMEOUT_MS = 45_000;
 const NETWORK_QUIET_MS = 1_500;
 const NETWORK_QUIET_CEILING_MS = 20_000;
 
+type NetworkTracker = {
+  active: Set<Request>;
+  revision: number;
+};
+
+const networkTrackers = new WeakMap<Page, NetworkTracker>();
+
+function ensureNetworkTracker(page: Page): NetworkTracker {
+  const existing = networkTrackers.get(page);
+  if (existing) return existing;
+
+  const tracker: NetworkTracker = { active: new Set(), revision: 0 };
+  const start = (request: Request) => {
+    tracker.active.add(request);
+    tracker.revision += 1;
+  };
+  const finish = (request: Request) => {
+    tracker.active.delete(request);
+    tracker.revision += 1;
+  };
+  page.on("request", start);
+  page.on("requestfinished", finish);
+  page.on("requestfailed", finish);
+  networkTrackers.set(page, tracker);
+  return tracker;
+}
+
 /**
  * First-run surfaces are their own chunks and their own overlays, the CPU is
  * throttled and cross-origin requests are refused, so a run describes what we
@@ -55,6 +82,7 @@ export async function preparePerfPage(
   origin: string,
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): Promise<void> {
+  ensureNetworkTracker(page);
   await page.setViewportSize(method.viewport);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
@@ -117,24 +145,25 @@ export async function loadPerfRoute(page: Page, route: PerfRoute): Promise<numbe
 
 /** Waits until nothing new has been requested for a while, so sizes are final. */
 export async function waitForQuietNetwork(page: Page): Promise<void> {
-  await page.evaluate(
-    async ([quietMs, ceilingMs]) => {
-      let seen = performance.getEntriesByType("resource").length;
-      let quietSince = performance.now();
-      const deadline = performance.now() + ceilingMs;
-      while (performance.now() < deadline) {
-        await new Promise((resolve) => setTimeout(resolve, 200));
-        const now = performance.getEntriesByType("resource").length;
-        if (now !== seen) {
-          seen = now;
-          quietSince = performance.now();
-        } else if (performance.now() - quietSince >= quietMs) {
-          return;
-        }
-      }
-    },
-    [NETWORK_QUIET_MS, NETWORK_QUIET_CEILING_MS] as const,
-  );
+  const tracker = ensureNetworkTracker(page);
+  let seenRevision = tracker.revision;
+  let quietSince = Date.now();
+  const deadline = Date.now() + NETWORK_QUIET_CEILING_MS;
+
+  while (true) {
+    await new Promise((resolve) => setTimeout(resolve, 200));
+    if (Date.now() >= deadline && tracker.active.size > 0) {
+      throw new Error(
+        `Network did not drain within ${NETWORK_QUIET_CEILING_MS}ms (${tracker.active.size} request(s) still active).`,
+      );
+    }
+    if (tracker.revision !== seenRevision || tracker.active.size > 0) {
+      seenRevision = tracker.revision;
+      quietSince = Date.now();
+      continue;
+    }
+    if (Date.now() - quietSince >= NETWORK_QUIET_MS) return;
+  }
 }
 
 /** One load, measured. */
@@ -176,7 +205,11 @@ export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<Per
   }, interactiveAt);
 }
 
-/** The tracked method end to end: warm-up loads thrown away, then the median. */
+/**
+ * The tracked method end to end: warm-up loads drain fully before a real
+ * three-sample median. Without the drain, late warm-up requests can race into
+ * the first sample and make identical builds report different route costs.
+ */
 export async function measurePerfRoute(
   page: Page,
   route: PerfRoute,
@@ -184,6 +217,7 @@ export async function measurePerfRoute(
 ): Promise<PerfSample> {
   for (let run = 0; run < method.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
+    await waitForQuietNetwork(page);
   }
   const samples: PerfSample[] = [];
   for (let run = 0; run < method.measuredRuns; run += 1) {

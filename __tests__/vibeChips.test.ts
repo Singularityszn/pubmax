@@ -18,6 +18,11 @@ import {
 // instead of shipping a chip that returns the wrong venues.
 
 describe("vibe chips (spec contract)", () => {
+  it("uses stance-safe labels for high-energy presets", () => {
+    expect(vibeChipById("bender")?.label).toBe("Big one tonight");
+    expect(vibeChipById("lit")?.label).toBe("Live and loud");
+  });
+
   it("ships exactly the seven spec chips with unique ids", () => {
     expect(VIBE_CHIPS.map((chip) => chip.id)).toEqual([
       "bender",

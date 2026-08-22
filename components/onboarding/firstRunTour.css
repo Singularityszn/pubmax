@@ -14,7 +14,7 @@
   place-items: center;
   padding: var(--space-5);
   /* Soft focus dim — deep ink so the card and CTA carry the eye. */
-  background: color-mix(in srgb, var(--ink-deep) 52%, transparent);
+  background: color-mix(in srgb, var(--ink-deep) 34%, transparent);
   /* Always-on base = opacity cross-fade (the reduced-motion fallback);
      transform/scale is layered in only under no-preference below. */
   animation: tourFadeIn var(--duration-slow) var(--ease-out-strong) both;
@@ -128,7 +128,9 @@
 }
 
 .tourLegendRow .mapPriceDot.red {
-  background: var(--brick);
+  /* Dearer price band, not a failure state. Keep first-visit guidance warm
+     and neutral while keeping it distinct from the middle amber band. */
+  background: color-mix(in srgb, var(--amber) 48%, var(--ink) 52%);
 }
 
 .tourLegendRow .mapPriceDot.grey {
@@ -200,7 +202,10 @@
   .tourScrim {
     place-items: end center;
     padding: var(--space-3) var(--space-3)
-      calc(env(safe-area-inset-bottom, 0px) + 104px);
+      calc(
+        env(safe-area-inset-bottom, 0px) + var(--tabbar-h, 64px) +
+          var(--float-stack-gap, 12px)
+      );
   }
 
   .tourCard {

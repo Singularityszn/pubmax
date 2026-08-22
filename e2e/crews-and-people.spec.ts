@@ -4,10 +4,8 @@ import { expect, test } from "@playwright/test";
 //
 // With PUBMAX_SOCIAL_FRIENDS_LAUNCH off, /api/social/access answers `preview`,
 // so nothing about a crew may be reachable on /social: no heading, no control,
-// no link. Friend formation is a separate promise and stays open, which is why
-// the handle search and the people directory must still be there in the same
-// pass - a test that only checked for absence would pass just as happily on a
-// page that had lost both.
+// no link. Handle search stays in the control rail. The public directory is
+// behind the same signed-out boundary as posts and crews.
 
 const PHONE = { width: 390, height: 844 };
 
@@ -24,19 +22,17 @@ test.describe("Social with the friends launch off", () => {
     await expect(page.locator(".crews")).toHaveCount(0);
   });
 
-  test("keeps friend formation open: handle search and the directory both render", async ({
+  test("keeps handle search open while the directory stays behind the boundary", async ({
     page,
   }) => {
     await page.goto("/social");
-    // FindYourLot mounts twice on this page (control rail plus the empty
-    // state), which predates this work; the promise here is that BOTH friend
-    // formation surfaces survive the gate, not how many copies exist.
     await expect(
       page.getByRole("heading", { name: "Find your lot" }).first(),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "People on PUBMAXX" }).first(),
-    ).toBeVisible();
+    ).toHaveCount(0);
+    await expect(page.locator(".peopleDir")).toHaveCount(0);
   });
 
   test("structured invite failures render fallback copy", async ({ page }) => {
@@ -58,30 +54,28 @@ test.describe("Social with the friends launch off", () => {
     await expect(page.getByText("[object Object]", { exact: true })).toHaveCount(0);
   });
 
-  test("a directory with nobody left to offer says which empty it is", async ({
+  test("signed-out Social does not request or render a directory empty state", async ({
     page,
   }) => {
-    // The one state a node render cannot reach: the read has answered, it
-    // answered with nobody, and the reason is that this drinker already follows
-    // everyone it looked at. That must not read as an empty city.
-    await page.route("**/api/profiles/directory**", async (route) => {
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          people: [],
-          nextCursor: null,
-          alreadyFollowing: 6,
-        }),
-      });
+    let directoryReads = 0;
+    page.on("request", (request) => {
+      if (new URL(request.url()).pathname === "/api/profiles/directory") {
+        directoryReads += 1;
+      }
     });
     await page.goto("/social");
     await expect(
-      page.getByText("You already follow everyone here.").first(),
+      page.getByRole("heading", { name: "Social preview", exact: true }),
     ).toBeVisible();
+    await expect(
+      page.getByRole("heading", { name: "Find your lot" }).first(),
+    ).toBeVisible();
+    await expect(page.locator(".peopleDir")).toHaveCount(0);
+    await expect(page.getByText("You already follow everyone here.")).toHaveCount(0);
     await expect(
       page.getByText("Nobody has claimed a handle yet."),
     ).toHaveCount(0);
+    expect(directoryReads).toBe(0);
   });
 
   test("the directory publishes handles and never an email", async ({ request }) => {

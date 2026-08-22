@@ -98,6 +98,12 @@ export default defineConfig({
         localStorage: [{
           name: "pubmaxx:analytics-consent:v1",
           value: "denied",
+        }, {
+          // Default journeys are returning visitors. First-visit specs clear
+          // this key explicitly before navigation so arrival coverage remains
+          // deliberate instead of leaking into unrelated map assertions.
+          name: "pubmax:map-first-visit-arrival:v1",
+          value: "dismissed",
         }],
       }],
     },
@@ -176,6 +182,9 @@ export default defineConfig({
             localStorage: [{
               name: "pubmaxx:analytics-consent:v1",
               value: "denied",
+            }, {
+              name: "pubmax:map-first-visit-arrival:v1",
+              value: "dismissed",
             }],
           }],
         },

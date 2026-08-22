@@ -327,18 +327,26 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(search).toBeVisible({ timeout: 30_000 });
     await search.fill("Dolphin");
     const listbox = page.getByRole("listbox", { name: "Search suggestions" });
-    const highlightedVenue = listbox.getByRole("option").nth(2);
+    // Search suggestions can include area/place entries. Select a concrete
+    // venue option so the contract never depends on a mixed-result index.
+    const highlightedVenue = listbox
+      .locator('[role="option"][data-venue-id]')
+      .nth(2);
     await expect(highlightedVenue).toBeVisible();
     const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
     expect(highlightedVenueId).toBeTruthy();
+    const optionIndex = await listbox.getByRole("option").evaluateAll(
+      (options, venueId) =>
+        options.findIndex((option) => option.getAttribute("data-venue-id") === venueId),
+      highlightedVenueId,
+    );
+    expect(optionIndex).toBeGreaterThanOrEqual(0);
 
-    await search.evaluate((node) => {
-      for (const key of ["ArrowDown", "ArrowDown", "ArrowDown", "Enter"]) {
-        node.dispatchEvent(
-          new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }),
-        );
-      }
-    });
+    await search.focus();
+    for (let index = 0; index <= optionIndex; index += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
+    await page.keyboard.press("Enter");
     await expect
       .poll(() => new URL(page.url()).searchParams.get("sel"))
       .toBe(highlightedVenueId);

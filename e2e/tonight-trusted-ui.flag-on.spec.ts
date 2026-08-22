@@ -29,6 +29,20 @@ type WhatsOnBody = {
 };
 
 async function mockWhatsOn(page: Page, body: WhatsOnBody = {}) {
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [],
+      }),
+    }),
+  );
   await page.route("**/api/whats-on**", (route) =>
     route.fulfill({
       status: 200,

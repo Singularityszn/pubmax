@@ -13,6 +13,7 @@ import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import IntentLink from "@/components/nav/IntentLink";
+import SiteNav from "@/components/nav/SiteNav";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import type { AskProposal } from "@/lib/ask/types";
@@ -403,7 +404,9 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   );
 
   return (
-    <main id="main" className="palChat">
+    <>
+      <SiteNav />
+      <main id="main" className="palChat">
       <header className="palChatHead">
         {palHandoff ? (
           <Link className="palChatBack" href="/pal">
@@ -619,6 +622,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           <ArrowUp size={18} aria-hidden="true" />
         </button>
       </form>
-    </main>
+      </main>
+    </>
   );
 }

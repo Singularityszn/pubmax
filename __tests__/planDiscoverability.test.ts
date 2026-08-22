@@ -17,10 +17,10 @@ describe("Lane H plan discoverability", () => {
   const landing = landingCopy();
   const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 
-  it("keeps a hero CTA on /plan for planning with mates", () => {
-    expect(landing).toMatch(/href="\/plan"[\s\S]*Plan with friends/);
+  it("keeps a primary hero CTA on /plan for planning with mates", () => {
+    expect(landing).toMatch(/className="lpButton lpButtonPrimary"[\s\S]*href="\/plan"[\s\S]*Plan tonight together/);
     expect(landing).toContain('href="/plan"');
-    expect(landing).toContain("Plan with friends");
+    expect(landing).toContain("Plan tonight together");
   });
 
   it("exposes Plan in the landing primary nav", () => {
@@ -30,7 +30,7 @@ describe("Lane H plan discoverability", () => {
   it("does not bury Plan only behind the map in the final CTA", () => {
     const finalBlock = landing.match(/lpFinalCta[\s\S]*?<\/section>/)?.[0] ?? "";
     expect(finalBlock).toMatch(/href="\/plan"/);
-    expect(finalBlock).toContain("Plan with friends");
+    expect(finalBlock).toContain("Plan tonight together");
   });
 
   it("routes the Pub Pal callout to the ask surface, not back to Plan", () => {

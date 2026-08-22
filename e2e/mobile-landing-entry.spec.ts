@@ -75,8 +75,8 @@ test.describe("mobile landing entry", () => {
       origin: new URL(page.url()).origin,
     });
 
-    await page
-      .locator(".lpHeroActions")
+      await page
+      .locator(".lpHeroSecondaryRow")
       .getByRole("link", { name: "Find my pint", exact: true })
       .click();
 
@@ -163,14 +163,14 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
-    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
     await expectTappable(
-      findMyPint,
-      "hero Find my pint CTA",
+      planTonight,
+      "hero Plan tonight together CTA",
     );
-    await expectWithinFirstViewport(page, findMyPint, "hero Find my pint CTA");
+    await expectWithinFirstViewport(page, planTonight, "hero Plan tonight together CTA");
     await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
-    await expectTappable(page.getByRole("link", { name: "Plan with friends" }).first(), "hero Plan with friends link");
+    await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
     const pinCount = await visibleHeroPins.count();
@@ -196,12 +196,12 @@ test.describe("mobile landing entry", () => {
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
-      const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+      const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
       await expectTappable(
-        findMyPint,
-        `hero Find my pint CTA at ${width}px`,
+        planTonight,
+        `hero Plan tonight together CTA at ${width}px`,
       );
-      await expectWithinFirstViewport(page, findMyPint, `hero Find my pint CTA at ${width}px`);
+      await expectWithinFirstViewport(page, planTonight, `hero Plan tonight together CTA at ${width}px`);
       await expectNoHorizontalOverflow(page, width);
       await page.screenshot({
         path: testInfo.outputPath(`landing-root-${width}-light.png`),
@@ -218,12 +218,12 @@ test.describe("mobile landing entry", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
-    const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
+    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
     await expectTappable(
-      findMyPint,
-      "dark hero Find my pint CTA",
+      planTonight,
+      "dark hero Plan tonight together CTA",
     );
-    await expectWithinFirstViewport(page, findMyPint, "dark hero Find my pint CTA");
+    await expectWithinFirstViewport(page, planTonight, "dark hero Plan tonight together CTA");
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: testInfo.outputPath("landing-root-390-dark.png"),
@@ -231,10 +231,10 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("routes secondary mobile CTAs to Map and Plan", async ({ page }) => {
+  test("routes primary and secondary mobile CTAs to Plan and Map", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Plan with friends" }).first().click();
+    await page.getByRole("link", { name: "Plan tonight together" }).first().click();
     await expect(page).toHaveURL(/\/plan$/);
     await page.goto("/");
 
@@ -269,8 +269,8 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
 
   await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
-    page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" }),
-    "desktop hero Find my pint CTA",
+    page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" }),
+    "desktop hero Plan tonight together CTA",
   );
   await expectNoHorizontalOverflow(page, 1440);
 });

@@ -40,7 +40,11 @@ export default function PubmaxxWordmark({
   markSize = 22,
 }: PubmaxxWordmarkProps) {
   const word = (
-    <span className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}>
+    <span
+      className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}
+      role="img"
+      aria-label="PUBMAXXING"
+    >
       <span className="pubmaxxWordmarkSr">PUBMAXXING</span>
       <span className="pubmaxxWordmarkLetters" aria-hidden="true">
         <span>PUBMA</span>

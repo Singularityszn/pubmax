@@ -35,8 +35,8 @@ const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 // image (user-controlled text on a shared OG card is an abuse surface). Labels
 // are the chip labels verbatim, uppercased by the stamp itself.
 const VIBE_STAMPS: Record<string, string> = {
-  "on-a-bender": "On a bender",
-  "get-lit": "Get lit",
+  "on-a-bender": "Big one tonight",
+  "get-lit": "Live and loud",
   "quiet-pint": "Quiet pint",
   "cheeky-one-after-work": "Cheeky one after work",
   "match-on": "Match on",
@@ -186,19 +186,21 @@ export async function GET(request: Request): Promise<Response> {
                   transformOrigin: "left bottom",
                 }}
               >
-                <div
-                  style={{
-                    color: BRASS,
-                    fontSize: 20,
-                    fontWeight: 700,
-                    letterSpacing: 6,
-                    textTransform: "uppercase",
-                    marginBottom: 10,
-                    display: "flex",
-                  }}
-                >
-                  Tonight
-                </div>
+                {vibeLabel === "Big one tonight" ? null : (
+                  <div
+                    style={{
+                      color: BRASS,
+                      fontSize: 20,
+                      fontWeight: 700,
+                      letterSpacing: 6,
+                      textTransform: "uppercase",
+                      marginBottom: 10,
+                      display: "flex",
+                    }}
+                  >
+                    Tonight
+                  </div>
+                )}
                 <div style={{ display: "flex", position: "relative" }}>
                   <div
                     style={{

@@ -81,12 +81,12 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(body).toMatchObject({
       ok: true,
       city: "edinburgh",
-      queriesSpent: 25,
-      creditsSpent: 25,
+      queriesSpent: 10,
+      creditsSpent: 10,
     });
     expect(body.nextIndex).toBeGreaterThan(body.startIndex);
     expect(body.matchedPubs).toBeGreaterThan(0);
-    expect(fetchImpl).toHaveBeenCalledTimes(25);
+    expect(fetchImpl).toHaveBeenCalledTimes(10);
   });
 
   it("keeps the cron result contract when Tavily is selected through the provider seam", async () => {
@@ -101,8 +101,8 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     expect(body).toMatchObject({
       ok: true,
       provider: "tavily",
-      queriesSpent: 25,
-      creditsSpent: 25,
+      queriesSpent: 10,
+      creditsSpent: 10,
       gatewayCalls: 0,
     });
   });
@@ -128,6 +128,22 @@ describe("GET /api/cron/enrich-city-pubs", () => {
       typeof payload === "string" &&
       payload.includes('"tavilyCalls":1'),
     )).toBe(true);
+  });
+
+  it("aborts a provider request before the cron function deadline", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-tavily-key");
+    vi.stubGlobal("fetch", vi.fn((_request: RequestInfo | URL, init?: RequestInit) =>
+      new Promise((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason), { once: true });
+      }),
+    ));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const responsePromise = GET(req("Bearer test-secret"));
+    await vi.advanceTimersByTimeAsync(20_000);
+    const response = await responsePromise;
+
+    expect(response.status).toBe(502);
   });
 
   it("preserves partial-run truth in logs when Tavily fails mid-batch", async () => {

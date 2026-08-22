@@ -4545,8 +4545,7 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
      surfaces must reserve that lane or Today, Plan and /pubs actions sit under it. */
   body:has(.analyticsConsentPrompt):has(.mobileTabBar, .mobileTabBarClearance) {
     padding-bottom: calc(
-      var(--tabbar-h, 58px) + env(safe-area-inset-bottom, 0px) +
-        var(--analytics-consent-mobile-clearance, 128px)
+        var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--analytics-consent-mobile-clearance, 128px)
     );
   }
 
@@ -4557,7 +4556,7 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   }
 
   .analyticsConsentPrompt {
-    bottom: calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 8px);
+    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom) + 8px);
     display: grid;
     grid-template-columns: minmax(0, 1fr) 100px;
     align-items: center;

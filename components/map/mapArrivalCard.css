@@ -7,7 +7,7 @@
      step clear of it (mobileMapShell.css) instead of being painted over. */
   bottom: var(
     --map-arrival-bottom,
-    calc(var(--tabbar-h, 58px) + env(safe-area-inset-bottom) + 12px)
+    calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom) + 12px)
   );
   left: max(12px, env(safe-area-inset-left));
   display: grid;

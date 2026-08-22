@@ -49,7 +49,9 @@ describe("mobile web polish source contracts", () => {
     ];
 
     for (const file of laneSources) {
-      expect(read(file), file).toMatch(/touch-action:\s*pan-y|touch-pan-y/);
+      expect(read(file), file).toMatch(
+        /touch-action:\s*(?:pan-y|pan-x pan-y)|touch-pan-y/,
+      );
     }
   });
 

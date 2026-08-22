@@ -8,6 +8,9 @@ export const OUT_OPEN_PLANS_MIN_SENDABLE = 3;
 export const OUT_LISTING_PUB_ABSENT_LINE =
   "No matching pub in PUBMAXX yet.";
 
+export const OUT_LISTING_UNMATCHED_LINE =
+  "Some event listings are not linked to a PUBMAXX pub yet.";
+
 export type OutListingGroupKind = "venue" | "area" | "place";
 
 export type OutListingGroup = {
@@ -118,6 +121,15 @@ export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
     };
   }
   return { status: "absent", line: OUT_LISTING_PUB_ABSENT_LINE };
+}
+
+/** The page announces unmatched event listings once, not beside every row. */
+export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
+  return rows.reduce(
+    (count, row) =>
+      typeof row.venueId === "string" && row.venueId.length > 0 ? count : count + 1,
+    0,
+  );
 }
 
 /** A sendable open plan carries a resolved meeting point the card can render. */

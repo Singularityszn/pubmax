@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -15,11 +15,12 @@ import {
   mapTicketmasterEvent,
   normaliseSkiddleEvents,
   normaliseTicketmasterEvents,
+  isPullRequestPermissionError,
+  publishEventsReview,
   providerLaneStatus,
   readExistingRowsForLabels,
   runEventsRefresh,
   skiddleLaneFenced,
-  SKIDDLE_BRAND_ASSET_PRESENT,
   WITH_COMMON_FLAG,
   summariseEventDrops,
 } from "../scripts/whatson/eventsRefresh.mjs";
@@ -783,6 +784,23 @@ describe("the review PR is refused when the gate rejects the refreshed file", ()
     expect(result.ok).toBe(false);
   });
 
+  it("keeps a validated refresh green when Actions cannot create pull requests", async () => {
+    const result = await keyedRun({
+      validate: () => {},
+      openPr: () => {
+        const error = new Error(
+          "GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)",
+        );
+        throw error;
+      },
+    });
+
+    expect(result.validation.status).toBe("ran");
+    expect(result.published.status).toBe("branch-only");
+    expect(result.published.reason).toContain("cannot create pull requests");
+    expect(result.ok).toBe(true);
+  });
+
   it("reports the publish step as skipped when the gate refused first", async () => {
     const result = await keyedRun({
       validate: () => {
@@ -804,6 +822,97 @@ describe("the review PR is refused when the gate rejects the refreshed file", ()
     expect(result.validation.status).toBe("ran");
     expect(result.published.status).toBe("ran");
     expect(result.ok).toBe(true);
+  });
+});
+
+describe("review publication branch and PR handoff", () => {
+  const ENV = { GITHUB_REPOSITORY: "Singularityszn/pubmax", GITHUB_SERVER_URL: "https://github.com" };
+
+  it("recognises the Actions PR-creation policy refusal", () => {
+    expect(
+      isPullRequestPermissionError(
+        new Error("GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)"),
+      ),
+    ).toBe(true);
+    expect(isPullRequestPermissionError(new Error("gh: not authenticated"))).toBe(false);
+    expect(
+      isPullRequestPermissionError(
+        new Error("GraphQL: createPullRequest failed because repository input was invalid"),
+      ),
+    ).toBe(false);
+  });
+
+  it("updates an existing review PR from one stable branch without creating another", () => {
+    const rootDir = mkdtempSync(join(tmpdir(), "events-review-"));
+    temporaryDirs.push(rootDir);
+    const outPath = join(rootDir, "public/data/whats_on/events_london.json");
+    mkdirSync(join(rootDir, "public/data/whats_on"), { recursive: true });
+    writeFileSync(outPath, "fresh refresh", { encoding: "utf8", flag: "w" });
+    const calls: Array<{ command: string; args: string[] }> = [];
+    let stagedContent = "";
+    const runCommand = (command: string, args: string[]) => {
+      calls.push({ command, args });
+      if (command === "git" && args[0] === "ls-remote") return "abc\trefs/heads/whats-on-events/london\n";
+      if (command === "git" && args[0] === "switch") {
+        writeFileSync(outPath, "old branch content");
+        return "";
+      }
+      if (command === "git" && args[0] === "add") stagedContent = readFileSync(outPath, "utf8");
+      if (command === "gh" && args[0] === "pr" && args[1] === "list") {
+        return JSON.stringify([{ number: 42, url: "https://github.com/Singularityszn/pubmax/pull/42" }]);
+      }
+      if (command === "git" && args[0] === "diff") throw new Error("changes are staged");
+      return "";
+    };
+
+    const result = publishEventsReview({
+      outPath,
+      observedAt: "2026-08-22T04:00:00.000Z",
+      env: ENV,
+      rootDir,
+      runCommand,
+      log: () => {},
+    });
+
+    expect(result.status).toBe("updated");
+    expect(result.branch).toBe("whats-on-events/london");
+    expect(result.pullRequestUrl).toContain("/pull/42");
+    expect(stagedContent).toBe("fresh refresh");
+    expect(calls.some(({ command, args }) => command === "gh" && args[0] === "pr" && args[1] === "create")).toBe(false);
+    expect(calls.some(({ command, args }) => command === "git" && args[0] === "push")).toBe(true);
+  });
+
+  it("hands off the stable branch when PR creation is denied", () => {
+    const rootDir = mkdtempSync(join(tmpdir(), "events-review-"));
+    temporaryDirs.push(rootDir);
+    const outPath = join(rootDir, "public/data/whats_on/events_london.json");
+    mkdirSync(join(rootDir, "public/data/whats_on"), { recursive: true });
+    writeFileSync(outPath, "fresh refresh");
+    const runCommand = (command: string, args: string[]) => {
+      if (command === "git" && args[0] === "ls-remote") return "";
+      if (command === "git" && args[0] === "diff") throw new Error("changes are staged");
+      if (command === "gh" && args[0] === "pr" && args[1] === "list") return "[]";
+      if (command === "gh" && args[0] === "pr" && args[1] === "create") {
+        const error = new Error(
+          "GraphQL: GitHub Actions is not permitted to create or approve pull requests (createPullRequest)",
+        );
+        throw error;
+      }
+      return "";
+    };
+
+    const result = publishEventsReview({
+      outPath,
+      observedAt: "2026-08-22T04:00:00.000Z",
+      env: ENV,
+      rootDir,
+      runCommand,
+      log: () => {},
+    });
+
+    expect(result.status).toBe("branch-only");
+    expect(result.branch).toBe("whats-on-events/london");
+    expect(result.branchUrl).toBe("https://github.com/Singularityszn/pubmax/tree/whats-on-events/london");
   });
 });
 

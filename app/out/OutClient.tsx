@@ -13,7 +13,9 @@ import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
 import {
   groupOutListings,
+  OUT_LISTING_UNMATCHED_LINE,
   outOpenPlansSectionVisible,
+  outListingUnmatchedCount,
   sendableOpenPlans,
 } from "@/lib/outDesktopGrouping";
 import {
@@ -45,7 +47,9 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     trackEvent("out_card_opened", { source: outCardSource(row.source.label) });
   }, []);
 
-  const listingGroups = groupOutListings(body?.events ?? []);
+  const listingRows = body?.events ?? [];
+  const listingGroups = groupOutListings(listingRows);
+  const unmatchedListingCount = outListingUnmatchedCount(listingRows);
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
   const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);
 
@@ -85,6 +89,11 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             {line}
           </p>
         ))}
+        {unmatchedListingCount > 0 ? (
+          <p className="outStatus outListingUnmatched" role="status">
+            {OUT_LISTING_UNMATCHED_LINE}
+          </p>
+        ) : null}
         <div className="outListingSurface">
           {listingGroups.map((group) => (
             <section

@@ -23,8 +23,9 @@ CI refuses a change that goes past it.
 
 Against the production build, at 390x844, with a 4x CPU throttle and every
 cross-origin request refused, so a run measures what we ship and never a tile
-server's morning. Each route gets a warm-up load that is thrown away, then the
-median of the measured runs.
+server's morning. Each route gets a warm-up load whose request lifecycle must
+fully drain before measurement, then the median of three measured runs. A
+network that does not drain within 20 seconds fails the run.
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the route's own
 readiness gate, no earlier than the window load event. A resource counts if it

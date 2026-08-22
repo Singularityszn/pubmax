@@ -412,6 +412,25 @@ function throwIfAborted(signal) {
   }
 }
 
+const SEARCH_REQUEST_WALL_MS = 12_000;
+
+async function withRequestDeadline(parentSignal, operation) {
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort(parentSignal?.reason);
+  if (parentSignal?.aborted) relayAbort();
+  else parentSignal?.addEventListener("abort", relayAbort, { once: true });
+  const timer = setTimeout(
+    () => controller.abort(new Error(`City enrichment request timed out after ${SEARCH_REQUEST_WALL_MS}ms.`)),
+    SEARCH_REQUEST_WALL_MS,
+  );
+  try {
+    return await operation(controller.signal);
+  } finally {
+    clearTimeout(timer);
+    parentSignal?.removeEventListener("abort", relayAbort);
+  }
+}
+
 export async function runCityEnrichment({
   city: cityId,
   pubs,
@@ -467,8 +486,12 @@ export async function runCityEnrichment({
             maxResults: 10,
             ...(hostnameOf(pub.website) ? { includeDomains: [hostnameOf(pub.website)] } : {}),
             endPublishedDate: observedAt,
+            signal,
+            timeoutMs: SEARCH_REQUEST_WALL_MS,
           })
-        : await searchTavily({ pub, apiKey, fetchImpl, signal });
+        : await withRequestDeadline(signal, (requestSignal) =>
+            searchTavily({ pub, apiKey, fetchImpl, signal: requestSignal }),
+          );
     } catch (error) {
       await onProgress?.({ nextIndex: index, queriesSpent, creditsSpent, prices, pages, delegatedChains });
       throw error;

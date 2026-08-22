@@ -310,7 +310,7 @@ test.describe("profile photo picker and crop", () => {
     // crop is handed over, before the request has been answered.
     await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute(
       "src",
-      `/api/avatar/${PROFILE_ID}/${GENERATION}`,
+      new RegExp(`^/api/avatar/${PROFILE_ID}/${GENERATION}(?:\\?.*)?$`),
     );
     await expect(page.getByRole("heading", { name: "Editing your profile" })).toBeVisible();
 
@@ -455,7 +455,7 @@ test.describe("profile photo picker and crop", () => {
     // The editor's own preview and the card's face both carry the new photo.
     await expect(page.locator("img.profileEditorAvatarPreview")).toHaveAttribute(
       "src",
-      `/api/avatar/${PROFILE_ID}/${GENERATION}`,
+      new RegExp(`^/api/avatar/${PROFILE_ID}/${GENERATION}(?:\\?.*)?$`),
     );
     await expect(page.locator("header.profileHeader img.profileAvatar")).toBeVisible();
     // The read-only confirmation belongs to the end of a session, and this is

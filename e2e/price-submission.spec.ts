@@ -275,7 +275,8 @@ test("an over-limit drink price is blocked before any network attempt", async ({
   const response = await page.goto(`/map?sel=${SEED_VENUE_ID}`);
   expect(response?.status()).toBe(200);
 
-  const venueSheet = await openVenueSheet(page);
+  const venueSheet = page.locator('.mobileSheetPortal[data-sheet-kind="venue"]');
+  await expect(venueSheet).toBeVisible();
   const submit = venueSheet.locator(".venuePriceSubmit");
   await expect(submit).toBeVisible();
 
@@ -327,6 +328,18 @@ test("a drinker logs tonight's price after completing private signup", async ({
       }),
     });
   });
+  await page.route("**/api/price-impact", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        observationsLogged: 1,
+        pricesTrustedNow: 0,
+        lifetimeTrustUnlocks: 0,
+      }),
+    });
+  });
 
   await page.addInitScript(() => {
     const originalScrollIntoView = Element.prototype.scrollIntoView;
@@ -370,6 +383,7 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(claimHandle).toBeEnabled();
   await claimHandle.click();
   await expect(onboarding).toHaveCount(0);
+  await openVenueSheet(page);
 
   // The submit card lives on the Overview tab, the tab the sheet opens on.
   const submit = venueSheet.locator(".venuePriceSubmit");
@@ -491,8 +505,11 @@ test("a drinker logs tonight's price after completing private signup", async ({
   await expect(page).toHaveURL(/\/u\/night_owl#contribution-impact$/);
   const impact = page.locator("#contribution-impact");
   await expect(impact).toBeVisible();
-  await expect(impact.locator(".contribStatValue").first()).toHaveText("1");
-  await expect(impact.locator(".contribStatLabel").first()).toHaveText("price");
+  const priceTrustImpact = impact.locator('[data-testid="price-trust-impact"]');
+  await expect(priceTrustImpact.locator(".contribStatValue").first()).toHaveText("1");
+  await expect(priceTrustImpact.locator(".contribStatLabel").first()).toHaveText(
+    "observation logged",
+  );
   await expect(page.locator(".contribNudge")).toHaveCount(0);
   await expect.poll(() =>
     impact.evaluate((element) => {

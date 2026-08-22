@@ -337,7 +337,10 @@
 
 @media (max-width: 640px) {
   .pintIndexPage {
-    padding: 20px var(--page-gutter) 72px;
+    padding: 20px var(--page-gutter)
+      calc(
+        var(--mobile-tab-clearance, 72px) + 48px + env(safe-area-inset-bottom, 0px)
+      );
   }
 
   .pintIndexStats {

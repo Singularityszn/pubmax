@@ -2,7 +2,7 @@
   "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision.",
   "method": {
     "warmupRuns": 1,
-    "measuredRuns": 2,
+    "measuredRuns": 3,
     "aggregate": "median",
     "cpuThrottleRate": 4,
     "viewport": { "width": 390, "height": 844 },

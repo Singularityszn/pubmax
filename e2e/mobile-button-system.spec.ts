@@ -29,7 +29,7 @@ for (const viewport of DEVICES) {
 
       const heroActions = page.locator(".lpHeroActions a");
       await expect(heroActions).toHaveCount(3);
-      await expect(page.getByRole("link", { name: "Plan with friends" }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: "Plan tonight together" }).first()).toBeVisible();
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {

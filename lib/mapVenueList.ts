@@ -10,9 +10,11 @@ import {
 } from "@/lib/mapExperienceLens";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
-import type { VenueSignal } from "@/components/map/canvas/types";
 
-type MapVenueListVenueSignals = ReadonlyMap<string, Pick<VenueSignal, "latestContributorPrice">>;
+type MapVenueListVenueSignals = ReadonlyMap<
+  string,
+  { latestContributorPrice: number | null }
+>;
 
 // Accessibility contract (WCAG 2.1.1): WebGL pins are pointer-only. This is the
 // pure model behind the DOM "List view", the keyboard-reachable parallel to

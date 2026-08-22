@@ -187,7 +187,6 @@ export function SocialAccessBoundary({
 }) {
   const boundaryCopy = socialBoundaryCopy(state, friendsLaunchEnabled);
   const loadingLabel = socialLoadingLabel(friendsLaunchEnabled);
-  const inviteMessage = socialInviteMessage(friendsLaunchEnabled);
   const assertionLine = adultSelfAssertionLine(friendsLaunchEnabled);
   // One line and one button in the same empty-state idiom as every other
   // boundary here. Never a dialog: arrival is not an admin form.
@@ -640,7 +639,7 @@ export default function SocialPageClient({
   const showPostsControls =
     isPosts && viewerPhase === "resolved" && access === "verified";
   const showViewerCards =
-    isPosts && (viewerPhase !== "resolved" || access === "verified");
+    isPosts && viewerPhase === "resolved" && access === "verified";
   return (
     <>
       <SiteNav active="social" />
@@ -707,19 +706,10 @@ export default function SocialPageClient({
               />
             </section>
           ) : viewerPhase === "signed-out" ? (
-            <>
-              <SocialAccessBoundary
-                state="sign_in_required"
-                friendsLaunchEnabled={friendsLaunchEnabled}
-              />
-              <section className="socialFeedEmpty" aria-label="People on PUBMAXX">
-                <SocialViewerState
-                  phase="signed-out"
-                  loadingLabel="Loading people on PUBMAXX"
-                  inviteMessage="Browse people on PUBMAXX."
-                />
-              </section>
-            </>
+            <SocialAccessBoundary
+              state="sign_in_required"
+              friendsLaunchEnabled={friendsLaunchEnabled}
+            />
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>

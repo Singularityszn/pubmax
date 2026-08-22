@@ -39,7 +39,35 @@ const protectedPost: SocialPostDTO = {
   venueName: "The Test Arms",
 };
 
+const socialPageSource = readFileSync("app/social/SocialPageClient.tsx", "utf8");
+const socialCss = readFileSync("app/social/social.css", "utf8");
+
 describe("Social access boundary", () => {
+  it("keeps signed-out preview to one boundary and one sign-in action", () => {
+    const signedOutBranch =
+      socialPageSource.match(
+        /viewerPhase === "signed-out" \? \(([\s\S]*?)\) : access === "checking"/,
+      )?.[1] ?? "";
+
+    expect(signedOutBranch).toContain("SocialAccessBoundary");
+    expect(signedOutBranch).not.toContain("SocialViewerState");
+    expect(signedOutBranch).not.toContain("socialFeedEmpty");
+    const viewerCards =
+      socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
+    expect(viewerCards).toMatch(
+      /isPosts && viewerPhase === "resolved" && access === "verified"/,
+    );
+  });
+
+  it("uses a compact boundary so preview does not leave a large empty panel", () => {
+    const boundary =
+      socialCss.match(
+        /\.socialBoundary,\s*\.socialFeedError,\s*\.socialFeedEmpty\s*\{([^}]*)\}/,
+      )?.[1] ?? "";
+    expect(boundary).toMatch(/min-height:\s*200px/);
+    expect(socialCss).toMatch(/@media \(max-width: 640px\)[\s\S]*?\.socialBoundary\s*\{[^}]*min-height:\s*220px/);
+  });
+
   it.each([
     [
       "preview",

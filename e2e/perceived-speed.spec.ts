@@ -59,8 +59,8 @@ test.describe("perceived speed", () => {
     // Candidate surfaces are the safe explore-London loop only.
     const listUrls = prerender.flatMap((r) => r.urls ?? []);
     expect(listUrls).toContain("/crawls");
-    expect(listUrls).toContain("/discover");
-    expect(listUrls).toContain("/feed");
+    expect(listUrls).toContain("/social?tab=discover");
+    expect(listUrls).not.toContain("/feed");
 
     const matchers = prerender
       .map((r) => r.where?.href_matches)

@@ -241,7 +241,7 @@ export default function CityChooser({
               type="search"
               value={query}
               onChange={(event) => changeQuery(event.target.value)}
-              placeholder="Try Sheffield or your town"
+              placeholder="Search for a town or city"
               autoComplete="off"
               spellCheck="false"
               aria-controls={normalizedQuery.length >= 2 ? `${listId}-search-results` : undefined}

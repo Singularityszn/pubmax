@@ -15,6 +15,7 @@ async function openPlanner(page: Page) {
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
+    window.localStorage.setItem("pubmax:map-first-visit-arrival:v1", "dismissed");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
   });
   const response = await page.goto("/map");
@@ -50,8 +51,15 @@ test("a Step-free route surfaces unknown accessibility evidence instead of claim
   await stepFreeChip.click();
   await expect(stepFreeChip).toHaveAttribute("aria-pressed", "true");
   await planner.getByRole("button", { name: "Make a plan" }).click();
-  await expect(planner.getByText("Check venue accessibility before relying on this route.")).toBeVisible({ timeout: 45_000 });
-  await expect(planner.locator(".mobilePlannerRouteTotal")).toBeVisible();
+  // A required Step-free need with no complete evidence now returns the
+  // planner's honest no-match state. Keep the assertion resilient to the
+  // selected area and stop count while forbidding an accessibility claim.
+  await expect(
+    planner.getByText(
+      /No \d+-stop route .* meets every must-have need with the information available\./,
+    ),
+  ).toBeVisible({ timeout: 45_000 });
+  await expect(planner.locator(".mobilePlannerRouteTotal")).toHaveCount(0);
 
   expect(errors).toEqual([]);
 });

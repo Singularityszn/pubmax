@@ -52,10 +52,10 @@ describe("perf/route-budgets.json", () => {
     }
   });
 
-  it("keeps the method honest: a warm-up, more than one measured run, a median", () => {
+  it("keeps the method honest: a warm-up, a real three-sample median", () => {
     const { method } = PERFORMANCE_BUDGETS;
     expect(method.warmupRuns).toBeGreaterThanOrEqual(1);
-    expect(method.measuredRuns).toBeGreaterThanOrEqual(2);
+    expect(method.measuredRuns).toBe(3);
     expect(method.aggregate).toBe("median");
     expect(method.thirdPartyBlocked).toBe(true);
   });

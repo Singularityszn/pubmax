@@ -230,10 +230,10 @@ export default function LandingPage({
   const heroPrimary = (
     <Link prefetch={false}
       className="lpButton lpButtonPrimary"
-      href="/near?locate=1"
-      onClick={() => trackLandingCta("near")}
+      href="/plan"
+      onClick={() => trackLandingCta("plan")}
     >
-      <LocateFixed size={18} aria-hidden="true" /> Find my pint
+      <UsersRound size={18} aria-hidden="true" /> Plan tonight together
     </Link>
   );
   const heroActions = (
@@ -248,8 +248,8 @@ export default function LandingPage({
         >
           <MapPin size={17} aria-hidden="true" /> Open the map
         </Link>
-        <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
-          <MessageSquareText size={17} aria-hidden="true" /> Plan with friends
+        <Link prefetch={false} className="lpTextLink" href="/near?locate=1" onClick={() => trackLandingCta("near")}>
+          <LocateFixed size={17} aria-hidden="true" /> Find my pint
         </Link>
       </div>
     </div>
@@ -454,11 +454,11 @@ export default function LandingPage({
           <p>PUBMAXX · Make a memory, not a spreadsheet</p>
           <h2 id="final-title">Your city is already happening.</h2>
           <Link prefetch={false}
-            href="/near?locate=1"
+            href="/plan"
             className="lpButton lpButtonPrimary"
-            onClick={() => trackLandingCta("near")}
+            onClick={() => trackLandingCta("plan")}
           >
-            Find my pint <ArrowRight size={18} aria-hidden="true" />
+            Plan tonight together <ArrowRight size={18} aria-hidden="true" />
           </Link>
           <Link prefetch={false}
             href={primaryCtaHref}
@@ -468,8 +468,8 @@ export default function LandingPage({
           >
             Open the map <ArrowRight size={16} aria-hidden="true" />
           </Link>
-          <Link prefetch={false} href="/plan" className="lpTextLink" onClick={() => trackLandingCta("plan")}>
-            Plan with friends <ArrowRight size={16} aria-hidden="true" />
+          <Link prefetch={false} href="/near?locate=1" className="lpTextLink" onClick={() => trackLandingCta("near")}>
+            Find my pint <ArrowRight size={16} aria-hidden="true" />
           </Link>
         </section>
       </main>

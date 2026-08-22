@@ -112,10 +112,10 @@ Everything below is MERGED, deployed to production (pubmaxxing.com, chengdu Verc
 
 ### Arc 3 — vibe layer (#424, #425, #435; spec = docs/VIBE_LAYER_SPEC_2026-07-19.md, BINDING)
 
-- **Seven owner-locked chips** (`lib/vibeChips.ts`): bender/lit/quiet/cheeky/match/quiz/date with parser-tuned actions (filter or /pal/chat?ask=). `VIBE_CHIP_IDS` + `isVibeChipId` are the runtime guard. Owner kept "On a bender" over a store-risk warning; pre-approved fallback "Big one tonight" if Apple bounces.
+- **Seven owner-locked chips** (`lib/vibeChips.ts`): Big one tonight/Live and loud/Quiet pint/Cheeky one after work/Match on/Big brain energy/Date night labels with stable parser IDs and actions (filter or /pal/chat?ask=). `VIBE_CHIP_IDS` + `isVibeChipId` are the runtime guard. Safety amendment 2026-08-22 retired the public "On a bender" and "Get lit" labels without changing stored IDs.
 - **Bungee accent** (`--font-party`): RETIRED from the app on 2026-08-18. The vibe chips were its last consumer, so the token, the `next/font` loader and the two route wrappers are gone and no route downloads Bungee. `__tests__/fontPartyContainment.test.ts` now holds the quarantine at zero references under app/components/lib (docs may still name the token). Share cards keep the Bungee stamp through the vendored TTF satori reads (`lib/ogBrand.tsx`).
 - **OG vibe stamp + tally (#425, #435):** `?vibe=` validated against seven locked slugs (invalid → base card; user-controlled OG text is an abuse surface). Satori note: every multi-child div needs explicit `display: "flex"` (the #413 500 bug class).
-- **Vibe votes backend (#435):** one vote per plan member on the plan-collaboration seam; `record_plan_vibe_vote_atomic` RPC mirrors 0031 (advisory lock + idempotency ledger); POST/GET `/api/plans/[id]/vibe-votes`; `lib/vibeTally.ts` pure tally line — the "coward" jab renders ONLY on unique leader + exactly one dissenting vote, ties state the split. **Migration 0044 is additive-only and awaits OWNER application; until then durable vote writes 503 and the card drops the tally line but renders.**
+- **Vibe votes backend (#435):** one vote per plan member on the plan-collaboration seam; `record_plan_vibe_vote_atomic` RPC mirrors 0031 (advisory lock + idempotency ledger); POST/GET `/api/plans/[id]/vibe-votes`; `lib/vibeTally.ts` owns the neutral tally line and states ties as a split. **Migration 0044 is additive-only and awaits OWNER application; until then durable vote writes 503 and the card drops the tally line but renders.**
 
 ### Ops incidents Sol must internalize
 

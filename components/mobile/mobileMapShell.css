@@ -107,7 +107,7 @@
   body:has(.analyticsConsentPrompt) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     /* Keep the expandable OSM credit above the honest first-visit disclosure.
        e2e/ui-consistency-layout.spec.ts owns the rendered collision proof. */
-    bottom: calc(var(--mobile-map-dock-clearance) + 198px);
+    bottom: calc(var(--mobile-map-dock-clearance) + 206px);
   }
 
   /* The first-visit arrival card owns the same lane and is taller than the
@@ -116,6 +116,19 @@
      credit clears the taller one. */
   body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-bottom-right {
     bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
+  }
+
+  /* First-session map keeps only area, search, price lens, and Plan. Extra
+     discovery and camera tools remain available after the arrival choice. */
+  body:has(.mapArrivalCard) .mobileMapUtilityCorner,
+  body:has(.mapArrivalCard) .mobileMapTonightChip,
+  body:has(.mapArrivalCard) .appShell .mapStage .mapCameraControls,
+  body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-top-right {
+    display: none;
+  }
+
+  body:has(.mapArrivalCard) .mobileMapChipRow {
+    padding-right: 0;
   }
 
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {

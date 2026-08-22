@@ -974,14 +974,20 @@ html[data-theme="dark"] .planSummary__marker,
 html[data-theme="dark"] .planCrew__join button { color: #090d0b; }
 
 @media (max-width: 760px) {
+  .planPage {
+    padding-top: max(10px, env(safe-area-inset-top, 0px));
+  }
+  .planPage__masthead {
+    padding-bottom: 10px;
+  }
   .planPage__grid { grid-template-columns: 1fr; }
   .planPage__side { order: -1; }
   .planPage__hero { margin-top: 50px; }
-  .planPage__intro { margin: 18px auto 16px; }
-  .planPage__intro h1 { font-size: clamp(2.75rem, 12.5vw, 3.4rem); }
-  .planPage__intro > p:last-child { margin-top: 12px; line-height: 1.45; }
+  .planPage__intro { margin: 10px auto 10px; }
+  .planPage__intro h1 { font-size: clamp(2.45rem, 11vw, 3.1rem); }
+  .planPage__intro > p:last-child { margin-top: 8px; font-size: 0.9rem; line-height: 1.35; }
   .planPage__hero h1 { font-size: clamp(3rem, 16vw, 5rem); }
-  .planComposer { grid-template-columns: 1fr; padding: 18px; }
+  .planComposer { grid-template-columns: 1fr; padding: 14px; gap: 16px; }
   .planIntake { grid-column: 1; padding: 18px; }
   .planIntake__progress { grid-template-columns: repeat(5, 38px); justify-content: space-between; margin-top: 14px; overflow: hidden; }
   .planIntake__stage { padding-top: 14px; }

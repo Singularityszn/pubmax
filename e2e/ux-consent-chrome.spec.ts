@@ -104,14 +104,14 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   expect(fit.boxHeight).toBeLessThanOrEqual(120);
   expect(fit.scrollHeight).toBeLessThanOrEqual(120);
 
-  const findMyPint = page.locator(".lpHeroActions").getByRole("link", { name: "Find my pint" });
-  await expect(findMyPint).toBeVisible();
+  const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+  await expect(planTonight).toBeVisible();
 
   // Landing mounts the same phone tab bar as every other route, so the consent
-  // card sits above the bar rather than on the safe-area floor. Find my pint is
-  // the ONE primary action on this page, and it is checked while the banner is
-  // still up.
-  const coveredBox = await findMyPint.boundingBox();
+  // card sits above the bar rather than on the safe-area floor. Plan tonight
+  // together is the ONE primary action on this page, and it is checked while
+  // the banner is still up.
+  const coveredBox = await planTonight.boundingBox();
   expect(coveredBox).not.toBeNull();
   expect(await pointOwner(page, coveredBox!, ".lpHeroActions")).toBe("control");
 
@@ -125,7 +125,7 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
     "denied",
   );
 
-  const ctaBox = await findMyPint.boundingBox();
+  const ctaBox = await planTonight.boundingBox();
   expect(ctaBox).not.toBeNull();
   expect(await pointOwner(page, ctaBox!, ".lpHeroActions")).toBe("control");
 });

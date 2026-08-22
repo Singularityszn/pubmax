@@ -11,6 +11,8 @@ export type SearchProviderName = "exa" | "tavily";
 
 export type SearchRequest = {
   query: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
   maxResults?: number;
   includeDomains?: string[];
   excludeDomains?: string[];
@@ -94,6 +96,27 @@ function numberFrom(value: unknown): number {
 
 function stringFrom(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value : undefined;
+}
+
+async function withSearchDeadline<T>(
+  request: SearchRequest,
+  operation: (boundedRequest: SearchRequest) => Promise<T>,
+): Promise<T> {
+  if (!request.timeoutMs) return operation(request);
+  const controller = new AbortController();
+  const relayAbort = () => controller.abort(request.signal?.reason);
+  if (request.signal?.aborted) relayAbort();
+  else request.signal?.addEventListener("abort", relayAbort, { once: true });
+  const timer = setTimeout(
+    () => controller.abort(new Error(`Search request timed out after ${request.timeoutMs}ms.`)),
+    request.timeoutMs,
+  );
+  try {
+    return await operation({ ...request, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+    request.signal?.removeEventListener("abort", relayAbort);
+  }
 }
 
 function recordFrom(value: unknown): Record<string, unknown> | null {
@@ -202,6 +225,10 @@ class ExaGatewayProvider implements SearchProvider {
   }
 
   async search(request: SearchRequest): Promise<SearchResponse> {
+    return withSearchDeadline(request, (boundedRequest) => this.searchAttempt(boundedRequest));
+  }
+
+  private async searchAttempt(request: SearchRequest): Promise<SearchResponse> {
     if (!this.configured) {
       throw new SearchProviderUnavailableError("AI Gateway credentials are absent.");
     }
@@ -224,6 +251,7 @@ class ExaGatewayProvider implements SearchProvider {
     if (request.endPublishedDate) toolOptions.endPublishedDate = request.endPublishedDate;
 
     const result = await this.dependencies.generateText({
+      abortSignal: request.signal,
       maxRetries: 0,
       model: SEARCH_GATEWAY_MODEL,
       prompt: request.query,
@@ -263,6 +291,10 @@ class TavilyProvider implements SearchProvider {
   }
 
   async search(request: SearchRequest): Promise<SearchResponse> {
+    return withSearchDeadline(request, (boundedRequest) => this.searchAttempt(boundedRequest));
+  }
+
+  private async searchAttempt(request: SearchRequest): Promise<SearchResponse> {
     if (!this.configured) {
       throw new SearchProviderUnavailableError("TAVILY_API_KEY is absent.");
     }
@@ -273,6 +305,7 @@ class TavilyProvider implements SearchProvider {
         authorization: `Bearer ${this.apiKey}`,
         "content-type": "application/json",
       },
+      signal: request.signal,
       body: JSON.stringify({
         query: request.query,
         topic: "general",
