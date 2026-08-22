@@ -142,7 +142,7 @@ export function publishEventsReview({
   rootDir = ROOT,
   runCommand = execFileSync,
   log = console.log,
-} = {}) {
+}) {
   const branch = eventsReviewBranchName(city);
   const commandEnv = { ...process.env, ...env };
   const options = { cwd: rootDir, env: commandEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
@@ -152,6 +152,7 @@ export function publishEventsReview({
   // validated refresh bytes across that switch so the new branch stages this
   // run's evidence, not the previous branch snapshot.
   const refreshedOutput = readFileSync(outPath);
+  run("git", ["restore", "--worktree", "--source=HEAD", "--", relativePath]);
 
   const remoteRefs = commandOutput(run("git", ["ls-remote", "--heads", "origin", branch]));
   if (remoteRefs.trim()) {

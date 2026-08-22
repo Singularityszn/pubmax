@@ -150,8 +150,13 @@ export async function waitForQuietNetwork(page: Page): Promise<void> {
   let quietSince = Date.now();
   const deadline = Date.now() + NETWORK_QUIET_CEILING_MS;
 
-  while (Date.now() < deadline) {
+  while (true) {
     await new Promise((resolve) => setTimeout(resolve, 200));
+    if (Date.now() >= deadline && tracker.active.size > 0) {
+      throw new Error(
+        `Network did not drain within ${NETWORK_QUIET_CEILING_MS}ms (${tracker.active.size} request(s) still active).`,
+      );
+    }
     if (tracker.revision !== seenRevision || tracker.active.size > 0) {
       seenRevision = tracker.revision;
       quietSince = Date.now();
@@ -159,10 +164,6 @@ export async function waitForQuietNetwork(page: Page): Promise<void> {
     }
     if (Date.now() - quietSince >= NETWORK_QUIET_MS) return;
   }
-
-  throw new Error(
-    `Network did not drain within ${NETWORK_QUIET_CEILING_MS}ms (${tracker.active.size} request(s) still active).`,
-  );
 }
 
 /** One load, measured. */

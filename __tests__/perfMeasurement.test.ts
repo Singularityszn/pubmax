@@ -31,7 +31,7 @@ describe("waitForQuietNetwork", () => {
     const harness = fakePage();
     const waiting = waitForQuietNetwork(harness.page);
 
-    await vi.advanceTimersByTimeAsync(1_600);
+    await vi.advanceTimersByTimeAsync(2_000);
 
     await expect(waiting).resolves.toBeUndefined();
   });
@@ -48,5 +48,19 @@ describe("waitForQuietNetwork", () => {
     await vi.advanceTimersByTimeAsync(20_200);
 
     await rejection;
+  });
+
+  it("allows the final quiet window when a request drains just before the ceiling", async () => {
+    vi.useFakeTimers();
+    const harness = fakePage();
+    const request = {} as Request;
+    const waiting = waitForQuietNetwork(harness.page);
+    harness.emit("request", request);
+
+    await vi.advanceTimersByTimeAsync(19_000);
+    harness.emit("requestfinished", request);
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    await expect(waiting).resolves.toBeUndefined();
   });
 });

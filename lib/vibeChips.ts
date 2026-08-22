@@ -55,7 +55,7 @@ export const VIBE_CHIPS: readonly VibeChip[] = [
   {
     id: "bender",
     label: "Big one tonight",
-    ask: "Plan us a proper bender, four of us, cheap pints, lively",
+    ask: "Plan a big night for four of us, with cheap pints and a lively route",
     tonight: { type: "filter", kind: "deal" },
     moods: ["lively"],
   },

@@ -51,7 +51,7 @@ export declare function readExistingCommonRows(
 export declare function parseEventsCityArg(argv?: string[]): string | null;
 export declare function eventsReviewBranchName(city?: string): string;
 export declare function isPullRequestPermissionError(error: unknown): boolean;
-export declare function publishEventsReview(opts?: {
+export declare function publishEventsReview(opts: {
   outPath: string;
   observedAt: string;
   city?: string;

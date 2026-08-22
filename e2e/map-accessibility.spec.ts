@@ -335,11 +335,17 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await expect(highlightedVenue).toBeVisible();
     const highlightedVenueId = await highlightedVenue.getAttribute("data-venue-id");
     expect(highlightedVenueId).toBeTruthy();
+    const optionIndex = await listbox.getByRole("option").evaluateAll(
+      (options, venueId) =>
+        options.findIndex((option) => option.getAttribute("data-venue-id") === venueId),
+      highlightedVenueId,
+    );
+    expect(optionIndex).toBeGreaterThanOrEqual(0);
 
     await search.focus();
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
-    await page.keyboard.press("ArrowDown");
+    for (let index = 0; index <= optionIndex; index += 1) {
+      await page.keyboard.press("ArrowDown");
+    }
     await page.keyboard.press("Enter");
     await expect
       .poll(() => new URL(page.url()).searchParams.get("sel"))

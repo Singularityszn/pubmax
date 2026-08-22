@@ -118,14 +118,14 @@ describe("out desktop grouping", () => {
     expect(outListingUnmatchedCount([matched, absent, absent])).toBe(2);
   });
 
-  it("keeps unmatched row status available to assistive technology", () => {
+  it("keeps unmatched row status visible and available to assistive technology", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
         row: row({ id: "absent-render", kind: "event", title: "Arena show" }),
       }),
     );
 
-    expect(html).toContain('class="srOnly"');
+    expect(html).toContain('class="outListingPubPair outListingPubPair--absent"');
     expect(html).toContain(OUT_LISTING_PUB_ABSENT_LINE);
   });
 
