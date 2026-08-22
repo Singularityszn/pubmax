@@ -15,6 +15,7 @@ const mobileMapCss = readFileSync(
   "utf8",
 );
 const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
+const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
   it("makes Plan tonight together the landing hero primary", () => {
@@ -57,5 +58,13 @@ describe("core UI audit fixes", () => {
 
   it("does not ship removed Next experimental options", () => {
     expect(nextConfig).not.toMatch(/\bviewTransition\s*:/);
+  });
+
+  it("keeps proof and local build artifacts out of Vercel uploads", () => {
+    expect(vercelIgnore).toMatch(/^docs\/$/m);
+    expect(vercelIgnore).toMatch(/^\.next-\*$/m);
+    expect(vercelIgnore).toMatch(/^coverage\/$/m);
+    expect(vercelIgnore).not.toMatch(/^data\/$/m);
+    expect(vercelIgnore).not.toMatch(/^public\/$/m);
   });
 });
