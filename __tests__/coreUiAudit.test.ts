@@ -61,10 +61,10 @@ describe("core UI audit fixes", () => {
   });
 
   it("keeps proof and local build artifacts out of Vercel uploads", () => {
-    expect(vercelIgnore).toMatch(/^docs\/$/m);
-    expect(vercelIgnore).toMatch(/^\.next-\*$/m);
-    expect(vercelIgnore).toMatch(/^coverage\/$/m);
-    expect(vercelIgnore).not.toMatch(/^data\/$/m);
-    expect(vercelIgnore).not.toMatch(/^public\/$/m);
+    expect(vercelIgnore).toMatch(/^\/docs\/$/m);
+    expect(vercelIgnore).toMatch(/^\/\.next-\*$/m);
+    expect(vercelIgnore).toMatch(/^\/coverage\/$/m);
+    expect(vercelIgnore).not.toMatch(/^\/?data\/$/m);
+    expect(vercelIgnore).not.toMatch(/^\/?public\/$/m);
   });
 });
