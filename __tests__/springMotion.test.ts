@@ -53,6 +53,17 @@ describe("stepSpring", () => {
     expect(state.value).toBeGreaterThanOrEqual(0);
     expect(state.value).toBeLessThanOrEqual(100);
   });
+
+  it("finishes a critically damped transition after a long delayed frame", () => {
+    const state = stepSpring(
+      { value: 600, velocity: 0 },
+      0,
+      5,
+      { response: 0.34, dampingRatio: 1 },
+    );
+
+    expect(isSpringSettled(state, 0)).toBe(true);
+  });
 });
 
 describe("projectMomentum", () => {

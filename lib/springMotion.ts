@@ -10,7 +10,7 @@ export type SpringConfig = {
   dampingRatio: number;
 };
 
-const MAX_FRAME_SECONDS = 1 / 15;
+const MAX_CATCH_UP_SECONDS = 1;
 const MAX_STEP_SECONDS = 1 / 240;
 const MIN_RESPONSE_SECONDS = 0.05;
 
@@ -18,8 +18,9 @@ const MIN_RESPONSE_SECONDS = 0.05;
  * Advance a damped spring with bounded semi-implicit Euler steps.
  *
  * Value units are caller-defined. Velocity uses those units per second.
- * Bounding long frames prevents an inactive tab from injecting an unstable
- * integration step when it becomes visible again.
+ * Small integration steps keep long frames stable. Catching up for at most one
+ * second prevents a delayed frame from stretching a short transition across
+ * many seconds when a busy browser resumes.
  */
 export function stepSpring(
   state: SpringState,
@@ -27,7 +28,7 @@ export function stepSpring(
   deltaSeconds: number,
   config: SpringConfig,
 ): SpringState {
-  const frameSeconds = Math.min(Math.max(deltaSeconds, 0), MAX_FRAME_SECONDS);
+  const frameSeconds = Math.min(Math.max(deltaSeconds, 0), MAX_CATCH_UP_SECONDS);
   if (frameSeconds === 0) return state;
 
   const response = Math.max(config.response, MIN_RESPONSE_SECONDS);
