@@ -21,6 +21,9 @@ test.describe("Wanted Wave A phone chrome", () => {
     await expect(heading).toBeVisible({
       timeout: 20_000,
     });
+    await expect(page.getByText("Loading your Wanted list…")).toBeHidden({
+      timeout: 20_000,
+    });
     const pasteInput = page.getByLabel("Pub name or link");
     if (await pasteInput.isVisible().catch(() => false)) {
       await expect(pasteInput).toBeVisible();
