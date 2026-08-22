@@ -32,6 +32,7 @@ import {
 import {
   initialFilters,
   NO_PINT_PRICE_CAP,
+  type CrawlMode,
   type CrawlStyle,
   type Filters,
   type Venue,
@@ -42,6 +43,8 @@ import { SAVED_ONLY_ARIA_LABEL } from "@/lib/savedOnlyFilter";
 export { SAVED_ONLY_ARIA_LABEL };
 /** Re-export so existing ControlRail importers keep resolving the default filters. */
 export { initialFilters };
+/** Re-export so existing ControlRail type importers keep resolving crawl mode. */
+export type { CrawlMode } from "@/lib/venues";
 
 /** City-aware search placeholder examples (neighbourhoods, not Tube jargon). */
 export function citySearchPlaceholder(cityId: CityId, displayName: string): string {
@@ -76,8 +79,6 @@ import "./accessibilityFilters.css";
 // unwired pin-by-category paint patch. Imported here (map chrome, non-hot) so
 // the rules load with the map without touching the codex-hot canvas.
 import "./mapColor.css";
-
-export type CrawlMode = "suggest" | "build";
 
 export const styleLabels: Record<CrawlStyle, string> = {
   balanced: "Balanced",

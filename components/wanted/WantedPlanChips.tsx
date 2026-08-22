@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import type { WantedDTO } from "@/lib/wanted";
 import { discardBody } from "@/lib/responseBody";
@@ -14,9 +15,15 @@ export default function WantedPlanChips({
 }: {
   onPick: (query: string) => void;
 }): React.JSX.Element | null {
-  const [open, setOpen] = useState<WantedDTO[]>([]);
+  const { identityResolved, user } = useAuth();
+  const userId = identityResolved ? user?.id ?? null : null;
+  const [result, setResult] = useState<{
+    ownerId: string;
+    open: WantedDTO[];
+  } | null>(null);
 
   useEffect(() => {
+    if (!userId) return;
     let cancelled = false;
     void (async () => {
       try {
@@ -27,11 +34,12 @@ export default function WantedPlanChips({
         }
         const body = (await res.json()) as { wanteds?: WantedDTO[] };
         if (cancelled) return;
-        setOpen(
-          (body.wanteds ?? []).filter(
+        setResult({
+          ownerId: userId,
+          open: (body.wanteds ?? []).filter(
             (row) => row.status === "open" && row.venueKind !== "pending" && row.venueName,
           ),
-        );
+        });
       } catch {
         // Signed-out / offline: hide the Wanted chip lane.
       }
@@ -39,7 +47,9 @@ export default function WantedPlanChips({
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [userId]);
+
+  const open = result?.ownerId === userId ? result.open : [];
 
   if (open.length === 0) return null;
 

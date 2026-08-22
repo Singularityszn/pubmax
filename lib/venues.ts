@@ -41,6 +41,8 @@ export type CrawlStyle =
   | "dateNight"
   | "noAlcoholFirst";
 
+export type CrawlMode = "suggest" | "build";
+
 export type VenuePrice = {
   app_price_id: string;
   pub_name: string;
