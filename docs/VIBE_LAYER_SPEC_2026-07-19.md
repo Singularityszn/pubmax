@@ -38,7 +38,7 @@ Mechanics: chips map onto the EXISTING `CONCIERGE_MOODS` model (`lib/concierge/r
 
 1. **Tonight vibe picker**: chip row above the kind facets in `app/tonight/TonightClient.tsx`. A chip press sets the matching kind/mood filter composition and is tracked (`tonight_vibe_select`, prop `vibe`). Deselectable. Does not replace the kind facets.
 2. **/pal/chat quick-asks**: chips replace/extend `EXAMPLE_PROMPTS` (`components/pal/PalChat.tsx:258`); a press fires the preset question through the existing deterministic ask path.
-3. **Share stamp** (smallest loop): vibe pick stamps the existing plan-card OG route (#413 lockup) with an accent-font headline ("TONIGHT: BIG ONE") + crew tally when shared from a plan ("3 of the lot voted Big one tonight, 1 person voted Quiet pint"). One stamp layer, zero new infra.
+3. **Share stamp** (smallest loop): vibe pick stamps the existing plan-card OG route (#413 lockup) with an accent-font headline ("BIG ONE TONIGHT") + crew tally when shared from a plan ("3 of the lot voted Big one tonight, 1 person voted Quiet pint"). One stamp layer, zero new infra.
 4. **Push copy** (implementation deferred to PRD Lane B/VAPID; lines locked now, no exclamation marks):
    - "World Cup final at 8. Your local's showing it, the pint's £5.20, and the last tube home is 00:34. Sorted."
    - "Thursday. Legally close enough to the weekend for a cheeky one. Three pubs near you are pouring under a fiver."
