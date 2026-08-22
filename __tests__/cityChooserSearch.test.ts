@@ -152,6 +152,14 @@ describe("city chooser search mobile contract", () => {
       /@media \(max-width: 560px\)[\s\S]*?\.cityChooserResults\s*{[^}]*grid-template-columns:\s*1fr/,
     );
   });
+
+  it("uses a neutral valid city placeholder", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/city/CityChooser.tsx"),
+      "utf8",
+    );
+    expect(source).toContain('placeholder="Search for a town or city"');
+  });
 });
 
 describe("city guide count copy", () => {

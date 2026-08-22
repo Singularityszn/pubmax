@@ -71,6 +71,22 @@ describe("search provider selection", () => {
     expect(generateText).not.toHaveBeenCalled();
   });
 
+  it("passes cancellation through every provider request", async () => {
+    const controller = new AbortController();
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      expect(init?.signal).toBe(controller.signal);
+      return tavilyResponse();
+    });
+    const provider = createSearchProvider({
+      env: { SEARCH_PROVIDER: "tavily", TAVILY_API_KEY: "tavily-test-key" },
+      fetchImpl,
+      dependencies: gatewayDependencies(vi.fn()),
+    });
+
+    await provider.search({ query: "official menu", signal: controller.signal });
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it("defaults to Exa and uses gateway tool results", async () => {
     const generateText = vi.fn(async (options: Record<string, unknown>) => {
       expect(options.maxRetries).toBe(0);
@@ -191,6 +207,31 @@ describe("search provider fallback", () => {
     expect(result.results[0].url).toBe("https://independentarms.co.uk/menu");
     expect(warn).toHaveBeenCalledWith(expect.stringContaining("falling back to tavily"));
     expect(provider.stats().selectedProvider).toBe("tavily");
+  });
+
+  it("gives Tavily a fresh deadline after Exa times out", async () => {
+    vi.useFakeTimers();
+    const fetchImpl = vi.fn(async () => tavilyResponse());
+    const provider = createSearchProvider({
+      env: {
+        AI_GATEWAY_API_KEY: "gateway-test-key",
+        TAVILY_API_KEY: "tavily-test-key",
+      },
+      fetchImpl,
+      dependencies: gatewayDependencies(vi.fn((options: Record<string, unknown>) =>
+        new Promise((_resolve, reject) => {
+          const signal = options.abortSignal as AbortSignal;
+          signal.addEventListener("abort", () => reject(signal.reason), { once: true });
+        }),
+      )),
+    });
+
+    const resultPromise = provider.search({ query: "official menu", timeoutMs: 100 });
+    await vi.advanceTimersByTimeAsync(100);
+    const result = await resultPromise;
+
+    expect(result.provider).toBe("tavily");
+    expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
   it("keeps a valid empty Exa result without falling back", async () => {

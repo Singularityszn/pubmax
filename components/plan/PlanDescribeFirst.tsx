@@ -72,7 +72,7 @@ export default function PlanDescribeFirst({
             setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
           }}
           onKeyDown={handleKeyDown}
-          placeholder="coffee and a catch-up in Clapham for 2"
+          placeholder="Quiet in Clapham for 4"
           maxLength={500}
         />
         <button type="button" onClick={() => submit()} disabled={!query.trim()}>Make a plan</button>

@@ -64,16 +64,12 @@ describe("crews stay behind the Social gate", () => {
     expect(socialPageClient).toMatch(
       /showViewerCards \? \(\s*<CrewsPanel/,
     );
-    // The anchor moved with the surface: FindYourLot took its own section (and
-    // its aria-label) into the component, so this read for a matching section
-    // in the page found nothing and asserted against undefined. The ungated
-    // branch an unverified viewer lands on today is a neutral directory section.
-    const ungated = socialPageClient.match(
-      /aria-label="People on PUBMAXX"[\s\S]*?<\/section>/,
+    const signedOut = socialPageClient.match(
+      /viewerPhase === "signed-out" \? \([\s\S]*?\) : access === "checking"/,
     )?.[0];
-    expect(ungated, "ungated friend-formation branch present").toBeTruthy();
-    expect(ungated).not.toMatch(/CrewsPanel/);
-    expect(ungated).toContain("SocialViewerState");
+    expect(signedOut, "signed-out boundary present").toBeTruthy();
+    expect(signedOut).toContain("SocialAccessBoundary");
+    expect(signedOut).not.toMatch(/CrewsPanel|PeopleDirectory/);
     // Friend formation itself rides the rail on `isPosts` alone, with no access
     // gate in front of it. A crew may never join it there either.
     const friendFormation = socialPageClient

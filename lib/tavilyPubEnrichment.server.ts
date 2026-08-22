@@ -25,11 +25,16 @@ const CITY_ROTATION = [
   "leeds",
   "bristol",
 ] as const;
-export const SEARCH_CRON_QUERY_CAP = 25;
+// Provider requests run sequentially. Ten requests keep the daily function
+// below Vercel's 120-second ceiling while the rotating start index preserves
+// eventual coverage across scheduled runs.
+export const SEARCH_CRON_QUERY_CAP = 10;
 /** Bristol nights 504 at the full cron cap; keep the city inside a smaller slice. */
 export const BRISTOL_CRON_QUERY_CAP = 8;
 /** Wall-clock bound so a slow Bristol lane cannot eat the whole function budget. */
 export const BRISTOL_CRON_WALL_MS = 45_000;
+/** Leave Vercel enough time to persist progress and return before 120 seconds. */
+export const SEARCH_CRON_WALL_MS = 90_000;
 
 type UkPack = { pubs?: OsmPub[] };
 
@@ -251,12 +256,24 @@ export async function runScheduledCityEnrichment(
   const allPubs = loadUkPubs();
   const cityRuns: ScheduledCityRunOutcome[] = [];
   const mergeableRuns: CityBatchResult[] = [];
+  const runDeadline = Date.now() + SEARCH_CRON_WALL_MS;
 
   const runTrackedCity = async (
     city: string,
     queryCap: number,
-    wallMs?: number,
+    cityWallMs = SEARCH_CRON_WALL_MS,
   ): Promise<CityBatchResult | null> => {
+    const remainingWallMs = runDeadline - Date.now();
+    if (remainingWallMs <= 0) {
+      cityRuns.push({
+        city,
+        ok: false,
+        queriesSpent: 0,
+        creditsSpent: 0,
+        error: `City enrichment run timed out after ${SEARCH_CRON_WALL_MS}ms.`,
+      });
+      return null;
+    }
     try {
       const result = await runCityBatch(
         city,
@@ -265,7 +282,7 @@ export async function runScheduledCityEnrichment(
         epochDay,
         maxQueries,
         queryCap,
-        wallMs,
+        Math.min(cityWallMs, remainingWallMs),
       );
       cityRuns.push(outcomeFromResult(city, result));
       mergeableRuns.push(result);
@@ -282,7 +299,8 @@ export async function runScheduledCityEnrichment(
 
   const primaryCap =
     primaryCity === "bristol" ? Math.min(BRISTOL_CRON_QUERY_CAP, maxQueries) : maxQueries;
-  const primaryWallMs = primaryCity === "bristol" ? BRISTOL_CRON_WALL_MS : undefined;
+  const primaryWallMs =
+    primaryCity === "bristol" ? BRISTOL_CRON_WALL_MS : SEARCH_CRON_WALL_MS;
   const primaryResult = await runTrackedCity(primaryCity, primaryCap, primaryWallMs);
 
   if (primaryCity === "bristol") {

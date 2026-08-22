@@ -15,4 +15,14 @@ describe("What's-On events refresh workflow", () => {
     expect(build).toBeGreaterThan(-1);
     expect(refresh).toBeGreaterThan(build);
   });
+
+  it("serialises writes to the stable review branch", () => {
+    const workflow = readFileSync(
+      join(process.cwd(), ".github/workflows/events-refresh.yml"),
+      "utf8",
+    );
+
+    expect(workflow).toMatch(/concurrency:\s*\n\s+group:\s*whats-on-events-london/);
+    expect(workflow).toMatch(/cancel-in-progress:\s*false/);
+  });
 });

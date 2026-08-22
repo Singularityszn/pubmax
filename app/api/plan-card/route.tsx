@@ -35,8 +35,8 @@ const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 // image (user-controlled text on a shared OG card is an abuse surface). Labels
 // are the chip labels verbatim, uppercased by the stamp itself.
 const VIBE_STAMPS: Record<string, string> = {
-  "on-a-bender": "On a bender",
-  "get-lit": "Get lit",
+  "on-a-bender": "Big one tonight",
+  "get-lit": "Live and loud",
   "quiet-pint": "Quiet pint",
   "cheeky-one-after-work": "Cheeky one after work",
   "match-on": "Match on",

@@ -118,11 +118,11 @@ describe("vibe tally line (share-card copy)", () => {
   });
 
   it("jabs the lone dissenter only when exactly one vote is out of step", () => {
-    expect(line(["bender", "bender", "bender", "quiet"])).toBe("3 of the lot voted On a bender, 1 person voted Quiet pint");
+    expect(line(["bender", "bender", "bender", "quiet"])).toBe("3 of the lot voted Big one tonight, 1 person voted Quiet pint");
   });
 
   it("drops the jab when more than one voter dissents", () => {
-    expect(line(["bender", "bender", "bender", "quiet", "lit"])).toBe("3 of the lot voted On a bender");
+    expect(line(["bender", "bender", "bender", "quiet", "lit"])).toBe("3 of the lot voted Big one tonight");
   });
 
   it("states a tie without singling anyone out", () => {

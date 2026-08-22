@@ -1,5 +1,11 @@
 # CAP Code alcohol-copy audit (2026-07-21)
 
+Status: historical audit. Safety amendment 2026-08-22 retired "On a bender",
+"Get lit", and the dissenting "coward" tally. Current public labels are "Big
+one tonight" and "Live and loud". See `docs/VIBE_LAYER_SPEC_2026-07-19.md`.
+Rows below preserve the evidence reviewed on 2026-07-21 and are not current
+copy requirements.
+
 Probe U4 from docs/UNKNOWNS_MAP_2026-07-21.md. A read-through of every authored
 product-copy surface against UK CAP Code section 18 (Alcohol), producing a
 rules summary with citations, a per-surface findings table, a banned/safe phrase

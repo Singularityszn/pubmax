@@ -21,10 +21,10 @@ describe("analytics consent clearance", () => {
 
   it("reserves mobile foot room above the tab bar while the consent card is mounted", () => {
     expect(globalCss).toMatch(
-      /@media \(max-width:\s*640px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\):has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--tabbar-h,\s*58px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\+\s*var\(--analytics-consent-mobile-clearance,\s*128px\)/,
+      /@media \(max-width:\s*640px\)\s*{[^}]*body:has\(\.analyticsConsentPrompt\):has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\s*{[^}]*padding-bottom:\s*calc\(\s*var\(--tabbar-h,\s*64px\)\s*\+\s*env\(safe-area-inset-bottom,\s*0px\)\s*\+\s*var\(--analytics-consent-mobile-clearance,\s*120px\)/,
     );
     expect(globalCss).toMatch(
-      /body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\)\s*{[^}]*var\(--analytics-consent-mobile-clearance,\s*128px\)/,
+      /body:has\(\.analyticsConsentPrompt\):not\(:has\(\.mobileTabBar,\s*\.mobileTabBarClearance\)\)\s*{[^}]*var\(--analytics-consent-mobile-clearance,\s*120px\)/,
     );
   });
 

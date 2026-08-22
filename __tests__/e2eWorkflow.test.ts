@@ -16,10 +16,11 @@ describe("browser CI policy", () => {
     expect(workflow).toContain("--project=chromium");
   });
 
-  it("shards the full browser suite on a schedule", () => {
+  it("runs the full browser matrix on pull requests and main pushes", () => {
     const workflow = readFileSync(workflowPath, "utf8");
 
     expect(workflow).toMatch(/schedule:/);
+    expect(workflow).toMatch(/push:\n\s+branches: \[main\]/);
     expect(workflow).toContain("suite: [default, flag-on]");
     expect(workflow).toContain("shard: [1, 2, 3, 4]");
     expect(workflow).toContain("--shard=${{ matrix.shard }}/4");
@@ -27,6 +28,9 @@ describe("browser CI policy", () => {
     expect(workflow).toContain('PUBMAX_TONIGHT_GROUPING: "1"');
     expect(workflow).toContain('PUBMAX_FRIEND_MEMBER_REHYDRATION_V2: "1"');
     expect(workflow).toContain("npx playwright install --with-deps chromium");
+
+    const fullSuite = workflow.slice(workflow.indexOf("  full-suite:"));
+    expect(fullSuite).not.toContain("if: github.event_name != 'pull_request'");
   });
 
   it("gives each production browser build enough heap", () => {

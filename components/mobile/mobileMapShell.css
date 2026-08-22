@@ -118,6 +118,19 @@
     bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 
+  /* First-session map keeps only area, search, price lens, and Plan. Extra
+     discovery and camera tools remain available after the arrival choice. */
+  body:has(.mapArrivalCard) .mobileMapUtilityCorner,
+  body:has(.mapArrivalCard) .mobileMapTonightChip,
+  body:has(.mapArrivalCard) .appShell .mapStage .mapCameraControls,
+  body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-top-right {
+    display: none;
+  }
+
+  body:has(.mapArrivalCard) .mobileMapChipRow {
+    padding-right: 0;
+  }
+
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
     box-sizing: border-box;
     max-width: calc(100vw - 24px);

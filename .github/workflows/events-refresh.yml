@@ -18,6 +18,10 @@ permissions:
   contents: write
   pull-requests: write
 
+concurrency:
+  group: whats-on-events-london
+  cancel-in-progress: false
+
 jobs:
   refresh:
     runs-on: ubuntu-latest

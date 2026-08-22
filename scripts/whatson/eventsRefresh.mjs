@@ -42,7 +42,7 @@
 
 import { writeFileSync, mkdirSync, readFileSync, existsSync } from "node:fs";
 import { execFileSync } from "node:child_process";
-import { dirname, join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -98,6 +98,140 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 
 /** Opt in to the Common crawl. See runEventsRefresh for why it is opt-in. */
 export const WITH_COMMON_FLAG = "--with-common";
+
+export function eventsReviewBranchName(city = "london") {
+  return `whats-on-events/${String(city).trim().toLowerCase() || "london"}`;
+}
+
+function commandOutput(value) {
+  if (Buffer.isBuffer(value)) return value.toString("utf8");
+  return typeof value === "string" ? value : "";
+}
+
+export function isPullRequestPermissionError(error) {
+  const text = [error?.message, error?.stdout, error?.stderr].map(commandOutput).join("\n");
+  return /github actions is not permitted to create or approve pull requests/i.test(text);
+}
+
+function branchHandoff({ branch, env, reason }) {
+  const server = String(env.GITHUB_SERVER_URL ?? "https://github.com").replace(/\/+$/, "");
+  const repository = String(env.GITHUB_REPOSITORY ?? "Singularityszn/pubmax");
+  return {
+    status: "branch-only",
+    branch,
+    branchUrl: `${server}/${repository}/tree/${branch}`,
+    reason,
+  };
+}
+
+/**
+ * Publish one stable review branch and create or update its PR.
+ *
+ * A stable branch means a still-open review PR is updated by the next refresh,
+ * instead of every scheduled run leaving another branch and PR behind. The
+ * repository may disable PR creation for GITHUB_TOKEN even when the workflow
+ * asks for pull-requests: write. In that case the branch is still useful and
+ * the exact manual handoff is returned, while authentication failures remain
+ * hard errors.
+ */
+export function publishEventsReview({
+  outPath,
+  observedAt,
+  city = "london",
+  env = process.env,
+  rootDir = ROOT,
+  runCommand = execFileSync,
+  log = console.log,
+} = {}) {
+  const branch = eventsReviewBranchName(city);
+  const commandEnv = { ...process.env, ...env };
+  const options = { cwd: rootDir, env: commandEnv, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] };
+  const run = (command, args) => runCommand(command, args, options);
+  const relativePath = relative(rootDir, outPath);
+  // Switching to the stable review branch replaces tracked files. Hold the
+  // validated refresh bytes across that switch so the new branch stages this
+  // run's evidence, not the previous branch snapshot.
+  const refreshedOutput = readFileSync(outPath);
+
+  const remoteRefs = commandOutput(run("git", ["ls-remote", "--heads", "origin", branch]));
+  if (remoteRefs.trim()) {
+    run("git", ["fetch", "origin", branch]);
+    run("git", ["switch", "--force-create", branch, `origin/${branch}`]);
+  } else {
+    run("git", ["switch", "--create", branch]);
+  }
+
+  writeFileSync(outPath, refreshedOutput);
+  run("git", ["add", "--", relativePath]);
+  let changed = true;
+  try {
+    run("git", ["diff", "--cached", "--quiet"]);
+    changed = false;
+  } catch {
+    // git diff --quiet exits 1 when the refresh staged a change.
+  }
+  if (!changed) {
+    log(`eventsRefresh: no data changes for ${branch}; existing review state unchanged.`);
+    return { status: "no-change", branch };
+  }
+
+  const stamp = observedAt.slice(0, 10).replaceAll("-", "");
+  run("git", ["commit", "-m", `chore(whats-on): refresh events ${stamp}`]);
+  run("git", ["push", "--set-upstream", "origin", branch]);
+
+  let openPullRequest = [];
+  try {
+    const listed = commandOutput(
+      run("gh", ["pr", "list", "--base", "main", "--head", branch, "--state", "open", "--json", "number,url", "--limit", "1"]),
+    );
+    openPullRequest = JSON.parse(listed || "[]");
+  } catch (error) {
+    if (isPullRequestPermissionError(error)) {
+      const result = branchHandoff({
+        branch,
+        env,
+        reason: "GitHub Actions token cannot create pull requests; branch was pushed for manual review.",
+      });
+      log(`eventsRefresh: ${result.reason} Open ${result.branchUrl}.`);
+      return result;
+    }
+    throw error;
+  }
+
+  const existing = openPullRequest[0];
+  if (existing?.url) {
+    log(`eventsRefresh: updated existing What's-On review PR ${existing.url} from ${branch}.`);
+    return { status: "updated", branch, pullRequestUrl: existing.url };
+  }
+
+  try {
+    const created = commandOutput(
+      run("gh", [
+        "pr",
+        "create",
+        "--base",
+        "main",
+        "--head",
+        branch,
+        "--title",
+        `What's-On events ${stamp}`,
+        "--body",
+        "Scheduled official-API (Ticketmaster/Skiddle) events refresh for the Tonight page. Provenance links back to each source per its terms.",
+      ]),
+    );
+    const pullRequestUrl = created.split(/\s+/).find((token) => /^https?:\/\//.test(token));
+    return { status: "created", branch, ...(pullRequestUrl ? { pullRequestUrl } : {}) };
+  } catch (error) {
+    if (!isPullRequestPermissionError(error)) throw error;
+    const result = branchHandoff({
+      branch,
+      env,
+      reason: "GitHub Actions token cannot create pull requests; branch was pushed for manual review.",
+    });
+    log(`eventsRefresh: ${result.reason} Open ${result.branchUrl}.`);
+    return result;
+  }
+}
 
 function nonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
@@ -584,13 +718,20 @@ export async function runEventsRefresh({
     }
     if (validation.status === "ran") {
       try {
-        await openPr({ outPath, observedAt, nowMs, env, log });
-        published = { status: "ran" };
+        const publication = await openPr({ outPath, observedAt, nowMs, env, city, log });
+        published = publication?.status ? publication : { status: "ran" };
       } catch (err) {
-        logError(
-          `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
-        );
-        published = { status: "failed", reason: err.message };
+        if (isPullRequestPermissionError(err)) {
+          const reason =
+            "GitHub Actions token cannot create pull requests; branch publication needs a manual PR handoff.";
+          logError(`eventsRefresh: ${reason}`);
+          published = { status: "branch-only", reason };
+        } else {
+          logError(
+            `eventsRefresh: the refreshed file passed validate-data, but publishing it failed (${err.message}).`,
+          );
+          published = { status: "failed", reason: err.message };
+        }
       }
     }
   }
@@ -617,18 +758,8 @@ function defaultValidate() {
   });
 }
 
-function defaultOpenPr({ outPath, observedAt, nowMs, env }) {
-  const stamp = observedAt.slice(0, 10).replaceAll("-", "");
-  const branch = `whats-on-events/${stamp}-${env.GITHUB_RUN_ID?.replace(/\D/g, "") || nowMs}`;
-  execFileSync("git", ["checkout", "-b", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["add", outPath], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["commit", "-m", `chore(whats-on): refresh events ${stamp}`], { cwd: ROOT, stdio: "inherit" });
-  execFileSync("git", ["push", "-u", "origin", branch], { cwd: ROOT, stdio: "inherit" });
-  execFileSync(
-    "gh",
-    ["pr", "create", "--title", `What's-On events ${stamp}`, "--body", "Scheduled official-API (Ticketmaster/Skiddle) events refresh for the Tonight page. Provenance links back to each source per its terms."],
-    { cwd: ROOT, stdio: "inherit" },
-  );
+function defaultOpenPr(options) {
+  return publishEventsReview(options);
 }
 
 async function main() {

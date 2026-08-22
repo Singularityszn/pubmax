@@ -122,7 +122,7 @@ describe("buildInvitePrivacyPreview", () => {
 
   it("returns the top vibe chip label when a tally is supplied", () => {
     const result = buildInvitePrivacyPreview(makePlanState(), makeTally("bender"));
-    expect(result.vibeLabel).toBe("On a bender");
+    expect(result.vibeLabel).toBe("Big one tonight");
   });
 
   it("returns null vibeLabel when the tally has no top vibe", () => {
@@ -166,7 +166,7 @@ describe("buildInvitePrivacyPreview", () => {
       areaName: "Shoreditch",
       startLabel: "20:00",
       stopCount: 3,
-      vibeLabel: "Get lit",
+      vibeLabel: "Live and loud",
       accessibilitySummary: "step-free",
     };
     expect(result).toEqual(expected);

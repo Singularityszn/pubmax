@@ -269,6 +269,10 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
             : isEntering
               ? "pubsCard isEntering"
               : "pubsCard";
+          const hasPhoto = Boolean(pub.photoUrl);
+          const resolvedCardClassName = hasPhoto
+            ? cardClassName
+            : `${cardClassName} pubsCard--no-art`;
           const enterDelayMs = isEntering
             ? Math.min((index - revealed.from) * 30, 240)
             : undefined;
@@ -276,16 +280,24 @@ export default function PubsGallery({ pubs }: { pubs: ScrapedPub[] }) {
           <li
             key={pub.id}
             id={`pubsCard-${pub.id}`}
-            className={cardClassName}
+            className={resolvedCardClassName}
             style={enterDelayMs !== undefined ? { animationDelay: `${enterDelayMs}ms` } : undefined}
           >
-            <DrinkArt
-              accent={pub.drinkAccent}
-              shelf={pub.drinkShelf}
-              photoUrl={pub.photoUrl}
-              name={categoryLabel(pub.drinkAccent)}
-            />
+            {hasPhoto ? (
+              <DrinkArt
+                accent={pub.drinkAccent}
+                shelf={pub.drinkShelf}
+                photoUrl={pub.photoUrl}
+                name={categoryLabel(pub.drinkAccent)}
+              />
+            ) : null}
             <div className="pubsCardBody">
+              {!hasPhoto ? (
+                <p className="pubsCardDrink">
+                  <DrinkGlyph category={pub.drinkAccent} size={18} inheritColor />
+                  <span>{categoryLabel(pub.drinkAccent)}</span>
+                </p>
+              ) : null}
               <div className="pubsCardMeta">
                 <span className="pubsSource" data-source={pub.source}>
                   {pub.sourceLabel}

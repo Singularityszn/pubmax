@@ -118,7 +118,7 @@
 .socialFeedError,
 .socialFeedEmpty {
   display: grid;
-  min-height: 260px;
+  min-height: 200px;
   place-content: center;
   justify-items: center;
   gap: 18px;
@@ -782,7 +782,7 @@
   }
 
   .socialBoundary {
-    min-height: 300px;
+    min-height: 220px;
   }
 
   .socialComposer .socialComposerBody textarea {

@@ -7,7 +7,7 @@ _2026-07-19 · owner-grilled + two-fork adversarial panel (skeptic + differentia
 1. Register: **British sesh + select global hits**. Base is London drinking idiom; "get lit" is the sanctioned global hit.
 2. Placement: **mood chips + concierge quick-asks + push copy ONLY**. Structural copy stays dry-Londoner per the voice spec.
 3. Type: **trio stays** (Space Grotesk / Inter / JetBrains Mono). One accent face added: **Bungee** (next/font, Google). Quarantined.
-4. **"On a bender" STAYS** (owner override 2026-07-19, full idiom, never bare "Bender"). Skeptic's store-review risk (App Store 1.4.3 excess-drinking optics) and UK double-meaning risk were put to the owner explicitly and accepted. If Apple review bounces it, the pre-approved fallback label is "Big one tonight" — one string swap, nothing structural.
+4. **Safety amendment 2026-08-22:** use "Big one tonight" and "Live and loud" on public web and share surfaces. The older labels remain retired because they can promote harmful drinking and create store-review risk. This owner-requested MVP recovery work replaces the 2026-07-19 override.
 
 ## Doctrine: chips are the user's voice
 
@@ -22,8 +22,8 @@ Voice spec rule 3 ("no America", no hype) governs the APP speaking. A vibe chip 
 
 | Chip label | Backed by | Concierge preset fired |
 |---|---|---|
-| On a bender | crawl planner + Pint Index cheap pours + `deal` rows + late closes | "Plan me a proper bender near me: four stops, cheap pints, latest close last" |
-| Get lit | `music` rows tonight + lively night-signal bands | "Where's actually loud and alive tonight, live music first" |
+| Big one tonight | crawl planner + Pint Index cheap pours + `deal` rows + late closes | "Plan a big night near me: four stops, cheap pints, latest close last" |
+| Live and loud | `music` rows tonight + lively night-signal bands | "Where's actually loud and alive tonight, live music first" |
 | Quiet pint | calm night-calm bands + no-event pubs + heritage snugs | "Somewhere calm for a quiet pint, no quiz, no match" |
 | Cheeky one after work | Pint Index nearest-cheapest + TfL get-home strip | "Cheapest decent pint within 10 minutes, and when's my last train" |
 | Match on | `sport` fixtures | "Who's showing the match near me and what's a pint there" |
@@ -38,7 +38,7 @@ Mechanics: chips map onto the EXISTING `CONCIERGE_MOODS` model (`lib/concierge/r
 
 1. **Tonight vibe picker**: chip row above the kind facets in `app/tonight/TonightClient.tsx`. A chip press sets the matching kind/mood filter composition and is tracked (`tonight_vibe_select`, prop `vibe`). Deselectable. Does not replace the kind facets.
 2. **/pal/chat quick-asks**: chips replace/extend `EXAMPLE_PROMPTS` (`components/pal/PalChat.tsx:258`); a press fires the preset question through the existing deterministic ask path.
-3. **Share stamp** (smallest loop): vibe pick stamps the existing plan-card OG route (#413 lockup) with an accent-font headline ("TONIGHT: ON A BENDER") + crew tally when shared from a plan ("3 of the lot voted On a bender, 1 coward voted Quiet pint"). One stamp layer, zero new infra.
+3. **Share stamp** (smallest loop): vibe pick stamps the existing plan-card OG route (#413 lockup) with an accent-font headline ("TONIGHT: BIG ONE") + crew tally when shared from a plan ("3 of the lot voted Big one tonight, 1 person voted Quiet pint"). One stamp layer, zero new infra.
 4. **Push copy** (implementation deferred to PRD Lane B/VAPID; lines locked now, no exclamation marks):
    - "World Cup final at 8. Your local's showing it, the pint's £5.20, and the last tube home is 00:34. Sorted."
    - "Thursday. Legally close enough to the weekend for a cheeky one. Three pubs near you are pouring under a fiver."

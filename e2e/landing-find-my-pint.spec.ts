@@ -37,8 +37,8 @@ test("landing nav and footer name the gated Social surface", async ({ page }) =>
   await expect(footerSocial).toHaveCount(1);
 });
 
-test.describe("landing Find my pint hierarchy", () => {
-  test("keeps one Find my pint primary with Map and Plan as secondary text", async ({ page }) => {
+test.describe("landing Plan tonight together hierarchy", () => {
+  test("keeps one Plan tonight together primary with Map and location as secondary text", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHeroActions");
@@ -47,8 +47,8 @@ test.describe("landing Find my pint hierarchy", () => {
 
     const primaries = hero.locator(".lpButtonPrimary");
     await expect(primaries).toHaveCount(1);
-    await expect(primaries.first()).toHaveAttribute("href", "/near?locate=1");
-    await expect(primaries.first()).toContainText("Find my pint");
+    await expect(primaries.first()).toHaveAttribute("href", "/plan");
+    await expect(primaries.first()).toContainText("Plan tonight together");
 
     // No quiet equal-weight button pair under the map-first hero.
     await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
@@ -56,13 +56,13 @@ test.describe("landing Find my pint hierarchy", () => {
     const secondary = hero.locator(".lpHeroSecondaryRow");
     await expect(secondary).toBeVisible();
     const mapLink = secondary.getByRole("link", { name: /Open the map/i });
-    const planLink = secondary.getByRole("link", { name: /Plan with friends/i });
+    const nearLink = secondary.getByRole("link", { name: /Find my pint/i });
     await expect(mapLink).toBeVisible();
-    await expect(planLink).toBeVisible();
+    await expect(nearLink).toBeVisible();
     await expect(mapLink).toHaveClass(/lpTextLink/);
-    await expect(planLink).toHaveClass(/lpTextLink/);
+    await expect(nearLink).toHaveClass(/lpTextLink/);
     await expect(mapLink).toHaveAttribute("href", "/choose-city");
-    await expect(planLink).toHaveAttribute("href", "/plan");
+    await expect(nearLink).toHaveAttribute("href", "/near?locate=1");
   });
 
   // Both viewports, because the retired flag-on spec proved the fold on the
@@ -76,12 +76,12 @@ test.describe("landing Find my pint hierarchy", () => {
       await openLanding(page, viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
       const hero = page.locator(".lpHeroActions");
-      await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
+      await expect(hero.getByRole("link", { name: /Plan tonight together/i })).toHaveAttribute("href", "/plan");
       await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/choose-city");
-      await expect(hero.getByRole("link", { name: /Plan with friends/i })).toHaveAttribute("href", "/plan");
+      await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
       const primary = hero.locator(".lpButtonPrimary");
       await expect(primary).toHaveCount(1);
-      await expect(primary).toContainText("Find my pint");
+      await expect(primary).toContainText("Plan tonight together");
       const box = await primary.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);

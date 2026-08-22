@@ -27,7 +27,7 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// One primary action is permanent; Map and Plan stay visible as text links.
+// One primary action is permanent; Map and location stay visible as text links.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -43,7 +43,7 @@ const pintDropStrip = readFileSync(
   "utf8",
 );
 
-describe("landing Find my pint hierarchy", () => {
+describe("landing Plan tonight together hierarchy", () => {
   it("keeps the hierarchy permanent without a landing flag", () => {
     expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
     expect(pageTsx).not.toMatch(/landingFindMyPint/);
@@ -54,9 +54,9 @@ describe("landing Find my pint hierarchy", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("uses Find my pint as the only primary action", () => {
+  it("uses Plan tonight together as the only primary action", () => {
     expect(landingTsx).toMatch(
-      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/near\?locate=1"[\s\S]*?Find my pint/,
+      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/plan"[\s\S]*?Plan tonight together/,
     );
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
     expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
@@ -73,7 +73,7 @@ describe("landing Find my pint hierarchy", () => {
     expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
   });
 
-  it("keeps Map and Plan visible as lower-weight text links", () => {
+  it("keeps Map and Find my pint visible as lower-weight text links", () => {
     expect(landingTsx).toMatch(/className="lpHeroActions"/);
     expect(landingTsx).toMatch(/lpHeroSecondaryRow/);
     const secondaryBlock = landingTsx.match(
@@ -82,10 +82,10 @@ describe("landing Find my pint hierarchy", () => {
     expect(secondaryBlock, "secondary action row present").toBeTruthy();
     expect(secondaryBlock).toMatch(/lpTextLink/);
     expect(secondaryBlock).toMatch(/Open the map/);
-    expect(secondaryBlock).toMatch(/Plan with friends/);
+    expect(secondaryBlock).toMatch(/Find my pint/);
     expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
     expect(landingTsx).toMatch(/href=\{primaryCtaHref\}[\s\S]*Open the map/);
-    expect(landingTsx).toMatch(/href="\/plan"[\s\S]*Plan with friends/);
+    expect(landingTsx).toMatch(/href="\/near\?locate=1"[\s\S]*Find my pint/);
   });
 
   it("CSS scopes dominant primary and high-contrast secondary text", () => {
