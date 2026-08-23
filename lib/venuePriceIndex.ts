@@ -18,6 +18,13 @@ import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 
 let cached: Venue[] | null = null;
 
+// Read-only cache peek for latency-sensitive optional enrichments. This never
+// starts the dataset read; callers may include the data only when another route
+// has already warmed this process-local cache.
+export function peekPricedVenues(): Venue[] | null {
+  return cached;
+}
+
 export async function getPricedVenues(): Promise<Venue[]> {
   if (cached) return cached;
   try {

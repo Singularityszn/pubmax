@@ -63,7 +63,7 @@ import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
 import { tflGet } from "@/lib/tflClient.server";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { peekPricedVenues } from "@/lib/venuePriceIndex";
 import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
 
 const STATION_RADIUS_M = 1500;
@@ -100,22 +100,82 @@ type TimetableResponse = {
 const STATION_CACHE_TTL_MS = 30 * 60_000;
 const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
 
-async function nearestStation(lat: number, lng: number): Promise<StopPoint | null> {
+// The card has a useful static station fallback, so a stalled TfL request must
+// not occupy the browser or a serverless function for the platform timeout.
+// This is an upstream-response budget, not an end-to-end SLO: local response
+// work and the rate limiter still sit outside it. A timeout returns only known
+// station context and the unavailable decision, never a guessed departure.
+export const LAST_TRAIN_ROUTE_BUDGET_MS = 1_800;
+
+// A shared producer may outlive its first request so a later request can reuse
+// it. Keep that orphan work finite: three seconds gives the latency test's
+// two-second producer time to help a second waiter, while avoiding the default
+// nine-second read plus retry (up to eighteen seconds without a waiter).
+export const LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS = 3_000;
+
+function runSharedProducer<T>(
+  load: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+  );
+  return Promise.resolve()
+    .then(() => load(controller.signal))
+    .finally(() => clearTimeout(timer));
+}
+
+// Stable values are shared across requests, but a request must own only its
+// wait. The producer must not receive one request's deadline, or a timed-out
+// caller would cancel work that a second caller could still use.
+function awaitCachedValueForRequest<T>(
+  producer: Promise<T>,
+  signal: AbortSignal | undefined,
+  fallback: T,
+): Promise<T> {
+  if (!signal) return producer;
+  if (signal.aborted) return Promise.resolve(fallback);
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = (value: T) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      resolve(value);
+    };
+    const onAbort = () => finish(fallback);
+    signal.addEventListener("abort", onAbort, { once: true });
+    void producer.then(finish, () => finish(fallback));
+  });
+}
+
+async function nearestStation(
+  lat: number,
+  lng: number,
+  signal?: AbortSignal,
+): Promise<StopPoint | null> {
+  if (signal?.aborted) return null;
   const egressPoint = coarsenViewerPoint({ lat, lng });
   const key = `${egressPoint.lat.toFixed(3)}:${egressPoint.lng.toFixed(3)}`;
-  return cachedLastTrainValue(
+  const producer = cachedLastTrainValue(
     "stations",
     key,
     STATION_CACHE_TTL_MS,
-    async () => {
+    () => runSharedProducer(async (signal) => {
       const stopUrl =
         `/StopPoint?lat=${egressPoint.lat}&lon=${egressPoint.lng}` +
         `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-      const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
+      const stops = await tflGet<StopPointResponse>(stopUrl, {
+        retries: 0,
+        timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+        signal,
+      });
       return stops?.stopPoints?.[0] ?? null;
-    },
+    }),
     (station) => Boolean(station?.id),
   );
+  return awaitCachedValueForRequest(producer, signal, null);
 }
 
 // TfL Arrivals: one entry per vehicle currently predicted for this stop.
@@ -154,21 +214,38 @@ function journeyRank(j: KnownJourney): number | null {
 // disambiguation (no routes, but direction options), follow each offered URI and
 // merge the schedules it yields. Bounded: at most the options TfL lists (2 for a
 // two-terminus line).
-async function collectSchedules(lineId: string, stationId: string): Promise<Schedule[]> {
+async function collectSchedules(
+  lineId: string,
+  stationId: string,
+  signal?: AbortSignal,
+): Promise<Schedule[]> {
+  if (signal?.aborted) return [];
   const key = `${lineId}:${stationId}`;
-  return cachedLastTrainValue(
+  const producer = cachedLastTrainValue(
     "timetables",
     key,
     TIMETABLE_CACHE_TTL_MS,
-    async () => {
+    () => runSharedProducer(async (signal) => {
       const direct = await tflGet<TimetableResponse>(
         `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
+        {
+          retries: 0,
+          timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+          signal,
+        },
       );
       if (!direct) return [];
-      return mergeTimetableSchedules(direct, (uri) => tflGet<TimetableResponse>(uri));
-    },
+      return mergeTimetableSchedules(direct, (uri) =>
+        tflGet<TimetableResponse>(uri, {
+          retries: 0,
+          timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+          signal,
+        }),
+      );
+    }),
     (schedules) => schedules.length > 0,
   );
+  return awaitCachedValueForRequest(producer, signal, []);
 }
 
 export async function mergeTimetableSchedules(
@@ -178,10 +255,12 @@ export async function mergeTimetableSchedules(
   const routes = direct.timetable?.routes ?? [];
   if (routes.length > 0) return routes.flatMap((route) => route.schedules ?? []);
 
+  const options = (direct.disambiguation?.disambiguationOptions ?? []).filter(
+    (option): option is DisambiguationOption & { uri: string } => Boolean(option.uri),
+  );
+  const resolvedOptions = await Promise.all(options.map((option) => resolveOption(option.uri)));
   const schedules: Schedule[] = [];
-  for (const option of direct.disambiguation?.disambiguationOptions ?? []) {
-    if (!option.uri) continue;
-    const resolved = await resolveOption(option.uri);
+  for (const resolved of resolvedOptions) {
     for (const route of resolved?.timetable?.routes ?? []) {
       schedules.push(...(route.schedules ?? []));
     }
@@ -216,8 +295,9 @@ async function lastTrainForLine(
   lineName: string,
   stationId: string,
   dayType: DayType,
+  signal?: AbortSignal,
 ): Promise<LastTrain | null> {
-  const schedules = await collectSchedules(lineId, stationId);
+  const schedules = await collectSchedules(lineId, stationId, signal);
 
   const best = latestJourneyForDay(schedules, dayType);
   if (!best) return null;
@@ -255,9 +335,11 @@ function toLondonClock(d: Date): string {
 async function nextDeparturesForLine(
   lineId: string,
   stationId: string,
+  signal?: AbortSignal,
 ): Promise<{ clock: string }[]> {
   const arrivals = await tflGet<ArrivalPrediction[]>(
     `/StopPoint/${encodeURIComponent(stationId)}/Arrivals`,
+    { signal },
   );
   if (!arrivals) return [];
   return arrivals
@@ -315,8 +397,9 @@ async function departuresForLine(
   stationId: string,
   dayType: DayType,
   nowMinutes: number,
+  signal?: AbortSignal,
 ): Promise<NextDepartures> {
-  const live = await nextDeparturesForLine(lineId, stationId);
+  const live = await nextDeparturesForLine(lineId, stationId, signal);
   if (live.length > 0) {
     return {
       lineId,
@@ -326,7 +409,7 @@ async function departuresForLine(
       live: true,
     };
   }
-  return scheduledDeparturesForLine(lineId, lineName, stationId, dayType, nowMinutes);
+  return scheduledDeparturesForLine(lineId, lineName, stationId, dayType, nowMinutes, signal);
 }
 
 async function scheduledDeparturesForLine(
@@ -335,8 +418,9 @@ async function scheduledDeparturesForLine(
   stationId: string,
   dayType: DayType,
   nowMinutes: number,
+  signal?: AbortSignal,
 ): Promise<NextDepartures> {
-  const schedules = await collectSchedules(lineId, stationId);
+  const schedules = await collectSchedules(lineId, stationId, signal);
   const fallback = nextFromSchedulesAfter(schedules, dayType, nowMinutes);
   return {
     lineId,
@@ -354,10 +438,12 @@ async function scheduledDeparturesForLine(
 // train_risk trigger.
 async function lineDisruptions(
   lineIds: string[],
+  signal?: AbortSignal,
 ): Promise<{ summary: string | null; affectedLineIds: Set<string> }> {
   if (lineIds.length === 0) return { summary: null, affectedLineIds: new Set() };
   const statuses = await tflGet<LineStatusEntry[]>(
     `/Line/${encodeURIComponent(lineIds.join(","))}/Status`,
+    { signal },
   );
   if (!statuses) return { summary: null, affectedLineIds: new Set() };
 
@@ -384,8 +470,9 @@ export function summarizeLineStatuses(
 // The 3 nearest pubs to the station (user story 22) reuse the shared
 // haversine (lib/haversine.ts) against the bundled, price-carrying venue list
 // (lib/venuePriceIndex.ts, memoized from the same dataset venueIndex.ts reads).
-async function nearestPubsToStation(stationLat: number, stationLng: number): Promise<NearestPub[]> {
-  const venues = await getPricedVenues();
+function nearestPubsToStation(stationLat: number, stationLng: number): NearestPub[] {
+  const venues = peekPricedVenues();
+  if (!venues) return [];
   const withDistance = venues.map((v) => ({
     v,
     km: haversineKm([stationLng, stationLat], [v.longitude, v.latitude]),
@@ -465,6 +552,9 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   if (await isLastRideLimited(request, stableOnly ? "last-train-stable" : "last-train")) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
+  const routeController = new AbortController();
+  const routeTimer = setTimeout(() => routeController.abort(), LAST_TRAIN_ROUTE_BUDGET_MS);
+  try {
   // Destination is client-only (user story 23): the card keeps the label in
   // sessionStorage and never sends it here. Ignore any legacy ?destination=
   // query so home/station labels cannot land in access logs or edge caches.
@@ -472,12 +562,14 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
 
   // 1) Nearest station. Retried once for transient failures; any failure here is
   // graceful (200 + error, NOT cached), never a 500. Degrade per user story 24.
-  const nearest = await nearestStation(lat, lng);
+  const nearest = await nearestStation(lat, lng, routeController.signal);
   if (!nearest?.id) {
     const staticStation = nearestStaticStation(lat, lng);
     if (staticStation) {
       const walkMinutesEstimate = walkMinutesForKm(staticStation.distanceKm);
-      const nearestPubs = await nearestPubsToStation(staticStation.lat, staticStation.lon);
+      // Optional venue context is cache-only. A cold dataset read must never
+      // start inside this bounded response path.
+      const nearestPubs = nearestPubsToStation(staticStation.lat, staticStation.lon);
       const decision = computeLastPintDecision({
         minutesUntilLastTrain: null,
         walkMinutesEstimate,
@@ -544,10 +636,16 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   }
   const lineIds = lines.map((l) => l.id as string);
 
-  const [lastTrainResults, departureResults, disruption, nearestPubs] = await Promise.all([
+  const [lastTrainResults, departureResults, disruption] = await Promise.all([
     Promise.all(
-      lines.map((line) =>
-        lastTrainForLine(line.id as string, line.name ?? (line.id as string), nearest.id as string, dayType),
+        lines.map((line) =>
+        lastTrainForLine(
+          line.id as string,
+          line.name ?? (line.id as string),
+          nearest.id as string,
+          dayType,
+          routeController.signal,
+        ),
       ),
     ),
     Promise.all(
@@ -559,6 +657,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
               nearest.id as string,
               dayType,
               nowMinutes,
+              routeController.signal,
             )
           : departuresForLine(
               line.id as string,
@@ -566,16 +665,24 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
               nearest.id as string,
               dayType,
               nowMinutes,
+              routeController.signal,
             ),
       ),
     ),
     stableOnly
       ? Promise.resolve({ summary: null, affectedLineIds: new Set<string>() })
-      : lineDisruptions(lineIds),
-    typeof nearest.lat === "number" && typeof nearest.lon === "number"
-      ? nearestPubsToStation(nearest.lat, nearest.lon)
-      : Promise.resolve<NearestPub[]>([]),
+      : lineDisruptions(lineIds, routeController.signal),
   ]);
+
+  // Venue enrichment is optional and cache-only. A cold dataset read must not
+  // start inside this bounded response path, even when critical reads finish
+  // early enough to leave apparent headroom.
+  const nearestPubs =
+    typeof nearest.lat === "number" &&
+    typeof nearest.lon === "number" &&
+    !routeController.signal.aborted
+      ? nearestPubsToStation(nearest.lat, nearest.lon)
+      : [];
 
   // Keep only lines we actually resolved; sort earliest-departing first so the
   // most urgent "leave now" line is at the top.
@@ -660,4 +767,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     generatedAt: new Date().toISOString(),
   };
   return json(result);
+  } finally {
+    clearTimeout(routeTimer);
+  }
 }
