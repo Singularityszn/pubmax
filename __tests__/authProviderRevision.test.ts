@@ -27,4 +27,14 @@ describe("provider identity revision", () => {
 
     expect(revisions).toEqual([1, 2]);
   });
+
+  it("publishes provider authentication readiness without exposing provider identity", () => {
+    const store = createProviderIdentityRevisionStore();
+
+    expect(store.authState("clerk")).toBe("unresolved");
+    expect(store.setAuthState("clerk", "signed-out")).toBe(1);
+    expect(store.authState("clerk")).toBe("signed-out");
+    expect(store.setAuthState("clerk", "authenticated")).toBe(2);
+    expect(store.authState("clerk")).toBe("authenticated");
+  });
 });

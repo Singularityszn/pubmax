@@ -1,8 +1,11 @@
 export type AuthProviderName = "clerk" | "supabase";
+export type ProviderAuthState = "unresolved" | "authenticated" | "signed-out";
 
 export type ProviderIdentityRevisionStore = {
   read: () => number;
   set: (provider: AuthProviderName, identity: string | null) => number;
+  setAuthState: (provider: AuthProviderName, state: ProviderAuthState) => number;
+  authState: (provider: AuthProviderName) => ProviderAuthState;
   subscribe: (listener: () => void) => () => void;
 };
 
@@ -19,6 +22,10 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     clerk: null,
     supabase: null,
   };
+  const authStates: Record<AuthProviderName, ProviderAuthState> = {
+    clerk: "unresolved",
+    supabase: "unresolved",
+  };
   const listeners = new Set<() => void>();
 
   return {
@@ -30,6 +37,14 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
       for (const listener of listeners) listener();
       return revision;
     },
+    setAuthState(provider, state) {
+      if (authStates[provider] === state) return revision;
+      authStates[provider] = state;
+      revision += 1;
+      for (const listener of listeners) listener();
+      return revision;
+    },
+    authState: (provider) => authStates[provider],
     subscribe(listener) {
       listeners.add(listener);
       return () => listeners.delete(listener);
@@ -41,4 +56,6 @@ const providerIdentityRevisionStore = createProviderIdentityRevisionStore();
 
 export const readProviderIdentityRevision = providerIdentityRevisionStore.read;
 export const setProviderIdentity = providerIdentityRevisionStore.set;
+export const setProviderAuthState = providerIdentityRevisionStore.setAuthState;
+export const readProviderAuthState = providerIdentityRevisionStore.authState;
 export const subscribeProviderIdentityRevision = providerIdentityRevisionStore.subscribe;
