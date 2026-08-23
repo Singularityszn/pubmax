@@ -21,8 +21,6 @@ test("mobile Tonight share failure keeps status below its action", async ({ page
 
   const response = await page.goto("/tonight", { waitUntil: "domcontentloaded" });
   expect(response?.status()).toBe(200);
-  await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
-  await page.waitForTimeout(1_000);
 
   const share = page.locator(".tonightShare");
   await expect(share).toBeVisible();
