@@ -23,6 +23,7 @@ import { useIsMobileComposer } from "@/components/map/composer/useIsMobileCompos
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
+import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -45,6 +46,7 @@ export default function PintDropComposer({
   const {
     handle,
     accountHandle,
+    authConfigured,
     signedIn,
     identityReady,
     setHandle,
@@ -72,6 +74,7 @@ export default function PintDropComposer({
     draftHandle: handle,
     signedIn,
     identityReady,
+    authRequired: authConfigured,
   });
 
   const maxTagsReached = vibeTags.length >= 4;
@@ -246,9 +249,18 @@ export default function PintDropComposer({
           </p>
 
           <div className="composerActions">
-            <button type="submit" disabled={submitting}>
-              <Send size={14} /> {submitting ? "Posting…" : "Post Pint Drop"}
-            </button>
+            {!signedIn && authConfigured ? (
+              <Link
+                href={`/login?mode=signin&from=${encodeURIComponent(venueMapUrl(venueId))}`}
+                className="spillSubmitLink"
+              >
+                Sign in to post
+              </Link>
+            ) : (
+              <button type="submit" disabled={submitting || !author.canSubmit}>
+                <Send size={14} /> {submitting ? "Posting…" : "Post Pint Drop"}
+              </button>
+            )}
             {mobile && (pintPhoto || venuePhoto) ? (
               <button
                 type="button"
