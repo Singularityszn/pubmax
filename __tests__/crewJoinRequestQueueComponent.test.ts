@@ -33,6 +33,8 @@ const state = vi.hoisted(() => ({
   accessStatus: 403,
   deferQueueForRevision: 0,
   deferredQueueResponses: [] as Array<() => void>,
+  deferLotForRevision: 0,
+  deferredLotResponses: [] as Array<() => void>,
   crewReadCount: 0,
   crewUnavailableAfterFirst: false,
 }));
@@ -151,7 +153,12 @@ vi.mock("@/lib/authedFetch", () => ({
       return Response.json({ code: "accepted", replayed: false });
     }
     if (url === "/api/social/access") {
-      return Response.json({}, { status: state.accessStatus });
+      return Response.json(
+        state.accessStatus === 200
+          ? { viewerHandle: state.accountRevision === 2 ? "carol" : "alice" }
+          : {},
+        { status: state.accessStatus },
+      );
     }
     return Response.json({}, { status: 404 });
   }),
@@ -189,9 +196,26 @@ beforeEach(() => {
   state.accessStatus = 403;
   state.deferQueueForRevision = 0;
   state.deferredQueueResponses = [];
+  state.deferLotForRevision = 0;
+  state.deferredLotResponses = [];
   responseBody.discardBody.mockReset();
   state.crewReadCount = 0;
   state.crewUnavailableAfterFirst = false;
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async () => {
+      const revision = state.accountRevision;
+      const response = Response.json({
+        lot: [revision === 2 ? "dave" : "bob-from-old-account"],
+      });
+      if (state.deferLotForRevision === revision) {
+        return new Promise<Response>((resolve) => {
+          state.deferredLotResponses.push(() => resolve(response));
+        });
+      }
+      return response;
+    }),
+  );
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -200,6 +224,7 @@ beforeEach(() => {
 afterEach(async () => {
   await act(async () => root.unmount());
   container.remove();
+  vi.unstubAllGlobals();
 });
 
 describe("host join-request queue", () => {
@@ -398,6 +423,30 @@ describe("host join-request queue", () => {
 
     expect(container.textContent).toContain("@carol");
     expect(container.textContent).not.toContain("@bob");
+  });
+
+  it("reloads the invite lot and ignores a delayed prior-account response", async () => {
+    state.accessStatus = 200;
+    state.deferLotForRevision = 1;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(state.deferredLotResponses).toHaveLength(1);
+
+    state.accountRevision = 2;
+    state.deferLotForRevision = 0;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(container.textContent).toContain("@dave");
+
+    await act(async () => state.deferredLotResponses[0]?.());
+    await settle();
+
+    expect(container.textContent).toContain("@dave");
+    expect(container.textContent).not.toContain("@bob-from-old-account");
   });
 
   it("refreshes a request that another manager decided first", async () => {

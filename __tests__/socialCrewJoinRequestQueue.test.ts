@@ -114,6 +114,7 @@ describe("Social Crew host join-request queue", () => {
     expect(sql).toContain(
       "grant execute on function public.read_social_crew_join_requests(uuid, uuid, uuid) to service_role",
     );
-    expect(sql).not.toContain("requester_account_id',");
+    expect(sql).not.toContain("'requesteraccountid'");
+    expect(sql).not.toContain("'requesterprofileid'");
   });
 });

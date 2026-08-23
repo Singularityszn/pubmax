@@ -258,6 +258,7 @@ export default function CrewDetailClient({
 
   useEffect(() => {
     if (!identityResolved) return;
+    let active = true;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -273,7 +274,7 @@ export default function CrewDetailClient({
         const body = (await response.json()) as { viewerHandle?: unknown };
         const handle =
           typeof body.viewerHandle === "string" ? normalizeHandle(body.viewerHandle) : "";
-        if (!handle) return;
+        if (!active || !handle) return;
         setViewerHandle(handle);
         const lotResponse = await fetch(
           `/api/profiles/${encodeURIComponent(handle)}/lot`,
@@ -284,13 +285,17 @@ export default function CrewDetailClient({
           return;
         }
         const lotBody = (await lotResponse.json()) as { lot?: unknown };
+        if (!active) return;
         setLot(Array.isArray(lotBody.lot) ? (lotBody.lot as string[]) : []);
       } catch {
         // The crew still reads without a lot to offer.
       }
     })();
-    return () => controller.abort();
-  }, [identityResolved]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [identityKey, identityResolved]);
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
