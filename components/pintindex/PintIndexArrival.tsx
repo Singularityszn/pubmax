@@ -4,6 +4,7 @@ import { useEffect, useRef } from "react";
 import Link from "next/link";
 
 import { analyticsCollectionAllowed, trackEvent } from "@/lib/analytics";
+import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
 import {
   ARRIVAL_VISIT_MARKER,
   ARRIVAL_VISIT_STORAGE_KEY,
@@ -25,17 +26,15 @@ import "./pintIndexArrival.css";
 // in to be worth opening (lib/pintIndexArrival.ts holds that floor).
 //
 // The figures here are the map's own recorded prices, not the cited Index
-// observations above them, so their source and collection date are stamped
+// observations above them, so their source and baseline as-of date are stamped
 // once underneath, like every other number on the page.
 
 type PintIndexArrivalProps = {
   areas: ArrivalArea[];
   surface: PintIndexSurface;
-  /** "collected 3 July 2026" - the dated source line under the strip. */
-  collectedLabel: string;
 };
 
-export default function PintIndexArrival({ areas, surface, collectedLabel }: PintIndexArrivalProps) {
+export default function PintIndexArrival({ areas, surface }: PintIndexArrivalProps) {
   // One arrival per page view. The ref (not the effect alone) is what keeps it
   // one: a re-running effect would inflate the denominator every ratio below
   // this funnel is measured against.
@@ -90,7 +89,7 @@ export default function PintIndexArrival({ areas, surface, collectedLabel }: Pin
         ))}
       </ul>
       <p className="pintArrivalSource">
-        Prices and counts from the London pint-price dataset, {collectedLabel}.{" "}
+        Prices and counts from the London pint-price dataset, {formatPintDatasetAsOf()}.{" "}
         <Link href="/borough">Somewhere else in mind? Every borough is here</Link>
       </p>
     </section>

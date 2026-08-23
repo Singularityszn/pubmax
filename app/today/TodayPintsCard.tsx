@@ -6,19 +6,16 @@
 // browser, the swap is instant, and the first paint always matches SSR: the
 // central default).
 //
-// Copy claims "near you" only for a resolved remembered patch and "today" only
-// when the dataset date matches today; otherwise it names central London and the
-// collection date. Every row deep-links to its venue on the map. Fail-soft: an
-// area with no verified prices renders nothing, never an empty box.
+// Copy claims "near you" only for a resolved remembered patch. The baseline
+// as-of date stays visible on every render. Every row deep-links to its venue on
+// the map. Fail-soft: an area with no verified prices renders nothing, never an
+// empty box.
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Beer } from "lucide-react";
 
-import {
-  formatObservedDate,
-  PINT_DATASET_OBSERVED_AT,
-} from "@/lib/dataFreshness";
+import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 
 import {
@@ -29,7 +26,6 @@ import {
 
 type Props = {
   index: TodayPintsIndex;
-  nowIso: string;
 };
 
 type TodayPintsView = {
@@ -49,20 +45,14 @@ function viewFor(
   };
 }
 
-function eyebrow(hasRememberedLocality: boolean, nowIso: string): string {
+function eyebrow(hasRememberedLocality: boolean): string {
   const scope = hasRememberedLocality
     ? "Lowest listed prices near you"
     : "Lowest listed prices in central London";
-  const now = new Date(nowIso);
-  const collectedToday =
-    Number.isFinite(now.getTime()) &&
-    formatObservedDate(now) === formatObservedDate(PINT_DATASET_OBSERVED_AT);
-  return collectedToday
-    ? `${scope} today`
-    : `${scope}, collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+  return `${scope}, ${formatPintDatasetAsOf()}`;
 }
 
-export default function TodayPintsCard({ index, nowIso }: Props) {
+export default function TodayPintsCard({ index }: Props) {
   const [view, setView] = useState<TodayPintsView>(() => viewFor(index, null));
 
   useEffect(() => {
@@ -90,7 +80,7 @@ export default function TodayPintsCard({ index, nowIso }: Props) {
         </span>
         <div>
           <p className="todayCardEyebrow">
-            {eyebrow(hasRememberedLocality, nowIso)}
+            {eyebrow(hasRememberedLocality)}
           </p>
           <h2 className="todayCardTitle" id="today-pints-title">
             The cheap ones in {pints.areaName}.

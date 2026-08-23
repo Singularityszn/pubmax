@@ -450,7 +450,7 @@ export default function TodayClient({
           <TodayGetThereStrip />
         </div>
         <div className="todayExploreColumn">
-          <TodayPintsCard index={pintsIndex} nowIso={nowIso} />
+          <TodayPintsCard index={pintsIndex} />
           <TodayQuietPintCard module={quietPint} />
           <FactCard fact={fact} />
         </div>
