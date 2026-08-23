@@ -27,26 +27,12 @@
   display: inline-flex;
   flex-wrap: nowrap;
   align-items: center;
-  gap: .025em;
+  gap: 0;
   flex-shrink: 0;
   white-space: nowrap;
 }
 
-.pubmaxxDoubleX {
-  display: inline-flex;
-  align-items: center;
-  margin-inline: .015em .03em;
-}
-
-.pubmaxxDoubleX svg {
-  width: .78em;
-  height: .78em;
-  display: block;
-  overflow: visible;
-  fill: currentColor;
-}
-
-.pubmaxxDoubleX--accent {
+.pubmaxxWordmarkAccent {
   color: var(--brass);
 }
 
