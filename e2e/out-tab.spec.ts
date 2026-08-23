@@ -75,7 +75,7 @@ for (const width of WIDTHS) {
         listings.getByRole("heading", { name: "What's on tonight", exact: true }),
       ).toBeVisible();
 
-      // Open plans stays hidden until at least three sendable plans land.
+      // Open plans stays hidden when no sendable plan lands.
       await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
 
       // /out is not a crawlable family yet: it duplicates /tonight's baseline
@@ -162,7 +162,9 @@ function sendableOpenPlan(id: string, title: string) {
   };
 }
 
-test("shows Open plans only when at least three sendable plans exist", async ({ page }) => {
+const PUBLIC_CREW_ID = "50000000-0000-4000-8000-000000000001";
+
+test("shows Open plans when one sendable plan exists", async ({ page }) => {
   await page.route("**/api/out?**", (route) =>
     route.fulfill({
       status: 200,
@@ -170,11 +172,7 @@ test("shows Open plans only when at least three sendable plans exist", async ({ 
       body: JSON.stringify({
         status: "ready",
         events: [],
-        openPlans: [
-          sendableOpenPlan("crew-1", "Camden crawl"),
-          sendableOpenPlan("crew-2", "Soho soft plan"),
-          sendableOpenPlan("crew-3", "Clapham mates"),
-        ],
+        openPlans: [sendableOpenPlan(PUBLIC_CREW_ID, "Camden crawl")],
         attribution: [],
         observedAt: {},
         providers: [{ name: "ticketmaster", configured: true, rows: 0, status: "ready" }],
@@ -190,6 +188,30 @@ test("shows Open plans only when at least three sendable plans exist", async ({ 
     "href",
     "/plan",
   );
+
+  await page.route(`**/api/social/crews/${PUBLIC_CREW_ID}/public`, (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        kind: "public",
+        crewId: PUBLIC_CREW_ID,
+        title: "Camden crawl",
+        hostHandle: "karan",
+        startsAt: "2026-08-16T19:00:00.000Z",
+        meetingPoint: {
+          kind: "venue",
+          name: "The Test Arms",
+          lat: 51.5,
+          lng: -0.1,
+        },
+      }),
+    }),
+  );
+  await plans.getByRole("link", { name: /Camden crawl/ }).click();
+  await expect(page.getByRole("heading", { name: "Camden crawl", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Meet at", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Ask to join", exact: true })).toBeVisible();
 });
 
 test("groups desktop listings and pairs a pub beside each gig", async ({ page }) => {

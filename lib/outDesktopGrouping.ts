@@ -3,7 +3,8 @@ import { getNightArea } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightPlanning";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
-export const OUT_OPEN_PLANS_MIN_SENDABLE = 3;
+/** One listed Open Crew is enough to make discovery useful at London MVP. */
+export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 
 export const OUT_LISTING_PUB_ABSENT_LINE =
   "No matching pub in PUBMAXX yet.";

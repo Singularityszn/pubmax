@@ -21,9 +21,17 @@ const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const FORWARD_NAME = "20260816220000_0110_open_social_crews.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
+const PUBLIC_PREVIEW_FORWARD = join(
+  MIGRATIONS,
+  "20260823120000_0115_social_crew_public_preview.sql",
+);
 const ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260816220000_0110_open_social_crews_rollback.sql",
+);
+const PUBLIC_PREVIEW_ROLLBACK = join(
+  ROOT,
+  "supabase/migrations/rollback/20260823120000_0115_social_crew_public_preview_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -360,6 +368,7 @@ beforeAll(async () => {
       ('${ALLY_ACCOUNT}','clerk-ally','${ALLY_USER}','${ALLY_PROFILE}','active');
   `);
   database.apply(FORWARD);
+  database.apply(PUBLIC_PREVIEW_FORWARD);
 }, 300_000);
 
 beforeEach((context) => {
@@ -585,12 +594,49 @@ describe("0110 applied to PostgreSQL", () => {
     expect(listOpenCrews("now() + interval '2 days'", "now() + interval '3 days'")).toEqual([]);
     expect((listOpenCrews("now() - interval '1 hour'", "now() + interval '7 days'", "london", 1) as unknown[]).length).toBe(1);
   });
+
+  it("returns only one strict public preview for an open active crew", () => {
+    const db = requireDatabase();
+    const preview = jsonValue(
+      db.sql(`set role service_role;
+        select public.read_social_crew_public_preview('${OPEN_CREW}')`),
+    ) as Record<string, unknown>;
+    expect(preview).toEqual({
+      crewId: OPEN_CREW,
+      title: "Open Friday",
+      hostHandle: "host",
+      startsAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
+      stopVenueId: "venue-angel-islington",
+      stopVenueName: "The Angel",
+    });
+    expect(JSON.stringify(preview)).not.toContain(HOST_ACCOUNT);
+    expect(JSON.stringify(preview)).not.toContain("member");
+    expect(JSON.stringify(preview)).not.toContain("request");
+    for (const role of ["anon", "authenticated"]) {
+      expect(
+        db.expectRefusal(
+          `set role ${role};
+           select public.read_social_crew_public_preview('${OPEN_CREW}')`,
+        ),
+      ).toMatch(/permission denied/i);
+    }
+  });
+
+  it("returns no public preview after closure or expiry", () => {
+    const db = requireDatabase();
+    db.sql(`update public.social_crews set visibility='private' where id='${OPEN_CREW}'`);
+    expect(db.sql(`set role service_role; select public.read_social_crew_public_preview('${OPEN_CREW}')`)).toBe("");
+    db.sql(`update public.social_crews set visibility='open' where id='${OPEN_CREW}'`);
+    db.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
+    expect(db.sql(`set role service_role; select public.read_social_crew_public_preview('${OPEN_CREW}')`)).toBe("");
+  });
 });
 
 describe("0110 rolled back", () => {
   beforeAll(() => {
     if (skipReason || !database) return;
     seed(database);
+    database.apply(PUBLIC_PREVIEW_ROLLBACK);
     database.apply(ROLLBACK);
     visibilityAfterRollback = database.sql(
       `select visibility from public.social_crews where id='${OPEN_CREW}'`,
@@ -625,6 +671,16 @@ describe("0110 rolled back", () => {
       db.expectRefusal(
         `set role service_role;
          select public.list_open_social_crews(now() - interval '1 hour', now() + interval '7 days', 'london', 50)`,
+      ),
+    ).toMatch(/does not exist/i);
+  });
+
+  it("drops the public preview RPC on rollback", () => {
+    const db = requireDatabase();
+    expect(
+      db.expectRefusal(
+        `set role service_role;
+         select public.read_social_crew_public_preview('${OPEN_CREW}')`,
       ),
     ).toMatch(/does not exist/i);
   });

@@ -9,10 +9,12 @@ import {
   isSocialCrewMutationCode,
   isSocialCrewRole,
   isSocialCrewVisibility,
+  parseSocialCrewPublicPreviewSource,
   type SocialCrewMutationResult,
   type SocialCrewMutationCode,
   type SocialCrewListPageDTO,
   type SocialCrewReadDTO,
+  type SocialCrewPublicPreviewSource,
   type SocialCrewRole,
   type SocialCrewVisibility,
 } from "@/lib/socialCrew";
@@ -50,7 +52,8 @@ export type SocialCrewRpcName =
 export type SocialCrewSnapshotRpcName =
   | "read_social_crew_snapshot"
   | "read_social_crew_member_page"
-  | "list_open_social_crews";
+  | "list_open_social_crews"
+  | "read_social_crew_public_preview";
 
 export type SocialCrewStoreDependencies = {
   rpc(name: SocialCrewRpcName, input: Record<string, unknown>): Promise<unknown>;
@@ -112,6 +115,7 @@ export type SocialCrewListInput = {
 
 export type SocialCrewStore = {
   read(crewId: string, actor: SocialPostActor): Promise<SocialCrewReadDTO>;
+  readPublicPreview(crewId: string): Promise<SocialCrewPublicPreviewSource>;
   list(
     actor: SocialPostActor,
     input: SocialCrewListInput,
@@ -444,6 +448,22 @@ export function createSocialCrewStore(
       } catch {
         return unavailable();
       }
+    },
+
+    async readPublicPreview(crewId) {
+      if (!isUuid(crewId)) return notFound();
+      let snapshot: unknown;
+      try {
+        snapshot = await dependencies.snapshot("read_social_crew_public_preview", {
+          p_crew_id: crewId,
+        });
+      } catch {
+        return unavailable();
+      }
+      if (snapshot === null) return notFound();
+      const parsed = parseSocialCrewPublicPreviewSource(snapshot);
+      if (!parsed) return unavailable();
+      return parsed;
     },
 
     async list(actor, input) {

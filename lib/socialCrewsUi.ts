@@ -8,10 +8,9 @@
 // therefore naming a plan, which is why `startCrewPlanBody` shapes a plan
 // create and `CREW_NAME_MAX` caps the plan title rather than a second field.
 //
-// A crew is also FRIENDS-ONLY at the database: an invite is refused unless the
-// target is already a mutual of the owner, so this surface may only ever offer
-// your lot. Copy that promised "invite anyone" would describe a call the server
-// answers with a 404.
+// Private and friends crews remain relationship-bound at the database. Open
+// crews have a separate account-free preview and still require verified Social
+// authority before somebody can ask to join.
 //
 // Two seams the API genuinely does not have, so no copy here may imply them:
 // there is no read of invitations addressed to you, and no read of the join
@@ -26,10 +25,12 @@ import type {
   SocialCrewPageDTO,
   SocialCrewPhase,
   SocialCrewReadDTO,
+  SocialCrewPublicPreviewDTO,
   SocialCrewRole,
   SocialCrewVisibility,
 } from "@/lib/socialCrew";
 import { isSocialCrewRole, isSocialCrewVisibility } from "@/lib/socialCrew";
+import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
 
 /**
  * The cap on the name a drinker types when starting a crew. Narrower than the
@@ -270,6 +271,63 @@ export function parseCrewRead(value: unknown): SocialCrewReadDTO | null {
     ...(value as unknown as SocialCrewPageDTO),
     kind: "member",
     members,
+  };
+}
+
+function isPublicMeetingPoint(value: unknown): value is SocialCrewPublicPreviewDTO["meetingPoint"] {
+  if (!isRecord(value)) return false;
+  const keys = Object.keys(value);
+  if (keys.length !== 4 || !["kind", "name", "lat", "lng"].every((key) => keys.includes(key))) {
+    return false;
+  }
+  return (
+    (value.kind === "venue" || value.kind === "place") &&
+    typeof value.name === "string" &&
+    value.name.trim().length > 0 &&
+    typeof value.lat === "number" &&
+    Number.isFinite(value.lat) &&
+    value.lat >= -90 &&
+    value.lat <= 90 &&
+    typeof value.lng === "number" &&
+    Number.isFinite(value.lng) &&
+    value.lng >= -180 &&
+    value.lng <= 180
+  );
+}
+
+/** Parse the deliberately narrow anonymous Open Crew contract. */
+export function parsePublicCrewPreview(value: unknown): SocialCrewPublicPreviewDTO | null {
+  if (!isRecord(value)) return null;
+  const keys = Object.keys(value);
+  if (
+    keys.length !== 6 ||
+    !["kind", "crewId", "title", "hostHandle", "startsAt", "meetingPoint"].every((key) =>
+      keys.includes(key),
+    ) ||
+    value.kind !== "public" ||
+    !isCrewId(value.crewId) ||
+    typeof value.title !== "string" ||
+    !value.title.trim() ||
+    typeof value.hostHandle !== "string" ||
+    !value.hostHandle.trim() ||
+    typeof value.startsAt !== "string" ||
+    !Number.isFinite(Date.parse(value.startsAt)) ||
+    !isPublicMeetingPoint(value.meetingPoint)
+  ) {
+    return null;
+  }
+  return {
+    kind: "public",
+    crewId: value.crewId,
+    title: value.title,
+    hostHandle: value.hostHandle,
+    startsAt: value.startsAt,
+    meetingPoint: {
+      kind: value.meetingPoint.kind as OpenPlanPlaceKind,
+      name: value.meetingPoint.name,
+      lat: value.meetingPoint.lat,
+      lng: value.meetingPoint.lng,
+    },
   };
 }
 
