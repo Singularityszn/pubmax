@@ -1,3 +1,5 @@
+import "server-only";
+
 // The account budget a Round's drink lines pay before they may enter the
 // community price store (app/api/rounds/[code]).
 //

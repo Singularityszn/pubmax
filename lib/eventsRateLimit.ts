@@ -1,3 +1,5 @@
+import "server-only";
+
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 

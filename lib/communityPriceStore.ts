@@ -42,6 +42,8 @@
 // components/map/communityPriceSignals.ts, and the policy constants it reads
 // live in lib/communityPrice.ts.
 
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 
 import {

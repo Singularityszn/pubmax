@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable-or-memory backing for the cron weather plane. The scheduled route
 // (app/api/cron/refresh-weather) writes fresh Open-Meteo observations HERE, and
 // the read side (lib/weatherSnapshots.server.ts) reads them store-first, falling

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { publicApiError } from "@/lib/apiError";
 import { promises as fs } from "fs";
 import path from "path";

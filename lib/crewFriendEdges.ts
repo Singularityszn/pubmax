@@ -1,3 +1,5 @@
+import "server-only";
+
 // Friend-graph byproduct of planning a night together (WP7).
 //
 // When a signed-in, handle-claimed account joins a classic plan crew, form the

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Pint Drop storage layer. ONE interface (PintDropStore), TWO implementations:
 // process-memory (wrapping lib/pintDrops.ts, dev/demo only) and Supabase
 // (visit_reports table + Storage). The API route picks an implementation at a

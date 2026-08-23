@@ -4,6 +4,8 @@
 // canonical grouping. Never throws: a read/parse failure yields [] so the Pint
 // Index degrades to an honest empty state rather than 500-ing.
 
+import "server-only";
+
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import { PINT_DATASET_FILE } from "@/lib/dataFreshness";
 

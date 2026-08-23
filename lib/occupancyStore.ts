@@ -5,6 +5,8 @@
 // 15 minutes updates that row. Service-role writes; the browser never
 // touches the table.
 
+import "server-only";
+
 import { randomUUID } from "crypto";
 
 import { isDeployedProduction } from "@/lib/deploymentEnv";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { publicApiError } from "@/lib/apiError";
 import { boundedJson } from "@/lib/boundedRequest.server";
 import { isLimited } from "@/lib/pintDrops";

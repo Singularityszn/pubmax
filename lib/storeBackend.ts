@@ -1,3 +1,5 @@
+import "server-only";
+
 // Shared dual-backend seam utilities for *Store modules: backend selection,
 // PostgREST schema-miss detection, deduped memory-fallback warnings, and an
 // optional try/catch wrapper for fail-soft reads. Adopt incrementally — each

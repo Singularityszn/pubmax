@@ -1,3 +1,5 @@
+import "server-only";
+
 import { readFileSync } from "fs";
 import { join } from "path";
 import type { ReactNode } from "react";

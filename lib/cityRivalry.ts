@@ -4,6 +4,8 @@
 // seeds that already ship (London + Manchester) contribute drop energy;
 // Glasgow and other cities stay at 0 until seeded.
 
+import "server-only";
+
 import { readFileSync } from "fs";
 import path from "path";
 

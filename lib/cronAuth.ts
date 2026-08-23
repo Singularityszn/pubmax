@@ -14,6 +14,8 @@
 //     drive these handlers without a secret configured.
 // This mirrors lib/adminAuth.ts's "unset denies in prod, opens in dev/test".
 
+import "server-only";
+
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import { publicApiError } from "@/lib/apiError";

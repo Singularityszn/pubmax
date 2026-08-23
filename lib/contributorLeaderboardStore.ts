@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-only read seam for the public contributor record. The durable store
 // owns the complete identity-backed all-time aggregate; keyless mode cannot.
 

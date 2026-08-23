@@ -1,6 +1,8 @@
 // Wanted store — dual backend (process-memory + Supabase public.wanteds).
 // Private to the owner actor. Service-role writes; RLS owner-only for JWT.
 
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 
 import {

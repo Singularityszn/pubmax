@@ -9,6 +9,8 @@
 // 500. The anonymous encoded path stays the untouched fallback for people who
 // don't want a durable link.
 
+import "server-only";
+
 import { createHash, randomUUID } from "node:crypto";
 
 import {

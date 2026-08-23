@@ -12,6 +12,8 @@
 // pub history — not even as a labelled contributor note. If server facts are
 // missing, the honest fallback stands.
 
+import "server-only";
+
 import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import path from "node:path";

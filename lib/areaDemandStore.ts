@@ -1,3 +1,5 @@
+import "server-only";
+
 // Area-demand store — the durable-or-memory backing for the demand capture on
 // the honest unsupported-area preview (Wayfinder 3.2). When PUBMAXX cannot serve
 // an area, the user can register that they want it; this store records that

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable profile identity. ONE interface (ProfileStore), TWO implementations —
 // process-memory (dev/demo/test) and Supabase (public.profiles) — chosen at a
 // single seam by the API route (isSupabaseConfigured), exactly like

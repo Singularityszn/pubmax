@@ -1,3 +1,5 @@
+import "server-only";
+
 import type { PendingPlanRecap } from "@/lib/planRecap";
 import { validatePendingPlanRecap } from "@/lib/planRecap";
 import {

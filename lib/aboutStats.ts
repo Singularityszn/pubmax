@@ -1,3 +1,5 @@
+import "server-only";
+
 // About-page traction stats — the ONLY numbers shown on /about are derived here,
 // at build/request time, from the same bundled datasets the rest of the app
 // reads (public/data/pint_prices_app_dataset.json + historic_pubs.json) and the

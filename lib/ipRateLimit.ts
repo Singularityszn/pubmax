@@ -1,3 +1,5 @@
+import "server-only";
+
 // Shared per-IP rate-limiter factory for the outbound-proxy API surfaces.
 //
 // Every proxy route (hygiene, night-calm, events, CityMCP, last-ride) forwards

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Internal plan-crew ↔ auth user linkage for friend-graph formation (WP7).
 //
 // plan_crew_members.user_id and plans.owner_user_id already exist (migration

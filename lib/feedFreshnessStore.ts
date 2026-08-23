@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable-or-memory "when was this feed last revalidated" stamp. The cron plane
 // writes a stamp here for feeds it refreshes but CANNOT re-persist to a committed
 // file on Vercel's read-only serverless filesystem — chiefly the What's-On

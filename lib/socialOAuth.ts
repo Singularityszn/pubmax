@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createCipheriv, createHash, randomBytes } from "node:crypto";
 
 import {

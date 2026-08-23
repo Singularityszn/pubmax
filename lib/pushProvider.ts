@@ -12,6 +12,8 @@
 // transport is injected (a session factory) so it is fully unit-testable
 // against a mock without a live APNs connection.
 
+import "server-only";
+
 import { createPrivateKey, sign as cryptoSign } from "node:crypto";
 import { connect as http2Connect, constants as http2Constants } from "node:http2";
 import webpush from "web-push";

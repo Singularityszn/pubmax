@@ -5,6 +5,8 @@
 // says who may be credited. It adds no second threshold, age window, or
 // agreement rule.
 
+import "server-only";
+
 import { createHash } from "node:crypto";
 
 import {

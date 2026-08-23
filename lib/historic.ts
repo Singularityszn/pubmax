@@ -9,6 +9,8 @@
 // calls the network, and returns [] on any read/parse error so a missing or
 // malformed file can never take a page down.
 
+import "server-only";
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 

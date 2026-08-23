@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable saved-pub LISTS (cc_plan2 §5). ONE store interface, TWO implementations
 // (process-memory + Supabase public.saved_pubs), same seam pattern as the other
 // stores (reactions/comments/profiles): Supabase when env keys exist,

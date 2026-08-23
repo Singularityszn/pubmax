@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash } from "node:crypto";
 
 export { canTransitionMigration } from "@/lib/convex/migrationTransitions";

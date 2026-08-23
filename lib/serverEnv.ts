@@ -1,3 +1,5 @@
+import "server-only";
+
 // Prod startup fail-fast for server env configuration.
 //
 // The write path (Pint Drops, reactions, comments, …) silently degrades to a

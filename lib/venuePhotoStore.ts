@@ -1,3 +1,5 @@
+import "server-only";
+
 // The pub photo wall store - the impure seam. ONE interface, TWO
 // implementations (process-memory + Supabase `public.venue_photos`), chosen at
 // the single `venuePhotoStore()` seam, exactly like visitReportsStore.

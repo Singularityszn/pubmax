@@ -7,6 +7,8 @@
 // Decision maths reuse computeLastPintDecision from lib/tfl.ts (transport-
 // agnostic: walk + last departure + buffer).
 
+import "server-only";
+
 import { readFileSync } from "fs";
 import path from "path";
 
