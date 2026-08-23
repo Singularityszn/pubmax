@@ -23,6 +23,7 @@ const FILTERS: { key: PubsFilterKey; label: string }[] = [
     key: "greene-king.co.uk",
     label: SCRAPED_SOURCE_LABELS["greene-king.co.uk"],
   },
+  { key: "other", label: SCRAPED_SOURCE_LABELS.other },
 ];
 
 function queryFor(filter: PubsFilterKey, zone: ZoneSelection): string {
@@ -58,7 +59,7 @@ export default function PubsFilters({
     <>
       <div
         className="pubsFilters"
-        role="tablist"
+        role="group"
         aria-label="Filter by scrape source"
         aria-busy={pending}
       >
@@ -70,8 +71,7 @@ export default function PubsFilters({
             <button
               key={item.key}
               type="button"
-              role="tab"
-              aria-selected={selected}
+              aria-pressed={selected}
               className={selected ? "pubsFilter isActive" : "pubsFilter"}
               onClick={() => navigate(item.key, zone)}
             >

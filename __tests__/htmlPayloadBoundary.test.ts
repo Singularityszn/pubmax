@@ -110,6 +110,9 @@ describe("index server/client boundaries", () => {
     expect(read("components/pubs/PubsGallery.tsx")).not.toMatch(
       /^"use client";/m,
     );
+    const pubsFilters = read("components/pubs/PubsFilters.tsx");
+    expect(pubsFilters).toContain('role="group"');
+    expect(pubsFilters).toContain('key: "other"');
     expect(read("app/historic/page.tsx")).toContain("paginateIndexRows");
     expect(read("app/pubs/page.tsx")).toContain("paginateIndexRows");
   });

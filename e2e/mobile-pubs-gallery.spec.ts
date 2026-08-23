@@ -62,14 +62,23 @@ test.describe("mobile Pubs gallery", () => {
 
     const filters = page.locator(".pubsFilter");
     await expectVisibleTargetsTappable(filters, "pubs filter");
-    await expect(filters.first()).toHaveAttribute("aria-selected", "true");
+    await expect(filters.first()).toHaveAttribute("aria-pressed", "true");
 
     const secondFilter = filters.nth(1);
     if (await secondFilter.isVisible()) {
       await secondFilter.click();
-      await expect(secondFilter).toHaveAttribute("aria-selected", "true");
+      await expect(page).toHaveURL(/source=/);
+      await expect(page.locator(".pubsFilter").nth(1)).toHaveAttribute(
+        "aria-pressed",
+        "true",
+      );
       await expect(page.locator(".pubsCount")).toContainText(/pub/);
       await expectNoHorizontalOverflow(page);
+    }
+
+    const nextPage = page.getByRole("link", { name: "Next" });
+    if (await nextPage.isVisible()) {
+      await expectTappable(nextPage, "pubs next page link");
     }
 
     const firstCard = page.locator(".pubsCard").first();
