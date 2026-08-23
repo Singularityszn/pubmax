@@ -102,6 +102,12 @@ export type PintDrop = {
   // visibilityOf() rather than touching this directly.
   visibility?: Visibility;
   createdAt: string;
+  /**
+   * Server-derived, per-venue pseudonym for a verified PUBMAXX User ID.
+   * Present only when this price may count as an independent authority voice.
+   * Missing means provisional, never untrusted or invalid.
+   */
+  authorityKey?: string;
   // Moderation metadata — set once a drop is reported/reviewed. Optional so old
   // rows and fresh drops read fine without them.
   reportedAt?: string;

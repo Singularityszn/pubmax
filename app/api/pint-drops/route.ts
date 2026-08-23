@@ -31,6 +31,7 @@ import {
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
@@ -58,6 +59,15 @@ async function ensureProfileForHandle(handle: string): Promise<void> {
       err instanceof Error ? err.message : err,
     );
   }
+}
+
+function priceAuthorityKeyForDrop(
+  venueId: string,
+  visibility: string | undefined,
+  verifiedAccountId: string | null,
+): string | undefined {
+  if (visibility === "anonymous") return undefined;
+  return pintDropAuthorityKey(venueId, verifiedAccountId);
 }
 
 // The friendly label a card shows when an id has no resolvable pub name — kept
@@ -307,7 +317,15 @@ export async function POST(request: Request): Promise<Response> {
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
-  const dropPayload = { ...canonicalDrop, handle: ownership.handle };
+  const dropPayload = {
+    ...canonicalDrop,
+    handle: ownership.handle,
+    authorityKey: priceAuthorityKeyForDrop(
+      canonicalDrop.venueId,
+      canonicalDrop.visibility,
+      ownership.callerUserId,
+    ),
+  };
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.

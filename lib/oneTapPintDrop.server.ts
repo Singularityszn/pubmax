@@ -10,17 +10,18 @@ import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 export type OneTapPintDropInput = Readonly<{
   venueId: string;
   handle: string;
   drinkCategory: DrinkCategory;
   priceGbp: number;
+  verifiedAccountId?: string;
 }>;
 
 export type OneTapPintDropOutcome =
-  | { ok: true; skipped: true }
-  | { ok: true; skipped: false; drop: PintDrop }
+  | { ok: true; drop: PintDrop }
   | { ok: false; kind: "invalid_photo"; message: string }
   | { ok: false; kind: "storage"; message: string };
 
@@ -52,6 +53,7 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
     status: "visible",
     visibility: "public",
     createdAt: new Date().toISOString(),
+    authorityKey: pintDropAuthorityKey(input.venueId, input.verifiedAccountId),
   };
 }
 
@@ -99,20 +101,9 @@ export async function writeOneTapPintDrop(
   }
 
   try {
-    if (await pintDropsStore().hasPricedDropToday(input.venueId, handle)) {
-      return { ok: true, skipped: true };
-    }
-  } catch (err) {
-    log("warn", "one_tap_pint_drop.dedupe_check_failed", {
-      venueId: input.venueId,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-
-  try {
     const drop = await pintDropsStore().create(buildDrop(input), photos);
     void ensureProfileForHandle(handle);
-    return { ok: true, skipped: false, drop };
+    return { ok: true, drop };
   } catch (err) {
     if (err instanceof Error && err.message.startsWith("Photo must")) {
       return { ok: false, kind: "invalid_photo", message: err.message };

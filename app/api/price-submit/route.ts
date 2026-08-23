@@ -68,6 +68,7 @@ import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
+import { log } from "@/lib/log";
 import {
   isUkBaseId,
   MAX_PROVISIONAL_BASE_VENUE_IDS,
@@ -238,6 +239,7 @@ export async function POST(request: Request): Promise<Response> {
       handle: contributor.handle,
       drinkCategory: submission.drinkCategory,
       priceGbp: submission.priceGbp,
+      verifiedAccountId: contributor.accountId,
     },
     pintDropPhotos,
   );
@@ -249,6 +251,17 @@ export async function POST(request: Request): Promise<Response> {
       }
       return publicApiError(pintDrop.message, "UNAVAILABLE", 503, { retryable: true });
     }
+    log("error", "one_tap_pint_drop.pairing_repair_required", {
+      priceId: price.id,
+      venueId: submission.venueId,
+      drinkCategory: submission.drinkCategory,
+    });
+    return publicApiError(
+      "Could not finish that price log. Try again later.",
+      "PAIRING_REPAIR_REQUIRED",
+      503,
+      { retryable: true },
+    );
   } else {
     void qualifyCheapPintForOwnerActor(contributor.actor);
   }

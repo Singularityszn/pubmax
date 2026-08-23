@@ -142,7 +142,7 @@ vi.mock("@/lib/profileOwnership", async (importOriginal) => {
     ...actual,
     gateHandleAction: async (_request: Request, handle: string) => ({
       allowed: true as const,
-      callerUserId: null,
+      callerUserId: reportAuth.userId,
       handle,
     }),
   };
@@ -274,6 +274,42 @@ describe("POST /api/pint-drops (create)", () => {
     const { drop } = await res.json();
     expect(drop.provenance).toBe("contributor");
     expect(drop.status).toBe("visible");
+  });
+
+  it("adds server-derived price authority only for a verified account", async () => {
+    reportAuth.userId = "account-a";
+
+    const verified = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    expect(verified.status).toBe(201);
+    const { drop: verifiedDrop } = await verified.json();
+    expect(verifiedDrop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(verifiedDrop.authorityKey).not.toContain("account-a");
+
+    reportAuth.userId = null;
+    const provisional = await post({
+      venueId: "canonical-pub",
+      handle: "another_ale",
+      priceGbp: 4.2,
+    });
+    expect(provisional.status).toBe(201);
+    const { drop: provisionalDrop } = await provisional.json();
+    expect(provisionalDrop.authorityKey).toBeUndefined();
+  });
+
+  it("keeps a verified anonymous Pint Drop provisional", async () => {
+    reportAuth.userId = "account-a";
+
+    const response = await post({
+      venueId: VENUE,
+      handle: "ale",
+      priceGbp: 4.2,
+      visibility: "anonymous",
+    });
+
+    expect(response.status).toBe(201);
+    const { drop } = await response.json();
+    expect(drop.visibility).toBe("anonymous");
+    expect(drop.authorityKey).toBeUndefined();
   });
 
   it("accepts a note-only drop as an anecdote", async () => {

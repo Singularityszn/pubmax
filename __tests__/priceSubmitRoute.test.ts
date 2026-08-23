@@ -144,6 +144,7 @@ import {
 } from "@/lib/ukBasePubs";
 import { getVenueIndex } from "@/lib/venueIndex";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 type PriceBody = {
   ok?: boolean;
@@ -276,10 +277,11 @@ describe("POST /api/price-submit", () => {
       handle: "default_contributor",
       priceGbp: 4.2,
       drink: submitCategoryLabel("beer"),
+      authorityKey: pintDropAuthorityKey("venue-xjf3n0", authState.userId),
     });
   });
 
-  it("still lands the community price when a visit report was already logged today", async () => {
+  it("pairs a second same-day price with its own Pint Drop", async () => {
     const venueId = "venue-xjf3n0";
     const first = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
     expect(first.status).toBe(201);
@@ -288,7 +290,8 @@ describe("POST /api/price-submit", () => {
     const second = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.5 }));
     expect(second.status).toBe(201);
     expect((await second.json() as PriceBody).price?.priceGbp).toBe(4.5);
-    expect(listVisiblePintDrops(venueId)).toHaveLength(1);
+    expect(listVisiblePintDrops(venueId)).toHaveLength(2);
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.5 }]);
   });
 
   it("hides the community price when the paired visit report write fails", async () => {
@@ -304,7 +307,7 @@ describe("POST /api/price-submit", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
-  it("answers 201 with the price when revert cannot hide it after a visit report failure", async () => {
+  it("never reports success when the price and Pint Drop split", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -313,8 +316,11 @@ describe("POST /api/price-submit", () => {
     vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
     const venueId = "venue-xjf3n0";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
-    expect(res.status).toBe(201);
-    expect((await res.json() as PriceBody).ok).toBe(true);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      code: "PAIRING_REPAIR_REQUIRED",
+      retryable: true,
+    });
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
