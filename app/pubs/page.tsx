@@ -4,7 +4,13 @@ import Link from "next/link";
 import PubsGallery from "@/components/pubs/PubsGallery";
 import SiteNav from "@/components/nav/SiteNav";
 import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
+import {
+  countScrapedPubsBySource,
+  type ScrapedPubSourceId,
+} from "@/lib/scrapedPubs";
 import { readScrapedPubsForPage } from "@/lib/scrapedPubs.server";
+import { paginateIndexRows, parsePubsFilterQuery } from "@/lib/pageFilters";
+import { venueMatchesZone, ZONE_IDS } from "@/lib/zones";
 
 import "@/components/pubs/pubsGallery.css";
 
@@ -35,9 +41,30 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function PubsPage() {
+type PubsPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function PubsPage({
+  searchParams,
+}: PubsPageProps = {}) {
   const { pubs, complete } = await readScrapedPubsForPage();
   const count = complete ? pubs.length : null;
+  const filters = parsePubsFilterQuery((await searchParams) ?? {});
+  const sourceCounts = countScrapedPubsBySource(pubs);
+  const counts = {
+    all: pubs.length,
+    ...sourceCounts,
+  };
+  const zonesPresent = ZONE_IDS.filter((zone) =>
+    pubs.some((pub) => pub.zone === zone),
+  );
+  const matchingPubs = pubs.filter(
+    (pub) =>
+      (filters.source === "all" || pub.source === filters.source) &&
+      venueMatchesZone(pub.zone, filters.zone ?? "all"),
+  );
+  const pageResult = paginateIndexRows(matchingPubs, filters.page);
 
   return (
     <main id="main" className="pubsShell">
@@ -56,7 +83,17 @@ export default async function PubsPage() {
             full priced set.
           </p>
         </header>
-        <PubsGallery pubs={pubs} />
+        <PubsGallery
+          pubs={pageResult.rows}
+          matchingPubs={matchingPubs.length}
+          filter={filters.source as "all" | ScrapedPubSourceId}
+          zone={filters.zone ?? "all"}
+          counts={counts}
+          zonesPresent={zonesPresent}
+          page={pageResult.page}
+          totalPages={pageResult.totalPages}
+          complete={complete}
+        />
       </div>
     </main>
   );
