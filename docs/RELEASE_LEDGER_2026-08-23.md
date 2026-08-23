@@ -13,7 +13,7 @@ This ledger separates product code from actions that require owner credentials, 
 ## Code work in progress
 
 - Community Price moderator queue for reported and hidden observations.
-- Night Area activation surface with honest Plan or Map handoff.
+- Night Area activation is blocked on a route-policy decision. `/area/[slug]` remains held and `/area/clapham` must continue to return 404.
 - Machine-checked store inventory and pull-request scope guard.
 
 ## Owner gates
@@ -28,7 +28,7 @@ This ledger separates product code from actions that require owner credentials, 
 
 - Nine-city product parity remains after London MVP acceptance.
 - Pub Pal push-to-talk remains after typed planning and model tracing pass release gates.
-- Full remaining scope in The Local specification stays open after the focused Night Area activation slice.
+- Full remaining scope in The Local specification stays open. PR #1156 was closed unmerged because a dedicated `/area/[slug]` surface conflicts with the held-route contract.
 
 ## Tracker resolution
 

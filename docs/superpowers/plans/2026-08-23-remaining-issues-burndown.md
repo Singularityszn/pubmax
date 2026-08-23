@@ -59,6 +59,8 @@ Commit: `feat: add community price moderation queue`
 
 ### Task 2: Night Area activation surface
 
+**Status:** Stopped after review. PR #1156 was closed unmerged because repository policy requires `/area/clapham` to return 404. Resume only after a product decision lifts that contract or selects an allowed Plan or Map surface.
+
 **Files:**
 - Create: `app/area/[slug]/page.tsx`
 - Create: `app/area/[slug]/nightAreaActivation.css`
