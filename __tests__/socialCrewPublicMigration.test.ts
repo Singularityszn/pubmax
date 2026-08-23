@@ -27,7 +27,7 @@ describe("0115 public Open Crew preview migration", () => {
     expect(FORWARD).toMatch(/plan\.start_time\s*\+\s*interval\s+'8 hours'\s*>\s*statement_timestamp\(\)/i);
     expect(FORWARD).toMatch(/join lateral/i);
     expect(FORWARD).toMatch(/select plan_stop\.venue_id, plan_stop\.venue_name[\s\S]*?order by plan_stop\.position, plan_stop\.venue_id[\s\S]*?limit 1/i);
-    expect(FORWARD).toMatch(/btrim\(coalesce\(stop\.venue_id,''\)\) <> ''/i);
+    expect(FORWARD).toMatch(/stop\.venue_id is not null and btrim\(stop\.venue_id\) <> ''/i);
     expect(FORWARD).toMatch(/create or replace function public\.list_open_social_crews\(/i);
     expect(FORWARD).toMatch(/plan\.start_time\s*\+\s*interval\s+'8 hours'\s*>\s*statement_timestamp\(\)/i);
     expect(FORWARD).toMatch(/revoke all on function public\.read_social_crew_public_preview\(uuid\)[\s\S]*?from public, anon, authenticated/i);
