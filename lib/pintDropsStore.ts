@@ -32,6 +32,7 @@ import {
   reportPintDrop,
   restorePintDrop,
   visibilityOf,
+  verifiedPintDropReportCount,
   type PintDrop,
   type PintDropReportIdentity,
   type PintDropStatus,
@@ -461,6 +462,15 @@ function newestFirstCapped<T extends { createdAt: string }>(drops: T[]): T[] {
     .slice(0, MAX_PUBLIC_DROPS);
 }
 
+/**
+ * Keep memory and Supabase report DTOs on one authority boundary. A memory
+ * drop may carry a legacy `reportCount`; the verified ledger is authoritative
+ * once its column exists, including its zero value for legacy-only rows.
+ */
+function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
+  return { ...drop, reportCount: verifiedPintDropReportCount(drop.id) ?? 0 };
+}
+
 // ── In-memory implementation ─────────────────────────────────────────────────
 // Wraps the process-memory primitives in lib/pintDrops.ts. Resets on restart —
 // right for dev/demo; production refuses it at the route.
@@ -485,13 +495,15 @@ export const memoryPintDropStore: PintDropStore = {
         canViewOnPublicSurface(d, viewer) &&
         (!author || normalizeViewerHandle(d.handle) === author),
     );
-    return newestFirstCapped(permitted).map((d) => toDTO(d));
+    return newestFirstCapped(permitted).map((d) => toDTO(withVerifiedReportCount(d)));
   },
   async listLegacyForVenue(venueId) {
-    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map((d) => toDTO(d));
+    return newestFirstCapped(listLegacyPintDropsForVenue(venueId)).map((d) =>
+      toDTO(withVerifiedReportCount(d)),
+    );
   },
   async listForReview(status) {
-    return listByStatus(status).map((d) => toModeratorDTO(d));
+    return listByStatus(status).map((d) => toModeratorDTO(withVerifiedReportCount(d)));
   },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
