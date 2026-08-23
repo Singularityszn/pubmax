@@ -401,7 +401,7 @@ async function nearestPubsToStation(stationLat: number, stationLng: number): Pro
 // "Now" in London, so the weekday we pick the timetable for is the drinker's, not
 // the server's. Intl gives us the London-local Y/M/D; we rebuild a Date whose
 // getDay() is the London weekday (dayTypeForDate reads getDay()).
-function londonNow(): Date {
+function londonNow(instant: Date): Date {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: "Europe/London",
     year: "numeric",
@@ -410,7 +410,7 @@ function londonNow(): Date {
     hour: "2-digit",
     minute: "2-digit",
     hourCycle: "h23",
-  }).formatToParts(new Date());
+  }).formatToParts(instant);
   const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "0";
   return new Date(
     Number(get("year")),
@@ -524,7 +524,8 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     });
   }
 
-  const now = londonNow();
+  const nowInstant = new Date();
+  const now = londonNow(nowInstant);
   // Service-day rollback (C1): between midnight and ~04:00 the still-running
   // trains belong to the PREVIOUS calendar day's service (TfL encodes them as
   // hour>=24 on the prior day's schedule). Resolve the timetable against that
@@ -619,7 +620,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   for (const t of trains) {
     const [h, m] = t.clock.split(":").map(Number);
     const clockMinutes = h * 60 + m;
-    const mins = minutesUntilDeparture(clockMinutes, t.pastMidnight, nowMinutes);
+    const mins = minutesUntilDeparture(clockMinutes, t.pastMidnight, nowMinutes, nowInstant);
     if (minutesUntilLastTrain === null || mins > minutesUntilLastTrain) minutesUntilLastTrain = mins;
   }
 
@@ -637,7 +638,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     // departures are genuinely live Arrivals, carried on the response's
     // `departures[].live` and read by the card (H5).
     live: true,
-    now: new Date(),
+    now: nowInstant,
   });
 
   const result: LastTrainResult = {
