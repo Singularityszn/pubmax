@@ -31,11 +31,17 @@ import type { PintDrop } from "@/lib/pintDropShared";
 // redacts departed contributors before this module sees a Moment. All joins
 // below are therefore best-effort enrichment of that public-safe source.
 
-// A recap card only needs public Pint Drops attached to route stops. Keep this
-// enrichment bounded even when a malformed or unusually large Story has many
-// Pint Drop Moments. The card stays useful with a partial price join.
+// A recap card needs every published Pint Drop Moment for its count. Keep the
+// public price enrichment bounded even when a Story names many Pint Drop
+// venues. A partial price join keeps the count but cannot claim a cheapest
+// price.
 const MAX_RECAP_PINT_DROP_VENUE_READS = 12;
 const RECAP_PINT_DROP_READ_CONCURRENCY = 4;
+
+type PublicPintDropRead = {
+  dropsById: Map<string, PintDrop>;
+  complete: boolean;
+};
 
 function nonEmpty(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -71,35 +77,37 @@ function publicDropForComposer(drop: PintDropDTO): PintDrop {
 
 async function readPublicPintDrops(
   moments: NightMoment[],
-): Promise<Map<string, PintDrop>> {
-  const routeVenueIds = new Set(
-    moments
-      .filter((moment) => moment.kind === "venue")
-      .map((moment) => nonEmpty(moment.venueId))
-      .filter((id): id is string => id !== null),
-  );
-  const relevantPintDropMoments = moments.filter((moment) => {
+): Promise<PublicPintDropRead> {
+  const pintDropMoments = moments.filter((moment) => moment.kind === "pint_drop");
+  if (pintDropMoments.length === 0) return { dropsById: new Map(), complete: true };
+
+  let complete = true;
+  const requestedDropIds = new Set<string>();
+  const allVenueIds = new Set<string>();
+  for (const moment of pintDropMoments) {
+    const dropId = nonEmpty(moment.pintDropId);
     const venueId = nonEmpty(moment.venueId);
-    return moment.kind === "pint_drop" && venueId !== null && routeVenueIds.has(venueId);
-  });
-  const requestedDropIds = new Set(
-    relevantPintDropMoments
-      .map((moment) => nonEmpty(moment.pintDropId))
-      .filter((id): id is string => id !== null),
-  );
-  const venueIds = [...new Set(
-    relevantPintDropMoments
-      .map((moment) => nonEmpty(moment.venueId))
-      .filter((id): id is string => id !== null),
-  )].slice(0, MAX_RECAP_PINT_DROP_VENUE_READS);
-  if (requestedDropIds.size === 0 || venueIds.length === 0) return new Map();
+    if (!dropId || !venueId) {
+      complete = false;
+      continue;
+    }
+    requestedDropIds.add(dropId);
+    allVenueIds.add(venueId);
+  }
+  if (requestedDropIds.size === 0 || allVenueIds.size === 0) {
+    return { dropsById: new Map(), complete: false };
+  }
+
+  const allVenueIdList = [...allVenueIds];
+  if (allVenueIdList.length > MAX_RECAP_PINT_DROP_VENUE_READS) complete = false;
+  const venueIds = allVenueIdList.slice(0, MAX_RECAP_PINT_DROP_VENUE_READS);
 
   const out = new Map<string, PintDrop>();
   let store: ReturnType<typeof pintDropsStore>;
   try {
     store = pintDropsStore();
   } catch {
-    return out;
+    return { dropsById: out, complete: false };
   }
 
   let nextVenueIndex = 0;
@@ -123,7 +131,10 @@ async function readPublicPintDrops(
       () => readVenue(),
     ),
   );
-  return out;
+  for (const dropId of requestedDropIds) {
+    if (!out.has(dropId)) complete = false;
+  }
+  return { dropsById: out, complete };
 }
 
 async function readVenueRefs(): Promise<Map<string, VenueRef>> {
@@ -155,7 +166,7 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
   }
   if (!source) return null;
 
-  const [venueIndex, pintDropsById] = await Promise.all([
+  const [venueIndex, pintDropRead] = await Promise.all([
     readVenueRefs(),
     readPublicPintDrops(source.moments),
   ]);
@@ -170,7 +181,7 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
     view = composeRecapFromPublishedStory({
       story: source.story,
       moments: source.moments,
-      pintDropsById,
+      pintDropsById: pintDropRead.dropsById,
       venueNames,
     });
   } catch {
@@ -183,7 +194,7 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
     pintsLogged: view.stats.pintCount,
     boroughsCrossed: boroughCount(source.moments, venueIndex),
     ending: view.ending?.kind ?? null,
-    cheapestPintGbp: view.stats.cheapestPintGbp,
+    cheapestPintGbp: pintDropRead.complete ? view.stats.cheapestPintGbp : null,
     crew: [],
     nightDateIso: view.completedAt ?? source.story.publishedAt,
   };

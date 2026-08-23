@@ -127,7 +127,7 @@ beforeEach(() => {
         id: "pint-outside",
         ownerId: "user-sam",
         kind: "pint_drop",
-        venueId: "venue-c",
+        venueId: "venue-d",
         pintDropId: "drop-outside",
       }),
     ],
@@ -136,10 +136,12 @@ beforeEach(() => {
     ["venue-a", { id: "venue-a", name: "The First", borough: "Southwark", lat: 51.49, lng: -0.08 }],
     ["venue-b", { id: "venue-b", name: "The Second", borough: "Lambeth", lat: 51.49, lng: -0.09 }],
     ["venue-c", { id: "venue-c", name: "The Event", borough: "Camden", lat: 51.54, lng: -0.14 }],
+    ["venue-d", { id: "venue-d", name: "The Pint Only", borough: "Camden", lat: 51.54, lng: -0.14 }],
   ]);
   state.dropsByVenue = new Map([
     ["venue-a", [drop({ id: "drop-a", venueId: "venue-a", priceGbp: 4.2 })]],
-    ["venue-b", []],
+    ["venue-b", [drop({ id: "drop-b", venueId: "venue-b", priceGbp: 5.1 })]],
+    ["venue-d", [drop({ id: "drop-outside", venueId: "venue-d", priceGbp: 3.8 })]],
   ]);
   state.profileByUserId = new Map([
     ["user-sam", { displayName: "Sam", handle: "sam" }],
@@ -159,16 +161,16 @@ describe("recapCardStats", () => {
     const result = await recapCardStats("story-1");
     expect(result).toEqual({
       stopCount: 2,
-      pintsLogged: 1,
+      pintsLogged: 3,
       boroughsCrossed: 2,
       ending: null,
-      cheapestPintGbp: 4.2,
+      cheapestPintGbp: 3.8,
       crew: [],
       nightDateIso: story.publishedAt,
     });
     expect(JSON.stringify(result)).not.toContain("private-memory-id");
     expect(state.venueReads).toBe(1);
-    expect(state.dropReads.sort()).toEqual(["venue-a", "venue-b"]);
+    expect(state.dropReads.sort()).toEqual(["venue-a", "venue-b", "venue-d"]);
     expect(state.profileReads).toEqual([]);
   });
 
@@ -177,16 +179,16 @@ describe("recapCardStats", () => {
     state.venueIndex.delete("venue-b");
     await expect(recapCardStats("story-1")).resolves.toMatchObject({
       stopCount: 2,
-      pintsLogged: 1,
+      pintsLogged: 3,
       boroughsCrossed: 1,
-      cheapestPintGbp: 4.2,
+      cheapestPintGbp: null,
       crew: [],
     });
     expect(state.profileReads).toEqual([]);
   });
 
   it("caps Pint Drop venue enrichment and bounds in-flight public reads", async () => {
-    const venueCount = 24;
+    const venueCount = 13;
     const manyVenues = Array.from({ length: venueCount }, (_, index) => `venue-${index}`);
     const manyMoments = manyVenues.flatMap((venueId, index) => [
       moment({ id: `stop-${index}`, ownerId: "user-sam", kind: "venue", venueId }),
@@ -212,6 +214,8 @@ describe("recapCardStats", () => {
     const result = await recapCardStats("story-many");
 
     expect(result?.stopCount).toBe(venueCount);
+    expect(result?.pintsLogged).toBe(venueCount);
+    expect(result?.cheapestPintGbp).toBeNull();
     expect(state.dropReads.length).toBeLessThanOrEqual(12);
     expect(state.peakDropReads).toBeLessThanOrEqual(4);
     expect(state.profileReads).toEqual([]);

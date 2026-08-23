@@ -141,16 +141,14 @@ function statsFor(route: RecapRouteStop[], pints: RecapPint[]): RecapStats {
   // Every derived figure comes off the numeric priceGbp — never a parsed label.
   let total: number | null = null;
   let cheapest: number | null = null;
-  let pricedCount = 0;
   for (const pint of pints) {
     if (typeof pint.priceGbp !== "number" || !Number.isFinite(pint.priceGbp)) continue;
-    pricedCount += 1;
     total = (total ?? 0) + pint.priceGbp;
     cheapest = cheapest === null ? pint.priceGbp : Math.min(cheapest, pint.priceGbp);
   }
   return {
     stopCount: route.length,
-    pintCount: pricedCount,
+    pintCount: pints.length,
     totalGbp: total === null ? null : round2(total),
     cheapestPintGbp: cheapest === null ? null : round2(cheapest),
   };
@@ -246,7 +244,7 @@ export function composeRecapFromPublishedStory(input: {
     }));
 
   const pints: RecapPint[] = published
-    .filter((moment) => moment.kind === "pint_drop" && moment.pintDropId)
+    .filter((moment) => moment.kind === "pint_drop")
     .map((moment) => {
       const drop = input.pintDropsById?.get(moment.pintDropId as string) ?? null;
       const price = drop && typeof drop.priceGbp === "number" ? drop.priceGbp : null;
