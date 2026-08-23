@@ -74,7 +74,10 @@ export function wireClickRouting(map: maplibregl.Map, deps: ClickDeps) {
       }
     }
 
-    const pubHit = byLayer.get("pubs-point-selected") ?? byLayer.get("pubs-point");
+    // The selected layer redraws one pin with a larger hit box. When that box
+    // overlaps another visible pin, use the ordinary layer's hit first so a
+    // tap resolves to the pin under its point rather than the prior selection.
+    const pubHit = byLayer.get("pubs-point") ?? byLayer.get("pubs-point-selected");
     if (pubHit) {
       const id = pubHit.properties?.id;
       if (typeof id !== "string") return;
