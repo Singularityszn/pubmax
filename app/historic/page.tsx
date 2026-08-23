@@ -7,6 +7,14 @@ import {
   boroughHeritageForSlug,
 } from "@/lib/boroughHeritage";
 import { boroughFromSlug } from "@/lib/boroughs";
+import {
+  availableBoroughs,
+  filterAndSortHistoric,
+} from "@/lib/historicFilter";
+import {
+  paginateIndexRows,
+  parseHistoricFilterQuery,
+} from "@/lib/pageFilters";
 import { loadGroupedVenues } from "@/lib/venueDataset";
 import HistoricBoroughLinks, {
   type HistoricBoroughLink,
@@ -66,15 +74,41 @@ function buildBoroughLinks(
     });
 }
 
-export default async function HistoricPage() {
+type HistoricPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function HistoricPage({
+  searchParams,
+}: HistoricPageProps = {}) {
   const [pubs, venues] = await Promise.all([
     loadHistoricPubs(),
     loadGroupedVenues(),
   ]);
+  const boroughs = availableBoroughs(pubs);
+  const parsedFilters = parseHistoricFilterQuery((await searchParams) ?? {});
+  const filters = {
+    ...parsedFilters,
+    borough:
+      parsedFilters.borough && boroughs.includes(parsedFilters.borough)
+        ? parsedFilters.borough
+        : null,
+  };
+  const matching = filterAndSortHistoric(pubs, filters);
+  const pageResult = paginateIndexRows(matching, filters.page);
+  const resolvedFilters = { ...filters, page: pageResult.page };
   const boroughLinks = buildBoroughLinks(pubs, venues);
   return (
     <>
-      <HistoricPageClient pubs={pubs} />
+      <HistoricPageClient
+        pubs={pageResult.rows}
+        totalPubs={pubs.length}
+        matchingPubs={matching.length}
+        boroughs={boroughs}
+        filters={resolvedFilters}
+        page={pageResult.page}
+        totalPages={pageResult.totalPages}
+      />
       <HistoricBoroughLinks boroughs={boroughLinks} />
     </>
   );

@@ -1,7 +1,7 @@
-"use client";
-
-// Flagship "Historic Pubs" discovery surface (client half). Owns all filter +
-// sort state; the pure logic lives in lib/historicFilter so it stays testable.
+// Flagship "Historic Pubs" discovery surface. Cards stay server-rendered so
+// sourced heritage text and links are present in the first document without
+// serialising the full venue dataset into a client boundary. Filter controls
+// own URL state in HistoricFilters.tsx.
 //
 // Honest by construction: every card renders only what the record carries — an
 // era chip only when era is present, a grade badge only when listed, the hook
@@ -9,57 +9,47 @@
 // Nothing is fabricated; the subtitle names the sources and the count out loud.
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
 import { ArrowUpRight, ExternalLink } from "lucide-react";
 
 import { ProseDisclosure } from "@/components/Disclosure";
 import SiteNav from "@/components/nav/SiteNav";
 import type { HistoricPub } from "@/lib/historic";
 import {
-  availableBoroughs,
   citationHref,
   citationLabel,
-  DEFAULT_HISTORIC_FILTERS,
-  filterAndSortHistoric,
   listedBadge,
   venueStatusBadge,
-  type HistoricSort,
 } from "@/lib/historicFilter";
+import {
+  historicIndexHref,
+  INDEX_PAGE_SIZE,
+  type HistoricFilterQuery,
+} from "@/lib/pageFilters";
+import HistoricFilters from "./HistoricFilters";
 
 import "./historic.css";
 
-const SORT_OPTIONS: { value: HistoricSort; label: string }[] = [
-  { value: "oldest", label: "Oldest first" },
-  { value: "az", label: "A–Z" },
-  { value: "borough", label: "By borough" },
-];
-
 export default function HistoricPageClient({
   pubs,
+  totalPubs,
+  matchingPubs,
+  boroughs,
+  filters,
+  page,
+  totalPages,
 }: {
   pubs: HistoricPub[];
+  totalPubs: number;
+  matchingPubs: number;
+  boroughs: string[];
+  filters: HistoricFilterQuery;
+  page: number;
+  totalPages: number;
 }): React.JSX.Element {
-  const [borough, setBorough] = useState<string | null>(
-    DEFAULT_HISTORIC_FILTERS.borough,
-  );
-  const [listedOnly, setListedOnly] = useState(
-    DEFAULT_HISTORIC_FILTERS.listedOnly,
-  );
-  const [hasDate, setHasDate] = useState(DEFAULT_HISTORIC_FILTERS.hasDate);
-  const [sort, setSort] = useState<HistoricSort>(DEFAULT_HISTORIC_FILTERS.sort);
-
-  const boroughs = useMemo(() => availableBoroughs(pubs), [pubs]);
-  const visible = useMemo(
-    () => filterAndSortHistoric(pubs, { borough, listedOnly, hasDate, sort }),
-    [pubs, borough, listedOnly, hasDate, sort],
-  );
-
-  const filtersActive = borough !== null || listedOnly || hasDate;
-  const resetFilters = () => {
-    setBorough(null);
-    setListedOnly(false);
-    setHasDate(false);
-  };
+  const filtersActive =
+    filters.borough !== null || filters.listedOnly || filters.hasDate;
+  const firstShown = matchingPubs === 0 ? 0 : (page - 1) * INDEX_PAGE_SIZE + 1;
+  const lastShown = matchingPubs === 0 ? 0 : firstShown + pubs.length - 1;
 
   return (
     <main id="main" className="historicPage">
@@ -82,105 +72,33 @@ export default function HistoricPageClient({
         </p>
       ) : (
         <>
-          <section
-            className="historicFilters"
-            aria-label="Filter and sort historic pubs"
-          >
-            <div className="historicField">
-              <label className="historicFieldLabel" htmlFor="historic-borough">
-                Borough
-              </label>
-              <div className="historicSelectWrap">
-                <select
-                  id="historic-borough"
-                  className="historicSelect"
-                  value={borough ?? ""}
-                  onChange={(e) =>
-                    setBorough(e.target.value === "" ? null : e.target.value)
-                  }
-                >
-                  <option value="">All boroughs</option>
-                  {boroughs.map((b) => (
-                    <option key={b} value={b}>
-                      {b}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="historicField">
-              <label className="historicFieldLabel" htmlFor="historic-sort">
-                Sort
-              </label>
-              <div className="historicSelectWrap">
-                <select
-                  id="historic-sort"
-                  className="historicSelect"
-                  value={sort}
-                  onChange={(e) => setSort(e.target.value as HistoricSort)}
-                >
-                  {SORT_OPTIONS.map((opt) => (
-                    <option key={opt.value} value={opt.value}>
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div
-              className="historicToggles"
-              role="group"
-              aria-label="Narrow the list"
-            >
-              <button
-                type="button"
-                className="historicToggle"
-                data-active={listedOnly}
-                aria-pressed={listedOnly}
-                onClick={() => setListedOnly((v) => !v)}
-              >
-                Listed only
-              </button>
-              <button
-                type="button"
-                className="historicToggle"
-                data-active={hasDate}
-                aria-pressed={hasDate}
-                onClick={() => setHasDate((v) => !v)}
-              >
-                Has a date
-              </button>
-            </div>
-          </section>
+          <HistoricFilters boroughs={boroughs} filters={filters} />
 
           <p className="historicCount" role="status" aria-live="polite">
-            {visible.length === pubs.length
-              ? `Showing all ${pubs.length} pubs`
-              : `${visible.length} of ${pubs.length} pubs`}
+            {matchingPubs === totalPubs
+              ? `Showing ${firstShown}-${lastShown} of ${totalPubs} pubs`
+              : `Showing ${firstShown}-${lastShown} of ${matchingPubs} matches`}
           </p>
 
-          {visible.length === 0 ? (
+          {pubs.length === 0 ? (
             <div className="historicEmpty" role="status">
               <p className="historicEmptyTitle">Nothing matches those filters.</p>
               <p className="historicEmptyBody">
                 We only show pubs we can cite. Nothing is invented to fill the
                 gap.{" "}
                 {filtersActive ? (
-                  <button
-                    type="button"
+                  <Link
                     className="historicInlineReset"
-                    onClick={resetFilters}
+                    href="/historic"
                   >
                     Clear filters
-                  </button>
+                  </Link>
                 ) : null}
               </p>
             </div>
           ) : (
             <ul className="historicGrid">
-              {visible.map((pub) => {
+              {pubs.map((pub) => {
                 const href = citationHref(pub);
                 const grade = listedBadge(pub.listed);
                 const status = venueStatusBadge(pub.venueStatus);
@@ -248,6 +166,17 @@ export default function HistoricPageClient({
               })}
             </ul>
           )}
+          {totalPages > 1 ? (
+            <nav className="historicPagination" aria-label="Historic pub pages">
+              {page > 1 ? (
+                <Link href={historicIndexHref(filters, page - 1)}>Previous</Link>
+              ) : <span />}
+              <span>Page {page} of {totalPages}</span>
+              {page < totalPages ? (
+                <Link href={historicIndexHref(filters, page + 1)}>Next</Link>
+              ) : <span />}
+            </nav>
+          ) : null}
         </>
       )}
     </main>
