@@ -52,9 +52,8 @@ export default function PublicCrewRouteClient({
   crewId: string;
   invitationId: string | null;
 }) {
-  const { identityResolved, user } = useAuth();
-  const identityKey = user?.id ?? "signed-out";
-  const scope = crewAuthScope(crewId, identityKey, identityResolved);
+  const { accountRevision, identityResolved, user } = useAuth();
+  const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
   const [privateState, setPrivateState] = useState<LoadState>("idle");
@@ -111,7 +110,10 @@ export default function PublicCrewRouteClient({
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (response.status === 404) return "missing" as const;
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
         if (!response.ok) throw new Error("Public crew unavailable");
         const preview = parsePublicCrewPreview(await response.json());
         if (!preview) throw new Error("Public crew malformed");
@@ -171,7 +173,10 @@ export default function PublicCrewRouteClient({
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (response.status === 404) return "missing" as const;
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
         if (!response.ok) {
           discardBody(response);
           throw new Error("Protected crew unavailable");
@@ -222,7 +227,7 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId, identityKey, identityResolved, scope]);
+  }, [crewId, accountRevision, identityResolved, scope]);
 
   async function askToJoin(): Promise<void> {
     const operationScope = scopeRef.current;
@@ -296,13 +301,14 @@ export default function PublicCrewRouteClient({
   const currentBusy = busyScope === scope && busy;
   const currentProblem = problemScope === scope ? problem : "";
 
-  if (currentPrivateRead?.kind === "member") {
+  // Preserve existing authenticated invitation behaviour even when the same
+  // crew also has an account-free public preview. CrewDetailClient owns the
+  // invitation accept/decline seam.
+  if (currentPrivateRead && invitationId) {
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
-  // Preserve existing friends/private invitation behaviour when no public
-  // record exists. Open public records use this smaller account-free surface.
-  if (!currentPreview && currentPrivateRead && invitationId) {
+  if (currentPrivateRead?.kind === "member") {
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 

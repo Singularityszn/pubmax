@@ -10,10 +10,18 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const CREW_A = "50000000-0000-4000-8000-000000000001";
 const CREW_B = "50000000-0000-4000-8000-000000000002";
 
+const responseBody = vi.hoisted(() => ({
+  discardBody: vi.fn(),
+}));
+
 const state = vi.hoisted(() => ({
   identityResolved: true,
-  userId: "actor-a" as string | null,
+  provider: "clerk" as "clerk" | "supabase" | "signed-out",
+  providerUserId: "clerk-actor-a" as string | null,
+  accountRevision: 1,
   privateState: "none" as "none" | "pending" | "member",
+  privateStatus: 200,
+  publicStatus: 200,
   publicResponses: new Map<string, "ready" | "deferred">(),
   deferredPublic: new Map<string, Array<(response: Response) => void>>(),
   deferredJoin: [] as Array<(response: Response) => void>,
@@ -70,10 +78,16 @@ function privateMember(crewId: string) {
 }
 
 function publicResponse(crewId: string): Response {
+  if (state.publicStatus === 404) {
+    return new Response(JSON.stringify({ code: "not_found" }), { status: 404 });
+  }
   return Response.json(preview(crewId));
 }
 
 function actionResponse(crewId: string): Response {
+  if (state.privateStatus === 404) {
+    return new Response(JSON.stringify({ code: "not_found" }), { status: 404 });
+  }
   if (state.privateState === "member") return Response.json(privateMember(crewId));
   return Response.json(privatePreview(crewId));
 }
@@ -85,13 +99,22 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
-    // A Clerk-backed Social identity has no Supabase session. The component
-    // must still use the provider-neutral resolved identity seam.
+    // Clerk-backed Social identity has no Supabase session. The component
+    // must use the provider-neutral revision seam for both providers.
     identityResolved: state.identityResolved,
-    session: null,
-    user: state.userId ? { id: state.userId } : null,
+    accountRevision: state.accountRevision,
+    session:
+      state.provider === "supabase" && state.providerUserId
+        ? { user: { id: state.providerUserId } }
+        : null,
+    user:
+      state.provider === "supabase" && state.providerUserId
+        ? { id: state.providerUserId }
+        : null,
   }),
 }));
+
+vi.mock("@/lib/responseBody", () => responseBody);
 
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
@@ -129,8 +152,12 @@ async function settle(): Promise<void> {
 
 beforeEach(() => {
   state.identityResolved = true;
-  state.userId = "actor-a";
+  state.provider = "clerk";
+  state.providerUserId = "clerk-actor-a";
+  state.accountRevision = 1;
   state.privateState = "none";
+  state.privateStatus = 200;
+  state.publicStatus = 200;
   state.publicResponses = new Map([
     [CREW_A, "ready"],
     [CREW_B, "ready"],
@@ -138,6 +165,7 @@ beforeEach(() => {
   state.deferredPublic = new Map();
   state.deferredJoin = [];
   state.actionCalls = [];
+  responseBody.discardBody.mockReset();
   vi.stubGlobal(
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
@@ -176,7 +204,22 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
     expect(container.querySelector('[data-testid="crew-detail"]')).not.toBeNull();
   });
 
-  it("clears private join state when the account identity changes", async () => {
+  it("routes an authenticated invitation through CrewDetailClient before public preview", async () => {
+    await act(async () => {
+      root.render(
+        createElement(PublicCrewRouteClient, {
+          crewId: CREW_A,
+          invitationId: "60000000-0000-4000-8000-000000000001",
+        }),
+      );
+    });
+    await settle();
+
+    expect(container.querySelector('[data-testid="crew-detail"]')).not.toBeNull();
+    expect(container.textContent).not.toContain("Ask to join");
+  });
+
+  it("clears private join state when provider account revision changes", async () => {
     state.privateState = "pending";
     await act(async () => {
       root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
@@ -184,7 +227,10 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
     await settle();
     expect(container.textContent).toContain("Request sent. The host decides.");
 
-    state.userId = "actor-b";
+    // Clerk account switch: both accounts have no Supabase User ID. The
+    // provider-neutral revision is the real account boundary.
+    state.providerUserId = "clerk-actor-b";
+    state.accountRevision = 2;
     state.privateState = "none";
     await act(async () => {
       root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
@@ -192,6 +238,33 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
     await settle();
 
     expect(container.textContent).not.toContain("Request sent. The host decides.");
+  });
+
+  it("keeps a Supabase provider identity in the same account revision seam", async () => {
+    state.provider = "supabase";
+    state.providerUserId = "supabase-actor-a";
+    state.accountRevision = 3;
+    state.privateState = "member";
+
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.actionCalls).toContain(`GET /api/social/crews/${CREW_A}`);
+    expect(container.querySelector('[data-testid="crew-detail"]')).not.toBeNull();
+  });
+
+  it("discards public and protected 404 bodies", async () => {
+    state.publicStatus = 404;
+    state.privateStatus = 404;
+
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(responseBody.discardBody).toHaveBeenCalledTimes(2);
   });
 
   it("does not retain the previous crew preview while the next crew loads", async () => {
