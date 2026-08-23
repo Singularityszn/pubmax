@@ -56,4 +56,15 @@ describe("PlanDescribeFirst occasion chips", () => {
     expect(source).toContain("Make a plan");
     expect(source).toContain("What&rsquo;s the plan?");
   });
+
+  it("keeps the arrival action useful before the visitor types", () => {
+    const source = readFileSync(
+      join(process.cwd(), "components/plan/PlanDescribeFirst.tsx"),
+      "utf8",
+    );
+
+    expect(source).not.toContain("disabled={!query.trim()}");
+    expect(source).toContain("query.trim() ? submit() : onGuideMeInstead()");
+    expect(source).toContain('{query.trim() ? "Make a plan" : "Guide me"}');
+  });
 });
