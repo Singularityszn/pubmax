@@ -10,7 +10,7 @@ import "server-only";
 // (device, drop, reaction) at most one row, so a toggle is a pure insert-or-delete
 // and counts can't be double-inflated by one device.
 //
-// The reactions table FK-references visit_reports(id); demo seed drops are not
+// The reactions table FK-references pint_drops(id); demo seed drops are not
 // in that table, so a reaction on a seed raises a foreign-key violation. That is
 // surfaced as UnknownDropError → the route answers 404 and the client keeps its
 // local-only toggle for sample cards.
@@ -96,7 +96,7 @@ export const supabaseReactionsStore: ReactionsStore = {
         .from(TABLE)
         .insert({ pint_drop_id: dropId, actor_hash: actorHash, reaction });
       if (error) {
-        // A reaction on a drop that isn't in visit_reports (demo seed) — tell the
+        // A reaction on a drop that isn't in pint_drops (demo seed) - tell the
         // caller so it can 404 rather than 500.
         if (isForeignKeyViolation(error)) throw new UnknownDropError(dropId);
         // Concurrent double-insert lost the unique race (23505): the row now

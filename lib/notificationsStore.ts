@@ -32,6 +32,7 @@ import {
   type ViewerContext,
 } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
+import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { selectStore } from "@/lib/storeBackend";
 
@@ -77,7 +78,7 @@ async function lookupPintDropsByIds(ids: readonly string[]): Promise<Map<string,
 
   try {
     const { data, error } = await admin()
-      .from("visit_reports")
+      .from(PINT_DROPS_TABLE)
       .select("id,status,visibility,handle")
       .in("id", missing);
     if (error) throw new Error(error.message);
@@ -353,7 +354,7 @@ export async function emitNotification(input: NewNotification): Promise<void> {
  * addressed to the drop's author. Fail-soft: returns null on any miss (unknown id,
  * demo seed, storage down) — the caller then simply doesn't emit (a notification
  * we can't address is dropped, never an error). Supabase path reads only the
- * `handle` column of visit_reports; the memory path scans the in-memory drops.
+ * `handle` column of pint_drops; the memory path scans the in-memory drops.
  */
 export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   const id = typeof dropId === "string" ? dropId.trim() : "";
@@ -361,7 +362,7 @@ export async function dropOwnerHandle(dropId: string): Promise<string | null> {
   if (isSupabaseConfigured()) {
     try {
       const { data, error } = await admin()
-        .from("visit_reports")
+        .from(PINT_DROPS_TABLE)
         .select("handle")
         .eq("id", id)
         .limit(1)

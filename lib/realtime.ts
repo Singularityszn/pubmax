@@ -31,6 +31,7 @@
 // (lib/supabase.ts) must NEVER be used for subscriptions.
 
 import { getSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
 // ── "X spilling right now" — a pure counter ──────────────────────────────────
 // The strip's number is derived, NOT streamed: count the drops created in the
@@ -234,9 +235,9 @@ function subscribeInsert(
  * row is never surfaced. Falls back to `options.poll` on a 30s interval if the
  * channel can't join or drops. Returns a safe Unsubscribe.
  *
- * NOTE: pint drops are stored in `visit_reports` — that table must be in the
+ * NOTE: Pint Drops are stored in `pint_drops` - that table must be in the
  * `supabase_realtime` publication for INSERT events to fire (see 0013 header).
- * Deny-all RLS (0023: no anon SELECT on visit_reports) may also block INSERT
+ * Deny-all RLS may also block INSERT
  * events for the publishable-key client; polling via `options.poll` is the
  * intentional fallback — do not re-open public SELECT to "fix" realtime.
  */
@@ -244,7 +245,7 @@ export function subscribeToNewDrops(
   onDrop: LiveSignal,
   options?: SubscribeOptions,
 ): Unsubscribe {
-  return subscribeInsert("live:pint-drops", "visit_reports", undefined, onDrop, options);
+  return subscribeInsert("live:pint-drops", PINT_DROPS_TABLE, undefined, onDrop, options);
 }
 
 /**
