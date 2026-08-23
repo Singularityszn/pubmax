@@ -86,7 +86,9 @@ Render current Night Area evidence. Ready areas hand off to Plan with canonical 
 
 - [ ] **Step 4: Run GREEN checks**
 
-Run: `npx vitest run __tests__/nightAreaActivation.test.ts __tests__/night-area-coverage.spec.ts`
+Run: `npx vitest run __tests__/nightAreaActivation.test.ts`
+
+Run: `npx playwright test e2e/night-area-coverage.spec.ts --project=chromium`
 
 Run: `npx playwright test e2e/night-area-activation.spec.ts --project=chromium`
 
