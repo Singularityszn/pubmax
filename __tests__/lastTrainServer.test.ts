@@ -41,6 +41,39 @@ describe("last-train server seams", () => {
     expect(schedules.map((schedule) => schedule.name)).toEqual(["/north", "/south"]);
   });
 
+  it("starts timetable disambiguation reads in parallel", async () => {
+    let releaseNorth!: () => void;
+    let northReleased = false;
+    const northGate = new Promise<void>((resolve) => {
+      releaseNorth = resolve;
+    });
+    const starts: string[] = [];
+    const resolve = vi.fn(async (uri: string) => {
+      starts.push(`${uri}:${northReleased ? "after" : "before"}`);
+      if (uri === "/north") await northGate;
+      return {
+        timetable: {
+          routes: [{ schedules: [{ name: uri, lastJourney: { hour: 23, minute: 30 } }] }],
+        },
+      };
+    });
+
+    const pending = mergeTimetableSchedules(
+      {
+        disambiguation: {
+          disambiguationOptions: [{ uri: "/north" }, { uri: "/south" }],
+        },
+      },
+      resolve,
+    );
+    await Promise.resolve();
+    northReleased = true;
+    releaseNorth();
+
+    await expect(pending).resolves.toHaveLength(2);
+    expect(starts).toEqual(["/north:before", "/south:before"]);
+  });
+
   it("orders upcoming timetable departures and falls back to earlier service", () => {
     const schedules = [
       { name: "Monday - Friday", lastJourney: { hour: 23, minute: 45 } },

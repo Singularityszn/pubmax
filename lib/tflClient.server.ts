@@ -13,6 +13,8 @@ const DEFAULT_TIMEOUT_MS = 9000;
 type TflGetOptions = {
   retries?: number;
   timeoutMs?: number;
+  /** Abort when the owning route's latency budget is spent. */
+  signal?: AbortSignal;
 };
 
 /**
@@ -55,12 +57,15 @@ export async function tflFetch<T>(
   path: string,
   options: TflGetOptions = {},
 ): Promise<TflOutcome<T>> {
-  const { retries = 0, timeoutMs = DEFAULT_TIMEOUT_MS } = options;
+  const { retries = 0, timeoutMs = DEFAULT_TIMEOUT_MS, signal: callerSignal } = options;
   const url = resolveTflUrl(path);
   if (!url) return { ok: false, retryable: false };
 
   for (let attempt = 0; attempt <= retries; attempt++) {
     const controller = new AbortController();
+    const forwardAbort = () => controller.abort(callerSignal?.reason);
+    if (callerSignal?.aborted) return { ok: false, retryable: true };
+    callerSignal?.addEventListener("abort", forwardAbort, { once: true });
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
       const response = await fetch(withKey(url), {
@@ -78,7 +83,9 @@ export async function tflFetch<T>(
       // Network and timeout failures retry only when the caller asked for it.
     } finally {
       clearTimeout(timer);
+      callerSignal?.removeEventListener("abort", forwardAbort);
     }
+    if (callerSignal?.aborted) return { ok: false, retryable: true };
   }
 
   return { ok: false, retryable: true };
