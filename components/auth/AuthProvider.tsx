@@ -21,6 +21,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
@@ -103,6 +104,11 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
+import {
+  readProviderIdentityRevision,
+  setProviderIdentity,
+  subscribeProviderIdentityRevision,
+} from "@/lib/authProviderRevision";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
@@ -270,6 +276,8 @@ export type AuthContextValue = {
    * device cache, which is where the previous account's handle lives.
    */
   identityResolved: boolean;
+  /** Opaque account boundary shared by Supabase and Clerk-backed Social auth. */
+  accountRevision: number;
   rejectedContributionAuth: AccountAuthSnapshot | null;
   contributionAuth: AccountAuthSnapshot | null;
   invalidateContributionAuth: (auth: AccountAuthSnapshot) => void;
@@ -300,6 +308,11 @@ export function AuthProvider({
   children?: ReactNode;
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
+  const accountRevision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderIdentityRevision,
+    () => 0,
+  );
   const [session, setSession] = useState<Session | null>(null);
   // Who the app may say this is. "unknown" is not "nobody": a signed-in account
   // whose canonical handle has not come back yet must render neutral rather
@@ -330,6 +343,7 @@ export function AuthProvider({
       const previousUserId = sessionTransitions.current.currentUserId();
       const nextUserId = nextSession?.user.id ?? null;
       const signedIn = sessionTransitions.current.update(event, nextUserId);
+      setProviderIdentity("supabase", nextUserId);
       // THE BOUNDARY. Before any child re-renders on the new session, bind this
       // device's cached identity to the account that now owns it. A different
       // account - or a device carrying artifacts nobody stamped - loses the
@@ -934,6 +948,7 @@ export function AuthProvider({
       ),
       identityResolved:
         canonicalIdentityState.status === "resolved" && !loading,
+      accountRevision,
       rejectedContributionAuth,
       contributionAuth,
       invalidateContributionAuth,
@@ -953,6 +968,7 @@ export function AuthProvider({
     welcomeBack,
     resumeSignIn,
     canonicalIdentityState,
+    accountRevision,
     rejectedContributionAuth,
     invalidateContributionAuth,
     getCurrentUserId,
@@ -1012,6 +1028,7 @@ export function useAuth(): AuthContextValue {
     }),
     handle: null,
     identityResolved: false,
+    accountRevision: 0,
     rejectedContributionAuth: null,
     contributionAuth: null,
     invalidateContributionAuth: () => {},

@@ -14,6 +14,7 @@ import OfflineReady from "@/components/OfflineReady";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { AuthProvider } from "@/components/auth/AuthProvider";
+import ClerkAuthRevision from "@/components/auth/ClerkAuthRevision";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import {
   isClerkConfigured,
@@ -343,6 +344,7 @@ export default async function RootLayout({
             appearance re-skins Clerk chrome in PUBMAXX tokens. */}
         {isClerkConfigured() ? (
           <ClerkProvider appearance={clerkAppearance}>
+            <ClerkAuthRevision />
             {/* AuthProvider is additive: it establishes identity for signed-in users
                 but never gates a route — anonymous browsing stays fully public. The
                 session loads async client-side, so children render immediately. */}
