@@ -92,6 +92,7 @@ export default async function PubsPage({
           zonesPresent={zonesPresent}
           page={pageResult.page}
           totalPages={pageResult.totalPages}
+          complete={complete}
         />
       </div>
     </main>

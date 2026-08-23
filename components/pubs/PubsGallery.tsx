@@ -22,6 +22,30 @@ import type { ZoneSelection } from "@/lib/zones";
 import "./pubsGallery.css";
 import "@/components/map/zonePicker.css";
 
+export function pubsCountLabel({
+  matchingPubs,
+  filter,
+  zone,
+  page,
+  totalPages,
+  complete,
+}: {
+  matchingPubs: number;
+  filter: PubsFilterKey;
+  zone: ZoneSelection;
+  page: number;
+  totalPages: number;
+  complete: boolean;
+}): string {
+  const count = `${matchingPubs} pub${matchingPubs === 1 ? "" : "s"}`;
+  const parts = [complete && filter === "all" ? `${count} we've checked` : complete ? count : `${count} available`];
+  if (filter !== "all") parts.push(SCRAPED_SOURCE_LABELS[filter]);
+  if (zone !== "all") parts.push(`Zone ${zone}`);
+  if (totalPages > 1) parts.push(`Page ${page} of ${totalPages}`);
+  if (!complete) parts.push("Some chain data is unavailable");
+  return parts.join(" · ");
+}
+
 function DrinkArt({
   accent,
   shelf,
@@ -77,6 +101,7 @@ export default function PubsGallery({
   zonesPresent,
   page,
   totalPages,
+  complete,
 }: {
   pubs: ScrapedPub[];
   matchingPubs: number;
@@ -86,6 +111,7 @@ export default function PubsGallery({
   zonesPresent: number[];
   page: number;
   totalPages: number;
+  complete: boolean;
 }) {
   const boroughJumpTargets: { borough: string; id: string }[] = [];
   const seenBoroughs = new Set<string>();
@@ -104,13 +130,11 @@ export default function PubsGallery({
         filter={filter}
         zone={zone}
         zonesPresent={zonesPresent}
+        showCounts={complete}
       />
 
       <p className="pubsCount" aria-live="polite">
-        {matchingPubs} pub{matchingPubs === 1 ? "" : "s"}
-        {filter === "all" ? " we've checked" : ` · ${SCRAPED_SOURCE_LABELS[filter]}`}
-        {zone !== "all" ? ` · Zone ${zone}` : ""}
-        {totalPages > 1 ? ` · Page ${page} of ${totalPages}` : ""}
+        {pubsCountLabel({ matchingPubs, filter, zone, page, totalPages, complete })}
       </p>
 
       {boroughJumpTargets.length > 1 ? (

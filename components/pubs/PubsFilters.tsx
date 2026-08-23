@@ -38,11 +38,13 @@ export default function PubsFilters({
   filter,
   zone,
   zonesPresent,
+  showCounts,
 }: {
   counts: PubsFilterCounts;
   filter: PubsFilterKey;
   zone: ZoneSelection;
   zonesPresent: number[];
+  showCounts: boolean;
 }): React.JSX.Element {
   const router = useRouter();
   const pathname = usePathname();
@@ -76,7 +78,7 @@ export default function PubsFilters({
               onClick={() => navigate(item.key, zone)}
             >
               <span>{item.label}</span>
-              <span className="pubsFilterCount">{count}</span>
+              {showCounts ? <span className="pubsFilterCount">{count}</span> : null}
             </button>
           );
         })}
