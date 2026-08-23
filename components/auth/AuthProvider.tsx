@@ -21,6 +21,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
@@ -103,6 +104,13 @@ import {
   type ResumeHint,
 } from "@/lib/authSessionResumeClient";
 import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
+import {
+  readProviderAuthState,
+  readProviderIdentityRevision,
+  setProviderAuthState,
+  setProviderIdentity,
+  subscribeProviderIdentityRevision,
+} from "@/lib/authProviderRevision";
 
 const AUTH_CALLBACK_ERROR_MESSAGE =
   "Sign-in could not be completed. The link may be invalid or expired. Try again.";
@@ -270,6 +278,10 @@ export type AuthContextValue = {
    * device cache, which is where the previous account's handle lives.
    */
   identityResolved: boolean;
+  /** Opaque account boundary shared by Supabase and Clerk-backed Social auth. */
+  accountRevision: number;
+  /** Provider-neutral auth readiness. No provider identity leaves this seam. */
+  providerAuthState: "unresolved" | "authenticated" | "signed-out";
   rejectedContributionAuth: AccountAuthSnapshot | null;
   contributionAuth: AccountAuthSnapshot | null;
   invalidateContributionAuth: (auth: AccountAuthSnapshot) => void;
@@ -300,6 +312,11 @@ export function AuthProvider({
   children?: ReactNode;
   clerkIntegrationConfigured: boolean;
 }): React.JSX.Element {
+  const accountRevision = useSyncExternalStore(
+    subscribeProviderIdentityRevision,
+    readProviderIdentityRevision,
+    () => 0,
+  );
   const [session, setSession] = useState<Session | null>(null);
   // Who the app may say this is. "unknown" is not "nobody": a signed-in account
   // whose canonical handle has not come back yet must render neutral rather
@@ -324,12 +341,24 @@ export function AuthProvider({
     useRef<AccountAuthSnapshot | null>(null);
   const configured = isAuthConfigured();
   const loading = configured && sessionLoading;
+  const supabaseProviderState = readProviderAuthState("supabase");
+  const clerkProviderState = readProviderAuthState("clerk");
+  const providerAuthState =
+    (configured && supabaseProviderState === "unresolved") ||
+    (clerkIntegrationConfigured && clerkProviderState === "unresolved")
+      ? "unresolved"
+      : supabaseProviderState === "authenticated" ||
+          (clerkIntegrationConfigured && clerkProviderState === "authenticated")
+        ? "authenticated"
+        : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
       const previousUserId = sessionTransitions.current.currentUserId();
       const nextUserId = nextSession?.user.id ?? null;
       const signedIn = sessionTransitions.current.update(event, nextUserId);
+      setProviderAuthState("supabase", nextSession ? "authenticated" : "signed-out");
+      setProviderIdentity("supabase", nextUserId);
       // THE BOUNDARY. Before any child re-renders on the new session, bind this
       // device's cached identity to the account that now owns it. A different
       // account - or a device carrying artifacts nobody stamped - loses the
@@ -375,6 +404,10 @@ export function AuthProvider({
     () => sessionTransitions.current.currentUserId(),
     [],
   );
+
+  useEffect(() => {
+    setProviderAuthState("supabase", configured ? "unresolved" : "signed-out");
+  }, [configured]);
   // React Strict Mode replays effects in development. Reuse one completion so
   // the callback tokens are never applied twice by the replayed mount effect.
   const callbackSessionInFlight = useRef<
@@ -502,7 +535,10 @@ export function AuthProvider({
     // calls below run from async callbacks or event handlers — never the
     // effect body — so react-hooks/set-state-in-effect stays clean.
     const loadingTimeout = window.setTimeout(() => {
-      if (active) setSessionLoading(false);
+      if (active) {
+        setProviderAuthState("supabase", "signed-out");
+        setSessionLoading(false);
+      }
     }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
@@ -513,6 +549,7 @@ export function AuthProvider({
       // Unconfigured / SSR-only: nothing to subscribe to.
       if (!supabase) {
         window.clearTimeout(loadingTimeout);
+        setProviderAuthState("supabase", "signed-out");
         setSessionLoading(false);
         void callbackCapture.then((captured) => {
           const callbackAttempt = captured?.attempt ?? null;
@@ -934,6 +971,8 @@ export function AuthProvider({
       ),
       identityResolved:
         canonicalIdentityState.status === "resolved" && !loading,
+      accountRevision,
+      providerAuthState,
       rejectedContributionAuth,
       contributionAuth,
       invalidateContributionAuth,
@@ -953,6 +992,8 @@ export function AuthProvider({
     welcomeBack,
     resumeSignIn,
     canonicalIdentityState,
+    accountRevision,
+    providerAuthState,
     rejectedContributionAuth,
     invalidateContributionAuth,
     getCurrentUserId,
@@ -1012,6 +1053,8 @@ export function useAuth(): AuthContextValue {
     }),
     handle: null,
     identityResolved: false,
+    accountRevision: 0,
+    providerAuthState: "signed-out",
     rejectedContributionAuth: null,
     contributionAuth: null,
     invalidateContributionAuth: () => {},

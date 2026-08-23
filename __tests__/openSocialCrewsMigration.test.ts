@@ -1,9 +1,7 @@
-// Effective proof for 0110, the open Social Crew lane. It APPLIES the whole
-// migration chain plus 0110 to a real PostgreSQL 16 and exercises the rules
-// through the RPCs themselves, because "a stranger may ask to join an open
-// crew, a blocked one may not, and a friends crew still needs mutual" are
-// claims only the database can answer. The rollback is applied at the end and
-// the pre-0110 behaviour is re-proved.
+// Effective proof for 0110 and 0114, the open Social Crew lane and host queue.
+// It applies the prerequisite migration chain to a real PostgreSQL 16 and
+// exercises join, queue authority, request lifecycle, ACL, and rollback rules
+// through the RPCs themselves. These claims need database proof.
 //
 // Same host contract as the other effective migration proofs
 // (socialCrewMigration, occupancyMigration0109): a host with no PostgreSQL
@@ -21,9 +19,17 @@ const ROOT = process.cwd();
 const MIGRATIONS = join(ROOT, "supabase/migrations");
 const FORWARD_NAME = "20260816220000_0110_open_social_crews.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
+const QUEUE_FORWARD = join(
+  MIGRATIONS,
+  "20260823100000_0114_social_crew_join_request_queue.sql",
+);
 const ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260816220000_0110_open_social_crews_rollback.sql",
+);
+const QUEUE_ROLLBACK = join(
+  ROOT,
+  "supabase/migrations/rollback/20260823100000_0114_social_crew_join_request_queue_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -269,6 +275,20 @@ function listOpenCrews(
   );
 }
 
+function joinRequestQueue(
+  accountId: string,
+  profileId: string,
+  crewId: string,
+): unknown {
+  return jsonValue(
+    requireDatabase().sql(
+      `select coalesce(public.read_social_crew_join_requests(
+        '${accountId}','${profileId}','${crewId}'
+      ),'null'::jsonb)`,
+    ),
+  );
+}
+
 function acceptIntoOpenCrew(accountId: string): void {
   const requested = requestJoin(accountId, OPEN_CREW);
   requireDatabase().sql(`select public.decide_social_crew_join_request_atomic(
@@ -329,9 +349,9 @@ beforeAll(async () => {
     console.error(
       [
         "",
-        "OPEN SOCIAL CREW 0110 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
+        "OPEN SOCIAL CREW 0110 + 0114 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
         `Reason: ${skipReason}`,
-        "No open join, block refusal, preview or rollback was exercised on this host.",
+        "No open join, queue authority, request lifecycle, ACL or rollback was exercised on this host.",
         "",
       ].join("\n"),
     );
@@ -360,6 +380,7 @@ beforeAll(async () => {
       ('${ALLY_ACCOUNT}','clerk-ally','${ALLY_USER}','${ALLY_PROFILE}','active');
   `);
   database.apply(FORWARD);
+  database.apply(QUEUE_FORWARD);
 }, 300_000);
 
 beforeEach((context) => {
@@ -371,7 +392,102 @@ afterAll(async () => {
   await database?.stop();
 });
 
-describe("0110 applied to PostgreSQL", () => {
+describe("0110 and 0114 applied to PostgreSQL", () => {
+  it("shows pending requests only to current crew managers", () => {
+    requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
+    expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
+      items: [
+        {
+          requestId: expect.any(String),
+          requesterHandle: "stranger",
+        },
+      ],
+      hasMore: false,
+    });
+    expect(joinRequestQueue(STRANGER_ACCOUNT, STRANGER_PROFILE, OPEN_CREW)).toBeNull();
+
+    const db = requireDatabase();
+    db.sql(`insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) values(
+        '77777777-0000-4000-8000-000000000001','${OPEN_PLAN}','Ally',
+        md5('open-ally')||md5('open-ally-2'),'in','${ALLY_USER}',now(),now(),true,'${ALLY_ACCOUNT}'
+      );
+      insert into public.social_crew_members(
+        id,crew_id,social_account_id,plan_member_id,role,state
+      ) values(
+        '77777777-0000-4000-8000-000000000002','${OPEN_CREW}','${ALLY_ACCOUNT}',
+        '77777777-0000-4000-8000-000000000001','cohost','active'
+      )`);
+    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, OPEN_CREW)).toMatchObject({
+      items: [{ requesterHandle: "stranger" }],
+    });
+    expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, FRIENDS_CREW)).toBeNull();
+    db.sql(`delete from public.follows
+      where follower_id='${ALLY_PROFILE}' and followee_id='${HOST_PROFILE}'`);
+    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, OPEN_CREW)).toBeNull();
+  });
+
+  it("omits blocked, expired, terminal, and already-active requesters", () => {
+    const db = requireDatabase();
+    const blocked = requestJoin(MATE_ACCOUNT, OPEN_CREW);
+    db.sql(`insert into public.social_blocks(blocker_profile_id,blocked_profile_id)
+      values('${HOST_PROFILE}','${MATE_PROFILE}')`);
+    expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
+      items: [],
+      hasMore: false,
+    });
+
+    db.sql(`delete from public.social_blocks;
+      update public.social_crew_join_requests
+      set state='expired',decided_at=now()
+      where id='${String(blocked.request_id)}'`);
+    db.sql(`update public.social_crew_join_requests
+      set state='pending',decided_at=null,created_at=now()-interval '2 days',
+        expires_at=now()-interval '1 day'
+      where id='${String(blocked.request_id)}';
+      select public._activate_social_crew_member('${OPEN_CREW}','${MATE_ACCOUNT}')`);
+    expect(
+      db.sql(`select state from public.social_crew_join_requests
+        where id='${String(blocked.request_id)}'`),
+    ).toBe("expired");
+    const active = requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
+    db.sql(`select public._activate_social_crew_member(
+      '${OPEN_CREW}','${STRANGER_ACCOUNT}'
+    )`);
+    expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
+      items: [],
+      hasMore: false,
+    });
+    expect(
+      db.sql(`select state from public.social_crew_join_requests
+        where id='${String(active.request_id)}'`),
+    ).toBe("accepted");
+  });
+
+  it("keeps the private queue RPC service-role only", () => {
+    const db = requireDatabase();
+    requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
+    for (const role of ["anon", "authenticated"]) {
+      expect(
+        db.expectRefusal(
+          `set role ${role};
+           select public.read_social_crew_join_requests(
+             '${HOST_ACCOUNT}','${HOST_PROFILE}','${OPEN_CREW}'
+           )`,
+        ),
+      ).toMatch(/permission denied/i);
+    }
+    expect(
+      db.sql(`set role service_role;
+        select jsonb_array_length(
+          public.read_social_crew_join_requests(
+            '${HOST_ACCOUNT}','${HOST_PROFILE}','${OPEN_CREW}'
+          )->'items'
+        )`),
+    ).toBe("1");
+  });
+
   it("lets a stranger ask to join an open crew", () => {
     const db = requireDatabase();
     expect(requestJoin(STRANGER_ACCOUNT, OPEN_CREW)).toMatchObject({
@@ -587,15 +703,39 @@ describe("0110 applied to PostgreSQL", () => {
   });
 });
 
-describe("0110 rolled back", () => {
+describe("0114 and 0110 rolled back", () => {
   beforeAll(() => {
     if (skipReason || !database) return;
     seed(database);
+    database.apply(QUEUE_ROLLBACK);
     database.apply(ROLLBACK);
     visibilityAfterRollback = database.sql(
       `select visibility from public.social_crews where id='${OPEN_CREW}'`,
     );
     seedVisibility = "private";
+  });
+
+  it("removes the host queue function and index", () => {
+    const db = requireDatabase();
+    expect(
+      db.sql(
+        "select to_regprocedure('public.read_social_crew_join_requests(uuid,uuid,uuid)') is null",
+      ),
+    ).toBe("t");
+    expect(
+      db.sql(
+        "select to_regclass('public.social_crew_pending_join_request_queue_idx') is null",
+      ),
+    ).toBe("t");
+    expect(
+      db.sql(
+        "select to_regprocedure('public._terminalize_social_crew_join_request_on_membership()') is null",
+      ),
+    ).toBe("t");
+    expect(
+      db.sql(`select count(*) from pg_trigger
+        where tgname='social_crew_members_terminalize_join_request'`),
+    ).toBe("0");
   });
 
   it("returns every open crew to private and refuses the widened visibility", () => {

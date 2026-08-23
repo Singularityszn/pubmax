@@ -24,7 +24,10 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
-import type { SocialCrewReadDTO } from "@/lib/socialCrew";
+import type {
+  SocialCrewJoinRequestDTO,
+  SocialCrewReadDTO,
+} from "@/lib/socialCrew";
 import {
   CREW_INVITE_LINK_NOTE,
   CREW_MUTUALS_ONLY_NOTE,
@@ -38,13 +41,16 @@ import {
   crewInviteUrl,
   crewStartsCaption,
   parseCrewMutation,
+  parseCrewJoinRequestQueue,
   parseCrewRead,
 } from "@/lib/socialCrewsUi";
 
 import "@/components/social/crews.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
+type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
+type IdentityMessage = { identityKey: string; text: string } | null;
 
 export default function CrewDetailClient({
   crewId,
@@ -54,23 +60,61 @@ export default function CrewDetailClient({
   invitationId: string | null;
 }) {
   const router = useRouter();
-  const { identityResolved } = useAuth();
+  const { accountRevision, identityResolved } = useAuth();
+  const identityKey = String(accountRevision);
+  const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState("");
-  const [notice, setNotice] = useState("");
+  const [problem, setProblem] = useState<IdentityMessage>(null);
+  const [notice, setNotice] = useState<IdentityMessage>(null);
   const [viewerHandle, setViewerHandle] = useState("");
   const [lot, setLot] = useState<string[]>([]);
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<Match[]>([]);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [joinRequests, setJoinRequests] = useState<SocialCrewJoinRequestDTO[]>([]);
+  const [joinRequestsHaveMore, setJoinRequestsHaveMore] = useState(false);
+  const [joinRequestStatus, setJoinRequestStatus] =
+    useState<JoinRequestLoadState>("idle");
+  const [joinRequestAttempt, setJoinRequestAttempt] = useState(0);
+  const [focusJoinRequests, setFocusJoinRequests] = useState(false);
+  const [loadedIdentityKey, setLoadedIdentityKey] = useState<string | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
+  const previousScopeKey = useRef(scopeKey);
+  const queueRefreshAuthorityRevision = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (previousScopeKey.current === scopeKey) return;
+    previousScopeKey.current = scopeKey;
+    void Promise.resolve().then(() => {
+      if (previousScopeKey.current !== scopeKey) return;
+      setCrew(null);
+      setStatus("loading");
+      setBusy(false);
+      setNotice(null);
+      setProblem(null);
+      setViewerHandle("");
+      setLot([]);
+      setQuery("");
+      setMatches([]);
+      setInviteLink(null);
+      setCopied(false);
+      setJoinRequests([]);
+      setJoinRequestsHaveMore(false);
+      setJoinRequestStatus("idle");
+      setFocusJoinRequests(false);
+      setLoadedIdentityKey(null);
+      queueRefreshAuthorityRevision.current = null;
+    });
+  }, [scopeKey]);
 
   useEffect(() => {
     if (!identityResolved) return;
+    let active = true;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
@@ -79,15 +123,29 @@ export default function CrewDetailClient({
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (response.status === 404) return "missing" as const;
-        if (!response.ok) throw new Error("Crew unavailable");
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Crew unavailable");
+        }
         const read = parseCrewRead(await response.json());
         if (!read) throw new Error("Crew malformed");
         return read;
       })
       .then((result) => {
+        if (!active) return;
+        setLoadedIdentityKey(identityKey);
         if (result === "missing") {
           setCrew(null);
+          setNotice(null);
+          setProblem(null);
+          setJoinRequests([]);
+          setJoinRequestsHaveMore(false);
+          setJoinRequestStatus("idle");
+          setFocusJoinRequests(false);
           setStatus("missing");
           return;
         }
@@ -95,15 +153,112 @@ export default function CrewDetailClient({
         setStatus("ready");
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+          return;
+        }
+        setLoadedIdentityKey(identityKey);
         setCrew(null);
+        setNotice(null);
+        setProblem(null);
+        setJoinRequests([]);
+        setJoinRequestsHaveMore(false);
+        setJoinRequestStatus("idle");
+        setFocusJoinRequests(false);
         setStatus("error");
       });
-    return () => controller.abort();
-  }, [attempt, crewId, identityResolved]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [attempt, crewId, identityKey, identityResolved]);
+
+  useEffect(() => {
+    if (
+      !identityResolved ||
+      loadedIdentityKey !== identityKey ||
+      crew?.kind !== "member" ||
+      crew.visibility !== "open" ||
+      !canManageCrew(crew.viewer.role)
+    ) {
+      return;
+    }
+    let active = true;
+    const controller = new AbortController();
+    void Promise.resolve().then(() => setJoinRequestStatus("loading"));
+    authedActionFetch(
+      `/api/social/crews/${encodeURIComponent(crewId)}/join-requests`,
+      {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      },
+    )
+      .then(async (response) => {
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Join requests unavailable");
+        }
+        const queue = parseCrewJoinRequestQueue(await response.json());
+        if (!queue) throw new Error("Join requests malformed");
+        return queue;
+      })
+      .then((queue) => {
+        if (!active) return;
+        if (queue === "missing") {
+          setJoinRequests([]);
+          setJoinRequestsHaveMore(false);
+          setJoinRequestStatus("idle");
+          const authorityRevision =
+            crew?.kind === "member" ? crew.authorityRevision : null;
+          if (
+            authorityRevision !== null &&
+            queueRefreshAuthorityRevision.current !== authorityRevision
+          ) {
+            queueRefreshAuthorityRevision.current = authorityRevision;
+            setAttempt((value) => value + 1);
+          }
+          return;
+        }
+        setJoinRequests(queue.items);
+        setJoinRequestsHaveMore(queue.hasMore);
+        setJoinRequestStatus("ready");
+      })
+      .catch((error: unknown) => {
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+          return;
+        }
+        setJoinRequests([]);
+        setJoinRequestsHaveMore(false);
+        setJoinRequestStatus("error");
+      });
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [crew, crewId, identityKey, identityResolved, joinRequestAttempt, loadedIdentityKey]);
+
+  useEffect(() => {
+    if (
+      !focusJoinRequests ||
+      status !== "ready" ||
+      joinRequestStatus !== "ready"
+    ) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      joinRequestHeading.current?.focus();
+      setFocusJoinRequests(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusJoinRequests, joinRequestStatus, status]);
 
   useEffect(() => {
     if (!identityResolved) return;
+    let active = true;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -119,7 +274,7 @@ export default function CrewDetailClient({
         const body = (await response.json()) as { viewerHandle?: unknown };
         const handle =
           typeof body.viewerHandle === "string" ? normalizeHandle(body.viewerHandle) : "";
-        if (!handle) return;
+        if (!active || !handle) return;
         setViewerHandle(handle);
         const lotResponse = await fetch(
           `/api/profiles/${encodeURIComponent(handle)}/lot`,
@@ -130,13 +285,17 @@ export default function CrewDetailClient({
           return;
         }
         const lotBody = (await lotResponse.json()) as { lot?: unknown };
+        if (!active) return;
         setLot(Array.isArray(lotBody.lot) ? (lotBody.lot as string[]) : []);
       } catch {
         // The crew still reads without a lot to offer.
       }
     })();
-    return () => controller.abort();
-  }, [identityResolved]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [identityKey, identityResolved]);
 
   useEffect(() => {
     if (searchDebounce.current) clearTimeout(searchDebounce.current);
@@ -203,16 +362,19 @@ export default function CrewDetailClient({
     async (task: () => Promise<void>) => {
       if (busy) return;
       setBusy(true);
-      setProblem("");
+      setProblem(null);
       try {
         await task();
       } catch (error) {
-        setProblem(error instanceof Error ? error.message : "That did not go through.");
+        setProblem({
+          identityKey,
+          text: error instanceof Error ? error.message : "That did not go through.",
+        });
       } finally {
         setBusy(false);
       }
     },
-    [busy],
+    [busy, identityKey],
   );
 
   const decideInvitation = (action: "accept" | "decline") =>
@@ -226,7 +388,10 @@ export default function CrewDetailClient({
         router.push("/social");
         return;
       }
-      setNotice("You are in. Your lot grew by everybody already on this night.");
+      setNotice({
+        identityKey,
+        text: "You are in. Your lot grew by everybody already on this night.",
+      });
       setAttempt((value) => value + 1);
     });
 
@@ -249,7 +414,7 @@ export default function CrewDetailClient({
           typeof window === "undefined" ? undefined : window.location.origin,
         ),
       );
-      setNotice(`Invited @${handle}.`);
+      setNotice({ identityKey, text: `Invited @${handle}.` });
       setQuery("");
       setMatches([]);
     });
@@ -287,6 +452,40 @@ export default function CrewDetailClient({
       setAttempt((value) => value + 1);
     });
 
+  const decideJoinRequest = (
+    request: SocialCrewJoinRequestDTO,
+    decision: "accept" | "decline",
+  ) =>
+    run(async () => {
+      try {
+        await write(
+          `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ decision }),
+            prefix: "crew-join-decide",
+          },
+        );
+      } catch (error) {
+        setFocusJoinRequests(true);
+        setJoinRequestAttempt((value) => value + 1);
+        throw error;
+      }
+      setJoinRequests((current) =>
+        current.filter((item) => item.requestId !== request.requestId),
+      );
+      setNotice({
+        identityKey,
+        text:
+          decision === "accept"
+            ? `${displayHandle(request.requesterHandle)} joined the crew.`
+            : `Declined ${displayHandle(request.requesterHandle)}.`,
+      });
+      setFocusJoinRequests(true);
+      setJoinRequestAttempt((value) => value + 1);
+      if (decision === "accept") setAttempt((value) => value + 1);
+    });
+
   const copyInvite = async () => {
     if (!inviteLink) return;
     try {
@@ -294,11 +493,19 @@ export default function CrewDetailClient({
       setCopied(true);
       setTimeout(() => setCopied(false), 2400);
     } catch {
-      setProblem("Could not copy the link.");
+      setProblem({ identityKey, text: "Could not copy the link." });
     }
   };
 
   const body = (() => {
+    if (!identityResolved || loadedIdentityKey !== identityKey) {
+      return (
+        <div className="crews__skeletons" aria-label="Loading crew">
+          <span />
+          <span />
+        </div>
+      );
+    }
     if (status === "loading") {
       return (
         <div className="crews__skeletons" aria-hidden="true">
@@ -404,6 +611,7 @@ export default function CrewDetailClient({
     }
 
     const manages = canManageCrew(crew.viewer.role);
+    const managesOpenCrew = manages && crew.visibility === "open";
     return (
       <>
         <header className="crewPage__head">
@@ -441,6 +649,86 @@ export default function CrewDetailClient({
             ))}
           </ul>
         </section>
+
+        {managesOpenCrew ? (
+          joinRequestStatus === "ready" ? (
+            <section aria-labelledby="crew-join-requests-title">
+              <h2
+                id="crew-join-requests-title"
+                className="crews__title"
+                ref={joinRequestHeading}
+                tabIndex={-1}
+              >
+                Requests to join
+              </h2>
+              {joinRequests.length > 0 ? (
+                <ul className="crews__list">
+                  {joinRequests.map((request) => (
+                    <li key={request.requestId} className="crews__member">
+                      <Link
+                        className="crews__memberHandle"
+                        href={`/u/${encodeURIComponent(request.requesterHandle)}`}
+                      >
+                        {displayHandle(request.requesterHandle)}
+                      </Link>
+                      <div className="crews__formActions">
+                        <button
+                          type="button"
+                          className="crews__button crews__button--primary"
+                          disabled={busy}
+                          aria-label={`Accept ${displayHandle(request.requesterHandle)}`}
+                          onClick={() => void decideJoinRequest(request, "accept")}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          className="crews__button"
+                          disabled={busy}
+                          aria-label={`Decline ${displayHandle(request.requesterHandle)}`}
+                          onClick={() => void decideJoinRequest(request, "decline")}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="crews__muted">No one has asked to join.</p>
+              )}
+              {joinRequestsHaveMore ? (
+                <p className="crews__note">More requests are waiting.</p>
+              ) : null}
+            </section>
+          ) : joinRequestStatus === "loading" ? (
+            <section aria-labelledby="crew-join-requests-loading">
+              <h2 id="crew-join-requests-loading" className="crews__title">
+                Requests to join
+              </h2>
+              <div className="crews__skeletons" aria-label="Loading join requests">
+                <span />
+              </div>
+            </section>
+          ) : joinRequestStatus === "error" ? (
+            <section
+              className="crews__notice"
+              aria-labelledby="crew-join-requests-error"
+              role="alert"
+            >
+              <h2 id="crew-join-requests-error" className="crews__title">
+                Could not load join requests.
+              </h2>
+              <button
+                type="button"
+                className="crews__button"
+                onClick={() => setJoinRequestAttempt((value) => value + 1)}
+              >
+                Try again
+              </button>
+            </section>
+          ) : null
+        ) : null}
 
         {manages ? (
           <section aria-labelledby="crew-invite-title">
@@ -554,14 +842,20 @@ export default function CrewDetailClient({
         <Link className="crewPage__back" href="/social">
           Back to Social
         </Link>
-        {notice ? (
+        {identityResolved &&
+        status === "ready" &&
+        loadedIdentityKey === identityKey &&
+        notice?.identityKey === identityKey ? (
           <p className="crews__note" role="status" aria-live="polite">
-            {notice}
+            {notice.text}
           </p>
         ) : null}
-        {problem ? (
+        {identityResolved &&
+        status === "ready" &&
+        loadedIdentityKey === identityKey &&
+        problem?.identityKey === identityKey ? (
           <p className="crews__problem" role="alert">
-            {problem}
+            {problem.text}
           </p>
         ) : null}
         {body}
