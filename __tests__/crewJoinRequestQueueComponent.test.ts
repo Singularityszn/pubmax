@@ -18,6 +18,7 @@ const state = vi.hoisted(() => ({
     },
   ],
   decisions: [] as string[],
+  visibility: "open" as "open" | "friends",
 }));
 
 vi.mock("next/link", () => ({
@@ -45,7 +46,7 @@ vi.mock("@/lib/authedFetch", () => ({
         kind: "member",
         crewId: CREW_ID,
         title: "Open Friday",
-        visibility: "open",
+        visibility: state.visibility,
         phase: "planning",
         nightArea: "camden",
         startsAt: "2026-08-24T18:30:00.000Z",
@@ -83,11 +84,15 @@ vi.mock("@/lib/authedFetch", () => ({
       });
     }
     if (url === `/api/social/crews/${CREW_ID}/join-requests` && !init?.method) {
-      return Response.json({ items: state.queue, hasMore: false });
+      return Response.json({
+        items: state.queue.slice(0, 50),
+        hasMore: state.queue.length > 50,
+      });
     }
-    if (url.includes(`/join-requests/${REQUEST_ID}`) && init?.method === "PATCH") {
+    if (url.includes("/join-requests/") && init?.method === "PATCH") {
       state.decisions.push(String(init.body));
-      state.queue = [];
+      const requestId = decodeURIComponent(url.split("/").at(-1) ?? "");
+      state.queue = state.queue.filter((request) => request.requestId !== requestId);
       return Response.json({ code: "accepted", replayed: false });
     }
     if (url === "/api/social/access") {
@@ -117,6 +122,7 @@ beforeEach(() => {
     },
   ];
   state.decisions = [];
+  state.visibility = "open";
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -148,5 +154,40 @@ describe("host join-request queue", () => {
     expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
     expect(container.textContent).toContain("@bob joined the crew.");
     expect(container.textContent).toContain("No one has asked to join.");
+  });
+
+  it("does not open the host queue for a friends-only crew", async () => {
+    state.visibility = "friends";
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    expect(container.textContent).not.toContain("Requests to join");
+    expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
+  });
+
+  it("loads the next request after a decision at the 50-row boundary", async () => {
+    state.queue = Array.from({ length: 51 }, (_, index) => ({
+      requestId: `80000000-0000-4000-8000-${String(index + 1).padStart(12, "0")}`,
+      requesterHandle: `bob${index + 1}`,
+    }));
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    expect(container.textContent).toContain("More requests are waiting.");
+    expect(container.textContent).not.toContain("@bob51");
+    const firstAccept = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Accept @bob1"]',
+    );
+    expect(firstAccept).not.toBeNull();
+
+    await act(async () => firstAccept!.click());
+    await settle();
+
+    expect(container.textContent).toContain("@bob51");
+    expect(container.textContent).not.toContain("More requests are waiting.");
   });
 });

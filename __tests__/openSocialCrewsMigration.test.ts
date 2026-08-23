@@ -394,7 +394,7 @@ afterAll(async () => {
   await database?.stop();
 });
 
-describe("0110 applied to PostgreSQL", () => {
+describe("0110 and 0114 applied to PostgreSQL", () => {
   it("shows pending requests only to current crew managers", () => {
     requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
     expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
@@ -408,16 +408,26 @@ describe("0110 applied to PostgreSQL", () => {
     });
     expect(joinRequestQueue(STRANGER_ACCOUNT, STRANGER_PROFILE, OPEN_CREW)).toBeNull();
 
-    requestJoin(MATE_ACCOUNT, FRIENDS_CREW);
     const db = requireDatabase();
-    db.sql(`update public.social_crew_members set role='cohost'
-      where id='${FRIENDS_ALLY_MEMBER}'`);
-    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, FRIENDS_CREW)).toMatchObject({
-      items: [{ requesterHandle: "mate" }],
+    db.sql(`insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) values(
+        '77777777-0000-4000-8000-000000000001','${OPEN_PLAN}','Ally',
+        md5('open-ally')||md5('open-ally-2'),'in','${ALLY_USER}',now(),now(),true,'${ALLY_ACCOUNT}'
+      );
+      insert into public.social_crew_members(
+        id,crew_id,social_account_id,plan_member_id,role,state
+      ) values(
+        '77777777-0000-4000-8000-000000000002','${OPEN_CREW}','${ALLY_ACCOUNT}',
+        '77777777-0000-4000-8000-000000000001','cohost','active'
+      )`);
+    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, OPEN_CREW)).toMatchObject({
+      items: [{ requesterHandle: "stranger" }],
     });
+    expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, FRIENDS_CREW)).toBeNull();
     db.sql(`delete from public.follows
       where follower_id='${ALLY_PROFILE}' and followee_id='${HOST_PROFILE}'`);
-    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, FRIENDS_CREW)).toBeNull();
+    expect(joinRequestQueue(ALLY_ACCOUNT, ALLY_PROFILE, OPEN_CREW)).toBeNull();
   });
 
   it("omits blocked, expired, terminal, and already-active requesters", () => {
@@ -434,6 +444,15 @@ describe("0110 applied to PostgreSQL", () => {
       update public.social_crew_join_requests
       set state='expired',decided_at=now()
       where id='${String(blocked.request_id)}'`);
+    db.sql(`update public.social_crew_join_requests
+      set state='pending',decided_at=null,created_at=now()-interval '2 days',
+        expires_at=now()-interval '1 day'
+      where id='${String(blocked.request_id)}';
+      select public._activate_social_crew_member('${OPEN_CREW}','${MATE_ACCOUNT}')`);
+    expect(
+      db.sql(`select state from public.social_crew_join_requests
+        where id='${String(blocked.request_id)}'`),
+    ).toBe("expired");
     const active = requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
     db.sql(`select public._activate_social_crew_member(
       '${OPEN_CREW}','${STRANGER_ACCOUNT}'
@@ -686,7 +705,7 @@ describe("0110 applied to PostgreSQL", () => {
   });
 });
 
-describe("0110 rolled back", () => {
+describe("0114 and 0110 rolled back", () => {
   beforeAll(() => {
     if (skipReason || !database) return;
     seed(database);
@@ -710,6 +729,15 @@ describe("0110 rolled back", () => {
         "select to_regclass('public.social_crew_pending_join_request_queue_idx') is null",
       ),
     ).toBe("t");
+    expect(
+      db.sql(
+        "select to_regprocedure('public._terminalize_social_crew_join_request_on_membership()') is null",
+      ),
+    ).toBe("t");
+    expect(
+      db.sql(`select count(*) from pg_trigger
+        where tgname='social_crew_members_terminalize_join_request'`),
+    ).toBe("0");
   });
 
   it("returns every open crew to private and refuses the widened visibility", () => {

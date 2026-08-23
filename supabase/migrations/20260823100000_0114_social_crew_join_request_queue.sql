@@ -50,6 +50,7 @@ as $$
       and plan_member.social_account_id = actor.id
     where public._social_crew_member_role(p_crew_id, actor.id)
       in ('owner','cohost')
+      and crew.visibility = 'open'
   )
   select jsonb_build_object(
     'items',
@@ -129,10 +130,17 @@ begin
     tg_op = 'INSERT' or old.state is distinct from 'active'
   ) then
     update public.social_crew_join_requests
+    set state = 'expired', decided_at = statement_timestamp()
+    where crew_id = new.crew_id
+      and requester_account_id = new.social_account_id
+      and state = 'pending'
+      and expires_at <= statement_timestamp();
+    update public.social_crew_join_requests
     set state = 'accepted', decided_at = statement_timestamp()
     where crew_id = new.crew_id
       and requester_account_id = new.social_account_id
-      and state = 'pending';
+      and state = 'pending'
+      and expires_at > statement_timestamp();
   end if;
   return new;
 end;

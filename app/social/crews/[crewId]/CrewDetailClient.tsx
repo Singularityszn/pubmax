@@ -116,6 +116,7 @@ export default function CrewDetailClient({
     if (
       !identityResolved ||
       crew?.kind !== "member" ||
+      crew.visibility !== "open" ||
       !canManageCrew(crew.viewer.role)
     ) {
       return;
@@ -476,6 +477,7 @@ export default function CrewDetailClient({
     }
 
     const manages = canManageCrew(crew.viewer.role);
+    const managesOpenCrew = manages && crew.visibility === "open";
     return (
       <>
         <header className="crewPage__head">
@@ -514,7 +516,7 @@ export default function CrewDetailClient({
           </ul>
         </section>
 
-        {manages ? (
+        {managesOpenCrew ? (
           joinRequestStatus === "ready" ? (
             <section aria-labelledby="crew-join-requests-title">
               <h2 id="crew-join-requests-title" className="crews__title">
