@@ -246,6 +246,51 @@ test("groups desktop listings and pairs a pub beside each gig", async ({ page })
   );
 });
 
+test("starts each desktop listing group at the top of its grid row", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.route("**/api/out?**", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        status: "ready",
+        events: [
+          {
+            ...PLAYHOUSE_EVENT,
+            id: "events-tm-marylebone",
+            title: "Marylebone one-off",
+            placeName: "The Arts at Marble Arch",
+          },
+          ...Array.from({ length: 5 }, (_, index) => ({
+            ...PLAYHOUSE_EVENT,
+            id: `events-tm-soho-${index}`,
+            sourceId: `soho-${index}`,
+            title: `Soho event ${index + 1}`,
+          })),
+        ],
+        openPlans: [],
+        attribution: [],
+        observedAt: {},
+        providers: [{ name: "ticketmaster", configured: true, rows: 6, status: "ready" }],
+      }),
+    }),
+  );
+
+  await page.goto("/out");
+  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+
+  const maryleboneTop = await page
+    .getByRole("heading", { name: "Marylebone one-off", exact: true })
+    .boundingBox();
+  const sohoTop = await page
+    .getByRole("heading", { name: "Soho event 1", exact: true })
+    .boundingBox();
+
+  expect(maryleboneTop).not.toBeNull();
+  expect(sohoTop).not.toBeNull();
+  expect(Math.abs(maryleboneTop!.y - sohoTop!.y)).toBeLessThan(24);
+});
+
 test.describe("out tab screenshots @390", () => {
   test.use({ viewport: { width: 390, height: 844 } });
   test.setTimeout(60_000);
