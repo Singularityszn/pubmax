@@ -8,11 +8,10 @@ import {
   endingView,
   formatGbp,
   guardianView,
-  selectApprovedRecapPhotos,
   selectPublishedRecapMoments,
   type RecapPint,
 } from "@/lib/recapView";
-import type { MomentConsent, NightMoment, NightStory } from "@/lib/nightMemory";
+import type { NightMoment, NightStory } from "@/lib/nightMemory";
 import type { EndingSelection } from "@/lib/plan";
 import type { PintDrop } from "@/lib/pintDropShared";
 
@@ -172,28 +171,6 @@ describe("composeRecapFromCompletion", () => {
     });
     expect(view.guardian).toEqual({ label: "Home before the last train", tone: "safe" });
     expect(view.closingLine).toBe("The night ended before the last train.");
-  });
-});
-
-describe("selectApprovedRecapPhotos (consent gate)", () => {
-  const photoA = moment({ id: "p-a", kind: "photo", mediaObjectKey: "night/a.jpg", ownerId: "owner-1" });
-  const photoB = moment({ id: "p-b", kind: "photo", mediaObjectKey: "night/b.jpg", ownerId: "owner-2" });
-  const notAPhoto = moment({ id: "v-1", kind: "venue", venueId: "a" });
-
-  it("passes only owner-approved photos", () => {
-    const consents: MomentConsent[] = [
-      { storyId: "s1", momentId: "p-a", ownerId: "owner-1", status: "approved", decidedAt: null },
-      { storyId: "s1", momentId: "p-b", ownerId: "owner-2", status: "pending", decidedAt: null },
-    ];
-    const result = selectApprovedRecapPhotos([photoA, photoB, notAPhoto], consents);
-    expect(result.map((m) => m.id)).toEqual(["p-a"]);
-  });
-
-  it("drops withdrawn and consent-less photos", () => {
-    const consents: MomentConsent[] = [
-      { storyId: "s1", momentId: "p-a", ownerId: "owner-1", status: "withdrawn", decidedAt: null },
-    ];
-    expect(selectApprovedRecapPhotos([photoA, photoB], consents)).toEqual([]);
   });
 });
 

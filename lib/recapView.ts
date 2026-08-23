@@ -2,7 +2,7 @@
 // ONLY what is real. Every section is gated: it renders solely when its data
 // exists, exactly like the digest. Nothing is invented. Photos and identities
 // pass through the existing Night Story consent flow before they ever reach a
-// public surface — see selectApprovedRecapPhotos / selectPublishedRecapMoments.
+// public surface - see selectPublishedRecapMoments.
 //
 // This module is pure (no window, no Date.now, no fetch). Two adapters feed one
 // RecapView shape:
@@ -13,7 +13,7 @@
 
 import { lastTrainBadge } from "@/lib/lastTrainBadge";
 import type { LastPintDecisionKind } from "@/lib/tfl";
-import { hasPublicationConsent, type MomentConsent, type NightMoment, type PublicNightStory } from "@/lib/nightMemory";
+import type { NightMoment, PublicNightStory } from "@/lib/nightMemory";
 import type { PintDrop } from "@/lib/pintDropShared";
 import type { CrawlEnding, EndingSelection } from "@/lib/plan";
 import { formatGbp } from "@/lib/formatGbp";
@@ -191,25 +191,7 @@ export function composeRecapFromCompletion(input: {
 }
 
 /**
- * Consent gate #1 (crew/draft path): the moment's owner has explicitly approved
- * publication. Use when composing from a workspace where per-owner consents are
- * known. Photos with pending / withdrawn / absent consent never pass.
- */
-export function selectApprovedRecapPhotos(
-  moments: NightMoment[],
-  consents: MomentConsent[],
-): NightMoment[] {
-  return moments.filter(
-    (moment) =>
-      moment.kind === "photo" &&
-      typeof moment.mediaObjectKey === "string" &&
-      moment.mediaObjectKey.length > 0 &&
-      hasPublicationConsent(moment.ownerId, moment.id, consents),
-  );
-}
-
-/**
- * Consent gate #2 (public path): the Story is PUBLISHED, not private, and the
+ * Public consent gate: the Story is PUBLISHED, not private, and the
  * moment is in the published allowlist. This mirrors the store's own disclosure
  * predicate — publishedMomentIds is only ever set from consent-approved moments,
  * and a later withdrawal removes the id — so a moment leaks to no public surface
