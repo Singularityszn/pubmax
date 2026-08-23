@@ -791,6 +791,21 @@ describe("moderateProfileImageAcrossStores — the two lanes agree", () => {
 });
 
 describe("cover rotation cap", () => {
+  it("propagates an unreadable durable moderator queue", async () => {
+    const query = {
+      gt: () => query,
+      is: () => query,
+      order: () => query,
+      limit: async () => ({ data: null, error: { message: "queue unavailable" } }),
+    };
+    coverAdminRef.client = { from: () => ({ select: () => query }) };
+    supabaseConfigured.value = true;
+
+    await expect(supabaseProfileCoverPhotoStore.listForReview()).rejects.toThrow(
+      "queue unavailable",
+    );
+  });
+
   it("makes memory and durable stores refuse the same sixth live cover", async () => {
     __resetProfileCoverPhotos();
     const memoryProfile = __seedMemoryOwnedProfile(HANDLE, "user-alice");

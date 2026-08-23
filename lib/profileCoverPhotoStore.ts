@@ -47,11 +47,12 @@ import {
   onMissingDurableWrite,
   selectStore,
 } from "@/lib/storeBackend";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const TABLE = "profile_cover_photos";
 const MIGRATION_HINT = "apply migration 0100";
 const REVIEW_LIMIT = 200;
+const REPORT_ACTOR_APPEND_RPC = "append_profile_cover_photo_report_actor";
 
 export class ProfileCoverUploadBlockedError extends Error {
   constructor() {
@@ -116,11 +117,54 @@ export type ProfileCoverPhotoStore = {
     state: ProfileCoverModerationState,
     note?: string,
   ): Promise<number>;
-  /** Moderator queue: flagged and undecided. Fail-soft. */
+  /** Moderator queue: flagged and undecided. Throws when durable read fails. */
   listForReview(): Promise<ProfileCoverPhoto[]>;
-  /** Moderator hidden lane, so a hide stays reversible. Fail-soft. */
+  /** Moderator hidden lane, so a hide stays reversible. Throws when durable read fails. */
   listHidden(): Promise<ProfileCoverPhoto[]>;
 };
+
+/** Rotation-row shape for the moderator console. Storage keys and reporter
+ * actors stay inside this store. `rotationOnly` lets the console distinguish a
+ * per-photo row from the profile mirror queue. */
+export type ModeratorProfileCover = {
+  id: string;
+  profileId: string;
+  handle: string;
+  position: number;
+  generation: string;
+  moderationState: ProfileCoverModerationState;
+  reportCount: number;
+  reportedAt?: string;
+  reportReason?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
+  previewUrl?: string;
+  rotationOnly: boolean;
+};
+
+export function toModeratorProfileCover(
+  photo: ProfileCoverPhoto,
+  handle: string,
+  rotationOnly: boolean,
+): ModeratorProfileCover {
+  return {
+    id: photo.id,
+    profileId: photo.profileId,
+    handle,
+    position: photo.position,
+    generation: photo.generation,
+    moderationState: photo.moderationState,
+    reportCount: photo.reportCount ?? 0,
+    ...(photo.reportedAt ? { reportedAt: photo.reportedAt } : {}),
+    ...(photo.reportReason ? { reportReason: photo.reportReason } : {}),
+    ...(photo.moderatedAt ? { moderatedAt: photo.moderatedAt } : {}),
+    ...(photo.moderatorNote ? { moderatorNote: photo.moderatorNote } : {}),
+    ...(photo.moderationState === "approved"
+      ? { previewUrl: profileImageServePath("cover", photo.profileId, photo.generation) }
+      : {}),
+    rotationOnly,
+  };
+}
 
 // ── Cover #1 mirror ──────────────────────────────────────────────────────────
 
@@ -644,32 +688,13 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
           fallback: () => memoryProfileCoverPhotoStore.report(id, reason, actorHash),
         }),
       run: async () => {
-        const { data, error } = await admin()
-          .from(TABLE)
-          .select("id, moderation_state, report_actors")
-          .eq("id", id)
-          .maybeSingle();
+        const { data, error } = await admin().rpc(REPORT_ACTOR_APPEND_RPC, {
+          p_id: id,
+          p_actor: actorHash,
+          p_reason: reason ?? null,
+        });
         if (error) throw new Error(error.message);
-        if (!data) return false;
-        const row = data as Record<string, unknown>;
-        if (row.moderation_state !== "approved") return false;
-        const actors = Array.isArray(row.report_actors)
-          ? (row.report_actors as unknown[]).filter((a): a is string => typeof a === "string")
-          : [];
-        if (actors.includes(actorHash)) return true;
-        const nextActors = [...actors, actorHash];
-        const { error: updateError } = await admin()
-          .from(TABLE)
-          .update({
-            report_actors: nextActors,
-            report_count: nextActors.length,
-            reported_at: new Date().toISOString(),
-            ...(reason ? { report_reason: reason } : {}),
-            moderated_at: null,
-          })
-          .eq("id", id);
-        if (updateError) throw new Error(updateError.message);
-        return true;
+        return data === true;
       },
     });
   },
@@ -729,8 +754,6 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     return guard<ProfileCoverPhoto[]>({
       context: "listForReview",
       onSchemaMiss: () => memoryProfileCoverPhotoStore.listForReview(),
-      message: "listForReview failed - returning empty queue",
-      onError: () => [],
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
@@ -749,8 +772,6 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
     return guard<ProfileCoverPhoto[]>({
       context: "listHidden",
       onSchemaMiss: () => memoryProfileCoverPhotoStore.listHidden(),
-      message: "listHidden failed - returning empty lane",
-      onError: () => [],
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
@@ -768,6 +789,22 @@ export const supabaseProfileCoverPhotoStore: ProfileCoverPhotoStore = {
 /** The single backend selection point (mirrors every other store). */
 export function profileCoverPhotoStore(): ProfileCoverPhotoStore {
   return selectStore(memoryProfileCoverPhotoStore, supabaseProfileCoverPhotoStore);
+}
+
+/** Durable profile-mirror and rotation moderation in one PostgreSQL transaction. */
+export async function moderateDurableProfileCoverAcrossStores(
+  handle: string,
+  state: ProfileCoverModerationState,
+  note?: string,
+): Promise<boolean | null> {
+  if (!isSupabaseConfigured()) return null;
+  const { data, error } = await admin().rpc("moderate_profile_cover_across_stores", {
+    p_handle: handle,
+    p_state: state,
+    p_note: note ?? null,
+  });
+  if (error) throw new Error(error.message);
+  return data === true;
 }
 
 export const isProfileCoverPhotoSchemaMiss = isSchemaMiss;

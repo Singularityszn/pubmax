@@ -23,6 +23,7 @@ import {
   dropMatchesCityScope,
   hasPricedDropToday as hasPricedDropTodayMemory,
   keepHiddenPintDrop,
+  listReportedPintDrops,
   listAllVisiblePintDrops,
   listByStatus,
   listLegacyPintDropsForVenue,
@@ -35,6 +36,7 @@ import {
   verifiedPintDropReportCount,
   type PintDrop,
   type PintDropReportIdentity,
+  type PintDropReviewStatus,
   type PintDropStatus,
   type ViewerContext,
   type VibeTag,
@@ -51,7 +53,6 @@ import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 
 const TABLE = "visit_reports";
-const REPORT_TABLE = "pint_drop_reports";
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -135,7 +136,7 @@ export type PintDropStore = {
    */
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
-  listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
+  listForReview(status: PintDropReviewStatus): Promise<ModeratorDrop[]>;
   /**
    * Public report: every server-derived identity records metadata. Only distinct
    * verified accounts advance the atomic auto-hide threshold; anonymous IP
@@ -200,25 +201,13 @@ async function recordAnonymousReport(
   reason: string | undefined,
   actorHash: string,
 ): Promise<boolean> {
-  const { error: reportError } = await admin().from(REPORT_TABLE).insert({
-    pint_drop_id: id,
-    actor_hash: actorHash,
-    reason: reason ?? null,
+  const { data, error } = await admin().rpc("report_pint_drop_anonymous", {
+    p_id: id,
+    p_actor_hash: actorHash,
+    p_reason: reason ?? null,
   });
-  if (reportError?.code === "23505") return true;
-  if (reportError?.code === "23503") return false;
-  if (reportError) throw new Error(reportError.message);
-
-  const { data, error } = await admin()
-    .from(TABLE)
-    .update({
-      reported_at: new Date().toISOString(),
-      ...(reason ? { report_reason: reason } : {}),
-    })
-    .eq("id", id)
-    .select("id");
   if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
+  return data === true;
 }
 
 // visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a
@@ -503,7 +492,10 @@ export const memoryPintDropStore: PintDropStore = {
     );
   },
   async listForReview(status) {
-    return listByStatus(status).map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+    const rows = status === "reported" ? listReportedPintDrops() : listByStatus(status);
+    return rows
+      .slice(0, MAX_PUBLIC_DROPS)
+      .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
   },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
@@ -557,27 +549,6 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
   return (code === "42703" || code === "PGRST204") && mentions;
 }
 
-
-/** After a hide/takedown, delete Storage objects so a previously shared URL stops resolving. */
-async function purgeHiddenDropPhotos(id: string): Promise<void> {
-  try {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("status,pint_photo_key,venue_photo_key")
-      .eq("id", id)
-      .maybeSingle();
-    if (error || !data || data.status !== "hidden") return;
-    const keys = [data.pint_photo_key, data.venue_photo_key].filter(
-      (k): k is string => typeof k === "string" && k.length > 0,
-    );
-    await deletePhotos(keys);
-  } catch (err) {
-    log("warn", "pint_drops.photo_purge_skipped", {
-      dropId: id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
@@ -713,12 +684,23 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async listForReview(status) {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("*")
-      .eq("status", status)
-      .is("moderated_at", null)
-      .order("created_at", { ascending: false });
+    const query = status === "reported"
+      ? admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", "visible")
+          .not("reported_at", "is", null)
+          .is("moderated_at", null)
+          .order("reported_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+          .limit(MAX_PUBLIC_DROPS)
+      : admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", status)
+          .order("created_at", { ascending: false })
+          .limit(MAX_PUBLIC_DROPS);
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },
@@ -741,24 +723,10 @@ export const supabasePintDropStore: PintDropStore = {
     });
     if (v2Error) throw new Error(v2Error.message);
     const reported = v2Data !== null && v2Data !== undefined;
-    if (reported) await purgeHiddenDropPhotos(id);
     return reported;
   },
 
   async moderate(id, status, note) {
-    let keysToPurge: string[] = [];
-    if (status !== "visible") {
-      const { data: row } = await admin()
-        .from(TABLE)
-        .select("pint_photo_key,venue_photo_key")
-        .eq("id", id)
-        .maybeSingle();
-      if (row) {
-        keysToPurge = [row.pint_photo_key, row.venue_photo_key].filter(
-          (k): k is string => typeof k === "string" && k.length > 0,
-        );
-      }
-    }
     const { data, error } = await admin()
       .from(TABLE)
       .update({
@@ -770,7 +738,6 @@ export const supabasePintDropStore: PintDropStore = {
       .select("id");
     if (error) throw new Error(error.message);
     const ok = (data ?? []).length > 0;
-    if (ok && keysToPurge.length) await deletePhotos(keysToPurge);
     return ok;
   },
 

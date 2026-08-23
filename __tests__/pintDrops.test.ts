@@ -384,6 +384,86 @@ describe("POST /api/pint-drops (create)", () => {
     }
     expect(last!.status).toBe(429);
   });
+
+  it("exposes an anonymous report on a visible Pint Drop to moderator review", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    const reportResponse = await report(drop.id, "wrong price", "device-a");
+    expect(reportResponse.status).toBe(200);
+
+    const queueResponse = await modGet("reported");
+    expect(queueResponse.status).toBe(200);
+    const queue = (await queueResponse.json()) as { drops: Array<Record<string, unknown>> };
+    expect(queue.drops).toHaveLength(1);
+    expect(queue.drops[0]).toMatchObject({
+      id: drop.id,
+      reportReason: "wrong price",
+      handle: "reportedauthor",
+    });
+    expect(queue.drops[0]).toHaveProperty("reportedAt");
+    expect(queue.drops[0]).not.toHaveProperty("reportActors");
+  });
+
+  it("lets a moderator keep an anonymous-reported drop visible", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+    expect((await report(drop.id, "wrong price", "device-a")).status).toBe(200);
+
+    expect((await modAction("restore", drop.id)).status).toBe(200);
+    expect((await (await modGet("reported")).json()).drops).toHaveLength(0);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
+  });
+
+  it("reopens reported queue after a new report follows a moderator decision", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    expect((await report(drop.id, "first report", "device-a")).status).toBe(200);
+    expect((await modAction("restore", drop.id)).status).toBe(200);
+
+    expect((await report(drop.id, "new report", "device-b")).status).toBe(200);
+    const queue = (await (await modGet("reported")).json()).drops as Array<{ id: string }>;
+    expect(queue.map((row) => row.id)).toContain(drop.id);
+  });
+
+  it("requeues a moderator-hidden decision without republishing it", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", "first report", "device-a");
+    await signedReport(drop.id, "user-two", "second report", "device-b");
+    expect((await get(VENUE)).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+
+    expect((await modAction("keep_hidden", drop.id)).status).toBe(200);
+    expect((await report(drop.id, "new evidence", "device-a")).status).toBe(200);
+
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    const queue = (await (await modGet("hidden")).json()).drops as Array<{ id: string }>;
+    expect(queue.map((row) => row.id)).toContain(drop.id);
+  });
+
+  it("does not reopen an auto-hidden drop before moderator review", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", "first report", "device-a");
+    await signedReport(drop.id, "user-two", "second report", "device-b");
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+
+    // Auto-hide is not a moderator decision. An anonymous report must keep the
+    // drop hidden until a moderator explicitly restores or keeps it hidden.
+    expect((await report(drop.id, "new evidence", "device-c")).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    const hiddenQueue = (await (await modGet("hidden")).json()).drops as Array<{ id: string }>;
+    expect(hiddenQueue.map((row) => row.id)).toContain(drop.id);
+  });
 });
 
 describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", () => {
@@ -671,8 +751,10 @@ describe("moderation loop", () => {
 
     // Still hidden from the public list.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
-    // But reviewed, so it is no longer in the moderation queue.
-    expect((await (await modGet("hidden")).json()).drops).toHaveLength(0);
+    // Hidden decisions remain in the reversible moderator lane.
+    expect((await (await modGet("hidden")).json()).drops).toHaveLength(1);
+    expect((await modAction("restore", id)).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
   });
 
   it("403s moderator endpoints when ADMIN_TOKEN is unset outside dev/test (M3)", async () => {

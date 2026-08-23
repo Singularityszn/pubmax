@@ -10,6 +10,14 @@ const MIGRATION_PATH = join(
   process.cwd(),
   "supabase/migrations/20260821120000_0112_pint_drop_verified_reports.sql",
 );
+const REOPEN_MIGRATION_PATH = join(
+  process.cwd(),
+  "supabase/migrations/20260823130000_0116_reopen_pint_drop_review.sql",
+);
+const REOPEN_ROLLBACK_PATH = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20260823130000_0116_reopen_pint_drop_review_rollback.sql",
+);
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
   const candidates = [
@@ -47,7 +55,9 @@ async function freePort(): Promise<number> {
 
 type Session = {
   sql: (statement: string) => string;
+  sqlAsync: (statement: string) => Promise<string>;
   expectRefusal: (statement: string) => string;
+  apply: (path: string) => void;
   stop: () => Promise<void>;
 };
 
@@ -57,7 +67,7 @@ async function startSession(): Promise<Session> {
   const psql = binary("psql");
   if (!initdb || !postgres || !psql) throw new Error("PostgreSQL 16 is required.");
 
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-pint-drop-0112-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "pubmax-pint-drop-0112-0116-"));
   const port = await freePort();
   execFileSync(
     initdb,
@@ -99,6 +109,23 @@ async function startSession(): Promise<Session> {
       encoding: "utf8",
     }).trim();
 
+  const sqlAsync = (statement: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const child = spawn(
+        psql,
+        [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      child.once("exit", (code) => {
+        if (code === 0) resolve(stdout.trim());
+        else reject(new Error(stderr));
+      });
+    });
+
   const expectRefusal = (statement: string): string => {
     try {
       execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
@@ -131,8 +158,11 @@ async function startSession(): Promise<Session> {
       create table public.visit_reports (
         id uuid primary key,
         report_count integer not null default 0,
+        verified_report_count integer not null default 0,
         reported_at timestamptz,
         report_reason text,
+        moderated_at timestamptz,
+        moderator_note text,
         status text not null default 'visible'
       );
       create table public.pint_drop_reports (
@@ -142,8 +172,32 @@ async function startSession(): Promise<Session> {
         reason text,
         unique (pint_drop_id, actor_hash)
       );
+      create table public.profiles (
+        id uuid primary key,
+        handle text unique not null,
+        cover_object_key text,
+        cover_generation uuid,
+        cover_moderation_state text,
+        cover_moderated_at timestamptz,
+        cover_moderator_note text,
+        updated_at timestamptz not null default now()
+      );
+      create table public.profile_cover_photos (
+        id uuid primary key,
+        profile_id uuid not null references public.profiles(id),
+        moderation_state text not null default 'approved',
+        report_actors text[] not null default '{}',
+        report_count integer not null default 0,
+        reported_at timestamptz,
+        report_reason text,
+        moderated_at timestamptz,
+        moderator_note text
+      );
     `);
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
+      stdio: "pipe",
+    });
+    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", REOPEN_MIGRATION_PATH], {
       stdio: "pipe",
     });
   } catch (error) {
@@ -153,7 +207,13 @@ async function startSession(): Promise<Session> {
 
   return {
     sql,
+    sqlAsync,
     expectRefusal,
+    apply: (path: string) => {
+      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", path], {
+        stdio: "pipe",
+      });
+    },
     stop: teardown,
   };
 }
@@ -172,7 +232,9 @@ let skipReason: string | null = null;
 beforeAll(async () => {
   skipReason = missingPostgresReason();
   if (skipReason) {
-    console.error(`PINT DROP 0112 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`);
+    console.error(
+      `PINT DROP 0112 + 0116 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`,
+    );
     return;
   }
   session = await startSession();
@@ -186,7 +248,7 @@ afterAll(async () => {
   await session?.stop();
 });
 
-describe("0112 verified Pint Drop report ledger", () => {
+describe("0112 verified ledger and 0116 report reopening", () => {
   it("does not let a legacy anonymous count hide a visible Pint Drop", () => {
     const id = "00000000-0000-4000-8000-000000000112";
       session!.sql(`
@@ -243,5 +305,135 @@ describe("0112 verified Pint Drop report ledger", () => {
         "set role service_role; select has_table_privilege('service_role', 'public.pint_drop_verified_reports', 'select')",
       ),
     ).toMatch(/t$/);
+    expect(
+      session!.sql(
+        "select has_function_privilege('service_role', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        "select has_function_privilege('anon', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('authenticated', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('service_role', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        "select has_function_privilege('anon', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('authenticated', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(session!.sql("select has_function_privilege('service_role', 'public.append_profile_cover_photo_report_actor(uuid, text, text)', 'execute')")).toBe("t");
+    expect(session!.sql("select has_function_privilege('anon', 'public.append_profile_cover_photo_report_actor(uuid, text, text)', 'execute')")).toBe("f");
+    expect(session!.sql("select has_function_privilege('authenticated', 'public.moderate_profile_cover_across_stores(text, text, text)', 'execute')")).toBe("f");
+  });
+
+  it("keeps simultaneous cover reports and moderates mirror plus rotation atomically", async () => {
+    const profileId = "10000000-0000-4000-8000-000000000001";
+    const coverId = "20000000-0000-4000-8000-000000000001";
+    session!.sql(`
+      insert into public.profiles (id, handle, cover_object_key, cover_generation, cover_moderation_state)
+      values ('${profileId}', 'cover-owner', 'cover/key', '30000000-0000-4000-8000-000000000001', 'approved');
+      insert into public.profile_cover_photos (id, profile_id) values ('${coverId}', '${profileId}');
+    `);
+    await Promise.all([
+      session!.sqlAsync(`select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-a', 'a')`),
+      session!.sqlAsync(`select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-b', 'b')`),
+    ]);
+    expect(session!.sql(`select report_count || ':' || cardinality(report_actors) from public.profile_cover_photos where id = '${coverId}'`)).toBe("2:2");
+    expect(session!.sql("select public.moderate_profile_cover_across_stores('cover-owner', 'hidden', 'reviewed')")).toBe("t");
+    expect(session!.sql(`select cover_moderation_state || ':' || (select moderation_state from public.profile_cover_photos where id = '${coverId}') from public.profiles where id = '${profileId}'`)).toBe("hidden:hidden");
+  });
+
+  it("requeues but keeps a moderator-hidden drop hidden for a new verified actor", () => {
+    const id = "00000000-0000-4000-8000-000000000114";
+    session!.sql(`
+      insert into public.visit_reports (id, moderated_at, status, moderator_note)
+      values ('${id}', '2026-08-23 08:00:00+00', 'hidden', 'old decision');
+    `);
+
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-new', '', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at is null)::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1:hidden:");
+
+    session!.sql(`update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00' where id = '${id}'`);
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-new', 'duplicate', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at = timestamptz '2026-08-23 08:30:00+00')::text || ':' || verified_report_count from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1");
+  });
+
+  it("keeps threshold auto-hides closed until a moderator decision", () => {
+    const id = "00000000-0000-4000-8000-000000000115";
+    session!.sql(`insert into public.visit_reports (id) values ('${id}')`);
+
+    session!.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`);
+    expect(session!.sql(`select public.report_pint_drop_v2('${id}', 'account-b', '', 2)`)).toBe("2");
+
+    // Anonymous review evidence must not publish an auto-hidden row.
+    expect(
+      session!.sql(`select public.report_pint_drop_anonymous('${id}', 'anon-before-review', 'new evidence')`),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        `select status || ':' || (moderated_at is null)::text from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("hidden:true");
+
+    // New evidence requeues a moderator-hidden row without publishing it.
+    session!.sql(
+      `update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00', moderator_note = 'reviewed' where id = '${id}'`,
+    );
+    const verifiedCountBefore = session!.sql(
+      `select verified_report_count from public.visit_reports where id = '${id}'`,
+    );
+    expect(
+      session!.sql(`select public.report_pint_drop_anonymous('${id}', 'anon-after-review', 'fresh evidence')`),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        `select status || ':' || (moderated_at is null)::text || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("hidden:true:");
+    expect(session!.sql(`select verified_report_count from public.visit_reports where id = '${id}'`)).toBe(verifiedCountBefore);
+  });
+
+  it("rollback restores the pre-reopen function behavior", () => {
+    session!.apply(REOPEN_ROLLBACK_PATH);
+    const id = "00000000-0000-4000-8000-000000000116";
+    session!.sql(`
+      insert into public.visit_reports (id, moderated_at, status, moderator_note)
+      values ('${id}', '2026-08-23 08:00:00+00', 'hidden', 'old decision');
+    `);
+
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-rollback', '', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at = timestamptz '2026-08-23 08:00:00+00')::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1:hidden:old decision");
   });
 });

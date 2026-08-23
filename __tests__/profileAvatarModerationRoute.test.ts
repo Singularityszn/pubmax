@@ -19,6 +19,17 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 
+const { adminRateLimit } = vi.hoisted(() => ({
+  adminRateLimit: { limited: false },
+}));
+vi.mock("@/lib/pintDrops", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
+  return {
+    ...actual,
+    isLimited: async () => adminRateLimit.limited,
+  };
+});
+
 const { devGate } = vi.hoisted(() => ({ devGate: { open: true } }));
 vi.mock("@/lib/adminAuth", () => ({
   isModerator: (request: Request): boolean => {
@@ -41,6 +52,12 @@ import {
   publicOwnedImageUrl,
   reportProfileImage,
 } from "@/lib/profileStore";
+import {
+  __resetProfileCoverPhotos,
+  memoryProfileCoverPhotoStore,
+  profileCoverPhotoStore,
+} from "@/lib/profileCoverPhotoStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -74,15 +91,34 @@ async function seedApprovedAvatar(handle: string, generation = "11111111-1111-41
   return updated!;
 }
 
+async function seedApprovedCover(handle: string, generation = "22222222-2222-4222-8222-222222222222") {
+  const store = profileStore();
+  await store.createOwned(handle, `user-${handle}`);
+  const profile = await store.getByHandle(handle);
+  expect(profile?.id).toBeTruthy();
+  const objectKey = `covers/${profile!.id}/${generation}/image.jpg`;
+  const updated = await store.setOwnedImage(handle, "cover", {
+    objectKey,
+    generation,
+    moderationState: "approved",
+  });
+  expect(updated?.coverModerationState).toBe("approved");
+  expect(publicOwnedImageUrl(updated!, "cover")).toBe(`/api/cover/${profile!.id}/${generation}`);
+  return updated!;
+}
+
 describe("profile avatar moderation (memory backend)", () => {
   beforeEach(() => {
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ADMIN_TOKEN;
     devGate.open = true;
+    adminRateLimit.limited = false;
+    __resetProfileCoverPhotos();
   });
 
   afterEach(() => {
+    __resetProfileCoverPhotos();
     __resetMemoryProfiles();
     if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
@@ -91,6 +127,145 @@ describe("profile avatar moderation (memory backend)", () => {
     } else {
       process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
     }
+  });
+
+  it("exposes and moderates rotation-only cover reports in the admin queue", async () => {
+    await profileStore().createOwned("rotation", "user-rotation");
+    const profile = await profileStore().getByHandle("rotation");
+    expect(profile).toBeTruthy();
+    const coverId = "77777777-7777-4777-8777-777777777771";
+    const generation = "55555555-5555-4555-8555-555555555555";
+    await memoryProfileCoverPhotoStore.create({
+      id: coverId,
+      profileId: profile!.id,
+      generation,
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+    });
+    await memoryProfileCoverPhotoStore.report(coverId, "wrong backdrop", "actor-rotation");
+
+    const reported = await adminGET(new Request(`${ADMIN_URL}?status=reported&slot=cover`));
+    expect(reported.status).toBe(200);
+    const reportedBody = (await reported.json()) as {
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(reportedBody.rotationCovers).toHaveLength(1);
+    expect(reportedBody.rotationCovers[0]).toMatchObject({
+      id: coverId,
+      handle: "rotation",
+      reportReason: "wrong backdrop",
+      rotationOnly: true,
+    });
+    expect(reportedBody.rotationCovers[0]).not.toHaveProperty("objectKey");
+    expect(reportedBody.rotationCovers[0]).not.toHaveProperty("reportActors");
+
+    const hidden = await adminPost({
+      action: "hide",
+      handle: "rotation",
+      slot: "cover",
+      coverId,
+    });
+    expect(hidden.status).toBe(200);
+    expect(await profileCoverPhotoStore().listApproved(profile!.id)).toEqual([]);
+    expect((await profileCoverPhotoStore().listHidden())[0]?.id).toBe(coverId);
+
+    const restored = await adminPost({
+      action: "restore",
+      handle: "rotation",
+      slot: "cover",
+      coverId,
+    });
+    expect(restored.status).toBe(200);
+    expect((await profileCoverPhotoStore().listApproved(profile!.id))[0]?.id).toBe(coverId);
+  });
+
+  it("keeps mirror covers in the profile queue and restores them without a cover id", async () => {
+    await profileStore().createOwned("mirror", "user-mirror");
+    const profile = await profileStore().getByHandle("mirror");
+    expect(profile).toBeTruthy();
+    const generation = "66666666-6666-4666-8666-666666666666";
+    const approved = await profileStore().setOwnedImage("mirror", "cover", {
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+      generation,
+      moderationState: "approved",
+    });
+    expect(approved?.coverModerationState).toBe("approved");
+    const rotationId = "88888888-8888-4888-8888-888888888888";
+    await memoryProfileCoverPhotoStore.create({
+      id: rotationId,
+      profileId: profile!.id,
+      generation,
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+    });
+    await memoryProfileCoverPhotoStore.report(rotationId, "same backdrop", "actor-mirror");
+
+    // A report on the rotation row must remain visible until the profile-level
+    // mirror receives its own report. Otherwise the row disappears before the
+    // mirror-sync path can make one canonical queue entry.
+    const rotationOnlyReported = await adminGET(
+      new Request(`${ADMIN_URL}?status=reported&slot=cover`),
+    );
+    const rotationOnlyBody = (await rotationOnlyReported.json()) as {
+      avatars: Array<Record<string, unknown>>;
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(rotationOnlyBody.avatars).toEqual([]);
+    expect(rotationOnlyBody.rotationCovers).toHaveLength(1);
+    expect(rotationOnlyBody.rotationCovers[0]).toMatchObject({
+      id: rotationId,
+      rotationOnly: false,
+    });
+
+    await reportProfileImage("mirror", "cover", "wrong backdrop", "actor-mirror");
+
+    const reported = await adminGET(new Request(`${ADMIN_URL}?status=reported&slot=cover`));
+    const reportedBody = (await reported.json()) as {
+      avatars: Array<Record<string, unknown>>;
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(reportedBody.avatars).toHaveLength(1);
+    expect(reportedBody.avatars[0]).toMatchObject({ handle: "mirror", reportCount: 1 });
+    expect(reportedBody.rotationCovers).toEqual([]);
+
+    expect(
+      (await adminPost({ action: "hide", handle: "mirror", slot: "cover" })).status,
+    ).toBe(200);
+    const hidden = await adminGET(new Request(`${ADMIN_URL}?status=hidden&slot=cover`));
+    const hiddenBody = (await hidden.json()) as {
+      avatars: Array<Record<string, unknown>>;
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(hiddenBody.avatars).toHaveLength(1);
+    expect(hiddenBody.avatars[0]).toMatchObject({ handle: "mirror", moderationState: "hidden" });
+    expect(hiddenBody.rotationCovers).toEqual([]);
+
+    expect(
+      (await adminPost({ action: "restore", handle: "mirror", slot: "cover" })).status,
+    ).toBe(200);
+    expect(
+      publicOwnedImageUrl((await profileStore().getByHandle("mirror"))!, "cover"),
+    ).toBe(`/api/cover/${profile!.id}/${generation}`);
+  });
+
+  it("fails closed when cover mirror synchronisation fails", async () => {
+    const profile = await seedApprovedAvatar("sync-failure");
+    const cover = await profileStore().setOwnedImage("sync-failure", "cover", {
+      objectKey: profileImageServingKey("cover", profile.id, "22222222-2222-4222-8222-222222222222"),
+      generation: "22222222-2222-4222-8222-222222222222",
+      moderationState: "approved",
+    });
+    expect(cover?.coverModerationState).toBe("approved");
+    const sync = vi
+      .spyOn(memoryProfileCoverPhotoStore, "moderateAllForProfile")
+      .mockRejectedValueOnce(new Error("rotation store unavailable"));
+
+    const response = await adminPost({ action: "hide", handle: "sync-failure", slot: "cover" });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
+    expect((await profileStore().getByHandle("sync-failure"))?.coverModerationState).toBe(
+      "hidden",
+    );
+    sync.mockRestore();
   });
 
   afterAll(() => {
@@ -230,6 +405,23 @@ describe("profile avatar moderation (memory backend)", () => {
       expect(publicOwnedImageUrl((await profileStore().getByHandle("helen"))!, "avatar")).toBeUndefined();
 
       expect((await adminPost({ action: "hide", handle: "nope" })).status).toBe(404);
+    });
+
+    it("rate limits cover moderation writes before parsing or mutating", async () => {
+      await seedApprovedCover("rate-limited-cover");
+      adminRateLimit.limited = true;
+
+      const response = await adminPost({
+        action: "hide",
+        handle: "rate-limited-cover",
+        slot: "cover",
+      });
+
+      expect(response.status).toBe(429);
+      expect(await response.json()).toMatchObject({ code: "RATE_LIMITED" });
+      expect(
+        (await profileStore().getByHandle("rate-limited-cover"))?.coverModerationState,
+      ).toBe("approved");
     });
 
     it("restores a hidden avatar", async () => {
