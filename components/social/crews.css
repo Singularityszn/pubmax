@@ -121,6 +121,53 @@
   font: inherit;
 }
 
+.crews__visibility {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+
+.crews__visibility legend {
+  padding: 0;
+  font-size: var(--text-sm);
+  font-weight: 650;
+}
+
+.crews__visibilityOptions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.crews__visibilityOption {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md, 10px);
+  background: var(--panel);
+  color: var(--ink);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.crews__visibilityOption input {
+  flex: 0 0 auto;
+  width: 1rem;
+  min-height: 1rem;
+  margin: 0.15rem 0 0;
+  accent-color: var(--color-accent, var(--brass));
+}
+
+.crews__visibilityOption span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
 .crews__count {
   justify-self: end;
   font-size: var(--text-xs);

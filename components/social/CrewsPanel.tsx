@@ -20,7 +20,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import type { SocialCrewListItemDTO } from "@/lib/socialCrew";
+import {
+  SOCIAL_CREW_VISIBILITIES,
+  type SocialCrewListItemDTO,
+  type SocialCrewVisibility,
+} from "@/lib/socialCrew";
 import { discardBody } from "@/lib/responseBody";
 import {
   CREW_EMPTY_COPY,
@@ -28,6 +32,7 @@ import {
   CREW_NAME_MAX,
   CREW_PHASE_LABEL,
   CREW_ROLE_LABEL,
+  CREW_VISIBILITY_LABEL,
   CREW_WHAT_IT_IS,
   CREW_DEFAULT_VISIBILITY,
   cleanCrewName,
@@ -89,6 +94,9 @@ export default function CrewsPanel({
   const [start, setStart] = useState<StartState>("idle");
   const [name, setName] = useState("");
   const [when, setWhen] = useState(defaultStartTime());
+  const [visibility, setVisibility] = useState<SocialCrewVisibility>(
+    CREW_DEFAULT_VISIBILITY,
+  );
   const [venueQuery, setVenueQuery] = useState("");
   const [venues, setVenues] = useState<VenueMatch[]>([]);
   const [venue, setVenue] = useState<VenueMatch | null>(null);
@@ -222,7 +230,7 @@ export default function CrewsPanel({
           "idempotency-key": crewIdempotencyKey("crew-create"),
           authorization: `Bearer ${memberToken}`,
         },
-        body: JSON.stringify({ planId, visibility: CREW_DEFAULT_VISIBILITY }),
+        body: JSON.stringify({ planId, visibility }),
       });
       const crewBody = (await crewResponse.json().catch(() => null)) as
         | Record<string, unknown>
@@ -234,6 +242,7 @@ export default function CrewsPanel({
 
       setStart("idle");
       setName("");
+      setVisibility(CREW_DEFAULT_VISIBILITY);
       setVenue(null);
       setVenueQuery("");
       setAttempt((value) => value + 1);
@@ -241,7 +250,7 @@ export default function CrewsPanel({
       setStart("naming");
       setProblem(error instanceof Error ? error.message : "Could not start the crew.");
     }
-  }, [name, start, venue, viewerHandle, when]);
+  }, [name, start, venue, viewerHandle, visibility, when]);
 
   const cleanName = cleanCrewName(name);
 
@@ -399,6 +408,24 @@ export default function CrewsPanel({
               ))}
             </ul>
           ) : null}
+
+          <fieldset className="crews__visibility">
+            <legend>Who can join?</legend>
+            <div className="crews__visibilityOptions">
+              {SOCIAL_CREW_VISIBILITIES.map((option) => (
+                <label className="crews__visibilityOption" key={option}>
+                  <input
+                    type="radio"
+                    name="visibility"
+                    value={option}
+                    checked={visibility === option}
+                    onChange={() => setVisibility(option)}
+                  />
+                  <span>{CREW_VISIBILITY_LABEL[option]}</span>
+                </label>
+              ))}
+            </div>
+          </fieldset>
 
           {problem ? (
             <p className="crews__problem" role="alert">
