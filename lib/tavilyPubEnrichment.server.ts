@@ -214,7 +214,9 @@ async function runCityBatch(
     return { ...result, startIndex, primaryCity: city };
   } catch (error) {
     if (wallMs) {
-      await enrichment.catch(() => {});
+      // A provider may ignore AbortSignal. Do not drain its promise here,
+      // because that would turn our wall-clock bound into an unbounded wait.
+      void enrichment.catch(() => {});
     }
     if (lastPartial) {
       (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = lastPartial;

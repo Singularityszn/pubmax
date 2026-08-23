@@ -17,6 +17,7 @@ import {
   BRISTOL_CRON_WALL_MS,
   runScheduledCityEnrichment,
   SEARCH_CRON_QUERY_CAP,
+  SEARCH_CRON_WALL_MS,
 } from "@/lib/tavilyPubEnrichment.server";
 
 function enrichmentOk(city: string, maxQueries: number) {
@@ -156,6 +157,25 @@ describe("runScheduledCityEnrichment", () => {
       ]),
     );
   });
+
+  it("returns after the Edinburgh wall-clock bound when a provider ignores abort", async () => {
+    vi.setSystemTime(new Date("2026-07-26T03:15:00.000Z"));
+    runCityEnrichment.mockImplementation(() => new Promise(() => {}));
+
+    const resultPromise = runScheduledCityEnrichment({ apiKey: "test-key" });
+    const settled = resultPromise.then(
+      () => true,
+      () => true,
+    );
+    const timeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), 1_000);
+    });
+
+    await vi.advanceTimersByTimeAsync(SEARCH_CRON_WALL_MS + 1_000);
+
+    await expect(Promise.race([settled, timeout])).resolves.toBe(true);
+  });
+
   it("reports failed-city spend when every Bristol-night run fails", async () => {
     vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
     runCityEnrichment.mockImplementation(async ({ city, onProgress }) => {
