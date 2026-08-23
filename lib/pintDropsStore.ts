@@ -464,12 +464,11 @@ function newestFirstCapped<T extends { createdAt: string }>(drops: T[]): T[] {
 
 /**
  * Keep memory and Supabase report DTOs on one authority boundary. A memory
- * drop may carry a legacy `reportCount`; replace it only when a new verified
- * count exists, matching `verified_report_count` on the durable row.
+ * drop may carry a legacy `reportCount`; the verified ledger is authoritative
+ * once its column exists, including its zero value for legacy-only rows.
  */
 function withVerifiedReportCount(drop: PersistableDrop): PersistableDrop {
-  const count = verifiedPintDropReportCount(drop.id);
-  return count === undefined ? drop : { ...drop, reportCount: count };
+  return { ...drop, reportCount: verifiedPintDropReportCount(drop.id) ?? 0 };
 }
 
 // ── In-memory implementation ─────────────────────────────────────────────────

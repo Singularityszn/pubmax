@@ -67,4 +67,37 @@ describe("verified Pint Drop report counter boundary", () => {
     expect(reportPintDrop(drop.id, "account flag", verified("shared"))).toBe(true);
     expect(listVisiblePintDrops(VENUE_ID)).toHaveLength(1);
   });
+
+  it("does not expose a legacy report count before a verified report exists", async () => {
+    const legacyVisibleDrop: PintDrop = {
+      id: "legacy-only-visible-drop",
+      venueId: VENUE_ID,
+      handle: "alice",
+      drink: "lager",
+      priceGbp: 4.5,
+      passedDownNote: "",
+      era: "",
+      provenance: "contributor",
+      status: "visible",
+      createdAt: "2026-08-23T10:00:00.000Z",
+      reportCount: 1,
+    };
+    const legacyPendingDrop: PintDrop = {
+      ...legacyVisibleDrop,
+      id: "legacy-only-pending-drop",
+      status: "pending",
+    };
+    addPintDrop(legacyVisibleDrop);
+    addPintDrop(legacyPendingDrop);
+
+    const publicRows = await memoryPintDropStore.listVisible(VENUE_ID);
+    expect(publicRows).toEqual([
+      expect.not.objectContaining({ reportCount: expect.any(Number) }),
+    ]);
+
+    const moderationRows = await memoryPintDropStore.listForReview("pending");
+    expect(moderationRows).toEqual([
+      expect.objectContaining({ id: legacyPendingDrop.id, reportCount: 0 }),
+    ]);
+  });
 });

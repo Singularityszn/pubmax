@@ -132,6 +132,7 @@ function drop(overrides: Partial<PersistableDrop> = {}): PersistableDrop {
 describe("toDTO", () => {
   it("uses the verified ledger count instead of the mixed legacy count", () => {
     expect(pintDropReportCountFromRow({ report_count: 9, verified_report_count: 1 })).toBe(1);
+    expect(pintDropReportCountFromRow({ report_count: 1, verified_report_count: 0 })).toBe(0);
     expect(pintDropReportCountFromRow({ report_count: 2 })).toBe(2);
   });
   it("maps storage keys to signed URLs and never leaks the keys", async () => {
