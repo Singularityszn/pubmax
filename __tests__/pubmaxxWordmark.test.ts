@@ -9,17 +9,17 @@ function render(props: Parameters<typeof PubmaxxWordmark>[0] = {}): string {
 }
 
 describe("PUBMAXX wordmark", () => {
-  it("renders the canonical visible brand as PUBMA plus two X glyphs", () => {
+  it("renders the canonical visible brand as readable PUBMAXX text", () => {
     const html = render();
     const letters = html.match(
-      /<span class="pubmaxxWordmarkLetters"[\s\S]*?<\/span><\/span>/,
+      /<span class="pubmaxxWordmarkLetters"[\s\S]*?<\/span><\/span><\/span>/,
     )?.[0] ?? "";
 
     expect(letters, "visible letter lockup is present").not.toBe("");
-    expect(letters).toContain(">PUBMA</span>");
+    expect(letters).toContain(">PUBMAX</span>");
+    expect(letters).toContain('class="pubmaxxWordmarkAccent">X</span>');
     expect(letters).not.toContain("ING");
-    expect((letters.match(/class="pubmaxxDoubleX(?:\s|\")/g) ?? []).length).toBe(2);
-    expect((letters.match(/<svg /g) ?? []).length).toBe(2);
+    expect(letters).not.toContain("<svg");
   });
 
   it("uses the canonical brand name for assistive technology", () => {

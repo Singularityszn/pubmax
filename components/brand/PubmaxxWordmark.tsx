@@ -1,23 +1,6 @@
 import "./pubmaxxWordmark.css";
 import { BRAND_NAME } from "@/lib/brandNaming";
-import PubmaxxMark, { MARK_GEOMETRY, type PubmaxxMarkVariant } from "./PubmaxxMark";
-
-// The doubled `××` ending of the visible PUBMAXX wordmark uses the SAME
-// double-struck construction as the mark (MARK_GEOMETRY), so both glyphs are
-// byte-identical to each other and to the master mark. Rendered mono via
-// `currentColor` (the second glyph is tinted coral by pubmaxxWordmark.css); no
-// ember - these are letterforms, not the lit brand moment.
-const g = MARK_GEOMETRY;
-
-function XGlyph(): React.JSX.Element {
-  return (
-    <svg viewBox={g.viewBox} aria-hidden="true" focusable="false">
-      <polygon points={g.thinA} />
-      <polygon points={g.thinB} />
-      <polygon points={g.thick} />
-    </svg>
-  );
-}
+import PubmaxxMark, { type PubmaxxMarkVariant } from "./PubmaxxMark";
 
 export interface PubmaxxWordmarkProps {
   className?: string;
@@ -48,13 +31,8 @@ export default function PubmaxxWordmark({
     >
       <span className="pubmaxxWordmarkSr">{BRAND_NAME}</span>
       <span className="pubmaxxWordmarkLetters" aria-hidden="true">
-        <span>PUBMA</span>
-        <span className="pubmaxxDoubleX">
-          <XGlyph />
-        </span>
-        <span className="pubmaxxDoubleX pubmaxxDoubleX--accent">
-          <XGlyph />
-        </span>
+        <span>PUBMAX</span>
+        <span className="pubmaxxWordmarkAccent">X</span>
       </span>
     </span>
   );
