@@ -44,6 +44,8 @@ export const SOCIAL_MODERATION_PENDING_ALERT_FLOOR = 10;
 export const SOCIAL_MODERATION_PENDING_AGE_ALERT_MS = 30 * 60 * 1000;
 /** Repeat an unchanged operator alert no more than once per shift. */
 export const SOCIAL_MODERATION_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+/** Alert delivery must not wait on operational state for the cron lifetime. */
+export const SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS = 500;
 
 const localAlertWindows = new Map<string, number>();
 
@@ -142,12 +144,21 @@ async function isAlertSuppressed(
 ): Promise<boolean> {
   const fingerprint = alertFingerprint(findings);
   const key = `social-moderation-alert:${fingerprint}`;
-  const durable = await checkRateLimitDurableDetailed(
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const durableVerdict = checkRateLimitDurableDetailed(
     key,
     1,
     SOCIAL_MODERATION_ALERT_COOLDOWN_MS,
-  );
-  if (durable.verdict != null) return durable.verdict;
+  ).then(({ verdict }) => verdict, () => null);
+  const deadline = new Promise<null>((resolve) => {
+    timeout = setTimeout(
+      () => resolve(null),
+      SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS,
+    );
+  });
+  const verdict = await Promise.race([durableVerdict, deadline]);
+  if (timeout) clearTimeout(timeout);
+  if (verdict != null) return verdict;
   return isLocallySuppressed(key, Date.now());
 }
 
