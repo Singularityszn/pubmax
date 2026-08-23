@@ -197,6 +197,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/referralStore.ts",
     "lib/roundPriceBudget.ts",
     "lib/roundsStore.ts",
+    "lib/savedPubsStore.ts",
     "lib/serverEnv.ts",
     "lib/socialConnectionStore.ts",
     "lib/socialInteractionStore.ts",

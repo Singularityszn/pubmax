@@ -94,6 +94,9 @@ describe("review scope guard", () => {
       "public/data/london_venues/manifest.json",
       "public/data/london_desks/desks.json",
       "public/data/pubmaxxing_seed_snapshot.json",
+      "public/data/heritage_listings.json",
+      "public/data/historic_pubs.json",
+      "data/persona_drinks.json",
     ];
     expect(summarizeReviewScope(generated).forbidden).toEqual(
       generated.sort().map((path) => ({ category: "generated", path })),
@@ -104,6 +107,7 @@ describe("review scope guard", () => {
       "public/data/london_venues/README.md",
       "public/data/london_desks/README.md",
       "public/data/drink_price_updates/latest.json",
+      "public/data/heritage_cache.json",
     ];
     expect(summarizeReviewScope(curated).forbidden).toEqual([]);
   });

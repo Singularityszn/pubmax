@@ -21,8 +21,9 @@ function documentedStoreNames(): string[] {
 
 function repositoryInlineBackendReferences(): string[] {
   return execFileSync(
-    "rg",
-    [
+      "rg",
+      [
+      "-a",
       "-l",
       "selectStore|isSupabaseConfigured",
       "app",

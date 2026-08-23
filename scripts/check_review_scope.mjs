@@ -29,6 +29,8 @@ const GENERATED_PATHS = [
   /^public\/data\/cities\/[^/]+\/venues_slim[^/]*\.json$/,
   /^public\/data\/(?:uk_base|london_venues|london_desks)\/(?!README\.md$).+/,
   /^public\/data\/pubmaxxing_seed_snapshot\.json$/,
+  /^public\/data\/(?:heritage_listings|historic_pubs)\.json$/,
+  /^data\/persona_drinks\.json$/,
   /^public\/vendor\/maplibre\//,
   /^(?:\.next|build|coverage|dist|out|playwright-report|test-results)(?:\/|$)/,
   /^(?:generated|__generated__)(?:\/|$)/,
