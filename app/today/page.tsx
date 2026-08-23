@@ -19,6 +19,7 @@ import {
   loadTodayWhatsOnAnswer,
   mergeTodayListingRows,
   todayPicksReadStatus,
+  whatsOnStatusForTonightListings,
 } from "@/lib/todayListings.server";
 import heritageCache from "@/public/data/heritage_cache.json";
 
@@ -94,7 +95,16 @@ export default async function TodayPage() {
   // Same merged spine as /tonight: bundled What's-On rows plus Out events.
   const whatsOnReadStatus = whatsOn?.readStatus ?? "degraded";
   const whatsOnRows = whatsOn?.rows ?? [];
-  const listingRows = mergeTodayListingRows(whatsOnRows, out, now.getTime());
+  const whatsOnStatus = whatsOnStatusForTonightListings(
+    whatsOnReadStatus,
+    whatsOnRows.length,
+  );
+  const listingRows = mergeTodayListingRows(
+    whatsOnRows,
+    out,
+    now.getTime(),
+    whatsOnStatus,
+  );
   const picksStatus = todayPicksReadStatus(
     whatsOnReadStatus,
     whatsOnRows.length,

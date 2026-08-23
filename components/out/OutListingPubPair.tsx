@@ -11,11 +11,7 @@ type OutListingPubPairProps = {
 export function OutListingPubPair({ row }: OutListingPubPairProps) {
   const pair = outListingPubPair(row);
   if (pair.status === "absent") {
-    return (
-      <div className="outListingPubPair outListingPubPair--absent">
-        <p>{pair.line}</p>
-      </div>
-    );
+    return null;
   }
   return (
     <div className="outListingPubPair outListingPubPair--matched">

@@ -24,6 +24,21 @@ export type TonightOutAnswer = {
 };
 
 /**
+ * Out is a fallback lane for Tonight, not a second pub inventory. Hold its
+ * rows until the What's-On spine has answered. An empty spine means there is
+ * no confirmed pub listing to pair with a Ticketmaster theatre row; a failed
+ * spine may still show Out rows while naming that failure beside them.
+ */
+export function tonightOutEventsForStatus(
+  whatsOn: TonightWhatsOnStatus,
+  outEvents: readonly WhatsOnRow[],
+  now: number = Date.now(),
+): WhatsOnRow[] {
+  if (whatsOn !== "ready" && whatsOn !== "error") return [];
+  return filterNotPast([...outEvents], now);
+}
+
+/**
  * Tonight shows LISTINGS and no open plans, so it asks the listings lane's own
  * health. The top-level status also carries the open-plans read, and a plans
  * RPC nobody can reach would otherwise put "Some listings could not be checked."
@@ -37,13 +52,17 @@ function outListingsStatus(out: TonightOutAnswer): {
   return outListingsHealth(out.body);
 }
 
-/** One list: What's-On plus Out events, newest observation wins a clash. */
+/** One list: What's-On plus eligible Out events, newest observation wins a clash. */
 export function mergeTonightListingRows(
   whatsOnRows: readonly WhatsOnRow[],
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
+  whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
 ): WhatsOnRow[] {
-  return dedupeRows([...whatsOnRows, ...filterNotPast([...outEvents], now)]);
+  return dedupeRows([
+    ...whatsOnRows,
+    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now),
+  ]);
 }
 
 /**
@@ -68,17 +87,18 @@ export function tonightListingLanes(
  * Error when a finished read failed or degraded and nothing is ready.
  * Empty only when both reads answered and there is nothing to show.
  *
- * The Out events are past-guarded here for the same reason the merge guards
- * them: /out is a whole-day list, so a finished gig still rides its body. A
- * status read off the unguarded body called the page ready over a list the
- * merge had emptied, which paints no cards and no empty sentence either.
+ * The Out events are held until What's-On answers, then past-guarded here for
+ * the same reason the merge guards them: /out is a whole-day list, so a
+ * finished gig still rides its body. A status read off the unguarded body
+ * called the page ready over a list the merge had emptied, which paints no
+ * cards and no empty sentence either.
  */
 export function tonightListingsStatus(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
   now: number = Date.now(),
 ): TonightListingsStatus {
-  const outEvents = filterNotPast(out.body?.events ?? [], now);
+  const outEvents = tonightOutEventsForStatus(whatsOn, out.body?.events ?? [], now);
   if (outEvents.length > 0 || whatsOn === "ready") return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
   if (

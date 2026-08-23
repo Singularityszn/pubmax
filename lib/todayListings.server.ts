@@ -80,6 +80,7 @@ export function mergeTodayListingRows(
   whatsOnRows: readonly import("@/lib/whatsOn").WhatsOnRow[],
   out: TonightOutAnswer,
   now: number,
+  whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
 ): import("@/lib/whatsOn").WhatsOnRow[] {
-  return mergeTonightListingRows(whatsOnRows, out.body?.events ?? [], now);
+  return mergeTonightListingRows(whatsOnRows, out.body?.events ?? [], now, whatsOnStatus);
 }

@@ -74,6 +74,7 @@ import {
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
+  tonightOutEventsForStatus,
   tonightListingLanes,
   tonightEmptyLead,
   tonightListingsNoteLine,
@@ -224,14 +225,16 @@ export default function TonightClient({
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and
   // a ready page over no rows shows neither cards nor the quiet-night sentence.
-  const { listingRows, listingsStatus } = useMemo(() => {
+  const { listingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
+    const eligibleOutEvents = tonightOutEventsForStatus(status, outBody?.events ?? [], now);
     return {
-      listingRows: mergeTonightListingRows(rows, outBody?.events ?? [], now),
+      listingRows: mergeTonightListingRows(rows, eligibleOutEvents, now, status),
       listingsStatus: tonightListingsStatus(status, outAnswer, now),
+      outEvents: eligibleOutEvents,
     };
   }, [rows, outBody, status, outAnswer]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
@@ -348,11 +351,11 @@ export default function TonightClient({
     () =>
       tonightProvenanceCredits({
         merged: listingRows,
-        outEvents: outBody?.events ?? [],
+        outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
       }),
-    [listingRows, outBody, checked],
+    [listingRows, outEvents, outBody, checked],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
@@ -363,13 +366,13 @@ export default function TonightClient({
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
     const fromOut = new Set(
-      tonightListingLanes(listingRows, outBody?.events ?? []).outRows,
+      tonightListingLanes(listingRows, outEvents).outRows,
     );
     return (row: WhatsOnRow): TonightRowEvidence => ({
       observedAt: row.observedAt,
       kind: fromOut.has(row) ? "out-listing" : "whats-on",
     });
-  }, [listingRows, outBody]);
+  }, [listingRows, outEvents]);
   // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.

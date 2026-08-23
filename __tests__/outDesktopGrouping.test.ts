@@ -118,15 +118,15 @@ describe("out desktop grouping", () => {
     expect(outListingUnmatchedCount([matched, absent, absent])).toBe(2);
   });
 
-  it("keeps unmatched row status visible and available to assistive technology", () => {
+  it("does not repeat an unmatched-pub line beside every row", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
         row: row({ id: "absent-render", kind: "event", title: "Arena show" }),
       }),
     );
 
-    expect(html).toContain('class="outListingPubPair outListingPubPair--absent"');
-    expect(html).toContain(OUT_LISTING_PUB_ABSENT_LINE);
+    expect(html).toBe("");
+    expect(html).not.toContain(OUT_LISTING_PUB_ABSENT_LINE);
   });
 
   it("keeps desktop listing columns balanced inside a centred surface", () => {

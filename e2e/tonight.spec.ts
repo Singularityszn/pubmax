@@ -296,19 +296,7 @@ function playhouseEvent(now = Date.now()) {
   };
 }
 
-// The same day the page prints, read the same way (lib/whatsOnBadges.ts).
-function checkedLabelFor(iso: string): string {
-  const day = new Intl.DateTimeFormat("en-GB", {
-    timeZone: "Europe/London",
-    day: "numeric",
-    month: "short",
-  })
-    .format(new Date(iso))
-    .replace(/,/g, "");
-  return `Checked ${day}`;
-}
-
-test("shows a ready Out event card even when What's-On is empty", async ({ page }) => {
+test("does not promote Out theatre rows when What's-On answered empty", async ({ page }) => {
   const event = playhouseEvent();
   await page.route("**/api/whats-on?**", (route) =>
     route.fulfill({
@@ -341,14 +329,9 @@ test("shows a ready Out event card even when What's-On is empty", async ({ page 
   await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
   await expect(
     page.getByRole("heading", { name: "A Night at the Playhouse" }),
-  ).toBeVisible();
-  await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "ready");
-  // The Out lane is credited on its own line, by its own source and its own
-  // observation. Dating it to the What's-On stamp would be a claim about when
-  // Ticketmaster was read that nobody made.
-  const outCredit = page.locator('[data-tonight-provenance="out"]');
-  await expect(outCredit).toHaveText(/1 listing via Ticketmaster/);
-  await expect(outCredit).toContainText(checkedLabelFor(event.observedAt));
+  ).toHaveCount(0);
+  await expect(page.getByTestId("tonight-screen")).toHaveAttribute("data-listings-status", "empty");
+  await expect(page.getByText(/having a quiet one tonight/i)).toBeVisible();
 });
 
 test("a degraded Out lane still names itself beside the cards it did return", async ({
@@ -360,7 +343,19 @@ test("a degraded Out lane still names itself beside the cards it did return", as
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        rows: [],
+        rows: [
+          {
+            id: "quiz-primary",
+            venueId: "venue-primary",
+            placeName: "The Test Arms",
+            kind: "quiz",
+            startsAt: event.startsAt,
+            title: "Quiz night",
+            source: { label: "Pub listing", url: "https://example.com/quiz" },
+            observedAt: event.observedAt,
+            confidence: "listed",
+          },
+        ],
         asOf: "2026-08-16T12:00:00.000Z",
         sourceObservedAt: "2026-08-16T12:00:00.000Z",
         sourceFreshnessKind: "dataset-generated",
