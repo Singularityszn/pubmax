@@ -504,10 +504,12 @@ export type PintDropReportIdentity =
 
 // Per-actor report ledger (memory mirror of pint_drop_verified_reports' unique
 // (pint_drop_id, actor_hash) - migration 0112): drop id to the set of
-// actor hashes that already reported it. A same-actor duplicate is an idempotent
-// no-op. A verified account cannot advance the counter twice, and anonymous
-// reports never advance it.
+// actor keys that already reported it. Include identity kind in the key so an
+// anonymous IP report can never consume the same actor key as a verified
+// account report. A same-actor duplicate is an idempotent no-op. Anonymous
+// reports never advance the verified counter.
 const reportedActorsByDrop = new Map<string, Set<string>>();
+const verifiedReportCountsByDrop = new Map<string, number>();
 
 export function reportPintDrop(
   id: string,
@@ -518,17 +520,28 @@ export function reportPintDrop(
   if (!hit) return false;
 
   const seen = reportedActorsByDrop.get(id) ?? new Set<string>();
-  if (seen.has(identity.actorHash)) return true;
-  seen.add(identity.actorHash);
+  const actorKey = `${identity.kind}:${identity.actorHash}`;
+  if (seen.has(actorKey)) return true;
+  seen.add(actorKey);
   reportedActorsByDrop.set(id, seen);
 
   hit.reportedAt = new Date().toISOString();
   if (reason) hit.reportReason = reason;
   if (identity.kind === "anonymous_ip") return true;
 
-  hit.reportCount = (hit.reportCount ?? 0) + 1;
-  if (hit.reportCount >= REPORT_HIDE_THRESHOLD) hit.status = "hidden";
+  const verifiedCount = (verifiedReportCountsByDrop.get(id) ?? 0) + 1;
+  verifiedReportCountsByDrop.set(id, verifiedCount);
+  if (verifiedCount >= REPORT_HIDE_THRESHOLD) hit.status = "hidden";
   return true;
+}
+
+/**
+ * Return the in-memory count that may advance automatic Pint Drop hiding.
+ * Legacy `reportCount` values stay on the drop as moderation history and are
+ * never used as this counter's starting value.
+ */
+export function verifiedPintDropReportCount(id: string): number | undefined {
+  return verifiedReportCountsByDrop.get(id);
 }
 
 /** Moderator read: every drop in a status, across venues, newest-first. */
@@ -564,4 +577,5 @@ export function __resetPintDrops(): void {
   drops.clear();
   rateWindow.clear();
   reportedActorsByDrop.clear();
+  verifiedReportCountsByDrop.clear();
 }
