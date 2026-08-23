@@ -142,6 +142,8 @@ export type LastTrain = {
   colour: string;
   clock: string;
   pastMidnight: boolean;
+  /** Original TfL timetable hour, retained to resolve a repeated DST hour. */
+  serviceHour?: number;
 };
 
 // One line's upcoming departures (live "next departures", not just the last
@@ -234,14 +236,17 @@ export function walkMinutesForKm(distanceKm: number): number {
 // When `nowDate` is supplied, the calculation resolves both values in
 // Europe/London so a 23:00→02:57 service crossing DST uses elapsed minutes,
 // not wall-clock rank minutes.
+// `serviceHour` keeps TfL's original hour>=24 value, so 25:xx identifies the
+// first repeated 01:xx occurrence on a fall-back night.
 export function minutesUntilDeparture(
   clockMinutes: number,
   pastMidnight: boolean,
   nowMinutes: number,
   nowDate?: Date,
+  serviceHour?: number,
 ): number {
   if (nowDate && !Number.isNaN(nowDate.getTime())) {
-    return minutesUntilLondonDeparture(clockMinutes, pastMidnight, nowDate);
+    return minutesUntilLondonDeparture(clockMinutes, pastMidnight, nowDate, serviceHour);
   }
 
   let mins = clockMinutes - nowMinutes;
@@ -304,6 +309,7 @@ function minutesUntilLondonDeparture(
   clockMinutes: number,
   pastMidnight: boolean,
   nowDate: Date,
+  serviceHour?: number,
 ): number {
   const nowParts = londonDateTimeParts(nowDate);
   const dayOffset = pastMidnight && nowParts.hour >= SERVICE_DAY_ROLLBACK_HOUR ? 1 : 0;
@@ -314,14 +320,67 @@ function minutesUntilLondonDeparture(
     Math.floor(clockMinutes / 60),
     clockMinutes % 60,
   );
+  const expectedTarget = new Date(departureWallAsUtc);
+  const expectedParts = {
+    year: expectedTarget.getUTCFullYear(),
+    month: expectedTarget.getUTCMonth() + 1,
+    day: expectedTarget.getUTCDate(),
+    hour: Math.floor(clockMinutes / 60),
+    minute: clockMinutes % 60,
+  };
 
   // The same wall-clock minutes can be separated by 23 or 25 real hours at a
   // DST boundary. Resolve the departure wall clock to an instant before
   // subtracting the actual now instant, rather than assuming every day is 24
   // hours long.
-  const departureOffset = londonOffsetMinutes(new Date(departureWallAsUtc));
-  const departureInstant = departureWallAsUtc - departureOffset * 60_000;
+  const candidates = londonWallClockCandidates(departureWallAsUtc, expectedParts);
+  const departureInstant = selectLondonDepartureCandidate(
+    departureWallAsUtc,
+    candidates,
+    serviceHour,
+  );
   return (departureInstant - nowDate.getTime()) / 60_000;
+}
+
+function londonWallClockCandidates(
+  wallAsUtc: number,
+  expected: LondonDateTimeParts,
+): number[] {
+  const offsets = new Set<number>();
+  for (const probeMinutes of [-120, -60, 0, 60, 120]) {
+    offsets.add(londonOffsetMinutes(new Date(wallAsUtc + probeMinutes * 60_000)));
+  }
+
+  return [...offsets]
+    .map((offset) => wallAsUtc - offset * 60_000)
+    .filter((instant) => {
+      const parts = londonDateTimeParts(new Date(instant));
+      return (
+        parts.year === expected.year &&
+        parts.month === expected.month &&
+        parts.day === expected.day &&
+        parts.hour === expected.hour &&
+        parts.minute === expected.minute
+      );
+    })
+    .sort((a, b) => a - b);
+}
+
+function selectLondonDepartureCandidate(
+  wallAsUtc: number,
+  candidates: number[],
+  serviceHour?: number,
+): number {
+  if (candidates.length === 0) {
+    // Spring-forward gaps have no real instant. Keep the existing offset-based
+    // fallback for malformed or exceptional timetable data.
+    const departureOffset = londonOffsetMinutes(new Date(wallAsUtc));
+    return wallAsUtc - departureOffset * 60_000;
+  }
+  // TfL's 25:xx service hour is the first 01:xx occurrence on a fall-back
+  // night. Without the original hour, retain the prior later-occurrence choice
+  // for callers that only have a display clock and past-midnight flag.
+  return serviceHour === 25 ? candidates[0] : candidates[candidates.length - 1];
 }
 
 export type LastPintDecisionInput = {
