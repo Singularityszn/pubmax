@@ -309,6 +309,19 @@ describe("POST /api/pint-drops (create)", () => {
     expect(res.status).toBe(400);
   });
 
+  it("answers the malformed-request envelope for a broken multipart body instead of throwing", async () => {
+    const res = await POST(
+      new Request(URL_BASE, {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=not-the-real-boundary" },
+        body: "this is not valid multipart content",
+      }),
+    );
+    expect(res.status).toBe(400);
+    const body = await res.json();
+    expect(body.code).toBe("MALFORMED_REQUEST");
+  });
+
   it("rejects a cocktail bar before persisting a Pint Drop", async () => {
     const res = await post({
       venueId: "bar-test",

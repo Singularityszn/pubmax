@@ -51,4 +51,28 @@ describe("parsePriceSubmitPostBody", () => {
     expect(parsed?.photos.pint).toBeInstanceOf(File);
     expect(parsed?.photos.venue).toBeNull();
   });
+
+  it("returns null for a malformed JSON body instead of throwing", async () => {
+    const parsed = await parsePriceSubmitPostBody(
+      new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{not valid json",
+      }),
+    );
+
+    expect(parsed).toBeNull();
+  });
+
+  it("returns null for a broken multipart body instead of throwing", async () => {
+    const parsed = await parsePriceSubmitPostBody(
+      new Request("http://localhost/api/price-submit", {
+        method: "POST",
+        headers: { "content-type": "multipart/form-data; boundary=not-the-real-boundary" },
+        body: "this is not valid multipart content",
+      }),
+    );
+
+    expect(parsed).toBeNull();
+  });
 });
