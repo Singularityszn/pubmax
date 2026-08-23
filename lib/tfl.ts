@@ -231,11 +231,19 @@ export function walkMinutesForKm(distanceKm: number): number {
 //
 // The old bug: keying the +1440 off the entry's `pastMidnight` flag meant a
 // 00:30 train, checked at 00:45, reported ~24h left instead of "gone 15m ago".
+// When `nowDate` is supplied, the calculation resolves both values in
+// Europe/London so a 23:00→02:57 service crossing DST uses elapsed minutes,
+// not wall-clock rank minutes.
 export function minutesUntilDeparture(
   clockMinutes: number,
   pastMidnight: boolean,
   nowMinutes: number,
+  nowDate?: Date,
 ): number {
+  if (nowDate && !Number.isNaN(nowDate.getTime())) {
+    return minutesUntilLondonDeparture(clockMinutes, pastMidnight, nowDate);
+  }
+
   let mins = clockMinutes - nowMinutes;
   // Only wrap a past-midnight departure forward a day when NOW is still in the
   // evening (before the early-hours window it lands in). Once now itself is in
@@ -244,6 +252,76 @@ export function minutesUntilDeparture(
     mins += 24 * 60;
   }
   return mins;
+}
+
+type LondonDateTimeParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+};
+
+function londonDateTimeParts(date: Date): LondonDateTimeParts {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/London",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const get = (type: string): number => {
+    const value = parts.find((part) => part.type === type)?.value;
+    return Number.parseInt(value ?? "0", 10);
+  };
+  return {
+    year: get("year"),
+    month: get("month"),
+    day: get("day"),
+    hour: get("hour") % 24,
+    minute: get("minute"),
+  };
+}
+
+// Read London's UTC offset at an instant without relying on the server's local
+// timezone. This lets a wall-clock timetable rank become a real elapsed
+// duration when the departure date crosses a clock change.
+function londonOffsetMinutes(date: Date): number {
+  const parts = londonDateTimeParts(date);
+  const wallAsUtc = Date.UTC(
+    parts.year,
+    parts.month - 1,
+    parts.day,
+    parts.hour,
+    parts.minute,
+  );
+  return Math.round((wallAsUtc - date.getTime()) / 60_000);
+}
+
+function minutesUntilLondonDeparture(
+  clockMinutes: number,
+  pastMidnight: boolean,
+  nowDate: Date,
+): number {
+  const nowParts = londonDateTimeParts(nowDate);
+  const dayOffset = pastMidnight && nowParts.hour >= SERVICE_DAY_ROLLBACK_HOUR ? 1 : 0;
+  const departureWallAsUtc = Date.UTC(
+    nowParts.year,
+    nowParts.month - 1,
+    nowParts.day + dayOffset,
+    Math.floor(clockMinutes / 60),
+    clockMinutes % 60,
+  );
+
+  // The same wall-clock minutes can be separated by 23 or 25 real hours at a
+  // DST boundary. Resolve the departure wall clock to an instant before
+  // subtracting the actual now instant, rather than assuming every day is 24
+  // hours long.
+  const departureOffset = londonOffsetMinutes(new Date(departureWallAsUtc));
+  const departureInstant = departureWallAsUtc - departureOffset * 60_000;
+  return (departureInstant - nowDate.getTime()) / 60_000;
 }
 
 export type LastPintDecisionInput = {

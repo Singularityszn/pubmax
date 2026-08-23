@@ -322,4 +322,90 @@ describe("GET /api/last-train", () => {
     expect(calls.filter((url) => url.includes("/Arrivals"))).toHaveLength(1);
     expect(calls.filter((url) => url.includes("/Status"))).toHaveLength(1);
   });
+
+  it.each([
+    {
+      label: "spring-forward night",
+      nowIso: "2026-03-28T23:00:00.000Z",
+      expectedLeaveByIso: "2026-03-29T01:57:00.000Z",
+      ip: "198.51.100.31",
+    },
+    {
+      label: "fall-back night",
+      nowIso: "2026-10-24T22:00:00.000Z",
+      expectedLeaveByIso: "2026-10-25T02:57:00.000Z",
+      ip: "198.51.100.32",
+    },
+  ])(
+    "calculates a post-midnight 26:57 departure across the $label",
+    async ({ nowIso, expectedLeaveByIso, ip }) => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date(nowIso));
+
+      global.fetch = vi.fn(async (input: RequestInfo | URL) => {
+        const url = String(input);
+        if (url.includes("/StopPoint?")) {
+          return new Response(
+            JSON.stringify({
+              stopPoints: [
+                {
+                  id: "940GZZLUOXC",
+                  commonName: "Oxford Circus",
+                  distance: 0,
+                  lat: 51.5,
+                  lon: -0.12,
+                  lines: [{ id: "victoria", name: "Victoria" }],
+                },
+              ],
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.includes("/Line/victoria/Timetable/")) {
+          return new Response(
+            JSON.stringify({
+              timetable: {
+                routes: [
+                  {
+                    schedules: [{ name: "Saturday", lastJourney: { hour: "26", minute: "57" } }],
+                  },
+                ],
+              },
+            }),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        if (url.includes("/Arrivals")) {
+          return new Response(JSON.stringify([]), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        if (url.includes("/Line/victoria/Status")) {
+          return new Response(
+            JSON.stringify([
+              {
+                id: "victoria",
+                name: "Victoria",
+                lineStatuses: [{ statusSeverityDescription: "Good Service" }],
+              },
+            ]),
+            { status: 200, headers: { "content-type": "application/json" } },
+          );
+        }
+        return new Response("not found", { status: 404 });
+      });
+
+      const res = await GET(
+        new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+          headers: { "x-forwarded-for": ip },
+        }),
+      );
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.trains[0]).toMatchObject({ clock: "02:57", pastMidnight: true });
+      expect(body.decision.leaveByIso).toBe(expectedLeaveByIso);
+    },
+  );
 });
