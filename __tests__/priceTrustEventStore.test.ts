@@ -8,6 +8,7 @@ import {
 } from "@/lib/priceTrustEvents";
 import {
   __resetMemoryPriceTrustEvents,
+  memoryPriceTrustEventStore,
   priceTrustEventStore,
 } from "@/lib/priceTrustEventStore";
 
@@ -204,5 +205,46 @@ describe("priceTrustEventStore", () => {
     expect((await priceTrustEventStore().liveEventsFor("venue-one", "beer")).events).toHaveLength(
       1,
     );
+  });
+
+  it("finds the terminal reversal through a repeated cycle with equal timestamps", async () => {
+    const original = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "unlock-one",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-a", "obs-b"],
+      userIds: [USER_A, USER_B],
+      now: NOW,
+    });
+    const firstReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-one",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: original.event!.id,
+      now: NOW,
+    });
+    const restored = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: `restored:unlock-one:${firstReversal.event!.id}`,
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-a", "obs-b"],
+      userIds: [USER_A, USER_B],
+      now: NOW,
+    });
+    const secondReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-two",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: restored.event!.id,
+      now: NOW,
+    });
+
+    await expect(
+      memoryPriceTrustEventStore.latestReversalCovering("obs-a"),
+    ).resolves.toEqual({ event: secondReversal.event, degraded: false });
   });
 });
