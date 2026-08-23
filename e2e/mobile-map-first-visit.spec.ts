@@ -39,9 +39,13 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator(".mobilePlanActivation")).toBeHidden();
     await expect(page.locator(".mapCameraControls")).toBeHidden();
     await expect(page.locator(".maplibregl-ctrl-top-right")).toBeHidden();
+    await expect(page.locator(".mobileMapChrome")).toHaveAttribute("inert", "");
+    await expect(page.locator(".mapCanvasWrap")).toHaveAttribute("inert", "");
 
     await arrival.getByRole("button", { name: "Close" }).click();
     await expect(arrival).toHaveCount(0);
     await expect(page.locator(".mobilePlanActivation")).toBeVisible();
+    await expect(page.locator(".mobileMapChrome")).not.toHaveAttribute("inert", "");
+    await expect(page.locator(".mapCanvasWrap")).not.toHaveAttribute("inert", "");
   });
 }
