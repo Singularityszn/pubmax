@@ -252,14 +252,13 @@ describe("crew copy", () => {
     expect(new Set(Object.values(CREW_ROLE_LABEL)).size).toBe(3);
   });
 
-  it("never promises an invitations inbox or a join-request queue", () => {
+  it("never promises an invitations inbox", () => {
     const copy = source
       .split("\n")
       .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
       .join("\n");
     expect(copy).not.toMatch(/pending invitations/i);
     expect(copy).not.toMatch(/invitation inbox/i);
-    expect(copy).not.toMatch(/requests waiting/i);
   });
 
   it("keeps the em dash out, like every other copy owner", () => {

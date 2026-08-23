@@ -58,6 +58,7 @@ const store = vi.hoisted(() => ({
   listOpen: vi.fn(),
   create: vi.fn(),
   requestJoin: vi.fn(),
+  listJoinRequests: vi.fn(),
   decideJoin: vi.fn(),
   updateVisibility: vi.fn(),
 }));
@@ -105,7 +106,10 @@ vi.mock("@/lib/cultureCrawl.server", () => ({
 
 import { POST as createCrew } from "@/app/api/social/crews/route";
 import { PATCH as changeCrew } from "@/app/api/social/crews/[crewId]/route";
-import { POST as requestJoin } from "@/app/api/social/crews/[crewId]/join-requests/route";
+import {
+  GET as listJoinRequests,
+  POST as requestJoin,
+} from "@/app/api/social/crews/[crewId]/join-requests/route";
 import { PATCH as decideJoinRequest } from "@/app/api/social/crews/[crewId]/join-requests/[requestId]/route";
 
 function context<Params extends Record<string, string>>(
@@ -150,6 +154,15 @@ beforeEach(() => {
     code: "requested",
     replayed: false,
     requestId: REQUEST_ID,
+  });
+  store.listJoinRequests.mockResolvedValue({
+    items: [
+      {
+        requestId: REQUEST_ID,
+        requesterHandle: "bob",
+      },
+    ],
+    hasMore: false,
   });
   store.decideJoin.mockResolvedValue({
     code: "accepted",
@@ -285,6 +298,70 @@ describe("open crew create", () => {
 });
 
 describe("open crew join, decide, and close", () => {
+  it("lists pending requests for a verified host authority", async () => {
+    const response = await listJoinRequests(
+      new Request(
+        `http://localhost/api/social/crews/${CREW_ID}/join-requests`,
+      ),
+      context({ crewId: CREW_ID }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    await expect(response.json()).resolves.toEqual({
+      items: [
+        expect.objectContaining({
+          requestId: REQUEST_ID,
+          requesterHandle: "bob",
+        }),
+      ],
+      hasMore: false,
+    });
+    expect(store.listJoinRequests).toHaveBeenCalledWith(CREW_ID, actor);
+  });
+
+  it("refuses a malformed queue crew id before the store read", async () => {
+    const response = await listJoinRequests(
+      new Request("http://localhost/api/social/crews/not-a-crew/join-requests"),
+      context({ crewId: "not-a-crew" }),
+    );
+
+    expect(response.status).toBe(404);
+    expect(store.listJoinRequests).not.toHaveBeenCalled();
+  });
+
+  it("keeps queue reads behind verified adult Social access", async () => {
+    state.access = {
+      ok: false,
+      status: 403,
+      code: "SOCIAL_ADULT_VERIFICATION_REQUIRED",
+      error: "Adult verification is needed for Social.",
+    };
+    const response = await listJoinRequests(
+      new Request(
+        `http://localhost/api/social/crews/${CREW_ID}/join-requests`,
+      ),
+      context({ crewId: CREW_ID }),
+    );
+
+    expect(response.status).toBe(403);
+    expect(store.listJoinRequests).not.toHaveBeenCalled();
+  });
+
+  it("marks a failed private queue read as retryable", async () => {
+    store.listJoinRequests.mockRejectedValueOnce(new Error("database unavailable"));
+    const response = await listJoinRequests(
+      new Request(
+        `http://localhost/api/social/crews/${CREW_ID}/join-requests`,
+      ),
+      context({ crewId: CREW_ID }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
+    await expect(response.json()).resolves.toMatchObject({ retryable: true });
+  });
+
   it("requests a join on an open crew", async () => {
     const response = await requestJoin(
       mutationRequest(

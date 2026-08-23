@@ -24,7 +24,10 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
-import type { SocialCrewReadDTO } from "@/lib/socialCrew";
+import type {
+  SocialCrewJoinRequestDTO,
+  SocialCrewReadDTO,
+} from "@/lib/socialCrew";
 import {
   CREW_INVITE_LINK_NOTE,
   CREW_MUTUALS_ONLY_NOTE,
@@ -38,12 +41,14 @@ import {
   crewInviteUrl,
   crewStartsCaption,
   parseCrewMutation,
+  parseCrewJoinRequestQueue,
   parseCrewRead,
 } from "@/lib/socialCrewsUi";
 
 import "@/components/social/crews.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
+type JoinRequestLoadState = "idle" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 
 export default function CrewDetailClient({
@@ -67,6 +72,11 @@ export default function CrewDetailClient({
   const [matches, setMatches] = useState<Match[]>([]);
   const [inviteLink, setInviteLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [joinRequests, setJoinRequests] = useState<SocialCrewJoinRequestDTO[]>([]);
+  const [joinRequestsHaveMore, setJoinRequestsHaveMore] = useState(false);
+  const [joinRequestStatus, setJoinRequestStatus] =
+    useState<JoinRequestLoadState>("idle");
+  const [joinRequestAttempt, setJoinRequestAttempt] = useState(0);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
@@ -101,6 +111,43 @@ export default function CrewDetailClient({
       });
     return () => controller.abort();
   }, [attempt, crewId, identityResolved]);
+
+  useEffect(() => {
+    if (
+      !identityResolved ||
+      crew?.kind !== "member" ||
+      !canManageCrew(crew.viewer.role)
+    ) {
+      return;
+    }
+    const controller = new AbortController();
+    authedActionFetch(
+      `/api/social/crews/${encodeURIComponent(crewId)}/join-requests`,
+      {
+        cache: "no-store",
+        credentials: "same-origin",
+        signal: controller.signal,
+      },
+    )
+      .then(async (response) => {
+        if (!response.ok) throw new Error("Join requests unavailable");
+        const queue = parseCrewJoinRequestQueue(await response.json());
+        if (!queue) throw new Error("Join requests malformed");
+        return queue;
+      })
+      .then((queue) => {
+        setJoinRequests(queue.items);
+        setJoinRequestsHaveMore(queue.hasMore);
+        setJoinRequestStatus("ready");
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") return;
+        setJoinRequests([]);
+        setJoinRequestsHaveMore(false);
+        setJoinRequestStatus("error");
+      });
+    return () => controller.abort();
+  }, [crew, crewId, identityResolved, joinRequestAttempt]);
 
   useEffect(() => {
     if (!identityResolved) return;
@@ -287,6 +334,31 @@ export default function CrewDetailClient({
       setAttempt((value) => value + 1);
     });
 
+  const decideJoinRequest = (
+    request: SocialCrewJoinRequestDTO,
+    decision: "accept" | "decline",
+  ) =>
+    run(async () => {
+      await write(
+        `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({ decision }),
+          prefix: "crew-join-decide",
+        },
+      );
+      setJoinRequests((current) =>
+        current.filter((item) => item.requestId !== request.requestId),
+      );
+      setNotice(
+        decision === "accept"
+          ? `${displayHandle(request.requesterHandle)} joined the crew.`
+          : `Declined ${displayHandle(request.requesterHandle)}.`,
+      );
+      setJoinRequestAttempt((value) => value + 1);
+      if (decision === "accept") setAttempt((value) => value + 1);
+    });
+
   const copyInvite = async () => {
     if (!inviteLink) return;
     try {
@@ -441,6 +513,72 @@ export default function CrewDetailClient({
             ))}
           </ul>
         </section>
+
+        {manages ? (
+          joinRequestStatus === "ready" ? (
+            <section aria-labelledby="crew-join-requests-title">
+              <h2 id="crew-join-requests-title" className="crews__title">
+                Requests to join
+              </h2>
+              {joinRequests.length > 0 ? (
+                <ul className="crews__list">
+                  {joinRequests.map((request) => (
+                    <li key={request.requestId} className="crews__member">
+                      <Link
+                        className="crews__memberHandle"
+                        href={`/u/${encodeURIComponent(request.requesterHandle)}`}
+                      >
+                        {displayHandle(request.requesterHandle)}
+                      </Link>
+                      <div className="crews__formActions">
+                        <button
+                          type="button"
+                          className="crews__button crews__button--primary"
+                          disabled={busy}
+                          aria-label={`Accept ${displayHandle(request.requesterHandle)}`}
+                          onClick={() => void decideJoinRequest(request, "accept")}
+                        >
+                          Accept
+                        </button>
+                        <button
+                          type="button"
+                          className="crews__button"
+                          disabled={busy}
+                          aria-label={`Decline ${displayHandle(request.requesterHandle)}`}
+                          onClick={() => void decideJoinRequest(request, "decline")}
+                        >
+                          Decline
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="crews__muted">No one has asked to join.</p>
+              )}
+              {joinRequestsHaveMore ? (
+                <p className="crews__note">More requests are waiting.</p>
+              ) : null}
+            </section>
+          ) : joinRequestStatus === "error" ? (
+            <section
+              className="crews__notice"
+              aria-labelledby="crew-join-requests-error"
+              role="alert"
+            >
+              <h2 id="crew-join-requests-error" className="crews__title">
+                Could not load join requests.
+              </h2>
+              <button
+                type="button"
+                className="crews__button"
+                onClick={() => setJoinRequestAttempt((value) => value + 1)}
+              >
+                Try again
+              </button>
+            </section>
+          ) : null
+        ) : null}
 
         {manages ? (
           <section aria-labelledby="crew-invite-title">
