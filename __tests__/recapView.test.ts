@@ -156,7 +156,7 @@ describe("composeRecapFromCompletion", () => {
       stops: [{ venueId: "a", venueName: "The First", position: 0 }],
       pints,
     });
-    expect(view.stats.pintCount).toBe(2);
+    expect(view.stats.pintCount).toBe(3);
     expect(view.stats.totalGbp).toBe(11);
     expect(view.stats.cheapestPintGbp).toBe(4.8);
     expect(view.pints).toHaveLength(3);
@@ -226,6 +226,7 @@ describe("composeRecapFromPublishedStory", () => {
     const pint = moment({ id: "d-1", kind: "pint_drop", pintDropId: "111e1111-1111-4111-8111-111111111111", venueId: "pub-a" });
     const approvedPhoto = moment({ id: "ph-1", kind: "photo", mediaObjectKey: "night/first.jpg", venueId: "pub-a" });
     const hiddenPhoto = moment({ id: "ph-2", kind: "photo", mediaObjectKey: "night/secret.jpg" });
+    const missingDropId = moment({ id: "d-2", kind: "pint_drop", pintDropId: null, venueId: "pub-b" });
     const drop: PintDrop = {
       id: "111e1111-1111-4111-8111-111111111111",
       venueId: "pub-a",
@@ -239,8 +240,8 @@ describe("composeRecapFromPublishedStory", () => {
       createdAt: "2026-07-17T21:00:00.000Z",
     };
     const view = composeRecapFromPublishedStory({
-      story: story({ publishedMomentIds: ["v-1", "d-1", "ph-1"] }),
-      moments: [venue, pint, approvedPhoto, hiddenPhoto],
+      story: story({ publishedMomentIds: ["v-1", "d-1", "d-2", "ph-1"] }),
+      moments: [venue, pint, missingDropId, approvedPhoto, hiddenPhoto],
       pintDropsById: new Map([[drop.id, drop]]),
       venueNames: new Map([["pub-a", "The Old Blue Last"]]),
     });
@@ -251,6 +252,8 @@ describe("composeRecapFromPublishedStory", () => {
     expect(view?.photos.map((p) => p.id)).toEqual(["ph-1"]);
     expect(view?.stats.totalGbp).toBe(5.4);
     expect(view?.stats.cheapestPintGbp).toBe(5.4);
+    expect(view?.stats.pintCount).toBe(2);
+    expect(view?.pints).toHaveLength(2);
     expect(view?.pints[0].priceGbp).toBe(5.4);
   });
 });
