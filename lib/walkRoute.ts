@@ -145,12 +145,11 @@ export function stitchLegCoordinates(legs: LngLat[][]): LngLat[] {
   return out;
 }
 
-// The whole line reads as "ors" (solid) when ANY leg was routed, and only
-// "straight" (dashed) when EVERY leg fell back — a single MapLibre line source
-// carries one style, and honesty tolerates a mixed route reading as routed as
-// long as a fully-approximate one is never dressed up as pavement.
+// The whole line reads as "ors" (solid) only when EVERY leg was routed. A
+// single MapLibre line source carries one style, so a mixed route stays
+// "straight" (dashed) rather than dressing its fallback leg up as pavement.
 export function routeSource(legs: WalkLeg[]): WalkRouteSource {
-  return legs.some((leg) => leg.source === "ors") ? "ors" : "straight";
+  return legs.length > 0 && legs.every((leg) => leg.source === "ors") ? "ors" : "straight";
 }
 
 // Real walked distance in km along a drawn polyline: the sum of the great-circle
