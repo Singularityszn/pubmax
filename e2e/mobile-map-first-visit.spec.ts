@@ -29,10 +29,16 @@ for (const viewport of VIEWPORTS) {
     });
     const arrival = page.locator(".mapArrivalCard");
     await expect(arrival).toBeVisible({ timeout: 45_000 });
+    await expect(page.locator(".maplibregl-canvas")).toBeVisible({
+      timeout: 45_000,
+    });
+    await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
     await expect(page.locator(".mobileMapTopbar")).toHaveCount(1);
     await expect(page.locator(".mobileMapChipRow")).toBeHidden();
     await expect(page.locator(".mobileMapUtilityCorner")).toBeHidden();
     await expect(page.locator(".mobilePlanActivation")).toBeHidden();
+    await expect(page.locator(".mapCameraControls")).toBeHidden();
+    await expect(page.locator(".maplibregl-ctrl-top-right")).toBeHidden();
 
     await arrival.getByRole("button", { name: "Close" }).click();
     await expect(arrival).toHaveCount(0);
