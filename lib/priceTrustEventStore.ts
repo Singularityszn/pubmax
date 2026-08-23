@@ -21,6 +21,7 @@ const EVENTS_TABLE = "price_trust_events";
 const CREDITS_TABLE = "price_trust_credits";
 const MIGRATION_HINT = "apply migration 0108";
 const STORE_TAG = "price-trust-events";
+const REVERSAL_CHAIN_READ_LIMIT = 100;
 
 export type PriceTrustEvent = {
   id: string;
@@ -70,6 +71,10 @@ export type PriceTrustEventStore = {
     events: PriceTrustEvent[];
     degraded: boolean;
   }>;
+  latestReversalCovering(observationId: string): Promise<{
+    event: PriceTrustEvent | null;
+    degraded: boolean;
+  }>;
   readVisibleImpact(userId: string): Promise<VisibleImpact>;
 };
 
@@ -106,6 +111,28 @@ const memory: MemoryState = {
 
 function isReversed(eventId: string, events: readonly PriceTrustEvent[]): boolean {
   return events.some((event) => event.reversalOf === eventId);
+}
+
+function terminalReversal(
+  positives: readonly PriceTrustEvent[],
+  reversals: readonly PriceTrustEvent[],
+): { event: PriceTrustEvent | null; degraded: boolean } {
+  const consumedReversalIds = new Set<string>();
+  for (const reversal of reversals) {
+    if (
+      positives.some((event) =>
+        event.evidenceFingerprint.startsWith("restored:") &&
+        event.evidenceFingerprint.endsWith(`:${reversal.id}`),
+      )
+    ) {
+      consumedReversalIds.add(reversal.id);
+    }
+  }
+  const terminal = reversals.filter(
+    (event) => !consumedReversalIds.has(event.id),
+  );
+  if (terminal.length > 1) return { event: null, degraded: true };
+  return { event: terminal[0] ?? null, degraded: false };
 }
 
 function stampEvent(input: RecordUnlockInput, nowMs: number): PriceTrustEvent {
@@ -165,6 +192,19 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
         !isReversed(event.id, memory.events),
     );
     return { events, degraded: false };
+  },
+
+  async latestReversalCovering(observationId) {
+    const id = cleanText(observationId, 64);
+    const positives = memory.events.filter(
+      (event) => event.reversalOf === null && event.observationIds.includes(id),
+    );
+    const positiveIds = new Set(positives.map((event) => event.id));
+    const reversals = memory.events.filter(
+      (candidate) =>
+        candidate.reversalOf !== null && positiveIds.has(candidate.reversalOf),
+    );
+    return terminalReversal(positives, reversals);
   },
 
   async readVisibleImpact(userId) {
@@ -255,6 +295,56 @@ async function insertCredits(eventId: string, userIds: readonly string[]): Promi
 }
 
 export const supabasePriceTrustEventStore: PriceTrustEventStore = {
+  async latestReversalCovering(observationId) {
+    const id = cleanText(observationId, 64);
+    if (!id) return { event: null, degraded: false };
+    return guard.guard({
+      context: "latestReversalCovering",
+      onSchemaMiss: () => memoryPriceTrustEventStore.latestReversalCovering(id),
+      message: "trust reversal read failed",
+      onError: () => ({ event: null, degraded: true }),
+      run: async () => {
+        const originals = await admin()
+          .from(EVENTS_TABLE)
+          .select(
+            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+          )
+          .contains("observation_ids", [id])
+          .is("reversal_of", null)
+          .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
+        if (originals.error) throw new Error(originals.error.message);
+        if ((originals.data?.length ?? 0) > REVERSAL_CHAIN_READ_LIMIT) {
+          return { event: null, degraded: true };
+        }
+        const positives = (originals.data ?? [])
+          .map((row) => fromEventRow(row as EventRow))
+          .filter((row): row is PriceTrustEvent => row !== null);
+        if (positives.length !== (originals.data?.length ?? 0)) {
+          return { event: null, degraded: true };
+        }
+        const ids = positives.map((event) => event.id);
+        if (ids.length === 0) return { event: null, degraded: false };
+        const reversalRows = await admin()
+          .from(EVENTS_TABLE)
+          .select(
+            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+          )
+          .in("reversal_of", ids)
+          .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
+        if (reversalRows.error) throw new Error(reversalRows.error.message);
+        if ((reversalRows.data?.length ?? 0) > REVERSAL_CHAIN_READ_LIMIT) {
+          return { event: null, degraded: true };
+        }
+        const reversals = (reversalRows.data ?? [])
+          .map((row) => fromEventRow(row as EventRow))
+          .filter((row): row is PriceTrustEvent => row !== null);
+        if (reversals.length !== (reversalRows.data?.length ?? 0)) {
+          return { event: null, degraded: true };
+        }
+        return terminalReversal(positives, reversals);
+      },
+    });
+  },
   async recordUnlock(input) {
     const fingerprint = cleanText(input.fingerprint, 128);
     const venueId = cleanText(input.venueId, 64);

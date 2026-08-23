@@ -22,7 +22,7 @@ export default defineConfig({
     // Strips Vercel deployment env vars (VERCEL_ENV, VERCEL) so build-pipeline
     // test runs don't masquerade as production runtimes — see vitest.setup.ts.
     setupFiles: ["./vitest.setup.ts"],
-    include: ["__tests__/**/*.test.ts"],
+    include: ["__tests__/**/*.test.{ts,tsx}"],
     // v8 coverage instrumentation plus concurrent agent worktrees can starve
     // repository-wide scans and subprocess validation past the default 5s.
     // Keep a bounded 60s ceiling so those real assertions remain deterministic

@@ -76,13 +76,18 @@ async function recordFirstCluster(
   category: DrinkCategory,
   observations: readonly TrustObservation[],
   now: number,
+  restorationKey?: string,
 ): Promise<void> {
   const cluster = firstQualifyingCluster(observations, now);
   if (!cluster) return;
   const userIds = await userIdsForActors(cluster.actors);
   if (cluster.actors.length > 0 && userIds.length === 0) return;
+  const fingerprint = trustEventFingerprint(venueId, category, cluster.observationIds);
   await priceTrustEventStore().recordUnlock({
-    fingerprint: trustEventFingerprint(venueId, category, cluster.observationIds),
+    // A previous unlock may have a hide reversal. Restoring the observation
+    // needs a new positive event because the original fingerprint remains
+    // append-only and cannot be reused as visible credit.
+    fingerprint: restorationKey ? `restored:${fingerprint}:${restorationKey}` : fingerprint,
     venueId,
     category,
     observationIds: cluster.observationIds,
@@ -116,6 +121,7 @@ export async function syncTrustAfterPriceHidden(
   try {
     const found = await findCommunityPriceObservation(observationId);
     if (found.degraded || !found.observation) return;
+    if (!found.observation.hidden) return;
     const { venueId, drinkCategory } = found.observation;
     const covering = await priceTrustEventStore().liveEventsCovering(observationId);
     if (covering.degraded) return;
@@ -138,6 +144,14 @@ export async function syncTrustAfterPriceHidden(
     }
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return;
+    const current = await findCommunityPriceObservation(observationId);
+    if (current.degraded) return;
+    if (!current.observation?.hidden) {
+      // A restore may have completed after this hide read its live event. The
+      // reversal above is now stale, so reconcile from final row visibility.
+      await syncTrustAfterPriceRestored(observationId, now);
+      return;
+    }
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
@@ -145,6 +159,42 @@ export async function syncTrustAfterPriceHidden(
     await recordFirstCluster(venueId, drinkCategory, observations, now);
   } catch (error) {
     console.warn(`${STORE_TAG} sync after hide failed`, error);
+  }
+}
+
+export async function syncTrustAfterPriceRestored(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<void> {
+  try {
+    const found = await findCommunityPriceObservation(observationId);
+    if (found.degraded || !found.observation) return;
+    if (found.observation.hidden) return;
+    const { venueId, drinkCategory } = found.observation;
+    const listed = await listCommunityPriceObservations(venueId, drinkCategory);
+    if (listed.degraded) return;
+    const observations = asTrustObservations(listed.observations);
+    if (!categoryIsTrusted(observations, now)) return;
+    const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
+    if (live.degraded || live.events.length > 0) return;
+    // The row's moderation stamp identifies this transition. Retries and
+    // concurrent syncs therefore share one append-only event identity.
+    const reversal = await priceTrustEventStore().latestReversalCovering(observationId);
+    if (reversal.degraded || !reversal.event) return;
+    const restorationKey = reversal.event.id;
+    const current = await findCommunityPriceObservation(observationId);
+    if (current.degraded || current.observation?.hidden) return;
+    await recordFirstCluster(venueId, drinkCategory, observations, now, restorationKey);
+    const final = await findCommunityPriceObservation(observationId);
+    if (final.degraded) return;
+    if (final.observation?.hidden) {
+      // A hide can land after the visibility check above but before the
+      // restored unlock write. Its sync then sees no live event to reverse.
+      // Re-read after the write so final hidden state owns the trust result.
+      await syncTrustAfterPriceHidden(observationId, now);
+    }
+  } catch (error) {
+    console.warn(`${STORE_TAG} sync after restore failed`, error);
   }
 }
 

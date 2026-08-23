@@ -17,6 +17,8 @@ type QueryState = {
   eq: [string, unknown][];
   isNull: string[];
   inFilters: [string, unknown[]][];
+  containsFilters: [string, unknown[]][];
+  limit: number | null;
 };
 
 function matches(row: EventRow, state: QueryState): boolean {
@@ -30,11 +32,23 @@ function matches(row: EventRow, state: QueryState): boolean {
   for (const [column, values] of state.inFilters) {
     if (!values.includes(record[column])) return false;
   }
+  for (const [column, values] of state.containsFilters) {
+    const held = record[column];
+    if (!Array.isArray(held) || values.some((value) => !held.includes(value))) {
+      return false;
+    }
+  }
   return true;
 }
 
 function makeQuery() {
-  const state: QueryState = { eq: [], isNull: [], inFilters: [] };
+  const state: QueryState = {
+    eq: [],
+    isNull: [],
+    inFilters: [],
+    containsFilters: [],
+    limit: null,
+  };
   const query = {
     select() {
       return query;
@@ -52,7 +66,14 @@ function makeQuery() {
       return query;
     },
     contains(column: string, values: unknown[]) {
-      state.inFilters.push([column, values]);
+      state.containsFilters.push([column, values]);
+      return query;
+    },
+    order() {
+      return query;
+    },
+    limit(value: number) {
+      state.limit = value;
       return query;
     },
     then(
@@ -66,8 +87,9 @@ function makeQuery() {
           error: { message: "database unavailable" },
         }).then(resolve, reject);
       }
+      const matching = events.filter((row) => matches(row, state));
       return Promise.resolve({
-        data: events.filter((row) => matches(row, state)),
+        data: state.limit === null ? matching : matching.slice(0, state.limit),
         error: null,
       }).then(resolve, reject);
     },
@@ -131,5 +153,62 @@ describe("supabasePriceTrustEventStore.liveEventsFor", () => {
     await expect(
       supabasePriceTrustEventStore.liveEventsFor("venue-one", "beer"),
     ).resolves.toEqual({ events: [], degraded: false });
+  });
+});
+
+describe("supabasePriceTrustEventStore.latestReversalCovering", () => {
+  it("finds the terminal reversal through a repeated cycle with equal timestamps", async () => {
+    const timestamp = "2026-08-16T18:00:00.000Z";
+    events.push(
+      UNLOCK,
+      {
+        ...UNLOCK,
+        id: "reversal-one",
+        evidence_fingerprint: "reverse-one",
+        observation_ids: [],
+        created_at: timestamp,
+        reversal_of: "event-one",
+      },
+      {
+        ...UNLOCK,
+        id: "event-two",
+        evidence_fingerprint: "restored:fingerprint-one:reversal-one",
+        created_at: timestamp,
+      },
+      {
+        ...UNLOCK,
+        id: "reversal-two",
+        evidence_fingerprint: "reverse-two",
+        observation_ids: [],
+        created_at: timestamp,
+        reversal_of: "event-two",
+      },
+    );
+
+    const result = await supabasePriceTrustEventStore.latestReversalCovering("obs-a");
+
+    expect(result.degraded).toBe(false);
+    expect(result.event?.id).toBe("reversal-two");
+  });
+
+  it("degrades when the covering chain exceeds the bounded read", async () => {
+    for (let index = 0; index < 101; index += 1) {
+      events.push({
+        ...UNLOCK,
+        id: `event-${index}`,
+        evidence_fingerprint: `fingerprint-${index}`,
+      });
+    }
+    events.push({
+      ...UNLOCK,
+      id: "reversal-overflow",
+      evidence_fingerprint: "reverse-overflow",
+      observation_ids: [],
+      reversal_of: "event-100",
+    });
+
+    await expect(
+      supabasePriceTrustEventStore.latestReversalCovering("obs-a"),
+    ).resolves.toEqual({ event: null, degraded: true });
   });
 });

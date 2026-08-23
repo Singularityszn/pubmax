@@ -21,6 +21,11 @@ import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import {
+  COMMUNITY_VENUE_SIGNAL_LABELS,
+  COMMUNITY_VENUE_SIGNAL_OPTIONS,
+  isCommunityVenueSignalKey,
+} from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./admin.css";
@@ -43,6 +48,39 @@ type ModeratorDrop = {
   reportCount?: number;
   reportedAt?: string;
 };
+
+// Community observations share one API queue. A price carries a figure and
+// drink category; a venue signal carries its question and categorical answer.
+// The moderator must see the shape before deciding whether to hide it.
+type ModeratorCommunityPrice = {
+  id: string;
+  venueId: string;
+  submittedAt: number;
+  hidden: boolean;
+  reportCount: number;
+  reportedAt?: number;
+  reportReason?: string;
+  moderatorNote?: string;
+  kind: "price" | "signal";
+  drinkCategory?: string;
+  priceGbp?: number;
+  signalKey?: string;
+  signalValue?: string;
+};
+
+function communityObservationText(row: ModeratorCommunityPrice): string {
+  if (row.kind === "price") {
+    const category = row.drinkCategory ?? "Unknown drink";
+    return row.priceGbp == null
+      ? category
+      : `${category} · £${row.priceGbp.toFixed(2)}`;
+  }
+  if (!isCommunityVenueSignalKey(row.signalKey)) return "Venue signal";
+  const option = COMMUNITY_VENUE_SIGNAL_OPTIONS[row.signalKey].find(
+    (candidate) => candidate.value === row.signalValue,
+  );
+  return `${COMMUNITY_VENUE_SIGNAL_LABELS[row.signalKey]}: ${option?.label ?? "Unknown"}`;
+}
 
 export function moderatorReportEvidence(
   verifiedCount: number | undefined,
@@ -257,6 +295,12 @@ export default function AdminClient() {
   const [tab, setTab] = useState<AdminTab>("moderation");
   const [reportedDrops, setReportedDrops] = useState<ModeratorDrop[]>([]);
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
+  const [reportedCommunityPrices, setReportedCommunityPrices] = useState<
+    ModeratorCommunityPrice[]
+  >([]);
+  const [hiddenCommunityPrices, setHiddenCommunityPrices] = useState<
+    ModeratorCommunityPrice[]
+  >([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
   const [visitReports, setVisitReports] = useState<ModeratorVisitReport[]>([]);
@@ -268,8 +312,11 @@ export default function AdminClient() {
   const [reportedCovers, setReportedCovers] = useState<ModeratorProfileCover[]>([]);
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [message, setMessage] = useState<AdminNotice | null>(null);
+  const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
+  const [communityPriceLoading, setCommunityPriceLoading] = useState(false);
+  const [communityPricePendingId, setCommunityPricePendingId] = useState<string | null>(null);
 
   // Import notes (Wave F3) — durable queue + dismiss/restore.
   const [importBody, setImportBody] = useState("");
@@ -351,6 +398,53 @@ export default function AdminClient() {
     }
   }, [ensureAdminSession, importShowDismissed, retryWithFreshSession]);
 
+  const loadCommunityPriceQueues = useCallback(
+    async (authenticatedSession?: AdminSessionSubmitOutcome): Promise<ModeratorCommunityPrice[] | null> => {
+      setCommunityPriceLoading(true);
+      setCommunityPriceMessage(null);
+      try {
+        const session = authenticatedSession ?? (await ensureAdminSession());
+        if (session.status !== "open") {
+          setCommunityPriceMessage(adminAlert(session.message));
+          return null;
+        }
+
+        const res = await retryWithFreshSession(() =>
+          fetch("/api/admin/community-prices", SESSION_FETCH),
+        );
+        if (res.status === 403) {
+          discardBody(res);
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return null;
+        }
+        if (!res.ok) {
+          discardBody(res);
+          setCommunityPriceMessage(adminAlert("Could not load community prices."));
+          return null;
+        }
+
+        const body = (await res.json()) as {
+          prices?: ModeratorCommunityPrice[];
+          degraded?: boolean;
+        };
+        if (body.degraded) {
+          setCommunityPriceMessage(adminAlert("Could not load community prices."));
+          return null;
+        }
+        const prices = Array.isArray(body.prices) ? body.prices : [];
+        setReportedCommunityPrices(prices.filter((price) => !price.hidden));
+        setHiddenCommunityPrices(prices.filter((price) => price.hidden));
+        return prices;
+      } catch {
+        setCommunityPriceMessage(adminAlert("Could not reach the server."));
+        return null;
+      } finally {
+        setCommunityPriceLoading(false);
+      }
+    },
+    [ensureAdminSession, retryWithFreshSession],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
@@ -362,6 +456,18 @@ export default function AdminClient() {
         setComments([]);
         setMessage(adminAlert(session.message));
         return;
+      }
+
+      // Community observations have their own reversible queues. Load them in
+      // this pass, but keep their failures isolated from Pint Drops and the
+      // other moderation lanes.
+      const communityPrices = await loadCommunityPriceQueues(session);
+      if (communityPrices && communityPrices.length > 0 && venueNames.size === 0) {
+        try {
+          setVenueNames(await fetchVenueNames());
+        } catch {
+          /* names stay unresolved; rows fall back to the venueId */
+        }
       }
 
       const [reportedRes, hiddenRes] = await Promise.all([
@@ -484,7 +590,7 @@ export default function AdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [ensureAdminSession, venueNames.size]);
+  }, [ensureAdminSession, loadCommunityPriceQueues, venueNames.size]);
 
   const decideComment = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
     setPendingId(id);
@@ -748,6 +854,62 @@ export default function AdminClient() {
       setPendingId(null);
     }
   }, []);
+
+  const decideCommunityPrice = useCallback(
+    async (row: ModeratorCommunityPrice, action: "hide" | "restore") => {
+      setCommunityPricePendingId(row.id);
+      setCommunityPriceMessage(null);
+      try {
+        const res = await retryWithFreshSession(() =>
+          fetch("/api/admin/community-prices", {
+            ...SESSION_FETCH,
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ action, id: row.id }),
+          }),
+        );
+        if (res.status === 403) {
+          discardBody(res);
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        if (!res.ok) {
+          discardBody(res);
+          setCommunityPriceMessage(adminAlert("Action failed. Try again."));
+          return;
+        }
+        discardBody(res);
+
+        // Refresh only this queue. Pint Drops, Visit Reports and other admin
+        // lanes keep their current state while the observation moves.
+        const nextReported = action === "restore" ? { ...row, hidden: false } : null;
+        const nextHidden = action === "hide" ? { ...row, hidden: true } : null;
+        setReportedCommunityPrices((current) =>
+          action === "restore"
+            ? [nextReported!, ...current.filter((item) => item.id !== row.id)]
+            : current.filter((item) => item.id !== row.id),
+        );
+        setHiddenCommunityPrices((current) =>
+          action === "hide"
+            ? [nextHidden!, ...current.filter((item) => item.id !== row.id)]
+            : current.filter((item) => item.id !== row.id),
+        );
+        const refreshed = await loadCommunityPriceQueues();
+        setCommunityPriceMessage(
+          refreshed === null
+            ? adminAlert(
+                `${action === "hide" ? "Community price hidden" : "Community price restored"}. Refresh unavailable. Reload to confirm.`,
+              )
+            : adminStatus(action === "hide" ? "Community price hidden." : "Community price restored."),
+        );
+      } catch {
+        setCommunityPriceMessage(adminAlert("Could not reach the server."));
+      } finally {
+        setCommunityPricePendingId(null);
+      }
+    },
+    [loadCommunityPriceQueues, retryWithFreshSession],
+  );
 
   async function submitImportNote() {
     setImportPending(true);
@@ -1207,6 +1369,125 @@ export default function AdminClient() {
             </div>
             </>
           ) : null}
+
+          {/* ── Community observation moderation queue ─────────────────────── */}
+          <h2 className="admin-section">Community Price moderation</h2>
+          {communityPriceMessage ? (
+            <div className="admin-msg" role={communityPriceMessage.tone}>
+              {communityPriceMessage.text}
+            </div>
+          ) : null}
+          {communityPriceLoading &&
+          reportedCommunityPrices.length === 0 &&
+          hiddenCommunityPrices.length === 0 ? (
+            <div className="admin-empty" role="status">
+              Loading community prices…
+            </div>
+          ) : null}
+
+          <h3 className="admin-section">Reported Community Prices</h3>
+          {reportedCommunityPrices.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No reported community prices</strong>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {reportedCommunityPrices.map((row) => (
+                <article
+                  className="admin-card"
+                  data-community-price-id={row.id}
+                  key={row.id}
+                >
+                  <div className="admin-card-head">
+                    <span className="admin-handle">
+                      {row.kind === "price" ? "Community price" : "Venue signal"}
+                    </span>
+                    {row.kind === "price" && row.priceGbp != null ? (
+                      <span className="admin-price">£{row.priceGbp.toFixed(2)}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
+                    <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
+                      View on map
+                    </Link>
+                  </div>
+                  <div className="admin-meta">
+                    <span>{communityObservationText(row)}</span>
+                    <span>Reports: {row.reportCount}</span>
+                    <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
+                    {row.reportReason ? (
+                      <span className="admin-report">Reason: {row.reportReason}</span>
+                    ) : null}
+                    {row.reportedAt ? (
+                      <span>Reported: {new Date(row.reportedAt).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => void decideCommunityPrice(row, "hide")}
+                      disabled={communityPricePendingId !== null || communityPriceLoading}
+                    >
+                      {communityPricePendingId === row.id ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <h3 className="admin-section">Hidden Community Prices</h3>
+          {hiddenCommunityPrices.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No hidden community prices</strong>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {hiddenCommunityPrices.map((row) => (
+                <article
+                  className="admin-card"
+                  data-community-price-id={row.id}
+                  key={row.id}
+                >
+                  <div className="admin-card-head">
+                    <span className="admin-handle">
+                      {row.kind === "price" ? "Community price" : "Venue signal"}
+                    </span>
+                    {row.kind === "price" && row.priceGbp != null ? (
+                      <span className="admin-price">£{row.priceGbp.toFixed(2)}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
+                    <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
+                      View on map
+                    </Link>
+                  </div>
+                  <div className="admin-meta">
+                    <span>{communityObservationText(row)}</span>
+                    <span>Reports: {row.reportCount}</span>
+                    <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
+                    {row.reportReason ? (
+                      <span className="admin-report">Reason: {row.reportReason}</span>
+                    ) : null}
+                    {row.reportedAt ? (
+                      <span>Reported: {new Date(row.reportedAt).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => void decideCommunityPrice(row, "restore")}
+                      disabled={communityPricePendingId !== null || communityPriceLoading}
+                    >
+                      {communityPricePendingId === row.id ? "Working…" : "Restore"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
 
           {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
           <h2 className="admin-section">Hidden comments</h2>

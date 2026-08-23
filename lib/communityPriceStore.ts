@@ -248,12 +248,18 @@ export type CommunityPriceStore = {
    * no delete. False = unknown id. NEVER throws.
    */
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
+  moderateWithState(
+    id: string,
+    hidden: boolean,
+    note?: string,
+  ): Promise<ModerationStateResult>;
   /**
    * The moderation queue: reported and/or hidden observations of either shape,
    * newest report first. NEVER throws; an unavailable durable read degrades to
    * empty.
    */
   listForReview(limit?: number): Promise<ModeratorCommunityPrice[]>;
+  listForReviewWithStatus(limit?: number): Promise<CommunityPriceReviewReadResult>;
   /** Server-only roll-up seam for a future contribution leaderboard. */
   listContributorCounts(limit?: number): Promise<CommunityContributorCount[]>;
   /** Private all-time projection for contributor counting. */
@@ -266,6 +272,16 @@ export type CorroboratedCategoryCount = {
   /** True when the scan hit its row cap, so `count` is a floor, not a total. */
   truncated: boolean;
   degraded: boolean;
+};
+
+export type CommunityPriceReviewReadResult = {
+  prices: ModeratorCommunityPrice[];
+  degraded: boolean;
+};
+
+export type ModerationStateResult = {
+  status: "ok" | "not-found" | "unavailable";
+  changed: boolean;
 };
 
 // Penny envelope, mirroring lib/communityPrice.ts (£1 … £30) and the DB CHECK
@@ -293,6 +309,12 @@ const PROVISIONAL_VENUE_SCAN_ROWS =
 // chunks no larger than that default and derives `truncated` from the last
 // page's fill, keeping the flag honest regardless of the Max Rows setting.
 const CORROBORATION_SCAN_PAGE = 1_000;
+let lastModerationStamp = 0;
+
+function nextModerationStamp(): number {
+  lastModerationStamp = Math.max(Date.now(), lastModerationStamp + 1);
+  return lastModerationStamp;
+}
 
 /**
  * The moderation half of a stored observation, shared by every shape this table
@@ -1061,13 +1083,24 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     const row = findMemoryRow(id);
     if (!row) return false;
     row.hidden = hidden;
-    row.moderatedAt = Date.now();
+    row.moderatedAt = nextModerationStamp();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
     return true;
   },
 
-  async listForReview(limit = REVIEW_LIMIT) {
+  async moderateWithState(id, hidden, note) {
+    const row = findMemoryRow(id);
+    if (!row) return { status: "not-found", changed: false };
+    const changed = row.hidden !== hidden;
+    row.hidden = hidden;
+    row.moderatedAt = nextModerationStamp();
+    const cleaned = cleanReason(note);
+    if (cleaned) row.moderatorNote = cleaned;
+    return { status: "ok", changed };
+  },
+
+  async listForReviewWithStatus(limit = REVIEW_LIMIT) {
     const queue: ModeratorCommunityPrice[] = [];
     for (const rows of venues.values()) {
       for (const row of rows) {
@@ -1079,9 +1112,13 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
         if (row.hidden || row.reportCount > 0) queue.push(toModeratorSignal(row));
       }
     }
-    return queue
+    return { prices: queue
       .sort((a, b) => (b.reportedAt ?? b.submittedAt) - (a.reportedAt ?? a.submittedAt))
-      .slice(0, Math.max(0, limit));
+      .slice(0, Math.max(0, limit)), degraded: false };
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    return (await this.listForReviewWithStatus(limit)).prices;
   },
 
   async listContributorCounts(limit = REVIEW_LIMIT) {
@@ -1667,6 +1704,43 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async moderateWithState(id, hidden, note) {
+    if (!id) return { status: "not-found", changed: false };
+    return guard<ModerationStateResult>({
+      context: "moderate-with-state",
+      onSchemaMiss: async () => ({ status: "unavailable", changed: false }),
+      message: "moderate failed",
+      onError: () => ({ status: "unavailable", changed: false }),
+      run: async () => {
+        const cleaned = cleanReason(note);
+        const query = admin()
+          .from("community_prices")
+          .update({
+            hidden_at: hidden ? new Date().toISOString() : null,
+            ...(cleaned ? { moderator_note: cleaned } : {}),
+            moderated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select("id");
+        const { data, error } = hidden
+          ? await query.is("hidden_at", null)
+          : await query.not("hidden_at", "is", null);
+        if (error) throw new Error(error.message);
+        if (Array.isArray(data) && data.length > 0) return { status: "ok", changed: true };
+        const { data: existing, error: lookupError } = await admin()
+          .from("community_prices")
+          .select("id")
+          .eq("id", id)
+          .limit(1);
+        if (lookupError) throw new Error(lookupError.message);
+        return {
+          status: Array.isArray(existing) && existing.length > 0 ? "ok" : "not-found",
+          changed: false,
+        };
+      },
+    });
+  },
+
   async listLeaderboardContributions() {
     return guard<ContributionRecordReadResult>({
       context: "leaderboard-contributions",
@@ -1715,12 +1789,12 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async listForReview(limit = REVIEW_LIMIT) {
-    return guard<ModeratorCommunityPrice[]>({
+  async listForReviewWithStatus(limit = REVIEW_LIMIT) {
+    return guard<CommunityPriceReviewReadResult>({
       context: "listForReview",
-      onSchemaMiss: () => memoryCommunityPriceStore.listForReview(limit),
-      message: "review queue read failed - returning empty",
-      onError: () => [],
+      onSchemaMiss: async () => ({ prices: [], degraded: true }),
+      message: "review queue read failed - degraded",
+      onError: () => ({ prices: [], degraded: true }),
       run: async () => {
         const { data, error } = await admin()
           .from("community_prices")
@@ -1731,9 +1805,13 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           .order("reported_at", { ascending: false, nullsFirst: false })
           .limit(Math.max(0, limit));
         if (error) throw new Error(error.message);
-        return reviewRows(data);
+        return { prices: reviewRows(data), degraded: false };
       },
     });
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    return (await this.listForReviewWithStatus(limit)).prices;
   },
 
   async listContributorCounts(limit = REVIEW_LIMIT) {
@@ -2005,11 +2083,27 @@ export function moderateCommunityPrice(
   );
 }
 
+export function moderateCommunityPriceWithState(
+  id: string,
+  hidden: boolean,
+  note?: string,
+): Promise<ModerationStateResult> {
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().moderateWithState(id, hidden, note),
+  );
+}
+
 /** The moderation queue: reported and/or hidden observations. NEVER throws. */
 export function listCommunityPricesForReview(
   limit?: number,
 ): Promise<ModeratorCommunityPrice[]> {
   return communityPriceStore().listForReview(limit);
+}
+
+export function listCommunityPricesForReviewWithStatus(
+  limit?: number,
+): Promise<CommunityPriceReviewReadResult> {
+  return communityPriceStore().listForReviewWithStatus(limit);
 }
 
 export type CommunityPriceObservation = {
@@ -2020,6 +2114,7 @@ export type CommunityPriceObservation = {
   submittedAt: number;
   actor: string | null;
   hidden: boolean;
+  moderatedAt?: number;
 };
 
 export type CommunityPriceObservationPair = {
@@ -2043,6 +2138,7 @@ function observationFromStored(row: StoredPrice): CommunityPriceObservation | nu
     submittedAt: row.submittedAt,
     actor: row.actor,
     hidden: row.hidden,
+    moderatedAt: row.moderatedAt,
   };
 }
 
@@ -2058,7 +2154,7 @@ function memoryObservations(): CommunityPriceObservation[] {
 }
 
 const OBSERVATION_COLUMNS =
-  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at";
+  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at, moderated_at";
 
 function storedPricesFromRows(rows: readonly unknown[]): StoredPrice[] {
   const out: StoredPrice[] = [];
@@ -2321,4 +2417,5 @@ export function __resetCommunityPrices(): void {
   venueSignals.clear();
   resetCommunityPriceCategoryIndexMemo();
   resetSchemaMissWarnings();
+  lastModerationStamp = 0;
 }
