@@ -25,10 +25,9 @@ import { tonightHeading } from "@/lib/tonight";
 import { nearMeAnswerHeadline } from "@/lib/nearMeAnswer";
 
 describe("locality and recency claims", () => {
-  it("names central London and the actual collection date for older Today prices", () => {
+  it("names central London and the baseline as-of date for older Today prices", () => {
     const html = renderToStaticMarkup(
       createElement(TodayPintsCard, {
-        nowIso: "2026-07-29T12:00:00.000Z",
         index: {
           [CENTRAL_PATCH.id]: {
             patchId: CENTRAL_PATCH.id,
@@ -45,14 +44,13 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London, collected 3 July 2026");
+    expect(html).toContain("Lowest listed prices in central London, as of 3 July 2026");
     expect(html).not.toContain("Lowest listed prices near you today");
   });
 
-  it("uses today only when the pint dataset was collected today", () => {
+  it("keeps the baseline as-of date when it matches today", () => {
     const html = renderToStaticMarkup(
       createElement(TodayPintsCard, {
-        nowIso: "2026-07-03T20:00:00.000Z",
         index: {
           [CENTRAL_PATCH.id]: {
             patchId: CENTRAL_PATCH.id,
@@ -69,7 +67,7 @@ describe("locality and recency claims", () => {
       }),
     );
 
-    expect(html).toContain("Lowest listed prices in central London today");
+    expect(html).toContain("Lowest listed prices in central London, as of 3 July 2026");
   });
 
   it("names London's scope when Tonight has no locality", () => {

@@ -17,7 +17,7 @@ import {
 } from "@/lib/dataFreshness";
 
 const ROOT = join(__dirname, "..");
-const COLLECTED_LABEL = `collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+const AS_OF_LABEL = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
 
 describe("price freshness honesty (Grok W5.7)", () => {
   const registry = JSON.parse(
@@ -67,7 +67,7 @@ describe("price freshness honesty (Grok W5.7)", () => {
     );
   });
 
-  it("prints the explicit 3 July 2026 collection date on the Pint Index arrival strip", () => {
+  it("prints the bundled baseline as-of date on the Pint Index arrival strip", () => {
     const html = renderToStaticMarkup(
       createElement(PintIndexArrival, {
         areas: [
@@ -80,10 +80,9 @@ describe("price freshness honesty (Grok W5.7)", () => {
           },
         ],
         surface: "index",
-        collectedLabel: COLLECTED_LABEL,
       }),
     );
 
-    expect(html).toContain("collected 3 July 2026");
+    expect(html).toContain(AS_OF_LABEL);
   });
 });

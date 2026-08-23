@@ -11,7 +11,6 @@ import PintIndexEditions from "@/components/pintindex/PintIndexEditions";
 import PintIndexLeagueTable from "@/components/pintindex/PintIndexLeagueTable";
 import ZonePintIndexStrip from "@/components/zones/ZonePintIndexStrip";
 import { loadSeedBoroughCoverage } from "@/lib/boroughCoverageStatus.server";
-import { formatObservedDate, PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { citableNationalBenchmarks, NATIONAL_PINT_BENCHMARKS } from "@/lib/nationalPintBenchmarks";
 import { buildLeagueTable, dearestFirst, formatPintIndexDate, indexSummary, type PintIndexSnapshot } from "@/lib/pintIndex";
 import { londonMonthOf, pintIndexMonthCloseDay, pintIndexMonthLabel } from "@/lib/pintIndexArchive";
@@ -142,7 +141,6 @@ export default async function PintIndexPage() {
       <PintIndexArrival
         areas={arrivalAreas(venues)}
         surface="index"
-        collectedLabel={`collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`}
       />
 
       <BoroughCoverageStatus rows={seedBoroughCoverage} />

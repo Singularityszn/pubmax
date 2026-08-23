@@ -107,6 +107,11 @@ export function formatObservedDate(date: Date): string {
   return FULL_DATE.format(date);
 }
 
+/** "as of 16 July 2026" — the bundled pint-price baseline's as-of label. */
+export function formatPintDatasetAsOf(): string {
+  return `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+}
+
 /** ISO date (YYYY-MM-DD) for JSON-LD dateModified / temporalCoverage. */
 export function isoDate(date: Date): string {
   return date.toISOString().slice(0, 10);
