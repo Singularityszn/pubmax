@@ -109,15 +109,17 @@ export async function checkRateLimitDurableDetailed(
   key: string,
   limit = RATE_LIMIT_MAX,
   windowMs = RATE_LIMIT_WINDOW_MS,
+  signal?: AbortSignal,
 ): Promise<RateLimitDurableDetailed> {
   const admin = getSupabaseAdmin();
   if (!admin) return { verdict: null, reason: "no-client" };
   try {
-    const { data, error } = await admin.rpc("check_rate_limit", {
+    const request = admin.rpc("check_rate_limit", {
       p_key: key,
       p_limit: limit,
       p_window_ms: windowMs,
     });
+    const { data, error } = await (signal ? request.abortSignal(signal) : request);
     if (error) {
       const reason: RateLimitDurableReason = isMissingRateLimitRpc(error)
         ? "missing-rpc"

@@ -144,15 +144,20 @@ async function isAlertSuppressed(
 ): Promise<boolean> {
   const fingerprint = alertFingerprint(findings);
   const key = `social-moderation-alert:${fingerprint}`;
+  const controller = new AbortController();
   let timeout: ReturnType<typeof setTimeout> | undefined;
   const durableVerdict = checkRateLimitDurableDetailed(
     key,
     1,
     SOCIAL_MODERATION_ALERT_COOLDOWN_MS,
+    controller.signal,
   ).then(({ verdict }) => verdict, () => null);
   const deadline = new Promise<null>((resolve) => {
     timeout = setTimeout(
-      () => resolve(null),
+      () => {
+        controller.abort(new Error("Moderation alert state lookup timed out."));
+        resolve(null);
+      },
       SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS,
     );
   });

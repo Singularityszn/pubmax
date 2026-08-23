@@ -1,13 +1,25 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const durableLimiter = vi.hoisted(() => ({ stalled: false }));
+const durableLimiter = vi.hoisted(() => ({ stalled: false, aborted: false }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
   return {
     ...actual,
-    checkRateLimitDurableDetailed: async () => {
-      if (durableLimiter.stalled) return new Promise(() => {});
+    checkRateLimitDurableDetailed: async (
+      _key: string,
+      _limit: number,
+      _windowMs: number,
+      signal?: AbortSignal,
+    ) => {
+      if (durableLimiter.stalled) {
+        return new Promise((_, reject) => {
+          signal?.addEventListener("abort", () => {
+            durableLimiter.aborted = true;
+            reject(signal.reason);
+          }, { once: true });
+        });
+      }
       return { verdict: null, reason: "no-client" as const };
     },
   };
@@ -48,6 +60,7 @@ function baseFields(body: string): SocialPostFields {
 describe("social moderation operator alert", () => {
   afterEach(() => {
     durableLimiter.stalled = false;
+    durableLimiter.aborted = false;
     vi.useRealTimers();
     vi.restoreAllMocks();
   });
@@ -166,6 +179,7 @@ describe("social moderation operator alert", () => {
     await vi.advanceTimersByTimeAsync(SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS);
 
     await expect(notification).resolves.toMatchObject({ findings: { length: 2 } });
+    expect(durableLimiter.aborted).toBe(true);
     expect(
       error.mock.calls.some((call) =>
         String(call[0]).includes("[social-moderation][ALERT]"),
