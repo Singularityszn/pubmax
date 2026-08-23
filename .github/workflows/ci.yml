@@ -19,6 +19,24 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  review-scope:
+    name: Review scope
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    if: github.event_name == 'pull_request' || github.event_name == 'push'
+    steps:
+      - name: Checkout full diff
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Check changed-file scope
+        env:
+          REVIEW_BASE_SHA: ${{ github.event.pull_request.base.sha || github.event.before }}
+          REVIEW_HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/check_review_scope.mjs --base "$REVIEW_BASE_SHA" --head "$REVIEW_HEAD_SHA"
+
   lint-and-types:
     name: Lint and typecheck
     runs-on: ubuntu-latest
