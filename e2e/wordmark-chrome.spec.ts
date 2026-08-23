@@ -36,5 +36,17 @@ for (const view of CASES) {
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(view.viewport.width);
     await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
+    expect(
+      await wordmark.evaluate((root) => {
+        const bounds = root.getBoundingClientRect();
+        const visibleParts = root.querySelectorAll(
+          ".pubmaxxWordmarkLetters, .pubmaxxWordmarkLetters > span, .pubmaxxDoubleX svg",
+        );
+        return [...visibleParts].every((part) => {
+          const box = part.getBoundingClientRect();
+          return box.left >= bounds.left && box.right <= bounds.right;
+        });
+      }),
+    ).toBe(true);
   });
 }
