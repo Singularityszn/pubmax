@@ -59,46 +59,32 @@ Commit: `feat: add community price moderation queue`
 
 ### Task 2: Night Area activation surface
 
-**Status:** Stopped after review. PR #1156 was closed unmerged because repository policy requires `/area/clapham` to return 404. Resume only after a product decision lifts that contract or selects an allowed Plan or Map surface.
+**Status:** Stopped after review. PR #1156 was closed unmerged because repository policy requires `/area/clapham` to return 404. Do not create `app/area/[slug]` under the current contract.
 
 **Files:**
-- Create: `app/area/[slug]/page.tsx`
-- Create: `app/area/[slug]/nightAreaActivation.css`
-- Create: `lib/nightAreaActivation.ts`
-- Create: `__tests__/nightAreaActivation.test.ts`
-- Create: `e2e/night-area-activation.spec.ts`
+- Review: `AGENTS.md`
+- Review: `e2e/night-area-coverage.spec.ts`
+- Review: `components/plan/PlanComposer.tsx`
+- Review: `components/PubMap.tsx`
 
 **Interfaces:**
-- Consumes: `lib/nightAreas.ts`, existing Night Area API, Map deep links, and planner handoff contracts.
-- Produces: ready-area Plan action and unready or unknown browse-only Map action.
+- Consumes: held-route contract, existing Night Area API, Plan, and Map surfaces.
+- Produces: one recorded product decision that either lifts the held route with its dependent contracts or selects an existing Plan or Map surface.
 
-- [ ] **Step 1: Write failing route and viewport tests**
+- [ ] **Step 1: Record route policy decision**
 
-Cover ready, unready, unknown, and cross-city inputs. At 390px, verify one primary action, browser Back behavior, keyboard focus, and reduced-motion compatibility.
+Choose one path before implementation:
 
-- [ ] **Step 2: Run RED tests**
+- Lift `/area/[slug]`: update repository policy and the pinned 404 test in the same reviewed specification change.
+- Keep `/area/[slug]` held: mount activation inside Plan or Map and leave the 404 contract unchanged.
 
-Run: `npx vitest run __tests__/nightAreaActivation.test.ts`
+- [ ] **Step 2: Write the replacement implementation plan**
 
-Expected: FAIL because no dedicated Night Area route exists.
+Name exact allowed files, handoff interfaces, failing tests, browser proof, and rollback for the selected surface. Do not reuse the closed PR #1156 route files while the held-route contract remains active.
 
-- [ ] **Step 3: Implement activation route**
+- [ ] **Step 3: Keep issue #252 open**
 
-Render current Night Area evidence. Ready areas hand off to Plan with canonical intent. Unready and unknown areas remain honest and hand off to Map. Reject cross-city data and fail closed.
-
-- [ ] **Step 4: Run GREEN checks**
-
-Run: `npx vitest run __tests__/nightAreaActivation.test.ts`
-
-Run: `npx playwright test e2e/night-area-coverage.spec.ts --project=chromium`
-
-Run: `npx playwright test e2e/night-area-activation.spec.ts --project=chromium`
-
-Run: `npm run typecheck`
-
-- [ ] **Step 5: Commit and open PR**
-
-Commit: `feat: add night area activation surface`
+The issue remains open until the route decision and an allowed implementation both land.
 
 ---
 
@@ -168,4 +154,4 @@ For each PR, run independent standards and specification review. Fix all confirm
 
 - [ ] **Step 5: Promote and smoke**
 
-Build a clean Vercel preview from merged `main`, smoke affected routes, then promote that exact deployment. Confirm `/api/version` matches merged `main`.
+Build a clean Vercel preview from merged `main`, smoke affected routes, then promote that exact deployment. Confirm `/api/version` returns the promoted deployment ID, then use Vercel deployment metadata to prove that ID was built from the exact merged `main` SHA.
