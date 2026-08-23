@@ -50,6 +50,7 @@ import "@/components/social/crews.css";
 type LoadState = "loading" | "ready" | "missing" | "error";
 type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
+type IdentityMessage = { identityKey: string; text: string } | null;
 
 export default function CrewDetailClient({
   crewId,
@@ -65,8 +66,8 @@ export default function CrewDetailClient({
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState("");
-  const [notice, setNotice] = useState("");
+  const [problem, setProblem] = useState<IdentityMessage>(null);
+  const [notice, setNotice] = useState<IdentityMessage>(null);
   const [viewerHandle, setViewerHandle] = useState("");
   const [lot, setLot] = useState<string[]>([]);
   const [query, setQuery] = useState("");
@@ -90,8 +91,8 @@ export default function CrewDetailClient({
       if (cancelled) return;
       setCrew(null);
       setStatus("loading");
-      setNotice("");
-      setProblem("");
+      setNotice(null);
+      setProblem(null);
       setViewerHandle("");
       setLot([]);
       setMatches([]);
@@ -320,16 +321,19 @@ export default function CrewDetailClient({
     async (task: () => Promise<void>) => {
       if (busy) return;
       setBusy(true);
-      setProblem("");
+      setProblem(null);
       try {
         await task();
       } catch (error) {
-        setProblem(error instanceof Error ? error.message : "That did not go through.");
+        setProblem({
+          identityKey,
+          text: error instanceof Error ? error.message : "That did not go through.",
+        });
       } finally {
         setBusy(false);
       }
     },
-    [busy],
+    [busy, identityKey],
   );
 
   const decideInvitation = (action: "accept" | "decline") =>
@@ -343,7 +347,10 @@ export default function CrewDetailClient({
         router.push("/social");
         return;
       }
-      setNotice("You are in. Your lot grew by everybody already on this night.");
+      setNotice({
+        identityKey,
+        text: "You are in. Your lot grew by everybody already on this night.",
+      });
       setAttempt((value) => value + 1);
     });
 
@@ -366,7 +373,7 @@ export default function CrewDetailClient({
           typeof window === "undefined" ? undefined : window.location.origin,
         ),
       );
-      setNotice(`Invited @${handle}.`);
+      setNotice({ identityKey, text: `Invited @${handle}.` });
       setQuery("");
       setMatches([]);
     });
@@ -426,11 +433,13 @@ export default function CrewDetailClient({
       setJoinRequests((current) =>
         current.filter((item) => item.requestId !== request.requestId),
       );
-      setNotice(
-        decision === "accept"
-          ? `${displayHandle(request.requesterHandle)} joined the crew.`
-          : `Declined ${displayHandle(request.requesterHandle)}.`,
-      );
+      setNotice({
+        identityKey,
+        text:
+          decision === "accept"
+            ? `${displayHandle(request.requesterHandle)} joined the crew.`
+            : `Declined ${displayHandle(request.requesterHandle)}.`,
+      });
       setFocusJoinRequests(true);
       setJoinRequestAttempt((value) => value + 1);
       if (decision === "accept") setAttempt((value) => value + 1);
@@ -443,7 +452,7 @@ export default function CrewDetailClient({
       setCopied(true);
       setTimeout(() => setCopied(false), 2400);
     } catch {
-      setProblem("Could not copy the link.");
+      setProblem({ identityKey, text: "Could not copy the link." });
     }
   };
 
@@ -792,14 +801,18 @@ export default function CrewDetailClient({
         <Link className="crewPage__back" href="/social">
           Back to Social
         </Link>
-        {identityResolved && loadedIdentityKey === identityKey && notice ? (
+        {identityResolved &&
+        loadedIdentityKey === identityKey &&
+        notice?.identityKey === identityKey ? (
           <p className="crews__note" role="status" aria-live="polite">
-            {notice}
+            {notice.text}
           </p>
         ) : null}
-        {identityResolved && loadedIdentityKey === identityKey && problem ? (
+        {identityResolved &&
+        loadedIdentityKey === identityKey &&
+        problem?.identityKey === identityKey ? (
           <p className="crews__problem" role="alert">
-            {problem}
+            {problem.text}
           </p>
         ) : null}
         {body}

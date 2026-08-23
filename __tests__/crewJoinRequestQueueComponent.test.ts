@@ -20,7 +20,7 @@ const state = vi.hoisted(() => ({
   decisions: [] as string[],
   visibility: "open" as "open" | "friends",
   identityResolved: true,
-  userId: "actor-a",
+  userId: "actor-a" as string | null,
   decisionFails: false,
   queueMissing: false,
   deferQueueForUserId: "",
@@ -39,7 +39,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     identityResolved: state.identityResolved,
-    user: { id: state.userId },
+    user: state.userId ? { id: state.userId } : null,
   }),
 }));
 
@@ -261,6 +261,29 @@ describe("host join-request queue", () => {
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
     });
+
+    expect(container.textContent).not.toContain("@bob");
+  });
+
+  it("does not carry a host decision notice into a resolved sign-out", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    const accept = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Accept @bob"]',
+    );
+    expect(accept).not.toBeNull();
+    await act(async () => accept!.click());
+    await settle();
+    expect(container.textContent).toContain("@bob joined the crew.");
+
+    state.userId = null;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
 
     expect(container.textContent).not.toContain("@bob");
   });
