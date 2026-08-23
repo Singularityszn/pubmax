@@ -157,6 +157,7 @@ import {
   validatePintDrop,
 } from "@/lib/pintDrops";
 import { supabasePintDropStore } from "@/lib/pintDropsStore";
+import { memoryProfileStore } from "@/lib/profileStore";
 
 const URL_BASE = "http://localhost/api/pint-drops";
 
@@ -278,6 +279,7 @@ describe("POST /api/pint-drops (create)", () => {
 
   it("keeps a signed-in observed price visible through the GET seam", async () => {
     reportAuth.userId = "account-pint-drop-flow";
+    await memoryProfileStore.createOwned("signed_in_drinker", reportAuth.userId);
 
     const created = await post({
       venueId: VENUE,
@@ -307,10 +309,31 @@ describe("POST /api/pint-drops (create)", () => {
     );
   });
 
+  it("requires account onboarding instead of claiming a body handle", async () => {
+    const accountId = "account-without-profile";
+    reportAuth.userId = accountId;
+
+    const rejected = await post({
+      venueId: VENUE,
+      handle: "stale_device_handle",
+      priceGbp: 4.2,
+    });
+    expect(rejected.status).toBe(409);
+    expect(await rejected.json()).toMatchObject({
+      status: "onboarding_required",
+      code: "ONBOARDING_REQUIRED",
+    });
+
+    const listed = await get(VENUE);
+    expect((await listed.json()).drops).toEqual([]);
+    expect(await memoryProfileStore.getHandleByUserId(accountId)).toBeNull();
+  });
+
   it("adds server-derived price authority only for a verified account", async () => {
     reportAuth.userId = "account-a";
+    await memoryProfileStore.createOwned("authority_ale", reportAuth.userId);
 
-    const verified = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
+    const verified = await post({ venueId: VENUE, handle: "authority_ale", priceGbp: 4.2 });
     expect(verified.status).toBe(201);
     const { drop: verifiedDrop } = await verified.json();
     expect(verifiedDrop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
@@ -328,11 +351,12 @@ describe("POST /api/pint-drops (create)", () => {
   });
 
   it("keeps a verified anonymous Pint Drop provisional", async () => {
-    reportAuth.userId = "account-a";
+    reportAuth.userId = "account-anon";
+    await memoryProfileStore.createOwned("verified_anon", reportAuth.userId);
 
     const response = await post({
       venueId: VENUE,
-      handle: "ale",
+      handle: "verified_anon",
       priceGbp: 4.2,
       visibility: "anonymous",
     });
