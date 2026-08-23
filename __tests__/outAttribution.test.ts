@@ -107,7 +107,7 @@ describe("the out card", () => {
   it("does not make an unmatched event card look tappable", () => {
     const html = renderToStaticMarkup(
       createElement(OutCard, {
-        row: eventRow({ venueId: undefined }),
+        row: eventRow({ venueId: "   " }),
       }),
     );
 
@@ -117,10 +117,10 @@ describe("the out card", () => {
     expect(html).toContain('class="outSourceCredit"');
   });
 
-  it("makes a matched event card open its PUBMAXX venue", () => {
+  it("makes a matched event card open its canonical PUBMAXX venue", () => {
     const html = renderToStaticMarkup(
       createElement(OutCard, {
-        row: eventRow({ venueId: "venue-warehouse" }),
+        row: eventRow({ venueId: " venue-warehouse " }),
       }),
     );
 

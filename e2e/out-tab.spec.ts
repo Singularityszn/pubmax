@@ -119,30 +119,48 @@ const PLAYHOUSE_EVENT = {
   sourceId: "1",
 };
 
-test("shows event cards when GET /api/out is ready", async ({ page }) => {
-  await page.route("**/api/out?**", (route) =>
-    route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        status: "ready",
-        events: [PLAYHOUSE_EVENT],
-        openPlans: [],
-        attribution: [],
-        observedAt: {},
-        providers: [{ name: "ticketmaster", configured: true, rows: 1, status: "ready" }],
+test(
+  "shows matched event cards and drops unmatched rows when GET /api/out is ready",
+  async ({ page }) => {
+    await page.route("**/api/out?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "ready",
+          events: [
+            {
+              ...PLAYHOUSE_EVENT,
+              venueId: "venue-playhouse",
+            },
+            {
+              ...PLAYHOUSE_EVENT,
+              id: "events-tm-unmatched-playhouse",
+              title: "Unmatched Playhouse",
+              placeName: "The O2",
+            },
+          ],
+          openPlans: [],
+          attribution: [],
+          observedAt: {},
+          providers: [{ name: "ticketmaster", configured: true, rows: 2, status: "ready" }],
+        }),
       }),
-    }),
-  );
+    );
 
-  await page.goto("/out");
-  await expect(page.getByTestId("out-screen")).toBeVisible();
-  await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
-  await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
-  const listings = page.getByRole("region", { name: "What's on tonight" });
-  await expect(listings).toBeVisible();
-  await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
-});
+    await page.goto("/out");
+    await expect(page.getByTestId("out-screen")).toBeVisible();
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toHaveCount(0);
+    await expect(
+      page.getByText("Some event listings are not linked to a PUBMAXX pub yet."),
+    ).toBeVisible();
+    const listings = page.getByRole("region", { name: "What's on tonight" });
+    await expect(listings).toBeVisible();
+    await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
+  },
+);
 
 function sendableOpenPlan(id: string, title: string) {
   return {

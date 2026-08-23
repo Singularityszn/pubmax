@@ -65,6 +65,36 @@ describe("out desktop grouping", () => {
     expect(productRows).toEqual(["matched-product-row"]);
   });
 
+  it("drops whitespace-only venue ids and canonicalises padded venue ids", () => {
+    const padded = row({
+      id: "padded-venue-row",
+      kind: "event",
+      title: "Comedy",
+      venueId: " venue-123 ",
+    });
+    const whitespaceOnly = row({
+      id: "whitespace-venue-row",
+      kind: "event",
+      title: "Arena show",
+      venueId: " \t ",
+    });
+
+    const productRows = groupOutListings([whitespaceOnly, padded]).flatMap((group) =>
+      group.rows.map((item) => item.id),
+    );
+    expect(productRows).toEqual(["padded-venue-row"]);
+    expect(outListingGroupKey(padded)).toMatchObject({
+      key: "venue:venue-123",
+      kind: "venue",
+    });
+    expect(outListingPubPair(padded)).toEqual({
+      status: "matched",
+      placeName: "The Test Arms",
+      mapHref: "/map?sel=venue-123",
+    });
+    expect(outListingUnmatchedCount([padded, whitespaceOnly])).toBe(1);
+  });
+
   it("groups matched listings by venue and excludes unresolved area rows", () => {
     const venueA = row({
       id: "gig-a",

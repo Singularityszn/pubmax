@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 import { SourceCredit } from "@/components/out/SourceCredit";
+import { canonicalOutVenueId } from "@/lib/outDesktopGrouping";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 /**
@@ -46,8 +47,8 @@ export function formatWhen(row: WhatsOnRow): string {
 }
 
 function pubMapHref(row: WhatsOnRow): string | null {
-  if (typeof row.venueId !== "string" || row.venueId.length === 0) return null;
-  return `/map?sel=${encodeURIComponent(row.venueId)}`;
+  const venueId = canonicalOutVenueId(row.venueId);
+  return venueId ? `/map?sel=${encodeURIComponent(venueId)}` : null;
 }
 
 type OutCardTitleLevel = 2 | 4;
