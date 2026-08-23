@@ -4,17 +4,47 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/last-train/route";
 import { __resetLastTrainStableCache } from "@/lib/lastTrainStableCache.server";
-import { resetVenuePriceIndexForTests } from "@/lib/venuePriceIndex";
+import {
+  getPricedVenues,
+  resetVenuePriceIndexForTests,
+} from "@/lib/venuePriceIndex";
 
 const realFetch = global.fetch;
 const originalSupabaseUrl = process.env.SUPABASE_URL;
 const originalSupabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+function mockFastStationResponse(): void {
+  global.fetch = vi.fn((input: RequestInfo | URL) => {
+    const url = String(input);
+    if (url.includes("/StopPoint?") && !url.includes("/Arrivals")) {
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            stopPoints: [
+              {
+                id: "940GZZLUOXC",
+                commonName: "Oxford Circus",
+                distance: 120,
+                lat: 51.515,
+                lon: -0.141,
+                lines: [],
+              },
+            ],
+          }),
+          { status: 200, headers: { "content-type": "application/json" } },
+        ),
+      );
+    }
+    return Promise.resolve(new Response("not found", { status: 404 }));
+  });
+}
 
 describe("GET /api/last-train latency boundary", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-07-10T22:00:00.000Z"));
     __resetLastTrainStableCache();
+    resetVenuePriceIndexForTests();
     delete process.env.SUPABASE_URL;
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   });
@@ -73,6 +103,48 @@ describe("GET /api/last-train latency boundary", () => {
     expect(body.decision.decision).toBe("live_data_unavailable");
     expect(body.error).toMatch(/Couldn't reach TfL/i);
     expect(completed.headers.get("cache-control")).toBe("no-store");
+  });
+
+  it("stops an orphaned shared producer after its three-second lifetime", async () => {
+    const upstreamSignals: AbortSignal[] = [];
+    const calls: string[] = [];
+    global.fetch = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input);
+      calls.push(url);
+      if (url.includes("/StopPoint?") && !url.includes("/Arrivals")) {
+        if (init?.signal) upstreamSignals.push(init.signal);
+        return new Promise<Response>((resolve, reject) => {
+          const timer = setTimeout(
+            () => resolve(new Response("upstream still pending", { status: 503 })),
+            30_000,
+          );
+          const abort = () => {
+            clearTimeout(timer);
+            reject(new DOMException("upstream aborted", "AbortError"));
+          };
+          if (init?.signal?.aborted) abort();
+          else init?.signal?.addEventListener("abort", abort, { once: true });
+        });
+      }
+      return Promise.resolve(new Response("not found", { status: 404 }));
+    });
+
+    const request = GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.95" },
+      }),
+    );
+
+    await vi.advanceTimersByTimeAsync(2_000);
+    const response = await request;
+    const body = await response.json();
+    expect(body.staticFallback).toBe(true);
+
+    // Route wait ends at 1.8s. Shared producer is allowed to finish at 3s,
+    // then its upstream signal must be aborted and no retry may start.
+    await vi.advanceTimersByTimeAsync(1_000);
+    expect(upstreamSignals[0]?.aborted).toBe(true);
+    expect(calls.filter((url) => url.includes("/StopPoint?")).length).toBe(1);
   });
 
   it("starts line timetable, arrivals, and status reads together and cuts them off", async () => {
@@ -187,6 +259,42 @@ describe("GET /api/last-train latency boundary", () => {
     expect(
       readFile.mock.calls.some(([file]) => String(file).includes("pint_prices_app_dataset.json")),
     ).toBe(false);
+  });
+
+  it("skips cold nearest-pub data without starting a dataset read", async () => {
+    resetVenuePriceIndexForTests();
+    const readFile = vi.spyOn(fs, "readFile");
+    mockFastStationResponse();
+
+    const response = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.96" },
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.nearestPubs).toEqual([]);
+    expect(readFile.mock.calls.some(([file]) => String(file).includes("pint_prices_app_dataset.json"))).toBe(
+      false,
+    );
+  });
+
+  it("uses warm nearest-pub data without another dataset read", async () => {
+    resetVenuePriceIndexForTests();
+    const warmVenues = await getPricedVenues();
+    expect(warmVenues.length).toBeGreaterThan(0);
+    const readFile = vi.spyOn(fs, "readFile");
+    mockFastStationResponse();
+
+    const response = await GET(
+      new Request("http://localhost/api/last-train?lat=51.5&lng=-0.12", {
+        headers: { "x-forwarded-for": "198.51.100.97" },
+      }),
+    );
+    const body = await response.json();
+
+    expect(body.nearestPubs).toHaveLength(3);
+    expect(readFile).not.toHaveBeenCalled();
   });
 
   it("does not let one request's deadline cancel a shared station producer", async () => {

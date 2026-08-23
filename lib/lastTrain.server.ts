@@ -63,7 +63,7 @@ import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
 import { nearestStaticStation } from "@/lib/staticStations";
 import { tflGet } from "@/lib/tflClient.server";
-import { getPricedVenues } from "@/lib/venuePriceIndex";
+import { peekPricedVenues } from "@/lib/venuePriceIndex";
 import { cachedLastTrainValue } from "@/lib/lastTrainStableCache.server";
 
 const STATION_RADIUS_M = 1500;
@@ -106,7 +106,25 @@ const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
 // work and the rate limiter still sit outside it. A timeout returns only known
 // station context and the unavailable decision, never a guessed departure.
 export const LAST_TRAIN_ROUTE_BUDGET_MS = 1_800;
-const OPTIONAL_ENRICHMENT_RESERVE_MS = 250;
+
+// A shared producer may outlive its first request so a later request can reuse
+// it. Keep that orphan work finite: three seconds gives the latency test's
+// two-second producer time to help a second waiter, while avoiding the default
+// nine-second read plus retry (up to eighteen seconds without a waiter).
+export const LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS = 3_000;
+
+function runSharedProducer<T>(
+  load: (signal: AbortSignal) => Promise<T>,
+): Promise<T> {
+  const controller = new AbortController();
+  const timer = setTimeout(
+    () => controller.abort(),
+    LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+  );
+  return Promise.resolve()
+    .then(() => load(controller.signal))
+    .finally(() => clearTimeout(timer));
+}
 
 // Stable values are shared across requests, but a request must own only its
 // wait. The producer must not receive one request's deadline, or a timed-out
@@ -133,13 +151,6 @@ function awaitCachedValueForRequest<T>(
   });
 }
 
-function hasOptionalEnrichmentBudget(routeStartedAt: number, signal: AbortSignal): boolean {
-  return (
-    !signal.aborted &&
-    Date.now() - routeStartedAt < LAST_TRAIN_ROUTE_BUDGET_MS - OPTIONAL_ENRICHMENT_RESERVE_MS
-  );
-}
-
 async function nearestStation(
   lat: number,
   lng: number,
@@ -152,13 +163,17 @@ async function nearestStation(
     "stations",
     key,
     STATION_CACHE_TTL_MS,
-    async () => {
+    () => runSharedProducer(async (signal) => {
       const stopUrl =
         `/StopPoint?lat=${egressPoint.lat}&lon=${egressPoint.lng}` +
         `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-      const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
+      const stops = await tflGet<StopPointResponse>(stopUrl, {
+        retries: 0,
+        timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+        signal,
+      });
       return stops?.stopPoints?.[0] ?? null;
-    },
+    }),
     (station) => Boolean(station?.id),
   );
   return awaitCachedValueForRequest(producer, signal, null);
@@ -211,13 +226,24 @@ async function collectSchedules(
     "timetables",
     key,
     TIMETABLE_CACHE_TTL_MS,
-    async () => {
+    () => runSharedProducer(async (signal) => {
       const direct = await tflGet<TimetableResponse>(
         `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
+        {
+          retries: 0,
+          timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+          signal,
+        },
       );
       if (!direct) return [];
-      return mergeTimetableSchedules(direct, (uri) => tflGet<TimetableResponse>(uri));
-    },
+      return mergeTimetableSchedules(direct, (uri) =>
+        tflGet<TimetableResponse>(uri, {
+          retries: 0,
+          timeoutMs: LAST_TRAIN_SHARED_PRODUCER_TIMEOUT_MS,
+          signal,
+        }),
+      );
+    }),
     (schedules) => schedules.length > 0,
   );
   return awaitCachedValueForRequest(producer, signal, []);
@@ -445,8 +471,9 @@ export function summarizeLineStatuses(
 // The 3 nearest pubs to the station (user story 22) reuse the shared
 // haversine (lib/haversine.ts) against the bundled, price-carrying venue list
 // (lib/venuePriceIndex.ts, memoized from the same dataset venueIndex.ts reads).
-async function nearestPubsToStation(stationLat: number, stationLng: number): Promise<NearestPub[]> {
-  const venues = await getPricedVenues();
+function nearestPubsToStation(stationLat: number, stationLng: number): NearestPub[] {
+  const venues = peekPricedVenues();
+  if (!venues) return [];
   const withDistance = venues.map((v) => ({
     v,
     km: haversineKm([stationLng, stationLat], [v.longitude, v.latitude]),
@@ -527,7 +554,6 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   const routeController = new AbortController();
-  const routeStartedAt = Date.now();
   const routeTimer = setTimeout(() => routeController.abort(), LAST_TRAIN_ROUTE_BUDGET_MS);
   try {
   // Destination is client-only (user story 23): the card keeps the label in
@@ -542,15 +568,9 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     const staticStation = nearestStaticStation(lat, lng);
     if (staticStation) {
       const walkMinutesEstimate = walkMinutesForKm(staticStation.distanceKm);
-      // A timed-out upstream has no headroom for the cold venue-price index
-      // read. Keep the station context and leave optional pub data empty;
-      // never start local enrichment after the response budget expires.
-      const nearestPubs = hasOptionalEnrichmentBudget(
-        routeStartedAt,
-        routeController.signal,
-      )
-        ? await nearestPubsToStation(staticStation.lat, staticStation.lon).catch(() => [])
-        : [];
+      // Optional venue context is cache-only. A cold dataset read must never
+      // start inside this bounded response path.
+      const nearestPubs = nearestPubsToStation(staticStation.lat, staticStation.lon);
       const decision = computeLastPintDecision({
         minutesUntilLastTrain: null,
         walkMinutesEstimate,
@@ -655,14 +675,14 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
       : lineDisruptions(lineIds, routeController.signal),
   ]);
 
-  // Venue enrichment is optional. Start it only after critical reads complete
-  // and while a reserve remains for response serialization. This avoids
-  // abandoned local parsing when the TfL deadline has already fired.
+  // Venue enrichment is optional and cache-only. A cold dataset read must not
+  // start inside this bounded response path, even when critical reads finish
+  // early enough to leave apparent headroom.
   const nearestPubs =
     typeof nearest.lat === "number" &&
     typeof nearest.lon === "number" &&
-    hasOptionalEnrichmentBudget(routeStartedAt, routeController.signal)
-      ? await nearestPubsToStation(nearest.lat, nearest.lon).catch(() => [])
+    !routeController.signal.aborted
+      ? nearestPubsToStation(nearest.lat, nearest.lon)
       : [];
 
   // Keep only lines we actually resolved; sort earliest-departing first so the
