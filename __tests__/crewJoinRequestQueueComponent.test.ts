@@ -10,6 +10,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const CREW_ID = "50000000-0000-4000-8000-000000000001";
 const REQUEST_ID = "80000000-0000-4000-8000-000000000001";
 
+const responseBody = vi.hoisted(() => ({
+  discardBody: vi.fn(),
+}));
+
 const state = vi.hoisted(() => ({
   queue: [
     {
@@ -20,10 +24,14 @@ const state = vi.hoisted(() => ({
   decisions: [] as string[],
   visibility: "open" as "open" | "friends",
   identityResolved: true,
-  userId: "actor-a" as string | null,
+  provider: "supabase" as "clerk" | "supabase" | "signed-out",
+  providerUserId: "supabase-actor-a" as string | null,
+  accountRevision: 1,
   decisionFails: false,
   queueMissing: false,
-  deferQueueForUserId: "",
+  crewMissing: false,
+  accessStatus: 403,
+  deferQueueForRevision: 0,
   deferredQueueResponses: [] as Array<() => void>,
   crewReadCount: 0,
   crewUnavailableAfterFirst: false,
@@ -41,9 +49,21 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({
     identityResolved: state.identityResolved,
-    user: state.userId ? { id: state.userId } : null,
+    accountRevision: state.accountRevision,
+    providerAuthState:
+      state.provider === "signed-out" ? "signed-out" : "authenticated",
+    session:
+      state.provider === "supabase" && state.providerUserId
+        ? { user: { id: state.providerUserId } }
+        : null,
+    user:
+      state.provider === "supabase" && state.providerUserId
+        ? { id: state.providerUserId }
+        : null,
   }),
 }));
+
+vi.mock("@/lib/responseBody", () => responseBody);
 
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
@@ -54,6 +74,7 @@ vi.mock("@/lib/authedFetch", () => ({
     const url = String(input);
     if (url === `/api/social/crews/${CREW_ID}`) {
       state.crewReadCount += 1;
+      if (state.crewMissing) return Response.json({}, { status: 404 });
       if (state.crewUnavailableAfterFirst && state.crewReadCount > 1) {
         return Response.json({}, { status: 503 });
       }
@@ -100,18 +121,17 @@ vi.mock("@/lib/authedFetch", () => ({
     }
     if (url === `/api/social/crews/${CREW_ID}/join-requests` && !init?.method) {
       if (state.queueMissing) {
-        state.visibility = "friends";
         return Response.json({}, { status: 404 });
       }
       const payload = {
         items: state.queue.slice(0, 50).map((request) =>
-          state.userId === "actor-b"
+          state.accountRevision === 2
             ? { ...request, requesterHandle: "carol" }
             : request,
         ),
         hasMore: state.queue.length > 50,
       };
-      if (state.deferQueueForUserId === state.userId) {
+      if (state.deferQueueForRevision === state.accountRevision) {
         return new Promise<Response>((resolve) => {
           state.deferredQueueResponses.push(() => resolve(Response.json(payload)));
         });
@@ -131,7 +151,7 @@ vi.mock("@/lib/authedFetch", () => ({
       return Response.json({ code: "accepted", replayed: false });
     }
     if (url === "/api/social/access") {
-      return Response.json({}, { status: 403 });
+      return Response.json({}, { status: state.accessStatus });
     }
     return Response.json({}, { status: 404 });
   }),
@@ -160,11 +180,16 @@ beforeEach(() => {
   state.decisions = [];
   state.visibility = "open";
   state.identityResolved = true;
-  state.userId = "actor-a";
+  state.provider = "supabase";
+  state.providerUserId = "supabase-actor-a";
+  state.accountRevision = 1;
   state.decisionFails = false;
   state.queueMissing = false;
-  state.deferQueueForUserId = "";
+  state.crewMissing = false;
+  state.accessStatus = 403;
+  state.deferQueueForRevision = 0;
   state.deferredQueueResponses = [];
+  responseBody.discardBody.mockReset();
   state.crewReadCount = 0;
   state.crewUnavailableAfterFirst = false;
   container = document.createElement("div");
@@ -287,7 +312,8 @@ describe("host join-request queue", () => {
     await settle();
     expect(container.textContent).toContain("@bob joined the crew.");
 
-    state.userId = null;
+    state.provider = "signed-out";
+    state.accountRevision = 2;
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
     });
@@ -326,7 +352,7 @@ describe("host join-request queue", () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
     });
     state.identityResolved = true;
-    state.userId = "actor-b";
+    state.accountRevision = 2;
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
     });
@@ -342,7 +368,7 @@ describe("host join-request queue", () => {
     });
     await settle();
 
-    state.deferQueueForUserId = "actor-a";
+    state.deferQueueForRevision = 1;
     state.identityResolved = false;
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
@@ -358,8 +384,8 @@ describe("host join-request queue", () => {
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
     });
-    state.userId = "actor-b";
-    state.deferQueueForUserId = "";
+    state.accountRevision = 2;
+    state.deferQueueForRevision = 0;
     state.identityResolved = true;
     await act(async () => {
       root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
@@ -403,5 +429,26 @@ describe("host join-request queue", () => {
     expect(container.textContent).not.toContain("Could not load join requests.");
     expect(container.textContent).not.toContain("Requests to join");
     expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
+    expect(state.crewReadCount).toBe(2);
+  });
+
+  it("discards crew and queue 404 response bodies", async () => {
+    state.accessStatus = 200;
+    state.crewMissing = true;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(responseBody.discardBody).toHaveBeenCalledTimes(1);
+
+    responseBody.discardBody.mockReset();
+    state.crewMissing = false;
+    state.queueMissing = true;
+    state.accountRevision = 2;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(responseBody.discardBody).toHaveBeenCalledTimes(2);
   });
 });
