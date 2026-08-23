@@ -81,7 +81,7 @@ describe("the phone Social tab", () => {
     ).toBeNull();
   });
 
-  it("drops the marker on the first paint when the launch is on", () => {
+  it("renders Social on the first paint when launch is on", () => {
     const tab = socialTab(serverRender(MobileTabBar, true));
 
     expect(tab.textContent).toBe("Social");

@@ -60,16 +60,16 @@ export function buildTabs(
   return PRIMARY_NAV_ITEMS
     .filter((item) => socialFriendsLaunchEnabled || item.key !== "social")
     .map((item) => ({
-    ...item,
-    href:
-      item.key === "now"
-        ? nowHref
-        : item.key === "map"
-          ? "/map"
-          : item.key === "you"
-            ? youHref
-            : item.href,
-    Icon: icons[item.key],
+      ...item,
+      href:
+        item.key === "now"
+          ? nowHref
+          : item.key === "map"
+            ? "/map"
+            : item.key === "you"
+              ? youHref
+              : item.href,
+      Icon: icons[item.key],
     }));
 }
 
