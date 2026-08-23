@@ -35,22 +35,19 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => limitState.limited };
 });
 
-import {
-  GET as listCovers,
-  POST as addCover,
-  __setProfileCoverPhotosRouteDepsForTest,
-} from "@/app/api/profiles/[handle]/covers/route";
+import { GET as listCovers, POST as addCover } from "@/app/api/profiles/[handle]/covers/route";
 import {
   DELETE as deleteCover,
   PATCH as moveCover,
-  __setProfileCoverPhotoRouteDepsForTest,
 } from "@/app/api/profiles/[handle]/covers/[coverId]/route";
+import {
+  __setProfileCoverPhotoRouteDepsForTest,
+  __setProfileCoverPhotosRouteDepsForTest,
+} from "@/lib/profileCoverPhotoRouteDeps.server";
 import { POST as reportCover } from "@/app/api/profiles/[handle]/covers/[coverId]/report/route";
 import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
-import {
-  GET as serveCover,
-  __setCoverServeRouteDepsForTest,
-} from "@/app/api/cover/[profileId]/[generation]/route";
+import { GET as serveCover } from "@/app/api/cover/[profileId]/[generation]/route";
+import { __setCoverServeRouteDepsForTest } from "@/lib/profileImageServeRouteDeps.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
 import { PROFILE_COVER_PHOTO_CAP } from "@/lib/profileCovers";

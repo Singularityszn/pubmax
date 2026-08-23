@@ -83,7 +83,8 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => limitState.limited };
 });
 
-import { GET, __setAvatarServeRouteDepsForTest } from "@/app/api/avatar/[profileId]/[generation]/route";
+import { GET } from "@/app/api/avatar/[profileId]/[generation]/route";
+import { __setAvatarServeRouteDepsForTest } from "@/lib/profileImageServeRouteDeps.server";
 import { log } from "@/lib/log";
 import {
   downloadProfileImageObject,

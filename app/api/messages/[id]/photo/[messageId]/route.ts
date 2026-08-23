@@ -5,31 +5,15 @@
 // `lib/messagePhotoServe.server.ts`.
 
 import {
-  defaultMessagePhotoServeDeps,
   handleMessagePhotoServe,
-  MESSAGE_PHOTO_SERVE_CACHE_CONTROL,
-  type MessagePhotoServeDeps,
 } from "@/lib/messagePhotoServe.server";
+import { messagePhotoServeRouteDeps } from "@/lib/messagePhotoServeRoute.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
 
-export const MESSAGE_PHOTO_CACHE_CONTROL = MESSAGE_PHOTO_SERVE_CACHE_CONTROL;
-
-let testDeps: Partial<MessagePhotoServeDeps> | null = null;
-
-export function __setMessagePhotoServeRouteDepsForTest(
-  deps: Partial<MessagePhotoServeDeps> | null,
-): void {
-  testDeps = deps;
-}
-
-function deps(): MessagePhotoServeDeps {
-  return { ...defaultMessagePhotoServeDeps, ...testDeps };
-}
-
 type RouteContext = { params: Promise<{ id: string; messageId: string }> };
 
 export async function GET(request: Request, context: RouteContext): Promise<Response> {
-  return handleMessagePhotoServe(request, await context.params, deps());
+  return handleMessagePhotoServe(request, await context.params, messagePhotoServeRouteDeps());
 }

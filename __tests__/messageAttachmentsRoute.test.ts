@@ -71,14 +71,16 @@ import { POST as POST_INBOX } from "@/app/api/messages/route";
 import {
   GET as GET_THREAD,
   POST as POST_THREAD,
-  __setMessagePhotoRouteDepsForTest,
 } from "@/app/api/messages/[id]/route";
-import {
-  GET as GET_PHOTO,
-  __setMessagePhotoServeRouteDepsForTest,
-} from "@/app/api/messages/[id]/photo/[messageId]/route";
+import { GET as GET_PHOTO } from "@/app/api/messages/[id]/photo/[messageId]/route";
 import { messagePhotoServingKey, messagePhotoStagingKey } from "@/lib/messageAttachments";
 import type { MessagePhotoStorage } from "@/lib/messagePhotoMedia.server";
+import {
+  __setMessagePhotoRouteDepsForTest,
+} from "@/lib/messagePhotoRoute.server";
+import {
+  __setMessagePhotoServeRouteDepsForTest,
+} from "@/lib/messagePhotoServeRoute.server";
 import { __resetMemoryMessages } from "@/lib/messagesStore";
 import { __resetMemoryProfiles, __seedMemoryOwnedProfile } from "@/lib/profileStore";
 import { __resetPintDrops } from "@/lib/pintDrops";

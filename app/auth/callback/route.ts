@@ -30,27 +30,10 @@ import {
 } from "@/lib/authRedirect";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 
-/**
- * Only same-origin absolute paths are honoured.
- *
- * Rejects:
- *   - protocol-relative `//evil.com`
- *   - backslash scheme tricks (`/\evil.com` → `https://evil.com/` in WHATWG URL)
- *   - encoded variants after URLSearchParams decoding (`/%5cevil.com`)
- *   - embedded credentials / host overrides
- *
- * WHATWG `new URL("/\\evil.com", origin)` treats `\` as `/`, so a bare
- * startsWith("/") check is NOT sufficient — resolve against the request origin
- * and require the result to stay on that origin.
- */
-export function safeNext(raw: string | null, origin: string): string {
-  return safeAuthNext(raw, origin);
-}
-
 export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const oauthError = url.searchParams.get("error");
-  const next = safeNext(url.searchParams.get("next"), url.origin);
+  const next = safeAuthNext(url.searchParams.get("next"), url.origin);
   const rawAttemptId = url.searchParams.get(AUTH_ATTEMPT_PARAM);
   const attemptId = isAuthAttemptId(rawAttemptId) ? rawAttemptId : null;
   const rawSignupProof = url.searchParams.get(REFERRAL_SIGNUP_PROOF_PARAM);

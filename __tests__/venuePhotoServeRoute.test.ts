@@ -21,11 +21,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => limitState.limited };
 });
 
+import { GET } from "@/app/api/venue-photo/[venueId]/[photoId]/route";
 import {
-  GET,
   VENUE_PHOTO_CACHE_CONTROL,
   __setVenuePhotoServeRouteDepsForTest,
-} from "@/app/api/venue-photo/[venueId]/[photoId]/route";
+} from "@/lib/venuePhotoServeRouteDeps.server";
 import type { ProfileRecord } from "@/lib/profileStore";
 import {
   venuePhotoServingKey,

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { GET, safeNext } from "@/app/auth/callback/route";
+import { GET } from "@/app/auth/callback/route";
+import { safeAuthNext as safeNext } from "@/lib/authRedirect";
 import { mintReferralSignupProof } from "@/lib/referralSignupProof.server";
 
 const ORIGIN = "https://pubmaxxing.com";

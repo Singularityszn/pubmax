@@ -65,11 +65,8 @@ vi.mock("@/lib/adminAuth", async (importOriginal) => {
   return { ...actual, isModerator: () => moderatorState.moderator };
 });
 
-import {
-  GET,
-  POST,
-  __setVenuePhotoRouteDepsForTest,
-} from "@/app/api/venue-photos/route";
+import { GET, POST } from "@/app/api/venue-photos/route";
+import { __setVenuePhotoRouteDepsForTest } from "@/lib/venuePhotoRouteDeps.server";
 import { __resetPintDrops } from "@/lib/pintDrops";
 import {
   __resetMemoryProfiles,

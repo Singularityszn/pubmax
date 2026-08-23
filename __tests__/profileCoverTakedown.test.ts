@@ -33,10 +33,8 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   return { ...actual, isLimited: async () => false };
 });
 
-import {
-  GET as serveCover,
-  __setCoverServeRouteDepsForTest,
-} from "@/app/api/cover/[profileId]/[generation]/route";
+import { GET as serveCover } from "@/app/api/cover/[profileId]/[generation]/route";
+import { __setCoverServeRouteDepsForTest } from "@/lib/profileImageServeRouteDeps.server";
 import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
 import {
   __resetProfileCoverPhotos,

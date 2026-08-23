@@ -2,40 +2,26 @@
 // lib/profileImageRoute.server.ts, shared verbatim with the cover slot.
 
 import {
-  defaultProfileImageRouteDeps,
   handleProfileImageDelete,
   handleProfileImageUpload,
-  type ProfileImageRouteDeps,
 } from "@/lib/profileImageRoute.server";
+import { profileAvatarRouteDeps } from "@/lib/profileImageRouteDeps.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
 
 export const maxDuration = 15;
 
-/** Test seam: production callers leave this unset. */
-let testDeps: Partial<ProfileImageRouteDeps> | null = null;
-
-export function __setProfileAvatarRouteDepsForTest(
-  deps: Partial<ProfileImageRouteDeps> | null,
-): void {
-  testDeps = deps;
-}
-
-function deps(): ProfileImageRouteDeps {
-  return { ...defaultProfileImageRouteDeps, ...testDeps };
-}
-
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
-  return handleProfileImageUpload(request, (await params).handle, "avatar", deps());
+  return handleProfileImageUpload(request, (await params).handle, "avatar", profileAvatarRouteDeps());
 }
 
 export async function DELETE(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
-  return handleProfileImageDelete(request, (await params).handle, "avatar", deps());
+  return handleProfileImageDelete(request, (await params).handle, "avatar", profileAvatarRouteDeps());
 }
