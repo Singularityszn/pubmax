@@ -13,7 +13,7 @@ export type SurfaceReadExemption = {
 };
 
 export const SURFACE_READ_EXEMPTIONS = [
-  { path: "app/admin/AdminClient.tsx", fetchCount: 21, reason: "admin moderation reads and writes use the admin lane" },
+  { path: "app/admin/AdminClient.tsx", fetchCount: 25, reason: "admin moderation reads and writes use the admin lane" },
   { path: "app/discover/DiscoverPageClient.tsx", fetchCount: 2, reason: "Social discover access and feed reads are explicit no-store" },
   { path: "app/feed/FeedPageClient.tsx", fetchCount: 6, reason: "Social feed and optimistic post actions keep their no-store and retry semantics" },
   { path: "app/rounds/[code]/RoundPageClient.tsx", fetchCount: 2, reason: "shared round view and report actions use their own lifecycle" },
@@ -79,6 +79,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/savedpubs/SaveToListControl.tsx", fetchCount: 1, reason: "saved-pub action is a mutation" },
   { path: "components/social/FindYourLot.tsx", fetchCount: 1, reason: "Social discovery is no-store" },
   { path: "components/social/PeopleDirectory.tsx", fetchCount: 4, reason: "Social directory and follow actions are no-store" },
+  { path: "components/social/PublicCrewRouteClient.tsx", fetchCount: 1, reason: "public Open Crew preview is a no-store route with identity-scoped lifecycle guards" },
   { path: "components/visits/visitReportsClient.ts", fetchCount: 2, reason: "Visit Report reader and flag action have their own freshness and moderation lane" },
   { path: "components/map/inspector/VenueStoryTab.tsx", fetchCount: 1, reason: "venue story is an additive map detail read" },
   { path: "lib/analytics.ts", fetchCount: 2, reason: "analytics transport is fire-and-forget telemetry, never painted data" },
