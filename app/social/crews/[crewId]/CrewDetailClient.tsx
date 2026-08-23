@@ -109,6 +109,7 @@ export default function CrewDetailClient({
 
   useEffect(() => {
     if (!identityResolved) return;
+    let active = true;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
@@ -124,6 +125,7 @@ export default function CrewDetailClient({
         return read;
       })
       .then((result) => {
+        if (!active) return;
         setLoadedIdentityKey(identityKey);
         if (result === "missing") {
           setCrew(null);
@@ -134,12 +136,17 @@ export default function CrewDetailClient({
         setStatus("ready");
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+          return;
+        }
         setLoadedIdentityKey(identityKey);
         setCrew(null);
         setStatus("error");
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [attempt, crewId, identityKey, identityResolved]);
 
   useEffect(() => {
@@ -152,6 +159,7 @@ export default function CrewDetailClient({
     ) {
       return;
     }
+    let active = true;
     const controller = new AbortController();
     void Promise.resolve().then(() => setJoinRequestStatus("loading"));
     authedActionFetch(
@@ -170,6 +178,7 @@ export default function CrewDetailClient({
         return queue;
       })
       .then((queue) => {
+        if (!active) return;
         if (queue === "missing") {
           setJoinRequests([]);
           setJoinRequestsHaveMore(false);
@@ -182,12 +191,17 @@ export default function CrewDetailClient({
         setJoinRequestStatus("ready");
       })
       .catch((error: unknown) => {
-        if (error instanceof DOMException && error.name === "AbortError") return;
+        if (!active || (error instanceof DOMException && error.name === "AbortError")) {
+          return;
+        }
         setJoinRequests([]);
         setJoinRequestsHaveMore(false);
         setJoinRequestStatus("error");
       });
-    return () => controller.abort();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [crew, crewId, identityKey, identityResolved, joinRequestAttempt, loadedIdentityKey]);
 
   useEffect(() => {

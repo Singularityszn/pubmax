@@ -23,6 +23,8 @@ const state = vi.hoisted(() => ({
   userId: "actor-a",
   decisionFails: false,
   queueMissing: false,
+  deferQueueForUserId: "",
+  deferredQueueResponses: [] as Array<() => void>,
 }));
 
 vi.mock("next/link", () => ({
@@ -95,14 +97,20 @@ vi.mock("@/lib/authedFetch", () => ({
         state.visibility = "friends";
         return Response.json({}, { status: 404 });
       }
-      return Response.json({
+      const payload = {
         items: state.queue.slice(0, 50).map((request) =>
           state.userId === "actor-b"
             ? { ...request, requesterHandle: "carol" }
             : request,
         ),
         hasMore: state.queue.length > 50,
-      });
+      };
+      if (state.deferQueueForUserId === state.userId) {
+        return new Promise<Response>((resolve) => {
+          state.deferredQueueResponses.push(() => resolve(Response.json(payload)));
+        });
+      }
+      return Response.json(payload);
     }
     if (url.includes("/join-requests/") && init?.method === "PATCH") {
       state.decisions.push(String(init.body));
@@ -149,6 +157,8 @@ beforeEach(() => {
   state.userId = "actor-a";
   state.decisionFails = false;
   state.queueMissing = false;
+  state.deferQueueForUserId = "";
+  state.deferredQueueResponses = [];
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -275,6 +285,44 @@ describe("host join-request queue", () => {
     expect(container.textContent).not.toContain("@bob");
     await settle();
     expect(container.textContent).toContain("@carol");
+  });
+
+  it("ignores a delayed queue response from the previous account", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    state.deferQueueForUserId = "actor-a";
+    state.identityResolved = false;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    state.identityResolved = true;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+    expect(state.deferredQueueResponses).toHaveLength(1);
+
+    state.identityResolved = false;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    state.userId = "actor-b";
+    state.deferQueueForUserId = "";
+    state.identityResolved = true;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(container.textContent).toContain("@carol");
+
+    await act(async () => state.deferredQueueResponses[0]?.());
+    await settle();
+
+    expect(container.textContent).toContain("@carol");
+    expect(container.textContent).not.toContain("@bob");
   });
 
   it("refreshes a request that another manager decided first", async () => {
