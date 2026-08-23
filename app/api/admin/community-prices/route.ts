@@ -84,7 +84,14 @@ export async function POST(request: Request): Promise<Response> {
       action === "hide",
       readString(body.note),
     );
-    if (!result.ok) return publicApiError("Report not found.", "NOT_FOUND", 404);
+    if (result.status === "unavailable") {
+      return publicApiError("Moderation is unavailable right now.", "UNAVAILABLE", 503, {
+        retryable: true,
+      });
+    }
+    if (result.status === "not-found") {
+      return publicApiError("Report not found.", "NOT_FOUND", 404);
+    }
     if (!result.changed) return jsonNoStore({ ok: true }, { status: 200 });
     if (action === "hide") {
       await syncTrustAfterPriceHidden(id);

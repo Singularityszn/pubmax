@@ -145,7 +145,13 @@ export async function syncTrustAfterPriceHidden(
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return;
     const current = await findCommunityPriceObservation(observationId);
-    if (current.degraded || !current.observation?.hidden) return;
+    if (current.degraded) return;
+    if (!current.observation?.hidden) {
+      // A restore may have completed after this hide read its live event. The
+      // reversal above is now stale, so reconcile from final row visibility.
+      await syncTrustAfterPriceRestored(observationId, now);
+      return;
+    }
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);

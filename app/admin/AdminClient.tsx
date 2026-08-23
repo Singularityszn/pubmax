@@ -1426,7 +1426,7 @@ export default function AdminClient() {
                     <button
                       className="admin-btn admin-keep"
                       onClick={() => void decideCommunityPrice(row, "hide")}
-                      disabled={communityPricePendingId === row.id || communityPriceLoading}
+                      disabled={communityPricePendingId !== null || communityPriceLoading}
                     >
                       {communityPricePendingId === row.id ? "Working…" : "Hide"}
                     </button>
@@ -1478,7 +1478,7 @@ export default function AdminClient() {
                     <button
                       className="admin-btn admin-restore"
                       onClick={() => void decideCommunityPrice(row, "restore")}
-                      disabled={communityPricePendingId === row.id || communityPriceLoading}
+                      disabled={communityPricePendingId !== null || communityPriceLoading}
                     >
                       {communityPricePendingId === row.id ? "Working…" : "Restore"}
                     </button>

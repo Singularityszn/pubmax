@@ -252,7 +252,7 @@ export type CommunityPriceStore = {
     id: string,
     hidden: boolean,
     note?: string,
-  ): Promise<{ ok: boolean; changed: boolean }>;
+  ): Promise<ModerationStateResult>;
   /**
    * The moderation queue: reported and/or hidden observations of either shape,
    * newest report first. NEVER throws; an unavailable durable read degrades to
@@ -277,6 +277,11 @@ export type CorroboratedCategoryCount = {
 export type CommunityPriceReviewReadResult = {
   prices: ModeratorCommunityPrice[];
   degraded: boolean;
+};
+
+export type ModerationStateResult = {
+  status: "ok" | "not-found" | "unavailable";
+  changed: boolean;
 };
 
 // Penny envelope, mirroring lib/communityPrice.ts (£1 … £30) and the DB CHECK
@@ -1080,13 +1085,13 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
 
   async moderateWithState(id, hidden, note) {
     const row = findMemoryRow(id);
-    if (!row) return { ok: false, changed: false };
+    if (!row) return { status: "not-found", changed: false };
     const changed = row.hidden !== hidden;
     row.hidden = hidden;
     row.moderatedAt = Date.now();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
-    return { ok: true, changed };
+    return { status: "ok", changed };
   },
 
   async listForReviewWithStatus(limit = REVIEW_LIMIT) {
@@ -1694,12 +1699,12 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
   },
 
   async moderateWithState(id, hidden, note) {
-    if (!id) return { ok: false, changed: false };
-    return guard<{ ok: boolean; changed: boolean }>({
+    if (!id) return { status: "not-found", changed: false };
+    return guard<ModerationStateResult>({
       context: "moderate-with-state",
       onSchemaMiss: () => memoryCommunityPriceStore.moderateWithState(id, hidden, note),
       message: "moderate failed",
-      onError: () => ({ ok: false, changed: false }),
+      onError: () => ({ status: "unavailable", changed: false }),
       run: async () => {
         const cleaned = cleanReason(note);
         const query = admin()
@@ -1715,14 +1720,17 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           ? await query.is("hidden_at", null)
           : await query.not("hidden_at", "is", null);
         if (error) throw new Error(error.message);
-        if (Array.isArray(data) && data.length > 0) return { ok: true, changed: true };
+        if (Array.isArray(data) && data.length > 0) return { status: "ok", changed: true };
         const { data: existing, error: lookupError } = await admin()
           .from("community_prices")
           .select("id")
           .eq("id", id)
           .limit(1);
         if (lookupError) throw new Error(lookupError.message);
-        return { ok: Array.isArray(existing) && existing.length > 0, changed: false };
+        return {
+          status: Array.isArray(existing) && existing.length > 0 ? "ok" : "not-found",
+          changed: false,
+        };
       },
     });
   },
@@ -1778,7 +1786,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
   async listForReviewWithStatus(limit = REVIEW_LIMIT) {
     return guard<CommunityPriceReviewReadResult>({
       context: "listForReview",
-      onSchemaMiss: () => memoryCommunityPriceStore.listForReviewWithStatus(limit),
+      onSchemaMiss: async () => ({ prices: [], degraded: true }),
       message: "review queue read failed - degraded",
       onError: () => ({ prices: [], degraded: true }),
       run: async () => {
@@ -2073,7 +2081,7 @@ export function moderateCommunityPriceWithState(
   id: string,
   hidden: boolean,
   note?: string,
-): Promise<{ ok: boolean; changed: boolean }> {
+): Promise<ModerationStateResult> {
   return droppingCategoryIndexMemo(() =>
     communityPriceStore().moderateWithState(id, hidden, note),
   );

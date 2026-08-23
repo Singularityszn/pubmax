@@ -42,6 +42,7 @@ import {
   submitCommunityPrice,
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
+import * as communityPriceStoreModule from "@/lib/communityPriceStore";
 import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -162,6 +163,7 @@ describe("community price moderation (memory backend)", () => {
       hidden: false,
       reportReason: "way off",
     });
+
   });
 
   it("counts one report per actor, so a single reader cannot inflate the queue", async () => {
@@ -204,6 +206,18 @@ describe("community price moderation (memory backend)", () => {
       await adminPost({ action: "hide", id });
       expect((await adminPost({ action: "restore", id })).status).toBe(200);
       expect(await readCommunityPrices("v1", 1_000)).toHaveLength(1);
+    });
+
+    it("returns retryable unavailable when durable moderation cannot decide", async () => {
+      const spy = vi
+        .spyOn(communityPriceStoreModule, "moderateCommunityPriceWithState")
+        .mockResolvedValue({ status: "unavailable", changed: false });
+      const res = await adminPost({ action: "hide", id: "price-1" });
+      expect(res.status).toBe(503);
+      expect((await res.json()) as { code: string }).toMatchObject({
+        code: "UNAVAILABLE",
+      });
+      spy.mockRestore();
     });
 
     it("rejects an unknown action and a missing id", async () => {
