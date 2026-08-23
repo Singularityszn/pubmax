@@ -60,9 +60,10 @@ Commit: `feat: add community price moderation queue`
 ### Task 2: Night Area activation surface
 
 **Files:**
-- Create or modify the smallest route and client surface under `app/area/[slug]/`
-- Modify only shared Night Area handoff code required by the route
-- Create: focused unit tests for route state
+- Create: `app/area/[slug]/page.tsx`
+- Create: `app/area/[slug]/nightAreaActivation.css`
+- Create: `lib/nightAreaActivation.ts`
+- Create: `__tests__/nightAreaActivation.test.ts`
 - Create: `e2e/night-area-activation.spec.ts`
 
 **Interfaces:**
@@ -75,7 +76,7 @@ Cover ready, unready, unknown, and cross-city inputs. At 390px, verify one prima
 
 - [ ] **Step 2: Run RED tests**
 
-Run: `npx vitest run <new-focused-test>`
+Run: `npx vitest run __tests__/nightAreaActivation.test.ts`
 
 Expected: FAIL because no dedicated Night Area route exists.
 
@@ -85,7 +86,7 @@ Render current Night Area evidence. Ready areas hand off to Plan with canonical 
 
 - [ ] **Step 4: Run GREEN checks**
 
-Run: `npx vitest run <new-focused-test> __tests__/night-area-coverage.spec.ts`
+Run: `npx vitest run __tests__/nightAreaActivation.test.ts __tests__/night-area-coverage.spec.ts`
 
 Run: `npx playwright test e2e/night-area-activation.spec.ts --project=chromium`
 
