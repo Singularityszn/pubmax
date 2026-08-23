@@ -20,6 +20,7 @@ import type { PintDropsState } from "@/components/map/usePintDrops";
 type ComposerFieldsProps = {
   handle: PintDropsState["handle"];
   setHandle: PintDropsState["setHandle"];
+  accountOwned: boolean;
   dropForm: PintDropsState["dropForm"];
   setDropForm: PintDropsState["setDropForm"];
   vibeTags: PintDropsState["vibeTags"];
@@ -42,6 +43,7 @@ type ComposerFieldsProps = {
 export function ComposerFields({
   handle,
   setHandle,
+  accountOwned,
   dropForm,
   setDropForm,
   vibeTags,
@@ -76,6 +78,8 @@ export function ComposerFields({
           value={handle}
           onChange={(event) => setHandle(event.target.value)}
           placeholder="@thirsty_ted"
+          readOnly={accountOwned}
+          aria-readonly={accountOwned || undefined}
           required
         />
       </label>

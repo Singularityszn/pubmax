@@ -1,4 +1,5 @@
 import { isModerator } from "@/lib/adminAuth";
+import { callerUserId } from "@/lib/authServer";
 
 // Single write-path seam for community "Pint Drops".
 //
@@ -307,13 +308,26 @@ export async function POST(request: Request): Promise<Response> {
   const canonicalDrop = canonicalResult.value;
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
-  // Linked handles can only drop as their signed-in owner; unlinked handles keep
-  // the anonymous demo path.
-  const actorHandle = await resolveMessageHandle(request, canonicalDrop.handle);
+  // Signed-in users must finish handle onboarding; only signed-out requests
+  // keep the self-asserted keyless demo path.
+  const verifiedUserId = await callerUserId(request);
+  const actorHandle = await resolveMessageHandle(
+    request,
+    canonicalDrop.handle,
+    verifiedUserId,
+    { requireLinked: Boolean(verifiedUserId) },
+  );
   if (!actorHandle) {
-    return publicApiError("Add a handle.", "INVALID_REQUEST", 400);
+    return verifiedUserId
+      ? publicApiError(
+          "Choose a PUBMAXX Handle before posting.",
+          "ONBOARDING_REQUIRED",
+          409,
+          { compatibilityFields: { status: "onboarding_required" } },
+        )
+      : publicApiError("Add a handle.", "INVALID_REQUEST", 400);
   }
-  const ownership = await gateHandleAction(request, actorHandle);
+  const ownership = await gateHandleAction(request, actorHandle, verifiedUserId);
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }

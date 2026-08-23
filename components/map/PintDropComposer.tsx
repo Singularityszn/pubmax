@@ -22,6 +22,7 @@ import { useActiveRound } from "@/components/map/composer/useActiveRound";
 import { useIsMobileComposer } from "@/components/map/composer/useIsMobileComposer";
 import { useSpeechDictation } from "@/components/map/composer/useSpeechDictation";
 import { useVenueDraft } from "@/components/map/composer/useVenueDraft";
+import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import "./spillComposer.css";
 
 type PintDropComposerProps = {
@@ -43,6 +44,9 @@ export default function PintDropComposer({
 }: PintDropComposerProps) {
   const {
     handle,
+    accountHandle,
+    signedIn,
+    identityReady,
     setHandle,
     dropForm,
     setDropForm,
@@ -63,6 +67,12 @@ export default function PintDropComposer({
     submitDrop,
     venueSignals,
   } = state;
+  const author = pintDropAuthorValue({
+    accountHandle,
+    draftHandle: handle,
+    signedIn,
+    identityReady,
+  });
 
   const maxTagsReached = vibeTags.length >= 4;
   const [transientVoiceNote, setTransientVoiceNote] = useState<{ venueId: string; typedBaseline: string } | null>(null);
@@ -121,7 +131,7 @@ export default function PintDropComposer({
   const preview = useMemo(
     () =>
       buildSpillPreview({
-        handle,
+        handle: author.handle,
         price: dropForm.price,
         note: dropForm.note,
         withWho: dropForm.withWho,
@@ -132,7 +142,7 @@ export default function PintDropComposer({
         hasPhoto: Boolean(pintPhoto),
       }),
     [
-      handle,
+      author.handle,
       dropForm.price,
       dropForm.note,
       dropForm.withWho,
@@ -193,8 +203,9 @@ export default function PintDropComposer({
       {showRest ? (
         <>
           <ComposerFields
-            handle={handle}
+            handle={author.handle}
             setHandle={setHandle}
+            accountOwned={author.accountOwned}
             dropForm={dropForm}
             setDropForm={setDropForm}
             vibeTags={vibeTags}

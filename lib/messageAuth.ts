@@ -41,6 +41,7 @@ export async function resolveMessageHandle(
   request: Request,
   assertedHandle: string | null | undefined,
   verifiedUserId?: string | null,
+  options?: { requireLinked?: boolean },
 ): Promise<string> {
   const asserted = normalizeHandle(assertedHandle ?? "");
   const userId =
@@ -50,6 +51,7 @@ export async function resolveMessageHandle(
   try {
     const linked = await profileStore().getHandleByUserId(userId);
     if (linked) return linked;
+    if (options?.requireLinked) return "";
   } catch {
     // Valid JWT present but profile lookup failed — fail closed. Falling back
     // to the body handle would let a spoofed handle ride a real session during

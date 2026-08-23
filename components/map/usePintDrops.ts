@@ -29,6 +29,7 @@ import {
   type MapPintDropVenue,
 } from "@/lib/mapPintDropPolicy";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
+import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
 import type { PintDrop, VibeTag } from "@/lib/pintDropShared";
 import {
@@ -168,8 +169,11 @@ export function usePintDrops(
     session,
     loading: authLoading,
     handle: accountHandle,
+    identityResolved,
     getCurrentUserId,
   } = useAuth();
+  const signedIn = Boolean(user && session);
+  const identityReady = !authLoading && identityResolved;
   const roundIdentity = useMemo(
     () =>
       authLoading
@@ -365,6 +369,17 @@ export function usePintDrops(
     setSubmitting(true);
     setDropMsg(null);
     const clientRequestId = newOptimisticSpillClientId();
+    const submittedAuthor = pintDropAuthorValue({
+      accountHandle,
+      draftHandle: handle,
+      signedIn,
+      identityReady,
+    });
+    if (!submittedAuthor.canSubmit) {
+      setSubmitting(false);
+      setDropMsg({ ok: false, text: "Finish setting your PUBMAXX Handle before posting." });
+      return;
+    }
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
     // Wave G1: only stamp leave-by + decision when a LIVE Last Pint verdict is
     // on screen — never attach live_data_unavailable or a missing leave-by.
@@ -373,7 +388,7 @@ export function usePintDrops(
       clientRequestId,
       venueId,
       venueName: options?.venueName,
-      handle,
+      handle: submittedAuthor.handle,
       priceGbp: dropForm.price,
       drink: dropForm.drink,
       passedDownNote,
@@ -425,7 +440,7 @@ export function usePintDrops(
     // Instant post UX (IDEAS A2): close the composer immediately and reconcile
     // in the background. Failures keep the optimistic card in a retryable state.
     // Capture form fields BEFORE resetComposer clears them.
-    const submittedHandle = handle.trim();
+    const submittedHandle = submittedAuthor.handle.trim();
     const submittedDrink = dropForm.drink;
     const submittedPrice = dropForm.price;
     const submittedEra = dropForm.era;
@@ -704,6 +719,9 @@ export function usePintDrops(
     refreshAllDrops,
     handle,
     setHandle,
+    accountHandle,
+    signedIn,
+    identityReady,
     composerOpen,
     setComposerOpen,
     closeComposer,
