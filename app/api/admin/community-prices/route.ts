@@ -27,7 +27,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
   listCommunityPricesForReviewWithStatus,
-  moderateCommunityPrice,
+  moderateCommunityPriceWithState,
 } from "@/lib/communityPriceStore";
 import {
   syncTrustAfterPriceHidden,
@@ -79,8 +79,13 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   try {
-    const ok = await moderateCommunityPrice(id, action === "hide", readString(body.note));
-    if (!ok) return publicApiError("Report not found.", "NOT_FOUND", 404);
+    const result = await moderateCommunityPriceWithState(
+      id,
+      action === "hide",
+      readString(body.note),
+    );
+    if (!result.ok) return publicApiError("Report not found.", "NOT_FOUND", 404);
+    if (!result.changed) return jsonNoStore({ ok: true }, { status: 200 });
     if (action === "hide") {
       await syncTrustAfterPriceHidden(id);
     } else {

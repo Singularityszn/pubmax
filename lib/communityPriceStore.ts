@@ -248,6 +248,11 @@ export type CommunityPriceStore = {
    * no delete. False = unknown id. NEVER throws.
    */
   moderate(id: string, hidden: boolean, note?: string): Promise<boolean>;
+  moderateWithState(
+    id: string,
+    hidden: boolean,
+    note?: string,
+  ): Promise<{ ok: boolean; changed: boolean }>;
   /**
    * The moderation queue: reported and/or hidden observations of either shape,
    * newest report first. NEVER throws; an unavailable durable read degrades to
@@ -1073,6 +1078,17 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
+  async moderateWithState(id, hidden, note) {
+    const row = findMemoryRow(id);
+    if (!row) return { ok: false, changed: false };
+    const changed = row.hidden !== hidden;
+    row.hidden = hidden;
+    row.moderatedAt = Date.now();
+    const cleaned = cleanReason(note);
+    if (cleaned) row.moderatorNote = cleaned;
+    return { ok: true, changed };
+  },
+
   async listForReviewWithStatus(limit = REVIEW_LIMIT) {
     const queue: ModeratorCommunityPrice[] = [];
     for (const rows of venues.values()) {
@@ -1677,6 +1693,40 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
+  async moderateWithState(id, hidden, note) {
+    if (!id) return { ok: false, changed: false };
+    return guard<{ ok: boolean; changed: boolean }>({
+      context: "moderate-with-state",
+      onSchemaMiss: () => memoryCommunityPriceStore.moderateWithState(id, hidden, note),
+      message: "moderate failed",
+      onError: () => ({ ok: false, changed: false }),
+      run: async () => {
+        const cleaned = cleanReason(note);
+        const query = admin()
+          .from("community_prices")
+          .update({
+            hidden_at: hidden ? new Date().toISOString() : null,
+            ...(cleaned ? { moderator_note: cleaned } : {}),
+            moderated_at: new Date().toISOString(),
+          })
+          .eq("id", id)
+          .select("id");
+        const { data, error } = hidden
+          ? await query.is("hidden_at", null)
+          : await query.not("hidden_at", "is", null);
+        if (error) throw new Error(error.message);
+        if (Array.isArray(data) && data.length > 0) return { ok: true, changed: true };
+        const { data: existing, error: lookupError } = await admin()
+          .from("community_prices")
+          .select("id")
+          .eq("id", id)
+          .limit(1);
+        if (lookupError) throw new Error(lookupError.message);
+        return { ok: Array.isArray(existing) && existing.length > 0, changed: false };
+      },
+    });
+  },
+
   async listLeaderboardContributions() {
     return guard<ContributionRecordReadResult>({
       context: "leaderboard-contributions",
@@ -2019,6 +2069,16 @@ export function moderateCommunityPrice(
   );
 }
 
+export function moderateCommunityPriceWithState(
+  id: string,
+  hidden: boolean,
+  note?: string,
+): Promise<{ ok: boolean; changed: boolean }> {
+  return droppingCategoryIndexMemo(() =>
+    communityPriceStore().moderateWithState(id, hidden, note),
+  );
+}
+
 /** The moderation queue: reported and/or hidden observations. NEVER throws. */
 export function listCommunityPricesForReview(
   limit?: number,
@@ -2040,6 +2100,7 @@ export type CommunityPriceObservation = {
   submittedAt: number;
   actor: string | null;
   hidden: boolean;
+  moderatedAt?: number;
 };
 
 export type CommunityPriceObservationPair = {
@@ -2063,6 +2124,7 @@ function observationFromStored(row: StoredPrice): CommunityPriceObservation | nu
     submittedAt: row.submittedAt,
     actor: row.actor,
     hidden: row.hidden,
+    moderatedAt: row.moderatedAt,
   };
 }
 
@@ -2078,7 +2140,7 @@ function memoryObservations(): CommunityPriceObservation[] {
 }
 
 const OBSERVATION_COLUMNS =
-  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at";
+  "id, venue_id, drink_category, price_pennies, submitted_at, actor, hidden_at, moderated_at";
 
 function storedPricesFromRows(rows: readonly unknown[]): StoredPrice[] {
   const out: StoredPrice[] = [];

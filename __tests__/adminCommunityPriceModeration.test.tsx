@@ -179,7 +179,8 @@ describe("community price moderation queues", () => {
     expect(host.textContent).toContain("£5.50");
     expect(host.textContent).toContain("Wrong price on the menu");
     expect(host.textContent).toContain("Hidden Community Prices");
-    expect(host.textContent).toContain("step-free-venue");
+    expect(host.textContent).toContain("Entrance: Has steps");
+    expect(host.textContent).not.toContain("step-free-venue: steps");
     expect(host.textContent).toContain("Access detail is wrong");
     expect(host.textContent).not.toContain("Review reported prices and venue signals");
     expect(host.textContent).not.toContain("Observation:");

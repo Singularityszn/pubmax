@@ -12,6 +12,7 @@ vi.mock("@/lib/supabase", () => ({
 import {
   __resetCommunityPrices,
   findCommunityPriceObservation,
+  moderateCommunityPrice,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import {
@@ -150,7 +151,6 @@ describe("syncTrustAfterPriceHidden", () => {
     await logPrice("bob_pint", profileB, 4.2, NOW - 1_000);
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
 
-    const { moderateCommunityPrice } = await import("@/lib/communityPriceStore");
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
     await syncTrustAfterPriceHidden(hiddenId, NOW);
     expect(await readPriceTrustImpact(USER_A)).toMatchObject({
@@ -166,6 +166,38 @@ describe("syncTrustAfterPriceHidden", () => {
       lifetimeTrustUnlocks: 1,
     });
     expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      pricesTrustedNow: 1,
+      lifetimeTrustUnlocks: 1,
+    });
+
+    expect(await moderateCommunityPrice(hiddenId, true, "second hide")).toBe(true);
+    await syncTrustAfterPriceHidden(hiddenId, NOW + 2);
+    expect(await moderateCommunityPrice(hiddenId, false)).toBe(true);
+    await syncTrustAfterPriceRestored(hiddenId, NOW + 3);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 1,
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      pricesTrustedNow: 1,
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("lets final visible state win when hide sync finishes after restore", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 2_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 1_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
+
+    expect(await moderateCommunityPrice(hiddenId, true)).toBe(true);
+    const lateHide = syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await moderateCommunityPrice(hiddenId, false)).toBe(true);
+    await lateHide;
+    await syncTrustAfterPriceRestored(hiddenId, NOW + 1);
+
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });

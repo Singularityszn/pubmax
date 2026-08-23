@@ -76,7 +76,7 @@ async function recordFirstCluster(
   category: DrinkCategory,
   observations: readonly TrustObservation[],
   now: number,
-  restored = false,
+  restorationKey?: string,
 ): Promise<void> {
   const cluster = firstQualifyingCluster(observations, now);
   if (!cluster) return;
@@ -87,7 +87,7 @@ async function recordFirstCluster(
     // A previous unlock may have a hide reversal. Restoring the observation
     // needs a new positive event because the original fingerprint remains
     // append-only and cannot be reused as visible credit.
-    fingerprint: restored ? `restored:${fingerprint}` : fingerprint,
+    fingerprint: restorationKey ? `restored:${fingerprint}:${restorationKey}` : fingerprint,
     venueId,
     category,
     observationIds: cluster.observationIds,
@@ -121,6 +121,7 @@ export async function syncTrustAfterPriceHidden(
   try {
     const found = await findCommunityPriceObservation(observationId);
     if (found.degraded || !found.observation) return;
+    if (!found.observation.hidden) return;
     const { venueId, drinkCategory } = found.observation;
     const covering = await priceTrustEventStore().liveEventsCovering(observationId);
     if (covering.degraded) return;
@@ -143,6 +144,8 @@ export async function syncTrustAfterPriceHidden(
     }
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return;
+    const current = await findCommunityPriceObservation(observationId);
+    if (current.degraded || !current.observation?.hidden) return;
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
@@ -160,6 +163,7 @@ export async function syncTrustAfterPriceRestored(
   try {
     const found = await findCommunityPriceObservation(observationId);
     if (found.degraded || !found.observation) return;
+    if (found.observation.hidden) return;
     const { venueId, drinkCategory } = found.observation;
     const listed = await listCommunityPriceObservations(venueId, drinkCategory);
     if (listed.degraded) return;
@@ -167,7 +171,14 @@ export async function syncTrustAfterPriceRestored(
     if (!categoryIsTrusted(observations, now)) return;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
     if (live.degraded || live.events.length > 0) return;
-    await recordFirstCluster(venueId, drinkCategory, observations, now, true);
+    // The row's moderation stamp identifies this transition. Include sync time
+    // so two transitions that share a database timestamp still get distinct
+    // append-only event identities. Route retries do not call this sync again
+    // when moderation reports no state change.
+    const restorationKey = `${found.observation.moderatedAt ?? now}:${now}`;
+    const current = await findCommunityPriceObservation(observationId);
+    if (current.degraded || current.observation?.hidden) return;
+    await recordFirstCluster(venueId, drinkCategory, observations, now, restorationKey);
   } catch (error) {
     console.warn(`${STORE_TAG} sync after restore failed`, error);
   }

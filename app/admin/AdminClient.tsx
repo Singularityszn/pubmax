@@ -21,6 +21,11 @@ import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
+import {
+  COMMUNITY_VENUE_SIGNAL_LABELS,
+  COMMUNITY_VENUE_SIGNAL_OPTIONS,
+  isCommunityVenueSignalKey,
+} from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
 
 import "./admin.css";
@@ -70,7 +75,11 @@ function communityObservationText(row: ModeratorCommunityPrice): string {
       ? category
       : `${category} · £${row.priceGbp.toFixed(2)}`;
   }
-  return `${row.signalKey ?? "Venue signal"}: ${row.signalValue ?? "Unknown"}`;
+  if (!isCommunityVenueSignalKey(row.signalKey)) return "Venue signal";
+  const option = COMMUNITY_VENUE_SIGNAL_OPTIONS[row.signalKey].find(
+    (candidate) => candidate.value === row.signalValue,
+  );
+  return `${COMMUNITY_VENUE_SIGNAL_LABELS[row.signalKey]}: ${option?.label ?? "Unknown"}`;
 }
 
 export function moderatorReportEvidence(
