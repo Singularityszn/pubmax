@@ -923,6 +923,28 @@ describe("mergeVenueDrops", () => {
       expect(corroboratedPriceDrop(drops, NOW)).toBeNull();
     });
 
+    it("never selects a provisional row as the corroborated candidate", () => {
+      const drops = [
+        makeSummaryDrop({ priceGbp: 4.5, handle: "withheld" }),
+        makeSummaryDrop({
+          priceGbp: 4.5,
+          handle: "first_verified",
+          authorityKey: "venue-authority-a",
+          createdAt: "2026-05-31T10:00:00.000Z",
+        }),
+        makeSummaryDrop({
+          priceGbp: 4.5,
+          handle: "second_verified",
+          authorityKey: "venue-authority-b",
+          createdAt: "2026-05-30T10:00:00.000Z",
+        }),
+      ];
+
+      expect(corroboratedPriceDrop(drops, NOW)?.authorityKey).toBe(
+        "venue-authority-a",
+      );
+    });
+
     it("a corroborated pair yields the newest agreeing drop as the candidate", () => {
       const drops = corroboratedPair(4.5);
       const candidate = corroboratedPriceDrop(drops, NOW);

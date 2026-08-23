@@ -22,10 +22,8 @@ describe("Pint Drop authority migration", () => {
     expect(migration).toMatch(
       /alter table public\.visit_reports[\s\S]*add column if not exists authority_key text/i,
     );
-    expect(migration).toMatch(
-      /where authority_key is not null/i,
-    );
     expect(migration).not.toMatch(/authority_key text not null/i);
+    expect(migration).not.toMatch(/create\s+index/i);
 
     const rollback = readFileSync(rollbackPath, "utf8");
     expect(rollback).toMatch(/drop column if exists authority_key/i);

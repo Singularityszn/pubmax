@@ -570,6 +570,7 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
   let best: D | null = null;
   let bestBackers = 0;
   for (const candidate of inWindow) {
+    if (!candidate.authorityKey?.trim()) continue;
     const backers = new Set<string>();
     for (const other of inWindow) {
       const authorityKey = other.authorityKey?.trim();
