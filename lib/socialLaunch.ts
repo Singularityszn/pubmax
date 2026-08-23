@@ -13,11 +13,6 @@ export function isSocialFriendsLaunchEnabled(
 export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
-/** Small preview pill on the mobile Social tab while friends launch is off. */
-export function socialNavShowsPreviewBadge(friendsLaunchEnabled: boolean): boolean {
-  return !friendsLaunchEnabled;
-}
-
 /** In-page headings, desktop nav and loading lines use the surface name. */
 export function socialSurfaceName(friendsLaunchEnabled: boolean): string {
   return friendsLaunchEnabled
@@ -67,9 +62,7 @@ export function readSocialFriendsLaunchFromDocument(): boolean {
   return document.body.dataset.socialFriendsLaunch === "1";
 }
 
-export function subscribeSocialFriendsLaunchFromDocument(
-  _onStoreChange: () => void,
-): () => void {
+export function subscribeSocialFriendsLaunchFromDocument(): () => void {
   // The flag is env-driven and only changes on a full navigation after deploy.
   return () => {};
 }

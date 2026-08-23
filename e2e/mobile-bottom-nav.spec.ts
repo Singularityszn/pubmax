@@ -108,15 +108,10 @@ test.describe("mobile bottom-tab navigation", () => {
     await expect(page.getByRole("link", { name: "Cancel" })).toHaveAttribute("href", "/map");
   });
 
-  test("Social routes to the social shell", async ({ page }) => {
+  test("gated Social stays out of the primary tab row", async ({ page }) => {
     await page.goto("/map");
 
-    const social = primaryNav(page).getByRole("link", { name: "Social preview", exact: true });
-    await social.click();
-
-    await expect(page).toHaveURL(/\/social$/);
-    await expect(social).toHaveAttribute("aria-current", "page");
-    await expect(social).toHaveClass(/isActive/);
+    await expect(primaryNav(page).locator('a[href="/social"]')).toHaveCount(0);
   });
 
   test("You tab routes to the owned profile surface", async ({ page }) => {

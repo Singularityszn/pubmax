@@ -14,8 +14,7 @@ import {
   subscribeNowTabHref,
   type PrimaryNavKey,
 } from "@/components/nav/navigationModel";
-import { SOCIAL_PREVIEW_NAV_LABEL } from "@/lib/socialLaunch";
-import { useSocialNavShowsPreviewBadge } from "@/lib/useSocialFriendsLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
   readSoftKeyboardOpen,
@@ -33,7 +32,8 @@ import "./mobileNav.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Five destinations. Compose lives on the floating + action, never in this row.
+// Four durable destinations while Social is gated, then five after launch.
+// Compose lives on the floating + action, never in this row.
 //
 // Path active-state is pure (usePathname). Route warming starts only from
 // pointer, hover, touch, or focus intent.
@@ -50,24 +50,27 @@ type Tab = {
 const warmedTabs = new Set<string>();
 
 // Map always opens the canonical /map surface. Now follows London wall clock.
-// Exported for the five-tab contract test (order + destinations are load-bearing).
+// Exported for the launch-aware tab contract test.
 export function buildTabs(
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
+  socialFriendsLaunchEnabled = true,
 ): Tab[] {
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
-  return PRIMARY_NAV_ITEMS.map((item) => ({
-    ...item,
-    href:
-      item.key === "now"
-        ? nowHref
-        : item.key === "map"
-          ? "/map"
-          : item.key === "you"
-            ? youHref
-            : item.href,
-    Icon: icons[item.key],
-  }));
+  return PRIMARY_NAV_ITEMS
+    .filter((item) => socialFriendsLaunchEnabled || item.key !== "social")
+    .map((item) => ({
+      ...item,
+      href:
+        item.key === "now"
+          ? nowHref
+          : item.key === "map"
+            ? "/map"
+            : item.key === "you"
+              ? youHref
+              : item.href,
+      Icon: icons[item.key],
+    }));
 }
 
 function isActive(pathname: string, tab: Tab): boolean {
@@ -122,8 +125,11 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     readStrictModalFocusTrap,
     serverStrictModalFocusTrap,
   );
-  const socialPreviewBadge = useSocialNavShowsPreviewBadge();
-  const tabs = useMemo(() => buildTabs(youHref, nowHref), [youHref, nowHref]);
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const tabs = useMemo(
+    () => buildTabs(youHref, nowHref, socialFriendsLaunchEnabled),
+    [socialFriendsLaunchEnabled, youHref, nowHref],
+  );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
@@ -175,7 +181,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
         {tabs.map((tab) => {
           const active = isActive(pathname, tab);
           const { Icon } = tab;
-          const previewMarked = tab.key === "social" && socialPreviewBadge;
           return (
             <li key={tab.label} className="mobileTabItem">
               <Link
@@ -189,7 +194,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 prefetch={false}
                 className={"mobileTab pressable" + (active ? " isActive" : "")}
                 aria-current={active ? "page" : undefined}
-                aria-label={previewMarked ? SOCIAL_PREVIEW_NAV_LABEL : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onClick={onPrimaryTabNavigate}
                 onMouseEnter={() => warmTab(tab.href)}
@@ -205,9 +209,6 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 </span>
                 <span className="mobileTabLabel">
                   <span className="mobileTabLabelText">{tab.label}</span>
-                  {previewMarked ? (
-                    <span className="mobileTabPreviewBadge" aria-hidden="true" />
-                  ) : null}
                 </span>
               </Link>
             </li>

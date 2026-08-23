@@ -1,5 +1,5 @@
 // The floating create action. Compose is an ACTION, so it never joins the
-// five-tab row; what it owes instead is the three destinations, a returnTo that
+// launch-aware tab row; what it owes instead is the three destinations, a returnTo that
 // survives the query of the route it was pressed on, and the same disappearance
 // the tab bar performs when the soft keyboard comes up.
 //
