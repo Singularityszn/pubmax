@@ -107,6 +107,7 @@ import { requestMagicLink, type MagicLinkResult } from "@/lib/passwordlessAuth";
 import {
   readProviderAuthState,
   readProviderIdentityRevision,
+  resolveSupabaseAuthState,
   setProviderAuthState,
   setProviderIdentity,
   subscribeProviderIdentityRevision,
@@ -357,7 +358,14 @@ export function AuthProvider({
       const previousUserId = sessionTransitions.current.currentUserId();
       const nextUserId = nextSession?.user.id ?? null;
       const signedIn = sessionTransitions.current.update(event, nextUserId);
-      setProviderAuthState("supabase", nextSession ? "authenticated" : "signed-out");
+      const nextProviderAuthState = resolveSupabaseAuthState(
+        event === "INITIAL_SESSION" ? "initial-session" : "auth-event",
+        nextSession !== null,
+        sessionTransitions.current.currentUserId(),
+      );
+      if (nextProviderAuthState) {
+        setProviderAuthState("supabase", nextProviderAuthState);
+      }
       setProviderIdentity("supabase", nextUserId);
       // THE BOUNDARY. Before any child re-renders on the new session, bind this
       // device's cached identity to the account that now owns it. A different
@@ -535,10 +543,14 @@ export function AuthProvider({
     // calls below run from async callbacks or event handlers — never the
     // effect body — so react-hooks/set-state-in-effect stays clean.
     const loadingTimeout = window.setTimeout(() => {
-      if (active) {
-        setProviderAuthState("supabase", "signed-out");
-        setSessionLoading(false);
-      }
+      if (!active) return;
+      const timeoutAuthState = resolveSupabaseAuthState(
+        "timeout",
+        sessionTransitions.current.currentUserId() !== null,
+        sessionTransitions.current.currentUserId(),
+      );
+      if (timeoutAuthState) setProviderAuthState("supabase", timeoutAuthState);
+      setSessionLoading(false);
     }, AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
@@ -549,7 +561,14 @@ export function AuthProvider({
       // Unconfigured / SSR-only: nothing to subscribe to.
       if (!supabase) {
         window.clearTimeout(loadingTimeout);
-        setProviderAuthState("supabase", "signed-out");
+        const unavailableAuthState = resolveSupabaseAuthState(
+          "bootstrap",
+          false,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (unavailableAuthState) {
+          setProviderAuthState("supabase", unavailableAuthState);
+        }
         setSessionLoading(false);
         void callbackCapture.then((captured) => {
           const callbackAttempt = captured?.attempt ?? null;
@@ -732,6 +751,14 @@ export function AuthProvider({
           updateSession(bootstrapped.session);
         } else if (bootstrapped.status === "expired") {
           setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
+        }
+        const bootstrapAuthState = resolveSupabaseAuthState(
+          "bootstrap",
+          sessionTransitions.current.currentUserId() !== null,
+          sessionTransitions.current.currentUserId(),
+        );
+        if (bootstrapAuthState) {
+          setProviderAuthState("supabase", bootstrapAuthState);
         }
         // A restored result has already awaited auth.setSession. Supabase emits
         // SIGNED_IN through the subscription above, so the session and identity

@@ -726,6 +726,20 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
     expect(listOpenCrews()).toEqual([]);
   });
 
+  it("rejects a blank Stop 1 before considering a valid Stop 2", () => {
+    const db = requireDatabase();
+    db.sql(`delete from public.plan_stops where plan_id='${OPEN_PLAN}';
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+        ('${OPEN_PLAN}','   ','First row',0),
+        ('${OPEN_PLAN}','venue-angel-islington','The Angel',1)`);
+
+    expect(
+      db.sql(`set role service_role;
+        select public.read_social_crew_public_preview('${OPEN_CREW}')`),
+    ).toBe("");
+    expect(listOpenCrews()).toEqual([]);
+  });
+
   it("keeps /out lifecycle aligned with the public preview expiry", () => {
     const db = requireDatabase();
     db.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);

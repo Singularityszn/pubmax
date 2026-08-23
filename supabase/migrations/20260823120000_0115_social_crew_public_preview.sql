@@ -48,18 +48,19 @@ as $$
       on owner_plan_member.id = owner_member.plan_member_id
       and owner_plan_member.plan_id = plan.id
       and owner_plan_member.social_account_id = crew.owner_account_id
+    -- Pick physical Stop 1 first. Validate it after selection so a malformed
+    -- first row can never promote a later stop into the public meeting point.
     join lateral (
       select plan_stop.venue_id, plan_stop.venue_name
       from public.plan_stops plan_stop
       where plan_stop.plan_id = plan.id
       order by plan_stop.position, plan_stop.venue_id
       limit 1
-    ) stop on true
+    ) stop on stop.venue_id is not null and btrim(stop.venue_id) <> ''
     where crew.id = p_crew_id
       and crew.visibility = 'open'
       and plan.status in ('draft','ready','active','ending')
       and plan.start_time + interval '8 hours' > statement_timestamp()
-      and btrim(coalesce(stop.venue_id,'')) <> ''
       and btrim(coalesce(stop.venue_name,'')) <> ''
   ) listed;
 $$;
@@ -116,19 +117,20 @@ as $$
       on account.id = crew.owner_account_id
       and account.ownership_state = 'active'
     join public.profiles profile on profile.id = account.profile_id
+    -- Discovery uses same physical Stop 1 rule as preview. Do not filter
+    -- invalid rows before ordering or Stop 2 could become the meeting point.
     join lateral (
       select stop.venue_id, stop.venue_name
       from public.plan_stops stop
       where stop.plan_id = plan.id
       order by stop.position, stop.venue_id
       limit 1
-    ) stop on true
+    ) stop on stop.venue_id is not null and btrim(stop.venue_id) <> ''
     where crew.visibility = 'open'
       and plan.status not in ('completed','abandoned')
       and plan.start_time >= p_from
       and plan.start_time < p_until
       and plan.start_time + interval '8 hours' > statement_timestamp()
-      and btrim(coalesce(stop.venue_id,'')) <> ''
       and btrim(coalesce(stop.venue_name,'')) <> ''
       and public.open_plan_stop_matches_city(stop.venue_id, p_city)
     order by plan.start_time, crew.id

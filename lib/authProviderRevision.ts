@@ -1,6 +1,30 @@
 export type AuthProviderName = "clerk" | "supabase";
 export type ProviderAuthState = "unresolved" | "authenticated" | "signed-out";
 
+export type SupabaseAuthSettlement =
+  | "initial-session"
+  | "auth-event"
+  | "bootstrap"
+  | "timeout";
+
+/**
+ * Decide when Supabase may publish an authentication answer.
+ *
+ * A null INITIAL_SESSION event is only an event-stream marker. Durable resume
+ * may still restore an account, so it must leave the provider unresolved.
+ * A timeout may settle only when no session event has bound an account.
+ */
+export function resolveSupabaseAuthState(
+  settlement: SupabaseAuthSettlement,
+  hasSession: boolean,
+  currentUserId: string | null,
+): ProviderAuthState | null {
+  if (hasSession) return "authenticated";
+  if (settlement === "initial-session") return null;
+  if (settlement === "timeout" && currentUserId !== null) return null;
+  return "signed-out";
+}
+
 export type ProviderIdentityRevisionStore = {
   read: () => number;
   set: (provider: AuthProviderName, identity: string | null) => number;

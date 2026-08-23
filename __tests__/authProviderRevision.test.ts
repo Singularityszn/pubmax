@@ -1,6 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { createProviderIdentityRevisionStore } from "@/lib/authProviderRevision";
+import {
+  createProviderIdentityRevisionStore,
+  resolveSupabaseAuthState,
+} from "@/lib/authProviderRevision";
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("provider identity revision", () => {
   it("increments only when the combined provider identity changes", () => {
@@ -36,5 +43,32 @@ describe("provider identity revision", () => {
     expect(store.authState("clerk")).toBe("signed-out");
     expect(store.setAuthState("clerk", "authenticated")).toBe(2);
     expect(store.authState("clerk")).toBe("authenticated");
+  });
+
+  it("keeps Supabase unresolved for a null INITIAL_SESSION event", () => {
+    expect(resolveSupabaseAuthState("initial-session", false, null)).toBeNull();
+  });
+
+  it("settles signed-out after bootstrap proves no account exists", () => {
+    expect(resolveSupabaseAuthState("bootstrap", false, null)).toBe("signed-out");
+  });
+
+  it("does not let a bootstrap timeout replace an authenticated session", () => {
+    vi.useFakeTimers();
+    let state: "unresolved" | "authenticated" | "signed-out" = "unresolved";
+    let currentUserId: string | null = null;
+
+    const timeout = setTimeout(() => {
+      const next = resolveSupabaseAuthState("timeout", currentUserId !== null, currentUserId);
+      if (next) state = next;
+    }, 20_000);
+
+    const sessionEvent = resolveSupabaseAuthState("auth-event", true, "supabase-user-a");
+    currentUserId = "supabase-user-a";
+    if (sessionEvent) state = sessionEvent;
+    vi.advanceTimersByTime(20_000);
+
+    expect(state).toBe("authenticated");
+    clearTimeout(timeout);
   });
 });
