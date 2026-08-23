@@ -217,6 +217,7 @@ let keySequence = 0;
 /** The rollback narrows the CHECK, so a reseed after it may not say `open`. */
 let seedVisibility: "open" | "private" = "open";
 let visibilityAfterRollback: string | null = null;
+let listAfterPublicPreviewRollback: unknown = null;
 
 function json(value: string): Record<string, unknown> {
   return JSON.parse(value) as Record<string, unknown>;
@@ -711,6 +712,31 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
     expect((listOpenCrews("now() - interval '1 hour'", "now() + interval '7 days'", "london", 1) as unknown[]).length).toBe(1);
   });
 
+  it("does not promote Stop 2 when Stop 1 is blank", () => {
+    const db = requireDatabase();
+    db.sql(`delete from public.plan_stops where plan_id='${OPEN_PLAN}';
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+        ('${OPEN_PLAN}','   ','   ',0),
+        ('${OPEN_PLAN}','venue-angel-islington','The Angel',1)`);
+
+    expect(
+      db.sql(`set role service_role;
+        select public.read_social_crew_public_preview('${OPEN_CREW}')`),
+    ).toBe("");
+    expect(listOpenCrews()).toEqual([]);
+  });
+
+  it("keeps /out lifecycle aligned with the public preview expiry", () => {
+    const db = requireDatabase();
+    db.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
+
+    expect(
+      db.sql(`set role service_role;
+        select public.read_social_crew_public_preview('${OPEN_CREW}')`),
+    ).toBe("");
+    expect(listOpenCrews("now() - interval '10 hours'", "now() + interval '7 days'")).toEqual([]);
+  });
+
   it("returns only one strict public preview for an open active crew", () => {
     const db = requireDatabase();
     const preview = jsonValue(
@@ -753,6 +779,15 @@ describe("0114 and 0110 rolled back", () => {
     if (skipReason || !database) return;
     seed(database);
     database.apply(PUBLIC_PREVIEW_ROLLBACK);
+    database.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
+    listAfterPublicPreviewRollback = jsonValue(
+      database.sql(
+        `set role service_role;
+         select public.list_open_social_crews(
+           now() - interval '10 hours', now() + interval '7 days', 'london', 50
+         )`,
+      ),
+    );
     database.apply(QUEUE_ROLLBACK);
     database.apply(ROLLBACK);
     visibilityAfterRollback = database.sql(
@@ -795,6 +830,12 @@ describe("0114 and 0110 rolled back", () => {
         `update public.social_crews set visibility='open' where id='${OPEN_CREW}'`,
       ),
     ).toMatch(/social_crews_visibility_check/);
+  });
+
+  it("restores the exact 0110 list lifecycle before 0110 rollback", () => {
+    expect(listAfterPublicPreviewRollback).toEqual([
+      expect.objectContaining({ crewId: OPEN_CREW }),
+    ]);
   });
 
   it("refuses a non-mutual join request again and drops the listing function", () => {
