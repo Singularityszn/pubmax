@@ -59,12 +59,12 @@ export default function HistoricPageClient({
         <p className="historicEyebrow">Historic pubs</p>
         <h1 className="historicTitle">London&rsquo;s Historic Pubs</h1>
         <p className="historicLede">
-          {pubs.length} notable pubs, cited from Wikipedia and Wikidata. Never
+          {totalPubs} notable pubs, cited from Wikipedia and Wikidata. Never
           invented.
         </p>
       </header>
 
-      {pubs.length === 0 ? (
+      {totalPubs === 0 ? (
         <p className="historicStatus" role="status">
           The historic index isn&rsquo;t loading just now. The{" "}
           <Link href="/map">map</Link> is still up, and it still knows where the

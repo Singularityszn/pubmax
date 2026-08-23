@@ -101,9 +101,12 @@ describe("index server/client boundaries", () => {
   });
 
   it("keeps historic and chain cards in Server Components", () => {
-    expect(read("app/historic/HistoricPageClient.tsx")).not.toMatch(
+    const historicSource = read("app/historic/HistoricPageClient.tsx");
+    expect(historicSource).not.toMatch(
       /^"use client";/m,
     );
+    expect(historicSource).toContain("{totalPubs} notable pubs");
+    expect(historicSource).toContain("totalPubs === 0");
     expect(read("components/pubs/PubsGallery.tsx")).not.toMatch(
       /^"use client";/m,
     );
