@@ -254,4 +254,24 @@ describe("occupancy read before the durable table exists", () => {
       feed: "reset-isolation",
     });
   });
+
+  it("keeps occupancy rows when feed freshness resets", async () => {
+    await memoryOccupancyStore.report({
+      venueId: "venue-inverse-reset",
+      level: "some-seats",
+      reporterUserId: "user-a",
+    });
+    await memoryFeedFreshnessStore.stamp({
+      feed: "inverse-reset",
+      observedAt: "2026-08-16T18:00:00.000Z",
+    });
+
+    __resetFeedFreshnessStore();
+
+    await expect(memoryFeedFreshnessStore.read("inverse-reset")).resolves.toBeNull();
+    await expect(memoryOccupancyStore.readNow("venue-inverse-reset")).resolves.toMatchObject({
+      now: "some-seats",
+      state: "fresh",
+    });
+  });
 });

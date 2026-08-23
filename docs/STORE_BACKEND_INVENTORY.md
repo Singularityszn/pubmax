@@ -114,7 +114,7 @@ The following stores intentionally stay outside the factory-ready path:
   `weatherRecommendationStore`. Their explicit policy is the reason to defer
   migration, not a claim that the selector is impossible to simplify later.
 
-+## Inline backend references
+## Inline backend references
 
 Every production file with an inline `selectStore` or `isSupabaseConfigured` branch is listed here. This includes non-store modules such as `lib/messageAuth.ts`. The test compares this list with repository search results.
 
