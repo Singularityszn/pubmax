@@ -20,7 +20,7 @@ export function resolveSupabaseAuthState(
   currentUserId: string | null,
 ): ProviderAuthState | null {
   if (hasSession) return "authenticated";
-  if (settlement === "initial-session") return null;
+  if (settlement === "initial-session") return "unresolved";
   if (settlement === "timeout" && currentUserId !== null) return null;
   return "signed-out";
 }

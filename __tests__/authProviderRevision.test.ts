@@ -46,7 +46,7 @@ describe("provider identity revision", () => {
   });
 
   it("keeps Supabase unresolved for a null INITIAL_SESSION event", () => {
-    expect(resolveSupabaseAuthState("initial-session", false, null)).toBeNull();
+    expect(resolveSupabaseAuthState("initial-session", false, null)).toBe("unresolved");
   });
 
   it("settles signed-out after bootstrap proves no account exists", () => {
