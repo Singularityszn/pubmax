@@ -85,6 +85,29 @@ describe("review scope guard", () => {
     expect(legitimateLargeReview.warnings).not.toEqual([]);
   });
 
+  it("classifies generated venue indexes and build outputs without blocking curated data", () => {
+    const generated = [
+      "public/data/venues_slim.json",
+      "public/data/venues_slim.core.json",
+      "public/data/cities/bath/venues_slim.manifest.json",
+      "public/data/uk_base/manifest.json",
+      "public/data/london_venues/manifest.json",
+      "public/data/london_desks/desks.json",
+      "public/data/pubmaxxing_seed_snapshot.json",
+    ];
+    expect(summarizeReviewScope(generated).forbidden).toEqual(
+      generated.sort().map((path) => ({ category: "generated", path })),
+    );
+
+    const curated = [
+      "public/data/uk_base/README.md",
+      "public/data/london_venues/README.md",
+      "public/data/london_desks/README.md",
+      "public/data/drink_price_updates/latest.json",
+    ];
+    expect(summarizeReviewScope(curated).forbidden).toEqual([]);
+  });
+
   it("keeps deleted generated paths in the changed-file report", () => {
     const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-"));
     const git = (...args: string[]) =>
@@ -109,6 +132,29 @@ describe("review scope guard", () => {
       expect(summarizeReviewScope(changedFilesFromGit(base, head, repo)).forbidden).toEqual([
         { category: "generated", path: "data/generated/venues.json" },
       ]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
+  });
+
+  it("uses an empty-tree diff for an all-zero base SHA", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-zero-base-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      mkdirSync(join(repo, "public/data"), { recursive: true });
+      writeFileSync(join(repo, "public/data/venues_slim.json"), "{}\n");
+      git("add", ".");
+      git("commit", "-qm", "seed first branch");
+      const head = git("rev-parse", "HEAD");
+
+      const files = changedFilesFromGit("0".repeat(40), head, repo);
+      expect(files).toEqual(["public/data/venues_slim.json"]);
+      expect(summarizeReviewScope(files).ok).toBe(false);
     } finally {
       rmSync(repo, { recursive: true, force: true });
     }

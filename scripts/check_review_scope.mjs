@@ -25,6 +25,11 @@ const CATEGORY_ORDER = [
 const SKILL_PACK_PATH = /(?:^|\/)skills(?:\/|$)/;
 const GENERATED_PATHS = [
   /^(?:data|public\/data)\/generated(?:\/|$)/,
+  /^public\/data\/venues_slim[^/]*\.json$/,
+  /^public\/data\/cities\/[^/]+\/venues_slim[^/]*\.json$/,
+  /^public\/data\/(?:uk_base|london_venues|london_desks)\/(?!README\.md$).+/,
+  /^public\/data\/pubmaxxing_seed_snapshot\.json$/,
+  /^public\/vendor\/maplibre\//,
   /^(?:\.next|build|coverage|dist|out|playwright-report|test-results)(?:\/|$)/,
   /^(?:generated|__generated__)(?:\/|$)/,
   /(?:^|\/)__generated__(?:\/|$)/,
@@ -133,9 +138,12 @@ export function summarizeReviewScope(values) {
 }
 
 export function changedFilesFromGit(base, head, cwd) {
+  const diffBase = /^0{40}$/.test(base)
+    ? "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+    : base;
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMRD", base, head],
+    ["diff", "--name-only", "--diff-filter=ACMRD", diffBase, head],
     { cwd, encoding: "utf8" },
   );
   return output.split("\n").filter(Boolean);
