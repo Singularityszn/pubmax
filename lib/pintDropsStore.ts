@@ -23,6 +23,7 @@ import {
   dropMatchesCityScope,
   hasPricedDropToday as hasPricedDropTodayMemory,
   keepHiddenPintDrop,
+  listReportedPintDrops,
   listAllVisiblePintDrops,
   listByStatus,
   listLegacyPintDropsForVenue,
@@ -35,6 +36,7 @@ import {
   verifiedPintDropReportCount,
   type PintDrop,
   type PintDropReportIdentity,
+  type PintDropReviewStatus,
   type PintDropStatus,
   type ViewerContext,
   type VibeTag,
@@ -135,7 +137,7 @@ export type PintDropStore = {
    */
   listLegacyForVenue(venueId: string): Promise<PintDropDTO[]>;
   /** Moderator review queue: unreviewed drops in a status, with report metadata. */
-  listForReview(status: "hidden" | "pending"): Promise<ModeratorDrop[]>;
+  listForReview(status: PintDropReviewStatus): Promise<ModeratorDrop[]>;
   /**
    * Public report: every server-derived identity records metadata. Only distinct
    * verified accounts advance the atomic auto-hide threshold; anonymous IP
@@ -214,6 +216,7 @@ async function recordAnonymousReport(
     .update({
       reported_at: new Date().toISOString(),
       ...(reason ? { report_reason: reason } : {}),
+      moderated_at: null,
     })
     .eq("id", id)
     .select("id");
@@ -503,7 +506,8 @@ export const memoryPintDropStore: PintDropStore = {
     );
   },
   async listForReview(status) {
-    return listByStatus(status).map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+    const rows = status === "reported" ? listReportedPintDrops() : listByStatus(status);
+    return rows.map((d) => toModeratorDTO(withVerifiedReportCount(d)));
   },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
@@ -713,12 +717,22 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async listForReview(status) {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("*")
-      .eq("status", status)
-      .is("moderated_at", null)
-      .order("created_at", { ascending: false });
+    const query = status === "reported"
+      ? admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", "visible")
+          .not("reported_at", "is", null)
+          .is("moderated_at", null)
+          .order("reported_at", { ascending: false, nullsFirst: false })
+          .order("created_at", { ascending: false })
+      : admin()
+          .from(TABLE)
+          .select("*")
+          .eq("status", status)
+          .is("moderated_at", null)
+          .order("created_at", { ascending: false });
+    const { data, error } = await query;
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
   },

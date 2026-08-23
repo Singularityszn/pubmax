@@ -1,15 +1,16 @@
 // Owned-image moderation queue for the admin console (Social Launch WP4).
-//   GET  ?status=reported|hidden&slot=avatar|cover -> { avatars: ModeratorProfileImage[] }
-//   POST { action, handle, slot?, note? } -> { ok: true }   action ∈ hide | restore
+//   GET  ?status=reported|hidden&slot=avatar|cover -> { avatars: ModeratorProfileImage[], rotationCovers?: ModeratorProfileCover[] }
+//   POST { action, handle, slot?, coverId?, note? } -> { ok: true }   action ∈ hide | restore
 //
 // Readers flag via POST /api/profiles/[handle]/{avatar,cover}/report. This route
 // is where a human acts. Hide stamps the image hidden (public serve becomes 404,
 // so a face falls back to initials and a cover to the brass treatment) and never
 // deletes storage or report provenance; restore puts an approved image back.
 // Reporter actor hashes never leave the store. `slot` defaults to the face, so a
-// console that predates covers keeps working unchanged. A COVER decision crosses
-// two stores - see `lib/profileCoverModeration.server.ts` - because the rotation
-// holds up to five photographs the console never names.
+// console that predates covers keeps working unchanged. A profile-level COVER
+// decision crosses two stores - see `lib/profileCoverModeration.server.ts` -
+// while a named rotation row can be moderated on its own when the mirror is
+// absent.
 
 import { isModerator } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
@@ -17,10 +18,20 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { isLimited } from "@/lib/pintDrops";
 import { normalizeHandle } from "@/lib/profiles";
 import { isProfileImageSlot, type ProfileImageSlot } from "@/lib/profileImageSlots";
-import { moderateProfileImageAcrossStores } from "@/lib/profileCoverModeration.server";
+import {
+  moderateProfileCoverPhotoAcrossStores,
+  moderateProfileImageAcrossStores,
+} from "@/lib/profileCoverModeration.server";
+import {
+  profileCoverPhotoStore,
+  toModeratorProfileCover,
+  type ModeratorProfileCover,
+} from "@/lib/profileCoverPhotoStore";
 import {
   listHiddenProfileImages,
   listReportedProfileImages,
+  profileImageState,
+  profileStore,
 } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -34,6 +45,26 @@ function forbidden(): Response {
 
 function requestedSlot(value: unknown): ProfileImageSlot {
   return isProfileImageSlot(value) ? value : "avatar";
+}
+
+async function listRotationCovers(
+  status: "reported" | "hidden",
+): Promise<ModeratorProfileCover[]> {
+  const rows =
+    status === "hidden"
+      ? await profileCoverPhotoStore().listHidden()
+      : await profileCoverPhotoStore().listForReview();
+  const covers = await Promise.all(
+    rows.map(async (row) => {
+      const profile = await profileStore().getById(row.profileId);
+      if (!profile) return null;
+      const mirror = profileImageState(profile, "cover");
+      const rotationOnly = !(mirror.objectKey && mirror.generation === row.generation);
+      if (status === "hidden" && !rotationOnly) return null;
+      return toModeratorProfileCover(row, profile.handle, rotationOnly);
+    }),
+  );
+  return covers.filter((cover): cover is ModeratorProfileCover => cover !== null);
 }
 
 export async function GET(request: Request): Promise<Response> {
@@ -52,7 +83,14 @@ export async function GET(request: Request): Promise<Response> {
       status === "hidden"
         ? await listHiddenProfileImages(slot)
         : await listReportedProfileImages(slot);
-    return jsonNoStore({ avatars }, { status: 200 });
+    const rotationCovers =
+      slot === "cover" && (status === "reported" || status === "hidden")
+        ? await listRotationCovers(status)
+        : undefined;
+    return jsonNoStore(
+      { avatars, ...(rotationCovers ? { rotationCovers } : {}) },
+      { status: 200 },
+    );
   } catch {
     return publicApiError("Image moderation is unavailable right now.", "UNAVAILABLE", 503, {
       retryable: true,
@@ -79,12 +117,16 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const slot = requestedSlot(body.slot);
-    const ok = await moderateProfileImageAcrossStores(
-      handle,
-      slot,
-      action,
-      readString(body.note),
-    );
+    const coverId = readString(body.coverId);
+    const ok =
+      slot === "cover" && coverId
+        ? await moderateProfileCoverPhotoAcrossStores(
+            handle,
+            coverId,
+            action,
+            readString(body.note),
+          )
+        : await moderateProfileImageAcrossStores(handle, slot, action, readString(body.note));
     if (!ok) return publicApiError("Profile image not found.", "NOT_FOUND", 404);
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {

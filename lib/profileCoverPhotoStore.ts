@@ -122,6 +122,49 @@ export type ProfileCoverPhotoStore = {
   listHidden(): Promise<ProfileCoverPhoto[]>;
 };
 
+/** Rotation-row shape for the moderator console. Storage keys and reporter
+ * actors stay inside this store. `rotationOnly` lets the console distinguish a
+ * per-photo row from the profile mirror queue. */
+export type ModeratorProfileCover = {
+  id: string;
+  profileId: string;
+  handle: string;
+  position: number;
+  generation: string;
+  moderationState: ProfileCoverModerationState;
+  reportCount: number;
+  reportedAt?: string;
+  reportReason?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
+  previewUrl?: string;
+  rotationOnly: boolean;
+};
+
+export function toModeratorProfileCover(
+  photo: ProfileCoverPhoto,
+  handle: string,
+  rotationOnly: boolean,
+): ModeratorProfileCover {
+  return {
+    id: photo.id,
+    profileId: photo.profileId,
+    handle,
+    position: photo.position,
+    generation: photo.generation,
+    moderationState: photo.moderationState,
+    reportCount: photo.reportCount ?? 0,
+    ...(photo.reportedAt ? { reportedAt: photo.reportedAt } : {}),
+    ...(photo.reportReason ? { reportReason: photo.reportReason } : {}),
+    ...(photo.moderatedAt ? { moderatedAt: photo.moderatedAt } : {}),
+    ...(photo.moderatorNote ? { moderatorNote: photo.moderatorNote } : {}),
+    ...(photo.moderationState === "approved"
+      ? { previewUrl: profileImageServePath("cover", photo.profileId, photo.generation) }
+      : {}),
+    rotationOnly,
+  };
+}
+
 // ── Cover #1 mirror ──────────────────────────────────────────────────────────
 
 /**

@@ -23,6 +23,7 @@ import { pintDropReportIdentity } from "@/lib/pintDropReportActor.server";
 import {
   isLimited,
   validatePintDrop,
+  type PintDropReviewStatus,
   type PintDropStatus,
 } from "@/lib/pintDrops";
 import {
@@ -369,14 +370,15 @@ export async function POST(request: Request): Promise<Response> {
 export async function GET(request: Request): Promise<Response> {
   const params = new URL(request.url).searchParams;
 
-  // Moderator read: ?status=hidden|pending → the review queue, WITH metadata.
+  // Moderator read: ?status=reported|hidden|pending → the review queue, WITH
+  // metadata. `reported` contains visible rows with an unreviewed report.
   const status = params.get("status");
-  if (status === "hidden" || status === "pending") {
+  if (status === "reported" || status === "hidden" || status === "pending") {
     if (!isModerator(request)) return forbidden();
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;
     try {
-      return jsonNoStore({ drops: await pintDropsStore().listForReview(status) }, { status: 200 });
+      return jsonNoStore({ drops: await pintDropsStore().listForReview(status as PintDropReviewStatus) }, { status: 200 });
     } catch (err) {
       log("error", "pint_drops.list_review_failed", {
         route: "GET /api/pint-drops",

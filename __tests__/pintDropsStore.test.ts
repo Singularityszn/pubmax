@@ -311,6 +311,7 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
     expect(updateMock.mock.calls[0][0]).toMatchObject({
       report_reason: "wrong price",
       reported_at: expect.any(String),
+      moderated_at: null,
     });
     expect(updateMock.mock.calls[0][0]).not.toHaveProperty("report_count");
     expect(updateMock.mock.calls[0][0]).not.toHaveProperty("status");

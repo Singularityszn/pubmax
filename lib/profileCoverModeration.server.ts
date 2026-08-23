@@ -12,13 +12,17 @@ import "server-only";
 // the public carousel, so without it a hidden backdrop would still be named on
 // the profile card and paint five broken frames.
 //
-// It is deliberately whole-profile. A moderator hiding somebody's cover is
-// deciding about their backdrop, and the console names no single photograph.
+// Profile-level cover decisions remain whole-profile. The named rotation-row
+// helper below handles per-photo reports when no mirror exists.
 
 import { log } from "@/lib/log";
 import { profileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
 import type { ProfileImageSlot } from "@/lib/profileImageSlots";
-import { moderateProfileImage, profileStore } from "@/lib/profileStore";
+import {
+  moderateProfileImage,
+  profileImageState,
+  profileStore,
+} from "@/lib/profileStore";
 
 /**
  * Apply a moderator decision to an owned image, and for the cover apply the SAME
@@ -56,4 +60,32 @@ export async function moderateProfileImageAcrossStores(
     });
   }
   return ok || rotationMoved > 0;
+}
+
+/** Apply a moderator decision to one rotation row. Rows reported through the
+ * carousel have no profile-mirror handle when mirroring failed, so the admin
+ * lane must address the row by id. When the row is the current mirror, retain
+ * the whole-profile decision so the two public cover lanes cannot disagree. */
+export async function moderateProfileCoverPhotoAcrossStores(
+  handle: string,
+  coverId: string,
+  action: "hide" | "restore",
+  note?: string,
+): Promise<boolean> {
+  const profile = await profileStore().getByHandle(handle);
+  if (!profile) return false;
+
+  const cover = await profileCoverPhotoStore().getById(coverId);
+  if (!cover || cover.profileId !== profile.id) return false;
+
+  const mirror = profileImageState(profile, "cover");
+  if (mirror.objectKey && mirror.generation === cover.generation) {
+    return moderateProfileImageAcrossStores(handle, "cover", action, note);
+  }
+
+  return profileCoverPhotoStore().moderate(
+    coverId,
+    action === "hide" ? "hidden" : "approved",
+    note,
+  );
 }

@@ -25,8 +25,9 @@ import SiteNav from "@/components/nav/SiteNav";
 
 import "./admin.css";
 
-// Moderator DTO as returned by GET ?status=hidden. Photos resolve even on hidden
-// rows; report metadata rides along. Kept loose (optional) — old rows may lack it.
+// Moderator DTO as returned by GET ?status=reported|hidden. Photos resolve even
+// on hidden rows; report metadata rides along. Kept loose (optional) — old rows
+// may lack it.
 type ModeratorDrop = {
   id: string;
   venueId: string;
@@ -87,6 +88,22 @@ type ModeratorProfileAvatar = {
   moderatedAt?: string;
   moderatorNote?: string;
   previewUrl?: string;
+};
+
+type ModeratorProfileCover = {
+  id: string;
+  profileId: string;
+  handle: string;
+  position: number;
+  generation: string;
+  moderationState: string;
+  reportCount: number;
+  reportedAt?: string;
+  reportReason?: string;
+  moderatedAt?: string;
+  moderatorNote?: string;
+  previewUrl?: string;
+  rotationOnly: boolean;
 };
 
 type AdminTab = "moderation" | "import" | "operators";
@@ -153,12 +170,46 @@ async function fetchVenueNames(): Promise<Map<string, string>> {
   return new Map(groupVenuePrices(rows).map((venue) => [venue.id, venue.name]));
 }
 
+async function readQueueResponse<T extends object>(response: Response): Promise<T> {
+  if (!response.ok) return {} as T;
+  return (await response.json()) as T;
+}
+
+async function loadProfileModerationQueues(): Promise<{
+  reportedAvatars: ModeratorProfileAvatar[];
+  hiddenAvatars: ModeratorProfileAvatar[];
+  reportedRotationCovers: ModeratorProfileCover[];
+  hiddenRotationCovers: ModeratorProfileCover[];
+}> {
+  const [reportedAvatarResponse, hiddenAvatarResponse, reportedCoverResponse, hiddenCoverResponse] =
+    await Promise.all([
+      fetch("/api/admin/profile-avatars?status=reported", SESSION_FETCH),
+      fetch("/api/admin/profile-avatars?status=hidden", SESSION_FETCH),
+      fetch("/api/admin/profile-avatars?status=reported&slot=cover", SESSION_FETCH),
+      fetch("/api/admin/profile-avatars?status=hidden&slot=cover", SESSION_FETCH),
+    ]);
+  const [reportedAvatarBody, hiddenAvatarBody, reportedCoverBody, hiddenCoverBody] =
+    await Promise.all([
+      readQueueResponse<{ avatars?: ModeratorProfileAvatar[] }>(reportedAvatarResponse),
+      readQueueResponse<{ avatars?: ModeratorProfileAvatar[] }>(hiddenAvatarResponse),
+      readQueueResponse<{ rotationCovers?: ModeratorProfileCover[] }>(reportedCoverResponse),
+      readQueueResponse<{ rotationCovers?: ModeratorProfileCover[] }>(hiddenCoverResponse),
+    ]);
+  return {
+    reportedAvatars: reportedAvatarBody.avatars ?? [],
+    hiddenAvatars: hiddenAvatarBody.avatars ?? [],
+    reportedRotationCovers: reportedCoverBody.rotationCovers ?? [],
+    hiddenRotationCovers: hiddenCoverBody.rotationCovers ?? [],
+  };
+}
+
 export default function AdminClient() {
   // Lazy initialiser reads localStorage on first client render — no effect, so we
   // don't trip react-hooks/set-state-in-effect.
   const [token, setToken] = useState(readStoredToken);
   const [sessionEstablished, setSessionEstablished] = useState(false);
   const [tab, setTab] = useState<AdminTab>("moderation");
+  const [reportedDrops, setReportedDrops] = useState<ModeratorDrop[]>([]);
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
   const [venueNames, setVenueNames] = useState<Map<string, string>>(new Map());
   const [comments, setComments] = useState<ModeratorComment[]>([]);
@@ -168,6 +219,8 @@ export default function AdminClient() {
   const [hiddenPhotos, setHiddenPhotos] = useState<ModeratorVenuePhoto[]>([]);
   const [reportedAvatars, setReportedAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
+  const [reportedRotationCovers, setReportedRotationCovers] = useState<ModeratorProfileCover[]>([]);
+  const [hiddenRotationCovers, setHiddenRotationCovers] = useState<ModeratorProfileCover[]>([]);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -258,30 +311,42 @@ export default function AdminClient() {
     try {
       const session = await ensureAdminSession();
       if (session.status !== "open") {
+        setReportedDrops([]);
         setDrops([]);
         setComments([]);
         setMessage(adminAlert(session.message));
         return;
       }
 
-      const res = await fetch("/api/pint-drops?status=hidden", SESSION_FETCH);
-      if (res.status === 403) {
-        discardBody(res);
+      const [reportedRes, hiddenRes] = await Promise.all([
+        fetch("/api/pint-drops?status=reported", SESSION_FETCH),
+        fetch("/api/pint-drops?status=hidden", SESSION_FETCH),
+      ]);
+      if (reportedRes.status === 403 || hiddenRes.status === 403) {
+        discardBody(reportedRes);
+        discardBody(hiddenRes);
+        setReportedDrops([]);
         setDrops([]);
         setMessage(adminAlert("Not authorised. Check the admin token."));
         return;
       }
-      if (!res.ok) {
-        discardBody(res);
+      if (!reportedRes.ok || !hiddenRes.ok) {
+        discardBody(reportedRes);
+        discardBody(hiddenRes);
+        setReportedDrops([]);
         setDrops([]);
         setMessage(adminAlert("Could not load reported drops."));
         return;
       }
-      const body = (await res.json()) as { drops: ModeratorDrop[] };
-      setDrops(body.drops ?? []);
+      const reportedBody = (await reportedRes.json()) as { drops: ModeratorDrop[] };
+      const hiddenBody = (await hiddenRes.json()) as { drops: ModeratorDrop[] };
+      const reported = reportedBody.drops ?? [];
+      const hidden = hiddenBody.drops ?? [];
+      setReportedDrops(reported);
+      setDrops(hidden);
       // Resolve venue names lazily alongside the queue — best-effort, so a
       // dataset fetch failure never blocks moderation.
-      if ((body.drops ?? []).length > 0 && venueNames.size === 0) {
+      if (reported.length + hidden.length > 0 && venueNames.size === 0) {
         try {
           setVenueNames(await fetchVenueNames());
         } catch {
@@ -352,26 +417,22 @@ export default function AdminClient() {
       // Load both owned-avatar lanes in the same pass: reported queue and
       // already-hidden rows (a hide has to stay reversible from here).
       try {
-        const [aRes, ahRes] = await Promise.all([
-          fetch("/api/admin/profile-avatars?status=reported", SESSION_FETCH),
-          fetch("/api/admin/profile-avatars?status=hidden", SESSION_FETCH),
-        ]);
-        setReportedAvatars(
-          aRes.ok
-            ? ((await aRes.json()) as { avatars: ModeratorProfileAvatar[] }).avatars ?? []
-            : [],
-        );
-        setHiddenAvatars(
-          ahRes.ok
-            ? ((await ahRes.json()) as { avatars: ModeratorProfileAvatar[] }).avatars ?? []
-            : [],
-        );
+        const queues = await loadProfileModerationQueues();
+        setReportedAvatars(queues.reportedAvatars);
+        setHiddenAvatars(queues.hiddenAvatars);
+        setReportedRotationCovers(queues.reportedRotationCovers);
+        setHiddenRotationCovers(queues.hiddenRotationCovers);
       } catch {
         setReportedAvatars([]);
         setHiddenAvatars([]);
+        setReportedRotationCovers([]);
+        setHiddenRotationCovers([]);
       }
-      if ((body.drops ?? []).length === 0) setMessage(adminStatus("No reported drops in the queue."));
+      if (reported.length + hidden.length === 0) {
+        setMessage(adminStatus("No reported drops in the queue."));
+      }
     } catch {
+      setReportedDrops([]);
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
@@ -555,6 +616,61 @@ export default function AdminClient() {
     [],
   );
 
+  const decideProfileCover = useCallback(
+    async (
+      cover: ModeratorProfileCover,
+      action: "restore" | "hide",
+      lane: "reported" | "hidden",
+    ) => {
+      setPendingId(cover.id);
+      setMessage(null);
+      try {
+        const res = await fetch("/api/admin/profile-avatars", {
+          ...SESSION_FETCH,
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            action,
+            handle: cover.handle,
+            slot: "cover",
+            coverId: cover.id,
+          }),
+        });
+        if (res.status === 403) {
+          discardBody(res);
+          setMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        if (!res.ok) {
+          discardBody(res);
+          setMessage(adminAlert("Action failed. Try again."));
+          return;
+        }
+        setReportedRotationCovers((current) => current.filter((row) => row.id !== cover.id));
+        setHiddenRotationCovers((current) => {
+          const without = current.filter((row) => row.id !== cover.id);
+          return action === "hide"
+            ? [{ ...cover, moderationState: "hidden" }, ...without]
+            : without;
+        });
+        setMessage(
+          adminStatus(
+            action === "hide"
+              ? "Cover photo hidden."
+              : lane === "hidden"
+                ? "Cover photo restored."
+                : "Cover photo kept visible.",
+          ),
+        );
+      } catch {
+        setMessage(adminAlert("Could not reach the server."));
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [],
+  );
+
   const decide = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
     setPendingId(id);
     setMessage(null);
@@ -577,6 +693,7 @@ export default function AdminClient() {
       }
       // Decided drops leave the queue either way (restore → visible,
       // keep_hidden → reviewed), so drop them from the list.
+      setReportedDrops((current) => current.filter((d) => d.id !== id));
       setDrops((current) => current.filter((d) => d.id !== id));
       setMessage(adminStatus(action === "restore" ? "Pint Drop restored." : "Pint Drop kept hidden."));
     } catch {
@@ -862,15 +979,99 @@ export default function AdminClient() {
             Review reported community drops. Restore the good, keep the rest hidden.
           </p>
 
-          {drops.length === 0 ? (
+          {reportedDrops.length === 0 && drops.length === 0 ? (
             <div className="admin-empty">
               <strong>Queue clear</strong>
               <span>
-                Reported Pint Drops will appear here after they reach the review threshold.
+                Reported Pint Drops will appear here when a moderator review is needed.
               </span>
               <Link href="/map">Open the map</Link>
             </div>
-          ) : (
+          ) : null}
+
+          {reportedDrops.length > 0 ? (
+            <>
+              <h3 className="admin-section">Reported Pint Drops</h3>
+              <div className="admin-list">
+              {reportedDrops.map((d) => (
+                <article className="admin-card" key={d.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{d.handle}</span>
+                    {d.priceGbp != null ? (
+                      <span className="admin-price">£{d.priceGbp.toFixed(2)}</span>
+                    ) : null}
+                  </div>
+
+                  <div className="admin-venue">
+                    <span className="admin-venue-name">
+                      {venueNames.get(d.venueId) ?? d.venueId}
+                    </span>
+                    <Link className="admin-venue-link" href={venueMapUrl(d.venueId)}>
+                      View on map
+                    </Link>
+                  </div>
+
+                  {d.passedDownNote ? <p className="admin-note">{d.passedDownNote}</p> : null}
+
+                  <div className="admin-meta">
+                    {d.era ? <span>Era: {d.era}</span> : null}
+                    {d.reportReason ? (
+                      <span className="admin-report">Reason: {d.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {d.reportCount ?? 1}</span>
+                    {d.reportedAt ? (
+                      <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+
+                  {d.pintPhotoUrl || d.venuePhotoUrl ? (
+                    <div className="admin-photos">
+                      {d.pintPhotoUrl ? (
+                        <Image
+                          src={d.pintPhotoUrl}
+                          alt={`Pint photo reported from ${d.handle}`}
+                          width={96}
+                          height={96}
+                          unoptimized
+                        />
+                      ) : null}
+                      {d.venuePhotoUrl ? (
+                        <Image
+                          src={d.venuePhotoUrl}
+                          alt={`Venue photo reported from ${d.handle}`}
+                          width={96}
+                          height={96}
+                          unoptimized
+                        />
+                      ) : null}
+                    </div>
+                  ) : null}
+
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decide(d.id, "restore")}
+                      disabled={pendingId === d.id}
+                    >
+                      {pendingId === d.id ? "Working…" : "Keep visible"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decide(d.id, "keep_hidden")}
+                      disabled={pendingId === d.id}
+                    >
+                      {pendingId === d.id ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+              </div>
+            </>
+          ) : null}
+
+          {drops.length > 0 ? (
+            <>
+              <h3 className="admin-section">Hidden Pint Drops</h3>
             <div className="admin-list">
               {drops.map((d) => (
                 <article className="admin-card" key={d.id}>
@@ -948,7 +1149,8 @@ export default function AdminClient() {
                 </article>
               ))}
             </div>
-          )}
+            </>
+          ) : null}
 
           {/* ── Comment moderation queue (story 37) ─────────────────────────── */}
           <h2 className="admin-section">Hidden comments</h2>
@@ -1215,6 +1417,108 @@ export default function AdminClient() {
                       disabled={pendingId === a.profileId}
                     >
                       {pendingId === a.profileId ? "Working…" : "Restore"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <h2 className="admin-section">Reported cover photos</h2>
+          <p className="admin-sub">
+            Check reported photos in a profile rotation. Keep the good visible, hide the rest.
+          </p>
+          {reportedRotationCovers.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No reported cover photos</strong>
+              <span>Rotation photos appear here after a reader reports one.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {reportedRotationCovers.map((cover) => (
+                <article className="admin-card" key={cover.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{cover.handle}</span>
+                    <span className="admin-report">Cover {cover.position}</span>
+                  </div>
+                  {cover.previewUrl ? (
+                    <div className="admin-photos">
+                      <Image
+                        className="admin-photo"
+                        src={cover.previewUrl}
+                        alt={`Cover photo ${cover.position} for ${cover.handle}`}
+                        width={160}
+                        height={96}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
+                  <div className="admin-meta">
+                    {cover.reportReason ? (
+                      <span className="admin-report">Reason: {cover.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {cover.reportCount || 1}</span>
+                    {cover.reportedAt ? (
+                      <span>Reported: {new Date(cover.reportedAt).toLocaleString()}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideProfileCover(cover, "restore", "reported")}
+                      disabled={pendingId === cover.id}
+                    >
+                      {pendingId === cover.id ? "Working…" : "Keep visible"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => decideProfileCover(cover, "hide", "reported")}
+                      disabled={pendingId === cover.id}
+                    >
+                      {pendingId === cover.id ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+
+          <h2 className="admin-section">Hidden cover photos</h2>
+          <p className="admin-sub">
+            Cover photos a moderator has hidden. Hiding never deletes one, so it can be restored.
+          </p>
+          {hiddenRotationCovers.length === 0 ? (
+            <div className="admin-empty">
+              <strong>No hidden cover photos</strong>
+              <span>Hidden rotation photos appear here after moderation.</span>
+            </div>
+          ) : (
+            <div className="admin-list">
+              {hiddenRotationCovers.map((cover) => (
+                <article className="admin-card" key={cover.id}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">{cover.handle}</span>
+                    <span className="admin-report">Cover {cover.position}</span>
+                  </div>
+                  <div className="admin-meta">
+                    {cover.reportReason ? (
+                      <span className="admin-report">Reason: {cover.reportReason}</span>
+                    ) : null}
+                    <span className="admin-report">Reports: {cover.reportCount || 0}</span>
+                    {cover.moderatedAt ? (
+                      <span>Hidden: {new Date(cover.moderatedAt).toLocaleString()}</span>
+                    ) : null}
+                    {cover.moderatorNote ? (
+                      <span className="admin-report">Note: {cover.moderatorNote}</span>
+                    ) : null}
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => decideProfileCover(cover, "restore", "hidden")}
+                      disabled={pendingId === cover.id}
+                    >
+                      {pendingId === cover.id ? "Working…" : "Restore"}
                     </button>
                   </div>
                 </article>

@@ -70,6 +70,10 @@ export {
   type Visibility,
 };
 
+/** Moderator review lanes. `reported` is a queue view over visible rows with
+ * an unreviewed report. It is not a persisted Pint Drop status. */
+export type PintDropReviewStatus = "hidden" | "pending" | "reported";
+
 const VIBE_TAG_SET: ReadonlySet<string> = new Set(VIBE_TAGS);
 const MAX_VIBE_TAGS = 4;
 
@@ -527,6 +531,10 @@ export function reportPintDrop(
 
   hit.reportedAt = new Date().toISOString();
   if (reason) hit.reportReason = reason;
+  // A later report reopens a row a moderator previously reviewed. The report
+  // timestamp is new evidence, so the old decision must not hide it from the
+  // queue.
+  hit.moderatedAt = undefined;
   if (identity.kind === "anonymous_ip") return true;
 
   const verifiedCount = (verifiedReportCountsByDrop.get(id) ?? 0) + 1;
@@ -550,6 +558,19 @@ export function listByStatus(status: PintDropStatus): PintDrop[] {
     .flat()
     .filter((d) => d.status === status && !d.moderatedAt)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Moderator review queue for visible rows reported by an anonymous actor.
+ * Anonymous reports never advance the verified-only hide counter, so these
+ * rows need an explicit human lane instead of being mistaken for ordinary
+ * public reads. Reporter identity stays in the server-side report ledger. */
+export function listReportedPintDrops(): PintDrop[] {
+  return Array.from(drops.values())
+    .flat()
+    .filter((d) => d.status === "visible" && Boolean(d.reportedAt) && !d.moderatedAt)
+    .sort((a, b) =>
+      (b.reportedAt ?? b.createdAt).localeCompare(a.reportedAt ?? a.createdAt),
+    );
 }
 
 /** Moderator action: return a drop to visible and stamp the review time. */

@@ -41,6 +41,12 @@ import {
   publicOwnedImageUrl,
   reportProfileImage,
 } from "@/lib/profileStore";
+import {
+  __resetProfileCoverPhotos,
+  memoryProfileCoverPhotoStore,
+  profileCoverPhotoStore,
+} from "@/lib/profileCoverPhotoStore";
+import { profileImageServingKey } from "@/lib/profileImageSlots";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -80,9 +86,11 @@ describe("profile avatar moderation (memory backend)", () => {
     delete process.env.SUPABASE_SERVICE_ROLE_KEY;
     delete process.env.ADMIN_TOKEN;
     devGate.open = true;
+    __resetProfileCoverPhotos();
   });
 
   afterEach(() => {
+    __resetProfileCoverPhotos();
     __resetMemoryProfiles();
     if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
     else process.env.SUPABASE_URL = ORIGINAL_SUPABASE_URL;
@@ -91,6 +99,55 @@ describe("profile avatar moderation (memory backend)", () => {
     } else {
       process.env.SUPABASE_SERVICE_ROLE_KEY = ORIGINAL_SUPABASE_SERVICE_ROLE_KEY;
     }
+  });
+
+  it("exposes and moderates rotation-only cover reports in the admin queue", async () => {
+    await profileStore().createOwned("rotation", "user-rotation");
+    const profile = await profileStore().getByHandle("rotation");
+    expect(profile).toBeTruthy();
+    const coverId = "77777777-7777-4777-8777-777777777771";
+    const generation = "55555555-5555-4555-8555-555555555555";
+    await memoryProfileCoverPhotoStore.create({
+      id: coverId,
+      profileId: profile!.id,
+      generation,
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+    });
+    await memoryProfileCoverPhotoStore.report(coverId, "wrong backdrop", "actor-rotation");
+
+    const reported = await adminGET(new Request(`${ADMIN_URL}?status=reported&slot=cover`));
+    expect(reported.status).toBe(200);
+    const reportedBody = (await reported.json()) as {
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(reportedBody.rotationCovers).toHaveLength(1);
+    expect(reportedBody.rotationCovers[0]).toMatchObject({
+      id: coverId,
+      handle: "rotation",
+      reportReason: "wrong backdrop",
+      rotationOnly: true,
+    });
+    expect(reportedBody.rotationCovers[0]).not.toHaveProperty("objectKey");
+    expect(reportedBody.rotationCovers[0]).not.toHaveProperty("reportActors");
+
+    const hidden = await adminPost({
+      action: "hide",
+      handle: "rotation",
+      slot: "cover",
+      coverId,
+    });
+    expect(hidden.status).toBe(200);
+    expect(await profileCoverPhotoStore().listApproved(profile!.id)).toEqual([]);
+    expect((await profileCoverPhotoStore().listHidden())[0]?.id).toBe(coverId);
+
+    const restored = await adminPost({
+      action: "restore",
+      handle: "rotation",
+      slot: "cover",
+      coverId,
+    });
+    expect(restored.status).toBe(200);
+    expect((await profileCoverPhotoStore().listApproved(profile!.id))[0]?.id).toBe(coverId);
   });
 
   afterAll(() => {
