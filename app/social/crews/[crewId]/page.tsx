@@ -30,5 +30,5 @@ export default async function CrewPage({
     : search.invitation;
   const invitationId = isCrewId(raw) ? raw : null;
 
-  return <PublicCrewRouteClient crewId={crewId} invitationId={invitationId} />;
+  return <PublicCrewRouteClient key={crewId} crewId={crewId} invitationId={invitationId} />;
 }

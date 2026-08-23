@@ -23,6 +23,14 @@ import "@/components/social/crews.css";
 
 type LoadState = "idle" | "loading" | "ready" | "missing" | "error";
 
+function crewAuthScope(
+  crewId: string,
+  identityKey: string,
+  identityResolved: boolean,
+): string {
+  return `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
+}
+
 function Shell({ children }: { children: ReactNode }) {
   return (
     <>
@@ -44,21 +52,58 @@ export default function PublicCrewRouteClient({
   crewId: string;
   invitationId: string | null;
 }) {
-  const { identityResolved, session } = useAuth();
+  const { identityResolved, user } = useAuth();
+  const identityKey = user?.id ?? "signed-out";
+  const scope = crewAuthScope(crewId, identityKey, identityResolved);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
   const [privateState, setPrivateState] = useState<LoadState>("idle");
   const [privateRead, setPrivateRead] = useState<SocialCrewReadDTO | null>(null);
+  const [privateStateScope, setPrivateStateScope] = useState<string | null>(null);
+  const [privateReadScope, setPrivateReadScope] = useState<string | null>(null);
   const [joinState, setJoinState] = useState<PublicCrewJoinState>("none");
+  const [joinScope, setJoinScope] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [busyScope, setBusyScope] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
-  const joinKey = useRef<string | null>(null);
+  const [problemScope, setProblemScope] = useState<string | null>(null);
+  const crewGeneration = useRef(0);
+  const scopeGeneration = useRef(0);
+  const scopeRef = useRef(scope);
+  const joinKey = useRef<{ scope: string; key: string } | null>(null);
+
+  // A public preview may remain visible through an auth transition, but every
+  // private read and join response belongs to one exact crew/account answer.
+  // The scope marker also keeps a member response from rendering while the
+  // current provider identity is unresolved.
+  useEffect(() => {
+    scopeRef.current = scope;
+    const version = scopeGeneration.current + 1;
+    scopeGeneration.current = version;
+    joinKey.current = null;
+    void Promise.resolve().then(() => {
+      if (scopeGeneration.current !== version || scopeRef.current !== scope) return;
+      setPrivateRead(null);
+      setPrivateState("idle");
+      setPrivateStateScope(null);
+      setJoinState("none");
+      setJoinScope(null);
+      setBusy(false);
+      setBusyScope(null);
+      setProblem("");
+      setProblemScope(null);
+    });
+  }, [scope]);
 
   useEffect(() => {
+    const generation = crewGeneration.current + 1;
+    crewGeneration.current = generation;
     const controller = new AbortController();
     let active = true;
     void Promise.resolve().then(() => {
-      if (active) setPublicState("loading");
+      if (!active || crewGeneration.current !== generation) return;
+      setPublicPreview(null);
+      setPublicState("loading");
     });
     fetch(`/api/social/crews/${encodeURIComponent(crewId)}/public`, {
       cache: "no-store",
@@ -73,17 +118,24 @@ export default function PublicCrewRouteClient({
         return preview;
       })
       .then((result) => {
-        if (!active) return;
+        if (!active || crewGeneration.current !== generation) return;
         if (result === "missing") {
           setPublicPreview(null);
           setPublicState("missing");
           return;
         }
+        if (result.crewId !== crewId) throw new Error("Public crew identity changed");
         setPublicPreview(result);
         setPublicState("ready");
       })
       .catch((error: unknown) => {
-        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+        if (
+          !active ||
+          crewGeneration.current !== generation ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
+          return;
+        }
         setPublicPreview(null);
         setPublicState("error");
       });
@@ -94,17 +146,24 @@ export default function PublicCrewRouteClient({
   }, [crewId]);
 
   useEffect(() => {
-    if (!identityResolved || !session) {
+    const generation = scopeGeneration.current;
+    if (!identityResolved) {
       void Promise.resolve().then(() => {
+        if (scopeGeneration.current !== generation || scopeRef.current !== scope) return;
         setPrivateRead(null);
         setPrivateState("idle");
+        setPrivateStateScope(scope);
       });
       return;
     }
     const controller = new AbortController();
     let active = true;
     void Promise.resolve().then(() => {
-      if (active) setPrivateState("loading");
+      if (!active || scopeGeneration.current !== generation || scopeRef.current !== scope) {
+        return;
+      }
+      setPrivateState("loading");
+      setPrivateStateScope(scope);
     });
     authedActionFetch(`/api/social/crews/${encodeURIComponent(crewId)}`, {
       cache: "no-store",
@@ -122,33 +181,72 @@ export default function PublicCrewRouteClient({
         return read;
       })
       .then((result) => {
-        if (!active) return;
+        if (
+          !active ||
+          scopeGeneration.current !== generation ||
+          scopeRef.current !== scope
+        ) {
+          return;
+        }
         if (result === "missing") {
           setPrivateRead(null);
           setPrivateState("missing");
+          setPrivateStateScope(scope);
+          setPrivateReadScope(null);
           return;
         }
         setPrivateRead(result);
         setPrivateState("ready");
-        if (result.kind === "preview") setJoinState(result.joinRequestState);
+        setPrivateStateScope(scope);
+        setPrivateReadScope(scope);
+        if (result.kind === "preview") {
+          setJoinState(result.joinRequestState);
+          setJoinScope(scope);
+        }
       })
       .catch((error: unknown) => {
-        if (!active || (error instanceof DOMException && error.name === "AbortError")) return;
+        if (
+          !active ||
+          scopeGeneration.current !== generation ||
+          scopeRef.current !== scope ||
+          (error instanceof DOMException && error.name === "AbortError")
+        ) {
+          return;
+        }
         setPrivateRead(null);
         setPrivateState("error");
+        setPrivateStateScope(scope);
+        setPrivateReadScope(null);
       });
     return () => {
       active = false;
       controller.abort();
     };
-  }, [crewId, identityResolved, session]);
+  }, [crewId, identityKey, identityResolved, scope]);
 
   async function askToJoin(): Promise<void> {
-    if (busy || !publicPreview) return;
+    const operationScope = scopeRef.current;
+    const operationGeneration = scopeGeneration.current;
+    const currentPreview = publicPreview?.crewId === crewId ? publicPreview : null;
+    if (
+      (busy && busyScope === operationScope) ||
+      !currentPreview ||
+      operationScope !== scope ||
+      scopeGeneration.current !== operationGeneration
+    ) {
+      return;
+    }
     setBusy(true);
+    setBusyScope(operationScope);
     setProblem("");
+    setProblemScope(operationScope);
     try {
-      joinKey.current ??= crewIdempotencyKey("crew-public-join");
+      if (!joinKey.current || joinKey.current.scope !== operationScope) {
+        joinKey.current = {
+          scope: operationScope,
+          key: crewIdempotencyKey("crew-public-join"),
+        };
+      }
       const response = await authedActionFetch(
         `/api/social/crews/${encodeURIComponent(crewId)}/join-requests`,
         {
@@ -156,52 +254,81 @@ export default function PublicCrewRouteClient({
           credentials: "same-origin",
           headers: {
             "content-type": "application/json",
-            "idempotency-key": joinKey.current,
+            "idempotency-key": joinKey.current.key,
           },
           body: "{}",
         },
       );
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (!response.ok) throw new Error(errorMessageFrom(body, "That did not go through."));
+      if (
+        scopeRef.current !== operationScope ||
+        scopeGeneration.current !== operationGeneration
+      ) {
+        return;
+      }
       setJoinState("pending");
+      setJoinScope(operationScope);
     } catch (error) {
+      if (
+        scopeRef.current !== operationScope ||
+        scopeGeneration.current !== operationGeneration
+      ) {
+        return;
+      }
       setProblem(error instanceof Error ? error.message : "That did not go through.");
+      setProblemScope(operationScope);
     } finally {
-      setBusy(false);
+      if (
+        scopeRef.current === operationScope &&
+        scopeGeneration.current === operationGeneration
+      ) {
+        setBusy(false);
+        setBusyScope(operationScope);
+      }
     }
   }
 
-  if (privateRead?.kind === "member") {
+  const currentPreview = publicPreview?.crewId === crewId ? publicPreview : null;
+  const currentPrivateRead = privateReadScope === scope ? privateRead : null;
+  const currentPrivateState = privateStateScope === scope ? privateState : "idle";
+  const currentJoinState = joinScope === scope ? joinState : "none";
+  const currentBusy = busyScope === scope && busy;
+  const currentProblem = problemScope === scope ? problem : "";
+
+  if (currentPrivateRead?.kind === "member") {
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
   // Preserve existing friends/private invitation behaviour when no public
   // record exists. Open public records use this smaller account-free surface.
-  if (!publicPreview && privateRead && invitationId) {
+  if (!currentPreview && currentPrivateRead && invitationId) {
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
-  if (publicPreview) {
+  if (currentPreview) {
     return (
       <Shell>
         <PublicCrewPreview
-          preview={publicPreview}
-          joinState={joinState}
-          busy={busy}
-          problem={problem}
+          preview={currentPreview}
+          joinState={currentJoinState}
+          busy={currentBusy}
+          problem={currentProblem}
           onAskToJoin={() => void askToJoin()}
         />
       </Shell>
     );
   }
 
-  if (privateRead) {
+  if (currentPrivateRead) {
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
   if (
     publicState === "loading" ||
-    (session && (privateState === "loading" || privateState === "idle"))
+    (!publicPreview && publicState === "idle") ||
+    (privateStateScope === scope &&
+      (currentPrivateState === "loading" || currentPrivateState === "idle"))
   ) {
     return (
       <Shell>
@@ -213,7 +340,10 @@ export default function PublicCrewRouteClient({
     );
   }
 
-  if (publicState === "missing" && (!session || privateState === "missing")) {
+  if (
+    publicState === "missing" &&
+    (!user || (privateStateScope === scope && currentPrivateState === "missing"))
+  ) {
     return (
       <Shell>
         <section className="crews__notice" role="status">
