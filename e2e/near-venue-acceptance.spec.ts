@@ -179,7 +179,8 @@ test("storage denial stays on Near and emits no acceptance events", async ({ pag
   await expect(page.locator(".nmnAcceptError")).toHaveText(
     "Couldn’t keep this pub on this device. Try again.",
   );
-  await page.waitForTimeout(400);
+  // Visible error is action completion. Storage failed before trackEvent, so
+  // no analytics request can be queued after this state.
   expect(payloads.some((payload) => (
     payload && typeof payload === "object"
     && ["venue_accepted", "planning_handoff_opened"].includes(

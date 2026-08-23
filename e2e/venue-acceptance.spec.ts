@@ -149,7 +149,8 @@ test("storage denial stays on Venue and emits no acceptance events", async ({ pa
   await expect(portal.getByRole("alert")).toHaveText(
     "Couldn’t keep this pub on this device. Try again.",
   );
-  await page.waitForTimeout(400);
+  // Visible error is action completion. Storage failed before trackEvent, so
+  // no analytics request can be queued after this state.
   const acceptanceNames = payloads.flatMap((payload) => (
     payload && typeof payload === "object" && typeof (payload as { name?: unknown }).name === "string"
       ? [(payload as { name: string }).name]
