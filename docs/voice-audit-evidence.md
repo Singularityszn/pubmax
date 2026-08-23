@@ -622,8 +622,6 @@ This deliberately treats every TypeScript helper as a candidate because rendered
 - `lib/storyBands.ts`
 - `lib/storyRedaction.ts`
 - `lib/supabase.ts`
-- `lib/surfaceAccent.ts`
-- `lib/surpriseDrink.ts`
 - `lib/tavilyPubEnrichment.server.ts`
 - `lib/textClean.ts`
 - `lib/tfl.ts`
