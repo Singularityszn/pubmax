@@ -106,15 +106,49 @@ const TIMETABLE_CACHE_TTL_MS = 6 * 60 * 60_000;
 // work and the rate limiter still sit outside it. A timeout returns only known
 // station context and the unavailable decision, never a guessed departure.
 export const LAST_TRAIN_ROUTE_BUDGET_MS = 1_800;
+const OPTIONAL_ENRICHMENT_RESERVE_MS = 250;
+
+// Stable values are shared across requests, but a request must own only its
+// wait. The producer must not receive one request's deadline, or a timed-out
+// caller would cancel work that a second caller could still use.
+function awaitCachedValueForRequest<T>(
+  producer: Promise<T>,
+  signal: AbortSignal | undefined,
+  fallback: T,
+): Promise<T> {
+  if (!signal) return producer;
+  if (signal.aborted) return Promise.resolve(fallback);
+  return new Promise((resolve) => {
+    let settled = false;
+    let onAbort: () => void;
+    const finish = (value: T) => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      resolve(value);
+    };
+    onAbort = () => finish(fallback);
+    signal.addEventListener("abort", onAbort, { once: true });
+    void producer.then(finish, () => finish(fallback));
+  });
+}
+
+function hasOptionalEnrichmentBudget(routeStartedAt: number, signal: AbortSignal): boolean {
+  return (
+    !signal.aborted &&
+    Date.now() - routeStartedAt < LAST_TRAIN_ROUTE_BUDGET_MS - OPTIONAL_ENRICHMENT_RESERVE_MS
+  );
+}
 
 async function nearestStation(
   lat: number,
   lng: number,
   signal?: AbortSignal,
 ): Promise<StopPoint | null> {
+  if (signal?.aborted) return null;
   const egressPoint = coarsenViewerPoint({ lat, lng });
   const key = `${egressPoint.lat.toFixed(3)}:${egressPoint.lng.toFixed(3)}`;
-  return cachedLastTrainValue(
+  const producer = cachedLastTrainValue(
     "stations",
     key,
     STATION_CACHE_TTL_MS,
@@ -122,11 +156,12 @@ async function nearestStation(
       const stopUrl =
         `/StopPoint?lat=${egressPoint.lat}&lon=${egressPoint.lng}` +
         `&stopTypes=${STOP_TYPES}&radius=${STATION_RADIUS_M}&modes=${MODES}`;
-      const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1, signal });
+      const stops = await tflGet<StopPointResponse>(stopUrl, { retries: 1 });
       return stops?.stopPoints?.[0] ?? null;
     },
     (station) => Boolean(station?.id),
   );
+  return awaitCachedValueForRequest(producer, signal, null);
 }
 
 // TfL Arrivals: one entry per vehicle currently predicted for this stop.
@@ -170,23 +205,22 @@ async function collectSchedules(
   stationId: string,
   signal?: AbortSignal,
 ): Promise<Schedule[]> {
+  if (signal?.aborted) return [];
   const key = `${lineId}:${stationId}`;
-  return cachedLastTrainValue(
+  const producer = cachedLastTrainValue(
     "timetables",
     key,
     TIMETABLE_CACHE_TTL_MS,
     async () => {
       const direct = await tflGet<TimetableResponse>(
         `/Line/${encodeURIComponent(lineId)}/Timetable/${encodeURIComponent(stationId)}`,
-        { signal },
       );
       if (!direct) return [];
-      return mergeTimetableSchedules(direct, (uri) =>
-        tflGet<TimetableResponse>(uri, { signal }),
-      );
+      return mergeTimetableSchedules(direct, (uri) => tflGet<TimetableResponse>(uri));
     },
     (schedules) => schedules.length > 0,
   );
+  return awaitCachedValueForRequest(producer, signal, []);
 }
 
 export async function mergeTimetableSchedules(
@@ -425,30 +459,6 @@ async function nearestPubsToStation(stationLat: number, stationLng: number): Pro
   }));
 }
 
-// Venue enrichment is local, but its first read parses the bundled price
-// dataset. It is optional context and must yield to the same response budget as
-// TfL, otherwise a stalled transport read can still wait on cold local I/O.
-function nearestPubsWithinBudget(
-  stationLat: number,
-  stationLng: number,
-  signal: AbortSignal,
-): Promise<NearestPub[]> {
-  if (signal.aborted) return Promise.resolve([]);
-  return new Promise((resolve) => {
-    let settled = false;
-    let onAbort: () => void;
-    const finish = (value: NearestPub[]) => {
-      if (settled) return;
-      settled = true;
-      signal.removeEventListener("abort", onAbort);
-      resolve(value);
-    };
-    onAbort = () => finish([]);
-    signal.addEventListener("abort", onAbort, { once: true });
-    void nearestPubsToStation(stationLat, stationLng).then(finish, () => finish([]));
-  });
-}
-
 // "Now" in London, so the weekday we pick the timetable for is the drinker's, not
 // the server's. Intl gives us the London-local Y/M/D; we rebuild a Date whose
 // getDay() is the London weekday (dayTypeForDate reads getDay()).
@@ -517,6 +527,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   const routeController = new AbortController();
+  const routeStartedAt = Date.now();
   const routeTimer = setTimeout(() => routeController.abort(), LAST_TRAIN_ROUTE_BUDGET_MS);
   try {
   // Destination is client-only (user story 23): the card keeps the label in
@@ -532,14 +543,14 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     if (staticStation) {
       const walkMinutesEstimate = walkMinutesForKm(staticStation.distanceKm);
       // A timed-out upstream has no headroom for the cold venue-price index
-      // read. Keep the station context and leave the optional pub list empty;
-      // never let local enrichment turn a bounded degraded answer into a slow
-      // one.
-      const nearestPubs = await nearestPubsWithinBudget(
-        staticStation.lat,
-        staticStation.lon,
+      // read. Keep the station context and leave optional pub data empty;
+      // never start local enrichment after the response budget expires.
+      const nearestPubs = hasOptionalEnrichmentBudget(
+        routeStartedAt,
         routeController.signal,
-      );
+      )
+        ? await nearestPubsToStation(staticStation.lat, staticStation.lon).catch(() => [])
+        : [];
       const decision = computeLastPintDecision({
         minutesUntilLastTrain: null,
         walkMinutesEstimate,
@@ -606,7 +617,7 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   }
   const lineIds = lines.map((l) => l.id as string);
 
-  const [lastTrainResults, departureResults, disruption, nearestPubs] = await Promise.all([
+  const [lastTrainResults, departureResults, disruption] = await Promise.all([
     Promise.all(
         lines.map((line) =>
         lastTrainForLine(
@@ -642,10 +653,17 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
     stableOnly
       ? Promise.resolve({ summary: null, affectedLineIds: new Set<string>() })
       : lineDisruptions(lineIds, routeController.signal),
-    typeof nearest.lat === "number" && typeof nearest.lon === "number"
-      ? nearestPubsWithinBudget(nearest.lat, nearest.lon, routeController.signal)
-      : Promise.resolve<NearestPub[]>([]),
   ]);
+
+  // Venue enrichment is optional. Start it only after critical reads complete
+  // and while a reserve remains for response serialization. This avoids
+  // abandoned local parsing when the TfL deadline has already fired.
+  const nearestPubs =
+    typeof nearest.lat === "number" &&
+    typeof nearest.lon === "number" &&
+    hasOptionalEnrichmentBudget(routeStartedAt, routeController.signal)
+      ? await nearestPubsToStation(nearest.lat, nearest.lon).catch(() => [])
+      : [];
 
   // Keep only lines we actually resolved; sort earliest-departing first so the
   // most urgent "leave now" line is at the top.
