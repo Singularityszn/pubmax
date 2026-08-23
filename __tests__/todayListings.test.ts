@@ -43,10 +43,24 @@ describe("today listings spine", () => {
       },
       NOW,
     );
-    expect(merged.map((r) => r.id)).toEqual(["out-1"]);
+    expect(merged).toEqual([]);
   });
 
-  it("answers ready when Out has rows even if whats-on baseline is empty", () => {
+  it("keeps Out rows as a fallback when the whats-on read failed", () => {
+    const merged = mergeTodayListingRows(
+      [],
+      {
+        body: { status: "ready", events: [row({ id: "out-fallback", title: "Live gig" })] },
+        failed: false,
+        pending: false,
+      },
+      NOW,
+      "error",
+    );
+    expect(merged.map((r) => r.id)).toEqual(["out-fallback"]);
+  });
+
+  it("answers ready when an empty whats-on read answered cleanly", () => {
     const status = todayPicksReadStatus(
       "ready",
       0,

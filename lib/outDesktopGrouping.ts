@@ -36,6 +36,17 @@ function normalizePlaceName(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
 }
 
+/** Return the one venue id form that Out links, groups, and counts may use. */
+export function canonicalOutVenueId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const venueId = value.trim();
+  return venueId.length > 0 ? venueId : null;
+}
+
+function hasResolvedPub(row: WhatsOnRow): boolean {
+  return canonicalOutVenueId(row.venueId) !== null;
+}
+
 function areaGroupLabel(area: string): string {
   if (isNightAreaSlug(area)) return getNightArea(area).name;
   return area
@@ -50,11 +61,12 @@ export function outListingGroupKey(row: WhatsOnRow): {
   kind: OutListingGroupKind;
   label: string;
 } {
-  if (typeof row.venueId === "string" && row.venueId.length > 0) {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (venueId) {
     return {
-      key: `venue:${row.venueId}`,
+      key: `venue:${venueId}`,
       kind: "venue",
-      label: row.placeName.trim() || row.venueId,
+      label: row.placeName.trim() || venueId,
     };
   }
   if (typeof row.area === "string" && row.area.trim().length > 0) {
@@ -83,10 +95,11 @@ function rowSortTime(row: WhatsOnRow): number {
   return Number.POSITIVE_INFINITY;
 }
 
-/** Desktop /out groups listings by venue first, then night area, then place name. */
+/** Desktop /out groups only listings that can open a PUBMAXX venue. */
 export function groupOutListings(rows: readonly WhatsOnRow[]): OutListingGroup[] {
   const byKey = new Map<string, OutListingGroup>();
   for (const row of rows) {
+    if (!hasResolvedPub(row)) continue;
     const descriptor = outListingGroupKey(row);
     const existing = byKey.get(descriptor.key);
     if (existing) {
@@ -114,11 +127,12 @@ export function groupOutListings(rows: readonly WhatsOnRow[]): OutListingGroup[]
 
 /** The pub beside a gig is the resolved venue on the row, or an honest absence. */
 export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
-  if (typeof row.venueId === "string" && row.venueId.length > 0) {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (venueId) {
     return {
       status: "matched",
-      placeName: row.placeName.trim() || row.venueId,
-      mapHref: `/map?sel=${encodeURIComponent(row.venueId)}`,
+      placeName: row.placeName.trim() || venueId,
+      mapHref: `/map?sel=${encodeURIComponent(venueId)}`,
     };
   }
   return { status: "absent", line: OUT_LISTING_PUB_ABSENT_LINE };
@@ -128,7 +142,7 @@ export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
 export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
   return rows.reduce(
     (count, row) =>
-      typeof row.venueId === "string" && row.venueId.length > 0 ? count : count + 1,
+      hasResolvedPub(row) ? count : count + 1,
     0,
   );
 }

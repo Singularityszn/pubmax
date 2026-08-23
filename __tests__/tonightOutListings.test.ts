@@ -37,8 +37,12 @@ function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "title">): W
   };
 }
 
-function mergeWithFixture(whatsOnRows: WhatsOnRow[], outRows: WhatsOnRow[]) {
-  return mergeTonightListingRows(whatsOnRows, outRows, NOW);
+function mergeWithFixture(
+  whatsOnRows: WhatsOnRow[],
+  outRows: WhatsOnRow[],
+  whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "error",
+) {
+  return mergeTonightListingRows(whatsOnRows, outRows, NOW, whatsOnStatus);
 }
 
 // Every status question is asked at the same instant the merge is asked at, so
@@ -75,10 +79,21 @@ const degradedOut: TonightOutAnswer = {
 const failedOut: TonightOutAnswer = { body: null, failed: true, pending: false };
 
 describe("tonight Out merge", () => {
-  it("keeps a ready Out event on the Tonight list", () => {
+  it("does not promote Out events when What's-On has answered empty", () => {
     const merged = mergeWithFixture(
       [],
       [row({ id: "tm-1", title: "A Night at the Playhouse" })],
+      "empty",
+    );
+    expect(merged).toEqual([]);
+  });
+
+  it("keeps Out events as fallback when What's-On could not answer", () => {
+    const merged = mergeTonightListingRows(
+      [],
+      [row({ id: "tm-1", title: "A Night at the Playhouse" })],
+      NOW,
+      "error",
     );
     expect(merged.map((item) => item.title)).toEqual(["A Night at the Playhouse"]);
   });
@@ -109,8 +124,8 @@ describe("tonight Out merge", () => {
 
 describe("tonight listings status", () => {
   it("is ready when Out answered with cards", () => {
-    expect(statusAtFixture("idle", eventOut)).toBe("ready");
-    expect(statusAtFixture("empty", eventOut)).toBe("ready");
+    expect(statusAtFixture("idle", eventOut)).toBe("idle");
+    expect(statusAtFixture("empty", eventOut)).toBe("empty");
     expect(statusAtFixture("error", eventOut)).toBe("ready");
   });
 

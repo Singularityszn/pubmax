@@ -1,13 +1,17 @@
+import Link from "next/link";
+
 import { SourceCredit } from "@/components/out/SourceCredit";
+import { canonicalOutVenueId } from "@/lib/outDesktopGrouping";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 /**
  * One Out listing.
  *
- * The card box is the LIST ITEM and it holds TWO sibling links: the listing
- * itself and the source credit (Skiddle's name, logo and event link are a
- * licence obligation). An anchor inside an anchor is invalid HTML - the parser
- * closes the outer one - so the credit may never be nested inside the card link.
+ * The card box is the LIST ITEM. A venue-resolved card links to that PUBMAXX
+ * venue, while the publisher credit remains its own explicit external link.
+ * An anchor inside an anchor is invalid HTML, so the credit may never be
+ * nested inside the card link. An unmatched card stays visibly static rather
+ * than pretending PUBMAXX has a venue destination it does not hold.
  */
 export function ticketFromLine(row: WhatsOnRow): string | null {
   if (row.kind !== "event") return null;
@@ -42,6 +46,11 @@ export function formatWhen(row: WhatsOnRow): string {
   return row.timeEvidence ?? "";
 }
 
+function pubMapHref(row: WhatsOnRow): string | null {
+  const venueId = canonicalOutVenueId(row.venueId);
+  return venueId ? `/map?sel=${encodeURIComponent(venueId)}` : null;
+}
+
 type OutCardTitleLevel = 2 | 4;
 
 type OutCardBodyProps = {
@@ -54,22 +63,26 @@ export function OutCardBody({ row, onOpen, titleLevel = 2 }: OutCardBodyProps) {
   const from = ticketFromLine(row);
   const when = row.startsAt || row.startsDate ? formatWhen(row) : "";
   const TitleTag = titleLevel === 4 ? "h4" : "h2";
+  const mapHref = pubMapHref(row);
+  const content = (
+    <>
+      <TitleTag>{row.title}</TitleTag>
+      <p className="outCardMeta">
+        {row.placeName}
+        {when ? ` · ${when}` : ""}
+      </p>
+      {from ? <p className="outPrice">{from}</p> : null}
+    </>
+  );
   return (
     <>
-      <a
-        className="outCard"
-        href={row.source.url}
-        rel="noopener noreferrer"
-        target="_blank"
-        onClick={onOpen}
-      >
-        <TitleTag>{row.title}</TitleTag>
-        <p className="outCardMeta">
-          {row.placeName}
-          {when ? ` · ${when}` : ""}
-        </p>
-        {from ? <p className="outPrice">{from}</p> : null}
-      </a>
+      {mapHref ? (
+        <Link className="outCard" href={mapHref} onClick={onOpen}>
+          {content}
+        </Link>
+      ) : (
+        <div className="outCard outCard--static">{content}</div>
+      )}
       <SourceCredit source={row.source} />
     </>
   );

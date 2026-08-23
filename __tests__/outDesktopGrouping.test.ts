@@ -45,7 +45,57 @@ function openPlan(partial: Partial<OutOpenPlan> & Pick<OutOpenPlan, "crewId" | "
 }
 
 describe("out desktop grouping", () => {
-  it("groups by venue id before area or place name", () => {
+  it("drops listings without a PUBMAXX venue from product groups", () => {
+    const matched = row({
+      id: "matched-product-row",
+      kind: "event",
+      title: "Comedy",
+      venueId: "venue-123",
+    });
+    const unmatched = row({
+      id: "unmatched-product-row",
+      kind: "event",
+      title: "Arena show",
+      placeName: "The O2",
+    });
+
+    const productRows = groupOutListings([unmatched, matched]).flatMap((group) =>
+      group.rows.map((item) => item.id),
+    );
+    expect(productRows).toEqual(["matched-product-row"]);
+  });
+
+  it("drops whitespace-only venue ids and canonicalises padded venue ids", () => {
+    const padded = row({
+      id: "padded-venue-row",
+      kind: "event",
+      title: "Comedy",
+      venueId: " venue-123 ",
+    });
+    const whitespaceOnly = row({
+      id: "whitespace-venue-row",
+      kind: "event",
+      title: "Arena show",
+      venueId: " \t ",
+    });
+
+    const productRows = groupOutListings([whitespaceOnly, padded]).flatMap((group) =>
+      group.rows.map((item) => item.id),
+    );
+    expect(productRows).toEqual(["padded-venue-row"]);
+    expect(outListingGroupKey(padded)).toMatchObject({
+      key: "venue:venue-123",
+      kind: "venue",
+    });
+    expect(outListingPubPair(padded)).toEqual({
+      status: "matched",
+      placeName: "The Test Arms",
+      mapHref: "/map?sel=venue-123",
+    });
+    expect(outListingUnmatchedCount([padded, whitespaceOnly])).toBe(1);
+  });
+
+  it("groups matched listings by venue and excludes unresolved area rows", () => {
     const venueA = row({
       id: "gig-a",
       kind: "music",
@@ -72,10 +122,9 @@ describe("out desktop grouping", () => {
     });
 
     const groups = groupOutListings([areaOnly, venueB, venueA]);
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(1);
     expect(groups[0]?.key).toBe("venue:venue-soho");
     expect(groups[0]?.rows.map((item) => item.id)).toEqual(["gig-a", "gig-b"]);
-    expect(groups[1]?.key).toBe("area:camden");
     expect(outListingGroupKey(venueA).kind).toBe("venue");
     expect(outListingGroupKey(areaOnly).kind).toBe("area");
   });
@@ -118,15 +167,15 @@ describe("out desktop grouping", () => {
     expect(outListingUnmatchedCount([matched, absent, absent])).toBe(2);
   });
 
-  it("keeps unmatched row status visible and available to assistive technology", () => {
+  it("does not repeat an unmatched-pub line beside every row", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
         row: row({ id: "absent-render", kind: "event", title: "Arena show" }),
       }),
     );
 
-    expect(html).toContain('class="outListingPubPair outListingPubPair--absent"');
-    expect(html).toContain(OUT_LISTING_PUB_ABSENT_LINE);
+    expect(html).toBe("");
+    expect(html).not.toContain(OUT_LISTING_PUB_ABSENT_LINE);
   });
 
   it("keeps desktop listing columns balanced inside a centred surface", () => {

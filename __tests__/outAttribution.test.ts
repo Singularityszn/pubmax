@@ -104,17 +104,39 @@ describe("Skiddle credit, and the fence standing in for the asset we do not hold
 });
 
 describe("the out card", () => {
-  it("keeps the source credit link OUT of the card link", () => {
+  it("does not make an unmatched event card look tappable", () => {
+    const html = renderToStaticMarkup(
+      createElement(OutCard, {
+        row: eventRow({ venueId: "   " }),
+      }),
+    );
+
+    expect(html).toContain('class="outCard outCard--static"');
+    expect(html).not.toMatch(/<a[^>]*class="outCard(?:\s|\")/);
+    // The source credit remains the explicit publisher link.
+    expect(html).toContain('class="outSourceCredit"');
+  });
+
+  it("makes a matched event card open its canonical PUBMAXX venue", () => {
+    const html = renderToStaticMarkup(
+      createElement(OutCard, {
+        row: eventRow({ venueId: " venue-warehouse " }),
+      }),
+    );
+
+    expect(html).toContain('href="/map?sel=venue-warehouse"');
+    expect(html).toMatch(/<a[^>]*class="outCard"/);
+    // The publisher remains a separate source-credit link, not the card action.
+    expect(html).toContain("https://www.skiddle.com/whats-on/e/1");
+  });
+
+  it("keeps the source credit link separate from the static card", () => {
     const html = renderToStaticMarkup(createElement(OutCard, { row: eventRow() }));
-    const cardAnchorAt = html.indexOf('class="outCard"');
     const creditAnchorAt = html.indexOf('class="outSourceCredit"');
-    expect(cardAnchorAt).toBeGreaterThan(-1);
+    const cardAt = html.indexOf('class="outCard outCard--static"');
     expect(creditAnchorAt).toBeGreaterThan(-1);
-    // The card link has already closed before the credit link opens, so the
-    // parser has no nested anchor to un-nest and the Skiddle event link stays
-    // inside the item it belongs to.
-    const cardClosesAt = html.indexOf("</a>", cardAnchorAt);
-    expect(cardClosesAt).toBeLessThan(creditAnchorAt);
+    expect(cardAt).toBeGreaterThan(-1);
+    expect(cardAt).toBeLessThan(creditAnchorAt);
     expect(html).toContain("https://www.skiddle.com/whats-on/e/1");
   });
 
