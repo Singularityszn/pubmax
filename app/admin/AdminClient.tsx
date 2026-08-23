@@ -390,14 +390,14 @@ export default function AdminClient() {
   }, [ensureAdminSession, importShowDismissed, retryWithFreshSession]);
 
   const loadCommunityPriceQueues = useCallback(
-    async (authenticatedSession?: AdminSessionSubmitOutcome): Promise<boolean> => {
+    async (authenticatedSession?: AdminSessionSubmitOutcome): Promise<ModeratorCommunityPrice[] | null> => {
       setCommunityPriceLoading(true);
       setCommunityPriceMessage(null);
       try {
         const session = authenticatedSession ?? (await ensureAdminSession());
         if (session.status !== "open") {
           setCommunityPriceMessage(adminAlert(session.message));
-          return false;
+          return null;
         }
 
         const res = await retryWithFreshSession(() =>
@@ -406,22 +406,29 @@ export default function AdminClient() {
         if (res.status === 403) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
-          return false;
+          return null;
         }
         if (!res.ok) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Could not load community prices."));
-          return false;
+          return null;
         }
 
-        const body = (await res.json()) as { prices?: ModeratorCommunityPrice[] };
+        const body = (await res.json()) as {
+          prices?: ModeratorCommunityPrice[];
+          degraded?: boolean;
+        };
+        if (body.degraded) {
+          setCommunityPriceMessage(adminAlert("Could not load community prices."));
+          return null;
+        }
         const prices = Array.isArray(body.prices) ? body.prices : [];
         setReportedCommunityPrices(prices.filter((price) => !price.hidden));
         setHiddenCommunityPrices(prices.filter((price) => price.hidden));
-        return true;
+        return prices;
       } catch {
         setCommunityPriceMessage(adminAlert("Could not reach the server."));
-        return false;
+        return null;
       } finally {
         setCommunityPriceLoading(false);
       }
@@ -445,7 +452,14 @@ export default function AdminClient() {
       // Community observations have their own reversible queues. Load them in
       // this pass, but keep their failures isolated from Pint Drops and the
       // other moderation lanes.
-      await loadCommunityPriceQueues(session);
+      const communityPrices = await loadCommunityPriceQueues(session);
+      if (communityPrices && communityPrices.length > 0 && venueNames.size === 0) {
+        try {
+          setVenueNames(await fetchVenueNames());
+        } catch {
+          /* names stay unresolved; rows fall back to the venueId */
+        }
+      }
 
       const [reportedRes, hiddenRes] = await Promise.all([
         fetch("/api/pint-drops?status=reported", SESSION_FETCH),
@@ -858,12 +872,26 @@ export default function AdminClient() {
 
         // Refresh only this queue. Pint Drops, Visit Reports and other admin
         // lanes keep their current state while the observation moves.
+        const nextReported = action === "restore" ? { ...row, hidden: false } : null;
+        const nextHidden = action === "hide" ? { ...row, hidden: true } : null;
+        setReportedCommunityPrices((current) =>
+          action === "restore"
+            ? [nextReported!, ...current.filter((item) => item.id !== row.id)]
+            : current.filter((item) => item.id !== row.id),
+        );
+        setHiddenCommunityPrices((current) =>
+          action === "hide"
+            ? [nextHidden!, ...current.filter((item) => item.id !== row.id)]
+            : current.filter((item) => item.id !== row.id),
+        );
         const refreshed = await loadCommunityPriceQueues();
-        if (refreshed) {
-          setCommunityPriceMessage(
-            adminStatus(action === "hide" ? "Community price hidden." : "Community price restored."),
-          );
-        }
+        setCommunityPriceMessage(
+          refreshed === null
+            ? adminAlert(
+                `${action === "hide" ? "Community price hidden" : "Community price restored"}. Refresh unavailable. Reload to confirm.`,
+              )
+            : adminStatus(action === "hide" ? "Community price hidden." : "Community price restored."),
+        );
       } catch {
         setCommunityPriceMessage(adminAlert("Could not reach the server."));
       } finally {
@@ -1334,9 +1362,6 @@ export default function AdminClient() {
 
           {/* ── Community observation moderation queue ─────────────────────── */}
           <h2 className="admin-section">Community Price moderation</h2>
-          <p className="admin-sub">
-            Review reported prices and venue signals. Hide a wrong observation or restore one.
-          </p>
           {communityPriceMessage ? (
             <div className="admin-msg" role={communityPriceMessage.tone}>
               {communityPriceMessage.text}
@@ -1354,7 +1379,6 @@ export default function AdminClient() {
           {reportedCommunityPrices.length === 0 ? (
             <div className="admin-empty">
               <strong>No reported community prices</strong>
-              <span>Reported prices and venue signals appear here for review.</span>
             </div>
           ) : (
             <div className="admin-list">
@@ -1373,13 +1397,13 @@ export default function AdminClient() {
                     ) : null}
                   </div>
                   <div className="admin-venue">
-                    <span className="admin-venue-name">{row.venueId}</span>
+                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
                       View on map
                     </Link>
                   </div>
                   <div className="admin-meta">
-                    <span>Observation: {communityObservationText(row)}</span>
+                    <span>{communityObservationText(row)}</span>
                     <span>Reports: {row.reportCount}</span>
                     <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
                     {row.reportReason ? (
@@ -1393,7 +1417,7 @@ export default function AdminClient() {
                     <button
                       className="admin-btn admin-keep"
                       onClick={() => void decideCommunityPrice(row, "hide")}
-                      disabled={communityPricePendingId === row.id}
+                      disabled={communityPricePendingId === row.id || communityPriceLoading}
                     >
                       {communityPricePendingId === row.id ? "Working…" : "Hide"}
                     </button>
@@ -1407,7 +1431,6 @@ export default function AdminClient() {
           {hiddenCommunityPrices.length === 0 ? (
             <div className="admin-empty">
               <strong>No hidden community prices</strong>
-              <span>Hidden observations stay here so a moderator can restore them.</span>
             </div>
           ) : (
             <div className="admin-list">
@@ -1426,13 +1449,13 @@ export default function AdminClient() {
                     ) : null}
                   </div>
                   <div className="admin-venue">
-                    <span className="admin-venue-name">{row.venueId}</span>
+                    <span className="admin-venue-name">{venueNames.get(row.venueId) ?? row.venueId}</span>
                     <Link className="admin-venue-link" href={venueMapUrl(row.venueId)}>
                       View on map
                     </Link>
                   </div>
                   <div className="admin-meta">
-                    <span>Observation: {communityObservationText(row)}</span>
+                    <span>{communityObservationText(row)}</span>
                     <span>Reports: {row.reportCount}</span>
                     <span>Submitted: {new Date(row.submittedAt).toLocaleString()}</span>
                     {row.reportReason ? (
@@ -1446,7 +1469,7 @@ export default function AdminClient() {
                     <button
                       className="admin-btn admin-restore"
                       onClick={() => void decideCommunityPrice(row, "restore")}
-                      disabled={communityPricePendingId === row.id}
+                      disabled={communityPricePendingId === row.id || communityPriceLoading}
                     >
                       {communityPricePendingId === row.id ? "Working…" : "Restore"}
                     </button>

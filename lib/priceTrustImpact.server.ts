@@ -76,13 +76,18 @@ async function recordFirstCluster(
   category: DrinkCategory,
   observations: readonly TrustObservation[],
   now: number,
+  restored = false,
 ): Promise<void> {
   const cluster = firstQualifyingCluster(observations, now);
   if (!cluster) return;
   const userIds = await userIdsForActors(cluster.actors);
   if (cluster.actors.length > 0 && userIds.length === 0) return;
+  const fingerprint = trustEventFingerprint(venueId, category, cluster.observationIds);
   await priceTrustEventStore().recordUnlock({
-    fingerprint: trustEventFingerprint(venueId, category, cluster.observationIds),
+    // A previous unlock may have a hide reversal. Restoring the observation
+    // needs a new positive event because the original fingerprint remains
+    // append-only and cannot be reused as visible credit.
+    fingerprint: restored ? `restored:${fingerprint}` : fingerprint,
     venueId,
     category,
     observationIds: cluster.observationIds,
@@ -145,6 +150,26 @@ export async function syncTrustAfterPriceHidden(
     await recordFirstCluster(venueId, drinkCategory, observations, now);
   } catch (error) {
     console.warn(`${STORE_TAG} sync after hide failed`, error);
+  }
+}
+
+export async function syncTrustAfterPriceRestored(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<void> {
+  try {
+    const found = await findCommunityPriceObservation(observationId);
+    if (found.degraded || !found.observation) return;
+    const { venueId, drinkCategory } = found.observation;
+    const listed = await listCommunityPriceObservations(venueId, drinkCategory);
+    if (listed.degraded) return;
+    const observations = asTrustObservations(listed.observations);
+    if (!categoryIsTrusted(observations, now)) return;
+    const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
+    if (live.degraded || live.events.length > 0) return;
+    await recordFirstCluster(venueId, drinkCategory, observations, now, true);
+  } catch (error) {
+    console.warn(`${STORE_TAG} sync after restore failed`, error);
   }
 }
 

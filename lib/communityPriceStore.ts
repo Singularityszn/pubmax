@@ -254,6 +254,7 @@ export type CommunityPriceStore = {
    * empty.
    */
   listForReview(limit?: number): Promise<ModeratorCommunityPrice[]>;
+  listForReviewWithStatus(limit?: number): Promise<CommunityPriceReviewReadResult>;
   /** Server-only roll-up seam for a future contribution leaderboard. */
   listContributorCounts(limit?: number): Promise<CommunityContributorCount[]>;
   /** Private all-time projection for contributor counting. */
@@ -265,6 +266,11 @@ export type CorroboratedCategoryCount = {
   count: number;
   /** True when the scan hit its row cap, so `count` is a floor, not a total. */
   truncated: boolean;
+  degraded: boolean;
+};
+
+export type CommunityPriceReviewReadResult = {
+  prices: ModeratorCommunityPrice[];
   degraded: boolean;
 };
 
@@ -1067,7 +1073,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     return true;
   },
 
-  async listForReview(limit = REVIEW_LIMIT) {
+  async listForReviewWithStatus(limit = REVIEW_LIMIT) {
     const queue: ModeratorCommunityPrice[] = [];
     for (const rows of venues.values()) {
       for (const row of rows) {
@@ -1079,9 +1085,13 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
         if (row.hidden || row.reportCount > 0) queue.push(toModeratorSignal(row));
       }
     }
-    return queue
+    return { prices: queue
       .sort((a, b) => (b.reportedAt ?? b.submittedAt) - (a.reportedAt ?? a.submittedAt))
-      .slice(0, Math.max(0, limit));
+      .slice(0, Math.max(0, limit)), degraded: false };
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    return (await this.listForReviewWithStatus(limit)).prices;
   },
 
   async listContributorCounts(limit = REVIEW_LIMIT) {
@@ -1715,12 +1725,12 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     });
   },
 
-  async listForReview(limit = REVIEW_LIMIT) {
-    return guard<ModeratorCommunityPrice[]>({
+  async listForReviewWithStatus(limit = REVIEW_LIMIT) {
+    return guard<CommunityPriceReviewReadResult>({
       context: "listForReview",
-      onSchemaMiss: () => memoryCommunityPriceStore.listForReview(limit),
-      message: "review queue read failed - returning empty",
-      onError: () => [],
+      onSchemaMiss: () => memoryCommunityPriceStore.listForReviewWithStatus(limit),
+      message: "review queue read failed - degraded",
+      onError: () => ({ prices: [], degraded: true }),
       run: async () => {
         const { data, error } = await admin()
           .from("community_prices")
@@ -1731,9 +1741,13 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
           .order("reported_at", { ascending: false, nullsFirst: false })
           .limit(Math.max(0, limit));
         if (error) throw new Error(error.message);
-        return reviewRows(data);
+        return { prices: reviewRows(data), degraded: false };
       },
     });
+  },
+
+  async listForReview(limit = REVIEW_LIMIT) {
+    return (await this.listForReviewWithStatus(limit)).prices;
   },
 
   async listContributorCounts(limit = REVIEW_LIMIT) {
@@ -2010,6 +2024,12 @@ export function listCommunityPricesForReview(
   limit?: number,
 ): Promise<ModeratorCommunityPrice[]> {
   return communityPriceStore().listForReview(limit);
+}
+
+export function listCommunityPricesForReviewWithStatus(
+  limit?: number,
+): Promise<CommunityPriceReviewReadResult> {
+  return communityPriceStore().listForReviewWithStatus(limit);
 }
 
 export type CommunityPriceObservation = {

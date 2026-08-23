@@ -30,6 +30,7 @@ vi.mock("@/app/admin/VenuePhotoModeration", () => ({
 }));
 
 import AdminClient from "@/app/admin/AdminClient";
+import venueDataset from "../public/data/pint_prices_app_dataset.json";
 
 type CommunityPriceRow = {
   id: string;
@@ -101,8 +102,12 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
         ? jsonResponse({ error: "Action failed" }, 503)
         : jsonResponse({ ok: true });
     }
-    if (communityPriceFailure) return jsonResponse({ error: "Queue unavailable" }, 503);
+    if (communityPriceFailure) return jsonResponse({ prices: [], degraded: true });
     return jsonResponse({ prices: communityPrices });
+  }
+
+  if (path === "/data/pint_prices_app_dataset.json") {
+    return jsonResponse([venueDataset[0]]);
   }
 
   if (path.startsWith("/api/pint-drops")) return jsonResponse({ drops: [] });
@@ -176,6 +181,16 @@ describe("community price moderation queues", () => {
     expect(host.textContent).toContain("Hidden Community Prices");
     expect(host.textContent).toContain("step-free-venue");
     expect(host.textContent).toContain("Access detail is wrong");
+    expect(host.textContent).not.toContain("Review reported prices and venue signals");
+    expect(host.textContent).not.toContain("Observation:");
+  });
+
+  it("uses the venue dataset name when one is available", async () => {
+    communityPrices = [{ ...reportedPrice, venueId: "venue-xjf3n0" }];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    expect(host.textContent).toContain("Arnos Arms");
   });
 
   it("sends hide and restore actions, then refreshes only the community queue", async () => {
@@ -278,5 +293,52 @@ describe("community price moderation queues", () => {
 
     expect(communityCard("price-1").textContent).toContain("£5.50");
     expect(host.textContent).toContain("Could not load community prices.");
+  });
+
+  it("moves a successfully hidden row before a refresh failure reports stale data", async () => {
+    communityPrices = [reportedPrice];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    communityPriceFailure = true;
+    await click(findButton("Hide"));
+
+    expect(communityCard("price-1").textContent).toContain("Restore");
+    expect(host.textContent).toContain("Refresh unavailable. Reload to confirm.");
+  });
+
+  it("disables every community decision while an action refresh is pending", async () => {
+    const secondPrice = { ...reportedPrice, id: "price-2", venueId: "venue-2" };
+    communityPrices = [reportedPrice, secondPrice];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    let resolveRefresh!: (response: Response) => void;
+    let queueReads = 0;
+    const refresh = new Promise<Response>((resolve) => {
+      resolveRefresh = resolve;
+    });
+    fetchMock.mockImplementation((input: string, init?: RequestInit) => {
+      if (input === "/api/admin/community-prices" && !init?.method) {
+        queueReads += 1;
+        if (queueReads === 1) return refresh;
+      }
+      return responseFor(input, init);
+    });
+
+    communityPrices = [{ ...reportedPrice, hidden: true }, secondPrice];
+    const action = click(
+      communityCard("price-1").querySelector<HTMLButtonElement>("button")!,
+    );
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(communityCard("price-2").querySelector<HTMLButtonElement>("button")?.disabled).toBe(
+      true,
+    );
+
+    resolveRefresh(jsonResponse({ prices: communityPrices }));
+    await action;
   });
 });

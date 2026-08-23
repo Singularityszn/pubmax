@@ -26,10 +26,13 @@ import { isModerator } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import {
-  listCommunityPricesForReview,
+  listCommunityPricesForReviewWithStatus,
   moderateCommunityPrice,
 } from "@/lib/communityPriceStore";
-import { syncTrustAfterPriceHidden } from "@/lib/priceTrustImpact.server";
+import {
+  syncTrustAfterPriceHidden,
+  syncTrustAfterPriceRestored,
+} from "@/lib/priceTrustImpact.server";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -49,9 +52,13 @@ export async function GET(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
 
-  // listForReview is fail-soft (returns [] on any store error).
-  const prices = await listCommunityPricesForReview();
-  return jsonNoStore({ prices }, { status: 200 });
+  const result = await listCommunityPricesForReviewWithStatus();
+  if (result.degraded) {
+    return publicApiError("Could not load community prices.", "UNAVAILABLE", 503, {
+      retryable: true,
+    });
+  }
+  return jsonNoStore({ prices: result.prices }, { status: 200 });
 }
 
 export async function POST(request: Request): Promise<Response> {
@@ -76,6 +83,8 @@ export async function POST(request: Request): Promise<Response> {
     if (!ok) return publicApiError("Report not found.", "NOT_FOUND", 404);
     if (action === "hide") {
       await syncTrustAfterPriceHidden(id);
+    } else {
+      await syncTrustAfterPriceRestored(id);
     }
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {
