@@ -3819,6 +3819,7 @@ export default function PubMap({
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
+          interactionLocked={mobileViewport && showMapArrivalCard}
           venueDataReady={loaded && loadedCityId === cityId}
           // Clean first view stays route-free. Once the user maps a crawl, the
           // line remains visible even if the mobile planner closes.
@@ -4054,6 +4055,7 @@ export default function PubMap({
           cityId={cityId}
           cityLabel={mapChipLabel}
           limitedCoverage={Boolean(ukPlaceArrival)}
+          interactionLocked={showMapArrivalCard}
           overlay={mobileShellState.overlay}
           onOverlayChange={changeMapOverlay}
           backLabel={mapSurfaceTrail.backLabel}

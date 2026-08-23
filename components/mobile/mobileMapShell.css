@@ -118,17 +118,15 @@
     bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
 
-  /* First-session map keeps only area, search, price lens, and Plan. Extra
-     discovery and camera tools remain available after the arrival choice. */
+  /* First-session map keeps the top bar and First visit card. The card owns
+     the arrival choice before map actions become available. */
   body:has(.mapArrivalCard) .mobileMapUtilityCorner,
+  body:has(.mapArrivalCard) .mobileMapChipRow,
+  body:has(.mapArrivalCard) .mobilePlanActivation,
   body:has(.mapArrivalCard) .mobileMapTonightChip,
   body:has(.mapArrivalCard) .appShell .mapStage .mapCameraControls,
   body:has(.mapArrivalCard) .appShell .mapStage .maplibregl-ctrl-top-right {
     display: none;
-  }
-
-  body:has(.mapArrivalCard) .mobileMapChipRow {
-    padding-right: 0;
   }
 
   .appShell .mapStage .maplibregl-ctrl-attrib.maplibregl-compact {
@@ -589,11 +587,6 @@
     box-shadow: 0 6px 18px color-mix(in srgb, var(--ink-deep) 18%, transparent);
     font: inherit;
     transform: none;
-  }
-  /* The first-visit arrival card is full width in the same lane, so the plan
-     pill takes the berth above it rather than being painted over. */
-  body:has(.mapArrivalCard) .mobilePlanActivation {
-    bottom: calc(var(--float-stack-top-map-arrival) + var(--float-stack-gap));
   }
   .mobilePlanActivation:active { transform: scale(.98); --shared-press-scale: 1; }
   .mobilePlanActivation > span { display: grid; text-align: left; line-height: 1.05; }
