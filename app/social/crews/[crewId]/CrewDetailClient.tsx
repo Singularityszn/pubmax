@@ -48,7 +48,7 @@ import {
 import "@/components/social/crews.css";
 
 type LoadState = "loading" | "ready" | "missing" | "error";
-type JoinRequestLoadState = "idle" | "ready" | "error";
+type JoinRequestLoadState = "idle" | "loading" | "ready" | "error";
 type Match = { id: string; handle: string; displayName?: string };
 
 export default function CrewDetailClient({
@@ -77,7 +77,9 @@ export default function CrewDetailClient({
   const [joinRequestStatus, setJoinRequestStatus] =
     useState<JoinRequestLoadState>("idle");
   const [joinRequestAttempt, setJoinRequestAttempt] = useState(0);
+  const [focusJoinRequests, setFocusJoinRequests] = useState(false);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
 
   useEffect(() => {
     if (!identityResolved) return;
@@ -122,6 +124,7 @@ export default function CrewDetailClient({
       return;
     }
     const controller = new AbortController();
+    void Promise.resolve().then(() => setJoinRequestStatus("loading"));
     authedActionFetch(
       `/api/social/crews/${encodeURIComponent(crewId)}/join-requests`,
       {
@@ -149,6 +152,21 @@ export default function CrewDetailClient({
       });
     return () => controller.abort();
   }, [crew, crewId, identityResolved, joinRequestAttempt]);
+
+  useEffect(() => {
+    if (
+      !focusJoinRequests ||
+      status !== "ready" ||
+      joinRequestStatus !== "ready"
+    ) {
+      return;
+    }
+    const frame = requestAnimationFrame(() => {
+      joinRequestHeading.current?.focus();
+      setFocusJoinRequests(false);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [focusJoinRequests, joinRequestStatus, status]);
 
   useEffect(() => {
     if (!identityResolved) return;
@@ -340,14 +358,19 @@ export default function CrewDetailClient({
     decision: "accept" | "decline",
   ) =>
     run(async () => {
-      await write(
-        `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({ decision }),
-          prefix: "crew-join-decide",
-        },
-      );
+      try {
+        await write(
+          `/api/social/crews/${encodeURIComponent(crewId)}/join-requests/${encodeURIComponent(request.requestId)}`,
+          {
+            method: "PATCH",
+            body: JSON.stringify({ decision }),
+            prefix: "crew-join-decide",
+          },
+        );
+      } catch (error) {
+        setJoinRequestAttempt((value) => value + 1);
+        throw error;
+      }
       setJoinRequests((current) =>
         current.filter((item) => item.requestId !== request.requestId),
       );
@@ -356,6 +379,7 @@ export default function CrewDetailClient({
           ? `${displayHandle(request.requesterHandle)} joined the crew.`
           : `Declined ${displayHandle(request.requesterHandle)}.`,
       );
+      setFocusJoinRequests(true);
       setJoinRequestAttempt((value) => value + 1);
       if (decision === "accept") setAttempt((value) => value + 1);
     });
@@ -372,6 +396,14 @@ export default function CrewDetailClient({
   };
 
   const body = (() => {
+    if (!identityResolved) {
+      return (
+        <div className="crews__skeletons" aria-label="Loading crew">
+          <span />
+          <span />
+        </div>
+      );
+    }
     if (status === "loading") {
       return (
         <div className="crews__skeletons" aria-hidden="true">
@@ -519,7 +551,12 @@ export default function CrewDetailClient({
         {managesOpenCrew ? (
           joinRequestStatus === "ready" ? (
             <section aria-labelledby="crew-join-requests-title">
-              <h2 id="crew-join-requests-title" className="crews__title">
+              <h2
+                id="crew-join-requests-title"
+                className="crews__title"
+                ref={joinRequestHeading}
+                tabIndex={-1}
+              >
                 Requests to join
               </h2>
               {joinRequests.length > 0 ? (
@@ -561,6 +598,15 @@ export default function CrewDetailClient({
               {joinRequestsHaveMore ? (
                 <p className="crews__note">More requests are waiting.</p>
               ) : null}
+            </section>
+          ) : joinRequestStatus === "loading" ? (
+            <section aria-labelledby="crew-join-requests-loading">
+              <h2 id="crew-join-requests-loading" className="crews__title">
+                Requests to join
+              </h2>
+              <div className="crews__skeletons" aria-label="Loading join requests">
+                <span />
+              </div>
             </section>
           ) : joinRequestStatus === "error" ? (
             <section

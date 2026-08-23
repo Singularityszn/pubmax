@@ -1,9 +1,7 @@
-// Effective proof for 0110, the open Social Crew lane. It APPLIES the whole
-// migration chain plus 0110 to a real PostgreSQL 16 and exercises the rules
-// through the RPCs themselves, because "a stranger may ask to join an open
-// crew, a blocked one may not, and a friends crew still needs mutual" are
-// claims only the database can answer. The rollback is applied at the end and
-// the pre-0110 behaviour is re-proved.
+// Effective proof for 0110 and 0114, the open Social Crew lane and host queue.
+// It applies the prerequisite migration chain to a real PostgreSQL 16 and
+// exercises join, queue authority, request lifecycle, ACL, and rollback rules
+// through the RPCs themselves. These claims need database proof.
 //
 // Same host contract as the other effective migration proofs
 // (socialCrewMigration, occupancyMigration0109): a host with no PostgreSQL
@@ -351,9 +349,9 @@ beforeAll(async () => {
     console.error(
       [
         "",
-        "OPEN SOCIAL CREW 0110 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
+        "OPEN SOCIAL CREW 0110 + 0114 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS",
         `Reason: ${skipReason}`,
-        "No open join, block refusal, preview or rollback was exercised on this host.",
+        "No open join, queue authority, request lifecycle, ACL or rollback was exercised on this host.",
         "",
       ].join("\n"),
     );

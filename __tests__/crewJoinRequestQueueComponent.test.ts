@@ -19,6 +19,8 @@ const state = vi.hoisted(() => ({
   ],
   decisions: [] as string[],
   visibility: "open" as "open" | "friends",
+  identityResolved: true,
+  decisionFails: false,
 }));
 
 vi.mock("next/link", () => ({
@@ -31,7 +33,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ identityResolved: true }),
+  useAuth: () => ({ identityResolved: state.identityResolved }),
 }));
 
 vi.mock("@/components/nav/SiteNav", () => ({
@@ -93,6 +95,12 @@ vi.mock("@/lib/authedFetch", () => ({
       state.decisions.push(String(init.body));
       const requestId = decodeURIComponent(url.split("/").at(-1) ?? "");
       state.queue = state.queue.filter((request) => request.requestId !== requestId);
+      if (state.decisionFails) {
+        return Response.json(
+          { error: "Social Crew changed before this request." },
+          { status: 409 },
+        );
+      }
       return Response.json({ code: "accepted", replayed: false });
     }
     if (url === "/api/social/access") {
@@ -111,6 +119,7 @@ async function settle(): Promise<void> {
   await act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 20));
   });
 }
 
@@ -123,6 +132,8 @@ beforeEach(() => {
   ];
   state.decisions = [];
   state.visibility = "open";
+  state.identityResolved = true;
+  state.decisionFails = false;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -154,6 +165,7 @@ describe("host join-request queue", () => {
     expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
     expect(container.textContent).toContain("@bob joined the crew.");
     expect(container.textContent).toContain("No one has asked to join.");
+    expect(document.activeElement?.id).toBe("crew-join-requests-title");
   });
 
   it("does not open the host queue for a friends-only crew", async () => {
@@ -189,5 +201,38 @@ describe("host join-request queue", () => {
 
     expect(container.textContent).toContain("@bob51");
     expect(container.textContent).not.toContain("More requests are waiting.");
+  });
+
+  it("hides a loaded private queue while identity is unresolved", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(container.textContent).toContain("@bob");
+
+    state.identityResolved = false;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+
+    expect(container.textContent).not.toContain("@bob");
+  });
+
+  it("refreshes a request that another manager decided first", async () => {
+    state.decisionFails = true;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    const accept = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Accept @bob"]',
+    );
+    expect(accept).not.toBeNull();
+    await act(async () => accept!.click());
+    await settle();
+
+    expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
+    expect(container.textContent).toContain("Social Crew changed before this request.");
   });
 });
