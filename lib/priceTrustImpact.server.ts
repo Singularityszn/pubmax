@@ -179,7 +179,9 @@ export async function syncTrustAfterPriceRestored(
     if (live.degraded || live.events.length > 0) return;
     // The row's moderation stamp identifies this transition. Retries and
     // concurrent syncs therefore share one append-only event identity.
-    const restorationKey = String(found.observation.moderatedAt ?? now);
+    const reversal = await priceTrustEventStore().latestReversalCovering(observationId);
+    if (reversal.degraded || !reversal.event) return;
+    const restorationKey = reversal.event.id;
     const current = await findCommunityPriceObservation(observationId);
     if (current.degraded || current.observation?.hidden) return;
     await recordFirstCluster(venueId, drinkCategory, observations, now, restorationKey);

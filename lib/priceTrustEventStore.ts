@@ -70,6 +70,10 @@ export type PriceTrustEventStore = {
     events: PriceTrustEvent[];
     degraded: boolean;
   }>;
+  latestReversalCovering(observationId: string): Promise<{
+    event: PriceTrustEvent | null;
+    degraded: boolean;
+  }>;
   readVisibleImpact(userId: string): Promise<VisibleImpact>;
 };
 
@@ -167,6 +171,21 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     return { events, degraded: false };
   },
 
+  async latestReversalCovering(observationId) {
+    const id = cleanText(observationId, 64);
+    const originals = memory.events.filter(
+      (event) => event.reversalOf === null && event.observationIds.includes(id),
+    );
+    const originalIds = new Set(originals.map((event) => event.id));
+    const event = memory.events
+      .filter(
+        (candidate) =>
+          candidate.reversalOf !== null && originalIds.has(candidate.reversalOf),
+      )
+      .sort((left, right) => right.createdAt.localeCompare(left.createdAt))[0] ?? null;
+    return { event, degraded: false };
+  },
+
   async readVisibleImpact(userId) {
     const key = cleanUserId(userId);
     if (!key) {
@@ -255,6 +274,25 @@ async function insertCredits(eventId: string, userIds: readonly string[]): Promi
 }
 
 export const supabasePriceTrustEventStore: PriceTrustEventStore = {
+  async latestReversalCovering(observationId) {
+    const id = cleanText(observationId, 64);
+    if (!id) return { event: null, degraded: false };
+    return guard.guard({
+      context: "latestReversalCovering",
+      onSchemaMiss: () => memoryPriceTrustEventStore.latestReversalCovering(id),
+      message: "trust reversal read failed",
+      onError: () => ({ event: null, degraded: true }),
+      run: async () => {
+        const originals = await admin().from(EVENTS_TABLE).select("id").contains("observation_ids", [id]).is("reversal_of", null);
+        if (originals.error) throw new Error(originals.error.message);
+        const ids = (originals.data ?? []).map((row) => String((row as { id?: unknown }).id ?? "")).filter(Boolean);
+        if (ids.length === 0) return { event: null, degraded: false };
+        const reversals = await admin().from(EVENTS_TABLE).select("id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of").in("reversal_of", ids).order("created_at", { ascending: false }).limit(1);
+        if (reversals.error) throw new Error(reversals.error.message);
+        return { event: fromEventRow(reversals.data?.[0] as EventRow), degraded: false };
+      },
+    });
+  },
   async recordUnlock(input) {
     const fingerprint = cleanText(input.fingerprint, 128);
     const venueId = cleanText(input.venueId, 64);
