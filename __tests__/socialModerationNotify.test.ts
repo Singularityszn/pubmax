@@ -1,8 +1,34 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const durableLimiter = vi.hoisted(() => ({ stalled: false, aborted: false }));
+
+vi.mock("@/lib/supabase", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/supabase")>();
+  return {
+    ...actual,
+    checkRateLimitDurableDetailed: async (
+      _key: string,
+      _limit: number,
+      _windowMs: number,
+      signal?: AbortSignal,
+    ) => {
+      if (durableLimiter.stalled) {
+        return new Promise((_, reject) => {
+          signal?.addEventListener("abort", () => {
+            durableLimiter.aborted = true;
+            reject(signal.reason);
+          }, { once: true });
+        });
+      }
+      return { verdict: null, reason: "no-client" as const };
+    },
+  };
+});
+
 import {
   evaluateSocialModerationFindings,
   notifySocialModerationFindings,
+  SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS,
   SOCIAL_MODERATION_PENDING_AGE_ALERT_MS,
   SOCIAL_MODERATION_PENDING_ALERT_FLOOR,
 } from "@/lib/socialModerationNotify";
@@ -33,6 +59,9 @@ function baseFields(body: string): SocialPostFields {
 
 describe("social moderation operator alert", () => {
   afterEach(() => {
+    durableLimiter.stalled = false;
+    durableLimiter.aborted = false;
+    vi.useRealTimers();
     vi.restoreAllMocks();
   });
 
@@ -84,9 +113,9 @@ describe("social moderation operator alert", () => {
     expect(findings.find((f) => f.kind === "repeated_failures")?.terminalErrors).toBe(3);
   });
 
-  it("logs ALERT lines when notify is called with stranded pending", () => {
+  it("logs ALERT lines when notify is called with stranded pending", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = notifySocialModerationFindings({
+    const result = await notifySocialModerationFindings({
       pending: 1,
       strandedTerminal: 1,
       oldestPendingAgeMs: 60_000,
@@ -94,6 +123,67 @@ describe("social moderation operator alert", () => {
     expect(result.findings.length).toBeGreaterThan(0);
     expect(
       error.mock.calls.some((call) => String(call[0]).includes("[social-moderation][ALERT]")),
+    ).toBe(true);
+  });
+
+  it("logs one alert for an unchanged backlog during the cooldown", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const backlog = {
+      pending: 1,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 45 * 60 * 1000,
+    };
+
+    const first = await notifySocialModerationFindings(backlog);
+    const second = await notifySocialModerationFindings(backlog);
+
+    expect(first.findings).toEqual(second.findings);
+    expect(
+      error.mock.calls.filter((call) =>
+        String(call[0]).includes("moderation finding(s)"),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("logs again when the queue state changes during the cooldown", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await notifySocialModerationFindings({
+      pending: 2,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 45 * 60 * 1000,
+    });
+    await notifySocialModerationFindings({
+      pending: 3,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 46 * 60 * 1000,
+    });
+
+    expect(
+      error.mock.calls.filter((call) =>
+        String(call[0]).includes("moderation finding(s)"),
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("falls back to local alert state when the durable lookup stalls", async () => {
+    vi.useFakeTimers();
+    durableLimiter.stalled = true;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const notification = notifySocialModerationFindings({
+      pending: 4,
+      strandedTerminal: 2,
+      oldestPendingAgeMs: 45 * 60 * 1000,
+    });
+    await vi.advanceTimersByTimeAsync(SOCIAL_MODERATION_ALERT_STATE_TIMEOUT_MS);
+
+    await expect(notification).resolves.toMatchObject({ findings: { length: 2 } });
+    expect(durableLimiter.aborted).toBe(true);
+    expect(
+      error.mock.calls.some((call) =>
+        String(call[0]).includes("[social-moderation][ALERT]"),
+      ),
     ).toBe(true);
   });
 
