@@ -20,7 +20,7 @@ import {
   serverNowTabHref,
   subscribeNowTabHref,
 } from "@/components/nav/navigationModel";
-import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -106,12 +106,13 @@ export default function SiteNav({
     nowTabHref,
     serverNowTabHref,
   );
-  const socialLabel = useSocialSurfaceName();
-  const links = LINKS.map((link) => {
-    if (link.key === "now") return { ...link, href: nowHref };
-    if (link.key === "social") return { ...link, label: socialLabel };
-    return link;
-  });
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const links = LINKS
+    .filter((link) => socialFriendsLaunchEnabled || link.key !== "social")
+    .map((link) => {
+      if (link.key === "now") return { ...link, href: nowHref };
+      return link;
+    });
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.

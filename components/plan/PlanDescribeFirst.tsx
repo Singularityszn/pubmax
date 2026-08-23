@@ -75,7 +75,12 @@ export default function PlanDescribeFirst({
           placeholder="Quiet in Clapham for 4"
           maxLength={500}
         />
-        <button type="button" onClick={() => submit()} disabled={!query.trim()}>Make a plan</button>
+        <button
+          type="button"
+          onClick={() => query.trim() ? submit() : onGuideMeInstead()}
+        >
+          {query.trim() ? "Make a plan" : "Guide me"}
+        </button>
       </div>
       <PlanStopCountPicker value={stopCount} onChange={setStopCount} />
       <WantedPlanChips onPick={submitChip} />
