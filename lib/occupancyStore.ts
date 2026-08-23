@@ -387,7 +387,12 @@ export const supabaseOccupancyStore: OccupancyStore = {
       context: "flag",
       isSchemaMiss: missingOccupancyModeration,
       warnSchemaMiss: guard.warn,
-      onSchemaMiss: () => memoryOccupancyStore.flag(reportId, reason, actorHash),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryOccupancyStore.flag(reportId, reason, actorHash),
+        }),
       run: async () => {
         const { data, error } = await admin().rpc("report_occupancy_report", {
           p_id: reportId,
@@ -407,7 +412,12 @@ export const supabaseOccupancyStore: OccupancyStore = {
       context: "moderate",
       isSchemaMiss: missingOccupancyModeration,
       warnSchemaMiss: guard.warn,
-      onSchemaMiss: () => memoryOccupancyStore.moderate(reportId, hidden),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: MIGRATION_HINT,
+          fallback: () => memoryOccupancyStore.moderate(reportId, hidden),
+        }),
       run: async () => {
         const { data, error } = await admin()
           .from(TABLE)
