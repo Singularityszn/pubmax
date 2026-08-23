@@ -52,6 +52,21 @@ describe("writeOneTapPintDrop", () => {
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 
+  it("binds one-tap price authority to the verified actor, not the handle", async () => {
+    const outcome = await writeOneTapPintDrop({
+      venueId: "venue-xjf3n0",
+      handle: "karan",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      verifiedActor: "profile:actor-a",
+    });
+
+    expect(outcome).toMatchObject({ ok: true, skipped: false });
+    if (!outcome.ok || outcome.skipped) return;
+    expect(outcome.drop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
+    expect(outcome.drop.authorityKey).not.toContain("actor-a");
+  });
+
   it("hides a community price when pairing revert runs", async () => {
     const venueId = "venue-xjf3n0";
     const { price } = await submitCommunityPrice({

@@ -641,10 +641,15 @@ describe("mergeVenueDrops", () => {
   // the shared tolerance. The minimum a price needs to move the map.
   function corroboratedPair(priceGbp = 4.5): SummaryDrop[] {
     return [
-      makeSummaryDrop({ priceGbp, handle: "first_drinker" }),
+      makeSummaryDrop({
+        priceGbp,
+        handle: "first_drinker",
+        authorityKey: "venue-authority-a",
+      }),
       makeSummaryDrop({
         priceGbp,
         handle: "second_drinker",
+        authorityKey: "venue-authority-b",
         createdAt: "2026-05-31T10:00:00.000Z",
       }),
     ];
@@ -832,11 +837,17 @@ describe("mergeVenueDrops", () => {
               priceGbp: 1.0,
               passedDownNote: "A seeded story that must not count.",
             }),
-            makeSummaryDrop({ drink: "Organic Ale", priceGbp: 4.5, handle: "first_drinker" }),
+            makeSummaryDrop({
+              drink: "Organic Ale",
+              priceGbp: 4.5,
+              handle: "first_drinker",
+              authorityKey: "venue-authority-a",
+            }),
             makeSummaryDrop({
               drink: "Organic Ale",
               priceGbp: 4.5,
               handle: "second_drinker",
+              authorityKey: "venue-authority-b",
               createdAt: "2026-05-31T10:00:00.000Z",
             }),
           ],
@@ -886,6 +897,32 @@ describe("mergeVenueDrops", () => {
   });
 
   describe("corroboratedPriceDrop", () => {
+    it("does not treat two self-asserted handles as independent price authority", () => {
+      const drops = [
+        makeSummaryDrop({ priceGbp: 4.5, handle: "invented_one" }),
+        makeSummaryDrop({ priceGbp: 4.5, handle: "invented_two" }),
+      ];
+
+      expect(corroboratedPriceDrop(drops, NOW)).toBeNull();
+    });
+
+    it("does not let one verified account corroborate through a handle rename", () => {
+      const drops = [
+        makeSummaryDrop({
+          priceGbp: 4.5,
+          handle: "old_handle",
+          authorityKey: "same-verified-account",
+        }),
+        makeSummaryDrop({
+          priceGbp: 4.5,
+          handle: "new_handle",
+          authorityKey: "same-verified-account",
+        }),
+      ];
+
+      expect(corroboratedPriceDrop(drops, NOW)).toBeNull();
+    });
+
     it("a corroborated pair yields the newest agreeing drop as the candidate", () => {
       const drops = corroboratedPair(4.5);
       const candidate = corroboratedPriceDrop(drops, NOW);
@@ -895,15 +932,21 @@ describe("mergeVenueDrops", () => {
     it("a lone fresh disagreement cannot un-paint a corroborated older figure", () => {
       const drops = [
         // Newest-first: a lone £9 report ahead of a corroborated £4.50 pair.
-        makeSummaryDrop({ priceGbp: 9, handle: "third_drinker" }),
+        makeSummaryDrop({
+          priceGbp: 9,
+          handle: "third_drinker",
+          authorityKey: "venue-authority-c",
+        }),
         makeSummaryDrop({
           priceGbp: 4.5,
           handle: "first_drinker",
+          authorityKey: "venue-authority-a",
           createdAt: "2026-05-30T10:00:00.000Z",
         }),
         makeSummaryDrop({
           priceGbp: 4.6,
           handle: "second_drinker",
+          authorityKey: "venue-authority-b",
           createdAt: "2026-05-29T10:00:00.000Z",
         }),
       ];

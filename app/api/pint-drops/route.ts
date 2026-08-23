@@ -31,6 +31,7 @@ import {
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { profileStore } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp, requiresSupabaseStore, isSupabaseConfigured } from "@/lib/supabase";
@@ -307,7 +308,14 @@ export async function POST(request: Request): Promise<Response> {
   if (!ownership.allowed) {
     return publicApiErrorFromStatus(ownership.error, ownership.status);
   }
-  const dropPayload = { ...canonicalDrop, handle: ownership.handle };
+  const dropPayload = {
+    ...canonicalDrop,
+    handle: ownership.handle,
+    authorityKey: pintDropAuthorityKey(
+      canonicalDrop.venueId,
+      ownership.callerUserId,
+    ),
+  };
 
   // Durable key = handle + hashed IP (PRD P3.9); in-memory fallback stays
   // keyed on handle alone, exactly as before.

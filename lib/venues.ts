@@ -5,7 +5,6 @@ import {
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
 import { haversineKm } from "@/lib/haversine";
-import { normalizeHandle } from "@/lib/profiles";
 import { firstHttp } from "@/lib/httpUrl";
 import {
   findBrand,
@@ -473,13 +472,14 @@ export type SummaryDrop = {
   // ISO timestamp the drop was logged. Carried through so the UI can show how
   // fresh the live community price is ("logged 2h ago") — see formatFreshness.
   createdAt: string;
-  // Public handle of the drinker who logged the drop — the independence axis
-  // the corroboration gate counts on. Optional so old callers still typecheck,
-  // but a drop without one has unknown identity, and unknown identity can never
-  // prove a SECOND independent drinker: unattributed drops corroborate nothing.
-  // (Anonymous drops all wear ANON_HANDLE_LABEL, so they collapse to one
-  // submitter here too — the cautious reading, on purpose.)
+  // Public handle is presentation only. It is never proof that two reports came
+  // from two people because an anonymous caller can invent handles and an owner
+  // can rename one.
   handle?: string;
+  // Stable, server-derived, per-venue authority key for a verified PUBMAXX User
+  // ID. Missing keys are provisional observations: visible on the venue sheet
+  // and eligible for the provisional pin mark, but never price authority.
+  authorityKey?: string;
 };
 
 // Honesty note the venue detail can render alongside a community-updated price,
@@ -547,9 +547,9 @@ export function formatObservedAt(iso: string | null | undefined, now: Date = new
 // - only organic (non-demo) drops carrying a real price count;
 // - only drops inside the community max-age window count — an aged report is a
 //   record of a night, not evidence about tonight;
-// - independence is counted on normalised handles (a drinker agreeing with
-//   themselves is still one report), agreement within the shared tolerance of
-//   the candidate figure;
+// - independence is counted on server-derived authority keys (a drinker
+//   agreeing with themselves is still one report), with agreement inside the
+//   shared tolerance of the candidate figure;
 // - the best-backed candidate wins, so a lone fresh disagreement can neither
 //   repaint the map nor un-paint an already-corroborated figure — the same
 //   rule mapCandidateOf keeps for community submissions.
@@ -572,12 +572,12 @@ export function corroboratedPriceDrop<D extends SummaryDrop>(
   for (const candidate of inWindow) {
     const backers = new Set<string>();
     for (const other of inWindow) {
-      const handle = normalizeHandle(other.handle);
-      if (!handle) continue;
+      const authorityKey = other.authorityKey?.trim();
+      if (!authorityKey) continue;
       if (!agreesWithinTolerance(candidate.priceGbp as number, other.priceGbp as number)) {
         continue;
       }
-      backers.add(handle);
+      backers.add(authorityKey);
     }
     if (backers.size > bestBackers) {
       best = candidate;

@@ -234,6 +234,7 @@ function toRow(drop: PersistableDrop) {
     provenance: drop.provenance,
     status: drop.status,
     created_at: drop.createdAt,
+    authority_key: drop.authorityKey ?? null,
     reported_at: drop.reportedAt ?? null,
     report_reason: drop.reportReason ?? null,
     report_count: drop.reportCount ?? 0,
@@ -270,6 +271,10 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
     // absent → undefined) or a hand-edited value collapses to the safe `public`.
     visibility: cleanVisibility(row.visibility),
     createdAt: String(row.created_at),
+    authorityKey:
+      typeof row.authority_key === "string" && row.authority_key.trim()
+        ? row.authority_key
+        : undefined,
     pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
     reportedAt: row.reported_at ? String(row.reported_at) : undefined,
@@ -418,6 +423,7 @@ export function toDTO(
     pintPhotoUrl: visible ? (photoUrls?.pint ?? null) : null,
     venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
   };
+  if (drop.authorityKey) dto.authorityKey = drop.authorityKey;
   // Vibe tags are public, safe content — always exposed when present. Kept
   // additive (absent, not []) so the public JSON shape stays backward-compatible.
   if (drop.vibeTags && drop.vibeTags.length) dto.vibeTags = drop.vibeTags;
@@ -539,6 +545,23 @@ function isMissingVisibilityColumnError(error: { code?: string; message?: string
   return (code === "42703" || code === "PGRST204") && message.includes("visibility");
 }
 
+// Additive-rollout guard for verified Pint Price authority (migration 0117).
+// A pre-migration database may still keep the Pint Drop, but it must keep it as
+// provisional. The retry therefore removes the key from both the inserted row
+// and the returned DTO.
+function isMissingAuthorityKeyColumnError(error: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  return (
+    (code === "42703" || code === "PGRST204") &&
+    message.includes("authority_key")
+  );
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -570,6 +593,17 @@ export const supabasePintDropStore: PintDropStore = {
       // First attempt includes vibe_tags + Last Train columns. Once migrations
       // 0005 / 0021 are applied this is the only path that ever runs.
       let { error } = await admin().from(TABLE).insert(row);
+      if (error && isMissingAuthorityKeyColumnError(error)) {
+        console.warn(
+          "[pint-drops] authority_key missing - saving this drop as provisional (apply migration 0117):",
+          error.message,
+        );
+        const { authority_key: _omitAuthority, ...rowWithoutAuthority } = row;
+        void _omitAuthority;
+        delete persistable.authorityKey;
+        row = rowWithoutAuthority as typeof row;
+        ({ error } = await admin().from(TABLE).insert(row));
+      }
       if (error && isMissingLastTrainColumnError(error)) {
         console.warn(
           "[pint-drops] leave_by_iso/last_train_decision missing — inserting without them (apply migration 0021):",

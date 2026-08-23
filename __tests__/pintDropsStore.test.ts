@@ -437,6 +437,39 @@ describe("supabasePintDropStore.create (vibe_tags rollout resilience)", () => {
     expect(dto.vibeTags).toEqual(["cheap", "riverside"]);
   });
 
+  it("missing authority column keeps the drop provisional until migration 0117 lands", async () => {
+    insertMock.mockReset();
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const verifiedDrop = drop({
+      id: "verified-r1",
+      authorityKey: "authority-a",
+    }) as Parameters<typeof supabasePintDropStore.create>[0];
+    insertMock
+      .mockResolvedValueOnce({
+        error: {
+          code: "PGRST204",
+          message:
+            "Could not find the 'authority_key' column of 'visit_reports' in the schema cache",
+        },
+      })
+      .mockResolvedValueOnce({ error: null });
+
+    const dto = await supabasePintDropStore.create(verifiedDrop, noPhotos);
+
+    expect(insertMock).toHaveBeenCalledTimes(2);
+    expect(insertMock.mock.calls[0][0]).toHaveProperty(
+      "authority_key",
+      "authority-a",
+    );
+    expect(insertMock.mock.calls[1][0]).not.toHaveProperty("authority_key");
+    expect(dto.authorityKey).toBeUndefined();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("migration 0117"),
+      expect.any(String),
+    );
+    warn.mockRestore();
+  });
+
   it("missing-column (42703): retries WITHOUT vibe_tags and still succeeds", async () => {
     insertMock.mockReset();
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});

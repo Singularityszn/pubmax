@@ -304,7 +304,7 @@ describe("POST /api/price-submit", () => {
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });
 
-  it("answers 201 with the price when revert cannot hide it after a visit report failure", async () => {
+  it("never reports success when the price and Pint Drop split", async () => {
     oneTapState.forcedOutcome = {
       ok: false,
       kind: "storage",
@@ -313,8 +313,11 @@ describe("POST /api/price-submit", () => {
     vi.mocked(moderateCommunityPrice).mockResolvedValue(false);
     const venueId = "venue-xjf3n0";
     const res = await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }));
-    expect(res.status).toBe(201);
-    expect((await res.json() as PriceBody).ok).toBe(true);
+    expect(res.status).toBe(503);
+    expect(await res.json()).toMatchObject({
+      code: "PAIRING_REPAIR_REQUIRED",
+      retryable: true,
+    });
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
   });

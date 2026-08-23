@@ -10,12 +10,14 @@ import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
+import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 
 export type OneTapPintDropInput = Readonly<{
   venueId: string;
   handle: string;
   drinkCategory: DrinkCategory;
   priceGbp: number;
+  verifiedActor?: string;
 }>;
 
 export type OneTapPintDropOutcome =
@@ -52,6 +54,7 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
     status: "visible",
     visibility: "public",
     createdAt: new Date().toISOString(),
+    authorityKey: pintDropAuthorityKey(input.venueId, input.verifiedActor),
   };
 }
 
