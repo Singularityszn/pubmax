@@ -45,7 +45,27 @@ function openPlan(partial: Partial<OutOpenPlan> & Pick<OutOpenPlan, "crewId" | "
 }
 
 describe("out desktop grouping", () => {
-  it("groups by venue id before area or place name", () => {
+  it("drops listings without a PUBMAXX venue from product groups", () => {
+    const matched = row({
+      id: "matched-product-row",
+      kind: "event",
+      title: "Comedy",
+      venueId: "venue-123",
+    });
+    const unmatched = row({
+      id: "unmatched-product-row",
+      kind: "event",
+      title: "Arena show",
+      placeName: "The O2",
+    });
+
+    const productRows = groupOutListings([unmatched, matched]).flatMap((group) =>
+      group.rows.map((item) => item.id),
+    );
+    expect(productRows).toEqual(["matched-product-row"]);
+  });
+
+  it("groups matched listings by venue and excludes unresolved area rows", () => {
     const venueA = row({
       id: "gig-a",
       kind: "music",
@@ -72,10 +92,9 @@ describe("out desktop grouping", () => {
     });
 
     const groups = groupOutListings([areaOnly, venueB, venueA]);
-    expect(groups).toHaveLength(2);
+    expect(groups).toHaveLength(1);
     expect(groups[0]?.key).toBe("venue:venue-soho");
     expect(groups[0]?.rows.map((item) => item.id)).toEqual(["gig-a", "gig-b"]);
-    expect(groups[1]?.key).toBe("area:camden");
     expect(outListingGroupKey(venueA).kind).toBe("venue");
     expect(outListingGroupKey(areaOnly).kind).toBe("area");
   });
