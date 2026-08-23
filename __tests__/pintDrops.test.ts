@@ -269,6 +269,20 @@ afterAll(() => {
 });
 
 describe("POST /api/pint-drops (create)", () => {
+  it("requires a verified account before validating a production Pint Drop", async () => {
+    supaGuard.configured = true;
+    supaGuard.requiresStore = true;
+
+    const response = await post({ handle: "self_asserted" });
+
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      error: "Sign in to post a Pint Drop.",
+      code: "UNAUTHENTICATED",
+      retryable: false,
+    });
+  });
+
   it("accepts a priced drop as a contributor", async () => {
     const res = await post({ venueId: VENUE, handle: "ale", priceGbp: 4.2 });
     expect(res.status).toBe(201);

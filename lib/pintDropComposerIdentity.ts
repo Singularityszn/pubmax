@@ -9,8 +9,13 @@ export function pintDropAuthorValue(input: {
   draftHandle: string;
   signedIn: boolean;
   identityReady: boolean;
+  authRequired?: boolean;
 }): { handle: string; accountOwned: boolean; canSubmit: boolean } {
   if (input.signedIn && !input.identityReady) {
+    return { handle: "", accountOwned: false, canSubmit: false };
+  }
+
+  if (input.authRequired && !input.signedIn) {
     return { handle: "", accountOwned: false, canSubmit: false };
   }
 

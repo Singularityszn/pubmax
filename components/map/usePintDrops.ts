@@ -168,6 +168,7 @@ export function usePintDrops(
     user,
     session,
     loading: authLoading,
+    configured: authConfigured,
     handle: accountHandle,
     identityResolved,
     getCurrentUserId,
@@ -374,10 +375,17 @@ export function usePintDrops(
       draftHandle: handle,
       signedIn,
       identityReady,
+      authRequired: authConfigured,
     });
     if (!submittedAuthor.canSubmit) {
       setSubmitting(false);
-      setDropMsg({ ok: false, text: "Finish setting your PUBMAXX Handle before posting." });
+      setDropMsg({
+        ok: false,
+        text:
+          authConfigured && !signedIn
+            ? "Sign in to post a Pint Drop."
+            : "Finish setting your PUBMAXX Handle before posting.",
+      });
       return;
     }
     const passedDownNote = appendWithSuffix(dropForm.note, dropForm.withWho);
@@ -720,6 +728,7 @@ export function usePintDrops(
     handle,
     setHandle,
     accountHandle,
+    authConfigured,
     signedIn,
     identityReady,
     composerOpen,

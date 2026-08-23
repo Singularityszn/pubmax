@@ -318,14 +318,25 @@ export async function POST(request: Request): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
 
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
+
+  const verifiedUserId = await callerUserId(request);
+  if (requiresSupabaseStore() && !verifiedUserId) {
+    return publicApiError(
+      "Sign in to post a Pint Drop.",
+      "UNAUTHENTICATED",
+      401,
+    );
+  }
+
   const canonicalResult = await validateCanonicalPintDrop(fields);
   if (!canonicalResult.ok) return canonicalResult.response;
   const canonicalDrop = canonicalResult.value;
 
   // JWT-linked handle wins over a self-asserted body handle when signed in.
-  // Signed-in users must finish handle onboarding; only signed-out requests
-  // keep the self-asserted keyless demo path.
-  const verifiedUserId = await callerUserId(request);
+  // Signed-in users must finish handle onboarding. Signed-out requests keep
+  // the self-asserted handle only in the keyless local demo path.
   const actorHandle = await resolveMessageHandle(
     request,
     canonicalDrop.handle,
@@ -362,9 +373,6 @@ export async function POST(request: Request): Promise<Response> {
   if (await isLimited(ownership.handle, submitKey)) {
     return publicApiError("Too many submissions, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
-
-  const unavailable = productionStorageUnavailable();
-  if (unavailable) return unavailable;
 
   // Duplicate guard (feat/price-drops-v2): one PRICED observation per
   // venue+identity+London-day. A second priced drop at the same pub the same day

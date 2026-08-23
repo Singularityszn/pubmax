@@ -4668,20 +4668,25 @@ body:has(.chooseAreaDesktopScrim) .analyticsConsentPrompt {
   gap: 10px;
 }
 
-.dropComposer button[type="submit"] {
+.dropComposer button[type="submit"],
+.dropComposer .spillSubmitLink {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 6px;
+  min-height: 44px;
   padding: 9px 14px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-sm);
   background: var(--brass);
   color: var(--color-on-accent);
   font-weight: 700;
+  text-decoration: none;
   transition: filter 0.15s ease;
 }
 
-.dropComposer button[type="submit"]:hover {
+.dropComposer button[type="submit"]:hover,
+.dropComposer .spillSubmitLink:hover {
   filter: brightness(1.08);
 }
 

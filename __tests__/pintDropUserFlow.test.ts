@@ -59,6 +59,22 @@ describe("venue-sheet Pint Drop author", () => {
     });
   });
 
+  it("blocks a signed-out Pint Drop when account auth is configured", () => {
+    const configuredAuthInput = {
+      accountHandle: null,
+      draftHandle: "self_asserted",
+      signedIn: false,
+      identityReady: true,
+      authRequired: true,
+    };
+
+    expect(pintDropAuthorValue(configuredAuthInput)).toEqual({
+      handle: "",
+      accountOwned: false,
+      canSubmit: false,
+    });
+  });
+
   it("does not let a stale local draft override account ownership", () => {
     expect(
       pintDropAuthorValue({
