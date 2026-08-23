@@ -52,26 +52,37 @@ export default function TonightShareButton(): React.JSX.Element {
   }
 
   return (
-    <span>
-      <button
-        type="button"
-        className="tonightShare pressable"
-        onClick={onShare}
-        aria-label="Share tonight's listings"
-      >
-        {copied ? (
-          <>
-            <Check size={15} aria-hidden="true" />
-            Link copied
-          </>
-        ) : (
-          <>
-            <Share2 size={15} aria-hidden="true" />
-            Share
-          </>
-        )}
-      </button>
-      {error ? <span role="status">{error}</span> : null}
-    </span>
+    <div className="tonightShareControl">
+      <div className="tonightShareAction">
+        <button
+          type="button"
+          className="tonightShare pressable"
+          onClick={onShare}
+          aria-label="Share tonight's listings"
+        >
+          {copied ? (
+            <>
+              <Check size={15} aria-hidden="true" />
+              Link copied
+            </>
+          ) : (
+            <>
+              <Share2 size={15} aria-hidden="true" />
+              Share
+            </>
+          )}
+        </button>
+      </div>
+      {error ? (
+        <p
+          className="tonightShareStatus"
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+        >
+          {error}
+        </p>
+      ) : null}
+    </div>
   );
 }
