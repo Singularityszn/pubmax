@@ -10,7 +10,10 @@
 // distinct `[social-moderation][ALERT]` marker for log-based monitors. Returns
 // the findings so the cron response can echo them. MUST NOT send pushes.
 
+import "server-only";
+
 import type { SocialPostModerationResult } from "@/lib/socialPostStore";
+import { checkRateLimitDurableDetailed } from "@/lib/supabase";
 
 /** Counts the durable/memory moderation queue may surface to operators. */
 export type SocialModerationBacklog = {
@@ -39,6 +42,10 @@ export type SocialModerationFindings = {
 export const SOCIAL_MODERATION_PENDING_ALERT_FLOOR = 10;
 /** A pending job older than this (with any count) is a named finding. */
 export const SOCIAL_MODERATION_PENDING_AGE_ALERT_MS = 30 * 60 * 1000;
+/** Repeat an unchanged operator alert no more than once per shift. */
+export const SOCIAL_MODERATION_ALERT_COOLDOWN_MS = 6 * 60 * 60 * 1000;
+
+const localAlertWindows = new Map<string, number>();
 
 /**
  * Pure evaluation of backlog + last drain. Kept free of I/O so unit tests can
@@ -99,10 +106,6 @@ export function evaluateSocialModerationFindings(
 }
 
 function logFindings(findings: readonly SocialModerationFinding[]): void {
-  if (findings.length === 0) {
-    console.log("[social-moderation] moderation queue within budget.");
-    return;
-  }
   console.error(
     `[social-moderation][ALERT] ${findings.length} moderation finding(s):`,
   );
@@ -114,16 +117,55 @@ function logFindings(findings: readonly SocialModerationFinding[]): void {
   }
 }
 
+function alertFingerprint(findings: readonly SocialModerationFinding[]): string {
+  const kinds = findings.map((finding) => finding.kind).sort().join(",");
+  const first = findings[0];
+  const terminalErrors = findings.reduce(
+    (total, finding) => total + (finding.terminalErrors ?? 0),
+    0,
+  );
+  return [kinds, first?.pending ?? 0, first?.strandedTerminal ?? 0, terminalErrors].join(":");
+}
+
+function isLocallySuppressed(key: string, now: number): boolean {
+  for (const [entry, expiresAt] of localAlertWindows) {
+    if (expiresAt <= now) localAlertWindows.delete(entry);
+  }
+  const expiresAt = localAlertWindows.get(key);
+  if (expiresAt != null && expiresAt > now) return true;
+  localAlertWindows.set(key, now + SOCIAL_MODERATION_ALERT_COOLDOWN_MS);
+  return false;
+}
+
+async function isAlertSuppressed(
+  findings: readonly SocialModerationFinding[],
+): Promise<boolean> {
+  const fingerprint = alertFingerprint(findings);
+  const key = `social-moderation-alert:${fingerprint}`;
+  const durable = await checkRateLimitDurableDetailed(
+    key,
+    1,
+    SOCIAL_MODERATION_ALERT_COOLDOWN_MS,
+  );
+  if (durable.verdict != null) return durable.verdict;
+  return isLocallySuppressed(key, Date.now());
+}
+
 /**
  * Report stranded/growing Social moderation. Console-only by design. Returns
  * the findings so the cron can echo them. A later notifier can replace the
  * body - callers and the shape stay put.
  */
-export function notifySocialModerationFindings(
+export async function notifySocialModerationFindings(
   backlog: SocialModerationBacklog,
   lastRun?: Pick<SocialPostModerationResult, "terminalErrors" | "retried">,
-): SocialModerationFindings {
+): Promise<SocialModerationFindings> {
   const evaluated = evaluateSocialModerationFindings(backlog, lastRun);
-  logFindings(evaluated.findings);
+  if (
+    evaluated.findings.length > 0 &&
+    !(await isAlertSuppressed(evaluated.findings))
+  ) {
+    logFindings(evaluated.findings);
+  }
   return evaluated;
 }

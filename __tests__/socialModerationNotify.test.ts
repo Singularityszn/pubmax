@@ -84,9 +84,9 @@ describe("social moderation operator alert", () => {
     expect(findings.find((f) => f.kind === "repeated_failures")?.terminalErrors).toBe(3);
   });
 
-  it("logs ALERT lines when notify is called with stranded pending", () => {
+  it("logs ALERT lines when notify is called with stranded pending", async () => {
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
-    const result = notifySocialModerationFindings({
+    const result = await notifySocialModerationFindings({
       pending: 1,
       strandedTerminal: 1,
       oldestPendingAgeMs: 60_000,
@@ -95,6 +95,46 @@ describe("social moderation operator alert", () => {
     expect(
       error.mock.calls.some((call) => String(call[0]).includes("[social-moderation][ALERT]")),
     ).toBe(true);
+  });
+
+  it("logs one alert for an unchanged backlog during the cooldown", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const backlog = {
+      pending: 1,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 45 * 60 * 1000,
+    };
+
+    const first = await notifySocialModerationFindings(backlog);
+    const second = await notifySocialModerationFindings(backlog);
+
+    expect(first.findings).toEqual(second.findings);
+    expect(
+      error.mock.calls.filter((call) =>
+        String(call[0]).includes("moderation finding(s)"),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("logs again when the queue state changes during the cooldown", async () => {
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await notifySocialModerationFindings({
+      pending: 2,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 45 * 60 * 1000,
+    });
+    await notifySocialModerationFindings({
+      pending: 3,
+      strandedTerminal: 1,
+      oldestPendingAgeMs: 46 * 60 * 1000,
+    });
+
+    expect(
+      error.mock.calls.filter((call) =>
+        String(call[0]).includes("moderation finding(s)"),
+      ),
+    ).toHaveLength(2);
   });
 
   it("inspectModerationBacklog counts stranded terminal jobs in memory", async () => {

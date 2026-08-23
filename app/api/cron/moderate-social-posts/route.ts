@@ -30,7 +30,7 @@ export async function GET(request: Request): Promise<Response> {
     if (action === "inspect-backlog") {
       // Operator read of stranded/growing pending without claiming jobs.
       const backlog = await socialPostStore().inspectModerationBacklog();
-      const findings = notifySocialModerationFindings(backlog);
+      const findings = await notifySocialModerationFindings(backlog);
       return jsonNoStore({ ok: true, backlog, ...findings });
     }
     if (action !== null) {
@@ -44,7 +44,7 @@ export async function GET(request: Request): Promise<Response> {
         "[cron:moderate-social-posts] OPENAI_API_KEY absent: moderation queue skipped.",
       );
       const skippedBacklog = await store.inspectModerationBacklog();
-      const skippedFindings = notifySocialModerationFindings(skippedBacklog);
+      const skippedFindings = await notifySocialModerationFindings(skippedBacklog);
       return jsonNoStore({
         ok: true,
         skipped: "openai_not_configured",
@@ -59,7 +59,7 @@ export async function GET(request: Request): Promise<Response> {
     // After every drain: a growing pending backlog or exhausted retries is its
     // own named finding. An outage must never read as "nothing to review".
     const backlog = await store.inspectModerationBacklog();
-    const findings = notifySocialModerationFindings(backlog, result);
+    const findings = await notifySocialModerationFindings(backlog, result);
     if (result.processed === 0 && backlog.pending === 0) {
       return jsonNoStore({ ok: true, skipped: "queue_empty", ...result, backlog, ...findings });
     }
