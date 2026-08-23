@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 const UNSUFFIXED_SERVER_ONLY_MODULES = [
   "freshnessArtifact.ts",
   "importNotesStore.ts",
+  "supabase.ts",
   "ukBaseIndex.ts",
 ] as const;
 
