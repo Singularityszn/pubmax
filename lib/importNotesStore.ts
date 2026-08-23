@@ -4,6 +4,8 @@
 // demo/dev. Falls back to in-memory when the filesystem is unavailable
 // (read-only deploy, tests without a writable dir).
 
+import "server-only";
+
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
