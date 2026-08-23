@@ -259,6 +259,7 @@ describe("crew copy", () => {
       .join("\n");
     expect(copy).not.toMatch(/pending invitations/i);
     expect(copy).not.toMatch(/invitation inbox/i);
+    expect(copy).not.toMatch(/requests waiting/i);
   });
 
   it("keeps the em dash out, like every other copy owner", () => {

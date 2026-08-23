@@ -6,6 +6,7 @@ import type {
   PlanStopDTO,
 } from "@/lib/plan";
 import type { NightContext } from "@/lib/nightPlanning";
+import type { OutOpenPlanMeetingPoint } from "@/lib/out";
 
 export const SOCIAL_CREW_ROLES = ["owner", "cohost", "member"] as const;
 export type SocialCrewRole = (typeof SOCIAL_CREW_ROLES)[number];
@@ -138,6 +139,32 @@ export type SocialCrewPageDTO = {
 
 export type SocialCrewReadDTO = SocialCrewPreviewDTO | SocialCrewPageDTO;
 
+/**
+ * Service-only source row for anonymous Open Crew reads. Stop 1 is resolved
+ * against the current venue and POI indexes before this reaches a browser.
+ */
+export type SocialCrewPublicPreviewSource = {
+  crewId: string;
+  title: string;
+  hostHandle: string;
+  startsAt: string;
+  stopVenueId: string;
+  stopVenueName: string;
+};
+
+/**
+ * Account-free Open Crew contract. This is intentionally smaller than the
+ * authenticated preview and never carries member, request, or plan fields.
+ */
+export type SocialCrewPublicPreviewDTO = {
+  kind: "public";
+  crewId: string;
+  title: string;
+  hostHandle: string;
+  startsAt: string;
+  meetingPoint: OutOpenPlanMeetingPoint;
+};
+
 export type SocialCrewListItemDTO = Pick<
   SocialCrewPageDTO,
   "kind" | "crewId" | "title" | "phase" | "nightArea" | "startsAt" | "viewer"
@@ -194,6 +221,64 @@ export function isSocialCrewMutationCode(
   value: unknown,
 ): value is SocialCrewMutationCode {
   return SOCIAL_CREW_MUTATION_CODES.includes(value as SocialCrewMutationCode);
+}
+
+const SOCIAL_CREW_PUBLIC_SOURCE_KEYS = [
+  "crewId",
+  "title",
+  "hostHandle",
+  "startsAt",
+  "stopVenueId",
+  "stopVenueName",
+] as const;
+
+function exactKeys(value: Record<string, unknown>, keys: readonly string[]): boolean {
+  return Object.keys(value).length === keys.length &&
+    keys.every((key) => Object.prototype.hasOwnProperty.call(value, key));
+}
+
+function publicIsoTimestamp(value: unknown): string | null {
+  if (
+    typeof value !== "string" ||
+    !/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,6})?Z$/.test(value)
+  ) {
+    return null;
+  }
+  const epoch = Date.parse(value);
+  return Number.isFinite(epoch) ? new Date(epoch).toISOString() : null;
+}
+
+/** Parse service output before any public preview route can use it. */
+export function parseSocialCrewPublicPreviewSource(
+  value: unknown,
+): SocialCrewPublicPreviewSource | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const row = value as Record<string, unknown>;
+  if (!exactKeys(row, SOCIAL_CREW_PUBLIC_SOURCE_KEYS)) return null;
+  if (
+    typeof row.crewId !== "string" ||
+    !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(row.crewId) ||
+    typeof row.title !== "string" ||
+    !row.title.trim() ||
+    typeof row.hostHandle !== "string" ||
+    !row.hostHandle.trim() ||
+    typeof row.stopVenueId !== "string" ||
+    !row.stopVenueId.trim() ||
+    typeof row.stopVenueName !== "string" ||
+    !row.stopVenueName.trim()
+  ) {
+    return null;
+  }
+  const startsAt = publicIsoTimestamp(row.startsAt);
+  if (!startsAt) return null;
+  return {
+    crewId: row.crewId,
+    title: row.title,
+    hostHandle: row.hostHandle,
+    startsAt,
+    stopVenueId: row.stopVenueId,
+    stopVenueName: row.stopVenueName,
+  };
 }
 
 export function socialCrewPhase(status: PlannedNightStatus): SocialCrewPhase {

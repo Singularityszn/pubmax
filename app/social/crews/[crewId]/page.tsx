@@ -3,12 +3,11 @@ import { notFound } from "next/navigation";
 
 import { isCrewId } from "@/lib/socialCrewsUi";
 
-import CrewDetailClient from "./CrewDetailClient";
+import PublicCrewRouteClient from "@/components/social/PublicCrewRouteClient";
 
-// A crew is private to the people on the night and to mates of its host, so the
-// page carries no crew content in its metadata and never asks a search engine
-// to keep it. The read itself happens in the browser against the authenticated
-// crew route, which is the only thing that knows who is asking.
+// Invite and Crew routes stay noindex. Open Crews may show a narrow public
+// preview without an account, while member data and every write remain behind
+// the verified Social actor route.
 export const metadata: Metadata = {
   title: "Crew",
   robots: { index: false, follow: false },
@@ -31,5 +30,5 @@ export default async function CrewPage({
     : search.invitation;
   const invitationId = isCrewId(raw) ? raw : null;
 
-  return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
+  return <PublicCrewRouteClient key={crewId} crewId={crewId} invitationId={invitationId} />;
 }
