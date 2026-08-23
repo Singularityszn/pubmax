@@ -121,14 +121,14 @@ describe("GET /api/walk-route", () => {
     expect(fetchWalkLeg).not.toHaveBeenCalled();
   });
 
-  it("falls back to straight for a leg ORS cannot route (mixed stays ors overall)", async () => {
+  it("keeps a mixed route approximate when ORS cannot route one leg", async () => {
     orsApiKey.mockReturnValue("ork_secret");
     fetchWalkLeg
       .mockResolvedValueOnce([A, [-0.099, 51.5139], B]) // leg 1 routed
       .mockResolvedValueOnce(null); // leg 2 unroutable -> straight
     const res = await get([A, B, C]);
     const { line, source } = await body(res);
-    expect(source).toBe("ors");
+    expect(source).toBe("straight");
     const coords = (line.features[0].geometry as GeoJSON.LineString).coordinates;
     expect(coords[coords.length - 1]).toEqual(C);
   });

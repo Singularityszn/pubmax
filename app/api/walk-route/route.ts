@@ -4,8 +4,9 @@
 // follows real walking roads. Per leg: serve the cached routed geometry, else
 // route it through OpenRouteService foot-walking (server-side ORS_API_KEY), else
 // fall back to the straight segment. Stitched into a single line with a `source`
-// flag ("ors" when any leg routed, "straight" when every leg fell back) so the
-// map draws it SOLID for real roads and DASHED for the approximate fallback.
+// flag ("ors" only when every leg routed, "straight" otherwise) so the map
+// draws it SOLID only for a complete road route and DASHED for any approximate
+// fallback.
 //
 // ALWAYS 200 with a drawable line (fail-soft, never blocks the map). Keyless is
 // the documented default: no ORS_API_KEY ⇒ the straight fallback, no network.
