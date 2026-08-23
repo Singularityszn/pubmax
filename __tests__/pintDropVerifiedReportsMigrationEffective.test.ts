@@ -18,6 +18,14 @@ const REOPEN_ROLLBACK_PATH = join(
   process.cwd(),
   "supabase/migrations/rollback/20260823130000_0116_reopen_pint_drop_review_rollback.sql",
 );
+const TABLE_SEPARATION_PATH = join(
+  process.cwd(),
+  "supabase/migrations/20260824010000_0118_pint_drop_table_separation.sql",
+);
+const TABLE_SEPARATION_ROLLBACK_PATH = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20260824010000_0118_pint_drop_table_separation_rollback.sql",
+);
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
   const candidates = [
@@ -435,5 +443,49 @@ describe("0112 verified ledger and 0116 report reopening", () => {
         `select (moderated_at = timestamptz '2026-08-23 08:00:00+00')::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
     ).toBe("true:1:hidden:old decision");
+  });
+
+  it("renames Pint Drop storage in place and rolls the name back without losing rows or foreign keys", () => {
+    session!.apply(REOPEN_MIGRATION_PATH);
+    const id = "00000000-0000-4000-8000-000000000118";
+    session!.sql(`insert into public.visit_reports (id) values ('${id}')`);
+
+    session!.apply(TABLE_SEPARATION_PATH);
+
+    expect(
+      session!.sql(
+        "select relname || ':' || relkind::text from pg_class where oid in (to_regclass('public.pint_drops'), to_regclass('public.visit_reports')) order by relname",
+      ),
+    ).toBe("pint_drops:r\nvisit_reports:v");
+    expect(
+      session!.sql(
+        "select c.relname from pg_constraint x join pg_class c on c.oid = x.confrelid where x.conrelid = 'public.pint_drop_reports'::regclass and x.contype = 'f'",
+      ),
+    ).toBe("pint_drops");
+    expect(
+      session!.sql(
+        "select coalesce(array_to_string(reloptions, ','), '') from pg_class where oid = 'public.visit_reports'::regclass",
+      ),
+    ).toContain("security_invoker=true");
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-table', '', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(`select verified_report_count from public.pint_drops where id = '${id}'`),
+    ).toBe("1");
+    expect(
+      session!.sql(`select verified_report_count from public.visit_reports where id = '${id}'`),
+    ).toBe("1");
+
+    session!.apply(TABLE_SEPARATION_ROLLBACK_PATH);
+
+    expect(session!.sql("select to_regclass('public.pint_drops') is null")).toBe("t");
+    expect(session!.sql("select relkind from pg_class where oid = 'public.visit_reports'::regclass")).toBe("r");
+    expect(
+      session!.sql(
+        "select c.relname from pg_constraint x join pg_class c on c.oid = x.confrelid where x.conrelid = 'public.pint_drop_reports'::regclass and x.contype = 'f'",
+      ),
+    ).toBe("visit_reports");
+    expect(session!.sql(`select count(*) from public.visit_reports where id = '${id}'`)).toBe("1");
   });
 });

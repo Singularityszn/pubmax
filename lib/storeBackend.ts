@@ -77,7 +77,7 @@ export function isUniqueViolation(error: { code?: string } | null | undefined): 
 }
 
 /** Postgres foreign_key_violation (23503): the referenced row doesn't exist
- *  (e.g. a reaction/comment on a demo seed not present in visit_reports). */
+ *  (e.g. a reaction/comment on a demo seed not present in pint_drops). */
 export function isForeignKeyViolation(error: { code?: string } | null | undefined): boolean {
   return error?.code === "23503";
 }

@@ -4,7 +4,7 @@ import { callerUserId } from "@/lib/authServer";
 // Single write-path seam for community "Pint Drops".
 //
 // One PintDropStore interface, two implementations (lib/pintDropsStore):
-// Supabase (visit_reports + Storage) when env keys exist, process-memory
+// Supabase (pint_drops + Storage) when env keys exist, process-memory
 // otherwise. pintDropsStore() below is the ONLY place the backend is chosen (M4 / PRD
 // P2.7); every handler talks to the interface. Validation/provenance/rate-limit
 // run before either backend. When Supabase is configured it is the source of
@@ -220,6 +220,66 @@ async function validateCanonicalPintDrop(fields: Record<string, unknown>) {
   } as const;
 }
 
+async function handleReportAction(
+  request: Request,
+  fields: Record<string, unknown>,
+): Promise<Response> {
+  const id = readString(fields.id);
+  if (!id) return notFound();
+  const identity = await pintDropReportIdentity(request);
+  const reportPerActorLimit = 1;
+  if (
+    (await isLimited(`report:${id}`, `report:${id}`)) ||
+    (await isLimited(
+      `report:${id}:${identity.actorHash}`,
+      `report:${id}:${identity.actorHash}`,
+      reportPerActorLimit,
+    ))
+  ) {
+    return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, {
+      retryable: true,
+    });
+  }
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
+  try {
+    return (await pintDropsStore().report(id, readString(fields.reason), identity))
+      ? ok()
+      : notFound();
+  } catch (err) {
+    log("error", "pint_drops.report_failed", {
+      route: "POST /api/pint-drops",
+      action: "report",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return storageUnavailable();
+  }
+}
+
+async function handleModeratorAction(
+  request: Request,
+  fields: Record<string, unknown>,
+): Promise<Response> {
+  if (!isModerator(request)) return forbidden();
+  const id = readString(fields.id);
+  if (!id) return notFound();
+  const status: PintDropStatus = fields.action === "restore" ? "visible" : "hidden";
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
+  try {
+    return (await pintDropsStore().moderate(id, status, readString(fields.note)))
+      ? ok()
+      : notFound();
+  } catch (err) {
+    log("error", "pint_drops.moderate_failed", {
+      route: "POST /api/pint-drops",
+      action: fields.action === "restore" ? "restore" : "keep_hidden",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return storageUnavailable();
+  }
+}
+
 export async function POST(request: Request): Promise<Response> {
   const parsed = await parseBody(request);
   if (!parsed) {
@@ -231,8 +291,6 @@ export async function POST(request: Request): Promise<Response> {
   // count toward REPORT_HIDE_THRESHOLD; anonymous reports go to moderation
   // without auto-hiding the drop.
   if (fields.action === "report") {
-    const id = readString(fields.id);
-    if (!id) return notFound();
     // Rate-limit reports on two axes as FLOOD PROTECTION only:
     //   • per-drop  (`report:<id>`)                — caps total report volume;
     //   • per-actor (`report:<id>:<actorHash>`)    — the SAME actor gets EXACTLY
@@ -245,56 +303,13 @@ export async function POST(request: Request): Promise<Response> {
     // idempotent no-op in the store. Anonymous IP hashes record reports and key
     // flood control, but never enter the auto-hide count. The client `actor`
     // field decides nothing.
-    const identity = await pintDropReportIdentity(request);
-    // Per-actor-per-drop budget of 1: limit=1 means the first report passes and
-    // any second within the window is rejected (isLimited returns true when the
-    // window's hit count EXCEEDS the limit).
-    const REPORT_PER_ACTOR_LIMIT = 1;
-    if (
-      (await isLimited(`report:${id}`, `report:${id}`)) ||
-      (await isLimited(
-        `report:${id}:${identity.actorHash}`,
-        `report:${id}:${identity.actorHash}`,
-        REPORT_PER_ACTOR_LIMIT,
-      ))
-    ) {
-      return publicApiError("Too many reports, slow down.", "RATE_LIMITED", 429, { retryable: true });
-    }
-    const unavailable = productionStorageUnavailable();
-    if (unavailable) return unavailable;
-    try {
-      return (await pintDropsStore().report(id, readString(fields.reason), identity))
-        ? ok()
-        : notFound();
-    } catch (err) {
-      log("error", "pint_drops.report_failed", {
-        route: "POST /api/pint-drops",
-        action: "report",
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return storageUnavailable();
-    }
+    return handleReportAction(request, fields);
   }
 
   // Moderator decisions: restore (→ visible) or keep_hidden (stay hidden). Both
   // stamp moderated_at so the drop leaves the review queue. 403 without a token.
   if (fields.action === "restore" || fields.action === "keep_hidden") {
-    if (!isModerator(request)) return forbidden();
-    const id = readString(fields.id);
-    if (!id) return notFound();
-    const status: PintDropStatus = fields.action === "restore" ? "visible" : "hidden";
-    const unavailable = productionStorageUnavailable();
-    if (unavailable) return unavailable;
-    try {
-      return (await pintDropsStore().moderate(id, status, readString(fields.note))) ? ok() : notFound();
-    } catch (err) {
-      log("error", "pint_drops.moderate_failed", {
-        route: "POST /api/pint-drops",
-        action: fields.action === "restore" ? "restore" : "keep_hidden",
-        error: err instanceof Error ? err.message : String(err),
-      });
-      return storageUnavailable();
-    }
+    return handleModeratorAction(request, fields);
   }
 
   // Solo-operator emergency freeze (U15): dropping a pint is a social write. The

@@ -33,7 +33,7 @@
 // answers 503 per the house rule, so the client knows the tap didn't land.
 //
 // PROVENANCE: this route writes community observations and, on a priced pint
-// submission, the paired visit_reports row through lib/oneTapPintDrop.server.ts.
+// submission, the paired pint_drops row through lib/oneTapPintDrop.server.ts.
 // It never edits the venue dataset or the scraped price CSV - the scraped
 // baseline survives every submission and keeps its own dated badge.
 // Reads and reader reports remain keyless. New contributions require configured

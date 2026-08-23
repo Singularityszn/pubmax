@@ -2,7 +2,7 @@ import "server-only";
 
 // Pint Drop storage layer. ONE interface (PintDropStore), TWO implementations:
 // process-memory (wrapping lib/pintDrops.ts, dev/demo only) and Supabase
-// (visit_reports table + Storage). The API route picks an implementation at a
+// (pint_drops table + Storage). The API route picks an implementation at a
 // single point and talks to the interface only (M4 / PRD P2.7). Every Supabase
 // function assumes admin access exists — if getSupabaseAdmin() is null we
 // throw, we don't silently no-op, so the route can 503 deliberately.
@@ -51,8 +51,9 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
+import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
-const TABLE = "visit_reports";
+const TABLE = PINT_DROPS_TABLE;
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -210,7 +211,7 @@ async function recordAnonymousReport(
   return data === true;
 }
 
-// visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a
+// pint_drops (snake_case) <-> PintDrop (camelCase). Kept in one place so a
 // column rename is a one-line change on each side.
 function toRow(drop: PersistableDrop) {
   return {
@@ -741,7 +742,7 @@ export const supabasePintDropStore: PintDropStore = {
 
   /** ONE atomic RPC (migration 0112) writes the verified-account report ledger
    *  (pint_drop_verified_reports, unique (pint_drop_id, actor_hash)) and increments /
-   *  stamps / hides visit_reports in a single statement. Two concurrent
+   *  stamps / hides pint_drops in a single statement. Two concurrent
    *  reports cannot lose an increment, and a same-account duplicate is an
    *  idempotent no-op. Null data means unknown id. */
   async report(id, reason, identity) {

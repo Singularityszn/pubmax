@@ -83,9 +83,9 @@ export async function revertOneTapCommunityPricePairing(
 }
 
 /**
- * The visit-report half of a one-tap pint drop from the venue sheet. Community
+ * The Pint Drop half of a one-tap price submission from the venue sheet. Community
  * price is written first by the caller; this lane lands the paired row in
- * visit_reports through the existing pint drop store.
+ * pint_drops through the existing Pint Drop store.
  */
 export async function writeOneTapPintDrop(
   input: OneTapPintDropInput,

@@ -12,6 +12,7 @@ import {
   type Visibility,
 } from "@/lib/pintDrops";
 import { resolveStorageUrl } from "@/lib/pintDropsStore";
+import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 import { resolveAvatarUrlsForHandles } from "@/lib/avatarResolve";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { normalizeHandle } from "@/lib/profiles";
@@ -216,9 +217,9 @@ function isMissingVisibilityColumnError(
  *     empty shape as "no comments/reactions yet" (200, never 404), matching how
  *     the feed silently omits these drops — no existence oracle.
  *   • unresolvable id                       → kept. There is nothing to leak: a
- *     gated drop always resolves (hidden rows stay in visit_reports / the
+ *     gated drop always resolves (hidden rows stay in pint_drops / the
  *     memory store), while an unknown id simply has no server-side children on
- *     the Supabase path (child tables FK visit_reports) and keeps dev/demo
+ *     the Supabase path (child tables FK pint_drops) and keeps dev/demo
  *     ergonomics on the memory path.
  *   • Supabase lookup failure               → returns `null` (outage sentinel).
  *     Callers MUST distinguish this from an empty allow-list: a POST maps null
@@ -247,7 +248,7 @@ export async function filterPubliclyReadableDropIds(
       // typed sentinel so callers can 503 vs. 404.
       if (!admin) return null;
       const firstRead = await admin
-        .from("visit_reports")
+        .from(PINT_DROPS_TABLE)
         .select("id,status,visibility")
         .in("id", unique);
       let data = (firstRead.data ?? null) as
@@ -256,7 +257,7 @@ export async function filterPubliclyReadableDropIds(
       let error = firstRead.error;
       if (error && isMissingVisibilityColumnError(error)) {
         // Pre-0012 DB: no visibility column means every row is `public`.
-        const fallbackRead = await admin.from("visit_reports").select("id,status").in("id", unique);
+        const fallbackRead = await admin.from(PINT_DROPS_TABLE).select("id,status").in("id", unique);
         data = (fallbackRead.data ?? null) as
           | Array<{ id: unknown; status?: unknown; visibility?: unknown }>
           | null;
@@ -312,7 +313,7 @@ export async function getPintDropById(
       const admin = getSupabaseAdmin();
       if (admin) {
         const { data, error } = await admin
-          .from("visit_reports")
+          .from(PINT_DROPS_TABLE)
           .select(PUBLIC_COLUMNS)
           .eq("id", dropId)
           .eq("status", "visible")

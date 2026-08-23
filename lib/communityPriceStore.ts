@@ -12,7 +12,7 @@
 // keyless dev keeps working and becomes durable the moment the table exists.
 //
 // OBSERVATIONS, NEVER VENUE FACTS. This store writes only its own rows and
-// touches nothing in the venue dataset, scraped price CSV, or visit_reports.
+// touches nothing in the venue dataset, scraped price CSV, or Pint Drops.
 // The scraped baseline and community observations coexist, each read back with
 // its own timestamp and source. An attributed contributor can replace their own
 // earlier answer for one question, but cannot add a second corroborating voice.
