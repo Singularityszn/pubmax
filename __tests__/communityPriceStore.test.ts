@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
+import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import {
   __resetCommunityPrices,
   countCorroboratedCommunityCategories,
@@ -589,6 +590,20 @@ describe("communityPriceStore corroboration counting (memory backend)", () => {
     // its 50p window - so this is one price two people saw, not two prices.
     expect(row.priceGbp).toBe(4.5);
     expect(row.corroborations).toBe(2);
+  });
+
+  it("does not let a stale report corroborate a fresh store row", async () => {
+    const stale = 10_000 - COMMUNITY_PRICE_MAX_AGE_MS - 1;
+    await beerAt("v1", 4.2, stale, "stale-actor");
+    await beerAt("v1", 4.2, 9_000, "fresh-actor");
+
+    const [row] = await readCommunityPrices("v1", 10_000);
+    expect(row.corroborations).toBe(1);
+    expect(row.mapCandidate).toEqual({
+      priceGbp: 4.2,
+      submittedAt: 9_000,
+      corroborations: 1,
+    });
   });
 
   it("does not count a contributor who reported a different figure", async () => {
