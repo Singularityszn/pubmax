@@ -33,6 +33,11 @@ describe("mobile tab bar contract", () => {
     ]);
   });
 
+  it("keeps gated Social out of the primary phone journey", () => {
+    const tabs = buildTabs("/u/you", "/today", false);
+    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Map", "Out", "You"]);
+  });
+
   it("routes every tab to its owned destination", () => {
     const tabs = buildTabs("/u/you", "/tonight");
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));

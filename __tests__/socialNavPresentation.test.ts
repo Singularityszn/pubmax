@@ -75,15 +75,10 @@ function socialTab(host: HTMLElement): HTMLAnchorElement {
 }
 
 describe("the phone Social tab", () => {
-  it("reads Social and carries a preview marker while the launch is gated", () => {
-    const tab = socialTab(serverRender(MobileTabBar, false));
-
-    expect(tab.textContent).toBe("Social");
-    const marker = tab.querySelector(".mobileTabPreviewBadge");
-    expect(marker, "a preview marker").toBeTruthy();
-    expect(marker?.getAttribute("aria-hidden")).toBe("true");
-    // The marker is a dot, so the state it stands for is spoken instead.
-    expect(tab.getAttribute("aria-label")).toBe("Social preview");
+  it("keeps Social out of primary phone chrome while launch is gated", () => {
+    expect(
+      serverRender(MobileTabBar, false).querySelector('a[href="/social"]'),
+    ).toBeNull();
   });
 
   it("drops the marker on the first paint when the launch is on", () => {
@@ -91,7 +86,6 @@ describe("the phone Social tab", () => {
 
     expect(tab.textContent).toBe("Social");
     expect(tab.getAttribute("aria-label")).toBeNull();
-    expect(tab.querySelector(".mobileTabPreviewBadge")).toBeNull();
   });
 });
 

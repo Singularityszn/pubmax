@@ -5,16 +5,10 @@ import {
   socialBoundaryCopy,
   socialInviteMessage,
   socialLoadingLabel,
-  socialNavShowsPreviewBadge,
   socialSurfaceName,
 } from "@/lib/socialLaunch";
 
 describe("social preview labels", () => {
-  it("wears the preview badge only while friends launch is off", () => {
-    expect(socialNavShowsPreviewBadge(false)).toBe(true);
-    expect(socialNavShowsPreviewBadge(true)).toBe(false);
-  });
-
   it("reads Social preview on surfaces while friends launch is off", () => {
     expect(socialSurfaceName(false)).toBe("Social preview");
     expect(socialLoadingLabel(false)).toBe("Loading Social preview");

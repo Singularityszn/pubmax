@@ -4,7 +4,6 @@ import { createContext, createElement, useContext, useSyncExternalStore, type Re
 
 import {
   readSocialFriendsLaunchFromDocument,
-  socialNavShowsPreviewBadge,
   socialSurfaceName,
   subscribeSocialFriendsLaunchFromDocument,
 } from "@/lib/socialLaunch";
@@ -53,9 +52,4 @@ export function useSocialFriendsLaunch(): boolean {
 /** Desktop nav and command palette surface name (Social preview when gated). */
 export function useSocialSurfaceName(): string {
   return socialSurfaceName(useSocialFriendsLaunch());
-}
-
-/** Whether the mobile Social tab should wear the preview badge. */
-export function useSocialNavShowsPreviewBadge(): boolean {
-  return socialNavShowsPreviewBadge(useSocialFriendsLaunch());
 }

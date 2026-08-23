@@ -945,55 +945,16 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-// The Social tab's preview marker is phone chrome, so it is measured like the
-// rest of it: a dot that never crowds the word beside it, with the preview
-// state spoken through the tab's accessible name.
+// Gated Social is not a primary phone destination. The count-driven row must
+// close to four columns at every supported phone width.
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px Social tab wears its preview marker without clipping`, async ({
+  test(`${viewport.width}px gated Social stays out of primary phone chrome`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
 
-    const social = page.locator('.mobileTabBar a[href="/social"]');
-    await expect(social).toBeVisible();
-    // The word stays out of the tab's TEXT, and the preview state is what the
-    // accessible name adds to it.
-    await expect(social).toHaveText("Social");
-    await expect(social).toHaveAccessibleName("Social preview");
-
-    const marker = social.locator(".mobileTabPreviewBadge");
-    await expect(marker).toBeVisible();
-
-    const fit = await social.evaluate((link) => {
-      const label = link.querySelector(".mobileTabLabel") as HTMLElement;
-      const text = link.querySelector(".mobileTabLabelText") as HTMLElement;
-      const badge = link.querySelector(".mobileTabPreviewBadge") as HTMLElement;
-      return {
-        labelClientWidth: label.clientWidth,
-        labelScrollWidth: label.scrollWidth,
-        textClientWidth: text.clientWidth,
-        textScrollWidth: text.scrollWidth,
-        badgeWidth: badge.getBoundingClientRect().width,
-        badgeLeft: badge.getBoundingClientRect().left,
-        badgeRight: badge.getBoundingClientRect().right,
-        tabLeft: link.getBoundingClientRect().left,
-        tabRight: link.getBoundingClientRect().right,
-      };
-    });
-
-    expect(
-      fit.textScrollWidth,
-      "the word Social is not truncated",
-    ).toBeLessThanOrEqual(fit.textClientWidth + 1);
-    expect(
-      fit.labelScrollWidth,
-      "the label row and its marker fit the tab",
-    ).toBeLessThanOrEqual(fit.labelClientWidth + 1);
-    expect(fit.badgeLeft).toBeGreaterThanOrEqual(fit.tabLeft - 1);
-    expect(fit.badgeRight).toBeLessThanOrEqual(fit.tabRight + 1);
-    // The marker is drawn, and it is small enough that the word beside it
-    // still fits: the pill form measures about 85px against a 59 to 80px tab.
-    expect(fit.badgeWidth).toBeGreaterThan(0);
-    expect(fit.badgeWidth).toBeLessThanOrEqual(8);
+    const primary = page.getByRole("navigation", { name: "Primary" });
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
+    await expect(primary.locator("a")).toHaveCount(4);
   });
 }

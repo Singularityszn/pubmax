@@ -312,18 +312,6 @@
     text-overflow: ellipsis;
   }
 
-  /* A dot, because the word does not fit: five tabs across a 420px row leave
-     each one 59 to 80px, and "Social" plus an uppercase Preview pill measures
-     about 85px. The state is spoken instead - the tab's accessible name is
-     "Social preview" - so the tab still reads "Social" in the DOM. */
-  .mobileTabPreviewBadge {
-    flex-shrink: 0;
-    width: 5px;
-    height: 5px;
-    border-radius: 999px;
-    background: color-mix(in srgb, var(--ink-soft) 72%, transparent);
-  }
-
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */
   .mobileTab:not(.isActive) .mobileTabIcon {
     color: var(--ink-soft);
