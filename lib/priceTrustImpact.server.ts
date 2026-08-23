@@ -185,6 +185,14 @@ export async function syncTrustAfterPriceRestored(
     const current = await findCommunityPriceObservation(observationId);
     if (current.degraded || current.observation?.hidden) return;
     await recordFirstCluster(venueId, drinkCategory, observations, now, restorationKey);
+    const final = await findCommunityPriceObservation(observationId);
+    if (final.degraded) return;
+    if (final.observation?.hidden) {
+      // A hide can land after the visibility check above but before the
+      // restored unlock write. Its sync then sees no live event to reverse.
+      // Re-read after the write so final hidden state owns the trust result.
+      await syncTrustAfterPriceHidden(observationId, now);
+    }
   } catch (error) {
     console.warn(`${STORE_TAG} sync after restore failed`, error);
   }

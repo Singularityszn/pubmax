@@ -211,6 +211,37 @@ describe("syncTrustAfterPriceHidden", () => {
     });
   });
 
+  it("keeps trust hidden when hide lands before the restored unlock write", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 2_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 1_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
+
+    expect(await moderateCommunityPrice(hiddenId, true)).toBe(true);
+    await syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await moderateCommunityPrice(hiddenId, false)).toBe(true);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (input.fingerprint.startsWith("restored:")) {
+        expect(await moderateCommunityPrice(hiddenId, true)).toBe(true);
+        await syncTrustAfterPriceHidden(hiddenId, NOW + 1);
+      }
+      return originalRecordUnlock(input);
+    });
+
+    await syncTrustAfterPriceRestored(hiddenId, NOW + 1);
+
+    expect((await findCommunityPriceObservation(hiddenId)).observation?.hidden).toBe(true);
+    expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 0,
+    });
+  });
+
   it("writes a reversal, revokes visible credit, and replaces when remaining evidence still qualifies", async () => {
     const profileA = await onboard(USER_A, "alice_pint");
     const profileB = await onboard(USER_B, "bob_pint");
