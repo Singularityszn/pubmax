@@ -55,6 +55,7 @@ async function freePort(): Promise<number> {
 
 type Session = {
   sql: (statement: string) => string;
+  sqlAsync: (statement: string) => Promise<string>;
   expectRefusal: (statement: string) => string;
   apply: (path: string) => void;
   stop: () => Promise<void>;
@@ -107,6 +108,23 @@ async function startSession(): Promise<Session> {
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement], {
       encoding: "utf8",
     }).trim();
+
+  const sqlAsync = (statement: string): Promise<string> =>
+    new Promise((resolve, reject) => {
+      const child = spawn(
+        psql,
+        [...args, "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", statement],
+        { stdio: ["ignore", "pipe", "pipe"] },
+      );
+      let stdout = "";
+      let stderr = "";
+      child.stdout.on("data", (chunk) => { stdout += String(chunk); });
+      child.stderr.on("data", (chunk) => { stderr += String(chunk); });
+      child.once("exit", (code) => {
+        if (code === 0) resolve(stdout.trim());
+        else reject(new Error(stderr));
+      });
+    });
 
   const expectRefusal = (statement: string): string => {
     try {
@@ -189,6 +207,7 @@ async function startSession(): Promise<Session> {
 
   return {
     sql,
+    sqlAsync,
     expectRefusal,
     apply: (path: string) => {
       execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", path], {
@@ -321,16 +340,18 @@ describe("0112 verified ledger and 0116 report reopening", () => {
     expect(session!.sql("select has_function_privilege('authenticated', 'public.moderate_profile_cover_across_stores(text, text, text)', 'execute')")).toBe("f");
   });
 
-  it("keeps concurrent cover reports and moderates mirror plus rotation atomically", () => {
+  it("keeps simultaneous cover reports and moderates mirror plus rotation atomically", async () => {
     const profileId = "10000000-0000-4000-8000-000000000001";
     const coverId = "20000000-0000-4000-8000-000000000001";
     session!.sql(`
       insert into public.profiles (id, handle, cover_object_key, cover_generation, cover_moderation_state)
       values ('${profileId}', 'cover-owner', 'cover/key', '30000000-0000-4000-8000-000000000001', 'approved');
       insert into public.profile_cover_photos (id, profile_id) values ('${coverId}', '${profileId}');
-      select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-a', 'a');
-      select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-b', 'b');
     `);
+    await Promise.all([
+      session!.sqlAsync(`select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-a', 'a')`),
+      session!.sqlAsync(`select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-b', 'b')`),
+    ]);
     expect(session!.sql(`select report_count || ':' || cardinality(report_actors) from public.profile_cover_photos where id = '${coverId}'`)).toBe("2:2");
     expect(session!.sql("select public.moderate_profile_cover_across_stores('cover-owner', 'hidden', 'reviewed')")).toBe("t");
     expect(session!.sql(`select cover_moderation_state || ':' || (select moderation_state from public.profile_cover_photos where id = '${coverId}') from public.profiles where id = '${profileId}'`)).toBe("hidden:hidden");

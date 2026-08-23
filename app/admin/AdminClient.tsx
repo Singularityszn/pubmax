@@ -44,8 +44,14 @@ type ModeratorDrop = {
   reportedAt?: string;
 };
 
-export function moderatorReportCount(count: number | undefined): number {
-  return Math.max(count ?? 1, 1);
+export function moderatorReportEvidence(
+  verifiedCount: number | undefined,
+  reportedAt: string | undefined,
+): { verifiedCount: number; hasEvidence: boolean } {
+  return {
+    verifiedCount: Math.max(verifiedCount ?? 0, 0),
+    hasEvidence: Boolean(reportedAt),
+  };
 }
 
 // Moderator comment DTO as returned by GET /api/admin/comments?status=hidden.
@@ -1058,7 +1064,12 @@ export default function AdminClient() {
                     {d.reportReason ? (
                       <span className="admin-report">Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {moderatorReportCount(d.reportCount)}</span>
+                    <span className="admin-report">
+                      Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
+                    </span>
+                    {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
+                      <span className="admin-report">Report evidence received</span>
+                    ) : null}
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
                     ) : null}
@@ -1141,7 +1152,12 @@ export default function AdminClient() {
                     {d.reportReason ? (
                       <span className="admin-report">Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {moderatorReportCount(d.reportCount)}</span>
+                    <span className="admin-report">
+                      Verified reports: {moderatorReportEvidence(d.reportCount, d.reportedAt).verifiedCount}
+                    </span>
+                    {moderatorReportEvidence(d.reportCount, d.reportedAt).hasEvidence ? (
+                      <span className="admin-report">Report evidence received</span>
+                    ) : null}
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
                     ) : null}

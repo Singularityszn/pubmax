@@ -1,14 +1,22 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  moderatorReportCount,
+  moderatorReportEvidence,
   profileCoverFromAvatar,
   readQueueResponse,
 } from "@/app/admin/AdminClient";
 
 describe("admin profile cover queue", () => {
-  it("shows one report for an anonymous-only Pint Drop", () => {
-    expect(moderatorReportCount(0)).toBe(1);
+  it("does not present the verified counter as an anonymous report total", () => {
+    const none = moderatorReportEvidence(0, undefined);
+    const oneAnonymous = moderatorReportEvidence(0, "2026-08-23T09:00:00.000Z");
+    const twoAnonymous = moderatorReportEvidence(0, "2026-08-23T09:01:00.000Z");
+    const mixed = moderatorReportEvidence(1, "2026-08-23T09:02:00.000Z");
+
+    expect(none).toEqual({ verifiedCount: 0, hasEvidence: false });
+    expect(oneAnonymous).toEqual({ verifiedCount: 0, hasEvidence: true });
+    expect(twoAnonymous).toEqual({ verifiedCount: 0, hasEvidence: true });
+    expect(mixed).toEqual({ verifiedCount: 1, hasEvidence: true });
   });
   it("closes non-ok queue responses instead of leaving their body open", async () => {
     const response = new Response("temporary failure", { status: 503 });
