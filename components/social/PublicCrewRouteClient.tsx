@@ -52,7 +52,7 @@ export default function PublicCrewRouteClient({
   crewId: string;
   invitationId: string | null;
 }) {
-  const { accountRevision, identityResolved, user } = useAuth();
+  const { accountRevision, identityResolved, providerAuthState } = useAuth();
   const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
@@ -114,7 +114,10 @@ export default function PublicCrewRouteClient({
           discardBody(response);
           return "missing" as const;
         }
-        if (!response.ok) throw new Error("Public crew unavailable");
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Public crew unavailable");
+        }
         const preview = parsePublicCrewPreview(await response.json());
         if (!preview) throw new Error("Public crew malformed");
         return preview;
@@ -149,7 +152,7 @@ export default function PublicCrewRouteClient({
 
   useEffect(() => {
     const generation = scopeGeneration.current;
-    if (!identityResolved) {
+    if (providerAuthState !== "authenticated") {
       void Promise.resolve().then(() => {
         if (scopeGeneration.current !== generation || scopeRef.current !== scope) return;
         setPrivateRead(null);
@@ -227,7 +230,7 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId, accountRevision, identityResolved, scope]);
+  }, [crewId, accountRevision, identityResolved, providerAuthState, scope]);
 
   async function askToJoin(): Promise<void> {
     const operationScope = scopeRef.current;
@@ -300,6 +303,12 @@ export default function PublicCrewRouteClient({
   const currentJoinState = joinScope === scope ? joinState : "none";
   const currentBusy = busyScope === scope && busy;
   const currentProblem = problemScope === scope ? problem : "";
+  const privateReadPending =
+    providerAuthState === "unresolved" ||
+    (providerAuthState === "authenticated" &&
+      (privateStateScope !== scope ||
+        currentPrivateState === "idle" ||
+        currentPrivateState === "loading"));
 
   // Preserve existing authenticated invitation behaviour even when the same
   // crew also has an account-free public preview. CrewDetailClient owns the
@@ -312,7 +321,7 @@ export default function PublicCrewRouteClient({
     return <CrewDetailClient crewId={crewId} invitationId={invitationId} />;
   }
 
-  if (currentPreview) {
+  if (!privateReadPending && currentPreview) {
     return (
       <Shell>
         <PublicCrewPreview
@@ -333,6 +342,7 @@ export default function PublicCrewRouteClient({
   if (
     publicState === "loading" ||
     (!publicPreview && publicState === "idle") ||
+    privateReadPending ||
     (privateStateScope === scope &&
       (currentPrivateState === "loading" || currentPrivateState === "idle"))
   ) {
@@ -348,7 +358,8 @@ export default function PublicCrewRouteClient({
 
   if (
     publicState === "missing" &&
-    (!user || (privateStateScope === scope && currentPrivateState === "missing"))
+    (providerAuthState !== "authenticated" ||
+      (privateStateScope === scope && currentPrivateState === "missing"))
   ) {
     return (
       <Shell>
