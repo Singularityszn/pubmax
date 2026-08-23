@@ -169,6 +169,14 @@ describe("syncTrustAfterPriceHidden", () => {
       pricesTrustedNow: 1,
       lifetimeTrustUnlocks: 1,
     });
+    await Promise.all([
+      syncTrustAfterPriceRestored(hiddenId, NOW + 1),
+      syncTrustAfterPriceRestored(hiddenId, NOW + 1),
+    ]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 1,
+      lifetimeTrustUnlocks: 1,
+    });
 
     expect(await moderateCommunityPrice(hiddenId, true, "second hide")).toBe(true);
     await syncTrustAfterPriceHidden(hiddenId, NOW + 2);

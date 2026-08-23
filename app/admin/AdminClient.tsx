@@ -878,6 +878,7 @@ export default function AdminClient() {
           setCommunityPriceMessage(adminAlert("Action failed. Try again."));
           return;
         }
+        discardBody(res);
 
         // Refresh only this queue. Pint Drops, Visit Reports and other admin
         // lanes keep their current state while the observation moves.

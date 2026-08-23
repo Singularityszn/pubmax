@@ -177,11 +177,9 @@ export async function syncTrustAfterPriceRestored(
     if (!categoryIsTrusted(observations, now)) return;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
     if (live.degraded || live.events.length > 0) return;
-    // The row's moderation stamp identifies this transition. Include sync time
-    // so two transitions that share a database timestamp still get distinct
-    // append-only event identities. Route retries do not call this sync again
-    // when moderation reports no state change.
-    const restorationKey = `${found.observation.moderatedAt ?? now}:${now}`;
+    // The row's moderation stamp identifies this transition. Retries and
+    // concurrent syncs therefore share one append-only event identity.
+    const restorationKey = String(found.observation.moderatedAt ?? now);
     const current = await findCommunityPriceObservation(observationId);
     if (current.degraded || current.observation?.hidden) return;
     await recordFirstCluster(venueId, drinkCategory, observations, now, restorationKey);

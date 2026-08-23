@@ -309,6 +309,12 @@ const PROVISIONAL_VENUE_SCAN_ROWS =
 // chunks no larger than that default and derives `truncated` from the last
 // page's fill, keeping the flag honest regardless of the Max Rows setting.
 const CORROBORATION_SCAN_PAGE = 1_000;
+let lastModerationStamp = 0;
+
+function nextModerationStamp(): number {
+  lastModerationStamp = Math.max(Date.now(), lastModerationStamp + 1);
+  return lastModerationStamp;
+}
 
 /**
  * The moderation half of a stored observation, shared by every shape this table
@@ -1077,7 +1083,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     const row = findMemoryRow(id);
     if (!row) return false;
     row.hidden = hidden;
-    row.moderatedAt = Date.now();
+    row.moderatedAt = nextModerationStamp();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
     return true;
@@ -1088,7 +1094,7 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     if (!row) return { status: "not-found", changed: false };
     const changed = row.hidden !== hidden;
     row.hidden = hidden;
-    row.moderatedAt = Date.now();
+    row.moderatedAt = nextModerationStamp();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
     return { status: "ok", changed };
@@ -1702,7 +1708,7 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
     if (!id) return { status: "not-found", changed: false };
     return guard<ModerationStateResult>({
       context: "moderate-with-state",
-      onSchemaMiss: () => memoryCommunityPriceStore.moderateWithState(id, hidden, note),
+      onSchemaMiss: async () => ({ status: "unavailable", changed: false }),
       message: "moderate failed",
       onError: () => ({ status: "unavailable", changed: false }),
       run: async () => {
@@ -2411,4 +2417,5 @@ export function __resetCommunityPrices(): void {
   venueSignals.clear();
   resetCommunityPriceCategoryIndexMemo();
   resetSchemaMissWarnings();
+  lastModerationStamp = 0;
 }
