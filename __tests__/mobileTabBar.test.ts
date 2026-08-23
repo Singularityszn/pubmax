@@ -6,8 +6,8 @@ import { navPathMatches } from "@/components/nav/navigationModel";
 // a destination, so it is not in this row. Today and Tonight share the Now
 // tab; the URL is the truth.
 
-function activeLabel(pathname: string, mapHref = "/map"): string | undefined {
-  const tabs = buildTabs(mapHref);
+function activeLabel(pathname: string): string | undefined {
+  const tabs = buildTabs();
   return tabs.find((tab) => navPathMatches(pathname, tab.match ?? [tab.href]))?.label;
 }
 
@@ -23,7 +23,7 @@ describe("mobile tab bar contract", () => {
   });
 
   it("renders exactly five tabs in the journey order", () => {
-    const tabs = buildTabs("/map");
+    const tabs = buildTabs();
     expect(tabs.map((tab) => tab.label)).toEqual([
       "Now",
       "Map",
@@ -34,25 +34,25 @@ describe("mobile tab bar contract", () => {
   });
 
   it("routes every tab to its owned destination", () => {
-    const tabs = buildTabs("/map/london", "/u/you", "/tonight");
+    const tabs = buildTabs("/u/you", "/tonight");
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(byLabel.Now.href).toBe("/tonight");
     expect(byLabel.Now.match).toEqual(["/today", "/tonight"]);
-    expect(byLabel.Map.href).toBe("/map/london");
+    expect(byLabel.Map.href).toBe("/map");
     expect(byLabel.Out.href).toBe("/out");
     expect(byLabel.Social.href).toBe("/social");
     expect(byLabel.You.href).toBe("/u/you");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
-    const tabs = buildTabs("/map", "/u/karan");
+    const tabs = buildTabs("/u/karan");
     const you = tabs.find((tab) => tab.label === "You");
     expect(you?.href).toBe("/u/karan");
     expect(you?.match).toEqual(["/u"]);
   });
 
   it("keeps Moment out of the tab row", () => {
-    const tabs = buildTabs("/map");
+    const tabs = buildTabs();
     expect(tabs.some((tab) => tab.label === "Moment")).toBe(false);
     expect(tabs.some((tab) => tab.href.startsWith("/moment"))).toBe(false);
     expect(tabs.map((tab) => tab.key)).not.toContain("moment");

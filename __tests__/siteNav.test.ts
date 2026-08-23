@@ -61,19 +61,17 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(markup).toContain(">More</span>");
   });
 
-  it("exposes only Plan, Near, Chains, Historic, Pal as more-menu destinations", async () => {
+  it("exposes only live secondary destinations in More", async () => {
     const { SITE_NAV_MORE_LINKS } = await import("@/components/nav/SiteNavMore");
     expect(SITE_NAV_MORE_LINKS.map((link) => link.href)).toEqual([
       "/plan",
       "/near",
-      "/pubs",
       "/historic",
       "/pal",
     ]);
     expect(SITE_NAV_MORE_LINKS.map((link) => link.label)).toEqual([
       "Plan",
       "Near",
-      "Chains",
       "Historic",
       "Pal",
     ]);
@@ -84,7 +82,6 @@ describe("SiteNav More overflow (Wave D2.2)", () => {
     expect(SITE_NAV_MORE_LINKS.map((link) => link.description)).toEqual([
       "Build a three-stop outing",
       "Find priced pubs close to you",
-      "Chain pub menus on the map",
       "Read the stories behind old pubs",
       "Ask for a pub that fits tonight",
     ]);

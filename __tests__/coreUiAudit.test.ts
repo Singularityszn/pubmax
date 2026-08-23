@@ -28,9 +28,9 @@ describe("core UI audit fixes", () => {
     );
   });
 
-  it("publishes the complete PUBMAXXING wordmark to assistive technology", () => {
+  it("publishes the complete PUBMAXX brand to assistive technology", () => {
     expect(wordmark).toMatch(/className=\{`pubmaxxWordmark[\s\S]*?role="img"/);
-    expect(wordmark).toMatch(/aria-label="PUBMAXXING"/);
+    expect(wordmark).toMatch(/aria-label=\{BRAND_NAME\}/);
   });
 
   it("clears mobile consent with the measured 64px tab bar", () => {

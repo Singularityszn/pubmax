@@ -1,7 +1,7 @@
 "use client";
 
 // Desktop SiteNav "More" overflow (Wave D2.2). Secondary destinations that are
-// not in the primary Today/Map/Tonight/Stories/You row. Desktop ≥641 only —
+// not in the primary Now/Map/Out/Social/You row. Desktop ≥641 only -
 // CSS hides this entire control on phones so the compact bar stays unchanged.
 // Link and action items share one implementation. Esc closes; ArrowUp/Down
 // move focus.
@@ -28,7 +28,6 @@ import { createPortal } from "react-dom";
 export const SITE_NAV_MORE_LINKS = [
   { href: "/plan", label: "Plan", description: "Build a three-stop outing" },
   { href: "/near", label: "Near", description: "Find priced pubs close to you" },
-  { href: "/pubs", label: "Chains", description: "Chain pub menus on the map" },
   { href: "/historic", label: "Historic", description: "Read the stories behind old pubs" },
   { href: "/pal", label: "Pal", description: "Ask for a pub that fits tonight" },
 ] as const;

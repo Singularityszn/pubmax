@@ -13,10 +13,6 @@ import SignInButton from "@/components/auth/SignInButton";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import { useCommandPalette } from "@/components/command/CommandPaletteProvider";
 import {
-  preferredCityMapHref,
-  subscribePreferredCity,
-} from "@/lib/cityPreference";
-import {
   PRIMARY_NAV_ITEMS,
   momentHref,
   navPathMatches,
@@ -103,13 +99,6 @@ export default function SiteNav({
   // Imperative handle onto the global ⌘K palette (feature N1) — the button below
   // opens it for pointer users who won't reach for the shortcut.
   const { open: openCommandPalette } = useCommandPalette();
-  // Preference may be null → /map. useSyncExternalStore keeps SSR/hydration on
-  // /map, then re-reads after mount (and on CitySwitcher writes).
-  const mapHref = useSyncExternalStore(
-    subscribePreferredCity,
-    preferredCityMapHref,
-    () => "/map",
-  );
   // Constant server snapshot, then the clock after mount — a prerendered,
   // CDN-held document must not hydrate against a Now href that has since moved.
   const nowHref = useSyncExternalStore(
@@ -119,7 +108,6 @@ export default function SiteNav({
   );
   const socialLabel = useSocialSurfaceName();
   const links = LINKS.map((link) => {
-    if (link.key === "map") return { ...link, href: mapHref };
     if (link.key === "now") return { ...link, href: nowHref };
     if (link.key === "social") return { ...link, label: socialLabel };
     return link;
@@ -170,7 +158,7 @@ export default function SiteNav({
       </ul>
 
       <div className="siteNavActions">
-        {/* D2.2: secondary destinations (Plan/Near/Pubs/Historic/Pal). Desktop
+        {/* D2.2: secondary destinations (Plan/Near/Historic/Pal). Desktop
             only — siteNav.css hides .siteNavMore at ≤640 so mobile is unchanged. */}
         <SiteNavMore />
         {/* Moment compose (desktop). On phones the bottom tab bar's raised

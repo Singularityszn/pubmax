@@ -1,11 +1,12 @@
 import "./pubmaxxWordmark.css";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import PubmaxxMark, { MARK_GEOMETRY, type PubmaxxMarkVariant } from "./PubmaxxMark";
 
-// The doubled `××` hero of the wordmark uses the SAME double-struck construction
-// as the mark (MARK_GEOMETRY), so both glyphs are byte-identical to each other
-// and to the master mark — no more per-glyph drift. Rendered mono via
+// The doubled `××` ending of the visible PUBMAXX wordmark uses the SAME
+// double-struck construction as the mark (MARK_GEOMETRY), so both glyphs are
+// byte-identical to each other and to the master mark. Rendered mono via
 // `currentColor` (the second glyph is tinted coral by pubmaxxWordmark.css); no
-// ember — these are letterforms, not the lit brand moment.
+// ember - these are letterforms, not the lit brand moment.
 const g = MARK_GEOMETRY;
 
 function XGlyph(): React.JSX.Element {
@@ -43,16 +44,17 @@ export default function PubmaxxWordmark({
     <span
       className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}
       role="img"
-      aria-label="PUBMAXXING"
+      aria-label={BRAND_NAME}
     >
-      <span className="pubmaxxWordmarkSr">PUBMAXXING</span>
+      <span className="pubmaxxWordmarkSr">{BRAND_NAME}</span>
       <span className="pubmaxxWordmarkLetters" aria-hidden="true">
         <span>PUBMA</span>
         <span className="pubmaxxDoubleX">
           <XGlyph />
+        </span>
+        <span className="pubmaxxDoubleX pubmaxxDoubleX--accent">
           <XGlyph />
         </span>
-        <span>ING</span>
       </span>
     </span>
   );
