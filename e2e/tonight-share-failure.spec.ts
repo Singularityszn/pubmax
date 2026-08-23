@@ -1,13 +1,22 @@
 import { expect, test } from "@playwright/test";
 
-const VIEWPORT = { width: 390, height: 844 };
+const VIEWPORTS = [
+  { label: "mobile", width: 390, height: 844 },
+  { label: "desktop", width: 1440, height: 900 },
+] as const;
 
-test("mobile Tonight share failure keeps status below its action", async ({ page }) => {
-  await page.setViewportSize(VIEWPORT);
+for (const viewport of VIEWPORTS) {
+test(`${viewport.label} Tonight share failure keeps status below its action`, async ({ page }) => {
+  await page.setViewportSize(viewport);
   await page.addInitScript(() => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
+
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
 
     Object.defineProperty(navigator, "share", {
       configurable: true,
@@ -39,4 +48,8 @@ test("mobile Tonight share failure keeps status below its action", async ({ page
   expect(statusBox!.y, "share failure status should start below its action").toBeGreaterThanOrEqual(
     actionBox!.y + actionBox!.height,
   );
+  expect(
+    await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth),
+  ).toBe(true);
 });
+}
