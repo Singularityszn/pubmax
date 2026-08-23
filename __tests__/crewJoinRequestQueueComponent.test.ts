@@ -20,7 +20,9 @@ const state = vi.hoisted(() => ({
   decisions: [] as string[],
   visibility: "open" as "open" | "friends",
   identityResolved: true,
+  userId: "actor-a",
   decisionFails: false,
+  queueMissing: false,
 }));
 
 vi.mock("next/link", () => ({
@@ -33,7 +35,10 @@ vi.mock("next/navigation", () => ({
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => ({ identityResolved: state.identityResolved }),
+  useAuth: () => ({
+    identityResolved: state.identityResolved,
+    user: { id: state.userId },
+  }),
 }));
 
 vi.mock("@/components/nav/SiteNav", () => ({
@@ -86,8 +91,16 @@ vi.mock("@/lib/authedFetch", () => ({
       });
     }
     if (url === `/api/social/crews/${CREW_ID}/join-requests` && !init?.method) {
+      if (state.queueMissing) {
+        state.visibility = "friends";
+        return Response.json({}, { status: 404 });
+      }
       return Response.json({
-        items: state.queue.slice(0, 50),
+        items: state.queue.slice(0, 50).map((request) =>
+          state.userId === "actor-b"
+            ? { ...request, requesterHandle: "carol" }
+            : request,
+        ),
         hasMore: state.queue.length > 50,
       });
     }
@@ -133,7 +146,9 @@ beforeEach(() => {
   state.decisions = [];
   state.visibility = "open";
   state.identityResolved = true;
+  state.userId = "actor-a";
   state.decisionFails = false;
+  state.queueMissing = false;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -218,6 +233,50 @@ describe("host join-request queue", () => {
     expect(container.textContent).not.toContain("@bob");
   });
 
+  it("clears a decision notice when identity becomes unresolved", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    const accept = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Accept @bob"]',
+    );
+    expect(accept).not.toBeNull();
+    await act(async () => accept!.click());
+    await settle();
+    expect(container.textContent).toContain("@bob joined the crew.");
+
+    state.identityResolved = false;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+
+    expect(container.textContent).not.toContain("@bob");
+  });
+
+  it("does not restore the previous host queue before a new identity refresh", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    expect(container.textContent).toContain("@bob");
+
+    state.identityResolved = false;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    state.identityResolved = true;
+    state.userId = "actor-b";
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+
+    expect(container.textContent).not.toContain("@bob");
+    await settle();
+    expect(container.textContent).toContain("@carol");
+  });
+
   it("refreshes a request that another manager decided first", async () => {
     state.decisionFails = true;
     await act(async () => {
@@ -234,5 +293,18 @@ describe("host join-request queue", () => {
 
     expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
     expect(container.textContent).toContain("Social Crew changed before this request.");
+    expect(document.activeElement?.id).toBe("crew-join-requests-title");
+  });
+
+  it("drops a stale manager queue when crew authority changes", async () => {
+    state.queueMissing = true;
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+
+    expect(container.textContent).not.toContain("Could not load join requests.");
+    expect(container.textContent).not.toContain("Requests to join");
+    expect(container.querySelector('a[href="/u/bob"]')).toBeNull();
   });
 });

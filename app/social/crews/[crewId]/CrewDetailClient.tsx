@@ -59,7 +59,8 @@ export default function CrewDetailClient({
   invitationId: string | null;
 }) {
   const router = useRouter();
-  const { identityResolved } = useAuth();
+  const { identityResolved, user } = useAuth();
+  const identityKey = user?.id ?? "signed-out";
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -78,8 +79,33 @@ export default function CrewDetailClient({
     useState<JoinRequestLoadState>("idle");
   const [joinRequestAttempt, setJoinRequestAttempt] = useState(0);
   const [focusJoinRequests, setFocusJoinRequests] = useState(false);
+  const [loadedIdentityKey, setLoadedIdentityKey] = useState<string | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
+
+  useEffect(() => {
+    if (identityResolved) return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setCrew(null);
+      setStatus("loading");
+      setNotice("");
+      setProblem("");
+      setViewerHandle("");
+      setLot([]);
+      setMatches([]);
+      setInviteLink(null);
+      setJoinRequests([]);
+      setJoinRequestsHaveMore(false);
+      setJoinRequestStatus("idle");
+      setFocusJoinRequests(false);
+      setLoadedIdentityKey(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [identityResolved]);
 
   useEffect(() => {
     if (!identityResolved) return;
@@ -98,6 +124,7 @@ export default function CrewDetailClient({
         return read;
       })
       .then((result) => {
+        setLoadedIdentityKey(identityKey);
         if (result === "missing") {
           setCrew(null);
           setStatus("missing");
@@ -108,15 +135,17 @@ export default function CrewDetailClient({
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        setLoadedIdentityKey(identityKey);
         setCrew(null);
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, crewId, identityResolved]);
+  }, [attempt, crewId, identityKey, identityResolved]);
 
   useEffect(() => {
     if (
       !identityResolved ||
+      loadedIdentityKey !== identityKey ||
       crew?.kind !== "member" ||
       crew.visibility !== "open" ||
       !canManageCrew(crew.viewer.role)
@@ -134,12 +163,20 @@ export default function CrewDetailClient({
       },
     )
       .then(async (response) => {
+        if (response.status === 404) return "missing" as const;
         if (!response.ok) throw new Error("Join requests unavailable");
         const queue = parseCrewJoinRequestQueue(await response.json());
         if (!queue) throw new Error("Join requests malformed");
         return queue;
       })
       .then((queue) => {
+        if (queue === "missing") {
+          setJoinRequests([]);
+          setJoinRequestsHaveMore(false);
+          setJoinRequestStatus("idle");
+          setAttempt((value) => value + 1);
+          return;
+        }
         setJoinRequests(queue.items);
         setJoinRequestsHaveMore(queue.hasMore);
         setJoinRequestStatus("ready");
@@ -151,7 +188,7 @@ export default function CrewDetailClient({
         setJoinRequestStatus("error");
       });
     return () => controller.abort();
-  }, [crew, crewId, identityResolved, joinRequestAttempt]);
+  }, [crew, crewId, identityKey, identityResolved, joinRequestAttempt, loadedIdentityKey]);
 
   useEffect(() => {
     if (
@@ -368,6 +405,7 @@ export default function CrewDetailClient({
           },
         );
       } catch (error) {
+        setFocusJoinRequests(true);
         setJoinRequestAttempt((value) => value + 1);
         throw error;
       }
@@ -396,7 +434,7 @@ export default function CrewDetailClient({
   };
 
   const body = (() => {
-    if (!identityResolved) {
+    if (!identityResolved || loadedIdentityKey !== identityKey) {
       return (
         <div className="crews__skeletons" aria-label="Loading crew">
           <span />
@@ -740,12 +778,12 @@ export default function CrewDetailClient({
         <Link className="crewPage__back" href="/social">
           Back to Social
         </Link>
-        {notice ? (
+        {identityResolved && loadedIdentityKey === identityKey && notice ? (
           <p className="crews__note" role="status" aria-live="polite">
             {notice}
           </p>
         ) : null}
-        {problem ? (
+        {identityResolved && loadedIdentityKey === identityKey && problem ? (
           <p className="crews__problem" role="alert">
             {problem}
           </p>
