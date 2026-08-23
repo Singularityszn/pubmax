@@ -25,6 +25,8 @@ const state = vi.hoisted(() => ({
   queueMissing: false,
   deferQueueForUserId: "",
   deferredQueueResponses: [] as Array<() => void>,
+  crewReadCount: 0,
+  crewUnavailableAfterFirst: false,
 }));
 
 vi.mock("next/link", () => ({
@@ -51,6 +53,10 @@ vi.mock("@/lib/authedFetch", () => ({
   authedActionFetch: vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
     const url = String(input);
     if (url === `/api/social/crews/${CREW_ID}`) {
+      state.crewReadCount += 1;
+      if (state.crewUnavailableAfterFirst && state.crewReadCount > 1) {
+        return Response.json({}, { status: 503 });
+      }
       return Response.json({
         kind: "member",
         crewId: CREW_ID,
@@ -159,6 +165,8 @@ beforeEach(() => {
   state.queueMissing = false;
   state.deferQueueForUserId = "";
   state.deferredQueueResponses = [];
+  state.crewReadCount = 0;
+  state.crewUnavailableAfterFirst = false;
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -286,6 +294,24 @@ describe("host join-request queue", () => {
     await settle();
 
     expect(container.textContent).not.toContain("@bob");
+  });
+
+  it("does not show protected feedback above a failed crew refresh", async () => {
+    await act(async () => {
+      root.render(createElement(CrewDetailClient, { crewId: CREW_ID, invitationId: null }));
+    });
+    await settle();
+    state.crewUnavailableAfterFirst = true;
+
+    const accept = container.querySelector<HTMLButtonElement>(
+      'button[aria-label="Accept @bob"]',
+    );
+    expect(accept).not.toBeNull();
+    await act(async () => accept!.click());
+    await settle();
+
+    expect(container.textContent).toContain("Could not load this crew.");
+    expect(container.textContent).not.toContain("@bob joined the crew.");
   });
 
   it("does not restore the previous host queue before a new identity refresh", async () => {

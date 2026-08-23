@@ -130,6 +130,12 @@ export default function CrewDetailClient({
         setLoadedIdentityKey(identityKey);
         if (result === "missing") {
           setCrew(null);
+          setNotice(null);
+          setProblem(null);
+          setJoinRequests([]);
+          setJoinRequestsHaveMore(false);
+          setJoinRequestStatus("idle");
+          setFocusJoinRequests(false);
           setStatus("missing");
           return;
         }
@@ -142,6 +148,12 @@ export default function CrewDetailClient({
         }
         setLoadedIdentityKey(identityKey);
         setCrew(null);
+        setNotice(null);
+        setProblem(null);
+        setJoinRequests([]);
+        setJoinRequestsHaveMore(false);
+        setJoinRequestStatus("idle");
+        setFocusJoinRequests(false);
         setStatus("error");
       });
     return () => {
@@ -802,6 +814,7 @@ export default function CrewDetailClient({
           Back to Social
         </Link>
         {identityResolved &&
+        status === "ready" &&
         loadedIdentityKey === identityKey &&
         notice?.identityKey === identityKey ? (
           <p className="crews__note" role="status" aria-live="polite">
@@ -809,6 +822,7 @@ export default function CrewDetailClient({
           </p>
         ) : null}
         {identityResolved &&
+        status === "ready" &&
         loadedIdentityKey === identityKey &&
         problem?.identityKey === identityKey ? (
           <p className="crews__problem" role="alert">
