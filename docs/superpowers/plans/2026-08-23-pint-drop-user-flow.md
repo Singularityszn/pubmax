@@ -52,6 +52,12 @@
 - [x] Preserve browser-draft keyless/demo behavior.
 - [x] Run the targeted regression test.
 
+**Storage note:** `lib/pintDropsStore.ts` currently maps the durable Pint Drop
+implementation to Supabase table `visit_reports`; keyless tests and demos use
+the existing process-memory store. `lib/oneTapPintDrop.server.ts` calls the
+same store for the existing price-pairing path. This slice does not add a
+Visit Report domain write, change that backing table, or add a migration.
+
 ### Task 3: Review, commit, and push
 
 **Files:**

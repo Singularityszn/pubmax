@@ -276,6 +276,37 @@ describe("POST /api/pint-drops (create)", () => {
     expect(drop.status).toBe("visible");
   });
 
+  it("keeps a signed-in observed price visible through the GET seam", async () => {
+    reportAuth.userId = "account-pint-drop-flow";
+
+    const created = await post({
+      venueId: VENUE,
+      handle: "signed_in_drinker",
+      priceGbp: 4.2,
+      drink: "Pint of ale",
+    });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+    expect(drop).toMatchObject({
+      venueId: VENUE,
+      handle: "signed_in_drinker",
+      priceGbp: 4.2,
+      provenance: "contributor",
+    });
+
+    const listed = await get(VENUE);
+    expect(listed.status).toBe(200);
+    expect((await listed.json()).drops).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: drop.id,
+          handle: "signed_in_drinker",
+          priceGbp: 4.2,
+        }),
+      ]),
+    );
+  });
+
   it("adds server-derived price authority only for a verified account", async () => {
     reportAuth.userId = "account-a";
 

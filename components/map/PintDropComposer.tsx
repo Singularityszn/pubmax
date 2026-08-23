@@ -45,6 +45,8 @@ export default function PintDropComposer({
   const {
     handle,
     accountHandle,
+    signedIn,
+    identityReady,
     setHandle,
     dropForm,
     setDropForm,
@@ -68,6 +70,8 @@ export default function PintDropComposer({
   const author = pintDropAuthorValue({
     accountHandle,
     draftHandle: handle,
+    signedIn,
+    identityReady,
   });
 
   const maxTagsReached = vibeTags.length >= 4;

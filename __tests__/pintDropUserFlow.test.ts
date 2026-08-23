@@ -34,10 +34,13 @@ describe("venue-sheet Pint Drop author", () => {
       pintDropAuthorValue({
         accountHandle: "night_owl",
         draftHandle: "",
+        signedIn: true,
+        identityReady: true,
       }),
     ).toEqual({
       handle: "night_owl",
       accountOwned: true,
+      canSubmit: true,
     });
   });
 
@@ -46,10 +49,13 @@ describe("venue-sheet Pint Drop author", () => {
       pintDropAuthorValue({
         accountHandle: null,
         draftHandle: "demo_drinker",
+        signedIn: false,
+        identityReady: false,
       }),
     ).toEqual({
       handle: "demo_drinker",
       accountOwned: false,
+      canSubmit: true,
     });
   });
 
@@ -58,10 +64,43 @@ describe("venue-sheet Pint Drop author", () => {
       pintDropAuthorValue({
         accountHandle: "night_owl",
         draftHandle: "old_device_handle",
+        signedIn: true,
+        identityReady: true,
       }),
     ).toEqual({
       handle: "night_owl",
       accountOwned: true,
+      canSubmit: true,
+    });
+  });
+
+  it("does not expose a stale local handle while signed-in identity is unresolved", () => {
+    expect(
+      pintDropAuthorValue({
+        accountHandle: null,
+        draftHandle: "old_device_handle",
+        signedIn: true,
+        identityReady: false,
+      }),
+    ).toEqual({
+      handle: "",
+      accountOwned: false,
+      canSubmit: false,
+    });
+  });
+
+  it("blocks signed-in submission until profile identity is ready", () => {
+    expect(
+      pintDropAuthorValue({
+        accountHandle: null,
+        draftHandle: "old_device_handle",
+        signedIn: true,
+        identityReady: true,
+      }),
+    ).toEqual({
+      handle: "",
+      accountOwned: false,
+      canSubmit: false,
     });
   });
 
