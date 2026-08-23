@@ -241,6 +241,8 @@ Do not mark issue #392 complete until each row has a dated link or screenshot fr
 |---|---|---|
 | Google Search Console | Verified domain property, submitted `https://pubmaxxing.com/sitemap.xml`, and successful fetch | Owner action |
 | Bing Webmaster Tools | Verified site, submitted sitemap, and successful fetch | Owner action |
+| Android install | Native install prompt appears on supported Android Chrome and launches the installed app from the home screen | Owner action |
+| iOS install | Safari Add to Home Screen instructions are accurate and the installed app launches from the home screen | Owner action |
 | Demo content | Vercel Production environment shows `NEXT_PUBLIC_DEMO_CONTENT=off`; promoted deployment ID recorded | Owner action |
 | Analytics order | PostHog receives release, map open, plan generated, invite opened, invite accepted, crew activation, completion, recap share, and repeat-plan events in that order | Owner action |
 | First cohort | Dated result for 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | Owner action |
