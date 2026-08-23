@@ -15,9 +15,9 @@ import {
   OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // Share card for a Plan's public invite link (Task: plan-invite-page). Same
 // brand kit and generic-poster-on-failure shape as the borough card: an
@@ -86,8 +86,14 @@ async function loadCard(token: string): Promise<CardData | null> {
     const state = stateResult.plan;
     const stops = await loadStops(state.stops);
     return {
-      title: clampText(state.plan.title, 60, "A night out"),
-      hostHandle: clampText(state.crew[0]?.name, 30, "Your host"),
+      title: clampOgText(state.plan.title, 60, "A night out", {
+        collapseWhitespace: true,
+        collapseBeforeFilter: true,
+      }),
+      hostHandle: clampOgText(state.crew[0]?.name, 30, "Your host", {
+        collapseWhitespace: true,
+        collapseBeforeFilter: true,
+      }),
       startLabel: formatStartLabel(state.plan.startTime),
       spendBand: planInviteSpendBandFromListedPrices(stops.map((stop) => stop.priceGbp)),
       stops,
@@ -167,7 +173,10 @@ export default async function Image({ params }: { params: Promise<{ token: strin
                 style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}
               >
                 <div style={{ display: "flex", color: OG.ink, fontSize: 28, fontWeight: 500 }}>
-                  {index + 1}. {clampText(stop.name, 36)}
+                  {index + 1}. {clampOgText(stop.name, 36, "", {
+                    collapseWhitespace: true,
+                    collapseBeforeFilter: true,
+                  })}
                 </div>
                 {stop.price ? (
                   <div style={{ display: "flex", color: OG.amber, fontSize: 28, fontWeight: 700 }}>

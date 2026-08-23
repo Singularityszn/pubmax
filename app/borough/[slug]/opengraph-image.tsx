@@ -9,10 +9,10 @@ import {
   OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
   priceStamp,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // Per-borough OG share card (Wave S2.2, Next `opengraph-image` convention).
 // Renders the borough's headline pint economics — the single cheapest tracked
@@ -102,7 +102,10 @@ export default async function Image({
   const { slug } = await params;
   const venues = await loadVenues();
   const resolved = boroughFromSlug(slug, venues);
-  const name = clampText(resolved, 22, "London");
+  const name = clampOgText(resolved, 22, "London", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
 
   const pubs = resolved ? pubsInBorough(venues, slug) : [];
   const priced = pubs.filter((p) => typeof p.cheapestPrice === "number");

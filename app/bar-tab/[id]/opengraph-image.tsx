@@ -6,10 +6,10 @@ import {
   OG,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
   priceStamp,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import { memoryPintDropStore, supabasePintDropStore } from "@/lib/pintDropsStore";
 import { resolveCanonicalVenueId } from "@/lib/venueAliases";
@@ -126,8 +126,14 @@ export default async function Image({
   const venue = await getVenue(id);
   const barTab = venue ? await loadBarTab(venue.id) : { tileCount: 0, cheapestGbp: null };
 
-  const name = clampText(venue?.name, 36, "A London pub");
-  const borough = clampText(venue?.primaryBorough, 28, "London");
+  const name = clampOgText(venue?.name, 36, "A London pub", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
+  const borough = clampOgText(venue?.primaryBorough, 28, "London", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
   const cheapest = priceStamp(barTab.cheapestGbp);
   const pintCount = barTab.tileCount;
 

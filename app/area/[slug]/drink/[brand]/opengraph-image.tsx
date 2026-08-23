@@ -11,10 +11,10 @@ import {
   OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
   priceStamp,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 import { formatPricedLandingPublisherStatus } from "@/lib/pricedLanding";
 
 // This page owns its own card. Without one Next serves the nearest ancestor's,
@@ -36,9 +36,11 @@ export default async function Image({
   if (!landing) notFound();
 
   const firstRow = landing.rows[0];
-  const heading = clampText(
+  const heading = clampOgText(
     `Cheapest listed ${landing.brandLabel} pints in ${landing.areaName}`,
     58,
+    "",
+    { collapseWhitespace: true, collapseBeforeFilter: true },
   );
   const publisherStatus = formatPricedLandingPublisherStatus(firstRow.publisher);
   const route = drinkBrandAreaLandingRoute(landing);

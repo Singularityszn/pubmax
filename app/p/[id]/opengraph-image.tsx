@@ -26,12 +26,6 @@ const RIVER = "#3f5566"; // muted Thames blue
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-// Clamp/sanitise untrusted text: drop control chars, collapse whitespace, cap
-// length with an ellipsis. Share-card text comes from user content.
-function clampText(raw: string | null | undefined, max: number, fallback = ""): string {
-  return clampOgText(raw, max, fallback, { collapseWhitespace: true });
-}
-
 function priceStamp(value: number | null): string | null {
   if (value === null || !Number.isFinite(value) || value <= 0) return null;
   return `£${value.toFixed(2)}`;
@@ -41,12 +35,12 @@ export default async function Image({ params }: { params: Promise<{ id: string }
   const { id } = await params;
   const drop = await getPintDropById(id).catch(() => null);
 
-  const venue = clampText(drop?.venueName, 44, "A London pub");
-  const handle = clampText(drop?.handle, 24, "someone");
-  const drink = clampText(drop?.drink, 40);
-  const note = clampText(drop?.note, 120);
-  const era = clampText(drop?.era, 24);
-  const tag = clampText(drop?.vibeTags?.[0], 22);
+  const venue = clampOgText(drop?.venueName, 44, "A London pub", { collapseWhitespace: true });
+  const handle = clampOgText(drop?.handle, 24, "someone", { collapseWhitespace: true });
+  const drink = clampOgText(drop?.drink, 40, "", { collapseWhitespace: true });
+  const note = clampOgText(drop?.note, 120, "", { collapseWhitespace: true });
+  const era = clampOgText(drop?.era, 24, "", { collapseWhitespace: true });
+  const tag = clampOgText(drop?.vibeTags?.[0], 22, "", { collapseWhitespace: true });
   const price = priceStamp(drop?.priceGbp ?? null);
   const headline = drink || note || "A pint worth remembering";
 

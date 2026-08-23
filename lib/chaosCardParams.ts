@@ -5,24 +5,7 @@
 // (share-card params are untrusted URL input — always clamp, never throw).
 
 import { CHAOS_BANDS, computeChaosScore, type ChaosGrade } from "@/lib/chaosScore";
-
-// Strip control chars and cap length. Exported for reuse by the route (the
-// `title` param uses this directly, with no chaos-specific parsing).
-export function clampParam(raw: string | null, max: number, fallback = ""): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw)
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
-export function clampInt(raw: string | null, min: number, max: number, fallback: number): number {
-  const n = Number(raw);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(max, Math.max(min, Math.round(n)));
-}
+import { clampOgInt, clampOgText } from "@/lib/ogCardText";
 
 const GRADE_SET: ReadonlySet<string> = new Set(CHAOS_BANDS.map((b) => b.grade));
 
@@ -55,9 +38,9 @@ export type ResolvedChaosCard = {
 export function resolveChaosCardParams(searchParams: URLSearchParams): ResolvedChaosCard {
   const explicitScore = searchParams.get("score");
   if (explicitScore !== null) {
-    const score = clampInt(explicitScore, 0, 100, 0);
-    const gradeRaw = clampParam(searchParams.get("grade"), 20, "");
-    const oneLiner = clampParam(searchParams.get("line"), 80, "");
+    const score = clampOgInt(explicitScore, 0, 100, 0);
+    const gradeRaw = clampOgText(searchParams.get("grade"), 20);
+    const oneLiner = clampOgText(searchParams.get("line"), 80);
     if (isChaosGrade(gradeRaw) && oneLiner) {
       return { score, grade: gradeRaw, oneLiner };
     }
@@ -74,11 +57,11 @@ export function resolveChaosCardParams(searchParams: URLSearchParams): ResolvedC
     };
   }
 
-  const stopCount = clampInt(searchParams.get("stops"), 0, 30, 0);
-  const spread = clampInt(searchParams.get("spread"), 0, 100, 0);
-  const hour = searchParams.has("hour") ? clampInt(searchParams.get("hour"), 0, 23, 0) : null;
-  const hops = clampInt(searchParams.get("hops"), 0, 10, 0);
-  const vibesRaw = clampParam(searchParams.get("vibes"), 200, "");
+  const stopCount = clampOgInt(searchParams.get("stops"), 0, 30, 0);
+  const spread = clampOgInt(searchParams.get("spread"), 0, 100, 0);
+  const hour = searchParams.has("hour") ? clampOgInt(searchParams.get("hour"), 0, 23, 0) : null;
+  const hops = clampOgInt(searchParams.get("hops"), 0, 10, 0);
+  const vibesRaw = clampOgText(searchParams.get("vibes"), 200);
   const vibeTags = vibesRaw ? vibesRaw.split(",").map((t) => t.trim()) : [];
   // `spread` arrives as a single GBP number (max-min already computed by the
   // caller) — represent it as two synthetic prices so computeChaosScore's

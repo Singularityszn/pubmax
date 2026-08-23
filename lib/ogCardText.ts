@@ -1,8 +1,7 @@
-// Shared "clamp/sanitise untrusted text for an OG share card" helper. Every
-// og-card route (crawl-card, list-card, city-map-card, plan-card, the Pint
-// Drop card, the Historic Pubs card) rendered its own byte-identical copy of
-// this before it was hoisted here. Text on a share card can come from a URL
-// query param or user content, so it is never rendered unbounded: strip
+// Shared "clamp/sanitise untrusted text for an OG share card" helper. All OG
+// surfaces that accept untrusted text use this module, including API cards,
+// route-convention cards, and recap data. Text on a share card can come from a
+// URL query param or user content, so it is never rendered unbounded: strip
 // control chars, optionally collapse whitespace, cap length with an ellipsis.
 
 /**
@@ -17,8 +16,8 @@
  *   leaves a space behind. Collapsing after (every other card's original
  *   order) strips the newline first and has nothing left to collapse, so the
  *   same input becomes "Line1Line2". Both are real, previously-shipped
- *   behaviours; this flag keeps each card's card unchanged rather than
- *   silently picking a winner.
+ *   behaviours; this flag keeps each card unchanged rather than silently
+ *   picking a winner.
  */
 export function clampOgText(
   raw: string | null | undefined,

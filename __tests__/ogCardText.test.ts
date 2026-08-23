@@ -1,6 +1,33 @@
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
 import { describe, it, expect } from "vitest";
 
 import { clampOgText, clampOgInt } from "@/lib/ogCardText";
+
+const REPO_ROOT = join(__dirname, "..");
+
+const OG_TEXT_SURFACES = [
+  "app/api/chaos-card/route.tsx",
+  "app/api/city-map-card/route.tsx",
+  "app/api/crawl-card/route.tsx",
+  "app/api/list-card/route.tsx",
+  "app/api/plan-card/route.tsx",
+  "app/area/[slug]/drink/[brand]/opengraph-image.tsx",
+  "app/bar-tab/[id]/opengraph-image.tsx",
+  "app/borough/[slug]/opengraph-image.tsx",
+  "app/drink/[slug]/opengraph-image.tsx",
+  "app/historic/[slug]/opengraph-image.tsx",
+  "app/invite/[token]/opengraph-image.tsx",
+  "app/map/[city]/opengraph-image.tsx",
+  "app/p/[id]/opengraph-image.tsx",
+  "app/u/[handle]/opengraph-image.tsx",
+  "lib/recapCard.ts",
+] as const;
+
+function readSource(relativePath: string): string {
+  return readFileSync(join(REPO_ROOT, relativePath), "utf8");
+}
 
 describe("clampOgText", () => {
   it("returns the fallback for null/undefined/empty input", () => {
@@ -59,5 +86,26 @@ describe("clampOgInt", () => {
     expect(clampOgInt("not-a-number", 0, 10, 3)).toBe(3);
     // Matches Number(null) === 0: clamps to 0, not the fallback.
     expect(clampOgInt(null, 0, 10, 3)).toBe(0);
+  });
+});
+
+describe("OG card clamp ownership", () => {
+  it("routes every OG text surface through one shared module", () => {
+    const offenders = OG_TEXT_SURFACES.filter(
+      (relativePath) => !readSource(relativePath).includes('from "@/lib/ogCardText"'),
+    );
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("does not re-declare route-local text or integer clamps", () => {
+    const duplicatePattern = /function\s+(?:clampText|clampParam|clampInt|clampHandle)\s*\(/;
+    const offenders = [
+      ...OG_TEXT_SURFACES,
+      "lib/ogBrand.tsx",
+      "lib/chaosCardParams.ts",
+    ].filter((relativePath) => duplicatePattern.test(readSource(relativePath)));
+
+    expect(offenders).toEqual([]);
   });
 });

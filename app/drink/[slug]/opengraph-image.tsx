@@ -8,10 +8,10 @@ import {
   OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
   priceStamp,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 import { formatPricedLandingPublisherStatus } from "@/lib/pricedLanding";
 
 export const runtime = "nodejs";
@@ -28,7 +28,10 @@ export default async function Image({
   const landing = await loadDrinkBrandLanding(slug);
   if (!landing) notFound();
 
-  const brand = clampText(landing.brandLabel, 24);
+  const brand = clampOgText(landing.brandLabel, 24, "", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
   const firstRow = landing.rows[0];
   const cheapest = priceStamp(firstRow.priceGbp);
   const pricedVenueCount = landing.totalPricedVenues;
