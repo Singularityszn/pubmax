@@ -2,6 +2,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { OCCUPANCY_RETAKE_WINDOW_MS } from "@/lib/occupancy";
 import {
+  __resetFeedFreshnessStore,
+  memoryFeedFreshnessStore,
+} from "@/lib/feedFreshnessStore";
+import {
   __resetMemoryOccupancyReports,
   memoryOccupancyStore,
   occupancyStore,
@@ -10,8 +14,10 @@ import {
 
 // The durable table is absent: exactly the window between a code deploy and
 // migration 0107 being applied.
+const supabaseState = vi.hoisted(() => ({ configured: false }));
+
 vi.mock("@/lib/supabase", () => ({
-  isSupabaseConfigured: () => false,
+  isSupabaseConfigured: () => supabaseState.configured,
   requireSupabaseAdmin: () => {
     throw new Error(
       "Could not find the table 'public.venue_occupancy_reports' in the schema cache",
@@ -24,6 +30,8 @@ const NOW = Date.parse("2026-08-16T18:00:00.000Z");
 beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(NOW);
+  supabaseState.configured = false;
+  __resetFeedFreshnessStore();
   __resetMemoryOccupancyReports();
 });
 
@@ -202,5 +210,68 @@ describe("occupancy read before the durable table exists", () => {
     expect(reading.degraded).toBe(false);
     expect(reading.state).toBe("fresh");
     expect(reading.now).toBe("full");
+  });
+
+  it("refuses production moderation writes when the durable schema is missing", async () => {
+    process.env.VERCEL_ENV = "production";
+    supabaseState.configured = true;
+    const stored = await memoryOccupancyStore.report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+
+    await expect(
+      supabaseOccupancyStore.flag(stored.id, "not true", "actor-1"),
+    ).rejects.toThrow(/refusing process-memory write fallback.*0107 and 0109/);
+    await expect(supabaseOccupancyStore.moderate(stored.id, true)).rejects.toThrow(
+      /refusing process-memory write fallback.*0107 and 0109/,
+    );
+
+    await expect(memoryOccupancyStore.readNow("venue-1")).resolves.toMatchObject({
+      now: "full",
+      state: "fresh",
+    });
+  });
+
+  it("keeps another store's memory rows when occupancy resets", async () => {
+    await memoryOccupancyStore.report({
+      venueId: "venue-1",
+      level: "full",
+      reporterUserId: "user-a",
+    });
+    await memoryFeedFreshnessStore.stamp({
+      feed: "reset-isolation",
+      observedAt: "2026-08-16T18:00:00.000Z",
+    });
+
+    __resetMemoryOccupancyReports();
+
+    await expect(memoryOccupancyStore.readNow("venue-1")).resolves.toMatchObject({
+      state: "none",
+    });
+    await expect(memoryFeedFreshnessStore.read("reset-isolation")).resolves.toMatchObject({
+      feed: "reset-isolation",
+    });
+  });
+
+  it("keeps occupancy rows when feed freshness resets", async () => {
+    await memoryOccupancyStore.report({
+      venueId: "venue-inverse-reset",
+      level: "some-seats",
+      reporterUserId: "user-a",
+    });
+    await memoryFeedFreshnessStore.stamp({
+      feed: "inverse-reset",
+      observedAt: "2026-08-16T18:00:00.000Z",
+    });
+
+    __resetFeedFreshnessStore();
+
+    await expect(memoryFeedFreshnessStore.read("inverse-reset")).resolves.toBeNull();
+    await expect(memoryOccupancyStore.readNow("venue-inverse-reset")).resolves.toMatchObject({
+      now: "some-seats",
+      state: "fresh",
+    });
   });
 });

@@ -13,7 +13,11 @@ import "server-only";
 // A stamp is metadata only (feed id + when it was revalidated + how many rows
 // were servable + an optional note). No user data, no PII.
 
-import { createDualBackendStore, createFailSoftGuard } from "@/lib/storeBackend";
+import {
+  createDualBackendStore,
+  createFailSoftGuard,
+  onMissingDurableWrite,
+} from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
 
 export type FeedFreshnessStamp = {
@@ -75,7 +79,16 @@ export const supabaseFeedFreshnessStore: FeedFreshnessStore = {
   async stamp(input) {
     return guard<StampOutcome>({
       context: "stamp",
-      onSchemaMiss: () => memoryFeedFreshnessStore.stamp(input),
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "feed-freshness",
+          migrationHint: "apply migration 0047",
+          fallback: () => memoryFeedFreshnessStore.stamp(input),
+          onProduction: async (error) => {
+            console.error(error.message);
+            return { status: "stamped", failed: true };
+          },
+        }),
       message: "stamp failed — flagging degraded write",
       onError: () => ({ status: "stamped", failed: true }),
       run: async () => {

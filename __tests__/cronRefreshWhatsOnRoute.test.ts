@@ -12,6 +12,17 @@ vi.mock("@/lib/whatsOnStore", () => ({
   })),
 }));
 
+const supabaseState = vi.hoisted(() => ({ configured: false }));
+
+vi.mock("@/lib/supabase", () => ({
+  isSupabaseConfigured: () => supabaseState.configured,
+  requireSupabaseAdmin: () => {
+    throw new Error(
+      "Could not find the table 'public.feed_freshness' in the schema cache",
+    );
+  },
+}));
+
 import { GET } from "@/app/api/cron/refresh-whats-on/route";
 import {
   memoryFeedFreshnessStore,
@@ -28,6 +39,7 @@ function req(auth?: string): Request {
 
 beforeEach(() => {
   __resetFeedFreshnessStore();
+  supabaseState.configured = false;
   vi.stubEnv("CRON_SECRET", "test-secret");
 });
 
@@ -175,5 +187,21 @@ describe("GET /api/cron/refresh-whats-on", () => {
 
     warn.mockRestore();
     error.mockRestore();
+  });
+
+  it("reports a failed stamp when production schema is missing", async () => {
+    supabaseState.configured = true;
+    vi.stubEnv("VERCEL_ENV", "production");
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await GET(req("Bearer test-secret"));
+
+    expect(await response.json()).toMatchObject({
+      ok: true,
+      stamped: false,
+      stampDegraded: true,
+    });
+    expect(await memoryFeedFreshnessStore.read(WHATS_ON_FEED_KEY)).toBeNull();
+    expect(error).toHaveBeenCalled();
   });
 });
