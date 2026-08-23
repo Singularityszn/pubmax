@@ -217,6 +217,8 @@ async function recordAnonymousReport(
       reported_at: new Date().toISOString(),
       ...(reason ? { report_reason: reason } : {}),
       moderated_at: null,
+      status: "visible",
+      moderator_note: null,
     })
     .eq("id", id)
     .select("id");
@@ -507,7 +509,9 @@ export const memoryPintDropStore: PintDropStore = {
   },
   async listForReview(status) {
     const rows = status === "reported" ? listReportedPintDrops() : listByStatus(status);
-    return rows.map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+    return rows
+      .slice(0, MAX_PUBLIC_DROPS)
+      .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
   },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
@@ -726,12 +730,14 @@ export const supabasePintDropStore: PintDropStore = {
           .is("moderated_at", null)
           .order("reported_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
+          .limit(MAX_PUBLIC_DROPS)
       : admin()
           .from(TABLE)
           .select("*")
           .eq("status", status)
           .is("moderated_at", null)
-          .order("created_at", { ascending: false });
+          .order("created_at", { ascending: false })
+          .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));

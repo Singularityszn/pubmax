@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 // Mock the Supabase admin so toDTO/deletePhotos exercise Storage without a live
 // project. createSignedUrl returns deterministic test URLs.
@@ -16,6 +16,7 @@ const createSignedUrls = vi.fn(async (keys: string[]) => ({
   error: null,
 }));
 const rpcMock = vi.fn();
+const reviewRowsRef = { rows: [] as Record<string, unknown>[] };
 // Table insert mock (create() → admin().from(TABLE).insert(row)). Each test sets
 // its own resolved value(s); a from() call returns a fresh object every time so
 // the two inserts of a resilience retry each hit the queued mock in order.
@@ -29,10 +30,22 @@ const updateMock = vi.fn((values: Record<string, unknown>) => {
   };
 });
 const selectChain = {
-  eq: vi.fn(() => ({
-    maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
-  })),
+  eq: vi.fn(),
+  not: vi.fn(),
+  is: vi.fn(),
+  order: vi.fn(),
+  limit: vi.fn(),
+  maybeSingle: vi.fn(async () => ({ data: { status: "visible" }, error: null })),
+  then: (
+    resolve: (value: { data: Record<string, unknown>[]; error: null }) => unknown,
+    reject?: (reason: unknown) => unknown,
+  ) => Promise.resolve({ data: reviewRowsRef.rows, error: null }).then(resolve, reject),
 };
+selectChain.eq.mockReturnValue(selectChain);
+selectChain.not.mockReturnValue(selectChain);
+selectChain.is.mockReturnValue(selectChain);
+selectChain.order.mockReturnValue(selectChain);
+selectChain.limit.mockReturnValue(selectChain);
 const mockAdmin = () => ({
   from: () => ({
     insert: insertMock,
@@ -48,9 +61,24 @@ vi.mock("@/lib/supabase", () => ({
   STORAGE_BUCKET: "pint-drops",
 }));
 
-import { validatePhoto, magicBytesOk, toDTO, toDTOWithPhotos, deletePhotos, pintDropReportCountFromRow, supabasePintDropStore } from "@/lib/pintDropsStore";
+import {
+  validatePhoto,
+  magicBytesOk,
+  toDTO,
+  toDTOWithPhotos,
+  deletePhotos,
+  pintDropReportCountFromRow,
+  memoryPintDropStore,
+  supabasePintDropStore,
+  MAX_PUBLIC_DROPS,
+} from "@/lib/pintDropsStore";
 import type { PersistableDrop } from "@/lib/pintDropsStore";
-import { REPORT_HIDE_THRESHOLD, type PintDropReportIdentity } from "@/lib/pintDrops";
+import {
+  addPintDrop,
+  __resetPintDrops,
+  REPORT_HIDE_THRESHOLD,
+  type PintDropReportIdentity,
+} from "@/lib/pintDrops";
 
 function verifiedReportIdentity(actorHash: string): PintDropReportIdentity {
   return { kind: "verified_account", actorHash };
@@ -59,6 +87,12 @@ function verifiedReportIdentity(actorHash: string): PintDropReportIdentity {
 function anonymousReportIdentity(actorHash: string): PintDropReportIdentity {
   return { kind: "anonymous_ip", actorHash };
 }
+
+afterEach(() => {
+  __resetPintDrops();
+  reviewRowsRef.rows = [];
+  vi.clearAllMocks();
+});
 
 // Pure validation only — no live Supabase. These run in the same node env as
 // the rest of the suite (no keys required).
@@ -221,6 +255,60 @@ describe("toDTO", () => {
   });
 });
 
+describe("moderator Pint Drop review queue", () => {
+  it("caps the memory queue and orders it by report age", async () => {
+    for (let index = 0; index <= MAX_PUBLIC_DROPS; index += 1) {
+      addPintDrop(
+        drop({
+          id: `reported-${index}`,
+          createdAt: `2026-01-01T${String(MAX_PUBLIC_DROPS - index).padStart(3, "0")}:00:00.000Z`,
+          reportedAt: `2026-08-${String(index + 1).padStart(3, "0")}T00:00:00.000Z`,
+        }),
+      );
+    }
+
+    const queue = await memoryPintDropStore.listForReview("reported");
+
+    expect(queue).toHaveLength(MAX_PUBLIC_DROPS);
+    expect(queue[0]?.id).toBe(`reported-${MAX_PUBLIC_DROPS}`);
+    expect(queue.at(-1)?.id).toBe("reported-1");
+    expect(queue.map((row) => row.id)).not.toContain("reported-0");
+  });
+
+  it("bounds the durable queue while preserving reported-at ordering", async () => {
+    reviewRowsRef.rows = [
+      drop({ id: "fresh-report", createdAt: "2026-01-01T00:00:00.000Z", reportedAt: "2026-08-23T12:00:00.000Z" }),
+      drop({ id: "old-report", createdAt: "2026-08-23T12:00:00.000Z", reportedAt: "2026-08-23T11:00:00.000Z" }),
+    ].map((row) => ({
+      id: row.id,
+      venue_id: row.venueId,
+      handle: row.handle,
+      drink: row.drink,
+      price_gbp: row.priceGbp,
+      passed_down_note: row.passedDownNote,
+      era: row.era,
+      provenance: row.provenance,
+      status: row.status,
+      created_at: row.createdAt,
+      reported_at: row.reportedAt,
+      report_reason: null,
+      report_count: 1,
+      moderated_at: null,
+      moderator_note: null,
+    }));
+
+    const queue = await supabasePintDropStore.listForReview("reported");
+
+    expect(queue.map((row) => row.id)).toEqual(["fresh-report", "old-report"]);
+    expect(selectChain.limit).toHaveBeenCalledWith(MAX_PUBLIC_DROPS);
+    expect(selectChain.order).toHaveBeenNthCalledWith(1, "reported_at", {
+      ascending: false,
+      nullsFirst: false,
+    });
+    expect(selectChain.order).toHaveBeenNthCalledWith(2, "created_at", { ascending: false });
+  });
+});
+
 describe("deletePhotos", () => {
   it("removes the given keys and skips empty ones", async () => {
     removeMock.mockClear();
@@ -312,9 +400,10 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
       report_reason: "wrong price",
       reported_at: expect.any(String),
       moderated_at: null,
+      status: "visible",
+      moderator_note: null,
     });
     expect(updateMock.mock.calls[0][0]).not.toHaveProperty("report_count");
-    expect(updateMock.mock.calls[0][0]).not.toHaveProperty("status");
   });
 
   it("maps an anonymous report for an unknown drop to false", async () => {

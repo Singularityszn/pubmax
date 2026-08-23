@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { profileCoverFromAvatar } from "@/app/admin/AdminClient";
+import { profileCoverFromAvatar, readQueueResponse } from "@/app/admin/AdminClient";
 
 describe("admin profile cover queue", () => {
+  it("closes non-ok queue responses instead of leaving their body open", async () => {
+    const response = new Response("temporary failure", { status: 503 });
+
+    expect(await readQueueResponse(response)).toEqual({});
+    expect(response.bodyUsed).toBe(true);
+  });
+
   it("converts profile-level cover rows into whole-profile moderation rows", () => {
     expect(
       profileCoverFromAvatar({

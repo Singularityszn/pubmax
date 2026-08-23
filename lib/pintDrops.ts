@@ -535,6 +535,8 @@ export function reportPintDrop(
   // timestamp is new evidence, so the old decision must not hide it from the
   // queue.
   hit.moderatedAt = undefined;
+  hit.moderatorNote = undefined;
+  hit.status = "visible";
   if (identity.kind === "anonymous_ip") return true;
 
   const verifiedCount = (verifiedReportCountsByDrop.get(id) ?? 0) + 1;

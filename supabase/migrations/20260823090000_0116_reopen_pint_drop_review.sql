@@ -38,10 +38,11 @@ begin
          reported_at = now(),
          report_reason = coalesce(nullif(p_reason, ''), report_reason),
          moderated_at = null,
+         moderator_note = null,
          status = case
                     when verified_report_count + 1 >= greatest(p_hide_threshold, 1)
                       then 'hidden'
-                    else status
+                    else 'visible'
                   end
    where id = p_id
    returning verified_report_count into v_count;

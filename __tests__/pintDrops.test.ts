@@ -429,6 +429,24 @@ describe("POST /api/pint-drops (create)", () => {
     const queue = (await (await modGet("reported")).json()).drops as Array<{ id: string }>;
     expect(queue.map((row) => row.id)).toContain(drop.id);
   });
+
+  it("reopens a previously hidden decision for fresh anonymous review", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", "first report", "device-a");
+    await signedReport(drop.id, "user-two", "second report", "device-b");
+    expect((await get(VENUE)).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+
+    expect((await modAction("keep_hidden", drop.id)).status).toBe(200);
+    expect((await report(drop.id, "new evidence", "device-a")).status).toBe(200);
+
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
+    const queue = (await (await modGet("reported")).json()).drops as Array<{ id: string }>;
+    expect(queue.map((row) => row.id)).toContain(drop.id);
+  });
 });
 
 describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", () => {

@@ -144,6 +144,7 @@ async function startSession(): Promise<Session> {
         reported_at timestamptz,
         report_reason text,
         moderated_at timestamptz,
+        moderator_note text,
         status text not null default 'visible'
       );
       create table public.pint_drop_reports (
@@ -284,8 +285,8 @@ describe("0112 verified ledger and 0116 report reopening", () => {
   it("clears a prior moderation decision only for a new verified actor", () => {
     const id = "00000000-0000-4000-8000-000000000114";
     session!.sql(`
-      insert into public.visit_reports (id, moderated_at)
-      values ('${id}', '2026-08-23 08:00:00+00');
+      insert into public.visit_reports (id, moderated_at, status, moderator_note)
+      values ('${id}', '2026-08-23 08:00:00+00', 'hidden', 'old decision');
     `);
 
     expect(
@@ -293,9 +294,9 @@ describe("0112 verified ledger and 0116 report reopening", () => {
     ).toBe("1");
     expect(
       session!.sql(
-        `select (moderated_at is null)::text || ':' || verified_report_count || ':' || status from public.visit_reports where id = '${id}'`,
+        `select (moderated_at is null)::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
-    ).toBe("true:1:visible");
+    ).toBe("true:1:visible:");
 
     session!.sql(`update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00' where id = '${id}'`);
     expect(
@@ -312,8 +313,8 @@ describe("0112 verified ledger and 0116 report reopening", () => {
     session!.apply(REOPEN_ROLLBACK_PATH);
     const id = "00000000-0000-4000-8000-000000000116";
     session!.sql(`
-      insert into public.visit_reports (id, moderated_at)
-      values ('${id}', '2026-08-23 08:00:00+00');
+      insert into public.visit_reports (id, moderated_at, status, moderator_note)
+      values ('${id}', '2026-08-23 08:00:00+00', 'hidden', 'old decision');
     `);
 
     expect(
@@ -321,8 +322,8 @@ describe("0112 verified ledger and 0116 report reopening", () => {
     ).toBe("1");
     expect(
       session!.sql(
-        `select (moderated_at = timestamptz '2026-08-23 08:00:00+00')::text || ':' || verified_report_count || ':' || status from public.visit_reports where id = '${id}'`,
+        `select (moderated_at = timestamptz '2026-08-23 08:00:00+00')::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
-    ).toBe("true:1:visible");
+    ).toBe("true:1:hidden:old decision");
   });
 });

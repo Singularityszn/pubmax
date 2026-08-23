@@ -189,8 +189,11 @@ async function fetchVenueNames(): Promise<Map<string, string>> {
   return new Map(groupVenuePrices(rows).map((venue) => [venue.id, venue.name]));
 }
 
-async function readQueueResponse<T extends object>(response: Response): Promise<T> {
-  if (!response.ok) return {} as T;
+export async function readQueueResponse<T extends object>(response: Response): Promise<T> {
+  if (!response.ok) {
+    discardBody(response);
+    return {} as T;
+  }
   return (await response.json()) as T;
 }
 

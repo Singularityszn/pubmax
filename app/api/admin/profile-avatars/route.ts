@@ -59,8 +59,20 @@ async function listRotationCovers(
       const profile = await profileStore().getById(row.profileId);
       if (!profile) return null;
       const mirror = profileImageState(profile, "cover");
-      const rotationOnly = !(mirror.objectKey && mirror.generation === row.generation);
-      if (!rotationOnly) return null;
+      const mirrorMatches = Boolean(mirror.objectKey && mirror.generation === row.generation);
+      // A matching rotation row is only a duplicate after its profile mirror
+      // has entered the same moderation lane. Until then, keep it as a
+      // profile-level row so a rotation report cannot disappear before the
+      // mirror report syncs.
+      const mirrorAlreadyQueued =
+        mirrorMatches &&
+        (status === "hidden"
+          ? mirror.moderationState === "hidden"
+          : mirror.moderationState === "approved" &&
+            (mirror.reportCount ?? 0) > 0 &&
+            !mirror.moderatedAt);
+      if (mirrorAlreadyQueued) return null;
+      const rotationOnly = !mirrorMatches;
       return toModeratorProfileCover(row, profile.handle, rotationOnly);
     }),
   );
@@ -100,6 +112,10 @@ export async function GET(request: Request): Promise<Response> {
 
 export async function POST(request: Request): Promise<Response> {
   if (!isModerator(request)) return forbidden();
+  const ipKey = hashIp(clientIp(request));
+  if (await isLimited(`admin-avatars:${ipKey}`, `admin-avatars:${ipKey}`)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;
