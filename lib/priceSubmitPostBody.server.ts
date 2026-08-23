@@ -13,17 +13,21 @@ export async function parsePriceSubmitPostBody(
 ): Promise<PriceSubmitPostBody | null> {
   const type = request.headers.get("content-type") ?? "";
   if (type.includes("multipart/form-data")) {
-    const form = await request.formData();
-    const fields: Record<string, unknown> = {};
-    const photos: PintDropPhotos = { pint: null, venue: null };
-    for (const [key, value] of form.entries()) {
-      if (key === "pint_photo" && value instanceof File && value.size > 0) {
-        photos.pint = value;
-      } else if (typeof value === "string") {
-        fields[key] = value;
+    try {
+      const form = await request.formData();
+      const fields: Record<string, unknown> = {};
+      const photos: PintDropPhotos = { pint: null, venue: null };
+      for (const [key, value] of form.entries()) {
+        if (key === "pint_photo" && value instanceof File && value.size > 0) {
+          photos.pint = value;
+        } else if (typeof value === "string") {
+          fields[key] = value;
+        }
       }
+      return { fields, photos };
+    } catch {
+      return null;
     }
-    return { fields, photos };
   }
   try {
     return {
