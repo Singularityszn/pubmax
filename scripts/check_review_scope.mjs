@@ -51,7 +51,7 @@ function isGeneratedPath(path) {
 }
 
 function runtimeDomain(path, category) {
-  if (category !== "source" && category !== "migration") return null;
+  if (category !== "source") return null;
   const root = path.split("/", 1)[0];
   return SOURCE_ROOTS.has(root) ? root : null;
 }
@@ -132,13 +132,13 @@ export function summarizeReviewScope(values) {
   };
 }
 
-function changedFilesFromGit(base, head, cwd) {
+export function changedFilesFromGit(base, head, cwd) {
   const output = execFileSync(
     "git",
-    ["diff", "--name-only", "--diff-filter=ACMR", base, head],
+    ["diff", "--name-only", "--diff-filter=ACMRD", base, head],
     { cwd, encoding: "utf8" },
   );
-  return output.split("\n");
+  return output.split("\n").filter(Boolean);
 }
 
 function usage() {

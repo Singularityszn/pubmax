@@ -1,6 +1,11 @@
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { tmpdir } from "node:os";
 import { describe, expect, it } from "vitest";
 
 import {
+  changedFilesFromGit,
   MAX_REVIEW_FILES,
   MAX_RUNTIME_DOMAINS,
   summarizeReviewScope,
@@ -29,7 +34,7 @@ describe("review scope guard", () => {
     expect(report.categories.migration).toEqual([
       "supabase/migrations/0114_review_scope.sql",
     ]);
-    expect(report.domains).toEqual(["app", "lib", "supabase"]);
+    expect(report.domains).toEqual(["app", "lib"]);
   });
 
   it("warns only after the runtime-domain and file-count thresholds", () => {
@@ -78,5 +83,34 @@ describe("review scope guard", () => {
     );
     expect(legitimateLargeReview.ok).toBe(true);
     expect(legitimateLargeReview.warnings).not.toEqual([]);
+  });
+
+  it("keeps deleted generated paths in the changed-file report", () => {
+    const repo = mkdtempSync(join(tmpdir(), "pubmax-review-scope-"));
+    const git = (...args: string[]) =>
+      execFileSync("git", args, { cwd: repo, encoding: "utf8", stdio: "pipe" }).trim();
+
+    try {
+      git("init", "-q");
+      git("config", "user.email", "review-scope@example.invalid");
+      git("config", "user.name", "Review Scope Test");
+      mkdirSync(join(repo, "data/generated"), { recursive: true });
+      writeFileSync(join(repo, "data/generated/venues.json"), "{}\n");
+      git("add", ".");
+      git("commit", "-qm", "seed generated path");
+      const base = git("rev-parse", "HEAD");
+      rmSync(join(repo, "data/generated/venues.json"));
+      git("commit", "-am", "delete generated path");
+      const head = git("rev-parse", "HEAD");
+
+      expect(changedFilesFromGit(base, head, repo)).toEqual([
+        "data/generated/venues.json",
+      ]);
+      expect(summarizeReviewScope(changedFilesFromGit(base, head, repo)).forbidden).toEqual([
+        { category: "generated", path: "data/generated/venues.json" },
+      ]);
+    } finally {
+      rmSync(repo, { recursive: true, force: true });
+    }
   });
 });

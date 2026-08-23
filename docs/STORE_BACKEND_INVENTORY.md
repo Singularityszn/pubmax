@@ -132,5 +132,6 @@ other stores to migrate.
 evidence, test, configuration, documentation, skill-pack, and other paths.
 It warns when a review crosses more than two runtime domains or more
 than 150 files. It fails only when generated or skill-pack paths are present.
+Migration files remain in their own category and do not add a runtime domain.
 CI passes the pull request base and head SHAs to the script, so the report
 matches the reviewed diff rather than the checkout's default range.
