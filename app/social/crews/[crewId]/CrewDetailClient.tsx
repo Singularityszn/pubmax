@@ -60,8 +60,9 @@ export default function CrewDetailClient({
   invitationId: string | null;
 }) {
   const router = useRouter();
-  const { identityResolved, user } = useAuth();
-  const identityKey = user?.id ?? "signed-out";
+  const { accountRevision, identityResolved } = useAuth();
+  const identityKey = String(accountRevision);
+  const scopeKey = `${crewId}:${identityKey}:${identityResolved ? "resolved" : "unresolved"}`;
   const [status, setStatus] = useState<LoadState>("loading");
   const [crew, setCrew] = useState<SocialCrewReadDTO | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -83,30 +84,33 @@ export default function CrewDetailClient({
   const [loadedIdentityKey, setLoadedIdentityKey] = useState<string | null>(null);
   const searchDebounce = useRef<ReturnType<typeof setTimeout> | null>(null);
   const joinRequestHeading = useRef<HTMLHeadingElement | null>(null);
+  const previousScopeKey = useRef(scopeKey);
+  const queueRefreshAuthorityRevision = useRef<number | null>(null);
 
   useEffect(() => {
-    if (identityResolved) return;
-    let cancelled = false;
+    if (previousScopeKey.current === scopeKey) return;
+    previousScopeKey.current = scopeKey;
     void Promise.resolve().then(() => {
-      if (cancelled) return;
+      if (previousScopeKey.current !== scopeKey) return;
       setCrew(null);
       setStatus("loading");
+      setBusy(false);
       setNotice(null);
       setProblem(null);
       setViewerHandle("");
       setLot([]);
+      setQuery("");
       setMatches([]);
       setInviteLink(null);
+      setCopied(false);
       setJoinRequests([]);
       setJoinRequestsHaveMore(false);
       setJoinRequestStatus("idle");
       setFocusJoinRequests(false);
       setLoadedIdentityKey(null);
+      queueRefreshAuthorityRevision.current = null;
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [identityResolved]);
+  }, [scopeKey]);
 
   useEffect(() => {
     if (!identityResolved) return;
@@ -119,8 +123,14 @@ export default function CrewDetailClient({
       signal: controller.signal,
     })
       .then(async (response) => {
-        if (response.status === 404) return "missing" as const;
-        if (!response.ok) throw new Error("Crew unavailable");
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Crew unavailable");
+        }
         const read = parseCrewRead(await response.json());
         if (!read) throw new Error("Crew malformed");
         return read;
@@ -184,8 +194,14 @@ export default function CrewDetailClient({
       },
     )
       .then(async (response) => {
-        if (response.status === 404) return "missing" as const;
-        if (!response.ok) throw new Error("Join requests unavailable");
+        if (response.status === 404) {
+          discardBody(response);
+          return "missing" as const;
+        }
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error("Join requests unavailable");
+        }
         const queue = parseCrewJoinRequestQueue(await response.json());
         if (!queue) throw new Error("Join requests malformed");
         return queue;
@@ -196,7 +212,15 @@ export default function CrewDetailClient({
           setJoinRequests([]);
           setJoinRequestsHaveMore(false);
           setJoinRequestStatus("idle");
-          setAttempt((value) => value + 1);
+          const authorityRevision =
+            crew?.kind === "member" ? crew.authorityRevision : null;
+          if (
+            authorityRevision !== null &&
+            queueRefreshAuthorityRevision.current !== authorityRevision
+          ) {
+            queueRefreshAuthorityRevision.current = authorityRevision;
+            setAttempt((value) => value + 1);
+          }
           return;
         }
         setJoinRequests(queue.items);

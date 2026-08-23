@@ -344,6 +344,8 @@ export default async function RootLayout({
             appearance re-skins Clerk chrome in PUBMAXX tokens. */}
         {isClerkConfigured() ? (
           <ClerkProvider appearance={clerkAppearance}>
+            {/* Publish opaque provider readiness and account revisions before
+                Social surfaces decide whether protected state is available. */}
             <ClerkAuthRevision />
             {/* AuthProvider is additive: it establishes identity for signed-in users
                 but never gates a route — anonymous browsing stays fully public. The
