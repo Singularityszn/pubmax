@@ -6,12 +6,21 @@ const CASES = [
     viewport: { width: 390, height: 844 },
     path: "/",
     selector: ".lpWordmark .pubmaxxWordmark",
+    hostSelector: ".lpWordmark",
+  },
+  {
+    label: "mobile app navigation",
+    viewport: { width: 390, height: 844 },
+    path: "/today",
+    selector: ".siteNavBrand .pubmaxxWordmark",
+    hostSelector: ".siteNavBrand",
   },
   {
     label: "desktop navigation",
     viewport: { width: 1440, height: 900 },
     path: "/map",
     selector: ".siteNavBrand .pubmaxxWordmark",
+    hostSelector: ".siteNavBrand",
   },
 ] as const;
 
@@ -42,11 +51,16 @@ for (const view of CASES) {
         const visibleParts = root.querySelectorAll(
           ".pubmaxxWordmarkLetters, .pubmaxxWordmarkLetters > span, .pubmaxxDoubleX svg",
         );
-        return [...visibleParts].every((part) => {
+        return root.scrollWidth <= root.clientWidth && [...visibleParts].every((part) => {
           const box = part.getBoundingClientRect();
           return box.left >= bounds.left && box.right <= bounds.right;
         });
       }),
     ).toBe(true);
+    const host = page.locator(view.hostSelector).first();
+    const hostBox = await host.boundingBox();
+    expect(hostBox).not.toBeNull();
+    expect(box!.x).toBeGreaterThanOrEqual(hostBox!.x);
+    expect(box!.x + box!.width).toBeLessThanOrEqual(hostBox!.x + hostBox!.width);
   });
 }
