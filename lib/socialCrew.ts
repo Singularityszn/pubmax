@@ -30,6 +30,70 @@ export type SocialCrewJoinRequestState =
   | "cancelled"
   | "expired";
 
+export type SocialCrewJoinRequestDTO = {
+  requestId: string;
+  requesterHandle: string;
+};
+
+export type SocialCrewJoinRequestQueueDTO = {
+  items: SocialCrewJoinRequestDTO[];
+  hasMore: boolean;
+};
+
+const SOCIAL_CREW_UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function socialCrewRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function socialCrewExactRecordKeys(
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean {
+  const expected = new Set(keys);
+  return Object.keys(value).length === expected.size &&
+    Object.keys(value).every((key) => expected.has(key));
+}
+
+export function parseSocialCrewJoinRequestQueue(
+  value: unknown,
+): SocialCrewJoinRequestQueueDTO | null {
+  if (
+    !socialCrewRecord(value) ||
+    !socialCrewExactRecordKeys(value, ["items", "hasMore"]) ||
+    !Array.isArray(value.items) ||
+    typeof value.hasMore !== "boolean"
+  ) {
+    return null;
+  }
+  const items: SocialCrewJoinRequestDTO[] = [];
+  const requestIds = new Set<string>();
+  if (value.items.length > 50) return null;
+  for (const candidate of value.items) {
+    if (
+      !socialCrewRecord(candidate) ||
+      !socialCrewExactRecordKeys(candidate, [
+        "requestId",
+        "requesterHandle",
+      ]) ||
+      typeof candidate.requestId !== "string" ||
+      !SOCIAL_CREW_UUID_RE.test(candidate.requestId) ||
+      typeof candidate.requesterHandle !== "string" ||
+      candidate.requesterHandle.trim().length === 0 ||
+      requestIds.has(candidate.requestId)
+    ) {
+      return null;
+    }
+    requestIds.add(candidate.requestId);
+    items.push({
+      requestId: candidate.requestId,
+      requesterHandle: candidate.requesterHandle,
+    });
+  }
+  return { items, hasMore: value.hasMore };
+}
+
 export type SocialCrewMemberDTO = {
   memberId: string;
   handle: string;

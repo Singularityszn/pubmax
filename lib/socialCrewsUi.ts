@@ -12,15 +12,14 @@
 // crews have a separate account-free preview and still require verified Social
 // authority before somebody can ask to join.
 //
-// Two seams the API genuinely does not have, so no copy here may imply them:
-// there is no read of invitations addressed to you, and no read of the join
-// requests waiting on a crew you host. An invitation is reachable only through
-// the link its host sends (crewId + invitationId), the same way a plan invite
-// already travels in lib/planCrewInviteUrl.ts.
+// There is no read of invitations addressed to you. An invitation is reachable
+// only through the link its host sends (crewId + invitationId), the same way a
+// plan invite already travels in lib/planCrewInviteUrl.ts.
 
 import type {
   SocialCrewListItemDTO,
   SocialCrewListPageDTO,
+  SocialCrewJoinRequestQueueDTO,
   SocialCrewMemberDTO,
   SocialCrewPageDTO,
   SocialCrewPhase,
@@ -29,7 +28,11 @@ import type {
   SocialCrewRole,
   SocialCrewVisibility,
 } from "@/lib/socialCrew";
-import { isSocialCrewRole, isSocialCrewVisibility } from "@/lib/socialCrew";
+import {
+  isSocialCrewRole,
+  isSocialCrewVisibility,
+  parseSocialCrewJoinRequestQueue,
+} from "@/lib/socialCrew";
 import type { OpenPlanPlaceKind } from "@/lib/openSocialCrew";
 
 /**
@@ -148,6 +151,12 @@ export function crewPath(crewId: string): string {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+export function parseCrewJoinRequestQueue(
+  value: unknown,
+): SocialCrewJoinRequestQueueDTO | null {
+  return parseSocialCrewJoinRequestQueue(value);
 }
 
 function isPhase(value: unknown): value is SocialCrewPhase {
@@ -379,10 +388,7 @@ export function startCrewPlanBody(input: StartCrewInput): Record<string, unknown
 }
 
 /**
- * A crew starts invite-only. `friends` opens it to ask-to-join, and the host
- * has no read of who asked, so opening it would promise an inbox that is not
- * there. The composer keeps the honest default and the detail surface offers
- * the switch with copy that only claims what the reader can act on.
+ * A crew starts invite-only. Visibility changes stay an explicit host choice.
  */
 export const CREW_DEFAULT_VISIBILITY: SocialCrewVisibility = "private";
 

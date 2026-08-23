@@ -12,6 +12,8 @@ import {
   parseSocialCrewPublicPreviewSource,
   type SocialCrewMutationResult,
   type SocialCrewMutationCode,
+  type SocialCrewJoinRequestQueueDTO,
+  parseSocialCrewJoinRequestQueue,
   type SocialCrewListPageDTO,
   type SocialCrewReadDTO,
   type SocialCrewPublicPreviewSource,
@@ -52,6 +54,7 @@ export type SocialCrewRpcName =
 export type SocialCrewSnapshotRpcName =
   | "read_social_crew_snapshot"
   | "read_social_crew_member_page"
+  | "read_social_crew_join_requests"
   | "list_open_social_crews"
   | "read_social_crew_public_preview";
 
@@ -126,6 +129,10 @@ export type SocialCrewStore = {
     city: string;
     limit?: number;
   }): Promise<OutOpenPlan[]>;
+  listJoinRequests(
+    crewId: string,
+    actor: SocialPostActor,
+  ): Promise<SocialCrewJoinRequestQueueDTO>;
   create(actor: SocialPostActor, input: CreateInput): Promise<SocialCrewMutationResult>;
   invite(actor: SocialPostActor, input: InviteInput): Promise<SocialCrewMutationResult>;
   acceptInvitation(actor: SocialPostActor, input: InvitationActionInput): Promise<SocialCrewMutationResult>;
@@ -557,6 +564,23 @@ export function createSocialCrewStore(
         parsed.push(plan);
       }
       return parsed.slice(0, OPEN_PLAN_LIST_LIMIT);
+    },
+
+    async listJoinRequests(crewId, actor) {
+      if (!isUuid(crewId) || !validActor(actor)) return notFound();
+      let snapshot: unknown;
+      try {
+        snapshot = await dependencies.snapshot("read_social_crew_join_requests", {
+          p_viewer_account_id: actor.accountId,
+          p_viewer_profile_id: actor.profileId,
+          p_crew_id: crewId,
+        });
+      } catch {
+        return unavailable();
+      }
+      if (snapshot === null) return notFound();
+      const queue = parseSocialCrewJoinRequestQueue(snapshot);
+      return queue ?? unavailable();
     },
 
     create(actor, input) {
