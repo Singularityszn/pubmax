@@ -27,6 +27,26 @@ export function socialCrewPrivateJson(body: unknown, init: ResponseInit = {}): R
   return Response.json(body, { ...init, headers });
 }
 
+/** Public preview contains only current, listed meeting data. */
+export function socialCrewPublicJson(body: unknown, init: ResponseInit = {}): Response {
+  const headers = new Headers(init.headers);
+  headers.set("Cache-Control", "no-store");
+  return Response.json(body, { ...init, headers });
+}
+
+export function socialCrewPublicNotFoundResponse(): Response {
+  return publicApiError("Social Crew not found.", "SOCIAL_CREW_NOT_FOUND", 404, {
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
+export function socialCrewPublicUnavailableResponse(): Response {
+  return publicApiError("Social Crew is unavailable right now.", "SOCIAL_CREW_UNAVAILABLE", 503, {
+    retryable: true,
+    headers: { "Cache-Control": "no-store" },
+  });
+}
+
 export function socialCrewInvalidResponse(): Response {
   return publicApiError("Social Crew request is not valid.", "INVALID_SOCIAL_CREW_REQUEST", 422, { headers: { "Cache-Control": "private, no-store" } });
 }
@@ -149,6 +169,23 @@ export function socialCrewErrorResponse(error: unknown): Response {
     }
   }
   return socialCrewUnavailableResponse();
+}
+
+export function socialCrewPublicErrorResponse(error: unknown): Response {
+  if (error instanceof SocialCrewStoreError) {
+    if (error.code === "INVALID") {
+      return publicApiError("Social Crew request is not valid.", "INVALID_SOCIAL_CREW_REQUEST", 422, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+    if (error.code === "NOT_FOUND") return socialCrewPublicNotFoundResponse();
+    if (error.code === "CONFLICT") {
+      return publicApiError("Social Crew changed before this request.", "SOCIAL_CREW_CONFLICT", 409, {
+        headers: { "Cache-Control": "no-store" },
+      });
+    }
+  }
+  return socialCrewPublicUnavailableResponse();
 }
 
 export async function socialCrewMutation(

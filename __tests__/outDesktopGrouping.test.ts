@@ -137,7 +137,7 @@ describe("out desktop grouping", () => {
     );
   });
 
-  it("hides Open plans until at least three sendable plans exist", () => {
+  it("shows Open plans when one sendable plan exists", () => {
     const sendable = openPlan({ crewId: "crew-1", title: "Soft plan" });
     const unsendable = openPlan({
       crewId: "crew-2",
@@ -145,15 +145,9 @@ describe("out desktop grouping", () => {
       meetingPoint: null,
     });
 
-    expect(OUT_OPEN_PLANS_MIN_SENDABLE).toBe(3);
+    expect(OUT_OPEN_PLANS_MIN_SENDABLE).toBe(1);
     expect(sendableOpenPlans([sendable, unsendable, sendable, sendable])).toHaveLength(3);
-    expect(outOpenPlansSectionVisible([sendable, unsendable])).toBe(false);
-    expect(
-      outOpenPlansSectionVisible([
-        sendable,
-        openPlan({ crewId: "crew-3", title: "Third" }),
-        openPlan({ crewId: "crew-4", title: "Fourth" }),
-      ]),
-    ).toBe(true);
+    expect(outOpenPlansSectionVisible([sendable, unsendable])).toBe(true);
+    expect(outOpenPlansSectionVisible([unsendable])).toBe(false);
   });
 });
