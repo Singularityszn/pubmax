@@ -150,6 +150,56 @@ describe("profile avatar moderation (memory backend)", () => {
     expect((await profileCoverPhotoStore().listApproved(profile!.id))[0]?.id).toBe(coverId);
   });
 
+  it("keeps mirror covers in the profile queue and restores them without a cover id", async () => {
+    await profileStore().createOwned("mirror", "user-mirror");
+    const profile = await profileStore().getByHandle("mirror");
+    expect(profile).toBeTruthy();
+    const generation = "66666666-6666-4666-8666-666666666666";
+    const approved = await profileStore().setOwnedImage("mirror", "cover", {
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+      generation,
+      moderationState: "approved",
+    });
+    expect(approved?.coverModerationState).toBe("approved");
+    const rotationId = "88888888-8888-4888-8888-888888888888";
+    await memoryProfileCoverPhotoStore.create({
+      id: rotationId,
+      profileId: profile!.id,
+      generation,
+      objectKey: profileImageServingKey("cover", profile!.id, generation),
+    });
+    await memoryProfileCoverPhotoStore.report(rotationId, "same backdrop", "actor-mirror");
+    await reportProfileImage("mirror", "cover", "wrong backdrop", "actor-mirror");
+
+    const reported = await adminGET(new Request(`${ADMIN_URL}?status=reported&slot=cover`));
+    const reportedBody = (await reported.json()) as {
+      avatars: Array<Record<string, unknown>>;
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(reportedBody.avatars).toHaveLength(1);
+    expect(reportedBody.avatars[0]).toMatchObject({ handle: "mirror", reportCount: 1 });
+    expect(reportedBody.rotationCovers).toEqual([]);
+
+    expect(
+      (await adminPost({ action: "hide", handle: "mirror", slot: "cover" })).status,
+    ).toBe(200);
+    const hidden = await adminGET(new Request(`${ADMIN_URL}?status=hidden&slot=cover`));
+    const hiddenBody = (await hidden.json()) as {
+      avatars: Array<Record<string, unknown>>;
+      rotationCovers: Array<Record<string, unknown>>;
+    };
+    expect(hiddenBody.avatars).toHaveLength(1);
+    expect(hiddenBody.avatars[0]).toMatchObject({ handle: "mirror", moderationState: "hidden" });
+    expect(hiddenBody.rotationCovers).toEqual([]);
+
+    expect(
+      (await adminPost({ action: "restore", handle: "mirror", slot: "cover" })).status,
+    ).toBe(200);
+    expect(
+      publicOwnedImageUrl((await profileStore().getByHandle("mirror"))!, "cover"),
+    ).toBe(`/api/cover/${profile!.id}/${generation}`);
+  });
+
   afterAll(() => {
     if (ORIGINAL_ADMIN_TOKEN === undefined) delete process.env.ADMIN_TOKEN;
     else process.env.ADMIN_TOKEN = ORIGINAL_ADMIN_TOKEN;

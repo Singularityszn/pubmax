@@ -77,7 +77,7 @@ type ModeratorVisitReport = {
 
 // Moderator owned-avatar row as returned by GET /api/admin/profile-avatars
 // ?status=reported|hidden. Reporter actor hashes never ride along.
-type ModeratorProfileAvatar = {
+export type ModeratorProfileAvatar = {
   handle: string;
   profileId: string;
   generation: string;
@@ -90,7 +90,7 @@ type ModeratorProfileAvatar = {
   previewUrl?: string;
 };
 
-type ModeratorProfileCover = {
+export type ModeratorProfileCover = {
   id: string;
   profileId: string;
   handle: string;
@@ -105,6 +105,25 @@ type ModeratorProfileCover = {
   previewUrl?: string;
   rotationOnly: boolean;
 };
+
+/** Turn the profile mirror row into the same cover queue shape as a rotation row. */
+export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): ModeratorProfileCover {
+  return {
+    id: `profile-cover:${avatar.profileId}`,
+    profileId: avatar.profileId,
+    handle: avatar.handle,
+    position: 1,
+    generation: avatar.generation,
+    moderationState: avatar.moderationState,
+    reportCount: avatar.reportCount,
+    ...(avatar.reportedAt ? { reportedAt: avatar.reportedAt } : {}),
+    ...(avatar.reportReason ? { reportReason: avatar.reportReason } : {}),
+    ...(avatar.moderatedAt ? { moderatedAt: avatar.moderatedAt } : {}),
+    ...(avatar.moderatorNote ? { moderatorNote: avatar.moderatorNote } : {}),
+    ...(avatar.previewUrl ? { previewUrl: avatar.previewUrl } : {}),
+    rotationOnly: false,
+  };
+}
 
 type AdminTab = "moderation" | "import" | "operators";
 
@@ -178,8 +197,8 @@ async function readQueueResponse<T extends object>(response: Response): Promise<
 async function loadProfileModerationQueues(): Promise<{
   reportedAvatars: ModeratorProfileAvatar[];
   hiddenAvatars: ModeratorProfileAvatar[];
-  reportedRotationCovers: ModeratorProfileCover[];
-  hiddenRotationCovers: ModeratorProfileCover[];
+  reportedCovers: ModeratorProfileCover[];
+  hiddenCovers: ModeratorProfileCover[];
 }> {
   const [reportedAvatarResponse, hiddenAvatarResponse, reportedCoverResponse, hiddenCoverResponse] =
     await Promise.all([
@@ -192,14 +211,28 @@ async function loadProfileModerationQueues(): Promise<{
     await Promise.all([
       readQueueResponse<{ avatars?: ModeratorProfileAvatar[] }>(reportedAvatarResponse),
       readQueueResponse<{ avatars?: ModeratorProfileAvatar[] }>(hiddenAvatarResponse),
-      readQueueResponse<{ rotationCovers?: ModeratorProfileCover[] }>(reportedCoverResponse),
-      readQueueResponse<{ rotationCovers?: ModeratorProfileCover[] }>(hiddenCoverResponse),
+      readQueueResponse<{
+        avatars?: ModeratorProfileAvatar[];
+        rotationCovers?: ModeratorProfileCover[];
+      }>(reportedCoverResponse),
+      readQueueResponse<{
+        avatars?: ModeratorProfileAvatar[];
+        rotationCovers?: ModeratorProfileCover[];
+      }>(hiddenCoverResponse),
     ]);
+  const reportedCovers = [
+    ...(reportedCoverBody.avatars ?? []).map(profileCoverFromAvatar),
+    ...(reportedCoverBody.rotationCovers ?? []),
+  ];
+  const hiddenCovers = [
+    ...(hiddenCoverBody.avatars ?? []).map(profileCoverFromAvatar),
+    ...(hiddenCoverBody.rotationCovers ?? []),
+  ];
   return {
     reportedAvatars: reportedAvatarBody.avatars ?? [],
     hiddenAvatars: hiddenAvatarBody.avatars ?? [],
-    reportedRotationCovers: reportedCoverBody.rotationCovers ?? [],
-    hiddenRotationCovers: hiddenCoverBody.rotationCovers ?? [],
+    reportedCovers,
+    hiddenCovers,
   };
 }
 
@@ -219,8 +252,8 @@ export default function AdminClient() {
   const [hiddenPhotos, setHiddenPhotos] = useState<ModeratorVenuePhoto[]>([]);
   const [reportedAvatars, setReportedAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
-  const [reportedRotationCovers, setReportedRotationCovers] = useState<ModeratorProfileCover[]>([]);
-  const [hiddenRotationCovers, setHiddenRotationCovers] = useState<ModeratorProfileCover[]>([]);
+  const [reportedCovers, setReportedCovers] = useState<ModeratorProfileCover[]>([]);
+  const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
   const [pendingId, setPendingId] = useState<string | null>(null);
@@ -420,13 +453,13 @@ export default function AdminClient() {
         const queues = await loadProfileModerationQueues();
         setReportedAvatars(queues.reportedAvatars);
         setHiddenAvatars(queues.hiddenAvatars);
-        setReportedRotationCovers(queues.reportedRotationCovers);
-        setHiddenRotationCovers(queues.hiddenRotationCovers);
+        setReportedCovers(queues.reportedCovers);
+        setHiddenCovers(queues.hiddenCovers);
       } catch {
         setReportedAvatars([]);
         setHiddenAvatars([]);
-        setReportedRotationCovers([]);
-        setHiddenRotationCovers([]);
+        setReportedCovers([]);
+        setHiddenCovers([]);
       }
       if (reported.length + hidden.length === 0) {
         setMessage(adminStatus("No reported drops in the queue."));
@@ -633,7 +666,7 @@ export default function AdminClient() {
             action,
             handle: cover.handle,
             slot: "cover",
-            coverId: cover.id,
+            ...(cover.rotationOnly ? { coverId: cover.id } : {}),
           }),
         });
         if (res.status === 403) {
@@ -646,8 +679,8 @@ export default function AdminClient() {
           setMessage(adminAlert("Action failed. Try again."));
           return;
         }
-        setReportedRotationCovers((current) => current.filter((row) => row.id !== cover.id));
-        setHiddenRotationCovers((current) => {
+        setReportedCovers((current) => current.filter((row) => row.id !== cover.id));
+        setHiddenCovers((current) => {
           const without = current.filter((row) => row.id !== cover.id);
           return action === "hide"
             ? [{ ...cover, moderationState: "hidden" }, ...without]
@@ -1428,14 +1461,14 @@ export default function AdminClient() {
           <p className="admin-sub">
             Check reported photos in a profile rotation. Keep the good visible, hide the rest.
           </p>
-          {reportedRotationCovers.length === 0 ? (
+          {reportedCovers.length === 0 ? (
             <div className="admin-empty">
               <strong>No reported cover photos</strong>
               <span>Rotation photos appear here after a reader reports one.</span>
             </div>
           ) : (
             <div className="admin-list">
-              {reportedRotationCovers.map((cover) => (
+              {reportedCovers.map((cover) => (
                 <article className="admin-card" key={cover.id}>
                   <div className="admin-card-head">
                     <span className="admin-handle">{cover.handle}</span>
@@ -1487,14 +1520,14 @@ export default function AdminClient() {
           <p className="admin-sub">
             Cover photos a moderator has hidden. Hiding never deletes one, so it can be restored.
           </p>
-          {hiddenRotationCovers.length === 0 ? (
+          {hiddenCovers.length === 0 ? (
             <div className="admin-empty">
               <strong>No hidden cover photos</strong>
               <span>Hidden rotation photos appear here after moderation.</span>
             </div>
           ) : (
             <div className="admin-list">
-              {hiddenRotationCovers.map((cover) => (
+              {hiddenCovers.map((cover) => (
                 <article className="admin-card" key={cover.id}>
                   <div className="admin-card-head">
                     <span className="admin-handle">{cover.handle}</span>

@@ -60,7 +60,7 @@ async function listRotationCovers(
       if (!profile) return null;
       const mirror = profileImageState(profile, "cover");
       const rotationOnly = !(mirror.objectKey && mirror.generation === row.generation);
-      if (status === "hidden" && !rotationOnly) return null;
+      if (!rotationOnly) return null;
       return toModeratorProfileCover(row, profile.handle, rotationOnly);
     }),
   );

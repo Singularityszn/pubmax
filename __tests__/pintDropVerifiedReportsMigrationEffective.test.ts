@@ -10,6 +10,14 @@ const MIGRATION_PATH = join(
   process.cwd(),
   "supabase/migrations/20260821120000_0112_pint_drop_verified_reports.sql",
 );
+const REOPEN_MIGRATION_PATH = join(
+  process.cwd(),
+  "supabase/migrations/20260823090000_0116_reopen_pint_drop_review.sql",
+);
+const REOPEN_ROLLBACK_PATH = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20260823090000_0116_reopen_pint_drop_review_rollback.sql",
+);
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
   const candidates = [
@@ -48,6 +56,7 @@ async function freePort(): Promise<number> {
 type Session = {
   sql: (statement: string) => string;
   expectRefusal: (statement: string) => string;
+  apply: (path: string) => void;
   stop: () => Promise<void>;
 };
 
@@ -57,7 +66,7 @@ async function startSession(): Promise<Session> {
   const psql = binary("psql");
   if (!initdb || !postgres || !psql) throw new Error("PostgreSQL 16 is required.");
 
-  const dataDir = mkdtempSync(join(tmpdir(), "pubmax-pint-drop-0112-"));
+    const dataDir = mkdtempSync(join(tmpdir(), "pubmax-pint-drop-0112-0116-"));
   const port = await freePort();
   execFileSync(
     initdb,
@@ -131,8 +140,10 @@ async function startSession(): Promise<Session> {
       create table public.visit_reports (
         id uuid primary key,
         report_count integer not null default 0,
+        verified_report_count integer not null default 0,
         reported_at timestamptz,
         report_reason text,
+        moderated_at timestamptz,
         status text not null default 'visible'
       );
       create table public.pint_drop_reports (
@@ -146,6 +157,9 @@ async function startSession(): Promise<Session> {
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
       stdio: "pipe",
     });
+    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", REOPEN_MIGRATION_PATH], {
+      stdio: "pipe",
+    });
   } catch (error) {
     await teardown();
     throw error;
@@ -154,6 +168,11 @@ async function startSession(): Promise<Session> {
   return {
     sql,
     expectRefusal,
+    apply: (path: string) => {
+      execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", path], {
+        stdio: "pipe",
+      });
+    },
     stop: teardown,
   };
 }
@@ -172,7 +191,9 @@ let skipReason: string | null = null;
 beforeAll(async () => {
   skipReason = missingPostgresReason();
   if (skipReason) {
-    console.error(`PINT DROP 0112 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`);
+    console.error(
+      `PINT DROP 0112 + 0116 EFFECTIVE TESTS SKIPPED - THIS IS NOT A PASS: ${skipReason}`,
+    );
     return;
   }
   session = await startSession();
@@ -186,7 +207,7 @@ afterAll(async () => {
   await session?.stop();
 });
 
-describe("0112 verified Pint Drop report ledger", () => {
+describe("0112 verified ledger and 0116 report reopening", () => {
   it("does not let a legacy anonymous count hide a visible Pint Drop", () => {
     const id = "00000000-0000-4000-8000-000000000112";
       session!.sql(`
@@ -243,5 +264,65 @@ describe("0112 verified Pint Drop report ledger", () => {
         "set role service_role; select has_table_privilege('service_role', 'public.pint_drop_verified_reports', 'select')",
       ),
     ).toMatch(/t$/);
+    expect(
+      session!.sql(
+        "select has_function_privilege('service_role', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        "select has_function_privilege('anon', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('authenticated', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
+      ),
+    ).toBe("f");
+  });
+
+  it("clears a prior moderation decision only for a new verified actor", () => {
+    const id = "00000000-0000-4000-8000-000000000114";
+    session!.sql(`
+      insert into public.visit_reports (id, moderated_at)
+      values ('${id}', '2026-08-23 08:00:00+00');
+    `);
+
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-new', '', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at is null)::text || ':' || verified_report_count || ':' || status from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1:visible");
+
+    session!.sql(`update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00' where id = '${id}'`);
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-new', 'duplicate', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at = timestamptz '2026-08-23 08:30:00+00')::text || ':' || verified_report_count from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1");
+  });
+
+  it("rollback restores the pre-reopen function behavior", () => {
+    session!.apply(REOPEN_ROLLBACK_PATH);
+    const id = "00000000-0000-4000-8000-000000000116";
+    session!.sql(`
+      insert into public.visit_reports (id, moderated_at)
+      values ('${id}', '2026-08-23 08:00:00+00');
+    `);
+
+    expect(
+      session!.sql(`select public.report_pint_drop_v2('${id}', 'account-rollback', '', 2)`),
+    ).toBe("1");
+    expect(
+      session!.sql(
+        `select (moderated_at = timestamptz '2026-08-23 08:00:00+00')::text || ':' || verified_report_count || ':' || status from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("true:1:visible");
   });
 });
