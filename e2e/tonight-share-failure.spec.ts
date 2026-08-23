@@ -43,8 +43,11 @@ test(`${viewport.label} Tonight share failure keeps status below its action`, as
 
   const actionBox = await share.boundingBox();
   const statusBox = await status.boundingBox();
+  const eyebrowBox = await page.locator(".tonightEyebrow").boundingBox();
   expect(actionBox).not.toBeNull();
   expect(statusBox).not.toBeNull();
+  expect(eyebrowBox).not.toBeNull();
+  expect(Math.abs(eyebrowBox!.y - actionBox!.y)).toBeLessThanOrEqual(1);
   expect(statusBox!.y, "share failure status should start below its action").toBeGreaterThanOrEqual(
     actionBox!.y + actionBox!.height,
   );
