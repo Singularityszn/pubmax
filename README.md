@@ -102,7 +102,6 @@ Local keyless demos may leave it empty to keep labelled seed content visible.
 - **[`docs/CRON_PLANE_RUNBOOK.md`](docs/CRON_PLANE_RUNBOOK.md)** - scheduler, auth, failure posture, and honest freshness boundaries.
 - **[`docs/LOCAL_REFRESH_SCHEDULER.md`](docs/LOCAL_REFRESH_SCHEDULER.md)** - local launchd acquisition, resource gates, logs, and review-PR operation.
 - **[`docs/WAYFINDER_LIVE_DATA.md`](docs/WAYFINDER_LIVE_DATA.md)** - source, cadence, gate, and staleness policy for every data class.
-- **[`docs/NIGHT_OUT_PLACE_INGEST.md`](docs/NIGHT_OUT_PLACE_INGEST.md)** - provenance and freshness contract for automated place discovery and hand-curated venue packs.
 - **[`docs/REFERRALS.md`](docs/REFERRALS.md)** - private attribution, qualification, and the mark-of-honour law: a milestone confers recognition, never a capability.
 - **[`data/README.md`](data/README.md)** - pint-price source lineage, app-dataset build, and fail-loud postcode-coordinate decision rules.
 - **`docs/DEMO_DECK.md`** — demo script.

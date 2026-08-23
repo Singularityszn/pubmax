@@ -571,7 +571,7 @@ type LateFoodApiSuccessResponse = {
 
 ### Invariants (#252, honoured)
 
-- Records returned by `/api/late-food` remain modelled **separately** from the Venue Dataset: no `venueId`, pint prices, or pub amenities. `anchor` is one named, dated, operator-sourced dish price, never a pint price and never a menu. Hand-curated `kind: food` and `kind: restaurant` map pins are a separate discovery lane governed by [`NIGHT_OUT_PLACE_INGEST.md`](NIGHT_OUT_PLACE_INGEST.md); their sourced item anchors are not pint prices, and they are excluded from Pint Drops.
+- Records returned by `/api/late-food` remain modelled **separately** from the Venue Dataset: no `venueId`, pint prices, or pub amenities. `anchor` is one named, dated, operator-sourced dish price, never a pint price and never a menu. Hand-curated `kind: food` and `kind: restaurant` map pins are a separate discovery lane; their sourced item anchors are not pint prices, and they are excluded from Pint Drops.
 - Unknown opening hours are **labelled** (`verifyOnNight: true`, `missingEvidence`), never assumed open.
 
 ### Rate limit
