@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { GET } from "@/app/api/cron/enrich-city-pubs/route";
+import { SEARCH_CRON_WALL_MS } from "@/lib/tavilyPubEnrichment.server";
 
 function req(auth?: string): Request {
   return new Request("https://pubmaxxing.com/api/cron/enrich-city-pubs", {
@@ -144,6 +145,26 @@ describe("GET /api/cron/enrich-city-pubs", () => {
     const response = await responsePromise;
 
     expect(response.status).toBe(502);
+  });
+
+  it("returns at the wall-clock bound when a provider ignores abort", async () => {
+    vi.stubEnv("TAVILY_API_KEY", "test-tavily-key");
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => {})));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const responsePromise = GET(req("Bearer test-secret"));
+    const settled = responsePromise.then(
+      () => true,
+      () => true,
+    );
+    const timeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), 1_000);
+    });
+
+    await vi.advanceTimersByTimeAsync(SEARCH_CRON_WALL_MS + 1_000);
+
+    await expect(Promise.race([settled, timeout])).resolves.toBe(true);
+    await expect(responsePromise).resolves.toMatchObject({ status: 502 });
   });
 
   it("preserves partial-run truth in logs when Tavily fails mid-batch", async () => {

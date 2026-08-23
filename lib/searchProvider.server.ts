@@ -107,14 +107,24 @@ async function withSearchDeadline<T>(
   const relayAbort = () => controller.abort(request.signal?.reason);
   if (request.signal?.aborted) relayAbort();
   else request.signal?.addEventListener("abort", relayAbort, { once: true });
-  const timer = setTimeout(
-    () => controller.abort(new Error(`Search request timed out after ${request.timeoutMs}ms.`)),
-    request.timeoutMs,
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  // AbortSignal is advisory. Race the dependency so an ignored signal cannot
+  // keep the caller waiting past its request budget.
+  const timeout = new Promise<T>((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(`Search request timed out after ${request.timeoutMs}ms.`);
+      controller.abort(error);
+      reject(error);
+    }, request.timeoutMs);
+  });
+  const operationPromise = Promise.resolve().then(() =>
+    operation({ ...request, signal: controller.signal }),
   );
   try {
-    return await operation({ ...request, signal: controller.signal });
+    return await Promise.race([operationPromise, timeout]);
   } finally {
-    clearTimeout(timer);
+    if (timer !== undefined) clearTimeout(timer);
+    void operationPromise.catch(() => {});
     request.signal?.removeEventListener("abort", relayAbort);
   }
 }

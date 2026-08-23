@@ -17,6 +17,7 @@ import {
   BRISTOL_CRON_WALL_MS,
   runScheduledCityEnrichment,
   SEARCH_CRON_QUERY_CAP,
+  SEARCH_CRON_WALL_MS,
 } from "@/lib/tavilyPubEnrichment.server";
 
 function enrichmentOk(city: string, maxQueries: number) {
@@ -156,6 +157,59 @@ describe("runScheduledCityEnrichment", () => {
       ]),
     );
   });
+
+  it("returns after the Edinburgh wall-clock bound when a provider ignores abort", async () => {
+    vi.setSystemTime(new Date("2026-07-26T03:15:00.000Z"));
+    runCityEnrichment.mockImplementation(() => new Promise(() => {}));
+
+    const resultPromise = runScheduledCityEnrichment({ apiKey: "test-key" });
+    const settled = resultPromise.then(
+      () => true,
+      () => true,
+    );
+    const timeout = new Promise<boolean>((resolve) => {
+      setTimeout(() => resolve(false), 1_000);
+    });
+
+    await vi.advanceTimersByTimeAsync(SEARCH_CRON_WALL_MS + 1_000);
+
+    await expect(Promise.race([settled, timeout])).resolves.toBe(true);
+  });
+
+  it("does not publish late Edinburgh progress after the wall-clock timeout", async () => {
+    vi.setSystemTime(new Date("2026-07-26T03:15:00.000Z"));
+    const progress = vi.fn();
+    runCityEnrichment.mockImplementation(({ city, maxQueries, onProgress }) =>
+      new Promise((resolve) => {
+        setTimeout(async () => {
+          await onProgress?.({
+            nextIndex: 1,
+            queriesSpent: 1,
+            creditsSpent: 1,
+            prices: [],
+            pages: [],
+            delegatedChains: [],
+          });
+          resolve(enrichmentOk(city, maxQueries));
+        }, SEARCH_CRON_WALL_MS + 1_000);
+      }),
+    );
+
+    const resultPromise = runScheduledCityEnrichment({
+      apiKey: "test-key",
+      onProgress: progress,
+    });
+    const resultRejection = expect(resultPromise).rejects.toThrow(
+      `City enrichment timed out after ${SEARCH_CRON_WALL_MS}ms.`,
+    );
+    await vi.advanceTimersByTimeAsync(SEARCH_CRON_WALL_MS);
+    await resultRejection;
+
+    await vi.advanceTimersByTimeAsync(1_000);
+
+    expect(progress).not.toHaveBeenCalled();
+  });
+
   it("reports failed-city spend when every Bristol-night run fails", async () => {
     vi.setSystemTime(new Date("2026-07-29T03:15:00.000Z"));
     runCityEnrichment.mockImplementation(async ({ city, onProgress }) => {

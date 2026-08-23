@@ -200,11 +200,15 @@ async function runCityBatch(
     observedAt: new Date(options.now ?? Date.now()).toISOString(),
     signal: abortController?.signal,
     onProgress: async (state) => {
-      lastPartial = {
+      if (abortController?.signal.aborted) return;
+      const progress = {
         city,
         ...(state as Omit<ScheduledEnrichmentProgress, "city">),
       };
-      await options.onProgress?.(lastPartial);
+      if (abortController?.signal.aborted) return;
+      lastPartial = progress;
+      if (abortController?.signal.aborted) return;
+      await options.onProgress?.(progress);
     },
   });
   try {
@@ -214,7 +218,9 @@ async function runCityBatch(
     return { ...result, startIndex, primaryCity: city };
   } catch (error) {
     if (wallMs) {
-      await enrichment.catch(() => {});
+      // A provider may ignore AbortSignal. Do not drain its promise here,
+      // because that would turn our wall-clock bound into an unbounded wait.
+      void enrichment.catch(() => {});
     }
     if (lastPartial) {
       (error as Error & { partial?: ScheduledEnrichmentProgress }).partial = lastPartial;
