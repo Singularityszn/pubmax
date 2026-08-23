@@ -538,7 +538,6 @@ export function reportPintDrop(
   if (hit.moderatedAt) {
     hit.moderatedAt = undefined;
     hit.moderatorNote = undefined;
-    hit.status = "visible";
   }
   if (identity.kind === "anonymous_ip") return true;
 

@@ -430,7 +430,7 @@ describe("POST /api/pint-drops (create)", () => {
     expect(queue.map((row) => row.id)).toContain(drop.id);
   });
 
-  it("reopens a previously hidden decision for fresh anonymous review", async () => {
+  it("requeues a moderator-hidden decision without republishing it", async () => {
     const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
     expect(created.status).toBe(201);
     const { drop } = await created.json();
@@ -443,8 +443,8 @@ describe("POST /api/pint-drops (create)", () => {
     expect((await modAction("keep_hidden", drop.id)).status).toBe(200);
     expect((await report(drop.id, "new evidence", "device-a")).status).toBe(200);
 
-    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
-    const queue = (await (await modGet("reported")).json()).drops as Array<{ id: string }>;
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    const queue = (await (await modGet("hidden")).json()).drops as Array<{ id: string }>;
     expect(queue.map((row) => row.id)).toContain(drop.id);
   });
 

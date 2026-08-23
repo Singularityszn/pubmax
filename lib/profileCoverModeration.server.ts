@@ -16,7 +16,10 @@ import "server-only";
 // helper below handles per-photo reports when no mirror exists.
 
 import { log } from "@/lib/log";
-import { profileCoverPhotoStore } from "@/lib/profileCoverPhotoStore";
+import {
+  moderateDurableProfileCoverAcrossStores,
+  profileCoverPhotoStore,
+} from "@/lib/profileCoverPhotoStore";
 import type { ProfileImageSlot } from "@/lib/profileImageSlots";
 import {
   moderateProfileImage,
@@ -37,6 +40,14 @@ export async function moderateProfileImageAcrossStores(
   action: "hide" | "restore",
   note?: string,
 ): Promise<boolean> {
+  if (slot === "cover") {
+    const durable = await moderateDurableProfileCoverAcrossStores(
+      handle,
+      action === "hide" ? "hidden" : "approved",
+      note,
+    );
+    if (durable !== null) return durable;
+  }
   const ok = await moderateProfileImage(handle, slot, action, note);
   if (slot !== "cover") return ok;
 

@@ -12,11 +12,11 @@ const MIGRATION_PATH = join(
 );
 const REOPEN_MIGRATION_PATH = join(
   process.cwd(),
-  "supabase/migrations/20260823090000_0116_reopen_pint_drop_review.sql",
+  "supabase/migrations/20260823130000_0116_reopen_pint_drop_review.sql",
 );
 const REOPEN_ROLLBACK_PATH = join(
   process.cwd(),
-  "supabase/migrations/rollback/20260823090000_0116_reopen_pint_drop_review_rollback.sql",
+  "supabase/migrations/rollback/20260823130000_0116_reopen_pint_drop_review_rollback.sql",
 );
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
@@ -153,6 +153,27 @@ async function startSession(): Promise<Session> {
         actor_hash text not null,
         reason text,
         unique (pint_drop_id, actor_hash)
+      );
+      create table public.profiles (
+        id uuid primary key,
+        handle text unique not null,
+        cover_object_key text,
+        cover_generation uuid,
+        cover_moderation_state text,
+        cover_moderated_at timestamptz,
+        cover_moderator_note text,
+        updated_at timestamptz not null default now()
+      );
+      create table public.profile_cover_photos (
+        id uuid primary key,
+        profile_id uuid not null references public.profiles(id),
+        moderation_state text not null default 'approved',
+        report_actors text[] not null default '{}',
+        report_count integer not null default 0,
+        reported_at timestamptz,
+        report_reason text,
+        moderated_at timestamptz,
+        moderator_note text
       );
     `);
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION_PATH], {
@@ -295,9 +316,27 @@ describe("0112 verified ledger and 0116 report reopening", () => {
         "select has_function_privilege('authenticated', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
       ),
     ).toBe("f");
+    expect(session!.sql("select has_function_privilege('service_role', 'public.append_profile_cover_photo_report_actor(uuid, text, text)', 'execute')")).toBe("t");
+    expect(session!.sql("select has_function_privilege('anon', 'public.append_profile_cover_photo_report_actor(uuid, text, text)', 'execute')")).toBe("f");
+    expect(session!.sql("select has_function_privilege('authenticated', 'public.moderate_profile_cover_across_stores(text, text, text)', 'execute')")).toBe("f");
   });
 
-  it("clears a prior moderation decision only for a new verified actor", () => {
+  it("keeps concurrent cover reports and moderates mirror plus rotation atomically", () => {
+    const profileId = "10000000-0000-4000-8000-000000000001";
+    const coverId = "20000000-0000-4000-8000-000000000001";
+    session!.sql(`
+      insert into public.profiles (id, handle, cover_object_key, cover_generation, cover_moderation_state)
+      values ('${profileId}', 'cover-owner', 'cover/key', '30000000-0000-4000-8000-000000000001', 'approved');
+      insert into public.profile_cover_photos (id, profile_id) values ('${coverId}', '${profileId}');
+      select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-a', 'a');
+      select public.append_profile_cover_photo_report_actor('${coverId}', 'actor-b', 'b');
+    `);
+    expect(session!.sql(`select report_count || ':' || cardinality(report_actors) from public.profile_cover_photos where id = '${coverId}'`)).toBe("2:2");
+    expect(session!.sql("select public.moderate_profile_cover_across_stores('cover-owner', 'hidden', 'reviewed')")).toBe("t");
+    expect(session!.sql(`select cover_moderation_state || ':' || (select moderation_state from public.profile_cover_photos where id = '${coverId}') from public.profiles where id = '${profileId}'`)).toBe("hidden:hidden");
+  });
+
+  it("requeues but keeps a moderator-hidden drop hidden for a new verified actor", () => {
     const id = "00000000-0000-4000-8000-000000000114";
     session!.sql(`
       insert into public.visit_reports (id, moderated_at, status, moderator_note)
@@ -311,7 +350,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
       session!.sql(
         `select (moderated_at is null)::text || ':' || verified_report_count || ':' || status || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
-    ).toBe("true:1:visible:");
+    ).toBe("true:1:hidden:");
 
     session!.sql(`update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00' where id = '${id}'`);
     expect(
@@ -341,7 +380,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
       ),
     ).toBe("hidden:true");
 
-    // Only an explicit moderator stamp permits the next report to reopen it.
+    // New evidence requeues a moderator-hidden row without publishing it.
     session!.sql(
       `update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00', moderator_note = 'reviewed' where id = '${id}'`,
     );
@@ -352,7 +391,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
       session!.sql(
         `select status || ':' || (moderated_at is null)::text || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
-    ).toBe("visible:true:");
+    ).toBe("hidden:true:");
   });
 
   it("rollback restores the pre-reopen function behavior", () => {

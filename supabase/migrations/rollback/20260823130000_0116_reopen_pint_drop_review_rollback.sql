@@ -2,6 +2,8 @@
 -- responsible for removing the verified-report ledger itself.
 
 drop function if exists public.report_pint_drop_anonymous(uuid, text, text);
+drop function if exists public.append_profile_cover_photo_report_actor(uuid, text, text);
+drop function if exists public.moderate_profile_cover_across_stores(text, text, text);
 
 create or replace function public.report_pint_drop_v2(
   p_id uuid,
