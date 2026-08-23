@@ -2,6 +2,7 @@ import { ImageResponse } from "next/og";
 
 import { normalizeHandle } from "@/lib/profiles";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // Profile / Pint Passport OG share card. Lightweight — no DB read — so every
 // /u/[handle] share gets a branded card even when the profile is empty.
@@ -21,15 +22,11 @@ const BRASS = "#d3a44a";
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-function clampHandle(raw: string): string {
-  return normalizeHandle(raw).slice(0, 32) || "you";
-}
-
 type PageProps = { params: Promise<{ handle: string }> };
 
 export default async function Image({ params }: PageProps) {
   const { handle: raw } = await params;
-  const handle = clampHandle(raw);
+  const handle = clampOgText(normalizeHandle(raw), 32, "you");
 
   return new ImageResponse(
     (

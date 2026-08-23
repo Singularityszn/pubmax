@@ -8,10 +8,10 @@ import {
   OG_CACHE_HEADERS,
   OG_SIZE,
   Wordmark,
-  clampText,
   loadOgFonts,
   priceStamp,
 } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 
 // City-scoped OG card (Wave S2, Next `opengraph-image` convention). Base
 // per-city card on the dark elevation ladder: the city name, its tagline, and
@@ -101,8 +101,14 @@ export default async function Image({
   const { city: raw } = await params;
   const cityId = parseCityId(raw);
   const city = cityId ? getCity(cityId) : null;
-  const cityName = clampText(city?.displayName, 20, "City");
-  const tagline = clampText(city?.tagline, 72, "Price-aware pub crawls");
+  const cityName = clampOgText(city?.displayName, 20, "City", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
+  const tagline = clampOgText(city?.tagline, 72, "Price-aware pub crawls", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
 
   const coverage = city
     ? await cityCoverage(city.slimVenuesPath)

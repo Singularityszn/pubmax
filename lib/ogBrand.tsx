@@ -114,25 +114,6 @@ export function loadPartyFont(): OgFont {
 
 export const OG_FONT_FAMILY = "Space Grotesk";
 
-// ── Text hygiene ─────────────────────────────────────────────────────────────
-// Clamp / sanitise any string that reaches a card: drop control chars, collapse
-// whitespace, cap length with an ellipsis. Borough / city names are trusted, but
-// running everything through the same guard keeps a stray value from ever
-// blowing out the layout.
-export function clampText(
-  raw: string | null | undefined,
-  max: number,
-  fallback = "",
-): string {
-  if (!raw) return fallback;
-  const cleaned = Array.from(raw.replace(/\s+/g, " "))
-    .filter((ch) => ch.charCodeAt(0) >= 32 && ch.charCodeAt(0) !== 127)
-    .join("")
-    .trim();
-  if (!cleaned) return fallback;
-  return cleaned.length > max ? `${cleaned.slice(0, max - 1)}…` : cleaned;
-}
-
 // GBP price stamp, or null when there is no honest, positive number to show.
 export function priceStamp(value: number | null | undefined): string | null {
   if (value == null || !Number.isFinite(value) || value <= 0) return null;

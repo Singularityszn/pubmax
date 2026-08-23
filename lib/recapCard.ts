@@ -1,4 +1,5 @@
-import { clampText, priceStamp } from "@/lib/ogBrand";
+import { priceStamp } from "@/lib/ogBrand";
+import { clampOgText } from "@/lib/ogCardText";
 import type { CrawlEnding } from "@/lib/plan";
 import type {
   NightStory,
@@ -139,7 +140,10 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
     return { variant: "fallback" };
   }
   // `story` is approved-shared here; `title` is safe to show.
-  const title = clampText(story!.title, 64, "A night on PUBMAXX");
+  const title = clampOgText(story!.title, 64, "A night on PUBMAXX", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
   const dateLabel = formatNightDate(nightDate);
 
   if (!stats) {
@@ -159,7 +163,12 @@ export function selectRecapCardData(source: RecapCardSource): RecapCardData {
   }
 
   const crew = (Array.isArray(stats.crew) ? stats.crew : [])
-    .map((name) => clampText(name, 24))
+    .map((name) =>
+      clampOgText(name, 24, "", {
+        collapseWhitespace: true,
+        collapseBeforeFilter: true,
+      }),
+    )
     .filter((name) => name.length > 0)
     .slice(0, 4);
 

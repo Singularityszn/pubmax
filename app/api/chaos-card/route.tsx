@@ -1,7 +1,8 @@
 import { ImageResponse } from "next/og";
 
-import { clampParam, resolveChaosCardParams } from "@/lib/chaosCardParams";
+import { resolveChaosCardParams } from "@/lib/chaosCardParams";
 import { ogCardRateLimitedResponse } from "@/lib/ogCardRateLimit";
+import { clampOgText } from "@/lib/ogCardText";
 import { OG_CACHE_HEADERS } from "@/lib/ogBrand";
 
 export const runtime = "nodejs";
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
   if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
-  const title = clampParam(searchParams.get("title"), 64, "A London crawl");
+  const title = clampOgText(searchParams.get("title"), 64, "A London crawl");
   const { score, grade, oneLiner } = resolveChaosCardParams(searchParams);
 
   return new ImageResponse(

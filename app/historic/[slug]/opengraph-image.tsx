@@ -30,13 +30,6 @@ const BRASS = "#d3a44a"; // single accent
 const serif = 'Georgia, "Times New Roman", serif';
 const sans = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 
-// Clamp/sanitise text for a poster line: drop control chars, collapse
-// whitespace, cap length with an ellipsis. Cited text can run long, so it is
-// never rendered unbounded.
-function clampText(raw: string | null | undefined, max: number, fallback = ""): string {
-  return clampOgText(raw, max, fallback, { collapseWhitespace: true, collapseBeforeFilter: true });
-}
-
 // A bordered brass chip. Only ever rendered for present, cited facts.
 function Chip({ children }: { children: string }) {
   return (
@@ -66,20 +59,30 @@ export default async function Image({
   const pub = getHistoricPubBySlug(slug, await loadHistoricPubs().catch(() => []));
 
   // Graceful generic fallback for an unknown/missing slug — never throw.
-  const name = clampText(pub?.name, 40, "Historic London pubs");
-  const hook = clampText(
+  const name = clampOgText(pub?.name, 40, "Historic London pubs", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
+  const hook = clampOgText(
     pub?.hook,
     180,
     "Cited history from London's oldest pubs.",
+    { collapseWhitespace: true, collapseBeforeFilter: true },
   );
 
   // Chips: only present, cited facts. Omit anything the pub doesn't have.
   const chips: string[] = [];
-  const era = clampText(pub?.era, 20);
+  const era = clampOgText(pub?.era, 20, "", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
   if (era) chips.push(era);
   const grade = listedBadge(pub?.listed ?? null);
   if (grade) chips.push(grade);
-  const borough = clampText(pub?.borough, 28);
+  const borough = clampOgText(pub?.borough, 28, "", {
+    collapseWhitespace: true,
+    collapseBeforeFilter: true,
+  });
   if (borough) chips.push(borough);
 
   return new ImageResponse(

@@ -49,12 +49,6 @@ const VIBE_STAMPS: Record<string, string> = {
 // is this card's own field-guide brass so the stamp sits in the card's palette.
 const STAMP_CORAL = "#ff5a5f";
 
-// Strip control chars and cap length. Plan title + venue names are user-entered,
-// so they are never rendered unbounded onto the card.
-function clamp(raw: string, max: number): string {
-  return clampOgText(raw, max, "", { collapseWhitespace: true });
-}
-
 export async function GET(request: Request): Promise<Response> {
   const limited = await ogCardRateLimitedResponse(request, "og-plan-card");
   if (limited) return limited;
@@ -78,6 +72,7 @@ export async function GET(request: Request): Promise<Response> {
   const safeHeadline = preview.areaName
     ? `A night out in ${preview.areaName}`
     : "A night out";
+  const clampedHeadline = clampOgText(safeHeadline, 62, "", { collapseWhitespace: true });
   const start = preview.startLabel;
 
   return new ImageResponse(
@@ -253,12 +248,12 @@ export async function GET(request: Request): Promise<Response> {
               style={{
                 display: "flex",
                 fontFamily: serif,
-                fontSize: clamp(safeHeadline, 62).length > 30 ? 52 : 62,
+                fontSize: clampedHeadline.length > 30 ? 52 : 62,
                 lineHeight: 1.03,
                 fontWeight: 700,
               }}
             >
-              {clamp(safeHeadline, 62)}
+              {clampedHeadline}
             </div>
             {tallyLine ? (
               /* Crew vibe tally: house prose under the title, never the party
@@ -274,7 +269,7 @@ export async function GET(request: Request): Promise<Response> {
                   color: CREAM_DIM,
                 }}
               >
-                {clamp(tallyLine, 90)}
+                {clampOgText(tallyLine, 90, "", { collapseWhitespace: true })}
               </div>
             ) : null}
           </div>
@@ -301,7 +296,7 @@ export async function GET(request: Request): Promise<Response> {
             </div>
             {preview.areaName ? (
               <div style={{ display: "flex", fontFamily: serif, fontSize: 28, color: CREAM_DIM }}>
-                Around {clamp(preview.areaName, 40)}
+                Around {clampOgText(preview.areaName, 40, "", { collapseWhitespace: true })}
               </div>
             ) : null}
             <div style={{ display: "flex", fontSize: 22, color: CREAM_DIM, marginTop: 6 }}>

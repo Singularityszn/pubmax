@@ -60,38 +60,45 @@ export function buildOgMapCardWaveLayers(
   return deriveOgPriceWaveLayers(counts, size);
 }
 
-function clampParam(raw: string | null, max: number, fallback = ""): string {
-  return clampOgText(raw, max, fallback, { collapseWhitespace: true });
-}
-
 export async function GET(request: Request) {
   const limited = await ogCardRateLimitedResponse(request, "og-city-map-card");
   if (limited) return limited;
 
   const { searchParams } = new URL(request.url);
-  const cityRaw = clampParam(searchParams.get("city"), 32, DEFAULT_CITY_ID);
+  const cityRaw = clampOgText(searchParams.get("city"), 32, DEFAULT_CITY_ID, {
+    collapseWhitespace: true,
+  });
   const cityId = parseCityId(cityRaw) ?? DEFAULT_CITY_ID;
   const city = getCity(cityId);
-  const crawlRaw = clampParam(searchParams.get("crawl"), 64);
+  const crawlRaw = clampOgText(searchParams.get("crawl"), 64, "", {
+    collapseWhitespace: true,
+  });
   const crawl = crawlRaw ? curatedCrawlByIdForCity(cityId, crawlRaw) : undefined;
-  const bandRaw = clampParam(searchParams.get("band"), 64);
+  const bandRaw = clampOgText(searchParams.get("band"), 64, "", {
+    collapseWhitespace: true,
+  });
   const band = !crawl && bandRaw ? bandByIdForCity(cityId, bandRaw) : undefined;
 
-  const cityName = clampParam(city.displayName, 40, "London");
+  const cityName = clampOgText(city.displayName, 40, "London", {
+    collapseWhitespace: true,
+  });
   const tagline = crawl
-    ? clampParam(
+    ? clampOgText(
         crawl.venueIds.length > 0
           ? `${crawl.venueIds.length}-stop crawl · ${city.tagline}`
           : city.tagline,
         72,
         "Price-aware pub crawls",
+        { collapseWhitespace: true },
       )
-    : clampParam(city.tagline, 72, "Price-aware pub crawls");
+    : clampOgText(city.tagline, 72, "Price-aware pub crawls", {
+        collapseWhitespace: true,
+      });
   // Crawl name wins over band chip when both are present (share URLs often carry both).
   const highlightTitle = crawl
-    ? clampParam(crawl.name, 48)
+    ? clampOgText(crawl.name, 48, "", { collapseWhitespace: true })
     : band
-      ? clampParam(band.title, 48)
+      ? clampOgText(band.title, 48, "", { collapseWhitespace: true })
       : "";
   const eyebrow = crawl ? "Crawl" : "City map";
 
