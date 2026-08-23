@@ -227,7 +227,7 @@ async function lastTrainForLine(
   if (hour === null || minute === null) return null;
 
   const { clock, pastMidnight } = formatLastJourney({ hour, minute });
-  return { lineId, lineName, colour: lineColour(lineId), clock, pastMidnight };
+  return { lineId, lineName, colour: lineColour(lineId), clock, pastMidnight, serviceHour: hour };
 }
 
 // How many upcoming departures to show per line (user story 20: "next 2-3").
@@ -620,7 +620,13 @@ export async function runLastTrainRoute(request: Request): Promise<Response> {
   for (const t of trains) {
     const [h, m] = t.clock.split(":").map(Number);
     const clockMinutes = h * 60 + m;
-    const mins = minutesUntilDeparture(clockMinutes, t.pastMidnight, nowMinutes, nowInstant);
+    const mins = minutesUntilDeparture(
+      clockMinutes,
+      t.pastMidnight,
+      nowMinutes,
+      nowInstant,
+      t.serviceHour,
+    );
     if (minutesUntilLastTrain === null || mins > minutesUntilLastTrain) minutesUntilLastTrain = mins;
   }
 
