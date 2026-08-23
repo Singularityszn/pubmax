@@ -560,7 +560,7 @@ export function verifiedPintDropReportCount(id: string): number | undefined {
 export function listByStatus(status: PintDropStatus): PintDrop[] {
   return Array.from(drops.values())
     .flat()
-    .filter((d) => d.status === status && !d.moderatedAt)
+    .filter((d) => d.status === status)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -587,7 +587,7 @@ export function restorePintDrop(id: string, note?: string): boolean {
   return true;
 }
 
-/** Moderator action: leave hidden, record the review so it drops off the queue. */
+/** Moderator action: leave hidden and record the reversible decision. */
 export function keepHiddenPintDrop(id: string, note?: string): boolean {
   const hit = findDrop(id);
   if (!hit) return false;

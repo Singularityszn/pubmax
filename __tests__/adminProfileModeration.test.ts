@@ -1,8 +1,15 @@
 import { describe, expect, it } from "vitest";
 
-import { profileCoverFromAvatar, readQueueResponse } from "@/app/admin/AdminClient";
+import {
+  moderatorReportCount,
+  profileCoverFromAvatar,
+  readQueueResponse,
+} from "@/app/admin/AdminClient";
 
 describe("admin profile cover queue", () => {
+  it("shows one report for an anonymous-only Pint Drop", () => {
+    expect(moderatorReportCount(0)).toBe(1);
+  });
   it("closes non-ok queue responses instead of leaving their body open", async () => {
     const response = new Response("temporary failure", { status: 503 });
 

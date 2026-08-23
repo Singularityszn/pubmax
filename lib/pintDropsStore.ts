@@ -550,27 +550,6 @@ function isMissingLastTrainColumnError(error: { code?: string; message?: string 
 }
 
 
-/** After a hide/takedown, delete Storage objects so a previously shared URL stops resolving. */
-async function purgeHiddenDropPhotos(id: string): Promise<void> {
-  try {
-    const { data, error } = await admin()
-      .from(TABLE)
-      .select("status,pint_photo_key,venue_photo_key")
-      .eq("id", id)
-      .maybeSingle();
-    if (error || !data || data.status !== "hidden") return;
-    const keys = [data.pint_photo_key, data.venue_photo_key].filter(
-      (k): k is string => typeof k === "string" && k.length > 0,
-    );
-    await deletePhotos(keys);
-  } catch (err) {
-    log("warn", "pint_drops.photo_purge_skipped", {
-      dropId: id,
-      error: err instanceof Error ? err.message : String(err),
-    });
-  }
-}
-
 // ── Supabase implementation ──────────────────────────────────────────────────
 export const supabasePintDropStore: PintDropStore = {
   async create(drop, photos) {
@@ -719,7 +698,6 @@ export const supabasePintDropStore: PintDropStore = {
           .from(TABLE)
           .select("*")
           .eq("status", status)
-          .is("moderated_at", null)
           .order("created_at", { ascending: false })
           .limit(MAX_PUBLIC_DROPS);
     const { data, error } = await query;
@@ -745,24 +723,10 @@ export const supabasePintDropStore: PintDropStore = {
     });
     if (v2Error) throw new Error(v2Error.message);
     const reported = v2Data !== null && v2Data !== undefined;
-    if (reported) await purgeHiddenDropPhotos(id);
     return reported;
   },
 
   async moderate(id, status, note) {
-    let keysToPurge: string[] = [];
-    if (status !== "visible") {
-      const { data: row } = await admin()
-        .from(TABLE)
-        .select("pint_photo_key,venue_photo_key")
-        .eq("id", id)
-        .maybeSingle();
-      if (row) {
-        keysToPurge = [row.pint_photo_key, row.venue_photo_key].filter(
-          (k): k is string => typeof k === "string" && k.length > 0,
-        );
-      }
-    }
     const { data, error } = await admin()
       .from(TABLE)
       .update({
@@ -774,7 +738,6 @@ export const supabasePintDropStore: PintDropStore = {
       .select("id");
     if (error) throw new Error(error.message);
     const ok = (data ?? []).length > 0;
-    if (ok && keysToPurge.length) await deletePhotos(keysToPurge);
     return ok;
   },
 

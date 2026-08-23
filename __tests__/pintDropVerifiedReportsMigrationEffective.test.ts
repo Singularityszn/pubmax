@@ -384,6 +384,9 @@ describe("0112 verified ledger and 0116 report reopening", () => {
     session!.sql(
       `update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00', moderator_note = 'reviewed' where id = '${id}'`,
     );
+    const verifiedCountBefore = session!.sql(
+      `select verified_report_count from public.visit_reports where id = '${id}'`,
+    );
     expect(
       session!.sql(`select public.report_pint_drop_anonymous('${id}', 'anon-after-review', 'fresh evidence')`),
     ).toBe("t");
@@ -392,6 +395,7 @@ describe("0112 verified ledger and 0116 report reopening", () => {
         `select status || ':' || (moderated_at is null)::text || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
       ),
     ).toBe("hidden:true:");
+    expect(session!.sql(`select verified_report_count from public.visit_reports where id = '${id}'`)).toBe(verifiedCountBefore);
   });
 
   it("rollback restores the pre-reopen function behavior", () => {

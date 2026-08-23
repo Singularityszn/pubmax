@@ -751,8 +751,10 @@ describe("moderation loop", () => {
 
     // Still hidden from the public list.
     expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
-    // But reviewed, so it is no longer in the moderation queue.
-    expect((await (await modGet("hidden")).json()).drops).toHaveLength(0);
+    // Hidden decisions remain in the reversible moderator lane.
+    expect((await (await modGet("hidden")).json()).drops).toHaveLength(1);
+    expect((await modAction("restore", id)).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(1);
   });
 
   it("403s moderator endpoints when ADMIN_TOKEN is unset outside dev/test (M3)", async () => {

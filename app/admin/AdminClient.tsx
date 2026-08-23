@@ -44,6 +44,10 @@ type ModeratorDrop = {
   reportedAt?: string;
 };
 
+export function moderatorReportCount(count: number | undefined): number {
+  return Math.max(count ?? 1, 1);
+}
+
 // Moderator comment DTO as returned by GET /api/admin/comments?status=hidden.
 // Carries status + the drop it belongs to; never actor_hash.
 type ModeratorComment = {
@@ -1054,7 +1058,7 @@ export default function AdminClient() {
                     {d.reportReason ? (
                       <span className="admin-report">Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {d.reportCount ?? 1}</span>
+                    <span className="admin-report">Reports: {moderatorReportCount(d.reportCount)}</span>
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
                     ) : null}
@@ -1137,7 +1141,7 @@ export default function AdminClient() {
                     {d.reportReason ? (
                       <span className="admin-report">Reason: {d.reportReason}</span>
                     ) : null}
-                    <span className="admin-report">Reports: {d.reportCount ?? 1}</span>
+                    <span className="admin-report">Reports: {moderatorReportCount(d.reportCount)}</span>
                     {d.reportedAt ? (
                       <span>Reported: {new Date(d.reportedAt).toLocaleString()}</span>
                     ) : null}
