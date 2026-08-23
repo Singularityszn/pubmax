@@ -1,5 +1,11 @@
 import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
-import { basename, dirname, join, normalize } from "node:path";
+import {
+  basename,
+  dirname,
+  join,
+  normalize,
+  relative as pathRelative,
+} from "node:path";
 
 import ts from "typescript";
 import { describe, expect, it } from "vitest";
@@ -17,6 +23,10 @@ const UNSUFFIXED_SERVER_ONLY_MODULES = [
   "supabase.ts",
   "ukBaseIndex.ts",
 ] as const;
+
+// Direct Node and Supabase capabilities are discovered automatically below.
+// This legacy list retains named security boundaries from earlier fixes. Do not
+// expand it to duplicate every module in the generated capability inventory.
 
 const SERVER_IO_EXEMPTIONS = {
   "lib/authClient.ts": {
@@ -107,6 +117,10 @@ function resolveLocalModule(
     (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
   );
   return match ? normalize(match) : null;
+}
+
+function projectRelative(root: string, file: string): string {
+  return pathRelative(root, file).replaceAll("\\", "/");
 }
 
 function literalModuleName(node: ts.Node): string | null {
@@ -284,28 +298,20 @@ describe("server-only guard (#1043 L8)", () => {
     const findings = new Map<string, Set<Capability>>();
 
     for (const file of files) {
-      const relative = file.slice(root.length + 1);
+      const relative = projectRelative(root, file);
       const source = ts.createSourceFile(
         relative,
         readFileSync(file, "utf8"),
         ts.ScriptTarget.Latest,
         true,
-        file.endsWith(".tsx")
-          ? ts.ScriptKind.TSX
-          : /\.[cm]?js$/.test(file)
-            ? ts.ScriptKind.JS
-            : ts.ScriptKind.TS,
       );
       const capabilities = sourceCapabilities(source);
-      if (capabilities.size > 0) findings.set(relative, capabilities);
       if (
         capabilities.size > 0 &&
         !hasServerOnlyMarker(source) &&
         !(relative in SERVER_IO_EXEMPTIONS)
       ) {
         findings.set(relative, capabilities);
-      } else {
-        findings.delete(relative);
       }
     }
 
@@ -351,7 +357,7 @@ describe("server-only guard (#1043 L8)", () => {
         const undeclaredImporterErrors =
           policy.kind === "config"
             ? projectImporterFiles.flatMap((importerFile) => {
-                const importerRelative = importerFile.slice(root.length + 1);
+                const importerRelative = projectRelative(root, importerFile);
                 if (
                   (policy.consumers as readonly string[]).includes(importerRelative)
                 ) {
