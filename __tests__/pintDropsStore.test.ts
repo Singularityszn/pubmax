@@ -261,8 +261,8 @@ describe("moderator Pint Drop review queue", () => {
       addPintDrop(
         drop({
           id: `reported-${index}`,
-          createdAt: `2026-01-01T${String(MAX_PUBLIC_DROPS - index).padStart(3, "0")}:00:00.000Z`,
-          reportedAt: `2026-08-${String(index + 1).padStart(3, "0")}T00:00:00.000Z`,
+          createdAt: new Date(Date.UTC(2026, 0, 1, 0, MAX_PUBLIC_DROPS - index)).toISOString(),
+          reportedAt: new Date(Date.UTC(2026, 7, 1 + index)).toISOString(),
         }),
       );
     }
@@ -376,11 +376,10 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
     expect(updateMock).not.toHaveBeenCalled();
   });
 
-  it("records an anonymous report without calling the counting RPC", async () => {
+  it("records an anonymous report through the state-preserving RPC", async () => {
     rpcMock.mockClear();
-    insertMock.mockReset();
     updateMock.mockClear();
-    insertMock.mockResolvedValueOnce({ error: null });
+    rpcMock.mockResolvedValueOnce({ data: true, error: null });
 
     expect(
       await supabasePintDropStore.report(
@@ -389,30 +388,18 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
         anonymousReportIdentity("ip-hash"),
       ),
     ).toBe(true);
-    expect(rpcMock).not.toHaveBeenCalled();
-    expect(insertMock).toHaveBeenCalledWith({
-      pint_drop_id: "d1",
-      actor_hash: "ip-hash",
-      reason: "wrong price",
+    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_anonymous", {
+      p_id: "d1",
+      p_actor_hash: "ip-hash",
+      p_reason: "wrong price",
     });
-    expect(updateMock).toHaveBeenCalledTimes(1);
-    expect(updateMock.mock.calls[0][0]).toMatchObject({
-      report_reason: "wrong price",
-      reported_at: expect.any(String),
-      moderated_at: null,
-      status: "visible",
-      moderator_note: null,
-    });
-    expect(updateMock.mock.calls[0][0]).not.toHaveProperty("report_count");
+    expect(updateMock).not.toHaveBeenCalled();
   });
 
   it("maps an anonymous report for an unknown drop to false", async () => {
     rpcMock.mockClear();
-    insertMock.mockReset();
     updateMock.mockClear();
-    insertMock.mockResolvedValueOnce({
-      error: { code: "23503", message: "foreign key violation" },
-    });
+    rpcMock.mockResolvedValueOnce({ data: false, error: null });
 
     expect(
       await supabasePintDropStore.report(
@@ -421,7 +408,7 @@ describe("supabasePintDropStore.report (atomic RPC)", () => {
         anonymousReportIdentity("ip-hash"),
       ),
     ).toBe(false);
-    expect(rpcMock).not.toHaveBeenCalled();
+    expect(rpcMock).toHaveBeenCalledWith("report_pint_drop_anonymous", expect.any(Object));
     expect(updateMock).not.toHaveBeenCalled();
   });
 });

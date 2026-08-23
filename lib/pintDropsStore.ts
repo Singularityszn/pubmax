@@ -53,7 +53,6 @@ import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
 
 const TABLE = "visit_reports";
-const REPORT_TABLE = "pint_drop_reports";
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -202,28 +201,13 @@ async function recordAnonymousReport(
   reason: string | undefined,
   actorHash: string,
 ): Promise<boolean> {
-  const { error: reportError } = await admin().from(REPORT_TABLE).insert({
-    pint_drop_id: id,
-    actor_hash: actorHash,
-    reason: reason ?? null,
+  const { data, error } = await admin().rpc("report_pint_drop_anonymous", {
+    p_id: id,
+    p_actor_hash: actorHash,
+    p_reason: reason ?? null,
   });
-  if (reportError?.code === "23505") return true;
-  if (reportError?.code === "23503") return false;
-  if (reportError) throw new Error(reportError.message);
-
-  const { data, error } = await admin()
-    .from(TABLE)
-    .update({
-      reported_at: new Date().toISOString(),
-      ...(reason ? { report_reason: reason } : {}),
-      moderated_at: null,
-      status: "visible",
-      moderator_note: null,
-    })
-    .eq("id", id)
-    .select("id");
   if (error) throw new Error(error.message);
-  return (data ?? []).length > 0;
+  return data === true;
 }
 
 // visit_reports (snake_case) <-> PintDrop (camelCase). Kept in one place so a

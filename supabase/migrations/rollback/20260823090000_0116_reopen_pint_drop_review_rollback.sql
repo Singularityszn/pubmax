@@ -1,6 +1,8 @@
 -- Restore migration 0112's verified report function. The 0112 rollback remains
 -- responsible for removing the verified-report ledger itself.
 
+drop function if exists public.report_pint_drop_anonymous(uuid, text, text);
+
 create or replace function public.report_pint_drop_v2(
   p_id uuid,
   p_actor_hash text,

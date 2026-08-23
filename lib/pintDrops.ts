@@ -531,12 +531,15 @@ export function reportPintDrop(
 
   hit.reportedAt = new Date().toISOString();
   if (reason) hit.reportReason = reason;
-  // A later report reopens a row a moderator previously reviewed. The report
-  // timestamp is new evidence, so the old decision must not hide it from the
-  // queue.
-  hit.moderatedAt = undefined;
-  hit.moderatorNote = undefined;
-  hit.status = "visible";
+  // A report reopens only after an actual moderator decision. A threshold
+  // auto-hide has no moderatedAt stamp, so keep it hidden until a moderator
+  // explicitly reviews it. This prevents anonymous reports from undoing the
+  // verified-account threshold.
+  if (hit.moderatedAt) {
+    hit.moderatedAt = undefined;
+    hit.moderatorNote = undefined;
+    hit.status = "visible";
+  }
   if (identity.kind === "anonymous_ip") return true;
 
   const verifiedCount = (verifiedReportCountsByDrop.get(id) ?? 0) + 1;

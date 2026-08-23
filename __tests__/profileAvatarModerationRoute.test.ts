@@ -91,6 +91,22 @@ async function seedApprovedAvatar(handle: string, generation = "11111111-1111-41
   return updated!;
 }
 
+async function seedApprovedCover(handle: string, generation = "22222222-2222-4222-8222-222222222222") {
+  const store = profileStore();
+  await store.createOwned(handle, `user-${handle}`);
+  const profile = await store.getByHandle(handle);
+  expect(profile?.id).toBeTruthy();
+  const objectKey = `covers/${profile!.id}/${generation}/image.jpg`;
+  const updated = await store.setOwnedImage(handle, "cover", {
+    objectKey,
+    generation,
+    moderationState: "approved",
+  });
+  expect(updated?.coverModerationState).toBe("approved");
+  expect(publicOwnedImageUrl(updated!, "cover")).toBe(`/api/cover/${profile!.id}/${generation}`);
+  return updated!;
+}
+
 describe("profile avatar moderation (memory backend)", () => {
   beforeEach(() => {
     delete process.env.SUPABASE_URL;
@@ -392,7 +408,7 @@ describe("profile avatar moderation (memory backend)", () => {
     });
 
     it("rate limits cover moderation writes before parsing or mutating", async () => {
-      await seedApprovedAvatar("rate-limited-cover");
+      await seedApprovedCover("rate-limited-cover");
       adminRateLimit.limited = true;
 
       const response = await adminPost({
@@ -404,7 +420,7 @@ describe("profile avatar moderation (memory backend)", () => {
       expect(response.status).toBe(429);
       expect(await response.json()).toMatchObject({ code: "RATE_LIMITED" });
       expect(
-        (await profileStore().getByHandle("rate-limited-cover"))?.avatarModerationState,
+        (await profileStore().getByHandle("rate-limited-cover"))?.coverModerationState,
       ).toBe("approved");
     });
 

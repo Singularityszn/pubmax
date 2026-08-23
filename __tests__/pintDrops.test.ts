@@ -447,6 +447,23 @@ describe("POST /api/pint-drops (create)", () => {
     const queue = (await (await modGet("reported")).json()).drops as Array<{ id: string }>;
     expect(queue.map((row) => row.id)).toContain(drop.id);
   });
+
+  it("does not reopen an auto-hidden drop before moderator review", async () => {
+    const created = await post({ venueId: VENUE, handle: "reported-author", priceGbp: 4.2 });
+    expect(created.status).toBe(201);
+    const { drop } = await created.json();
+
+    await signedReport(drop.id, "user-one", "first report", "device-a");
+    await signedReport(drop.id, "user-two", "second report", "device-b");
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+
+    // Auto-hide is not a moderator decision. An anonymous report must keep the
+    // drop hidden until a moderator explicitly restores or keeps it hidden.
+    expect((await report(drop.id, "new evidence", "device-c")).status).toBe(200);
+    expect((await (await get(VENUE)).json()).drops).toHaveLength(0);
+    const hiddenQueue = (await (await modGet("hidden")).json()).drops as Array<{ id: string }>;
+    expect(hiddenQueue.map((row) => row.id)).toContain(drop.id);
+  });
 });
 
 describe("POST /api/pint-drops — daily duplicate guard (venue+identity+day)", () => {

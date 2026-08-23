@@ -280,6 +280,21 @@ describe("0112 verified ledger and 0116 report reopening", () => {
         "select has_function_privilege('authenticated', 'public.report_pint_drop_v2(uuid, text, text, integer)', 'execute')",
       ),
     ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('service_role', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        "select has_function_privilege('anon', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("f");
+    expect(
+      session!.sql(
+        "select has_function_privilege('authenticated', 'public.report_pint_drop_anonymous(uuid, text, text)', 'execute')",
+      ),
+    ).toBe("f");
   });
 
   it("clears a prior moderation decision only for a new verified actor", () => {
@@ -307,6 +322,37 @@ describe("0112 verified ledger and 0116 report reopening", () => {
         `select (moderated_at = timestamptz '2026-08-23 08:30:00+00')::text || ':' || verified_report_count from public.visit_reports where id = '${id}'`,
       ),
     ).toBe("true:1");
+  });
+
+  it("keeps threshold auto-hides closed until a moderator decision", () => {
+    const id = "00000000-0000-4000-8000-000000000115";
+    session!.sql(`insert into public.visit_reports (id) values ('${id}')`);
+
+    session!.sql(`select public.report_pint_drop_v2('${id}', 'account-a', '', 2)`);
+    expect(session!.sql(`select public.report_pint_drop_v2('${id}', 'account-b', '', 2)`)).toBe("2");
+
+    // Anonymous review evidence must not publish an auto-hidden row.
+    expect(
+      session!.sql(`select public.report_pint_drop_anonymous('${id}', 'anon-before-review', 'new evidence')`),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        `select status || ':' || (moderated_at is null)::text from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("hidden:true");
+
+    // Only an explicit moderator stamp permits the next report to reopen it.
+    session!.sql(
+      `update public.visit_reports set moderated_at = '2026-08-23 08:30:00+00', moderator_note = 'reviewed' where id = '${id}'`,
+    );
+    expect(
+      session!.sql(`select public.report_pint_drop_anonymous('${id}', 'anon-after-review', 'fresh evidence')`),
+    ).toBe("t");
+    expect(
+      session!.sql(
+        `select status || ':' || (moderated_at is null)::text || ':' || coalesce(moderator_note, '') from public.visit_reports where id = '${id}'`,
+      ),
+    ).toBe("visible:true:");
   });
 
   it("rollback restores the pre-reopen function behavior", () => {
