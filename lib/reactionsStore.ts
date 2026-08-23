@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable pub-native reactions on a pint drop. ONE interface, TWO implementations
 // (process-memory + Supabase public.pint_drop_reactions), same seam pattern as
 // the other stores.
@@ -14,9 +16,8 @@
 // local-only toggle for sample cards.
 //
 // SERVER-ONLY: this module imports @/lib/supabase (admin client, node:crypto).
-// Do NOT import it from a "use client" component — import the browser-safe
-// constants/types from @/lib/reactions instead. (The repo has no `server-only`
-// package installed, so this comment is the guard.)
+// The runtime guard above blocks client imports. Browser code must import the
+// safe constants and types from @/lib/reactions instead.
 
 import {
   admin,

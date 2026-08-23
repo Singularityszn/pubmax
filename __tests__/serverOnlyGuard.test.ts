@@ -4,8 +4,15 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const UNSUFFIXED_SERVER_ONLY_MODULES = [
+  "adminAuth.ts",
+  "authServer.ts",
   "freshnessArtifact.ts",
+  "identityHandleStore.ts",
   "importNotesStore.ts",
+  "messagesStore.ts",
+  "privateIdentityStore.ts",
+  "reactionsStore.ts",
+  "socialConnectionStore.ts",
   "supabase.ts",
   "ukBaseIndex.ts",
 ] as const;
