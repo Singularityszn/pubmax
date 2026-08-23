@@ -296,6 +296,22 @@ describe("POST /api/pint-drops (create)", () => {
     expect(provisionalDrop.authorityKey).toBeUndefined();
   });
 
+  it("keeps a verified anonymous Pint Drop provisional", async () => {
+    reportAuth.userId = "account-a";
+
+    const response = await post({
+      venueId: VENUE,
+      handle: "ale",
+      priceGbp: 4.2,
+      visibility: "anonymous",
+    });
+
+    expect(response.status).toBe(201);
+    const { drop } = await response.json();
+    expect(drop.visibility).toBe("anonymous");
+    expect(drop.authorityKey).toBeUndefined();
+  });
+
   it("accepts a note-only drop as an anecdote", async () => {
     const res = await post({ venueId: VENUE, handle: "ale", passedDownNote: "cheapest in town, 1998" });
     expect(res.status).toBe(201);

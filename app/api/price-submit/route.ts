@@ -239,7 +239,7 @@ export async function POST(request: Request): Promise<Response> {
       handle: contributor.handle,
       drinkCategory: submission.drinkCategory,
       priceGbp: submission.priceGbp,
-      verifiedActor: contributor.actor,
+      verifiedAccountId: contributor.accountId,
     },
     pintDropPhotos,
   );
@@ -257,7 +257,7 @@ export async function POST(request: Request): Promise<Response> {
       drinkCategory: submission.drinkCategory,
     });
     return publicApiError(
-      "Could not finish that price log. It has been queued for repair.",
+      "Could not finish that price log. Try again later.",
       "PAIRING_REPAIR_REQUIRED",
       503,
       { retryable: true },

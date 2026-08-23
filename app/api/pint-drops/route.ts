@@ -61,6 +61,15 @@ async function ensureProfileForHandle(handle: string): Promise<void> {
   }
 }
 
+function priceAuthorityKeyForDrop(
+  venueId: string,
+  visibility: string | undefined,
+  verifiedAccountId: string | null,
+): string | undefined {
+  if (visibility === "anonymous") return undefined;
+  return pintDropAuthorityKey(venueId, verifiedAccountId);
+}
+
 // The friendly label a card shows when an id has no resolvable pub name — kept
 // in step with lib/feed.ts VENUE_FALLBACK_LABEL so server and client agree.
 const VENUE_FALLBACK_LABEL = "A London pub";
@@ -311,8 +320,9 @@ export async function POST(request: Request): Promise<Response> {
   const dropPayload = {
     ...canonicalDrop,
     handle: ownership.handle,
-    authorityKey: pintDropAuthorityKey(
+    authorityKey: priceAuthorityKeyForDrop(
       canonicalDrop.venueId,
+      canonicalDrop.visibility,
       ownership.callerUserId,
     ),
   };

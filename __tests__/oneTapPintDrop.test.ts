@@ -40,8 +40,8 @@ describe("writeOneTapPintDrop", () => {
       priceGbp: 4.2,
     });
 
-    expect(outcome).toMatchObject({ ok: true, skipped: false });
-    if (!outcome.ok || outcome.skipped) return;
+    expect(outcome).toMatchObject({ ok: true });
+    if (!outcome.ok) return;
     expect(outcome.drop).toMatchObject({
       venueId: "venue-xjf3n0",
       handle: "karan",
@@ -52,19 +52,19 @@ describe("writeOneTapPintDrop", () => {
     expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 
-  it("binds one-tap price authority to the verified actor, not the handle", async () => {
+  it("binds one-tap price authority to the verified account, not the handle", async () => {
     const outcome = await writeOneTapPintDrop({
       venueId: "venue-xjf3n0",
       handle: "karan",
       drinkCategory: "beer",
       priceGbp: 4.2,
-      verifiedActor: "profile:actor-a",
+      verifiedAccountId: "account-a",
     });
 
-    expect(outcome).toMatchObject({ ok: true, skipped: false });
-    if (!outcome.ok || outcome.skipped) return;
+    expect(outcome).toMatchObject({ ok: true });
+    if (!outcome.ok) return;
     expect(outcome.drop.authorityKey).toMatch(/^[a-f0-9]{64}$/);
-    expect(outcome.drop.authorityKey).not.toContain("actor-a");
+    expect(outcome.drop.authorityKey).not.toContain("account-a");
   });
 
   it("hides a community price when pairing revert runs", async () => {
@@ -120,7 +120,7 @@ describe("writeOneTapPintDrop", () => {
     expect(await readCommunityPrices(venueId)).toHaveLength(1);
   });
 
-  it("skips a second visit report for the same pub on the same day", async () => {
+  it("creates a matching Pint Drop for each accepted price observation", async () => {
     const input = {
       venueId: "venue-xjf3n0",
       handle: "karan",
@@ -128,10 +128,10 @@ describe("writeOneTapPintDrop", () => {
       priceGbp: 4.2,
     };
     const first = await writeOneTapPintDrop(input);
-    expect(first).toMatchObject({ ok: true, skipped: false });
+    expect(first).toMatchObject({ ok: true });
 
     const second = await writeOneTapPintDrop({ ...input, priceGbp: 4.5 });
-    expect(second).toEqual({ ok: true, skipped: true });
-    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
+    expect(second).toMatchObject({ ok: true });
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(2);
   });
 });
