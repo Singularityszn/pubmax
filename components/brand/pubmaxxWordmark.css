@@ -11,12 +11,15 @@
 }
 
 .pubmaxxWordmark {
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
   max-width: 100%;
+  min-width: 0;
   color: currentColor;
   font: inherit;
   font-weight: 800;
   letter-spacing: -.045em;
+  line-height: 1;
   white-space: nowrap;
 }
 
@@ -32,7 +35,6 @@
 .pubmaxxDoubleX {
   display: inline-flex;
   align-items: center;
-  gap: .005em;
   margin-inline: .015em .03em;
 }
 
@@ -44,7 +46,7 @@
   fill: currentColor;
 }
 
-.pubmaxxDoubleX svg:nth-child(2) {
+.pubmaxxDoubleX--accent {
   color: var(--brass);
 }
 

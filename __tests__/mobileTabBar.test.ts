@@ -38,7 +38,7 @@ describe("mobile tab bar contract", () => {
     const byLabel = Object.fromEntries(tabs.map((tab) => [tab.label, tab]));
     expect(byLabel.Now.href).toBe("/tonight");
     expect(byLabel.Now.match).toEqual(["/today", "/tonight"]);
-    expect(byLabel.Map.href).toBe("/map/london");
+    expect(byLabel.Map.href).toBe("/map");
     expect(byLabel.Out.href).toBe("/out");
     expect(byLabel.Social.href).toBe("/social");
     expect(byLabel.You.href).toBe("/u/you");

@@ -12,7 +12,7 @@ export type PrimaryNavItem = {
 /**
  * The five durable destinations in the PUBMAXX shell. Moment is deliberately
  * modelled separately below because it is a compose action, never a location.
- * City-aware map URLs and the time-aware Now href are applied at render time.
+ * The time-aware Now href is applied at render time; Map stays canonical /map.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "now", href: "/today", label: "Now", match: ["/today", "/tonight"] },

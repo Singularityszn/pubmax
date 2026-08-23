@@ -4,10 +4,6 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Map, UserRound, Images, CalendarClock, DoorOpen } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
-import {
-  preferredCityMapHref,
-  subscribePreferredCity,
-} from "@/lib/cityPreference";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { warmNavRoute } from "@/lib/mapWarmup";
 import {
@@ -53,13 +49,16 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
-// Map follows the preferred city (null → /map). Now follows London wall clock.
+// Map always opens the canonical /map surface. Now follows London wall clock.
 // Exported for the five-tab contract test (order + destinations are load-bearing).
 export function buildTabs(
-  mapHref: string,
+  _mapHref = "/map",
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
 ): Tab[] {
+  // Keep the old argument for callers that supplied a preferred-city href. The
+  // primary Map destination is one canonical surface, so that value is ignored.
+  void _mapHref;
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
@@ -67,7 +66,7 @@ export function buildTabs(
       item.key === "now"
         ? nowHref
         : item.key === "map"
-          ? mapHref
+          ? "/map"
           : item.key === "you"
             ? youHref
             : item.href,
@@ -98,13 +97,6 @@ export default function MobileTabBar() {
 
 function MobileTabBarContent({ pathname }: { pathname: string }) {
   const router = useRouter();
-  // Preference may be null → /map. useSyncExternalStore: SSR/hydration stay on
-  // /map, then re-read after mount (and when CitySwitcher writes).
-  const mapHref = useSyncExternalStore(
-    subscribePreferredCity,
-    preferredCityMapHref,
-    () => "/map",
-  );
   // Now flips at 17:00 London. The SERVER snapshot is a constant, not a clock
   // read: a prerendered document held by the CDN would otherwise hydrate against
   // an href the browser had already moved past. See navigationModel.
@@ -135,7 +127,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     serverStrictModalFocusTrap,
   );
   const socialPreviewBadge = useSocialNavShowsPreviewBadge();
-  const tabs = useMemo(() => buildTabs(mapHref, youHref, nowHref), [mapHref, youHref, nowHref]);
+  const tabs = useMemo(() => buildTabs("/map", youHref, nowHref), [youHref, nowHref]);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.
