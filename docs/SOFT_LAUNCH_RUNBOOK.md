@@ -18,7 +18,7 @@ This runs the data gate and the Next build only. It does not run lint, typecheck
 
 **`docs/DEPLOYMENT.md` says the build command is `npm run ci` (the full gate). That is out of date.** PR [#748](https://github.com/Singularityszn/pubmax/pull/748) narrowed the Vercel build command on 2026-08-06 to cut build-hour cost. Tests, lint, and typecheck moved to GitHub Actions CI (`.github/workflows/ci.yml`).
 
-GitHub Actions CI runs on stock `ubuntu-latest` runners via `.github/workflows/ci.yml` (lint, `tsc --noEmit`, sharded `vitest run` on every pull request and on push to `main`). The Blacksmith migration [#747](https://github.com/Singularityszn/pubmax/pull/747) was rejected; do not repoint `runs-on`.
+GitHub Actions CI is configured for stock `ubuntu-latest` runners via `.github/workflows/ci.yml` (lint, `tsc --noEmit`, sharded `vitest run` on every pull request and on push to `main`). Hosted jobs can fail before execution when the repository has a billing or runner-allocation fault. That state is not a test failure, but it is still a release-gate failure. Record local `npm run ci` evidence and restore hosted execution before calling the release gate green. Do not repoint `runs-on` to a private runner as a silent workaround.
 
 Effective RLS stays in `.github/workflows/rls-session.yml` (Postgres 16 + PostgREST 14). Keep both workflows green on every pull request.
 
@@ -52,7 +52,7 @@ To check the live ledger, compare `supabase/migrations/` against the Supabase da
 supabase migration list
 ```
 
-**Live snapshot re-verified 2026-08-08 via MCP apply + pg_constraint checks** (reverify before any later push; this will go stale): the database has every migration applied through `0084_crew_snapshot_wetherspoons_flag` (0082 coffee, 0083 check-ins area optional, 0084 crew snapshot parity applied 2026-08-08), including the earlier out-of-order `0075_social_crews` block.
+**Live snapshot re-verified 2026-08-23** (reverify before any later push; this will go stale): production migrations through `0116` were applied. The owner must still compare the full repository and production ledgers before each release. Do not infer schema state from the latest filename alone.
 
 | Order applied (timestamp) | File | Migration |
 |---|---|---|
@@ -89,7 +89,7 @@ Social ships behind two independent server-checked switches:
 4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
 5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface.
 
-Do not enable `SOCIAL_INVITE_BETA_ENABLED` for this wave. Issue [#736](https://github.com/Singularityszn/pubmax/issues/736) still blocks the legacy Clerk beta on moderator rota; `docs/social/SOCIAL_BETA_CONTRACT.md` lists both roles as **Unassigned, Blocking** for that path.
+Do not enable `SOCIAL_INVITE_BETA_ENABLED` for this wave. It is a retained audit trail for the retired Clerk beta path. `docs/social/SOCIAL_BETA_CONTRACT.md` lists both moderation roles as **Unassigned, Blocking** for that path.
 
 ### 1.5 Captain demo script (Social + avatars dress rehearsal)
 
@@ -201,7 +201,7 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 
 ### 5.2 Social moderation rota
 
-`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before any invite-beta flag goes live. As of this runbook, both are listed **Unassigned, Blocking** in that document and in issue [#736](https://github.com/Singularityszn/pubmax/issues/736).
+`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before any invite-beta flag goes live. As of this runbook, both are listed **Unassigned, Blocking** in that document.
 
 Do not enable `SOCIAL_INVITE_BETA_ENABLED` until both roles are named and the handover between them has been exercised at least once. Check `docs/social/SOCIAL_BETA_CONTRACT.md`'s moderation table for current status before launch.
 
@@ -230,3 +230,20 @@ Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track i
 ### 6.4 Done when
 
 At least 10 distinct humans completed a map open and at least 5 RSVPs or price logs in week 1 without paid ads. Seed boroughs must not read as empty grey; invite share should appear on most successful locked plans.
+
+---
+
+## 7. Owner go-live evidence
+
+Do not mark issue #392 complete until each row has a dated link or screenshot from the owning service.
+
+| Gate | Required evidence | Status on 2026-08-23 |
+|---|---|---|
+| Google Search Console | Verified domain property, submitted `https://pubmaxxing.com/sitemap.xml`, and successful fetch | Owner action |
+| Bing Webmaster Tools | Verified site, submitted sitemap, and successful fetch | Owner action |
+| Android PWA install | After a second distinct-day visit or a completed Crawl Route, supported Android Chrome emits `beforeinstallprompt`; the PUBMAXX prompt appears and the installed PWA launches from the home screen | Owner action |
+| iOS install | Safari Add to Home Screen instructions are accurate and the installed app launches from the home screen | Owner action |
+| Demo content | Vercel Production environment shows `NEXT_PUBLIC_DEMO_CONTENT=off`; promoted deployment ID recorded | Owner action |
+| Analytics order | PostHog receives release, map open, plan generated, invite opened, invite accepted, crew activation, completion, recap share, and repeat-plan events in that order | Owner action |
+| First cohort | Dated result for 10 distinct map opens and 5 RSVPs or price logs, with no paid ads | Owner action |
+| Release gate | Exact `main` SHA, local `npm run ci`, RLS, browser smoke, hosted CI state, and promoted deployment ID | In progress |
