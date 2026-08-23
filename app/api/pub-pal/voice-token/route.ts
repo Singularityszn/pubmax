@@ -12,6 +12,7 @@ import {
   type PalVoiceMeterState,
 } from "@/lib/palVoiceMetering";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
+import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
 import { getPubPal } from "@/lib/pubPalStore";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
@@ -161,20 +162,6 @@ async function handleRelease(
   await releaseVoiceReservation(admin, userId, usageMonth, meter, durationSeconds);
   const remainingMinutes = admin ? null : remainingVoiceMinutes(meter);
   return jsonNoStore({ released: true, remainingMinutes });
-}
-
-/**
- * Whether the captain has switched voice on for this deployment.
- *
- * The credential itself never leaves the server; this is the one bit the
- * browser needs so the Pal can SAY that voice is not switched on, in house
- * voice, instead of leaving a Start button that answers 503 on the tap.
- */
-export function palVoiceConfigured(): boolean {
-  return Boolean(
-    process.env.ELEVENLABS_API_KEY?.trim() &&
-      process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim(),
-  );
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {

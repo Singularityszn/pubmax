@@ -9,29 +9,15 @@
 // the cap and the whole staging journey live there.
 
 import {
-  defaultProfileCoverPhotoRouteDeps,
   handleProfileCoverPhotoList,
   handleProfileCoverPhotoUpload,
-  type ProfileCoverPhotoRouteDeps,
 } from "@/lib/profileCoverPhotoRoute.server";
+import { profileCoverPhotosRouteDeps } from "@/lib/profileCoverPhotoRouteDeps.server";
 import { assertServerEnv } from "@/lib/serverEnv";
 
 assertServerEnv();
 
 export const maxDuration = 15;
-
-/** Test seam: production callers leave this unset. */
-let testDeps: Partial<ProfileCoverPhotoRouteDeps> | null = null;
-
-export function __setProfileCoverPhotosRouteDepsForTest(
-  deps: Partial<ProfileCoverPhotoRouteDeps> | null,
-): void {
-  testDeps = deps;
-}
-
-function deps(): ProfileCoverPhotoRouteDeps {
-  return { ...defaultProfileCoverPhotoRouteDeps, ...testDeps };
-}
 
 type RouteContext = { params: Promise<{ handle: string }> };
 
@@ -40,5 +26,9 @@ export async function GET(request: Request, { params }: RouteContext): Promise<R
 }
 
 export async function POST(request: Request, { params }: RouteContext): Promise<Response> {
-  return handleProfileCoverPhotoUpload(request, (await params).handle, deps());
+  return handleProfileCoverPhotoUpload(
+    request,
+    (await params).handle,
+    profileCoverPhotosRouteDeps(),
+  );
 }

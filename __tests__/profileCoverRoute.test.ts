@@ -33,11 +33,8 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   };
 });
 
-import {
-  DELETE,
-  POST,
-  __setProfileCoverRouteDepsForTest,
-} from "@/app/api/profiles/[handle]/cover/route";
+import { DELETE, POST } from "@/app/api/profiles/[handle]/cover/route";
+import { __setProfileCoverRouteDepsForTest } from "@/lib/profileImageRouteDeps.server";
 import { POST as reportCover } from "@/app/api/profiles/[handle]/cover/report/route";
 import { GET as getProfile } from "@/app/api/profiles/[handle]/route";
 import { __resetPintDrops } from "@/lib/pintDrops";

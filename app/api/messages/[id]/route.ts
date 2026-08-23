@@ -35,18 +35,13 @@ import {
   promoteStagedMessagePhoto,
   signMessagePhotoObject,
   stagePreparedMessagePhoto,
-  supabaseMessagePhotoStorage,
-  type MessagePhotoStorage,
   type StagedMessagePhoto,
 } from "@/lib/messagePhotoMedia.server";
+import { messagePhotoRouteDeps } from "@/lib/messagePhotoRoute.server";
 import { attachMessageVenueCards } from "@/lib/messageVenueCards.server";
 import { messagesStore } from "@/lib/messagesStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
-import {
-  createProfileAvatarModerationAdapter,
-  type ProfileAvatarModerationAdapter,
-} from "@/lib/profileAvatarModeration";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -64,30 +59,6 @@ const SEND_WINDOW_MS = 60_000;
  *  the provider bill to whoever asks. */
 const PHOTO_LIMIT = 12;
 const PHOTO_WINDOW_MS = 60 * 60 * 1000;
-
-// The two impure things the photo lane reaches for, behind one seam so a test
-// can walk the real journey without a bucket or a moderation provider.
-export type MessagePhotoRouteDeps = {
-  storage: MessagePhotoStorage;
-  moderation: () => ProfileAvatarModerationAdapter;
-};
-
-export const defaultMessagePhotoRouteDeps: MessagePhotoRouteDeps = {
-  storage: supabaseMessagePhotoStorage,
-  moderation: () => createProfileAvatarModerationAdapter(),
-};
-
-let testDeps: Partial<MessagePhotoRouteDeps> | null = null;
-
-export function __setMessagePhotoRouteDepsForTest(
-  deps: Partial<MessagePhotoRouteDeps> | null,
-): void {
-  testDeps = deps;
-}
-
-function routeDeps(): MessagePhotoRouteDeps {
-  return { ...defaultMessagePhotoRouteDeps, ...testDeps };
-}
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -276,7 +247,7 @@ async function sendPhoto(
   }
 
   const messageId = crypto.randomUUID();
-  const { storage, moderation } = routeDeps();
+  const { storage, moderation } = messagePhotoRouteDeps();
   let staged: StagedMessagePhoto | null = null;
   try {
     const prepared = await prepareMessagePhoto(photo);

@@ -22,11 +22,11 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
   };
 });
 
+import { GET } from "@/app/api/avatar/[profileId]/[generation]/route";
 import {
   AVATAR_SERVE_CACHE_CONTROL,
-  GET,
   __setAvatarServeRouteDepsForTest,
-} from "@/app/api/avatar/[profileId]/[generation]/route";
+} from "@/lib/profileImageServeRouteDeps.server";
 import { profileImageServingKey } from "@/lib/profileImageSlots";
 import type { ProfileRecord } from "@/lib/profileStore";
 

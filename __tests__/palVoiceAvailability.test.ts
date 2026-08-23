@@ -13,7 +13,7 @@ import {
   PalVoiceOffline,
   palVoiceAvailabilityFrom,
 } from "@/components/pubpal/PubPalVoice";
-import { palVoiceConfigured } from "@/app/api/pub-pal/voice-token/route";
+import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
 
 describe("palVoiceAvailabilityFrom", () => {
   it("only an explicit yes counts as available", () => {

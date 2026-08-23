@@ -44,11 +44,6 @@ import {
 } from "@/lib/socialLaunch";
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
-import { crosspostVenuePhotoToFeed } from "@/lib/venuePhotoCrosspost.server";
-import {
-  createProfileAvatarModerationAdapter,
-  type ProfileAvatarModerationAdapter,
-} from "@/lib/profileAvatarModeration";
 import { scanUploadedImage } from "@/lib/uploadedImageScan.server";
 import {
   discardStagedVenuePhoto,
@@ -56,11 +51,9 @@ import {
   promoteStagedVenuePhoto,
   signVenuePhotoObject,
   stagePreparedVenuePhoto,
-  supabaseVenuePhotoStorage,
   VENUE_PHOTO_MAX_BYTES,
   VenuePhotoError,
   type StagedVenuePhoto,
-  type VenuePhotoStorage,
 } from "@/lib/venuePhotoMedia.server";
 import {
   VENUE_PHOTO_CAP_PER_ACCOUNT,
@@ -73,34 +66,9 @@ import {
   venuePhotoServePath,
   type VenuePhotoCrosspost,
 } from "@/lib/venuePhotos";
+import { venuePhotoRouteDeps } from "@/lib/venuePhotoRouteDeps.server";
 
 assertServerEnv();
-
-// The three impure things this route reaches for, behind one seam so a test can
-// walk the real journey without a bucket, a moderation provider or a feed.
-export type VenuePhotoRouteDeps = {
-  storage: VenuePhotoStorage;
-  moderation: () => ProfileAvatarModerationAdapter;
-  crosspost: typeof crosspostVenuePhotoToFeed;
-};
-
-export const defaultVenuePhotoRouteDeps: VenuePhotoRouteDeps = {
-  storage: supabaseVenuePhotoStorage,
-  moderation: () => createProfileAvatarModerationAdapter(),
-  crosspost: crosspostVenuePhotoToFeed,
-};
-
-let testDeps: Partial<VenuePhotoRouteDeps> | null = null;
-
-export function __setVenuePhotoRouteDepsForTest(
-  deps: Partial<VenuePhotoRouteDeps> | null,
-): void {
-  testDeps = deps;
-}
-
-function routeDeps(): VenuePhotoRouteDeps {
-  return { ...defaultVenuePhotoRouteDeps, ...testDeps };
-}
 
 /** A genuine drinker posts a few photos in a session; more is abuse. */
 const UPLOAD_LIMIT = 12;
@@ -296,7 +264,7 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const photoId = crypto.randomUUID();
-  const { storage, moderation, crosspost: crosspostToFeed } = routeDeps();
+  const { storage, moderation, crosspost: crosspostToFeed } = venuePhotoRouteDeps();
   let staged: StagedVenuePhoto | null = null;
   try {
     const prepared = await prepareVenuePhoto(submitted.photo);

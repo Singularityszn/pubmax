@@ -8,10 +8,9 @@ import { CrossingMark, OG_CACHE_HEADERS } from "@/lib/ogBrand";
 import { readOgCityPriceBandCounts } from "@/lib/ogCityPriceBands.server";
 import { clampOgText } from "@/lib/ogCardText";
 import {
-  deriveOgPriceWaveLayers,
-  type OgPriceWaveLayer,
-  type PriceBandCounts,
-} from "@/lib/ogPriceWaves";
+  buildOgMapCardWaveLayers,
+  waveColour,
+} from "@/lib/cityMapCardWaves";
 
 // City map OG share card — cult / Freshers deep links (`?band=subcrawl`) and
 // curated crawl shares (`?crawl=victorian-soho`). Query-aware because
@@ -34,31 +33,6 @@ const RIVER = "#3f5566";
 
 const display = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
 const body = 'Helvetica, "Helvetica Neue", Arial, sans-serif';
-
-// Wave layer fills — restricted to the three-colour palette (ink near-black,
-// warm paper, coral accent) as varying-opacity washes, never a fourth hue.
-// Cheap pints read coral (the most inviting band); dear pints read ink,
-// receding into the card's own dark ground.
-const WAVE_COLOURS: Readonly<Record<0 | 1 | 2, string>> = {
-  0: "rgba(255,90,95,0.22)",
-  1: "rgba(255,244,232,0.10)",
-  2: "rgba(25,25,39,0.4)",
-};
-
-export function waveColour(band: 0 | 1 | 2): string {
-  return WAVE_COLOURS[band];
-}
-
-/**
- * Wraps deriveOgPriceWaveLayers at this card's fixed size, so a route test can
- * prove different band distributions produce different SVG paths without
- * touching next/og internals.
- */
-export function buildOgMapCardWaveLayers(
-  counts: PriceBandCounts,
-): OgPriceWaveLayer[] {
-  return deriveOgPriceWaveLayers(counts, size);
-}
 
 export async function GET(request: Request) {
   const limited = await ogCardRateLimitedResponse(request, "og-city-map-card");

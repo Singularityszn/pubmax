@@ -7,9 +7,9 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 
 import {
   buildOgMapCardWaveLayers,
-  GET,
   waveColour,
-} from "@/app/api/city-map-card/route";
+} from "@/lib/cityMapCardWaves";
+import { GET } from "@/app/api/city-map-card/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
