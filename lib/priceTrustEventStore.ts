@@ -4,6 +4,8 @@
 // bind to auth user ids. A reversal is a new row; visible credit is derived
 // by excluding events that have a reversal pointing at them.
 
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 
 import type { DrinkCategory } from "@/lib/drinks";

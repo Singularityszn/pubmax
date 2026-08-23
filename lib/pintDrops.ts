@@ -8,6 +8,8 @@
 // module and validation/UI can never drift. Same pattern as lib/reactionsStore.ts
 // (server) over lib/reactions.ts (browser-safe).
 
+import "server-only";
+
 import { randomUUID } from "crypto";
 
 import { HANDLE_MAX, normalizeHandle as normalizeHandleCore } from "@/lib/handleNormalize";

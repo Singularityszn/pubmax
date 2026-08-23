@@ -14,6 +14,8 @@
 // rejected/revoked claim back to pending for another review) rather than stacking
 // a second row.
 
+import "server-only";
+
 import { randomUUID } from "crypto";
 
 import {

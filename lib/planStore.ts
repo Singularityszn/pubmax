@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 
 import { cleanCrewName, CREW_MAX_MEMBERS, isCrewPresenceStatus, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";

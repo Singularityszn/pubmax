@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable notifications / activity feed. ONE store interface, TWO implementations
 // (process-memory + Supabase public.notifications), the exact dual-backend seam
 // pattern as reactions/comments/saved-pubs: Supabase when env keys exist,

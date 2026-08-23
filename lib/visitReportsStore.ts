@@ -19,6 +19,8 @@
 // reversible from the surface that made it); only `moderate` changes visibility
 // and stamps the decision.
 
+import "server-only";
+
 import { randomUUID } from "crypto";
 
 import {

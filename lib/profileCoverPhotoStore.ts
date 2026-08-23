@@ -1,3 +1,5 @@
+import "server-only";
+
 // The rotating-cover store - the impure seam. ONE interface, TWO
 // implementations (process-memory + Supabase `public.profile_cover_photos`),
 // chosen at the single `profileCoverPhotoStore()` seam, exactly like

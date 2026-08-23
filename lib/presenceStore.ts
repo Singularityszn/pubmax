@@ -1,3 +1,5 @@
+import "server-only";
+
 // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). ONE seam,
 // TWO backends: Supabase (public.pub_presence, migration 0007) when env keys
 // exist, process-memory otherwise — the same Supabase-or-memory pattern as

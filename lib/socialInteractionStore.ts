@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash, createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 import { followStore } from "@/lib/followStore";

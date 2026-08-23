@@ -2,6 +2,8 @@
 // Fail closed in production when the secret is unset; callers must present the same
 // value via Authorization Bearer or the dedicated header.
 
+import "server-only";
+
 import { createHash, timingSafeEqual } from "node:crypto";
 
 import { publicApiError } from "@/lib/apiError";

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable-or-memory cache for routed walk legs. The walk-route API writes each
 // ORS-routed leg HERE keyed by its rounded stop pair (lib/walkRoute legCacheKey),
 // and reads legs back before spending an ORS call — a crawl's N-1 legs are shared

@@ -6,6 +6,8 @@
 // projection. One contributor owns one row per venue and weather condition, so
 // editing a reason cannot inflate contributor-record counts.
 
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 
 import { isDeployedProduction } from "@/lib/deploymentEnv";

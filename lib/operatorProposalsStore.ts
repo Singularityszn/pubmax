@@ -11,6 +11,8 @@
 // Fail-soft-to-memory until migration 0047 lands; a HARD durable write failure
 // THROWS so the route answers 503. Reads are fail-soft.
 
+import "server-only";
+
 import { randomUUID } from "crypto";
 
 import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";

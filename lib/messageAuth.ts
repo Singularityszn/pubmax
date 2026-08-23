@@ -1,3 +1,5 @@
+import "server-only";
+
 // Resolve the actor handle for messaging routes.
 //
 // Dual-backend identity (same stance as profiles):

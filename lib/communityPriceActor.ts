@@ -1,3 +1,5 @@
+import "server-only";
+
 import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 
 /**

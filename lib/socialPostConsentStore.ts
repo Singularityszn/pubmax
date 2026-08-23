@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHmac, timingSafeEqual } from "node:crypto";
 
 import { socialPostFromRow, type SocialPostActor } from "@/lib/socialPostStore";

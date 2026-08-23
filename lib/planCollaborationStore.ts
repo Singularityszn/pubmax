@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";

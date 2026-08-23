@@ -1,3 +1,5 @@
+import "server-only";
+
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 export type AnalyticsReceiptClaim = "claimed" | "delivered" | "busy" | "conflict" | "error";

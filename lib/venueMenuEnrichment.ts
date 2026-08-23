@@ -2,6 +2,8 @@
 // Applied on the venue DETAIL path only — never on the slim map index.
 // Missing or malformed files degrade to an empty map (never throw).
 
+import "server-only";
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 

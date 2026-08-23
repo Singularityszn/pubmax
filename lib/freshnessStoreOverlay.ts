@@ -1,3 +1,5 @@
+import "server-only";
+
 // Store-backed honest-observedAt overlay for the freshness spine.
 //
 // The freshness registry resolves each dataset's stamp from its committed disk

@@ -1,3 +1,5 @@
+import "server-only";
+
 import { randomUUID } from "node:crypto";
 import { cleanPalDraft, compatiblePalSpecies, type MasteryEvent, type PalProposalPreferences, type PubPal, type PubPalMemory, type PubPalMemoryKind } from "@/lib/pubPal";
 import { cleanText } from "@/lib/textClean";

@@ -1,3 +1,5 @@
+import "server-only";
+
 import {
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,

@@ -12,6 +12,8 @@
 // Node-backed (reads the shipped JSON) — import only from server code, like
 // lib/heritage. The client bundle uses lib/heritageFacts for the wire shape.
 
+import "server-only";
+
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 

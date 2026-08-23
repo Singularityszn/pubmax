@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side password facts. Never import this from a browser module: it
 // resolves an account's auth email and speaks to GoTrue with the service role.
 //

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Price-confirm micro-contribution store — the lightweight community
 // "still accurate?" signal behind the "Still £4.20?" chip on the venue sheet.
 //
