@@ -36,7 +36,7 @@ describe("mobile map first-visit presentation", () => {
 
   it("locks map and chrome interaction until the arrival choice", () => {
     expect(pubMapSource).toMatch(
-      /<PubMapCanvas[\s\S]*?interactionLocked=\{showMapArrivalCard\}/,
+      /<PubMapCanvas[\s\S]*?interactionLocked=\{mobileViewport && showMapArrivalCard\}/,
     );
     expect(pubMapSource).toMatch(
       /<MobileMapShell[\s\S]*?interactionLocked=\{showMapArrivalCard\}/,
