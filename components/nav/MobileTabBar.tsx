@@ -52,13 +52,9 @@ const warmedTabs = new Set<string>();
 // Map always opens the canonical /map surface. Now follows London wall clock.
 // Exported for the five-tab contract test (order + destinations are load-bearing).
 export function buildTabs(
-  _mapHref = "/map",
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
 ): Tab[] {
-  // Keep the old argument for callers that supplied a preferred-city href. The
-  // primary Map destination is one canonical surface, so that value is ignored.
-  void _mapHref;
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS.map((item) => ({
     ...item,
@@ -127,7 +123,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     serverStrictModalFocusTrap,
   );
   const socialPreviewBadge = useSocialNavShowsPreviewBadge();
-  const tabs = useMemo(() => buildTabs("/map", youHref, nowHref), [youHref, nowHref]);
+  const tabs = useMemo(() => buildTabs(youHref, nowHref), [youHref, nowHref]);
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a
   // wrong tab.

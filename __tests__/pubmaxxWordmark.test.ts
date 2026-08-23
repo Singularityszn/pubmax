@@ -22,12 +22,13 @@ describe("PUBMAXX wordmark", () => {
     expect((letters.match(/<svg /g) ?? []).length).toBe(2);
   });
 
-  it("keeps the app name and decorative role for assistive technology", () => {
+  it("uses the canonical brand name for assistive technology", () => {
     const html = render();
 
     expect(html).toContain('role="img"');
-    expect(html).toContain('aria-label="PUBMAXXING"');
-    expect(html).toContain('class="pubmaxxWordmarkSr">PUBMAXXING</span>');
+    expect(html).toContain('aria-label="PUBMAXX"');
+    expect(html).toContain('class="pubmaxxWordmarkSr">PUBMAXX</span>');
+    expect(html).not.toContain("PUBMAXXING");
   });
 
   it("keeps the mark lockup API intact", () => {

@@ -158,7 +158,7 @@ export default function SiteNav({
       </ul>
 
       <div className="siteNavActions">
-        {/* D2.2: secondary destinations (Plan/Near/Pubs/Historic/Pal). Desktop
+        {/* D2.2: secondary destinations (Plan/Near/Historic/Pal). Desktop
             only — siteNav.css hides .siteNavMore at ≤640 so mobile is unchanged. */}
         <SiteNavMore />
         {/* Moment compose (desktop). On phones the bottom tab bar's raised

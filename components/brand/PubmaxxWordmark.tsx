@@ -1,4 +1,5 @@
 import "./pubmaxxWordmark.css";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import PubmaxxMark, { MARK_GEOMETRY, type PubmaxxMarkVariant } from "./PubmaxxMark";
 
 // The doubled `××` ending of the visible PUBMAXX wordmark uses the SAME
@@ -43,9 +44,9 @@ export default function PubmaxxWordmark({
     <span
       className={`pubmaxxWordmark ${withMark ? "" : className}`.trim()}
       role="img"
-      aria-label="PUBMAXXING"
+      aria-label={BRAND_NAME}
     >
-      <span className="pubmaxxWordmarkSr">PUBMAXXING</span>
+      <span className="pubmaxxWordmarkSr">{BRAND_NAME}</span>
       <span className="pubmaxxWordmarkLetters" aria-hidden="true">
         <span>PUBMA</span>
         <span className="pubmaxxDoubleX">
