@@ -419,14 +419,24 @@ async function withRequestDeadline(parentSignal, operation) {
   const relayAbort = () => controller.abort(parentSignal?.reason);
   if (parentSignal?.aborted) relayAbort();
   else parentSignal?.addEventListener("abort", relayAbort, { once: true });
-  const timer = setTimeout(
-    () => controller.abort(new Error(`City enrichment request timed out after ${SEARCH_REQUEST_WALL_MS}ms.`)),
-    SEARCH_REQUEST_WALL_MS,
-  );
+  let timer;
+  // AbortSignal is advisory. Race the dependency so an ignored signal cannot
+  // keep the next pub query waiting past its request budget.
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      const error = new Error(
+        `City enrichment request timed out after ${SEARCH_REQUEST_WALL_MS}ms.`,
+      );
+      controller.abort(error);
+      reject(error);
+    }, SEARCH_REQUEST_WALL_MS);
+  });
+  const operationPromise = Promise.resolve().then(() => operation(controller.signal));
   try {
-    return await operation(controller.signal);
+    return await Promise.race([operationPromise, timeout]);
   } finally {
     clearTimeout(timer);
+    void operationPromise.catch(() => {});
     parentSignal?.removeEventListener("abort", relayAbort);
   }
 }

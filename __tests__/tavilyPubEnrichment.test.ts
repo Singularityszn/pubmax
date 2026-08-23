@@ -384,6 +384,38 @@ describe("Tavily pub enrichment governance", () => {
     expect(fetchImpl).toHaveBeenCalledTimes(2);
   });
 
+  it("stops after an abort-ignoring legacy fetch deadline", async () => {
+    vi.useFakeTimers();
+    try {
+      const fetchImpl = vi.fn<typeof fetch>(() => new Promise(() => {}));
+      const resultPromise = runCityEnrichment({
+        city: "manchester",
+        pubs: [
+          independentPub,
+          { ...independentPub, osmId: "node/2", name: "Independent Arms 2" },
+        ],
+        apiKey: "test-key",
+        maxQueries: 2,
+        observedAt: OBSERVED_AT,
+        fetchImpl,
+      });
+      const settled = resultPromise.then(
+        () => true,
+        () => true,
+      );
+      const timeout = new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 13_000);
+      });
+
+      await vi.advanceTimersByTimeAsync(13_000);
+
+      await expect(Promise.race([settled, timeout])).resolves.toBe(true);
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("enforces the absolute 200-call cap inside the reusable core", async () => {
     const fetchImpl = vi.fn<typeof fetch>(async () => tavilyResponse());
     const pubs = Array.from({ length: 201 }, (_, index) => ({

@@ -234,6 +234,32 @@ describe("search provider fallback", () => {
     expect(fetchImpl).toHaveBeenCalledOnce();
   });
 
+  it("settles an Exa deadline when generateText ignores abort", async () => {
+    vi.useFakeTimers();
+    try {
+      const generateText = vi.fn(() => new Promise(() => {}));
+      const provider = createSearchProvider({
+        env: { AI_GATEWAY_API_KEY: "gateway-test-key" },
+        dependencies: gatewayDependencies(generateText),
+      });
+      const resultPromise = provider.search({ query: "official menu", timeoutMs: 100 });
+      const settled = resultPromise.then(
+        () => true,
+        () => true,
+      );
+      const timeout = new Promise<boolean>((resolve) => {
+        setTimeout(() => resolve(false), 1_000);
+      });
+
+      await vi.advanceTimersByTimeAsync(1_000);
+
+      await expect(Promise.race([settled, timeout])).resolves.toBe(true);
+      expect(generateText).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("keeps a valid empty Exa result without falling back", async () => {
     const fetchImpl = vi.fn(async () => tavilyResponse());
     const provider = createSearchProvider({
