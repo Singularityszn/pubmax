@@ -138,14 +138,13 @@ function awaitCachedValueForRequest<T>(
   if (signal.aborted) return Promise.resolve(fallback);
   return new Promise((resolve) => {
     let settled = false;
-    let onAbort: () => void;
     const finish = (value: T) => {
       if (settled) return;
       settled = true;
       signal.removeEventListener("abort", onAbort);
       resolve(value);
     };
-    onAbort = () => finish(fallback);
+    const onAbort = () => finish(fallback);
     signal.addEventListener("abort", onAbort, { once: true });
     void producer.then(finish, () => finish(fallback));
   });
