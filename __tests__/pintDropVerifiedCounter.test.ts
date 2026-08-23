@@ -32,13 +32,13 @@ describe("verified Pint Drop report counter boundary", () => {
       provenance: "contributor",
       status: "visible",
       createdAt: "2026-08-23T10:00:00.000Z",
-      reportCount: 1,
+      reportCount: 7,
     };
     addPintDrop(legacyDrop);
 
     expect(reportPintDrop(legacyDrop.id, "wrong price", verified("account-a"))).toBe(true);
     expect(listVisiblePintDrops(VENUE_ID)).toHaveLength(1);
-    expect(legacyDrop.reportCount).toBe(1);
+    expect(legacyDrop.reportCount).toBe(7);
     await expect(memoryPintDropStore.listVisible(VENUE_ID)).resolves.toEqual(
       expect.arrayContaining([expect.objectContaining({ reportCount: 1 })]),
     );
@@ -66,6 +66,9 @@ describe("verified Pint Drop report counter boundary", () => {
     expect(reportPintDrop(drop.id, "anonymous flag", { kind: "anonymous_ip", actorHash: "shared" })).toBe(true);
     expect(reportPintDrop(drop.id, "account flag", verified("shared"))).toBe(true);
     expect(listVisiblePintDrops(VENUE_ID)).toHaveLength(1);
+
+    expect(reportPintDrop(drop.id, "second account flag", verified("account-b"))).toBe(true);
+    expect(listVisiblePintDrops(VENUE_ID)).toHaveLength(0);
   });
 
   it("does not expose a legacy report count before a verified report exists", async () => {
