@@ -1,3 +1,5 @@
+import "server-only";
+
 import { createHash, timingSafeEqual } from "node:crypto";
 
 // Moderator gate — shared by app/api/admin/comments/route.ts and the moderator

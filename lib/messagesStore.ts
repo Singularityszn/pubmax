@@ -1,3 +1,5 @@
+import "server-only";
+
 // Durable 1:1 messaging store. ONE store interface, TWO implementations
 // (process-memory + Supabase public.conversations/messages), the same dual-backend
 // seam as notifications/reactions/comments: Supabase when env keys exist,

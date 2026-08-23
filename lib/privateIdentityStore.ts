@@ -1,3 +1,5 @@
+import "server-only";
+
 import { parseFoundingMemberNumber } from "@/lib/foundingMembers";
 import { identityHandleStore } from "@/lib/identityHandleStore";
 import {

@@ -1,3 +1,5 @@
+import "server-only";
+
 // Server-side identity resolution for API routes.
 //
 // Writes in this app route through the SERVICE-ROLE admin client, which bypasses
