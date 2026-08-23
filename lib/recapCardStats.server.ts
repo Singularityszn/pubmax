@@ -1,10 +1,8 @@
 import "server-only";
 
-import { displayHandle } from "@/lib/handleDisplay";
 import { getPublishedRecapSource } from "@/lib/nightMemoryStore";
 import { composeRecapFromPublishedStory } from "@/lib/recapView";
 import { pintDropsStore, type PintDropDTO } from "@/lib/pintDropsStore";
-import { profileStore, type ProfileRecord } from "@/lib/profileStore";
 import type { RecapCardStats } from "@/lib/recapCard";
 import { getVenueIndex, type VenueRef } from "@/lib/venueIndex";
 import type { NightMoment } from "@/lib/nightMemory";
@@ -22,9 +20,8 @@ import type { PintDrop } from "@/lib/pintDropShared";
 // story is published + not-private, and it reads only the already published
 // moment allowlist. Ownership split:
 //   • Lane 2 sources stopCount / pintCount / cheapest price / (route stops).
-//   • Lane 3 (here) sources boroughsCrossed (venue index) and crew labels from
-//     the redacted public moment owners. Lane 3 never reads private Story
-//     contributors or Moment consents.
+//   • Lane 3 (here) sources boroughsCrossed (venue index). Crew stays empty:
+//     published Moment ownership is not an explicit crew identity consent.
 //   • ending is NULL on the public path by design (it lives on the plan
 //     completion, which the public story does not join). RecapCardStats.ending
 //     is nullable and the card hides the ending tile when absent.
@@ -33,6 +30,12 @@ import type { PintDrop } from "@/lib/pintDropShared";
 // the published/non-private check, applies the published-moment allowlist, and
 // redacts departed contributors before this module sees a Moment. All joins
 // below are therefore best-effort enrichment of that public-safe source.
+
+// A recap card only needs public Pint Drops attached to route stops. Keep this
+// enrichment bounded even when a malformed or unusually large Story has many
+// Pint Drop Moments. The card stays useful with a partial price join.
+const MAX_RECAP_PINT_DROP_VENUE_READS = 12;
+const RECAP_PINT_DROP_READ_CONCURRENCY = 4;
 
 function nonEmpty(value: unknown): string | null {
   if (typeof value !== "string") return null;
@@ -69,18 +72,26 @@ function publicDropForComposer(drop: PintDropDTO): PintDrop {
 async function readPublicPintDrops(
   moments: NightMoment[],
 ): Promise<Map<string, PintDrop>> {
-  const requestedDropIds = new Set(
+  const routeVenueIds = new Set(
     moments
-      .filter((moment) => moment.kind === "pint_drop")
+      .filter((moment) => moment.kind === "venue")
+      .map((moment) => nonEmpty(moment.venueId))
+      .filter((id): id is string => id !== null),
+  );
+  const relevantPintDropMoments = moments.filter((moment) => {
+    const venueId = nonEmpty(moment.venueId);
+    return moment.kind === "pint_drop" && venueId !== null && routeVenueIds.has(venueId);
+  });
+  const requestedDropIds = new Set(
+    relevantPintDropMoments
       .map((moment) => nonEmpty(moment.pintDropId))
       .filter((id): id is string => id !== null),
   );
   const venueIds = [...new Set(
-    moments
-      .filter((moment) => moment.kind === "pint_drop")
+    relevantPintDropMoments
       .map((moment) => nonEmpty(moment.venueId))
       .filter((id): id is string => id !== null),
-  )];
+  )].slice(0, MAX_RECAP_PINT_DROP_VENUE_READS);
   if (requestedDropIds.size === 0 || venueIds.length === 0) return new Map();
 
   const out = new Map<string, PintDrop>();
@@ -91,8 +102,11 @@ async function readPublicPintDrops(
     return out;
   }
 
-  await Promise.all(
-    venueIds.map(async (venueId) => {
+  let nextVenueIndex = 0;
+  const readVenue = async (): Promise<void> => {
+    while (nextVenueIndex < venueIds.length) {
+      const venueId = venueIds[nextVenueIndex];
+      nextVenueIndex += 1;
       try {
         const drops = await store.listVisible(venueId);
         for (const drop of drops) {
@@ -101,7 +115,13 @@ async function readPublicPintDrops(
       } catch {
         // One unavailable venue read must not erase stats for other venues.
       }
-    }),
+    }
+  };
+  await Promise.all(
+    Array.from(
+      { length: Math.min(RECAP_PINT_DROP_READ_CONCURRENCY, venueIds.length) },
+      () => readVenue(),
+    ),
   );
   return out;
 }
@@ -115,42 +135,6 @@ async function readVenueRefs(): Promise<Map<string, VenueRef>> {
     // honest route/pint stats when the packaged index is unavailable.
     return new Map();
   }
-}
-
-function crewOwnerIds(moments: NightMoment[]): string[] {
-  return [...new Set(moments
-    .map((moment) => nonEmpty(moment.ownerId))
-    .filter((id): id is string => id !== null))];
-}
-
-async function readPublicCrew(moments: NightMoment[]): Promise<string[]> {
-  const ownerIds = crewOwnerIds(moments);
-  if (ownerIds.length === 0) return [];
-
-  let store: ReturnType<typeof profileStore>;
-  try {
-    store = profileStore();
-  } catch {
-    return [];
-  }
-
-  const labels: string[] = [];
-  for (const ownerId of ownerIds) {
-    try {
-      const profile = await store.getByUserId(ownerId);
-      const label = publicCrewLabel(profile);
-      if (label) labels.push(label);
-    } catch {
-      // Profile enrichment is optional. Never turn one unavailable profile into
-      // a missing public recap card.
-    }
-  }
-  return labels;
-}
-
-function publicCrewLabel(profile: ProfileRecord | null): string | null {
-  if (!profile || profile.tombstonedAt) return null;
-  return nonEmpty(profile.displayName) ?? (nonEmpty(profile.handle) ? displayHandle(profile.handle) : null);
 }
 
 function boroughCount(moments: NightMoment[], venueIndex: Map<string, VenueRef>): number {
@@ -171,10 +155,9 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
   }
   if (!source) return null;
 
-  const [venueIndex, pintDropsById, crew] = await Promise.all([
+  const [venueIndex, pintDropsById] = await Promise.all([
     readVenueRefs(),
     readPublicPintDrops(source.moments),
-    readPublicCrew(source.moments),
   ]);
   const venueNames = new Map<string, string>();
   for (const venueId of uniqueVenueIds(source.moments)) {
@@ -201,7 +184,7 @@ export async function recapCardStats(storyId: string): Promise<RecapCardStats | 
     boroughsCrossed: boroughCount(source.moments, venueIndex),
     ending: view.ending?.kind ?? null,
     cheapestPintGbp: view.stats.cheapestPintGbp,
-    crew,
+    crew: [],
     nightDateIso: view.completedAt ?? source.story.publishedAt,
   };
 }

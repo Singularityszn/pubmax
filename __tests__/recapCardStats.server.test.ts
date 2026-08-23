@@ -10,6 +10,8 @@ const state = vi.hoisted(() => ({
   profileByUserId: new Map<string, { displayName?: string; handle: string }>(),
   venueReads: 0,
   dropReads: [] as string[],
+  activeDropReads: 0,
+  peakDropReads: 0,
   profileReads: [] as string[],
 }));
 
@@ -28,7 +30,11 @@ vi.mock("@/lib/pintDropsStore", () => ({
   pintDropsStore: () => ({
     listVisible: vi.fn(async (venueId: string) => {
       state.dropReads.push(venueId);
+      state.activeDropReads += 1;
+      state.peakDropReads = Math.max(state.peakDropReads, state.activeDropReads);
       const drops = state.dropsByVenue.get(venueId);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      state.activeDropReads -= 1;
       if (drops === undefined) throw new Error(`drop read failed for ${venueId}`);
       return drops;
     }),
@@ -53,7 +59,7 @@ const story: PublicNightStory = {
   status: "published",
   visibility: "public",
   legacyCrawlStoryId: null,
-  publishedMomentIds: ["stop-1", "stop-2", "event-1", "pint-1", "pint-2"],
+  publishedMomentIds: ["stop-1", "stop-2", "event-1", "pint-1", "pint-2", "pint-outside"],
   publishedAt: "2026-08-20T09:00:00.000Z",
   createdAt: "2026-08-19T20:00:00.000Z",
   updatedAt: "2026-08-20T09:00:00.000Z",
@@ -117,6 +123,13 @@ beforeEach(() => {
         venueId: "venue-b",
         pintDropId: "drop-b",
       }),
+      moment({
+        id: "pint-outside",
+        ownerId: "user-sam",
+        kind: "pint_drop",
+        venueId: "venue-c",
+        pintDropId: "drop-outside",
+      }),
     ],
   };
   state.venueIndex = new Map([
@@ -136,11 +149,13 @@ beforeEach(() => {
   ]);
   state.venueReads = 0;
   state.dropReads = [];
+  state.activeDropReads = 0;
+  state.peakDropReads = 0;
   state.profileReads = [];
 });
 
 describe("recapCardStats", () => {
-  it("composes stats from the public source, public drops, and known boroughs", async () => {
+  it("composes stats from the public source, public drops, and known boroughs without crew identity reads", async () => {
     const result = await recapCardStats("story-1");
     expect(result).toEqual({
       stopCount: 2,
@@ -148,26 +163,58 @@ describe("recapCardStats", () => {
       boroughsCrossed: 2,
       ending: null,
       cheapestPintGbp: 4.2,
-      crew: ["Sam", "Priya"],
+      crew: [],
       nightDateIso: story.publishedAt,
     });
     expect(JSON.stringify(result)).not.toContain("private-memory-id");
     expect(state.venueReads).toBe(1);
     expect(state.dropReads.sort()).toEqual(["venue-a", "venue-b"]);
-    expect(state.profileReads.sort()).toEqual(["user-priya", "user-sam"]);
+    expect(state.profileReads).toEqual([]);
   });
 
-  it("keeps public stats when one pint-drop and profile join fails", async () => {
+  it("keeps public stats when one pint-drop join fails and venue resolution is partial", async () => {
     state.dropsByVenue = new Map([["venue-a", [drop({ id: "drop-a", venueId: "venue-a", priceGbp: 4.2 })]]]);
     state.venueIndex.delete("venue-b");
-    state.profileByUserId.delete("user-priya");
     await expect(recapCardStats("story-1")).resolves.toMatchObject({
       stopCount: 2,
       pintsLogged: 1,
       boroughsCrossed: 1,
       cheapestPintGbp: 4.2,
-      crew: ["Sam"],
+      crew: [],
     });
+    expect(state.profileReads).toEqual([]);
+  });
+
+  it("caps Pint Drop venue enrichment and bounds in-flight public reads", async () => {
+    const venueCount = 24;
+    const manyVenues = Array.from({ length: venueCount }, (_, index) => `venue-${index}`);
+    const manyMoments = manyVenues.flatMap((venueId, index) => [
+      moment({ id: `stop-${index}`, ownerId: "user-sam", kind: "venue", venueId }),
+      moment({ id: `pint-${index}`, ownerId: "user-sam", kind: "pint_drop", venueId, pintDropId: `drop-${index}` }),
+    ]);
+    state.source = {
+      story: {
+        ...story,
+        publishedMomentIds: manyMoments.map((item) => item.id),
+      },
+      moments: manyMoments,
+    };
+    state.venueIndex = new Map(
+      manyVenues.map((venueId, index) => [
+        venueId,
+        { id: venueId, name: `Venue ${index}`, borough: `Borough ${index}`, lat: 51.5, lng: -0.1 },
+      ]),
+    );
+    state.dropsByVenue = new Map(
+      manyVenues.map((venueId, index) => [venueId, [drop({ id: `drop-${index}`, venueId })]]),
+    );
+
+    const result = await recapCardStats("story-many");
+
+    expect(result?.stopCount).toBe(venueCount);
+    expect(state.dropReads.length).toBeLessThanOrEqual(12);
+    expect(state.peakDropReads).toBeLessThanOrEqual(4);
+    expect(state.profileReads).toEqual([]);
   });
 
   it("returns null without a public published source and performs no joins", async () => {
