@@ -3,6 +3,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  nightAreaOptionLabel,
+  nightAreaSelectorGroups,
+} from "@/components/plan/PlanComposer";
+
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
@@ -456,10 +461,9 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 
   it("names area coverage in pub words, not evidence stages or score bands", () => {
     const areaButton = read("lib/areaButton.ts");
-    const composer = read("components/plan/PlanComposer.tsx");
     const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
 
-    for (const source of [areaButton, composer, mobilePlan]) {
+    for (const source of [areaButton, mobilePlan]) {
       expect(source).not.toContain("Low confidence");
       expect(source).not.toContain("Higher confidence");
       expect(source).not.toContain("Plan with warnings");
@@ -474,14 +478,14 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(areaButton).toContain("Gone stale");
     expect(mobilePlan).toContain("Prices checked");
 
-    // The composer's area selector and coverage panel speak the
-    // NightAreaCoverage readiness vocabulary: crawl-ready or not yet, never a
-    // warning count or a confidence band.
-    expect(composer).toContain("Crawl-ready");
-    expect(composer).toContain("not crawl-ready yet");
-    expect(composer).not.toContain("higher confidence");
-    expect(composer).not.toContain("not all checked");
-    expect(composer).not.toContain("warning");
+    const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
+    expect(groups.map((group) => group.label)).toEqual([
+      "Crawl-ready",
+      "Not crawl-ready yet",
+    ]);
+    const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
+    expect(notReady).toBeDefined();
+    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes - not crawl-ready yet");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {

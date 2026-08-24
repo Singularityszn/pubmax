@@ -21,17 +21,24 @@ import type {
 
 const MAX_TURNS = 6;
 
-function dedupeCards(cards: AskCard[]): AskCard[] {
-  const seen = new Set<string>();
+function dedupeCards(results: AskToolResult[]): AskCard[] {
+  const seenVenueIds = new Set<string>();
+  const seenKeys = new Set<string>();
   const out: AskCard[] = [];
-  for (const card of cards) {
-    // Two tools answering the same pub prefix their keys differently, so the
-    // venue id is the identity where the card has one: the same pub printed
-    // twice is one pick counted as two.
-    const identity = card.venueId ? `venue:${card.venueId}` : `key:${card.key}`;
-    if (seen.has(identity)) continue;
-    seen.add(identity);
-    out.push(card);
+  for (const result of results) {
+    const keysInTool = new Set<string>();
+    for (const card of result.cards) {
+      if (keysInTool.has(card.key)) continue;
+      keysInTool.add(card.key);
+      if (card.venueId) {
+        if (seenVenueIds.has(card.venueId)) continue;
+        seenVenueIds.add(card.venueId);
+      } else {
+        if (seenKeys.has(card.key)) continue;
+        seenKeys.add(card.key);
+      }
+      out.push(card);
+    }
   }
   return out.slice(0, 8);
 }
@@ -67,7 +74,6 @@ function mergeToolResults(results: AskToolResult[]): {
   degraded: boolean;
   toolsUsed: string[];
 } {
-  const cards: AskCard[] = [];
   const proposals: AskProposal[] = [];
   const sources: AskSource[] = [];
   const hints: string[] = [];
@@ -76,7 +82,6 @@ function mergeToolResults(results: AskToolResult[]): {
 
   for (const result of results) {
     toolsUsed.push(result.tool);
-    cards.push(...result.cards);
     proposals.push(...result.proposals);
     sources.push(...result.provenance);
     if (result.answerHint) hints.push(result.answerHint);
@@ -84,7 +89,7 @@ function mergeToolResults(results: AskToolResult[]): {
   }
 
   return {
-    cards: dedupeCards(cards),
+    cards: dedupeCards(results),
     proposals: dedupeProposals(proposals),
     sources: dedupeSources(sources),
     hints,
@@ -118,6 +123,16 @@ export function modelProseIsGrounded(
   return claims.every((claim) => evidence.replace(/\s/g, "").includes(claim));
 }
 
+function modelProseHasReaderPlumbing(prose: string): boolean {
+  return [
+    /\bcitymcp\b/iu,
+    /\bgrounded\b/iu,
+    /\bthings-to-do rows?\b/iu,
+    /\bwhat'?s on ask\b/iu,
+    /\bask[- ]classifier\b/iu,
+  ].some((pattern) => pattern.test(prose));
+}
+
 function composeAnswer(
   modelAnswer: string | null,
   hints: string[],
@@ -126,14 +141,16 @@ function composeAnswer(
   if (
     modelAnswer &&
     modelAnswer.trim() &&
+    !modelProseHasReaderPlumbing(modelAnswer) &&
     modelProseIsGrounded(modelAnswer, hints, cards)
   ) {
     return modelAnswer.trim().slice(0, 1200);
   }
-  if (hints.length > 0) return hints.join(" ");
   if (cards.length > 0) {
-    return `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from our records, each with its source.`;
+    const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`;
+    return [countLine, ...hints].join(" ");
   }
+  if (hints.length > 0) return hints.join(" ");
   return "Nothing sourced for that. Try a nearby area or a broader ask.";
 }
 

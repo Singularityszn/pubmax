@@ -149,7 +149,7 @@ async function toolSearchVenues(
       proposals,
       answerHint:
         cards.length > 0
-          ? `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`
+          ? ""
           : "Nothing listed matches that. Try a nearby area or a broader mood.",
     };
   } catch {

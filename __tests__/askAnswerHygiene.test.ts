@@ -5,7 +5,7 @@
 
 import { describe, expect, it } from "vitest";
 
-import { mergeToolResults } from "@/lib/ask/runAsk";
+import { composeAnswer, mergeToolResults } from "@/lib/ask/runAsk";
 import { runAskTool } from "@/lib/ask/tools";
 import type { AskToolContext, AskToolResult } from "@/lib/ask/toolContract";
 import type { AskCard } from "@/lib/ask/types";
@@ -83,10 +83,36 @@ describe("Pal answer hygiene", () => {
       answerHint: "",
     });
     const merged = mergeToolResults([
-      result([card("cheapest:venue-1", "venue-1")]),
+      result([
+        card("venue-1:drink-1", "venue-1"),
+        card("venue-1:drink-2", "venue-1"),
+      ]),
       result([card("venue-1", "venue-1"), card("venue-2", "venue-2")]),
     ]);
-    expect(merged.cards).toHaveLength(2);
-    expect(merged.cards.map((c) => c.venueId)).toEqual(["venue-1", "venue-2"]);
+    expect(merged.cards).toHaveLength(3);
+    expect(merged.cards.map((c) => c.key)).toEqual([
+      "venue-1:drink-1",
+      "venue-1:drink-2",
+      "venue-2",
+    ]);
+  });
+
+  it("rejects model plumbing at the shared answer boundary", () => {
+    const card: AskCard = {
+      key: "venue-1",
+      venueId: "venue-1",
+      title: "The Lamb",
+      place: "Bloomsbury",
+      note: "Quiet",
+      price: 5.4,
+      provenance: { label: "On record", kind: "directory" },
+    };
+    const answer = composeAnswer(
+      "2 grounded picks from CityMCP",
+      ["The Lamb is listed."],
+      [card],
+    );
+    expect(answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(answer).not.toMatch(/CityMCP|grounded/iu);
   });
 });

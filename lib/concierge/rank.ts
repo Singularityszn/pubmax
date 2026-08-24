@@ -128,11 +128,12 @@ function scoreOne(
 
   const requestedArea = normalise(intent.area ?? "");
   const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
+  const cityWideAreaAsk = requestedArea === "london";
   // The area reason joins LAST: a card already prints its area as the place
   // line, so a leading "In Camden" note under a "Camden" place printed the
   // area twice, and the budget or mood reason it displaced says more.
   let areaReason: string | null = null;
-  if (requestedArea && venueArea.includes(requestedArea)) {
+  if (requestedArea && !cityWideAreaAsk && venueArea.includes(requestedArea)) {
     // Area is the strongest coordination constraint: a perfect mood match in
     // the wrong part of town is rarely useful for a same-evening plan.
     score += 30;

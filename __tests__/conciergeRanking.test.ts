@@ -102,11 +102,10 @@ describe("rankConciergeVenues", () => {
         venue("camden", { area: "Camden" }),
       ],
       { mood: [], groupSize: 2, area: "London" },
+      { limit: 1 },
     );
-    expect(results.map((result) => result.venue.id).sort()).toEqual([
-      "camden",
-      "square-mile",
-    ]);
+    expect(results.map((result) => result.venue.id)).toEqual(["camden"]);
+    expect(results[0]?.reasons).not.toContain("In London");
   });
 
   it("still answers a neighbourhood word through the searchable text", () => {
