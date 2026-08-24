@@ -249,6 +249,13 @@ export const ANALYTICS_EVENTS = {
   // Out listing card. Closed source enum only - never an event id, venue id,
   // or coordinate.
   out_card_opened: ["source"],
+  // Creator-list acquisition loop. Counts alone answer whether public lists
+  // reach their detail and Map handoffs. Handles, list names and venue ids are
+  // deliberately absent because each can identify a person or place.
+  creator_list_viewed: [],
+  creator_list_map_opened: [],
+  creator_list_plan_started: [],
+  creator_list_followed: [],
 } as const;
 
 export type AnalyticsEventName = keyof typeof ANALYTICS_EVENTS;

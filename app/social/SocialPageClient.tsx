@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
+import CreatorListsLane from "@/components/social/CreatorListsLane";
 import FindYourLot from "@/components/social/FindYourLot";
 import PeopleDirectory from "@/components/social/PeopleDirectory";
 import StarterPacks from "@/components/social/StarterPacks";
@@ -690,6 +691,7 @@ export default function SocialPageClient({
 
           {initialState.tab === "discover" ? (
             <div className="socialDiscoverBody">
+              <CreatorListsLane />
               <DiscoverBody
                 rivalry={rivalry}
                 heritageCrawls={heritageCrawls}
