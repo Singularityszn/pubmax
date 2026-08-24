@@ -6,8 +6,18 @@
 > stubbed. See [`data/freshness_registry.json`](../data/freshness_registry.json)
 > and [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
 
+> **Update 2026-08-24 (does not rewrite the inventory below).** The What's-On
+> inventory below predates migration `0119` and the all-lane Vercel refresh.
+> `GET /api/cron/refresh-whats-on` now refreshes bounded quiz, deal, music, and
+> sport lanes plus configured official event lanes into durable
+> `whats_on_listings`; readers prefer non-expired durable rows and use bundled
+> files as fallback. Full harvested breadth remains a separate recovery path.
+> The current contract is owned by [`docs/CRON_PLANE_RUNBOOK.md`](./CRON_PLANE_RUNBOOK.md),
+> [`data/freshness_registry.json`](../data/freshness_registry.json), and
+> [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
+
 This is a scoping pass. It lists every feed in the freshness spine, its
-current verdict, and its fix class. It proposes no code change. Class (c)
+2026-08-07 verdict, and its fix class. It proposes no code change. Class (c)
 rows carry a follow-up diff sketch only. A later task must decide and apply
 the real change.
 
