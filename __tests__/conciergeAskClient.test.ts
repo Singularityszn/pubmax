@@ -153,7 +153,7 @@ describe("createAskSession", () => {
           unknown
         >;
         return jsonResponse({
-          answer: "One grounded pick.",
+          answer: "One pick from our records.",
           cards: [
             {
               key: "venue-1",
@@ -236,7 +236,7 @@ describe("answerFromBody", () => {
 
   it("normalises the Night OS Ask agent body with proposals", () => {
     const result = answerFromBody({
-      answer: "3 grounded picks. Confirm to open one.",
+      answer: "3 picks from our records, each with its source.",
       cards: [
         {
           key: "venue-1",
@@ -261,7 +261,7 @@ describe("answerFromBody", () => {
     });
     expect(result.status).toBe("answered");
     if (result.status === "answered") {
-      expect(result.message).toContain("grounded picks");
+      expect(result.message).toContain("picks from our records");
       expect(result.proposals).toHaveLength(1);
       expect(result.proposals[0]).toMatchObject({
         kind: "open_venue",

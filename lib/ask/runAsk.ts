@@ -25,8 +25,12 @@ function dedupeCards(cards: AskCard[]): AskCard[] {
   const seen = new Set<string>();
   const out: AskCard[] = [];
   for (const card of cards) {
-    if (seen.has(card.key)) continue;
-    seen.add(card.key);
+    // Two tools answering the same pub prefix their keys differently, so the
+    // venue id is the identity where the card has one: the same pub printed
+    // twice is one pick counted as two.
+    const identity = card.venueId ? `venue:${card.venueId}` : `key:${card.key}`;
+    if (seen.has(identity)) continue;
+    seen.add(identity);
     out.push(card);
   }
   return out.slice(0, 8);
@@ -128,7 +132,7 @@ function composeAnswer(
   }
   if (hints.length > 0) return hints.join(" ");
   if (cards.length > 0) {
-    return `${cards.length} grounded ${cards.length === 1 ? "result" : "results"}. Confirm a proposal to act.`;
+    return `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from our records, each with its source.`;
   }
   return "Nothing sourced for that. Try a nearby area or a broader ask.";
 }

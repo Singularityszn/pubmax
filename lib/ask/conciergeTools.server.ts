@@ -237,7 +237,6 @@ export async function toolCheapestPintNear(
     title: row.name,
     place: row.borough,
     note: cheapestNearRowNote({
-      area: row.borough,
       walkMinutes: row.walkMinutes ?? null,
     }),
     price: row.cheapestPrice,

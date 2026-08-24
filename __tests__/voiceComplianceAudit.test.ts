@@ -472,8 +472,16 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(areaButton).toContain("Rough guess");
     expect(areaButton).toContain("Not all checked");
     expect(areaButton).toContain("Gone stale");
-    expect(composer).toContain("Prices checked");
     expect(mobilePlan).toContain("Prices checked");
+
+    // The composer's area selector and coverage panel speak the
+    // NightAreaCoverage readiness vocabulary: crawl-ready or not yet, never a
+    // warning count or a confidence band.
+    expect(composer).toContain("Crawl-ready");
+    expect(composer).toContain("not crawl-ready yet");
+    expect(composer).not.toContain("higher confidence");
+    expect(composer).not.toContain("not all checked");
+    expect(composer).not.toContain("warning");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {

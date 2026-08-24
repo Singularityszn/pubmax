@@ -242,7 +242,7 @@ export async function POST(request: Request): Promise<Response> {
 			.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")
 	) {
 		return publicApiError(
-			"An active warning means we cannot plan a route through this area right now.",
+			"Something's up in this area tonight, so we can't plan a crawl through it. Pick another area.",
 			"NIGHT_AREA_CONSTRAINT_BLOCKED",
 			422,
 			{ details: { nightArea: area.slug } },

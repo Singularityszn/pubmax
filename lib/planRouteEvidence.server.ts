@@ -20,7 +20,7 @@ import {
 
 type EvidenceVenue = { id: string; name: string; area: string; lat: number; lng: number };
 
-let priceIndex: Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown }>> | null = null;
+let priceIndex: Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> | null = null;
 
 function canonicalGbpToPence(value: number | null): number | null {
   if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) return null;
@@ -30,7 +30,7 @@ function canonicalGbpToPence(value: number | null): number | null {
   return Number.isSafeInteger(pence) && pence > 0 ? pence : null;
 }
 
-async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown }>> {
+async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: unknown; url: unknown; observedAt: unknown; datasets: unknown }>> {
   priceIndex ??= (async () => {
     try {
       const rows = JSON.parse(await readFile(
@@ -44,9 +44,13 @@ async function loadPriceIndex(): Promise<Map<string, { pence: unknown; label: un
           && (cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim());
         return [venue.id, {
           pence: canonicalGbpToPence(venue.cheapestPrice),
-          label: attributed ? `Pint Prices (${cheapest.source_datasets})` : null,
+          // The label is the publisher's name alone. The raw dataset ids stay
+          // in this evidence object for anyone debugging a figure: printed,
+          // they read as plumbing beside a price on the invite stop list.
+          label: attributed ? "Pint Prices" : null,
           url: attributed ? cheapest.pub_url.trim() || cheapest.constructed_pub_url.trim() : null,
           observedAt: PINT_DATASET_OBSERVED_AT.toISOString(),
+          datasets: attributed ? cheapest.source_datasets : null,
         }];
       }));
     } catch {
