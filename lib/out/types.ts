@@ -61,6 +61,8 @@ export type OutResponse = {
   providers: OutProviderReport[];
   /** Number of window-filtered rows without a venueId, before the serve cap. */
   unmatchedCount?: number;
+  /** Number of window-filtered rows with a venueId, before the serve cap. */
+  matchedCount?: number;
   unmatchedPlaces?: string[];
   /** Number of distinct unmatched place names, before the serve cap. */
   unmatchedPlaceCount?: number;

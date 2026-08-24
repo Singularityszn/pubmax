@@ -324,6 +324,22 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
+  it("says 'more' when a matched row falls beyond the served cap", () => {
+    const notice = outUnmatchedListingsNotice(
+      [unmatched("a", "The O2")],
+      "tonight",
+      "ready",
+      {
+        unmatchedCount: 1,
+        unmatchedPlaces: ["The O2"],
+        unmatchedPlaceCount: 1,
+        unmatchedSources: ["Ticketmaster"],
+        matchedCount: 1,
+      },
+    );
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+  });
+
   it("counts distinct places beyond the six names carried by the response", () => {
     const notice = outUnmatchedListingsNotice(
       [unmatched("a", "Place 1")],

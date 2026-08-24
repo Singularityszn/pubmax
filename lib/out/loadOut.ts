@@ -368,6 +368,7 @@ export async function buildOutResponse(
   }
 
   const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
+  const matchedCount = matchedRows.length - unmatched;
   const merged = matchedRows
     .map(fillEventArea)
     .sort(
@@ -393,7 +394,7 @@ export async function buildOutResponse(
     inWindow: inWindow.length,
     served: merged.length,
     matchedAtRequest,
-    matched: matchedRows.filter((row) => canonicalOutVenueId(row.venueId) !== null).length,
+    matched: matchedCount,
     unmatched,
     venueMatch,
   });
@@ -416,6 +417,7 @@ export async function buildOutResponse(
     observedAt: observedAtBySource(merged),
     providers: reports,
     unmatchedCount: unmatched,
+    matchedCount,
     unmatchedPlaces: unmatchedMetadata.places,
     unmatchedPlaceCount: unmatchedMetadata.placeCount,
     unmatchedSources: unmatchedMetadata.sources,
