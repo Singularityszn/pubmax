@@ -324,7 +324,7 @@ Status: **SHIPPED WITH ONE OWNER BLOCKER**
 - Service-role write paths with browser deny on capability and secret tables.
 - Dynamic runtime data packs declared for Vercel output tracing.
 - Freshness registry, API, cron, alerts, and unresolved-vs-stale distinction.
-- Retired `night_out_places` pipeline removed.
+- Retired experimental late-night feed removed.
 - Server-only and I/O module boundaries hardened.
 - Durable Production Store fallback parity.
 - Chunked city enrichment and bounded provider calls.
