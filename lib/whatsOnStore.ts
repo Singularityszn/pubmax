@@ -419,7 +419,10 @@ export async function loadWhatsOn(
   const providerObservedAt = freshestIso([live.sourceObservedAt, baselineProviderObservedAt]);
   let sourceObservedAt: string | null = null;
   let sourceFreshnessKind: WhatsOnSourceFreshnessKind = "unknown";
-  if (
+  if (baselineProviderObservedAt) {
+    sourceObservedAt = providerObservedAt;
+    sourceFreshnessKind = "provider-observed";
+  } else if (
     providerObservedAt &&
     (!bundledObservedAt || Date.parse(providerObservedAt) >= Date.parse(bundledObservedAt))
   ) {

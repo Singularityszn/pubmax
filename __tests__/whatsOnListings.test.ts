@@ -48,6 +48,16 @@ describe("preferDurableWhatsOn", () => {
     expect(preferDurableWhatsOn(durable, bundled, NOW)[0].title).toBe("Durable listing");
   });
 
+  it("fills only a missing durable venueId from its bundled source twin", () => {
+    const bundled = [
+      row({ venueId: "venue-confirmed", confidence: "confirmed", title: "Bundled title" }),
+    ];
+    const durable = [row({ title: "Durable title" })];
+    const served = preferDurableWhatsOn(durable, bundled, NOW);
+    expect(served).toHaveLength(1);
+    expect(served[0]).toMatchObject({ title: "Durable title", venueId: "venue-confirmed" });
+  });
+
   it("falls back to bundled rows when the durable set is empty", () => {
     const bundled = [row({ id: "quiz-1", kind: "quiz", title: "Pub quiz" })];
     const served = preferDurableWhatsOn([], bundled, NOW);

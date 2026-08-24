@@ -616,6 +616,21 @@ describe("the freshest confirmation available at request time", () => {
     expect(bundledFresher.sourceFreshnessKind).toBe("dataset-generated");
   });
 
+  it("keeps durable provider provenance when bundled evidence is newer", async () => {
+    const result = await loadWhatsOn(
+      {},
+      {
+        now: NOW,
+        loadBaseline: () => [makeRow({ observedAt: "2026-07-11T10:00:00.000Z" })],
+        baselineSourceObservedAt: "2026-07-11T19:00:00.000Z",
+        baselineProviderObservedAt: "2026-07-11T10:00:00.000Z",
+        fetchLive: async () => [],
+      },
+    );
+    expect(result.sourceObservedAt).toBe("2026-07-11T10:00:00.000Z");
+    expect(result.sourceFreshnessKind).toBe("provider-observed");
+  });
+
   it("dates a live-carried kind by the provider's stated time, never by the row", async () => {
     const result = await loadWhatsOn(
       {},
