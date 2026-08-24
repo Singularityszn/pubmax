@@ -74,7 +74,7 @@ function mergeToolResults(results: AskToolResult[]): {
 } {
   const proposals: AskProposal[] = [];
   const sources: AskSource[] = [];
-  const hints: string[] = [];
+  const hintCandidates: Array<{ result: AskToolResult; hint: string }> = [];
   let degraded = false;
   const toolsUsed: string[] = [];
 
@@ -82,12 +82,23 @@ function mergeToolResults(results: AskToolResult[]): {
     toolsUsed.push(result.tool);
     proposals.push(...result.proposals);
     sources.push(...result.provenance);
-    if (result.answerHint) hints.push(result.answerHint);
+    if (result.answerHint) hintCandidates.push({ result, hint: result.answerHint });
     if (result.degraded) degraded = true;
   }
 
   const totalCardCount = results.reduce((total, result) => total + result.cards.length, 0);
   const mergedCards = dedupeCards(results);
+  const hints = hintCandidates
+    .filter(
+      ({ result }) =>
+        !(
+          mergedCards.length > 0 &&
+          result.ok &&
+          result.cards.length === 0 &&
+          !result.degraded
+        ),
+    )
+    .map(({ hint }) => hint);
   if (mergedCards.length < totalCardCount) {
     hints.push(`Showing the first ${mergedCards.length}.`);
   }

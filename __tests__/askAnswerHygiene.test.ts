@@ -101,6 +101,73 @@ describe("Pal answer hygiene", () => {
     ]);
   });
 
+  it("drops empty success hints when retained cards answer the ask", () => {
+    const card: AskCard = {
+      key: "venue-1",
+      venueId: "venue-1",
+      title: "The Lamb",
+      place: "Bloomsbury",
+      note: "",
+      price: 5.4,
+      provenance: { label: "On record", kind: "directory" },
+    };
+    const result = (overrides: Partial<AskToolResult>): AskToolResult => ({
+      ok: true,
+      tool: "search_venues",
+      data: null,
+      provenance: [],
+      cards: [],
+      proposals: [],
+      answerHint: "",
+      ...overrides,
+    });
+    const merged = mergeToolResults([
+      result({ cards: [card], answerHint: "The Lamb is listed." }),
+      result({ answerHint: "Nothing listed matches that." }),
+    ]);
+
+    expect(composeAnswer(merged.hints, merged.cards, merged.toolsUsed)).toBe(
+      "1 pick from the listed pubs, each with its source. The Lamb is listed.",
+    );
+  });
+
+  it("keeps degraded hints beside retained cards", () => {
+    const card: AskCard = {
+      key: "venue-1",
+      venueId: "venue-1",
+      title: "The Lamb",
+      place: "Bloomsbury",
+      note: "",
+      price: 5.4,
+      provenance: { label: "On record", kind: "directory" },
+    };
+    const merged = mergeToolResults([
+      {
+        ok: true,
+        tool: "search_venues",
+        data: null,
+        provenance: [],
+        cards: [card],
+        proposals: [],
+        answerHint: "The Lamb is listed.",
+      },
+      {
+        ok: false,
+        tool: "tonight_now",
+        data: null,
+        provenance: [],
+        cards: [],
+        proposals: [],
+        answerHint: "Couldn't read tonight's listings.",
+        degraded: true,
+      },
+    ]);
+
+    expect(composeAnswer(merged.hints, merged.cards, merged.toolsUsed)).toContain(
+      "Couldn't read tonight's listings.",
+    );
+  });
+
   it("composes pub counts from retained cards", () => {
     const card: AskCard = {
       key: "venue-1",
