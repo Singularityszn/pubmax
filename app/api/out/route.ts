@@ -62,6 +62,6 @@ async function getHandler(request: Request): Promise<Response> {
   }
 
   return Response.json({ ...body, status, openPlans }, {
-    headers: { "cache-control": outCacheControl(status) },
+    headers: { "cache-control": outCacheControl(status, body.venueMatch) },
   });
 }

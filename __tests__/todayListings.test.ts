@@ -114,6 +114,7 @@ describe("today listings spine", () => {
       providers: [],
       observedAt: {},
       listingsStatus: "ready",
+      venueMatch: "ready",
     });
 
     await loadTodayOutAnswer(NOW);

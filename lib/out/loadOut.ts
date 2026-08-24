@@ -8,9 +8,17 @@ import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { log } from "@/lib/log";
 import { fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
+import {
+  attachOutVenues,
+  type OutVenueMatchIndex,
+  type OutVenueMatchStatus,
+} from "@/lib/out/venueMatch";
+import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import {
   MAX_OUT_EVENTS,
   OUT_DAYS,
+  OUT_UNMATCHED_PLACES_SHOWN,
   type OutDay,
   type OutProviderReport,
   type OutQuery,
@@ -19,8 +27,10 @@ import {
 } from "@/lib/out/types";
 import {
   bundledGeneratedAt,
+  dedupeKey,
   londonServiceDayBounds,
   dedupeRows,
+  filterNotPast,
   parseWhatsOnRows,
   rowStatedInterval,
   tonightServiceWindow,
@@ -38,6 +48,12 @@ export type BuildOutResponseOpts = {
   now?: number;
   loadBaseline?: (city: OutCity) => WhatsOnRow[];
   liveProviders?: OutLiveProvider[];
+  /**
+   * The request-time venue match index. Null means the slim index could not
+   * be read; a loader that THROWS reads the same way, so a broken pack never
+   * turns a listings answer into a platform error.
+   */
+  loadVenueMatchIndex?: (city: OutCity) => Promise<OutVenueMatchIndex | null>;
 };
 
 // A city is COVERED when a bundled events file for it ships. The param is open
@@ -165,8 +181,10 @@ function rowOverlapsWindow(
  * left for the spine's own key.
  *
  * The freshest observation wins, but the venueId is INHERITED either way: the
- * live lane carries no venue index, so taking its row whole would strip the
- * match the bundled row already made.
+ * bundled row was matched with an address and a postcode to confirm with, so
+ * taking the live row whole would strip the stronger match. A live row that
+ * has NO bundled twin is matched after the fold, at request time
+ * (attachOutVenues), over the slim index.
  */
 function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
   const byKey = new Map<string, WhatsOnRow>();
@@ -183,8 +201,10 @@ function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
       continue;
     }
     const winner = Date.parse(row.observedAt) >= Date.parse(held.observedAt) ? row : held;
-    const venueId = winner.venueId ?? held.venueId ?? row.venueId;
-    byKey.set(key, venueId && !winner.venueId ? { ...winner, venueId } : winner);
+    const winnerVenueId = canonicalOutVenueId(winner.venueId);
+    const venueId =
+      winnerVenueId ?? canonicalOutVenueId(held.venueId) ?? canonicalOutVenueId(row.venueId);
+    byKey.set(key, venueId && winnerVenueId === null ? { ...winner, venueId } : winner);
   }
   return [...byKey.values(), ...noSourceId];
 }
@@ -201,6 +221,33 @@ function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string>
   return out;
 }
 
+function unmatchedNoticeMetadata(rows: readonly WhatsOnRow[]): {
+  places: string[];
+  placeCount: number;
+  sources: string[];
+} {
+  const places: string[] = [];
+  const placeKeys = new Set<string>();
+  const sources: string[] = [];
+  const sourceKeys = new Set<string>();
+  for (const row of rows) {
+    if (canonicalOutVenueId(row.venueId) !== null) continue;
+    const placeName = row.placeName.trim();
+    const placeKey = placeName.toLocaleLowerCase().replace(/\s+/g, " ");
+    if (placeName && !placeKeys.has(placeKey)) {
+      placeKeys.add(placeKey);
+      if (places.length < OUT_UNMATCHED_PLACES_SHOWN) places.push(placeName);
+    }
+    const sourceLabel = row.source.label.trim();
+    const sourceKey = sourceLabel.toLocaleLowerCase();
+    if (sourceLabel && !sourceKeys.has(sourceKey)) {
+      sourceKeys.add(sourceKey);
+      sources.push(sourceLabel);
+    }
+  }
+  return { places, placeCount: placeKeys.size, sources };
+}
+
 function notCoveredResponse(city: OutCity): OutResponse {
   return {
     status: "degraded",
@@ -212,6 +259,7 @@ function notCoveredResponse(city: OutCity): OutResponse {
     observedAt: {},
     providers: [],
     reason: outCityNotCoveredReason(city),
+    venueMatch: "unavailable",
   };
 }
 
@@ -228,6 +276,7 @@ export async function buildOutResponse(
     createTicketmasterProvider(),
     createSkiddleProvider(),
   ];
+  const loadVenueMatchIndex = opts.loadVenueMatchIndex ?? loadOutVenueMatchIndex;
 
   let status: OutStatus = "ready";
   let reason: string | undefined;
@@ -289,8 +338,43 @@ export async function buildOutResponse(
     reason = "Some listings could not be checked.";
   }
 
-  const merged = dedupeRows(foldBySourceId([...baseline, ...liveRows]))
-    .filter((row) => rowOverlapsWindow(row, window, query.day))
+  const liveRowKeys = new Set(liveRows.map(dedupeKey));
+  const folded = dedupeRows(foldBySourceId([...baseline, ...liveRows]));
+  const inWindow = filterNotPast(folded, now).filter((row) =>
+    rowOverlapsWindow(row, window, query.day),
+  );
+
+  // Match AFTER the window filter, so a past row never spends a lookup, and
+  // BEFORE the cap, so what the cap keeps is what the page can show. A read of
+  // the slim index that could not run is reported as its own finding: the rows
+  // are still real listings, so the lane stays ready, and the surface words
+  // "we could not check" apart from "not listed yet".
+  let venueMatch: OutVenueMatchStatus = "ready";
+  let matchedAtRequest = 0;
+  let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
+  let matchedRows = inWindow;
+  try {
+    const index = await loadVenueMatchIndex(city as CityId);
+    if (index) {
+      const attached = attachOutVenues(inWindow, index, (row) => liveRowKeys.has(dedupeKey(row)));
+      matchedRows = attached.rows;
+      matchedAtRequest = attached.matchedAtRequest;
+      unmatched = attached.unmatched;
+    } else {
+      venueMatch = "unavailable";
+    }
+  } catch (err) {
+    venueMatch = "unavailable";
+    log("warn", "out.venue_match_unavailable", {
+      city,
+      day: query.day,
+      error: err instanceof Error ? err.message : "venue index unreadable",
+    });
+  }
+
+  const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
+  const matchedCount = matchedRows.length - unmatched;
+  const merged = matchedRows
     .map(fillEventArea)
     .sort(
       (left, right) =>
@@ -301,6 +385,24 @@ export async function buildOutResponse(
     .slice(0, MAX_OUT_EVENTS);
 
   reports.sort((left, right) => left.name.localeCompare(right.name));
+
+  // The supply counts at every point a row can be lost, so an empty Out can be
+  // read back to its cause - provider, window, or venue match - from the log
+  // rather than guessed at from the page.
+  log("info", "out.supply", {
+    city,
+    day: query.day,
+    baselineRows: baseline.length,
+    liveRows: liveRows.length,
+    providers: reports.map((report) => `${report.name}:${report.status}:${report.rows}`),
+    folded: folded.length,
+    inWindow: inWindow.length,
+    served: merged.length,
+    matchedAtRequest,
+    matched: matchedCount,
+    unmatched,
+    venueMatch,
+  });
 
   // Every live lane held shut - no key, or a licence fence - means nothing was
   // asked, and an unasked question may not read as a quiet city. It only
@@ -319,6 +421,11 @@ export async function buildOutResponse(
     attribution: outSourceAttribution(merged),
     observedAt: observedAtBySource(merged),
     providers: reports,
+    unmatchedCount: unmatched,
+    unmatchedPlaces: unmatchedMetadata.places,
+    unmatchedPlaceCount: unmatchedMetadata.placeCount,
+    unmatchedSources: unmatchedMetadata.sources,
+    venueMatch,
   };
   if (reason) {
     body.reason = reason;

@@ -87,6 +87,15 @@ const WINDOW_NOUN: Record<OutDayWindow, string> = {
 };
 
 /**
+ * The window as a sentence names it. One table feeds the heading, the empty
+ * line and the unmatched notice, so no two lines on /out can disagree about
+ * which night the reader asked for.
+ */
+export function outWindowNoun(window: OutDayWindow): string {
+  return WINDOW_NOUN[window];
+}
+
+/**
  * The heading above the listing cards on /out.
  *
  * It covers the WHOLE list, which is every What's-On kind except deals

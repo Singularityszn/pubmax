@@ -44,10 +44,10 @@ export function outSourceDisplayLabel(label: string): string {
   return key === "venue" ? label : SOURCE_DISPLAY_LABELS[key];
 }
 
-export function outSourceAttribution(rows: readonly WhatsOnRow[]): OutSourceCredit[] {
+export function outSourceAttributionFromLabels(labels: readonly string[]): OutSourceCredit[] {
   const seen = new Map<OutCardSource, OutSourceCredit>();
-  for (const row of rows) {
-    const key = outCardSource(row.source.label);
+  for (const label of labels) {
+    const key = outCardSource(label);
     if (seen.has(key)) continue;
     if (key === "skiddle") {
       seen.set(key, { label: SOURCE_DISPLAY_LABELS.skiddle, logoRequired: true, url: SKIDDLE_HOME });
@@ -62,4 +62,8 @@ export function outSourceAttribution(rows: readonly WhatsOnRow[]): OutSourceCred
     }
   }
   return [...seen.values()];
+}
+
+export function outSourceAttribution(rows: readonly WhatsOnRow[]): OutSourceCredit[] {
+  return outSourceAttributionFromLabels(rows.map((row) => row.source.label));
 }

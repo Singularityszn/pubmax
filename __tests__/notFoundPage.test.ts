@@ -7,8 +7,8 @@ import NotFound from "@/app/not-found";
 describe("branded 404", () => {
   const markup = renderToStaticMarkup(createElement(NotFound));
 
-  it("carries the PUBMAXXING wordmark", () => {
-    expect(markup).toContain("PUBMAXXING");
+  it("carries the PUBMAXX wordmark", () => {
+    expect(markup).toContain("PUBMAXX");
   });
 
   it("routes visitors back to the map and tonight", () => {

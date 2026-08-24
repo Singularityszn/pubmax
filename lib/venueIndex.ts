@@ -3,7 +3,7 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { getCity, listEnabledCities } from "@/lib/cities";
+import { getCity, listEnabledCities, type CityId } from "@/lib/cities";
 import {
   cityIdFromVenueId,
   unresolvedVenueLabel,
@@ -57,6 +57,12 @@ type SlimRow = {
 type IndexedVenue = {
   venue: VenueRef;
   slimVenue: SlimVenue;
+};
+
+export type VenueIndexSnapshot = {
+  index: Map<string, VenueRef>;
+  loadedCities: ReadonlySet<CityId>;
+  complete: boolean;
 };
 
 // Pure: fold venues into an id→ref lookup. Split out so it's unit-testable
@@ -185,11 +191,23 @@ async function getCityVenueIndex(
 // pinning a partial (or empty) index for the process lifetime; the merged map
 // is only memoized once every enabled city has loaded.
 export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
-  if (cached) return cached;
+  return (await getVenueIndexSnapshot()).index;
+}
+
+export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   const cities = listEnabledCities();
+  if (cached) {
+    return {
+      index: cached,
+      loadedCities: new Set(cities.map((city) => city.id)),
+      complete: true,
+    };
+  }
   let allLoaded = true;
+  const loadedCities = new Set<CityId>();
   for (const city of cities) {
-    if (!(await getCityVenueIndex(city.slimVenuesPath))) allLoaded = false;
+    if (await getCityVenueIndex(city.slimVenuesPath)) loadedCities.add(city.id);
+    else allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
   for (const city of cities) {
@@ -200,7 +218,7 @@ export async function getVenueIndex(): Promise<Map<string, VenueRef>> {
     }
   }
   if (allLoaded) cached = index;
-  return index;
+  return { index, loadedCities, complete: allLoaded };
 }
 
 export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {

@@ -33,6 +33,8 @@ export interface VenueResolverSourceRow {
   lng?: number | string | null;
 }
 
+export declare const VENUE_MATCH_PROXIMITY_METERS: 75;
+
 export declare function buildVenueResolverIndex(
   canonicalRows: CanonicalDatasetRow[],
 ): VenueResolverIndex;

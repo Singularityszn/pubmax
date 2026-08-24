@@ -25,6 +25,11 @@ vi.mock("@/lib/outRateLimit", () => ({
 }));
 
 vi.mock("@/lib/venueIndex", () => ({
+  getVenueIndexSnapshot: vi.fn(async () => ({
+    index: new Map(),
+    loadedCities: new Set(["london"]),
+    complete: true,
+  })),
   lookupCanonicalVenue: vi.fn(async (id: string) => {
     if (!venueIndex.readable) return { status: "unavailable", canonicalId: id };
     const name = venueIndex.venues.get(id);
@@ -45,6 +50,7 @@ vi.mock("@/lib/planStore", () => ({
 
 import { GET } from "@/app/api/out/route";
 import { OUT_OPEN_PLAN_LIMIT, type OutOpenPlan } from "@/lib/out";
+import * as loadOut from "@/lib/out/loadOut";
 import {
   MAX_OUT_EVENTS,
   buildOutResponse,
@@ -59,6 +65,8 @@ import {
   outAnswerView,
   outStatusLines,
 } from "@/lib/out/outStatus";
+import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { groupOutListings, outUnmatchedListingsNotice } from "@/lib/outDesktopGrouping";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -261,6 +269,7 @@ describe("buildOutResponse", () => {
     expect(body.status).toBe("degraded");
     expect(body.events).toEqual([]);
     expect(body.reason).toBe("Out does not cover Bristol yet.");
+    expect(body.venueMatch).toBe("unavailable");
     expect(isOutCityCovered("london")).toBe(true);
     expect(isOutCityCovered("bristol")).toBe(false);
   });
@@ -370,7 +379,7 @@ describe("buildOutResponse", () => {
       eventRow({
         id: `e-${index}`,
         sourceId: String(index),
-        startsAt: new Date(Date.parse("2026-08-16T12:00:00.000Z") + (120 - index) * 60_000).toISOString(),
+        startsAt: new Date(Date.parse("2026-08-16T18:00:00.000Z") + (120 - index) * 60_000).toISOString(),
         title: `Row ${index}`,
       }),
     );
@@ -379,8 +388,22 @@ describe("buildOutResponse", () => {
       { now: FIXTURE_NOW.getTime(), loadBaseline: () => rows, liveProviders: [] },
     );
     expect(body.events).toHaveLength(MAX_OUT_EVENTS);
+    expect(body.unmatchedCount).toBe(120);
     const starts = body.events.map((row) => row.startsAt ?? "");
     expect(starts).toEqual([...starts].sort());
+  });
+
+  it("counts a whitespace-only venueId as unmatched when matching is unavailable", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({ venueId: "   " })],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => null,
+      },
+    );
+    expect(body.unmatchedCount).toBe(1);
   });
 
   it("keeps venueId on a venue-matched row so a later lane can attach price and occupancy", async () => {
@@ -496,6 +519,7 @@ describe("the two lanes fold onto one listing", () => {
       id: "events-tm-live",
       sourceId: "tm-1",
       observedAt: "2026-08-16T16:00:00.000Z",
+      venueId: "   ",
     });
     const body = await buildOutResponse(
       { city: "london", day: "today" },
@@ -553,10 +577,32 @@ describe("GET /api/out", () => {
     const body = await res.json();
     expect(["ready", "degraded", "not-configured"]).toContain(body.status);
     expect(res.headers.get("cache-control")).toBe(
-      body.status === "ready" ? OUT_READY_CACHE_CONTROL : OUT_UNSETTLED_CACHE_CONTROL,
+      body.status === "ready" && body.venueMatch === "ready"
+        ? OUT_READY_CACHE_CONTROL
+        : OUT_UNSETTLED_CACHE_CONTROL,
     );
     expect(Array.isArray(body.events)).toBe(true);
     expect(body.openPlans).toEqual([]);
+  });
+
+  it("shortens the cache when venue matching is unavailable", async () => {
+    const build = vi.spyOn(loadOut, "buildOutResponse").mockResolvedValue({
+      status: "ready",
+      listingsStatus: "ready",
+      events: [],
+      openPlans: [],
+      attribution: [],
+      observedAt: {},
+      providers: [],
+      unmatchedCount: 0,
+      venueMatch: "unavailable",
+    });
+    try {
+      const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
+      expect(response.headers.get("cache-control")).toBe(OUT_UNSETTLED_CACHE_CONTROL);
+    } finally {
+      build.mockRestore();
+    }
   });
 
   it("holds an unsettled answer only briefly, so one blip is not pinned on the CDN", async () => {
@@ -796,5 +842,275 @@ describe("outAnswerView", () => {
     const held = { day: "tomorrow" as const, body: null, failed: true };
     expect(outAnswerView(held, "tomorrow")).toEqual({ body: null, failed: true, pending: false });
     expect(outAnswerView(held, "today")).toEqual({ body: null, failed: false, pending: true });
+  });
+});
+
+describe("the live lane is venue-matched at request time", () => {
+  // The loss point: /api/out served four Ticketmaster rows with no venueId
+  // because matching lived only in the refresh CLI, so /out dropped every one
+  // of them and printed a bare status line over an empty page.
+  const slimIndex = buildOutVenueMatchIndex([
+    { id: "venue-1137z1c", name: "The Lexington", borough: "Islington", lat: 51.5326, lng: -0.1119 },
+    { id: "venue-1d1tez", name: "The Dublin Castle", borough: "Camden", lat: 51.5397, lng: -0.1429 },
+  ]);
+  const liveLexington = eventRow({
+    id: "events-tm-lex",
+    sourceId: "tm-lex",
+    kind: "music",
+    placeName: "The Lexington",
+    title: "Live band night",
+    lat: 51.5326,
+    lng: -0.1119,
+  });
+  const liveArena = eventRow({
+    id: "events-tm-o2",
+    sourceId: "tm-o2",
+    placeName: "The O2",
+    title: "Arena show",
+    lat: 51.503,
+    lng: 0.0032,
+  });
+  const ticketmaster = (rows: WhatsOnRow[]) => ({
+    name: "ticketmaster",
+    isConfigured: () => true,
+    fetchTonight: async () => rows,
+  });
+
+  it("gives a live row with a listed venue name its venueId, so it reaches the pub list", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.status).toBe("ready");
+    expect(body.venueMatch).toBe("ready");
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
+    // Matched rows enter the pub list under the EXISTING rule, unchanged.
+    expect(groupOutListings(body.events).map((group) => group.key)).toEqual([
+      "venue:venue-1137z1c",
+    ]);
+  });
+
+  it("keeps an unmatched live row out of the pub list and counts it in the notice", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington, liveArena])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(2);
+    const arena = body.events.find((row) => row.id === "events-tm-o2");
+    expect(arena?.venueId).toBeUndefined();
+    expect(groupOutListings(body.events).flatMap((group) => group.rows.map((row) => row.id))).toEqual([
+      "events-tm-lex",
+    ]);
+    expect(body.unmatchedCount).toBe(1);
+    const notice = outUnmatchedListingsNotice(
+      body.events,
+      "tonight",
+      body.venueMatch,
+      {
+        unmatchedCount: body.unmatchedCount,
+        unmatchedPlaces: body.unmatchedPlaces,
+        unmatchedSources: body.unmatchedSources,
+      },
+    );
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+    expect(notice?.places).toBe("The O2.");
+  });
+
+  it("keeps pre-cap unmatched places and credits for the empty-state notice", async () => {
+    const matchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
+      eventRow({
+        id: "matched-" + index,
+        sourceId: "matched-" + index,
+        title: "Matched " + index,
+        venueId: "venue-1137z1c",
+        startsAt: "2026-08-16T18:00:00.000Z",
+      }),
+    );
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          ticketmaster([
+            ...matchedRows,
+            { ...liveArena, startsAt: "2026-08-16T23:00:00.000Z" },
+          ]),
+        ],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(MAX_OUT_EVENTS);
+    expect(body.unmatchedCount).toBe(1);
+    expect(body.unmatchedPlaces).toEqual(["The O2"]);
+    expect(body.unmatchedPlaceCount).toBe(1);
+    expect(body.unmatchedSources).toEqual(["Ticketmaster"]);
+    const notice = outUnmatchedListingsNotice(
+      body.events,
+      "tonight",
+      body.venueMatch,
+      {
+        unmatchedCount: body.unmatchedCount,
+        unmatchedPlaces: body.unmatchedPlaces,
+        unmatchedSources: body.unmatchedSources,
+      },
+    );
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+    expect(notice?.places).toBe("The O2.");
+    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
+  });
+
+  it("does not say more when only unmatched rows survive the serve cap", async () => {
+    const unmatchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
+      eventRow({
+        id: `unmatched-${index}`,
+        sourceId: `unmatched-${index}`,
+        placeName: `Unlisted place ${index}`,
+        title: `Unmatched ${index}`,
+        startsAt: "2026-08-16T18:00:00.000Z",
+      }),
+    );
+    const matchedAfterCap = eventRow({
+      id: "matched-after-cap",
+      sourceId: "matched-after-cap",
+      venueId: "venue-1137z1c",
+      startsAt: "2026-08-16T23:00:00.000Z",
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([...unmatchedRows, matchedAfterCap])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(groupOutListings(body.events)).toEqual([]);
+    const notice = outUnmatchedListingsNotice(body.events, "tonight", body.venueMatch, {
+      unmatchedCount: body.unmatchedCount,
+      unmatchedPlaces: body.unmatchedPlaces,
+      unmatchedPlaceCount: body.unmatchedPlaceCount,
+      unmatchedSources: body.unmatchedSources,
+    });
+    expect(notice?.line).toBe("100 listings tonight are at places we don't list yet.");
+  });
+
+  it("never serves a live row whose start has already passed", async () => {
+    const yesterday = eventRow({
+      id: "events-tm-past",
+      sourceId: "tm-past",
+      placeName: "The Lexington",
+      title: "Last night's gig",
+      startsAt: "2026-08-15T19:30:00.000Z",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([yesterday, liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events.map((row) => row.id)).toEqual(["events-tm-lex"]);
+  });
+
+  it("never serves a same-night row after its effective end", async () => {
+    const finished = eventRow({
+      id: "events-tm-finished",
+      sourceId: "tm-finished",
+      placeName: "The Lexington",
+      title: "Finished gig",
+      startsAt: "2026-08-16T18:00:00.000Z",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const now = Date.parse("2026-08-16T22:30:00.000Z");
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now,
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([finished])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toEqual([]);
+  });
+
+  it("says the match could not run when the venue index is unreadable, and changes no row", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => {
+          throw new Error("slim index unreadable");
+        },
+      },
+    );
+    // The listings themselves were read fine: the lane stays ready.
+    expect(body.status).toBe("ready");
+    expect(body.venueMatch).toBe("unavailable");
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("unreadable");
+  });
+
+  it("does not re-match a row the bundled lane already matched", async () => {
+    const bundled = eventRow({
+      id: "events-tm-lex",
+      sourceId: "tm-lex",
+      placeName: "The Lexington",
+      venueId: "venue-from-refresh",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [bundled],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBe("venue-from-refresh");
+  });
+
+  it("does not promote an unresolved bundled row through the weaker live matcher", async () => {
+    const unresolvedBundled = eventRow({
+      id: "events-bundled-lex",
+      sourceId: "bundled-lex",
+      placeName: "The Lexington",
+      venueId: undefined,
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [unresolvedBundled],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(body.unmatchedCount).toBe(1);
   });
 });

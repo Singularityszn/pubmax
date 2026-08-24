@@ -144,6 +144,7 @@ test(
           attribution: [],
           observedAt: {},
           providers: [{ name: "ticketmaster", configured: true, rows: 2, status: "ready" }],
+          venueMatch: "ready",
         }),
       }),
     );
@@ -153,14 +154,122 @@ test(
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toHaveCount(0);
-    await expect(
-      page.getByText("Some event listings are not linked to a PUBMAXX pub yet."),
-    ).toBeVisible();
+    // The hidden row is counted and named, never summarised as "some".
+    const notice = page.getByTestId("out-unmatched-notice");
+    await expect(notice).toContainText(
+      "1 more listing tonight is at a place we don't list yet. The O2.",
+    );
     const listings = page.getByRole("region", { name: "What's on tonight" });
     await expect(listings).toBeVisible();
     await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
   },
 );
+
+// The supply truth on a phone: rows exist, none is at a listed pub. The page
+// has to say how many, name the places, credit the provider, and hand the
+// reader somewhere to go - and say something different again when the match
+// could not run, or when the providers returned nothing at all.
+test.describe("out supply honesty @390", () => {
+  test.use({ viewport: { width: 390, height: 844 } });
+
+  const ARENAS = ["Jazz Cafe", "Up The Creek", "Soul Mama", "The Comedy Store"];
+
+  function unmatchedPayload(venueMatch: "ready" | "unavailable" | undefined) {
+    return {
+      status: "ready",
+      listingsStatus: "ready",
+      events: ARENAS.map((placeName, index) => ({
+        ...PLAYHOUSE_EVENT,
+        id: `events-tm-arena-${index}`,
+        sourceId: `arena-${index}`,
+        title: `Show ${index + 1}`,
+        placeName,
+      })),
+      openPlans: [],
+      attribution: [{ label: "Ticketmaster", logoRequired: false, url: "https://www.ticketmaster.co.uk/" }],
+      observedAt: {},
+      providers: [{ name: "ticketmaster", configured: true, rows: 4, status: "ready" }],
+      ...(venueMatch ? { venueMatch } : {}),
+    };
+  }
+
+  test("counts and names the unlisted places, credits the provider, and offers a way out", async ({
+    page,
+  }) => {
+    await page.route("**/api/out?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(unmatchedPayload("ready")),
+      }),
+    );
+
+    await page.goto("/out");
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    const notice = page.getByTestId("out-unmatched-notice");
+    await expect(notice).toBeVisible();
+    await expect(notice).toContainText("4 listings tonight are at places we don't list yet.");
+    await expect(notice).toContainText("Jazz Cafe, Up The Creek, Soul Mama and The Comedy Store.");
+    await expect(notice.getByRole("link", { name: "Ticketmaster", exact: true })).toHaveAttribute(
+      "href",
+      "https://www.ticketmaster.co.uk/",
+    );
+    await expect(
+      notice.getByRole("link", { name: "See what else is on tonight", exact: true }),
+    ).toHaveAttribute("href", "/tonight");
+    // No card for a row with no pub, and no bare status line either.
+    await expect(page.getByRole("heading", { name: "Show 1" })).toHaveCount(0);
+    await expect(page.getByText("No listings for this day yet.")).toHaveCount(0);
+    await expect(page.getByText(/^Some /)).toHaveCount(0);
+    // The notice fits the phone: nothing pushes the page wider than the viewport.
+    const overflow = await page.evaluate(
+      () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+    );
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
+
+  test("says the check could not run rather than calling the places unlisted", async ({ page }) => {
+    await page.route("**/api/out?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify(unmatchedPayload("unavailable")),
+      }),
+    );
+
+    await page.goto("/out");
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    const notice = page.getByTestId("out-unmatched-notice");
+    await expect(notice).toContainText(
+      "We couldn't check which of tonight's 4 listings are at a pub we list.",
+    );
+    await expect(notice).not.toContainText("don't list yet");
+  });
+
+  test("keeps the honest empty state when the providers return nothing", async ({ page }) => {
+    await page.route("**/api/out?**", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          status: "ready",
+          listingsStatus: "ready",
+          events: [],
+          openPlans: [],
+          attribution: [],
+          observedAt: {},
+          providers: [{ name: "ticketmaster", configured: true, rows: 0, status: "ready" }],
+          venueMatch: "ready",
+        }),
+      }),
+    );
+
+    await page.goto("/out");
+    await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
+    await expect(page.getByText("No listings for this day yet.")).toBeVisible();
+    await expect(page.getByTestId("out-unmatched-notice")).toHaveCount(0);
+  });
+});
 
 function sendableOpenPlan(id: string, title: string) {
   return {

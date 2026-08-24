@@ -1,6 +1,15 @@
 import type { OutOpenPlan } from "@/lib/out";
 import { getNightArea } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightPlanning";
+import {
+  outSourceAttribution,
+  outSourceAttributionFromLabels,
+  type OutSourceCredit,
+} from "@/lib/out/attribution";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
+import { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
+import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
+import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 /** One listed Open Crew is enough to make discovery useful at London MVP. */
@@ -9,8 +18,9 @@ export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 export const OUT_LISTING_PUB_ABSENT_LINE =
   "No matching pub in PUBMAXX yet.";
 
-export const OUT_LISTING_UNMATCHED_LINE =
-  "Some event listings are not linked to a PUBMAXX pub yet.";
+export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
+
+export { canonicalOutVenueId } from "@/lib/out/venueId";
 
 export type OutListingGroupKind = "venue" | "area" | "place";
 
@@ -34,13 +44,6 @@ export type OutListingPubPair =
 
 function normalizePlaceName(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-}
-
-/** Return the one venue id form that Out links, groups, and counts may use. */
-export function canonicalOutVenueId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const venueId = value.trim();
-  return venueId.length > 0 ? venueId : null;
 }
 
 function hasResolvedPub(row: WhatsOnRow): boolean {
@@ -145,6 +148,107 @@ export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
       hasResolvedPub(row) ? count : count + 1,
     0,
   );
+}
+
+export type OutUnmatchedNotice = {
+  /** The count, and which night it is about. */
+  line: string;
+  /** The places, as the provider names them, ending in a full stop. */
+  places: string;
+  /** Who listed the hidden rows. Credit is owed whether or not a card shows. */
+  credits: OutSourceCredit[];
+  /** The one way onward. */
+  way: { href: string; label: string };
+};
+
+export type OutUnmatchedListingsNoticeOptions = {
+  unmatchedCount?: number;
+  unmatchedPlaces?: readonly string[];
+  unmatchedPlaceCount?: number;
+  unmatchedSources?: readonly string[];
+};
+
+function joinPlaces(names: readonly string[]): string {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
+}
+
+/**
+ * What the page says about the listings it is NOT showing.
+ *
+ * Every unmatched row is dropped from the pub list (groupOutListings), so
+ * without this line an Out with four Ticketmaster rows at four arenas read as
+ * an empty city under one word, "Some". The rule: say how many, say where,
+ * credit who listed them, and hand the reader somewhere to go. The count is
+ * about the HIDDEN rows alone, so with cards on screen it says "more".
+ *
+ * A match that could not RUN is a different finding from a place that is not
+ * listed: the slim index failed to read, and the same four rows may well be at
+ * pubs we list. That answer keeps the count and the names and drops the claim.
+ *
+ * Silent when nothing was hidden: with every row on a listed pub there is
+ * nothing to say, and with no rows at all the status lines own the sentence.
+ */
+export function outUnmatchedListingsNotice(
+  rows: readonly WhatsOnRow[],
+  window: OutDayWindow,
+  venueMatch: OutVenueMatchStatus | undefined,
+  options: OutUnmatchedListingsNoticeOptions = {},
+): OutUnmatchedNotice | null {
+  const hidden = rows.filter((row) => !hasResolvedPub(row));
+  const count = options.unmatchedCount ?? hidden.length;
+  if (count === 0) return null;
+  const shown = rows.length - hidden.length;
+  const noun = outWindowNoun(window);
+  // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
+  const when = window === "weekend" ? `at ${noun}` : noun;
+
+  let line: string;
+  if (venueMatch !== "ready") {
+    line = `We couldn't check which of ${noun === "the weekend" ? "the weekend's" : `${noun}'s`} ${count} ${
+      count === 1 ? "listing is" : "listings are"
+    } at a pub we list.`;
+  } else if (count === 1) {
+    line = `1 ${shown > 0 ? "more " : ""}listing ${when} is at a place we don't list yet.`;
+  } else {
+    line = `${count} ${shown > 0 ? "more " : ""}listings ${when} are at places we don't list yet.`;
+  }
+
+  const names = options.unmatchedPlaces ? [...options.unmatchedPlaces] : (() => {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const row of hidden) {
+      const name = row.placeName.trim();
+      const key = normalizePlaceName(name);
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+    return names;
+  })();
+  const rest = names.length - OUT_UNMATCHED_PLACES_SHOWN;
+  const named = names.slice(0, OUT_UNMATCHED_PLACES_SHOWN);
+  const extraPlaceCount =
+    options.unmatchedPlaceCount === undefined
+      ? rest
+      : Math.max(0, options.unmatchedPlaceCount - named.length);
+  const places =
+    named.length === 0
+      ? ""
+      : extraPlaceCount > 0
+        ? `${named.join(", ")} and ${extraPlaceCount} more ${extraPlaceCount === 1 ? "place" : "places"}.`
+        : `${joinPlaces(named)}.`;
+
+  const way =
+    window === "tonight"
+      ? { href: "/tonight", label: "See what else is on tonight" }
+      : { href: "/map", label: "Find a pub on the map" };
+
+  const credits =
+    options.unmatchedSources === undefined
+      ? outSourceAttribution(hidden)
+      : outSourceAttributionFromLabels(options.unmatchedSources);
+  return { line, places, credits, way };
 }
 
 /** A sendable open plan carries a resolved meeting point the card can render. */

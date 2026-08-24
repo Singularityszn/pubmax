@@ -1,4 +1,5 @@
 import type { OutResponse, OutStatus } from "@/lib/out/types";
+import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 
 export const OUT_READY_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=0";
@@ -12,8 +13,13 @@ export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-rev
  * the CDN for a quarter of an hour after the provider recovered - so it is held
  * briefly and re-asked.
  */
-export function outCacheControl(status: OutStatus): string {
-  return status === "ready" ? OUT_READY_CACHE_CONTROL : OUT_UNSETTLED_CACHE_CONTROL;
+export function outCacheControl(
+  status: OutStatus,
+  venueMatch: OutVenueMatchStatus,
+): string {
+  return status === "ready" && venueMatch === "ready"
+    ? OUT_READY_CACHE_CONTROL
+    : OUT_UNSETTLED_CACHE_CONTROL;
 }
 
 export const OUT_READ_FAILED_LINE = "Could not check listings.";
