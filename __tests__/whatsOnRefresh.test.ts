@@ -8,7 +8,7 @@ import type { OutLiveProvider } from "@/lib/out/loadOut";
 const NOW = Date.parse("2026-08-24T20:00:00.000Z");
 const GENERATED = "2026-08-24T20:00:00.000Z";
 
-function eventRow(id: string): WhatsOnRow {
+function eventRow(id: string, sourceLabel = "Ticketmaster"): WhatsOnRow {
   return {
     id,
     placeName: "Jazz Cafe",
@@ -16,7 +16,7 @@ function eventRow(id: string): WhatsOnRow {
     startsAt: "2026-08-24T19:00:00.000Z",
     endsAt: "2026-08-24T22:00:00.000Z",
     title: "Live jazz",
-    source: { label: "Ticketmaster", url: `https://www.ticketmaster.co.uk/event/${id}` },
+    source: { label: sourceLabel, url: `https://www.ticketmaster.co.uk/event/${id}` },
     observedAt: "2026-08-24T10:00:00.000Z",
     confidence: "listed",
     sourceId: id,
@@ -41,16 +41,21 @@ function memoryStore(): WhatsOnListingStore & { kinds: string[] } {
 describe("refreshOfficialWhatsOnListings", () => {
   it("writes live event rows to the durable store", async () => {
     const store = memoryStore();
+    let fetchContext: Parameters<NonNullable<OutLiveProvider["fetchTonight"]>>[0] | undefined;
     const providers: OutLiveProvider[] = [
       {
         name: "ticketmaster",
         isConfigured: () => true,
-        fetchTonight: async () => [eventRow("tm-1")],
+        fetchTonight: async (context) => {
+          fetchContext = context;
+          return [eventRow("tm-1")];
+        },
       },
     ];
     const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
     expect(result).toMatchObject({ ok: true, mode: "providers", written: 1 });
     expect(result.observedAt).toBeTruthy();
+    expect(fetchContext?.cache).toBe("bypass");
     const snap = await store.readAll();
     expect(snap.rows.map((row) => row.id)).toEqual(["tm-1"]);
   });
@@ -109,6 +114,31 @@ describe("refreshOfficialWhatsOnListings", () => {
     const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
     expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
     expect((await store.readAll()).rows.map((row) => row.id)).toEqual(["kept"]);
+  });
+
+  it("preserves rows from providers that are not configured", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [eventRow("old-skiddle", "Skiddle")], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new-ticketmaster")],
+      },
+      {
+        name: "skiddle",
+        isConfigured: () => false,
+        fetchTonight: async () => {
+          throw new Error("must not fetch an unconfigured provider");
+        },
+      },
+    ];
+    const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
+    expect(result.ok).toBe(true);
+    expect((await store.readAll()).rows.map((row) => row.id).sort()).toEqual([
+      "new-ticketmaster",
+      "old-skiddle",
+    ]);
   });
 
   it("does not invent a refresh when no provider is configured", async () => {

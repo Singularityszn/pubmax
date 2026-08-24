@@ -205,9 +205,9 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   freshness stamp untouched.
 - Price provider failure → **`502 PROVIDER_UNAVAILABLE`**, prior freshness
   stamp untouched.
-- What's-On window revalidation fails → **`200`** with `ok:false`,
-  `stamped:false`, `observedAt:null`, and an error; the prior freshness stamp
-  remains unchanged.
+- What's-On provider refresh fails or has no configured provider → **`200`**
+  with `ok:false`, `providers`, `stamped:false`, and `observedAt:null`; the
+  prior store remains unchanged.
 - Freshness audit → **never 500s**; a broken artifact surfaces as that dataset's
   own `unknown` status. Alerting is **console-only** today
   (`lib/freshnessNotify.ts` is the seam a later push/alert integration hangs

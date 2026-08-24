@@ -30,6 +30,24 @@ describe("preferDurableWhatsOn", () => {
     expect(served[0].title).toBe("Tonight jazz");
   });
 
+  it("prefers durable rows regardless of confidence or observed time", () => {
+    const bundled = [
+      row({
+        confidence: "confirmed",
+        observedAt: "2026-08-24T19:00:00.000Z",
+        title: "Bundled confirmation",
+      }),
+    ];
+    const durable = [
+      row({
+        confidence: "listed",
+        observedAt: "2026-08-24T10:00:00.000Z",
+        title: "Durable listing",
+      }),
+    ];
+    expect(preferDurableWhatsOn(durable, bundled, NOW)[0].title).toBe("Durable listing");
+  });
+
   it("falls back to bundled rows when the durable set is empty", () => {
     const bundled = [row({ id: "quiz-1", kind: "quiz", title: "Pub quiz" })];
     const served = preferDurableWhatsOn([], bundled, NOW);

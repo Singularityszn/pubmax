@@ -33,8 +33,6 @@ type Database = {
   stop(): Promise<void>;
 };
 
-let database: Database | null = null;
-
 async function freePort(): Promise<number> {
   const { createServer } = await import("node:net");
   return new Promise((resolve, reject) => {
@@ -99,15 +97,19 @@ function rowJson(overrides: Record<string, unknown> = {}): string {
   }).replaceAll("'", "''");
 }
 
-beforeAll(async () => {
-  database = await startDatabase();
-  database.sql("create role anon noinherit; create role authenticated noinherit; create role service_role noinherit bypassrls;");
-  database.apply(MIGRATION);
-}, 60_000);
+const postgresAvailable = ["initdb", "postgres", "psql"].every((name) => binary(name as "initdb" | "postgres" | "psql") !== null);
 
-afterAll(async () => database?.stop());
+describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
+  let database: Database | null = null;
 
-describe("0119 whats_on_listings migration", () => {
+  beforeAll(async () => {
+    database = await startDatabase();
+    database.sql("create role anon noinherit; create role authenticated noinherit; create role service_role noinherit bypassrls;");
+    database.apply(MIGRATION);
+  }, 60_000);
+
+  afterAll(async () => database?.stop());
+
   it("applies schema, service-role permissions, and atomic replacement", () => {
     const db = database!;
     expect(db.sql("select to_regclass('public.whats_on_listings') is not null")).toBe("t");

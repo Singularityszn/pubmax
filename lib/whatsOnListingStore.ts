@@ -32,6 +32,7 @@ export type WhatsOnListingWriteOutcome = {
 export type WhatsOnListingSnapshot = {
   rows: WhatsOnRow[];
   generatedAt: string | null;
+  failed?: true;
 };
 
 export type WhatsOnListingStore = {
@@ -131,7 +132,7 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
       context: "readAll",
       onSchemaMiss: () => memoryWhatsOnListingStore.readAll(),
       message: "readAll failed - returning empty",
-      onError: () => ({ rows: [], generatedAt: null }),
+      onError: () => ({ rows: [], generatedAt: null, failed: true }),
       run: async () => {
         const { data, error } = await requireSupabaseAdmin().from(TABLE).select("*");
         if (error) throw new Error(error.message);
@@ -159,7 +160,7 @@ const unavailableProductionWhatsOnListingStore: WhatsOnListingStore = {
     return { written: 0, failed: true };
   },
   async readAll() {
-    return { rows: [], generatedAt: null };
+    return { rows: [], generatedAt: null, failed: true };
   },
 };
 

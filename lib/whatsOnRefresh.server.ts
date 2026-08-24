@@ -7,8 +7,8 @@ import "server-only";
 // the durable store. Harvested quiz/deal/music/sport files stay bundled: those
 // scrapes cannot run inside a serverless function.
 //
-// A provider that is not configured, or that throws, does not wipe the store.
-// replaceKind("event") runs only after every configured provider answers.
+// A provider that is not configured, or that throws, does not wipe its prior
+// rows. replaceKind("event") runs only after every configured provider answers.
 
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
@@ -39,6 +39,24 @@ export type RefreshOfficialWhatsOnListingsOpts = {
   store?: WhatsOnListingStore;
   providers?: OutLiveProvider[];
 };
+
+function providerKey(name: string): string {
+  return name.trim().toLocaleLowerCase("en-GB");
+}
+
+function preserveUnrefreshedRows(
+  rows: WhatsOnRow[],
+  reports: OfficialWhatsOnProviderReport[],
+): WhatsOnRow[] {
+  const refreshedProviders = new Set(
+    reports.filter((report) => report.configured).map((report) => providerKey(report.name)),
+  );
+  return rows.filter(
+    (row) =>
+      row.kind === "event" &&
+      !refreshedProviders.has(providerKey(row.source.label)),
+  );
+}
 
 function officialRefreshWindow(now: number): { startMs: number; endMs: number } {
   const today = outDayWindow("today", now);
@@ -74,7 +92,12 @@ export async function refreshOfficialWhatsOnListings(
           };
         }
         try {
-          const raw = await provider.fetchTonight({ now, city: "london", window });
+          const raw = await provider.fetchTonight({
+            now,
+            city: "london",
+            window,
+            cache: "bypass",
+          });
           const kept = filterNotPast(raw, now).filter((row) => row.kind === "event");
           return {
             report: { name: provider.name, configured: true, rows: kept.length },
@@ -118,7 +141,20 @@ export async function refreshOfficialWhatsOnListings(
     };
   }
 
-  const rows = dedupeRows(settled.flatMap((entry) => entry.rows));
+  let rows = dedupeRows(settled.flatMap((entry) => entry.rows));
+  if (reports.some((report) => !report.configured)) {
+    const previous = await store.readAll();
+    if (previous.failed) {
+      return {
+        ok: false,
+        mode: "providers",
+        written: 0,
+        observedAt: null,
+        providers: reports,
+      };
+    }
+    rows = dedupeRows([...preserveUnrefreshedRows(previous.rows, reports), ...rows]);
+  }
   const generatedAt = new Date(now).toISOString();
   const outcome = await store.replaceKind("event", rows, generatedAt);
   if (outcome.failed) {

@@ -31,6 +31,8 @@ export type EventsProviderContext = {
    * tomorrow does not spend an upstream call on rows the caller then discards.
    */
   window?: { startMs: number; endMs: number };
+  /** Whether this call must bypass the shared provider response cache. */
+  cache?: "default" | "bypass";
 };
 
 export type EventsProvider = {
