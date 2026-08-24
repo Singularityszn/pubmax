@@ -22,8 +22,6 @@ import {
   proveUploadedImageWrite,
   readUploadedImageObject,
   UPLOADED_IMAGE_MAX_BYTES,
-  UPLOADED_IMAGE_MAX_DIMENSION,
-  UPLOADED_IMAGE_MAX_PIXELS,
   uploadUploadedImageObject,
   type DownloadedUploadedImage,
   type PreparedImage,
@@ -31,8 +29,6 @@ import {
 } from "@/lib/uploadedImage.server";
 
 export const PROFILE_IMAGE_MAX_BYTES = UPLOADED_IMAGE_MAX_BYTES;
-export const PROFILE_IMAGE_MAX_DIMENSION = UPLOADED_IMAGE_MAX_DIMENSION;
-export const PROFILE_IMAGE_MAX_PIXELS = UPLOADED_IMAGE_MAX_PIXELS;
 export const PROFILE_IMAGE_SIGNED_TTL_SECONDS = 180;
 
 export type PreparedProfileImage = PreparedImage;

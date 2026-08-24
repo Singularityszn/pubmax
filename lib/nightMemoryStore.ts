@@ -435,20 +435,6 @@ export async function createNightStory(ownerId: string, raw: unknown): Promise<N
   return story;
 }
 
-export async function listNightStories(ownerId: string): Promise<NightStory[]> {
-  if (!isSupabaseConfigured()) {
-    return [...stories.values()]
-      .filter((story) => story.hostEditorId === ownerId)
-      .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
-  }
-  const { data, error } = await requireSupabaseAdmin()
-    .from("night_stories")
-    .select("*")
-    .eq("host_editor_id", ownerId)
-    .order("updated_at", { ascending: false });
-  return error ? [] : (data ?? []).map((row) => storyFromRow(row as Record<string, unknown>));
-}
-
 export type NightStoryInboxItem = NightStoryWorkspace["story"] & {
   membership: Pick<StoryContributor, "role" | "status" | "joinedAt">;
 };
@@ -859,11 +845,6 @@ export async function updateNightStoryDraftResult(
   }
 }
 
-export async function updateNightStoryDraft(actorId: string, storyId: string, raw: unknown): Promise<NightStory | null> {
-  const result = await updateNightStoryDraftResult(actorId, storyId, raw);
-  return result.ok ? result.value : null;
-}
-
 export async function upsertStoryContributor(
   actorId: string,
   storyId: string,
@@ -954,10 +935,6 @@ export async function declineStoryContributionResult(actorId: string, storyId: s
   } catch {
     return { ok: false, error: "error" };
   }
-}
-
-export async function declineStoryContribution(actorId: string, storyId: string): Promise<boolean> {
-  return (await declineStoryContributionResult(actorId, storyId)).ok;
 }
 
 /** Add a private Moment through an accepted Story collaboration. */

@@ -57,10 +57,6 @@ export type PlanStore = {
   complete(id: string, memberToken: unknown, input: { expectedRouteRevision: number; ending: CrawlEnding; terminalVenueId?: string; endingSelection: EndingSelection }): Promise<PlanCompletionResult>;
 };
 
-export function mintPlanMemberToken(): string {
-  return randomBytes(32).toString("hex");
-}
-
 export function hashPlanMemberToken(token: string): string {
   const salt = process.env.PLAN_MEMBER_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-member";
   return createHash("sha256").update(`${salt}:${token}`).digest("hex");

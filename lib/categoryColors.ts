@@ -69,26 +69,9 @@ export const CATEGORY_COLORS: Record<DrinkCategory, CategoryColor> = {
   other: { light: "#5c5347", dark: "#a89e8c", label: "Other" },
 };
 
-// Legacy Mode / high-contrast overrides. Darker (light theme) or brighter
-// (dark theme) so low-vision users clear AA comfortably. Mirrored in the
-// `html[data-legacy="1"]` block of the appended globals.css section.
-export const CATEGORY_COLORS_LEGACY: Record<
-  DrinkCategory,
-  { light: string; dark: string }
-> = {
-  beer: { light: "#7a5417", dark: "#e6bd63" },
-  wine: { light: "#701d38", dark: "#f296ac" },
-  whisky: { light: "#7a4708", dark: "#f0b866" },
-  gin: { light: "#0a5d57", dark: "#6fdccf" },
-  vodka: { light: "#245672", dark: "#9dd6ee" },
-  rum: { light: "#6e3915", dark: "#e0a074" },
-  cocktail: { light: "#93362a", dark: "#ffa484" },
-  shot: { light: "#522d90", dark: "#c8a6f2" },
-  "alcohol-free": { light: "#0e555b", dark: "#86e0e2" },
-  "soft-drink": { light: "#5f3c00", dark: "#ffd17f" },
-  coffee: { light: "#522e10", dark: "#e8b87a" },
-  other: { light: "#463f34", dark: "#c2b8a4" },
-};
+// Legacy Mode / high-contrast overrides live only in the
+// `html[data-legacy="1"]` block of app/globals.css — no TS consumer reads
+// them, so they are not duplicated here.
 
 // ── Legacy minimal map (E1 compatibility) ────────────────────────────────────
 // CATEGORY_ACCENT / categoryAccent are the shape E1's menu already imports.
