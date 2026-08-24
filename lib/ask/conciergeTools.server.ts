@@ -46,6 +46,7 @@ import type { ConciergeVenue } from "@/lib/concierge/rank";
 import { DEFAULT_DRINK_LANE, orderVenueDrinkPrices } from "@/lib/drinkLanes";
 import {
   rankBoroughCheapest,
+  rankCityCheapest,
   rankNearMe,
   type NearMeCard,
   type PricedPoint,
@@ -171,10 +172,14 @@ export async function toolCheapestPintNear(
   // rank and must never become the pub of that name on the other side of the
   // city. A named CENTRE still resolves to its pub, and a centre that names a
   // borough is read as that borough.
+  const isLondonArea = areaArg.toLowerCase() === "london";
+  // District words stay refused here. Only known boroughs scope cheapest pints.
   const areaFromArea = areaArg ? matchArea(venues, areaArg) : null;
   const areaFromVenueName =
     !areaFromArea && venueNameArg ? matchArea(venues, venueNameArg) : null;
-  const area = areaFromArea ?? areaFromVenueName;
+  const area = isLondonArea
+    ? "London"
+    : areaFromArea ?? areaFromVenueName;
   const anchorVenue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
     (areaFromVenueName ? null : matchVenue(venues, venueNameArg));
@@ -215,7 +220,10 @@ export async function toolCheapestPintNear(
     rows = answer.cards.filter((card) => card.id !== anchorVenue.id).slice(0, limit);
     scope = answer.scope;
   } else {
-    rows = rankBoroughCheapest(points, anchor.area, limit);
+    rows =
+      anchor.area.toLowerCase() === "london"
+        ? rankCityCheapest(points, limit)
+        : rankBoroughCheapest(points, anchor.area, limit);
     scope = rows.length > 0 ? "walkable" : "none";
   }
 
@@ -237,7 +245,6 @@ export async function toolCheapestPintNear(
     title: row.name,
     place: row.borough,
     note: cheapestNearRowNote({
-      area: row.borough,
       walkMinutes: row.walkMinutes ?? null,
     }),
     price: row.cheapestPrice,

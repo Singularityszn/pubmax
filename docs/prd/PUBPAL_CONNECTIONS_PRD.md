@@ -113,7 +113,7 @@ your last stop"), fallback to platform homepages.
 ## WP4 - Our brain in the pal's voice (M, wave 2)
 
 New `app/api/pub-pal/llm/route.ts`: OpenAI-compatible SSE endpoint over the
-`lib/ask` grounding stack (grounded answers law included), shared-secret auth
+`lib/ask` tool registry with deterministic answer composition, shared-secret auth
 (`ELEVENLABS_LLM_SHARED_SECRET`); point the ElevenLabs agent's Custom LLM at
 it. Until then the dashboard-configured LLM with a tight prompt is acceptable
 wave-1. Demo gate: the pal speaks a venue price identical to text Ask's

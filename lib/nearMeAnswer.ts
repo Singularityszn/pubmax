@@ -225,14 +225,30 @@ export function rankBoroughCheapest(
   const take = Math.max(1, Math.floor(max));
   return venues
     .filter((point) => qualifies(point) && point.borough.trim().toLowerCase() === target)
-    .map((point) => ({
-      id: point.id,
-      name: point.name,
-      borough: point.borough,
-      cheapestPrice: point.cheapestPrice as number,
-    }))
+    .map(toCheapestCard)
     .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
     .slice(0, take);
+}
+
+export function rankCityCheapest(
+  venues: PricedPoint[],
+  max: number = MAX_ANSWERS,
+): NearMeCard[] {
+  const take = Math.max(1, Math.floor(max));
+  return venues
+    .filter(qualifies)
+    .map(toCheapestCard)
+    .sort((a, b) => a.cheapestPrice - b.cheapestPrice)
+    .slice(0, take);
+}
+
+function toCheapestCard(point: PricedPoint): NearMeCard {
+  return {
+    id: point.id,
+    name: point.name,
+    borough: point.borough,
+    cheapestPrice: point.cheapestPrice as number,
+  };
 }
 
 /** Boroughs (from the slim index) that actually have at least one priced pub,

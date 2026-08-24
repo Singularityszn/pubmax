@@ -4,7 +4,15 @@ const { isLimitedMock } = vi.hoisted(() => ({
   isLimitedMock: vi.fn(async () => false),
 }));
 
+const { modelLoopMock } = vi.hoisted(() => ({
+  modelLoopMock: vi.fn(),
+}));
+
 vi.mock("@/lib/serverEnv", () => ({ assertProductionSecrets: () => {} }));
+
+vi.mock("@/lib/ask/modelLoop", () => ({
+  runAskModelLoop: modelLoopMock,
+}));
 
 vi.mock("@/lib/pintDrops", async () => {
   const actual = await vi.importActual<typeof import("@/lib/pintDrops")>(
@@ -42,6 +50,7 @@ import { PAL_WEB_GROUNDING } from "@/lib/palChat";
 
 beforeEach(() => {
   isLimitedMock.mockReset().mockResolvedValue(false);
+  modelLoopMock.mockReset().mockResolvedValue(null);
   delete process.env.OPENROUTER_API_KEY;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -164,22 +173,40 @@ describe("POST /api/ask", () => {
     expect(refined.toolsUsed.length).toBeGreaterThan(0);
     expect(refined.answer).toEqual(expect.any(String));
   });
+
+  it("ignores model answer prose and composes from tool results", async () => {
+    const card = {
+      key: "venue-1",
+      venueId: "venue-1",
+      title: "The Lamb",
+      place: "Bloomsbury",
+      note: "Quiet",
+      price: 5.4,
+      provenance: { label: "On record", kind: "directory" },
+    };
+    modelLoopMock.mockResolvedValueOnce({
+      toolResults: [{
+        ok: true,
+        tool: "search_venues",
+        data: null,
+        provenance: [],
+        cards: [card],
+        proposals: [],
+        answerHint: "The Lamb is listed.",
+      }],
+      answer: "2 grounded picks from CityMCP",
+    });
+    process.env.OPENROUTER_API_KEY = "test-key";
+
+    const result = await runAsk({ query: "Somewhere quiet in Bloomsbury", cityId: "london" });
+
+    expect(result.answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(result.answer).not.toMatch(/CityMCP|grounded/iu);
+  });
 });
 
 describe("Night OS Ask fences", () => {
   it("keeps web grounding off", () => {
     expect(PAL_WEB_GROUNDING).toBe(false);
-  });
-});
-
-describe("modelProseIsGrounded (anti-fabrication gate)", () => {
-  it("discards model prose carrying a price the tools never returned", async () => {
-    const { modelProseIsGrounded } = await import("@/lib/ask/runAsk");
-    const hints = ["The Landor pours at £5.90, logged this week."];
-    const cards = [{ title: "The Landor", subtitle: "Pub in Clapham" }] as never[];
-    expect(modelProseIsGrounded("A pint there is £5.90.", hints, cards)).toBe(true);
-    expect(modelProseIsGrounded("A pint there is £4.20, a steal.", hints, cards)).toBe(false);
-    expect(modelProseIsGrounded("Open until 23:00 tonight.", hints, cards)).toBe(false);
-    expect(modelProseIsGrounded("Worth the walk from the station.", hints, cards)).toBe(true);
   });
 });

@@ -3,6 +3,11 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import {
+  nightAreaOptionLabel,
+  nightAreaSelectorGroups,
+} from "@/components/plan/PlanComposer";
+
 function read(path: string): string {
   return readFileSync(join(process.cwd(), path), "utf8");
 }
@@ -456,24 +461,29 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
 
   it("names area coverage in pub words, not evidence stages or score bands", () => {
     const areaButton = read("lib/areaButton.ts");
-    const composer = read("components/plan/PlanComposer.tsx");
     const mobilePlan = read("components/plan/MobilePlanActivation.tsx");
 
-    for (const source of [areaButton, composer, mobilePlan]) {
+    for (const source of [areaButton, mobilePlan]) {
       expect(source).not.toContain("Low confidence");
       expect(source).not.toContain("Higher confidence");
       expect(source).not.toContain("Plan with warnings");
       expect(source).not.toContain("Plan with checks");
       expect(source).not.toContain("Review expired");
     }
-    expect(composer).not.toContain("plan with warnings");
-
     // The replacement set is one vocabulary across all three call sites.
     expect(areaButton).toContain("Rough guess");
     expect(areaButton).toContain("Not all checked");
     expect(areaButton).toContain("Gone stale");
-    expect(composer).toContain("Prices checked");
     expect(mobilePlan).toContain("Prices checked");
+
+    const groups = nightAreaSelectorGroups(new Date("2026-07-13T12:00:00.000Z"));
+    expect(groups.map((group) => group.label)).toEqual([
+      "Crawl-ready",
+      "Not crawl-ready yet",
+    ]);
+    const notReady = groups[1]?.areas.find((area) => area.slug === "barnes");
+    expect(notReady).toBeDefined();
+    expect(nightAreaOptionLabel(notReady!, false)).toBe("Barnes - not crawl-ready yet");
   });
 
   it("keeps the Plan result and Pub Pal free of product-speak", () => {

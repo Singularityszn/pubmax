@@ -21,13 +21,22 @@ import type {
 
 const MAX_TURNS = 6;
 
-function dedupeCards(cards: AskCard[]): AskCard[] {
-  const seen = new Set<string>();
+function dedupeCards(results: AskToolResult[]): AskCard[] {
+  const seenKeys = new Set<string>();
+  const venueIdsFromEarlierResults = new Set<string>();
   const out: AskCard[] = [];
-  for (const card of cards) {
-    if (seen.has(card.key)) continue;
-    seen.add(card.key);
-    out.push(card);
+  for (const result of results) {
+    const keptCards: AskCard[] = [];
+    for (const card of result.cards) {
+      if (seenKeys.has(card.key)) continue;
+      if (card.venueId && venueIdsFromEarlierResults.has(card.venueId)) continue;
+      seenKeys.add(card.key);
+      keptCards.push(card);
+    }
+    out.push(...keptCards);
+    for (const card of keptCards) {
+      if (card.venueId) venueIdsFromEarlierResults.add(card.venueId);
+    }
   }
   return out.slice(0, 8);
 }
@@ -63,24 +72,39 @@ function mergeToolResults(results: AskToolResult[]): {
   degraded: boolean;
   toolsUsed: string[];
 } {
-  const cards: AskCard[] = [];
   const proposals: AskProposal[] = [];
   const sources: AskSource[] = [];
-  const hints: string[] = [];
+  const hintCandidates: Array<{ result: AskToolResult; hint: string }> = [];
   let degraded = false;
   const toolsUsed: string[] = [];
 
   for (const result of results) {
     toolsUsed.push(result.tool);
-    cards.push(...result.cards);
     proposals.push(...result.proposals);
     sources.push(...result.provenance);
-    if (result.answerHint) hints.push(result.answerHint);
+    if (result.answerHint) hintCandidates.push({ result, hint: result.answerHint });
     if (result.degraded) degraded = true;
   }
 
+  const totalCardCount = results.reduce((total, result) => total + result.cards.length, 0);
+  const mergedCards = dedupeCards(results);
+  const hints = hintCandidates
+    .filter(
+      ({ result }) =>
+        !(
+          mergedCards.length > 0 &&
+          result.ok &&
+          result.cards.length === 0 &&
+          !result.degraded
+        ),
+    )
+    .map(({ hint }) => hint);
+  if (mergedCards.length < totalCardCount) {
+    hints.push(`Showing the first ${mergedCards.length}.`);
+  }
+
   return {
-    cards: dedupeCards(cards),
+    cards: mergedCards,
     proposals: dedupeProposals(proposals),
     sources: dedupeSources(sources),
     hints,
@@ -89,47 +113,24 @@ function mergeToolResults(results: AskToolResult[]): {
   };
 }
 
-/**
- * Every £ figure and every clock-time claim in the model's prose must appear
- * verbatim in the grounded evidence (tool hints + cards). Model prose that
- * carries a figure the tools never returned is DISCARDED, never trimmed - the
- * anti-goals law is fail closed to grounded answers, and a single invented
- * price on this surface would spend the whole product's trust argument.
- */
-export function modelProseIsGrounded(
-  prose: string,
-  hints: string[],
-  cards: AskCard[],
-): boolean {
-  const evidence = [
-    ...hints,
-    ...cards.flatMap((card) => Object.values(card).map(String)),
-  ]
-    .join(" ")
-    .toLowerCase();
-  const claims = [
-    ...prose.matchAll(/£\s?\d+(?:\.\d{1,2})?/g),
-    ...prose.matchAll(/\b\d{1,2}:\d{2}\s?(?:am|pm)?\b/gi),
-  ].map((m) => m[0].replace(/\s/g, "").toLowerCase());
-  return claims.every((claim) => evidence.replace(/\s/g, "").includes(claim));
-}
-
 function composeAnswer(
-  modelAnswer: string | null,
   hints: string[],
   cards: AskCard[],
+  toolsUsed: string[],
 ): string {
-  if (
-    modelAnswer &&
-    modelAnswer.trim() &&
-    modelProseIsGrounded(modelAnswer, hints, cards)
-  ) {
-    return modelAnswer.trim().slice(0, 1200);
+  if (cards.length > 0) {
+    const pubPickTools = new Set(["search_venues", "cheapest_pint_near"]);
+    const isPubPickAnswer =
+      toolsUsed.length > 0 &&
+      toolsUsed.every((tool) => pubPickTools.has(tool)) &&
+      cards.every((card) => Boolean(card.venueId));
+    if (!isPubPickAnswer) {
+      return hints.length > 0 ? hints.join(" ") : "Nothing sourced for that. Try a nearby area or a broader ask.";
+    }
+    const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`;
+    return [countLine, ...hints].join(" ");
   }
   if (hints.length > 0) return hints.join(" ");
-  if (cards.length > 0) {
-    return `${cards.length} grounded ${cards.length === 1 ? "result" : "results"}. Confirm a proposal to act.`;
-  }
   return "Nothing sourced for that. Try a nearby area or a broader ask.";
 }
 
@@ -173,7 +174,6 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   };
 
   let toolResults: AskToolResult[] = [];
-  let modelAnswer: string | null = null;
 
   const allowModel =
     !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
@@ -187,7 +187,6 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {
       toolResults = modelOutcome.toolResults;
-      modelAnswer = modelOutcome.answer;
     }
   }
 
@@ -209,7 +208,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const merged = mergeToolResults(toolResults);
   return {
-    answer: composeAnswer(modelAnswer, merged.hints, merged.cards),
+    answer: composeAnswer(merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,
     sources: merged.sources,

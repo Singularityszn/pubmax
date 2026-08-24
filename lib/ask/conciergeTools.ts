@@ -147,16 +147,20 @@ export function cheapestNearEmptyLine(
   return `No listed pint prices round ${place} yet.`;
 }
 
-/** One row's note: the figure is the card's, this says where and how far. */
+/**
+ * One row's note: the figure is the card's, this says how far.
+ *
+ * The card's own place line already names the row's area, so the note may not
+ * repeat it: doing so printed "Camden" twice on every card, place line and
+ * note side by side.
+ */
 export function cheapestNearRowNote(input: {
-  area: string;
   walkMinutes?: number | null;
 }): string {
-  const walk =
-    typeof input.walkMinutes === "number" && Number.isFinite(input.walkMinutes)
-      ? `${input.walkMinutes} min walk`
-      : "";
-  return [input.area, walk].filter(Boolean).join(" · ");
+  return typeof input.walkMinutes === "number" &&
+    Number.isFinite(input.walkMinutes)
+    ? `${input.walkMinutes} min walk`
+    : "";
 }
 
 // ---------------------------------------------------------------------------

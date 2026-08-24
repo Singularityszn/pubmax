@@ -41,8 +41,8 @@ Ship one Night OS Ask surface over a **server tool registry** and `POST /api/ask
    1–2 tools and fills house-voice templates (same honesty as heritage
    structured-only).
 5. **Bounded model loop** — with OpenRouter, tool-calling is allowlisted, low
-   temperature, capped rounds and tokens. Model prose cannot add venues or
-   prices absent from tool results.
+   temperature, capped rounds and tokens. The model selects tools only;
+   `composeAnswer` builds reader copy from returned hints and cards.
 6. **In-thread memory only** — the client may resend recent turns for
    refinement. Durable Pal memory stays confirm-gated (ADR 0006).
 

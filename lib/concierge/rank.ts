@@ -128,11 +128,16 @@ function scoreOne(
 
   const requestedArea = normalise(intent.area ?? "");
   const venueArea = normalise(`${venue.area} ${venue.searchText ?? ""}`);
-  if (requestedArea && venueArea.includes(requestedArea)) {
+  const cityWideAreaAsk = requestedArea === "london";
+  // The area reason joins LAST: a card already prints its area as the place
+  // line, so a leading "In Camden" note under a "Camden" place printed the
+  // area twice, and the budget or mood reason it displaced says more.
+  let areaReason: string | null = null;
+  if (requestedArea && !cityWideAreaAsk && venueArea.includes(requestedArea)) {
     // Area is the strongest coordination constraint: a perfect mood match in
     // the wrong part of town is rarely useful for a same-evening plan.
     score += 30;
-    reasons.push(`In ${intent.area!.trim()}`);
+    areaReason = `In ${intent.area!.trim()}`;
   }
 
   if (intent.maxPintPrice !== undefined) {
@@ -200,7 +205,34 @@ function scoreOne(
     }
   }
 
-  return { venue, score: Number(score.toFixed(4)), reasons: [...new Set(reasons)].slice(0, 3) };
+  const uniqueReasons = [...new Set(reasons)];
+  const orderedReasons = areaReason && uniqueReasons.length > 0
+    ? [...uniqueReasons.slice(0, 2), areaReason]
+    : uniqueReasons.slice(0, 3);
+  return { venue, score: Number(score.toFixed(4)), reasons: orderedReasons };
+}
+
+/**
+ * The venues an asked-for area may answer with, in two tiers.
+ *
+ * A venue is IN an area first by its own area attribution: the borough the
+ * index files it under. The searchable text is only a fallback for a
+ * neighbourhood word the borough field cannot answer ("Soho" is Westminster),
+ * because that text also carries pub names, addresses and pint names: "Camden
+ * Hells" on a Hammersmith tap once put that pub under a Camden ask. So where
+ * any venue's own area matches, the loose text match may not widen the answer.
+ */
+function areaEligibleVenues(
+  venues: readonly ConciergeVenue[],
+  requestedArea: string,
+): ConciergeVenue[] {
+  // "London" names the whole pack, not the Square Mile: narrowing it to the
+  // City of London, the one borough holding the word, would answer a city ask
+  // with the wrong forty pubs.
+  if (requestedArea === "london") return [...venues];
+  const own = venues.filter((venue) => normalise(venue.area).includes(requestedArea));
+  if (own.length > 0) return own;
+  return venues.filter((venue) => normalise(`${venue.area} ${venue.searchText ?? ""}`).includes(requestedArea));
 }
 
 /** Pure, stable honest ranking. The result never mutates or depends on input order. */
@@ -213,7 +245,7 @@ export function rankConciergeVenues(
   const organic = venues.filter((venue) => !venue.promoted);
   const requestedArea = normalise(intent.area ?? "");
   const eligible = requestedArea
-    ? organic.filter((venue) => normalise(`${venue.area} ${venue.searchText ?? ""}`).includes(requestedArea))
+    ? areaEligibleVenues(organic, requestedArea)
     : organic;
   return eligible
     .map((venue) => scoreOne(venue, intent, options.context ?? {}, options.tonightEventKindsByVenue))

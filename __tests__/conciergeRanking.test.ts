@@ -73,6 +73,81 @@ describe("rankConciergeVenues", () => {
     expect(results).toEqual([]);
   });
 
+  it("keeps a borough ask on the borough's own pubs, whatever the taps say", () => {
+    // "Camden Hells" on a Hammersmith tap put that pub under a Camden ask:
+    // the searchable text carries pint names, so it may not widen an area the
+    // borough field can already answer (report D5).
+    const results = rankConciergeVenues(
+      [
+        venue("camden-own", { area: "Camden", cheapestPrice: 5.9 }),
+        venue("hells-tap", {
+          area: "Hammersmith and Fulham",
+          cheapestPrice: 4.5,
+          searchText: "the curtains up 28a comeragh rd camden hells neck oil",
+        }),
+      ],
+      { mood: [], groupSize: 4, area: "Camden", maxPintPrice: 6 },
+    );
+    expect(results.map((result) => result.venue.id)).toEqual(["camden-own"]);
+    // The card prints its area as the place line, so the leading reason (the
+    // card note) may not be the area again: that printed "Camden Camden".
+    expect(results[0]?.reasons[0]).not.toBe("In Camden");
+    expect(results[0]?.reasons).toContain("In Camden");
+  });
+
+  it("does not use the area as the only card reason", () => {
+    const results = rankConciergeVenues(
+      [venue("camden", { area: "Camden" })],
+      { mood: [], groupSize: 2, area: "Camden" },
+      { limit: 1 },
+    );
+
+    expect(results[0]?.reasons).toEqual([]);
+  });
+
+  it("keeps the area reason last when other reasons fill the card", () => {
+    const results = rankConciergeVenues(
+      [venue("camden", {
+        area: "Camden",
+        cheapestPrice: 5.5,
+        amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false },
+      })],
+      { mood: ["garden"], groupSize: 2, area: "Camden", maxPintPrice: 6 },
+      { limit: 1, context: { weather: "warm-dry" } },
+    );
+
+    expect(results[0]?.reasons).toHaveLength(3);
+    expect(results[0]?.reasons.at(-1)).toBe("In Camden");
+  });
+
+  it("reads a London ask as the whole city, never the City of London borough", () => {
+    const results = rankConciergeVenues(
+      [
+        venue("square-mile", { area: "City of London" }),
+        venue("camden", { area: "Camden" }),
+      ],
+      { mood: [], groupSize: 2, area: "London" },
+      { limit: 1 },
+    );
+    expect(results.map((result) => result.venue.id)).toEqual(["camden"]);
+    expect(results[0]?.reasons).not.toContain("In London");
+  });
+
+  it("still answers a neighbourhood word through the searchable text", () => {
+    // No borough is called Soho, so the address text is the only way in.
+    const results = rankConciergeVenues(
+      [
+        venue("argyll", {
+          area: "Westminster",
+          searchText: "the argyll arms 18 argyll street, soho, w1f 7tn",
+        }),
+        venue("elsewhere", { area: "Camden" }),
+      ],
+      { mood: [], groupSize: 2, area: "Soho" },
+    );
+    expect(results.map((result) => result.venue.id)).toEqual(["argyll"]);
+  });
+
   it("uses explicit weather context to prefer gardens on a warm, dry evening", () => {
     const results = rankConciergeVenues(
       [

@@ -16,7 +16,6 @@ const MAX_TOKENS = 500;
 const TIMEOUT_MS = 12_000;
 
 export type ModelAskOutcome = {
-  answer: string | null;
   toolResults: AskToolResult[];
 };
 
@@ -103,7 +102,7 @@ export async function runAskModelLoop(input: {
         signal: controller.signal,
       });
       if (!response.ok) {
-        return toolResults.length ? { answer: null, toolResults } : null;
+        return toolResults.length ? { toolResults } : null;
       }
       const body = (await response.json()) as {
         choices?: Array<{
@@ -113,17 +112,12 @@ export async function runAskModelLoop(input: {
       };
       const message = body.choices?.[0]?.message;
       if (!message) {
-        return toolResults.length ? { answer: null, toolResults } : null;
+        return toolResults.length ? { toolResults } : null;
       }
 
       const toolCalls = message.tool_calls ?? [];
       if (toolCalls.length === 0) {
-        const text =
-          typeof message.content === "string" ? message.content.trim() : "";
-        return {
-          answer: text || null,
-          toolResults,
-        };
+        return { toolResults };
       }
 
       messages.push({
@@ -163,12 +157,9 @@ export async function runAskModelLoop(input: {
       }
     }
 
-    return {
-      answer: null,
-      toolResults,
-    };
+    return { toolResults };
   } catch {
-    return toolResults.length ? { answer: null, toolResults } : null;
+    return toolResults.length ? { toolResults } : null;
   } finally {
     clearTimeout(timer);
   }

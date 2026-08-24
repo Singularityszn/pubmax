@@ -493,7 +493,7 @@ export function parsePlanRouteDraft(raw: string | null): StoredRouteDraft | null
 }
 
 export type NightAreaSelectorGroup = {
-  label: "Prices checked" | "Not all checked";
+  label: "Crawl-ready" | "Not crawl-ready yet";
   disabled: boolean;
   areas: NightArea[];
 };
@@ -501,12 +501,12 @@ export type NightAreaSelectorGroup = {
 export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGroup[] {
   return [
     {
-      label: "Prices checked",
+      label: "Crawl-ready",
       disabled: false,
       areas: NIGHT_AREAS.filter((area) => isNightAreaRouteReady(area, now)),
     },
     {
-      label: "Not all checked",
+      label: "Not crawl-ready yet",
       disabled: false,
       areas: NIGHT_AREAS.filter((area) => !isNightAreaRouteReady(area, now)),
     },
@@ -514,7 +514,7 @@ export function nightAreaSelectorGroups(now = new Date()): NightAreaSelectorGrou
 }
 
 export function nightAreaOptionLabel(area: NightArea, disabled: boolean): string {
-  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not all checked` : area.name;
+  return disabled || !isNightAreaRouteReady(area) ? `${area.name} - not crawl-ready yet` : area.name;
 }
 
 export function nightAreaMapHref(area: NightArea): string {
@@ -1868,7 +1868,7 @@ function PlanComposerForm({
         {nightContext ? (
           <fieldset className="planComposer__context">
             <legend>What PUBMAXX understood. Edit anything.</legend>
-            <p id="plan-context-note" className="planComposer__contextNote">An active area warning can block route planning. We show missing prices or route details so you can judge the route.</p>
+            <p id="plan-context-note" className="planComposer__contextNote">We only call an area crawl-ready when its prices are fresh and checked. An area that is not ready yet may not give a route.</p>
             <label htmlFor="plan-context-area">Area<select id="plan-context-area" aria-describedby="plan-context-note plan-route-status" value={nightContext.nightArea ?? ""} onChange={(event) => updateNightContext({ nightArea: event.target.value as NightContext["nightArea"] })}>
               {areaGroups.map((group) => (
                 <optgroup key={group.label} label={group.label}>
@@ -1945,15 +1945,15 @@ function PlanComposerForm({
           <summary>
             <span id="plan-coverage-title">Area coverage</span>
             <span className="planComposer__coverageMeta">
-              {readyAreas.length} higher confidence · {areasInProgress.length} with warnings
+              {readyAreas.length} of {readyAreas.length + areasInProgress.length} crawl-ready
             </span>
           </summary>
           <p className="planComposer__coverageIntro">
-            See where prices and route details have been checked. An active warning can stop route planning until the area is checked again.
+            We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.
           </p>
           <div className="planComposer__coverageGroups">
             <section aria-labelledby="plan-coverage-ready">
-              <h3 id="plan-coverage-ready">Higher-confidence planning</h3>
+              <h3 id="plan-coverage-ready">Crawl-ready</h3>
               <ul>
                 {readyAreas.map((area) => {
                   const summary = nightAreaCoverageSummary(area);
@@ -1974,7 +1974,7 @@ function PlanComposerForm({
               </ul>
             </section>
             <section aria-labelledby="plan-coverage-progress">
-              <h3 id="plan-coverage-progress">Not all checked</h3>
+              <h3 id="plan-coverage-progress">Not crawl-ready yet</h3>
               <ul>
                 {areasInProgress.map((area) => {
                   const summary = nightAreaCoverageSummary(area);

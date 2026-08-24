@@ -116,11 +116,11 @@ describe("cheapest_pint_near policy", () => {
     }
   });
 
-  it("drops the walk when there is no distance to quote", () => {
-    expect(cheapestNearRowNote({ area: "Camden", walkMinutes: 7 })).toBe(
-      "Camden · 7 min walk",
-    );
-    expect(cheapestNearRowNote({ area: "Camden", walkMinutes: null })).toBe("Camden");
+  it("carries the walk alone, never repeating the card's own place line", () => {
+    // The card prints its area as the place line, so a note that named the
+    // area again read "Camden Camden" on every cheapest-pint card.
+    expect(cheapestNearRowNote({ walkMinutes: 7 })).toBe("7 min walk");
+    expect(cheapestNearRowNote({ walkMinutes: null })).toBe("");
   });
 });
 

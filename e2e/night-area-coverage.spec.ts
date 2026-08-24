@@ -32,10 +32,10 @@ test("mobile planner explains planning confidence and evidence warnings", async 
   await coverage.getByText("Area coverage", { exact: true }).click();
 
   await expect(coverage).toContainText(
-    "See where prices and route details have been checked. An active warning can stop route planning until the area is checked again.",
+    "We only call an area crawl-ready when its prices are fresh and checked. The rest are yours to browse.",
   );
-  await expect(coverage.getByRole("heading", { name: "Higher-confidence planning" })).toBeVisible();
-  await expect(coverage.getByRole("heading", { name: "Not all checked" })).toBeVisible();
+  await expect(coverage.getByRole("heading", { name: "Crawl-ready", exact: true })).toBeVisible();
+  await expect(coverage.getByRole("heading", { name: "Not crawl-ready yet" })).toBeVisible();
 
   // Each row is found by the coverage state it OWNS (`data-coverage-status`,
   // written by PlanComposer), not by the badge wording beside it. The coverage

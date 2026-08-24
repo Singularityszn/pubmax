@@ -31,9 +31,8 @@ that caught real bugs this week:
    lists every file that handles a reader fix — add yours.
 2. Copy about pin colour must state the real colour stack (curated, logged,
    favourite lanes); "corroborated" belongs only to the drinker-logged lane.
-3. AI surfaces never emit a figure the tools did not return —
-   `modelProseIsGrounded` in `lib/ask/runAsk.ts` is the pattern: fail closed
-   to grounded hints/cards.
+3. AI surfaces use deterministic `composeAnswer` output. The model selects
+   tools only; reader copy comes from returned hints and cards.
 4. Every `app/api` route uses `publicApiError` (`lib/apiError.ts`) and a rate
    limit via `isLimited`. PR CI also runs lint, typecheck, and sharded unit
    tests on stock `ubuntu-latest` (`.github/workflows/ci.yml`).

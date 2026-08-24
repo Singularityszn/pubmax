@@ -44,7 +44,17 @@ describe("createAskSession", () => {
     if (result?.status === "answered") {
       expect(result.cards).toHaveLength(1);
       expect(result.cards[0].venueId).toBe("venue-1");
+      expect(result.message).toBe("1 pick from our records, each with its source.");
     }
+  });
+
+  it("uses plain fallback copy when no legacy venues match", () => {
+    const result = answerFromBody({ venues: [] });
+
+    expect(result).toMatchObject({
+      status: "answered",
+      message: "Nothing listed matches that. Try a nearby area or a broader ask.",
+    });
   });
 
   it("drops the stale response when a newer ask supersedes it (latest wins)", async () => {
@@ -153,7 +163,7 @@ describe("createAskSession", () => {
           unknown
         >;
         return jsonResponse({
-          answer: "One grounded pick.",
+          answer: "One pick from our records.",
           cards: [
             {
               key: "venue-1",
@@ -236,7 +246,7 @@ describe("answerFromBody", () => {
 
   it("normalises the Night OS Ask agent body with proposals", () => {
     const result = answerFromBody({
-      answer: "3 grounded picks. Confirm to open one.",
+      answer: "3 picks from our records, each with its source.",
       cards: [
         {
           key: "venue-1",
@@ -261,7 +271,7 @@ describe("answerFromBody", () => {
     });
     expect(result.status).toBe("answered");
     if (result.status === "answered") {
-      expect(result.message).toContain("grounded picks");
+      expect(result.message).toContain("picks from our records");
       expect(result.proposals).toHaveLength(1);
       expect(result.proposals[0]).toMatchObject({
         kind: "open_venue",

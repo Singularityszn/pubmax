@@ -21,7 +21,9 @@ describe("canonical Plan evidence adapters", () => {
       pence: 366,
       confidenceState: "aging",
       source: {
-        label: expect.stringContaining("Pint Prices"),
+        // The publisher's name alone. Raw dataset ids read as plumbing beside
+        // a price, so they stay off the label (report D12).
+        label: "Pint Prices",
         url: expect.stringMatching(/^https:\/\//),
         observedAt: expect.any(String),
       },

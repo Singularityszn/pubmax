@@ -149,8 +149,8 @@ async function toolSearchVenues(
       proposals,
       answerHint:
         cards.length > 0
-          ? `${cards.length} grounded ${cards.length === 1 ? "pick" : "picks"} from the listed pubs.`
-          : "No grounded matches for that. Try a nearby area or a broader mood.",
+          ? ""
+          : "Nothing listed matches that. Try a nearby area or a broader mood.",
     };
   } catch {
     return {
@@ -180,7 +180,8 @@ async function toolWhatsOn(
       provenance: [],
       cards: [],
       proposals: [],
-      answerHint: "That doesn't look like a What's On ask.",
+      answerHint:
+        "Ask about quiz nights, live music, sport or deals and I'll check the listings.",
     };
   }
   const unavailable = (): AskToolResult => ({
@@ -455,8 +456,10 @@ async function toolCityStatus(
         key: "city-status",
         venueId: "",
         title: "London right now",
-        place: "CityMCP",
-        note: note || "City status loaded.",
+        // No place line: the source rides the provenance chip, and "CityMCP"
+        // here read as a place name a reader could go to.
+        place: "",
+        note: note || "No tube or weather notes right now.",
         price: null,
         provenance: { label: "CityMCP London", kind: "citymcp" },
       },
@@ -470,7 +473,7 @@ async function toolCityStatus(
       proposals: [],
       answerHint: note
         ? `London right now: ${note}`
-        : "City status answered with no tube or weather lines.",
+        : "London right now: no tube or weather notes.",
       degraded: status.stale === true,
     };
   } catch (error) {
@@ -619,13 +622,15 @@ async function toolAreaBuzz(
       ctx.fetchImpl ? { fetchImpl: ctx.fetchImpl } : {},
     );
     areaData = cityArea;
+    // The reader's sentence carries no service name: the source rides the
+    // card's own provenance chip, never the prose.
     pintLine =
       cityArea.averagePintGbp != null
-        ? `${cityArea.borough} average pint about £${cityArea.averagePintGbp.toFixed(2)} (CityMCP).`
-        : `${cityArea.borough}: no CityMCP pint average just now.`;
+        ? `${cityArea.borough} average pint about £${cityArea.averagePintGbp.toFixed(2)}.`
+        : `No average pint figure for ${cityArea.borough} just now.`;
   } catch {
     degraded = true;
-    pintLine = `Couldn't load a CityMCP pint average for ${area}.`;
+    pintLine = `Couldn't check the average pint for ${area} just now.`;
   }
 
   try {
@@ -640,7 +645,7 @@ async function toolAreaBuzz(
     thingsLine =
       rows.length > 0
         ? `${rows.length} thing${rows.length === 1 ? "" : "s"} to do listed tonight.`
-        : "No things-to-do rows for that area tonight.";
+        : `Nothing listed to do round ${area} tonight.`;
     if (things.stale) degraded = true;
   } catch {
     degraded = true;

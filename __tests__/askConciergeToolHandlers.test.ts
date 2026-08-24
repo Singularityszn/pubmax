@@ -130,6 +130,26 @@ describe("cheapest_pint_near", () => {
     expect(result.answerHint).toContain("Cheapest listed pints in Camden");
   });
 
+  it("answers bare London city-wide and refuses unknown districts", async () => {
+    state.venues = [
+      venue({ id: "camden", name: "The Crown", area: "Camden", cheapestPrice: 4.2 }),
+      venue({ id: "hackney", name: "The Ship", area: "Hackney", cheapestPrice: 3.8 }),
+      venue({ id: "city", name: "The Anchor", area: "City of London", cheapestPrice: 5.1 }),
+    ];
+    const london = await runAskTool("cheapest_pint_near", { area: "London" }, ctx());
+    expect(london.ok).toBe(true);
+    expect(london.cards.map((card) => card.venueId)).toEqual([
+      "hackney",
+      "camden",
+      "city",
+    ]);
+    expect(london.answerHint).toContain("Cheapest listed pints in London");
+
+    const soho = await runAskTool("cheapest_pint_near", { area: "Soho" }, ctx());
+    expect(soho.ok).toBe(false);
+    expect(soho.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+  });
+
   it("asks for an anchor instead of guessing one", async () => {
     state.venues = [venue({ id: "a", name: "The Crown" })];
     const result = await runAskTool("cheapest_pint_near", {}, ctx());
@@ -252,6 +272,28 @@ describe("tonight_now", () => {
     expect(result.answerHint).toContain("1 still to start tonight");
     expect(result.answerHint).toContain("No live crowd reading yet");
     expect(result.cards[0]?.note).toBe("On right now");
+  });
+
+  it("keeps listing counts when tonight listings exceed six cards", async () => {
+    state.whatsOn = {
+      rows: Array.from({ length: 7 }, (_, index) => ({
+        id: `later-${index}`,
+        placeName: `The Pub ${index}`,
+        kind: "music" as const,
+        title: `Live set ${index}`,
+        startsAt: new Date(NOW + (30 + index * 15) * 60_000).toISOString(),
+        endsAt: new Date(NOW + (90 + index * 15) * 60_000).toISOString(),
+        source: { label: "Venue site", url: "https://example.com" },
+        observedAt: "2026-08-15T09:00:00.000Z",
+        confidence: "listed" as const,
+      })),
+      kindObservedAt: {},
+    };
+    const result = await runAskTool("tonight_now", {}, ctx());
+
+    expect(result.cards).toHaveLength(6);
+    expect(result.answerHint).toContain("7 still to start tonight");
+    expect(result.answerHint).not.toContain("Here are the first 6.");
   });
 
   it("prints no bare figure for a listed night, and keeps the deal's own", async () => {
