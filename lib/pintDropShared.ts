@@ -83,6 +83,17 @@ export function cleanVisibility(value: unknown): Visibility {
  * permalink, ledger, and any future surface agree on the exact string.
  */
 export const ANON_HANDLE_LABEL = "a PUBMAXXER";
+export const PINT_DROP_MAX_NOTE = 500;
+
+export function cleanPintDropText(value: unknown, cap: number): string {
+  if (typeof value !== "string") return "";
+  return value
+    .replace(/[<>]/g, "")
+    .replace(/[\u0000-\u001f\u007f]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim()
+    .slice(0, cap);
+}
 
 export type PintDrop = {
   id: string;

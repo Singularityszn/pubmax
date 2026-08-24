@@ -32,6 +32,19 @@ FROM surface × intent → TO surface, with the exact mechanic. Deep-link params
 | Plan link (shared) | "join this plan" | Map of the plan's stops | `/plan/<id>` → join → `/map?pubs=<stops>&mode=build` showing the route. | back → plan detail |
 | You | passport / activity / messages | profile sub-screens | `/u/<handle>`, `/activity`, `/messages` — in-tab pushes with back to the tab root. | back within You tab |
 
+The Pint Drop composer is price-first. The selected Venue comes from the sheet,
+so the first step shows price quick-add controls, drink, and one `Log it` action.
+Photo, story, vibe, visibility, and destination fields stay behind one
+`Add a photo or story` disclosure. A recovered draft that contains extra content
+opens that disclosure so its content stays visible. Signed-out visitors can enter
+the price, but the submit position is the sign-in gate. Account-bound authorship
+and the keyless demo handle exception remain unchanged; exact door copy belongs to
+`lib/spill.ts`.
+
+After any successful route generation, including describe-first chips and the
+concierge path, the route status moves into view and receives focus. Reduced
+motion changes the scroll to an immediate jump, not a skipped reveal.
+
 ## 3. The `/map` URL param contract (single source of truth)
 
 Read/round-tripped in `lib/crawlUrl.ts` + `components/PubMap.tsx`. Decode never throws;

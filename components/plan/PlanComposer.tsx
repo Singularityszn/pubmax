@@ -638,6 +638,35 @@ export function focusPlanRouteStatus(root: ParentNode | Document = document): vo
   status.focus();
 }
 
+/** Reduced motion means no glide, never no move: the viewport still lands on
+ *  the route, it just jumps there. */
+export function planRouteRevealBehavior(reducedMotion: boolean): ScrollBehavior {
+  return reducedMotion ? "auto" : "smooth";
+}
+
+/**
+ * Take the reader to the route they asked for. On a phone a generated route
+ * lands below the fold (the context editor sits between the ask and the
+ * preview), so a chip tap looked like nothing happened. Scrolls the route
+ * status to the top of the viewport and moves focus onto it, so the preview
+ * is seen and announced without a manual scroll.
+ */
+export function revealPlanRouteStatus(
+  root: ParentNode | Document = document,
+  reducedMotion?: boolean,
+): void {
+  const status = root.querySelector("#plan-route-status");
+  if (!(status instanceof HTMLElement)) return;
+  const reduce =
+    reducedMotion ??
+    (typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+  status.scrollIntoView?.({ behavior: planRouteRevealBehavior(reduce), block: "start" });
+  status.tabIndex = -1;
+  status.focus({ preventScroll: true });
+}
+
 export type PlanLockValidationInput = {
   title: string;
   creatorName: string;
@@ -1174,6 +1203,16 @@ function PlanComposerForm({
     });
   }, [canPersist]);
   const palHandoffAutoGenerateStartedRef = useRef(false);
+  // D3: a generated route must be SEEN. The reveal is requested by the
+  // generation success path and runs in an effect, because on a describe-first
+  // chip tap the route status element only mounts with the same commit that
+  // carries the new stops.
+  const [routeRevealTick, setRouteRevealTick] = useState(0);
+  useEffect(() => {
+    if (routeRevealTick === 0) return;
+    revealPlanRouteStatus();
+  }, [routeRevealTick]);
+
   const signedInCreatorNameSeededRef = useRef(false);
   useEffect(() => {
     if (!user || signedInCreatorNameSeededRef.current) return;
@@ -1619,6 +1658,7 @@ function PlanComposerForm({
       trackEvent("plan_generated", { stops: suggested.length, grounded });
       setConciergeNote(`${suggested.length} stops we can stand behind, shaped by the outing you set below.`);
       setRouteStatus("Route refreshed. Review the preview, then lock it in when it feels right.");
+      setRouteRevealTick((tick) => tick + 1);
       if (body.inferredContext) {
         trackEvent("night_description_submitted", { area: body.inferredContext.nightArea ?? "", daypart: body.inferredContext.daypart });
       }

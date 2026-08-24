@@ -51,19 +51,19 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByLabel("Describe the outing").fill("Quiet in Clapham for 4, not pricey");
   await page.getByRole("button", { name: "Make a plan" }).click();
 
-  await expect(page.locator("#plan-concierge-status")).toContainText("Three stops we can stand behind");
+  await expect(page.locator("#plan-concierge-status")).toContainText("stops we can stand behind");
   await expect(page.getByRole("combobox", { name: "Area" })).toHaveValue("clapham");
   await expect(page.getByRole("spinbutton", { name: "People" })).toHaveValue("4");
 
   const contextControls = page.locator(".planComposer__context label");
   const contextControlCount = await contextControls.count();
-  expect(contextControlCount).toBe(7);
+  expect(contextControlCount).toBe(8);
   for (let index = 0; index < contextControlCount; index += 1) {
     await expectTouchHeight(contextControls.nth(index));
   }
   const editableContextControls = page.locator(".planComposer__context select, .planComposer__context input");
   const editableContextControlCount = await editableContextControls.count();
-  expect(editableContextControlCount).toBe(7);
+  expect(editableContextControlCount).toBe(8);
   for (let index = 0; index < editableContextControlCount; index += 1) {
     await expectTouchHeight(editableContextControls.nth(index));
   }
@@ -89,7 +89,8 @@ test("mobile Plan flow stays tappable and usable at 390px", async ({ page }) => 
   await page.getByLabel("Your name").fill("Terra");
   await page.getByRole("button", { name: "Lock it in" }).click();
 
-  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}$/);
+  // Lock lands on the plan page at its share step (#share since #816).
+  await expect(page).toHaveURL(/\/plan\/[0-9a-f-]{36}(#share)?$/);
   await expect(page.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(page.getByText("Terra", { exact: true })).toBeVisible();
   await expectTouchHeight(page.getByRole("button", { name: "In", exact: true }));

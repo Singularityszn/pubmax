@@ -114,6 +114,74 @@
   gap: 5px;
 }
 
+/* ── Price-first door ─────────────────────────────────────────────────── */
+
+.spillPriceStep {
+  display: grid;
+  gap: 12px;
+}
+
+.spillSignedOutNote {
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+}
+
+.spillPostingAs {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.spillPostingAs strong {
+  color: var(--ink-soft);
+}
+
+.spillExtrasToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 0.82rem;
+  font-weight: 700;
+  cursor: pointer;
+  justify-self: start;
+}
+
+.spillExtrasToggle svg {
+  transition: transform 0.15s ease;
+}
+
+.spillExtrasToggle[aria-expanded="true"] svg {
+  transform: rotate(180deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .spillExtrasToggle svg {
+    transition: none;
+  }
+}
+
+.spillExtrasToggle:hover {
+  border-color: var(--brass);
+  color: var(--brass);
+}
+
+.spillExtrasToggle:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 1px;
+}
+
+.spillExtras {
+  display: grid;
+  gap: 14px;
+}
+
 .spillFieldHeader {
   display: flex;
   align-items: baseline;

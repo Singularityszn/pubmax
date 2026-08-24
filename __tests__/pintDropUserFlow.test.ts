@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -6,9 +8,6 @@ import { ComposerFields } from "@/components/map/composer/ComposerFields";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 
 const composerFieldsProps = {
-  handle: "night_owl",
-  setHandle: vi.fn(),
-  accountOwned: true,
   dropForm: { price: "4.2", drink: "Pint", note: "", era: "", withWho: "" },
   setDropForm: vi.fn(),
   vibeTags: [],
@@ -20,8 +19,6 @@ const composerFieldsProps = {
   destination: null,
   chooseDestination: vi.fn(),
   setDestination: vi.fn(),
-  priceQuickAdds: [4.2],
-  lastKnownPrice: null,
   speechSupported: false,
   listening: false,
   speechError: "",
@@ -120,13 +117,25 @@ describe("venue-sheet Pint Drop author", () => {
     });
   });
 
-  it("shows the account handle as the composer author on a fresh device", () => {
-    const html = renderToStaticMarkup(
+  it("keeps author identity out of the optional fields — the compact door owns it", () => {
+    // Price-first door (report D2): the account handle is shown by the compact
+    // door as "Posting as @handle", never edited, and the typed handle input
+    // exists only on the keyless demo path. Both are pinned in
+    // __tests__/pintDropPriceFirstDoor.test.tsx. The optional half must carry
+    // no handle input at all, so a stale device draft can never be typed over
+    // an account-bound author.
+    document.body.innerHTML = renderToStaticMarkup(
       createElement(ComposerFields, composerFieldsProps),
     );
 
-    expect(html).toContain('value="night_owl"');
-    expect(html).toContain('readOnly=""');
-    expect(html).toContain('aria-readonly="true"');
+    // Query the control by its stable field label, not by sample values: a
+    // future handle input under any name or value must still fail this.
+    const fieldLabels = Array.from(
+      document.querySelectorAll(".spillFieldLabel"),
+    ).map((label) => label.textContent?.trim());
+    expect(fieldLabels).toContain("Story");
+    expect(fieldLabels).toContain("With");
+    expect(fieldLabels).not.toContain("Handle");
+    expect(document.querySelector('input[placeholder^="@thirsty"]')).toBeNull();
   });
 });

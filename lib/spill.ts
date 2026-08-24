@@ -3,6 +3,13 @@
 // re-export of the visibility allowlist for composer-side validation reuse.
 // No React, no DOM — these are unit-testable in isolation.
 
+import {
+  cleanPintDropText,
+  DEFAULT_VISIBILITY,
+  PINT_DROP_MAX_NOTE,
+  type Visibility,
+} from "@/lib/pintDropShared";
+
 export { VISIBILITIES, DEFAULT_VISIBILITY, cleanVisibility } from "@/lib/pintDropShared";
 export type { Visibility } from "@/lib/pintDropShared";
 
@@ -60,6 +67,59 @@ export function formatPriceGbp(value: number): string {
  *  figures, so it carries both pence: "4.50", never the input field's "4.5". */
 export function formatPriceChipGbp(value: number): string {
   return clampPriceGbp(value).toFixed(2);
+}
+
+// ── Price-first door ────────────────────────────────────────────────────────
+// The composer opens on the price: chips, drink, one Log it action. Everything
+// else (photo, story, vibes, visibility) waits behind one disclosure, so the
+// first Pint Drop is never parked behind a camera step. These constants are the
+// door's copy; the components read them so the words cannot drift per surface.
+
+/** The one disclosure that reveals the optional half of the composer. */
+export const SPILL_EXTRAS_TOGGLE_LABEL = "Add a photo or story";
+
+/** The compact door's submit action. */
+export const SPILL_LOG_ACTION_LABEL = "Log it";
+export const SPILL_LOG_ACTION_BUSY_LABEL = "Logging…";
+
+/** Signed-out line above the price step: the door stays open, the gate is the
+ *  sign-in link where submit would be. Names the account rule plainly. */
+export const SPILL_SIGNED_OUT_DOOR_LINE =
+  "Set the price now. Sign in to post it under your name.";
+
+/**
+ * Whether the optional half starts open. A recovered draft that already
+ * carries a story, company, an era, vibes, a photo, or a non-default lane must
+ * stay in sight — collapsing it would hide what the writer already wrote.
+ */
+export function spillExtrasStartOpen(input: {
+  price: string;
+  note: string;
+  withWho: string;
+  era: string;
+  vibeTags: readonly string[];
+  hasPhoto: boolean;
+  visibility: Visibility;
+}): boolean {
+  return (
+    input.note.trim() !== "" ||
+    input.withWho.trim() !== "" ||
+    input.era.trim() !== "" ||
+    input.vibeTags.length > 0 ||
+    input.hasPhoto ||
+    input.visibility !== DEFAULT_VISIBILITY
+  );
+}
+
+export function spillHasSubmissionEvidence(input: {
+  price: string;
+  note: string;
+  withWho: string;
+}): boolean {
+  return (
+    input.price.trim() !== "" ||
+    cleanPintDropText(appendWithSuffix(input.note, input.withWho), PINT_DROP_MAX_NOTE) !== ""
+  );
 }
 
 // ── "With" field → structured note suffix ───────────────────────────────────

@@ -303,6 +303,10 @@ test.describe("map / venue sheet tabs", () => {
 
     await pintsPanel.getByRole("button", { name: /log a pint drop/i }).click();
 
+    // Price-first door (report D2): the visibility control is an extra, behind
+    // the one disclosure.
+    await pintsPanel.getByRole("button", { name: "Add a photo or story" }).click();
+
     const visibilityGroup = pintsPanel.getByRole("radiogroup", { name: "Visibility" });
     await expect(visibilityGroup).toBeVisible();
 

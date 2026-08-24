@@ -130,6 +130,7 @@ describe("externally trusted signing keys", () => {
         ?.testMatch,
     ).toEqual([
       "**/price-contribution-entry.spec.ts",
+      "**/spill-composer-keyless.spec.ts",
       "**/ui-ux-battle-test-keyless.spec.ts",
     ]);
 

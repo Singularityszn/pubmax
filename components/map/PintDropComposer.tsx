@@ -1,10 +1,18 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import Link from "next/link";
-import { RefreshCw, Send } from "lucide-react";
+import { ChevronDown, RefreshCw, Send } from "lucide-react";
 
-import { QUICK_ADD_PRICES_GBP } from "@/lib/spill";
+import {
+  QUICK_ADD_PRICES_GBP,
+  SPILL_EXTRAS_TOGGLE_LABEL,
+  SPILL_LOG_ACTION_BUSY_LABEL,
+  SPILL_LOG_ACTION_LABEL,
+  SPILL_SIGNED_OUT_DOOR_LINE,
+  spillHasSubmissionEvidence,
+  spillExtrasStartOpen,
+} from "@/lib/spill";
 import {
   buildSpillPreview,
   mergePriceChips,
@@ -15,6 +23,7 @@ import { markPubmaxTiming } from "@/lib/performanceMarks";
 import type { LastPintDecision } from "@/lib/tfl";
 import type { PintDropsState } from "@/components/map/usePintDrops";
 import { ComposerFields } from "@/components/map/composer/ComposerFields";
+import { ComposerPriceStep } from "@/components/map/composer/ComposerPriceStep";
 import { SpillCameraStep } from "@/components/map/composer/SpillCameraStep";
 import { SpillDesktopCapture } from "@/components/map/composer/SpillDesktopCapture";
 import { SpillPreviewCard } from "@/components/map/composer/SpillPreviewCard";
@@ -130,6 +139,37 @@ export default function PintDropComposer({
     setVisibility(resolved.visibility);
   }
 
+  // ── Price-first door: the optional half behind one disclosure ─────────────
+  // The composer opens on price + drink + Log it. Photo, story, vibes and
+  // visibility wait behind the extras toggle. A recovered draft that already
+  // carries extras content re-opens the section so nothing written is hidden.
+  const [extrasOpen, setExtrasOpen] = useState(false);
+  const [extrasDecidedVenueId, setExtrasDecidedVenueId] = useState<string | null>(null);
+  const extrasId = useId();
+  if (draftReady && extrasDecidedVenueId !== venueId) {
+    // React adjust-state-during-render pattern (the useVenueDraft idiom): the
+    // hydration moment decides the initial disclosure state, once per venue.
+    // Later edits happen inside an already-open section.
+    setExtrasDecidedVenueId(venueId);
+    setExtrasOpen(
+      spillExtrasStartOpen({
+        price: dropForm.price,
+        note: dropForm.note,
+        withWho: dropForm.withWho,
+        era: dropForm.era,
+        vibeTags,
+        hasPhoto: Boolean(pintPhoto || venuePhoto),
+        visibility,
+      }),
+    );
+  }
+
+  const hasSubmissionEvidence = spillHasSubmissionEvidence({
+    price: dropForm.price,
+    note: dropForm.note,
+    withWho: dropForm.withWho,
+  });
+
   // The live preview model — rebuilt on every keystroke, purely (lib/spillPreview).
   const preview = useMemo(
     () =>
@@ -157,10 +197,6 @@ export default function PintDropComposer({
     ],
   );
 
-  // Mobile still leads with the photo affordance, but price/story controls must
-  // be available on first paint so logging a pint never waits behind camera UI.
-  const showRest = true;
-
   if (!draftReady) {
     return (
       <form
@@ -172,6 +208,8 @@ export default function PintDropComposer({
       </form>
     );
   }
+
+  const signedOutGate = authConfigured && !signedIn;
 
   return (
     <form
@@ -187,28 +225,109 @@ export default function PintDropComposer({
         <strong>{venueName ?? "This pub"}</strong>
       </div>
 
-      {/* ── Compact photo action (mobile) ─────────────────────────────────────
-          On a phone the shot is immediately available, but the rest of the
-          composer stays visible so a price/story drop is not blocked by camera
-          setup. Desktop renders the classic inline photo pair lower down. */}
-      {mobile ? (
-        <SpillCameraStep
-          pintPhoto={pintPhoto}
-          pintInputRef={pintInputRef}
-          venueInputRef={venueInputRef}
-          pickPhoto={pickPhoto}
-          removePhoto={removePhoto}
-        />
+      {/* Signed out, the door stays the same: price first, and the gate is the
+          sign-in link where submit would be. This line says so up front. */}
+      {signedOutGate ? (
+        <p className="spillSignedOutNote">{SPILL_SIGNED_OUT_DOOR_LINE}</p>
       ) : null}
 
-      {/* The rest of the composer. On mobile this is visible immediately under
-          the compact photo affordance so Drop never feels blocked by camera UI. */}
-      {showRest ? (
-        <>
+      {/* ── The price step: the first thing the composer shows ──────────── */}
+      <ComposerPriceStep
+        dropForm={dropForm}
+        setDropForm={setDropForm}
+        priceQuickAdds={priceQuickAdds}
+        lastKnownPrice={lastKnownPrice}
+      />
+
+      {/* Author identity, compact. An account handle is the authority-bearing
+          value (spec 3.3) and is shown, never edited. The typed handle input
+          exists only on the keyless demo path. */}
+      {author.accountOwned ? (
+        <p className="spillPostingAs">
+          Posting as <strong>@{author.handle.replace(/^@+/, "")}</strong>
+        </p>
+      ) : !authConfigured ? (
+        <label className="spillTextField" htmlFor={`${extrasId}-handle`}>
+          <span className="spillFieldLabel">Handle</span>
+          <input
+            id={`${extrasId}-handle`}
+            value={handle}
+            onChange={(event) => setHandle(event.target.value)}
+            placeholder="@thirsty_ted"
+            required
+          />
+        </label>
+      ) : null}
+
+      <div className="composerActions">
+        {signedOutGate ? (
+          <Link
+            href={`/login?mode=signin&from=${encodeURIComponent(venueMapUrl(venueId))}`}
+            className="spillSubmitLink"
+          >
+            Sign in to post
+          </Link>
+        ) : (
+          <button type="submit" disabled={submitting || !author.canSubmit || !hasSubmissionEvidence}>
+            <Send size={14} /> {submitting ? SPILL_LOG_ACTION_BUSY_LABEL : SPILL_LOG_ACTION_LABEL}
+          </button>
+        )}
+        {mobile && (pintPhoto || venuePhoto) ? (
+          <button
+            type="button"
+            className="spillRetakeBtn"
+            onClick={() => {
+              if (pintPhoto) removePhoto("pint");
+              if (venuePhoto) removePhoto("venue");
+            }}
+          >
+            <RefreshCw size={13} /> New shot
+          </button>
+        ) : null}
+        {dropMsg ? (
+          <span
+            role={dropMsg.ok ? "status" : "alert"}
+            className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
+          >
+            {dropMsg.text}
+            {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
+              <span className="composerMsgLinks">
+                {dropMsg.links.map((link) => (
+                  <Link key={link.href} href={link.href} className="composerMsgLink">
+                    {link.label}
+                  </Link>
+                ))}
+              </span>
+            ) : null}
+          </span>
+        ) : null}
+      </div>
+
+      {/* ── Everything else is optional, behind one disclosure ──────────── */}
+      <button
+        type="button"
+        className="spillExtrasToggle"
+        aria-expanded={extrasOpen}
+        aria-controls={extrasId}
+        onClick={() => setExtrasOpen((open) => !open)}
+      >
+        <ChevronDown size={15} aria-hidden="true" />
+        {SPILL_EXTRAS_TOGGLE_LABEL}
+      </button>
+
+      {extrasOpen ? (
+        <div id={extrasId} className="spillExtras">
+          {mobile ? (
+            <SpillCameraStep
+              pintPhoto={pintPhoto}
+              pintInputRef={pintInputRef}
+              venueInputRef={venueInputRef}
+              pickPhoto={pickPhoto}
+              removePhoto={removePhoto}
+            />
+          ) : null}
+
           <ComposerFields
-            handle={author.handle}
-            setHandle={setHandle}
-            accountOwned={author.accountOwned}
             dropForm={dropForm}
             setDropForm={setDropForm}
             vibeTags={vibeTags}
@@ -220,8 +339,6 @@ export default function PintDropComposer({
             destination={destination}
             chooseDestination={chooseDestination}
             setDestination={setDestination}
-            priceQuickAdds={priceQuickAdds}
-            lastKnownPrice={lastKnownPrice}
             speechSupported={speechSupported}
             listening={listening}
             speechError={speechError}
@@ -229,7 +346,7 @@ export default function PintDropComposer({
           />
 
           {/* Desktop photo pair — the classic inline slots. Skipped on mobile,
-              where the camera-first step above already owns the photo. */}
+              where the camera step above already owns the photo. */}
           {!mobile ? (
             <SpillDesktopCapture
               pintPhoto={pintPhoto}
@@ -247,51 +364,7 @@ export default function PintDropComposer({
             Photos and notes are public and may show people. Only upload what you&rsquo;re happy to
             share.
           </p>
-
-          <div className="composerActions">
-            {!signedIn && authConfigured ? (
-              <Link
-                href={`/login?mode=signin&from=${encodeURIComponent(venueMapUrl(venueId))}`}
-                className="spillSubmitLink"
-              >
-                Sign in to post
-              </Link>
-            ) : (
-              <button type="submit" disabled={submitting || !author.canSubmit}>
-                <Send size={14} /> {submitting ? "Posting…" : "Post Pint Drop"}
-              </button>
-            )}
-            {mobile && (pintPhoto || venuePhoto) ? (
-              <button
-                type="button"
-                className="spillRetakeBtn"
-                onClick={() => {
-                  if (pintPhoto) removePhoto("pint");
-                  if (venuePhoto) removePhoto("venue");
-                }}
-              >
-                <RefreshCw size={13} /> New shot
-              </button>
-            ) : null}
-            {dropMsg ? (
-              <span
-                role={dropMsg.ok ? "status" : "alert"}
-                className={`composerMsg ${dropMsg.ok ? "ok" : "error"}`}
-              >
-                {dropMsg.text}
-                {dropMsg.ok && dropMsg.links && dropMsg.links.length > 0 ? (
-                  <span className="composerMsgLinks">
-                    {dropMsg.links.map((link) => (
-                      <Link key={link.href} href={link.href} className="composerMsgLink">
-                        {link.label}
-                      </Link>
-                    ))}
-                  </span>
-                ) : null}
-              </span>
-            ) : null}
-          </div>
-        </>
+        </div>
       ) : null}
     </form>
   );

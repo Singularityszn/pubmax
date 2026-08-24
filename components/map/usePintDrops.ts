@@ -40,7 +40,12 @@ import {
   type RoundAppendSnapshot,
   type RoundRequestIdentity,
 } from "@/lib/roundRequest";
-import { appendWithSuffix, DEFAULT_VISIBILITY, type Visibility } from "@/lib/spill";
+import {
+  appendWithSuffix,
+  DEFAULT_VISIBILITY,
+  spillHasSubmissionEvidence,
+  type Visibility,
+} from "@/lib/spill";
 import type { LastPintDecision } from "@/lib/tfl";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import { corroboratedPriceDrop } from "@/lib/venues";
@@ -355,12 +360,29 @@ export function usePintDrops(
     emitOptimisticSpillChange();
   }
 
-  async function submitDrop(
+  function submitDrop(
     event: FormEvent,
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
   ) {
     event.preventDefault();
+    if (
+      !spillHasSubmissionEvidence({
+        price: dropForm.price,
+        note: dropForm.note,
+        withWho: dropForm.withWho,
+      })
+    ) {
+      setDropMsg({ ok: false, text: "Add a price or a passed-down note." });
+      return;
+    }
+    return submitDropRequest(venueId, options);
+  }
+
+  async function submitDropRequest(
+    venueId: string,
+    options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
+  ) {
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,

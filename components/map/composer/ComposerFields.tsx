@@ -1,13 +1,8 @@
 import { useId } from "react";
-import { Mic, MicOff, Minus, Plus } from "lucide-react";
+import { Mic, MicOff } from "lucide-react";
 
 import { VIBE_TAGS } from "@/lib/pintDropShared";
-import {
-  VISIBILITIES,
-  formatPriceChipGbp,
-  stepPrice,
-  type Visibility,
-} from "@/lib/spill";
+import { VISIBILITIES, type Visibility } from "@/lib/spill";
 import {
   SPILL_DESTINATIONS,
   DESTINATION_META,
@@ -18,9 +13,6 @@ import { GENERATION_PRESETS, VISIBILITY_COPY } from "@/lib/pintDropComposerConfi
 import type { PintDropsState } from "@/components/map/usePintDrops";
 
 type ComposerFieldsProps = {
-  handle: PintDropsState["handle"];
-  setHandle: PintDropsState["setHandle"];
-  accountOwned: boolean;
   dropForm: PintDropsState["dropForm"];
   setDropForm: PintDropsState["setDropForm"];
   vibeTags: PintDropsState["vibeTags"];
@@ -32,18 +24,16 @@ type ComposerFieldsProps = {
   destination: SpillDestination | null;
   chooseDestination: (key: SpillDestination) => void;
   setDestination: (value: SpillDestination | null) => void;
-  priceQuickAdds: number[];
-  lastKnownPrice: number | null;
   speechSupported: boolean;
   listening: boolean;
   speechError: string;
   toggleListening: () => void;
 };
 
+// The OPTIONAL half of the composer (price-first door): destinations, story,
+// company, era, vibes, visibility. The price step and the author identity live
+// in the compact door above, in PintDropComposer.
 export function ComposerFields({
-  handle,
-  setHandle,
-  accountOwned,
   dropForm,
   setDropForm,
   vibeTags,
@@ -55,35 +45,17 @@ export function ComposerFields({
   destination,
   chooseDestination,
   setDestination,
-  priceQuickAdds,
-  lastKnownPrice,
   speechSupported,
   listening,
   speechError,
   toggleListening,
 }: ComposerFieldsProps) {
-  const handleId = useId();
-  const priceInputId = useId();
-  const drinkInputId = useId();
   const noteInputId = useId();
   const withWhoInputId = useId();
   const eraInputId = useId();
 
   return (
     <>
-      <label className="spillTextField" htmlFor={handleId}>
-        <span className="spillFieldLabel">Handle</span>
-        <input
-          id={handleId}
-          value={handle}
-          onChange={(event) => setHandle(event.target.value)}
-          placeholder="@thirsty_ted"
-          readOnly={accountOwned}
-          aria-readonly={accountOwned || undefined}
-          required
-        />
-      </label>
-
       {/* ── One-tap destinations (PRD priority 2) ──────────────────────────
           Shortcuts onto EXISTING visibility semantics. My Round is disabled
           (never faked) unless a Round is actually open. */}
@@ -115,68 +87,6 @@ export function ComposerFields({
           </p>
         ) : null}
       </fieldset>
-
-      <div className="priceField">
-        <label className="priceFieldLabel" htmlFor={priceInputId}>
-          What did it cost?
-        </label>
-        <div className="priceStepper">
-          <button
-            type="button"
-            className="priceStepBtn"
-            aria-label="Decrease price by 10 pence"
-            onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, -1) })}
-          >
-            <Minus size={15} />
-          </button>
-          <input
-            id={priceInputId}
-            value={dropForm.price}
-            onChange={(event) => setDropForm({ ...dropForm, price: event.target.value })}
-            placeholder="£"
-            inputMode="decimal"
-          />
-          <button
-            type="button"
-            className="priceStepBtn"
-            aria-label="Increase price by 10 pence"
-            onClick={() => setDropForm({ ...dropForm, price: stepPrice(dropForm.price, 1) })}
-          >
-            <Plus size={15} />
-          </button>
-        </div>
-        <div className="priceQuickAdds" role="group" aria-label="Quick-add price">
-          {priceQuickAdds.map((price) => {
-            const label = formatPriceChipGbp(price);
-            const selected = dropForm.price === label;
-            const isLastKnown =
-              typeof lastKnownPrice === "number" && formatPriceChipGbp(lastKnownPrice) === label;
-            return (
-              <button
-                key={price}
-                type="button"
-                className={selected ? "priceChip stampChip selected" : "priceChip stampChip"}
-                onClick={() => setDropForm({ ...dropForm, price: label })}
-                title={isLastKnown ? "This pub's last logged price" : undefined}
-                aria-pressed={selected}
-              >
-                £{label}
-                {isLastKnown ? <span className="priceChipTag">last</span> : null}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <label className="spillTextField" htmlFor={drinkInputId}>
-        <span className="spillFieldLabel">Drink</span>
-        <input
-          id={drinkInputId}
-          value={dropForm.drink}
-          onChange={(event) => setDropForm({ ...dropForm, drink: event.target.value })}
-          placeholder="Pint, half, soda, guest ale"
-        />
-      </label>
 
       <div className="noteField">
         <div className="spillFieldHeader">
