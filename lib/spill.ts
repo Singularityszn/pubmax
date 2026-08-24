@@ -88,6 +88,7 @@ export const SPILL_SIGNED_OUT_DOOR_LINE =
  * stay in sight — collapsing it would hide what the writer already wrote.
  */
 export function spillExtrasStartOpen(input: {
+  price: string;
   note: string;
   withWho: string;
   era: string;
@@ -103,6 +104,14 @@ export function spillExtrasStartOpen(input: {
     input.hasPhoto ||
     input.visibility !== DEFAULT_VISIBILITY
   );
+}
+
+export function spillHasSubmissionEvidence(input: {
+  price: string;
+  note: string;
+  withWho: string;
+}): boolean {
+  return input.price.trim() !== "" || appendWithSuffix(input.note, input.withWho).trim() !== "";
 }
 
 // ── "With" field → structured note suffix ───────────────────────────────────

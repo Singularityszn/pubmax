@@ -196,6 +196,7 @@ describe("price-first Pint Drop door", () => {
         signedIn: true,
         identityReady: true,
         accountHandle: "karan",
+        dropForm: { price: "4.50" },
       }),
     );
 
@@ -210,6 +211,19 @@ describe("price-first Pint Drop door", () => {
       (input) => input.placeholder === "@thirsty_ted",
     );
     expect(handleInput).toBeUndefined();
+  });
+
+  it("disables Log it until the Pint Drop has a price or story", async () => {
+    await render(
+      makeState({
+        authConfigured: true,
+        signedIn: true,
+        identityReady: true,
+        accountHandle: "karan",
+      }),
+    );
+
+    expect(container.querySelector<HTMLButtonElement>('button[type="submit"]')?.disabled).toBe(true);
   });
 
   it("keyless demo keeps the typed handle reachable in the compact door", async () => {

@@ -13,6 +13,7 @@ import {
 // step order lives in __tests__/pintDropPriceFirstDoor.test.tsx.
 
 const EMPTY = {
+  price: "",
   note: "",
   withWho: "",
   era: "",
@@ -42,10 +43,8 @@ describe("spillExtrasStartOpen", () => {
     expect(spillExtrasStartOpen({ ...EMPTY, visibility: "legacy" })).toBe(true);
   });
 
-  it("a price alone keeps the door compact — price is the first step, not an extra", () => {
-    // The input deliberately has no price field: a price can never re-open the
-    // extras, because the price lives in the compact door itself.
-    expect("price" in EMPTY).toBe(false);
+  it("a price alone keeps the door compact - price is the first step, not an extra", () => {
+    expect(spillExtrasStartOpen({ ...EMPTY, price: "4.50" })).toBe(false);
   });
 });
 

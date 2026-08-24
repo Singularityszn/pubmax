@@ -10,6 +10,7 @@ import {
   SPILL_LOG_ACTION_BUSY_LABEL,
   SPILL_LOG_ACTION_LABEL,
   SPILL_SIGNED_OUT_DOOR_LINE,
+  spillHasSubmissionEvidence,
   spillExtrasStartOpen,
 } from "@/lib/spill";
 import {
@@ -152,6 +153,7 @@ export default function PintDropComposer({
     setExtrasDecidedVenueId(venueId);
     setExtrasOpen(
       spillExtrasStartOpen({
+        price: dropForm.price,
         note: dropForm.note,
         withWho: dropForm.withWho,
         era: dropForm.era,
@@ -161,6 +163,12 @@ export default function PintDropComposer({
       }),
     );
   }
+
+  const hasSubmissionEvidence = spillHasSubmissionEvidence({
+    price: dropForm.price,
+    note: dropForm.note,
+    withWho: dropForm.withWho,
+  });
 
   // The live preview model — rebuilt on every keystroke, purely (lib/spillPreview).
   const preview = useMemo(
@@ -260,7 +268,7 @@ export default function PintDropComposer({
             Sign in to post
           </Link>
         ) : (
-          <button type="submit" disabled={submitting || !author.canSubmit}>
+          <button type="submit" disabled={submitting || !author.canSubmit || !hasSubmissionEvidence}>
             <Send size={14} /> {submitting ? SPILL_LOG_ACTION_BUSY_LABEL : SPILL_LOG_ACTION_LABEL}
           </button>
         )}
