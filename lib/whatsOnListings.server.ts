@@ -9,13 +9,19 @@ import {
   whatsOnListingStore,
   type WhatsOnListingStore,
 } from "@/lib/whatsOnListingStore";
-import { filterNotPast, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  filterNotPast,
+  filterTonight,
+  type WhatsOnKind,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 
 export type LoadServedWhatsOnListingsOpts = {
   store?: WhatsOnListingStore;
   bundled: WhatsOnRow[];
   now: number;
   kind?: WhatsOnKind;
+  window?: "tonight";
 };
 
 export type ServedWhatsOnListings = {
@@ -44,9 +50,11 @@ export async function loadServedWhatsOnListingsWithFreshness(
     ? opts.bundled.filter((row) => row.kind === opts.kind)
     : opts.bundled;
   const activeDurable = filterNotPast(durable, opts.now);
+  const observedDurable =
+    opts.window === "tonight" ? filterTonight(activeDurable, opts.now) : activeDurable;
   return {
     rows: preferDurableWhatsOn(durable, bundled, opts.now),
-    providerObservedAt: freshestObservedAt(activeDurable),
+    providerObservedAt: freshestObservedAt(observedDurable),
   };
 }
 

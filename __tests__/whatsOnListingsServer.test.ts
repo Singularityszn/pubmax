@@ -77,4 +77,18 @@ describe("loadServedWhatsOnListings", () => {
     });
     expect(served.providerObservedAt).toBe("2026-08-24T19:00:00.000Z");
   });
+
+  it("does not report a future durable event for the current tonight window", async () => {
+    const future = row({
+      startsAt: "2026-08-25T19:00:00.000Z",
+      endsAt: "2026-08-25T22:00:00.000Z",
+    });
+    const served = await loadServedWhatsOnListingsWithFreshness({
+      store: storeReturning([future]),
+      bundled: [],
+      now: NOW,
+      window: "tonight",
+    });
+    expect(served.providerObservedAt).toBeNull();
+  });
 });

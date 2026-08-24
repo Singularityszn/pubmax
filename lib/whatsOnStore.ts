@@ -331,7 +331,12 @@ export async function loadWhatsOn(
         const { loadServedWhatsOnListingsWithFreshness } = await import(
           "@/lib/whatsOnListings.server"
         );
-        const served = await loadServedWhatsOnListingsWithFreshness({ bundled, now });
+        const served = await loadServedWhatsOnListingsWithFreshness({
+          bundled,
+          now,
+          kind: params.kind,
+          window: params.window,
+        });
         baseline = served.rows;
         baselineProviderObservedAt = canonicalPastIso(served.providerObservedAt, now);
       } catch {
