@@ -195,8 +195,8 @@ export function answerFromBody(body: unknown): AskResult {
   const message =
     str(record.message) ||
     (cards.length > 0
-      ? `${cards.length} grounded ${cards.length === 1 ? "pick" : "picks"}. Tap to see it on the map.`
-      : "No grounded matches for that. Try a nearby area or a broader mood.");
+      ? `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from our records, each with its source.`
+      : "Nothing listed matches that. Try a nearby area or a broader ask.");
 
   return {
     status: "answered",

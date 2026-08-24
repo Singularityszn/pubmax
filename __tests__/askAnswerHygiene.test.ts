@@ -124,5 +124,13 @@ describe("Pal answer hygiene", () => {
     );
     expect(rowsAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
     expect(rowsAnswer).not.toMatch(/\brows\b/iu);
+
+    const statusAnswer = composeAnswer(
+      null,
+      ["London right now: no tube or weather notes."],
+      [{ ...card, venueId: "", title: "London right now", place: "" }],
+    );
+    expect(statusAnswer).toBe("London right now: no tube or weather notes.");
+    expect(statusAnswer).not.toContain("listed pubs");
   });
 });

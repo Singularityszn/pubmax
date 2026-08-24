@@ -146,6 +146,9 @@ function composeAnswer(
     return modelAnswer.trim().slice(0, 1200);
   }
   if (cards.length > 0) {
+    if (!cards.every((card) => Boolean(card.venueId))) {
+      return hints.length > 0 ? hints.join(" ") : "Nothing sourced for that. Try a nearby area or a broader ask.";
+    }
     const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`;
     return [countLine, ...hints].join(" ");
   }

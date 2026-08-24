@@ -254,6 +254,28 @@ describe("tonight_now", () => {
     expect(result.cards[0]?.note).toBe("On right now");
   });
 
+  it("names the printed sample when tonight listings exceed six cards", async () => {
+    state.whatsOn = {
+      rows: Array.from({ length: 7 }, (_, index) => ({
+        id: `later-${index}`,
+        placeName: `The Pub ${index}`,
+        kind: "music" as const,
+        title: `Live set ${index}`,
+        startsAt: new Date(NOW + (30 + index * 15) * 60_000).toISOString(),
+        endsAt: new Date(NOW + (90 + index * 15) * 60_000).toISOString(),
+        source: { label: "Venue site", url: "https://example.com" },
+        observedAt: "2026-08-15T09:00:00.000Z",
+        confidence: "listed" as const,
+      })),
+      kindObservedAt: {},
+    };
+    const result = await runAskTool("tonight_now", {}, ctx());
+
+    expect(result.cards).toHaveLength(6);
+    expect(result.answerHint).toContain("7 still to start tonight");
+    expect(result.answerHint).toContain("Here are the first 6.");
+  });
+
   it("prints no bare figure for a listed night, and keeps the deal's own", async () => {
     // A kind=event priceGbp is a TICKET price. It belongs to the /out card,
     // worded "Tickets from £X" beside its source credit; a Pub Pal card prints

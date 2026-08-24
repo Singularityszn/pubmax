@@ -44,7 +44,17 @@ describe("createAskSession", () => {
     if (result?.status === "answered") {
       expect(result.cards).toHaveLength(1);
       expect(result.cards[0].venueId).toBe("venue-1");
+      expect(result.message).toBe("1 pick from our records, each with its source.");
     }
+  });
+
+  it("uses plain fallback copy when no legacy venues match", () => {
+    const result = answerFromBody({ venues: [] });
+
+    expect(result).toMatchObject({
+      status: "answered",
+      message: "Nothing listed matches that. Try a nearby area or a broader ask.",
+    });
   });
 
   it("drops the stale response when a newer ask supersedes it (latest wins)", async () => {
