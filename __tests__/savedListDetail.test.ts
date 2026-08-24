@@ -31,6 +31,10 @@ describe("SavedListDetail", () => {
     expect(html).toContain("4 followers");
     expect(html).toContain("The Test Arms");
     expect(html).toContain("Quiet corner table.");
+    expect(html).toContain(
+      'href="/map?mode=build&amp;pubs=venue-1&amp;sel=venue-1"',
+    );
+    expect(html).toContain("View list on Map");
     expect(html).toContain('href="/map?sel=venue-1"');
     expect(html).toContain('aria-label="Share this"');
     expect(html).toContain("Share");
@@ -63,5 +67,37 @@ describe("SavedListDetail", () => {
 
     expect(html).toContain("Follow list");
     expect(ownHtml).not.toContain("Follow list");
+    expect(html).not.toContain("View list on Map");
+  });
+
+  it("opens every list venue as one ordered Map plan", () => {
+    const html = renderToStaticMarkup(
+      createElement(SavedListDetail, {
+        ownerHandle: "sam",
+        listType: "Sunday finds",
+        venues: [
+          {
+            venueId: "venue-alpha",
+            venueName: "The Alpha",
+            venueMapUrl: "/map?sel=venue-alpha",
+            listType: "Sunday finds",
+            savedAt: "2026-08-24T12:00:00.000Z",
+          },
+          {
+            venueId: "venue-beta",
+            venueName: "The Beta",
+            venueMapUrl: "/map?sel=venue-beta",
+            listType: "Sunday finds",
+            savedAt: "2026-08-24T11:00:00.000Z",
+          },
+        ],
+        initialCounts: { followers: 2, savedPubs: 2 },
+      }),
+    );
+
+    expect(html).toContain("View list on Map");
+    expect(html).toContain(
+      'href="/map?mode=build&amp;pubs=venue-alpha%2Cvenue-beta&amp;sel=venue-alpha"',
+    );
   });
 });

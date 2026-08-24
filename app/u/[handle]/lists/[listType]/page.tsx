@@ -4,6 +4,7 @@ import SiteNav from "@/components/nav/SiteNav";
 import SavedListDetail from "@/components/profile/SavedListDetail";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
+import { savedListPath } from "@/lib/savedListUrl";
 import {
   cleanListType,
   savedListFollowsStore,
@@ -31,10 +32,6 @@ function decodeParam(value: string): string {
   } catch {
     return value;
   }
-}
-
-function savedListPath(ownerHandle: string, listType: string): string {
-  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
 }
 
 function listCardHref(ownerHandle: string, listType: string, counts: SavedListFollowCounts): string {
