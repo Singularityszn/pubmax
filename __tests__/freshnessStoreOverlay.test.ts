@@ -64,6 +64,7 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
+  WHATS_ON_FEED_KEY,
   resolveDurableFeedStoreReads,
   resolveStoreObservedAt,
 } from "@/lib/freshnessStoreOverlay";
@@ -131,7 +132,19 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("resolves only the candidate-ingestion feed", async () => {
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
-    expect(Object.keys(reads)).toEqual([NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
+    expect(Object.keys(reads)).toEqual([
+      NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
+      WHATS_ON_FEED_KEY,
+    ]);
+  });
+
+  it("reports the durable What's-On generation stamp", async () => {
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+    const reads = await resolveDurableFeedStoreReads();
+    expect(reads[WHATS_ON_FEED_KEY]).toEqual({
+      kind: "ok",
+      observedAt: "2026-08-24T05:30:00Z",
+    });
   });
 
   it("falls back to disk when durable What's-On store is empty", async () => {

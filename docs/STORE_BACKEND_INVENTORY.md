@@ -6,7 +6,7 @@ The inventory is descriptive, not a runtime registry.
 
 ## Current snapshot
 
-- The repository has 51 `lib/*Store.ts` modules.
+- The repository has 52 `lib/*Store.ts` modules.
 - 32 modules call `selectStore` directly.
 - 7 modules use `createDualBackendStore`.
 - 6 modules keep memory state on `globalThis` so it survives a development
@@ -92,6 +92,7 @@ silently stale.
 | wantedStore | factory-ready | Owner-scoped Wanted rows with shared backend selection. |
 | weatherRecommendationStore | factory-eligible, policy-heavy | Authored Recommendation policy with `globalThis` memory state. |
 | weatherSnapshotStore | factory-ready | Cron weather snapshot cache. |
+| whatsOnListingStore | factory-ready | Cron What's-On listing rows and per-kind generation watermarks. |
 | whatsOnStore | not dual-backend | Static bundle plus injectable live-fetch merge. |
 
 ## Exception list
@@ -217,6 +218,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/visitReportsStore.ts",
     "lib/weatherRecommendationStore.ts",
     "lib/weatherSnapshotStore.ts",
+    "lib/whatsOnListingStore.ts",
     "scripts/push/sendDailyBrief.mjs",
     "scripts/push/sendStepOutNudge.mjs"
   ]

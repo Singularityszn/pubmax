@@ -51,10 +51,10 @@ const memoryKinds = new Map<WhatsOnKind, KindSnap>();
 function snapshotFromKinds(kinds: Iterable<KindSnap>): WhatsOnListingSnapshot {
   const snaps = [...kinds];
   const rows = snaps.flatMap((snap) => snap.rows);
-  if (rows.length === 0) return { rows: [], generatedAt: null };
+  if (snaps.length === 0) return { rows: [], generatedAt: null };
   const generatedAt = snaps
     .map((snap) => snap.generatedAt)
-    .reduce((a, b) => (Date.parse(a) >= Date.parse(b) ? a : b));
+    .reduce((a, b) => (Date.parse(a) <= Date.parse(b) ? a : b));
   return { rows, generatedAt };
 }
 
@@ -73,6 +73,7 @@ export const memoryWhatsOnListingStore: WhatsOnListingStore = {
 };
 
 const TABLE = "whats_on_listings";
+const GENERATIONS_TABLE = "whats_on_listing_generations";
 
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tag: "whats-on-listings",
@@ -85,6 +86,11 @@ type ListingRow = {
   kind: string;
   payload: unknown;
   observed_at: string;
+  generated_at: string;
+};
+
+type GenerationRow = {
+  kind: string;
   generated_at: string;
 };
 
@@ -134,12 +140,21 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
   async readAll() {
     return guard<WhatsOnListingSnapshot>({
       context: "readAll",
-      onSchemaMiss: () => memoryWhatsOnListingStore.readAll(),
+      onSchemaMiss: async () => ({
+        ...(await memoryWhatsOnListingStore.readAll()),
+        failed: true as const,
+      }),
       message: "readAll failed - returning empty",
       onError: () => ({ rows: [], generatedAt: null, failed: true }),
       run: async () => {
-        const { data, error } = await requireSupabaseAdmin().from(TABLE).select("*");
+        const admin = requireSupabaseAdmin();
+        const [{ data, error }, { data: generationData, error: generationError }] =
+          await Promise.all([
+            admin.from(TABLE).select("*"),
+            admin.from(GENERATIONS_TABLE).select("kind, generated_at"),
+          ]);
         if (error) throw new Error(error.message);
+        if (generationError) throw new Error(generationError.message);
         const parsed: WhatsOnRow[] = [];
         const stamps: string[] = [];
         for (const row of (data ?? []) as ListingRow[]) {
@@ -149,9 +164,14 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
           parsed.push(next);
           stamps.push(row.generated_at);
         }
-        if (parsed.length === 0) return { rows: [], generatedAt: null };
+        for (const row of (generationData ?? []) as GenerationRow[]) {
+          if (isWhatsOnKind(row.kind) && typeof row.generated_at === "string") {
+            stamps.push(row.generated_at);
+          }
+        }
+        if (stamps.length === 0) return { rows: [], generatedAt: null };
         const generatedAt = stamps.reduce((a, b) =>
-          Date.parse(a) >= Date.parse(b) ? a : b,
+          Date.parse(a) <= Date.parse(b) ? a : b,
         );
         return { rows: parsed, generatedAt };
       },

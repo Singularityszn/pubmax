@@ -45,23 +45,30 @@ async function readDurableFeedStamp(feedKey) {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!url || !key) return { kind: "unconfigured" };
 
-  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/feed_freshness?feed=eq.${encodeURIComponent(feedKey)}&select=observed_at&limit=1`;
+  const isWhatsOn = feedKey === "whats_on";
+  const table = isWhatsOn ? "whats_on_listing_generations" : "feed_freshness";
+  const query = isWhatsOn
+    ? "select=generated_at&order=generated_at.asc&limit=1"
+    : `feed=eq.${encodeURIComponent(feedKey)}&select=observed_at&limit=1`;
+  const endpoint = `${url.replace(/\/+$/, "")}/rest/v1/${table}?${query}`;
   try {
     const response = await fetch(endpoint, {
       headers: { apikey: key, Authorization: `Bearer ${key}`, Accept: "application/json" },
     });
     if (!response.ok) {
       const body = await response.text().catch(() => "");
-      if (looksLikeMissingTableSchema(body, "feed_freshness")) {
+      if (looksLikeMissingTableSchema(body, table)) {
         return {
           kind: "unreachable",
-          error: `durable table missing (apply migration 0047): ${response.status} ${body}`.trim(),
+          error: `durable table missing (apply migration ${isWhatsOn ? "0119" : "0047"}): ${response.status} ${body}`.trim(),
         };
       }
       return { kind: "unreachable", error: `${response.status} ${response.statusText}: ${body}`.trim() };
     }
     const rows = await response.json();
-    const observedAt = Array.isArray(rows) && rows.length > 0 ? rows[0]?.observed_at : undefined;
+    const observedAt = Array.isArray(rows) && rows.length > 0
+      ? rows[0]?.[isWhatsOn ? "generated_at" : "observed_at"]
+      : undefined;
     if (!observedAt) return { kind: "empty" };
     return { kind: "ok", observedAt };
   } catch (err) {

@@ -219,6 +219,7 @@ describe("sitemap Social gate", () => {
     const { default: sitemapOn } = await import("@/app/sitemap");
     const urlsOn = (await sitemapOn()).map((entry) => entry.url);
     expect(urlsOn).toContain(`${SITE}/social`);
+    vi.unstubAllEnvs();
   });
 });
 

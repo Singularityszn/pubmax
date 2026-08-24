@@ -43,6 +43,9 @@ export async function loadServedWhatsOnListingsWithFreshness(
 ): Promise<ServedWhatsOnListings> {
   const store = opts.store ?? whatsOnListingStore();
   const snap = await store.readAll();
+  if (snap.failed) {
+    console.warn("[whats-on] durable listing read failed; using bundled fallback.");
+  }
   const durable = opts.kind
     ? snap.rows.filter((row) => row.kind === opts.kind && isServableWhatsOnRow(row))
     : snap.rows.filter(isServableWhatsOnRow);

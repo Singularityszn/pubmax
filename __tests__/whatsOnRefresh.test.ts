@@ -207,6 +207,33 @@ describe("refreshOfficialWhatsOnListings", () => {
     expect((await store.readAll()).rows).toEqual([quizRow("quiz-1")]);
   });
 
+  it("reports rows committed before a later kind write fails", async () => {
+    const store = memoryStore();
+    const originalReplace = store.replaceKind.bind(store);
+    store.replaceKind = async (kind, rows, generatedAt) => {
+      if (kind === "quiz") throw new Error("quiz durable write failed");
+      return originalReplace(kind, rows, generatedAt);
+    };
+    const result = await refreshOfficialWhatsOnListings({
+      now: NOW,
+      store,
+      providers: [
+        {
+          name: "bounded-provider",
+          isConfigured: () => true,
+          fetchTonight: async () => [eventRow("event-1"), quizRow("quiz-1")],
+        },
+      ],
+    });
+
+    expect(result).toMatchObject({
+      ok: false,
+      written: 1,
+      observedAt: GENERATED,
+    });
+    expect((await store.readAll()).rows.map((row) => row.id)).toEqual(["event-1"]);
+  });
+
   it("refreshes quiz, deal, music, and sport feeds into the durable store", async () => {
     const store = memoryStore();
     const result = await refreshWhatsOnListings({

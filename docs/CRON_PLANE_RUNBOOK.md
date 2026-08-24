@@ -212,7 +212,10 @@ would only duplicate the live path. Same for `/api/last-train` and friends
   stamp untouched.
 - What's-On official-provider refresh fails → **`200`** with `ok:false`,
   `providers`, `stamped:false`, and `observedAt:null`; that provider's prior
-  rows remain unchanged, while successful bounded lanes may advance.
+  rows remain unchanged, while successful bounded lanes may advance. If a later
+  durable write fails after an earlier kind was replaced, `written` reports the
+  rows already committed and `observedAt` reports that partial run; the route
+  still keeps `stamped:false` because the whole refresh did not succeed.
 - No official provider is configured → the event lane is skipped; bounded
   lanes may still produce an overall successful refresh.
 - A bounded lane fails → its prior rows remain unchanged; other lanes may

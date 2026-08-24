@@ -86,6 +86,24 @@ describe("evaluateFreshness — store-kind dataset, dependency-free PostgREST mi
     expect(breached).toBe(false);
   });
 
+  it("reads the What's-On generation watermark from its durable listing store", async () => {
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";
+    global.fetch = vi.fn(async (url) => {
+      expect(String(url)).toContain("/rest/v1/whats_on_listing_generations");
+      return new Response(JSON.stringify([{ generated_at: "2026-07-18T11:00:00Z" }]), { status: 200 });
+    });
+
+    const { results, breached } = await evaluateFreshness({
+      now: NOW,
+      registry: storeRegistry("whats_on"),
+    });
+
+    expect(results[0].observedAt).toBe("2026-07-18T11:00:00Z");
+    expect(results[0].status).toBe("untracked");
+    expect(breached).toBe(false);
+  });
+
   it("distinguishes empty (no row yet) from unreachable and unconfigured", async () => {
     process.env.SUPABASE_URL = "https://example.supabase.co";
     process.env.SUPABASE_SERVICE_ROLE_KEY = "test-service-role-key";

@@ -103,7 +103,11 @@ async function loadServedOutEvents(city: OutCity, now: number): Promise<WhatsOnR
   try {
     const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
     return loadServedWhatsOnListings({ bundled, now, kind: "event" });
-  } catch {
+  } catch (error) {
+    log("warn", "out.whats_on_store_fallback", {
+      city,
+      detail: error instanceof Error ? error.message : String(error),
+    });
     return bundled;
   }
 }

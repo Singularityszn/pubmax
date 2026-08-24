@@ -66,7 +66,12 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const cityId = parseCityId(url.searchParams.get("cityId") ?? "") ?? DEFAULT_CITY_ID;
   await loadConciergeVenues(cityId);
-  await baselineWhatsOnRows(Date.now());
+  await baselineWhatsOnRows(Date.now()).catch((error) => {
+    console.warn(
+      "[plans/generate] What's-On warmup degraded:",
+      error instanceof Error ? error.message : String(error),
+    );
+  });
   return new Response(null, {
     status: 204,
     headers: { "cache-control": "no-store" },

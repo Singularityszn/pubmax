@@ -9,7 +9,12 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 type Row = Record<string, unknown> & { id: string; kind: string };
 
-const db = vi.hoisted(() => ({ rows: [] as Row[], failWrite: false, schemaMiss: false }));
+const db = vi.hoisted(() => ({
+  rows: [] as Row[],
+  generations: [] as Array<{ kind: string; generated_at: string }>,
+  failWrite: false,
+  schemaMiss: false,
+}));
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
@@ -24,9 +29,11 @@ vi.mock("@/lib/supabase", () => ({
       if (db.failWrite) return Promise.resolve({ data: null, error: { message: "write boom" } });
       db.rows = db.rows.filter((row) => row.kind !== args.p_kind);
       db.rows.push(...args.p_rows);
+      db.generations = db.generations.filter((row) => row.kind !== args.p_kind);
+      db.generations.push({ kind: args.p_kind, generated_at: args.p_generated_at });
       return Promise.resolve({ data: args.p_rows.length, error: null });
     },
-    from: () => ({
+    from: (table: string) => ({
       select() {
         if (db.schemaMiss) {
           return Promise.resolve({
@@ -34,7 +41,10 @@ vi.mock("@/lib/supabase", () => ({
             error: { message: "Could not find the table 'public.whats_on_listings'" },
           });
         }
-        return Promise.resolve({ data: db.rows, error: null });
+        return Promise.resolve({
+          data: table === "whats_on_listing_generations" ? db.generations : db.rows,
+          error: null,
+        });
       },
     }),
   }),
@@ -60,6 +70,7 @@ function eventRow(id: string, over: Partial<WhatsOnRow> = {}): WhatsOnRow {
 
 beforeEach(() => {
   db.rows = [];
+  db.generations = [];
   db.failWrite = false;
   db.schemaMiss = false;
   __resetWhatsOnListingStore();
@@ -88,6 +99,14 @@ describe("memoryWhatsOnListingStore", () => {
     expect(await memoryWhatsOnListingStore.readAll()).toEqual({ rows: [], generatedAt: null });
   });
 
+  it("keeps the durable generation stamp when a successful refresh wrote zero rows", async () => {
+    db.generations = [{ kind: "event", generated_at: GENERATED }];
+    expect(await supabaseWhatsOnListingStore.readAll()).toEqual({
+      rows: [],
+      generatedAt: GENERATED,
+    });
+  });
+
   it("rejects a stale replacement", async () => {
     await memoryWhatsOnListingStore.replaceKind("event", [eventRow("new")], "2026-08-24T06:00:00.000Z");
     const outcome = await memoryWhatsOnListingStore.replaceKind(
@@ -98,6 +117,16 @@ describe("memoryWhatsOnListingStore", () => {
     expect(outcome).toEqual({ written: 0, failed: true });
     expect((await memoryWhatsOnListingStore.readAll()).rows.map((row) => row.id)).toEqual(["new"]);
   });
+
+  it("uses the oldest kind generation for the combined freshness stamp", async () => {
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("event")], "2026-08-24T05:00:00.000Z");
+    await memoryWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz", { kind: "quiz", sourceId: "quiz" })],
+      "2026-08-24T06:00:00.000Z",
+    );
+    expect((await memoryWhatsOnListingStore.readAll()).generatedAt).toBe("2026-08-24T05:00:00.000Z");
+  });
 });
 
 describe("supabaseWhatsOnListingStore", () => {
@@ -107,6 +136,16 @@ describe("supabaseWhatsOnListingStore", () => {
     const snap = await supabaseWhatsOnListingStore.readAll();
     expect(snap.rows).toHaveLength(1);
     expect(snap.rows[0].id).toBe("tm-1");
+  });
+
+  it("uses the oldest durable kind generation for combined freshness", async () => {
+    await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("event")], "2026-08-24T05:00:00.000Z");
+    await supabaseWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz", { kind: "quiz", sourceId: "quiz" })],
+      "2026-08-24T06:00:00.000Z",
+    );
+    expect((await supabaseWhatsOnListingStore.readAll()).generatedAt).toBe("2026-08-24T05:00:00.000Z");
   });
 
   it("flags a hard write failure", async () => {
@@ -124,5 +163,15 @@ describe("supabaseWhatsOnListingStore", () => {
     const outcome = await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("lost")], GENERATED);
     expect(outcome).toEqual({ written: 0, failed: true });
     expect(await memoryWhatsOnListingStore.readAll()).toEqual({ rows: [], generatedAt: null });
+  });
+
+  it("marks a schema-miss read as failed while retaining memory fallback rows", async () => {
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("memory")], GENERATED);
+    db.schemaMiss = true;
+    await expect(supabaseWhatsOnListingStore.readAll()).resolves.toEqual({
+      rows: [eventRow("memory")],
+      generatedAt: GENERATED,
+      failed: true,
+    });
   });
 });

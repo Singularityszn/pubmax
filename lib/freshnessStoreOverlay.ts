@@ -83,9 +83,29 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
  */
 export async function resolveDurableFeedStoreReads(): Promise<Record<string, StoreRead>> {
   const nightSignalCandidates = await readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
+  const whatsOn = await readDurableWhatsOnStamp();
   return {
     [NIGHT_SIGNAL_CANDIDATES_DATASET_ID]: nightSignalCandidates,
+    [WHATS_ON_FEED_KEY]: whatsOn,
   };
+}
+
+async function readDurableWhatsOnStamp(): Promise<StoreRead> {
+  if (!isSupabaseConfigured()) return { kind: "unconfigured" };
+
+  try {
+    const snapshot = await whatsOnListingStore().readAll();
+    if (snapshot.failed) {
+      return {
+        kind: "unreachable",
+        error: "durable What's-On store could not be read (apply migration 0119)",
+      };
+    }
+    if (!snapshot.generatedAt) return { kind: "empty" };
+    return { kind: "ok", observedAt: snapshot.generatedAt };
+  } catch (err) {
+    return { kind: "unreachable", error: errorMessage(err) };
+  }
 }
 
 async function readDurableFeedStamp(feedKey: string): Promise<StoreRead> {

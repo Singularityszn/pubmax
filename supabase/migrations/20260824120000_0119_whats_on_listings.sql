@@ -124,11 +124,10 @@ begin
   insert into public.whats_on_listings (
     id, kind, payload, observed_at, generated_at, city
   )
-  select input.id, input.kind, input.payload, input.observed_at,
+  select input.id, p_kind, input.payload, input.observed_at,
     p_generated_at, coalesce(input.city, 'london')
   from jsonb_to_recordset(p_rows) as input(
     id text,
-    kind text,
     payload jsonb,
     observed_at timestamptz,
     city text

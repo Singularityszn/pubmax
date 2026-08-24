@@ -218,13 +218,24 @@ export async function refreshOfficialWhatsOnListings(
   const generatedAt = new Date(now).toISOString();
   let written = 0;
   for (const [kind, kindRows] of grouped) {
-    const outcome = await store.replaceKind(kind, dedupeRows(kindRows), generatedAt);
+    let outcome: Awaited<ReturnType<WhatsOnListingStore["replaceKind"]>>;
+    try {
+      outcome = await store.replaceKind(kind, dedupeRows(kindRows), generatedAt);
+    } catch {
+      return {
+        ok: false,
+        mode: "providers",
+        written,
+        observedAt: written > 0 ? generatedAt : null,
+        providers: reports,
+      };
+    }
     if (outcome.failed) {
       return {
         ok: false,
         mode: "providers",
-        written: 0,
-        observedAt: null,
+        written,
+        observedAt: written > 0 ? generatedAt : null,
         providers: reports,
       };
     }

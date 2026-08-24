@@ -339,7 +339,11 @@ export async function loadWhatsOn(
         });
         baseline = served.rows;
         baselineProviderObservedAt = canonicalPastIso(served.providerObservedAt, now);
-      } catch {
+      } catch (error) {
+        console.warn(
+          "[whats-on] durable listing read failed; using bundled fallback:",
+          error instanceof Error ? error.message : String(error),
+        );
         baseline = bundled;
       }
     }

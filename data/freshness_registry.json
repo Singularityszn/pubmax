@@ -84,8 +84,8 @@
       "id": "whats_on",
       "label": "What's-On (sport / quiz / deals / music / events)",
       "class": "cron",
-      "artifact": "public/data/whats_on/events_london.json",
-      "stamp": { "kind": "field", "pointer": "generatedAt" },
+      "artifact": null,
+      "stamp": { "kind": "store", "feedKey": "whats_on" },
       "cadence": "daily full What's-On refresh via Vercel cron (30 5 * * * UTC); durable rows are preferred and bundled files remain the fallback",
       "stalenessBudgetHours": 48,
       "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on refreshes Ticketmaster/Skiddle events plus bounded quiz, deal, music, and sport lanes into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). GitHub workflows remain as a secondary recovery path when Actions billing returns.",
@@ -99,7 +99,7 @@
       "stamp": { "kind": "field", "pointer": "generatedAt" },
       "cadence": "daily re-derivation via Vercel cron (30 5 * * * UTC); bundled fixtures remain the fallback",
       "stalenessBudgetHours": null,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on re-derives sport rows into whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local and GitHub recovery path",
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on re-derives sport rows into durable whats_on_listings; scripts/whatson/sportFixtures.mjs remains the local and GitHub recovery path for the bundled fallback artifact",
       "gate": "none (bundled static; keyless). Past-dated rows are never served: lib/whatsOn.ts filterNotPast guards the serving seam in lib/whatsOnStore.ts, so a stale seed degrades to zero served fixtures rather than surfacing a played match."
     },
     {

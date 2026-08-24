@@ -95,7 +95,7 @@ function rowJson(overrides: Record<string, unknown> = {}): string {
   }).replaceAll("'", "''");
 }
 
-const postgresAvailable = ["initdb", "postgres", "psql"].every((name) => binary(name as "initdb" | "postgres" | "psql") !== null);
+const postgresAvailable = process.env.PUBMAX_RLS_NO_PG !== "1" && ["initdb", "postgres", "psql"].every((name) => binary(name as "initdb" | "postgres" | "psql") !== null);
 
 describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
   let database: Database | null = null;
@@ -133,6 +133,14 @@ describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
     const stale = rowJson({ payload: { id: "event-1", kind: "event", title: "Older jazz" } });
     expect(() => db.sql(`select public.replace_whats_on_listings('event','[${stale}]'::jsonb,'2026-08-24T19:00:00.000Z')`)).toThrow();
     expect(db.sql("select payload->>'title' from public.whats_on_listings where id='event-1'")).toBe("Live jazz");
+
+    const mismatchedKind = rowJson({
+      id: "mismatched-kind",
+      kind: "quiz",
+      payload: { id: "mismatched-kind", kind: "quiz", title: "Still event lane" },
+    });
+    expect(db.sql(`select public.replace_whats_on_listings('event','[${mismatchedKind}]'::jsonb,'2026-08-24T20:00:00.000Z')`)).toBe("1");
+    expect(db.sql("select kind from public.whats_on_listings where id='mismatched-kind'")).toBe("event");
 
     expect(db.sql("select public.replace_whats_on_listings('event','[]'::jsonb,'2026-08-24T21:00:00.000Z')")).toBe("0");
     expect(db.sql("select count(*) from public.whats_on_listings where kind='event'")).toBe("0");
