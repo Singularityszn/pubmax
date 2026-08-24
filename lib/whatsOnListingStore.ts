@@ -82,13 +82,13 @@ type ListingRow = {
   generated_at: string;
 };
 
-function toRow(row: WhatsOnRow, generatedAt: string): ListingRow {
+function toReplaceInput(row: WhatsOnRow): Record<string, unknown> {
   return {
     id: row.id,
     kind: row.kind,
     payload: row,
     observed_at: row.observedAt,
-    generated_at: generatedAt,
+    city: "london",
   };
 }
 
@@ -105,17 +105,17 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
       message: "replaceKind failed - flagging degraded write",
       onError: () => ({ written: 0, failed: true }),
       run: async () => {
-        const { error: deleteError } = await requireSupabaseAdmin()
-          .from(TABLE)
-          .delete()
-          .eq("kind", kind);
-        if (deleteError) throw new Error(deleteError.message);
-        if (rows.length === 0) return { written: 0 };
-        const { error } = await requireSupabaseAdmin()
-          .from(TABLE)
-          .upsert(rows.map((row) => toRow(row, generatedAt)), { onConflict: "id" });
+        const { data, error } = await requireSupabaseAdmin().rpc("replace_whats_on_listings", {
+          p_kind: kind,
+          p_rows: rows.map(toReplaceInput),
+          p_generated_at: generatedAt,
+        });
         if (error) throw new Error(error.message);
-        return { written: rows.length };
+        const written = typeof data === "number" ? data : Number(data);
+        if (!Number.isInteger(written) || written < 0) {
+          throw new Error("replace_whats_on_listings returned an invalid row count");
+        }
+        return { written };
       },
     });
   },

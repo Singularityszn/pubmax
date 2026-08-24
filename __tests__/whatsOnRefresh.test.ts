@@ -89,6 +89,28 @@ describe("refreshOfficialWhatsOnListings", () => {
     expect((await store.readAll()).rows.map((row) => row.id)).toEqual(["kept"]);
   });
 
+  it("keeps the previous store when one configured provider fails", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [eventRow("kept")], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new")],
+      },
+      {
+        name: "skiddle",
+        isConfigured: () => true,
+        fetchTonight: async () => {
+          throw new Error("Skiddle unavailable");
+        },
+      },
+    ];
+    const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
+    expect(result).toMatchObject({ ok: false, written: 0, observedAt: null });
+    expect((await store.readAll()).rows.map((row) => row.id)).toEqual(["kept"]);
+  });
+
   it("does not invent a refresh when no provider is configured", async () => {
     const store = memoryStore();
     const providers: OutLiveProvider[] = [

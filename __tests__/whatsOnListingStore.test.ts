@@ -14,36 +14,19 @@ const db = vi.hoisted(() => ({ rows: [] as Row[], failWrite: false, schemaMiss: 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
   requireSupabaseAdmin: () => ({
+    rpc(_name: string, args: { p_kind: string; p_rows: Row[]; p_generated_at: string }) {
+      if (db.schemaMiss) {
+        return Promise.resolve({
+          data: null,
+          error: { message: "Could not find the table 'public.whats_on_listings'" },
+        });
+      }
+      if (db.failWrite) return Promise.resolve({ data: null, error: { message: "write boom" } });
+      db.rows = db.rows.filter((row) => row.kind !== args.p_kind);
+      db.rows.push(...args.p_rows);
+      return Promise.resolve({ data: args.p_rows.length, error: null });
+    },
     from: () => ({
-      delete() {
-        return {
-          eq(column: string, value: string) {
-            if (db.schemaMiss) {
-              return Promise.resolve({
-                error: { message: "Could not find the table 'public.whats_on_listings'" },
-              });
-            }
-            if (column === "kind") {
-              db.rows = db.rows.filter((row) => row.kind !== value);
-            }
-            return Promise.resolve({ error: null });
-          },
-        };
-      },
-      upsert(rows: Row[]) {
-        if (db.schemaMiss) {
-          return Promise.resolve({
-            error: { message: "Could not find the table 'public.whats_on_listings'" },
-          });
-        }
-        if (db.failWrite) return Promise.resolve({ error: { message: "write boom" } });
-        for (const row of rows) {
-          const i = db.rows.findIndex((held) => held.id === row.id);
-          if (i >= 0) db.rows[i] = row;
-          else db.rows.push(row);
-        }
-        return Promise.resolve({ error: null });
-      },
       select() {
         if (db.schemaMiss) {
           return Promise.resolve({
@@ -115,9 +98,11 @@ describe("supabaseWhatsOnListingStore", () => {
   });
 
   it("flags a hard write failure", async () => {
+    await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("kept")], GENERATED);
     db.failWrite = true;
     const outcome = await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
     expect(outcome.failed).toBe(true);
     expect(outcome.written).toBe(0);
+    expect((await supabaseWhatsOnListingStore.readAll()).rows.map((row) => row.id)).toEqual(["kept"]);
   });
 });

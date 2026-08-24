@@ -14,6 +14,7 @@ import type { ParsedPlanGenerationIntake } from "@/lib/planGenerationIntake";
 import { haversineKm } from "@/lib/haversine";
 import type { PlanningConfidence, PlanRouteTotals } from "@/lib/planIntelligence";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
 import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 import nightSignalSnapshot from "@/public/data/night_signals/latest.json";
 import { estimatePlanWalking, estimateStraightLinePlanWalking } from "@/lib/walkRouteLegs";
@@ -46,11 +47,11 @@ import weatherSnapshot from "@/public/data/weather/latest.json";
 
 assertServerEnv();
 
-let baselineWhatsOn: WhatsOnRow[] | null = null;
-
-function baselineWhatsOnRows(): WhatsOnRow[] {
-  baselineWhatsOn ??= loadBaselineWhatsOn();
-  return baselineWhatsOn;
+async function baselineWhatsOnRows(now: number): Promise<WhatsOnRow[]> {
+  return loadServedWhatsOnListings({
+    bundled: loadBaselineWhatsOn(),
+    now,
+  });
 }
 
 function distanceKm(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -65,7 +66,7 @@ export async function GET(request: Request): Promise<Response> {
   const url = new URL(request.url);
   const cityId = parseCityId(url.searchParams.get("cityId") ?? "") ?? DEFAULT_CITY_ID;
   await loadConciergeVenues(cityId);
-  baselineWhatsOnRows();
+  await baselineWhatsOnRows(Date.now());
   return new Response(null, {
     status: 204,
     headers: { "cache-control": "no-store" },
@@ -229,7 +230,7 @@ export async function POST(request: Request): Promise<Response> {
 	const temporalEvidence = planTemporalEvidence({
 		weatherSnapshot,
 		nightSignalSnapshot,
-		whatsOnRows: baselineWhatsOnRows(),
+		whatsOnRows: await baselineWhatsOnRows(requestNow),
 		nightArea: area.slug,
 		requestNow,
 		routeWindow: intake?.routeWindow,

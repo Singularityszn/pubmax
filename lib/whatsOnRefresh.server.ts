@@ -8,7 +8,7 @@ import "server-only";
 // scrapes cannot run inside a serverless function.
 //
 // A provider that is not configured, or that throws, does not wipe the store.
-// replaceKind("event") runs only after at least one configured provider answers.
+// replaceKind("event") runs only after every configured provider answers.
 
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
@@ -107,10 +107,8 @@ export async function refreshOfficialWhatsOnListings(
     };
   }
 
-  const anySuccess = settled.some(
-    (entry) => entry.report.configured && entry.report.error === undefined,
-  );
-  if (!anySuccess) {
+  const configuredReports = reports.filter((report) => report.configured);
+  if (configuredReports.some((report) => report.error !== undefined)) {
     return {
       ok: false,
       mode: "providers",

@@ -5,6 +5,8 @@
 
 begin;
 
+drop function if exists public.replace_whats_on_listings(text, jsonb, timestamptz);
+
 drop policy if exists whats_on_listings_authenticated_deny on public.whats_on_listings;
 drop policy if exists whats_on_listings_anon_deny on public.whats_on_listings;
 

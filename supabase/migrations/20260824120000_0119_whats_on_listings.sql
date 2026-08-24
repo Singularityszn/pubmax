@@ -54,4 +54,50 @@ create policy whats_on_listings_authenticated_deny
   on public.whats_on_listings for all to authenticated
   using (false) with check (false);
 
+create or replace function public.replace_whats_on_listings(
+  p_kind text,
+  p_rows jsonb,
+  p_generated_at timestamptz
+)
+returns integer
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  inserted_count integer;
+begin
+  if p_kind not in ('sport', 'quiz', 'deal', 'music', 'event') then
+    raise exception 'invalid Whats-On kind: %', p_kind;
+  end if;
+  if jsonb_typeof(p_rows) <> 'array' then
+    raise exception 'Whats-On rows must be a JSON array';
+  end if;
+
+  delete from public.whats_on_listings
+  where kind = p_kind;
+
+  insert into public.whats_on_listings (
+    id, kind, payload, observed_at, generated_at, city
+  )
+  select input.id, input.kind, input.payload, input.observed_at,
+    p_generated_at, coalesce(input.city, 'london')
+  from jsonb_to_recordset(p_rows) as input(
+    id text,
+    kind text,
+    payload jsonb,
+    observed_at timestamptz,
+    city text
+  );
+
+  get diagnostics inserted_count = row_count;
+  return inserted_count;
+end;
+$$;
+
+revoke all on function public.replace_whats_on_listings(text, jsonb, timestamptz)
+  from public, anon, authenticated;
+grant execute on function public.replace_whats_on_listings(text, jsonb, timestamptz)
+  to service_role;
+
 commit;

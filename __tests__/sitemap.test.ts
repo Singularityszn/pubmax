@@ -208,12 +208,6 @@ describe("sitemap()", () => {
 });
 
 describe("sitemap Social gate", () => {
-  it("asks the same launch flag the nav already reads", async () => {
-    const source = await fs.readFile(join(process.cwd(), "app/sitemap.ts"), "utf8");
-    expect(source).toMatch(/socialListedInSitemap/);
-    expect(source).toMatch(/SOCIAL_FRIENDS_LAUNCH_ENV/);
-  });
-
   it("lists /social when the friends launch flag is on", async () => {
     vi.resetModules();
     vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");

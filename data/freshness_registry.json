@@ -86,9 +86,9 @@
       "class": "cron",
       "artifact": "public/data/whats_on/events_london.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "daily official-API event persist via Vercel cron (30 5 * * * UTC); bundled files remain the fallback",
+      "cadence": "daily official-API event persist via Vercel cron (30 5 * * * UTC); bundled files remain the fallback and combined-feed freshness remains tied to the bundled artifact",
       "stalenessBudgetHours": 48,
-      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches Ticketmaster/Skiddle into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). GitHub events-refresh.yml remains for when Actions billing returns; it is not the live path.",
+      "refreshWorkflow": "Vercel cron GET /api/cron/refresh-whats-on fetches Ticketmaster/Skiddle into the durable whats_on_listings store (read store-first via lib/whatsOnListings.server; bundled public/data/whats_on files are the fallback). The cron does not stamp combined whats_on freshness because quiz, deal, music, and sport remain bundled. GitHub events-refresh.yml remains for when Actions billing returns; it is not the live path.",
       "gate": "TICKETMASTER_API_KEY and/or SKIDDLE_API_KEY (events; Skiddle needs written commercial approval and SKIDDLE_BRAND_ASSET_PRESENT). Absent keys: cron answers ok:false, stamped:false, previous store stands. Harvested quiz/deal/music/sport stay bundled (EXA_API_KEY / FIRECRAWL_API_KEY via harvest-refresh / GitHub). Live layer also blends CityMCP at request time."
     },
     {

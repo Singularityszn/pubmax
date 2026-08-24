@@ -8,13 +8,12 @@
 // agents the serverless FS cannot run, and GitHub workflows remain for when
 // Actions billing returns.
 //
-// A measured provider success stamps feed_freshness. No configured provider,
-// or a fetch that failed, leaves the previous stamp and the previous store.
+// No configured provider, a fetch that failed, or a durable write failure
+// leaves the previous store and combined-feed freshness state unchanged.
 // AUTH: CRON_SECRET Bearer (lib/cronAuth).
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
-import { feedFreshnessStore } from "@/lib/feedFreshnessStore";
 import { WHATS_ON_FEED_KEY } from "@/lib/freshnessStoreOverlay";
 import { refreshOfficialWhatsOnListings } from "@/lib/whatsOnRefresh.server";
 
@@ -58,15 +57,8 @@ export async function GET(request: Request): Promise<Response> {
     });
   }
 
-  const stamp = await feedFreshnessStore().stamp({
-    feed: WHATS_ON_FEED_KEY,
-    observedAt: result.observedAt,
-    rowsServed: result.written,
-    note: "official-API event persist (Ticketmaster / Skiddle -> whats_on_listings)",
-  });
-
   console.log(
-    `[cron:refresh-whats-on] persisted ${result.written} official-API rows at ${result.observedAt}${stamp.failed ? " (stamp write degraded)" : ""}.`,
+    `[cron:refresh-whats-on] persisted ${result.written} official-API rows at ${result.observedAt}.`,
   );
   return jsonNoStore({
     ok: true,
@@ -74,8 +66,7 @@ export async function GET(request: Request): Promise<Response> {
     mode: result.mode,
     written: result.written,
     observedAt: result.observedAt,
-    stamped: stamp.failed !== true,
-    stampDegraded: stamp.failed ?? false,
+    stamped: false,
     providers: result.providers,
   });
 }
