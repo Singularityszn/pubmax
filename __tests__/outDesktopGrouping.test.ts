@@ -306,9 +306,20 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.way.href).toBe("/tonight");
   });
 
-  it("treats a body from before the match field as a match that ran", () => {
+  it("treats a body from before the match field as unavailable", () => {
     expect(outUnmatchedListingsNotice([unmatched("a", "The O2")], "tonight", undefined)?.line).toBe(
-      "1 listing tonight is at a place we don't list yet.",
+      "We couldn't check which of tonight's 1 listing is at a pub we list.",
     );
+  });
+
+  it("uses the pre-cap count while naming served places", () => {
+    const notice = outUnmatchedListingsNotice(
+      [unmatched("a", "The O2")],
+      "tonight",
+      "ready",
+      4,
+    );
+    expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
+    expect(notice?.places).toBe("The O2.");
   });
 });

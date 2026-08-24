@@ -84,8 +84,10 @@ describe("loadOutVenueMatchIndex", () => {
     venueState.read.mockResolvedValue(snapshot(["london"]));
     const { loadOutVenueMatchIndex } = await loadIndex();
 
-    await expect(loadOutVenueMatchIndex("manchester")).resolves.toBeNull();
     const london = await loadOutVenueMatchIndex("london");
+    expect(await loadOutVenueMatchIndex("london")).toBe(london);
+    expect(venueState.read).toHaveBeenCalledTimes(1);
+    await expect(loadOutVenueMatchIndex("manchester")).resolves.toBeNull();
     expect(london?.byNormalizedName.get("lexington")).toEqual([
       expect.objectContaining({ venueId: "venue-london-1" }),
     ]);

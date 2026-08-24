@@ -186,17 +186,18 @@ export function outUnmatchedListingsNotice(
   rows: readonly WhatsOnRow[],
   window: OutDayWindow,
   venueMatch: OutVenueMatchStatus | undefined,
+  unmatchedCount?: number,
 ): OutUnmatchedNotice | null {
   const hidden = rows.filter((row) => !hasResolvedPub(row));
-  if (hidden.length === 0) return null;
+  const count = unmatchedCount ?? hidden.length;
+  if (count === 0) return null;
   const shown = rows.length - hidden.length;
   const noun = outWindowNoun(window);
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
-  const count = hidden.length;
 
   let line: string;
-  if (venueMatch === "unavailable") {
+  if (venueMatch !== "ready") {
     line = `We couldn't check which of ${noun === "the weekend" ? "the weekend's" : `${noun}'s`} ${count} ${
       count === 1 ? "listing is" : "listings are"
     } at a pub we list.`;
@@ -218,9 +219,11 @@ export function outUnmatchedListingsNotice(
   const rest = names.length - OUT_UNMATCHED_PLACES_SHOWN;
   const named = names.slice(0, OUT_UNMATCHED_PLACES_SHOWN);
   const places =
-    rest > 0
-      ? `${named.join(", ")} and ${rest} more ${rest === 1 ? "place" : "places"}.`
-      : `${joinPlaces(named)}.`;
+    named.length === 0
+      ? ""
+      : rest > 0
+        ? `${named.join(", ")} and ${rest} more ${rest === 1 ? "place" : "places"}.`
+        : `${joinPlaces(named)}.`;
 
   const way =
     window === "tonight"

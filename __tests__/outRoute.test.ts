@@ -50,6 +50,7 @@ vi.mock("@/lib/planStore", () => ({
 
 import { GET } from "@/app/api/out/route";
 import { OUT_OPEN_PLAN_LIMIT, type OutOpenPlan } from "@/lib/out";
+import * as loadOut from "@/lib/out/loadOut";
 import {
   MAX_OUT_EVENTS,
   buildOutResponse,
@@ -386,6 +387,7 @@ describe("buildOutResponse", () => {
       { now: FIXTURE_NOW.getTime(), loadBaseline: () => rows, liveProviders: [] },
     );
     expect(body.events).toHaveLength(MAX_OUT_EVENTS);
+    expect(body.unmatchedCount).toBe(120);
     const starts = body.events.map((row) => row.startsAt ?? "");
     expect(starts).toEqual([...starts].sort());
   });
@@ -560,10 +562,32 @@ describe("GET /api/out", () => {
     const body = await res.json();
     expect(["ready", "degraded", "not-configured"]).toContain(body.status);
     expect(res.headers.get("cache-control")).toBe(
-      body.status === "ready" ? OUT_READY_CACHE_CONTROL : OUT_UNSETTLED_CACHE_CONTROL,
+      body.status === "ready" && body.venueMatch === "ready"
+        ? OUT_READY_CACHE_CONTROL
+        : OUT_UNSETTLED_CACHE_CONTROL,
     );
     expect(Array.isArray(body.events)).toBe(true);
     expect(body.openPlans).toEqual([]);
+  });
+
+  it("shortens the cache when venue matching is unavailable", async () => {
+    const build = vi.spyOn(loadOut, "buildOutResponse").mockResolvedValue({
+      status: "ready",
+      listingsStatus: "ready",
+      events: [],
+      openPlans: [],
+      attribution: [],
+      observedAt: {},
+      providers: [],
+      unmatchedCount: 0,
+      venueMatch: "unavailable",
+    });
+    try {
+      const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
+      expect(response.headers.get("cache-control")).toBe(OUT_UNSETTLED_CACHE_CONTROL);
+    } finally {
+      build.mockRestore();
+    }
   });
 
   it("holds an unsettled answer only briefly, so one blip is not pinned on the CDN", async () => {
@@ -873,7 +897,13 @@ describe("the live lane is venue-matched at request time", () => {
     expect(groupOutListings(body.events).flatMap((group) => group.rows.map((row) => row.id))).toEqual([
       "events-tm-lex",
     ]);
-    const notice = outUnmatchedListingsNotice(body.events, "tonight", body.venueMatch);
+    expect(body.unmatchedCount).toBe(1);
+    const notice = outUnmatchedListingsNotice(
+      body.events,
+      "tonight",
+      body.venueMatch,
+      body.unmatchedCount,
+    );
     expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
     expect(notice?.places).toBe("The O2.");
   });

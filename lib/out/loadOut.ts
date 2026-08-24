@@ -382,6 +382,7 @@ export async function buildOutResponse(
     attribution: outSourceAttribution(merged),
     observedAt: observedAtBySource(merged),
     providers: reports,
+    unmatchedCount: unmatched,
     venueMatch,
   };
   if (reason) {

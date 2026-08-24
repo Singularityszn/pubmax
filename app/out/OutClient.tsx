@@ -48,7 +48,12 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
   const listingRows = body?.events ?? [];
   const listingGroups = groupOutListings(listingRows);
-  const unmatchedNotice = outUnmatchedListingsNotice(listingRows, day, body?.venueMatch);
+  const unmatchedNotice = outUnmatchedListingsNotice(
+    listingRows,
+    day,
+    body?.venueMatch,
+    body?.unmatchedCount,
+  );
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
   const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);
 

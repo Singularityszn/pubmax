@@ -144,6 +144,7 @@ test(
           attribution: [],
           observedAt: {},
           providers: [{ name: "ticketmaster", configured: true, rows: 2, status: "ready" }],
+          venueMatch: "ready",
         }),
       }),
     );

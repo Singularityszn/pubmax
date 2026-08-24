@@ -58,6 +58,8 @@ export type OutResponse = {
   attribution: OutSourceCredit[];
   observedAt: Record<string, string>;
   providers: OutProviderReport[];
+  /** Number of window-filtered rows without a venueId, before the serve cap. */
+  unmatchedCount?: number;
   /** Why a degraded answer is degraded, in words a reader can act on. */
   reason?: string;
   /**

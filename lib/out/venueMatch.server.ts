@@ -3,10 +3,10 @@ import "server-only";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { CityId } from "@/lib/cities";
 import { buildOutVenueMatchIndex, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
-import { getVenueIndexSnapshot, type VenueIndexSnapshot, type VenueRef } from "@/lib/venueIndex";
+import { getVenueIndexSnapshot, type VenueIndexSnapshot } from "@/lib/venueIndex";
 
-const built = new WeakMap<Map<string, VenueRef>, Map<CityId, OutVenueMatchIndex>>();
-const building = new WeakMap<Map<string, VenueRef>, Map<CityId, Promise<OutVenueMatchIndex>>>();
+const built = new Map<CityId, OutVenueMatchIndex>();
+const building = new Map<CityId, Promise<OutVenueMatchIndex | null>>();
 let snapshotPromise: Promise<VenueIndexSnapshot> | null = null;
 
 async function loadSnapshot() {
@@ -21,33 +21,26 @@ async function loadSnapshot() {
   return snapshot;
 }
 
-export async function loadOutVenueMatchIndex(
-  city: CityId = "london",
-): Promise<OutVenueMatchIndex | null> {
+async function buildCityIndex(city: CityId): Promise<OutVenueMatchIndex | null> {
   const snapshot = await loadSnapshot();
   if (!snapshot.loadedCities.has(city)) return null;
+  return buildOutVenueMatchIndex(
+    [...snapshot.index.values()].filter((venue) => venueIdMatchesCity(venue.id, city)),
+  );
+}
 
-  const indexes = built.get(snapshot.index) ?? new Map<CityId, OutVenueMatchIndex>();
-  built.set(snapshot.index, indexes);
-  const held = indexes.get(city);
-  if (held) return held;
-
-  const pending = building.get(snapshot.index) ?? new Map<CityId, Promise<OutVenueMatchIndex>>();
-  building.set(snapshot.index, pending);
-  const existing = pending.get(city);
+export function loadOutVenueMatchIndex(city: CityId = "london"): Promise<OutVenueMatchIndex | null> {
+  const held = built.get(city);
+  if (held) return Promise.resolve(held);
+  const existing = building.get(city);
   if (existing) return existing;
 
-  const promise = Promise.resolve().then(() =>
-    buildOutVenueMatchIndex(
-      [...snapshot.index.values()].filter((venue) => venueIdMatchesCity(venue.id, city)),
-    ),
-  );
-  pending.set(city, promise);
-  try {
-    const index = await promise;
-    indexes.set(city, index);
+  const promise = buildCityIndex(city).then((index) => {
+    if (index) built.set(city, index);
     return index;
-  } finally {
-    pending.delete(city);
-  }
+  });
+  building.set(city, promise);
+  return promise.finally(() => {
+    if (building.get(city) === promise) building.delete(city);
+  });
 }
