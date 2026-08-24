@@ -105,6 +105,34 @@
   line-height: 1.45;
 }
 
+.outListingUnmatched {
+  margin: 0 0 16px;
+}
+
+.outListingUnmatched .outListingUnmatchedLine {
+  margin-bottom: 6px;
+  overflow-wrap: anywhere;
+}
+
+.outListingUnmatchedCredit {
+  margin: 0 0 6px;
+  color: var(--ink-soft);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.outListingUnmatchedCredit a {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.outListingUnmatchedWay {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
 /* The card box is the LIST ITEM, not the link. The source credit is its own
    link (a licence obligation for Skiddle), and an anchor inside an anchor is
    invalid HTML the parser un-nests, so the two links are siblings inside one

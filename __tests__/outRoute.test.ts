@@ -25,6 +25,10 @@ vi.mock("@/lib/outRateLimit", () => ({
 }));
 
 vi.mock("@/lib/venueIndex", () => ({
+  // The request-time venue matcher reads the slim index through this. An
+  // empty map is "could not read", so the default lane matches nothing here;
+  // the matcher tests below inject their own index.
+  getVenueIndex: vi.fn(async () => new Map()),
   lookupCanonicalVenue: vi.fn(async (id: string) => {
     if (!venueIndex.readable) return { status: "unavailable", canonicalId: id };
     const name = venueIndex.venues.get(id);
@@ -59,6 +63,8 @@ import {
   outAnswerView,
   outStatusLines,
 } from "@/lib/out/outStatus";
+import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { groupOutListings, outUnmatchedListingsNotice } from "@/lib/outDesktopGrouping";
 import { londonServiceDayBounds } from "@/lib/whatsOn";
 import type { OutResponse } from "@/lib/out/types";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -796,5 +802,141 @@ describe("outAnswerView", () => {
     const held = { day: "tomorrow" as const, body: null, failed: true };
     expect(outAnswerView(held, "tomorrow")).toEqual({ body: null, failed: true, pending: false });
     expect(outAnswerView(held, "today")).toEqual({ body: null, failed: false, pending: true });
+  });
+});
+
+describe("the live lane is venue-matched at request time", () => {
+  // The loss point: /api/out served four Ticketmaster rows with no venueId
+  // because matching lived only in the refresh CLI, so /out dropped every one
+  // of them and printed a bare status line over an empty page.
+  const slimIndex = buildOutVenueMatchIndex([
+    { id: "venue-1137z1c", name: "The Lexington", borough: "Islington", lat: 51.5326, lng: -0.1119 },
+    { id: "venue-1d1tez", name: "The Dublin Castle", borough: "Camden", lat: 51.5397, lng: -0.1429 },
+  ]);
+  const liveLexington = eventRow({
+    id: "events-tm-lex",
+    sourceId: "tm-lex",
+    kind: "music",
+    placeName: "The Lexington",
+    title: "Live band night",
+    lat: 51.5326,
+    lng: -0.1119,
+  });
+  const liveArena = eventRow({
+    id: "events-tm-o2",
+    sourceId: "tm-o2",
+    placeName: "The O2",
+    title: "Arena show",
+    lat: 51.503,
+    lng: 0.0032,
+  });
+  const ticketmaster = (rows: WhatsOnRow[]) => ({
+    name: "ticketmaster",
+    isConfigured: () => true,
+    fetchTonight: async () => rows,
+  });
+
+  it("gives a live row with a listed venue name its venueId, so it reaches the pub list", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.status).toBe("ready");
+    expect(body.venueMatch).toBe("ready");
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
+    // Matched rows enter the pub list under the EXISTING rule, unchanged.
+    expect(groupOutListings(body.events).map((group) => group.key)).toEqual([
+      "venue:venue-1137z1c",
+    ]);
+  });
+
+  it("keeps an unmatched live row out of the pub list and counts it in the notice", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington, liveArena])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(2);
+    const arena = body.events.find((row) => row.id === "events-tm-o2");
+    expect(arena?.venueId).toBeUndefined();
+    expect(groupOutListings(body.events).flatMap((group) => group.rows.map((row) => row.id))).toEqual([
+      "events-tm-lex",
+    ]);
+    const notice = outUnmatchedListingsNotice(body.events, "tonight", body.venueMatch);
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+    expect(notice?.places).toBe("The O2.");
+  });
+
+  it("never serves a live row whose start has already passed", async () => {
+    const yesterday = eventRow({
+      id: "events-tm-past",
+      sourceId: "tm-past",
+      placeName: "The Lexington",
+      title: "Last night's gig",
+      startsAt: "2026-08-15T19:30:00.000Z",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([yesterday, liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events.map((row) => row.id)).toEqual(["events-tm-lex"]);
+  });
+
+  it("says the match could not run when the venue index is unreadable, and changes no row", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => {
+          throw new Error("slim index unreadable");
+        },
+      },
+    );
+    // The listings themselves were read fine: the lane stays ready.
+    expect(body.status).toBe("ready");
+    expect(body.venueMatch).toBe("unavailable");
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(JSON.stringify(body)).not.toContain("unreadable");
+  });
+
+  it("does not re-match a row the bundled lane already matched", async () => {
+    const bundled = eventRow({
+      id: "events-tm-lex",
+      sourceId: "tm-lex",
+      placeName: "The Lexington",
+      venueId: "venue-from-refresh",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [bundled],
+        liveProviders: [ticketmaster([liveLexington])],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(1);
+    expect(body.events[0].venueId).toBe("venue-from-refresh");
   });
 });

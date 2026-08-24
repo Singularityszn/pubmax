@@ -31,7 +31,7 @@ describe("Pint Drop persistence boundary", () => {
     ]) {
       const source = read(path);
       expect(source, path).not.toContain('.from("visit_reports")');
-      expect(source, path).not.toMatch(/subscribeInsert\([^)]*"visit_reports"/s);
+      expect(source, path).not.toMatch(/subscribeInsert\([^)]*"visit_reports"/);
       expect(source, path).not.toContain('const TABLE = "visit_reports"');
       expect(source, path).toContain("PINT_DROPS_TABLE");
     }

@@ -1,5 +1,6 @@
 import type { OutOpenPlan } from "@/lib/out";
 import type { OutSourceCredit } from "@/lib/out/attribution";
+import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export const MAX_OUT_EVENTS = 100;
@@ -59,4 +60,13 @@ export type OutResponse = {
   providers: OutProviderReport[];
   /** Why a degraded answer is degraded, in words a reader can act on. */
   reason?: string;
+  /**
+   * Whether the request-time venue match RAN over these rows.
+   *
+   * `unavailable` means the slim index could not be read, so a row with no
+   * venueId may well be at a listed pub; the surface words that apart from
+   * "not listed yet". Absent on a body from before the field, which was
+   * served by a lane that matched nothing and claimed nothing.
+   */
+  venueMatch?: OutVenueMatchStatus;
 };

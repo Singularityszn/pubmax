@@ -13,9 +13,8 @@ import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
 import {
   groupOutListings,
-  OUT_LISTING_UNMATCHED_LINE,
   outOpenPlansSectionVisible,
-  outListingUnmatchedCount,
+  outUnmatchedListingsNotice,
   sendableOpenPlans,
 } from "@/lib/outDesktopGrouping";
 import {
@@ -49,7 +48,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
   const listingRows = body?.events ?? [];
   const listingGroups = groupOutListings(listingRows);
-  const unmatchedListingCount = outListingUnmatchedCount(listingRows);
+  const unmatchedNotice = outUnmatchedListingsNotice(listingRows, day, body?.venueMatch);
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
   const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);
 
@@ -89,10 +88,31 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             {line}
           </p>
         ))}
-        {unmatchedListingCount > 0 ? (
-          <p className="outStatus outListingUnmatched" role="status">
-            {OUT_LISTING_UNMATCHED_LINE}
-          </p>
+        {unmatchedNotice ? (
+          <div className="outListingUnmatched" role="status" data-testid="out-unmatched-notice">
+            <p className="outStatus outListingUnmatchedLine">
+              {unmatchedNotice.line} {unmatchedNotice.places}
+            </p>
+            {unmatchedNotice.credits.length > 0 ? (
+              <p className="outListingUnmatchedCredit">
+                Listings from{" "}
+                {unmatchedNotice.credits.map((credit, index) => (
+                  <span key={credit.label}>
+                    {index > 0 ? " and " : ""}
+                    <a href={credit.url} rel="noopener noreferrer" target="_blank">
+                      {credit.label}
+                    </a>
+                  </span>
+                ))}
+                .
+              </p>
+            ) : null}
+            <p className="outListingUnmatchedWay">
+              <Link prefetch={false} href={unmatchedNotice.way.href} className="outPlansFootLink">
+                {unmatchedNotice.way.label}
+              </Link>
+            </p>
+          </div>
         ) : null}
         <div className="outListingSurface">
           {listingGroups.map((group) => (

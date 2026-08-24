@@ -6,6 +6,8 @@ import {
   outListingPubPair,
   outListingUnmatchedCount,
   outOpenPlansSectionVisible,
+  outUnmatchedListingsNotice,
+  OUT_UNMATCHED_PLACES_SHOWN,
   sendableOpenPlans,
 } from "@/lib/outDesktopGrouping";
 import { createElement } from "react";
@@ -198,5 +200,115 @@ describe("out desktop grouping", () => {
     expect(sendableOpenPlans([sendable, unsendable, sendable, sendable])).toHaveLength(3);
     expect(outOpenPlansSectionVisible([sendable, unsendable])).toBe(true);
     expect(outOpenPlansSectionVisible([unsendable])).toBe(false);
+  });
+});
+
+describe("outUnmatchedListingsNotice", () => {
+  // The truthful empty state: when rows exist but none is at a listed pub, the
+  // page says how many and where, credits the provider, and hands the reader
+  // somewhere to go. It never prints a bare status line over an empty page.
+  const unmatched = (id: string, placeName: string, label = "Ticketmaster") =>
+    row({
+      id,
+      kind: "event",
+      title: `Show at ${placeName}`,
+      placeName,
+      source: { label, url: `https://example.com/${id}` },
+    });
+  const matched = row({ id: "matched", kind: "music", title: "Gig", venueId: "venue-1" });
+
+  it("is silent when every listing is at a listed pub, and when there are no rows", () => {
+    expect(outUnmatchedListingsNotice([], "tonight", "ready")).toBeNull();
+    expect(outUnmatchedListingsNotice([matched], "tonight", "ready")).toBeNull();
+  });
+
+  it("counts every unmatched listing and names the places when none matched", () => {
+    const notice = outUnmatchedListingsNotice(
+      [
+        unmatched("a", "Jazz Cafe"),
+        unmatched("b", "Up The Creek"),
+        unmatched("c", "Soul Mama"),
+        unmatched("d", "The Comedy Store"),
+      ],
+      "tonight",
+      "ready",
+    );
+    expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
+    expect(notice?.places).toBe("Jazz Cafe, Up The Creek, Soul Mama and The Comedy Store.");
+    expect(notice?.credits).toEqual([
+      expect.objectContaining({ label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/" }),
+    ]);
+    expect(notice?.way).toEqual({ href: "/tonight", label: "See what else is on tonight" });
+  });
+
+  it("says 'more' when the pub list is not empty, so the count is about the hidden rows alone", () => {
+    const notice = outUnmatchedListingsNotice(
+      [matched, unmatched("a", "The O2"), unmatched("b", "Wembley Arena")],
+      "tonight",
+      "ready",
+    );
+    expect(notice?.line).toBe("2 more listings tonight are at places we don't list yet.");
+    expect(notice?.places).toBe("The O2 and Wembley Arena.");
+  });
+
+  it("reads as one listing at one place in the singular", () => {
+    expect(outUnmatchedListingsNotice([unmatched("a", "The O2")], "tonight", "ready")?.line).toBe(
+      "1 listing tonight is at a place we don't list yet.",
+    );
+    expect(
+      outUnmatchedListingsNotice([matched, unmatched("a", "The O2")], "tonight", "ready")?.line,
+    ).toBe("1 more listing tonight is at a place we don't list yet.");
+  });
+
+  it("names the window the chip asked for and sends the other days to the map", () => {
+    const tomorrow = outUnmatchedListingsNotice([unmatched("a", "The O2")], "tomorrow", "ready");
+    expect(tomorrow?.line).toBe("1 listing tomorrow is at a place we don't list yet.");
+    expect(tomorrow?.way).toEqual({ href: "/map", label: "Find a pub on the map" });
+    const weekend = outUnmatchedListingsNotice([unmatched("a", "The O2")], "weekend", "ready");
+    expect(weekend?.line).toBe("1 listing at the weekend is at a place we don't list yet.");
+    expect(weekend?.way.href).toBe("/map");
+  });
+
+  it("names each place once, caps the list, and counts the rest", () => {
+    const rows = Array.from({ length: OUT_UNMATCHED_PLACES_SHOWN + 2 }, (_, index) =>
+      unmatched(`r${index}`, `Place ${index + 1}`),
+    );
+    // Two shows at the same place are one place.
+    rows.push(unmatched("dup", "Place 1"));
+    const notice = outUnmatchedListingsNotice(rows, "tonight", "ready");
+    expect(notice?.line).toBe(
+      `${OUT_UNMATCHED_PLACES_SHOWN + 3} listings tonight are at places we don't list yet.`,
+    );
+    expect(notice?.places).toBe(
+      `${Array.from({ length: OUT_UNMATCHED_PLACES_SHOWN }, (_, index) => `Place ${index + 1}`).join(", ")} and 2 more places.`,
+    );
+  });
+
+  it("credits every provider behind the hidden rows, spelled the way the cards spell it", () => {
+    const notice = outUnmatchedListingsNotice(
+      [unmatched("a", "The O2", "ticketmaster"), unmatched("b", "Corsica Studios", "common")],
+      "tonight",
+      "ready",
+    );
+    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster", "Common"]);
+  });
+
+  it("says the check could not run rather than claiming the places are unlisted", () => {
+    const notice = outUnmatchedListingsNotice(
+      [unmatched("a", "The Lexington"), unmatched("b", "The O2")],
+      "tonight",
+      "unavailable",
+    );
+    expect(notice?.line).toBe(
+      "We couldn't check which of tonight's 2 listings are at a pub we list.",
+    );
+    expect(notice?.places).toBe("The Lexington and The O2.");
+    expect(notice?.way.href).toBe("/tonight");
+  });
+
+  it("treats a body from before the match field as a match that ran", () => {
+    expect(outUnmatchedListingsNotice([unmatched("a", "The O2")], "tonight", undefined)?.line).toBe(
+      "1 listing tonight is at a place we don't list yet.",
+    );
   });
 });
