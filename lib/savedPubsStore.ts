@@ -84,6 +84,19 @@ export type SaveInput = {
   note?: string;
 };
 
+export type EnsureSavedInput = {
+  /** Verified profile UUID. Durable promotion must not trust a body handle. */
+  profileId: string;
+  /** Current canonical handle, used by the memory backend and DTO reads. */
+  handle: string;
+  venueId: string;
+  listType: ListType;
+};
+
+export type EnsureSavedResult = {
+  outcome: "saved" | "already_saved" | "unavailable";
+};
+
 // A saved row as the store holds it, before DTO enrichment.
 type SavedRow = {
   venueId: string;
@@ -116,6 +129,8 @@ export type SavedPubsStore = {
   /** Toggle a save (insert-or-delete on (owner, venue, list)); returns the fresh
    *  full list as DTOs. Never throws — a store error yields the current list. */
   toggleSaved(input: SaveInput): Promise<SavedPubDTO[]>;
+  /** Atomically add a public save without toggle semantics. */
+  ensureSaved(input: EnsureSavedInput): Promise<EnsureSavedResult>;
 };
 
 // ── DTO enrichment (server-side venue-name resolution) ───────────────────────
@@ -329,6 +344,36 @@ export const supabaseSavedPubsStore: SavedPubsStore = {
       return this.listSaved({ handle: input.handle });
     }
   },
+
+  async ensureSaved(input) {
+    const listType = cleanListType(input.listType);
+    const venueId = input.venueId;
+    const profileId = input.profileId.trim();
+    if (!profileId || !normalizeHandle(input.handle) || !venueId || !listType) {
+      return { outcome: "unavailable" };
+    }
+    try {
+      const { data, error } = await admin()
+        .from(TABLE)
+        .upsert(
+          {
+            profile_id: profileId,
+            venue_id: venueId,
+            list_type: listType,
+            note: null,
+          },
+          {
+            onConflict: "profile_id,venue_id,list_type",
+            ignoreDuplicates: true,
+          },
+        )
+        .select("id");
+      if (error) throw new Error(error.message);
+      return { outcome: (data ?? []).length > 0 ? "saved" : "already_saved" };
+    } catch {
+      return { outcome: "unavailable" };
+    }
+  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -401,6 +446,24 @@ export const memorySavedPubsStore: SavedPubsStore = {
     }
     memoryRows.set(owner, partition);
     return this.listSaved({ handle: input.handle, actorHash: input.actorHash });
+  },
+
+  async ensureSaved(input) {
+    const owner = ownerKey(input.handle);
+    const listType = cleanListType(input.listType);
+    if (!input.profileId.trim() || !normalizeHandle(input.handle) || !input.venueId || !listType) {
+      return { outcome: "unavailable" };
+    }
+    const partition = memoryRows.get(owner) ?? new Map<string, SavedRow>();
+    const key = rowKey(input.venueId, listType);
+    if (partition.has(key)) return { outcome: "already_saved" };
+    partition.set(key, {
+      venueId: input.venueId,
+      listType,
+      savedAt: new Date().toISOString(),
+    });
+    memoryRows.set(owner, partition);
+    return { outcome: "saved" };
   },
 };
 

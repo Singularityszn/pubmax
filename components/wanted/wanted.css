@@ -158,6 +158,55 @@
   color: var(--muted, var(--ink-soft, #5c5346));
 }
 
+.wantedRow__actions,
+.wantedPromotion {
+  display: grid;
+  min-width: 0;
+  gap: 0.45rem;
+}
+
+.wantedRow__actions {
+  grid-column: 1 / -1;
+}
+
+.wantedPromotion label {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: 0.8rem;
+}
+
+.wantedPromotion select,
+.wantedPromotion button {
+  width: 100%;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0.5rem 0.7rem;
+  border: 1px solid var(--line, rgba(0, 0, 0, 0.14));
+  border-radius: 8px;
+  background: var(--paper, #fff);
+  color: var(--ink);
+  font: inherit;
+}
+
+.wantedPromotion button {
+  background: var(--brass, #b08d57);
+  color: var(--paper, #fff);
+  font-weight: 650;
+}
+
+.wantedPromotion [role="status"] {
+  max-width: 16rem;
+  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: 0.8rem;
+}
+
+.wantedPromotionState {
+  margin: 0;
+  color: var(--muted, var(--ink-soft, #5c5346));
+  font-size: 0.85rem;
+}
+
 .wantedSaveWrap {
   margin-top: 0.65rem;
 }

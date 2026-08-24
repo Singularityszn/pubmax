@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -52,7 +52,25 @@ vi.mock("@/lib/wantedResolve.server", () => ({
 import { GET, POST } from "@/app/api/wanted/route";
 import { POST as resolvePOST } from "@/app/api/wanted/resolve/route";
 import { __resetPintDrops } from "@/lib/pintDrops";
-import { __resetWanteds } from "@/lib/wantedStore";
+import {
+  __resetMemorySavedLists,
+  __resetMemorySavedPubs,
+  memorySavedPubsStore,
+} from "@/lib/savedPubsStore";
+import { getVenueIndex } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { __resetWanteds, memoryWantedStore } from "@/lib/wantedStore";
+
+let REAL_VENUE_ID = "";
+let NON_PUB_VENUE_ID = "";
+
+beforeAll(async () => {
+  const index = await getVenueIndex();
+  REAL_VENUE_ID = [...index.values()].find((venue) => isPubVenueKind(venue.kind))?.id ?? "";
+  NON_PUB_VENUE_ID = [...index.values()].find((venue) => venue.kind === "food")?.id ?? "";
+  if (!REAL_VENUE_ID) throw new Error("venue index is empty");
+  if (!NON_PUB_VENUE_ID) throw new Error("venue index has no non-pub venue");
+});
 
 function post(body: unknown, ip = "203.0.113.40"): Request {
   return new Request("http://localhost/api/wanted", {
@@ -71,6 +89,8 @@ function get(qs = "", ip = "203.0.113.40"): Request {
 
 beforeEach(() => {
   __resetWanteds();
+  __resetMemorySavedPubs();
+  __resetMemorySavedLists();
   __resetPintDrops();
   contributionIdentityState.resolution = {
     ok: true,
@@ -178,6 +198,126 @@ describe("GET/POST /api/wanted", () => {
     const body = await res.json();
     expect(body.wanted.venueKind).toBe("pending");
     expect(body.wanted.sourcePlatform).toBe("tiktok");
+  });
+
+  it("promotes an open resolved Wanted idempotently without publishing its provenance", async () => {
+    const created = await POST(post({
+      venueId: REAL_VENUE_ID,
+      venueName: "Canonical pub",
+      venueKind: "curated",
+      sourceUrl: "https://www.instagram.com/reel/private-source/",
+      note: "Meet after work",
+    }));
+    const wanted = (await created.json()).wanted;
+
+    const first = await POST(post({
+      action: "promote",
+      id: wanted.id,
+      listType: "Want to Visit",
+    }));
+    const retry = await POST(post({
+      action: "promote",
+      id: wanted.id,
+      listType: "Want to Visit",
+    }));
+
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    expect(await first.json()).toMatchObject({
+      outcome: "saved",
+      listType: "Want to Visit",
+      listUrl: "/u/alice/lists/Want%20to%20Visit",
+      wanted: { promotedListType: "Want to Visit" },
+    });
+    expect(await retry.json()).toMatchObject({ outcome: "already_saved" });
+    const saved = await memorySavedPubsStore.listSaved({ handle: "alice" });
+    expect(saved).toHaveLength(1);
+    expect(saved[0]?.note).toBeUndefined();
+    const privateWanted = await memoryWantedStore.getById(
+      "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      wanted.id,
+    );
+    expect(privateWanted?.sourceUrl).toContain("instagram.com");
+    expect(privateWanted?.note).toBe("Meet after work");
+    expect(privateWanted?.promotedListType).toBe("Want to Visit");
+  });
+
+  it("refuses pending, fulfilled, unknown, and another owner's Wanted", async () => {
+    const pending = await POST(post({ action: "pending", rawPaste: "mystery pub" }));
+    const pendingId = (await pending.json()).wanted.id;
+    const pendingPromotion = await POST(post({
+      action: "promote",
+      id: pendingId,
+      listType: "Want to Visit",
+    }));
+    expect(pendingPromotion.status).toBe(409);
+
+    const nonPub = await POST(post({
+      venueId: NON_PUB_VENUE_ID,
+      venueName: "Late food",
+      venueKind: "curated",
+    }));
+    const nonPubId = (await nonPub.json()).wanted.id;
+    expect((await POST(post({
+      action: "promote",
+      id: nonPubId,
+      listType: "Want to Visit",
+    }))).status).toBe(409);
+
+    const created = await POST(post({
+      venueId: REAL_VENUE_ID,
+      venueName: "Canonical pub",
+      venueKind: "curated",
+    }));
+    const wanted = (await created.json()).wanted;
+    await POST(post({ action: "fulfil", venueId: REAL_VENUE_ID }));
+    const fulfilledPromotion = await POST(post({
+      action: "promote",
+      id: wanted.id,
+      listType: "Want to Visit",
+    }));
+    expect(fulfilledPromotion.status).toBe(409);
+
+    expect((await POST(post({
+      action: "promote",
+      id: "missing",
+      listType: "Want to Visit",
+    }))).status).toBe(404);
+
+    contributionIdentityState.resolution = {
+      ok: true,
+      accountId: "acct-b",
+      actor: "profile:bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb",
+      handle: "bob",
+    };
+    expect((await POST(post({
+      action: "promote",
+      id: wanted.id,
+      listType: "Want to Visit",
+    }))).status).toBe(404);
+  });
+
+  it("allows only one public list when different promotions race", async () => {
+    const created = await POST(post({
+      venueId: REAL_VENUE_ID,
+      venueName: "Canonical pub",
+      venueKind: "curated",
+    }));
+    const wanted = (await created.json()).wanted;
+
+    const responses = await Promise.all([
+      POST(post({ action: "promote", id: wanted.id, listType: "Want to Visit" })),
+      POST(post({ action: "promote", id: wanted.id, listType: "Historic" })),
+    ]);
+
+    expect(responses.map((response) => response.status).sort()).toEqual([200, 409]);
+    const saved = await memorySavedPubsStore.listSaved({ handle: "alice" });
+    expect(saved).toHaveLength(1);
+    const recorded = await memoryWantedStore.getById(
+      "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
+      wanted.id,
+    );
+    expect(recorded?.promotedListType).toBe(saved[0]?.listType);
   });
 });
 
