@@ -9,7 +9,7 @@
 
 Map density constants are owned by [`components/map/canvas/buildScene.ts`](../components/map/canvas/buildScene.ts). See the density-contract entry in [`AGENTS.md`](../AGENTS.md) before changing them.
 
-On Discover, ranked lists (city rivalry, tonight, top-rated) use bold red/brass rank circles (`.leaderboardRankNum`, `.tonightRank`, `.topRatedRank`) that compete with content.
+On Discover, ranked lists (city rivalry, tonight) use bold red/brass rank circles (`.leaderboardRankNum`, `.tonightRank`) that compete with content.
 
 Champagne maps to the **wine** drink-pin kind (no separate champagne glyph).
 

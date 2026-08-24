@@ -125,7 +125,7 @@ We will follow these principles on every new surface:
 **Week 3–4: Generational Modes + Ratings**
 - The Ledger view (large text, provenance-first).
 - Voice Story Mode + family email share.
-- Full ratings surfaces (StarRating, VenueRatingPanel, TopRatedPubs) with anomaly detection.
+- Drink rating surfaces (StarRating, DrinkRatingRow) with anomaly detection.
 
 **Week 5: Gamification & All-Drinks**
 - Pint Passport stamps + shareable passport image.

@@ -208,7 +208,7 @@ After the massive pull (`611c40ff`), the codebase now contains:
 
 **Weeks 5–6: All-Drinks + Ratings + Dry Mode**
 - Dry Crawl filters, mocktail attributes, non-alcoholic routes.
-- Full ratings surfaces (StarRating, VenueRatingPanel, TopRatedPubs).
+- Drink rating surfaces (StarRating, DrinkRatingRow, ratingsClient on the venue menu).
 - The Dry Spill mode.
 
 **Weeks 7–8: Generational Polish + Viral**

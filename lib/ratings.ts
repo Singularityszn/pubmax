@@ -10,8 +10,7 @@
 //     the constant).
 //   • A minimum-vote floor: a rating is HIDDEN under MIN_VOTES_TO_SHOW votes
 //     (`shown: false`) — an average of 2 votes is noise, not signal.
-//   • A recency window for "top" lists, so a list is what's good NOW, not a
-//     trophy cabinet.
+//   • A recency window for ranked lists when one is applied at read time.
 //   • Percentile framing ("beats N% of …") — relative standing communicates
 //     more than a raw 4.2.
 //   • A rating is DISTINCT from activity: zero votes → average/bayesian are
@@ -53,9 +52,6 @@ export const PRIOR_WEIGHT = 10;
  *  midpoint 3, nudged up half a star. Callers should inject the MEASURED site
  *  mean via `priorMean` once the corpus supports it. */
 export const DEFAULT_PRIOR_MEAN = 3.5;
-
-/** Default recency window for "top …" lists — roughly "this month". */
-export const TOP_RATED_WINDOW_DAYS = 30;
 
 import { DAY_MS } from "@/lib/dayMs";
 
@@ -185,59 +181,4 @@ export function percentileFrame(
   const beaten = distribution.filter((score) => score < bayesian).length;
   const percent = Math.round((beaten / distribution.length) * 100);
   return { percent, label: `Beats ${percent}% of ${of}` };
-}
-
-export type RatedItem = {
-  /** Stable item key: a venue id, or a drink ref. */
-  ref: string;
-  ratings: RatingRecord[];
-};
-
-export type TopRatedEntry = {
-  ref: string;
-  summary: RatingSummary;
-};
-
-export type TopRatedOptions = {
-  /** The injected clock — required (see aggregateRatings). */
-  now: Date | number;
-  minVotes?: number;
-  /** Trailing window for the list. Default TOP_RATED_WINDOW_DAYS ("this month"). */
-  recencyWindowDays?: number;
-  limit?: number;
-  priorMean?: number;
-  priorWeight?: number;
-};
-
-/**
- * Rank items for a "Top rated … this month" list: recency-windowed, Bayesian-
- * ranked, and floor-gated — an item below the vote floor is OMITTED entirely
- * (never shown with a hedge). Ties break on vote count (more votes = more
- * trustworthy), then ref for determinism.
- */
-export function topRated(
-  items: RatedItem[],
-  options: TopRatedOptions,
-): TopRatedEntry[] {
-  const {
-    limit = 10,
-    recencyWindowDays = TOP_RATED_WINDOW_DAYS,
-    ...aggregate
-  } = options;
-  const entries: TopRatedEntry[] = [];
-  for (const item of items) {
-    const summary = aggregateRatings(item.ratings, {
-      ...aggregate,
-      recencyWindowDays,
-    });
-    if (!summary.shown) continue;
-    entries.push({ ref: item.ref, summary });
-  }
-  entries.sort(
-    (a, b) =>
-      (b.summary.bayesian ?? 0) - (a.summary.bayesian ?? 0) ||
-      b.summary.count - a.summary.count ||
-      a.ref.localeCompare(b.ref),
-  );
-  return entries.slice(0, Math.max(0, limit));
 }

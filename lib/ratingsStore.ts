@@ -9,8 +9,8 @@
 //     its old one (never a second row), and the timestamp refreshes so recency
 //     windows see the re-cast. rate() THROWS on storage failure — a vote the
 //     user cast must not silently vanish (the route maps that to a 503).
-//   • summaryFor() / top() are fail-soft READS: an outage renders as "no
-//     ratings yet", never a 500 on a menu or the discover page.
+//   • summaryFor() is a fail-soft READ: an outage renders as "no ratings yet",
+//     never a 500 on a menu.
 //
 // Identity is the self-asserted handle (no auth) — the same trust posture as
 // reactions/comments/notifications: a star rating is already-public,
@@ -24,16 +24,12 @@
 
 import {
   aggregateRatings,
-  topRated,
   type RatingKind,
   type RatingRecord,
   type RatingSummary,
   type RatingValue,
-  type TopRatedEntry,
-  TOP_RATED_WINDOW_DAYS,
 } from "@/lib/ratings";
 import { normalizeHandle } from "@/lib/profiles";
-import { DAY_MS } from "@/lib/dayMs";
 import {
   admin,
   createSchemaMissWarner,
@@ -60,19 +56,12 @@ export type RatingsStore = {
   /** Batch summaries for a list of refs. Fail-soft: an unknown ref maps to
    *  the honest empty summary; a storage error returns all-empty. */
   summaryFor(kind: RatingKind, refs: string[]): Promise<Record<string, RatingSummary>>;
-  /** "Top rated … this month": recency-windowed, Bayesian-ranked, floor-gated
-   *  (lib/ratings.topRated). Fail-soft: [] on any storage error. */
-  top(kind: RatingKind, options?: { limit?: number }): Promise<TopRatedEntry[]>;
 };
 
 const TABLES: Record<RatingKind, { table: string; refColumn: string }> = {
   drink: { table: "drink_ratings", refColumn: "drink_ref" },
   venue: { table: "venue_ratings", refColumn: "venue_id" },
 };
-
-// Cap how many raw vote rows a recency scan pulls for the top list — plenty at
-// this scale, bounded on purpose.
-const TOP_SCAN_ROWS = 5000;
 
 const isMissingRatingsSchema = missingTables("drink_ratings", "venue_ratings");
 const { warn: warnSchemaMiss } = createSchemaMissWarner(
@@ -190,42 +179,6 @@ export const supabaseRatingsStore: RatingsStore = {
       return emptySummaries(refs);
     }
   },
-
-  async top(kind, options) {
-    const { table, refColumn } = TABLES[kind];
-    try {
-      const now = Date.now();
-      const cutoff = new Date(
-        now - TOP_RATED_WINDOW_DAYS * DAY_MS,
-      ).toISOString();
-      const columns: string = `${refColumn}, rating, created_at`;
-      const { data, error } = await admin()
-        .from(table)
-        .select(columns)
-        .gte("created_at", cutoff)
-        .limit(TOP_SCAN_ROWS);
-      if (error) throw new Error(error.message);
-      const byRef = groupRecords(
-        (data ?? [])
-          .map((r) => normalizeRatingRow(r, refColumn))
-          .filter((row): row is { ref: string; rating: number; createdAt: string } => row !== null),
-      );
-      return topRated(
-        Array.from(byRef, ([ref, ratings]) => ({ ref, ratings })),
-        { now, limit: options?.limit },
-      );
-    } catch (err) {
-      if (isMissingRatingsSchema(err)) {
-        warnSchemaMiss("top", err);
-        return memoryRatingsStore.top(kind, options);
-      }
-      console.error(
-        "[ratings] top failed — returning empty list:",
-        err instanceof Error ? err.message : err,
-      );
-      return [];
-    }
-  },
 };
 
 // ── In-memory implementation ─────────────────────────────────────────────────
@@ -262,17 +215,6 @@ export const memoryRatingsStore: RatingsStore = {
       });
     }
     return out;
-  },
-
-  async top(kind, options) {
-    const now = Date.now();
-    return topRated(
-      Array.from(memoryVotes[kind], ([ref, votes]) => ({
-        ref,
-        ratings: Array.from(votes.values()),
-      })),
-      { now, limit: options?.limit },
-    );
   },
 };
 

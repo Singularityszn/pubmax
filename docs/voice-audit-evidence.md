@@ -820,7 +820,6 @@ The explicit navigation owner covers menu blurbs that do not use a tooltip-named
 - `components/profile/SavedListDetail.tsx`
 - `components/profile/SavedPubList.tsx`
 - `components/pubs/PubsGallery.tsx`
-- `components/ratings/TopRatedPubs.tsx`
 - `components/round/RoundStarter.tsx`
 - `components/share/ShareBar.tsx`
 - `components/zones/ZonePintIndexStrip.tsx`

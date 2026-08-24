@@ -4,7 +4,6 @@
 //        → 200 { ref, summary }        (upsert: latest vote replaces the old)
 //        → 400 invalid input · 429 rate-limited · 503 storage failed
 //   GET  ?kind=drink|venue&refs=a,b,c  → 200 { summaries: { ref → summary } }
-//   GET  ?kind=venue&top=1&limit=10    → 200 { top: [{ ref, summary }] }
 //
 // Identity is the self-asserted `handle` (no auth yet) — the SAME trust
 // posture as reactions/comments/notifications: a star rating is already-public
@@ -40,7 +39,6 @@ assertServerEnv();
 // Bound untrusted keys/batches so one request can't carry an unbounded load.
 const MAX_REF_LENGTH = 200;
 const MAX_BATCH_REFS = 50;
-const MAX_TOP_LIMIT = 25;
 
 function cleanRef(value: unknown): string | null {
   const ref = readString(value)?.trim() ?? "";
@@ -108,27 +106,6 @@ export async function GET(request: Request): Promise<Response> {
   const kind = params.get("kind");
   if (!isRatingKind(kind)) {
     return publicApiError("kind must be \"drink\" or \"venue\".", "INVALID_REQUEST", 400);
-  }
-
-  // Top-rated list mode (the discover page's "Top rated pubs this month").
-  // Fail-soft: a storage error here degrades to an empty list, matching the
-  // batch-summary GET path — the discover page renders cleanly instead of 500ing.
-  if (params.get("top")) {
-    const rawLimit = Number(params.get("limit"));
-    const limit =
-      Number.isInteger(rawLimit) && rawLimit > 0
-        ? Math.min(rawLimit, MAX_TOP_LIMIT)
-        : 10;
-    try {
-      const top = await ratingsStore().top(kind as RatingKind, { limit });
-      return jsonNoStore({ top }, { status: 200 });
-    } catch (err) {
-      console.error(
-        "[ratings] top failed:",
-        err instanceof Error ? err.message : err,
-      );
-      return jsonNoStore({ top: [] }, { status: 200 });
-    }
   }
 
   // Batch summary mode. No refs → an empty (but valid) map, never an error.
