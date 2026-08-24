@@ -3,8 +3,9 @@
 Pub Pal answers in writing with no keys at all. Voice is one optional add-on
 the captain switches on with four environment values and one script run.
 
-Nothing here changes what the Pal may SAY. Text and voice run the same grounded
-tool registry (ADR 0014) and the same propose-then-confirm rule (ADR 0006).
+Nothing here changes what the Pal may SAY. Text and voice run the same
+source-backed tool registry (ADR 0014) and the same propose-then-confirm rule
+(ADR 0006).
 
 ---
 
@@ -15,7 +16,8 @@ tool registry (ADR 0014) and the same propose-then-confirm rule (ADR 0006).
 | `/pal/chat` text ask | Yes | Deterministic router picks one or two tools and answers from our own rows |
 | Map Ask | Yes | Same `/api/ask` path |
 | Concierge tools (prices, tonight, drinks, desk, crowd) | Yes | Every one of them reads a lane we already hold |
-| Model-written prose | No | Needs `OPENROUTER_API_KEY`; without it the house templates answer |
+| Model tool selection | No | Needs `OPENROUTER_API_KEY`; without it the deterministic router chooses the tools |
+| Reader wording | Yes | House output comes from returned rows and hints; the model does not write the answer |
 | Voice | No | Needs the four ElevenLabs values below |
 
 With voice off, `/pal` says so in the Pal's own words and offers the writing
@@ -62,8 +64,8 @@ patches that agent, and without one it looks for an agent named
 It sets four things and nothing else:
 
 1. **Custom LLM** pointed at `<base-url>/api/pub-pal/llm`, with the shared
-   secret. That route runs the same grounded Night OS Ask path the text surface
-   runs, so the voice cannot answer from the provider's own model.
+   secret. That route runs the same source-backed Night OS Ask path the text
+   surface runs, so the voice cannot answer from the provider's own model.
 2. **Zero retention**: no audio recording, no transcript, no PII kept. ADR 0006
    is explicit that raw audio and transcripts are never memory.
 3. **The three voices**, when their ids are set. The agent-level voice is the
