@@ -118,6 +118,11 @@ describe("public asset caching", () => {
     }
   });
 
+  it("does not classify Pub Pal pages as fixed assets", () => {
+    expect(cacheControlFor("/pal")).toBeNull();
+    expect(cacheControlFor("/pal/chat")).toBeNull();
+  });
+
   it("gives files edited in place a short browser and long edge window", () => {
     expect(cacheControlFor("/data/venues_slim.json")).toBe(EDITED_IN_PLACE_CACHE);
     for (const file of EDITED_IN_PLACE_ASSETS) {

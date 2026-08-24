@@ -157,6 +157,8 @@ Live under `public/`:
 | `icon-monochrome.svg`, `icon-monochrome-512.png` | none | mark on transparency, `purpose: "monochrome"` |
 | `apple-touch-icon.png`, `apple-touch-icon-x.png` | light | 180px, full bleed, opaque |
 | `apple-touch-icon-dark.png` | dark | 180px, full bleed, opaque |
+| `pal/circuit-robin-{32,64,128,512}.{webp,png}` | circuit robin | square mascot renditions |
+| `pal/circuit-robin-avatar-{32,64,128,512}.{webp,png}` | circuit robin | circular-avatar-safe mascot renditions |
 
 The `-x` files are byte-identical mirrors, not separate designs. `app/layout.tsx`
 links the suffixed paths because a new PATH is the only reliable way to move a
