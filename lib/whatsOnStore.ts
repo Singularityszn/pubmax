@@ -192,6 +192,7 @@ export type LoadWhatsOnDeps = {
   now?: number;
   loadBaseline?: () => WhatsOnRow[];
   baselineSourceObservedAt?: string | null;
+  baselineProviderObservedAt?: string | null;
   fetchLive?: FetchLive;
   /** PUBMAX_TONIGHT_GROUPING (DAG L14). When true, tonight grouping uses the
    *  canonical V2 model (schedule-aware key, deterministic locality tie-break,
@@ -317,14 +318,22 @@ export async function loadWhatsOn(
   const servedAt = new Date(now).toISOString();
   let readStatus: WhatsOnReadStatus = "ready";
   let baseline: WhatsOnRow[] = [];
+  let baselineProviderObservedAt: string | null =
+    deps.baselineProviderObservedAt === undefined
+      ? null
+      : canonicalPastIso(deps.baselineProviderObservedAt, now);
   try {
     if (deps.loadBaseline) {
       baseline = deps.loadBaseline();
     } else {
       const bundled = loadBaselineWhatsOn();
       try {
-        const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
-        baseline = await loadServedWhatsOnListings({ bundled, now });
+        const { loadServedWhatsOnListingsWithFreshness } = await import(
+          "@/lib/whatsOnListings.server"
+        );
+        const served = await loadServedWhatsOnListingsWithFreshness({ bundled, now });
+        baseline = served.rows;
+        baselineProviderObservedAt = canonicalPastIso(served.providerObservedAt, now);
       } catch {
         baseline = bundled;
       }
@@ -402,13 +411,14 @@ export async function loadWhatsOn(
   // provider's stated observation. Never the request instant: `servedAt` is a
   // separate field and stays out of this.
   const bundledObservedAt = freshestIso([datasetObservedAt, ...bundledRowTimes]);
+  const providerObservedAt = freshestIso([live.sourceObservedAt, baselineProviderObservedAt]);
   let sourceObservedAt: string | null = null;
   let sourceFreshnessKind: WhatsOnSourceFreshnessKind = "unknown";
   if (
-    live.sourceObservedAt &&
-    (!bundledObservedAt || Date.parse(live.sourceObservedAt) >= Date.parse(bundledObservedAt))
+    providerObservedAt &&
+    (!bundledObservedAt || Date.parse(providerObservedAt) >= Date.parse(bundledObservedAt))
   ) {
-    sourceObservedAt = live.sourceObservedAt;
+    sourceObservedAt = providerObservedAt;
     sourceFreshnessKind = "provider-observed";
   } else if (bundledObservedAt) {
     sourceObservedAt = bundledObservedAt;

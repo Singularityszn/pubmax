@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { loadServedWhatsOnListings } from "@/lib/whatsOnListings.server";
+import {
+  loadServedWhatsOnListings,
+  loadServedWhatsOnListingsWithFreshness,
+} from "@/lib/whatsOnListings.server";
 import type { WhatsOnListingStore } from "@/lib/whatsOnListingStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -63,5 +66,15 @@ describe("loadServedWhatsOnListings", () => {
       now: NOW,
     });
     expect(served).toEqual([]);
+  });
+
+  it("reports active durable rows as provider observations", async () => {
+    const durable = row({ observedAt: "2026-08-24T19:00:00.000Z" });
+    const served = await loadServedWhatsOnListingsWithFreshness({
+      store: storeReturning([durable]),
+      bundled: [],
+      now: NOW,
+    });
+    expect(served.providerObservedAt).toBe("2026-08-24T19:00:00.000Z");
   });
 });

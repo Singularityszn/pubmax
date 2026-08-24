@@ -9,7 +9,7 @@ import {
   whatsOnListingStore,
   type WhatsOnListingStore,
 } from "@/lib/whatsOnListingStore";
-import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
+import { filterNotPast, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
 
 export type LoadServedWhatsOnListingsOpts = {
   store?: WhatsOnListingStore;
@@ -18,9 +18,23 @@ export type LoadServedWhatsOnListingsOpts = {
   kind?: WhatsOnKind;
 };
 
-export async function loadServedWhatsOnListings(
+export type ServedWhatsOnListings = {
+  rows: WhatsOnRow[];
+  providerObservedAt: string | null;
+};
+
+function freshestObservedAt(rows: WhatsOnRow[]): string | null {
+  return rows.reduce<string | null>((latest, row) => {
+    if (latest === null || Date.parse(row.observedAt) > Date.parse(latest)) {
+      return row.observedAt;
+    }
+    return latest;
+  }, null);
+}
+
+export async function loadServedWhatsOnListingsWithFreshness(
   opts: LoadServedWhatsOnListingsOpts,
-): Promise<WhatsOnRow[]> {
+): Promise<ServedWhatsOnListings> {
   const store = opts.store ?? whatsOnListingStore();
   const snap = await store.readAll();
   const durable = opts.kind
@@ -29,5 +43,15 @@ export async function loadServedWhatsOnListings(
   const bundled = opts.kind
     ? opts.bundled.filter((row) => row.kind === opts.kind)
     : opts.bundled;
-  return preferDurableWhatsOn(durable, bundled, opts.now);
+  const activeDurable = filterNotPast(durable, opts.now);
+  return {
+    rows: preferDurableWhatsOn(durable, bundled, opts.now),
+    providerObservedAt: freshestObservedAt(activeDurable),
+  };
+}
+
+export async function loadServedWhatsOnListings(
+  opts: LoadServedWhatsOnListingsOpts,
+): Promise<WhatsOnRow[]> {
+  return (await loadServedWhatsOnListingsWithFreshness(opts)).rows;
 }

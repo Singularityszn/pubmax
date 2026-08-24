@@ -148,6 +148,19 @@ describe("mergeWhatsOn precedence", () => {
 });
 
 describe("loadWhatsOn orchestration", () => {
+  it("classifies durable provider evidence as provider-observed", async () => {
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: NOW,
+        loadBaseline: () => [makeRow({ observedAt: "2026-08-24T19:00:00.000Z" })],
+        baselineProviderObservedAt: "2026-08-24T19:00:00.000Z",
+        fetchLive: async () => [],
+      },
+    );
+    expect(result.sourceFreshnessKind).toBe("provider-observed");
+  });
+
   it("names a baseline throw as a degraded read, never as an empty night", async () => {
     const result = await loadWhatsOn(
       { window: "tonight" },
