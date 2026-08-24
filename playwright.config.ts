@@ -40,6 +40,7 @@ const AUTH_PORT = Number(process.env.PW_AUTH_PORT ?? PORT + 2);
 const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
 const AUTH_NEXT_DIST_DIR =
   process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
+const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096";
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -326,6 +327,7 @@ export default defineConfig({
         // Trusted Plan claims never touch the keyless escape hatch: give each run a
         // fresh process-only signing key via env so it stays out of the command argv.
         env: {
+          NODE_OPTIONS: E2E_NODE_OPTIONS,
           NEXT_DIST_DIR,
           NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
@@ -390,6 +392,7 @@ export default defineConfig({
             command:
               `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${KEYLESS_PORT}`,
             env: {
+              NODE_OPTIONS: E2E_NODE_OPTIONS,
               NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
               NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
               NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
@@ -414,6 +417,7 @@ export default defineConfig({
             command:
               `node scripts/run-with-restored-next-env.mjs npm run build && npm run start -- --port ${AUTH_PORT}`,
             env: {
+              NODE_OPTIONS: E2E_NODE_OPTIONS,
               NEXT_DIST_DIR: AUTH_NEXT_DIST_DIR,
               NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
