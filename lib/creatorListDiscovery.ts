@@ -24,7 +24,7 @@ export type CreatorListDiscoveryItem = {
 };
 
 export type CreatorListDiscoveryResult = {
-  status: "ready";
+  status: "ready" | "degraded";
   lists: CreatorListDiscoveryItem[];
   nextCursor: string | null;
 };

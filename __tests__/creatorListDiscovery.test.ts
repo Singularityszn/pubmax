@@ -148,4 +148,43 @@ describe("creator-list discovery", () => {
 
     expect(result).toEqual({ status: "ready", lists: [], nextCursor: "empty" });
   });
+
+  it("does not report a failed saved-list read as an empty market", async () => {
+    const { discoverCreatorLists } = await loadSubject();
+    const result = await discoverCreatorLists(
+      { limit: 1 },
+      {
+        listProfiles: async () => [{ handle: "alice" }],
+        listSaved: async () => ({ status: "unavailable" }),
+      },
+    );
+
+    expect(result.status).toBe("degraded");
+    expect(result.lists).toEqual([]);
+  });
+
+  it("keeps lists from owners it could read when another owner is unavailable", async () => {
+    const { discoverCreatorLists } = await loadSubject();
+    const result = await discoverCreatorLists(
+      { limit: 2 },
+      {
+        listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }],
+        listSaved: async ({ handle }) =>
+          handle === "alice"
+            ? [
+                {
+                  venueId: "venue-1",
+                  venueName: "The Fox",
+                  venueMapUrl: "/map?sel=venue-1",
+                  listType: "Sunday roasts",
+                  savedAt: "2026-08-24T12:00:00.000Z",
+                },
+              ]
+            : { status: "unavailable" },
+      },
+    );
+
+    expect(result.status).toBe("degraded");
+    expect(result.lists.map((list) => list.ownerHandle)).toEqual(["alice"]);
+  });
 });

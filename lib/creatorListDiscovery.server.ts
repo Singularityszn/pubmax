@@ -19,6 +19,10 @@ import {
   type SavedPubDTO,
 } from "@/lib/savedPubsStore";
 
+export type CreatorListSavedRead =
+  | SavedPubDTO[]
+  | { status: "unavailable" };
+
 const PREVIEW_VENUE_LIMIT = 3;
 
 export type CreatorListDiscoveryDependencies = {
@@ -26,8 +30,14 @@ export type CreatorListDiscoveryDependencies = {
     limit: number;
     afterHandle?: string;
   }): Promise<CreatorListProfile[]>;
-  listSaved(input: { handle: string }): Promise<SavedPubDTO[]>;
+  listSaved(input: { handle: string }): Promise<CreatorListSavedRead>;
 };
+
+function savedListReadIsUnavailable(
+  value: CreatorListSavedRead | undefined,
+): value is { status: "unavailable" } {
+  return Boolean(value) && !Array.isArray(value);
+}
 
 type CreatorListDiscoveryInput = {
   limit: number;
@@ -90,12 +100,19 @@ export async function discoverCreatorLists(
   const savedByProfile = await Promise.all(
     examined.map((profile) => dependencies.listSaved({ handle: profile.handle })),
   );
+  let unavailableCount = 0;
+  const lists = examined.flatMap((profile, index) => {
+    const saved = savedByProfile[index];
+    if (savedListReadIsUnavailable(saved)) {
+      unavailableCount += 1;
+      return [];
+    }
+    return listsForProfile(profile, saved ?? []);
+  });
 
   return {
-    status: "ready",
-    lists: examined.flatMap((profile, index) =>
-      listsForProfile(profile, savedByProfile[index] ?? []),
-    ),
+    status: unavailableCount > 0 ? "degraded" : "ready",
+    lists,
     nextCursor,
   };
 }
@@ -114,7 +131,8 @@ export const creatorListDiscoveryDependencies: CreatorListDiscoveryDependencies 
         };
       });
   },
-  listSaved(input) {
-    return savedPubsStore().listSaved(input);
+  async listSaved(input) {
+    const read = await savedPubsStore().readSaved(input);
+    return read.status === "ready" ? read.rows : { status: "unavailable" };
   },
 };

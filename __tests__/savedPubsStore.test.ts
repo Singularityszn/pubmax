@@ -35,6 +35,13 @@ describe("savedPubsStore() — seam selection", () => {
   it("selects the in-memory store when Supabase env is absent", () => {
     expect(savedPubsStore()).toBe(memorySavedPubsStore);
   });
+
+  it("readSaved names a successful empty list as ready", async () => {
+    expect(await memorySavedPubsStore.readSaved({ handle: "nobody" })).toEqual({
+      status: "ready",
+      rows: [],
+    });
+  });
 });
 
 const BUILT_INS = [

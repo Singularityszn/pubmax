@@ -92,9 +92,18 @@ type SavedRow = {
   savedAt: string;
 };
 
+export type SavedPubsRead =
+  | { status: "ready"; rows: SavedPubDTO[] }
+  | { status: "unavailable" };
+
 export type SavedPubsStore = {
   /** All of a handle's saves, newest-first, as enriched DTOs. Never throws. */
   listSaved(input: { handle?: string; actorHash?: string }): Promise<SavedPubDTO[]>;
+  /**
+   * Same read as listSaved, but a store outage names itself. Profile pages still
+   * use listSaved (fail-soft to []). Discovery must not treat that as no lists.
+   */
+  readSaved(input: { handle?: string; actorHash?: string }): Promise<SavedPubsRead>;
   /** Toggle a save (insert-or-delete on (owner, venue, list)); returns the fresh
    *  full list as DTOs. Never throws — a store error yields the current list. */
   toggleSaved(input: SaveInput): Promise<SavedPubDTO[]>;
@@ -153,10 +162,10 @@ function rowFrom(raw: Record<string, unknown>): SavedRow | null {
 }
 
 export const supabaseSavedPubsStore: SavedPubsStore = {
-  async listSaved({ handle }) {
+  async readSaved({ handle }) {
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, handle ?? "", false);
-      if (!profileId) return [];
+      if (!profileId) return { status: "ready", rows: [] };
       const { data, error } = await admin()
         .from(TABLE)
         .select("venue_id, list_type, note, created_at")
@@ -165,11 +174,15 @@ export const supabaseSavedPubsStore: SavedPubsStore = {
       const rows = (data ?? [])
         .map((r) => rowFrom(r as Record<string, unknown>))
         .filter((r): r is SavedRow => r !== null);
-      return await enrich(rows);
+      return { status: "ready", rows: await enrich(rows) };
     } catch {
-      // Fail-soft: an outage renders as "no saves", never a 500 on the profile.
-      return [];
+      return { status: "unavailable" };
     }
+  },
+
+  async listSaved(input) {
+    const read = await this.readSaved(input);
+    return read.status === "ready" ? read.rows : [];
   },
 
   async toggleSaved(input) {
@@ -240,9 +253,17 @@ function rowKey(venueId: string, listType: string): string {
 }
 
 export const memorySavedPubsStore: SavedPubsStore = {
-  async listSaved({ handle, actorHash }) {
+  async readSaved({ handle, actorHash }) {
     const partition = memoryRows.get(ownerKey(handle, actorHash));
-    return enrich(partition ? [...partition.values()] : []);
+    return {
+      status: "ready",
+      rows: await enrich(partition ? [...partition.values()] : []),
+    };
+  },
+
+  async listSaved(input) {
+    const read = await this.readSaved(input);
+    return read.status === "ready" ? read.rows : [];
   },
 
   async toggleSaved(input) {

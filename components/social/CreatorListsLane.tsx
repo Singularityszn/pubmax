@@ -11,6 +11,7 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { CreatorListDiscoveryItem } from "@/lib/creatorListDiscovery";
 import { normalizeHandle } from "@/lib/profiles";
+import { discardBody } from "@/lib/responseBody";
 
 type CreatorListsLoadStatus = "loading" | "ready" | "unavailable";
 
@@ -80,12 +81,17 @@ function CreatorListFollowAction({
   );
 }
 
+export type CreatorListsSettleResult =
+  | { outcome: "aborted" }
+  | { outcome: "unavailable" }
+  | { outcome: "ready"; lists: CreatorListDiscoveryItem[] };
+
 export function parseCreatorListsResponse(
   value: unknown,
 ): CreatorListDiscoveryItem[] | null {
   if (!value || typeof value !== "object") return null;
   const body = value as { status?: unknown; lists?: unknown };
-  if (body.status !== "ready") return null;
+  if (body.status !== "ready" && body.status !== "degraded") return null;
   const rows = body.lists;
   if (!Array.isArray(rows)) return null;
   const lists: CreatorListDiscoveryItem[] = [];
@@ -110,7 +116,25 @@ export function parseCreatorListsResponse(
     if (!valid) return null;
     lists.push(item as CreatorListDiscoveryItem);
   }
+  if (body.status === "degraded" && lists.length === 0) return null;
   return lists;
+}
+
+export async function settleCreatorListsResponse(
+  response: Response,
+  signal: { aborted: boolean },
+): Promise<CreatorListsSettleResult> {
+  if (!response.ok) {
+    discardBody(response);
+    if (signal.aborted) return { outcome: "aborted" };
+    return { outcome: "unavailable" };
+  }
+  const next = parseCreatorListsResponse(
+    await response.json().catch(() => null),
+  );
+  if (signal.aborted) return { outcome: "aborted" };
+  if (!next) return { outcome: "unavailable" };
+  return { outcome: "ready", lists: next };
 }
 
 export function CreatorListsContent({
@@ -218,21 +242,19 @@ export default function CreatorListsLane(): React.JSX.Element {
         const response = await fetch("/api/creator-lists", {
           signal: controller.signal,
         });
-        if (!response.ok) {
-          setStatus("unavailable");
-          return;
-        }
-        const next = parseCreatorListsResponse(
-          await response.json().catch(() => null),
+        const result = await settleCreatorListsResponse(
+          response,
+          controller.signal,
         );
-        if (controller.signal.aborted) return;
-        if (!next) {
+        if (result.outcome === "aborted") return;
+        if (result.outcome === "unavailable") {
           setStatus("unavailable");
           return;
         }
-        setLists(next);
+        setLists(result.lists);
         setStatus("ready");
       } catch (error) {
+        if (controller.signal.aborted) return;
         if (error instanceof DOMException && error.name === "AbortError") return;
         setStatus("unavailable");
       }

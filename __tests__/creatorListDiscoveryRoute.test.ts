@@ -81,6 +81,26 @@ describe("GET /api/creator-lists", () => {
     expect(listProfiles).not.toHaveBeenCalled();
   });
 
+  it("returns degraded rather than an empty market when a saved-list read fails", async () => {
+    const { handleCreatorListDiscoveryRequest } = await loadSubject();
+    const response = await handleCreatorListDiscoveryRequest(
+      new Request("https://example.test/api/creator-lists"),
+      {
+        isLimited: async () => false,
+        isStoreAvailable: () => true,
+        listProfiles: async () => [{ handle: "alice" }],
+        listSaved: async () => ({ status: "unavailable" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      status: "degraded",
+      lists: [],
+      nextCursor: null,
+    });
+  });
+
   it("fails closed when durable public data is unavailable", async () => {
     const { handleCreatorListDiscoveryRequest } = await loadSubject();
     const response = await handleCreatorListDiscoveryRequest(

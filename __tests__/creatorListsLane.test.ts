@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import {
   CreatorListsContent,
   parseCreatorListsResponse,
+  settleCreatorListsResponse,
 } from "@/components/social/CreatorListsLane";
 import type { CreatorListDiscoveryItem } from "@/lib/creatorListDiscovery";
 
@@ -95,5 +96,56 @@ describe("CreatorListsContent", () => {
         lists: [{ ownerHandle: "alice", listType: "Broken" }],
       }),
     ).toBeNull();
+  });
+
+  it("keeps lists it did read when the lane is degraded", () => {
+    expect(
+      parseCreatorListsResponse({ status: "degraded", lists: [LIST] }),
+    ).toEqual([LIST]);
+  });
+});
+
+describe("settleCreatorListsResponse", () => {
+  function unreadJsonResponse(status: number, body = "{}"): Response {
+    return new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode(body));
+        },
+      }),
+      { status },
+    );
+  }
+
+  it("lets go of a failed body instead of leaving the request hanging", async () => {
+    const response = unreadJsonResponse(503, '{"error":"no"}');
+    const result = await settleCreatorListsResponse(response, { aborted: false });
+
+    expect(result).toEqual({ outcome: "unavailable" });
+    expect(response.bodyUsed).toBe(true);
+  });
+
+  it("does not pin unavailable after a retry aborts a finished failure", async () => {
+    const response = unreadJsonResponse(503);
+    const result = await settleCreatorListsResponse(response, { aborted: true });
+
+    expect(result).toEqual({ outcome: "aborted" });
+    expect(response.bodyUsed).toBe(true);
+  });
+
+  it("recovers a ready body after an earlier failure", async () => {
+    const failed = await settleCreatorListsResponse(unreadJsonResponse(503), {
+      aborted: false,
+    });
+    const ready = await settleCreatorListsResponse(
+      new Response(
+        JSON.stringify({ status: "ready", lists: [LIST] }),
+        { status: 200 },
+      ),
+      { aborted: false },
+    );
+
+    expect(failed).toEqual({ outcome: "unavailable" });
+    expect(ready).toEqual({ outcome: "ready", lists: [LIST] });
   });
 });
