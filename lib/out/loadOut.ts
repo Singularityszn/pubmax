@@ -226,6 +226,7 @@ function notCoveredResponse(city: OutCity): OutResponse {
     observedAt: {},
     providers: [],
     reason: outCityNotCoveredReason(city),
+    venueMatch: "unavailable",
   };
 }
 

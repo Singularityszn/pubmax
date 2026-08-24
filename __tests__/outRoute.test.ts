@@ -269,6 +269,7 @@ describe("buildOutResponse", () => {
     expect(body.status).toBe("degraded");
     expect(body.events).toEqual([]);
     expect(body.reason).toBe("Out does not cover Bristol yet.");
+    expect(body.venueMatch).toBe("unavailable");
     expect(isOutCityCovered("london")).toBe(true);
     expect(isOutCityCovered("bristol")).toBe(false);
   });

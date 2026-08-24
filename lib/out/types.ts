@@ -70,5 +70,5 @@ export type OutResponse = {
    * "not listed yet". Absent on a body from before the field, which was
    * served by a lane that matched nothing and claimed nothing.
    */
-  venueMatch?: OutVenueMatchStatus;
+  venueMatch: OutVenueMatchStatus;
 };
