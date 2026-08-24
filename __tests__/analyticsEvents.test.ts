@@ -752,6 +752,10 @@ describe("invite loop events", () => {
 
   it("registers out_card_opened with a closed source only", () => {
     expect(ANALYTICS_EVENTS.out_card_opened).toEqual(["source"]);
+    expect(ANALYTICS_EVENTS.creator_list_viewed).toEqual([]);
+    expect(ANALYTICS_EVENTS.creator_list_map_opened).toEqual([]);
+    expect(ANALYTICS_EVENTS.creator_list_plan_started).toEqual([]);
+    expect(ANALYTICS_EVENTS.creator_list_followed).toEqual([]);
     expect(
       sanitizeEvent("out_card_opened", {
         source: "skiddle",

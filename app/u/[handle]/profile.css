@@ -871,6 +871,26 @@
   align-items: center;
 }
 
+.profilePage .listMapAction {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 44px;
+  align-items: center;
+  padding: 10px 16px;
+  border: 1px solid var(--accent-action);
+  border-radius: var(--radius-sm);
+  background: var(--accent-action);
+  color: var(--color-on-accent);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profilePage .listMapAction:hover {
+  border-color: var(--accent-action-strong);
+  background: var(--accent-action-strong);
+  color: var(--color-on-accent-strong);
+}
+
 .profilePage .followBtn {
   min-height: 44px;
   padding: 10px 16px;

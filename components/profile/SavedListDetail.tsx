@@ -8,9 +8,11 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
+import { savedListPath } from "@/lib/savedListUrl";
 import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { creatorListMapHref } from "@/lib/creatorListMap";
 
 type SavedListCounts = {
   followers: number;
@@ -48,10 +50,6 @@ function ownerProfileUrl(ownerHandle: string): string {
   return `/u/${encodeURIComponent(ownerHandle)}`;
 }
 
-function listUrl(ownerHandle: string, listType: string): string {
-  return `/u/${encodeURIComponent(ownerHandle)}/lists/${encodeURIComponent(listType)}`;
-}
-
 export default function SavedListDetail({
   ownerHandle,
   listType,
@@ -68,7 +66,8 @@ export default function SavedListDetail({
   const [error, setError] = useState<string | null>(null);
 
   const canFollow = viewer !== "" && viewer !== owner;
-  const shareUrl = listUrl(owner, listType);
+  const shareUrl = savedListPath(owner, listType);
+  const mapHref = creatorListMapHref(venues);
   const shareText = buildSavedListShareText({
     owner,
     listType,
@@ -221,6 +220,11 @@ export default function SavedListDetail({
             text={shareText}
           />
         </div>
+        {mapHref ? (
+          <Link className="listMapAction" href={mapHref}>
+            View list on Map
+          </Link>
+        ) : null}
       </section>
 
       <section className="savedSection" aria-labelledby="listVenuesHeading">

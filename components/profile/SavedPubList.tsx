@@ -6,6 +6,7 @@ import EmptyState from "@/components/EmptyState";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { BUILT_IN_LIST_TYPES } from "@/lib/savedListPolicy";
+import { savedListPath } from "@/lib/savedListUrl";
 import {
   type FollowedSavedListDTO,
   type ListType,
@@ -77,7 +78,7 @@ export default function SavedPubList({
                   {owner ? (
                     <Link
                       className="savedListNameLink"
-                      href={`/u/${encodeURIComponent(owner)}/lists/${encodeURIComponent(listType)}`}
+                      href={savedListPath(owner, listType)}
                     >
                       {listType}
                     </Link>
