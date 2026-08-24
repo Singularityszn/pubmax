@@ -9,6 +9,13 @@
 
 import { discardBody } from "@/lib/responseBody";
 
+export function hasPublicJsonRows(raw: unknown, field: string): boolean {
+  return Array.isArray(raw)
+    || (typeof raw === "object"
+      && raw !== null
+      && Array.isArray((raw as Record<string, unknown>)[field]));
+}
+
 export async function fetchPublicJson(path: string): Promise<unknown | null> {
   if (typeof window === "undefined") return null;
   try {

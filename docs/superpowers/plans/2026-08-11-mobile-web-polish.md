@@ -54,7 +54,6 @@
 ### Task 2: Complete horizontal lane gesture surfaces
 
 **Files:**
-- Modify: `components/discovery/tonightNearbyLane.css`
 - Modify: `components/map/tonightLane.css`
 - Modify: `components/map/mapToolbar.css`
 - Modify: `components/map/venueSheet.css`

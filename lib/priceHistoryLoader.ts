@@ -14,7 +14,7 @@ import {
   parsePriceHistory,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
-import { fetchPublicJson } from "@/lib/publicJsonLoader";
+import { fetchPublicJson, hasPublicJsonRows } from "@/lib/publicJsonLoader";
 
 export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
 
@@ -22,7 +22,7 @@ let historyPromise: Promise<Map<string, PriceHistoryObservation[]>> | null = nul
 
 export function loadPriceHistory(): Promise<Map<string, PriceHistoryObservation[]>> {
   historyPromise ??= fetchPublicJson(PRICE_HISTORY_PATH).then((raw) => {
-    if (raw === null) {
+    if (raw === null || !hasPublicJsonRows(raw, "observations")) {
       historyPromise = null;
       return new Map<string, PriceHistoryObservation[]>();
     }

@@ -22,7 +22,11 @@ export function loadPintIndexLeagueRows(): Promise<LeagueRow[]> {
       return [];
     }
     const result = validatePintIndexSnapshot(raw);
-    return result.ok ? buildLeagueTable(result.snapshot) : [];
+    if (!result.ok) {
+      leaguePromise = null;
+      return [];
+    }
+    return buildLeagueTable(result.snapshot);
   });
   return leaguePromise;
 }

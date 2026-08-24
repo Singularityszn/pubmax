@@ -21,7 +21,7 @@ import {
   parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
-import { fetchPublicJson } from "@/lib/publicJsonLoader";
+import { fetchPublicJson, hasPublicJsonRows } from "@/lib/publicJsonLoader";
 
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(
@@ -36,7 +36,7 @@ let foodPromise: Promise<FoodPriceUpdate[]> | null = null;
 export function loadDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
   drinkPromise ??= fetchPublicJson("/data/drink_price_updates/latest.json").then(
     (raw) => {
-      if (raw === null) {
+      if (raw === null || !hasPublicJsonRows(raw, "updates")) {
         drinkPromise = null;
         return [];
       }
@@ -49,7 +49,7 @@ export function loadDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
 export function loadFoodPriceUpdates(): Promise<FoodPriceUpdate[]> {
   foodPromise ??= fetchPublicJson("/data/food_price_updates/latest.json").then(
     (raw) => {
-      if (raw === null) {
+      if (raw === null || !hasPublicJsonRows(raw, "updates")) {
         foodPromise = null;
         return [];
       }
