@@ -227,8 +227,8 @@ describe("Pal answer hygiene", () => {
       answerHint: "",
     });
     const merged = mergeToolResults([
-      result([0, 1, 2, 3, 4]),
-      result([5, 6, 7, 8, 9]),
+      result([0, 1, 2, 3, 4].map(card)),
+      result([5, 6, 7, 8, 9].map(card)),
     ]);
     const answer = composeAnswer(merged.hints, merged.cards, merged.toolsUsed);
 

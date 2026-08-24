@@ -172,9 +172,7 @@ export async function toolCheapestPintNear(
   // rank and must never become the pub of that name on the other side of the
   // city. A named CENTRE still resolves to its pub, and a centre that names a
   // borough is read as that borough.
-  const venueFromArea = areaArg ? matchVenue(venues, areaArg) : null;
-  const isLondonArea =
-    areaArg.toLowerCase() === "london" && !venueFromArea;
+  const isLondonArea = areaArg.toLowerCase() === "london";
   // District words stay refused here. Only known boroughs scope cheapest pints.
   const areaFromArea = areaArg ? matchArea(venues, areaArg) : null;
   const areaFromVenueName =
@@ -184,7 +182,6 @@ export async function toolCheapestPintNear(
     : areaFromArea ?? areaFromVenueName;
   const anchorVenue =
     (venueId ? venues.find((v) => v.id === venueId) : null) ??
-    venueFromArea ??
     (areaFromVenueName ? null : matchVenue(venues, venueNameArg));
 
   let anchor: CheapestNearAnchor | null = null;
