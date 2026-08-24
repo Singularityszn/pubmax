@@ -172,6 +172,7 @@ describe("supabaseWhatsOnListingStore", () => {
       rows: [eventRow("memory")],
       generatedAt: GENERATED,
       failed: true,
+      failure: "durable table missing (apply migration 0119)",
     });
   });
 });

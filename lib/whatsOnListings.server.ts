@@ -46,9 +46,11 @@ export async function loadServedWhatsOnListingsWithFreshness(
   if (snap.failed) {
     console.warn("[whats-on] durable listing read failed; using bundled fallback.");
   }
-  const durable = opts.kind
-    ? snap.rows.filter((row) => row.kind === opts.kind && isServableWhatsOnRow(row))
-    : snap.rows.filter(isServableWhatsOnRow);
+  const durable = snap.failed
+    ? []
+    : opts.kind
+      ? snap.rows.filter((row) => row.kind === opts.kind && isServableWhatsOnRow(row))
+      : snap.rows.filter(isServableWhatsOnRow);
   const bundled = opts.kind
     ? opts.bundled.filter((row) => row.kind === opts.kind)
     : opts.bundled;

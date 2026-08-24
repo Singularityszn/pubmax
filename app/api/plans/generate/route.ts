@@ -47,9 +47,11 @@ import weatherSnapshot from "@/public/data/weather/latest.json";
 
 assertServerEnv();
 
+let bundledWhatsOn: WhatsOnRow[] | null = null;
+
 async function baselineWhatsOnRows(now: number): Promise<WhatsOnRow[]> {
   return loadServedWhatsOnListings({
-    bundled: loadBaselineWhatsOn(),
+    bundled: (bundledWhatsOn ??= loadBaselineWhatsOn()),
     now,
   });
 }

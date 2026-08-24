@@ -19,7 +19,11 @@ const db = vi.hoisted(() => ({
 }));
 
 const feedReads = vi.hoisted(() => ({ keys: [] as string[] }));
-const whatsOnReads = vi.hoisted(() => ({ generatedAt: null as string | null }));
+const whatsOnReads = vi.hoisted(() => ({
+  generatedAt: null as string | null,
+  failed: false,
+  failure: undefined as string | undefined,
+}));
 
 vi.mock("@/lib/feedFreshnessStore", () => ({
   feedFreshnessStore: () => ({
@@ -38,7 +42,11 @@ vi.mock("@/lib/weatherSnapshotStore", () => ({
 
 vi.mock("@/lib/whatsOnListingStore", () => ({
   whatsOnListingStore: () => ({
-    readAll: async () => ({ rows: [], generatedAt: whatsOnReads.generatedAt }),
+    readAll: async () => ({
+      rows: [],
+      generatedAt: whatsOnReads.generatedAt,
+      ...(whatsOnReads.failed ? { failed: true as const, failure: whatsOnReads.failure } : {}),
+    }),
   }),
 }));
 
@@ -76,6 +84,8 @@ beforeEach(() => {
   db.throws = null;
   feedReads.keys = [];
   whatsOnReads.generatedAt = null;
+  whatsOnReads.failed = false;
+  whatsOnReads.failure = undefined;
 });
 
 afterEach(() => {
@@ -145,6 +155,28 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
       kind: "ok",
       observedAt: "2026-08-24T05:30:00Z",
     });
+  });
+
+  it("reports ordinary durable read failures without inventing a migration fault", async () => {
+    whatsOnReads.failed = true;
+    whatsOnReads.failure = "network timeout";
+
+    const reads = await resolveDurableFeedStoreReads();
+
+    expect(reads[WHATS_ON_FEED_KEY]).toEqual({
+      kind: "unreachable",
+      error: "network timeout",
+    });
+  });
+
+  it("does not overlay an untrusted failed-store watermark", async () => {
+    whatsOnReads.failed = true;
+    whatsOnReads.failure = "network timeout";
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+
+    const overlay = await resolveStoreObservedAt();
+
+    expect(overlay).not.toHaveProperty(WHATS_ON_FEED_KEY);
   });
 
   it("falls back to disk when durable What's-On store is empty", async () => {

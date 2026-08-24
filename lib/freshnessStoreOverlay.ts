@@ -61,7 +61,9 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
 
   try {
     const snapshot = await whatsOnListingStore().readAll();
-    if (snapshot.generatedAt) overlay[WHATS_ON_FEED_KEY] = snapshot.generatedAt;
+    if (!snapshot.failed && snapshot.generatedAt) {
+      overlay[WHATS_ON_FEED_KEY] = snapshot.generatedAt;
+    }
   } catch {
     // fail-soft: keep the disk stamp
   }
@@ -98,7 +100,7 @@ async function readDurableWhatsOnStamp(): Promise<StoreRead> {
     if (snapshot.failed) {
       return {
         kind: "unreachable",
-        error: "durable What's-On store could not be read (apply migration 0119)",
+        error: snapshot.failure ?? "durable What's-On store could not be read",
       };
     }
     if (!snapshot.generatedAt) return { kind: "empty" };

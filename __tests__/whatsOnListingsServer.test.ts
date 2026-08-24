@@ -54,6 +54,26 @@ describe("loadServedWhatsOnListings", () => {
     expect(served.map((item) => item.id)).toEqual(["quiz-1"]);
   });
 
+  it("falls back to bundled rows when the durable read fails", async () => {
+    const bundled = [row({ title: "Bundled" })];
+    const failedStore: WhatsOnListingStore = {
+      replaceKind: async () => ({ written: 0 }),
+      readAll: async () => ({
+        rows: [row({ title: "Unproven durable row" })],
+        generatedAt: "2026-08-24T05:30:00.000Z",
+        failed: true,
+      }),
+    };
+
+    const served = await loadServedWhatsOnListings({
+      store: failedStore,
+      bundled,
+      now: NOW,
+    });
+
+    expect(served.map((item) => item.title)).toEqual(["Bundled"]);
+  });
+
   it("never serves expired durable rows", async () => {
     const expired = row({
       id: "past",

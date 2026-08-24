@@ -14,7 +14,12 @@ import "server-only";
 // One row per listing id. replaceKind swaps every row of that kind and leaves
 // the others, so an events refresh cannot wipe a quiz harvest.
 
-import { createFailSoftGuard, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+import {
+  createFailSoftGuard,
+  errorMessage,
+  onMissingDurableWrite,
+  selectStore,
+} from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
@@ -33,6 +38,7 @@ export type WhatsOnListingSnapshot = {
   rows: WhatsOnRow[];
   generatedAt: string | null;
   failed?: true;
+  failure?: string;
 };
 
 export type WhatsOnListingStore = {
@@ -143,9 +149,15 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
       onSchemaMiss: async () => ({
         ...(await memoryWhatsOnListingStore.readAll()),
         failed: true as const,
+        failure: "durable table missing (apply migration 0119)",
       }),
       message: "readAll failed - returning empty",
-      onError: () => ({ rows: [], generatedAt: null, failed: true }),
+      onError: (error) => ({
+        rows: [],
+        generatedAt: null,
+        failed: true as const,
+        failure: errorMessage(error),
+      }),
       run: async () => {
         const admin = requireSupabaseAdmin();
         const [{ data, error }, { data: generationData, error: generationError }] =
