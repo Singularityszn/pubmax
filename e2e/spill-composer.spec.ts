@@ -1,9 +1,11 @@
 import { test, expect, type Page } from "@playwright/test";
 
-// Camera-first Spill composer E2E (PRD "For-You map" priority 2). WebGL-agnostic:
+// Price-first Spill composer E2E (activation report D2). WebGL-agnostic:
 // the composer is a DOM panel inside VenueInspector, opened by deep-linking to a
 // seed pub's detail sheet (?sel=<id>) and clicking the Stories panel's
-// "Log a Pint Drop" button - never a canvas pin click. Mirrors e2e/social-loop.spec.ts / e2e/
+// "Log a Pint Drop" button - never a canvas pin click. The door opens on the
+// price step; the photo, story, vibes and visibility wait behind the one
+// "Add a photo or story" disclosure. Mirrors e2e/social-loop.spec.ts / e2e/
 // map-story.spec.ts: watchPageErrors, web-first assertions, .count()-guards so an
 // empty/altered seed is never a hard failure, no waitForTimeout.
 
@@ -55,7 +57,12 @@ async function openComposer(page: Page) {
   return { pintsPanel, form };
 }
 
-test.describe("camera-first Spill composer", () => {
+// The one disclosure that reveals the optional half of the composer.
+async function openExtras(form: ReturnType<Page["locator"]>) {
+  await form.getByRole("button", { name: "Add a photo or story" }).click();
+}
+
+test.describe("price-first Spill composer", () => {
   test.beforeEach(async ({ page }) => {
     await page.emulateMedia({ reducedMotion: "reduce" });
     await page.addInitScript(() => {
@@ -65,7 +72,7 @@ test.describe("camera-first Spill composer", () => {
     });
   });
 
-  test("on a 390px viewport the camera action leads without blocking price fields", async ({
+  test("on a 390px viewport the price step leads and the camera waits behind the disclosure", async ({
     page,
   }) => {
     const errors = watchPageErrors(page);
@@ -73,25 +80,39 @@ test.describe("camera-first Spill composer", () => {
 
     const { form } = await openComposer(page);
 
-    // Venue context leads, then the compact camera action. Price/story controls
-    // are still visible without a mandatory camera skip.
-    const cameraStep = form.locator('[data-testid="spill-camera-step"]');
+    // Venue context leads, then the price step. The camera is an extra now:
+    // a price intent never lands on a photo step. On an auth-shaped build the
+    // signed-out door line may sit between the intro and the price step.
     await expect(form.locator(".spillComposerIntro")).toContainText("Arnos Arms");
-    await expect(cameraStep).toBeVisible();
+    await expect(form.locator('[data-testid="spill-price-step"]')).toBeVisible();
+    await expect(form.locator('[data-testid="spill-camera-step"]')).toHaveCount(0);
 
-    const firstChildrenAreIntroThenCamera = await form.evaluate((el) => {
-      const children = Array.from(el.children).slice(0, 2);
+    const introLeadsStraightToPrice = await form.evaluate((el) => {
+      const children = Array.from(el.children);
+      const priceIndex = children.findIndex(
+        (child) => child.getAttribute("data-testid") === "spill-price-step",
+      );
       return (
         children[0]?.classList.contains("spillComposerIntro") === true &&
-        children[1]?.getAttribute("data-testid") === "spill-camera-step"
+        priceIndex > 0 &&
+        children
+          .slice(1, priceIndex)
+          .every((child) => child.classList.contains("spillSignedOutNote"))
       );
     });
-    expect(firstChildrenAreIntroThenCamera).toBe(true);
+    expect(introLeadsStraightToPrice).toBe(true);
 
-    // The photo affordance leads, but it no longer blocks the fast price/story
-    // path: the useful controls are visible on the first usable paint.
-    await expect(cameraStep.getByRole("button", { name: /skip photo/i })).toHaveCount(0);
+    // The compact door: price chips, drink and the submit action (the Log it
+    // button, or the sign-in gate in the same slot on an auth-shaped build).
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
+    await expect(form.getByLabel("Drink")).toBeVisible();
+    await expect(
+      form.locator('button[type="submit"], a.spillSubmitLink').first(),
+    ).toBeVisible();
+
+    // One disclosure opens the optional half.
+    await openExtras(form);
+    await expect(form.locator('[data-testid="spill-camera-step"]')).toBeVisible();
     await expect(
       form.getByRole("group", { name: /add this spill to/i }).getByRole("button", {
         name: "Tonight",
@@ -106,6 +127,7 @@ test.describe("camera-first Spill composer", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
+    await openExtras(form);
 
     const cameraStep = form.locator('[data-testid="spill-camera-step"]');
     await expect(cameraStep.getByText("Snap the pour")).toBeVisible();
@@ -131,6 +153,7 @@ test.describe("camera-first Spill composer", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
+    await openExtras(form);
 
     // Destination chips (Tonight / My Round / Family Table / Ledger) render.
     const destinations = form.getByRole("group", { name: /add this spill to/i });
@@ -164,6 +187,7 @@ test.describe("camera-first Spill composer", () => {
     await page.setViewportSize({ width: 390, height: 844 });
 
     const { form } = await openComposer(page);
+    await openExtras(form);
 
     await form.getByRole("button", { name: "Family Table" }).click();
 
@@ -177,25 +201,28 @@ test.describe("camera-first Spill composer", () => {
     expect(errors).toEqual([]);
   });
 
-  test("mobile submit posts a Pint Drop and inserts the story into the Pints panel", async ({
+  test("signed out, the same door renders with the sign-in gate at submit", async ({
     page,
   }) => {
+    // The submit round trip needs a keyless build (typed handle) and lives in
+    // e2e/spill-composer-keyless.spec.ts. This server is auth-shaped, so the
+    // signed-out contract is the one to pin here (report D2): the same
+    // price-first door, the account rule named up front, and the sign-in link
+    // where submit would be. No typed handle exists on this build at all.
     const errors = watchPageErrors(page);
     await page.setViewportSize({ width: 390, height: 844 });
 
-    const { pintsPanel, form } = await openComposer(page);
-    const story = `codex mobile submit ${Date.now()}`;
-    const handle = `codex_mobile_${Date.now()}`;
+    const { form } = await openComposer(page);
 
-    await form.getByLabel("Handle").fill(`@${handle}`);
-    await form.getByRole("group", { name: /quick-add price/i }).getByRole("button").first().click();
-    await form.getByLabel("Drink").fill("Codex test pint");
-    await form.getByLabel("Story").fill(story);
-
-    await form.getByRole("button", { name: "Post Pint Drop" }).click();
-
-    await expect(form).toHaveCount(0);
-    await expect(pintsPanel).toContainText(story);
+    await expect(form.locator(".spillSignedOutNote")).toContainText(
+      "Sign in to post it under your name.",
+    );
+    await expect(form.locator('[data-testid="spill-price-step"]')).toBeVisible();
+    const gate = form.locator("a.spillSubmitLink");
+    await expect(gate).toBeVisible();
+    await expect(gate).toHaveAttribute("href", /\/login\?mode=signin&from=/);
+    await expect(form.locator('button[type="submit"]')).toHaveCount(0);
+    await expect(form.getByLabel("Handle")).toHaveCount(0);
 
     expect(errors).toEqual([]);
   });
@@ -214,6 +241,10 @@ test.describe("camera-first Spill composer", () => {
 
     // The core controls still render and are operable under Legacy Mode.
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
+    await expect(
+      form.locator('button[type="submit"], a.spillSubmitLink').first(),
+    ).toBeVisible();
+    await openExtras(form);
     await expect(
       form.getByRole("group", { name: /add this spill to/i }).getByRole("button", {
         name: "Tonight",
@@ -246,7 +277,9 @@ test.describe("camera-first Spill composer", () => {
       await fallback.getByRole("button").first().click();
     }
     await expect(form).toBeVisible({ timeout: 10_000 });
-    await expect(form.locator('[data-testid="spill-camera-step"]')).toBeVisible();
+    // log=1 is a PRICE intent: it opens on the price step, never the camera.
+    await expect(form.locator('[data-testid="spill-price-step"]')).toBeVisible();
+    await expect(form.locator('[data-testid="spill-camera-step"]')).toHaveCount(0);
     await expect(form.getByRole("group", { name: /quick-add price/i })).toBeVisible();
 
     await expect
@@ -293,9 +326,16 @@ test.describe("camera-first Spill composer", () => {
     await expect(sheet).toHaveClass(/open/);
     await expect(form).toBeVisible({ timeout: 10_000 });
 
-    await venueSheet.getByRole("button", { name: "Close pub detail" }).click();
+    // The sheet opened from the log picker carries surface-nav chrome: Back
+    // returns to Choose a pub; a directly opened sheet keeps its own close.
+    await venueSheet
+      .getByRole("button", { name: /Back to Choose a pub|Close pub detail/ })
+      .first()
+      .click();
 
-    await expect(page).toHaveURL(/\/map\?log=1$/);
+    // The SURFACE holds the intent after Back, not the URL: `log=1` is an
+    // owned passthrough the map takes off the history entry once handled.
+    await expect(page).toHaveURL(/\/map(\?log=1)?$/);
     await expect(sheet).toHaveCount(0);
     await expect(fallback).toBeVisible();
     await expect(fallback).toContainText("Pick a pub to log a Pint Drop");

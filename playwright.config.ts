@@ -129,6 +129,9 @@ export default defineConfig({
         "**/screenshots.spec.ts",
         "**/price-contribution-auth.spec.ts",
         "**/price-contribution-entry.spec.ts",
+        // Keyless-shape composer submit: runs only against the keyless build,
+        // where the typed demo handle exists (chromium-keyless below).
+        "**/spill-composer-keyless.spec.ts",
         "**/map-gl.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
@@ -170,6 +173,7 @@ export default defineConfig({
       name: "chromium-keyless",
       testMatch: [
         "**/price-contribution-entry.spec.ts",
+        "**/spill-composer-keyless.spec.ts",
         "**/ui-ux-battle-test-keyless.spec.ts",
       ],
       use: {

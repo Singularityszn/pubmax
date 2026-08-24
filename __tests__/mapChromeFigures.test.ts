@@ -36,7 +36,8 @@ describe("quick-add price presets", () => {
   });
 
   it("prints the chip and sets the field from the same figure", () => {
-    const composer = read("components/map/composer/ComposerFields.tsx");
+    // The price chips live in the price-first door's compact step (report D2).
+    const composer = read("components/map/composer/ComposerPriceStep.tsx");
     expect(composer).toContain("const label = formatPriceChipGbp(price);");
     expect(composer).not.toMatch(/const label = formatPriceGbp\(price\)/);
   });
