@@ -3,7 +3,12 @@
 // re-export of the visibility allowlist for composer-side validation reuse.
 // No React, no DOM — these are unit-testable in isolation.
 
-import { DEFAULT_VISIBILITY, type Visibility } from "@/lib/pintDropShared";
+import {
+  cleanPintDropText,
+  DEFAULT_VISIBILITY,
+  PINT_DROP_MAX_NOTE,
+  type Visibility,
+} from "@/lib/pintDropShared";
 
 export { VISIBILITIES, DEFAULT_VISIBILITY, cleanVisibility } from "@/lib/pintDropShared";
 export type { Visibility } from "@/lib/pintDropShared";
@@ -111,7 +116,10 @@ export function spillHasSubmissionEvidence(input: {
   note: string;
   withWho: string;
 }): boolean {
-  return input.price.trim() !== "" || appendWithSuffix(input.note, input.withWho).trim() !== "";
+  return (
+    input.price.trim() !== "" ||
+    cleanPintDropText(appendWithSuffix(input.note, input.withWho), PINT_DROP_MAX_NOTE) !== ""
+  );
 }
 
 // ── "With" field → structured note suffix ───────────────────────────────────

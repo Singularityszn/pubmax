@@ -23,8 +23,10 @@ import {
 } from "@/lib/pintDropSeeds";
 import {
   ANON_HANDLE_LABEL,
+  cleanPintDropText as clean,
   cleanVisibility,
   DEFAULT_VISIBILITY,
+  PINT_DROP_MAX_NOTE,
   VIBE_TAGS,
   VISIBILITIES,
   type PintDrop,
@@ -102,7 +104,7 @@ export function cleanVibeTags(value: unknown): VibeTag[] {
 
 // Trust boundary. Never lazy here: the client is untrusted. Strip anything that
 // could be HTML/script, cap lengths, and clamp the price to a sane pub range.
-const MAX_NOTE = 500;
+const MAX_NOTE = PINT_DROP_MAX_NOTE;
 const MAX_DRINK = 60;
 const MAX_ERA = 40;
 const MAX_PRICE = 20; // a £40 "pint" is a typo or abuse, not a data point.
@@ -111,16 +113,6 @@ const MAX_PRICE = 20; // a £40 "pint" is a typo or abuse, not a data point.
 // it server-side just like the > £20 ceiling. Mirrored by the DB CHECK in
 // migration 0040 (defence in depth) and by the composer's inputMode UI.
 const MIN_PRICE = 1;
-
-function clean(value: unknown, cap: number): string {
-  if (typeof value !== "string") return "";
-  return value
-    .replace(/[<>]/g, "") // no inline user HTML
-    .replace(/[\u0000-\u001f\u007f]/g, " ") // strip control chars
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, cap);
-}
 
 /**
  * Validate + normalise an untrusted submission into a persistable Pint Drop.

@@ -5,6 +5,7 @@ import {
   SPILL_LOG_ACTION_BUSY_LABEL,
   SPILL_LOG_ACTION_LABEL,
   SPILL_SIGNED_OUT_DOOR_LINE,
+  spillHasSubmissionEvidence,
   spillExtrasStartOpen,
 } from "@/lib/spill";
 
@@ -45,6 +46,18 @@ describe("spillExtrasStartOpen", () => {
 
   it("a price alone keeps the door compact - price is the first step, not an extra", () => {
     expect(spillExtrasStartOpen({ ...EMPTY, price: "4.50" })).toBe(false);
+  });
+});
+
+describe("spillHasSubmissionEvidence", () => {
+  it("ignores note text the Pint Drop server removes", () => {
+    expect(spillHasSubmissionEvidence({ price: "", note: "<>", withWho: "" })).toBe(false);
+    expect(
+      spillHasSubmissionEvidence({ price: "", note: "\u0001\u0002", withWho: "" }),
+    ).toBe(false);
+    expect(
+      spillHasSubmissionEvidence({ price: "", note: "<Great pint>", withWho: "" }),
+    ).toBe(true);
   });
 });
 
