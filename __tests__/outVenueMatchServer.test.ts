@@ -88,6 +88,8 @@ describe("loadOutVenueMatchIndex", () => {
     expect(await loadOutVenueMatchIndex("london")).toBe(london);
     expect(venueState.read).toHaveBeenCalledTimes(1);
     await expect(loadOutVenueMatchIndex("manchester")).resolves.toBeNull();
+    expect(venueState.read).toHaveBeenCalledTimes(2);
+    expect(await loadOutVenueMatchIndex("london")).toBe(london);
     expect(london?.byNormalizedName.get("lexington")).toEqual([
       expect.objectContaining({ venueId: "venue-london-1" }),
     ]);

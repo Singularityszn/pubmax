@@ -8,6 +8,7 @@ import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { log } from "@/lib/log";
 import { fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   attachOutVenues,
   type OutVenueMatchIndex,
@@ -315,7 +316,7 @@ export async function buildOutResponse(
   // "we could not check" apart from "not listed yet".
   let venueMatch: OutVenueMatchStatus = "ready";
   let matchedAtRequest = 0;
-  let unmatched = inWindow.filter((row) => !row.venueId).length;
+  let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   let matchedRows = inWindow;
   try {
     const index = await loadVenueMatchIndex(city);

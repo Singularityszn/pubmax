@@ -2,6 +2,7 @@ import type { OutOpenPlan } from "@/lib/out";
 import { getNightArea } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightPlanning";
 import { outSourceAttribution, type OutSourceCredit } from "@/lib/out/attribution";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -14,6 +15,8 @@ export const OUT_LISTING_PUB_ABSENT_LINE =
 
 /** How many unlisted places the notice names before it counts the rest. */
 export const OUT_UNMATCHED_PLACES_SHOWN = 6;
+
+export { canonicalOutVenueId } from "@/lib/out/venueId";
 
 export type OutListingGroupKind = "venue" | "area" | "place";
 
@@ -37,13 +40,6 @@ export type OutListingPubPair =
 
 function normalizePlaceName(value: string): string {
   return value.trim().toLocaleLowerCase().replace(/\s+/g, " ");
-}
-
-/** Return the one venue id form that Out links, groups, and counts may use. */
-export function canonicalOutVenueId(value: unknown): string | null {
-  if (typeof value !== "string") return null;
-  const venueId = value.trim();
-  return venueId.length > 0 ? venueId : null;
 }
 
 function hasResolvedPub(row: WhatsOnRow): boolean {

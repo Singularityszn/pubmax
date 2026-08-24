@@ -393,6 +393,19 @@ describe("buildOutResponse", () => {
     expect(starts).toEqual([...starts].sort());
   });
 
+  it("counts a whitespace-only venueId as unmatched when matching is unavailable", async () => {
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({ venueId: "   " })],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => null,
+      },
+    );
+    expect(body.unmatchedCount).toBe(1);
+  });
+
   it("keeps venueId on a venue-matched row so a later lane can attach price and occupancy", async () => {
     const body = await buildOutResponse(
       { city: "london", day: "today" },

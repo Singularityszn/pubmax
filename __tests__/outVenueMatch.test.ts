@@ -121,6 +121,13 @@ describe("attachOutVenues", () => {
     expect(result.unmatched).toBe(0);
   });
 
+  it("reattaches a row whose venueId is only whitespace", () => {
+    const result = attachOutVenues([liveRow({ venueId: "  " })], index);
+    expect(result.rows[0].venueId).toBe("venue-1137z1c");
+    expect(result.matchedAtRequest).toBe(1);
+    expect(result.unmatched).toBe(0);
+  });
+
   it("does not mutate the rows it was handed", () => {
     const row = liveRow();
     attachOutVenues([row], index);

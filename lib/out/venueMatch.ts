@@ -18,6 +18,7 @@
 // lib/out/venueMatch.server.ts.
 
 import { normalizeVenueIdentityName } from "@/scripts/lib/venueCanonicalization.mjs";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   resolveVenueId,
   type VenueResolverCandidate,
@@ -102,7 +103,7 @@ export function attachOutVenues(
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
-    if (typeof row.venueId === "string" && row.venueId.trim().length > 0) return row;
+    if (canonicalOutVenueId(row.venueId)) return row;
     const venueId = matchOutRowVenue(row, index);
     if (!venueId) {
       unmatched += 1;
