@@ -205,7 +205,7 @@ function scoreOne(
     }
   }
 
-  const orderedReasons = areaReason ? [...reasons, areaReason] : reasons;
+  const orderedReasons = areaReason && reasons.length > 0 ? [...reasons, areaReason] : reasons;
   return { venue, score: Number(score.toFixed(4)), reasons: [...new Set(orderedReasons)].slice(0, 3) };
 }
 

@@ -95,6 +95,16 @@ describe("rankConciergeVenues", () => {
     expect(results[0]?.reasons).toContain("In Camden");
   });
 
+  it("does not use the area as the only card reason", () => {
+    const results = rankConciergeVenues(
+      [venue("camden", { area: "Camden" })],
+      { mood: [], groupSize: 2, area: "Camden" },
+      { limit: 1 },
+    );
+
+    expect(results[0]?.reasons).toEqual([]);
+  });
+
   it("reads a London ask as the whole city, never the City of London borough", () => {
     const results = rankConciergeVenues(
       [

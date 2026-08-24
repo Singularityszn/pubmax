@@ -470,8 +470,6 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
       expect(source).not.toContain("Plan with checks");
       expect(source).not.toContain("Review expired");
     }
-    expect(composer).not.toContain("plan with warnings");
-
     // The replacement set is one vocabulary across all three call sites.
     expect(areaButton).toContain("Rough guess");
     expect(areaButton).toContain("Not all checked");

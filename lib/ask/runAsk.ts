@@ -125,6 +125,7 @@ function modelProseHasReaderPlumbing(prose: string): boolean {
   return [
     /\bcitymcp\b/iu,
     /\bgrounded\b/iu,
+    /\brows\b/iu,
     /\bthings-to-do rows?\b/iu,
     /\bwhat'?s on ask\b/iu,
     /\bask[- ]classifier\b/iu,

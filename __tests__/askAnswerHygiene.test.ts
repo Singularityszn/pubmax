@@ -116,5 +116,13 @@ describe("Pal answer hygiene", () => {
     );
     expect(answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
     expect(answer).not.toMatch(/CityMCP|grounded/iu);
+
+    const rowsAnswer = composeAnswer(
+      "I found 2 rows in Camden.",
+      ["The Lamb is listed."],
+      [card],
+    );
+    expect(rowsAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(rowsAnswer).not.toMatch(/\brows\b/iu);
   });
 });
