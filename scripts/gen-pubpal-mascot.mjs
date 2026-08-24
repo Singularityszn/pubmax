@@ -3,14 +3,16 @@
 // Source JPEG stays outside the repo. Run: node scripts/gen-pubpal-mascot.mjs <source.jpg>
 
 import { mkdir, stat } from "node:fs/promises";
-import { basename, join } from "node:path";
+import { basename, dirname, join } from "node:path";
 import { argv, exit } from "node:process";
+import { fileURLToPath } from "node:url";
 
 import sharp from "sharp";
 
 const SIZES = [32, 64, 128, 512];
 const WEBP_512_BUDGET = 60 * 1024;
-const OUT_DIR = join(process.cwd(), "public", "pal");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+const OUT_DIR = join(ROOT, "public", "pal");
 
 function circleSvg(size) {
   return Buffer.from(
