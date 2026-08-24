@@ -130,6 +130,26 @@ describe("cheapest_pint_near", () => {
     expect(result.answerHint).toContain("Cheapest listed pints in Camden");
   });
 
+  it("answers bare London city-wide and refuses unknown districts", async () => {
+    state.venues = [
+      venue({ id: "camden", name: "The Crown", area: "Camden", cheapestPrice: 4.2 }),
+      venue({ id: "hackney", name: "The Ship", area: "Hackney", cheapestPrice: 3.8 }),
+      venue({ id: "city", name: "The Anchor", area: "City of London", cheapestPrice: 5.1 }),
+    ];
+    const london = await runAskTool("cheapest_pint_near", { area: "London" }, ctx());
+    expect(london.ok).toBe(true);
+    expect(london.cards.map((card) => card.venueId)).toEqual([
+      "hackney",
+      "camden",
+      "city",
+    ]);
+    expect(london.answerHint).toContain("Cheapest listed pints in London");
+
+    const soho = await runAskTool("cheapest_pint_near", { area: "Soho" }, ctx());
+    expect(soho.ok).toBe(false);
+    expect(soho.answerHint).toBe(CHEAPEST_NEAR_NO_ANCHOR);
+  });
+
   it("asks for an anchor instead of guessing one", async () => {
     state.venues = [venue({ id: "a", name: "The Crown" })];
     const result = await runAskTool("cheapest_pint_near", {}, ctx());
