@@ -87,6 +87,17 @@ describe("memoryWhatsOnListingStore", () => {
   it("reads empty when nothing has been written", async () => {
     expect(await memoryWhatsOnListingStore.readAll()).toEqual({ rows: [], generatedAt: null });
   });
+
+  it("rejects a stale replacement", async () => {
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("new")], "2026-08-24T06:00:00.000Z");
+    const outcome = await memoryWhatsOnListingStore.replaceKind(
+      "event",
+      [eventRow("old")],
+      "2026-08-24T05:00:00.000Z",
+    );
+    expect(outcome).toEqual({ written: 0, failed: true });
+    expect((await memoryWhatsOnListingStore.readAll()).rows.map((row) => row.id)).toEqual(["new"]);
+  });
 });
 
 describe("supabaseWhatsOnListingStore", () => {

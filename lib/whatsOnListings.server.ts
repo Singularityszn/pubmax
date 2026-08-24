@@ -4,7 +4,7 @@ import "server-only";
 // the committed public/data/whats_on files remain the fallback. Expired rows
 // are dropped here, matching filterNotPast on the serving spine.
 
-import { preferDurableWhatsOn } from "@/lib/whatsOnListings";
+import { isServableWhatsOnRow, preferDurableWhatsOn } from "@/lib/whatsOnListings";
 import {
   whatsOnListingStore,
   type WhatsOnListingStore,
@@ -44,8 +44,8 @@ export async function loadServedWhatsOnListingsWithFreshness(
   const store = opts.store ?? whatsOnListingStore();
   const snap = await store.readAll();
   const durable = opts.kind
-    ? snap.rows.filter((row) => row.kind === opts.kind)
-    : snap.rows;
+    ? snap.rows.filter((row) => row.kind === opts.kind && isServableWhatsOnRow(row))
+    : snap.rows.filter(isServableWhatsOnRow);
   const bundled = opts.kind
     ? opts.bundled.filter((row) => row.kind === opts.kind)
     : opts.bundled;

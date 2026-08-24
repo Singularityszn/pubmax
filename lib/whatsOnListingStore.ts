@@ -60,6 +60,10 @@ function snapshotFromKinds(kinds: Iterable<KindSnap>): WhatsOnListingSnapshot {
 
 export const memoryWhatsOnListingStore: WhatsOnListingStore = {
   async replaceKind(kind, rows, generatedAt) {
+    const existing = memoryKinds.get(kind);
+    if (existing && Date.parse(existing.generatedAt) > Date.parse(generatedAt)) {
+      return { written: 0, failed: true };
+    }
     memoryKinds.set(kind, { rows: [...rows], generatedAt });
     return { written: rows.length };
   },

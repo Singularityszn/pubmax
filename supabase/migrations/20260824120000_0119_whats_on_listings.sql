@@ -74,6 +74,17 @@ begin
     raise exception 'Whats-On rows must be a JSON array';
   end if;
 
+  perform pg_advisory_xact_lock(hashtext('whats_on_listings:' || p_kind));
+
+  if exists (
+    select 1
+    from public.whats_on_listings
+    where kind = p_kind
+      and generated_at > p_generated_at
+  ) then
+    raise exception 'stale Whats-On generation for kind: %', p_kind;
+  end if;
+
   delete from public.whats_on_listings
   where kind = p_kind;
 

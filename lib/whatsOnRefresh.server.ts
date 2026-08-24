@@ -14,6 +14,7 @@ import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { outDayWindow, type OutLiveProvider } from "@/lib/out/loadOut";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
+import { isServableWhatsOnRow } from "@/lib/whatsOnListings";
 import {
   whatsOnListingStore,
   type WhatsOnListingStore,
@@ -54,6 +55,7 @@ function preserveUnrefreshedRows(
   return rows.filter(
     (row) =>
       row.kind === "event" &&
+      isServableWhatsOnRow(row) &&
       !refreshedProviders.has(providerKey(row.source.label)),
   );
 }
@@ -98,7 +100,9 @@ export async function refreshOfficialWhatsOnListings(
             window,
             cache: "bypass",
           });
-          const kept = filterNotPast(raw, now).filter((row) => row.kind === "event");
+          const kept = filterNotPast(raw, now)
+            .filter((row) => row.kind === "event")
+            .filter(isServableWhatsOnRow);
           return {
             report: { name: provider.name, configured: true, rows: kept.length },
             rows: kept,

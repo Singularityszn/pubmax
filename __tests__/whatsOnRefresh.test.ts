@@ -118,7 +118,7 @@ describe("refreshOfficialWhatsOnListings", () => {
 
   it("preserves rows from providers that are not configured", async () => {
     const store = memoryStore();
-    await store.replaceKind("event", [eventRow("old-skiddle", "Skiddle")], GENERATED);
+    await store.replaceKind("event", [eventRow("old-other", "Other Events")], GENERATED);
     const providers: OutLiveProvider[] = [
       {
         name: "ticketmaster",
@@ -126,7 +126,7 @@ describe("refreshOfficialWhatsOnListings", () => {
         fetchTonight: async () => [eventRow("new-ticketmaster")],
       },
       {
-        name: "skiddle",
+        name: "other-events",
         isConfigured: () => false,
         fetchTonight: async () => {
           throw new Error("must not fetch an unconfigured provider");
@@ -137,8 +137,28 @@ describe("refreshOfficialWhatsOnListings", () => {
     expect(result.ok).toBe(true);
     expect((await store.readAll()).rows.map((row) => row.id).sort()).toEqual([
       "new-ticketmaster",
-      "old-skiddle",
+      "old-other",
     ]);
+  });
+
+  it("does not preserve fenced Skiddle rows", async () => {
+    const store = memoryStore();
+    await store.replaceKind("event", [eventRow("old-skiddle", "Skiddle")], GENERATED);
+    const providers: OutLiveProvider[] = [
+      {
+        name: "ticketmaster",
+        isConfigured: () => true,
+        fetchTonight: async () => [eventRow("new-ticketmaster")],
+      },
+      {
+        name: "skiddle",
+        isConfigured: () => false,
+        fetchTonight: async () => [],
+      },
+    ];
+    const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
+    expect(result.ok).toBe(true);
+    expect((await store.readAll()).rows.map((row) => row.id)).toEqual(["new-ticketmaster"]);
   });
 
   it("does not invent a refresh when no provider is configured", async () => {

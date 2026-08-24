@@ -4,15 +4,26 @@
 // card.
 
 import { dedupeKey, dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
+import { skiddleLaneFenced } from "@/lib/whatson/eventNormalise.mjs";
+
+function providerKey(label: string): string {
+  return label.trim().toLocaleLowerCase("en-GB");
+}
+
+export function isServableWhatsOnRow(row: WhatsOnRow): boolean {
+  return !(skiddleLaneFenced() && providerKey(row.source.label) === "skiddle");
+}
 
 export function preferDurableWhatsOn(
   durable: WhatsOnRow[],
   bundled: WhatsOnRow[],
   now: number,
 ): WhatsOnRow[] {
-  const durableRows = dedupeRows(filterNotPast(durable, now));
+  const durableRows = dedupeRows(filterNotPast(durable, now).filter(isServableWhatsOnRow));
   const durableKeys = new Set(durableRows.map(dedupeKey));
-  const bundledRows = dedupeRows(filterNotPast(bundled, now)).filter(
+  const bundledRows = dedupeRows(
+    filterNotPast(bundled, now).filter(isServableWhatsOnRow),
+  ).filter(
     (row) => !durableKeys.has(dedupeKey(row)),
   );
   return [...durableRows, ...bundledRows];

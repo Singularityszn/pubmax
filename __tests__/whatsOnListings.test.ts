@@ -69,4 +69,9 @@ describe("preferDurableWhatsOn", () => {
     const served = preferDurableWhatsOn(durable, bundled, NOW);
     expect(served.map((item) => item.id).sort()).toEqual(["event-2", "quiz-1"]);
   });
+
+  it("does not serve fenced Skiddle rows", () => {
+    const skiddle = row({ source: { label: "Skiddle", url: "https://www.skiddle.com/" } });
+    expect(preferDurableWhatsOn([skiddle], [], NOW)).toEqual([]);
+  });
 });

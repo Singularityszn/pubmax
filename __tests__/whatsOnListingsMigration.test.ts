@@ -126,6 +126,10 @@ describe.skipIf(!postgresAvailable)("0119 whats_on_listings migration", () => {
     const invalid = rowJson({ observed_at: "not-a-timestamp" });
     expect(() => db.sql(`select public.replace_whats_on_listings('event','[${invalid}]'::jsonb,'2026-08-24T20:00:00.000Z')`)).toThrow();
     expect(db.sql("select count(*) from public.whats_on_listings where id='event-1'")).toBe("1");
+
+    const stale = rowJson({ payload: { id: "event-1", kind: "event", title: "Older jazz" } });
+    expect(() => db.sql(`select public.replace_whats_on_listings('event','[${stale}]'::jsonb,'2026-08-24T19:00:00.000Z')`)).toThrow();
+    expect(db.sql("select payload->>'title' from public.whats_on_listings where id='event-1'")).toBe("Live jazz");
   });
 
   it("rolls back the table and replacement function", () => {
