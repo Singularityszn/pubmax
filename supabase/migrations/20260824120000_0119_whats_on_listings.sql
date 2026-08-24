@@ -21,6 +21,17 @@ create table if not exists public.whats_on_listings (
   city text not null default 'london'
 );
 
+create table if not exists public.whats_on_listing_generations (
+  kind text primary key,
+  generated_at timestamptz not null
+);
+
+alter table public.whats_on_listing_generations
+  drop constraint if exists whats_on_listing_generations_kind_check;
+alter table public.whats_on_listing_generations
+  add constraint whats_on_listing_generations_kind_check
+  check (kind in ('sport', 'quiz', 'deal', 'music', 'event'));
+
 comment on table public.whats_on_listings is
   'Durable Whats-On listings from official APIs. Readers prefer this store and fall back to bundled files.';
 comment on column public.whats_on_listings.kind is
@@ -41,8 +52,12 @@ create index if not exists whats_on_listings_kind_idx
 
 alter table public.whats_on_listings enable row level security;
 
+alter table public.whats_on_listing_generations enable row level security;
+
 revoke all on table public.whats_on_listings from public, anon, authenticated;
 grant select, insert, update, delete on table public.whats_on_listings to service_role;
+revoke all on table public.whats_on_listing_generations from public, anon, authenticated;
+grant select, insert, update, delete on table public.whats_on_listing_generations to service_role;
 
 drop policy if exists whats_on_listings_anon_deny on public.whats_on_listings;
 create policy whats_on_listings_anon_deny
@@ -52,6 +67,16 @@ create policy whats_on_listings_anon_deny
 drop policy if exists whats_on_listings_authenticated_deny on public.whats_on_listings;
 create policy whats_on_listings_authenticated_deny
   on public.whats_on_listings for all to authenticated
+  using (false) with check (false);
+
+drop policy if exists whats_on_listing_generations_anon_deny on public.whats_on_listing_generations;
+create policy whats_on_listing_generations_anon_deny
+  on public.whats_on_listing_generations for all to anon
+  using (false) with check (false);
+
+drop policy if exists whats_on_listing_generations_authenticated_deny on public.whats_on_listing_generations;
+create policy whats_on_listing_generations_authenticated_deny
+  on public.whats_on_listing_generations for all to authenticated
   using (false) with check (false);
 
 create or replace function public.replace_whats_on_listings(
@@ -84,6 +109,14 @@ begin
   ) then
     raise exception 'stale Whats-On generation for kind: %', p_kind;
   end if;
+  if exists (
+    select 1
+    from public.whats_on_listing_generations
+    where kind = p_kind
+      and generated_at > p_generated_at
+  ) then
+    raise exception 'stale Whats-On generation for kind: %', p_kind;
+  end if;
 
   delete from public.whats_on_listings
   where kind = p_kind;
@@ -102,6 +135,12 @@ begin
   );
 
   get diagnostics inserted_count = row_count;
+
+  insert into public.whats_on_listing_generations (kind, generated_at)
+  values (p_kind, p_generated_at)
+  on conflict (kind) do update
+    set generated_at = excluded.generated_at;
+
   return inserted_count;
 end;
 $$;
