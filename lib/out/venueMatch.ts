@@ -21,6 +21,7 @@ import { normalizeVenueIdentityName } from "@/scripts/lib/venueCanonicalization.
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   resolveVenueId,
+  VENUE_MATCH_PROXIMITY_METERS,
   type VenueResolverCandidate,
   type VenueResolverIndex,
 } from "@/scripts/whatson/resolveVenueId.mjs";
@@ -32,7 +33,7 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
  * here for the reader and pinned by the test; the number itself is applied by
  * resolveVenueId.
  */
-export const OUT_VENUE_MATCH_PROXIMITY_METERS = 75;
+export const OUT_VENUE_MATCH_PROXIMITY_METERS = VENUE_MATCH_PROXIMITY_METERS;
 
 /**
  * Whether the request-time match RAN. A read of the slim index that could not
@@ -72,6 +73,8 @@ export function buildOutVenueMatchIndex(venues: Iterable<VenueRef>): OutVenueMat
 
 /** The venue one row lands on, or null when the matcher would be guessing. */
 export function matchOutRowVenue(row: WhatsOnRow, index: OutVenueMatchIndex): string | null {
+  const candidates = index.byNormalizedName.get(normalizeVenueIdentityName(row.placeName));
+  if (candidates?.length !== 1) return null;
   return resolveVenueId(
     {
       name: row.placeName,
@@ -99,11 +102,16 @@ export type AttachOutVenuesResult = {
 export function attachOutVenues(
   rows: readonly WhatsOnRow[],
   index: OutVenueMatchIndex,
+  mayMatch: (row: WhatsOnRow) => boolean = () => true,
 ): AttachOutVenuesResult {
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
     if (canonicalOutVenueId(row.venueId)) return row;
+    if (!mayMatch(row)) {
+      unmatched += 1;
+      return row;
+    }
     const venueId = matchOutRowVenue(row, index);
     if (!venueId) {
       unmatched += 1;

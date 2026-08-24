@@ -27,8 +27,10 @@ import {
 } from "@/lib/out/types";
 import {
   bundledGeneratedAt,
+  dedupeKey,
   londonServiceDayBounds,
   dedupeRows,
+  filterNotPast,
   parseWhatsOnRows,
   rowStatedInterval,
   tonightServiceWindow,
@@ -336,8 +338,11 @@ export async function buildOutResponse(
     reason = "Some listings could not be checked.";
   }
 
+  const liveRowKeys = new Set(liveRows.map(dedupeKey));
   const folded = dedupeRows(foldBySourceId([...baseline, ...liveRows]));
-  const inWindow = folded.filter((row) => rowOverlapsWindow(row, window, query.day));
+  const inWindow = filterNotPast(folded, now).filter((row) =>
+    rowOverlapsWindow(row, window, query.day),
+  );
 
   // Match AFTER the window filter, so a past row never spends a lookup, and
   // BEFORE the cap, so what the cap keeps is what the page can show. A read of
@@ -351,7 +356,7 @@ export async function buildOutResponse(
   try {
     const index = await loadVenueMatchIndex(city as CityId);
     if (index) {
-      const attached = attachOutVenues(inWindow, index);
+      const attached = attachOutVenues(inWindow, index, (row) => liveRowKeys.has(dedupeKey(row)));
       matchedRows = attached.rows;
       matchedAtRequest = attached.matchedAtRequest;
       unmatched = attached.unmatched;
@@ -417,7 +422,6 @@ export async function buildOutResponse(
     observedAt: observedAtBySource(merged),
     providers: reports,
     unmatchedCount: unmatched,
-    matchedCount,
     unmatchedPlaces: unmatchedMetadata.places,
     unmatchedPlaceCount: unmatchedMetadata.placeCount,
     unmatchedSources: unmatchedMetadata.sources,

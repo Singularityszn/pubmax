@@ -45,7 +45,7 @@ export { haversineMeters };
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const CANONICAL_DATASET_PATH = join(ROOT, "public", "data", "pint_prices_app_dataset.json");
 
-const PROXIMITY_METERS = 75;
+export const VENUE_MATCH_PROXIMITY_METERS = 75;
 
 function coordOf(value) {
   if (value === null || value === undefined || value === "") return null;
@@ -166,7 +166,7 @@ export function resolveVenueId(row, index) {
       lng !== null &&
       c.lat !== null &&
       c.lng !== null &&
-      haversineMeters(lat, lng, c.lat, c.lng) <= PROXIMITY_METERS;
+      haversineMeters(lat, lng, c.lat, c.lng) <= VENUE_MATCH_PROXIMITY_METERS;
     return postcodeMatches || proximityMatches;
   });
 

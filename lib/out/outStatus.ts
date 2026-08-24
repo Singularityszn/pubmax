@@ -15,7 +15,7 @@ export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-rev
  */
 export function outCacheControl(
   status: OutStatus,
-  venueMatch?: OutVenueMatchStatus,
+  venueMatch: OutVenueMatchStatus,
 ): string {
   return status === "ready" && venueMatch === "ready"
     ? OUT_READY_CACHE_CONTROL

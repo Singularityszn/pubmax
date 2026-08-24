@@ -54,7 +54,6 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     body?.venueMatch,
     {
       unmatchedCount: body?.unmatchedCount,
-      matchedCount: body?.matchedCount,
       unmatchedPlaces: body?.unmatchedPlaces,
       unmatchedPlaceCount: body?.unmatchedPlaceCount,
       unmatchedSources: body?.unmatchedSources,

@@ -31,7 +31,8 @@ const DUBLIN_CASTLE: VenueRef = {
   lng: -0.1429,
 };
 
-// Two same-name Windmills: proximity must confirm exactly one candidate.
+// Two same-name Windmills: the slim index carries no address, so proximity
+// alone must not choose between identities with the same name.
 const WINDMILL_BRIXTON: VenueRef = {
   id: "venue-pmqf8u",
   name: "The Windmill",
@@ -88,10 +89,10 @@ describe("matchOutRowVenue", () => {
     expect(matchOutRowVenue(liveRow({ lat: undefined, lng: undefined }), index)).toBeNull();
   });
 
-  it("resolves only when exactly one same-name candidate is confirmed", () => {
+  it("refuses every same-name collision even when one candidate is nearby", () => {
     expect(
       matchOutRowVenue(liveRow({ placeName: "The Windmill", lat: 51.4553, lng: -0.1215 }), index),
-    ).toBe("venue-pmqf8u");
+    ).toBeNull();
     expect(
       matchOutRowVenue(liveRow({ placeName: "The Windmill", lat: 51.5, lng: -0.13 }), index),
     ).toBeNull();

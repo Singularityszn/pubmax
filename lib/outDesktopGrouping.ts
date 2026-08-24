@@ -163,7 +163,6 @@ export type OutUnmatchedNotice = {
 
 export type OutUnmatchedListingsNoticeOptions = {
   unmatchedCount?: number;
-  matchedCount?: number;
   unmatchedPlaces?: readonly string[];
   unmatchedPlaceCount?: number;
   unmatchedSources?: readonly string[];
@@ -199,7 +198,7 @@ export function outUnmatchedListingsNotice(
   const hidden = rows.filter((row) => !hasResolvedPub(row));
   const count = options.unmatchedCount ?? hidden.length;
   if (count === 0) return null;
-  const shown = options.matchedCount ?? rows.length - hidden.length;
+  const shown = rows.length - hidden.length;
   const noun = outWindowNoun(window);
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
