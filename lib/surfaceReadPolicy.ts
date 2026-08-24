@@ -77,6 +77,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/ratings/TopRatedPubs.tsx", fetchCount: 1, reason: "unmounted optional rating probe has no core painted surface" },
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },
   { path: "components/savedpubs/SaveToListControl.tsx", fetchCount: 1, reason: "saved-pub action is a mutation" },
+  { path: "components/social/CreatorListsLane.tsx", fetchCount: 1, reason: "Social creator-list discovery is no-store" },
   { path: "components/social/FindYourLot.tsx", fetchCount: 1, reason: "Social discovery is no-store" },
   { path: "components/social/PeopleDirectory.tsx", fetchCount: 4, reason: "Social directory and follow actions are no-store" },
   { path: "components/social/PublicCrewRouteClient.tsx", fetchCount: 1, reason: "public Open Crew preview is a no-store route with identity-scoped lifecycle guards" },

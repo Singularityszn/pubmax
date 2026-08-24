@@ -128,6 +128,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "app/api/auth/handle-password/route.ts",
     "app/api/check-ins/route.ts",
     "app/api/concierge/route.ts",
+    "app/api/creator-lists/route.ts",
     "app/api/cron/cheap-pint-ping/route.ts",
     "app/api/cron/step-out-nudge/route.ts",
     "app/api/founding-members/route.ts",
