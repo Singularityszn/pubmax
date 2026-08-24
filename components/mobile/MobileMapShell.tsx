@@ -319,8 +319,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
 
   return (
     <>
-      <div
-        className="mobileMapChrome"
+      <div className="mobileMapChrome"
         aria-label="Map controls"
         inert={interactionLocked || undefined}
       >

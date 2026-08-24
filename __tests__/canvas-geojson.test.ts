@@ -678,10 +678,15 @@ describe("pubsToGeoJSON Pint Drop trust gate (AGENTS.md pin law: an uncorroborat
   it("a corroborated pair paints band and figure, exactly as community submissions do", () => {
     const venue = makeVenue({ id: "confirmed", cheapestPrice: 6 });
     const props = pinPropsFor(venue, [
-      makeDrop({ priceGbp: 4.5, handle: "first_drinker" }),
+      makeDrop({
+        priceGbp: 4.5,
+        handle: "first_drinker",
+        authorityKey: "account-first-drinker",
+      }),
       makeDrop({
         priceGbp: 4.5,
         handle: "second_drinker",
+        authorityKey: "account-second-drinker",
         createdAt: "2026-05-31T10:00:00.000Z",
       }),
     ]);
