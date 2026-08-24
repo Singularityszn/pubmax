@@ -5,7 +5,7 @@ import { appPageTitle, metadataSiteName } from "@/lib/brandNaming";
 import { buildCityRivalrySnapshot } from "@/lib/cityRivalry";
 import { loadHeritageCrawls } from "@/lib/heritageCrawls";
 import { parseSocialShellSearch } from "@/lib/socialShell";
-import { socialSurfaceName } from "@/lib/socialLaunch";
+import { socialDocumentRobots, socialSurfaceName } from "@/lib/socialLaunch";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 
 import SocialPageClient from "./SocialPageClient";
@@ -34,7 +34,7 @@ export async function generateMetadata(): Promise<Metadata> {
     title: surface,
     description: SOCIAL_DESCRIPTION,
     alternates: { canonical: "/social" },
-    robots: { index: true, follow: true },
+    robots: socialDocumentRobots(friendsLaunchEnabled),
     openGraph: {
       title: appPageTitle(surface),
       description: SOCIAL_DESCRIPTION,

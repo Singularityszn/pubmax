@@ -318,7 +318,17 @@ export async function loadWhatsOn(
   let readStatus: WhatsOnReadStatus = "ready";
   let baseline: WhatsOnRow[] = [];
   try {
-    baseline = (deps.loadBaseline ?? loadBaselineWhatsOn)();
+    if (deps.loadBaseline) {
+      baseline = deps.loadBaseline();
+    } else {
+      const bundled = loadBaselineWhatsOn();
+      try {
+        const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
+        baseline = await loadServedWhatsOnListings({ bundled, now });
+      } catch {
+        baseline = bundled;
+      }
+    }
   } catch (err) {
     // A bundled read that threw is a fact about US, never a quiet night. It is
     // reported twice on purpose: `readStatus` for the surfaces that word an

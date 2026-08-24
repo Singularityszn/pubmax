@@ -98,6 +98,16 @@ export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
   return parseWhatsOnRows(raw, bundledGeneratedAt(raw));
 }
 
+async function loadServedOutEvents(city: OutCity, now: number): Promise<WhatsOnRow[]> {
+  const bundled = loadBundledOutEvents(city);
+  try {
+    const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
+    return loadServedWhatsOnListings({ bundled, now, kind: "event" });
+  } catch {
+    return bundled;
+  }
+}
+
 const DAY_MS = 24 * 60 * 60 * 1000;
 // A service day opens at 16:00 and closes at 04:00, so a probe four hours in
 // lands at 20:00 - far enough from either boundary that a DST shift cannot push
@@ -271,7 +281,6 @@ export async function buildOutResponse(
   const city = query.city as OutCity;
   if (!isOutCityCovered(city)) return notCoveredResponse(city);
 
-  const loadBaseline = opts.loadBaseline ?? loadBundledOutEvents;
   const liveProviders = opts.liveProviders ?? [
     createTicketmasterProvider(),
     createSkiddleProvider(),
@@ -282,7 +291,9 @@ export async function buildOutResponse(
   let reason: string | undefined;
   let baseline: WhatsOnRow[] = [];
   try {
-    baseline = loadBaseline(city);
+    baseline = opts.loadBaseline
+      ? opts.loadBaseline(city)
+      : await loadServedOutEvents(city, now);
   } catch {
     status = "degraded";
     reason = "Some listings could not be checked.";

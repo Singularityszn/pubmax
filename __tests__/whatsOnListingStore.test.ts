@@ -1,0 +1,123 @@
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+import {
+  __resetWhatsOnListingStore,
+  memoryWhatsOnListingStore,
+  supabaseWhatsOnListingStore,
+} from "@/lib/whatsOnListingStore";
+import type { WhatsOnRow } from "@/lib/whatsOn";
+
+type Row = Record<string, unknown> & { id: string; kind: string };
+
+const db = vi.hoisted(() => ({ rows: [] as Row[], failWrite: false, schemaMiss: false }));
+
+vi.mock("@/lib/supabase", () => ({
+  isSupabaseConfigured: () => true,
+  requireSupabaseAdmin: () => ({
+    from: () => ({
+      delete() {
+        return {
+          eq(column: string, value: string) {
+            if (db.schemaMiss) {
+              return Promise.resolve({
+                error: { message: "Could not find the table 'public.whats_on_listings'" },
+              });
+            }
+            if (column === "kind") {
+              db.rows = db.rows.filter((row) => row.kind !== value);
+            }
+            return Promise.resolve({ error: null });
+          },
+        };
+      },
+      upsert(rows: Row[]) {
+        if (db.schemaMiss) {
+          return Promise.resolve({
+            error: { message: "Could not find the table 'public.whats_on_listings'" },
+          });
+        }
+        if (db.failWrite) return Promise.resolve({ error: { message: "write boom" } });
+        for (const row of rows) {
+          const i = db.rows.findIndex((held) => held.id === row.id);
+          if (i >= 0) db.rows[i] = row;
+          else db.rows.push(row);
+        }
+        return Promise.resolve({ error: null });
+      },
+      select() {
+        if (db.schemaMiss) {
+          return Promise.resolve({
+            data: null,
+            error: { message: "Could not find the table 'public.whats_on_listings'" },
+          });
+        }
+        return Promise.resolve({ data: db.rows, error: null });
+      },
+    }),
+  }),
+}));
+
+const GENERATED = "2026-08-24T05:30:00.000Z";
+
+function eventRow(id: string, over: Partial<WhatsOnRow> = {}): WhatsOnRow {
+  return {
+    id,
+    placeName: "Jazz Cafe",
+    kind: "event",
+    startsAt: "2026-08-24T19:00:00.000Z",
+    endsAt: "2026-08-24T22:00:00.000Z",
+    title: "Live jazz",
+    source: { label: "Ticketmaster", url: `https://www.ticketmaster.co.uk/event/${id}` },
+    observedAt: "2026-08-24T10:00:00.000Z",
+    confidence: "listed",
+    sourceId: id,
+    ...over,
+  };
+}
+
+beforeEach(() => {
+  db.rows = [];
+  db.failWrite = false;
+  db.schemaMiss = false;
+  __resetWhatsOnListingStore();
+});
+
+afterEach(() => {
+  vi.clearAllMocks();
+});
+
+describe("memoryWhatsOnListingStore", () => {
+  it("replaces one kind and leaves the others", async () => {
+    await memoryWhatsOnListingStore.replaceKind(
+      "quiz",
+      [eventRow("quiz-1", { kind: "quiz", id: "quiz-1", sourceId: "quiz-1" })],
+      GENERATED,
+    );
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
+    await memoryWhatsOnListingStore.replaceKind("event", [eventRow("tm-2")], GENERATED);
+    const snap = await memoryWhatsOnListingStore.readAll();
+    expect(snap.rows.map((row) => row.id).sort()).toEqual(["quiz-1", "tm-2"]);
+    expect(snap.generatedAt).toBe(GENERATED);
+  });
+
+  it("reads empty when nothing has been written", async () => {
+    expect(await memoryWhatsOnListingStore.readAll()).toEqual({ rows: [], generatedAt: null });
+  });
+});
+
+describe("supabaseWhatsOnListingStore", () => {
+  it("writes and reads against the durable backend", async () => {
+    const outcome = await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
+    expect(outcome).toEqual({ written: 1 });
+    const snap = await supabaseWhatsOnListingStore.readAll();
+    expect(snap.rows).toHaveLength(1);
+    expect(snap.rows[0].id).toBe("tm-1");
+  });
+
+  it("flags a hard write failure", async () => {
+    db.failWrite = true;
+    const outcome = await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("tm-1")], GENERATED);
+    expect(outcome.failed).toBe(true);
+    expect(outcome.written).toBe(0);
+  });
+});
