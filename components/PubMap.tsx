@@ -1,11 +1,12 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, ShieldCheck, Sparkles, X } from "lucide-react";
+import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import SiteNav from "@/components/nav/SiteNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import PriceBadge from "@/components/PriceBadge";
@@ -4301,7 +4302,7 @@ export default function PubMap({
                     className="w-full justify-start"
                   >
                     <Link href="/pal">
-                      <Sparkles size={18} aria-hidden="true" />
+                      <PubPalMascot size={18} circular />
                       Ask your Pub Pal
                     </Link>
                   </Button>
@@ -4352,7 +4353,7 @@ export default function PubMap({
           }
           palContent={
             <div className="mobilePalSummon">
-              <Sparkles size={28} aria-hidden="true" />
+              <PubPalMascot size={64} circular />
               <h3>Your Pub Pal is ready</h3>
               <p>Ask for a grounded pub pick, a bit of lore, or help shaping tonight.</p>
               <Link href="/pal">Open Pub Pal</Link>

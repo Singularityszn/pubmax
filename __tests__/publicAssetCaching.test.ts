@@ -70,11 +70,12 @@ const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
 const LANDING_IMAGE_PATTERN = /\.(?:avif|webp|jpg)$/i;
-const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/"];
+const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/", "/pal/"];
 const FIXED_ASSET_PROBES = [
   "/fonts/example.woff2",
   "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
+  "/pal/circuit-robin-512.webp",
 ];
 const FIXED_ASSETS = filesOutsideData.filter((file) =>
   FIXED_ASSET_PREFIXES.some((prefix) => file.startsWith(prefix)) ||

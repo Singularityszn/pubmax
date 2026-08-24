@@ -423,7 +423,9 @@
 @keyframes lpSkeleton { to { opacity: .42; } }
 
 .lpPalCallout { margin-top: 28px; padding: 22px 24px; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 18px; border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%); border-radius: 20px; background: color-mix(in srgb, var(--surface-tint-river) 48%, var(--panel-raised)); }
-.lpPalIcon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 15px; background: var(--ink-deep); color: var(--color-on-inverse); }
+.lpPalIcon { width: 48px; height: 48px; display: grid; place-items: center; overflow: hidden; border-radius: 50%; }
+.lpPalIcon picture { display: block; line-height: 0; }
+.lpPalIcon img { width: 48px; height: 48px; display: block; }
 .lpPalCallout h3 { margin: 0; font: 680 20px/1.1 var(--font-display); }.lpPalCallout p { margin: 6px 0 0; color: var(--ink-soft); font-size: 13px; line-height: 1.45; }
 
 .lpCityChooser { padding: 28px var(--lp-pad) 90px; }

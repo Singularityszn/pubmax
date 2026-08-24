@@ -2,7 +2,9 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowUpRight, ExternalLink, MessageSquare } from "lucide-react";
+import { ArrowUpRight, ExternalLink } from "lucide-react";
+
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
 import JsonLd from "@/components/seo/JsonLd";
 import SiteNav from "@/components/nav/SiteNav";
@@ -217,7 +219,7 @@ export default async function HistoricDetailPage({ params }: PageProps) {
               <ArrowUpRight size={15} aria-hidden="true" />
             </Link>
             <Link className="hdAction pressable" href={mapHref}>
-              <MessageSquare size={14} aria-hidden="true" />
+              <PubPalMascot size={14} circular lazy />
               Ask your Pub Pal
             </Link>
           </div>

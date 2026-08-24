@@ -224,6 +224,16 @@
   gap: 10px;
 }
 
+.hdAction picture {
+  display: block;
+  line-height: 0;
+}
+
+.hdAction img {
+  display: block;
+  border-radius: 50%;
+}
+
 .hdAction {
   display: inline-flex;
   align-items: center;

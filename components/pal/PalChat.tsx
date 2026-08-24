@@ -11,6 +11,8 @@ import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react"
 import Link from "next/link";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
+
 import { useAuth } from "@/components/auth/AuthProvider";
 import IntentLink from "@/components/nav/IntentLink";
 import SiteNav from "@/components/nav/SiteNav";
@@ -414,7 +416,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           </Link>
         ) : null}
         <p className="palChatEyebrow">
-          <Sparkles size={14} aria-hidden="true" />
+          <PubPalMascot size={18} circular />
           Ask your Pub Pal
         </p>
         <h1 className="palChatTitle">{"What's the night?"}</h1>
