@@ -3,7 +3,7 @@ import "server-only";
 import { promises as fs } from "fs";
 import path from "path";
 
-import { getCity, listEnabledCities } from "@/lib/cities";
+import { getCity, listEnabledCities, type CityId } from "@/lib/cities";
 import {
   cityIdFromVenueId,
   unresolvedVenueLabel,

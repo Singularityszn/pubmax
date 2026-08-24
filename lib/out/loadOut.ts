@@ -348,7 +348,7 @@ export async function buildOutResponse(
   let unmatched = inWindow.filter((row) => canonicalOutVenueId(row.venueId) === null).length;
   let matchedRows = inWindow;
   try {
-    const index = await loadVenueMatchIndex(city);
+    const index = await loadVenueMatchIndex(city as CityId);
     if (index) {
       const attached = attachOutVenues(inWindow, index);
       matchedRows = attached.rows;
