@@ -95,6 +95,12 @@ export type ReferralStore = {
     inviteeUserId: string,
     attributedAt?: number,
   ): Promise<RecordEdgeResult>;
+  /**
+   * Recovers the inviter for an already-recorded edge. Durable RPC success
+   * shapes before WP7 omit inviter_user_id from claimCode's own result, so
+   * this reads the edge back by invitee to fill it in.
+   */
+  getInviterForInvitee(inviteeUserId: string): Promise<string | null>;
   qualify(input: {
     inviteeUserId: string;
     contributionKind: ReferralContributionKind;
@@ -310,6 +316,11 @@ export const memoryReferralStore: ReferralStore = {
       edgeId: edge.id,
       inviterUserId: inviter,
     };
+  },
+
+  async getInviterForInvitee(inviteeUserId) {
+    const edge = edgeByInvitee.get(cleanId(inviteeUserId));
+    return edge?.inviterUserId ?? null;
   },
 
   async qualify({
@@ -547,6 +558,27 @@ export const supabaseReferralStore: ReferralStore = {
         );
         if (error) throw new Error(error.message);
         return recordEdgeResult(data);
+      },
+    });
+  },
+
+  async getInviterForInvitee(inviteeUserId) {
+    return guard({
+      context: "inviter-for-invitee",
+      onSchemaMiss: () =>
+        missingReferralStorageFallback(() =>
+          memoryReferralStore.getInviterForInvitee(inviteeUserId)
+        ),
+      run: async () => {
+        const { data, error } = await requireSupabaseAdmin()
+          .from("referral_edges")
+          .select("inviter_user_id")
+          .eq("invitee_user_id", inviteeUserId)
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        return typeof data?.inviter_user_id === "string"
+          ? data.inviter_user_id
+          : null;
       },
     });
   },

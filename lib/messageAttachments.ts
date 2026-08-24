@@ -222,9 +222,6 @@ export const MESSAGE_PHOTO_FAILED_LINE = "Could not send that photo. Try again."
 /** A photo whose bytes would not come back. Says so, and stays out of the way. */
 export const MESSAGE_PHOTO_UNREADABLE_LINE = "This photo will not open just now.";
 
-/** A photo a reader reported. It leaves the thread for both of them. */
-export const MESSAGE_PHOTO_REPORTED_LINE = "Photo reported. It is off this thread.";
-
 /**
  * What an inbox row says when the last message was a picture or a pub and
  * nothing else. Without it the preview is blank, which reads as a message that

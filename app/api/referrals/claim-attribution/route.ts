@@ -94,19 +94,7 @@ export async function POST(request: Request): Promise<Response> {
       // Durable RPC success shapes before WP7 omit inviter_user_id; recover
       // from the edge keyed by this invitee.
       try {
-        const { requireSupabaseAdmin, isSupabaseConfigured } = await import(
-          "@/lib/supabase"
-        );
-        if (isSupabaseConfigured()) {
-          const { data } = await requireSupabaseAdmin()
-            .from("referral_edges")
-            .select("inviter_user_id")
-            .eq("invitee_user_id", identity.id)
-            .maybeSingle();
-          if (typeof data?.inviter_user_id === "string") {
-            inviterUserId = data.inviter_user_id;
-          }
-        }
+        inviterUserId = (await referralStore().getInviterForInvitee(identity.id)) ?? "";
       } catch {
         inviterUserId = "";
       }

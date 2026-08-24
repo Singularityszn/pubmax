@@ -24,7 +24,6 @@ export const PAL_SPECIES = [...PAL_ONBOARDING_SPECIES, ...PAL_LEGACY_SPECIES] as
 export const SIGNAL_FAMILIES = ["beer", "gin", "rum", "whisky", "brandy", "vodka"] as const;
 export const PAL_VOICES = ["ember", "velvet", "signal"] as const;
 export type PubPalSpecies = (typeof PAL_SPECIES)[number];
-export type PalSpecies = PubPalSpecies;
 export type SignalFamily = (typeof SIGNAL_FAMILIES)[number];
 export type PubPalVoiceId = (typeof PAL_VOICES)[number];
 

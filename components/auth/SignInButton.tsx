@@ -33,6 +33,7 @@ import { useDeviceAccounts } from "@/components/auth/useDeviceAccounts";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import { handleOnly } from "@/lib/handleDisplay";
+import { authAvatarInitials } from "@/lib/authAvatarInitials";
 import {
   ARRIVAL_FROM_PARAM,
   LOGIN_ADD_ACCOUNT_PARAM,
@@ -82,14 +83,6 @@ function addAccountLoginHref(pathname: string | null): string {
 }
 
 /** Best-effort initials for the avatar fallback when the IdP gives us no photo. */
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0][0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
-  return (first + last).toUpperCase() || "?";
-}
-
 /**
  * What the nav may call this person, from the three sources that know: the
  * public profile they authored, the identity provider that signed them in, and
@@ -350,7 +343,7 @@ export default function SignInButton({
       <img className="authAvatar" src={avatar} alt="" width={28} height={28} />
     ) : (
       <span className="authAvatarFallback" aria-hidden="true">
-        {initials(name)}
+        {authAvatarInitials(name)}
       </span>
     );
 

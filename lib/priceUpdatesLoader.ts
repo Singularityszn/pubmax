@@ -21,7 +21,7 @@ import {
   parseFoodPriceUpdates,
   type FoodPriceUpdate,
 } from "@/lib/foodPriceUpdates";
-import { discardBody } from "@/lib/responseBody";
+import { fetchPublicJson, hasPublicJsonRows } from "@/lib/publicJsonLoader";
 
 function generatedAtOf(raw: unknown): number {
   const stamp = Date.parse(
@@ -30,33 +30,31 @@ function generatedAtOf(raw: unknown): number {
   return Number.isFinite(stamp) ? stamp : Date.now();
 }
 
-async function fetchJson(path: string): Promise<unknown | null> {
-  if (typeof window === "undefined") return null;
-  try {
-    const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) {
-      discardBody(res);
-      return null;
-    }
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
-  }
-}
-
 let drinkPromise: Promise<DrinkPriceUpdate[]> | null = null;
 let foodPromise: Promise<FoodPriceUpdate[]> | null = null;
 
 export function loadDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
-  drinkPromise ??= fetchJson("/data/drink_price_updates/latest.json").then(
-    (raw) => (raw === null ? [] : parseDrinkPriceUpdates(raw, generatedAtOf(raw))),
+  drinkPromise ??= fetchPublicJson("/data/drink_price_updates/latest.json").then(
+    (raw) => {
+      if (raw === null || !hasPublicJsonRows(raw, "updates")) {
+        drinkPromise = null;
+        return [];
+      }
+      return parseDrinkPriceUpdates(raw, generatedAtOf(raw));
+    },
   );
   return drinkPromise;
 }
 
 export function loadFoodPriceUpdates(): Promise<FoodPriceUpdate[]> {
-  foodPromise ??= fetchJson("/data/food_price_updates/latest.json").then(
-    (raw) => (raw === null ? [] : parseFoodPriceUpdates(raw, generatedAtOf(raw))),
+  foodPromise ??= fetchPublicJson("/data/food_price_updates/latest.json").then(
+    (raw) => {
+      if (raw === null || !hasPublicJsonRows(raw, "updates")) {
+        foodPromise = null;
+        return [];
+      }
+      return parseFoodPriceUpdates(raw, generatedAtOf(raw));
+    },
   );
   return foodPromise;
 }

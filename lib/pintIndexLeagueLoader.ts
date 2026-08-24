@@ -8,32 +8,25 @@ import {
   validatePintIndexSnapshot,
   type LeagueRow,
 } from "@/lib/pintIndex";
-import { discardBody } from "@/lib/responseBody";
+import { fetchPublicJson } from "@/lib/publicJsonLoader";
 
 /** Public URL for the live Pint Index snapshot (mirrors public/data/...). */
 export const PINT_INDEX_SNAPSHOT_PUBLIC_PATH = "/data/pint_index_snapshot.json";
 
-async function fetchJson(path: string): Promise<unknown | null> {
-  if (typeof window === "undefined") return null;
-  try {
-    const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) {
-      discardBody(res);
-      return null;
-    }
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
-  }
-}
-
 let leaguePromise: Promise<LeagueRow[]> | null = null;
 
 export function loadPintIndexLeagueRows(): Promise<LeagueRow[]> {
-  leaguePromise ??= fetchJson(PINT_INDEX_SNAPSHOT_PUBLIC_PATH).then((raw) => {
-    if (raw === null) return [];
+  leaguePromise ??= fetchPublicJson(PINT_INDEX_SNAPSHOT_PUBLIC_PATH).then((raw) => {
+    if (raw === null) {
+      leaguePromise = null;
+      return [];
+    }
     const result = validatePintIndexSnapshot(raw);
-    return result.ok ? buildLeagueTable(result.snapshot) : [];
+    if (!result.ok) {
+      leaguePromise = null;
+      return [];
+    }
+    return buildLeagueTable(result.snapshot);
   });
   return leaguePromise;
 }
