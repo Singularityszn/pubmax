@@ -325,6 +325,10 @@ const nextConfig = {
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule(
+        "/pal/:asset(circuit-robin-(?:avatar-)?(?:32|64|128|512)\\.(?:webp|png))",
+        UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,
+      ),
       cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
       // Declared AFTER the asset rules on purpose: a later matching rule wins,
       // so a worker can never inherit the year-long edge window above.

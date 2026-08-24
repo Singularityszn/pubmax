@@ -12,7 +12,6 @@ import {
   Compass,
   LocateFixed,
   MapPin,
-  MessageSquareText,
   Receipt,
   Route,
   Smartphone,
@@ -21,6 +20,7 @@ import {
 import { useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 
 import SignInButton from "@/components/auth/SignInButton";
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CityChooser from "@/components/city/CityChooser";
 import MessagesLink from "@/components/nav/MessagesLink";
@@ -439,7 +439,7 @@ export default function LandingPage({
           </div>
           <PintDropStrip />
           <div className="lpPalCallout" id="landlord">
-            <span className="lpPalIcon"><MessageSquareText size={23} aria-hidden="true" /></span>
+            <span className="lpPalIcon"><PubPalMascot size={48} circular lazy /></span>
             <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
             <Link prefetch={false} href="/pal/chat" className="lpTextLink">Ask your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>

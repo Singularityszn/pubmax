@@ -70,11 +70,12 @@ const publicFiles = walk(PUBLIC_DIR);
 const filesOutsideData = publicFiles.filter((file) => !file.startsWith("/data/"));
 
 const LANDING_IMAGE_PATTERN = /\.(?:avif|webp|jpg)$/i;
-const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/"];
+const FIXED_ASSET_PREFIXES = ["/fonts/", "/night-signals/", "/pal/"];
 const FIXED_ASSET_PROBES = [
   "/fonts/example.woff2",
   "/landing/hero-thames-1600.avif",
   "/night-signals/example.svg",
+  "/pal/circuit-robin-512.webp",
 ];
 const FIXED_ASSETS = filesOutsideData.filter((file) =>
   FIXED_ASSET_PREFIXES.some((prefix) => file.startsWith(prefix)) ||
@@ -115,6 +116,11 @@ describe("public asset caching", () => {
     for (const file of [...FIXED_ASSETS, ...FIXED_ASSET_PROBES]) {
       expect(cacheControlFor(file), file).toBe(EDITED_IN_PLACE_CACHE);
     }
+  });
+
+  it("does not classify Pub Pal pages as fixed assets", () => {
+    expect(cacheControlFor("/pal")).toBeNull();
+    expect(cacheControlFor("/pal/chat")).toBeNull();
   });
 
   it("gives files edited in place a short browser and long edge window", () => {

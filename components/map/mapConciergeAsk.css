@@ -60,6 +60,19 @@
   color: var(--brass);
 }
 
+.mapConciergeAskPill picture,
+.mapConciergeAskEyebrow picture {
+  display: block;
+  line-height: 0;
+  flex: 0 0 auto;
+}
+
+.mapConciergeAskPill img,
+.mapConciergeAskEyebrow img {
+  display: block;
+  border-radius: 50%;
+}
+
 /* ── Open panel ───────────────────────────────────────────────────────────*/
 .mapConciergeAsk--open {
   justify-content: center;

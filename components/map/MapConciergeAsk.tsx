@@ -5,7 +5,9 @@
 // parent callbacks — never silent Plan or memory writes.
 
 import { useCallback, useRef, useState } from "react";
-import { MessageCircleQuestion, MapPin, Sparkles, X } from "lucide-react";
+import { MapPin, X } from "lucide-react";
+
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
@@ -171,7 +173,7 @@ export default function MapConciergeAsk({
           onClick={expand}
           aria-expanded={false}
         >
-          <Sparkles size={16} aria-hidden="true" />
+          <PubPalMascot size={20} circular />
           <span>Ask your Pub Pal</span>
         </button>
       </div>
@@ -187,7 +189,7 @@ export default function MapConciergeAsk({
       >
         <header className="mapConciergeAskHead">
           <span className="mapConciergeAskEyebrow">
-            <MessageCircleQuestion size={14} aria-hidden="true" />
+            <PubPalMascot size={16} circular />
             Ask your Pub Pal
           </span>
           <button
