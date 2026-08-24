@@ -21,9 +21,13 @@ export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
 let historyPromise: Promise<Map<string, PriceHistoryObservation[]>> | null = null;
 
 export function loadPriceHistory(): Promise<Map<string, PriceHistoryObservation[]>> {
-  historyPromise ??= fetchPublicJson(PRICE_HISTORY_PATH).then((raw) =>
-    groupPriceHistoryByVenue(raw === null ? [] : parsePriceHistory(raw)),
-  );
+  historyPromise ??= fetchPublicJson(PRICE_HISTORY_PATH).then((raw) => {
+    if (raw === null) {
+      historyPromise = null;
+      return new Map<string, PriceHistoryObservation[]>();
+    }
+    return groupPriceHistoryByVenue(parsePriceHistory(raw));
+  });
   return historyPromise;
 }
 

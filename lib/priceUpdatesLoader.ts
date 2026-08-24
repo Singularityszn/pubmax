@@ -35,14 +35,26 @@ let foodPromise: Promise<FoodPriceUpdate[]> | null = null;
 
 export function loadDrinkPriceUpdates(): Promise<DrinkPriceUpdate[]> {
   drinkPromise ??= fetchPublicJson("/data/drink_price_updates/latest.json").then(
-    (raw) => (raw === null ? [] : parseDrinkPriceUpdates(raw, generatedAtOf(raw))),
+    (raw) => {
+      if (raw === null) {
+        drinkPromise = null;
+        return [];
+      }
+      return parseDrinkPriceUpdates(raw, generatedAtOf(raw));
+    },
   );
   return drinkPromise;
 }
 
 export function loadFoodPriceUpdates(): Promise<FoodPriceUpdate[]> {
   foodPromise ??= fetchPublicJson("/data/food_price_updates/latest.json").then(
-    (raw) => (raw === null ? [] : parseFoodPriceUpdates(raw, generatedAtOf(raw))),
+    (raw) => {
+      if (raw === null) {
+        foodPromise = null;
+        return [];
+      }
+      return parseFoodPriceUpdates(raw, generatedAtOf(raw));
+    },
   );
   return foodPromise;
 }

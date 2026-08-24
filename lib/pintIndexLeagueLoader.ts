@@ -17,7 +17,10 @@ let leaguePromise: Promise<LeagueRow[]> | null = null;
 
 export function loadPintIndexLeagueRows(): Promise<LeagueRow[]> {
   leaguePromise ??= fetchPublicJson(PINT_INDEX_SNAPSHOT_PUBLIC_PATH).then((raw) => {
-    if (raw === null) return [];
+    if (raw === null) {
+      leaguePromise = null;
+      return [];
+    }
     const result = validatePintIndexSnapshot(raw);
     return result.ok ? buildLeagueTable(result.snapshot) : [];
   });
