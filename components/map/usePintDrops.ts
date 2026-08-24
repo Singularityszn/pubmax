@@ -360,7 +360,7 @@ export function usePintDrops(
     emitOptimisticSpillChange();
   }
 
-  async function submitDrop(
+  function submitDrop(
     event: FormEvent,
     venueId: string,
     options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
@@ -376,6 +376,13 @@ export function usePintDrops(
       setDropMsg({ ok: false, text: "Add a price or a passed-down note." });
       return;
     }
+    return submitDropRequest(venueId, options);
+  }
+
+  async function submitDropRequest(
+    venueId: string,
+    options?: { venueName?: string; lastTrainDecision?: LastPintDecision | null },
+  ) {
     const submittedRound = captureRoundAppendSnapshot(
       roundIdentity,
       accountHandle,
