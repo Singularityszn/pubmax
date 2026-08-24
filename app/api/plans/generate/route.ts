@@ -194,37 +194,64 @@ async function runAnchoredGeneration<T extends ScoredPlanCandidate>(params: {
 	} };
 }
 
-export async function POST(request: Request): Promise<Response> {
-  try {
+type PlanGenerationCandidate = ScoredPlanCandidate & {
+	distance: number;
+	tonightEvents: WhatsOnRow[];
+	reasons: string[];
+};
+
+type PlanGenerationPreparation = {
+	requestNow: number;
+	operationKey: string;
+	query: string;
+	intake: ParsedPlanGenerationIntake | null;
+	context: NightContext;
+	reconciled: ReturnType<typeof reconcilePlanContext>;
+	cityId: CityId;
+	area: NightArea;
+	routeReady: boolean;
+	coverage: ReturnType<typeof publicNightAreaCoverage>;
+	planningWeather: ReturnType<typeof planTemporalEvidence>["weather"];
+	reviewedSignalClaims: ReturnType<typeof planTemporalEvidence>["signalClaims"];
+	naLensPrices: ReturnType<typeof trustedNoAlcoholLensPrices>;
+	candidates: PlanGenerationCandidate[];
+	anchor: PlanGenerationAnchor | null;
+};
+
+async function preparePlanGeneration(request: Request): Promise<{ response: Response } | { prepared: PlanGenerationPreparation }> {
 	const requestNow = Date.now();
 	const parsedRequest = await parsePlanGenerationRequest(request, new Date(requestNow));
 	if (!parsedRequest.ok) {
-		return publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status);
+		return { response: publicApiError(parsedRequest.message, parsedRequest.code, parsedRequest.status) };
 	}
 	const { query, context: contextPatch, intake } = parsedRequest.value;
-  // Do not spend a caller's limiter budget when this process cannot mint the
-  // trusted proof required for any successful generation response.
-  const signingUnavailable = planSigningPreflightResponse();
-  if (signingUnavailable) return signingUnavailable;
-  const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
-  const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
-  if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) return publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true });
+	const signingUnavailable = planSigningPreflightResponse();
+	if (signingUnavailable) return { response: signingUnavailable };
+	const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
+	const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
+	if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+		return { response: publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true }) };
+	}
 	if (intake?.unsupportedPatch) {
-		return publicApiError(
+		return { response: publicApiError(
 			"We cannot plan an exact route for this unmapped patch yet.",
 			"NIGHT_PATCH_UNSUPPORTED",
 			422,
 			{ details: { patchId: intake.unsupportedPatch } },
-		);
+		) };
 	}
-	if (!query && !contextPatch && !intake?.exactNightArea) return publicApiError("Describe the outing or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400);
+	if (!query && !contextPatch && !intake?.exactNightArea) {
+		return { response: publicApiError("Describe the outing or add its time, group and area.", "NIGHT_CONTEXT_REQUIRED", 400) };
+	}
 	const reconciled = reconcilePlanContext(query, contextPatch, intake, new Date(requestNow));
 	const context = reconciled.context;
-  if (!context.nightArea) return publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422);
+	if (!context.nightArea) return { response: publicApiError("Choose an area.", "NIGHT_AREA_REQUIRED", 422) };
 	const cityId = parsedRequest.value.cityId ? parseCityId(parsedRequest.value.cityId) : DEFAULT_CITY_ID;
-  if (!cityId) return publicApiError("Choose a listed city.", "CITY_INVALID", 400);
-  const area = getNightArea(context.nightArea);
-  if (area.cityId !== cityId) return publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422);
+	if (!cityId) return { response: publicApiError("Choose a listed city.", "CITY_INVALID", 400) };
+	const area = getNightArea(context.nightArea);
+	if (area.cityId !== cityId) {
+		return { response: publicApiError("That area isn't in this city.", "NIGHT_AREA_CITY_MISMATCH", 422) };
+	}
 	const routeReady = isNightAreaRouteReady(area, new Date(requestNow));
 	const coverage = publicNightAreaCoverage(area);
 	const temporalEvidence = planTemporalEvidence({
@@ -235,19 +262,15 @@ export async function POST(request: Request): Promise<Response> {
 		requestNow,
 		routeWindow: intake?.routeWindow,
 	});
-	const planningWeather = temporalEvidence.weather;
-	const tonightRows = temporalEvidence.whatsOn;
-	const reviewedSignalClaims = temporalEvidence.signalClaims;
-	if (
-		claimsForEntity(reviewedSignalClaims, "night_area", area.slug)
-			.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")
-	) {
-		return publicApiError(
+	const { weather: planningWeather, whatsOn: tonightRows, signalClaims: reviewedSignalClaims } = temporalEvidence;
+	if (claimsForEntity(reviewedSignalClaims, "night_area", area.slug)
+		.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid")) {
+		return { response: publicApiError(
 			"Something's up in this area tonight, so we can't plan a crawl through it. Pick another area.",
 			"NIGHT_AREA_CONSTRAINT_BLOCKED",
 			422,
 			{ details: { nightArea: area.slug } },
-		);
+		) };
 	}
 	const tonightByVenue = new Map<string, WhatsOnRow[]>();
 	for (const row of tonightRows) {
@@ -256,9 +279,6 @@ export async function POST(request: Request): Promise<Response> {
 		current.push(row);
 		tonightByVenue.set(row.venueId, current);
 	}
-	// Same trust seam as the map's no-alcohol lens (trustedNoAlcoholLensPrices):
-	// corroborated community prices, never a name-match amenity guess, decide
-	// which venues carry a real alcohol-free price for zeroProof scoring.
 	const noAlcoholPriceRows = await readCommunityPriceCategoryIndex(NO_ALCOHOL_DRINK_CATEGORIES, requestNow);
 	const noAlcoholRowsByVenue = new Map<string, CommunityPrice[]>();
 	for (const row of noAlcoholPriceRows.prices) {
@@ -268,33 +288,71 @@ export async function POST(request: Request): Promise<Response> {
 	}
 	const naLensPrices = trustedNoAlcoholLensPrices(noAlcoholRowsByVenue, requestNow);
 	const venues = await loadConciergeVenues(cityId);
-	// Soft prefer only: directory matches boost ranking when asked for Spoons,
-	// and never filter the candidate set (Clapham has too few for three stops).
 	const wetherspoonsMatchedIds = context.wetherspoonsPreferred
 		? await matchedWetherspoonsVenueIds(venues)
 		: undefined;
-	  const candidates = venues
-	    .map((venue) => {
-	      const distance = distanceKm(area.centre, venue);
-	      const tonightEvents = tonightByVenue.get(venue.id) ?? [];
-	      const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
-	      const scored = scoreVenueForPlan(
-					venue,
-					context,
-					distance,
-					tonightEvents,
-					signalClaims,
-					planningWeather,
-					naLensPrices,
-					wetherspoonsMatchedIds,
-				);
-	      return { venue, distance, tonightEvents, signalClaims, ...scored };
-	    })
-    .filter(({ distance, venue, signalClaims }) =>
-		distance <= area.radiusKm
-		&& venue.promoted !== true
-		&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
-    .sort((a, b) => b.score - a.score);
+	const candidates = venues
+		.map((venue) => {
+			const distance = distanceKm(area.centre, venue);
+			const tonightEvents = tonightByVenue.get(venue.id) ?? [];
+			const signalClaims = claimsForEntity(reviewedSignalClaims, "venue", venue.id);
+			const scored = scoreVenueForPlan(
+				venue,
+				context,
+				distance,
+				tonightEvents,
+				signalClaims,
+				planningWeather,
+				naLensPrices,
+				wetherspoonsMatchedIds,
+			);
+			return { venue, distance, tonightEvents, signalClaims, ...scored };
+		})
+		.filter(({ distance, venue, signalClaims }) =>
+			distance <= area.radiusKm
+			&& venue.promoted !== true
+			&& !signalClaims.some((claim) => canAffectRoute(claim) && claim.routeEffect === "avoid"))
+		.sort((a, b) => b.score - a.score);
+	return { prepared: {
+		requestNow,
+		operationKey,
+		query,
+		intake,
+		context,
+		reconciled,
+		cityId,
+		area,
+		routeReady,
+		coverage,
+		planningWeather,
+		reviewedSignalClaims,
+		naLensPrices,
+		candidates,
+		anchor: parsedRequest.value.anchor,
+	} };
+}
+
+export async function POST(request: Request): Promise<Response> {
+  try {
+	const preparation = await preparePlanGeneration(request);
+	if ("response" in preparation) return preparation.response;
+	const {
+		requestNow,
+		operationKey,
+		query,
+		intake,
+		context,
+		reconciled,
+		cityId,
+		area,
+		routeReady,
+		coverage,
+		planningWeather,
+		reviewedSignalClaims,
+		naLensPrices,
+		candidates,
+		anchor: anchorRequest,
+	} = preparation.prepared;
 	type Candidate = (typeof candidates)[number];
 	let groundedStops: readonly SelectedGroundedPlanStop<Candidate>[] | null = null;
 	let groundedAlternatives: readonly (readonly SelectedGroundedPlanStop<Candidate>[])[] | null = null;
@@ -303,7 +361,6 @@ export async function POST(request: Request): Promise<Response> {
 	let accessibilityEnforced = false;
 	let anchorContext: { anchorVenueId: string; anchorSource: PlanningIntentSource } | null = null;
 	let chosen: Candidate[];
-	const anchorRequest = parsedRequest.value.anchor;
 	// An accepted Venue is always authoritative for anchored generation. Requests
 	// without one retain the generic, unanchored selection path.
 	if (anchorRequest) {

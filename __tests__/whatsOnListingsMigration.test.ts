@@ -1,9 +1,8 @@
-import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
-import { promisify } from "node:util";
 
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 
@@ -26,7 +25,6 @@ function binary(name: "initdb" | "postgres" | "psql"): string | null {
   return null;
 }
 
-const execFileAsync = promisify(execFile);
 type Database = {
   sql(statement: string): string;
   apply(path: string): void;
