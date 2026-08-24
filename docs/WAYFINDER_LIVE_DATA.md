@@ -29,8 +29,8 @@ page, official API, open data) supports.
 | **TfL nearby bus departures** | `api.tfl.gov.uk` (keyless) | `app/api/nearby-bus-departures` fetches **per request** through the same client: stops inside 500 m, capped at 4, asked concurrently inside one 15 s route budget | Live | none (`TFL_APP_KEY` only raises limits) | Live (real-time arrivals) | live |
 | **Weather** | Open-Meteo (keyless) | Vercel `refresh-weather` cron to durable weather store | Every 6 h | none | Every 6 h | 48 h |
 | **Night signals** | Staged candidate claims, offline-reviewed | Vercel candidate cron; manual approved publish to `night_signals/latest.json` | Candidate sweep daily; reviewed feed advances only on human publish | `EXA_API_KEY` arms candidate ingestion; **human review always** | Human-gated episodic | untracked |
-| **What's-On — baseline** (sport/quiz/deals/music) | Hand-verified first-party rows in `scripts/whatson/*.json` | Vercel slim revalidation + CityMCP blend at request time; full ingest stays manual | Daily slim window; episodic baseline | none | Daily served-window revalidation | 48 h (envelope) |
-| **What's-On — events** (Ticketmaster/Skiddle/Context.dev/Common) | Official discovery APIs, the Context.dev registered-source lane (see [`LONDON_HARVEST.md`](./LONDON_HARVEST.md)), plus the Common sitemap reader (facts + link out) | `events-refresh.yml` on `main` (daily 04:00 UTC, validates before it opens the review PR) and the local launchd events job; `/api/out` also supplements the bundled file live per request | Daily GitHub workflow and local scheduler | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` and/or `CONTEXT_DEV_API_KEY` (Skiddle also stays fenced off until we hold its logo); the Common lane is keyless | Daily 04:00 UTC | 48 h |
+| **What's-On — baseline** (sport/quiz/deals/music) | Bounded Question One quiz pages plus existing first-party definitions and bundled venue inputs; bundled files remain the fallback | Vercel `/api/cron/refresh-whats-on` writes bounded rows to durable `whats_on_listings`; readers prefer non-expired durable rows, then bundled files. Broader harvest stays on the local launchd / GitHub recovery paths; `/api/out` supplements the event lane live per request | Daily at 05:30 UTC; recovery paths are separate | none for bounded lanes | Daily bounded refresh | 48 h (envelope) |
+| **What's-On — events** (Ticketmaster/Skiddle/Context.dev/Common) | Official discovery APIs, the Context.dev registered-source lane (see [`LONDON_HARVEST.md`](./LONDON_HARVEST.md)), plus the Common sitemap reader (facts + link out) | Vercel `/api/cron/refresh-whats-on` writes Ticketmaster / Skiddle rows to durable `whats_on_listings`; readers prefer non-expired durable rows, then bundled files. `events-refresh.yml` and local launchd remain recovery paths; `/api/out` also supplements the event lane live per request | Daily Vercel cron; recovery paths are separate | `TICKETMASTER_API_KEY`, `SKIDDLE_API_KEY` (Skiddle also stays fenced off until we hold its logo); Context.dev and Common remain in their separate harvest paths | Daily bounded refresh | 48 h |
 | **Pint prices (core dataset)** | Collected July 2026 snapshot | Manual `export:data → canonicalize:venues → build:slim` | Episodic (bundled static) | none | Re-collection cadence (manual) | 90 d |
 | **Price updates (cheapest pint)** | First-party / open sources allowlist | Manual reviewed publish to `price_updates/latest.json` | Episodic - parser stub keeps served envelope empty; `generatedAt` names bundled pint collection day until reviewed publish lands | needs a real per-source parser | Publish-bound serving once parsers ship | untracked |
 | **Drink price updates** | Reviewed first-party observations | Manual reviewed publish | Episodic - current-price policy expires rows after 14 days | source must publish permissible per-drink prices | Per observation | 14 d |
@@ -70,8 +70,8 @@ sets a secret. Exact env var → mechanism mapping:
 | Env var / secret | Where it's set | What it arms | Effect when **absent** (today's reality) |
 |---|---|---|---|
 | `EXA_API_KEY` | Vercel env | Night-signal candidate ingestion (scheduled) | Candidate sweep skips without changing reviewed snapshot; nothing in interactive path breaks |
-| `TICKETMASTER_API_KEY` | Read from the GH Actions secret by the refresh, from the Vercel env by `/api/out`, and from the local key file by the launchd job | What's-On **events** vertical (Ticketmaster Discovery), in the refresh and in the `/api/out` live supplement | Lane reports `not-configured`; contributes 0 rows, and a reader is never told the market is empty |
-| `SKIDDLE_API_KEY` | Same three readers; **not provisioned anywhere yet** | What's-On events (Skiddle) — **also needs written commercial approval from dev@skiddle.com**, and the lane stays fenced off until we hold the Skiddle logo the licence requires | Lane reports `not-configured` |
+| `TICKETMASTER_API_KEY` | Vercel env for `/api/cron/refresh-whats-on` and `/api/out`; local key file for the launchd job | What's-On **events** vertical (Ticketmaster Discovery) | The cron skips that official lane when absent; bounded quiz/deal/music/sport refreshes can still run, and readers are never told the market is empty |
+| `SKIDDLE_API_KEY` | Vercel env for the cron and `/api/out`; local key file for the launchd job; **not provisioned anywhere yet** | What's-On events (Skiddle) - **also needs written commercial approval from dev@skiddle.com**, and the lane stays fenced off until we hold the Skiddle logo the licence requires | The cron skips that official lane when absent |
 | `CONTEXT_DEV_API_KEY` | Local key file read by the launchd events job; not a GH Actions or Vercel secret | What's-On events, registered-source lane only - allowed first-party venue-events pages in `lib/harvest/sourcePolicy.ts`, read through Context.dev extract ([`LONDON_HARVEST.md`](./LONDON_HARVEST.md)) | Lane reports `not-configured` and sends nothing |
 | `FIRECRAWL_API_KEY` | Local `.env` / CI secret | Menu scraping (food prices), Wetherspoons directory refresh, research | Those harvest scripts can't fetch; bundled data unaffected |
 | `TFL_APP_KEY` | Vercel env | Higher TfL rate limits | Every TfL surface (last-train, nearby buses) works fully keyless; only limits are lower |
@@ -82,8 +82,8 @@ sets a secret. Exact env var → mechanism mapping:
 
 Vercel schedules are owned by `vercel.json` and run on production deployments.
 Provider-gated jobs activate when their Vercel secret exists. The events refresh
-is a GitHub Actions workflow that opens a review PR, not a production schedule:
-it commits nothing to `main` on its own.
+workflow remains a recovery path that opens a review PR, not the production
+What's-On schedule: it commits nothing to `main` on its own.
 
 **Not present on main today** (contrary to a common assumption): there is **no
 `RESEND` digest workflow** and **no `APNs` push-sender** wired in this repo.
@@ -107,13 +107,12 @@ Honest accounting of what will **not** get fresher on its own:
    **no per-drink web prices**; prices live only in native Order-&-Pay backend.
    Scheduled retrieval produces zero rows until a permissible parser lands.
    **Gap: real first-party price parsers.**
-3. **What's-On events run, but two of the three lanes are held.** The pipeline is
-   on `main` and the workflow carries a daily schedule, so the remaining gaps are
-   owner actions: switch GitHub Actions on at the repo level, and clear Skiddle
-   (written commercial approval plus the logo its credit requires). Ticketmaster
-   is keyed, and the Common lane needs no key, so the local scheduler runs it
-   whatever the provider keys say.
-   **Gap: Actions enabled + Skiddle approval and brand asset.**
+3. **What's-On has a reliable bounded refresh.** Vercel Cron refreshes quiz,
+   deal, music, sport, and configured official event lanes into
+   `whats_on_listings`; readers fall back to bundled files when a durable row is
+   absent or expired. Broader harvested input remains a separate local/GitHub
+   recovery path, and Skiddle still needs written approval plus its brand asset.
+   **Gap: broader harvest breadth + Skiddle approval and brand asset.**
 4. **Food prices, late-food evidence, venue presence, all-drinks seed → manual,
    episodic.** No workflow. Refreshed by running the harvest/import script by
    hand. These episodic feeds remain

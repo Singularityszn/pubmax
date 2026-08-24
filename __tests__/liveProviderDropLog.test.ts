@@ -83,4 +83,39 @@ describe("live provider drop log", () => {
 
     expect(dropLogRecords(consoleSpy.mock.calls)).toEqual([]);
   });
+
+  it("bypasses its response cache when requested", async () => {
+    process.env[ENV_VAR] = "probe-key";
+    let fetches = 0;
+    const provider = createLiveEventsProvider({
+      name: "CacheProbe",
+      envVar: ENV_VAR,
+      upstreamLabel: "Cache probe",
+      buildUrl: () => new URL("https://example.com/events"),
+      normalise: (_payload, opts) => ({
+        rows: [
+          {
+            id: `event-${opts.observedAt}`,
+            placeName: "Jazz Cafe",
+            kind: "event",
+            startsAt: "2026-08-16T19:00:00.000Z",
+            endsAt: "2026-08-16T22:00:00.000Z",
+            title: "Live jazz",
+            source: { label: "CacheProbe", url: "https://example.com/events" },
+            observedAt: opts.observedAt,
+            confidence: "listed",
+          },
+        ],
+      }),
+    });
+    const fetchImpl = (async () => {
+      fetches += 1;
+      return new Response(JSON.stringify({}), { status: 200 });
+    }) as unknown as typeof fetch;
+
+    await provider.fetchTonight({ now: NOW, fetchImpl });
+    await provider.fetchTonight({ now: NOW + 1_000, fetchImpl, cache: "bypass" });
+
+    expect(fetches).toBe(2);
+  });
 });

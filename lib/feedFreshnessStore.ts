@@ -2,8 +2,8 @@ import "server-only";
 
 // Durable-or-memory "when was this feed last revalidated" stamp. The cron plane
 // writes a stamp here for feeds it refreshes but CANNOT re-persist to a committed
-// file on Vercel's read-only serverless filesystem — chiefly the What's-On
-// tonight window, whose full ingest can't run in a function (see the runbook).
+// file on Vercel's read-only serverless filesystem. What's-On events persist to
+// whats_on_listings, but the combined What's-On feed does not use this overlay.
 //
 // The /api/freshness spine (and the freshness-audit cron) overlay this stamp so
 // the store-backed feed reports an HONEST observedAt instead of the frozen

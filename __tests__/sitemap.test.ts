@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import { execFileSync } from "node:child_process";
@@ -17,13 +17,13 @@ import { loadDrinkBrandAreaLandings } from "@/lib/drinkBrandAreaLanding.server";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import type { MetadataRoute } from "next";
 
-// The number of static hub URLs the generator emits (the fixed list in
-// app/sitemap.ts). Kept here so a change to that list is a conscious test edit.
-// Includes /pint-index (Wave S3.3 — the London Pint Index hub), /about
-// (founder story + press kit hub), /founders (the numbered public wall of the
-// first hundred claimed handles) and the two legal content pages
-// (/privacy, /terms) linked from the site footer.
-const STATIC_HUB_COUNT = 14;
+// The number of static hub URLs the generator emits while Social is gated
+// (the fixed list in app/sitemap.ts minus /social). Kept here so a change to
+// that list is a conscious test edit. Includes /pint-index (Wave S3.3 — the
+// London Pint Index hub), /about (founder story + press kit hub), /founders
+// (the numbered public wall of the first hundred claimed handles) and the two
+// legal content pages (/privacy, /terms) linked from the site footer.
+const STATIC_HUB_COUNT = 13;
 
 // Wave S1.2 — sitemap sanity. Runs the real generator against the bundled
 // dataset (process.cwd() is the repo root in tests, so public/data/*.json is
@@ -118,9 +118,14 @@ describe("sitemap()", () => {
     urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
 
   beforeAll(async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
     entries = await sitemap();
     urls = entries.map((e) => e.url);
     expected = await expectedCounts();
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
   });
 
   it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
@@ -134,9 +139,13 @@ describe("sitemap()", () => {
   });
 
   it("includes the core static hubs", () => {
-    for (const hub of ["/", "/map", "/borough", "/historic", "/social", "/crawls", "/about"]) {
+    for (const hub of ["/", "/map", "/borough", "/historic", "/crawls", "/about"]) {
       expect(urls).toContain(`${SITE}${hub}`);
     }
+  });
+
+  it("omits /social while the friends launch flag is off", () => {
+    expect(urls).not.toContain(`${SITE}/social`);
   });
 
   it("emits the promised count for every dynamic family", () => {
@@ -200,6 +209,17 @@ describe("sitemap()", () => {
       expect(time).toBeGreaterThan(0);
       expect(time).toBeLessThanOrEqual(now);
     }
+  });
+});
+
+describe("sitemap Social gate", () => {
+  it("lists /social when the friends launch flag is on", async () => {
+    vi.resetModules();
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
+    const { default: sitemapOn } = await import("@/app/sitemap");
+    const urlsOn = (await sitemapOn()).map((entry) => entry.url);
+    expect(urlsOn).toContain(`${SITE}/social`);
+    vi.unstubAllEnvs();
   });
 });
 

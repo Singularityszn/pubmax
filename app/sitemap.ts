@@ -11,14 +11,19 @@ import {
   drinkBrandAreaLandingRoute,
   loadDrinkBrandAreaLandings,
 } from "@/lib/drinkBrandAreaLanding.server";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  socialListedInSitemap,
+} from "@/lib/socialLaunch";
 
 // Wave S1.2 sitemap. Enumerates every token-free, crawlable surface so
 // search + AI crawlers discover the whole graph (the map-first UI otherwise hides
 // most of it from bots). Scope is provenance-first and honest:
 //
 //  Included:
-//   - static hubs: /, /map, /borough, /historic, /social, /pubs, /tonight,
-//     /choose-city, /crawls
+//   - static hubs: /, /map, /borough, /historic, /pubs, /tonight,
+//     /choose-city, /crawls. /social only while PUBMAX_SOCIAL_FRIENDS_LAUNCH=1.
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink
@@ -126,7 +131,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/borough", priority: 0.8, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/pint-index", priority: 0.8, changeFrequency: "monthly", lastModified: pintIndexPublished },
     { path: "/historic", priority: 0.8, changeFrequency: "weekly", lastModified: historicModified },
-    { path: "/social", priority: 0.7, changeFrequency: "daily", lastModified: now },
     { path: "/pubs", priority: 0.7, changeFrequency: "weekly", lastModified: pricesModified },
     { path: "/tonight", priority: 0.6, changeFrequency: "daily", lastModified: now },
     { path: "/crawls", priority: 0.6, changeFrequency: "weekly", lastModified: now },
@@ -145,6 +149,21 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       lastModified: r.lastModified,
       changeFrequency: r.changeFrequency,
       priority: r.priority,
+    });
+  }
+
+  // /social is a crawlable hub only once friends-only Social is actually on.
+  // While the launch flag is off the page noindexes and stays off this list.
+  if (
+    socialListedInSitemap(
+      isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]),
+    )
+  ) {
+    entries.push({
+      url: `${SITE_URL}/social`,
+      lastModified: now,
+      changeFrequency: "daily",
+      priority: 0.7,
     });
   }
 

@@ -10,6 +10,20 @@ export function isSocialFriendsLaunchEnabled(
   return value === "1";
 }
 
+/** Search indexing follows the same launch flag the nav already reads. */
+export function socialDocumentRobots(friendsLaunchEnabled: boolean): {
+  index: boolean;
+  follow: boolean;
+} {
+  return friendsLaunchEnabled
+    ? { index: true, follow: true }
+    : { index: false, follow: true };
+}
+
+export function socialListedInSitemap(friendsLaunchEnabled: boolean): boolean {
+  return friendsLaunchEnabled;
+}
+
 export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 

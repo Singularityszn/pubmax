@@ -9,6 +9,8 @@ import {
   isRecordedAdultAssertion,
   isSocialFriendsLaunchEnabled,
   needsAdultSelfAssertion,
+  socialDocumentRobots,
+  socialListedInSitemap,
 } from "@/lib/socialLaunch";
 
 const NOW = "2026-08-05T20:00:00.000Z";
@@ -196,5 +198,24 @@ describe("the one adult gate", () => {
     for (const value of [null, undefined, "", "   ", "yes", "true"]) {
       expect(isRecordedAdultAssertion(value)).toBe(false);
     }
+  });
+});
+
+describe("gated Social stays out of the index", () => {
+  it("noindexes Social while the friends launch flag is off", () => {
+    expect(socialDocumentRobots(false)).toEqual({ index: false, follow: true });
+    expect(socialListedInSitemap(false)).toBe(false);
+  });
+
+  it("indexes Social once the friends launch flag is on", () => {
+    expect(socialDocumentRobots(true)).toEqual({ index: true, follow: true });
+    expect(socialListedInSitemap(true)).toBe(true);
+  });
+
+  it("reads the same env the nav already uses", () => {
+    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(false);
+    expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
+    expect(socialListedInSitemap(isSocialFriendsLaunchEnabled(undefined))).toBe(false);
+    expect(socialListedInSitemap(isSocialFriendsLaunchEnabled("1"))).toBe(true);
   });
 });

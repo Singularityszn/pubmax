@@ -7,7 +7,9 @@ import "server-only";
 // DURABLE store (not a committed file, which is read-only on serverless).
 // For those feeds, the disk timestamp can freeze at the last commit. This
 // overlay returns store-observed time so /api/freshness and freshness audit
-// report the truth.
+// report the truth. The combined What's-On feed reads its generatedAt from the
+// durable listings store when that store answers, with the bundled artifact as
+// fallback.
 //
 // HARD RULE: a dataset id may only appear here when the cron's write IS what
 // that dataset serves. An ingestion run that cannot update a committed artifact
@@ -24,11 +26,11 @@ import type { StoreRead } from "@/lib/freshness";
 import { errorMessage, isMissingTableSchema } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
+import { whatsOnListingStore } from "@/lib/whatsOnListingStore";
 
 // Registry dataset id → the store that holds its honest observedAt.
 export const WHATS_ON_FEED_KEY = "whats_on";
 export const WEATHER_DATASET_ID = "weather";
-export const WHATS_ON_DATASET_ID = "whats_on";
 // Night Signal candidate ingestion (the Vercel-cron EXA sweep). This is the
 // PENDING-candidate feed, distinct from the human-reviewed `night_signals`
 // snapshot — it reports when ingestion last ran, never that claims were shipped.
@@ -51,15 +53,17 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   }
 
   try {
-    const stamp = await feedFreshnessStore().read(WHATS_ON_FEED_KEY);
-    if (stamp?.observedAt) overlay[WHATS_ON_DATASET_ID] = stamp.observedAt;
+    const stamp = await feedFreshnessStore().read(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
+    if (stamp?.observedAt) overlay[NIGHT_SIGNAL_CANDIDATES_DATASET_ID] = stamp.observedAt;
   } catch {
     // fail-soft: keep the disk stamp
   }
 
   try {
-    const stamp = await feedFreshnessStore().read(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
-    if (stamp?.observedAt) overlay[NIGHT_SIGNAL_CANDIDATES_DATASET_ID] = stamp.observedAt;
+    const snapshot = await whatsOnListingStore().readAll();
+    if (!snapshot.failed && snapshot.generatedAt) {
+      overlay[WHATS_ON_FEED_KEY] = snapshot.generatedAt;
+    }
   } catch {
     // fail-soft: keep the disk stamp
   }
@@ -81,9 +85,29 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
  */
 export async function resolveDurableFeedStoreReads(): Promise<Record<string, StoreRead>> {
   const nightSignalCandidates = await readDurableFeedStamp(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
+  const whatsOn = await readDurableWhatsOnStamp();
   return {
     [NIGHT_SIGNAL_CANDIDATES_DATASET_ID]: nightSignalCandidates,
+    [WHATS_ON_FEED_KEY]: whatsOn,
   };
+}
+
+async function readDurableWhatsOnStamp(): Promise<StoreRead> {
+  if (!isSupabaseConfigured()) return { kind: "unconfigured" };
+
+  try {
+    const snapshot = await whatsOnListingStore().readAll();
+    if (snapshot.failed) {
+      return {
+        kind: "unreachable",
+        error: snapshot.failure ?? "durable What's-On store could not be read",
+      };
+    }
+    if (!snapshot.generatedAt) return { kind: "empty" };
+    return { kind: "ok", observedAt: snapshot.generatedAt };
+  } catch (err) {
+    return { kind: "unreachable", error: errorMessage(err) };
+  }
 }
 
 async function readDurableFeedStamp(feedKey: string): Promise<StoreRead> {

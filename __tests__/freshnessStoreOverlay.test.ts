@@ -18,10 +18,42 @@ const db = vi.hoisted(() => ({
   throws: null as Error | null,
 }));
 
+const feedReads = vi.hoisted(() => ({ keys: [] as string[] }));
+const whatsOnReads = vi.hoisted(() => ({
+  generatedAt: null as string | null,
+  failed: false,
+  failure: undefined as string | undefined,
+}));
+
+vi.mock("@/lib/feedFreshnessStore", () => ({
+  feedFreshnessStore: () => ({
+    read: async (feed: string) => {
+      feedReads.keys.push(feed);
+      return { observedAt: "2026-07-16T00:00:00Z" };
+    },
+  }),
+}));
+
+vi.mock("@/lib/weatherSnapshotStore", () => ({
+  weatherSnapshotStore: () => ({
+    readSnapshot: async () => ({ generatedAt: "2026-07-15T00:00:00Z" }),
+  }),
+}));
+
+vi.mock("@/lib/whatsOnListingStore", () => ({
+  whatsOnListingStore: () => ({
+    readAll: async () => ({
+      rows: [],
+      generatedAt: whatsOnReads.generatedAt,
+      ...(whatsOnReads.failed ? { failed: true as const, failure: whatsOnReads.failure } : {}),
+    }),
+  }),
+}));
+
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => db.configured,
   requireSupabaseAdmin: () => ({
-    from(_table: string) {
+    from() {
       return {
         select() {
           return this;
@@ -40,7 +72,9 @@ vi.mock("@/lib/supabase", () => ({
 
 import {
   NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
+  WHATS_ON_FEED_KEY,
   resolveDurableFeedStoreReads,
+  resolveStoreObservedAt,
 } from "@/lib/freshnessStoreOverlay";
 
 beforeEach(() => {
@@ -48,6 +82,10 @@ beforeEach(() => {
   db.row = null;
   db.error = null;
   db.throws = null;
+  feedReads.keys = [];
+  whatsOnReads.generatedAt = null;
+  whatsOnReads.failed = false;
+  whatsOnReads.failure = undefined;
 });
 
 afterEach(() => {
@@ -104,6 +142,61 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
   it("resolves only the candidate-ingestion feed", async () => {
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
-    expect(Object.keys(reads)).toEqual([NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
+    expect(Object.keys(reads)).toEqual([
+      NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
+      WHATS_ON_FEED_KEY,
+    ]);
+  });
+
+  it("reports the durable What's-On generation stamp", async () => {
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+    const reads = await resolveDurableFeedStoreReads();
+    expect(reads[WHATS_ON_FEED_KEY]).toEqual({
+      kind: "ok",
+      observedAt: "2026-08-24T05:30:00Z",
+    });
+  });
+
+  it("reports ordinary durable read failures without inventing a migration fault", async () => {
+    whatsOnReads.failed = true;
+    whatsOnReads.failure = "network timeout";
+
+    const reads = await resolveDurableFeedStoreReads();
+
+    expect(reads[WHATS_ON_FEED_KEY]).toEqual({
+      kind: "unreachable",
+      error: "network timeout",
+    });
+  });
+
+  it("does not overlay an untrusted failed-store watermark", async () => {
+    whatsOnReads.failed = true;
+    whatsOnReads.failure = "network timeout";
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+
+    const overlay = await resolveStoreObservedAt();
+
+    expect(overlay).not.toHaveProperty(WHATS_ON_FEED_KEY);
+  });
+
+  it("falls back to disk when durable What's-On store is empty", async () => {
+    const overlay = await resolveStoreObservedAt();
+    expect(overlay).toEqual({
+      weather: "2026-07-15T00:00:00Z",
+      night_signal_candidates: "2026-07-16T00:00:00Z",
+    });
+    expect(feedReads.keys).toEqual(["night_signal_candidates"]);
+  });
+
+  it("overlays the durable What's-On stamp when listings store answers", async () => {
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+
+    const overlay = await resolveStoreObservedAt();
+
+    expect(overlay).toMatchObject({
+      weather: "2026-07-15T00:00:00Z",
+      night_signal_candidates: "2026-07-16T00:00:00Z",
+      whats_on: "2026-08-24T05:30:00Z",
+    });
   });
 });

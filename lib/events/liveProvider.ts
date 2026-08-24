@@ -84,7 +84,12 @@ export function createLiveEventsProvider(
     const city = ctx.city ?? "london";
     const window = providerWindow(ctx);
     const cacheKey = `${city}|${window.startIso}|${window.endIso}`;
-    if (cache && cache.key === cacheKey && ctx.now - cache.at < CACHE_TTL_MS) {
+    if (
+      ctx.cache !== "bypass" &&
+      cache &&
+      cache.key === cacheKey &&
+      ctx.now - cache.at < CACHE_TTL_MS
+    ) {
       return cache.rows;
     }
 
