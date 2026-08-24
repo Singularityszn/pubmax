@@ -4,12 +4,14 @@ import { useCallback, useEffect, useState } from "react";
 
 import { authedFetch } from "@/lib/authedFetch";
 import {
+  isWantedPromotable,
   wantedPendingLabel,
   type WantedDTO,
 } from "@/lib/wanted";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 
 import WantedCapture from "./WantedCapture";
+import WantedPromotionControl from "./WantedPromotionControl";
 import "./wanted.css";
 
 function mapUrlFor(wanted: WantedDTO): string | null {
@@ -119,10 +121,20 @@ export default function WantedList(): React.JSX.Element {
                     {wanted.note ? ` · ${wanted.note}` : ""}
                   </p>
                 </div>
-                {href ? (
-                  <a className="wantedRow__map" href={href}>
-                    Open map
-                  </a>
+                {href || isWantedPromotable(wanted) ? (
+                  <div className="wantedRow__actions">
+                    {href ? (
+                      <a className="wantedRow__map" href={href}>
+                        Open map
+                      </a>
+                    ) : null}
+                    {isWantedPromotable(wanted) || wanted.promotedListType ? (
+                      <WantedPromotionControl
+                        wantedId={wanted.id}
+                        promotedListType={wanted.promotedListType}
+                      />
+                    ) : null}
+                  </div>
                 ) : null}
               </li>
             );

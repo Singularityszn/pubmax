@@ -48,9 +48,20 @@ export type Wanted = WantedFields & {
   status: WantedStatus;
   createdAt: string;
   fulfilledAt: string | null;
+  promotedListType: string | null;
+  promotedAt: string | null;
 };
 
 export type WantedDTO = Wanted;
+
+export function isWantedPromotable(wanted: WantedDTO): boolean {
+  return (
+    wanted.status === "open"
+    && wanted.venueKind === "curated"
+    && wanted.venueId.trim().length > 0
+    && !wanted.promotedListType
+  );
+}
 
 export type WantedValidation =
   | { ok: true; value: WantedFields }

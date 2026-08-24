@@ -78,18 +78,22 @@
 **Files:**
 - Modify: `app/api/wanted/route.ts`
 - Modify: `components/wanted/WantedList.tsx`
+- Create: `components/wanted/WantedPromotionControl.tsx`
+- Modify: `lib/savedPubsStore.ts`
 - Modify: `lib/wantedStore.ts`
+- Create: `supabase/migrations/20260824100000_0119_wanted_public_list_promotion.sql`
 - Create: `__tests__/wantedPromotion.test.ts`
 - Modify: `__tests__/wantedRoute.test.ts`
 
 **Interfaces:**
-- Consumes: owner-resolved Wanted, selected list name, existing saved-pub toggle seam.
+- Consumes: owner-resolved Wanted, selected list name, and atomic saved-pub ensure seam.
 - Produces: one idempotent promotion that saves venue to public list and records promotion state without fetching source URL.
 
-- [ ] Write failing authorization, idempotency, pending-Wanted refusal, and source-preservation tests.
-- [ ] Implement explicit owner confirmation. Never auto-publish a pasted link.
-- [ ] Add `Add to a public list` only for resolved open Wanteds.
-- [ ] Verify retry and concurrent promotion do not duplicate list rows.
+- [x] Write failing authorization, idempotency, pending-Wanted refusal, and source-preservation tests.
+- [x] Implement explicit owner confirmation. Never auto-publish a pasted link.
+- [x] Add `Add to a public list` only for resolved open curated pub Wanteds.
+- [x] Verify retry and concurrent promotion do not duplicate list rows.
+- [x] Record the selected list and promotion time on Wanted so reloads do not offer the write again.
 
 ### Task 5: Browser journey and release gate
 

@@ -18,15 +18,28 @@ import { publicApiError } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
+import { isListTypeEligibleForVenue } from "@/lib/savedListPolicy";
+import { savedListPath } from "@/lib/savedListUrl";
+import {
+  cleanListType,
+  savedListsStore,
+} from "@/lib/savedPubsStore";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
 import { validateWantedCreate } from "@/lib/wanted";
 import { fulfilWantedsAtVenue } from "@/lib/wantedFulfil.server";
 import { wantedStore } from "@/lib/wantedStore";
+import { promoteWantedToSavedList } from "@/lib/wantedPromotion.server";
+import { resolveVenue } from "@/lib/venueIndex";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 
 export const runtime = "nodejs";
 
 const CREATE_WINDOW_MS = 60_000;
+
+function profileIdFromActor(actor: string): string {
+  return actor.startsWith("profile:") ? actor.slice("profile:".length).trim() : "";
+}
 
 async function parseJson(request: Request): Promise<Record<string, unknown> | null> {
   try {
@@ -83,6 +96,97 @@ export async function POST(request: Request): Promise<Response> {
   }
 
   const action = readString(body.action);
+
+  if (action === "promote") {
+    const id = readString(body.id);
+    const listType = cleanListType(body.listType);
+    if (!id) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    if (!listType) {
+      return publicApiError("Add a list name.", "INVALID_REQUEST", 400);
+    }
+    const wanted = await wantedStore().getById(owner.contributor.actor, id);
+    if (!wanted) return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    if (wanted.status !== "open" || wanted.venueKind !== "curated" || !wanted.venueId) {
+      return publicApiError(
+        "Only an open matched pub can join a public list.",
+        "WANTED_NOT_PROMOTABLE",
+        409,
+      );
+    }
+    if (wanted.promotedListType && wanted.promotedListType !== listType) {
+      return publicApiError(
+        "This Wanted place is already on a public list.",
+        "WANTED_ALREADY_PROMOTED",
+        409,
+      );
+    }
+    const venue = await resolveVenue(wanted.venueId);
+    if (!venue || !isPubVenueKind(venue.kind)) {
+      return publicApiError(
+        "Match this Wanted place to a current pub first.",
+        "WANTED_NOT_PROMOTABLE",
+        409,
+      );
+    }
+    if (!isListTypeEligibleForVenue(listType, venue.kind)) {
+      return publicApiError("Choose a list that matches this venue.", "INVALID_REQUEST", 400);
+    }
+    const profileId = profileIdFromActor(owner.contributor.actor);
+    if (!profileId) {
+      return publicApiError(
+        "Your public profile is unavailable right now.",
+        "IDENTITY_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
+    const result = await promoteWantedToSavedList({
+      ownerActor: owner.contributor.actor,
+      profileId,
+      handle: owner.contributor.handle,
+      wantedId: wanted.id,
+      venueId: wanted.venueId,
+      listType,
+    });
+    if (result.status === "not_found") {
+      return publicApiError("Wanted place not found.", "NOT_FOUND", 404);
+    }
+    if (result.status === "not_promotable") {
+      return publicApiError(
+        "Only an open matched pub can join a public list.",
+        "WANTED_NOT_PROMOTABLE",
+        409,
+      );
+    }
+    if (result.status === "already_promoted") {
+      return publicApiError(
+        "This Wanted place is already on a public list.",
+        "WANTED_ALREADY_PROMOTED",
+        409,
+      );
+    }
+    if (result.status === "unavailable") {
+      return publicApiError(
+        "Could not add this pub to your list. Try again.",
+        "STORE_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
+    await savedListsStore().createList(owner.contributor.handle, listType);
+    const promoted = {
+      ...wanted,
+      promotedListType: result.promotedListType,
+      promotedAt: result.promotedAt,
+    };
+    return jsonNoStore({
+      outcome: result.status,
+      venueId: wanted.venueId,
+      listType,
+      listUrl: savedListPath(owner.contributor.handle, listType),
+      wanted: promoted,
+    }, { status: 200 });
+  }
 
   if (action === "fulfil") {
     const venueId = readString(body.venueId);
