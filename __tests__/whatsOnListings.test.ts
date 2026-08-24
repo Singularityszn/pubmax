@@ -48,6 +48,19 @@ describe("preferDurableWhatsOn", () => {
     expect(preferDurableWhatsOn(durable, bundled, NOW)[0].title).toBe("Durable listing");
   });
 
+  it("merges durable and bundled rows when source labels differ only by whitespace", () => {
+    const bundled = [
+      row({
+        source: { label: " Ticketmaster ", url: "https://www.ticketmaster.co.uk/event/1" },
+        title: "Bundled title",
+      }),
+    ];
+    const durable = [row({ title: "Durable title" })];
+    const served = preferDurableWhatsOn(durable, bundled, NOW);
+    expect(served).toHaveLength(1);
+    expect(served[0].title).toBe("Durable title");
+  });
+
   it("fills only a missing durable venueId from its bundled source twin", () => {
     const bundled = [
       row({ venueId: "venue-confirmed", confidence: "confirmed", title: "Bundled title" }),
