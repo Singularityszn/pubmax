@@ -62,6 +62,8 @@ export type OutResponse = {
   /** Number of window-filtered rows without a venueId, before the serve cap. */
   unmatchedCount?: number;
   unmatchedPlaces?: string[];
+  /** Number of distinct unmatched place names, before the serve cap. */
+  unmatchedPlaceCount?: number;
   unmatchedSources?: string[];
   /** Why a degraded answer is degraded, in words a reader can act on. */
   reason?: string;

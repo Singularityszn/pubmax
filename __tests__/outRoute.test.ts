@@ -954,6 +954,7 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.events).toHaveLength(MAX_OUT_EVENTS);
     expect(body.unmatchedCount).toBe(1);
     expect(body.unmatchedPlaces).toEqual(["The O2"]);
+    expect(body.unmatchedPlaceCount).toBe(1);
     expect(body.unmatchedSources).toEqual(["Ticketmaster"]);
     const notice = outUnmatchedListingsNotice(
       body.events,

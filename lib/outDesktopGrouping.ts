@@ -164,6 +164,7 @@ export type OutUnmatchedNotice = {
 export type OutUnmatchedListingsNoticeOptions = {
   unmatchedCount?: number;
   unmatchedPlaces?: readonly string[];
+  unmatchedPlaceCount?: number;
   unmatchedSources?: readonly string[];
 };
 
@@ -227,11 +228,15 @@ export function outUnmatchedListingsNotice(
   })();
   const rest = names.length - OUT_UNMATCHED_PLACES_SHOWN;
   const named = names.slice(0, OUT_UNMATCHED_PLACES_SHOWN);
+  const extraPlaceCount =
+    options.unmatchedPlaceCount === undefined
+      ? rest
+      : Math.max(0, options.unmatchedPlaceCount - named.length);
   const places =
     named.length === 0
       ? ""
-      : options.unmatchedPlaces === undefined && rest > 0
-        ? `${named.join(", ")} and ${rest} more ${rest === 1 ? "place" : "places"}.`
+      : extraPlaceCount > 0
+        ? `${named.join(", ")} and ${extraPlaceCount} more ${extraPlaceCount === 1 ? "place" : "places"}.`
         : `${joinPlaces(named)}.`;
 
   const way =

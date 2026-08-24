@@ -55,6 +55,7 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     {
       unmatchedCount: body?.unmatchedCount,
       unmatchedPlaces: body?.unmatchedPlaces,
+      unmatchedPlaceCount: body?.unmatchedPlaceCount,
       unmatchedSources: body?.unmatchedSources,
     },
   );

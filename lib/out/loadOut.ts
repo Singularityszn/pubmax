@@ -221,6 +221,7 @@ function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string>
 
 function unmatchedNoticeMetadata(rows: readonly WhatsOnRow[]): {
   places: string[];
+  placeCount: number;
   sources: string[];
 } {
   const places: string[] = [];
@@ -242,7 +243,7 @@ function unmatchedNoticeMetadata(rows: readonly WhatsOnRow[]): {
       sources.push(sourceLabel);
     }
   }
-  return { places, sources };
+  return { places, placeCount: placeKeys.size, sources };
 }
 
 function notCoveredResponse(city: OutCity): OutResponse {
@@ -416,6 +417,7 @@ export async function buildOutResponse(
     providers: reports,
     unmatchedCount: unmatched,
     unmatchedPlaces: unmatchedMetadata.places,
+    unmatchedPlaceCount: unmatchedMetadata.placeCount,
     unmatchedSources: unmatchedMetadata.sources,
     venueMatch,
   };

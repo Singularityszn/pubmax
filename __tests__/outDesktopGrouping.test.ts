@@ -323,4 +323,23 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.places).toBe("The O2.");
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
+
+  it("counts distinct places beyond the six names carried by the response", () => {
+    const notice = outUnmatchedListingsNotice(
+      [unmatched("a", "Place 1")],
+      "tonight",
+      "ready",
+      {
+        unmatchedCount: 8,
+        unmatchedPlaces: Array.from({ length: OUT_UNMATCHED_PLACES_SHOWN }, (_, index) =>
+          `Place ${index + 1}`,
+        ),
+        unmatchedPlaceCount: 8,
+        unmatchedSources: ["Ticketmaster"],
+      },
+    );
+    expect(notice?.places).toBe(
+      "Place 1, Place 2, Place 3, Place 4, Place 5, Place 6 and 2 more places.",
+    );
+  });
 });
