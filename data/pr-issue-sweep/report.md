@@ -3,7 +3,8 @@
 Date: 2026-08-24
 Reviewer: firstmate crewmate on `fm/pr-issue-sweep`
 Base: `origin/main` at `155a6b6060dae23756245c1613f092d90401c5b3` (`feat(events): refresh What's-On feeds through Vercel cron (#1194)`)
-Scope: inbox 001.msg dropped issues plus PRs #1179, #1180, #1190. This report covers four PRs only.
+Reviewed PRs: #1196, #1191, #1189, #1188.
+Out of scope (inbox 001.msg): issues, plus PRs #1179, #1180, #1190.
 
 Laws used: `fablenextsteps.md` (no invented prices or facts; two independent reports for price authority; Social gated behind `PUBMAX_SOCIAL_FRIENDS_LAUNCH`; north star is Planned Nights), `docs/VOICE.md`, `AGENTS.md`.
 
@@ -89,7 +90,7 @@ Owner confirms an open, curated, resolved Wanted and copies it onto a built-in p
 
 ### Tests run
 
-```
+```shell
 NODE_OPTIONS=--max-old-space-size=2048 npx vitest run --maxWorkers=1 \
   __tests__/wanted.test.ts \
   __tests__/wantedPromotion.test.ts \
@@ -133,6 +134,7 @@ Captain authored the PR, so this may be an intended Wave B. Still escalate: do n
 2. Migration is 0120 (or later) with rollback.
 3. `isWantedPromotable` matches the pub-kind gate.
 4. Captain records that a Wanted may join a public list on an explicit tap.
+5. `promoteInMemory` is atomic with `ensureSaved` (or rolls back `recordPromotion` on save failure). The keyless `npm run dev` path is blocking, not a follow-up.
 
 ---
 
@@ -150,7 +152,7 @@ Discover tab already skips the Social access boundary. Creator lists ride that s
 
 ### Tests run
 
-```
+```shell
 NODE_OPTIONS=--max-old-space-size=2048 npx vitest run --maxWorkers=1 \
   __tests__/creatorListDiscovery.test.ts \
   __tests__/creatorListDiscoveryRoute.test.ts \
@@ -163,13 +165,13 @@ Creator-list files: 13 passed. `__tests__/unreadResponseBody.test.ts`: 1 failed.
 
 Offenders:
 
-```
+```text
 components/social/CreatorListsLane.tsx:221
 ```
 
 Shape:
 
-```
+```tsx
 if (!response.ok) {
   setStatus("unavailable");
   return;
@@ -217,7 +219,7 @@ Dead-code check on current main: `mintPlanMemberToken` has one definition and no
 
 ### Tests run (on PR head)
 
-```
+```shell
 NODE_OPTIONS=--max-old-space-size=2048 npx vitest run --maxWorkers=1 \
   __tests__/publicJsonLoaderRetry.test.ts \
   __tests__/mobileWebPolish.test.ts \
@@ -242,7 +244,7 @@ Out of scope (inbox 001.msg). Sibling scout owns 1181-1187 and the older 252-727
 
 ## Verdicts (status file copies)
 
-```
+```text
 pr-verdict: #1196 ESCALATE - Blacksmith vendor/spend; AGENTS.md forbids it (#747); YAML is labels-only but service-role and API keys would run on third-party VMs
 pr-verdict: #1191 ESCALATE - 0119 collides with landed Whats-On 0119; Wanted privacy law; UI over-eligible vs isPubVenueKind; stacked on red #1189 fence
 pr-verdict: #1189 ESCALATE - unreadResponseBody red at CreatorListsLane.tsx:221; retry can pin unavailable; fail-soft empty can read as no lists
