@@ -101,7 +101,7 @@ describe("Pal answer hygiene", () => {
     ]);
   });
 
-  it("rejects model plumbing at the shared answer boundary", () => {
+  it("composes pub counts from retained cards", () => {
     const card: AskCard = {
       key: "venue-1",
       venueId: "venue-1",
@@ -111,51 +111,10 @@ describe("Pal answer hygiene", () => {
       price: 5.4,
       provenance: { label: "On record", kind: "directory" },
     };
-    const answer = composeAnswer(
-      "2 grounded picks from CityMCP",
-      ["The Lamb is listed."],
-      [card],
-      ["search_venues"],
-    );
+    const answer = composeAnswer(["The Lamb is listed."], [card], ["search_venues"]);
     expect(answer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
-    expect(answer).not.toMatch(/CityMCP|grounded/iu);
-
-    const rowsAnswer = composeAnswer(
-      "I found 2 rows in Camden.",
-      ["The Lamb is listed."],
-      [card],
-      ["search_venues"],
-    );
-    expect(rowsAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
-    expect(rowsAnswer).not.toMatch(/\brows\b/iu);
-
-    const classifierAnswer = composeAnswer(
-      "The classifier selected these pubs.",
-      ["The Lamb is listed."],
-      [card],
-      ["search_venues"],
-    );
-    expect(classifierAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
-    expect(classifierAnswer).not.toMatch(/\bclassifier\b/iu);
-
-    const wrongCountAnswer = composeAnswer(
-      "I found 2 listed pubs.",
-      ["The Lamb is listed."],
-      [card],
-      ["search_venues"],
-    );
-    expect(wrongCountAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
-
-    const matchingCountAnswer = composeAnswer(
-      "Here is 1 pick.",
-      ["The Lamb is listed."],
-      [card],
-      ["search_venues"],
-    );
-    expect(matchingCountAnswer).toBe("Here is 1 pick.");
 
     const statusAnswer = composeAnswer(
-      null,
       ["London right now: no tube or weather notes."],
       [{ ...card, venueId: "", title: "London right now", place: "" }],
       ["city_status"],
@@ -174,20 +133,10 @@ describe("Pal answer hygiene", () => {
       price: null,
       provenance: { label: "On record", kind: "directory" },
     };
-    const deskAnswer = composeAnswer(
-      null,
-      ["1 place to sit and work."],
-      [card],
-      ["find_desk"],
-    );
+    const deskAnswer = composeAnswer(["1 place to sit and work."], [card], ["find_desk"]);
     expect(deskAnswer).toBe("1 place to sit and work.");
 
-    const pubAnswer = composeAnswer(
-      null,
-      [],
-      [card],
-      ["search_venues"],
-    );
+    const pubAnswer = composeAnswer([], [card], ["search_venues"]);
     expect(pubAnswer).toBe("1 pick from the listed pubs, each with its source.");
   });
 
@@ -214,7 +163,7 @@ describe("Pal answer hygiene", () => {
       result([0, 1, 2, 3, 4]),
       result([5, 6, 7, 8, 9]),
     ]);
-    const answer = composeAnswer(null, merged.hints, merged.cards, merged.toolsUsed);
+    const answer = composeAnswer(merged.hints, merged.cards, merged.toolsUsed);
 
     expect(merged.cards).toHaveLength(8);
     expect(answer).toMatch(/Showing the first 8\.$/u);

@@ -102,64 +102,11 @@ function mergeToolResults(results: AskToolResult[]): {
   };
 }
 
-/**
- * Every £ figure and every clock-time claim in the model's prose must appear
- * verbatim in the grounded evidence (tool hints + cards). Model prose that
- * carries a figure the tools never returned is DISCARDED, never trimmed - the
- * anti-goals law is fail closed to grounded answers, and a single invented
- * price on this surface would spend the whole product's trust argument.
- */
-export function modelProseIsGrounded(
-  prose: string,
-  hints: string[],
-  cards: AskCard[],
-): boolean {
-  const evidence = [
-    ...hints,
-    ...cards.flatMap((card) => Object.values(card).map(String)),
-  ]
-    .join(" ")
-    .toLowerCase();
-  const claims = [
-    ...prose.matchAll(/£\s?\d+(?:\.\d{1,2})?/g),
-    ...prose.matchAll(/\b\d{1,2}:\d{2}\s?(?:am|pm)?\b/gi),
-  ].map((m) => m[0].replace(/\s/g, "").toLowerCase());
-  return claims.every((claim) => evidence.replace(/\s/g, "").includes(claim));
-}
-
-function modelProseHasReaderPlumbing(prose: string): boolean {
-  return [
-    /\bcitymcp\b/iu,
-    /\bgrounded\b/iu,
-    /\brows\b/iu,
-    /\bthings-to-do rows?\b/iu,
-    /\bwhat'?s on ask\b/iu,
-    /\bask[- ]classifier\b/iu,
-    /\bclassifier\b/iu,
-  ].some((pattern) => pattern.test(prose));
-}
-
-function modelProseCountMatchesCards(prose: string, cardCount: number): boolean {
-  return [...prose.matchAll(
-    /\b(\d+)(?:\s+\w+){0,2}\s+(?:picks?|pubs?|listings?|results?|options?|places?|cards?)\b/giu,
-  )].every((match) => Number(match[1]) === cardCount);
-}
-
 function composeAnswer(
-  modelAnswer: string | null,
   hints: string[],
   cards: AskCard[],
   toolsUsed: string[],
 ): string {
-  if (
-    modelAnswer &&
-    modelAnswer.trim() &&
-    !modelProseHasReaderPlumbing(modelAnswer) &&
-    modelProseCountMatchesCards(modelAnswer, cards.length) &&
-    modelProseIsGrounded(modelAnswer, hints, cards)
-  ) {
-    return modelAnswer.trim().slice(0, 1200);
-  }
   if (cards.length > 0) {
     const pubPickTools = new Set(["search_venues", "cheapest_pint_near"]);
     const isPubPickAnswer =
@@ -216,7 +163,6 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
   };
 
   let toolResults: AskToolResult[] = [];
-  let modelAnswer: string | null = null;
 
   const allowModel =
     !input.skipModel && Boolean(process.env.OPENROUTER_API_KEY);
@@ -230,7 +176,6 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
     });
     if (modelOutcome && modelOutcome.toolResults.length > 0) {
       toolResults = modelOutcome.toolResults;
-      modelAnswer = modelOutcome.answer;
     }
   }
 
@@ -252,7 +197,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const merged = mergeToolResults(toolResults);
   return {
-    answer: composeAnswer(modelAnswer, merged.hints, merged.cards, merged.toolsUsed),
+    answer: composeAnswer(merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,
     sources: merged.sources,
