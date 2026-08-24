@@ -14,6 +14,8 @@ const PLUMBING_TOKENS = [
   "CityMCP",
   "rows",
   "What's On ask",
+  "ask-classifier",
+  "classifier",
   "grounded",
 ] as const;
 
