@@ -4,6 +4,7 @@ import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export const MAX_OUT_EVENTS = 100;
+export const OUT_UNMATCHED_PLACES_SHOWN = 6;
 export const OUT_DAYS = ["today", "tomorrow", "weekend"] as const;
 export type OutDay = (typeof OUT_DAYS)[number];
 
@@ -60,6 +61,8 @@ export type OutResponse = {
   providers: OutProviderReport[];
   /** Number of window-filtered rows without a venueId, before the serve cap. */
   unmatchedCount?: number;
+  unmatchedPlaces?: string[];
+  unmatchedSources?: string[];
   /** Why a degraded answer is degraded, in words a reader can act on. */
   reason?: string;
   /**

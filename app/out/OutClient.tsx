@@ -52,7 +52,11 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     listingRows,
     day,
     body?.venueMatch,
-    body?.unmatchedCount,
+    {
+      unmatchedCount: body?.unmatchedCount,
+      unmatchedPlaces: body?.unmatchedPlaces,
+      unmatchedSources: body?.unmatchedSources,
+    },
   );
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
   const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);

@@ -519,6 +519,7 @@ describe("the two lanes fold onto one listing", () => {
       id: "events-tm-live",
       sourceId: "tm-1",
       observedAt: "2026-08-16T16:00:00.000Z",
+      venueId: "   ",
     });
     const body = await buildOutResponse(
       { city: "london", day: "today" },
@@ -916,10 +917,57 @@ describe("the live lane is venue-matched at request time", () => {
       body.events,
       "tonight",
       body.venueMatch,
-      body.unmatchedCount,
+      {
+        unmatchedCount: body.unmatchedCount,
+        unmatchedPlaces: body.unmatchedPlaces,
+        unmatchedSources: body.unmatchedSources,
+      },
     );
     expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
     expect(notice?.places).toBe("The O2.");
+  });
+
+  it("keeps pre-cap unmatched places and credits for the empty-state notice", async () => {
+    const matchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
+      eventRow({
+        id: "matched-" + index,
+        sourceId: "matched-" + index,
+        title: "Matched " + index,
+        venueId: "venue-1137z1c",
+        startsAt: "2026-08-16T18:00:00.000Z",
+      }),
+    );
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [],
+        liveProviders: [
+          ticketmaster([
+            ...matchedRows,
+            { ...liveArena, startsAt: "2026-08-16T23:00:00.000Z" },
+          ]),
+        ],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+    expect(body.events).toHaveLength(MAX_OUT_EVENTS);
+    expect(body.unmatchedCount).toBe(1);
+    expect(body.unmatchedPlaces).toEqual(["The O2"]);
+    expect(body.unmatchedSources).toEqual(["Ticketmaster"]);
+    const notice = outUnmatchedListingsNotice(
+      body.events,
+      "tonight",
+      body.venueMatch,
+      {
+        unmatchedCount: body.unmatchedCount,
+        unmatchedPlaces: body.unmatchedPlaces,
+        unmatchedSources: body.unmatchedSources,
+      },
+    );
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+    expect(notice?.places).toBe("The O2.");
+    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
   it("never serves a live row whose start has already passed", async () => {

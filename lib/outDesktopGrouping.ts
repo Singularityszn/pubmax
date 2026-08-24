@@ -1,8 +1,13 @@
 import type { OutOpenPlan } from "@/lib/out";
 import { getNightArea } from "@/lib/nightAreas";
 import { isNightAreaSlug } from "@/lib/nightPlanning";
-import { outSourceAttribution, type OutSourceCredit } from "@/lib/out/attribution";
+import {
+  outSourceAttribution,
+  outSourceAttributionFromLabels,
+  type OutSourceCredit,
+} from "@/lib/out/attribution";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
+import { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
 import { outWindowNoun, type OutDayWindow } from "@/lib/outListings";
 import type { WhatsOnRow } from "@/lib/whatsOn";
@@ -13,8 +18,7 @@ export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 export const OUT_LISTING_PUB_ABSENT_LINE =
   "No matching pub in PUBMAXX yet.";
 
-/** How many unlisted places the notice names before it counts the rest. */
-export const OUT_UNMATCHED_PLACES_SHOWN = 6;
+export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
 export { canonicalOutVenueId } from "@/lib/out/venueId";
 
@@ -157,6 +161,12 @@ export type OutUnmatchedNotice = {
   way: { href: string; label: string };
 };
 
+export type OutUnmatchedListingsNoticeOptions = {
+  unmatchedCount?: number;
+  unmatchedPlaces?: readonly string[];
+  unmatchedSources?: readonly string[];
+};
+
 function joinPlaces(names: readonly string[]): string {
   if (names.length <= 1) return names.join("");
   return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
@@ -182,10 +192,10 @@ export function outUnmatchedListingsNotice(
   rows: readonly WhatsOnRow[],
   window: OutDayWindow,
   venueMatch: OutVenueMatchStatus | undefined,
-  unmatchedCount?: number,
+  options: OutUnmatchedListingsNoticeOptions = {},
 ): OutUnmatchedNotice | null {
   const hidden = rows.filter((row) => !hasResolvedPub(row));
-  const count = unmatchedCount ?? hidden.length;
+  const count = options.unmatchedCount ?? hidden.length;
   if (count === 0) return null;
   const shown = rows.length - hidden.length;
   const noun = outWindowNoun(window);
@@ -203,21 +213,24 @@ export function outUnmatchedListingsNotice(
     line = `${count} ${shown > 0 ? "more " : ""}listings ${when} are at places we don't list yet.`;
   }
 
-  const names: string[] = [];
-  const seen = new Set<string>();
-  for (const row of hidden) {
-    const name = row.placeName.trim();
-    const key = normalizePlaceName(name);
-    if (!name || seen.has(key)) continue;
-    seen.add(key);
-    names.push(name);
-  }
+  const names = options.unmatchedPlaces ? [...options.unmatchedPlaces] : (() => {
+    const names: string[] = [];
+    const seen = new Set<string>();
+    for (const row of hidden) {
+      const name = row.placeName.trim();
+      const key = normalizePlaceName(name);
+      if (!name || seen.has(key)) continue;
+      seen.add(key);
+      names.push(name);
+    }
+    return names;
+  })();
   const rest = names.length - OUT_UNMATCHED_PLACES_SHOWN;
   const named = names.slice(0, OUT_UNMATCHED_PLACES_SHOWN);
   const places =
     named.length === 0
       ? ""
-      : rest > 0
+      : options.unmatchedPlaces === undefined && rest > 0
         ? `${named.join(", ")} and ${rest} more ${rest === 1 ? "place" : "places"}.`
         : `${joinPlaces(named)}.`;
 
@@ -226,7 +239,11 @@ export function outUnmatchedListingsNotice(
       ? { href: "/tonight", label: "See what else is on tonight" }
       : { href: "/map", label: "Find a pub on the map" };
 
-  return { line, places, credits: outSourceAttribution(hidden), way };
+  const credits =
+    options.unmatchedSources === undefined
+      ? outSourceAttribution(hidden)
+      : outSourceAttributionFromLabels(options.unmatchedSources);
+  return { line, places, credits, way };
 }
 
 /** A sendable open plan carries a resolved meeting point the card can render. */

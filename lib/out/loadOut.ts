@@ -18,6 +18,7 @@ import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import {
   MAX_OUT_EVENTS,
   OUT_DAYS,
+  OUT_UNMATCHED_PLACES_SHOWN,
   type OutDay,
   type OutProviderReport,
   type OutQuery,
@@ -198,8 +199,10 @@ function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
       continue;
     }
     const winner = Date.parse(row.observedAt) >= Date.parse(held.observedAt) ? row : held;
-    const venueId = winner.venueId ?? held.venueId ?? row.venueId;
-    byKey.set(key, venueId && !winner.venueId ? { ...winner, venueId } : winner);
+    const winnerVenueId = canonicalOutVenueId(winner.venueId);
+    const venueId =
+      winnerVenueId ?? canonicalOutVenueId(held.venueId) ?? canonicalOutVenueId(row.venueId);
+    byKey.set(key, venueId && winnerVenueId === null ? { ...winner, venueId } : winner);
   }
   return [...byKey.values(), ...noSourceId];
 }
@@ -214,6 +217,32 @@ function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string>
     }
   }
   return out;
+}
+
+function unmatchedNoticeMetadata(rows: readonly WhatsOnRow[]): {
+  places: string[];
+  sources: string[];
+} {
+  const places: string[] = [];
+  const placeKeys = new Set<string>();
+  const sources: string[] = [];
+  const sourceKeys = new Set<string>();
+  for (const row of rows) {
+    if (canonicalOutVenueId(row.venueId) !== null) continue;
+    const placeName = row.placeName.trim();
+    const placeKey = placeName.toLocaleLowerCase().replace(/\s+/g, " ");
+    if (placeName && !placeKeys.has(placeKey)) {
+      placeKeys.add(placeKey);
+      if (places.length < OUT_UNMATCHED_PLACES_SHOWN) places.push(placeName);
+    }
+    const sourceLabel = row.source.label.trim();
+    const sourceKey = sourceLabel.toLocaleLowerCase();
+    if (sourceLabel && !sourceKeys.has(sourceKey)) {
+      sourceKeys.add(sourceKey);
+      sources.push(sourceLabel);
+    }
+  }
+  return { places, sources };
 }
 
 function notCoveredResponse(city: OutCity): OutResponse {
@@ -337,6 +366,7 @@ export async function buildOutResponse(
     });
   }
 
+  const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
   const merged = matchedRows
     .map(fillEventArea)
     .sort(
@@ -362,7 +392,7 @@ export async function buildOutResponse(
     inWindow: inWindow.length,
     served: merged.length,
     matchedAtRequest,
-    matched: merged.filter((row) => Boolean(row.venueId)).length,
+    matched: matchedRows.filter((row) => canonicalOutVenueId(row.venueId) !== null).length,
     unmatched,
     venueMatch,
   });
@@ -385,6 +415,8 @@ export async function buildOutResponse(
     observedAt: observedAtBySource(merged),
     providers: reports,
     unmatchedCount: unmatched,
+    unmatchedPlaces: unmatchedMetadata.places,
+    unmatchedSources: unmatchedMetadata.sources,
     venueMatch,
   };
   if (reason) {

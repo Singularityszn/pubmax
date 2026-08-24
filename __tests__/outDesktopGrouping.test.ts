@@ -317,9 +317,10 @@ describe("outUnmatchedListingsNotice", () => {
       [unmatched("a", "The O2")],
       "tonight",
       "ready",
-      4,
+      { unmatchedCount: 4, unmatchedPlaces: ["The O2"], unmatchedSources: ["Ticketmaster"] },
     );
     expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
     expect(notice?.places).toBe("The O2.");
+    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 });
