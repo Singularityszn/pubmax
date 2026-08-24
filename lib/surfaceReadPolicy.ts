@@ -103,7 +103,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/nativePush.ts", fetchCount: 1, reason: "native push subscription transport is an account action" },
   { path: "lib/nativeCamera.ts", fetchCount: 1, reason: "native camera bridge reads a local photo blob, not app data" },
   { path: "lib/lastRideClient.ts", fetchCount: 1, reason: "last-ride lookup is an optional transport interaction" },
-  { path: "lib/publicJsonLoader.ts", fetchCount: 1, reason: "shared fetch behind the price history, price update and Pint Index league loaders — each an additive map detail/static lane, never a painted reload read" },
+  { path: "lib/publicJsonLoader.ts", fetchCount: 1, reason: "shared fetch behind the price history, price update and Pint Index league loaders, each an additive map detail/static lane, never a painted reload read" },
   { path: "lib/wetherspoonsDirectory.ts", fetchCount: 1, reason: "directory data is static optional map content" },
   { path: "lib/nearDeskVenues.ts", fetchCount: 1, reason: "desk pack loading is owned by the Desk mode data lifecycle" },
   { path: "lib/deviceAccountSwitch.ts", fetchCount: 1, reason: "account switching is auth transport and identity must never be cached" },
