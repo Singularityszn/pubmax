@@ -11,8 +11,9 @@ import type { WhatsOnRow } from "@/lib/whatsOn";
 
 // The request-time matcher over the slim venue index. It is the SAME matcher
 // the build-time refresh runs (scripts/whatson/resolveVenueId.mjs), fed an
-// index built from the slim rows the server already holds, so a live
-// Ticketmaster row lands on the same pin the CLI would have put it on.
+// index built from the slim rows the server already holds. A normalised-name
+// match resolves only when exactly one candidate is proximity-confirmed within
+// 75 m; zero or several confirmed candidates resolve to nothing.
 
 const LEXINGTON: VenueRef = {
   id: "venue-1137z1c",
@@ -30,7 +31,7 @@ const DUBLIN_CASTLE: VenueRef = {
   lng: -0.1429,
 };
 
-// Two Windmills far apart: the name alone can never pick one.
+// Two same-name Windmills: proximity must confirm exactly one candidate.
 const WINDMILL_BRIXTON: VenueRef = {
   id: "venue-pmqf8u",
   name: "The Windmill",
@@ -87,7 +88,7 @@ describe("matchOutRowVenue", () => {
     expect(matchOutRowVenue(liveRow({ lat: undefined, lng: undefined }), index)).toBeNull();
   });
 
-  it("picks the one Windmill the coordinates confirm, never the name alone", () => {
+  it("resolves only when exactly one same-name candidate is confirmed", () => {
     expect(
       matchOutRowVenue(liveRow({ placeName: "The Windmill", lat: 51.4553, lng: -0.1215 }), index),
     ).toBe("venue-pmqf8u");

@@ -25,10 +25,11 @@ vi.mock("@/lib/outRateLimit", () => ({
 }));
 
 vi.mock("@/lib/venueIndex", () => ({
-  // The request-time venue matcher reads the slim index through this. An
-  // empty map is "could not read", so the default lane matches nothing here;
-  // the matcher tests below inject their own index.
-  getVenueIndex: vi.fn(async () => new Map()),
+  getVenueIndexSnapshot: vi.fn(async () => ({
+    index: new Map(),
+    loadedCities: new Set(["london"]),
+    complete: true,
+  })),
   lookupCanonicalVenue: vi.fn(async (id: string) => {
     if (!venueIndex.readable) return { status: "unavailable", canonicalId: id };
     const name = venueIndex.venues.get(id);

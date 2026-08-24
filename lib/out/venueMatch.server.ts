@@ -1,28 +1,53 @@
 import "server-only";
 
+import { venueIdMatchesCity } from "@/lib/cityVenueIds";
+import type { CityId } from "@/lib/cities";
 import { buildOutVenueMatchIndex, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
-import { getVenueIndex } from "@/lib/venueIndex";
+import { getVenueIndexSnapshot, type VenueIndexSnapshot, type VenueRef } from "@/lib/venueIndex";
 
-// The slim index is read once per process by lib/venueIndex.ts and memoised;
-// the resolver index is built once over THAT map and held beside it. So the
-// per-request cost of matching is one map lookup per row, and no request ever
-// re-parses a pack or re-walks the city.
-const built = new WeakMap<Map<string, unknown>, OutVenueMatchIndex>();
+const built = new WeakMap<Map<string, VenueRef>, Map<CityId, OutVenueMatchIndex>>();
+const building = new WeakMap<Map<string, VenueRef>, Map<CityId, Promise<OutVenueMatchIndex>>>();
+let snapshotPromise: Promise<VenueIndexSnapshot> | null = null;
 
-/**
- * The request-time match index, or null when the slim index could not be read.
- *
- * lib/venueIndex.ts never throws: a pack that would not read yields an EMPTY
- * map. An empty London is not an answer, so that reads as null here and the
- * caller reports the match as unavailable rather than telling a reader that
- * every place on the page is unlisted.
- */
-export async function loadOutVenueMatchIndex(): Promise<OutVenueMatchIndex | null> {
-  const venues = await getVenueIndex();
-  if (venues.size === 0) return null;
-  const held = built.get(venues);
+async function loadSnapshot() {
+  if (!snapshotPromise) {
+    snapshotPromise = getVenueIndexSnapshot().catch((error) => {
+      snapshotPromise = null;
+      throw error;
+    });
+  }
+  const snapshot = await snapshotPromise;
+  if (!snapshot.complete) snapshotPromise = null;
+  return snapshot;
+}
+
+export async function loadOutVenueMatchIndex(
+  city: CityId = "london",
+): Promise<OutVenueMatchIndex | null> {
+  const snapshot = await loadSnapshot();
+  if (!snapshot.loadedCities.has(city)) return null;
+
+  const indexes = built.get(snapshot.index) ?? new Map<CityId, OutVenueMatchIndex>();
+  built.set(snapshot.index, indexes);
+  const held = indexes.get(city);
   if (held) return held;
-  const index = buildOutVenueMatchIndex(venues.values());
-  built.set(venues, index);
-  return index;
+
+  const pending = building.get(snapshot.index) ?? new Map<CityId, Promise<OutVenueMatchIndex>>();
+  building.set(snapshot.index, pending);
+  const existing = pending.get(city);
+  if (existing) return existing;
+
+  const promise = Promise.resolve().then(() =>
+    buildOutVenueMatchIndex(
+      [...snapshot.index.values()].filter((venue) => venueIdMatchesCity(venue.id, city)),
+    ),
+  );
+  pending.set(city, promise);
+  try {
+    const index = await promise;
+    indexes.set(city, index);
+    return index;
+  } finally {
+    pending.delete(city);
+  }
 }

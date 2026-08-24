@@ -49,7 +49,7 @@ export type BuildOutResponseOpts = {
    * be read; a loader that THROWS reads the same way, so a broken pack never
    * turns a listings answer into a platform error.
    */
-  loadVenueMatchIndex?: () => Promise<OutVenueMatchIndex | null>;
+  loadVenueMatchIndex?: (city: OutCity) => Promise<OutVenueMatchIndex | null>;
 };
 
 // A city is COVERED when a bundled events file for it ships. The param is open
@@ -317,7 +317,7 @@ export async function buildOutResponse(
   let unmatched = inWindow.filter((row) => !row.venueId).length;
   let matchedRows = inWindow;
   try {
-    const index = await loadVenueMatchIndex();
+    const index = await loadVenueMatchIndex(city);
     if (index) {
       const attached = attachOutVenues(inWindow, index);
       matchedRows = attached.rows;
