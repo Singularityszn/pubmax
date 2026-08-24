@@ -670,7 +670,11 @@ describe("data/freshness_registry.json integrity", () => {
       // A budgeted dataset must have a way to observe its stamp.
       if (d.stalenessBudgetHours !== null) {
         expect(d.stamp).not.toBeNull();
-        expect(d.artifact).not.toBeNull();
+        if (d.stamp?.kind === "store") {
+          expect(d.artifact).toBeNull();
+        } else {
+          expect(d.artifact).not.toBeNull();
+        }
       }
       // Live datasets carry no disk artifact to age.
       if (d.class === "live") {
@@ -680,9 +684,9 @@ describe("data/freshness_registry.json integrity", () => {
     }
   });
 
-  it("resolves a real observed stamp for every budgeted artifact", () => {
+  it("resolves a real observed stamp for every budgeted artifact-backed feed", () => {
     for (const d of registry.datasets) {
-      if (d.stalenessBudgetHours === null) continue;
+      if (d.stalenessBudgetHours === null || d.stamp?.kind === "store") continue;
       const raw = JSON.parse(readFileSync(join(root, d.artifact as string), "utf8"));
       expect(resolveObservedAt(d.stamp, raw)).not.toBeNull();
     }

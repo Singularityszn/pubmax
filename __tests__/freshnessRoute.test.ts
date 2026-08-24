@@ -40,12 +40,13 @@ describe("GET /api/freshness", () => {
   it("never surfaces a broken bundled artifact as an unresolved stamp", async () => {
     // The shipped, artifact-backed datasets are all valid, so none of THEM should
     // read as "unknown" (that status is reserved for a genuinely missing/broken
-    // file). The store-only night_signal_candidates feed has no artifact at all:
+    // file). The store-only night_signal_candidates and whats_on feeds have no
+    // artifact at all:
     // with no Supabase
     // configured in this test run they honestly read "unknown" — unmeasurable
     // without credentials, never a silent fresh — which is the whole point of
     // the store-kind stamp, not a broken artifact.
-    const STORE_ONLY_FEEDS = new Set(["night_signal_candidates"]);
+    const STORE_ONLY_FEEDS = new Set(["night_signal_candidates", "whats_on"]);
     const res = await GET();
     const body = (await res.json()) as { datasets: Array<{ id: string; status: string }> };
     const unexpectedUnknown = body.datasets.filter(

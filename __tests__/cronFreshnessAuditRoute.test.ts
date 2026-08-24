@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Hermetic: reads the real committed freshness registry from disk (like
 // /api/freshness); no Supabase env → the overlay is empty and every artifact-
-// backed feed keeps its disk-derived stamp. The two store-only feeds
-// night_signal_candidates has no artifact at all, so
+// backed feed keeps its disk-derived stamp. The two store-only feeds,
+// night_signal_candidates and whats_on, have no artifact at all, so
 // with no Supabase credentials they honestly read "unknown" — unmeasurable
 // without credentials, never silently fresh. Never 500s.
 
@@ -66,7 +66,7 @@ describe("GET /api/cron/freshness-audit", () => {
     // configured they correctly report unmeasurable-without-credentials.
     const res = await GET(req("Bearer test-secret"));
     const body = await res.json();
-    const STORE_ONLY_FEEDS = new Set(["night_signal_candidates"]);
+    const STORE_ONLY_FEEDS = new Set(["night_signal_candidates", "whats_on"]);
     const unresolvedIds = (body.unresolved as Array<{ id: string }>).map((n) => n.id);
     expect(unresolvedIds.every((id) => STORE_ONLY_FEEDS.has(id))).toBe(true);
     for (const notice of body.unresolved as Array<{ detail: string }>) {
