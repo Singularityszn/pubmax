@@ -25,6 +25,7 @@ import type { DeviceAccountSwitchOutcome } from "@/lib/deviceAccountSwitch";
 import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
 import { addLinkAwareDestination } from "@/lib/addLink";
 import { loginPageHeadCopy, loginPageShowsSkeleton } from "@/lib/loginPageFraming";
+import { authAvatarInitials } from "@/lib/authAvatarInitials";
 
 import "@/app/auth/auth.css";
 import "./loginPage.css";
@@ -68,14 +69,6 @@ const DOORS: Record<
     legalLead: "By creating an account you agree to the",
   },
 };
-
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  const first = parts[0][0] ?? "";
-  const last = parts.length > 1 ? parts[parts.length - 1][0] ?? "" : "";
-  return (first + last).toUpperCase() || "?";
-}
 
 function displayName(user: {
   email?: string | null;
@@ -145,7 +138,7 @@ function SignedInCard({
           />
         ) : (
           <span className="authAvatarFallback loginPageAvatar" aria-hidden="true">
-            {initials(displayName(user))}
+            {authAvatarInitials(displayName(user))}
           </span>
         )}
         <div className="loginPageIdentityText">

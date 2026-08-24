@@ -14,28 +14,14 @@ import {
   parsePriceHistory,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
-import { discardBody } from "@/lib/responseBody";
+import { fetchPublicJson } from "@/lib/publicJsonLoader";
 
 export const PRICE_HISTORY_PATH = "/data/price_history/london.json";
-
-async function fetchJson(path: string): Promise<unknown | null> {
-  if (typeof window === "undefined") return null;
-  try {
-    const res = await fetch(path, { headers: { accept: "application/json" } });
-    if (!res.ok) {
-      discardBody(res);
-      return null;
-    }
-    return (await res.json()) as unknown;
-  } catch {
-    return null;
-  }
-}
 
 let historyPromise: Promise<Map<string, PriceHistoryObservation[]>> | null = null;
 
 export function loadPriceHistory(): Promise<Map<string, PriceHistoryObservation[]>> {
-  historyPromise ??= fetchJson(PRICE_HISTORY_PATH).then((raw) =>
+  historyPromise ??= fetchPublicJson(PRICE_HISTORY_PATH).then((raw) =>
     groupPriceHistoryByVenue(raw === null ? [] : parsePriceHistory(raw)),
   );
   return historyPromise;
