@@ -153,8 +153,8 @@ describe("loadWhatsOn orchestration", () => {
       { window: "tonight" },
       {
         now: NOW,
-        loadBaseline: () => [makeRow({ observedAt: "2026-08-24T19:00:00.000Z" })],
-        baselineProviderObservedAt: "2026-08-24T19:00:00.000Z",
+        loadBaseline: () => [makeRow({ observedAt: "2026-07-11T19:00:00.000Z" })],
+        baselineProviderObservedAt: "2026-07-11T19:00:00.000Z",
         fetchLive: async () => [],
       },
     );

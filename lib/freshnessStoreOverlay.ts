@@ -7,8 +7,9 @@ import "server-only";
 // DURABLE store (not a committed file, which is read-only on serverless).
 // For those feeds, the disk timestamp can freeze at the last commit. This
 // overlay returns store-observed time so /api/freshness and freshness audit
-// report the truth. The combined What's-On feed is not included because its
-// cron only refreshes one event lane.
+// report the truth. The combined What's-On feed reads its generatedAt from the
+// durable listings store when that store answers, with the bundled artifact as
+// fallback.
 //
 // HARD RULE: a dataset id may only appear here when the cron's write IS what
 // that dataset serves. An ingestion run that cannot update a committed artifact
@@ -25,6 +26,7 @@ import type { StoreRead } from "@/lib/freshness";
 import { errorMessage, isMissingTableSchema } from "@/lib/storeBackend";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { weatherSnapshotStore } from "@/lib/weatherSnapshotStore";
+import { whatsOnListingStore } from "@/lib/whatsOnListingStore";
 
 // Registry dataset id → the store that holds its honest observedAt.
 export const WHATS_ON_FEED_KEY = "whats_on";
@@ -53,6 +55,13 @@ export async function resolveStoreObservedAt(): Promise<Record<string, string>> 
   try {
     const stamp = await feedFreshnessStore().read(NIGHT_SIGNAL_CANDIDATES_FEED_KEY);
     if (stamp?.observedAt) overlay[NIGHT_SIGNAL_CANDIDATES_DATASET_ID] = stamp.observedAt;
+  } catch {
+    // fail-soft: keep the disk stamp
+  }
+
+  try {
+    const snapshot = await whatsOnListingStore().readAll();
+    if (snapshot.generatedAt) overlay[WHATS_ON_FEED_KEY] = snapshot.generatedAt;
   } catch {
     // fail-soft: keep the disk stamp
   }

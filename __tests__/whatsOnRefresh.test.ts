@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 
-import { refreshOfficialWhatsOnListings } from "@/lib/whatsOnRefresh.server";
+import {
+  refreshOfficialWhatsOnListings,
+  refreshWhatsOnListings,
+} from "@/lib/whatsOnRefresh.server";
 import type { WhatsOnListingStore } from "@/lib/whatsOnListingStore";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import type { OutLiveProvider } from "@/lib/out/loadOut";
@@ -21,6 +24,23 @@ function eventRow(id: string, sourceLabel = "Ticketmaster"): WhatsOnRow {
     confidence: "listed",
     sourceId: id,
   };
+}
+
+function quizRow(id: string): WhatsOnRow {
+  return {
+    id,
+    placeName: "The Quiz Pub",
+    kind: "quiz",
+    startsAt: "2026-08-25T19:30:00.000Z",
+    title: "Tuesday pub quiz",
+    source: { label: "Question One", url: "https://questionone.com/venues/quiz-pub" },
+    observedAt: "2026-08-24T10:00:00.000Z",
+    confidence: "listed",
+  };
+}
+
+function kindRow(kind: Exclude<WhatsOnRow["kind"], "event" | "quiz">): WhatsOnRow {
+  return { ...quizRow(`${kind}-1`), kind, title: `${kind} listing` };
 }
 
 function memoryStore(): WhatsOnListingStore & { kinds: string[] } {
@@ -168,5 +188,53 @@ describe("refreshOfficialWhatsOnListings", () => {
     ];
     const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
     expect(result).toMatchObject({ ok: false, mode: "no-providers", written: 0, observedAt: null });
+  });
+
+  it("persists non-event feed rows under their own durable kind", async () => {
+    const store = memoryStore();
+    const providers: OutLiveProvider[] = [
+      {
+        name: "question one",
+        isConfigured: () => true,
+        fetchTonight: async () => [quizRow("quiz-1")],
+      },
+    ];
+
+    const result = await refreshOfficialWhatsOnListings({ now: NOW, store, providers });
+
+    expect(result).toMatchObject({ ok: true, written: 1 });
+    expect(store.kinds).toEqual(["quiz"]);
+    expect((await store.readAll()).rows).toEqual([quizRow("quiz-1")]);
+  });
+
+  it("refreshes quiz, deal, music, and sport feeds into the durable store", async () => {
+    const store = memoryStore();
+    const result = await refreshWhatsOnListings({
+      now: NOW,
+      store,
+      providers: [
+        {
+          name: "ticketmaster",
+          isConfigured: () => true,
+          fetchTonight: async () => [eventRow("event-1")],
+        },
+      ],
+      refreshers: {
+        quiz: async () => [quizRow("quiz-1")],
+        deal: async () => [kindRow("deal")],
+        music: async () => [kindRow("music")],
+        sport: async () => [kindRow("sport")],
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(store.kinds.sort()).toEqual(["deal", "event", "music", "quiz", "sport"]);
+    expect((await store.readAll()).rows.map((row) => row.kind).sort()).toEqual([
+      "deal",
+      "event",
+      "music",
+      "quiz",
+      "sport",
+    ]);
   });
 });

@@ -19,6 +19,7 @@ const db = vi.hoisted(() => ({
 }));
 
 const feedReads = vi.hoisted(() => ({ keys: [] as string[] }));
+const whatsOnReads = vi.hoisted(() => ({ generatedAt: null as string | null }));
 
 vi.mock("@/lib/feedFreshnessStore", () => ({
   feedFreshnessStore: () => ({
@@ -32,6 +33,12 @@ vi.mock("@/lib/feedFreshnessStore", () => ({
 vi.mock("@/lib/weatherSnapshotStore", () => ({
   weatherSnapshotStore: () => ({
     readSnapshot: async () => ({ generatedAt: "2026-07-15T00:00:00Z" }),
+  }),
+}));
+
+vi.mock("@/lib/whatsOnListingStore", () => ({
+  whatsOnListingStore: () => ({
+    readAll: async () => ({ rows: [], generatedAt: whatsOnReads.generatedAt }),
   }),
 }));
 
@@ -67,6 +74,7 @@ beforeEach(() => {
   db.error = null;
   db.throws = null;
   feedReads.keys = [];
+  whatsOnReads.generatedAt = null;
 });
 
 afterEach(() => {
@@ -126,12 +134,24 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
     expect(Object.keys(reads)).toEqual([NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
   });
 
-  it("does not overlay the combined What's-On stamp", async () => {
+  it("falls back to disk when durable What's-On store is empty", async () => {
     const overlay = await resolveStoreObservedAt();
     expect(overlay).toEqual({
       weather: "2026-07-15T00:00:00Z",
       night_signal_candidates: "2026-07-16T00:00:00Z",
     });
     expect(feedReads.keys).toEqual(["night_signal_candidates"]);
+  });
+
+  it("overlays the durable What's-On stamp when listings store answers", async () => {
+    whatsOnReads.generatedAt = "2026-08-24T05:30:00Z";
+
+    const overlay = await resolveStoreObservedAt();
+
+    expect(overlay).toMatchObject({
+      weather: "2026-07-15T00:00:00Z",
+      night_signal_candidates: "2026-07-16T00:00:00Z",
+      whats_on: "2026-08-24T05:30:00Z",
+    });
   });
 });

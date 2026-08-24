@@ -1,21 +1,18 @@
-// GET /api/cron/refresh-whats-on — scheduled What's-On official-API refresh.
+// GET /api/cron/refresh-whats-on - scheduled What's-On feed refresh.
 //
-// Ticketmaster and Skiddle already run inside a function. This cron asks them
-// for the Out window, drops expired rows, and writes kind=event to the durable
-// whats_on_listings store (migration 0119). The read side prefers that store
-// and falls back to the committed public/data/whats_on files. Harvested
-// quiz/deal/music/sport scrapes stay out of this function: they need disk
-// agents the serverless FS cannot run, and GitHub workflows remain for when
-// Actions billing returns.
+// Ticketmaster, Skiddle, and the bounded feed refreshers write every kind to
+// the durable whats_on_listings store (migration 0119). The read side prefers
+// that store and falls back to the committed public/data/whats_on files.
+// GitHub workflows remain available as a secondary recovery path.
 //
-// No configured provider, a fetch that failed, or a durable write failure
-// leaves the previous store and combined-feed freshness state unchanged.
+// A failed lane leaves its previous rows unchanged. Successful lanes advance
+// independently so one unavailable source cannot erase another feed.
 // AUTH: CRON_SECRET Bearer (lib/cronAuth).
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { assertCronRequest } from "@/lib/cronAuth";
 import { WHATS_ON_FEED_KEY } from "@/lib/freshnessStoreOverlay";
-import { refreshOfficialWhatsOnListings } from "@/lib/whatsOnRefresh.server";
+import { refreshWhatsOnListings } from "@/lib/whatsOnRefresh.server";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,10 +24,10 @@ export async function GET(request: Request): Promise<Response> {
 
   let result;
   try {
-    result = await refreshOfficialWhatsOnListings();
+    result = await refreshWhatsOnListings();
   } catch (err) {
     const failure = err instanceof Error ? err.message : String(err);
-    console.error("[cron:refresh-whats-on] official-API refresh failed:", failure);
+    console.error("[cron:refresh-whats-on] refresh failed:", failure);
     return jsonNoStore({
       ok: false,
       feed: WHATS_ON_FEED_KEY,
@@ -39,6 +36,7 @@ export async function GET(request: Request): Promise<Response> {
       observedAt: null,
       stamped: false,
       error: failure,
+      kinds: [],
     });
   }
 
@@ -54,11 +52,12 @@ export async function GET(request: Request): Promise<Response> {
       observedAt: null,
       stamped: false,
       providers: result.providers,
+      kinds: result.kinds,
     });
   }
 
   console.log(
-    `[cron:refresh-whats-on] persisted ${result.written} official-API rows at ${result.observedAt}.`,
+    `[cron:refresh-whats-on] persisted ${result.written} rows at ${result.observedAt}.`,
   );
   return jsonNoStore({
     ok: true,
@@ -68,5 +67,6 @@ export async function GET(request: Request): Promise<Response> {
     observedAt: result.observedAt,
     stamped: false,
     providers: result.providers,
+    kinds: result.kinds,
   });
 }

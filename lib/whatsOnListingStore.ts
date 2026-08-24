@@ -1,8 +1,8 @@
 import "server-only";
 
 // Durable-or-memory backing for official-API What's-On rows. The scheduled
-// route (app/api/cron/refresh-whats-on) writes Ticketmaster / Skiddle events
-// HERE, and the read side (lib/whatsOnListings.server.ts) reads them
+// route (app/api/cron/refresh-whats-on) writes refreshed What's-On rows HERE,
+// and the read side (lib/whatsOnListings.server.ts) reads them
 // store-first, falling back to the committed public/data/whats_on files so
 // nothing breaks before migration 0119 lands or when the store is empty.
 //
