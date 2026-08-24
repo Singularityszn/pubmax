@@ -129,6 +129,15 @@ describe("Pal answer hygiene", () => {
     expect(rowsAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
     expect(rowsAnswer).not.toMatch(/\brows\b/iu);
 
+    const classifierAnswer = composeAnswer(
+      "The classifier selected these pubs.",
+      ["The Lamb is listed."],
+      [card],
+      ["search_venues"],
+    );
+    expect(classifierAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+    expect(classifierAnswer).not.toMatch(/\bclassifier\b/iu);
+
     const statusAnswer = composeAnswer(
       null,
       ["London right now: no tube or weather notes."],

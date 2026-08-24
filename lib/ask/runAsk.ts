@@ -135,6 +135,7 @@ function modelProseHasReaderPlumbing(prose: string): boolean {
     /\bthings-to-do rows?\b/iu,
     /\bwhat'?s on ask\b/iu,
     /\bask[- ]classifier\b/iu,
+    /\bclassifier\b/iu,
   ].some((pattern) => pattern.test(prose));
 }
 
