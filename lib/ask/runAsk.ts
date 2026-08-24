@@ -22,22 +22,20 @@ import type {
 const MAX_TURNS = 6;
 
 function dedupeCards(results: AskToolResult[]): AskCard[] {
-  const seenVenueIds = new Set<string>();
   const seenKeys = new Set<string>();
+  const venueIdsFromEarlierResults = new Set<string>();
   const out: AskCard[] = [];
   for (const result of results) {
-    const keysInTool = new Set<string>();
+    const keptCards: AskCard[] = [];
     for (const card of result.cards) {
-      if (keysInTool.has(card.key)) continue;
-      keysInTool.add(card.key);
-      if (card.venueId) {
-        if (seenVenueIds.has(card.venueId)) continue;
-        seenVenueIds.add(card.venueId);
-      } else {
-        if (seenKeys.has(card.key)) continue;
-        seenKeys.add(card.key);
-      }
-      out.push(card);
+      if (seenKeys.has(card.key)) continue;
+      if (card.venueId && venueIdsFromEarlierResults.has(card.venueId)) continue;
+      seenKeys.add(card.key);
+      keptCards.push(card);
+    }
+    out.push(...keptCards);
+    for (const card of keptCards) {
+      if (card.venueId) venueIdsFromEarlierResults.add(card.venueId);
     }
   }
   return out.slice(0, 8);

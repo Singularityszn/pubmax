@@ -86,13 +86,15 @@ describe("Pal answer hygiene", () => {
       result([
         card("venue-1:drink-1", "venue-1"),
         card("venue-1:drink-2", "venue-1"),
+        card("venue-1:drink-3", "venue-1"),
       ]),
       result([card("venue-1", "venue-1"), card("venue-2", "venue-2")]),
     ]);
-    expect(merged.cards).toHaveLength(3);
+    expect(merged.cards).toHaveLength(4);
     expect(merged.cards.map((c) => c.key)).toEqual([
       "venue-1:drink-1",
       "venue-1:drink-2",
+      "venue-1:drink-3",
       "venue-2",
     ]);
   });
