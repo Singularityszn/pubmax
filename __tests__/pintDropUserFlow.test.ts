@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -122,11 +124,18 @@ describe("venue-sheet Pint Drop author", () => {
     // __tests__/pintDropPriceFirstDoor.test.tsx. The optional half must carry
     // no handle input at all, so a stale device draft can never be typed over
     // an account-bound author.
-    const html = renderToStaticMarkup(
+    document.body.innerHTML = renderToStaticMarkup(
       createElement(ComposerFields, composerFieldsProps),
     );
 
-    expect(html).not.toContain("@thirsty_ted");
-    expect(html).not.toContain('value="night_owl"');
+    // Query the control by its stable field label, not by sample values: a
+    // future handle input under any name or value must still fail this.
+    const fieldLabels = Array.from(
+      document.querySelectorAll(".spillFieldLabel"),
+    ).map((label) => label.textContent?.trim());
+    expect(fieldLabels).toContain("Story");
+    expect(fieldLabels).toContain("With");
+    expect(fieldLabels).not.toContain("Handle");
+    expect(document.querySelector('input[placeholder^="@thirsty"]')).toBeNull();
   });
 });
