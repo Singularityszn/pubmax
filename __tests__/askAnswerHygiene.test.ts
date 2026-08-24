@@ -138,6 +138,22 @@ describe("Pal answer hygiene", () => {
     expect(classifierAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
     expect(classifierAnswer).not.toMatch(/\bclassifier\b/iu);
 
+    const wrongCountAnswer = composeAnswer(
+      "I found 2 listed pubs.",
+      ["The Lamb is listed."],
+      [card],
+      ["search_venues"],
+    );
+    expect(wrongCountAnswer).toBe("1 pick from the listed pubs, each with its source. The Lamb is listed.");
+
+    const matchingCountAnswer = composeAnswer(
+      "Here is 1 pick.",
+      ["The Lamb is listed."],
+      [card],
+      ["search_venues"],
+    );
+    expect(matchingCountAnswer).toBe("Here is 1 pick.");
+
     const statusAnswer = composeAnswer(
       null,
       ["London right now: no tube or weather notes."],

@@ -139,6 +139,12 @@ function modelProseHasReaderPlumbing(prose: string): boolean {
   ].some((pattern) => pattern.test(prose));
 }
 
+function modelProseCountMatchesCards(prose: string, cardCount: number): boolean {
+  return [...prose.matchAll(
+    /\b(\d+)(?:\s+\w+){0,2}\s+(?:picks?|pubs?|listings?|results?|options?|places?|cards?)\b/giu,
+  )].every((match) => Number(match[1]) === cardCount);
+}
+
 function composeAnswer(
   modelAnswer: string | null,
   hints: string[],
@@ -149,6 +155,7 @@ function composeAnswer(
     modelAnswer &&
     modelAnswer.trim() &&
     !modelProseHasReaderPlumbing(modelAnswer) &&
+    modelProseCountMatchesCards(modelAnswer, cards.length) &&
     modelProseIsGrounded(modelAnswer, hints, cards)
   ) {
     return modelAnswer.trim().slice(0, 1200);
