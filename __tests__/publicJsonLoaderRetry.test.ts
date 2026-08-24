@@ -10,6 +10,7 @@ import {
 } from "@/lib/priceHistoryLoader";
 import {
   loadDrinkPriceUpdates,
+  loadFoodPriceUpdates,
   resetPriceUpdatesLoader,
 } from "@/lib/priceUpdatesLoader";
 
@@ -35,6 +36,7 @@ function twoAttemptFetch(): ReturnType<typeof vi.fn> {
 describe("public JSON loader retries", () => {
   it.each([
     ["drink updates", loadDrinkPriceUpdates],
+    ["food updates", loadFoodPriceUpdates],
     ["price history", loadPriceHistory],
     ["Pint Index league", loadPintIndexLeagueRows],
   ])("retries %s after a temporary failed read", async (_label, load) => {
