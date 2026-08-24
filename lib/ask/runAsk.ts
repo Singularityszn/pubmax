@@ -86,8 +86,14 @@ function mergeToolResults(results: AskToolResult[]): {
     if (result.degraded) degraded = true;
   }
 
+  const totalCardCount = results.reduce((total, result) => total + result.cards.length, 0);
+  const mergedCards = dedupeCards(results);
+  if (mergedCards.length < totalCardCount) {
+    hints.push(`Showing the first ${mergedCards.length}.`);
+  }
+
   return {
-    cards: dedupeCards(results),
+    cards: mergedCards,
     proposals: dedupeProposals(proposals),
     sources: dedupeSources(sources),
     hints,
@@ -136,6 +142,7 @@ function composeAnswer(
   modelAnswer: string | null,
   hints: string[],
   cards: AskCard[],
+  toolsUsed: string[],
 ): string {
   if (
     modelAnswer &&
@@ -146,7 +153,12 @@ function composeAnswer(
     return modelAnswer.trim().slice(0, 1200);
   }
   if (cards.length > 0) {
-    if (!cards.every((card) => Boolean(card.venueId))) {
+    const pubPickTools = new Set(["search_venues", "cheapest_pint_near"]);
+    const isPubPickAnswer =
+      toolsUsed.length > 0 &&
+      toolsUsed.every((tool) => pubPickTools.has(tool)) &&
+      cards.every((card) => Boolean(card.venueId));
+    if (!isPubPickAnswer) {
       return hints.length > 0 ? hints.join(" ") : "Nothing sourced for that. Try a nearby area or a broader ask.";
     }
     const countLine = `${cards.length} ${cards.length === 1 ? "pick" : "picks"} from the listed pubs, each with its source.`;
@@ -232,7 +244,7 @@ export async function runAsk(input: RunAskInput): Promise<AskResponseBody> {
 
   const merged = mergeToolResults(toolResults);
   return {
-    answer: composeAnswer(modelAnswer, merged.hints, merged.cards),
+    answer: composeAnswer(modelAnswer, merged.hints, merged.cards, merged.toolsUsed),
     cards: merged.cards,
     proposals: merged.proposals,
     sources: merged.sources,

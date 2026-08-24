@@ -254,7 +254,7 @@ describe("tonight_now", () => {
     expect(result.cards[0]?.note).toBe("On right now");
   });
 
-  it("names the printed sample when tonight listings exceed six cards", async () => {
+  it("keeps listing counts when tonight listings exceed six cards", async () => {
     state.whatsOn = {
       rows: Array.from({ length: 7 }, (_, index) => ({
         id: `later-${index}`,
@@ -273,7 +273,7 @@ describe("tonight_now", () => {
 
     expect(result.cards).toHaveLength(6);
     expect(result.answerHint).toContain("7 still to start tonight");
-    expect(result.answerHint).toContain("Here are the first 6.");
+    expect(result.answerHint).not.toContain("Here are the first 6.");
   });
 
   it("prints no bare figure for a listed night, and keeps the deal's own", async () => {

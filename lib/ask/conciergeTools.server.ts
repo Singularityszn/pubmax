@@ -314,8 +314,6 @@ export async function toolTonightNow(
       dateOnly: split.dateOnly.length,
       read: "ready",
     });
-    const totalRows = split.onNow.length + split.later.length + split.dateOnly.length;
-    const sampleLine = cards.length < totalRows ? ` Here are the first ${cards.length}.` : "";
     return {
       ok: true,
       tool: "tonight_now",
@@ -334,7 +332,7 @@ export async function toolTonightNow(
         .filter((card) => card.venueId)
         .slice(0, 3)
         .map((card) => openProposal(card.venueId, card.title)),
-      answerHint: `${line}${sampleLine} ${CROWD_READING_NOT_LIVE}`,
+      answerHint: `${line} ${CROWD_READING_NOT_LIVE}`,
     };
   } catch {
     return unavailable();

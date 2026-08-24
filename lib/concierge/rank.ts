@@ -205,8 +205,11 @@ function scoreOne(
     }
   }
 
-  const orderedReasons = areaReason && reasons.length > 0 ? [...reasons, areaReason] : reasons;
-  return { venue, score: Number(score.toFixed(4)), reasons: [...new Set(orderedReasons)].slice(0, 3) };
+  const uniqueReasons = [...new Set(reasons)];
+  const orderedReasons = areaReason && uniqueReasons.length > 0
+    ? [...uniqueReasons.slice(0, 2), areaReason]
+    : uniqueReasons.slice(0, 3);
+  return { venue, score: Number(score.toFixed(4)), reasons: orderedReasons };
 }
 
 /**

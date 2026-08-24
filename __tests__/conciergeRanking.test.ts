@@ -105,6 +105,21 @@ describe("rankConciergeVenues", () => {
     expect(results[0]?.reasons).toEqual([]);
   });
 
+  it("keeps the area reason last when other reasons fill the card", () => {
+    const results = rankConciergeVenues(
+      [venue("camden", {
+        area: "Camden",
+        cheapestPrice: 5.5,
+        amenities: { beerGarden: true, cocktails: false, food: false, liveSports: false, liveMusic: false },
+      })],
+      { mood: ["garden"], groupSize: 2, area: "Camden", maxPintPrice: 6 },
+      { limit: 1, context: { weather: "warm-dry" } },
+    );
+
+    expect(results[0]?.reasons).toHaveLength(3);
+    expect(results[0]?.reasons.at(-1)).toBe("In Camden");
+  });
+
   it("reads a London ask as the whole city, never the City of London borough", () => {
     const results = rankConciergeVenues(
       [
