@@ -14,8 +14,9 @@ import "server-only";
 // One row per listing id. replaceKind swaps every row of that kind and leaves
 // the others, so an events refresh cannot wipe a quiz harvest.
 
-import { createFailSoftGuard, selectStore } from "@/lib/storeBackend";
-import { requireSupabaseAdmin } from "@/lib/supabase";
+import { createFailSoftGuard, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
+import { isDeployedProduction } from "@/lib/deploymentEnv";
 import {
   isWhatsOnKind,
   parseWhatsOnRows,
@@ -101,7 +102,12 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
   async replaceKind(kind, rows, generatedAt) {
     return guard<WhatsOnListingWriteOutcome>({
       context: "replaceKind",
-      onSchemaMiss: () => memoryWhatsOnListingStore.replaceKind(kind, rows, generatedAt),
+      onSchemaMiss: () => onMissingDurableWrite({
+        storeTag: "whats-on-listings",
+        migrationHint: "apply migration 0119",
+        fallback: () => memoryWhatsOnListingStore.replaceKind(kind, rows, generatedAt),
+        onProduction: async () => ({ written: 0, failed: true }),
+      }),
       message: "replaceKind failed - flagging degraded write",
       onError: () => ({ written: 0, failed: true }),
       run: async () => {
@@ -148,7 +154,19 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
   },
 };
 
+const unavailableProductionWhatsOnListingStore: WhatsOnListingStore = {
+  async replaceKind() {
+    return { written: 0, failed: true };
+  },
+  async readAll() {
+    return { rows: [], generatedAt: null };
+  },
+};
+
 export function whatsOnListingStore(): WhatsOnListingStore {
+  if (isDeployedProduction() && !isSupabaseConfigured()) {
+    return unavailableProductionWhatsOnListingStore;
+  }
   return selectStore(memoryWhatsOnListingStore, supabaseWhatsOnListingStore);
 }
 

@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeAll, vi } from "vitest";
+import { describe, it, expect, beforeAll, afterAll, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 import { execFileSync } from "node:child_process";
@@ -118,9 +118,14 @@ describe("sitemap()", () => {
     urls.filter((u) => u.startsWith(`${SITE}${prefix}`)).length;
 
   beforeAll(async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
     entries = await sitemap();
     urls = entries.map((e) => e.url);
     expected = await expectedCounts();
+  });
+
+  afterAll(() => {
+    vi.unstubAllEnvs();
   });
 
   it("emits exactly the dataset-derived total (no silent coverage loss)", () => {
@@ -214,7 +219,6 @@ describe("sitemap Social gate", () => {
     const { default: sitemapOn } = await import("@/app/sitemap");
     const urlsOn = (await sitemapOn()).map((entry) => entry.url);
     expect(urlsOn).toContain(`${SITE}/social`);
-    vi.unstubAllEnvs();
   });
 });
 

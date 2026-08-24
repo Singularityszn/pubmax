@@ -66,6 +66,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.clearAllMocks();
 });
 
@@ -104,5 +105,13 @@ describe("supabaseWhatsOnListingStore", () => {
     expect(outcome.failed).toBe(true);
     expect(outcome.written).toBe(0);
     expect((await supabaseWhatsOnListingStore.readAll()).rows.map((row) => row.id)).toEqual(["kept"]);
+  });
+
+  it("refuses a schema-miss memory write in deployed production", async () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    db.schemaMiss = true;
+    const outcome = await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("lost")], GENERATED);
+    expect(outcome).toEqual({ written: 0, failed: true });
+    expect(await memoryWhatsOnListingStore.readAll()).toEqual({ rows: [], generatedAt: null });
   });
 });

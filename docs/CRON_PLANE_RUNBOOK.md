@@ -26,7 +26,7 @@ JSON and cannot carry inline comments.
 | Route | Schedule (UTC) | London (BST / GMT) | Purpose | maxDuration |
 |---|---|---|---|---|
 | `GET /api/cron/refresh-weather` | `0 */6 * * *` | 01:00·07:00·13:00·19:00 / 00:00·06:00·12:00·18:00 | Fetch Open-Meteo for every night area → durable `weather_snapshots` store | 60s |
-| `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | Official APIs (Ticketmaster / Skiddle) persist kind=event to `whats_on_listings`; stamp `feed_freshness` only after a configured provider answers (pre-morning) | 60s |
+| `GET /api/cron/refresh-whats-on` | `30 5 * * *` | **06:30** / 05:30 | Official APIs (Ticketmaster / Skiddle) persist kind=event to `whats_on_listings`; do not stamp combined `feed_freshness` because other lanes remain bundled | 60s |
 | `GET /api/cron/freshness-audit` | `30 6 * * *` | 07:30 / 06:30 | Read the freshness spine, report stale feeds and unresolvable feeds as two separate findings (console only) | 30s |
 | `GET /api/cron/refresh-night-signals` | `15 5 * * *` | 06:15 / 05:15 | Exa sweep for PENDING Night Signal candidates + freshness stamp — never publishes; human review still gates the feed | 60s |
 | `GET /api/cron/moderate-social-posts` | `* * * * *` | Every minute | Claim and moderate up to 20 queued Social posts; posts stay held until approval | 30s |
@@ -35,12 +35,10 @@ JSON and cannot carry inline comments.
 
 The What's-On slot is chosen to land **before London is awake**, and that is a
 change: it used to run at `0 14 * * *` (15:00 BST), which is the middle of the
-afternoon. The stamp it feeds is honest about what it read (`sourceObservedAt`
-is the freshest evidence the answer actually carries), so the cadence was the
-whole of the defect: everyone who opened `/tonight` before mid-afternoon was
-told "Checked" with **yesterday's** date, on the page whose job is to say what
-is on tonight. `30 5 * * *` is 06:30 in BST and 05:30 in GMT, so the day's own
-date is on the page from first light in both halves of the year, and the job
+afternoon. The event rows are now durable before morning, but this event-only
+refresh does not stamp combined `feed_freshness`: quiz, deal, music, and sport
+remain bundled. `30 5 * * *` is 06:30 in BST and 05:30 in GMT, so official event
+rows are available from first light in both halves of the year, and the job
 still sits clear of the evening read.
 
 ---
@@ -66,15 +64,16 @@ still sits clear of the evening read.
    - `0119` is the same shape for `whats_on_listings` (service-role only).
    - Apply loudly via the Supabase MCP or `supabase db push`, then run the
      **advisor pass** (security + performance lints).
-   - **Until they land, nothing breaks:** the stores fail soft to process-memory
-     and the read side falls back to the committed
-     `public/data/weather/latest.json` and `public/data/whats_on/*` files.
-     Weather and official-API events become durable the moment the tables exist.
+   - **Until they land, local and Preview stores fail soft to process-memory;**
+     deployed Production writes fail closed and the read side falls back to the
+     committed `public/data/weather/latest.json` and `public/data/whats_on/*`
+     files. Weather and official-API events become durable the moment the tables
+     exist.
 
 3. **Confirm the existing Supabase env** is present (already required by the app):
-   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Without them the cron writes to
-   process-memory only (ephemeral per instance) and the read side serves the
-   committed file — the plane still runs, just not durably.
+   `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`. Local and Preview may run without
+   them using process-memory only. Deployed Production requires them: otherwise
+   the cron refuses the write and the read side serves the committed file.
 
 ---
 
@@ -130,8 +129,9 @@ The **full** What's-On ingest still cannot run inside a serverless cron:
 The events vertical **does** run in this function: Ticketmaster and Skiddle
 already have an in-function provider (`lib/events/liveProvider.ts`). The cron
 writes those rows to `whats_on_listings` (migration `0119`). Readers prefer
-that store and fall back to bundled `public/data/whats_on` files.
-`feed_freshness` stamps only after a configured provider answers.
+that store and fall back to bundled `public/data/whats_on` files. The cron does
+not stamp combined `feed_freshness`, because the other What's-On lanes remain
+bundled.
 
 Harvested quiz/deal/music/sport still need disk agents. Local launchd
 acquisition is documented in [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md).
