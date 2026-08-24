@@ -18,6 +18,23 @@ const db = vi.hoisted(() => ({
   throws: null as Error | null,
 }));
 
+const feedReads = vi.hoisted(() => ({ keys: [] as string[] }));
+
+vi.mock("@/lib/feedFreshnessStore", () => ({
+  feedFreshnessStore: () => ({
+    read: async (feed: string) => {
+      feedReads.keys.push(feed);
+      return { observedAt: "2026-07-16T00:00:00Z" };
+    },
+  }),
+}));
+
+vi.mock("@/lib/weatherSnapshotStore", () => ({
+  weatherSnapshotStore: () => ({
+    readSnapshot: async () => ({ generatedAt: "2026-07-15T00:00:00Z" }),
+  }),
+}));
+
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => db.configured,
   requireSupabaseAdmin: () => ({
@@ -41,6 +58,7 @@ vi.mock("@/lib/supabase", () => ({
 import {
   NIGHT_SIGNAL_CANDIDATES_DATASET_ID,
   resolveDurableFeedStoreReads,
+  resolveStoreObservedAt,
 } from "@/lib/freshnessStoreOverlay";
 
 beforeEach(() => {
@@ -48,6 +66,7 @@ beforeEach(() => {
   db.row = null;
   db.error = null;
   db.throws = null;
+  feedReads.keys = [];
 });
 
 afterEach(() => {
@@ -105,5 +124,14 @@ describe("resolveDurableFeedStoreReads — the real four-way read, never guessed
     db.row = { observed_at: "2026-07-16T00:00:00Z" };
     const reads = await resolveDurableFeedStoreReads();
     expect(Object.keys(reads)).toEqual([NIGHT_SIGNAL_CANDIDATES_DATASET_ID]);
+  });
+
+  it("does not overlay the combined What's-On stamp", async () => {
+    const overlay = await resolveStoreObservedAt();
+    expect(overlay).toEqual({
+      weather: "2026-07-15T00:00:00Z",
+      night_signal_candidates: "2026-07-16T00:00:00Z",
+    });
+    expect(feedReads.keys).toEqual(["night_signal_candidates"]);
   });
 });
