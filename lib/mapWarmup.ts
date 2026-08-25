@@ -1,5 +1,6 @@
 import { getCity, parseCityId } from "@/lib/cities";
 import { cityMapShareUrl } from "@/lib/cityShare";
+import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 
 export type MapWarmConnection = {
   saveData?: boolean;
@@ -102,6 +103,10 @@ export function warmMapIntentData({
 
   for (const path of paths) {
     if (seen?.has(path)) continue;
+    if (takeEarlyWarmJson(path) !== undefined) {
+      seen?.add(path);
+      continue;
+    }
     seen?.add(path);
 
     try {

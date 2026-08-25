@@ -1763,6 +1763,11 @@ export default function PubMapCanvas({
       // Cold-open: taste, sky and transit stay off the first frame so basemap
       // tiles and pub pins can decode (see assembleSceneCritical).
       assembleSceneCritical(sceneCtx);
+      const withLiveSelection = (ctx: typeof sceneCtx) => ({
+        ...ctx,
+        selectedId: selectedIdRef.current,
+        selectionMuteStore: selectionMuteStoreRef.current,
+      });
       const scheduleDeferredScene = () => {
         deferredSceneIdleId = null;
         deferredSceneFrameId = null;
@@ -1775,7 +1780,7 @@ export default function PubMapCanvas({
         }
         if (!map.getStyle()) return;
         try {
-          assembleSceneDeferred(sceneCtx);
+          assembleSceneDeferred(withLiveSelection(sceneCtx));
           map.triggerRepaint();
         } catch (error) {
           console.warn("[pubmap] deferred scene assembly failed", error);
@@ -1838,7 +1843,7 @@ export default function PubMapCanvas({
             // ran before idle could only setFilter POI layers; tube-lines-*
             // were missing then, so their visibility must catch up here.
             applyPoiCategoryVisibility(map, poiHiddenRef.current);
-            applySelectionState(sceneCtx);
+            applySelectionState(withLiveSelection(sceneCtx));
           } catch {
             // Transit is additive; never block the pub map on overlay failure.
           }
