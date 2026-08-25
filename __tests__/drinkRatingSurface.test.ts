@@ -103,7 +103,7 @@ describe("drink rating surface fence", () => {
     document.body.appendChild(container);
 
     await act(async () => {
-      root = createRoot(container);
+      root = createRoot(container!);
       root.render(createElement(VenueMenuTab, { venue, tab: "menu" }));
     });
 

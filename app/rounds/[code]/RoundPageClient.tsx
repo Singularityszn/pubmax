@@ -1618,16 +1618,19 @@ function CloseRound({
             action: "close",
             handle,
           });
+          const data = await res.json().catch(() => null);
           return {
             res,
-            data: res.ok ? ((await res.json()) as RoundState) : null,
+            data: res.ok
+              ? (data as RoundState | null)
+              : (data as { error?: unknown } | null),
           };
         },
       );
       if (!completion.current) return;
       const { res, data } = completion.value;
       if (res.ok && data) {
-        onClosed(data);
+        onClosed(data as RoundState);
       } else {
         setError(
           offlineOrMessage(errorMessageFrom(data, "Could not close the Round. Try again."))

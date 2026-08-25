@@ -135,7 +135,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
         );
       }
     } catch {
-      setSaveError("Couldn't save a permanent link right now.");
+      setSaveError(offlineOrMessage("Couldn't save a permanent link right now."));
     } finally {
       setSaving(false);
     }

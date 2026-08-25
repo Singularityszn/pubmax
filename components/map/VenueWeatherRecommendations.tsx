@@ -386,7 +386,7 @@ export default function VenueWeatherRecommendations({
         setDraft((current) => ({
           ...current,
           error: recommendationError(
-            "Could not save that recommendation right now.",
+            offlineOrMessage("Could not save that recommendation right now."),
           ),
         }));
       } finally {

@@ -10,7 +10,7 @@ const source = (file: string) =>
 
 describe("offlineOrMessage", () => {
   it("returns offline copy when the browser is offline", () => {
-    const online = navigator.onLine;
+    const onLineDescriptor = Object.getOwnPropertyDescriptor(navigator, "onLine");
     Object.defineProperty(navigator, "onLine", {
       configurable: true,
       value: false,
@@ -20,15 +20,13 @@ describe("offlineOrMessage", () => {
         OFFLINE_RETRY_MESSAGE,
       );
     } finally {
-      Object.defineProperty(navigator, "onLine", {
-        configurable: true,
-        value: online,
-      });
+      if (onLineDescriptor) Object.defineProperty(navigator, "onLine", onLineDescriptor);
+      else delete (navigator as { onLine?: boolean }).onLine;
     }
   });
 
   it("returns the online message when the browser is online", () => {
-    const online = navigator.onLine;
+    const onLineDescriptor = Object.getOwnPropertyDescriptor(navigator, "onLine");
     Object.defineProperty(navigator, "onLine", {
       configurable: true,
       value: true,
@@ -38,10 +36,8 @@ describe("offlineOrMessage", () => {
         "Could not copy link. Try again.",
       );
     } finally {
-      Object.defineProperty(navigator, "onLine", {
-        configurable: true,
-        value: online,
-      });
+      if (onLineDescriptor) Object.defineProperty(navigator, "onLine", onLineDescriptor);
+      else delete (navigator as { onLine?: boolean }).onLine;
     }
   });
 });
