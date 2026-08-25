@@ -4,6 +4,7 @@ export const SHARD_SIZE: 500;
 export const EXA_SEARCH_URL: string;
 export const EXA_CONTENTS_URL: string;
 export const EXA_PACE_MS: number;
+export const EXA_REQUEST_TIMEOUT_MS: number;
 export const EXA_MAX_ATTEMPTS: number;
 export const PROGRESS_FILE: string;
 export const EXA_SYSTEM_PROMPT: string;
@@ -140,6 +141,7 @@ export function createExaClient(options?: {
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   mock?: boolean;
+  requestTimeoutMs?: number;
 }): ExaClient | null;
 export function enrichPub(
   pub: HarvestSeedRow,

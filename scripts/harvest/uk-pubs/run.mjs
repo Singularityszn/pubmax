@@ -235,6 +235,33 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
   let shardIndex = startIndex;
   let buffer = [];
 
+  async function reportProgress(note) {
+    const elapsedMs = Date.now() - runStarted;
+    const eta = estimateEta({
+      remaining: remaining.length - enriched,
+      elapsedMs,
+      done: enriched,
+    });
+    await writeProgress(HARVEST_DIR, {
+      stage: "enrich",
+      seedCount,
+      enrichedCount: startOffset + enriched,
+      completeShards: shardIndex,
+      lastCompleteShard: shardIndex > 0 ? shardIndex - 1 : null,
+      startedAt,
+      updatedAt: new Date().toISOString(),
+      mock: Boolean(client.mock),
+      attribution: ODBL_ATTRIBUTION,
+      etaIso: eta.etaIso,
+      ratePerHour: eta.ratePerHour,
+    });
+    if (note) console.log(note);
+  }
+
+  await reportProgress(
+    `enrich start ${startOffset}/${seedCount} mock=${client.mock} remaining=${remaining.length}`,
+  );
+
   async function flush() {
     if (buffer.length === 0) return;
     await writeShardAtomic(ENRICHED_DIR, shardIndex, buffer);
@@ -284,6 +311,16 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       });
     }
     enriched += 1;
+    if (enriched === 1 || enriched % 25 === 0) {
+      const eta = estimateEta({
+        remaining: remaining.length - enriched,
+        elapsedMs: Date.now() - runStarted,
+        done: enriched,
+      });
+      await reportProgress(
+        `enrich ${startOffset + enriched}/${seedCount} shards=${shardIndex} eta=${eta.etaIso ?? "n/a"}`,
+      );
+    }
     if (buffer.length >= SHARD_SIZE) await flush();
   }
   await flush();
@@ -309,6 +346,19 @@ export async function main(argv = process.argv.slice(2)) {
     rows = result.rows;
     if (args.limit > 0) rows = rows.slice(0, args.limit);
     await writeSeed(rows);
+    await writeProgress(HARVEST_DIR, {
+      stage: "enumerate",
+      seedCount: rows.length,
+      enrichedCount: 0,
+      completeShards: 0,
+      lastCompleteShard: null,
+      startedAt,
+      updatedAt: new Date().toISOString(),
+      attribution: ODBL_ATTRIBUTION,
+      drops: result.drops,
+      chunksFetched: result.fetched,
+      chunksSkipped: result.skipped,
+    });
     console.log(
       `enumerate: ${rows.length} pubs (fetched ${result.fetched}, skipped ${result.skipped}); drops ${JSON.stringify(result.drops)}`,
     );

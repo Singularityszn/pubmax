@@ -305,6 +305,31 @@ describe("Exa client", () => {
     }
   });
 
+  it("aborts a hung Exa request and retries", async () => {
+    const fetchImpl = vi
+      .fn()
+      .mockImplementationOnce(
+        (_url: string, init: { signal?: AbortSignal }) =>
+          new Promise((_, reject) => {
+            init.signal?.addEventListener("abort", () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            });
+          }),
+      )
+      .mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    const client = createExaClient({
+      env: { EXA_API_KEY: "exa-test" },
+      fetchImpl,
+      sleep: async () => {},
+      requestTimeoutMs: 20,
+    });
+    const payload = await client!.search("The Test Arms");
+    expect(payload.results).toEqual([]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
   it("POSTs /contents with top-level highlights for a known OSM website", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({

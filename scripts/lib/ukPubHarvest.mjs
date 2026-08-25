@@ -21,6 +21,7 @@ export const SHARD_SIZE = 500;
 export const EXA_SEARCH_URL = "https://api.exa.ai/search";
 export const EXA_CONTENTS_URL = "https://api.exa.ai/contents";
 export const EXA_PACE_MS = 1_500;
+export const EXA_REQUEST_TIMEOUT_MS = 60_000;
 export const EXA_MAX_ATTEMPTS = 6;
 export const PROGRESS_FILE = "progress.json";
 
@@ -532,13 +533,14 @@ function sleepDefault(ms) {
 }
 
 /**
- * @param {{ env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, sleep?: (ms: number) => Promise<void>, mock?: boolean }} [options]
+ * @param {{ env?: NodeJS.ProcessEnv, fetchImpl?: typeof fetch, sleep?: (ms: number) => Promise<void>, mock?: boolean, requestTimeoutMs?: number }} [options]
  */
 export function createExaClient({
   env = process.env,
   fetchImpl = fetch,
   sleep = sleepDefault,
   mock = false,
+  requestTimeoutMs = EXA_REQUEST_TIMEOUT_MS,
 } = {}) {
   if (mock) {
     return {
@@ -557,14 +559,32 @@ export function createExaClient({
   async function post(url, body) {
     let lastError = null;
     for (let attempt = 0; attempt < EXA_MAX_ATTEMPTS; attempt += 1) {
-      const response = await fetchImpl(url, {
-        method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "x-api-key": key,
-        },
-        body: JSON.stringify(body),
-      });
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), requestTimeoutMs);
+      let response;
+      try {
+        response = await fetchImpl(url, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            "x-api-key": key,
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+      } catch (error) {
+        clearTimeout(timer);
+        const aborted =
+          error?.name === "AbortError" ||
+          (error instanceof Error && /aborted|timeout/i.test(error.message));
+        if (aborted && attempt < EXA_MAX_ATTEMPTS - 1) {
+          lastError = new Error(`Exa timeout after ${requestTimeoutMs}ms`);
+          await sleep(backoffMs(attempt, null));
+          continue;
+        }
+        throw error;
+      }
+      clearTimeout(timer);
       if (response.status === 429 || response.status === 502 || response.status === 503) {
         const wait = backoffMs(attempt, response.headers.get("retry-after"));
         lastError = new Error(`Exa ${response.status}`);
