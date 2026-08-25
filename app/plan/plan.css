@@ -953,6 +953,8 @@
 .planComposer__add { margin-top: 6px; }
 .planComposer__submit { grid-column: 1 / -1; min-height: 56px; font-size: 1rem; }
 .planComposer__trust { grid-column: 1 / -1; margin: -8px 0 0; text-align: center; color: var(--muted); font-size: 0.78rem; }
+.planComposer__fieldNote { margin: 4px 0 0; color: var(--muted); font-size: 0.78rem; line-height: 1.4; }
+.planComposer__lockHint { grid-column: 1 / -1; margin: 0; color: var(--muted); font-size: 0.82rem; line-height: 1.4; }
 .planComposer__error { grid-column: 1 / -1; margin: 0; color: #a52c24; font-weight: 700; }
 
 html[data-theme="dark"] .planPage {

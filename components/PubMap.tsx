@@ -3718,6 +3718,7 @@ export default function PubMap({
           onRequestLocation={requestVenueLocation}
           onClearLocation={clearVenueLocation}
           zoneIndex={zoneIndex}
+          onLogged={refreshVenueDrops}
         />
       </>
     );

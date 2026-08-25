@@ -105,6 +105,13 @@ type VenuePriceSubmitProps = {
    * a drink that arrived after typing began.
    */
   missionPending?: boolean;
+  /**
+   * After a successful Log it, refresh this venue's Pint Drops so the sheet
+   * list is not permanently empty while the write already landed in pint_drops.
+   * The POST itself still goes through /api/price-submit (one-tap pairing);
+   * this only re-reads GET /api/pint-drops for the open pub.
+   */
+  onLogged?: (venueId: string) => void;
 };
 
 /**
@@ -129,6 +136,7 @@ export default function VenuePriceSubmit({
   laneCategory = DEFAULT_SUBMIT_CATEGORY,
   mission = null,
   missionPending = false,
+  onLogged,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -318,6 +326,7 @@ export default function VenuePriceSubmit({
       setPrice("");
       setHeldCategory(null);
       clearPintPhoto();
+      onLogged?.(venueId);
     });
   }
 

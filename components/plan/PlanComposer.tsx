@@ -2114,7 +2114,8 @@ function PlanComposerForm({
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
+        <input id="plan-name" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" aria-describedby="plan-name-reason" />
+        <p id="plan-name-reason" className="planComposer__fieldNote">Needed so your mates know who locked the night. Lock it in stays off until this is filled.</p>
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
@@ -2187,6 +2188,9 @@ function PlanComposerForm({
       </fieldset>
 
       {error ? <PlanComposerErrorNotice message={error} /> : null}
+      {!canLockPlan && lockValidation ? (
+        <p className="planComposer__lockHint" role="status">{lockValidation.message}</p>
+      ) : null}
       <button className="planComposer__submit" type="submit" disabled={!canLockPlan}>{submitting ? "Locking it in…" : "Lock it in"}</button>
       <p className="planComposer__trust">Anyone with the link can see the plan. Joining only asks for a name.</p>
         </>

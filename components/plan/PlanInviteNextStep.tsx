@@ -52,6 +52,7 @@ export default function PlanInviteNextStep({
   const [inviteReady, setInviteReady] = useState(false);
   const [inviteError, setInviteError] = useState("");
   const [shareError, setShareError] = useState("");
+  const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
 
   const tokenEvent = planCapabilityEvent(planId);
   const capabilitySnapshot = useSyncExternalStore(
@@ -66,7 +67,18 @@ export default function PlanInviteNextStep({
 
   useEffect(() => {
     if (memberToken) return;
-    void restorePlanCapability(planId).catch(() => undefined);
+    let active = true;
+    void restorePlanCapability(planId)
+      .then(() => {
+        if (!active) return;
+        setSessionCheckedPlanId(planId);
+      })
+      .catch(() => {
+        if (active) setSessionCheckedPlanId(planId);
+      });
+    return () => {
+      active = false;
+    };
   }, [memberToken, planId]);
 
   useEffect(() => {
@@ -166,7 +178,12 @@ export default function PlanInviteNextStep({
         </a>
       ) : (
         <p className="planInviteNext__whatsapp planInviteNext__whatsapp--pending" role="status">
-          {inviteError || (memberToken ? "Preparing your WhatsApp invite…" : "Restoring your invite tools…")}
+          {inviteError
+            || (memberToken
+              ? "Preparing your WhatsApp invite…"
+              : sessionCheckedPlanId === planId
+                ? "Invite tools need a crew session. Join the plan, then try again."
+                : "Restoring your invite tools…")}
         </p>
       )}
       {shareError ? (

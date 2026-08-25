@@ -253,7 +253,9 @@ describe("PlanDescribeFirst chip intent", () => {
       chip?.click();
     });
 
-    expect(onSubmit).toHaveBeenCalledWith("Camden", 6);
+    // Typed text wins: the chip must not wipe the field or auto-submit over it.
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(query.value).toBe("Camden");
   });
 
   it("reports typed query text to the composer before leaving describe-first", async () => {

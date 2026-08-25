@@ -79,6 +79,7 @@ export default function PlanDescribeFirst({
 
   function submitChip(value: string) {
     const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
+    const hadTypedQuery = Boolean(query.trim());
     const resolved = resolveDescribeChipSubmit({
       query,
       stopCountTouched,
@@ -87,6 +88,9 @@ export default function PlanDescribeFirst({
       chipInferredStopCount,
     });
     if (!stopCountTouched) setStopCount(resolved.stopCount);
+    // Typed text wins: a chip may fill an empty field and submit, but it must
+    // never wipe or auto-submit over a query the drinker already typed.
+    if (hadTypedQuery) return;
     onSubmit(resolved.query, resolved.stopCount);
   }
 

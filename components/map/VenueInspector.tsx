@@ -99,6 +99,8 @@ type VenueInspectorProps = {
   drinkLensCategory?: DrinkCategory | null;
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
+  /** After a successful Log it — refresh this venue's Pint Drop list. */
+  onLogged?: (venueId: string) => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -149,6 +151,7 @@ export default function VenueInspector({
   experienceLens = "all",
   drinkLensCategory = null,
   zoneIndex = null,
+  onLogged,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
@@ -338,6 +341,7 @@ export default function VenueInspector({
             : 0
         }
         zoneIndex={zoneIndex}
+        onLogged={onLogged}
       />
 
       {/* Photos — the pub's community wall. */}

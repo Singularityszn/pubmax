@@ -175,16 +175,34 @@ describe("buildOutResponse", () => {
     ]);
   });
 
-  it("stays ready over bundled rows, so no line contradicts the cards on screen", async () => {
-    // The keyless Common lane alone fills the bundled file. Those listings ARE
-    // on, so saying otherwise above them would contradict what a reader sees.
+  it("stays ready over bundled rows at listed pubs, with no quiet line above cards", async () => {
+    // A matched Common row is on screen, so quiet would contradict the cards.
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [eventRow({ venueId: "venue-soho-theatre" })],
+        liveProviders: noLiveLane(),
+      },
+    );
+    expect(body.status).toBe("ready");
+    expect(body.events).toHaveLength(1);
+    expect(body.venueMatch).toBe("ready");
+    expect(outStatusLines({ body, failed: false })).toEqual([]);
+  });
+
+  it("says quiet when ready bundled rows are all at unlisted places", async () => {
+    // Unmatched rows never become cards, so /out must agree with /tonight's quiet.
     const body = await buildOutResponse(
       { city: "london", day: "today" },
       { now: FIXTURE_NOW.getTime(), loadBaseline: () => [eventRow()], liveProviders: noLiveLane() },
     );
     expect(body.status).toBe("ready");
     expect(body.events).toHaveLength(1);
-    expect(outStatusLines({ body, failed: false })).toEqual([]);
+    expect(body.venueMatch).toBe("ready");
+    expect(outStatusLines({ body, failed: false })).toEqual([
+      "No listings for this day yet.",
+    ]);
   });
 
   it("keeps ready when a lane really was asked and answered", async () => {
@@ -809,6 +827,35 @@ describe("outStatusLines", () => {
       outStatusLines({ body: { status: "ready", events: [eventRow()] }, failed: false }),
     ).toEqual([]);
   });
+
+  it("says quiet when the match ran and every listing is at an unlisted place", () => {
+    expect(
+      outStatusLines({
+        body: {
+          status: "ready",
+          venueMatch: "ready",
+          events: [
+            eventRow({ id: "unlisted-a", venueId: null, placeName: "The O2" }),
+            eventRow({ id: "unlisted-b", venueId: null, placeName: "Wembley Arena" }),
+          ],
+        },
+        failed: false,
+      }),
+    ).toEqual(["No listings for this day yet."]);
+  });
+
+  it("does not claim quiet when the match could not run with rows present", () => {
+    expect(
+      outStatusLines({
+        body: {
+          status: "ready",
+          venueMatch: "unavailable",
+          events: [eventRow({ id: "unlisted-a", venueId: null, placeName: "The O2" })],
+        },
+        failed: false,
+      }),
+    ).toEqual([]);
+  });
 });
 
 describe("outAnswerView", () => {
@@ -1003,7 +1050,18 @@ describe("the live lane is venue-matched at request time", () => {
       unmatchedPlaceCount: body.unmatchedPlaceCount,
       unmatchedSources: body.unmatchedSources,
     });
-    expect(notice?.line).toBe("100 listings tonight are at places we don't list yet.");
+    expect(notice).toBeNull();
+    expect(
+      outStatusLines({
+        body: {
+          status: body.status,
+          events: body.events,
+          venueMatch: body.venueMatch,
+          listingsStatus: body.listingsStatus,
+        },
+        failed: false,
+      }),
+    ).toEqual(["No listings for this day yet."]);
   });
 
   it("never serves a live row whose start has already passed", async () => {

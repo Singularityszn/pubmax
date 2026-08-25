@@ -22,6 +22,7 @@ export default function VenueSheetPriceEntry({
   includeSignals,
   laneCategory,
   mapReach,
+  onLogged,
 }: {
   venueId: string;
   venueName: string;
@@ -36,6 +37,7 @@ export default function VenueSheetPriceEntry({
   includeSignals?: boolean;
   laneCategory?: DrinkCategory;
   mapReach?: CommunityPriceMapReach;
+  onLogged?: (venueId: string) => void;
 }) {
   const { user, handle, identityResolved } = useAuth();
   const { mission, dismiss, status } = usePriceEvidenceMission({
@@ -61,6 +63,7 @@ export default function VenueSheetPriceEntry({
       mission={mission?.venueId === venueId ? mission : null}
       missionPending={status === "loading"}
       onDismissMission={dismiss}
+      onLogged={onLogged}
     />
   );
 }

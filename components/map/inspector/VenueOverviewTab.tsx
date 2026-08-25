@@ -225,6 +225,7 @@ export default function VenueOverviewTab({
   priceAuthLoading,
   priceFocusRequest,
   zoneIndex,
+  onLogged,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -262,6 +263,8 @@ export default function VenueOverviewTab({
   /** Per-zone median pint index from the map's priced pubs — zone fallback
    *  when the Pint Index league has no borough row for this pub. */
   zoneIndex?: ZonePintIndex | null;
+  /** After a successful Log it — refresh this venue's Pint Drop list. */
+  onLogged?: (venueId: string) => void;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -563,6 +566,7 @@ export default function VenueOverviewTab({
           // The composer opens on the drink the map is under, so a cocktail map
           // does not ask a drinker to find cocktails again.
           laneCategory={leadLane}
+          onLogged={onLogged}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

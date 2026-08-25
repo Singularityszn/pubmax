@@ -176,15 +176,16 @@ function joinPlaces(names: readonly string[]): string {
 /**
  * What the page says about the listings it is NOT showing.
  *
- * Every unmatched row is dropped from the pub list (groupOutListings), so
- * without this line an Out with four Ticketmaster rows at four arenas read as
- * an empty city under one word, "Some". The rule: say how many, say where,
- * credit who listed them, and hand the reader somewhere to go. The count is
- * about the HIDDEN rows alone, so with cards on screen it says "more".
+ * Every unmatched row is dropped from the pub list (groupOutListings). When
+ * SOME listed pubs are on screen, say how many more were hidden, name places,
+ * credit who listed them, and hand the reader somewhere to go.
  *
- * A match that could not RUN is a different finding from a place that is not
- * listed: the slim index failed to read, and the same four rows may well be at
- * pubs we list. That answer keeps the count and the names and drops the claim.
+ * When NONE matched and the match RAN, stay silent: the status lines own the
+ * quiet-night sentence. Printing "50 listings … at places we don't list yet"
+ * over an empty list is a second story that fights /tonight's quiet night.
+ *
+ * A match that could not RUN is a different finding: keep the count and names
+ * and drop the unlisted claim, because those rows may well be at pubs we list.
  *
  * Silent when nothing was hidden: with every row on a listed pub there is
  * nothing to say, and with no rows at all the status lines own the sentence.
@@ -199,6 +200,9 @@ export function outUnmatchedListingsNotice(
   const count = options.unmatchedCount ?? hidden.length;
   if (count === 0) return null;
   const shown = rows.length - hidden.length;
+  // Match answered and every row is off a listed pub: quiet, not a wall of
+  // untappable provider cards described as "listings tonight".
+  if (shown === 0 && venueMatch === "ready") return null;
   const noun = outWindowNoun(window);
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
