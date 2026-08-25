@@ -43,7 +43,7 @@ WhatsApp group.** We must beat that by 10×.
 | **Aesthetic** | **Light = Airbnb/Partiful** (warm, editorial, the invite as an object) · **Dark = Arc/Linear** (sharp, high-craft, on-the-street) | Two souls mapped onto the two existing themes and two moments of the night |
 | **Geography** | UK-wide land-grab, keep the 9 cities warm; London perfect first | Coverage as a moat; London depth is the wedge |
 | **Ambition** | Beautiful now, business later | Build a clean revenue *surface*, don't jam ads in |
-| **Revenue rail** | Promoted pubs — **quarantined** from the honest ranking (labelled "Featured", never in cheapest/top-rated, never touches the concierge) | Sell attention *next to* trust, never sell the ranking |
+| **Revenue rail** | Promoted pubs — **quarantined** from honest discovery lists (labelled "Featured", never in cheapest or other trust-ranked lists, never touches the concierge) | Sell attention *next to* trust, never sell the ranking |
 | **North-star metric** | **Weekly active crews** — groups that plan a night together each week | Everything optimises toward this |
 | **What we cut** | Owner: cut nothing. Resolution: nothing is deleted; the wedge gets the **default** — the pro's home is "sort my night", clout/heritage/solo-browse are one tap away, not front-and-centre |
 
