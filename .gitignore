@@ -73,3 +73,8 @@ skills_used_global.md
 # rebuild from `npm run fetch:uk-venues`. The normalized packs beside them are
 # what a reader consumes and those ARE committed.
 data/osm/uk/raw_venues/
+
+# All-UK pub harvest working files (ODbL seed + Exa shards). The first 100
+# seed rows are the committed sample; the rest rebuild from the harvest CLI.
+data-harvest/*
+!data-harvest/uk_pubs_seed.sample.jsonl
