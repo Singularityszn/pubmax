@@ -24,6 +24,57 @@ export const EXA_PACE_MS = 1_500;
 export const EXA_MAX_ATTEMPTS = 6;
 export const PROGRESS_FILE = "progress.json";
 
+export const EXA_SYSTEM_PROMPT =
+  "Prefer official venue sites. Collapse duplicate pages. Ground every field in a source page. If a field is not stated, return an empty string or an empty array. Do not invent a website, a history sentence, a social handle, a menu URL or a price.";
+
+export const EXA_PUB_OUTPUT_SCHEMA = {
+  type: "object",
+  required: ["officialWebsite", "history", "socialHandles", "menuOrPricePages", "notableCoverage"],
+  properties: {
+    officialWebsite: {
+      type: "string",
+      description: "Official venue website URL as stated on a source page, or empty string",
+    },
+    history: {
+      type: "string",
+      description: "History or lore snippet as stated on a source page, or empty string",
+    },
+    socialHandles: {
+      type: "array",
+      items: { type: "string" },
+      description: "Public social profile URLs as stated on source pages",
+    },
+    menuOrPricePages: {
+      type: "array",
+      items: { type: "string" },
+      description: "Menu or drinks-price page URLs as stated on source pages",
+    },
+    notableCoverage: {
+      type: "array",
+      items: { type: "string" },
+      description: "Notable coverage page URLs as stated on source pages",
+    },
+  },
+};
+
+export const EXA_DEPRECATED_PARAM_KEYS = Object.freeze([
+  "useAutoprompt",
+  "includeUrls",
+  "excludeUrls",
+  "numSentences",
+  "highlightsPerUrl",
+  "tokensNum",
+  "livecrawl",
+]);
+
+const OUTPUT_FIELD_KIND = {
+  officialWebsite: "website",
+  history: "history",
+  socialHandles: "social",
+  menuOrPricePages: "menu",
+  notableCoverage: "coverage",
+};
+
 const SOCIAL_HOSTS = new Set([
   "facebook.com",
   "fb.com",
@@ -248,6 +299,46 @@ function looksLikeHistory(text, title) {
   return /\b(since\s+\d{3,4}|founded|history|established|opened in)\b/i.test(blob);
 }
 
+function hitBody(hit) {
+  if (isNonEmptyString(hit?.text)) return hit.text;
+  if (Array.isArray(hit?.highlights)) {
+    return hit.highlights.filter((part) => isNonEmptyString(part)).join(" ");
+  }
+  return "";
+}
+
+/**
+ * @param {{ query: string, purpose?: "lore" | "menu" }} input
+ */
+export function buildExaSearchBody({ query, purpose = "lore" } = {}) {
+  /** @type {{ highlights: true, maxAgeHours?: number }} */
+  const contents = { highlights: true };
+  if (purpose === "menu") contents.maxAgeHours = 24;
+  return {
+    query,
+    type: "auto",
+    numResults: 8,
+    systemPrompt: EXA_SYSTEM_PROMPT,
+    outputSchema: EXA_PUB_OUTPUT_SCHEMA,
+    contents,
+  };
+}
+
+/**
+ * /contents takes highlights at the top level, not nested under contents.
+ * @param {{ urls: string[], purpose?: "lore" | "menu" }} input
+ */
+export function buildExaContentsBody({ urls, purpose = "lore" } = {}) {
+  /** @type {{ urls: string[], highlights: true, maxAgeHours?: number }} */
+  const body = { urls: [...(urls ?? [])], highlights: true };
+  if (purpose === "menu") body.maxAgeHours = 24;
+  return body;
+}
+
+export function officialWebsiteUrl(pub) {
+  return httpsUrl(pub?.website?.value);
+}
+
 /**
  * Classify one Exa hit. Null when there is no https source URL.
  * Never invents a kind from the pub's name alone.
@@ -257,12 +348,13 @@ export function classifyExaHit(hit) {
   const url = httpsUrl(hit?.url);
   if (!url) return null;
   const host = hostnameOf(url);
+  const body = hitBody(hit);
   if (host && SOCIAL_HOSTS.has(host)) return { kind: "social", url };
   if (looksLikeMenu(url, hit?.title)) return { kind: "menu", url };
   const pathName = pathnameOf(url);
   if (pathName === "/" || pathName === "") return { kind: "website", url };
-  if (looksLikeHistory(hit?.text, hit?.title)) return { kind: "history", url };
-  if (isNonEmptyString(hit?.text) || isNonEmptyString(hit?.title)) return { kind: "coverage", url };
+  if (looksLikeHistory(body, hit?.title)) return { kind: "history", url };
+  if (isNonEmptyString(body) || isNonEmptyString(hit?.title)) return { kind: "coverage", url };
   return { kind: "website", url };
 }
 
@@ -288,8 +380,9 @@ export function observationsFromExaResults(pub, results, fetchedAt) {
     const classified = classifyExaHit(hit);
     if (!classified) continue;
 
+    const body = hitBody(hit);
     if (classified.kind === "history") {
-      const snippet = isNonEmptyString(hit.text) ? hit.text.trim() : hit.title?.trim();
+      const snippet = isNonEmptyString(body) ? body.trim() : hit.title?.trim();
       pushObservation(observations, seen, "history", snippet, classified.url, fetchedAt, snippet);
     } else if (classified.kind === "social") {
       pushObservation(observations, seen, "social", classified.url, classified.url, fetchedAt);
@@ -302,10 +395,59 @@ export function observationsFromExaResults(pub, results, fetchedAt) {
 
     // A first-party page may also STATE history. That is a second observation
     // from the same sourceUrl, never a guess from the pub name.
-    if (classified.kind !== "history" && looksLikeHistory(hit?.text, hit?.title)) {
-      const snippet = isNonEmptyString(hit.text) ? hit.text.trim() : hit.title?.trim();
+    if (classified.kind !== "history" && looksLikeHistory(body, hit?.title)) {
+      const snippet = isNonEmptyString(body) ? body.trim() : hit.title?.trim();
       pushObservation(observations, seen, "history", snippet, classified.url, fetchedAt, snippet);
     }
+  }
+  return observations;
+}
+
+function firstCitationUrl(entry) {
+  const citations = Array.isArray(entry?.citations) ? entry.citations : [];
+  for (const citation of citations) {
+    const url = httpsUrl(citation?.url);
+    if (url) return url;
+  }
+  return null;
+}
+
+function groundingEntriesFor(grounding, field, index) {
+  const rows = Array.isArray(grounding) ? grounding : [];
+  const indexed = `${field}[${index}]`;
+  const exact = rows.filter((row) => row?.field === indexed);
+  if (exact.length > 0) return exact;
+  return rows.filter((row) => row?.field === field);
+}
+
+/**
+ * Observations from Exa structured output. A field without an https citation
+ * is dropped: grounding is the source, not the model text.
+ * @param {Record<string, unknown> | undefined} content
+ * @param {any[]} grounding
+ * @param {string} fetchedAt
+ */
+export function observationsFromExaOutput(content, grounding, fetchedAt) {
+  const observations = [];
+  const seen = new Set();
+  if (!content || typeof content !== "object") return observations;
+
+  for (const [field, kind] of Object.entries(OUTPUT_FIELD_KIND)) {
+    const raw = content[field];
+    if (Array.isArray(raw)) {
+      raw.forEach((item, index) => {
+        if (!isNonEmptyString(item)) return;
+        const sourceUrl = firstCitationUrl(groundingEntriesFor(grounding, field, index)[0]);
+        if (!sourceUrl) return;
+        pushObservation(observations, seen, kind, item.trim(), sourceUrl, fetchedAt);
+      });
+      continue;
+    }
+    if (!isNonEmptyString(raw)) continue;
+    const sourceUrl = firstCitationUrl(groundingEntriesFor(grounding, field, 0)[0]);
+    if (!sourceUrl) continue;
+    const snippet = kind === "history" ? raw.trim() : undefined;
+    pushObservation(observations, seen, kind, raw.trim(), sourceUrl, fetchedAt, snippet);
   }
   return observations;
 }
@@ -340,6 +482,32 @@ const MOCK_HISTORY = {
         title: "Instagram",
       },
     ],
+    output: {
+      content: {
+        officialWebsite: "https://www.turksheadscilly.co.uk/",
+        history: "The Turks Head has served St Agnes since the nineteenth century.",
+        socialHandles: ["https://www.instagram.com/turksheadscilly"],
+        menuOrPricePages: [],
+        notableCoverage: [],
+      },
+      grounding: [
+        {
+          field: "officialWebsite",
+          citations: [{ url: "https://www.turksheadscilly.co.uk/", title: "The Turks Head" }],
+          confidence: "high",
+        },
+        {
+          field: "history",
+          citations: [{ url: "https://www.turksheadscilly.co.uk/", title: "The Turks Head" }],
+          confidence: "high",
+        },
+        {
+          field: "socialHandles[0]",
+          citations: [{ url: "https://www.instagram.com/turksheadscilly", title: "Instagram" }],
+          confidence: "high",
+        },
+      ],
+    },
   },
 };
 
@@ -414,34 +582,103 @@ export function createExaClient({
 
   return {
     mock: false,
-    async search(query) {
-      const payload = await post(EXA_SEARCH_URL, {
-        query,
-        type: "auto",
-        numResults: 8,
-        contents: { text: { maxCharacters: 1_200 } },
-      });
-      return { results: Array.isArray(payload?.results) ? payload.results : [] };
+    async search(query, { purpose = "lore" } = {}) {
+      const payload = await post(EXA_SEARCH_URL, buildExaSearchBody({ query, purpose }));
+      return {
+        results: Array.isArray(payload?.results) ? payload.results : [],
+        output: payload?.output,
+      };
     },
-    async contents(urls) {
-      const payload = await post(EXA_CONTENTS_URL, {
-        urls,
-        text: { maxCharacters: 1_200 },
-      });
+    async contents(urls, { purpose = "lore" } = {}) {
+      const payload = await post(EXA_CONTENTS_URL, buildExaContentsBody({ urls, purpose }));
       return { results: Array.isArray(payload?.results) ? payload.results : [] };
     },
   };
 }
 
+function mergeObservations(rows) {
+  const seen = new Set();
+  const merged = [];
+  for (const row of rows) {
+    if (!row) continue;
+    const key = `${row.kind}|${row.sourceUrl}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    merged.push(row);
+  }
+  return merged;
+}
+
 export function enrichPub(pub, exaPayload, fetchedAt) {
-  return {
+  const observations = mergeObservations([
+    ...observationsFromExaOutput(exaPayload?.output?.content, exaPayload?.output?.grounding, fetchedAt),
+    ...observationsFromExaResults(pub, exaPayload?.results, fetchedAt),
+  ]);
+  const record = {
     osmId: pub.osmId,
     name: pub.name,
     lat: pub.lat,
     lng: pub.lng,
-    observations: observationsFromExaResults(pub, exaPayload?.results, fetchedAt),
+    observations,
     fetchedAt,
   };
+  if (exaPayload?.output && typeof exaPayload.output === "object") {
+    record.output = {
+      content: exaPayload.output.content ?? null,
+      grounding: Array.isArray(exaPayload.output.grounding) ? exaPayload.output.grounding : [],
+    };
+  }
+  return record;
+}
+
+/**
+ * One pub: cheaper /contents on an OSM-stated website, then /search with
+ * structured output. Menu page URLs from that output use maxAgeHours 24.
+ * @param {HarvestSeedRow} pub
+ * @param {ExaClient} client
+ * @param {string} fetchedAt
+ */
+export async function enrichPubWithClient(pub, client, fetchedAt) {
+  const results = [];
+  const site = officialWebsiteUrl(pub);
+  if (site) {
+    try {
+      const page = await client.contents([site], { purpose: "lore" });
+      results.push(...(page?.results ?? []));
+    } catch {
+      // A failed contents read is absence, not a guessed website.
+    }
+  }
+
+  let searchPayload = { results: [] };
+  try {
+    searchPayload = await client.search(harvestSearchQuery(pub), { purpose: "lore" });
+    results.push(...(searchPayload?.results ?? []));
+  } catch {
+    // A failed search is an empty observation list, not a guessed fact.
+  }
+
+  const record = enrichPub(pub, { results, output: searchPayload?.output }, fetchedAt);
+
+  const menuUrls = [];
+  const pages = searchPayload?.output?.content?.menuOrPricePages;
+  if (Array.isArray(pages)) {
+    for (const url of pages) {
+      const href = httpsUrl(url);
+      if (href && href !== site) menuUrls.push(href);
+    }
+  }
+  if (menuUrls.length === 0) return record;
+  try {
+    const menu = await client.contents(menuUrls.slice(0, 2), { purpose: "menu" });
+    record.observations = mergeObservations([
+      ...record.observations,
+      ...observationsFromExaResults(pub, menu?.results, fetchedAt),
+    ]);
+  } catch {
+    // Keep the search observations. A failed menu fetch does not invent a menu.
+  }
+  return record;
 }
 
 export function shardFileName(index) {

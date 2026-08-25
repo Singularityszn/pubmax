@@ -16,7 +16,7 @@
 // OSM data is © OpenStreetMap contributors, ODbL 1.0.
 
 import { createRequire } from "node:module";
-import { mkdir, readFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile } from "node:fs/promises";
 import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -37,9 +37,8 @@ import {
   SHARD_SIZE,
   buildHarvestOverpassQuery,
   createExaClient,
-  enrichPub,
+  enrichPubWithClient,
   estimateEta,
-  harvestSearchQuery,
   isExaConfigured,
   loadProgress,
   nextShardIndex,
@@ -57,6 +56,7 @@ const HARVEST_DIR = path.join(ROOT, "data-harvest");
 const RAW_DIR = path.join(HARVEST_DIR, "raw");
 const ENRICHED_DIR = path.join(HARVEST_DIR, "enriched");
 const SEED_PATH = path.join(HARVEST_DIR, "uk_pubs_seed.jsonl");
+const ENRICH_SEED_PATH = path.join(HARVEST_DIR, "uk_pubs_seed.enriching.jsonl");
 const SAMPLE_PATH = path.join(HARVEST_DIR, "uk_pubs_seed.sample.jsonl");
 const OSM_RAW_DIR = path.join(ROOT, "data", "osm", "uk", "raw");
 
@@ -198,6 +198,16 @@ async function loadSeed() {
   return readJsonl(SEED_PATH);
 }
 
+async function loadSeedForEnrich() {
+  if (!existsSync(ENRICH_SEED_PATH) && existsSync(SEED_PATH)) {
+    await copyFile(SEED_PATH, ENRICH_SEED_PATH);
+    console.log(`froze enrich seed → ${path.relative(ROOT, ENRICH_SEED_PATH)}`);
+  }
+  const pathToRead = existsSync(ENRICH_SEED_PATH) ? ENRICH_SEED_PATH : SEED_PATH;
+  if (!existsSync(pathToRead)) return [];
+  return readJsonl(pathToRead);
+}
+
 async function enrichSeed(rows, { mock, startedAt, seedCount }) {
   const client = createExaClient({ mock });
   if (!client) {
@@ -260,13 +270,19 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
   for (const pub of remaining) {
     if (!client.mock) await sleep(EXA_PACE_MS);
     const fetchedAt = new Date().toISOString();
-    let payload = { results: [] };
     try {
-      payload = await client.search(harvestSearchQuery(pub));
+      buffer.push(await enrichPubWithClient(pub, client, fetchedAt));
     } catch (error) {
       console.warn(`  enrich failed for ${pub.osmId}: ${error instanceof Error ? error.message : error}`);
+      buffer.push({
+        osmId: pub.osmId,
+        name: pub.name,
+        lat: pub.lat,
+        lng: pub.lng,
+        observations: [],
+        fetchedAt,
+      });
     }
-    buffer.push(enrichPub(pub, payload, fetchedAt));
     enriched += 1;
     if (buffer.length >= SHARD_SIZE) await flush();
   }
@@ -298,7 +314,7 @@ export async function main(argv = process.argv.slice(2)) {
     );
     console.log(`attribution: ${ODBL_ATTRIBUTION} (${MAX_SOURCE_AGE_MS / 3_600_000}h snapshot window)`);
   } else {
-    rows = await loadSeed();
+    rows = args.enrich ? await loadSeedForEnrich() : await loadSeed();
   }
 
   if (args.limit > 0) rows = rows.slice(0, args.limit);
@@ -309,7 +325,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (mock && !isExaConfigured()) {
     console.warn("EXA_API_KEY is not set. Enrichment will run in mock mode and write no live observations.");
   }
-  if (rows.length === 0) rows = await loadSeed();
+  if (rows.length === 0) rows = await loadSeedForEnrich();
   const outcome = await enrichSeed(rows, {
     mock,
     startedAt,

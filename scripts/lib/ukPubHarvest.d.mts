@@ -6,6 +6,13 @@ export const EXA_CONTENTS_URL: string;
 export const EXA_PACE_MS: number;
 export const EXA_MAX_ATTEMPTS: number;
 export const PROGRESS_FILE: string;
+export const EXA_SYSTEM_PROMPT: string;
+export const EXA_PUB_OUTPUT_SCHEMA: {
+  type: "object";
+  required: string[];
+  properties: Record<string, unknown>;
+};
+export const EXA_DEPRECATED_PARAM_KEYS: readonly string[];
 
 export type HarvestBbox = [number, number, number, number];
 
@@ -52,16 +59,36 @@ export interface ExaHit {
   url?: string;
   title?: string;
   text?: string;
+  highlights?: string[];
+}
+
+export interface ExaGroundingCitation {
+  url?: string;
+  title?: string;
+}
+
+export interface ExaGroundingEntry {
+  field?: string;
+  citations?: ExaGroundingCitation[];
+  confidence?: string;
+}
+
+export interface ExaStructuredOutput {
+  content?: Record<string, unknown> | string | null;
+  grounding?: ExaGroundingEntry[];
 }
 
 export interface ExaPayload {
   results: ExaHit[];
+  output?: ExaStructuredOutput;
 }
+
+export type ExaPurpose = "lore" | "menu";
 
 export interface ExaClient {
   mock: boolean;
-  search(query: string): Promise<ExaPayload>;
-  contents(urls: string[]): Promise<ExaPayload>;
+  search(query: string, options?: { purpose?: ExaPurpose }): Promise<ExaPayload>;
+  contents(urls: string[], options?: { purpose?: ExaPurpose }): Promise<ExaPayload>;
 }
 
 export function isPubLikeBar(tags: Record<string, string> | undefined): boolean;
@@ -85,6 +112,25 @@ export function observationsFromExaResults(
   results: ExaHit[] | undefined,
   fetchedAt: string,
 ): HarvestObservation[];
+export function observationsFromExaOutput(
+  content: Record<string, unknown> | undefined,
+  grounding: ExaGroundingEntry[] | undefined,
+  fetchedAt: string,
+): HarvestObservation[];
+export function buildExaSearchBody(input: { query: string; purpose?: ExaPurpose }): {
+  query: string;
+  type: "auto";
+  numResults: number;
+  systemPrompt: string;
+  outputSchema: typeof EXA_PUB_OUTPUT_SCHEMA;
+  contents: { highlights: true; maxAgeHours?: number };
+};
+export function buildExaContentsBody(input: { urls: string[]; purpose?: ExaPurpose }): {
+  urls: string[];
+  highlights: true;
+  maxAgeHours?: number;
+};
+export function officialWebsiteUrl(pub: { website?: HarvestSeedRow["website"] | null }): string | null;
 export function exaApiKey(env?: NodeJS.ProcessEnv): string | null;
 export function isExaConfigured(env?: NodeJS.ProcessEnv): boolean;
 export function backoffMs(attempt: number, retryAfterHeader: string | null): number;
@@ -106,7 +152,21 @@ export function enrichPub(
   lng: number;
   observations: HarvestObservation[];
   fetchedAt: string;
+  output?: ExaStructuredOutput;
 };
+export function enrichPubWithClient(
+  pub: HarvestSeedRow,
+  client: ExaClient,
+  fetchedAt: string,
+): Promise<{
+  osmId: string;
+  name: string;
+  lat: number;
+  lng: number;
+  observations: HarvestObservation[];
+  fetchedAt: string;
+  output?: ExaStructuredOutput;
+}>;
 export function shardFileName(index: number): string;
 export function nextShardIndexFromNames(names: string[]): number;
 export function nextShardIndex(dirOrNames: string | string[]): number;

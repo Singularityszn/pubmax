@@ -8,21 +8,29 @@ import { QUERY_TIMEOUT_S } from "../scripts/lib/overpassClient.mjs";
 import { UK_AREA_ID } from "../scripts/lib/ukOsmSeed.mjs";
 import {
   EXA_CONTENTS_URL,
+  EXA_DEPRECATED_PARAM_KEYS,
+  EXA_PUB_OUTPUT_SCHEMA,
   EXA_SEARCH_URL,
+  EXA_SYSTEM_PROMPT,
   ODBL_ATTRIBUTION,
   ODBL_LICENSE,
   SHARD_SIZE,
   backoffMs,
+  buildExaContentsBody,
+  buildExaSearchBody,
   buildHarvestOverpassQuery,
   classifyExaHit,
   createExaClient,
+  enrichPub,
   estimateEta,
   harvestSearchQuery,
   isPubLikeBar,
   loadProgress,
   mockExaPayload,
   nextShardIndex,
+  observationsFromExaOutput,
   observationsFromExaResults,
+  officialWebsiteUrl,
   osmObjectUrl,
   readJsonl,
   seedRowFromElement,
@@ -270,6 +278,183 @@ describe("Exa client", () => {
     expect(backoffMs(0, null)).toBe(4_000);
     expect(backoffMs(1, null)).toBe(8_000);
     expect(backoffMs(0, "12")).toBe(12_000);
+  });
+
+  it("POSTs /search with nested highlights, outputSchema and systemPrompt, and omits maxAgeHours for lore", async () => {
+    const fetchImpl = vi.fn(
+      async () => new Response(JSON.stringify({ results: [], output: { content: {}, grounding: [] } }), { status: 200 }),
+    );
+    const client = createExaClient({
+      env: { EXA_API_KEY: "exa-test" },
+      fetchImpl,
+      sleep: async () => {},
+    });
+    await client!.search("The Test Arms UK pub official website history", { purpose: "lore" });
+    expect(fetchImpl.mock.calls[0][0]).toBe(EXA_SEARCH_URL);
+    const body = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    expect(body.type).toBe("auto");
+    expect(body.contents).toEqual({ highlights: true });
+    expect(body.contents.maxAgeHours).toBeUndefined();
+    expect(body.highlights).toBeUndefined();
+    expect(body.outputSchema).toEqual(EXA_PUB_OUTPUT_SCHEMA);
+    expect(body.systemPrompt).toBe(EXA_SYSTEM_PROMPT);
+    expect(body.systemPrompt.toLowerCase()).toContain("official");
+    for (const key of EXA_DEPRECATED_PARAM_KEYS) {
+      expect(Object.prototype.hasOwnProperty.call(body, key)).toBe(false);
+      expect(JSON.stringify(body.contents)).not.toContain(key);
+    }
+  });
+
+  it("POSTs /contents with top-level highlights for a known OSM website", async () => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    const client = createExaClient({
+      env: { EXA_API_KEY: "exa-test" },
+      fetchImpl,
+      sleep: async () => {},
+    });
+    await client!.contents(["https://thetestarms.example/"], { purpose: "lore" });
+    expect(fetchImpl.mock.calls[0][0]).toBe(EXA_CONTENTS_URL);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({
+      urls: ["https://thetestarms.example/"],
+      highlights: true,
+    });
+  });
+});
+
+describe("Exa request builders (captain 2026-08-25 guide)", () => {
+  it("nests highlights under contents and omits maxAgeHours for lore", () => {
+    const body = buildExaSearchBody({ query: "The Test Arms UK pub", purpose: "lore" });
+    expect(body.contents).toEqual({ highlights: true });
+    expect(body.outputSchema).toEqual(EXA_PUB_OUTPUT_SCHEMA);
+    expect(body.systemPrompt).toBe(EXA_SYSTEM_PROMPT);
+    expect(body.type).toBe("auto");
+  });
+
+  it("sets contents.maxAgeHours to 24 for menu and price searches", () => {
+    const body = buildExaSearchBody({ query: "The Test Arms drinks menu", purpose: "menu" });
+    expect(body.contents.highlights).toBe(true);
+    expect(body.contents.maxAgeHours).toBe(24);
+  });
+
+  it("does not put citation fields in the output schema", () => {
+    const blob = JSON.stringify(EXA_PUB_OUTPUT_SCHEMA).toLowerCase();
+    expect(blob).not.toMatch(/citation/);
+    expect(blob).not.toMatch(/sourceurl/);
+    expect(Object.keys(EXA_PUB_OUTPUT_SCHEMA.properties ?? {})).toHaveLength(5);
+    expect(Object.keys(EXA_PUB_OUTPUT_SCHEMA.properties ?? {}).length).toBeLessThanOrEqual(10);
+  });
+
+  it("puts highlights at the top level on /contents and uses urls we already have", () => {
+    const body = buildExaContentsBody({ urls: ["https://thetestarms.example/"], purpose: "lore" });
+    expect(body).toEqual({ urls: ["https://thetestarms.example/"], highlights: true });
+  });
+
+  it("sets top-level maxAgeHours 24 on /contents for menu and price pages", () => {
+    const body = buildExaContentsBody({
+      urls: ["https://thetestarms.example/menu"],
+      purpose: "menu",
+    });
+    expect(body.highlights).toBe(true);
+    expect(body.maxAgeHours).toBe(24);
+    expect(body.contents).toBeUndefined();
+  });
+});
+
+describe("grounded structured output", () => {
+  const fetchedAt = "2026-08-25T12:00:00.000Z";
+
+  it("stores content fields only when grounding supplies an https citation", () => {
+    const observations = observationsFromExaOutput(
+      {
+        officialWebsite: "https://thetestarms.example/",
+        history: "Poured cask ale since 1842.",
+        socialHandles: ["https://www.instagram.com/thetestarms"],
+        menuOrPricePages: [],
+        notableCoverage: [],
+      },
+      [
+        {
+          field: "officialWebsite",
+          citations: [{ url: "https://thetestarms.example/", title: "Home" }],
+          confidence: "high",
+        },
+        {
+          field: "history",
+          citations: [{ url: "https://thetestarms.example/about", title: "About" }],
+          confidence: "high",
+        },
+        {
+          field: "socialHandles[0]",
+          citations: [{ url: "https://www.instagram.com/thetestarms", title: "Instagram" }],
+          confidence: "high",
+        },
+      ],
+      fetchedAt,
+    );
+    expect(observations.every((row) => row.sourceUrl.startsWith("https://") && row.fetchedAt === fetchedAt)).toBe(
+      true,
+    );
+    expect(observations.find((row) => row.kind === "website")?.sourceUrl).toBe("https://thetestarms.example/");
+    expect(observations.find((row) => row.kind === "history")?.value).toContain("1842");
+    expect(observations.find((row) => row.kind === "social")?.sourceUrl).toBe(
+      "https://www.instagram.com/thetestarms",
+    );
+  });
+
+  it("drops a synthesized field with no citation", () => {
+    expect(
+      observationsFromExaOutput(
+        { history: "Founded in 1066." },
+        [{ field: "history", citations: [], confidence: "low" }],
+        fetchedAt,
+      ),
+    ).toEqual([]);
+  });
+
+  it("keeps output.content and output.grounding on the enriched record", () => {
+    const pub = {
+      osmId: "node/42",
+      name: "The Test Arms",
+      amenity: "pub",
+      lat: 51.5,
+      lng: -0.1,
+      addressTags: {},
+      website: null,
+      socialTags: {},
+      license: ODBL_LICENSE,
+      attribution: ODBL_ATTRIBUTION,
+      sourceUrl: "https://www.openstreetmap.org/node/42",
+      fetchedAt,
+    };
+    const output = {
+      content: { history: "Poured ale since 1842." },
+      grounding: [
+        {
+          field: "history",
+          citations: [{ url: "https://thetestarms.example/about", title: "About" }],
+          confidence: "high",
+        },
+      ],
+    };
+    const record = enrichPub(pub, { results: [], output }, fetchedAt);
+    expect(record.output).toEqual(output);
+    expect(record.observations.some((row) => row.kind === "history")).toBe(true);
+  });
+
+  it("reads an OSM-stated https website for a cheaper /contents call", () => {
+    expect(
+      officialWebsiteUrl({
+        website: {
+          value: "https://thetestarms.example/",
+          sourceUrl: "https://www.openstreetmap.org/node/42",
+          fetchedAt,
+        },
+      }),
+    ).toBe("https://thetestarms.example/");
+    expect(officialWebsiteUrl({ website: { value: "http://insecure.example/", sourceUrl: "x", fetchedAt } })).toBe(
+      null,
+    );
+    expect(officialWebsiteUrl({ website: null })).toBe(null);
   });
 });
 

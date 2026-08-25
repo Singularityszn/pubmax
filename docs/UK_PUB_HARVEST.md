@@ -60,9 +60,22 @@ contributors.
 
 ## Stage 2: enrich
 
-Per pub, Exa search + contents. Stored facts are copies of what the
-result page stated, with that page's URL. Kinds: `website`, `history`,
-`social`, `menu`, `coverage`. A hit with no https URL is dropped.
+Per pub, Exa `/search` with `outputSchema` and `systemPrompt`. The
+response stores `output.content` beside `output.grounding`. A field
+without an https citation in `grounding` is dropped. That is the
+sourced-observation law: Exa grounding is the citation, not a guess.
+
+When OSM already stated an https website, the harvest calls `/contents`
+on that URL (cheaper than a search). Highlights sit at the top level on
+`/contents`. On `/search` they nest under `contents`. Lore omits
+`maxAgeHours`. Menu and price pages set `maxAgeHours` to 24.
+
+Deprecated Exa params are not sent: `useAutoprompt`, `includeUrls`,
+`excludeUrls`, `numSentences`, `highlightsPerUrl`, `tokensNum`,
+`livecrawl`.
+
+Kinds: `website`, `history`, `social`, `menu`, `coverage`. A hit with no
+https URL is dropped.
 
 Output:
 
