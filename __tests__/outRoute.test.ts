@@ -835,8 +835,8 @@ describe("outStatusLines", () => {
           status: "ready",
           venueMatch: "ready",
           events: [
-            eventRow({ id: "unlisted-a", venueId: null, placeName: "The O2" }),
-            eventRow({ id: "unlisted-b", venueId: null, placeName: "Wembley Arena" }),
+            eventRow({ id: "unlisted-a", venueId: undefined, placeName: "The O2" }),
+            eventRow({ id: "unlisted-b", venueId: undefined, placeName: "Wembley Arena" }),
           ],
         },
         failed: false,
@@ -850,7 +850,7 @@ describe("outStatusLines", () => {
         body: {
           status: "ready",
           venueMatch: "unavailable",
-          events: [eventRow({ id: "unlisted-a", venueId: null, placeName: "The O2" })],
+          events: [eventRow({ id: "unlisted-a", placeName: "The O2" })],
         },
         failed: false,
       }),
