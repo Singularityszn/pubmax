@@ -227,6 +227,7 @@ import {
 } from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
+import { useVenueReveal } from "@/components/map/useVenueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
@@ -1251,6 +1252,37 @@ export default function PubMap({
     onSheetDragEnd,
   } = useSheetDrag(() => surfaceBackRef.current());
 
+  const {
+    reveal: venueReveal,
+    beginReveal,
+    interruptReveal: interruptVenueReveal,
+    rootClasses: venueRevealRootClasses,
+    entranceOvershoot: venueEntranceOvershoot,
+  } = useVenueReveal();
+
+  const onVenueSheetDragStart = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      interruptVenueReveal();
+      onSheetDragStart(event);
+    },
+    [interruptVenueReveal, onSheetDragStart],
+  );
+
+  const onVenueSheetDragMove = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      interruptVenueReveal();
+      onSheetDragMove(event);
+    },
+    [interruptVenueReveal, onSheetDragMove],
+  );
+
+  const onVenueSheetDragEnd = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      onSheetDragEnd(event);
+    },
+    [onSheetDragEnd],
+  );
+
   // Ref so fling-dismiss can call the same closePlanning as chrome buttons
   // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
   const closePlanningRef = useRef<() => void>(() => {
@@ -1947,10 +1979,18 @@ export default function PubMap({
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
+      beginReveal(
+        id,
+        communityPrices.byVenueId.get(id),
+        mapDrinkLensCategory ?? DEFAULT_DRINK_LANE,
+      );
     },
     [
+      beginReveal,
       claimMapDrawer,
       closeComposer,
+      communityPrices.byVenueId,
+      mapDrinkLensCategory,
       setSelectedVenueId,
       setSheetSnap,
       setSheetDragY,
@@ -3675,7 +3715,14 @@ export default function PubMap({
           ) : null}
         </div>
         {selectedDetailStatus === "loading" ? (
-          <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
+          <VenueSheetSkeleton
+            loadingLabel={selectedVenueLabels.loadingLabel}
+            revealBloom={
+              venueReveal?.active &&
+              venueReveal.venueId === selectedVenue.id &&
+              !venueReveal.interrupted
+            }
+          />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (
           <div style={DETAIL_WARNING_STYLE} role="status">
@@ -3705,9 +3752,25 @@ export default function PubMap({
           communityPrices={communityPrices}
           experienceLens={experienceLens}
           drinkLensCategory={mapDrinkLensCategory}
-          onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
-          onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
-          onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
+          onGrabDragStart={mobileViewport ? undefined : onVenueSheetDragStart}
+          onGrabDragMove={mobileViewport ? undefined : onVenueSheetDragMove}
+          onGrabDragEnd={mobileViewport ? undefined : onVenueSheetDragEnd}
+          revealRootClasses={
+            venueReveal?.venueId === selectedVenue.id
+              ? `${venueRevealRootClasses}${venueReveal.interrupted ? " venueReveal--interrupted" : ""}`
+              : ""
+          }
+          revealVenueId={
+            venueReveal?.active && venueReveal.venueId === selectedVenue.id
+              ? selectedVenue.id
+              : null
+          }
+          priceRevealMotionClass={
+            venueReveal?.venueId === selectedVenue.id
+              ? venueReveal.priceMotionClass
+              : ""
+          }
+          onInterruptReveal={interruptVenueReveal}
           onTabSelect={handleInspectorTabSelect}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
@@ -4490,6 +4553,8 @@ export default function PubMap({
           closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
           backLabel={mapSurfaceTrail.backLabel}
           onBack={mapSurfaceTrail.back}
+          entranceOvershoot={detailOpen && venueEntranceOvershoot}
+          onInterruptReveal={interruptVenueReveal}
         >
           {detailOpen ? venuePanel : plannerPanel}
         </Sheet>
@@ -4555,6 +4620,7 @@ export default function PubMap({
         snap={sheetSnap}
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
+        entranceOvershoot={detailOpen && venueEntranceOvershoot}
         fade
         className={
           "mapDrawer right" +
@@ -4567,10 +4633,10 @@ export default function PubMap({
       >
         <div
           className="mapDrawerHead sheetDragHandle"
-          onPointerDown={onSheetDragStart}
-          onPointerMove={onSheetDragMove}
-          onPointerUp={onSheetDragEnd}
-          onPointerCancel={onSheetDragEnd}
+          onPointerDown={onVenueSheetDragStart}
+          onPointerMove={onVenueSheetDragMove}
+          onPointerUp={onVenueSheetDragEnd}
+          onPointerCancel={onVenueSheetDragEnd}
         >
           {/* Finding 2.16: this close used to be a bordered box that drew a
               coral ring on hover, so the way out shouted louder than the pub's

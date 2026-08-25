@@ -99,6 +99,11 @@ type VenueInspectorProps = {
   drinkLensCategory?: DrinkCategory | null;
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
+  /** Trust-choreography entrance classes from PubMap. */
+  revealRootClasses?: string;
+  revealVenueId?: string | null;
+  priceRevealMotionClass?: string;
+  onInterruptReveal?: () => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -149,6 +154,10 @@ export default function VenueInspector({
   experienceLens = "all",
   drinkLensCategory = null,
   zoneIndex = null,
+  revealRootClasses = "",
+  revealVenueId = null,
+  priceRevealMotionClass = "",
+  onInterruptReveal,
 }: VenueInspectorProps) {
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
@@ -293,7 +302,11 @@ export default function VenueInspector({
   }
 
   return (
-    <section className="venueInspector">
+    <section
+      className={`venueInspector ${revealRootClasses}`.trim()}
+      data-reveal={revealVenueId ?? undefined}
+      onScroll={onInterruptReveal ? () => onInterruptReveal() : undefined}
+    >
       <VenueInspectorHeader
         venue={venue}
         communityPhotoUrl={communityPhotoUrl}
@@ -305,6 +318,7 @@ export default function VenueInspector({
         onGrabDragStart={onGrabDragStart}
         onGrabDragMove={onGrabDragMove}
         onGrabDragEnd={onGrabDragEnd}
+        revealBloom={Boolean(revealVenueId)}
       />
 
       {/* Overview — identity, latest price, add-to-crawl, "I'm here tonight". */}
@@ -338,6 +352,8 @@ export default function VenueInspector({
             : 0
         }
         zoneIndex={zoneIndex}
+        priceRevealMotionClass={priceRevealMotionClass}
+        revealRecord={Boolean(revealVenueId)}
       />
 
       {/* Photos — the pub's community wall. */}
@@ -370,6 +386,7 @@ export default function VenueInspector({
         cityLandmarks={cityLandmarks}
         cityStoryBands={cityStoryBands}
         cityCuratedCrawls={cityCuratedCrawls}
+        revealRecord={Boolean(revealVenueId)}
       />
 
       {/* Ask — the grounded "Ask the PUBMAXXER" landlord guide. */}

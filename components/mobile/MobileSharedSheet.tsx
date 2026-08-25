@@ -38,6 +38,8 @@ export default function MobileSharedSheet({
   backLabel = null,
   onBack,
   homeTitle = "the map",
+  entranceOvershoot = false,
+  onInterruptReveal,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -58,16 +60,20 @@ export default function MobileSharedSheet({
   onBack?: () => void;
   /** What the host page calls its own top level, for the Home action's name. */
   homeTitle?: string;
+  /** Beat 1 overshoot when the venue sheet opens at half. */
+  entranceOvershoot?: boolean;
+  /** Drop entrance classes on scroll, drag, Escape, or a second pick. */
+  onInterruptReveal?: () => void;
   children: React.ReactNode;
 }) {
   const titleId = useId();
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
-  const onDismissRef = useRef(onDismiss);
+  const onInterruptRevealRef = useRef(onInterruptReveal);
   useEffect(() => {
-    onDismissRef.current = onDismiss;
-  }, [onDismiss]);
+    onInterruptRevealRef.current = onInterruptReveal;
+  }, [onInterruptReveal]);
   const finishDismiss = useCallback(() => onDismissRef.current(), []);
 
   const {
@@ -110,7 +116,9 @@ export default function MobileSharedSheet({
   useEffect(() => {
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    openAtSnap(initialSnap);
+    openAtSnap(initialSnap, {
+      entranceOvershoot: kind === "venue" && entranceOvershoot,
+    });
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
       // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
@@ -118,6 +126,7 @@ export default function MobileSharedSheet({
       // press - otherwise one Escape pops two surface-stack levels at once.
       if (event.key === "Escape") {
         event.preventDefault();
+        onInterruptRevealRef.current?.();
         requestEscape();
       }
     };
@@ -127,7 +136,7 @@ export default function MobileSharedSheet({
       window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [initialSnap, kind, openAtSnap, requestEscape]);
+  }, [entranceOvershoot, initialSnap, kind, openAtSnap, requestEscape]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
@@ -201,7 +210,10 @@ export default function MobileSharedSheet({
       >
         <header
           className="mobileSharedSheetHeader sheetDragHandle"
-          onPointerDown={onSheetDragStart}
+          onPointerDown={(event) => {
+            onInterruptRevealRef.current?.();
+            onSheetDragStart(event);
+          }}
           onPointerMove={onSheetDragMove}
           onPointerUp={onSheetDragEnd}
           onPointerCancel={onSheetDragEnd}
@@ -231,7 +243,10 @@ export default function MobileSharedSheet({
               the way out the instant a sheet opened. */}
           <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
         </header>
-        <div className="mobileSharedSheetBody">
+        <div
+          className="mobileSharedSheetBody"
+          onScroll={() => onInterruptRevealRef.current?.()}
+        >
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>
         </div>
         {/* Footer slot: the venue command bar portals in here (SheetFooterContext)

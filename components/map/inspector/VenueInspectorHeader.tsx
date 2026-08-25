@@ -23,6 +23,7 @@ type VenueInspectorHeaderProps = {
   onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
+  revealBloom?: boolean;
 };
 
 export default function VenueInspectorHeader({
@@ -36,6 +37,7 @@ export default function VenueInspectorHeader({
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
+  revealBloom = false,
 }: VenueInspectorHeaderProps) {
   const { ref: tabStripRef, faded } = useTrailingEdgeFade<HTMLDivElement>();
 
@@ -65,7 +67,7 @@ export default function VenueInspectorHeader({
           placeholder for photo-less venues. Additive/self-contained so it does
           not touch the tab strip or grab-zone layout N3 owns below. */}
       <VenueImage
-        className="venueImage--header venueBaselinePhoto"
+        className={`venueImage--header venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
         sources={[
           { url: venue.imageUrl, provenance: "chain" },
           { url: communityPhotoUrl, provenance: "community" },
@@ -76,12 +78,17 @@ export default function VenueInspectorHeader({
       />
 
       {/* What's on at this venue tonight (A1) — pure sheet DOM, fail-soft. */}
-      <VenueTonightChips
-        id={venue.id}
-        name={venue.name}
-        latitude={venue.latitude}
-        longitude={venue.longitude}
-      />
+      <div
+        className={revealBloom ? "venueRevealRecord" : undefined}
+        data-reveal-delay={revealBloom ? "2" : undefined}
+      >
+        <VenueTonightChips
+          id={venue.id}
+          name={venue.name}
+          latitude={venue.latitude}
+          longitude={venue.longitude}
+        />
+      </div>
 
       {/* The right-edge fade is drawn only while something really is off the
           edge (lib/useTrailingEdgeFade.ts). A static mask left the last tab

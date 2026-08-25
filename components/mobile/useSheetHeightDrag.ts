@@ -18,11 +18,12 @@ const RUBBERBAND_CONSTANT = 0.55;
 const RELEASE_PAUSE_MS = 66;
 const VELOCITY_SMOOTHING = 0.55;
 const MOMENTUM_VELOCITY_THRESHOLD = 0.5;
+const ENTRANCE_OVERSHOOT_DAMPING = 0.82;
 
 export interface SheetHeightDrag {
   sheetSnap: SheetSnap;
   setSheetSnap: (snap: SheetSnap) => void;
-  openAtSnap: (snap: SheetSnap) => void;
+  openAtSnap: (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => void;
   requestDismiss: (presentedHeight?: number) => void;
   sheetHeight: number;
   dragging: boolean;
@@ -99,10 +100,12 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   );
 
   const openAtSnap = useCallback(
-    (snap: SheetSnap) => {
+    (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => {
       setRestingSnap(snap);
       jumpTo(0);
-      animateTo(capsForViewport()[snap], { dampingRatio: 1 });
+      animateTo(capsForViewport()[snap], {
+        dampingRatio: options?.entranceOvershoot ? ENTRANCE_OVERSHOOT_DAMPING : 1,
+      });
     },
     [animateTo, capsForViewport, jumpTo],
   );

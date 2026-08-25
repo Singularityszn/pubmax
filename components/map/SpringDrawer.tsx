@@ -21,6 +21,7 @@ import {
 import { useSpringValue } from "@/lib/useSpringValue";
 
 const TABLET_SHEET_QUERY = "(max-width: 768px)";
+const ENTRANCE_OVERSHOOT_DAMPING = 0.82;
 
 function subscribeTabletSheet(onChange: () => void): () => void {
   const query = window.matchMedia(TABLET_SHEET_QUERY);
@@ -46,6 +47,8 @@ type SpringDrawerProps = Omit<
   releaseVelocityY: number;
   keepMounted?: boolean;
   fade?: boolean;
+  /** Beat 1: a fresh venue open springs past half with a subtle overshoot. */
+  entranceOvershoot?: boolean;
   children: ReactNode;
 };
 
@@ -70,6 +73,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       releaseVelocityY,
       keepMounted = false,
       fade = false,
+      entranceOvershoot = false,
       className,
       children,
       ...divProps
@@ -107,6 +111,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       useState<ReactNode>(open ? children : null);
     const drawerRef = useRef<HTMLDivElement | null>(null);
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
+    const wasOpenRef = useRef(open);
     const wasDraggingRef = useRef(false);
     const setDrawerRef = useCallback(
       (node: HTMLDivElement | null) => {
@@ -132,6 +137,8 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       const mode = tabletSheet ? "vertical" : "horizontal";
       const modeChanged = modeRef.current !== mode;
       const firstRun = modeRef.current === null;
+      const opening = open && !wasOpenRef.current;
+      wasOpenRef.current = open;
       modeRef.current = mode;
 
       if (tabletSheet) {
@@ -161,7 +168,12 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
           } else {
             animateVertical(target, {
               velocity,
-              dampingRatio: Math.abs(velocity) >= 500 ? 0.8 : 1,
+              dampingRatio:
+                opening && entranceOvershoot
+                  ? ENTRANCE_OVERSHOOT_DAMPING
+                  : Math.abs(velocity) >= 500
+                    ? 0.8
+                    : 1,
               onRest: open ? undefined : clearRetainedChildren,
             });
           }
@@ -175,7 +187,8 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
           if (!open) clearRetainedChildren();
         } else {
           animateHorizontal(target, {
-            dampingRatio: 1,
+            dampingRatio:
+              opening && entranceOvershoot ? ENTRANCE_OVERSHOOT_DAMPING : 1,
             onRest: open ? undefined : clearRetainedChildren,
           });
         }
@@ -196,6 +209,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       stopHorizontal,
       stopVertical,
       tabletSheet,
+      entranceOvershoot,
     ]);
 
     const transform = tabletSheet

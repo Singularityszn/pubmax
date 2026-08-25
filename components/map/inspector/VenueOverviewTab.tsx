@@ -63,6 +63,7 @@ function VenuePriceSummary({
   anchorStamp,
   onLogTonightPrice,
   onStartFirstDrop,
+  priceRevealMotionClass = "",
 }: {
   venue: Venue;
   latestContributorPrice: number | null | undefined;
@@ -71,6 +72,7 @@ function VenuePriceSummary({
   anchorStamp: string | null;
   onLogTonightPrice: () => void;
   onStartFirstDrop?: () => void;
+  priceRevealMotionClass?: string;
 }) {
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
@@ -86,7 +88,7 @@ function VenuePriceSummary({
     venue.cheapestPrice !== undefined
   ) {
     return (
-      <div className="contributorPrice">
+      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
         <span>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
@@ -117,7 +119,7 @@ function VenuePriceSummary({
 
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return (
-      <div className="contributorPrice">
+      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
         <span>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
@@ -134,7 +136,7 @@ function VenuePriceSummary({
 
   if (sourcedPrice) {
     return (
-      <div className="contributorPrice">
+      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
         <span>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
@@ -158,7 +160,7 @@ function VenuePriceSummary({
 
   if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
     return (
-      <div className="contributorPrice">
+      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
         <span>
           <ClaimBadge kind="baseline" /> Baseline on record
         </span>
@@ -225,6 +227,8 @@ export default function VenueOverviewTab({
   priceAuthLoading,
   priceFocusRequest,
   zoneIndex,
+  priceRevealMotionClass = "",
+  revealRecord = false,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -262,6 +266,8 @@ export default function VenueOverviewTab({
   /** Per-zone median pint index from the map's priced pubs — zone fallback
    *  when the Pint Index league has no borough row for this pub. */
   zoneIndex?: ZonePintIndex | null;
+  priceRevealMotionClass?: string;
+  revealRecord?: boolean;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -492,6 +498,8 @@ export default function VenueOverviewTab({
           communityPrices={communityPrices}
           onLogPrice={onLogTonightPrice}
           canLog={isPubVenue(venue)}
+          priceRevealMotionClass={priceRevealMotionClass}
+          revealRecord={revealRecord}
         />
       )}
       {/* Price honesty on overview: community override wins, then sourced
@@ -512,6 +520,9 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           onLogTonightPrice={onLogTonightPrice}
           onStartFirstDrop={onStartFirstDrop}
+          priceRevealMotionClass={
+            drinkPriceRows?.length ? "" : priceRevealMotionClass
+          }
         />
       ) : null}
       {/* What a pint here used to cost: one dated figure from the archives,

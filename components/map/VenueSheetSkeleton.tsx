@@ -4,13 +4,18 @@
 
 export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
+  revealBloom = false,
 }: {
   loadingLabel?: string;
+  revealBloom?: boolean;
 }) {
   return (
     <div className="venueSheetSkeleton" role="status" aria-live="polite" aria-busy="true">
       <span className="venueSheetSkeletonLabel">{loadingLabel}</span>
-      <div className="venueSheetSkeletonTitle" aria-hidden="true" />
+      <div
+        className={`venueSheetSkeletonTitle${revealBloom ? " venueRevealBloom" : ""}`}
+        aria-hidden="true"
+      />
       <div className="venueSheetSkeletonMeta" aria-hidden="true">
         <span />
         <span />

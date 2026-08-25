@@ -1388,3 +1388,110 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
 }
+
+/* Venue reveal choreography — transform/opacity only; figures stay static.
+   Every rule sits behind prefers-reduced-motion: no-preference. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes venueRevealBloom {
+    from {
+      opacity: 0.6;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes venueRevealBloomShort {
+    from {
+      opacity: 0.75;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes venueRevealBeermatDrop {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    72% {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes venueRevealPriceSlide {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes venueRevealRecord {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .venueReveal--full .venueRevealBloom {
+    animation: venueRevealBloom 280ms var(--ease-out-strong) 80ms both;
+  }
+
+  .venueReveal--short .venueRevealBloom {
+    animation: venueRevealBloomShort 160ms var(--ease-out-strong) both;
+  }
+
+  .venueReveal--full .venueRevealPriceChrome--drop {
+    animation: venueRevealBeermatDrop 180ms var(--ease-spring) 240ms both;
+  }
+
+  .venueReveal--full .venueRevealPriceChrome--slide {
+    animation: venueRevealPriceSlide 180ms var(--ease-out-strong) 240ms both;
+  }
+
+  .venueReveal--full .venueRevealRecord {
+    animation: venueRevealRecord 160ms var(--ease-out-strong) both;
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
+    animation-delay: 320ms;
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="1"] {
+    animation-delay: 360ms;
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="2"] {
+    animation-delay: 400ms;
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
+    animation-delay: 440ms;
+  }
+}
+
+.venueReveal--interrupted .venueRevealBloom,
+.venueReveal--interrupted .venueRevealPriceChrome--drop,
+.venueReveal--interrupted .venueRevealPriceChrome--slide,
+.venueReveal--interrupted .venueRevealRecord {
+  animation: none !important;
+  opacity: 1 !important;
+  transform: none !important;
+}
+

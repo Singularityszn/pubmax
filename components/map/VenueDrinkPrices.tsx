@@ -52,6 +52,8 @@ export default function VenueDrinkPrices({
   communityPrices,
   onLogPrice,
   canLog,
+  priceRevealMotionClass = "",
+  revealRecord = false,
 }: {
   venueId: string;
   venueName: string;
@@ -68,6 +70,8 @@ export default function VenueDrinkPrices({
   onLogPrice: () => void;
   /** False where this venue takes no community price (a bar, a restaurant). */
   canLog: boolean;
+  priceRevealMotionClass?: string;
+  revealRecord?: boolean;
 }) {
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
@@ -95,18 +99,30 @@ export default function VenueDrinkPrices({
       aria-label={`Drink prices logged at ${venueName}`}
     >
       {lead ? (
-        <div className="contributorPrice communityPriceRow">
+        <div
+          className={`contributorPrice communityPriceRow ${priceRevealMotionClass}`.trim()}
+        >
           <span>
             <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
           </span>
           <PriceBadge variant="current">
             {formatPrice(lead.price.priceGbp)}
           </PriceBadge>
-          <small className="communityPriceStamp">
+          <small
+            className={revealRecord ? "communityPriceStamp venueRevealRecord" : "communityPriceStamp"}
+            data-reveal-delay={revealRecord ? "0" : undefined}
+          >
             {lead.label} · {communityStampLabel(lead.price.submittedAt)}
           </small>
           {communityTrustNote(lead.price) ? (
-            <small className="communityPriceStanding">
+            <small
+              className={
+                revealRecord
+                  ? "communityPriceStanding venueRevealRecord"
+                  : "communityPriceStanding"
+              }
+              data-reveal-delay={revealRecord ? "1" : undefined}
+            >
               {communityTrustNote(lead.price)}
             </small>
           ) : null}
