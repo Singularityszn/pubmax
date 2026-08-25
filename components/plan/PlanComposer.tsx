@@ -1285,13 +1285,20 @@ function PlanComposerForm({
     [conciergeIntake],
   );
   const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(conciergeIntake, intakeContextPatch);
+  const queryUnsupportedPatch = useMemo(() => {
+    const queryArea = nightAreaFromPlanQuery(conciergeQuery);
+    return queryArea.kind === "unsupported-patch"
+      ? resolveNightPatch(queryArea.patchId)
+      : null;
+  }, [conciergeQuery]);
+  const activeUnsupportedPatch = unsupportedIntakePatch ?? queryUnsupportedPatch;
   const canSortWithCurrentGenerator = canSortPlan(
     conciergeQuery,
     intakeContextPatch,
     nightContext,
-    unsupportedIntakePatch,
+    activeUnsupportedPatch,
   );
-  const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
+  const conciergeStatus = conciergeStatusText(sorting, activeUnsupportedPatch, conciergeNote);
   const composerVisible =
     planIntake.completed
     || stops.length > 0
@@ -1652,12 +1659,20 @@ function PlanComposerForm({
       updatePlanIntake(intake);
     }
     const intakeContextForSort = planIntakeNightContextPatch(intake);
-    const unsupportedPatchForSort = unsupportedPatchForCurrentGenerator(
+    const intakeUnsupportedPatch = unsupportedPatchForCurrentGenerator(
       intake,
       intakeContextForSort,
     );
+    const queryUnsupportedPatchForSort =
+      queryArea.kind === "unsupported-patch"
+        ? resolveNightPatch(queryArea.patchId)
+        : null;
+    const blockedUnsupportedPatch = intakeUnsupportedPatch ?? queryUnsupportedPatchForSort;
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
-    if (queryOverride !== undefined && unsupportedPatchForSort) return;
+    if (blockedUnsupportedPatch) {
+      setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
+      return;
+    }
     const submittedContext = mergeSubmittedNightContext(
       explicitContext,
       intakeContextForSort,

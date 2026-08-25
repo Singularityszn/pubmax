@@ -286,6 +286,23 @@ describe("PlanComposer describe prefill", () => {
 
     expect(describeFieldValue()).toBe("");
   });
+
+  it("does not generate when describe-first asks for an unsupported night patch", async () => {
+    await mountComposer();
+
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Hackney crawl tonight");
+      clickButton("Make a plan");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCalls).toHaveLength(0);
+  });
 });
 
 // A URL ask is a fresher intention than anything the browser held, and the two

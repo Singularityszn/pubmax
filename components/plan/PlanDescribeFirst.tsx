@@ -39,6 +39,12 @@ export default function PlanDescribeFirst({
     onQueryChangeRef.current = onQueryChange;
   }, [onQueryChange]);
   useEffect(() => {
+    const nextQuery = initialQuery.slice(0, 500);
+    if (!nextQuery || reportedPrefill.current === nextQuery) return;
+    reportedPrefill.current = nextQuery;
+    onQueryChangeRef.current?.(nextQuery);
+  }, [initialQuery]);
+  useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     const nextQuery = initialQuery.slice(0, 500);
@@ -57,13 +63,6 @@ export default function PlanDescribeFirst({
     });
     return () => { cancelled = true; };
   }, [initialQuery, stopCountTouched, touched]);
-
-  useEffect(() => {
-    const nextQuery = initialQuery.slice(0, 500);
-    if (!nextQuery || initialQuery !== appliedPrefill.current || reportedPrefill.current === nextQuery) return;
-    reportedPrefill.current = nextQuery;
-    onQueryChangeRef.current?.(nextQuery);
-  }, [initialQuery]);
 
   function submit(queryOverride = query) {
     const trimmed = queryOverride.trim();
