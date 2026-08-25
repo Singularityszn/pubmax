@@ -31,7 +31,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
@@ -440,9 +440,7 @@ function RoundBoard({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy Round code. Try again.",
+        offlineOrMessage("Could not copy Round code. Try again.")
       );
     }
   }
@@ -1620,28 +1618,27 @@ function CloseRound({
             action: "close",
             handle,
           });
+          const data = await res.json().catch(() => null);
           return {
             res,
-            data: res.ok ? ((await res.json()) as RoundState) : null,
+            data: res.ok
+              ? (data as RoundState | null)
+              : (data as { error?: unknown } | null),
           };
         },
       );
       if (!completion.current) return;
       const { res, data } = completion.value;
       if (res.ok && data) {
-        onClosed(data);
+        onClosed(data as RoundState);
       } else {
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(data, "Could not close the Round. Try again."),
+          offlineOrMessage(errorMessageFrom(data, "Could not close the Round. Try again."))
         );
       }
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not close the Round. Try again.",
+        offlineOrMessage("Could not close the Round. Try again.")
       );
     } finally {
       if (

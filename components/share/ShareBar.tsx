@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useCallback, useRef, useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
@@ -89,9 +91,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
       flashCopied();
     } catch {
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }, [url, flashCopied, trackPlanInvite]);
@@ -105,9 +105,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not share link. Try again.",
+        offlineOrMessage("Could not share link. Try again.")
       );
     }
   }, [url, title, shareText, trackPlanInvite]);
@@ -124,9 +122,7 @@ export default function ShareBar({ url, title, text, compact = false }: ShareBar
         // The browser can block an external handoff before it creates a window.
       }
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not open sharing app. Try again.",
+        offlineOrMessage("Could not open sharing app. Try again.")
       );
       return false;
     },

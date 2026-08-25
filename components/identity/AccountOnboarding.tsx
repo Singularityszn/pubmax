@@ -11,7 +11,7 @@ import {
 import { createPortal } from "react-dom";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   accountBoundFetch,
   captureAccountAuth,
@@ -471,9 +471,7 @@ function AccountOnboardingForUser({
           if (body.code === "reserved") setAvailability("reserved");
           setCheckedHandle(null);
           setError(
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : errorMessageFrom(body, "Could not claim that handle."),
+            offlineOrMessage(errorMessageFrom(body, "Could not claim that handle."))
           );
           return;
         }
@@ -496,9 +494,7 @@ function AccountOnboardingForUser({
       } catch {
         if (active.current) {
           setError(
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : "Could not claim that handle. Try again.",
+            offlineOrMessage("Could not claim that handle. Try again.")
           );
         }
       } finally {

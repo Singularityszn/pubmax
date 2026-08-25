@@ -7,7 +7,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { trackEvent } from "@/lib/analytics";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { CreatorListDiscoveryItem } from "@/lib/creatorListDiscovery";
 import { normalizeHandle } from "@/lib/profiles";
@@ -62,9 +62,7 @@ function CreatorListFollowAction({
       trackEvent("creator_list_followed");
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not follow this list. Try again.",
+        offlineOrMessage("Could not follow this list. Try again.")
       );
     } finally {
       setBusy(false);

@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // Inevitable post-plan next step: Send on WhatsApp first, Copy invite second.
 // Reuses plan_invite_sent / plan_invite_link_copied from the invite loop.
 // ShareBar stays as overflow under "More ways to share".
@@ -99,9 +101,7 @@ export default function PlanInviteNextStep({
           setInviteToken(null);
           setInviteReady(true);
           setInviteError(
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : "Invite tools are unavailable. Try again in a moment.",
+            offlineOrMessage("Invite tools are unavailable. Try again in a moment.")
           );
         }
       });
@@ -137,18 +137,14 @@ export default function PlanInviteNextStep({
       );
       if (!opened) {
         setShareError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not open WhatsApp. Try again.",
+          offlineOrMessage("Could not open WhatsApp. Try again.")
         );
         return;
       }
       trackEvent("plan_invite_sent", { channel: "whatsapp" });
     } catch {
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not open WhatsApp. Try again.",
+        offlineOrMessage("Could not open WhatsApp. Try again.")
       );
     }
   }, [inviteToken, relativeUrl, text]);

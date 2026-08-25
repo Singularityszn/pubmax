@@ -4,6 +4,8 @@ import {
   errorMessageFrom,
   findYourLotInviteFailureMessage,
   INVITE_LINK_FALLBACK_MESSAGE,
+  OFFLINE_RETRY_MESSAGE,
+  inlineOfflineOrMessageJs,
 } from "@/lib/apiErrorMessage";
 
 describe("errorMessageFrom", () => {
@@ -39,6 +41,16 @@ describe("errorMessageFrom", () => {
   });
 });
 
+describe("inlineOfflineOrMessageJs", () => {
+  it("serializes offline and online messages into a browser expression", () => {
+    const onlineMessage = 'Could not copy "link". Try again.';
+
+    expect(inlineOfflineOrMessageJs(onlineMessage)).toBe(
+      `navigator.onLine===false?${JSON.stringify(OFFLINE_RETRY_MESSAGE)}:${JSON.stringify(onlineMessage)}`,
+    );
+  });
+});
+
 describe("FindYourLot invite failure copy", () => {
   it("uses fallback for a structured error without leaking object coercion", () => {
     const message = findYourLotInviteFailureMessage(
@@ -52,7 +64,7 @@ describe("FindYourLot invite failure copy", () => {
 
   it("prefers offline copy when the browser is offline", () => {
     expect(findYourLotInviteFailureMessage({ error: "Server error" }, false)).toBe(
-      "You look offline. Reconnect, then try again.",
+      OFFLINE_RETRY_MESSAGE,
     );
   });
 });

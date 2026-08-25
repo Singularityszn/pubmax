@@ -3,7 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   accountBoundFetch,
   captureAccountAuth,
@@ -245,15 +245,11 @@ function PrivateIdentityEditorForAccount({
       setMessage(
         response.ok
           ? "Private details saved."
-          : navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, "Private details could not be saved."),
+          : offlineOrMessage(errorMessageFrom(body, "Private details could not be saved."))
       );
     } catch {
       setMessage(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Private details could not be saved.",
+        offlineOrMessage("Private details could not be saved.")
       );
     } finally {
       setSaving(false);

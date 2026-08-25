@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useState } from "react";
 
 export default function CrawlStoryCopyButton() {
@@ -14,9 +16,7 @@ export default function CrawlStoryCopyButton() {
       window.setTimeout(() => setCopied(false), 2000);
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }

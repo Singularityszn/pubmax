@@ -47,7 +47,7 @@ import {
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 
 // `gone` is a REFUSAL and `error` is a fault: the target is not there any more,
 // so the add button leaves with it rather than inviting a retry that cannot land.
@@ -206,9 +206,7 @@ export default function ConfirmFollow({
     } catch {
       setCopied(false);
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not share your link. Try again.",
+        offlineOrMessage("Could not share your link. Try again.")
       );
     }
   }

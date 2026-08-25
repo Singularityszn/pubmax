@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 
@@ -66,9 +68,7 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not share link. Try again.",
+        offlineOrMessage("Could not share link. Try again.")
       );
     }
   }, [shareUrl, shareText, planId]);
@@ -83,9 +83,7 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
       flashCopied();
     } catch {
       setShareError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }, [shareUrl, planId, flashCopied]);
@@ -125,18 +123,14 @@ export default function RecapShareButton({ planId, shareText, shareUrl }: RecapS
             );
             if (!opened) {
               setShareError(
-                navigator.onLine === false
-                  ? "You look offline. Reconnect, then try again."
-                  : "Could not open WhatsApp. Try again.",
+                offlineOrMessage("Could not open WhatsApp. Try again.")
               );
               return;
             }
             trackEvent("recap_shared", { channel: "whatsapp", planId });
           } catch {
             setShareError(
-              navigator.onLine === false
-                ? "You look offline. Reconnect, then try again."
-                : "Could not open WhatsApp. Try again.",
+              offlineOrMessage("Could not open WhatsApp. Try again.")
             );
           }
         }}

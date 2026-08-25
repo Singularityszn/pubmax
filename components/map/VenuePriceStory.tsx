@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowDownRight, ArrowUpRight, Minus, TrendingUp } from "lucide-react";
 
 import PriceBadge from "@/components/PriceBadge";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { priceConfidence } from "@/lib/priceConfidence";
 import {
@@ -214,9 +214,7 @@ function PriceConfirmChip({
       if (!res.ok) {
         setConfirmed(false);
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, "Could not confirm that price. Try again."),
+          offlineOrMessage(errorMessageFrom(body, "Could not confirm that price. Try again."))
         );
         return;
       }
@@ -225,9 +223,7 @@ function PriceConfirmChip({
     } catch {
       setConfirmed(false);
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not confirm that price. Try again.",
+        offlineOrMessage("Could not confirm that price. Try again.")
       );
     }
   }, [confirmed, venueId, priceGbp]);

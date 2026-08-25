@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
@@ -112,9 +114,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
       trackEvent("plan_invite_link_copied");
     } catch {
       setStatus(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy invite link. Try again.",
+        offlineOrMessage("Could not copy invite link. Try again.")
       );
     }
   }
@@ -150,9 +150,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
       }
     } catch {
       setStatus(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Couldn't make a new link.",
+        offlineOrMessage("Couldn't make a new link.")
       );
     } finally {
       setRotating(false);

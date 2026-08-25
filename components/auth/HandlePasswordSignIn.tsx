@@ -5,7 +5,7 @@ import { FormEvent, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { safeAuthNext } from "@/lib/authRedirect";
 import { ensureSupabaseBrowser } from "@/lib/authClient";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { persistSessionForResume } from "@/lib/authSessionResumeClient";
 import {
   HANDLE_PASSWORD_GENERIC_ERROR,
@@ -80,9 +80,7 @@ export default function HandlePasswordSignIn({
 
       if (!res.ok) {
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, HANDLE_PASSWORD_GENERIC_ERROR),
+          offlineOrMessage(errorMessageFrom(body, HANDLE_PASSWORD_GENERIC_ERROR))
         );
         return;
       }
@@ -129,9 +127,7 @@ export default function HandlePasswordSignIn({
       navigateAfterHandlePasswordSignIn(redirectTo, window.location);
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Sign-in did not finish. Try again.",
+        offlineOrMessage("Sign-in did not finish. Try again.")
       );
     } finally {
       setBusy(false);

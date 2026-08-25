@@ -6,7 +6,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
 import type { CityId } from "@/lib/cities";
 import { unresolvedVenueLabel } from "@/lib/cityVenueIds";
@@ -649,9 +649,7 @@ export function usePintDrops(
         setDropMsg({
           ok: false,
           text:
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : errorMessageFrom(body, "Could not report that Pint Drop. Try again."),
+            offlineOrMessage(errorMessageFrom(body, "Could not report that Pint Drop. Try again."))
         });
         return;
       }
@@ -671,9 +669,7 @@ export function usePintDrops(
       setDropMsg({
         ok: false,
         text:
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not report that Pint Drop. Try again.",
+          offlineOrMessage("Could not report that Pint Drop. Try again.")
       });
     }
   }

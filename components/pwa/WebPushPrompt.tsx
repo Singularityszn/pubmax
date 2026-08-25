@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
@@ -40,9 +42,7 @@ export default function WebPushPrompt(): React.JSX.Element | null {
       markWebPushPromptEnabled();
     } else {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not enable alerts. Try again.",
+        offlineOrMessage("Could not enable alerts. Try again.")
       );
     }
     setPending(false);

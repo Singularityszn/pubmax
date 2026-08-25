@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { Check, Link2, Route } from "lucide-react";
 import { useState } from "react";
 
@@ -38,9 +40,7 @@ export default function RouteHeader({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }

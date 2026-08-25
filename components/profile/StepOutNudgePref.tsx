@@ -5,7 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { isNativeApp } from "@/lib/nativePlatform";
 import { registerWebPush, unregisterWebPush } from "@/lib/webPush";
 
@@ -99,9 +99,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, "Could not save the preference. Try again."),
+          offlineOrMessage(errorMessageFrom(body, "Could not save the preference. Try again."))
         );
         return;
       }
@@ -114,9 +112,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
       setNotice("Step Out is on. At most one place-bound push a week.");
     } catch {
       setNotice(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not turn Step Out on. Try again.",
+        offlineOrMessage("Could not turn Step Out on. Try again.")
       );
     } finally {
       setBusy(false);
@@ -132,9 +128,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, "Could not turn Step Out off. Try again."),
+          offlineOrMessage(errorMessageFrom(body, "Could not turn Step Out off. Try again."))
         );
         return;
       }
@@ -148,9 +142,7 @@ export default function StepOutNudgePref(): React.JSX.Element {
       setNotice("Step Out is off. No weekly nudge will be sent.");
     } catch {
       setNotice(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not turn Step Out off. Try again.",
+        offlineOrMessage("Could not turn Step Out off. Try again.")
       );
     } finally {
       setBusy(false);

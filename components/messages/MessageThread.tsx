@@ -25,7 +25,7 @@ import MessageVenuePicker, {
 } from "@/components/messages/MessageVenuePicker";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { trackEvent } from "@/lib/analytics";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
 import { discardBody } from "@/lib/responseBody";
 import {
@@ -360,11 +360,9 @@ export default function MessageThread({
         // conversation that is gone are different things to be told.
         const body: unknown = await res.json().catch(() => null);
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(
+          offlineOrMessage(errorMessageFrom(
                 body,
-                pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.",
+                pending ? MESSAGE_PHOTO_FAILED_LINE : "Could not send that message. Try again.")
               ),
         );
         return;
@@ -375,11 +373,9 @@ export default function MessageThread({
       await refresh();
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : pending
+        offlineOrMessage(pending
             ? MESSAGE_PHOTO_FAILED_LINE
-            : "Could not send that message. Try again.",
+            : "Could not send that message. Try again.")
       );
     } finally {
       setSending(false);
@@ -400,9 +396,7 @@ export default function MessageThread({
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => null);
           setError(
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : errorMessageFrom(body, "Could not report that message. Try again."),
+            offlineOrMessage(errorMessageFrom(body, "Could not report that message. Try again."))
           );
           return;
         }
@@ -410,9 +404,7 @@ export default function MessageThread({
         await refresh();
       } catch {
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not report that message. Try again.",
+          offlineOrMessage("Could not report that message. Try again.")
         );
       }
     },

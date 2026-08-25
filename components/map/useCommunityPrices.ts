@@ -26,7 +26,7 @@ import type {
 import type { PriceSubmitFailureReason } from "@/lib/analyticsEvents";
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
 import { discardBody } from "@/lib/responseBody";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { postCommunityContribution } from "@/lib/communityContributionClient";
 import { normalizeHandle } from "@/lib/profiles";
 import {
@@ -1164,9 +1164,7 @@ export function useCommunityPrices(): CommunityPricesState {
             const next = new Map(current);
             next.set(
               id,
-              navigator.onLine === false
-                ? "You look offline. Reconnect, then try again."
-                : errorMessageFrom(body, "Could not report that price. Try again."),
+              offlineOrMessage(errorMessageFrom(body, "Could not report that price. Try again."))
             );
             return next;
           });
@@ -1184,9 +1182,7 @@ export function useCommunityPrices(): CommunityPricesState {
           const next = new Map(current);
           next.set(
             id,
-            navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : "Could not report that price. Try again.",
+            offlineOrMessage("Could not report that price. Try again.")
           );
           return next;
         });

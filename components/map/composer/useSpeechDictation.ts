@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
 
 import {
   getSpeechRecognitionCtor,
@@ -80,9 +81,7 @@ export function useSpeechDictation({
       recognition.onerror = () => {
         setListening(false);
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not start dictation. Try typing instead.",
+          offlineOrMessage("Could not start dictation. Try typing instead.")
         );
       };
       recognition.onend = () => {
@@ -94,9 +93,7 @@ export function useSpeechDictation({
     } catch {
       setListening(false);
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not start dictation. Try typing instead.",
+        offlineOrMessage("Could not start dictation. Try typing instead.")
       );
     }
   }
