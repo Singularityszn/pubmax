@@ -1,8 +1,5 @@
 // @vitest-environment jsdom
 
-import { createRequire } from "node:module";
-import path from "node:path";
-
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -24,8 +21,8 @@ import { GET } from "@/app/api/ratings/route";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { __resetMemoryRatings } from "@/lib/ratingsStore";
 
-const requireFromTest = createRequire(import.meta.url);
 let root: Root | null = null;
+let container: HTMLDivElement | null = null;
 
 function price(): VenuePrice {
   return {
@@ -77,6 +74,8 @@ function price(): VenuePrice {
 afterEach(() => {
   root?.unmount();
   root = null;
+  container?.remove();
+  container = null;
   __resetMemoryRatings();
   vi.unstubAllGlobals();
 });
@@ -94,7 +93,7 @@ describe("drink rating surface fence", () => {
     );
 
     const venue = groupVenuePrices([price()])[0];
-    const container = document.createElement("div");
+    container = document.createElement("div");
     document.body.appendChild(container);
 
     await act(async () => {
@@ -116,6 +115,8 @@ describe("drink rating surface fence", () => {
     expect(container.querySelector('[role="slider"]')?.getAttribute("aria-label")).toBe(
       "Rate London Pride",
     );
+    expect(container.querySelector(".venueRatingPanel")).toBeNull();
+    expect(container.querySelector(".topRatedList")).toBeNull();
   });
 
   it("does not expose the retired top-rated API response", async () => {
@@ -125,15 +126,5 @@ describe("drink rating surface fence", () => {
 
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ summaries: {} });
-  });
-
-  it("does not resolve removed venue-rating modules", () => {
-    for (const relative of [
-      "components/ratings/VenueRatingPanel.tsx",
-      "components/ratings/TopRatedPubs.tsx",
-      "components/ratings/topRatedPubs.css",
-    ]) {
-      expect(() => requireFromTest(path.join(process.cwd(), relative))).toThrow();
-    }
   });
 });
