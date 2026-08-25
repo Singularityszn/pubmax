@@ -10,8 +10,10 @@ vi.mock("next/navigation", () => ({
   useRouter: () => router,
 }));
 vi.mock("next/image", () => ({
-  default: ({ fill: _fill, priority: _priority, sizes: _sizes, ...props }: Record<string, unknown>) =>
-    createElement("img", props),
+  default: (props: Record<string, unknown>) => {
+    const { fill, priority, sizes, ...rest } = props;
+    return createElement("img", rest);
+  },
 }));
 
 import FirstRunOnboarding from "@/components/onboarding/FirstRunOnboarding";
