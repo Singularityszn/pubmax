@@ -8,6 +8,8 @@ prose pulled later for sheets is CC BY-SA and must be credited.
 node scripts/fetch_wikidata_notable_pubs.mjs
 ```
 
+The JSON output is generated on demand and is not shipped in the repo.
+
 This file is enrichment / join material. It does **not** invent prices and is
 never merged into `venues_slim*`. Map pins stay on the OSM UK base layer
 (ODbL). See `docs/prd/UK_MAP_COVERAGE_AND_SEARCH_PRD.md`.

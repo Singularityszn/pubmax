@@ -88,7 +88,8 @@ durable rows only when Supabase is configured.
 
 `scripts/fetch_wikidata_notable_pubs.mjs` pulls UK pubs with enwiki + coords
 into `public/data/wikidata_notable_pubs.json` (CC0 ids + labels + coords +
-wiki title). Heritage / future POI layer can join on name or QID. ODbL map
+wiki title); the artifact is generated on demand and is not shipped in the repo.
+Heritage / future POI layer can join on name or QID. ODbL map
 layer stays OSM; this file does not become priced pins.
 
 ### WP5 - London amenity=bar densification (L) - follow-up
