@@ -274,13 +274,9 @@ export default function TonightClient({
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
-    if (selectableVenueIds === null) {
-      router.refresh();
-      return;
-    }
     if (retryWhatsOnLane) retry();
     if (retryOutLane) retryOut();
-  }, [retryWhatsOnLane, retryOutLane, retry, retryOut, router, selectableVenueIds]);
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")

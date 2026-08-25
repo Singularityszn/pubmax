@@ -31,7 +31,7 @@ export type TonightOutAnswer = {
   pending: boolean;
 };
 
-/** Whether a row may appear on /tonight: resolved to a pub the map can open. */
+/** Whether a row carries a canonical venue identity; map availability is separate. */
 export function tonightRowHasListedPub(
   row: WhatsOnRow,
   selectable: TonightSelectableVenueIds = undefined,
@@ -57,8 +57,12 @@ export function filterTonightPubSurfaceRows(
   now: number = Date.now(),
   selectable: TonightSelectableVenueIds = undefined,
 ): WhatsOnRow[] {
+  // Map shard availability controls deep links only. The /out venue matcher
+  // has already proved the row's venue identity; a lazy map shard must not
+  // turn confirmed supply into an empty night.
+  void selectable;
   return filterNotPast([...rows], now).filter((row) =>
-    tonightRowHasListedPub(row, selectable),
+    tonightRowHasListedPub(row),
   );
 }
 
@@ -100,7 +104,7 @@ function outListingsStatus(out: TonightOutAnswer): {
 
 function outVenueMatchUnavailable(out: TonightOutAnswer): boolean {
   if (!out.body || outListingsHealth(out.body).status !== "ready") return false;
-  return out.body.venueMatch !== "ready";
+  return out.body.venueMatch === "unavailable";
 }
 
 /** One list: What's-On plus eligible Out events, newest observation wins a clash. */
@@ -160,7 +164,6 @@ export function tonightListingsStatus(
   selectable: TonightSelectableVenueIds = undefined,
   pubOnly = true,
 ): TonightListingsStatus {
-  if (selectable === null) return "error";
   const merged = mergeTonightListingRows(
     whatsOnRows,
     out.body?.events ?? [],
@@ -249,7 +252,9 @@ export function tonightListingsNoteLine(
   out: TonightOutAnswer,
   selectable: TonightSelectableVenueIds = undefined,
 ): string | null {
-  if (selectable === null || outVenueMatchUnavailable(out)) {
+  // Map shard availability does not change the venue-match answer.
+  void selectable;
+  if (outVenueMatchUnavailable(out)) {
     return TONIGHT_VENUE_INDEX_FAILED_LINE;
   }
   const reports = tonightLaneReports(whatsOn, out);
@@ -267,7 +272,9 @@ export function tonightNoteOffersRetry(
   out: TonightOutAnswer,
   selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
-  if (selectable === null || outVenueMatchUnavailable(out)) return true;
+  // Map shard availability does not change which data lane can be retried.
+  void selectable;
+  if (outVenueMatchUnavailable(out)) return true;
   return tonightLaneReports(whatsOn, out).some(
     (report) => report.lane === "whats-on" && report.retryable,
   );
@@ -287,7 +294,10 @@ export function tonightRetryLanes(
   const reports = tonightLaneReports(whatsOn, out);
   const retryable = (lane: TonightLaneReport["lane"]) =>
     reports.some((report) => report.lane === lane && report.retryable);
-  return { whatsOn: retryable("whats-on"), out: retryable("out") };
+  return {
+    whatsOn: retryable("whats-on"),
+    out: retryable("out") || outVenueMatchUnavailable(out),
+  };
 }
 
 export const TONIGHT_QUIET_NIGHT_SENTENCE =

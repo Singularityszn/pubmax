@@ -180,7 +180,8 @@ export type LoadWhatsOnParams = {
   near?: { lat: number; lng: number };
   limit?: number;
   localityBasis?: WhatsOnLocalityBasis;
-  selectableVenueIds?: ReadonlySet<string>;
+  /** Keep only rows with a venue identity accepted by the Out matcher. */
+  pubOnly?: boolean;
   venueMatchIndex?: OutVenueMatchIndex;
 };
 
@@ -296,10 +297,10 @@ function filterRowsForRequest(
   }
   if (params.kind) filtered = filterByKind(filtered, params.kind);
   if (params.window === "tonight") filtered = filterTonight(filtered, now);
-  if (params.selectableVenueIds) {
+  if (params.pubOnly) {
     filtered = filtered.filter((row) => {
       const venueId = canonicalOutVenueId(row.venueId);
-      return venueId !== null && params.selectableVenueIds?.has(venueId) === true;
+      return venueId !== null;
     });
   }
   if (params.near) filtered = sortByNear(filtered, params.near);

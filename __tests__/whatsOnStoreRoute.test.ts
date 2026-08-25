@@ -256,7 +256,6 @@ describe("loadWhatsOn orchestration", () => {
       now: NOW,
       loadBaseline: () => [...unmatched, matched],
       fetchLive: async () => [],
-      loadSelectableVenueIds: async () => new Set(["pub-1"]),
       loadVenueMatchIndex: async () =>
         buildOutVenueMatchIndex([
           { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
@@ -266,6 +265,33 @@ describe("loadWhatsOn orchestration", () => {
     const body = await response.json();
     expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["matched-pub"]);
     expect(body.rows[0].venueId).toBe("pub-1");
+  });
+
+  it("drops an ambiguous pub name instead of assigning a guessed venue id", async () => {
+    const response = await handleWhatsOnRequest(req("?window=tonight&pubOnly=1"), {
+      now: NOW,
+      loadBaseline: () => [makeRow({ placeName: "The Pub", lat: 51.5, lng: -0.1 })],
+      fetchLive: async () => [],
+      loadVenueMatchIndex: async () =>
+        buildOutVenueMatchIndex([
+          { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
+          { id: "pub-2", name: "The Pub", borough: "Islington", lat: 51.5, lng: -0.1 },
+        ]),
+    });
+
+    const body = await response.json();
+    expect(body.rows).toEqual([]);
+  });
+
+  it("hides venue-index errors from the public pub-only response", async () => {
+    const response = await handleWhatsOnRequest(req("?window=tonight&pubOnly=1"), {
+      loadVenueMatchIndex: async () => {
+        throw new Error("private venue index path");
+      },
+    });
+
+    const body = await response.json();
+    expect(body).toEqual({ rows: [], error: "Could not check listings." });
   });
 
   it("keeps London default results inside Greater London before counting families", async () => {

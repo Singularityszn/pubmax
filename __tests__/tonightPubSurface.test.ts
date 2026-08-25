@@ -6,6 +6,7 @@ import {
   TONIGHT_VENUE_INDEX_FAILED_LINE,
   tonightListingsStatus,
   tonightListingsNoteLine,
+  tonightRetryLanes,
   tonightProvenanceCredits,
   tonightAcceptedVenueId,
   tonightRowHasListedPub,
@@ -103,15 +104,38 @@ describe("/tonight pub surface", () => {
       "/map?sel=venue-the-dove",
     );
     expect(tonightRowHasListedPub(matchedOut, null)).toBe(false);
-    expect(tonightListingsStatus("ready", emptyOut, NOW, [matchedOut], null)).toBe("error");
-    expect(tonightListingsNoteLine("ready", emptyOut, null)).toBe(
-      TONIGHT_VENUE_INDEX_FAILED_LINE,
-    );
+    expect(tonightListingsStatus("ready", emptyOut, NOW, [matchedOut], null)).toBe("ready");
+    expect(tonightListingsNoteLine("ready", emptyOut, null)).toBeNull();
     expect(
       tonightAcceptedVenueId({ ...matchedOut, venueId: " venue-the-dove " }, SELECTABLE),
     ).toBe("venue-the-dove");
     expect(tonightRowLinks(unknownVenueId, SELECTABLE).mapHref).toBeNull();
     expect(tonightRowLinks(matchedOut, null).mapHref).toBeNull();
+  });
+
+  it("keeps resolver-matched supply when the map eager shard is unavailable", () => {
+    const outAnswer: TonightOutAnswer = {
+      body: { status: "ready", events: [matchedOut] },
+      failed: false,
+      pending: false,
+    };
+
+    expect(tonightListingsStatus("empty", outAnswer, NOW, [], null)).toBe("empty");
+    expect(mergeTonightListingRows([], [matchedOut], NOW, "empty", null)).toEqual([]);
+    expect(mergeTonightListingRows([], [matchedOut], NOW, "error", null)).toEqual([
+      matchedOut,
+    ]);
+  });
+
+  it("does not treat a legacy Out body without venueMatch as an index failure", () => {
+    const outAnswer: TonightOutAnswer = {
+      body: { status: "ready", events: [] },
+      failed: false,
+      pending: false,
+    };
+
+    expect(tonightListingsStatus("ready", outAnswer, NOW, [], SELECTABLE)).toBe("empty");
+    expect(tonightListingsNoteLine("ready", outAnswer, SELECTABLE)).toBeNull();
   });
 
   it("shows an honest empty night when What's-On answered empty, never a stale Out dump", () => {
@@ -147,6 +171,10 @@ describe("/tonight pub surface", () => {
     expect(tonightListingsNoteLine("empty", outAnswer, SELECTABLE)).toBe(
       TONIGHT_VENUE_INDEX_FAILED_LINE,
     );
+    expect(tonightRetryLanes("empty", outAnswer)).toEqual({
+      whatsOn: false,
+      out: true,
+    });
   });
 
   it("does not call ready when only unmatched Out rows survived filtering", () => {
