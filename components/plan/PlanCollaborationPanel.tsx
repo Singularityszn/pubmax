@@ -2,7 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
 
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import type { PlanStopDTO } from "@/lib/plan";
 import type { PlanConstraint, PlanConstraintKind, PlanInvite, PlanRouteProposal, PlanVote } from "@/lib/planCollaborationStore";
 import { discardBody } from "@/lib/responseBody";
@@ -131,19 +131,15 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
         setStatus("Private one-use invite copied. It expires by plan end (or sooner).");
       } catch {
         setStatus(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Invite created, but could not copy it. Try again.",
+          offlineOrMessage("Invite created, but could not copy it. Try again.")
         );
       }
       await refresh();
     } catch (caught) {
       setError(
-        typeof navigator !== "undefined" && navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : caught instanceof Error
+        offlineOrMessage(caught instanceof Error
             ? caught.message
-            : "Could not create an invite.",
+            : "Could not create an invite.")
       );
     }
     finally { setPending(""); }
@@ -164,11 +160,9 @@ export default function PlanCollaborationPanel({ planId, memberToken, isHost, dr
       setStatus("Invite revoked."); await refresh();
     } catch (caught) {
       setError(
-        typeof navigator !== "undefined" && navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : caught instanceof Error
+        offlineOrMessage(caught instanceof Error
             ? caught.message
-            : "Could not revoke this invite.",
+            : "Could not revoke this invite.")
       );
     }
     finally { setPending(""); }

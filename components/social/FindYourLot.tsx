@@ -12,7 +12,7 @@ import {
   errorMessageFrom,
   findYourLotInviteFailureMessage,
   INVITE_LINK_FALLBACK_MESSAGE,
-  INVITE_LINK_OFFLINE_MESSAGE,
+  offlineOrMessage,
 } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -158,11 +158,11 @@ export default function FindYourLot({
       setInviteUrl(body.url);
     } catch (error) {
       setNotice(
-        typeof navigator !== "undefined" && !navigator.onLine
-          ? INVITE_LINK_OFFLINE_MESSAGE
-          : error instanceof Error
+        offlineOrMessage(
+          error instanceof Error
             ? error.message
             : INVITE_LINK_FALLBACK_MESSAGE,
+        ),
       );
     } finally {
       setInviteBusy(false);

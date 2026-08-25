@@ -1,7 +1,18 @@
 const SAFE_FALLBACK_MESSAGE = "Something went wrong. Please try again.";
 
+export const OFFLINE_RETRY_MESSAGE = "You look offline. Reconnect, then try again.";
 export const INVITE_LINK_FALLBACK_MESSAGE = "Could not mint an invite link.";
-export const INVITE_LINK_OFFLINE_MESSAGE = "You look offline. Reconnect, then try again.";
+/** @deprecated Prefer {@link OFFLINE_RETRY_MESSAGE}. */
+export const INVITE_LINK_OFFLINE_MESSAGE = OFFLINE_RETRY_MESSAGE;
+
+export function isBrowserOffline(): boolean {
+  return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+/** Prefer offline copy for share, copy, and retry surfaces when the browser is offline. */
+export function offlineOrMessage(onlineMessage: string): string {
+  return isBrowserOffline() ? OFFLINE_RETRY_MESSAGE : onlineMessage;
+}
 
 function safeFallback(fallback: string): string {
   return typeof fallback === "string" && fallback.trim()
@@ -34,6 +45,6 @@ export function findYourLotInviteFailureMessage(
   body: unknown,
   isOnline: boolean,
 ): string {
-  if (!isOnline) return INVITE_LINK_OFFLINE_MESSAGE;
+  if (!isOnline) return OFFLINE_RETRY_MESSAGE;
   return errorMessageFrom(body, INVITE_LINK_FALLBACK_MESSAGE);
 }

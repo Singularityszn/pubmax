@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // "Last Pint" card — the signature utility (PRD user stories 19-24). Given a
 // venue's coordinates, it fetches the nearest Tube/rail station, a pub-native
 // decision ("Order one more" ... "Train risk tonight"), next departures + the
@@ -310,9 +312,7 @@ function DecisionBlock({
         </button>
         {shareState === "error" ? (
           <span style={styles.shareError}>
-            {typeof navigator !== "undefined" && navigator.onLine === false
-              ? "You look offline. Reconnect, then try again."
-              : "Couldn&apos;t open the share. Try again."}
+            {offlineOrMessage("Couldn&apos;t open the share. Try again.")}
           </span>
         ) : null}
       </div>

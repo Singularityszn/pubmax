@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // "Share tonight" affordance (Wave D · D1). Shares the /tonight URL — whose
 // crawler card is the D1 OG poster (app/tonight/opengraph-image) — via the
 // native share sheet, falling back to clipboard. Fires the D0 `poster_shared`
@@ -44,9 +46,7 @@ export default function TonightShareButton(): React.JSX.Element {
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError") return;
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not share tonight. Try again.",
+        offlineOrMessage("Could not share tonight. Try again.")
       );
     }
   }

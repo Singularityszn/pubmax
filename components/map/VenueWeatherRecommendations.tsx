@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState, type FormEvent } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   useAccountScopedDraft,
   useContributionGate,
@@ -360,9 +360,7 @@ export default function VenueWeatherRecommendations({
           setDraft((current) => ({
             ...current,
             error: recommendationError(
-              navigator.onLine === false
-                ? "You look offline. Reconnect, then try again."
-                : errorMessageFrom(body, "Could not save that recommendation right now."),
+              offlineOrMessage(errorMessageFrom(body, "Could not save that recommendation right now."))
             ),
           }));
           return;

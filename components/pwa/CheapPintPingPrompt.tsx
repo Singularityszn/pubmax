@@ -5,7 +5,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   CHEAP_PINT_PING_PROMPT_SURFACE,
   getCheapPintPingPromptServerSnapshot,
@@ -60,9 +60,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     const token = await registerWebPush();
     if (!token) {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not enable alerts. Try again.",
+        offlineOrMessage("Could not enable alerts. Try again.")
       );
       setPending(false);
       return;

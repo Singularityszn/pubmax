@@ -20,7 +20,7 @@ import {
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import {
   DEFAULT_PAL_DRAFT,
   anonymousPalDraftOwner,
@@ -460,11 +460,9 @@ export default function PalExperience() {
       setPal(pal);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(pal));
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : cause instanceof Error
+        offlineOrMessage(cause instanceof Error
             ? cause.message
-            : "Pal control update could not be saved.",
+            : "Pal control update could not be saved.")
       );
     } finally {
       if (controlSavingRef.current === lock) {

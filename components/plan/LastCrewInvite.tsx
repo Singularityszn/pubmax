@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // Sort My Night P1 — persistent crew re-invite MVP.
 // Surfaces the usual lot remembered from the last plan and shares a
 // WhatsApp-first message that names them + the current plan link.
@@ -99,9 +101,7 @@ export default function LastCrewInvite({
         setStatus("Invite copied. Paste it to the usual lot.");
       } catch {
         setStatus(
-          typeof navigator !== "undefined" && navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not copy invite. Try again.",
+          offlineOrMessage("Could not copy invite. Try again.")
         );
       }
     }

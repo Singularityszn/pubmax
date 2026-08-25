@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { Copy, Users } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -114,9 +116,7 @@ export default function RoundStarter({
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy Round code. Try again.",
+        offlineOrMessage("Could not copy Round code. Try again.")
       );
     }
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useCallback, useState } from "react";
 
 import { buildFamilyShareText } from "@/lib/ledger";
@@ -79,9 +81,7 @@ export default function ShareWithFamilyButton({
       </button>
       {status === "error" ? (
         <span role="status">
-          {typeof navigator !== "undefined" && navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not share this. Try again."}
+          {offlineOrMessage("Could not share this. Try again.")}
         </span>
       ) : null}
     </>

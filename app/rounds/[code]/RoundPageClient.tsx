@@ -31,7 +31,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { discardBody } from "@/lib/responseBody";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 import {
   ROUND_SPEND_PRICE_LINE_MAX,
@@ -440,9 +440,7 @@ function RoundBoard({
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy Round code. Try again.",
+        offlineOrMessage("Could not copy Round code. Try again.")
       );
     }
   }
@@ -1632,16 +1630,12 @@ function CloseRound({
         onClosed(data);
       } else {
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(data, "Could not close the Round. Try again."),
+          offlineOrMessage(errorMessageFrom(data, "Could not close the Round. Try again."))
         );
       }
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not close the Round. Try again.",
+        offlineOrMessage("Could not close the Round. Try again.")
       );
     } finally {
       if (

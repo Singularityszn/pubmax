@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // Tonight agent surface: one ask → grounded three-stop + WhatsApp invite draft.
 // Reuses /api/plans/generate; never invents a route when scarcity answers 422.
 
@@ -62,9 +64,7 @@ export default function TonightAgentPanel() {
       setActionStatus("Invite draft copied.");
     } catch {
       setActionStatus(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy invite draft. Try again.",
+        offlineOrMessage("Could not copy invite draft. Try again.")
       );
     }
   }

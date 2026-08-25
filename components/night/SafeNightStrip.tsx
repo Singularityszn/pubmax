@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 // Safe Night strip (U21a / U5). A small, calm safety section that sits with
 // the get-home flow: Night Mode (plan link) or the venue Getting Home tab
 // (pin share, no plan id, no Night Mode). It is not a lecture and not a
@@ -127,9 +129,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
       flashShareNote("Plan link copied. Send it to someone at home.");
     } catch {
       flashShareNote(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Copy the plan link from your browser bar and send it on.",
+        offlineOrMessage("Copy the plan link from your browser bar and send it on.")
       );
     }
   };
@@ -157,9 +157,7 @@ export function SafeNightStrip({ planId, venue, cityId }: SafeNightStripProps) {
       flashShareNote("Pin link copied. Send it to someone at home.");
     } catch {
       flashShareNote(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Copy the pin link and send it to someone at home.",
+        offlineOrMessage("Copy the pin link and send it to someone at home.")
       );
     }
   };

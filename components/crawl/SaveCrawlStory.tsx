@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { BookMarked, Check, Copy, Link2 } from "lucide-react";
 import { useState } from "react";
 
@@ -71,9 +73,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
       setTimeout(() => setCopied(false), 2000);
     } catch {
       setCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }
@@ -131,9 +131,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
         await navigator.clipboard.writeText(link);
       } catch {
         setCopyError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not copy link. Try again.",
+          offlineOrMessage("Could not copy link. Try again.")
         );
       }
     } catch {

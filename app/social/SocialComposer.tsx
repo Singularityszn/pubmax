@@ -3,7 +3,7 @@
 import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -513,11 +513,9 @@ export default function SocialComposer({
       onSaved(result.post);
     } catch (cause) {
       setFeedback(
-        typeof navigator !== "undefined" && navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : cause instanceof Error
+        offlineOrMessage(cause instanceof Error
             ? cause.message
-            : "Post was not saved.",
+            : "Post was not saved.")
       );
       setFeedbackIsStatus(false);
     } finally {

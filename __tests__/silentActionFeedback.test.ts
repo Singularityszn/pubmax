@@ -12,7 +12,7 @@ describe("silent user action feedback fence", () => {
 
     expect(file).toContain("errorMessageFrom");
     expect(file).toContain("Could not open messages. Try again.");
-    expect(file).toContain("You look offline. Reconnect, then try again.");
+    expect(file).toContain("offlineOrMessage");
     expect(file).toContain('role="status"');
     expect(file).not.toContain("best-effort - a failed open leaves the profile as-is");
   });
@@ -37,7 +37,7 @@ describe("silent user action feedback fence", () => {
 
     for (const file of [thread, hook]) {
       expect(file).toContain("errorMessageFrom");
-      expect(file).toContain("You look offline. Reconnect, then try again.");
+      expect(file).toContain("offlineOrMessage");
     }
     expect(report).toContain("reportErrors");
     expect(report).toContain('role="status"');
@@ -72,14 +72,14 @@ describe("silent user action feedback fence", () => {
 
     expect(agent).toContain("Could not copy invite draft. Try again.");
     expect(safeNight).toContain("clipboard unavailable");
-    expect(safeNight).toContain("You look offline. Reconnect, then try again.");
+    expect(safeNight).toContain("offlineOrMessage");
   });
 
   it("keeps optimistic preference toggles honest when saving rolls back", () => {
     const pal = source("components/pal/PalExperience.tsx");
 
     expect(pal).toContain("Pal control update could not be saved.");
-    expect(pal).toContain("You look offline. Reconnect, then try again.");
+    expect(pal).toContain("offlineOrMessage");
     expect(pal).toContain('setPalAnimationState("error")');
   });
 });

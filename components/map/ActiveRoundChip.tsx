@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { Copy, Users, X } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
@@ -107,9 +109,7 @@ export default function ActiveRoundChip({
       window.setTimeout(() => setCopied(false), 1600);
     } catch {
       setCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }

@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { useEffect, useRef, useState } from "react";
 
 import { getSpeechRecognitionCtor, type SpeechRecognitionLike } from "@/lib/pintDropSpeech";
@@ -47,9 +49,7 @@ export function useTransientSpeechInput(value: string, onChange: (value: string)
       recognition.onerror = () => {
         stop();
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : "Could not start dictation. Try typing instead.",
+          offlineOrMessage("Could not start dictation. Try typing instead.")
         );
       };
       recognition.onend = stop;
@@ -59,9 +59,7 @@ export function useTransientSpeechInput(value: string, onChange: (value: string)
     } catch {
       stop();
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not start dictation. Try typing instead.",
+        offlineOrMessage("Could not start dictation. Try typing instead.")
       );
     }
   }

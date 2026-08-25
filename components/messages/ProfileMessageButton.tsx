@@ -6,7 +6,7 @@ import { useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { normalizeHandle } from "@/lib/profiles";
 
 import "@/app/messages/messages.css";
@@ -58,9 +58,7 @@ export default function ProfileMessageButton({
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
         setError(
-          navigator.onLine === false
-            ? "You look offline. Reconnect, then try again."
-            : errorMessageFrom(body, "Could not open messages. Try again."),
+          offlineOrMessage(errorMessageFrom(body, "Could not open messages. Try again."))
         );
         return;
       }
@@ -72,9 +70,7 @@ export default function ProfileMessageButton({
       }
     } catch {
       setError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not open messages. Try again.",
+        offlineOrMessage("Could not open messages. Try again.")
       );
     } finally {
       setBusy(false);

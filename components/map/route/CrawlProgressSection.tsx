@@ -1,5 +1,7 @@
 "use client";
 
+import { offlineOrMessage } from "@/lib/apiErrorMessage";
+
 import { Check, Footprints } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
@@ -46,9 +48,7 @@ export default function CrawlProgressSection({
       setTimeout(() => setShareCopied(false), 2000);
     } catch {
       setShareCopyError(
-        navigator.onLine === false
-          ? "You look offline. Reconnect, then try again."
-          : "Could not copy link. Try again.",
+        offlineOrMessage("Could not copy link. Try again.")
       );
     }
   }
