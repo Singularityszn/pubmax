@@ -169,21 +169,15 @@ const DARK = {
   // the canvas reads as night city, not warm brown mud. Sits a hair above
   // --ink-deep fog so the horizon still blends at distance.
   ground: "#0a0c11",
-  // Landcover fringe — one barely-perceptible step over ground.
   landSoft: "#12141c",
-  // Residential blocks — subtle lift, still clearly ground.
   residential: "#171920",
   // Greenspace: barely-there dark olive. Geography you sense more than see, so
-  // pub glow stays the hero. Hue stays distinct from building brown and from
+  // pub marks stay the hero. Hue stays distinct from building brown and from
   // --pint; luminance held above 2:1 against ground for navigation.
   park: "#384f2e",
-  // Building footprints: warm gray-brown one step above ground (cool blue-grays
-  // read as a different material against neon-noir land).
   building: "#2a241e",
   buildingOutline: "rgba(140,132,122,0.3)",
-  // Water: deep ink-blue — the Thames reads as water, not darker land.
   water: "#224e78",
-  // Roads — warm-grey strokes that recede behind pub marks.
   roadMajor: "#66625c",
   road: "#484542",
   roadMinor: "#2c2a28",
@@ -464,27 +458,9 @@ function paintDiscoveredSymbol(
   tryPaint(map, layerId, "text-opacity", opacity);
   if (isNeighbourhood) {
     tryLayout(map, layerId, "text-size", dark ? 9 : 9.5);
+    tryLayout(map, layerId, "text-letter-spacing", 0.04);
   } else if (isPubPoi) {
     tryLayout(map, layerId, "text-size", dark ? 8.5 : 9);
-  }
-}
-
-/** Pub-first label hierarchy: neighbourhood names small and dim; basemap pub
- *  POI labels nearly invisible (our pins own pub names at zoom). */
-function tameBasemapLabelHierarchy(map: PaintMap, dark: boolean): void {
-  for (const layer of map.getStyle().layers ?? []) {
-    if (layer.type !== "symbol") continue;
-    const id = layer.id.toLowerCase();
-    if (!id.includes("label") && !id.includes("place") && !id.includes("name")) continue;
-    if (id.includes("icon")) continue;
-    if (isNeighbourhoodPlaceLabel(id)) {
-      tryLayout(map, layer.id, "text-size", dark ? 9 : 9.5);
-      tryLayout(map, layer.id, "text-letter-spacing", 0.04);
-    }
-    if (isBasemapPubPoiLabel(id)) {
-      tryLayout(map, layer.id, "text-size", dark ? 8.5 : 9);
-      tryPaint(map, layer.id, "text-opacity", dark ? 0.2 : 0.28);
-    }
   }
 }
 
@@ -533,7 +509,6 @@ export function applyBasemapTaste(
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
   paintDiscoveredLayers(map, palette, tokens, dark);
-  tameBasemapLabelHierarchy(map, dark);
 }
 
 // ── M2 · POI-at-initiation gating ──────────────────────────────────────────
@@ -705,42 +680,5 @@ export function clusterCircleColorExpr(
     ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
     withAlpha(tokens.brick, dark ? 0.94 : 0.88),
     withAlpha(tokens.muted, dark ? 0.78 : 0.84),
-  ];
-}
-
-type PinRingTokens = Pick<BasemapTasteTokens, "pint" | "amber" | "muted" | "brass">;
-
-/**
- * Price-confidence tier ring (style-only; reads existing geojson props).
- *   confirmed — green: a sayable sourced price (`priceLabel` present)
- *   estimate  — amber: band tint without a sayable figure (bucket !== 3)
- *   unknown   — grey: no known price band (bucket === 3)
- */
-export function pubConfidenceRingColorExpr(tokens: PinRingTokens): unknown {
-  return [
-    "case",
-    ["has", "priceLabel"],
-    tokens.pint,
-    ["!=", ["get", "bucket"], 3],
-    tokens.amber,
-    tokens.muted,
-  ];
-}
-
-/** Soft coral/amber hero glow stroke for every pub pin — pubs are the stars. */
-export function pubHeroGlowStrokeExpr(
-  tokens: Pick<BasemapTasteTokens, "brass" | "amber">,
-  dark: boolean,
-): unknown {
-  const coral = withAlpha(tokens.brass, dark ? 0.58 : 0.42);
-  const gold = withAlpha(tokens.amber, dark ? 0.52 : 0.38);
-  return [
-    "match",
-    ["%", ["get", "bucket"], 2],
-    0,
-    coral,
-    1,
-    gold,
-    coral,
   ];
 }

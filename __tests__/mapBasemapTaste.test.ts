@@ -8,8 +8,6 @@ import {
   isBasemapSelectionMuteLayer,
   mixHex,
   muteOpacityExpr,
-  pubConfidenceRingColorExpr,
-  pubHeroGlowStrokeExpr,
   SELECTION_MUTE_OPACITY,
   tameNumericShieldFilters,
   withAlpha,
@@ -732,23 +730,5 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     applySelectionMute(map, false, store);
     expect(paint["pois-transport-minor"]["icon-opacity"]).toBe(0.7);
     expect(store.size).toBe(0);
-  });
-
-  it("pub confidence ring maps geojson props to green, amber, grey", () => {
-    const expr = pubConfidenceRingColorExpr(tokens) as unknown[];
-    expect(
-      evaluateClusterExpression(expr, { priceLabel: "£5.50", bucket: 1 }),
-    ).toBe(tokens.pint);
-    expect(evaluateClusterExpression(expr, { bucket: 0 })).toBe(tokens.amber);
-    expect(evaluateClusterExpression(expr, { bucket: 3 })).toBe(tokens.muted);
-  });
-
-  it("pub hero glow alternates coral and amber by bucket parity", () => {
-    const darkExpr = pubHeroGlowStrokeExpr(tokens, true) as unknown[];
-    const even = evaluateClusterExpression(darkExpr, { bucket: 0 });
-    const odd = evaluateClusterExpression(darkExpr, { bucket: 1 });
-    expect(String(even)).toContain("rgba");
-    expect(String(odd)).toContain("rgba");
-    expect(even).not.toBe(odd);
   });
 });
