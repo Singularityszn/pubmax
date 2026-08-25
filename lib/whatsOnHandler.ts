@@ -2,6 +2,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
 import { coarsenViewerPoint } from "@/lib/geo";
+import type { OutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { isWhatsOnKind, type WhatsOnKind, type WhatsOnKindObservedAt } from "@/lib/whatsOn";
 import {
   loadWhatsOn,
@@ -29,6 +30,7 @@ export type WhatsOnResponse = {
 
 export type WhatsOnHandlerDeps = LoadWhatsOnDeps & {
   loadSelectableVenueIds?: () => Promise<ReadonlySet<string> | null>;
+  loadVenueMatchIndex?: () => Promise<OutVenueMatchIndex | null>;
 };
 
 function parseKind(raw: string | null): WhatsOnKind | undefined {
@@ -80,11 +82,15 @@ export async function handleWhatsOnRequest(
     const limit = parseLimit(params.get("limit"));
     if (limit) load.limit = limit;
     if (params.get("pubOnly") === "1") {
-      const selectableVenueIds = await deps.loadSelectableVenueIds?.();
-      if (!selectableVenueIds) {
+      const [selectableVenueIds, venueMatchIndex] = await Promise.all([
+        deps.loadSelectableVenueIds?.(),
+        deps.loadVenueMatchIndex?.(),
+      ]);
+      if (!selectableVenueIds || !venueMatchIndex) {
         return jsonNoStore({ rows: [], error: "Could not check listings." });
       }
       load.selectableVenueIds = selectableVenueIds;
+      load.venueMatchIndex = venueMatchIndex;
     }
 
     // The tonightGrouping V2 flag arrives via deps (the server route reads the

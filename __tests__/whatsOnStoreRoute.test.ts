@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, it, expect } from "vitest";
 
 import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
+import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
 import {
   baselineSourceObservedAt,
   loadBaselineWhatsOn,
@@ -245,15 +246,26 @@ describe("loadWhatsOn orchestration", () => {
     const unmatched = Array.from({ length: 60 }, (_, index) =>
       makeRow({ id: `theatre-${index}`, placeName: `Theatre ${index}` }),
     );
-    const matched = makeRow({ id: "matched-pub", venueId: "pub-1", placeName: "The Pub" });
+    const matched = makeRow({
+      id: "matched-pub",
+      placeName: "The Pub",
+      lat: 51.5,
+      lng: -0.1,
+    });
     const response = await handleWhatsOnRequest(req("?window=tonight&limit=60&pubOnly=1"), {
       now: NOW,
       loadBaseline: () => [...unmatched, matched],
       fetchLive: async () => [],
       loadSelectableVenueIds: async () => new Set(["pub-1"]),
+      loadVenueMatchIndex: async () =>
+        buildOutVenueMatchIndex([
+          { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
+        ]),
     });
 
-    expect((await response.json()).rows.map((row: WhatsOnRow) => row.id)).toEqual(["matched-pub"]);
+    const body = await response.json();
+    expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["matched-pub"]);
+    expect(body.rows[0].venueId).toBe("pub-1");
   });
 
   it("keeps London default results inside Greater London before counting families", async () => {

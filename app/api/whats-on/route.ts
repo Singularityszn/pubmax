@@ -12,6 +12,7 @@
 
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
+import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
 import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
 
 export const runtime = "nodejs";
@@ -24,5 +25,6 @@ export async function GET(request: Request): Promise<Response> {
   return handleWhatsOnRequest(request, {
     tonightGroupingV2: readTrustedHandoffFlag("tonightGrouping"),
     loadSelectableVenueIds: loadMapSelectableVenueIds,
+    loadVenueMatchIndex: () => loadOutVenueMatchIndex("london"),
   });
 }
