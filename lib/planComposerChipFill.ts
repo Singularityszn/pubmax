@@ -1,5 +1,5 @@
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
-import type { NightAreaSlug } from "@/lib/nightAreas";
+import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { applyTemplate } from "@/lib/planComposerHandoff";
 import { nightAreaForPlanIntakePatch, type PlanIntakeDraft } from "@/lib/planIntake";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
@@ -114,6 +114,27 @@ export function mergeSubmittedNightContext(
   };
 }
 
+function escapeQueryTerm(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function stripTemplateGeography(query: string): string {
+  const labels = [
+    ...NIGHT_AREAS.flatMap((area) => [area.name, ...area.aliases]),
+    ...NIGHT_PATCHES.map((patch) => patch.label),
+  ]
+    .sort((left, right) => right.length - left.length)
+    .map(escapeQueryTerm)
+    .join("|");
+  if (!labels) return query;
+  const areaPattern = `(?:${labels})`;
+  return query
+    .replace(new RegExp(`\\s+(?:in|near|around|from|by)\\s+${areaPattern}\\b`, "gi"), "")
+    .replace(new RegExp(`\\b${areaPattern}\\b`, "gi"), "")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 /** Align stop count with the generated route so Lock it in can enable. */
 export function reconcileGeneratedNightContext(
   inferred: NightContext,
@@ -135,11 +156,12 @@ export function mergePlanTemplateFields(input: {
   hasAcceptedGeography: boolean;
 }): { title: string; conciergeQuery: string; conciergeNote: string } {
   const applied = applyTemplate(input.template, input.hasAcceptedGeography);
+  const templateQuery = applied.geographyLocked
+    ? stripTemplateGeography(applied.conciergeQuery)
+    : applied.conciergeQuery;
   return {
     title: fillEmptyText(input.title, applied.title),
-    conciergeQuery: applied.geographyLocked
-      ? input.conciergeQuery
-      : fillEmptyText(input.conciergeQuery, applied.conciergeQuery),
+    conciergeQuery: fillEmptyText(input.conciergeQuery, templateQuery),
     conciergeNote: fillEmptyText(input.conciergeNote, input.template.blurb),
   };
 }

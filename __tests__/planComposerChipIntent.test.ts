@@ -219,7 +219,7 @@ describe("plan composer chip intent policy", () => {
       },
       hasAcceptedGeography: true,
     });
-    expect(merged.conciergeQuery).toBe("");
+    expect(merged.conciergeQuery).toBe("Quiet");
   });
 });
 
