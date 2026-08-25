@@ -2,7 +2,7 @@
 
 import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/priceUpdatesLoader", () => ({
   loadDrinkPriceUpdates: async () => [],
@@ -71,8 +71,14 @@ function price(): VenuePrice {
   };
 }
 
+beforeEach(() => {
+  vi.stubGlobal("IS_REACT_ACT_ENVIRONMENT", true);
+});
+
 afterEach(() => {
-  root?.unmount();
+  act(() => {
+    root?.unmount();
+  });
   root = null;
   container?.remove();
   container = null;
@@ -108,6 +114,9 @@ describe("drink rating surface fence", () => {
 
     await act(async () => {
       drinksButton?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    });
+    await act(async () => {
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
     });
 
     expect(container.querySelector(".drinkMenu")).not.toBeNull();
