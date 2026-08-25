@@ -29,10 +29,13 @@ const PubMap = dynamic(() => import("./PubMap"), {
   loading: () => <DynamicMapSkeleton />,
 });
 
-// Cold /map: start the MapLibre canvas chunk as soon as this module evaluates,
-// instead of waiting for React to commit useEffect after hydration.
+// Cold /map (London prerendered document only): start the MapLibre canvas
+// chunk as soon as this module evaluates, instead of waiting for useEffect.
 if (typeof window !== "undefined") {
-  warmMapFirstPaint(cityMapShareUrl(DEFAULT_CITY_ID));
+  const path = window.location.pathname;
+  if (path === "/map" || path === "/map/") {
+    warmMapFirstPaint(cityMapShareUrl(DEFAULT_CITY_ID));
+  }
 }
 
 // ── One-time-ever "Start with a story" onboarding (UX defect fix) ──────────

@@ -1399,26 +1399,26 @@ export function buildTonight(ctx: SceneCtx) {
 // layers this function has already added, so running it after assembly is
 // behaviour-identical to the original mid-scene position (paint happens after
 // the synchronous build returns).
-/** Pins-first slice so basemap tiles can decode before taste/overlays run. */
+/** Pins-first slice: pub layers in their original stack position; taste/transit defer. */
 export function assembleSceneCritical(ctx: SceneCtx) {
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
   buildUkBase(ctx);
+  buildLandmarks(ctx);
+  buildPois(ctx);
+  buildRoute(ctx);
+  buildBandCorridor(ctx);
   buildPubs(ctx);
   buildRouteStops(ctx);
   applySelectionState(ctx);
 }
 
-/** Visual polish and overlays after the first paint frame. */
+/** Visual polish and network-heavy overlays after the first paint frame. */
 export function assembleSceneDeferred(ctx: SceneCtx) {
   applySceneTaste(ctx);
   buildSkyAndBuildings(ctx);
   buildTransitLines(ctx);
-  buildLandmarks(ctx);
-  buildPois(ctx);
-  buildRoute(ctx);
-  buildBandCorridor(ctx);
   buildTonight(ctx);
 }
 

@@ -1120,6 +1120,8 @@ export default function PubMapCanvas({
     let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
     let didConstruct = false;
     let constructCleanup: (() => void) | undefined;
+    let deferredSceneCancelled = false;
+    let deferredSceneIdleId: number | null = null;
 
     // --- Size gate. `.mapStage` is `absolute inset:0` inside a 100dvh shell, so
     // it should be sized at mount — but if the shell hasn't laid out yet MapLibre
@@ -1727,10 +1729,14 @@ export default function PubMapCanvas({
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
       };
-      // Cold-open: taste, sky, landmarks and transit stay off the first frame so
-      // basemap tiles and pub pins can decode (see assembleSceneCritical).
+      // Cold-open: taste, sky and transit stay off the first frame so basemap
+      // tiles and pub pins can decode (see assembleSceneCritical).
       assembleSceneCritical(sceneCtx);
+      deferredSceneCancelled = false;
       const scheduleDeferredScene = () => {
+        if (deferredSceneCancelled || mapRef.current !== map || !styleStructureReadyRef.current) {
+          return;
+        }
         if (!map.getStyle()) return;
         try {
           assembleSceneDeferred(sceneCtx);
@@ -1739,8 +1745,9 @@ export default function PubMapCanvas({
           console.warn("[pubmap] deferred scene assembly failed", error);
         }
       };
+      deferredSceneIdleId = null;
       if (typeof requestIdleCallback === "function") {
-        requestIdleCallback(scheduleDeferredScene, { timeout: 200 });
+        deferredSceneIdleId = requestIdleCallback(scheduleDeferredScene, { timeout: 200 });
       } else {
         requestAnimationFrame(scheduleDeferredScene);
       }
@@ -2679,6 +2686,14 @@ export default function PubMapCanvas({
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
       clearPinRetryWait();
+      deferredSceneCancelled = true;
+      if (
+        deferredSceneIdleId !== null &&
+        typeof cancelIdleCallback === "function"
+      ) {
+        cancelIdleCallback(deferredSceneIdleId);
+        deferredSceneIdleId = null;
+      }
       pinRetryRef.current = null;
       armPinNoticeRef.current = null;
       map.off("render", markBasemapRecovered);

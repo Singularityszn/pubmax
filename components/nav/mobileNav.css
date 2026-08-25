@@ -90,6 +90,7 @@ body:has(.mapArrivalCard) {
   );
 }
 body:has(.analyticsConsentPrompt) {
+  --pal-summon-bottom: calc(var(--map-corner-bottom-consent) + var(--float-stack-gap));
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
   );
