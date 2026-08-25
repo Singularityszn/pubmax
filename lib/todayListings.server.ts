@@ -36,12 +36,10 @@ export function todayPicksReadStatus(
   whatsOnRowCount: number,
   out: TonightOutAnswer,
   now: number,
+  whatsOnRows: readonly import("@/lib/whatsOn").WhatsOnRow[] = [],
 ): PicksListReadStatus {
-  const listingsStatus = tonightListingsStatus(
-    whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount),
-    out,
-    now,
-  );
+  const whatsOnStatus = whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount);
+  const listingsStatus = tonightListingsStatus(whatsOnStatus, out, now, whatsOnRows);
   return listingsStatus === "error" ? "degraded" : "ready";
 }
 

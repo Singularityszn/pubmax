@@ -24,6 +24,7 @@ import { checkedLabel } from "@/lib/whatsOnBadges";
 const NOW = Date.parse("2026-09-01T00:00:00.000Z");
 const NOW_ISO = new Date(NOW).toISOString();
 const TONIGHT_START = new Date(NOW + 60 * 60_000).toISOString();
+const SELECTABLE = new Set(["venue-soho-theatre", "venue-the-dove"]);
 
 function row(partial: Partial<WhatsOnRow> & Pick<WhatsOnRow, "id" | "title">): WhatsOnRow {
   return {
@@ -42,13 +43,17 @@ function mergeWithFixture(
   outRows: WhatsOnRow[],
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "error",
 ) {
-  return mergeTonightListingRows(whatsOnRows, outRows, NOW, whatsOnStatus);
+  return mergeTonightListingRows(whatsOnRows, outRows, NOW, whatsOnStatus, SELECTABLE);
 }
 
 // Every status question is asked at the same instant the merge is asked at, so
 // a fixture row cannot be tonight's for one and finished for the other.
-function statusAtFixture(whatsOn: TonightWhatsOnStatus, out: TonightOutAnswer) {
-  return tonightListingsStatus(whatsOn, out, NOW);
+function statusAtFixture(
+  whatsOn: TonightWhatsOnStatus,
+  out: TonightOutAnswer,
+  whatsOnRows: WhatsOnRow[] = [],
+) {
+  return tonightListingsStatus(whatsOn, out, NOW, whatsOnRows, SELECTABLE);
 }
 
 // A gig that started at 19:00 and carries the point-row grace has been over for
@@ -67,7 +72,16 @@ const emptyReadyOut: TonightOutAnswer = {
   pending: false,
 };
 const eventOut: TonightOutAnswer = {
-  body: { status: "ready", events: [row({ id: "tm-1", title: "A Night at the Playhouse" })] },
+  body: {
+    status: "ready",
+    events: [
+      row({
+        id: "tm-1",
+        title: "A Night at the Playhouse",
+        venueId: "venue-soho-theatre",
+      }),
+    ],
+  },
   failed: false,
   pending: false,
 };
@@ -91,9 +105,16 @@ describe("tonight Out merge", () => {
   it("keeps Out events as fallback when What's-On could not answer", () => {
     const merged = mergeTonightListingRows(
       [],
-      [row({ id: "tm-1", title: "A Night at the Playhouse" })],
+      [
+        row({
+          id: "tm-1",
+          title: "A Night at the Playhouse",
+          venueId: "venue-soho-theatre",
+        }),
+      ],
       NOW,
       "error",
+      SELECTABLE,
     );
     expect(merged.map((item) => item.title)).toEqual(["A Night at the Playhouse"]);
   });
@@ -103,12 +124,18 @@ describe("tonight Out merge", () => {
       id: "quiz-1",
       kind: "quiz",
       title: "Quiz",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "The Dove", url: "https://example.com/quiz" },
       observedAt: "2026-08-16T08:00:00.000Z",
     });
     const newer = row({
       id: "quiz-1",
       kind: "quiz",
       title: "Quiz (updated)",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "The Dove", url: "https://example.com/quiz" },
       observedAt: "2026-08-16T10:00:00.000Z",
     });
     expect(mergeWithFixture([older], [newer]).map((item) => item.title)).toEqual([
@@ -130,8 +157,18 @@ describe("tonight listings status", () => {
   });
 
   it("is ready when What's-On answered with cards", () => {
-    expect(statusAtFixture("ready", pendingOut)).toBe("ready");
-    expect(statusAtFixture("ready", emptyReadyOut)).toBe("ready");
+    const whatsOnRows = [
+      row({
+        id: "quiz-1",
+        kind: "quiz",
+        title: "Quiz",
+        venueId: "venue-the-dove",
+        placeName: "The Dove",
+        source: { label: "The Dove", url: "https://example.com/quiz" },
+      }),
+    ];
+    expect(statusAtFixture("ready", pendingOut, whatsOnRows)).toBe("ready");
+    expect(statusAtFixture("ready", emptyReadyOut, whatsOnRows)).toBe("ready");
   });
 
   it("stays idle while a read is still in flight and nothing is ready", () => {
@@ -198,7 +235,13 @@ describe("tonight listings note line", () => {
   const degradedWithRows: TonightOutAnswer = {
     body: {
       status: "degraded",
-      events: [row({ id: "tm-1", title: "A Night at the Playhouse" })],
+      events: [
+        row({
+          id: "tm-1",
+          title: "A Night at the Playhouse",
+          venueId: "venue-soho-theatre",
+        }),
+      ],
       reason: "Some listings could not be checked.",
     },
     failed: false,
@@ -306,7 +349,7 @@ describe("where a Tonight row leads", () => {
   it("keeps a publisher's own event link and offers the map beside it", () => {
     // Their name and event link are a licence obligation, so resolving a venue
     // may not take the link away.
-    const links = tonightRowLinks(publisherRow);
+    const links = tonightRowLinks(publisherRow, SELECTABLE);
     expect(links.primary).toEqual({
       href: "https://www.ticketmaster.co.uk/event/1",
       external: true,
@@ -323,6 +366,7 @@ describe("where a Tonight row leads", () => {
         venueId: "venue-the-dove",
         source: { label: "The Dove", url: "https://example.com/quiz" },
       }),
+      SELECTABLE,
     );
     expect(links.primary).toEqual({ href: "/map?sel=venue-the-dove", external: false });
     expect(links.mapHref).toBeNull();
@@ -336,6 +380,7 @@ describe("where a Tonight row leads", () => {
         venueId: "venue-soho-theatre",
         source: { label: "Ticketmaster", url: "not-a-url" },
       }),
+      SELECTABLE,
     );
     expect(links.primary).toEqual({ href: "/map?sel=venue-soho-theatre", external: false });
     expect(links.mapHref).toBeNull();
@@ -378,8 +423,19 @@ describe("the empty-night sentence", () => {
 
 describe("tonight lane split", () => {
   it("attributes each surviving row to the read that put it there", () => {
-    const whatsOnRow = row({ id: "quiz-1", kind: "quiz", title: "Quiz" });
-    const outRow = row({ id: "tm-1", title: "A Night at the Playhouse" });
+    const whatsOnRow = row({
+      id: "quiz-1",
+      kind: "quiz",
+      title: "Quiz",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "The Dove", url: "https://example.com/quiz" },
+    });
+    const outRow = row({
+      id: "tm-1",
+      title: "A Night at the Playhouse",
+      venueId: "venue-soho-theatre",
+    });
     const merged = mergeWithFixture([whatsOnRow], [outRow]);
     const lanes = tonightListingLanes(merged, [outRow]);
     expect(lanes.whatsOnCount).toBe(1);
@@ -387,8 +443,18 @@ describe("tonight lane split", () => {
   });
 
   it("counts a row both lanes carried once, under the winning observation", () => {
-    const older = row({ id: "tm-1", title: "Playhouse", observedAt: "2026-08-16T08:00:00.000Z" });
-    const newer = row({ id: "tm-1", title: "Playhouse", observedAt: "2026-08-16T10:00:00.000Z" });
+    const older = row({
+      id: "tm-1",
+      title: "Playhouse",
+      venueId: "venue-soho-theatre",
+      observedAt: "2026-08-16T08:00:00.000Z",
+    });
+    const newer = row({
+      id: "tm-1",
+      title: "Playhouse",
+      venueId: "venue-soho-theatre",
+      observedAt: "2026-08-16T10:00:00.000Z",
+    });
     const merged = mergeWithFixture([older], [newer]);
     expect(merged).toHaveLength(1);
     const lanes = tonightListingLanes(merged, [newer]);
@@ -401,16 +467,35 @@ describe("tonight provenance credits", () => {
   const outRow = row({
     id: "tm-1",
     title: "A Night at the Playhouse",
+    venueId: "venue-soho-theatre",
     source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
     observedAt: "2026-08-16T09:00:00.000Z",
   });
 
   it("credits and dates each lane by its own read", () => {
-    const quiz = row({ id: "quiz-1", kind: "quiz", title: "Quiz" });
-    const sport = row({ id: "sport-1", kind: "sport", title: "Match" });
+    const quiz = row({
+      id: "quiz-1",
+      kind: "quiz",
+      title: "Quiz",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "The Dove", url: "https://example.com/quiz" },
+    });
+    const sport = row({
+      id: "sport-1",
+      kind: "sport",
+      title: "Match",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "The Dove", url: "https://example.com/sport" },
+    });
+    const merged = mergeWithFixture([quiz, sport], [outRow]);
+    const filteredOut = mergeTonightListingRows([], [outRow], NOW, "error", SELECTABLE).filter(
+      (row) => row.id === outRow.id,
+    );
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([quiz, sport], [outRow]),
-      outEvents: [outRow],
+      merged,
+      outEvents: filteredOut.length > 0 ? [outRow] : [],
       whatsOnChecked: "Checked 15 Aug",
       outObservedAt: { ticketmaster: "2026-08-16T09:00:00.000Z" },
     });
@@ -437,6 +522,7 @@ describe("tonight provenance credits", () => {
       id: "sk-1",
       placeName: "Village Underground",
       title: "Warehouse night",
+      venueId: "venue-the-dove",
       source: { label: "Skiddle", url: "https://www.skiddle.com/e/1" },
       observedAt: "2026-08-14T09:00:00.000Z",
     });
@@ -456,6 +542,7 @@ describe("tonight provenance credits", () => {
       id: "cm-1",
       placeName: "Common",
       title: "Common night",
+      venueId: "venue-soho-theatre",
       source: { label: "common", url: "https://www.common-social.com/e/1" },
     });
     const credits = tonightProvenanceCredits({
@@ -472,6 +559,7 @@ describe("tonight provenance credits", () => {
       id: "sk-1",
       placeName: "Village Underground",
       title: "Warehouse night",
+      venueId: "venue-the-dove",
       source: { label: "Skiddle", url: "https://www.skiddle.com/e/1" },
       observedAt: "not-a-date",
     });

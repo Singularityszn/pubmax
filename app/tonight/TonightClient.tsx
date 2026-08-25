@@ -171,12 +171,15 @@ export default function TonightClient({
   flags,
   quietPint = null,
   softPlansWindow = false,
+  mapSelectableVenueIds = null,
 }: {
   flags: TrustedHandoffFlagsDTO;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
   softPlansWindow?: boolean;
+  /** Eager-shard venue ids the map can open via `?sel=`, or null when unreadable. */
+  mapSelectableVenueIds?: readonly string[] | null;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -218,6 +221,10 @@ export default function TonightClient({
     pending: outPending,
     retry: retryOut,
   } = useOutListings("tonight");
+  const selectableVenueIds = useMemo(
+    () => (mapSelectableVenueIds ? new Set(mapSelectableVenueIds) : null),
+    [mapSelectableVenueIds],
+  );
   const outAnswer = useMemo(
     () => ({ body: outBody, failed: outFailed, pending: outPending }),
     [outBody, outFailed, outPending],
@@ -230,13 +237,30 @@ export default function TonightClient({
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
-    const eligibleOutEvents = tonightOutEventsForStatus(status, outBody?.events ?? [], now);
+    const eligibleOutEvents = tonightOutEventsForStatus(
+      status,
+      outBody?.events ?? [],
+      now,
+      selectableVenueIds,
+    );
     return {
-      listingRows: mergeTonightListingRows(rows, eligibleOutEvents, now, status),
-      listingsStatus: tonightListingsStatus(status, outAnswer, now),
+      listingRows: mergeTonightListingRows(
+        rows,
+        outBody?.events ?? [],
+        now,
+        status,
+        selectableVenueIds,
+      ),
+      listingsStatus: tonightListingsStatus(
+        status,
+        outAnswer,
+        now,
+        rows,
+        selectableVenueIds,
+      ),
       outEvents: eligibleOutEvents,
     };
-  }, [rows, outBody, status, outAnswer]);
+  }, [rows, outBody, status, outAnswer, selectableVenueIds]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
@@ -552,7 +576,10 @@ export default function TonightClient({
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
-              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(row);
+              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(
+                row,
+                selectableVenueIds,
+              );
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
               const walk =
@@ -658,7 +685,9 @@ export default function TonightClient({
                     </Link>
                   ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
-                  {typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                  {typeof row.venueId === "string" &&
+                  row.venueId.length > 0 &&
+                  selectableVenueIds?.has(row.venueId) ? (
                     <TonightRowAccept
                       venueId={row.venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
@@ -682,7 +711,7 @@ export default function TonightClient({
                       </summary>
                       <ul className="tonightRowMoreList">
                         {group.alternates.map((alt) => {
-                          const altLink = tonightRowLinks(alt).primary;
+                          const altLink = tonightRowLinks(alt, selectableVenueIds).primary;
                           const altWalk =
                             typeof alt.lat === "number" && typeof alt.lng === "number"
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
@@ -724,7 +753,9 @@ export default function TonightClient({
                                   ) : null}
                                 </span>
                               )}
-                              {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
+                              {typeof alt.venueId === "string" &&
+                              alt.venueId.length > 0 &&
+                              selectableVenueIds?.has(alt.venueId) ? (
                                 <TonightRowAccept
                                   venueId={alt.venueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}

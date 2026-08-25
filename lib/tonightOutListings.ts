@@ -6,6 +6,8 @@ import {
   outListingsHealth,
 } from "@/lib/out/outStatus";
 import type { OutResponse } from "@/lib/out/types";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
+import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -24,18 +26,50 @@ export type TonightOutAnswer = {
 };
 
 /**
+ * Whether a row may appear on /tonight: resolved to a pub the map can open.
+ *
+ * When the eager index could not be read (`selectable === null`), a canonical
+ * venueId is enough to list the row; map links are withheld separately so a
+ * read that failed never promises a pub the sheet would refuse.
+ */
+export function tonightRowHasListedPub(
+  row: WhatsOnRow,
+  selectable: MapSelectableVenueIds = null,
+): boolean {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (!venueId) return false;
+  if (selectable === null) return true;
+  return selectable.has(venueId);
+}
+
+/** Past-guarded rows that belong on a pub surface, never a theatre dump. */
+export function filterTonightPubSurfaceRows(
+  rows: readonly WhatsOnRow[],
+  now: number = Date.now(),
+  selectable: MapSelectableVenueIds = null,
+): WhatsOnRow[] {
+  return filterNotPast([...rows], now).filter((row) =>
+    tonightRowHasListedPub(row, selectable),
+  );
+}
+
+/**
  * Out is a fallback lane for Tonight, not a second pub inventory. Hold its
  * rows until the What's-On spine has answered. An empty spine means there is
  * no confirmed pub listing to pair with a Ticketmaster theatre row; a failed
  * spine may still show Out rows while naming that failure beside them.
+ *
+ * Only pub-matched Out rows may land: unmatched Ticketmaster theatre and arena
+ * cards are not pub events and never reach the list.
  */
 export function tonightOutEventsForStatus(
   whatsOn: TonightWhatsOnStatus,
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
+  selectable: MapSelectableVenueIds = null,
 ): WhatsOnRow[] {
   if (whatsOn !== "ready" && whatsOn !== "error") return [];
-  return filterNotPast([...outEvents], now);
+  return filterTonightPubSurfaceRows(outEvents, now, selectable);
 }
 
 /**
@@ -58,10 +92,15 @@ export function mergeTonightListingRows(
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
+  selectable: MapSelectableVenueIds = null,
 ): WhatsOnRow[] {
+  const pubWhatsOn =
+    whatsOnStatus === "ready"
+      ? filterTonightPubSurfaceRows(whatsOnRows, now, selectable)
+      : [];
   return dedupeRows([
-    ...whatsOnRows,
-    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now),
+    ...pubWhatsOn,
+    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now, selectable),
   ]);
 }
 
@@ -97,9 +136,17 @@ export function tonightListingsStatus(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
   now: number = Date.now(),
+  whatsOnRows: readonly WhatsOnRow[] = [],
+  selectable: MapSelectableVenueIds = null,
 ): TonightListingsStatus {
-  const outEvents = tonightOutEventsForStatus(whatsOn, out.body?.events ?? [], now);
-  if (outEvents.length > 0 || whatsOn === "ready") return "ready";
+  const merged = mergeTonightListingRows(
+    whatsOnRows,
+    out.body?.events ?? [],
+    now,
+    whatsOn,
+    selectable,
+  );
+  if (merged.length > 0) return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
   if (
     whatsOn === "error" ||
@@ -342,13 +389,17 @@ export type TonightRowLinks = {
  * sibling rather than an anchor inside an anchor, which the parser un-nests.
  * A venue's own listing is unchanged: the pub it names is the destination.
  */
-export function tonightRowLinks(row: WhatsOnRow): TonightRowLinks {
+export function tonightRowLinks(
+  row: WhatsOnRow,
+  selectable: MapSelectableVenueIds = null,
+): TonightRowLinks {
   const rawLabel = row.source?.label ?? "";
   const sourceLabel = outSourceDisplayLabel(rawLabel);
   const sourceUrl = firstHttp(row.source?.url);
+  const venueId = canonicalOutVenueId(row.venueId);
   const mapHref =
-    typeof row.venueId === "string" && row.venueId.length > 0
-      ? `/map?sel=${encodeURIComponent(row.venueId)}`
+    venueId && tonightMapHrefAllowed(venueId, selectable)
+      ? `/map?sel=${encodeURIComponent(venueId)}`
       : null;
   const publisherCredited = outCardSource(rawLabel) !== "venue";
   if (publisherCredited && sourceUrl) {
@@ -376,4 +427,13 @@ function canonicalIso(value: string | null): string | null {
 function joinLabels(labels: string[]): string {
   if (labels.length === 1) return labels[0] as string;
   return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+/** Map deep links only when the eager index confirms the pub opens. */
+function tonightMapHrefAllowed(
+  venueId: string,
+  selectable: MapSelectableVenueIds,
+): boolean {
+  if (selectable === null) return false;
+  return selectable.has(venueId);
 }
