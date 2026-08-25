@@ -35,6 +35,8 @@ export type BasemapTasteTokens = {
 type PaintMap = {
   setPaintProperty(layerId: string, name: string, value: unknown): void;
   setLayoutProperty?(layerId: string, name: string, value: unknown): void;
+  getLayoutProperty?(layerId: string, name: string): unknown;
+  getPaintProperty?(layerId: string, name: string): unknown;
   setFilter?(layerId: string, filter: unknown): void;
   getLayer: (layerId: string) => unknown;
   getFilter?: (layerId: string) => unknown;
@@ -93,6 +95,7 @@ export function mixHex(hexA: string, hexB: string, t: number): string {
 
 function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.getLayer(layerId)) return;
+  if (map.getPaintProperty && Object.is(map.getPaintProperty(layerId, prop), value)) return;
   try {
     map.setPaintProperty(layerId, prop, value);
   } catch {
@@ -102,6 +105,7 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
 
 function tryLayout(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.setLayoutProperty || !map.getLayer(layerId)) return;
+  if (map.getLayoutProperty && Object.is(map.getLayoutProperty(layerId, prop), value)) return;
   try {
     map.setLayoutProperty(layerId, prop, value);
   } catch {
@@ -114,9 +118,10 @@ function isNeighbourhoodPlaceLabel(id: string): boolean {
 }
 
 function isBasemapPubPoiLabel(id: string): boolean {
+  if (!id.includes("poi")) return false;
   return (
-    id.includes("poi") &&
-    (id.includes("pub") || id.includes("bar") || id.includes("beer") || id.includes("alcohol"))
+    /pub|bar|beer|alcohol|drinking|nightlife/.test(id) ||
+    /(^|[-_])pois?[-_](label|name)([-_]|$)/.test(id)
   );
 }
 
@@ -441,8 +446,8 @@ function paintDiscoveredSymbol(
   );
   const opacity = isPubPoi
     ? dark
-      ? 0.22
-      : 0.32
+      ? 0.86
+      : 0.96
     : isRoadLabel
       ? dark
         ? 0.45
@@ -459,7 +464,7 @@ function paintDiscoveredSymbol(
     tryLayout(map, layerId, "text-size", dark ? 9 : 9.5);
     tryLayout(map, layerId, "text-letter-spacing", 0.04);
   } else if (isPubPoi) {
-    tryLayout(map, layerId, "text-size", dark ? 8.5 : 9);
+    tryLayout(map, layerId, "text-size", dark ? 10 : 10.5);
   }
 }
 

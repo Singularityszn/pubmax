@@ -305,6 +305,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       // OpenFreeMap's `place_other` layer carries neighbourhood features.
       { id: "place_other", type: "symbol" },
       { id: "poi_pub", type: "symbol" },
+      { id: "poi_label", type: "symbol" },
     ];
     const map = {
       getLayer: (id: string) => layers.find((layer) => layer.id === id),
@@ -333,10 +334,51 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     ).toBe(9);
     expect(
       paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
-    ).toBe(0.22);
+    ).toBe(0.86);
     expect(
       layouts.find(([id, prop]) => id === "poi_pub" && prop === "text-size")?.[2],
-    ).toBe(8.5);
+    ).toBe(10);
+    expect(
+      paints.find(([id, prop]) => id === "poi_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.86);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_label" && prop === "text-size")?.[2],
+    ).toBe(10);
+    expect(
+      paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
+    ).toBeGreaterThan(
+      paints.find(([id, prop]) => id === "place_other" && prop === "text-opacity")?.[2] as number,
+    );
+  });
+
+  it("does not rewrite label layout that already matches", () => {
+    const paintWrites: Array<[string, string, unknown]> = [];
+    const layoutWrites: Array<[string, string, unknown]> = [];
+    const layers = [{ id: "place_other", type: "symbol" }];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      getPaintProperty: (_layerId: string, name: string) =>
+        ({
+          "text-color": darkTokens.ink,
+          "text-halo-color": darkTokens.inkDeep,
+          "text-halo-width": 1.15,
+          "text-opacity": 0.38,
+        })[name],
+      getLayoutProperty: (_layerId: string, name: string) =>
+        name === "text-size" ? 9 : name === "text-letter-spacing" ? 0.04 : undefined,
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paintWrites.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layoutWrites.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(paintWrites).toEqual([]);
+    expect(layoutWrites).toEqual([]);
   });
 
   it("skips missing layers without throwing", () => {
