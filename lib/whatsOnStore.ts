@@ -5,7 +5,11 @@
 
 import { haversineKm } from "@/lib/haversine";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
-import { attachOutVenues, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
+import {
+  attachOutVenues,
+  isOutVenueId,
+  type OutVenueMatchIndex,
+} from "@/lib/out/venueMatch";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   bundledGeneratedAt,
@@ -300,7 +304,9 @@ function filterRowsForRequest(
   if (params.pubOnly) {
     filtered = filtered.filter((row) => {
       const venueId = canonicalOutVenueId(row.venueId);
-      return venueId !== null;
+      return venueId !== null && params.venueMatchIndex !== undefined
+        ? isOutVenueId(params.venueMatchIndex, venueId)
+        : false;
     });
   }
   if (params.near) filtered = sortByNear(filtered, params.near);

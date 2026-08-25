@@ -11,6 +11,8 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 const tonightRows: WhatsOnRow[] = [];
+const ACTIVE_STARTS_AT = "2099-08-16T19:00:00.000Z";
+const ACTIVE_ENDS_AT = "2099-08-16T22:00:00.000Z";
 
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/map/useWhatsOnTonight", () => ({
@@ -49,7 +51,7 @@ function row(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
     lat: 51.5,
     lng: -0.1,
     kind: "event",
-    startsAt: "2026-08-16T19:00:00.000Z",
+    startsAt: ACTIVE_STARTS_AT,
     title: "A Night at the Playhouse",
     priceGbp: 23.5,
     source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/event/1" },
@@ -64,7 +66,7 @@ const dealRow = () =>
     id: "row-deal",
     kind: "deal",
     title: "Two for one burgers",
-    endsAt: "2026-08-16T22:00:00.000Z",
+    endsAt: ACTIVE_ENDS_AT,
     source: { label: "Wetherspoon", url: "https://www.jdwetherspoon.com/deal" },
   });
 
@@ -114,8 +116,8 @@ describe("the out card is the one place a ticket price prints", () => {
 
 describe("the plan stop chip", () => {
   it("labels an event stop without its ticket price, and a deal stop with its figure", () => {
-    const planStart = "2026-08-16T18:30:00.000Z";
-    const now = Date.parse("2026-08-16T18:00:00.000Z");
+    const planStart = ACTIVE_STARTS_AT;
+    const now = Date.parse("2099-08-16T18:00:00.000Z");
     const eventChip = stopEventChips([row()], ["venue-1"], planStart, now).get("venue-1");
     expect(eventChip).toBeDefined();
     expect(eventChip?.kind).toBe("event");

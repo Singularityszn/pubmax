@@ -283,6 +283,23 @@ describe("loadWhatsOn orchestration", () => {
     expect(body.rows).toEqual([]);
   });
 
+  it("drops a stale venue id that is absent from the resolver index", async () => {
+    const response = await handleWhatsOnRequest(req("?window=tonight&pubOnly=1"), {
+      now: NOW,
+      loadBaseline: () => [
+        makeRow({ id: "stale-pub", placeName: "The Pub", venueId: "pub-removed" }),
+      ],
+      fetchLive: async () => [],
+      loadVenueMatchIndex: async () =>
+        buildOutVenueMatchIndex([
+          { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
+        ]),
+    });
+
+    const body = await response.json();
+    expect(body.rows).toEqual([]);
+  });
+
   it("hides venue-index errors from the public pub-only response", async () => {
     const response = await handleWhatsOnRequest(req("?window=tonight&pubOnly=1"), {
       loadVenueMatchIndex: async () => {
