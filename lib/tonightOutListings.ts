@@ -8,6 +8,7 @@ import {
 import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
+import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -314,14 +315,17 @@ export type TonightProvenanceCredits = {
  * covering rule in CLAUDE.md, applied to sources rather than kinds.
  */
 export function tonightProvenanceCredits(input: {
-  /** The one list on screen, already merged and deduped. */
-  merged: WhatsOnRow[];
+  /** The grouped cards on screen, in render order. */
+  renderedGroups: TonightGroupedRow[];
   /** Everything the Out read returned, merged or not. */
   outEvents: WhatsOnRow[];
   whatsOnChecked: string | null;
   outObservedAt?: Record<string, string> | undefined;
 }): TonightProvenanceCredits {
-  const lanes = tonightListingLanes(input.merged, input.outEvents);
+  const lanes = tonightListingLanes(
+    input.renderedGroups.map((group) => group.row),
+    input.outEvents,
+  );
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;

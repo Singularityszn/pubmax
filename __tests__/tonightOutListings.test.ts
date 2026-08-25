@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import { OUT_DEGRADED_LINE, OUT_READ_FAILED_LINE } from "@/lib/out/outStatus";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   TONIGHT_OUT_NOT_CONFIGURED_LINE,
   TONIGHT_QUIET_NIGHT_SENTENCE,
@@ -494,7 +495,7 @@ describe("tonight provenance credits", () => {
       (row) => row.id === outRow.id,
     );
     const credits = tonightProvenanceCredits({
-      merged,
+      renderedGroups: groupTonightListings(merged, null),
       outEvents: filteredOut.length > 0 ? [outRow] : [],
       whatsOnChecked: "Checked 15 Aug",
       outObservedAt: { ticketmaster: "2026-08-16T09:00:00.000Z" },
@@ -506,7 +507,7 @@ describe("tonight provenance credits", () => {
 
   it("never dates an Out row to the What's-On stamp", () => {
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([], [outRow]),
+      renderedGroups: groupTonightListings([outRow], null),
       outEvents: [outRow],
       whatsOnChecked: "Checked 15 Aug",
       outObservedAt: {},
@@ -528,7 +529,7 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([], outEvents),
+      renderedGroups: groupTonightListings(outEvents, null),
       outEvents,
       whatsOnChecked: null,
       outObservedAt: {},
@@ -546,7 +547,7 @@ describe("tonight provenance credits", () => {
       source: { label: "common", url: "https://www.common-social.com/e/1" },
     });
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([], [common]),
+      renderedGroups: groupTonightListings([common], null),
       outEvents: [common],
       whatsOnChecked: null,
       outObservedAt: {},
@@ -565,7 +566,7 @@ describe("tonight provenance credits", () => {
     });
     const outEvents = [outRow, skiddle];
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([], outEvents),
+      renderedGroups: groupTonightListings(outEvents, null),
       outEvents,
       whatsOnChecked: null,
       outObservedAt: {},
@@ -576,7 +577,7 @@ describe("tonight provenance credits", () => {
 
   it("keeps the quiet night credited to What's-On when Out brought nothing", () => {
     const credits = tonightProvenanceCredits({
-      merged: mergeWithFixture([], []),
+      renderedGroups: groupTonightListings([], null),
       outEvents: [],
       whatsOnChecked: null,
     });
@@ -587,7 +588,7 @@ describe("tonight provenance credits", () => {
 
   it("says a dated quiet night in words rather than as a bare zero", () => {
     const credits = tonightProvenanceCredits({
-      merged: [],
+      renderedGroups: [],
       outEvents: [],
       whatsOnChecked: "Checked 15 Aug",
     });

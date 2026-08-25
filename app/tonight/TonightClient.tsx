@@ -224,10 +224,11 @@ export default function TonightClient({
     retry: retryOut,
   } = useOutListings("tonight");
   const selectableVenueIds = useMemo(
-    () =>
-      mapSelectableVenueIds === undefined
-        ? undefined
-        : new Set(mapSelectableVenueIds),
+    () => {
+      if (mapSelectableVenueIds === undefined) return undefined;
+      if (mapSelectableVenueIds === null) return null;
+      return new Set(mapSelectableVenueIds);
+    },
     [mapSelectableVenueIds],
   );
   const outAnswer = useMemo(
@@ -357,10 +358,9 @@ export default function TonightClient({
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
   );
-  // Filter chips count what the viewer actually sees — grouped families — while
-  // the provenance line below stays the raw inventory total ("16 listings
-  // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
-  // lane's own facets (same shared helper) untouched.
+  // Filter chips and provenance counts use the grouped cards the viewer sees.
+  // Reusing laneKindFacets on the grouped display rows keeps the map lane's own
+  // facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
   const ready = listingsStatus === "ready";
   const visibleVibeChips = useMemo(
@@ -383,12 +383,12 @@ export default function TonightClient({
   const provenance = useMemo(
     () =>
       tonightProvenanceCredits({
-        merged: listingRows,
+        renderedGroups: groupedAll,
         outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
       }),
-    [listingRows, outEvents, outBody, checked],
+    [groupedAll, outEvents, outBody, checked],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the

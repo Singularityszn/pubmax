@@ -12,6 +12,7 @@ import {
   tonightRowLinks,
   type TonightOutAnswer,
 } from "@/lib/tonightOutListings";
+import { groupTonightListings } from "@/lib/tonightListGrouping";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
@@ -68,12 +69,27 @@ describe("/tonight pub surface", () => {
     const outEvents = [unmatchedTheatre, matchedOut];
     const merged = mergeTonightListingRows([], outEvents, NOW, "error", SELECTABLE);
     const credits = tonightProvenanceCredits({
-      merged,
+      renderedGroups: groupTonightListings(merged, null),
       outEvents: filterTonightPubSurfaceRows(outEvents, NOW, SELECTABLE),
       whatsOnChecked: null,
       outObservedAt: {},
     });
     expect(merged).toHaveLength(1);
+    expect(credits.out).toBe(`1 listing via Ticketmaster · ${checkedLabel(NOW_ISO)}`);
+  });
+
+  it("counts rendered cards when duplicate offers expand to more venues", () => {
+    const secondVenue = { ...matchedOut, id: "tm-matched-2", placeName: "Soho Theatre", venueId: "venue-soho-theatre" };
+    const outEvents = [matchedOut, secondVenue];
+    const merged = mergeTonightListingRows([], outEvents, NOW, "error", SELECTABLE);
+    const credits = tonightProvenanceCredits({
+      renderedGroups: groupTonightListings(merged, null),
+      outEvents,
+      whatsOnChecked: null,
+      outObservedAt: {},
+    });
+
+    expect(groupTonightListings(merged, null)).toHaveLength(1);
     expect(credits.out).toBe(`1 listing via Ticketmaster · ${checkedLabel(NOW_ISO)}`);
   });
 
