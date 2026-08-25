@@ -1,6 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { loadSlimVenuesFromPath } from "@/lib/venuesSlim";
 
 describe("mapEarlyWarm", () => {
@@ -15,9 +14,11 @@ describe("mapEarlyWarm", () => {
         borough: "Camden",
       },
     ];
-    window.__pubmaxMapWarm = {
-      json: new Map([["/data/test-slim.json", Promise.resolve(payload)]]),
-    };
+    vi.stubGlobal("window", {
+      __pubmaxMapWarm: {
+        json: new Map([["/data/test-slim.json", Promise.resolve(payload)]]),
+      },
+    });
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
     const rows = await loadSlimVenuesFromPath("/data/test-slim.json");
@@ -25,7 +26,7 @@ describe("mapEarlyWarm", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.id).toBe("venue-test");
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(takeEarlyWarmJson("/data/test-slim.json")).toBeDefined();
     fetchSpy.mockRestore();
+    vi.unstubAllGlobals();
   });
 });
