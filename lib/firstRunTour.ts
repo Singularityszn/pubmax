@@ -124,6 +124,7 @@ export const FIRST_RUN_COMPANIONS: readonly {
   label: string;
   note: string;
 }[] = [
+  { id: "robin", label: "Circuit Robin", note: "Bright and grounded" },
   { id: "greyhound", label: "Greyhound", note: "Loyal and perceptive" },
   { id: "cat", label: "Black Cat", note: "Calm and mischievous" },
   { id: "fox", label: "Fox", note: "Curious and quick" },

@@ -1,7 +1,9 @@
 import type { PubPalAppearance, PubPalSpecies, SignalFamily } from "@/lib/pubPal";
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 import "./pubPal.css";
 
 const silhouettes: Record<PubPalSpecies, string> = {
+  robin: "M43 9c13 0 21 10 18 23l12 6-13 7c-3 16-14 25-29 22-16-3-22-21-14-36C23 20 31 9 43 9Z",
   greyhound: "M30 18 18 4l3 25c-5 6-7 15-4 25 4 15 28 15 33 0 3-10 1-19-4-25l3-25-12 14c-7-3-16-3-23 0Z",
   cat: "M18 23 20 5l13 13c5-2 9-2 14 0L60 5l2 18c5 8 5 24-2 33-10 12-34 12-44 0-7-9-7-25 2-33Z",
   fox: "M14 22 20 4l15 14c3-1 7-1 10 0L60 4l6 18-12 40-14 8-14-8Z",
@@ -20,7 +22,14 @@ export function PubPalAvatar({ appearance, name, compact = false }: { appearance
   return (
     <div className={`palAvatar pal-${appearance.species} pal-${appearance.signalAffinity} ${compact ? "isCompact" : ""}`} role="img" aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}>
       <span className="palHalo" aria-hidden="true" />
-      <span className="palBody" aria-hidden="true"><svg viewBox="0 0 80 80"><path d={silhouettes[appearance.species]} /></svg><b /></span>
+      <span className="palBody" aria-hidden="true">
+        {appearance.species === "robin" ? (
+          <PubPalMascot size={compact ? 28 : 40} circular decorative className="palAvatarMascot" />
+        ) : (
+          <svg viewBox="0 0 80 80"><path d={silhouettes[appearance.species]} /></svg>
+        )}
+        <b />
+      </span>
       <span className="palParticles" aria-hidden="true">{Array.from({ length: 9 }, (_, index) => <i key={index} style={{ "--p": index } as React.CSSProperties} />)}</span>
     </div>
   );

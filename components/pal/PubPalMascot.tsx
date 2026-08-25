@@ -10,11 +10,14 @@ export function PubPalMascot({
   size = 32,
   circular = true,
   lazy = false,
+  decorative = false,
   className,
 }: {
   size?: number;
   circular?: boolean;
   lazy?: boolean;
+  /** When true, the image is hidden from assistive tech because a parent names the portrait. */
+  decorative?: boolean;
   className?: string;
 }) {
   const kind: PubPalMascotKind = circular ? "avatar" : "square";
@@ -25,7 +28,8 @@ export function PubPalMascot({
         src={pubPalMascotSrc(kind, pubPalMascotFallbackSize(size), "png")}
         srcSet={pubPalMascotSrcSet(kind, "png")}
         sizes={`${size}px`}
-        alt={PUB_PAL_MASCOT_ALT}
+        alt={decorative ? "" : PUB_PAL_MASCOT_ALT}
+        aria-hidden={decorative ? true : undefined}
         width={size}
         height={size}
         decoding="async"

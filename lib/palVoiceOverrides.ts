@@ -46,6 +46,7 @@ function relationshipTone(relationship: PubPal["personality"]["relationship"]): 
 
 function speciesNote(species: PubPal["appearance"]["species"]): string {
   const notes: Partial<Record<PubPal["appearance"]["species"], string>> = {
+    robin: "The circuit robin who reads the room.",
     greyhound: "A loyal greyhound who reads the room.",
     cat: "A black cat with dry wit off the get-home topics.",
     fox: "A quick fox who spots the sensible exit.",

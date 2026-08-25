@@ -171,8 +171,9 @@ describe("first-run tour — prompt budget adoption", () => {
 });
 
 describe("first-run companion preference", () => {
-  it("offers the six launch companions with stable ids", () => {
+  it("offers the seven launch companions with stable ids", () => {
     expect(FIRST_RUN_COMPANIONS.map((choice) => choice.id)).toEqual([
+      "robin",
       "greyhound",
       "cat",
       "fox",

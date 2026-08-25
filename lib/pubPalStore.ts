@@ -28,7 +28,7 @@ function proposalPreferences(value: unknown, fallback: PalProposalPreferences = 
 
 function palFromRow(row: Record<string, unknown>): PubPal {
   const appearance = row.appearance as PubPal["appearance"];
-  return { id: String(row.id), ownerId: String(row.owner_id), name: String(row.name), adultAttestedAt: String(row.adult_attested_at), appearance: { ...appearance, species: compatiblePalSpecies(appearance?.species) ?? "greyhound" }, personality: row.personality as PubPal["personality"], voice: row.voice as PubPal["voice"], muted: Boolean(row.muted), hidden: Boolean(row.hidden), proposalPreferences: proposalPreferences(row.proposal_preferences), masteryPoints: Number(row.mastery_points ?? 0), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
+  return { id: String(row.id), ownerId: String(row.owner_id), name: String(row.name), adultAttestedAt: String(row.adult_attested_at), appearance: { ...appearance, species: compatiblePalSpecies(appearance?.species) ?? "robin" }, personality: row.personality as PubPal["personality"], voice: row.voice as PubPal["voice"], muted: Boolean(row.muted), hidden: Boolean(row.hidden), proposalPreferences: proposalPreferences(row.proposal_preferences), masteryPoints: Number(row.mastery_points ?? 0), createdAt: String(row.created_at), updatedAt: String(row.updated_at) };
 }
 
 function memoryFromRow(row: Record<string, unknown>): PubPalMemory {
