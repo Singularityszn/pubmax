@@ -1030,15 +1030,15 @@
         "sourceUrl": "https://www.timeout.com/london/restaurants/roti-king"
       }
     ],
-    "sourceUrl": "https://rotiking.com/",
+    "sourceUrl": "https://rotiking.com/food-drink",
     "observedAt": "2026-08-25",
     "anchor": {
       "kind": "signature_dish",
       "label": "Chicken Roti Canai",
       "course": "mains",
-      "price": 11.5,
+      "price": 10.95,
       "observedAt": "2026-08-25",
-      "sourceUrl": "https://rotiking.com/"
+      "sourceUrl": "https://rotiking.com/food-drink"
     },
     "story": {
       "text": "Roti King built its reputation on Malaysian roti canai in a compact basement beside Euston.",
