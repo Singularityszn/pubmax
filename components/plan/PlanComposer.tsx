@@ -64,6 +64,12 @@ import {
   UNRESOLVED_ACCEPTED_VENUE_NAME,
   type ComposerHydration,
 } from "@/lib/planComposerHandoff";
+import {
+  composerGeolocationMaySeedIntake,
+  mergePlanTemplateFields,
+  reconcileGeneratedNightContext,
+  syncPlanIntakeAreaFromQuery,
+} from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -1419,6 +1425,16 @@ function PlanComposerForm({
       seedArea(hydratedHandoff.area.id);
       return () => { cancelled = true; };
     }
+    if (!composerGeolocationMaySeedIntake({
+      showsDescribeFirst: planComposerShowsDescribeFirst({
+        heldVenueId,
+        completed: planIntake.completed,
+        entryMode,
+      }),
+      hasQueryText: Boolean(conciergeQuery.trim() || askDraftQuery.trim()),
+    })) {
+      return () => { cancelled = true; };
+    }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       seedRememberedSoon();
       return () => { cancelled = true; };
@@ -1433,7 +1449,15 @@ function PlanComposerForm({
       { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
     );
     return () => { cancelled = true; };
-  }, [hasDurableIntakeDraft, hydratedHandoff]);
+  }, [
+    hasDurableIntakeDraft,
+    hydratedHandoff,
+    heldVenueId,
+    planIntake.completed,
+    entryMode,
+    conciergeQuery,
+    askDraftQuery,
+  ]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
     const reconciled = next.answers.stopCount === undefined
@@ -1469,10 +1493,11 @@ function PlanComposerForm({
     // re-rendered yet when sortWithConcierge runs below, so reading the
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
+    const areaSynced = syncPlanIntakeAreaFromQuery(intakeBase, query);
     const skippedIntake = skipRemainingPlanIntake({
-      ...intakeBase,
+      ...areaSynced,
       answers: {
-        ...intakeBase.answers,
+        ...areaSynced.answers,
         ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
       },
     });
@@ -1646,8 +1671,13 @@ function PlanComposerForm({
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
-        setNightContext(inferredContext);
-        if (!user) writeDeviceNightContext(inferredContext);
+        const reconciled = reconcileGeneratedNightContext(
+          inferredContext,
+          explicitNightContext,
+          suggested.length,
+        );
+        setNightContext(reconciled);
+        if (!user) writeDeviceNightContext(reconciled);
       }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
@@ -1930,9 +1960,16 @@ function PlanComposerForm({
               className="planComposer__template"
               title={template.blurb}
               onClick={() => {
-                setTitle(template.title);
-                setConciergeQuery(template.conciergeQuery);
-                setConciergeNote(template.blurb);
+                const merged = mergePlanTemplateFields({
+                  title,
+                  conciergeQuery,
+                  conciergeNote,
+                  template,
+                  hasAcceptedGeography: Boolean(handoff?.answeredArea),
+                });
+                setTitle(merged.title);
+                setConciergeQuery(merged.conciergeQuery);
+                setConciergeNote(merged.conciergeNote);
               }}
             >
               {template.label}
