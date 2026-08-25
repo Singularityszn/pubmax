@@ -3,6 +3,8 @@ import {
   applyBasemapTaste,
   applySelectionMute,
   clusterCircleColorExpr,
+  pubConfidenceRingColorExpr,
+  pubHeroGlowStrokeExpr,
 } from "@/lib/mapBasemapTaste";
 import { isTransitNetworkVisible } from "@/lib/poiToggleGroups";
 import { TRANSPORT_CATEGORIES, type PoiCategory } from "@/lib/pois";
@@ -1016,6 +1018,63 @@ export function buildPubs(ctx: SceneCtx) {
       "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 11, 1.6, 15, 2.4],
       "circle-stroke-opacity": dark ? 0.85 : 0.8,
       "circle-blur": 0.1,
+    },
+  });
+  // Signature pub hero glow — soft coral/amber wash so pubs read as the map's
+  // stars. Sits under the glyph; circle-blur keeps it cheap (one paint pass).
+  addLayerOnce({
+    id: "pubs-hero-glow",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        PIN_MIN_ZOOM,
+        9,
+        15,
+        14,
+      ],
+      "circle-stroke-color": pubHeroGlowStrokeExpr(tokens, dark) as maplibregl.ExpressionSpecification,
+      "circle-stroke-width": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        PIN_MIN_ZOOM,
+        2.4,
+        15,
+        3.4,
+      ],
+      "circle-stroke-opacity": dark ? 0.44 : 0.34,
+      "circle-blur": 0.32,
+    },
+  });
+  // Price-confidence tier ring — green confirmed, amber estimate, grey unknown.
+  // Reads only existing geojson props so the tiers lane can plug in later.
+  addLayerOnce({
+    id: "pubs-confidence-ring",
+    type: "circle",
+    source: "pubs",
+    minzoom: PIN_MIN_ZOOM,
+    filter: ["!", ["has", "point_count"]],
+    paint: {
+      "circle-color": "rgba(0,0,0,0)",
+      "circle-radius": [
+        "interpolate",
+        ["linear"],
+        ["zoom"],
+        PIN_MIN_ZOOM,
+        7.5,
+        15,
+        11,
+      ],
+      "circle-stroke-color": pubConfidenceRingColorExpr(tokens) as maplibregl.ExpressionSpecification,
+      "circle-stroke-width": 1.85,
+      "circle-stroke-opacity": dark ? 0.9 : 0.84,
     },
   });
   addLayerOnce({

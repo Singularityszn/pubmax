@@ -34,6 +34,7 @@ export type BasemapTasteTokens = {
 // with arbitrary `string` property names.
 type PaintMap = {
   setPaintProperty(layerId: string, name: string, value: unknown): void;
+  setLayoutProperty?(layerId: string, name: string, value: unknown): void;
   setFilter?(layerId: string, filter: unknown): void;
   getLayer: (layerId: string) => unknown;
   getFilter?: (layerId: string) => unknown;
@@ -100,6 +101,26 @@ function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown):
   }
 }
 
+function tryLayout(map: PaintMap, layerId: string, prop: string, value: unknown): void {
+  if (!map.setLayoutProperty || !map.getLayer(layerId)) return;
+  try {
+    map.setLayoutProperty(layerId, prop, value);
+  } catch {
+    // Layer exists but property unsupported for its type — skip.
+  }
+}
+
+function isNeighbourhoodPlaceLabel(id: string): boolean {
+  return /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village/.test(id);
+}
+
+function isBasemapPubPoiLabel(id: string): boolean {
+  return (
+    id.includes("poi") &&
+    (id.includes("pub") || id.includes("bar") || id.includes("beer") || id.includes("alcohol"))
+  );
+}
+
 const NUMERIC_SHIELD_FILTER_LAYERS = [
   "highway-shield-non-us",
   "highway-shield-us-interstate",
@@ -144,46 +165,29 @@ export function tameNumericShieldFilters(map: Pick<
 // live screenshot loop. All greys are warm (R≥G≥B) so the canvas stays in the
 // house "warm ink" family rather than going cool/blue.
 const DARK = {
-  // Ground: warm near-black with a hint of house ink — not pure #000, and a
-  // hair above --ink-deep (#060607, also the sky fog-color) so land and the
-  // horizon fog still blend seamlessly at distance.
-  ground: "#0b0908",
-  // Landcover/landuse fringe — one barely-perceptible warm step over ground.
-  landSoft: "#161310",
-  // Residential blocks — subtle warm lift, still clearly "ground", not building.
-  residential: "#1b1712",
-  // Greenspace/parks: dark DESATURATED green, distinct in hue from the warm
-  // building brown so a park never reads as a block of buildings.
-  //
-  // Held at 2.6:1 against `ground`, not the 1.75:1 it started at. Below about
-  // 2:1 the parks stop being geography a reader can navigate by: on a phone the
-  // whole map reads as one dark field, and the only landmarks are the labels.
-  // The ceiling is `--pint` (#18a76d, hue 156, sat 75%) — this stays a muted
-  // olive at hue 102, sat 29%, so a park can never be mistaken for a
-  // cheap-pint pin. Widen the LUMINANCE, never the saturation.
-  park: "#3f5c33",
-  // Buildings (2-D footprint fill under the 3-D extrusion): one clear luminance
-  // step above ground, warm gray-brown — harmonises with the --map-building-
-  // emissive massing above it (buildScene) instead of fighting it.
-  building: "#332e28",
-  // Warm light edge so roof/footprint outlines separate from the fill (was a
-  // cool blue-gray rgba(154,163,181,…) that read as a different material).
-  buildingOutline: "rgba(150,140,126,0.32)",
-  // Water: deep slate-blue, painted SOLID (not an alpha wash that near-black
-  // ground would drown) so it reads as water at a glance.
-  //
-  // Held at 2.7:1 against `ground`, not the 1.55:1 it started at. The Thames is
-  // the single strongest wayfinder London has, and at the old value it read as
-  // slightly-darker land on a phone at night. Blue is a whole hue family away
-  // from every price band, so luminance here costs the pins nothing.
-  water: "#255988",
-  // Roads — three warm-gray tiers, all solid so they remain legible. Even a
-  // major road stays below muted interface text and saturated pub markers.
-  roadMajor: "#756f65",
-  road: "#544f48",
-  roadMinor: "#38342f",
-  // Near-black casing separates adjacent land without making roads luminous.
-  roadCasing: "#050403",
+  // Neon-noir ground: brand near-black (#0b0d12) with a cool ink undertone so
+  // the canvas reads as night city, not warm brown mud. Sits a hair above
+  // --ink-deep fog so the horizon still blends at distance.
+  ground: "#0a0c11",
+  // Landcover fringe — one barely-perceptible step over ground.
+  landSoft: "#12141c",
+  // Residential blocks — subtle lift, still clearly ground.
+  residential: "#171920",
+  // Greenspace: barely-there dark olive. Geography you sense more than see, so
+  // pub glow stays the hero. Hue stays distinct from building brown and from
+  // --pint; luminance held above 2:1 against ground for navigation.
+  park: "#384f2e",
+  // Building footprints: warm gray-brown one step above ground (cool blue-grays
+  // read as a different material against neon-noir land).
+  building: "#2a241e",
+  buildingOutline: "rgba(140,132,122,0.3)",
+  // Water: deep ink-blue — the Thames reads as water, not darker land.
+  water: "#224e78",
+  // Roads — warm-grey strokes that recede behind pub marks.
+  roadMajor: "#66625c",
+  road: "#484542",
+  roadMinor: "#2c2a28",
+  roadCasing: "#050506",
 } as const;
 
 /** Exported for unit tests — dark land must never equal cream ink. */
@@ -204,16 +208,12 @@ export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePa
       roadMajor: DARK.roadMajor,
     };
   }
-  // Light-theme hierarchy audit (M4) — UNTOUCHED by Wave A (light palette is
-  // accepted): calmer water (was the saturated riverBright cyan, painted opaque
-  // — now a translucent wash of the deeper `river` blue so it reads as calm
-  // water, not neon); roads brighter than land (was a brass/coral wash near-
-  // indistinguishable from the warm paper land — now a near-white minor-road
-  // base with a warmer gold major-road tier, both mixed from panelRaised so
-  // they read as paper-map streets); park uses parkTint, never pint.
+  // Light-theme hierarchy audit (M4) — warm paper guidebook: calmer water, roads
+  // brighter than land, park uses parkTint never pint.
+  const warmPaper = mixHex(tokens.paper, "#f4efe6", 0.35);
   const lightRoad = withAlpha(mixHex(tokens.panelRaised, tokens.amber, 0.08), 0.85);
   return {
-    land: tokens.paper,
+    land: warmPaper,
     landSoft: withAlpha(tokens.amber, 0.14),
     residential: withAlpha(tokens.pint, 0.1),
     park: withAlpha(tokens.parkTint, 0.26),
@@ -438,8 +438,54 @@ function paintDiscoveredSymbol(
     id.includes("street") ||
     id.includes("highway") ||
     id.includes("motorway");
-  tryPaint(map, layerId, "text-halo-width", dark ? (isRoadLabel ? 1.1 : 1.35) : 1.1);
-  tryPaint(map, layerId, "text-opacity", dark ? (isRoadLabel ? 0.52 : 0.78) : 0.88);
+  const isNeighbourhood = isNeighbourhoodPlaceLabel(id);
+  const isPubPoi = isBasemapPubPoiLabel(id);
+  tryPaint(
+    map,
+    layerId,
+    "text-halo-width",
+    dark ? (isRoadLabel ? 1.0 : isNeighbourhood ? 1.15 : 1.35) : 1.1,
+  );
+  const opacity = isPubPoi
+    ? dark
+      ? 0.22
+      : 0.32
+    : isRoadLabel
+      ? dark
+        ? 0.45
+        : 0.62
+      : isNeighbourhood
+        ? dark
+          ? 0.38
+          : 0.52
+        : dark
+          ? 0.72
+          : 0.88;
+  tryPaint(map, layerId, "text-opacity", opacity);
+  if (isNeighbourhood) {
+    tryLayout(map, layerId, "text-size", dark ? 9 : 9.5);
+  } else if (isPubPoi) {
+    tryLayout(map, layerId, "text-size", dark ? 8.5 : 9);
+  }
+}
+
+/** Pub-first label hierarchy: neighbourhood names small and dim; basemap pub
+ *  POI labels nearly invisible (our pins own pub names at zoom). */
+function tameBasemapLabelHierarchy(map: PaintMap, dark: boolean): void {
+  for (const layer of map.getStyle().layers ?? []) {
+    if (layer.type !== "symbol") continue;
+    const id = layer.id.toLowerCase();
+    if (!id.includes("label") && !id.includes("place") && !id.includes("name")) continue;
+    if (id.includes("icon")) continue;
+    if (isNeighbourhoodPlaceLabel(id)) {
+      tryLayout(map, layer.id, "text-size", dark ? 9 : 9.5);
+      tryLayout(map, layer.id, "text-letter-spacing", 0.04);
+    }
+    if (isBasemapPubPoiLabel(id)) {
+      tryLayout(map, layer.id, "text-size", dark ? 8.5 : 9);
+      tryPaint(map, layer.id, "text-opacity", dark ? 0.2 : 0.28);
+    }
+  }
 }
 
 /** All layer IDs handled explicitly by paintKnownLayers — skip these in the
@@ -487,6 +533,7 @@ export function applyBasemapTaste(
   const palette = buildPalette(tokens, dark);
   paintKnownLayers(map, palette, dark);
   paintDiscoveredLayers(map, palette, tokens, dark);
+  tameBasemapLabelHierarchy(map, dark);
 }
 
 // ── M2 · POI-at-initiation gating ──────────────────────────────────────────
@@ -658,5 +705,42 @@ export function clusterCircleColorExpr(
     ["all", [">", dear, 0], [">", dear, cheap], [">", dear, middle]],
     withAlpha(tokens.brick, dark ? 0.94 : 0.88),
     withAlpha(tokens.muted, dark ? 0.78 : 0.84),
+  ];
+}
+
+type PinRingTokens = Pick<BasemapTasteTokens, "pint" | "amber" | "muted" | "brass">;
+
+/**
+ * Price-confidence tier ring (style-only; reads existing geojson props).
+ *   confirmed — green: a sayable sourced price (`priceLabel` present)
+ *   estimate  — amber: band tint without a sayable figure (bucket !== 3)
+ *   unknown   — grey: no known price band (bucket === 3)
+ */
+export function pubConfidenceRingColorExpr(tokens: PinRingTokens): unknown {
+  return [
+    "case",
+    ["has", "priceLabel"],
+    tokens.pint,
+    ["!=", ["get", "bucket"], 3],
+    tokens.amber,
+    tokens.muted,
+  ];
+}
+
+/** Soft coral/amber hero glow stroke for every pub pin — pubs are the stars. */
+export function pubHeroGlowStrokeExpr(
+  tokens: Pick<BasemapTasteTokens, "brass" | "amber">,
+  dark: boolean,
+): unknown {
+  const coral = withAlpha(tokens.brass, dark ? 0.58 : 0.42);
+  const gold = withAlpha(tokens.amber, dark ? 0.52 : 0.38);
+  return [
+    "match",
+    ["%", ["get", "bucket"], 2],
+    0,
+    coral,
+    1,
+    gold,
+    coral,
   ];
 }

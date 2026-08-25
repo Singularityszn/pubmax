@@ -382,6 +382,13 @@ describe("provisional-report badge (ungated visibility, zero authority)", () => 
     }
   });
 
+  it("signature glow and confidence rings sit under the glyph", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("pubs-hero-glow")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("pubs-confidence-ring")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(ids.indexOf("pubs-confidence-ring")).toBeGreaterThan(ids.indexOf("pubs-hero-glow"));
+  });
+
   it("reads no price at all - not the bucket, not a band colour", () => {
     expect(JSON.stringify(paint)).not.toContain("bucket");
     expect(JSON.stringify(paint)).not.toContain("latestContributorPrice");

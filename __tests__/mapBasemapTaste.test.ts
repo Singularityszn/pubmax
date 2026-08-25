@@ -8,6 +8,8 @@ import {
   isBasemapSelectionMuteLayer,
   mixHex,
   muteOpacityExpr,
+  pubConfidenceRingColorExpr,
+  pubHeroGlowStrokeExpr,
   SELECTION_MUTE_OPACITY,
   tameNumericShieldFilters,
   withAlpha,
@@ -91,7 +93,17 @@ function evaluateClusterExpression(
   }
   if (operator === ">") return Number(value(args[0])) > Number(value(args[1]));
   if (operator === ">=") return Number(value(args[0])) >= Number(value(args[1]));
+  if (operator === "!=") return value(args[0]) !== value(args[1]);
+  if (operator === "has") return Object.hasOwn(properties, String(args[0]));
+  if (operator === "%") return Number(value(args[0])) % Number(value(args[1]));
   if (operator === "all") return args.every((item) => Boolean(value(item)));
+  if (operator === "match") {
+    const input = value(args[0]);
+    for (let index = 1; index < args.length - 1; index += 2) {
+      if (value(args[index]) === input) return value(args[index + 1]);
+    }
+    return value(args.at(-1));
+  }
   if (operator === "case") {
     for (let index = 0; index < args.length - 1; index += 2) {
       if (value(args[index])) return value(args[index + 1]);
@@ -144,17 +156,17 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     // Wave A: land is a warm near-black constant (hint of house ink, not pure
     // #000 and never the cream --ink). Decoupled from --ink-deep so it can sit
     // a hair warmer than the fog while still blending at the horizon.
-    expect(dark.land).toBe("#0b0908");
+    expect(dark.land).toBe("#0a0c11");
     expect(dark.land).not.toBe(darkTokens.ink);
     expect(lumSum(dark.land)).toBeLessThan(40); // unmistakably near-black
-    expect(light.land).toBe(tokens.paper);
+    expect(light.land).toBe(mixHex(tokens.paper, "#f4efe6", 0.35));
   });
 
   it("keeps dark roads legible but subordinate to product marks", () => {
     const dark = buildPalette(darkTokens, true);
-    expect(dark.roadMajor).toBe("#756f65");
-    expect(dark.road).toBe("#544f48");
-    expect(dark.roadMinor).toBe("#38342f");
+    expect(dark.roadMajor).toBe("#66625c");
+    expect(dark.road).toBe("#484542");
+    expect(dark.roadMinor).toBe("#2c2a28");
     // Strict luminance hierarchy: major > secondary > minor > building > ground.
     expect(lumSum(dark.roadMajor)).toBeGreaterThan(lumSum(dark.road));
     expect(lumSum(dark.road)).toBeGreaterThan(lumSum(dark.roadMinor));
@@ -166,7 +178,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
   it("Wave A — dark buildings are a clear step above ground, warm, never a coral wash", () => {
     const dark = buildPalette(darkTokens, true);
-    expect(dark.building).toBe("#332e28");
+    expect(dark.building).toBe("#2a241e");
     expect(dark.building).not.toBe(darkTokens.inkDeep);
     expect(dark.building).not.toBe(darkTokens.buildingEmissive);
     expect(dark.building).not.toBe(darkTokens.brass);
@@ -181,7 +193,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const dark = buildPalette(darkTokens, true);
     // Solid deep slate-blue (was a low-alpha --river wash that near-black ground
     // drowned). Blue channel dominates, clearly above the ground floor.
-    expect(dark.water).toBe("#255988");
+    expect(dark.water).toBe("#224e78");
     const n = parseInt(dark.water.slice(1), 16);
     expect(n & 255).toBeGreaterThan((n >> 16) & 255); // blue > red → reads blue
     // The Thames is London's strongest wayfinder. Below about 2:1 against the
@@ -196,7 +208,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     // Old formula washed --pint/--parkTint at low alpha; now a solid dark green
     // constant, hue-distinct from the warm building brown so parks never read
     // as building blocks.
-    expect(dark.park).toBe("#3f5c33");
+    expect(dark.park).toBe("#384f2e");
     expect(dark.park).not.toBe(withAlpha(darkTokens.pint, 0.32));
     // Parks must read as geography, not as a slightly different shade of night.
     // Widen the LUMINANCE to earn that, never the saturation: a park that grows
@@ -265,7 +277,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     applyBasemapTaste(map, darkTokens, true);
 
     const bg = paints.find(([id, prop]) => id === "background" && prop === "background-color");
-    expect(bg?.[2]).toBe("#0b0908"); // Wave A warm near-black ground
+    expect(bg?.[2]).toBe("#0a0c11"); // neon-noir near-black ground
 
     expect(paints.some(([id, prop]) => id === "park" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "water" && prop === "fill-color")).toBe(true);
@@ -280,7 +292,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     ).toBe(0.92);
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("rgba(150,140,126,0.32)"); // Wave A warm light edge
+    ).toBe("rgba(140,132,122,0.3)"); // warm light edge
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);
@@ -304,10 +316,10 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
     expect(
       paints.find(([id, prop]) => id === "road_label" && prop === "text-opacity")?.[2],
-    ).toBe(0.52);
+    ).toBe(0.45);
     expect(
       paints.find(([id, prop]) => id === "place_city" && prop === "text-opacity")?.[2],
-    ).toBe(0.78);
+    ).toBe(0.72);
   });
 
   it("skips missing layers without throwing", () => {
@@ -720,5 +732,23 @@ describe("style.load recapture path (applySelectionState, buildScene.ts)", () =>
     applySelectionMute(map, false, store);
     expect(paint["pois-transport-minor"]["icon-opacity"]).toBe(0.7);
     expect(store.size).toBe(0);
+  });
+
+  it("pub confidence ring maps geojson props to green, amber, grey", () => {
+    const expr = pubConfidenceRingColorExpr(tokens) as unknown[];
+    expect(
+      evaluateClusterExpression(expr, { priceLabel: "£5.50", bucket: 1 }),
+    ).toBe(tokens.pint);
+    expect(evaluateClusterExpression(expr, { bucket: 0 })).toBe(tokens.amber);
+    expect(evaluateClusterExpression(expr, { bucket: 3 })).toBe(tokens.muted);
+  });
+
+  it("pub hero glow alternates coral and amber by bucket parity", () => {
+    const darkExpr = pubHeroGlowStrokeExpr(tokens, true) as unknown[];
+    const even = evaluateClusterExpression(darkExpr, { bucket: 0 });
+    const odd = evaluateClusterExpression(darkExpr, { bucket: 1 });
+    expect(String(even)).toContain("rgba");
+    expect(String(odd)).toContain("rgba");
+    expect(even).not.toBe(odd);
   });
 });
