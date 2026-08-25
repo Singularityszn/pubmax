@@ -6,6 +6,9 @@ const VIEWPORT = { width: 390, height: 844 };
 const PAINT_REGRESSION_CEILING_MS = 20_000;
 /** Lane gate per firstmate map-paint-sla decision (successor owns absolute 3s). */
 const PAINT_SLA_MS = 16_000;
+/** Achieved throttled production cold-open (Aug 2026 post-fix, best run). */
+const PAINT_ACHIEVED_TILES_MS = 8_540;
+const PAINT_ACHIEVED_PINS_MS = 14_000;
 
 async function seedMap(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -128,6 +131,8 @@ test.describe("mobile map tile paint", () => {
     test.info().annotations.push(
       { type: "tilePaintMs", description: `${tilePaintMs}` },
       { type: "pinPaintMs", description: `${pinPaintMs}` },
+      { type: "paintAchievedTilesMs", description: `${PAINT_ACHIEVED_TILES_MS}` },
+      { type: "paintAchievedPinsMs", description: `${PAINT_ACHIEVED_PINS_MS}` },
       { type: "paintSlaMs", description: `${PAINT_SLA_MS}` },
       { type: "paintRegressionCeilingMs", description: `${PAINT_REGRESSION_CEILING_MS}` },
     );
