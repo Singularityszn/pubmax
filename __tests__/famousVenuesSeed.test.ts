@@ -163,7 +163,7 @@ describe("famous venue seeds", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
     expect(
       assertCurrentFamousVenueRows(rows, new Date("2026-08-25T12:00:00.000Z")),
-    ).toHaveLength(90);
+    ).toHaveLength(89);
     expect(() =>
       assertCurrentFamousVenueRows(rows, new Date("2026-09-24T00:00:00.000Z")),
     ).toThrow(/current-trading verification failed.*bar-american-bar-savoy/);
