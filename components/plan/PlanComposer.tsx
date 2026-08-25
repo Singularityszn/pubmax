@@ -68,6 +68,7 @@ import {
   composerGeolocationMaySeedIntake,
   mergeSubmittedNightContext,
   mergePlanTemplateFields,
+  nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
 } from "@/lib/planComposerChipFill";
@@ -1617,6 +1618,7 @@ function PlanComposerForm({
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
+    const queryArea = nightAreaFromPlanQuery(query);
     const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
@@ -1628,6 +1630,11 @@ function PlanComposerForm({
     );
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
     if (queryOverride !== undefined && unsupportedPatchForSort) return;
+    const submittedContext = mergeSubmittedNightContext(
+      explicitNightContext,
+      intakeContextForSort,
+      queryArea,
+    );
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
@@ -1639,7 +1646,7 @@ function PlanComposerForm({
           intake,
           query,
           nightContext,
-          explicitNightContext,
+          submittedContext,
           handoff?.acceptedAnchor,
         )),
       });
@@ -1678,10 +1685,6 @@ function PlanComposerForm({
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
-        const submittedContext = mergeSubmittedNightContext(
-          explicitNightContext,
-          intakeContextForSort,
-        );
         const reconciled = reconcileGeneratedNightContext(
           inferredContext,
           submittedContext,

@@ -31,9 +31,13 @@ export function nightPatchIdForNightArea(slug: NightAreaSlug): NightPatchId | nu
   return null;
 }
 
+export function nightAreaFromPlanQuery(query: string): NightAreaSlug | null {
+  return inferNightContext(query).context.nightArea;
+}
+
 /** A submitted describe-first query owns intake area over a geo or remembered seed. */
 export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: string): PlanIntakeDraft {
-  const slug = inferNightContext(query).context.nightArea;
+  const slug = nightAreaFromPlanQuery(query);
   if (!slug) return draft;
   const patchId = nightPatchIdForNightArea(slug);
   if (!patchId) {
@@ -82,10 +86,12 @@ export function mergeInferredNightContext(
 export function mergeSubmittedNightContext(
   explicit: Partial<NightContext>,
   intake: Partial<NightContext>,
+  queryArea: NightAreaSlug | null = null,
 ): Partial<NightContext> {
   return {
     ...explicit,
     ...(intake.nightArea ? { nightArea: intake.nightArea } : {}),
+    ...(queryArea ? { nightArea: queryArea } : {}),
     ...(intake.stopCount !== undefined ? { stopCount: intake.stopCount } : {}),
   };
 }

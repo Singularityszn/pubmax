@@ -10,6 +10,7 @@ import {
   mergeInferredNightContext,
   mergeSubmittedNightContext,
   mergePlanTemplateFields,
+  nightAreaFromPlanQuery,
   reconcileGeneratedNightContext,
   resolveDescribeChipSubmit,
   syncPlanIntakeAreaFromQuery,
@@ -114,6 +115,17 @@ describe("plan composer chip intent policy", () => {
     expect(submitted.nightArea).toBe("camden");
     expect(submitted.groupSize).toBe(6);
     expect(submitted.stopCount).toBe(4);
+  });
+
+  it("keeps an unmapped recognized query area over stale context area", () => {
+    const queryArea = nightAreaFromPlanQuery("Canary Wharf after work");
+    expect(queryArea).toBe("canary-wharf");
+    const submitted = mergeSubmittedNightContext(
+      { nightArea: "chiswick" },
+      {},
+      queryArea,
+    );
+    expect(submitted.nightArea).toBe("canary-wharf");
   });
 
   it("preserves an explicit stop count when generated route length differs", () => {
