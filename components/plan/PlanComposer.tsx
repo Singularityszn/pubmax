@@ -1509,7 +1509,11 @@ function PlanComposerForm({
     });
     setConciergeQuery(query);
     updatePlanIntake(skippedIntake);
-    sortWithConcierge(query, skippedIntake);
+    sortWithConcierge(
+      query,
+      skippedIntake,
+      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
+    );
   }
 
   function updatePlanStartTime(value: string) {
@@ -1613,12 +1617,19 @@ function PlanComposerForm({
     );
   }
 
-  async function sortWithConcierge(queryOverride?: string, intakeOverride?: PlanIntakeDraft) {
+  async function sortWithConcierge(
+    queryOverride?: string,
+    intakeOverride?: PlanIntakeDraft,
+    explicitContextOverride?: Partial<NightContext>,
+  ) {
     // Both overrides (from the describe-first entry surface) are threaded
     // through explicitly before React re-renders, so state reads here cannot
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
+    const explicitContext = explicitContextOverride
+      ? { ...explicitNightContext, ...explicitContextOverride }
+      : explicitNightContext;
     const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
@@ -1631,7 +1642,7 @@ function PlanComposerForm({
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
     if (queryOverride !== undefined && unsupportedPatchForSort) return;
     const submittedContext = mergeSubmittedNightContext(
-      explicitNightContext,
+      explicitContext,
       intakeContextForSort,
       queryArea,
     );
@@ -1980,7 +1991,12 @@ function PlanComposerForm({
                   conciergeQuery,
                   conciergeNote,
                   template,
-                  hasAcceptedGeography: Boolean(handoff?.answeredArea),
+                  hasAcceptedGeography: Boolean(
+                    handoff?.answeredArea
+                    || planIntake.answers.area
+                    || nightContext?.nightArea
+                    || explicitNightContext.nightArea,
+                  ),
                 });
                 setTitle(merged.title);
                 setConciergeQuery(merged.conciergeQuery);

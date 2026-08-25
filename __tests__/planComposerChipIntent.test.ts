@@ -206,6 +206,21 @@ describe("plan composer chip intent policy", () => {
     expect(merged.conciergeQuery).toBe("Quiet in Clapham");
     expect(merged.conciergeNote).toBe("Already here");
   });
+
+  it("does not fill template geography over selected geography", () => {
+    const merged = mergePlanTemplateFields({
+      title: "",
+      conciergeQuery: "",
+      conciergeNote: "",
+      template: {
+        title: "Chip title",
+        conciergeQuery: "Quiet in Clapham",
+        conciergeNote: "Chip note",
+      },
+      hasAcceptedGeography: true,
+    });
+    expect(merged.conciergeQuery).toBe("");
+  });
 });
 
 describe("PlanDescribeFirst chip intent", () => {
