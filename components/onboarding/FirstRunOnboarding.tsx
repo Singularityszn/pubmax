@@ -31,7 +31,7 @@ export default function FirstRunOnboarding({
 }) {
   const router = useRouter();
   const [stage, setStage] = useState<"london" | "companion">("london");
-  const [companion, setCompanion] = useState<FirstRunCompanion | null>(null);
+  const [companion, setCompanion] = useState<FirstRunCompanion>("robin");
 
   useEffect(() => {
     claimTourPromptBudget();
