@@ -189,6 +189,11 @@ describe("symbol collision policy", () => {
   const { layers } = buildScenePieces();
   const layout = (id: string) => (layers.get(id)?.layout ?? {}) as Record<string, unknown>;
 
+  it("does not add removed pub halo layers to the scene", () => {
+    expect(layers.has("pubs-hero-glow")).toBe(false);
+    expect(layers.has("pubs-confidence-ring")).toBe(false);
+  });
+
   it("drops crowded pub pins instead of stacking them", () => {
     const pins = layout("pubs-point");
     expect(pins["icon-allow-overlap"]).toBe(false);
