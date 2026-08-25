@@ -2,6 +2,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { isWhatsOnLimited } from "@/lib/citymcpRateLimit";
 import { coarsenViewerPoint } from "@/lib/geo";
+import type { OutVenueMatchIndex } from "@/lib/out/venueMatch";
 import { isWhatsOnKind, type WhatsOnKind, type WhatsOnKindObservedAt } from "@/lib/whatsOn";
 import {
   loadWhatsOn,
@@ -25,6 +26,10 @@ export type WhatsOnResponse = {
   localityBasis: WhatsOnLocalityBasis;
   /** Compatibility alias for pre-L15 clients; always equals sourceObservedAt. */
   asOf: string | null;
+};
+
+export type WhatsOnHandlerDeps = LoadWhatsOnDeps & {
+  loadVenueMatchIndex?: () => Promise<OutVenueMatchIndex | null>;
 };
 
 function parseKind(raw: string | null): WhatsOnKind | undefined {
@@ -53,7 +58,7 @@ function parseNear(raw: string | null): { lat: number; lng: number } | undefined
 // Handler with injectable store deps.
 export async function handleWhatsOnRequest(
   request: Request,
-  deps: LoadWhatsOnDeps = {},
+  deps: WhatsOnHandlerDeps = {},
 ): Promise<Response> {
   try {
     // Own key/budget (lib/citymcpRateLimit.ts): whats-on is partly served from
@@ -75,6 +80,18 @@ export async function handleWhatsOnRequest(
     if (near) load.near = near;
     const limit = parseLimit(params.get("limit"));
     if (limit) load.limit = limit;
+    if (params.get("pubOnly") === "1") {
+      try {
+        const venueMatchIndex = await deps.loadVenueMatchIndex?.();
+        if (!venueMatchIndex) {
+          return jsonNoStore({ rows: [], error: "Could not check listings." });
+        }
+        load.pubOnly = true;
+        load.venueMatchIndex = venueMatchIndex;
+      } catch {
+        return jsonNoStore({ rows: [], error: "Could not check listings." });
+      }
+    }
 
     // The tonightGrouping V2 flag arrives via deps (the server route reads the
     // canonical registry and injects it — the flag reader depends on server-only,

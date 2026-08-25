@@ -85,6 +85,24 @@ export function matchOutRowVenue(row: WhatsOnRow, index: OutVenueMatchIndex): st
   );
 }
 
+/** Whether an existing venue id belongs to this resolver's accepted index. */
+export function isOutVenueId(
+  index: OutVenueMatchIndex,
+  venueId: string | null | undefined,
+): boolean {
+  const canonicalId = canonicalOutVenueId(venueId);
+  if (!canonicalId) return false;
+  for (const candidateVenueId of index.exactByKey.values()) {
+    if (canonicalOutVenueId(candidateVenueId) === canonicalId) return true;
+  }
+  for (const candidates of index.byNormalizedName.values()) {
+    for (const candidate of candidates) {
+      if (candidate.venueId === canonicalId) return true;
+    }
+  }
+  return false;
+}
+
 export type AttachOutVenuesResult = {
   rows: WhatsOnRow[];
   /** Rows that gained a venueId here, at request time. */

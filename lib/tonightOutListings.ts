@@ -6,8 +6,13 @@ import {
   outListingsHealth,
 } from "@/lib/out/outStatus";
 import type { OutResponse } from "@/lib/out/types";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
+import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
+import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
+
+type TonightSelectableVenueIds = MapSelectableVenueIds | undefined;
 
 export type TonightWhatsOnStatus = "idle" | "ready" | "empty" | "error";
 export type TonightListingsStatus = TonightWhatsOnStatus;
@@ -16,26 +21,71 @@ export type TonightOutAnswer = {
   body:
     | (Pick<OutResponse, "status" | "events" | "reason"> &
         Partial<
-          Pick<OutResponse, "observedAt" | "listingsStatus" | "listingsReason">
+          Pick<
+            OutResponse,
+            "observedAt" | "listingsStatus" | "listingsReason" | "venueMatch"
+          >
         >)
     | null;
   failed: boolean;
   pending: boolean;
 };
 
+/** Whether a row carries a canonical venue identity; map availability is separate. */
+export function tonightRowHasListedPub(
+  row: WhatsOnRow,
+  selectable: TonightSelectableVenueIds = undefined,
+): boolean {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (!venueId) return false;
+  if (selectable === undefined) return true;
+  return tonightAcceptedVenueId(row, selectable) !== null;
+}
+
+export function tonightAcceptedVenueId(
+  row: WhatsOnRow,
+  selectable: TonightSelectableVenueIds,
+): string | null {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (!venueId || selectable === undefined || selectable === null) return null;
+  return selectable.has(venueId) ? venueId : null;
+}
+
+/** Past-guarded rows that belong on a pub surface, never a theatre dump. */
+export function filterTonightPubSurfaceRows(
+  rows: readonly WhatsOnRow[],
+  now: number = Date.now(),
+  selectable: TonightSelectableVenueIds = undefined,
+): WhatsOnRow[] {
+  // Map shard availability controls deep links only. The /out venue matcher
+  // has already proved the row's venue identity; a lazy map shard must not
+  // turn confirmed supply into an empty night.
+  void selectable;
+  return filterNotPast([...rows], now).filter((row) =>
+    tonightRowHasListedPub(row),
+  );
+}
+
 /**
  * Out is a fallback lane for Tonight, not a second pub inventory. Hold its
  * rows until the What's-On spine has answered. An empty spine means there is
  * no confirmed pub listing to pair with a Ticketmaster theatre row; a failed
  * spine may still show Out rows while naming that failure beside them.
+ *
+ * Only pub-matched Out rows may land: unmatched Ticketmaster theatre and arena
+ * cards are not pub events and never reach the list.
  */
 export function tonightOutEventsForStatus(
   whatsOn: TonightWhatsOnStatus,
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
+  selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): WhatsOnRow[] {
   if (whatsOn !== "ready" && whatsOn !== "error") return [];
-  return filterNotPast([...outEvents], now);
+  return pubOnly
+    ? filterTonightPubSurfaceRows(outEvents, now, selectable)
+    : filterNotPast([...outEvents], now);
 }
 
 /**
@@ -52,16 +102,29 @@ function outListingsStatus(out: TonightOutAnswer): {
   return outListingsHealth(out.body);
 }
 
+function outVenueMatchUnavailable(out: TonightOutAnswer): boolean {
+  if (!out.body || outListingsHealth(out.body).status !== "ready") return false;
+  return out.body.venueMatch === "unavailable";
+}
+
 /** One list: What's-On plus eligible Out events, newest observation wins a clash. */
 export function mergeTonightListingRows(
   whatsOnRows: readonly WhatsOnRow[],
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
+  selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): WhatsOnRow[] {
+  const pubWhatsOn =
+    whatsOnStatus === "ready"
+      ? pubOnly
+        ? filterTonightPubSurfaceRows(whatsOnRows, now, selectable)
+        : [...whatsOnRows]
+      : [];
   return dedupeRows([
-    ...whatsOnRows,
-    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now),
+    ...pubWhatsOn,
+    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now, selectable, pubOnly),
   ]);
 }
 
@@ -97,10 +160,21 @@ export function tonightListingsStatus(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
   now: number = Date.now(),
+  whatsOnRows: readonly WhatsOnRow[] = [],
+  selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): TonightListingsStatus {
-  const outEvents = tonightOutEventsForStatus(whatsOn, out.body?.events ?? [], now);
-  if (outEvents.length > 0 || whatsOn === "ready") return "ready";
+  const merged = mergeTonightListingRows(
+    whatsOnRows,
+    out.body?.events ?? [],
+    now,
+    whatsOn,
+    selectable,
+    pubOnly,
+  );
+  if (merged.length > 0) return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
+  if (pubOnly && outVenueMatchUnavailable(out)) return "error";
   if (
     whatsOn === "error" ||
     out.failed ||
@@ -114,6 +188,8 @@ export function tonightListingsStatus(
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
 export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";
+export const TONIGHT_VENUE_INDEX_FAILED_LINE =
+  "Couldn't confirm tonight's venues right now.";
 
 /** One lane's own account of why it is not carrying its share of the night. */
 export type TonightLaneReport = {
@@ -174,7 +250,13 @@ export function tonightLaneReports(
 export function tonightListingsNoteLine(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  selectable: TonightSelectableVenueIds = undefined,
 ): string | null {
+  // Map shard availability does not change the venue-match answer.
+  void selectable;
+  if (outVenueMatchUnavailable(out)) {
+    return TONIGHT_VENUE_INDEX_FAILED_LINE;
+  }
   const reports = tonightLaneReports(whatsOn, out);
   return reports.length > 0 ? reports.map((report) => report.line).join(" · ") : null;
 }
@@ -188,7 +270,11 @@ export function tonightListingsNoteLine(
 export function tonightNoteOffersRetry(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
+  // Map shard availability does not change which data lane can be retried.
+  void selectable;
+  if (outVenueMatchUnavailable(out)) return true;
   return tonightLaneReports(whatsOn, out).some(
     (report) => report.lane === "whats-on" && report.retryable,
   );
@@ -208,7 +294,10 @@ export function tonightRetryLanes(
   const reports = tonightLaneReports(whatsOn, out);
   const retryable = (lane: TonightLaneReport["lane"]) =>
     reports.some((report) => report.lane === lane && report.retryable);
-  return { whatsOn: retryable("whats-on"), out: retryable("out") };
+  return {
+    whatsOn: retryable("whats-on"),
+    out: retryable("out") || outVenueMatchUnavailable(out),
+  };
 }
 
 export const TONIGHT_QUIET_NIGHT_SENTENCE =
@@ -255,14 +344,17 @@ export type TonightProvenanceCredits = {
  * covering rule in CLAUDE.md, applied to sources rather than kinds.
  */
 export function tonightProvenanceCredits(input: {
-  /** The one list on screen, already merged and deduped. */
-  merged: WhatsOnRow[];
+  /** The grouped cards on screen, in render order. */
+  renderedGroups: TonightGroupedRow[];
   /** Everything the Out read returned, merged or not. */
   outEvents: WhatsOnRow[];
   whatsOnChecked: string | null;
   outObservedAt?: Record<string, string> | undefined;
 }): TonightProvenanceCredits {
-  const lanes = tonightListingLanes(input.merged, input.outEvents);
+  const lanes = tonightListingLanes(
+    input.renderedGroups.map((group) => group.row),
+    input.outEvents,
+  );
   // With nothing from Out, the coverage count is What's-On's claim, empty night
   // included: the quiet answer came from that read and is credited to it.
   const creditsWhatsOn = lanes.whatsOnCount > 0 || lanes.outRows.length === 0;
@@ -342,13 +434,17 @@ export type TonightRowLinks = {
  * sibling rather than an anchor inside an anchor, which the parser un-nests.
  * A venue's own listing is unchanged: the pub it names is the destination.
  */
-export function tonightRowLinks(row: WhatsOnRow): TonightRowLinks {
+export function tonightRowLinks(
+  row: WhatsOnRow,
+  selectable: TonightSelectableVenueIds = undefined,
+): TonightRowLinks {
   const rawLabel = row.source?.label ?? "";
   const sourceLabel = outSourceDisplayLabel(rawLabel);
   const sourceUrl = firstHttp(row.source?.url);
+  const venueId = canonicalOutVenueId(row.venueId);
   const mapHref =
-    typeof row.venueId === "string" && row.venueId.length > 0
-      ? `/map?sel=${encodeURIComponent(row.venueId)}`
+    venueId && tonightMapHrefAllowed(venueId, selectable)
+      ? `/map?sel=${encodeURIComponent(venueId)}`
       : null;
   const publisherCredited = outCardSource(rawLabel) !== "venue";
   if (publisherCredited && sourceUrl) {
@@ -376,4 +472,14 @@ function canonicalIso(value: string | null): string | null {
 function joinLabels(labels: string[]): string {
   if (labels.length === 1) return labels[0] as string;
   return `${labels.slice(0, -1).join(", ")} and ${labels[labels.length - 1]}`;
+}
+
+/** Map deep links only when the eager index confirms the pub opens. */
+function tonightMapHrefAllowed(
+  venueId: string,
+  selectable: TonightSelectableVenueIds,
+): boolean {
+  if (selectable === undefined) return true;
+  if (selectable === null) return false;
+  return selectable.has(venueId);
 }

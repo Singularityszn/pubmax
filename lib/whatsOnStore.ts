@@ -4,6 +4,12 @@
 // baseline-only, never an error to the caller.
 
 import { haversineKm } from "@/lib/haversine";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
+import {
+  attachOutVenues,
+  isOutVenueId,
+  type OutVenueMatchIndex,
+} from "@/lib/out/venueMatch";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   bundledGeneratedAt,
@@ -178,6 +184,9 @@ export type LoadWhatsOnParams = {
   near?: { lat: number; lng: number };
   limit?: number;
   localityBasis?: WhatsOnLocalityBasis;
+  /** Keep only rows with a venue identity accepted by the Out matcher. */
+  pubOnly?: boolean;
+  venueMatchIndex?: OutVenueMatchIndex;
 };
 
 export type FetchLiveArgs = { now: number; area?: string; limit?: number };
@@ -292,6 +301,14 @@ function filterRowsForRequest(
   }
   if (params.kind) filtered = filterByKind(filtered, params.kind);
   if (params.window === "tonight") filtered = filterTonight(filtered, now);
+  if (params.pubOnly) {
+    filtered = filtered.filter((row) => {
+      const venueId = canonicalOutVenueId(row.venueId);
+      return venueId !== null && params.venueMatchIndex !== undefined
+        ? isOutVenueId(params.venueMatchIndex, venueId)
+        : false;
+    });
+  }
   if (params.near) filtered = sortByNear(filtered, params.near);
 
   if (params.window === "tonight") {
@@ -386,8 +403,15 @@ export async function loadWhatsOn(
     revalidation = { status: "unmeasured", reason: "baseline-read-failed" };
   }
 
+  const baselineForRequest = params.venueMatchIndex
+    ? attachOutVenues(baseline, params.venueMatchIndex).rows
+    : baseline;
+  const liveForRequest = params.venueMatchIndex
+    ? attachOutVenues(live.rows, params.venueMatchIndex).rows
+    : live.rows;
+
   const rows = filterRowsForRequest(
-    filterNotPast(mergeWhatsOn(baseline, live.rows), now),
+    filterNotPast(mergeWhatsOn(baselineForRequest, liveForRequest), now),
     params,
     now,
     deps.tonightGroupingV2 ?? false,
@@ -400,7 +424,7 @@ export async function loadWhatsOn(
   // falls back to the request instant when the provider omits its own
   // timestamp, so a live row can date itself "now" with nobody having checked
   // anything. The live layer speaks only through its own sourceObservedAt.
-  const liveRows = new Set(live.rows);
+  const liveRows = new Set(liveForRequest);
   const kindObservedAt: WhatsOnKindObservedAt = {};
   const bundledRowTimes: Array<string | null> = [];
   for (const row of rows) {

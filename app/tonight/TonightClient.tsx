@@ -74,6 +74,7 @@ import {
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
+  tonightAcceptedVenueId,
   tonightOutEventsForStatus,
   tonightListingLanes,
   tonightEmptyLead,
@@ -171,12 +172,15 @@ export default function TonightClient({
   flags,
   quietPint = null,
   softPlansWindow = false,
+  mapSelectableVenueIds,
 }: {
   flags: TrustedHandoffFlagsDTO;
   /** Server-composed quiet-pint module; null outside a quiet window. */
   quietPint?: QuietPintModule | null;
   /** Typical-pattern hour reads quiet — surfaces soft plan handoffs. */
   softPlansWindow?: boolean;
+  /** Eager-shard venue ids the map can open via `?sel=`, or null when unreadable. */
+  mapSelectableVenueIds?: readonly string[] | null;
 }) {
   const [activeKind, setActiveKind] = useState<WhatsOnKind | null>(null);
   const [origin, setOrigin] = useState<Origin | null>(null);
@@ -211,6 +215,7 @@ export default function TonightClient({
   const { rows, asOf, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
+    { pubOnly: true },
   );
   const {
     body: outBody,
@@ -218,6 +223,14 @@ export default function TonightClient({
     pending: outPending,
     retry: retryOut,
   } = useOutListings("tonight");
+  const selectableVenueIds = useMemo(
+    () => {
+      if (mapSelectableVenueIds === undefined) return undefined;
+      if (mapSelectableVenueIds === null) return null;
+      return new Set(mapSelectableVenueIds);
+    },
+    [mapSelectableVenueIds],
+  );
   const outAnswer = useMemo(
     () => ({ body: outBody, failed: outFailed, pending: outPending }),
     [outBody, outFailed, outPending],
@@ -230,13 +243,33 @@ export default function TonightClient({
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
     const now = Date.now();
-    const eligibleOutEvents = tonightOutEventsForStatus(status, outBody?.events ?? [], now);
+    const eligibleOutEvents = tonightOutEventsForStatus(
+      status,
+      outBody?.events ?? [],
+      now,
+      selectableVenueIds,
+      true,
+    );
     return {
-      listingRows: mergeTonightListingRows(rows, eligibleOutEvents, now, status),
-      listingsStatus: tonightListingsStatus(status, outAnswer, now),
+      listingRows: mergeTonightListingRows(
+        rows,
+        outBody?.events ?? [],
+        now,
+        status,
+        selectableVenueIds,
+        true,
+      ),
+      listingsStatus: tonightListingsStatus(
+        status,
+        outAnswer,
+        now,
+        rows,
+        selectableVenueIds,
+        true,
+      ),
       outEvents: eligibleOutEvents,
     };
-  }, [rows, outBody, status, outAnswer]);
+  }, [rows, outBody, status, outAnswer, selectableVenueIds]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
@@ -324,11 +357,8 @@ export default function TonightClient({
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
   );
-  // Filter chips count what the viewer actually sees — grouped families — while
-  // the provenance line below stays the raw inventory total ("16 listings
-  // tonight"). Reusing laneKindFacets on the grouped display rows keeps the map
-  // lane's own facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
+  const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
@@ -350,18 +380,18 @@ export default function TonightClient({
   const provenance = useMemo(
     () =>
       tonightProvenanceCredits({
-        merged: listingRows,
+        renderedGroups: grouped,
         outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
       }),
-    [listingRows, outEvents, outBody, checked],
+    [grouped, outEvents, outBody, checked],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
   // list short for a reason the reader is owed.
-  const listingsNote = tonightListingsNoteLine(status, outAnswer);
-  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer);
+  const listingsNote = tonightListingsNoteLine(status, outAnswer, selectableVenueIds);
+  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer, selectableVenueIds);
   // Which read a row came from decides how keeping it is recorded, so the Out
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
@@ -399,7 +429,7 @@ export default function TonightClient({
     </>
   );
   const mobileLanes = mobileSecondaryLanes(secondaryLanes);
-  const summaryRows = groupedAll.map((group) => group.row);
+  const summaryRows = grouped.map((group) => group.row);
 
   return (
     <main
@@ -434,9 +464,9 @@ export default function TonightClient({
         <TonightConditionsStrip origin={origin} />
         {ready ? (
           <TonightOnTonightSummary
-            facets={facets}
+            facets={displayedFacets}
             rows={summaryRows}
-            totalCount={groupedAll.length}
+            totalCount={grouped.length}
           />
         ) : null}
         {/* Area news needs a coarse area: the shared location's nearest Night
@@ -527,7 +557,9 @@ export default function TonightClient({
                 onClick={() => setActiveKind(null)}
               >
                 All
-                <span className="tonightChipCount">{groupedAll.length}</span>
+                {activeKind === null ? (
+                  <span className="tonightChipCount">{groupedAll.length}</span>
+                ) : null}
               </button>
               {facets.map((facet) => (
                 <button
@@ -543,7 +575,11 @@ export default function TonightClient({
                   }}
                 >
                   {facet.label}
-                  <span className="tonightChipCount">{facet.count}</span>
+                  {activeKind === null || activeKind === facet.kind ? (
+                    <span className="tonightChipCount">
+                      {activeKind === null ? facet.count : grouped.length}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>
@@ -552,7 +588,11 @@ export default function TonightClient({
           <ul id="tonight-list" className="tonightList" data-testid="tonight-list">
             {grouped.map((group) => {
               const row = group.row;
-              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(row);
+              const { primary: link, mapHref, sourceLabel } = tonightRowLinks(
+                row,
+                selectableVenueIds,
+              );
+              const venueId = tonightAcceptedVenueId(row, selectableVenueIds);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
               const walk =
@@ -658,9 +698,9 @@ export default function TonightClient({
                     </Link>
                   ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
-                  {typeof row.venueId === "string" && row.venueId.length > 0 ? (
+                  {venueId ? (
                     <TonightRowAccept
-                      venueId={row.venueId}
+                      venueId={venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
                       evidence={rowEvidence(row)}
                       placeName={row.placeName}
@@ -682,7 +722,8 @@ export default function TonightClient({
                       </summary>
                       <ul className="tonightRowMoreList">
                         {group.alternates.map((alt) => {
-                          const altLink = tonightRowLinks(alt).primary;
+                          const altLink = tonightRowLinks(alt, selectableVenueIds).primary;
+                          const altVenueId = tonightAcceptedVenueId(alt, selectableVenueIds);
                           const altWalk =
                             typeof alt.lat === "number" && typeof alt.lng === "number"
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
@@ -724,9 +765,9 @@ export default function TonightClient({
                                   ) : null}
                                 </span>
                               )}
-                              {typeof alt.venueId === "string" && alt.venueId.length > 0 ? (
+                              {altVenueId ? (
                                 <TonightRowAccept
-                                  venueId={alt.venueId}
+                                  venueId={altVenueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
                                   evidence={rowEvidence(alt)}
                                   placeName={alt.placeName}

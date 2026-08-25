@@ -33,7 +33,7 @@ describe("today listings spine", () => {
     expect(whatsOnStatusForTonightListings("ready", 2)).toBe("ready");
   });
 
-  it("merges Out events when bundled whats-on is empty", () => {
+  it("does not promote unmatched Out rows when bundled whats-on is empty", () => {
     const merged = mergeTodayListingRows(
       [],
       {
@@ -46,11 +46,20 @@ describe("today listings spine", () => {
     expect(merged).toEqual([]);
   });
 
-  it("keeps Out rows as a fallback when the whats-on read failed", () => {
+  it("keeps matched Out rows as a fallback when the whats-on read failed", () => {
     const merged = mergeTodayListingRows(
       [],
       {
-        body: { status: "ready", events: [row({ id: "out-fallback", title: "Live gig" })] },
+        body: {
+          status: "ready",
+          events: [
+            row({
+              id: "out-fallback",
+              title: "Live gig",
+              venueId: "venue-the-dove",
+            }),
+          ],
+        },
         failed: false,
         pending: false,
       },
@@ -58,6 +67,17 @@ describe("today listings spine", () => {
       "error",
     );
     expect(merged.map((r) => r.id)).toEqual(["out-fallback"]);
+  });
+
+  it("keeps Today What's-On rows without venue ids", () => {
+    const merged = mergeTodayListingRows(
+      [row({ id: "whats-on-without-venue", title: "Pub quiz" })],
+      { body: null, failed: true, pending: false },
+      NOW,
+      "ready",
+    );
+
+    expect(merged.map((r) => r.id)).toEqual(["whats-on-without-venue"]);
   });
 
   it("answers ready when an empty whats-on read answered cleanly", () => {

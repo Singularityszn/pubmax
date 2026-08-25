@@ -36,11 +36,16 @@ export function todayPicksReadStatus(
   whatsOnRowCount: number,
   out: TonightOutAnswer,
   now: number,
+  whatsOnRows: readonly import("@/lib/whatsOn").WhatsOnRow[] = [],
 ): PicksListReadStatus {
+  const whatsOnStatus = whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount);
   const listingsStatus = tonightListingsStatus(
-    whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount),
+    whatsOnStatus,
     out,
     now,
+    whatsOnRows,
+    undefined,
+    false,
   );
   return listingsStatus === "error" ? "degraded" : "ready";
 }
@@ -82,5 +87,12 @@ export function mergeTodayListingRows(
   now: number,
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
 ): import("@/lib/whatsOn").WhatsOnRow[] {
-  return mergeTonightListingRows(whatsOnRows, out.body?.events ?? [], now, whatsOnStatus);
+  return mergeTonightListingRows(
+    whatsOnRows,
+    out.body?.events ?? [],
+    now,
+    whatsOnStatus,
+    undefined,
+    false,
+  );
 }
