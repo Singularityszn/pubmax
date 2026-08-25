@@ -90,7 +90,7 @@ durable rows only when Supabase is configured.
 into `public/data/wikidata_notable_pubs.json` (CC0 ids + labels + coords +
 wiki title); the artifact is generated on demand and is not shipped in the repo.
 Heritage / future POI layer can join on name or QID. ODbL map
-layer stays OSM; this file does not become priced pins.
+layer stays OSM; the artifact does not become priced pins.
 
 ### WP5 - London amenity=bar densification (L) - follow-up
 
