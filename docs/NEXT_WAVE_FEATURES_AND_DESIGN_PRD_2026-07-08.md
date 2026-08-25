@@ -74,7 +74,7 @@ We will follow these principles on every new surface:
 
 ### 3.4 Ratings & Social Proof (New from 2026-07-07 pull)
 - Star ratings with optimistic UI (already partially built).
-- “Top Rated Pubs” and “Best Value” leaderboards.
+- Drink-menu rating detail; venue context stays in Visit Reports, not leaderboards.
 - One-rating-per-user-per-venue with anomaly detection.
 - “Then vs Now” photo comparisons (user-uploaded old photos vs current Spills).
 
