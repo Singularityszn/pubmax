@@ -33,18 +33,37 @@ export default function PlanDescribeFirst({
   const [touched, setTouched] = useState(false);
   const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
+  const reportedPrefill = useRef<string | null>(null);
+  const onQueryChangeRef = useRef(onQueryChange);
+  useEffect(() => {
+    onQueryChangeRef.current = onQueryChange;
+  }, [onQueryChange]);
   useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     const nextQuery = initialQuery.slice(0, 500);
     const nextStopCount = normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount);
+    let cancelled = false;
     // Prefill is an external handoff. Defer its state adoption so React 19 does
     // not treat the effect as a synchronous render cascade.
     void Promise.resolve().then(() => {
+      if (cancelled) return;
       setQuery(nextQuery);
       if (!stopCountTouched) setStopCount(nextStopCount);
+      if (nextQuery && reportedPrefill.current !== nextQuery) {
+        reportedPrefill.current = nextQuery;
+        onQueryChangeRef.current?.(nextQuery);
+      }
     });
+    return () => { cancelled = true; };
   }, [initialQuery, stopCountTouched, touched]);
+
+  useEffect(() => {
+    const nextQuery = initialQuery.slice(0, 500);
+    if (!nextQuery || initialQuery !== appliedPrefill.current || reportedPrefill.current === nextQuery) return;
+    reportedPrefill.current = nextQuery;
+    onQueryChangeRef.current?.(nextQuery);
+  }, [initialQuery]);
 
   function submit(queryOverride = query) {
     const trimmed = queryOverride.trim();

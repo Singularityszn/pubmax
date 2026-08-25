@@ -277,6 +277,22 @@ describe("PlanDescribeFirst chip intent", () => {
     expect(onQueryChange).toHaveBeenLastCalledWith("Camden");
   });
 
+  it("reports an adopted prefill to the composer before leaving describe-first", async () => {
+    const onQueryChange = vi.fn();
+    await act(async () => {
+      root.render(createElement(PlanDescribeFirst, {
+        initialQuery: "Camden",
+        onSubmit: vi.fn(),
+        onGuideMeInstead: vi.fn(),
+        onQueryChange,
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(onQueryChange).toHaveBeenLastCalledWith("Camden");
+  });
+
   it("geo seed guard refuses describe-first with live query text", () => {
     expect(
       composerGeolocationMaySeedIntake({ showsDescribeFirst: true, hasQueryText: true }),
