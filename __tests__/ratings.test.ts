@@ -5,12 +5,10 @@ import {
   MIN_VOTES_TO_SHOW,
   PRIOR_WEIGHT,
   RATING_VALUES,
-  TOP_RATED_WINDOW_DAYS,
   aggregateRatings,
   isRatingValue,
   parseRating,
   percentileFrame,
-  topRated,
   type RatingRecord,
 } from "@/lib/ratings";
 
@@ -180,50 +178,5 @@ describe("percentileFrame", () => {
   it("null score or empty distribution → null (no fabricated standing)", () => {
     expect(percentileFrame(null, [1, 2, 3])).toBe(null);
     expect(percentileFrame(4, [])).toBe(null);
-  });
-});
-
-describe("topRated", () => {
-  const recent = new Date(NOW - DAY_MS).toISOString();
-  const stale = new Date(NOW - (TOP_RATED_WINDOW_DAYS + 5) * DAY_MS).toISOString();
-
-  it("ranks by bayesian, omits below-floor items entirely, applies the window", () => {
-    const items = [
-      { ref: "great", ratings: votes(Array(12).fill(5), recent) },
-      { ref: "good", ratings: votes(Array(12).fill(4), recent) },
-      // Below the floor → omitted, not hedged.
-      { ref: "sparse", ratings: votes([5, 5], recent) },
-      // All votes outside the window → count 0 → omitted.
-      { ref: "faded", ratings: votes(Array(12).fill(5), stale) },
-    ];
-    const top = topRated(items, { now: NOW });
-    expect(top.map((entry) => entry.ref)).toEqual(["great", "good"]);
-    expect(top[0].summary.shown).toBe(true);
-  });
-
-  it("ties break on count, then ref (deterministic)", () => {
-    const items = [
-      { ref: "b", ratings: votes(Array(10).fill(4), recent) },
-      { ref: "a", ratings: votes(Array(10).fill(4), recent) },
-      { ref: "busier", ratings: votes(Array(20).fill(4), recent) },
-    ];
-    const top = topRated(items, { now: NOW });
-    // Equal bayesian for a/b; "busier" has the same average but MORE votes →
-    // its bayesian sits closer to 4 (above the prior-pulled 10-vote pair).
-    expect(top[0].ref).toBe("busier");
-    expect(top.slice(1).map((entry) => entry.ref)).toEqual(["a", "b"]);
-  });
-
-  it("respects the limit (and a zero limit yields nothing)", () => {
-    const items = Array.from({ length: 5 }, (_, i) => ({
-      ref: `pub-${i}`,
-      ratings: votes(Array(10).fill(4), recent),
-    }));
-    expect(topRated(items, { now: NOW, limit: 2 })).toHaveLength(2);
-    expect(topRated(items, { now: NOW, limit: 0 })).toHaveLength(0);
-  });
-
-  it("empty input → empty list", () => {
-    expect(topRated([], { now: NOW })).toEqual([]);
   });
 });

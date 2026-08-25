@@ -74,7 +74,7 @@ silently stale.
 | profileStore | factory-ready | Public profile projection and account-owned profile rows. |
 | pubPalStore | legacy-exception | Multiple inline Supabase configuration checks around private Pub Pal state. |
 | pushTokenStore | factory-ready | Device push registration rows. |
-| ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection. |
+| ratingsStore | factory-ready | Drink and venue rating rows with shared backend selection; public reads expose summaries, not venue leaderboards. |
 | reactionsStore | factory-ready | Pint Drop reactions with shared backend selection. |
 | referralStore | factory-eligible, policy-heavy | Referral identity, milestone, and proof-expiry policy. |
 | roundsStore | factory-eligible, policy-heavy | Round membership, spend-line provenance, and promotion policy. |

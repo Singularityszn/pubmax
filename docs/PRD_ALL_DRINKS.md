@@ -22,9 +22,9 @@ thinks *anything fun*, they think of us.
 
 - **Ratings: simple 1–5 stars (0.5 granularity)** — Vivino/Untappd both chose consumer-familiar stars over
   100-pt expert scales. Show **percentile framing** ("beats 85% of London pours"), not just the average.
-- **Aggregation integrity (Untappd's model, copy it):** per-drink pure average; per-venue weighted; a
-  **Bayesian average** with a minimum-vote floor + recency window for "top rated" lists; **hide ratings under
-  ~10 votes**; activity (a Spill/check-in) is distinct from a rating (blank ≠ zero).
+- **Aggregation integrity (Untappd's model, copy it):** per-drink pure average; any venue-level summary is
+  sample-size-aware; **hide ratings under ~10 votes**; activity (a Spill/check-in) is distinct from a rating
+  (blank ≠ zero). Venue visit context belongs to Visit Reports, not a public star leaderboard.
 - **Gamification off structured metadata** (ABV badges, styles) drives engagement — BUT an alcohol app must
   **not reward consumption frequency/streaks** (documented duty-of-care risk). Badges celebrate *breadth &
   discovery* (styles tried, regions, distilleries, boroughs), never volume/speed.
@@ -61,8 +61,9 @@ sources are permissible; every price `{source, observedAt}` stamped; opens a rev
 Robots/ToS respected; documented ceiling where a source can't be fetched cleanly.
 
 **E3 — Ratings.** `lib/ratings.ts` (1–5 stars, Bayesian aggregate, ≥10-vote floor, recency window, percentile),
-`drink_ratings`/`venue_ratings` stores + API, star UI on the drink menu + venue header + feed cards; "Top rated
-in <borough> this month" lists; discovery/badges that celebrate **breadth** (styles/regions/distilleries tried).
+`drink_ratings`/`venue_ratings` stores + API, star UI on the drink menu + feed cards; discovery/badges that
+celebrate **breadth** (styles/regions/distilleries tried). Venue visit context belongs to Visit Reports, not a
+venue star-rating or top-rated-pub surface.
 
 **E4 — Messaging + social posting.** Direct/threaded **messages** between handles (dual-backend store, realtime
 via the existing `lib/realtime.ts` signal-only pattern + polling fallback; migration for `conversations`/`messages`;

@@ -192,12 +192,12 @@ The next phase should prioritize:
 - Materialize drink updates from governed price update files into venue menus.
 - Distinguish drink ratings from pub ratings:
   - drink rating: the specific pour/menu item;
-  - venue rating: atmosphere/service/value/story;
+  - venue context: atmosphere/service/value/story in Visit Reports;
   - crawl rating: route/night experience.
 - Use 1-5 stars with 0.5 granularity where ratings are user-facing.
 - Hide ranking/aggregate claims below the sample-size floor.
-- Use Bayesian or recency-weighted aggregates for top lists.
-- Add "Top rated near me", "Best low/no nearby", "Best cocktails by borough", and "Best pint under X" only after rating sample thresholds are met.
+- Keep drink rating summaries sample-size-aware; venue discovery uses Visit Reports,
+  not public star leaderboards.
 
 ### P1: Live Prices and Data Governance
 

@@ -60,7 +60,7 @@ create index if not exists drink_ratings_ref_idx
 -- Secondary: a venue's drink votes (venue menu surfaces).
 create index if not exists drink_ratings_venue_idx
   on public.drink_ratings (venue_id);
--- Recency-window scans for "top rated" lists.
+-- Recency-aware reads over recent drink votes.
 create index if not exists drink_ratings_created_idx
   on public.drink_ratings (created_at);
 
@@ -94,7 +94,7 @@ end $$;
 -- The hot read: every vote for one venue.
 create index if not exists venue_ratings_venue_idx
   on public.venue_ratings (venue_id);
--- Recency-window scans for "Top rated pubs this month".
+-- Recency-aware reads over recent venue votes.
 create index if not exists venue_ratings_created_idx
   on public.venue_ratings (created_at);
 

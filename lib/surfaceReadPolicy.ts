@@ -74,7 +74,6 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/profile/OutTonightCrewLine.tsx", fetchCount: 1, reason: "presence is live and account-scoped" },
   { path: "components/profile/OutTonightToggle.tsx", fetchCount: 1, reason: "presence read and toggle are live account actions" },
   { path: "components/profile/SavedListDetail.tsx", fetchCount: 1, reason: "saved-list detail is private viewer context with mutation-sensitive state" },
-  { path: "components/ratings/TopRatedPubs.tsx", fetchCount: 1, reason: "unmounted optional rating probe has no core painted surface" },
   { path: "components/ratings/ratingsClient.ts", fetchCount: 1, reason: "rating client is an additive detail read" },
   { path: "components/savedpubs/SaveToListControl.tsx", fetchCount: 1, reason: "saved-pub action is a mutation" },
   { path: "components/social/CreatorListsLane.tsx", fetchCount: 1, reason: "Social creator-list discovery is no-store" },

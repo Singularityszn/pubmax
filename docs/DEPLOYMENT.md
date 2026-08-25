@@ -88,7 +88,7 @@ Apply every SQL file in `supabase/migrations/` **in filename timestamp order** (
 | `0004_report_pint_drop.sql` | `report_pint_drop` RPC — atomic increment-stamp-hide so concurrent reports can't lose a count. |
 | `0005`-`0018` | Social layer, auth ownership, notifications, rounds, visibility, comments, realtime publication, drink rows, reports, and followable saved lists. |
 | `0019_messages.sql` | Durable conversations/messages with RLS denying raw public table access. |
-| `0020_ratings.sql` | Durable drink/pub ratings with raw row access denied; public reads go through aggregate API responses. |
+| `0020_ratings.sql` | Durable drink ratings and venue-summary compatibility rows with raw row access denied; public reads go through aggregate API responses. The retired venue panel and top-rated-pub list are not part of the deployed surface. |
 
 Run each via the Supabase SQL editor, or with the Supabase CLI (`supabase db push` / `supabase migration up`) pointed at the project.
 

@@ -7,11 +7,10 @@
 // two can never drift. Precedent: lib/pintContributions.ts sits beside
 // lib/pintDropShared.ts as the browser-safe twin of a server domain.
 //
-// DUTY OF CARE (kept in step with components/ratings/VenueRatingPanel.tsx, which
-// deliberately carries "no streaks" for the DRINKER): every streak/tally here
-// rewards the CONTRIBUTION — days you added a price observation to the map — and
-// never the drinking. The reward is visible impact ("you mapped 12 pints in
-// Hackney"), never a points economy. Copy must stay on the mapping framing.
+// DUTY OF CARE: every streak/tally here rewards the CONTRIBUTION — days you
+// added a price observation to the map — and never the drinking. The reward is
+// visible impact ("you mapped 12 pints in Hackney"), never a points economy.
+// Copy must stay on the mapping framing.
 
 import { DAY_MS } from "@/lib/dayMs";
 

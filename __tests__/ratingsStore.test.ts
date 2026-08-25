@@ -8,7 +8,7 @@ import {
 } from "@/lib/ratingsStore";
 import type { RatingValue } from "@/lib/ratings";
 
-// Memory-store contract coverage: upsert semantics, batch summaries, top list.
+// Memory-store contract coverage: upsert semantics and batch summaries.
 // Supabase env cleared per convention so ratingsStore() deterministically
 // selects the in-memory backend.
 beforeEach(() => {
@@ -88,26 +88,5 @@ describe("memory store — summaryFor() batch", () => {
 
   it("empty refs → empty map", async () => {
     expect(await memoryRatingsStore.summaryFor("venue", [])).toEqual({});
-  });
-});
-
-describe("memory store — top()", () => {
-  it("ranks floor-clearing items by bayesian and omits sparse ones", async () => {
-    for (let i = 0; i < 10; i++) await cast("great", `g${i}`, 5);
-    for (let i = 0; i < 10; i++) await cast("good", `d${i}`, 4);
-    await cast("sparse", "one", 5);
-    const top = await memoryRatingsStore.top("venue");
-    expect(top.map((entry) => entry.ref)).toEqual(["great", "good"]);
-  });
-
-  it("respects the limit", async () => {
-    for (const ref of ["a", "b", "c"]) {
-      for (let i = 0; i < 10; i++) await cast(ref, `${ref}${i}`, 4);
-    }
-    expect(await memoryRatingsStore.top("venue", { limit: 2 })).toHaveLength(2);
-  });
-
-  it("empty store → empty list", async () => {
-    expect(await memoryRatingsStore.top("drink")).toEqual([]);
   });
 });

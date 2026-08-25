@@ -47,7 +47,7 @@
   outline-offset: 3px;
 }
 
-/* ── Shared rating-surface furniture (venue panel + drink rows) ──────────── */
+/* ── Shared rating-surface furniture (drink rows) ───────────────────────── */
 
 .ratingLine {
   display: inline-flex;
@@ -97,21 +97,6 @@
 .ratingHandleInput:focus-visible {
   outline: 2px solid var(--rating-accent, var(--color-accent));
   outline-offset: 1px;
-}
-
-/* Venue-header panel (bar tab / ledger) */
-.venueRatingPanel {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  margin-top: 0.75rem;
-}
-
-.venueRatingPanel .ratingRowLabel {
-  font-size: 0.72rem;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-text-muted);
 }
 
 /* Compact drink-menu row */

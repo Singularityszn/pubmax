@@ -33,7 +33,7 @@ After the massive pull (`611c40ff`), the codebase now contains:
 
 **Core Implemented Areas:**
 - **Drinks expansion** — Full drink categorization, price refresh pipeline, Wetherspoons integration, non-alcoholic support, new `lib/drinks.ts`, `components/drinks/`.
-- **Ratings** — Star ratings, venue ratings, top-rated pubs, optimistic UI.
+- **Ratings** — Star ratings, drink ratings, optimistic UI; venue context stays in Visit Reports.
 - **Messaging** — Private messages, realtime, `app/messages/`, `lib/messages.ts`.
 - **Rounds & Presence** — Group rounds, ambient presence, round presence.
 - **Social primitives** — The Spill, optimistic posting, reactions, comments, saved lists, follow graph.
@@ -208,7 +208,7 @@ After the massive pull (`611c40ff`), the codebase now contains:
 
 **Weeks 5–6: All-Drinks + Ratings + Dry Mode**
 - Dry Crawl filters, mocktail attributes, non-alcoholic routes.
-- Full ratings surfaces (StarRating, VenueRatingPanel, TopRatedPubs).
+- Drink rating surfaces (StarRating, DrinkRatingRow, ratingsClient on the venue menu).
 - The Dry Spill mode.
 
 **Weeks 7–8: Generational Polish + Viral**

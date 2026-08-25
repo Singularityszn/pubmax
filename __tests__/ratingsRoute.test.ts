@@ -129,20 +129,4 @@ describe("GET /api/ratings", () => {
     expect(res.status).toBe(200);
     expect(await res.json()).toEqual({ summaries: {} });
   });
-
-  it("top mode returns the floor-gated Bayesian ranking", async () => {
-    for (let i = 0; i < 10; i++) {
-      await post({ kind: "venue", ref: "great", handle: freshHandle(), rating: 5 });
-    }
-    await post({ kind: "venue", ref: "sparse", handle: freshHandle(), rating: 5 });
-    const res = await get("kind=venue&top=1&limit=5");
-    expect(res.status).toBe(200);
-    const body = (await res.json()) as { top: Array<{ ref: string }> };
-    expect(body.top.map((entry) => entry.ref)).toEqual(["great"]);
-  });
-
-  it("top mode clamps a silly limit", async () => {
-    const res = await get("kind=venue&top=1&limit=99999");
-    expect(res.status).toBe(200);
-  });
 });

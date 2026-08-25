@@ -891,8 +891,7 @@
 }
 
 /* ── Focused visual polish: bright listing surfaces + coral/blue accents ── */
-.discoverExplore.catShowcase,
-.topRatedItem {
+.discoverExplore.catShowcase {
   border-color: color-mix(in srgb, var(--line) 74%, var(--panel-raised));
   background-color: var(--panel-raised);
   box-shadow: 0 12px 30px color-mix(in srgb, var(--ink) 8%, transparent);
@@ -911,30 +910,9 @@
   color: var(--river);
 }
 
-.topRatedItem {
-  transition: background-color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-.topRatedRank {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.85rem;
-  height: 1.85rem;
-  border: 1px solid color-mix(in srgb, var(--brass) 36%, var(--line));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--brass) 8%, var(--panel-raised));
-}
-
 /* Hover-capable pointers only — the lane's own glyph/link hover already lives
-   in categoryShowcase.css; this covers the top-rated row and editorial CTA. */
-@media (hover: hover) and (pointer: fine) {
-  .topRatedItem:hover {
-    background: color-mix(in srgb, var(--brass) 5%, var(--panel-raised));
-  }
-}
-
+   in categoryShowcase.css; this covers the editorial CTA. */
 @media (hover: hover) and (pointer: fine) and (prefers-reduced-motion: no-preference) {
-  .topRatedItem:hover,
   .editorialLink:hover {
     transform: translateY(-2px);
   }
