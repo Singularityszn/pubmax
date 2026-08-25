@@ -14,6 +14,12 @@ export function offlineOrMessage(onlineMessage: string): string {
   return isBrowserOffline() ? OFFLINE_RETRY_MESSAGE : onlineMessage;
 }
 
+export function inlineOfflineOrMessageJs(onlineMessage: string): string {
+  const offlineLiteral = JSON.stringify(OFFLINE_RETRY_MESSAGE);
+  const onlineLiteral = JSON.stringify(onlineMessage);
+  return `navigator.onLine===false?${offlineLiteral}:${onlineLiteral}`;
+}
+
 function safeFallback(fallback: string): string {
   return typeof fallback === "string" && fallback.trim()
     ? fallback.trim()

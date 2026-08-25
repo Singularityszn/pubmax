@@ -12,7 +12,7 @@ import { getPintDropById, type PublicDrop } from "@/lib/pintDropLookup";
 import { buildPintDropShareText } from "@/lib/shareArtifacts";
 import { type ViewerContext } from "@/lib/pintDrops";
 import { formatGbp } from "@/lib/formatGbp";
-import { OFFLINE_RETRY_MESSAGE } from "@/lib/apiErrorMessage";
+import { inlineOfflineOrMessageJs } from "@/lib/apiErrorMessage";
 
 import "./permalink.css";
 
@@ -249,7 +249,7 @@ function MemoryCard({ drop, id, nonce }: { drop: PublicDrop; id: string; nonce?:
       <script
         nonce={nonce}
         dangerouslySetInnerHTML={{
-          __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');var failed=btn.querySelector('[data-copy-failed]');function reset(){if(idle)idle.hidden=false;if(done)done.hidden=true;if(failed)failed.hidden=true;}function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;if(failed)failed.hidden=true;setTimeout(reset,2000);}function fail(){if(idle)idle.hidden=true;if(done)done.hidden=true;if(failed)failed.hidden=false;if(failed)failed.textContent=navigator.onLine===false?${JSON.stringify(OFFLINE_RETRY_MESSAGE)}:'Could not copy link. Try again.';setTimeout(reset,3000);}try{navigator.clipboard.writeText(window.location.href).then(flash,fail);}catch(e){fail();}});})();`,
+          __html: `(function(){var btn=document.querySelector('[data-copy-link]');if(!btn)return;btn.addEventListener('click',function(){var idle=btn.querySelector('[data-copy-idle]');var done=btn.querySelector('[data-copy-done]');var failed=btn.querySelector('[data-copy-failed]');function reset(){if(idle)idle.hidden=false;if(done)done.hidden=true;if(failed)failed.hidden=true;}function flash(){if(idle)idle.hidden=true;if(done)done.hidden=false;if(failed)failed.hidden=true;setTimeout(reset,2000);}function fail(){if(idle)idle.hidden=true;if(done)done.hidden=true;if(failed)failed.hidden=false;if(failed)failed.textContent=${inlineOfflineOrMessageJs("Could not copy link. Try again.")};setTimeout(reset,3000);}try{navigator.clipboard.writeText(window.location.href).then(flash,fail);}catch(e){fail();}});})();`,
         }}
       />
     </main>

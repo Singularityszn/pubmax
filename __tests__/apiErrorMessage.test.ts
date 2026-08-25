@@ -5,7 +5,7 @@ import {
   findYourLotInviteFailureMessage,
   INVITE_LINK_FALLBACK_MESSAGE,
   OFFLINE_RETRY_MESSAGE,
-  offlineOrMessage,
+  inlineOfflineOrMessageJs,
 } from "@/lib/apiErrorMessage";
 
 describe("errorMessageFrom", () => {
@@ -41,28 +41,12 @@ describe("errorMessageFrom", () => {
   });
 });
 
-describe("offlineOrMessage", () => {
-  it("returns offline copy when the browser is offline", () => {
-    const online = navigator.onLine;
-    Object.defineProperty(navigator, "onLine", {
-      configurable: true,
-      value: false,
-    });
-    try {
-      expect(offlineOrMessage("Could not copy link. Try again.")).toBe(
-        OFFLINE_RETRY_MESSAGE,
-      );
-    } finally {
-      Object.defineProperty(navigator, "onLine", {
-        configurable: true,
-        value: online,
-      });
-    }
-  });
+describe("inlineOfflineOrMessageJs", () => {
+  it("serializes offline and online messages into a browser expression", () => {
+    const onlineMessage = 'Could not copy "link". Try again.';
 
-  it("returns the online message when the browser is online", () => {
-    expect(offlineOrMessage("Could not copy link. Try again.")).toBe(
-      "Could not copy link. Try again.",
+    expect(inlineOfflineOrMessageJs(onlineMessage)).toBe(
+      `navigator.onLine===false?${JSON.stringify(OFFLINE_RETRY_MESSAGE)}:${JSON.stringify(onlineMessage)}`,
     );
   });
 });

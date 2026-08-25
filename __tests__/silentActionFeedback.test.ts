@@ -3,8 +3,48 @@ import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
+import { OFFLINE_RETRY_MESSAGE, offlineOrMessage } from "@/lib/apiErrorMessage";
+
 const source = (file: string) =>
   readFileSync(join(process.cwd(), file), "utf8");
+
+describe("offlineOrMessage", () => {
+  it("returns offline copy when the browser is offline", () => {
+    const online = navigator.onLine;
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: false,
+    });
+    try {
+      expect(offlineOrMessage("Could not copy link. Try again.")).toBe(
+        OFFLINE_RETRY_MESSAGE,
+      );
+    } finally {
+      Object.defineProperty(navigator, "onLine", {
+        configurable: true,
+        value: online,
+      });
+    }
+  });
+
+  it("returns the online message when the browser is online", () => {
+    const online = navigator.onLine;
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: true,
+    });
+    try {
+      expect(offlineOrMessage("Could not copy link. Try again.")).toBe(
+        "Could not copy link. Try again.",
+      );
+    } finally {
+      Object.defineProperty(navigator, "onLine", {
+        configurable: true,
+        value: online,
+      });
+    }
+  });
+});
 
 describe("silent user action feedback fence", () => {
   it("keeps profile message open failures visible and retryable", () => {
@@ -12,7 +52,6 @@ describe("silent user action feedback fence", () => {
 
     expect(file).toContain("errorMessageFrom");
     expect(file).toContain("Could not open messages. Try again.");
-    expect(file).toContain("offlineOrMessage");
     expect(file).toContain('role="status"');
     expect(file).not.toContain("best-effort - a failed open leaves the profile as-is");
   });
@@ -37,7 +76,6 @@ describe("silent user action feedback fence", () => {
 
     for (const file of [thread, hook]) {
       expect(file).toContain("errorMessageFrom");
-      expect(file).toContain("offlineOrMessage");
     }
     expect(report).toContain("reportErrors");
     expect(report).toContain('role="status"');
@@ -72,14 +110,12 @@ describe("silent user action feedback fence", () => {
 
     expect(agent).toContain("Could not copy invite draft. Try again.");
     expect(safeNight).toContain("clipboard unavailable");
-    expect(safeNight).toContain("offlineOrMessage");
   });
 
   it("keeps optimistic preference toggles honest when saving rolls back", () => {
     const pal = source("components/pal/PalExperience.tsx");
 
     expect(pal).toContain("Pal control update could not be saved.");
-    expect(pal).toContain("offlineOrMessage");
     expect(pal).toContain('setPalAnimationState("error")');
   });
 });
