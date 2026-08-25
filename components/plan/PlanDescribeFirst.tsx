@@ -6,6 +6,7 @@ import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
 import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
@@ -28,6 +29,7 @@ export default function PlanDescribeFirst({
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
   const [touched, setTouched] = useState(false);
+  const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
   useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
@@ -43,9 +45,17 @@ export default function PlanDescribeFirst({
   }
 
   function submitChip(value: string) {
-    const inferred = normalizePlanStopCount(inferNightContext(value).context.stopCount);
-    setStopCount(inferred);
-    onSubmit(value, inferred);
+    const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
+    const resolved = resolveDescribeChipSubmit({
+      touched,
+      query,
+      stopCountTouched,
+      stopCount,
+      chipText: value,
+      chipInferredStopCount,
+    });
+    if (!stopCountTouched) setStopCount(resolved.stopCount);
+    onSubmit(resolved.query, resolved.stopCount);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -77,7 +87,13 @@ export default function PlanDescribeFirst({
         />
         <button type="button" onClick={() => submit()} disabled={!query.trim()}>Make a plan</button>
       </div>
-      <PlanStopCountPicker value={stopCount} onChange={setStopCount} />
+      <PlanStopCountPicker
+        value={stopCount}
+        onChange={(next) => {
+          setStopCountTouched(true);
+          setStopCount(next);
+        }}
+      />
       <WantedPlanChips onPick={submitChip} />
       <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
         <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>
