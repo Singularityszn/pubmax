@@ -95,7 +95,7 @@ describe("/tonight pub surface", () => {
 
   it("withholds map links for venue ids the eager index does not carry", () => {
     const emptyOut: TonightOutAnswer = {
-      body: { status: "ready", events: [] },
+      body: { status: "ready", events: [], venueMatch: "ready" },
       failed: false,
       pending: false,
     };
@@ -119,6 +119,7 @@ describe("/tonight pub surface", () => {
       body: {
         status: "ready",
         events: [unmatchedTheatre, row({ id: "tm-2", title: "West End", placeName: "Palace Theatre" })],
+        venueMatch: "ready",
       },
       failed: false,
       pending: false,
@@ -129,6 +130,23 @@ describe("/tonight pub surface", () => {
     expect(
       tonightListingsStatus("empty", outWithOnlyUnmatched, NOW, [], SELECTABLE),
     ).toBe("empty");
+  });
+
+  it("names an unresolved Out venue check instead of showing a quiet night", () => {
+    const outAnswer: TonightOutAnswer = {
+      body: {
+        status: "ready",
+        events: [unmatchedTheatre],
+        venueMatch: "unavailable",
+      },
+      failed: false,
+      pending: false,
+    };
+
+    expect(tonightListingsStatus("empty", outAnswer, NOW, [], SELECTABLE)).toBe("error");
+    expect(tonightListingsNoteLine("empty", outAnswer, SELECTABLE)).toBe(
+      TONIGHT_VENUE_INDEX_FAILED_LINE,
+    );
   });
 
   it("does not call ready when only unmatched Out rows survived filtering", () => {

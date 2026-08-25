@@ -389,7 +389,7 @@ export default function TonightClient({
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
       }),
-    [groupedAll, outEvents, outBody, checked],
+    [grouped, outEvents, outBody, checked],
   );
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the

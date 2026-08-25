@@ -68,13 +68,14 @@ const finishedOutRow = row({
 
 const pendingOut: TonightOutAnswer = { body: null, failed: false, pending: true };
 const emptyReadyOut: TonightOutAnswer = {
-  body: { status: "ready", events: [] },
+  body: { status: "ready", events: [], venueMatch: "ready" },
   failed: false,
   pending: false,
 };
 const eventOut: TonightOutAnswer = {
   body: {
     status: "ready",
+    venueMatch: "ready",
     events: [
       row({
         id: "tm-1",
@@ -193,7 +194,7 @@ describe("tonight listings status", () => {
     // The merge drops these rows, so a "ready" here paints no cards and no
     // quiet-night sentence either: the empty room this whole change exists for.
     const finishedOut: TonightOutAnswer = {
-      body: { status: "ready", events: [finishedOutRow] },
+      body: { status: "ready", events: [finishedOutRow], venueMatch: "ready" },
       failed: false,
       pending: false,
     };
@@ -605,6 +606,7 @@ describe("tonight reads the listings lane's own health", () => {
     body: {
       status: "degraded",
       listingsStatus: "ready",
+      venueMatch: "ready",
       events: [],
       reason: "Some listings could not be checked.",
     },

@@ -21,7 +21,10 @@ export type TonightOutAnswer = {
   body:
     | (Pick<OutResponse, "status" | "events" | "reason"> &
         Partial<
-          Pick<OutResponse, "observedAt" | "listingsStatus" | "listingsReason">
+          Pick<
+            OutResponse,
+            "observedAt" | "listingsStatus" | "listingsReason" | "venueMatch"
+          >
         >)
     | null;
   failed: boolean;
@@ -95,6 +98,11 @@ function outListingsStatus(out: TonightOutAnswer): {
   return outListingsHealth(out.body);
 }
 
+function outVenueMatchUnavailable(out: TonightOutAnswer): boolean {
+  if (!out.body || outListingsHealth(out.body).status !== "ready") return false;
+  return out.body.venueMatch !== "ready";
+}
+
 /** One list: What's-On plus eligible Out events, newest observation wins a clash. */
 export function mergeTonightListingRows(
   whatsOnRows: readonly WhatsOnRow[],
@@ -163,6 +171,7 @@ export function tonightListingsStatus(
   );
   if (merged.length > 0) return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
+  if (pubOnly && outVenueMatchUnavailable(out)) return "error";
   if (
     whatsOn === "error" ||
     out.failed ||
@@ -240,7 +249,9 @@ export function tonightListingsNoteLine(
   out: TonightOutAnswer,
   selectable: TonightSelectableVenueIds = undefined,
 ): string | null {
-  if (selectable === null) return TONIGHT_VENUE_INDEX_FAILED_LINE;
+  if (selectable === null || outVenueMatchUnavailable(out)) {
+    return TONIGHT_VENUE_INDEX_FAILED_LINE;
+  }
   const reports = tonightLaneReports(whatsOn, out);
   return reports.length > 0 ? reports.map((report) => report.line).join(" · ") : null;
 }
@@ -256,7 +267,7 @@ export function tonightNoteOffersRetry(
   out: TonightOutAnswer,
   selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
-  if (selectable === null) return true;
+  if (selectable === null || outVenueMatchUnavailable(out)) return true;
   return tonightLaneReports(whatsOn, out).some(
     (report) => report.lane === "whats-on" && report.retryable,
   );
