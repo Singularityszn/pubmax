@@ -59,6 +59,10 @@ describe("plan composer chip intent policy", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
     const synced = syncPlanIntakeAreaFromQuery(draft, "Canary Wharf after work");
     expect(synced.answers.area).toBeNull();
+    expect(synced.skippedSteps).toContain("area");
+    const resynced = syncPlanIntakeAreaFromQuery(synced, "Camden crawl tonight");
+    expect(resynced.answers.area).toBe("camden");
+    expect(resynced.skippedSteps).not.toContain("area");
   });
 
   it("preserves explicit people selection when concierge infers a route", () => {
@@ -68,7 +72,7 @@ describe("plan composer chip intent policy", () => {
       partyType: "friends",
       groupSize: 6,
       stopCount: 3,
-      budget: "mid",
+      budget: "standard",
       budgetLimitPence: null,
       zeroProof: false,
       wetherspoonsPreferred: false,
@@ -91,14 +95,14 @@ describe("plan composer chip intent policy", () => {
     expect(reconciled.stopCount).toBe(3);
   });
 
-  it("aligns stop count with a generated route so lock can enable", () => {
+  it("preserves an explicit stop count when generated route length differs", () => {
     const explicit: NightContext = {
       nightArea: "camden",
       daypart: "evening",
       partyType: "friends",
       groupSize: 4,
-      stopCount: 2,
-      budget: "mid",
+      stopCount: 4,
+      budget: "standard",
       budgetLimitPence: null,
       zeroProof: false,
       wetherspoonsPreferred: false,
@@ -107,9 +111,29 @@ describe("plan composer chip intent policy", () => {
       accessibility: [],
       transportConstraints: [],
     };
-    const inferred: NightContext = { ...explicit, stopCount: 2 };
+    const inferred: NightContext = { ...explicit, stopCount: 3 };
     const reconciled = reconcileGeneratedNightContext(inferred, explicit, 3);
-    expect(reconciled.stopCount).toBe(3);
+    expect(reconciled.stopCount).toBe(4);
+  });
+
+  it("uses generated route length when no stop count was selected", () => {
+    const inferred: NightContext = {
+      nightArea: "camden",
+      daypart: "evening",
+      partyType: "friends",
+      groupSize: 4,
+      stopCount: 3,
+      budget: "standard",
+      budgetLimitPence: null,
+      zeroProof: false,
+      wetherspoonsPreferred: false,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+    };
+    const reconciled = reconcileGeneratedNightContext(inferred, {}, 4);
+    expect(reconciled.stopCount).toBe(4);
   });
 
   it("fills template chips into empty fields only", () => {
@@ -157,6 +181,27 @@ describe("PlanDescribeFirst chip intent", () => {
     });
 
     expect(onSubmit).toHaveBeenCalledWith("Camden", 6);
+  });
+
+  it("reports typed query text to the composer before leaving describe-first", async () => {
+    const onQueryChange = vi.fn();
+    await act(async () => {
+      root.render(createElement(PlanDescribeFirst, {
+        onSubmit: vi.fn(),
+        onGuideMeInstead: vi.fn(),
+        onQueryChange,
+      }));
+    });
+
+    const query = container.querySelector<HTMLInputElement>("#plan-describe-first-query");
+    if (!query) throw new Error("describe-first query did not render");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    setter?.call(query, "Camden");
+    await act(async () => {
+      query.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+
+    expect(onQueryChange).toHaveBeenLastCalledWith("Camden");
   });
 
   it("geo seed guard refuses describe-first with live query text", () => {

@@ -1674,9 +1674,12 @@ function PlanComposerForm({
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
+        const submittedContext = intake.answers.stopCount === undefined
+          ? explicitNightContext
+          : { ...explicitNightContext, stopCount: intake.answers.stopCount };
         const reconciled = reconcileGeneratedNightContext(
           inferredContext,
-          explicitNightContext,
+          submittedContext,
           suggested.length,
         );
         setNightContext(reconciled);
@@ -1854,6 +1857,7 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
+          onQueryChange={setConciergeQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
       ) : planComposerShowsIntake({

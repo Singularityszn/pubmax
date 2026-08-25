@@ -15,10 +15,12 @@ export { DESCRIBE_FIRST_CHIPS };
 export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
+  onQueryChange,
   initialQuery = "",
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
+  onQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
 }) {
@@ -81,6 +83,7 @@ export default function PlanDescribeFirst({
             setTouched(true);
             const value = event.target.value;
             setQuery(value);
+            onQueryChange?.(value);
             if (!stopCountTouched) {
               setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
             }

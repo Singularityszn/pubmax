@@ -53,6 +53,7 @@ import PlanComposer from "@/components/plan/PlanComposer";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import {
   createPlanIntakeDraft,
+  readPlanIntakeDraft,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -291,14 +292,32 @@ describe("PlanComposer describe prefill", () => {
 // states below are the ones that used to hide the only surface showing it - so
 // the CTA landed on /plan with the ask nowhere on screen and nothing said.
 describe("PlanComposer never drops a URL ask", () => {
+  it("does not start geolocation after typed describe text enters the wizard", async () => {
+    const getCurrentPosition = vi.fn();
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Camden");
+      clickButton("Guide me instead");
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(readPlanIntakeDraft(localStorage)).toBeNull();
+  });
+
   it("uses submitted concierge text as area authority for the main composer button", async () => {
-    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "clapham" }));
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "clapham" })));
     writePlanDraftEnvelope(
       {
         title: "Friday plan",
         creatorName: "Karan",
         startTime: "2026-08-28T18:00:00.000Z",
-        conciergeQuery: "",
+        conciergeQuery: "Camden crawl tonight",
         stops: [
           { key: 1, venueId: "venue-a", venueName: "Pub A" },
           { key: 2, venueId: "venue-b", venueName: "Pub B" },
@@ -308,7 +327,6 @@ describe("PlanComposer never drops a URL ask", () => {
       "manual",
       sessionStorage,
     );
-    setSearch(`?query=${encodeURIComponent("Camden crawl tonight")}`);
 
     await mountComposer();
 
@@ -322,12 +340,12 @@ describe("PlanComposer never drops a URL ask", () => {
       await Promise.resolve();
     });
 
-    const generateCall = vi.mocked(fetch).mock.calls.find(([input]) => {
+    const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) => {
       const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
       return url.includes("/api/plans/generate");
     });
-    if (!generateCall) throw new Error("plan generation was not requested");
-    const body = JSON.parse(String((generateCall[1] as RequestInit).body)) as {
+    expect(generateCalls).toHaveLength(1);
+    const body = JSON.parse(String((generateCalls[0]?.[1] as RequestInit).body)) as {
       intake?: { area?: { id?: string } | null };
     };
     expect(body.intake?.area?.id).toBe("camden");

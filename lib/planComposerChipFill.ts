@@ -47,7 +47,13 @@ export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: strin
         : draft.skippedSteps,
     };
   }
-  if (draft.answers.area === patchId) return draft;
+  if (draft.answers.area === patchId) {
+    if (!draft.skippedSteps.includes("area")) return draft;
+    return {
+      ...draft,
+      skippedSteps: draft.skippedSteps.filter((step) => step !== "area"),
+    };
+  }
   const settledSteps = draft.settledSteps.includes("area")
     ? draft.settledSteps
     : [...draft.settledSteps, "area"];
@@ -56,6 +62,7 @@ export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: strin
     answers: { ...draft.answers, area: patchId },
     currentStep: draft.currentStep === "area" ? "time-window" : draft.currentStep,
     settledSteps,
+    skippedSteps: draft.skippedSteps.filter((step) => step !== "area"),
   };
 }
 
@@ -82,7 +89,7 @@ export function reconcileGeneratedNightContext(
   const merged = mergeInferredNightContext(inferred, explicit);
   return {
     ...merged,
-    stopCount: normalizePlanStopCount(generatedStopCount),
+    stopCount: explicit.stopCount ?? normalizePlanStopCount(generatedStopCount),
   };
 }
 
