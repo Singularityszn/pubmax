@@ -18,6 +18,7 @@
 // can still return the last parsed index instead of an empty map.
 
 import { discardBody } from "@/lib/responseBody";
+import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
@@ -201,17 +202,29 @@ function normalizeRows(data: unknown): SlimVenue[] {
  * propagate — preserving the pre-offline contract for callers that show a
  * load-error state.
  */
+async function readSlimPayload(path: string): Promise<unknown> {
+  const early = takeEarlyWarmJson(path);
+  if (early) {
+    try {
+      return await early;
+    } catch {
+      // Fall through to a live fetch.
+    }
+  }
+  const response = await fetch(path);
+  if (!response.ok) {
+    discardBody(response);
+    throw new Error(`HTTP ${response.status}`);
+  }
+  return response.json();
+}
+
 export async function loadSlimVenuesFromPath(
   path: string,
 ): Promise<SlimVenue[]> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    const response = await fetch(path);
-    if (!response.ok) {
-      discardBody(response);
-      throw new Error(`HTTP ${response.status}`);
-    }
-    const data: unknown = await response.json();
+    const data: unknown = await readSlimPayload(path);
     const rows = normalizeRows(data);
     if (rows.length > 0) void offlineCache.set(offlineKey, rows);
     return rows;

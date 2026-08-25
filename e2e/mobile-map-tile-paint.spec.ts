@@ -60,17 +60,14 @@ async function paintedPinCount(page: Page): Promise<number> {
   });
 }
 
-test.describe("mobile map tile paint", () => {
-  test.use({
-    viewport: VIEWPORT,
-    deviceScaleFactor: 3,
-    isMobile: true,
-    hasTouch: true,
-    launchOptions: {
-      args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
-    },
-  });
+test.use({
+  viewport: VIEWPORT,
+  deviceScaleFactor: 3,
+  isMobile: true,
+  hasTouch: true,
+});
 
+test.describe("mobile map tile paint", () => {
   test("cold /map paints tiles and pins within 3s on a throttled profile", async ({
     page,
     context,
