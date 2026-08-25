@@ -196,9 +196,11 @@ describe("plan composer chip intent policy", () => {
       conciergeQuery: "",
       conciergeNote: "Already here",
       template: {
+        id: "test-template",
+        label: "Test template",
         title: "Chip title",
         conciergeQuery: "Quiet in Clapham",
-        conciergeNote: "Chip note",
+        blurb: "Chip note",
       },
       hasAcceptedGeography: false,
     });
@@ -213,9 +215,11 @@ describe("plan composer chip intent policy", () => {
       conciergeQuery: "",
       conciergeNote: "",
       template: {
+        id: "test-template",
+        label: "Test template",
         title: "Chip title",
         conciergeQuery: "Quiet in Clapham",
-        conciergeNote: "Chip note",
+        blurb: "Chip note",
       },
       hasAcceptedGeography: true,
     });

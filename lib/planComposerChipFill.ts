@@ -1,7 +1,11 @@
 import { inferNightContext, type NightContext } from "@/lib/nightPlanning";
 import { NIGHT_AREAS, type NightAreaSlug } from "@/lib/nightAreas";
 import { applyTemplate } from "@/lib/planComposerHandoff";
-import { nightAreaForPlanIntakePatch, type PlanIntakeDraft } from "@/lib/planIntake";
+import {
+  nightAreaForPlanIntakePatch,
+  type PlanIntakeDraft,
+  type PlanIntakeStep,
+} from "@/lib/planIntake";
 import { NIGHT_PATCHES, type NightPatchId } from "@/lib/nightPatches";
 import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import type { PlanTemplate } from "@/lib/planTemplates";
@@ -58,12 +62,13 @@ export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: strin
   const patchId = queryArea.kind === "supported" ? queryArea.patchId : null;
   if (!patchId) {
     if (draft.answers.area === null) return draft;
+    const skippedSteps: PlanIntakeStep[] = draft.settledSteps.includes("area")
+      ? [...new Set<PlanIntakeStep>([...draft.skippedSteps, "area"])]
+      : draft.skippedSteps;
     return {
       ...draft,
       answers: { ...draft.answers, area: null },
-      skippedSteps: draft.settledSteps.includes("area")
-        ? [...new Set([...draft.skippedSteps, "area"])]
-        : draft.skippedSteps,
+      skippedSteps,
     };
   }
   if (draft.answers.area === patchId) {
@@ -75,7 +80,7 @@ export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: strin
   }
   const settledSteps = draft.settledSteps.includes("area")
     ? draft.settledSteps
-    : [...draft.settledSteps, "area"];
+    : [...new Set<PlanIntakeStep>([...draft.settledSteps, "area"])];
   return {
     ...draft,
     answers: { ...draft.answers, area: patchId },
