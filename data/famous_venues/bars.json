@@ -413,51 +413,6 @@
     "extractedVia": "manual"
   },
   {
-    "id": "bar-tayer-elementary",
-    "name": "Tayēr + Elementary",
-    "address": "152 Old Street, London EC1V 9BW",
-    "borough": "Islington",
-    "lat": 51.52554,
-    "lng": -0.08775,
-    "kind": "bar",
-    "hasStory": true,
-    "fameGates": [
-      {
-        "kind": "recognition",
-        "sourceUrl": "https://www.theworlds50best.com/bars/the-list/tayer-elementary.html"
-      },
-      {
-        "kind": "distinct_experience",
-        "sourceUrl": "https://tayer-elementary.com/"
-      }
-    ],
-    "sourceUrl": "https://tayer-elementary.com/",
-    "observedAt": "2026-08-25",
-    "anchor": {
-      "kind": "house_cocktail",
-      "label": "Elementary seasonal cocktail",
-      "price": 14,
-      "observedAt": "2026-08-25",
-      "sourceUrl": "https://tayer-elementary.com/"
-    },
-    "story": {
-      "text": "Two bars share one address: fast, draught-led Elementary in front and experimental Tayēr around the back.",
-      "sourceUrl": "https://tayer-elementary.com/"
-    },
-    "category": "bar",
-    "job": "late_night_bar",
-    "description": "Two bars share one address: fast, draught-led Elementary in front and experimental Tayēr around the back.",
-    "area": "Islington",
-    "location": {
-      "lat": 51.52554,
-      "lng": -0.08775
-    },
-    "sourceName": "tayer-elementary.com",
-    "expiresAt": "2026-09-24",
-    "discoveredVia": "manual",
-    "extractedVia": "manual"
-  },
-  {
     "id": "bar-nightjar-shoreditch",
     "name": "Nightjar Shoreditch",
     "address": "129 City Road, London EC1V 1JB",
@@ -1283,21 +1238,21 @@
       },
       {
         "kind": "distinct_experience",
-        "sourceUrl": "https://www.experimentalcocktailclublondon.com/"
+        "sourceUrl": "https://www.experimentalcocktailclub.com/london"
       }
     ],
-    "sourceUrl": "https://www.experimentalcocktailclublondon.com/",
+    "sourceUrl": "https://www.experimentalcocktailclub.com/london",
     "observedAt": "2026-08-25",
     "anchor": {
       "kind": "house_cocktail",
       "label": "ECC cocktail",
       "price": 16,
       "observedAt": "2026-08-25",
-      "sourceUrl": "https://www.experimentalcocktailclublondon.com/"
+      "sourceUrl": "https://www.experimentalcocktailclub.com/london"
     },
     "story": {
       "text": "An unmarked Chinatown door leads to the London outpost of the Paris group that exported its speakeasy style worldwide.",
-      "sourceUrl": "https://www.experimentalcocktailclublondon.com/"
+      "sourceUrl": "https://www.experimentalcocktailclub.com/london"
     },
     "category": "bar",
     "job": "late_night_bar",
@@ -1307,7 +1262,7 @@
       "lat": 51.51177,
       "lng": -0.13116
     },
-    "sourceName": "experimentalcocktailclublondon.com",
+    "sourceName": "experimentalcocktailclub.com",
     "expiresAt": "2026-09-24",
     "discoveredVia": "manual",
     "extractedVia": "manual"
