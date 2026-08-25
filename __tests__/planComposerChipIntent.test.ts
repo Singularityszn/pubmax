@@ -1,6 +1,8 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
+
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createPlanIntakeDraft } from "@/lib/planIntake";
 import {
   composerGeolocationMaySeedIntake,
@@ -13,11 +15,25 @@ import {
 } from "@/lib/planComposerChipFill";
 import type { NightContext } from "@/lib/nightPlanning";
 
-const ROOT = join(__dirname, "..");
+vi.mock("@/components/wanted/WantedPlanChips", () => ({ default: () => null }));
 
-function readSource(relativePath: string): string {
-  return readFileSync(join(ROOT, relativePath), "utf8");
-}
+import PlanDescribeFirst from "@/components/plan/PlanDescribeFirst";
+
+let root: Root;
+let container: HTMLDivElement;
+
+beforeEach(() => {
+  (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+    .IS_REACT_ACT_ENVIRONMENT = true;
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  container.remove();
+});
 
 describe("plan composer chip intent policy", () => {
   it("keeps typed Camden when a describe chip is tapped", () => {
@@ -37,6 +53,12 @@ describe("plan composer chip intent policy", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
     const synced = syncPlanIntakeAreaFromQuery(draft, "Camden crawl tonight");
     expect(synced.answers.area).toBe("camden");
+  });
+
+  it("clears a geo-seeded area when submitted text names an unsupported area", () => {
+    const draft = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
+    const synced = syncPlanIntakeAreaFromQuery(draft, "Canary Wharf after work");
+    expect(synced.answers.area).toBeNull();
   });
 
   it("preserves explicit people selection when concierge infers a route", () => {
@@ -108,19 +130,33 @@ describe("plan composer chip intent policy", () => {
   });
 });
 
-describe("plan composer chip intent source fences", () => {
-  it("PlanDescribeFirst resolves chip submit through the shared policy", () => {
-    const source = readSource("components/plan/PlanDescribeFirst.tsx");
-    expect(source).toContain("resolveDescribeChipSubmit");
-    expect(source).toContain("stopCountTouched");
-  });
+describe("PlanDescribeFirst chip intent", () => {
+  it("keeps a selected stop count when typing before tapping a chip", async () => {
+    const onSubmit = vi.fn();
+    await act(async () => {
+      root.render(createElement(PlanDescribeFirst, {
+        onSubmit,
+        onGuideMeInstead: vi.fn(),
+      }));
+    });
 
-  it("PlanComposer blocks geo seed on describe-first and syncs area from submitted query", () => {
-    const source = readSource("components/plan/PlanComposer.tsx");
-    expect(source).toContain("composerGeolocationMaySeedIntake");
-    expect(source).toContain("syncPlanIntakeAreaFromQuery");
-    expect(source).toContain("reconcileGeneratedNightContext");
-    expect(source).toContain("mergePlanTemplateFields");
+    const stopCount = Array.from(container.querySelectorAll("button"))
+      .find((button) => button.textContent?.trim() === "6");
+    await act(async () => {
+      stopCount?.click();
+    });
+
+    const query = container.querySelector<HTMLInputElement>("#plan-describe-first-query");
+    if (!query) throw new Error("describe-first query did not render");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    setter?.call(query, "Camden");
+    const chip = container.querySelector<HTMLButtonElement>(".planDescribeFirst__chip--culture");
+    await act(async () => {
+      query.dispatchEvent(new Event("input", { bubbles: true }));
+      chip?.click();
+    });
+
+    expect(onSubmit).toHaveBeenCalledWith("Camden", 6);
   });
 
   it("geo seed guard refuses describe-first with live query text", () => {

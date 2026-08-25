@@ -35,8 +35,10 @@ export default function PlanDescribeFirst({
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
     setQuery(initialQuery.slice(0, 500));
-    setStopCount(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
-  }, [initialQuery, touched]);
+    if (!stopCountTouched) {
+      setStopCount(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
+    }
+  }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
     const trimmed = queryOverride.trim();
@@ -79,7 +81,9 @@ export default function PlanDescribeFirst({
             setTouched(true);
             const value = event.target.value;
             setQuery(value);
-            setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+            if (!stopCountTouched) {
+              setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder="Quiet in Clapham for 4"

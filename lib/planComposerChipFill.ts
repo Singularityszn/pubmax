@@ -37,7 +37,16 @@ export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: strin
   const slug = inferNightContext(query).context.nightArea;
   if (!slug) return draft;
   const patchId = nightPatchIdForNightArea(slug);
-  if (!patchId) return draft;
+  if (!patchId) {
+    if (draft.answers.area === null) return draft;
+    return {
+      ...draft,
+      answers: { ...draft.answers, area: null },
+      skippedSteps: draft.settledSteps.includes("area")
+        ? [...new Set([...draft.skippedSteps, "area"])]
+        : draft.skippedSteps,
+    };
+  }
   if (draft.answers.area === patchId) return draft;
   const settledSteps = draft.settledSteps.includes("area")
     ? draft.settledSteps

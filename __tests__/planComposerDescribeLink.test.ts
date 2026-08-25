@@ -291,6 +291,48 @@ describe("PlanComposer describe prefill", () => {
 // states below are the ones that used to hide the only surface showing it - so
 // the CTA landed on /plan with the ask nowhere on screen and nothing said.
 describe("PlanComposer never drops a URL ask", () => {
+  it("uses submitted concierge text as area authority for the main composer button", async () => {
+    writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "clapham" }));
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: "",
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+    setSearch(`?query=${encodeURIComponent("Camden crawl tonight")}`);
+
+    await mountComposer();
+
+    const concierge = document.querySelector<HTMLInputElement>("#plan-concierge-query");
+    if (!concierge) throw new Error("concierge query did not render");
+    const button = concierge.parentElement?.querySelector<HTMLButtonElement>("button");
+    if (!button) throw new Error("concierge submit did not render");
+
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+
+    const generateCall = vi.mocked(fetch).mock.calls.find(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+      return url.includes("/api/plans/generate");
+    });
+    if (!generateCall) throw new Error("plan generation was not requested");
+    const body = JSON.parse(String((generateCall[1] as RequestInit).body)) as {
+      intake?: { area?: { id?: string } | null };
+    };
+    expect(body.intake?.area?.id).toBe("camden");
+  });
+
   it("opens describe-first over an unfinished wizard draft", async () => {
     writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
@@ -550,4 +592,3 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     expect(document.body.textContent).toContain("Route refreshed");
   });
 });
-

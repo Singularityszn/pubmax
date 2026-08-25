@@ -1268,11 +1268,15 @@ function PlanComposerForm({
     () => stops.filter((stop) => stop.venueName.trim() && stop.venueId.trim()),
     [stops],
   );
-  const intakeContextPatch = useMemo(
-    () => planIntakeNightContextPatch(planIntake),
-    [planIntake],
+  const conciergeIntake = useMemo(
+    () => syncPlanIntakeAreaFromQuery(planIntake, conciergeQuery),
+    [conciergeQuery, planIntake],
   );
-  const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(planIntake, intakeContextPatch);
+  const intakeContextPatch = useMemo(
+    () => planIntakeNightContextPatch(conciergeIntake),
+    [conciergeIntake],
+  );
+  const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(conciergeIntake, intakeContextPatch);
   const canSortWithCurrentGenerator = canSortPlan(
     conciergeQuery,
     intakeContextPatch,
@@ -1608,12 +1612,11 @@ function PlanComposerForm({
   }
 
   async function sortWithConcierge(queryOverride?: string, intakeOverride?: PlanIntakeDraft) {
-    // Both overrides (from the describe-first entry surface) are used as-is:
-    // they are set in the same event as the call, before React re-renders,
-    // so reading the query/planIntake state here would still see stale
-    // values (the pre-skip intake would fail the server's consistency check).
+    // Both overrides (from the describe-first entry surface) are threaded
+    // through explicitly before React re-renders, so state reads here cannot
+    // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
-    const intake = intakeOverride ?? planIntake;
+    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
     const intakeContextForSort = planIntakeNightContextPatch(intake);
     const unsupportedPatchForSort = unsupportedPatchForCurrentGenerator(
       intake,
@@ -1873,7 +1876,7 @@ function PlanComposerForm({
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
           <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
+          <button type="button" onClick={() => submitFromEntry(conciergeQuery)} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
           {conciergeStatus}
@@ -1887,7 +1890,7 @@ function PlanComposerForm({
             <button
               type="button"
               className="planComposer__regenerate"
-              onClick={() => sortWithConcierge()}
+              onClick={() => submitFromEntry(conciergeQuery)}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >
