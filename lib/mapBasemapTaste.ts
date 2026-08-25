@@ -420,7 +420,7 @@ function paintDiscoveredSymbol(
 ): void {
   // Retint basemap place/road labels so dark mode doesn't keep Liberty's
   // washed-out grey (or light-theme ink) against night land.
-  if (!id.includes("label") && !id.includes("place") && !id.includes("name")) return;
+  if (!id.includes("label") && !id.includes("place") && !id.includes("name") && !id.includes("poi")) return;
   if (id.includes("icon")) return;
   const text = dark ? tokens.ink : tokens.inkDeep || tokens.ink;
   const halo = dark ? tokens.inkDeep || tokens.paper : tokens.paper;

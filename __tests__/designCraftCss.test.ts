@@ -55,7 +55,7 @@ describe("sheet material", () => {
 describe("responsive spring ownership", () => {
   it("isolates every inline drawer spring from PubMap and covers tablet sheets", () => {
     expect(pubMapSource).toContain(
-      'import SpringDrawer from "@/components/map/SpringDrawer"',
+      'import("@/components/map/SpringDrawer")',
     );
     expect(pubMapSource).not.toContain("useDrawerSpring");
     expect(springDrawerSource).toContain(

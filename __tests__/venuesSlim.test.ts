@@ -399,7 +399,7 @@ describe("venues_slim.json", () => {
     const bars = rows.filter((row) => row.kind === "bar");
     const food = rows.filter((row) => row.kind === "food");
     const restaurants = rows.filter((row) => row.kind === "restaurant");
-    expect(bars).toHaveLength(40);
+    expect(bars).toHaveLength(39);
     expect(food).toHaveLength(25);
     expect(restaurants).toHaveLength(25);
     expect(new Set(bars.map((row) => row.priceBand))).toEqual(

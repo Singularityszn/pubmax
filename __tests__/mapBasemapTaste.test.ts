@@ -304,6 +304,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       { id: "place_city", type: "symbol" },
       // OpenFreeMap's `place_other` layer carries neighbourhood features.
       { id: "place_other", type: "symbol" },
+      { id: "poi_pub", type: "symbol" },
     ];
     const map = {
       getLayer: (id: string) => layers.find((layer) => layer.id === id),
@@ -330,6 +331,12 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(
       layouts.find(([id, prop]) => id === "place_other" && prop === "text-size")?.[2],
     ).toBe(9);
+    expect(
+      paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
+    ).toBe(0.22);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_pub" && prop === "text-size")?.[2],
+    ).toBe(8.5);
   });
 
   it("skips missing layers without throwing", () => {

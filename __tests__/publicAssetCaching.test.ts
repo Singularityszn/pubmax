@@ -89,7 +89,12 @@ const EDITED_IN_PLACE_ASSETS = filesOutsideData.filter(
     file.startsWith("/store-assets/") ||
     file.startsWith("/brand/") ||
     /^\/(?:icon-|apple-touch-icon|favicon)/.test(file) ||
-    ["/theme-init.js", "/splash-init.js", "/manifest.webmanifest"].includes(file),
+    [
+      "/theme-init.js",
+      "/splash-init.js",
+      "/map-first-paint-init.js",
+      "/manifest.webmanifest",
+    ].includes(file),
 );
 
 const REVALIDATING_METADATA = ["/llms.txt", "/.well-known/apple-app-site-association"];
