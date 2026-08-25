@@ -28,7 +28,7 @@
       "kind": "large_doner",
       "label": "Large lamb doner",
       "price": 15,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://tbtk.co.uk/"
     },
     "story": {
@@ -73,7 +73,7 @@
       "kind": "large_doner",
       "label": "Large lamb doner",
       "price": 13,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.superkebab.net/"
     },
     "story": {
@@ -122,7 +122,7 @@
       "kind": "signature_item",
       "label": "Adana kebab",
       "price": 18,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://mangal1.com/"
     },
     "story": {
@@ -171,7 +171,7 @@
       "kind": "signature_item",
       "label": "Adana kebab",
       "price": 19,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://mangal2.com/"
     },
     "story": {
@@ -216,7 +216,7 @@
       "kind": "large_doner",
       "label": "Large lamb doner",
       "price": 21,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://gokyuzurestaurant.co.uk/"
     },
     "story": {
@@ -261,7 +261,7 @@
       "kind": "signature_item",
       "label": "Adana kebab",
       "price": 19.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://antepliler.co.uk/"
     },
     "story": {
@@ -306,7 +306,7 @@
       "kind": "signature_item",
       "label": "Diyarbakir special kebab",
       "price": 24,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://diyarbakir.co.uk/"
     },
     "story": {
@@ -349,8 +349,8 @@
     "observedAt": "2026-08-25",
     "anchor": {
       "kind": "large_doner",
-      "label": "Large lamb doner",
-      "price": 19.5,
+      "label": "Adana Kofte (Large)",
+      "price": 24.5,
       "observedAt": "2026-08-25",
       "sourceUrl": "https://halarestaurant.co.uk/"
     },
@@ -396,7 +396,7 @@
       "kind": "signature_item",
       "label": "Adana kebab",
       "price": 19.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://selale.co.uk/"
     },
     "story": {
@@ -441,7 +441,7 @@
       "kind": "signature_item",
       "label": "Lamb adana kebab",
       "price": 16.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://eatlebab.com/"
     },
     "story": {
@@ -486,7 +486,7 @@
       "kind": "signature_item",
       "label": "Mixed kebab",
       "price": 25,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://testirestaurant.co.uk/"
     },
     "story": {
@@ -531,7 +531,7 @@
       "kind": "signature_item",
       "label": "Jujeh kabab",
       "price": 19,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://berenjaklondon.com/soho"
     },
     "story": {
@@ -576,7 +576,7 @@
       "kind": "signature_item",
       "label": "Adana kebab",
       "price": 18.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.fmmangal.co.uk/"
     },
     "story": {
@@ -621,7 +621,7 @@
       "kind": "signature_item",
       "label": "Seekh kebab",
       "price": 9,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://lahore-kebabhouse.com/"
     },
     "story": {
@@ -670,7 +670,7 @@
       "kind": "signature_item",
       "label": "Lamb chops",
       "price": 13.95,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.tayyabs.co.uk/"
     },
     "story": {
@@ -715,7 +715,7 @@
       "kind": "signature_item",
       "label": "Chicken shawarma",
       "price": 9.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.maroush.com/restaurants/edgware-road"
     },
     "story": {
@@ -760,7 +760,7 @@
       "kind": "signature_item",
       "label": "Lamb shawarma",
       "price": 10.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.maroush.com/restaurants"
     },
     "story": {
@@ -805,7 +805,7 @@
       "kind": "large_doner",
       "label": "Large lamb doner",
       "price": 13.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://kebabkid.co.uk/"
     },
     "story": {
@@ -899,7 +899,7 @@
       "kind": "signature_item",
       "label": "Full English breakfast",
       "price": 15.9,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.polobar.co.uk/"
     },
     "story": {
@@ -944,7 +944,7 @@
       "kind": "signature_item",
       "label": "Duck and waffle",
       "price": 28,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://duckandwaffle.com/london"
     },
     "story": {
@@ -989,7 +989,7 @@
       "kind": "signature_item",
       "label": "Roast duck on rice",
       "price": 10.8,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://wongkeilondon.com/"
     },
     "story": {
@@ -1038,7 +1038,7 @@
       "kind": "signature_item",
       "label": "Panini",
       "price": 8.5,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.instagram.com/baritaliasoho"
     },
     "story": {
@@ -1083,7 +1083,7 @@
       "kind": "signature_item",
       "label": "Full English breakfast",
       "price": 17.95,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://www.vqrestaurants.com/locations/chelsea"
     },
     "story": {
@@ -1128,7 +1128,7 @@
       "kind": "signature_item",
       "label": "Roast duck on rice",
       "price": 14.8,
-      "observedAt": "2026-08-25",
+      "observedAt": "2026-07-26",
       "sourceUrl": "https://goldendragonlondon.com/"
     },
     "story": {
