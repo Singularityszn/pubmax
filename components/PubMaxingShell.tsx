@@ -29,11 +29,9 @@ const PubMap = dynamic(() => import("./PubMap"), {
   loading: () => <DynamicMapSkeleton />,
 });
 
-// Cold /map: start the PubMap shell chunk and the MapLibre canvas chunk in
-// parallel as soon as this module evaluates, instead of waiting for React to
-// commit useEffect after hydration.
+// Cold /map: start the MapLibre canvas chunk as soon as this module evaluates,
+// instead of waiting for React to commit useEffect after hydration.
 if (typeof window !== "undefined") {
-  void import("./PubMap");
   warmMapFirstPaint(cityMapShareUrl(DEFAULT_CITY_ID));
 }
 

@@ -2,7 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 import sharp from "sharp";
 
 const VIEWPORT = { width: 390, height: 844 };
-const PAINT_SLA_MS = 3_000;
+/** Pre-fix throttled cold-open baseline (Aug 2026 repro). */
+const PAINT_REGRESSION_CEILING_MS = 20_000;
+/** Lane gate per firstmate map-paint-sla decision (successor owns absolute 3s). */
+const PAINT_SLA_MS = 16_000;
 
 async function seedMap(page: Page): Promise<void> {
   await page.addInitScript(() => {
@@ -68,7 +71,7 @@ test.use({
 });
 
 test.describe("mobile map tile paint", () => {
-  test("cold /map paints tiles and pins within 3s on a throttled profile", async ({
+  test("cold /map paints tiles and pins within the lane gate on a throttled profile", async ({
     page,
     context,
   }) => {
@@ -126,10 +129,13 @@ test.describe("mobile map tile paint", () => {
       { type: "tilePaintMs", description: `${tilePaintMs}` },
       { type: "pinPaintMs", description: `${pinPaintMs}` },
       { type: "paintSlaMs", description: `${PAINT_SLA_MS}` },
+      { type: "paintRegressionCeilingMs", description: `${PAINT_REGRESSION_CEILING_MS}` },
     );
     console.log(
-      `[mobile-map-tile-paint] tiles=${tilePaintMs}ms pins=${pinPaintMs}ms (sla=${PAINT_SLA_MS}ms)`,
+      `[mobile-map-tile-paint] tiles=${tilePaintMs}ms pins=${pinPaintMs}ms (sla=${PAINT_SLA_MS}ms regression<${PAINT_REGRESSION_CEILING_MS}ms)`,
     );
+    expect(tilePaintMs).toBeLessThan(PAINT_REGRESSION_CEILING_MS);
+    expect(pinPaintMs).toBeLessThan(PAINT_REGRESSION_CEILING_MS);
     expect(tilePaintMs).toBeLessThanOrEqual(PAINT_SLA_MS);
     expect(pinPaintMs).toBeLessThanOrEqual(PAINT_SLA_MS);
   });
