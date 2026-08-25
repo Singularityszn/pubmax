@@ -162,10 +162,10 @@ describe("famous venue seeds", () => {
   it("fails the build boundary when current-trading evidence expires", () => {
     const rows = PACKS.flatMap(([file]) => loadSeed(file));
     expect(
-      assertCurrentFamousVenueRows(rows, new Date("2026-07-27T12:00:00.000Z")),
+      assertCurrentFamousVenueRows(rows, new Date("2026-08-25T12:00:00.000Z")),
     ).toHaveLength(90);
     expect(() =>
-      assertCurrentFamousVenueRows(rows, new Date("2026-08-25T00:00:00.000Z")),
+      assertCurrentFamousVenueRows(rows, new Date("2026-09-24T00:00:00.000Z")),
     ).toThrow(/current-trading verification failed.*bar-american-bar-savoy/);
   });
 });
