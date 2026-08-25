@@ -179,7 +179,7 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 |---|---|
 | `MAP_STYLES` / `FALLBACK_STYLES` | OpenFreeMap primary styles and CARTO fallbacks; `components/map/canvas/tokens.ts` owns the URLs. |
 | `LONDON_VIEW` | Opening London camera; `components/map/canvas/tokens.ts` owns its exact values. |
-| `readTokens()` (`:79`) | CSS vars → a `Tokens` object; every layer colour flows from here. |
+| `readTokens()` (`:79`) | CSS vars → a `Tokens` object for semantic scene marks and label ink; `lib/mapBasemapTaste.ts` owns basemap palette details. |
 | `assembleSceneCritical()` / `assembleSceneDeferred()` | Build the first-paint pub layers, then the visual-polish and transit layers; the wrapper runs on `style.load`. |
 | `addLayerOnce()` (`:319`) | Guarded `addLayer` — skips if the layer exists, so a duplicate pass can't throw. |
 | `buildings-3d` (`:345`) | `fill-extrusion` off the basemap's `building` layer. |
@@ -235,7 +235,7 @@ dispatch, aborting the scene and half-building the map. `addLayerOnce` checks
 
 - **Never touch the mount lifecycle carelessly.** The map is constructed once, with stable `useCallback` deps. Add an unstable dep and the whole map tears down every render. Data changes go through `setData`/`setFilter`, never a remount.
 - **The guards must stay** (`addLayerOnce`, `getSource` checks, the RAF `isStyleLoaded()`). Remove one and the next theme toggle crashes.
-- **Stay token-driven for both basemaps** - no hard-coded hexes; theme choices go through the `dark` boolean inside scene assembly.
+- **Keep palette ownership clear.** Scene marks and label ink stay token-driven; `lib/mapBasemapTaste.ts` owns the basemap's neon-noir dark palette, warm-paper light palette, and pub-first label hierarchy. Keep those style-layer values there.
 - **`setStyle` must be `{ diff: false }`.**
 - **No per-listing React markers.**
 - **The WebGL fallback is load-bearing** — the `try/catch` (`:285`) catches a no-WebGL constructor throw and renders a notice while the planner keeps working.

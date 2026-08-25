@@ -180,7 +180,7 @@ Quiet accent hover on icons; floating theme toggle as raised pill on map. Mobile
 
 ### Map (signature)
 
-Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route stroke in theme accent. `readTokens()` in `components/map/canvas/tokens.ts` consumes the same CSS variables. Do not fork hexes in TS.
+Full-bleed map plane with colored pins (pint / amber / brick / river by semantics) and route stroke in theme accent. `readTokens()` in `components/map/canvas/tokens.ts` supplies semantic mark and label colours. `lib/mapBasemapTaste.ts` owns the map style-layer palette and pub-first label hierarchy; do not duplicate those values elsewhere.
 
 ## 6. Do's and Don'ts
 

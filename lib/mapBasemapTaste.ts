@@ -1,4 +1,4 @@
-// Wave J1 — warm DESIGN_SYSTEM paint overrides on OpenFreeMap / CARTO basemaps.
+// Map signature style-layer overrides on OpenFreeMap / CARTO basemaps.
 // Pure helpers: apply after style.load. Never invents a new tile host.
 //
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
@@ -70,10 +70,9 @@ export function withAlpha(hex: string, alpha: number): string {
 }
 
 /** Linear-RGB blend of two hex colours, `t` = weight toward `hexB` (0..1).
- *  Pure, unit-tested — the token-derivation primitive for M4's light-theme
- *  road hierarchy (mixing panel-raised white with a warm accent) so no new
- *  raw hex literals are needed beyond the named CSS tokens. Falls back to
- *  `hexA` unchanged if either input isn't a plain `#rrggbb`. */
+ *  Pure, unit-tested — the map-owned primitive for the light-theme warm-paper
+ *  road hierarchy. Falls back to `hexA` unchanged if either input isn't a
+ *  plain `#rrggbb`. */
 export function mixHex(hexA: string, hexB: string, t: number): string {
   const a = /^#([0-9a-f]{6})$/i.exec(hexA.trim());
   const b = /^#([0-9a-f]{6})$/i.exec(hexB.trim());
@@ -162,12 +161,12 @@ export function tameNumericShieldFilters(map: Pick<
 // reads at documentElement — see tokens.ts readTokens). That decoupling is the
 // point: the dark map no longer inherits a structural divider colour as its
 // road brightness. Every value is a one-line tuning surface for the reviewer's
-// live screenshot loop. All greys are warm (R≥G≥B) so the canvas stays in the
-// house "warm ink" family rather than going cool/blue.
+// live screenshot loop. Neutral road and building tones keep a warm house bias;
+// ground and land use a cool ink undertone for the neon-noir night field.
 const DARK = {
-  // Neon-noir ground: brand near-black (#0b0d12) with a cool ink undertone so
-  // the canvas reads as night city, not warm brown mud. Sits a hair above
-  // --ink-deep fog so the horizon still blends at distance.
+  // Neon-noir ground: brand near-black with a cool ink undertone so the canvas
+  // reads as night city, not warm brown mud. Sits a hair above --ink-deep fog
+  // so the horizon still blends at distance.
   ground: "#0a0c11",
   landSoft: "#12141c",
   residential: "#171920",
@@ -187,9 +186,9 @@ const DARK = {
 /** Exported for unit tests — dark land must never equal cream ink. */
 export function buildPalette(tokens: BasemapTasteTokens, dark: boolean): TastePalette {
   if (dark) {
-    // Wave A — see the DARK constant block above for the full rationale. Land
-    // stays a warm near-black (never cream `--ink`); roads remain contextual;
-    // buildings step up from ground; water stays unmistakably slate-blue.
+    // See the DARK constant block above for the full rationale. Land stays
+    // near-black (never cream `--ink`); roads remain contextual; buildings step
+    // up from ground; water stays unmistakably slate-blue.
     return {
       land: DARK.ground,
       landSoft: DARK.landSoft,
@@ -497,7 +496,7 @@ function paintDiscoveredLayers(
 }
 
 /**
- * Tint basemap fills/lines toward candle-lit paper / river / brass.
+ * Apply the map-owned basemap palette and label hierarchy for one theme.
  * Best-effort: unknown layer ids are skipped. Safe to call on every style.load.
  */
 export function applyBasemapTaste(
