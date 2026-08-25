@@ -51,7 +51,6 @@ export default function PlanDescribeFirst({
   function submitChip(value: string) {
     const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
     const resolved = resolveDescribeChipSubmit({
-      touched,
       query,
       stopCountTouched,
       stopCount,

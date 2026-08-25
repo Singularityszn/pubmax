@@ -12,7 +12,6 @@ export function fillEmptyText(current: string, suggestion: string): string {
 }
 
 export function resolveDescribeChipSubmit(input: {
-  touched: boolean;
   query: string;
   stopCountTouched: boolean;
   stopCount: PlanStopCount;
@@ -20,7 +19,7 @@ export function resolveDescribeChipSubmit(input: {
   chipInferredStopCount: PlanStopCount;
 }): { query: string; stopCount: PlanStopCount } {
   const userQuery = input.query.trim();
-  const query = input.touched && userQuery ? userQuery : input.chipText;
+  const query = userQuery || input.chipText;
   const stopCount = input.stopCountTouched ? input.stopCount : input.chipInferredStopCount;
   return { query, stopCount };
 }
@@ -78,6 +77,17 @@ export function mergeInferredNightContext(
   explicit: Partial<NightContext>,
 ): NightContext {
   return { ...inferred, ...explicit };
+}
+
+export function mergeSubmittedNightContext(
+  explicit: Partial<NightContext>,
+  intake: Partial<NightContext>,
+): Partial<NightContext> {
+  return {
+    ...explicit,
+    ...(intake.nightArea ? { nightArea: intake.nightArea } : {}),
+    ...(intake.stopCount !== undefined ? { stopCount: intake.stopCount } : {}),
+  };
 }
 
 /** Align stop count with the generated route so Lock it in can enable. */

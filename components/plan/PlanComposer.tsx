@@ -66,6 +66,7 @@ import {
 } from "@/lib/planComposerHandoff";
 import {
   composerGeolocationMaySeedIntake,
+  mergeSubmittedNightContext,
   mergePlanTemplateFields,
   reconcileGeneratedNightContext,
   syncPlanIntakeAreaFromQuery,
@@ -1617,6 +1618,9 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    if (queryOverride === undefined && intake !== planIntake) {
+      updatePlanIntake(intake);
+    }
     const intakeContextForSort = planIntakeNightContextPatch(intake);
     const unsupportedPatchForSort = unsupportedPatchForCurrentGenerator(
       intake,
@@ -1674,9 +1678,10 @@ function PlanComposerForm({
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
-        const submittedContext = intake.answers.stopCount === undefined
-          ? explicitNightContext
-          : { ...explicitNightContext, stopCount: intake.answers.stopCount };
+        const submittedContext = mergeSubmittedNightContext(
+          explicitNightContext,
+          intakeContextForSort,
+        );
         const reconciled = reconcileGeneratedNightContext(
           inferredContext,
           submittedContext,
@@ -1880,7 +1885,7 @@ function PlanComposerForm({
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
           <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
-          <button type="button" onClick={() => submitFromEntry(conciergeQuery)} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
+          <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
           {conciergeStatus}
@@ -1894,7 +1899,7 @@ function PlanComposerForm({
             <button
               type="button"
               className="planComposer__regenerate"
-              onClick={() => submitFromEntry(conciergeQuery)}
+              onClick={() => sortWithConcierge()}
               disabled={sorting || !canSortWithCurrentGenerator}
               aria-busy={sorting}
             >

@@ -8,6 +8,7 @@ import {
   composerGeolocationMaySeedIntake,
   fillEmptyText,
   mergeInferredNightContext,
+  mergeSubmittedNightContext,
   mergePlanTemplateFields,
   reconcileGeneratedNightContext,
   resolveDescribeChipSubmit,
@@ -38,7 +39,6 @@ afterEach(async () => {
 describe("plan composer chip intent policy", () => {
   it("keeps typed Camden when a describe chip is tapped", () => {
     const result = resolveDescribeChipSubmit({
-      touched: true,
       query: "Camden",
       stopCountTouched: false,
       stopCount: 3,
@@ -47,6 +47,17 @@ describe("plan composer chip intent policy", () => {
     });
     expect(result.query).toBe("Camden");
     expect(result.stopCount).toBe(3);
+  });
+
+  it("keeps a non-empty prefill when a chip is tapped", () => {
+    const result = resolveDescribeChipSubmit({
+      query: "Plan a crawl in Camden",
+      stopCountTouched: false,
+      stopCount: 3,
+      chipText: "Quiet in Clapham for 4, not pricey",
+      chipInferredStopCount: 3,
+    });
+    expect(result.query).toBe("Plan a crawl in Camden");
   });
 
   it("submits submitted query area over a geo-seeded intake patch", () => {
@@ -93,6 +104,16 @@ describe("plan composer chip intent policy", () => {
     const reconciled = reconcileGeneratedNightContext(inferred, explicit, 3);
     expect(reconciled.groupSize).toBe(6);
     expect(reconciled.stopCount).toBe(3);
+  });
+
+  it("uses submitted intake area over stale context area", () => {
+    const submitted = mergeSubmittedNightContext(
+      { nightArea: "chiswick", groupSize: 6 },
+      { nightArea: "camden", stopCount: 4 },
+    );
+    expect(submitted.nightArea).toBe("camden");
+    expect(submitted.groupSize).toBe(6);
+    expect(submitted.stopCount).toBe(4);
   });
 
   it("preserves an explicit stop count when generated route length differs", () => {
