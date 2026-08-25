@@ -443,6 +443,14 @@ export async function loadWhatsOn(
   // own build dates, the rows this answer actually carries, and the live
   // provider's stated observation. Never the request instant: `servedAt` is a
   // separate field and stays out of this.
+  //
+  // This is a PRIORITY order, not a plain "pick the freshest" race: durable
+  // provider evidence (baselineProviderObservedAt) is trusted unconditionally
+  // over a dataset-generated stamp, however stale, because a rebuild date says
+  // nothing about whether anyone actually looked. Live-only provider evidence
+  // (no durable baseline) is trusted only when it is not older than the
+  // bundled stamp — see "keeps durable provider provenance when bundled
+  // evidence is newer" in __tests__/whatsOnStoreRoute.test.ts.
   const bundledObservedAt = freshestIso([datasetObservedAt, ...bundledRowTimes]);
   const providerObservedAt = freshestIso([live.sourceObservedAt, baselineProviderObservedAt]);
   let sourceObservedAt: string | null = null;

@@ -24,6 +24,7 @@ import {
 } from "react";
 
 import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import {
   bandMemberPubs,
   STORY_BANDS as LONDON_STORY_BANDS,
@@ -3613,9 +3614,7 @@ export default function PubMapCanvas({
                   }}
                 >
                   <span>{venue.name}</span>
-                  <span>
-                    {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`} straight-line
-                  </span>
+                  <span>{formatLogNearbyDistance(km)} straight-line</span>
                 </button>
               ))}
             </div>
