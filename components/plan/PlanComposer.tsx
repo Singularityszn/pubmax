@@ -1918,7 +1918,8 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
-          onQueryChange={adoptDescribePrefillQuery}
+          onQueryChange={setConciergeQuery}
+          onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
       ) : planComposerShowsIntake({

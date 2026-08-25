@@ -278,19 +278,41 @@ describe("PlanDescribeFirst chip intent", () => {
   });
 
   it("reports an adopted prefill to the composer before leaving describe-first", async () => {
-    const onQueryChange = vi.fn();
+    const onPrefillQueryChange = vi.fn();
     await act(async () => {
       root.render(createElement(PlanDescribeFirst, {
         initialQuery: "Camden",
         onSubmit: vi.fn(),
         onGuideMeInstead: vi.fn(),
-        onQueryChange,
+        onPrefillQueryChange,
       }));
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(onQueryChange).toHaveBeenLastCalledWith("Camden");
+    expect(onPrefillQueryChange).toHaveBeenLastCalledWith("Camden");
+  });
+
+  it("syncs every describe-first keystroke to the composer", async () => {
+    const onQueryChange = vi.fn();
+    await act(async () => {
+      root.render(createElement(PlanDescribeFirst, {
+        onSubmit: vi.fn(),
+        onGuideMeInstead: vi.fn(),
+        onQueryChange,
+      }));
+    });
+
+    const query = container.querySelector<HTMLInputElement>("#plan-describe-first-query");
+    if (!query) throw new Error("describe-first query did not render");
+    const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    for (const value of ["C", "Ca", "Cam", "Camden"]) {
+      setter?.call(query, value);
+      await act(async () => {
+        query.dispatchEvent(new Event("input", { bubbles: true }));
+      });
+      expect(onQueryChange).toHaveBeenLastCalledWith(value);
+    }
   });
 
   it("geo seed guard refuses describe-first with live query text", () => {

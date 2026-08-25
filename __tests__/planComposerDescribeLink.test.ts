@@ -355,6 +355,31 @@ describe("PlanComposer never drops a URL ask", () => {
     expect(readPlanIntakeDraft(localStorage)).toBeNull();
   });
 
+  it("keeps the full describe-first ask in the composer while typing", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: "",
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Camden crawl");
+    });
+
+    expect(conciergeFieldValue()).toBe("Camden crawl");
+  });
+
   it("uses submitted concierge text as area authority for the main composer button", async () => {
     writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "clapham" })));
     writePlanDraftEnvelope(

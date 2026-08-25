@@ -16,11 +16,14 @@ export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
   onQueryChange,
+  onPrefillQueryChange,
   initialQuery = "",
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
   onQueryChange?: (query: string) => void;
+  /** External handoffs only: URL or Ask prefills while the field stays untouched. */
+  onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
 }) {
@@ -35,14 +38,18 @@ export default function PlanDescribeFirst({
   const appliedPrefill = useRef(initialQuery);
   const reportedPrefill = useRef<string | null>(null);
   const onQueryChangeRef = useRef(onQueryChange);
+  const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
   useEffect(() => {
     onQueryChangeRef.current = onQueryChange;
   }, [onQueryChange]);
   useEffect(() => {
+    onPrefillQueryChangeRef.current = onPrefillQueryChange;
+  }, [onPrefillQueryChange]);
+  useEffect(() => {
     const nextQuery = initialQuery.slice(0, 500);
     if (!nextQuery || reportedPrefill.current === nextQuery) return;
     reportedPrefill.current = nextQuery;
-    onQueryChangeRef.current?.(nextQuery);
+    onPrefillQueryChangeRef.current?.(nextQuery);
   }, [initialQuery]);
   useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
@@ -58,7 +65,7 @@ export default function PlanDescribeFirst({
       if (!stopCountTouched) setStopCount(nextStopCount);
       if (nextQuery && reportedPrefill.current !== nextQuery) {
         reportedPrefill.current = nextQuery;
-        onQueryChangeRef.current?.(nextQuery);
+        onPrefillQueryChangeRef.current?.(nextQuery);
       }
     });
     return () => { cancelled = true; };
