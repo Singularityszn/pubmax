@@ -110,7 +110,7 @@ function tryLayout(map: PaintMap, layerId: string, prop: string, value: unknown)
 }
 
 function isNeighbourhoodPlaceLabel(id: string): boolean {
-  return /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village/.test(id);
+  return /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village|place_other/.test(id);
 }
 
 function isBasemapPubPoiLabel(id: string): boolean {

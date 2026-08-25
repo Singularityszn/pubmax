@@ -298,14 +298,20 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
   it("makes dark road labels quieter than place labels", () => {
     const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
     const layers = [
       { id: "road_label", type: "symbol" },
       { id: "place_city", type: "symbol" },
+      // OpenFreeMap's `place_other` layer carries neighbourhood features.
+      { id: "place_other", type: "symbol" },
     ];
     const map = {
       getLayer: (id: string) => layers.find((layer) => layer.id === id),
       setPaintProperty: (layerId: string, name: string, value: unknown) => {
         paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
       },
       getStyle: () => ({ layers }),
     };
@@ -318,6 +324,12 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(
       paints.find(([id, prop]) => id === "place_city" && prop === "text-opacity")?.[2],
     ).toBe(0.72);
+    expect(
+      paints.find(([id, prop]) => id === "place_other" && prop === "text-opacity")?.[2],
+    ).toBe(0.38);
+    expect(
+      layouts.find(([id, prop]) => id === "place_other" && prop === "text-size")?.[2],
+    ).toBe(9);
   });
 
   it("skips missing layers without throwing", () => {
