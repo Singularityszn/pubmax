@@ -248,6 +248,7 @@ export default function TonightClient({
       outBody?.events ?? [],
       now,
       selectableVenueIds,
+      true,
     );
     return {
       listingRows: mergeTonightListingRows(
@@ -256,6 +257,7 @@ export default function TonightClient({
         now,
         status,
         selectableVenueIds,
+        true,
       ),
       listingsStatus: tonightListingsStatus(
         status,
@@ -263,6 +265,7 @@ export default function TonightClient({
         now,
         rows,
         selectableVenueIds,
+        true,
       ),
       outEvents: eligibleOutEvents,
     };
@@ -358,10 +361,8 @@ export default function TonightClient({
     () => (activeKind ? groupedAll.filter((g) => g.row.kind === activeKind) : groupedAll),
     [groupedAll, activeKind],
   );
-  // Filter chips and provenance counts use the grouped cards the viewer sees.
-  // Reusing laneKindFacets on the grouped display rows keeps the map lane's own
-  // facets (same shared helper) untouched.
   const facets = useMemo(() => laneKindFacets(groupedAll.map((g) => g.row)), [groupedAll]);
+  const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
@@ -383,7 +384,7 @@ export default function TonightClient({
   const provenance = useMemo(
     () =>
       tonightProvenanceCredits({
-        renderedGroups: groupedAll,
+        renderedGroups: grouped,
         outEvents,
         whatsOnChecked: checked,
         outObservedAt: outBody?.observedAt,
@@ -432,7 +433,7 @@ export default function TonightClient({
     </>
   );
   const mobileLanes = mobileSecondaryLanes(secondaryLanes);
-  const summaryRows = groupedAll.map((group) => group.row);
+  const summaryRows = grouped.map((group) => group.row);
 
   return (
     <main
@@ -467,9 +468,9 @@ export default function TonightClient({
         <TonightConditionsStrip origin={origin} />
         {ready ? (
           <TonightOnTonightSummary
-            facets={facets}
+            facets={displayedFacets}
             rows={summaryRows}
-            totalCount={groupedAll.length}
+            totalCount={grouped.length}
           />
         ) : null}
         {/* Area news needs a coarse area: the shared location's nearest Night
@@ -560,7 +561,9 @@ export default function TonightClient({
                 onClick={() => setActiveKind(null)}
               >
                 All
-                <span className="tonightChipCount">{groupedAll.length}</span>
+                {activeKind === null ? (
+                  <span className="tonightChipCount">{groupedAll.length}</span>
+                ) : null}
               </button>
               {facets.map((facet) => (
                 <button
@@ -576,7 +579,11 @@ export default function TonightClient({
                   }}
                 >
                   {facet.label}
-                  <span className="tonightChipCount">{facet.count}</span>
+                  {activeKind === null || activeKind === facet.kind ? (
+                    <span className="tonightChipCount">
+                      {activeKind === null ? facet.count : grouped.length}
+                    </span>
+                  ) : null}
                 </button>
               ))}
             </div>

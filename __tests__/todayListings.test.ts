@@ -69,6 +69,17 @@ describe("today listings spine", () => {
     expect(merged.map((r) => r.id)).toEqual(["out-fallback"]);
   });
 
+  it("keeps Today What's-On rows without venue ids", () => {
+    const merged = mergeTodayListingRows(
+      [row({ id: "whats-on-without-venue", title: "Pub quiz" })],
+      { body: null, failed: true, pending: false },
+      NOW,
+      "ready",
+    );
+
+    expect(merged.map((r) => r.id)).toEqual(["whats-on-without-venue"]);
+  });
+
   it("answers ready when an empty whats-on read answered cleanly", () => {
     const status = todayPicksReadStatus(
       "ready",

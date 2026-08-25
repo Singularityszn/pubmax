@@ -73,9 +73,12 @@ export function tonightOutEventsForStatus(
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
   selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): WhatsOnRow[] {
   if (whatsOn !== "ready" && whatsOn !== "error") return [];
-  return filterTonightPubSurfaceRows(outEvents, now, selectable);
+  return pubOnly
+    ? filterTonightPubSurfaceRows(outEvents, now, selectable)
+    : filterNotPast([...outEvents], now);
 }
 
 /**
@@ -99,14 +102,17 @@ export function mergeTonightListingRows(
   now: number = Date.now(),
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
   selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): WhatsOnRow[] {
   const pubWhatsOn =
     whatsOnStatus === "ready"
-      ? filterTonightPubSurfaceRows(whatsOnRows, now, selectable)
+      ? pubOnly
+        ? filterTonightPubSurfaceRows(whatsOnRows, now, selectable)
+        : [...whatsOnRows]
       : [];
   return dedupeRows([
     ...pubWhatsOn,
-    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now, selectable),
+    ...tonightOutEventsForStatus(whatsOnStatus, outEvents, now, selectable, pubOnly),
   ]);
 }
 
@@ -144,6 +150,7 @@ export function tonightListingsStatus(
   now: number = Date.now(),
   whatsOnRows: readonly WhatsOnRow[] = [],
   selectable: TonightSelectableVenueIds = undefined,
+  pubOnly = true,
 ): TonightListingsStatus {
   if (selectable === null) return "error";
   const merged = mergeTonightListingRows(
@@ -152,6 +159,7 @@ export function tonightListingsStatus(
     now,
     whatsOn,
     selectable,
+    pubOnly,
   );
   if (merged.length > 0) return "ready";
   if (whatsOn === "idle" || out.pending) return "idle";
