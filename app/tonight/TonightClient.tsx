@@ -74,6 +74,7 @@ import {
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   mergeTonightListingRows,
+  tonightAcceptedVenueId,
   tonightOutEventsForStatus,
   tonightListingLanes,
   tonightEmptyLead,
@@ -171,7 +172,7 @@ export default function TonightClient({
   flags,
   quietPint = null,
   softPlansWindow = false,
-  mapSelectableVenueIds = null,
+  mapSelectableVenueIds,
 }: {
   flags: TrustedHandoffFlagsDTO;
   /** Server-composed quiet-pint module; null outside a quiet window. */
@@ -223,7 +224,10 @@ export default function TonightClient({
     retry: retryOut,
   } = useOutListings("tonight");
   const selectableVenueIds = useMemo(
-    () => (mapSelectableVenueIds ? new Set(mapSelectableVenueIds) : null),
+    () =>
+      mapSelectableVenueIds === undefined
+        ? undefined
+        : new Set(mapSelectableVenueIds),
     [mapSelectableVenueIds],
   );
   const outAnswer = useMemo(
@@ -266,9 +270,13 @@ export default function TonightClient({
   const retryWhatsOnLane = retryLanes.whatsOn;
   const retryOutLane = retryLanes.out;
   const retryListings = useCallback(() => {
+    if (selectableVenueIds === null) {
+      router.refresh();
+      return;
+    }
     if (retryWhatsOnLane) retry();
     if (retryOutLane) retryOut();
-  }, [retryWhatsOnLane, retryOutLane, retry, retryOut]);
+  }, [retryWhatsOnLane, retryOutLane, retry, retryOut, router, selectableVenueIds]);
 
   // Explicit acceptance (§4.8): only "Keep this venue" reaches here. Opening a
   // listing stays browse-only. Writes one PlanningIntent (source "tonight")
@@ -385,8 +393,8 @@ export default function TonightClient({
   // A lane that could not answer is named beside the cards, not only in place
   // of them: a degraded Out answer still carrying Ticketmaster rows makes the
   // list short for a reason the reader is owed.
-  const listingsNote = tonightListingsNoteLine(status, outAnswer);
-  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer);
+  const listingsNote = tonightListingsNoteLine(status, outAnswer, selectableVenueIds);
+  const noteOffersRetry = tonightNoteOffersRetry(status, outAnswer, selectableVenueIds);
   // Which read a row came from decides how keeping it is recorded, so the Out
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
@@ -581,6 +589,7 @@ export default function TonightClient({
                 row,
                 selectableVenueIds,
               );
+              const venueId = tonightAcceptedVenueId(row, selectableVenueIds);
               const meta = WHATS_ON_KIND_META[row.kind];
               const when = laneTimeLabel(row) ?? meta.badgeLabel;
               const walk =
@@ -686,11 +695,9 @@ export default function TonightClient({
                     </Link>
                   ) : null}
                   {/* Explicit acceptance stays distinct from the browse tap. */}
-                  {typeof row.venueId === "string" &&
-                  row.venueId.length > 0 &&
-                  selectableVenueIds?.has(row.venueId) ? (
+                  {venueId ? (
                     <TonightRowAccept
-                      venueId={row.venueId}
+                      venueId={venueId}
                       familyKey={tonightAcceptanceFamilyKey(row)}
                       evidence={rowEvidence(row)}
                       placeName={row.placeName}
@@ -713,6 +720,7 @@ export default function TonightClient({
                       <ul className="tonightRowMoreList">
                         {group.alternates.map((alt) => {
                           const altLink = tonightRowLinks(alt, selectableVenueIds).primary;
+                          const altVenueId = tonightAcceptedVenueId(alt, selectableVenueIds);
                           const altWalk =
                             typeof alt.lat === "number" && typeof alt.lng === "number"
                               ? walkLabel(walkMinutes(origin, { lat: alt.lat, lng: alt.lng }))
@@ -754,11 +762,9 @@ export default function TonightClient({
                                   ) : null}
                                 </span>
                               )}
-                              {typeof alt.venueId === "string" &&
-                              alt.venueId.length > 0 &&
-                              selectableVenueIds?.has(alt.venueId) ? (
+                              {altVenueId ? (
                                 <TonightRowAccept
-                                  venueId={alt.venueId}
+                                  venueId={altVenueId}
                                   familyKey={tonightAcceptanceFamilyKey(alt)}
                                   evidence={rowEvidence(alt)}
                                   placeName={alt.placeName}

@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   filterTonightPubSurfaceRows,
   mergeTonightListingRows,
+  TONIGHT_VENUE_INDEX_FAILED_LINE,
   tonightListingsStatus,
+  tonightListingsNoteLine,
   tonightProvenanceCredits,
+  tonightAcceptedVenueId,
   tonightRowHasListedPub,
   tonightRowLinks,
   type TonightOutAnswer,
@@ -75,10 +78,22 @@ describe("/tonight pub surface", () => {
   });
 
   it("withholds map links for venue ids the eager index does not carry", () => {
+    const emptyOut: TonightOutAnswer = {
+      body: { status: "ready", events: [] },
+      failed: false,
+      pending: false,
+    };
     expect(tonightRowLinks(matchedOut, SELECTABLE).mapHref).toBe(
       "/map?sel=venue-the-dove",
     );
     expect(tonightRowHasListedPub(matchedOut, null)).toBe(false);
+    expect(tonightListingsStatus("ready", emptyOut, NOW, [matchedOut], null)).toBe("error");
+    expect(tonightListingsNoteLine("ready", emptyOut, null)).toBe(
+      TONIGHT_VENUE_INDEX_FAILED_LINE,
+    );
+    expect(
+      tonightAcceptedVenueId({ ...matchedOut, venueId: " venue-the-dove " }, SELECTABLE),
+    ).toBe("venue-the-dove");
     expect(tonightRowLinks(unknownVenueId, SELECTABLE).mapHref).toBeNull();
     expect(tonightRowLinks(matchedOut, null).mapHref).toBeNull();
   });

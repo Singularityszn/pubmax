@@ -27,10 +27,7 @@ export type TonightOutAnswer = {
   pending: boolean;
 };
 
-/**
- * Whether a row may appear on /tonight: resolved to a pub the map can open.
- *
- */
+/** Whether a row may appear on /tonight: resolved to a pub the map can open. */
 export function tonightRowHasListedPub(
   row: WhatsOnRow,
   selectable: TonightSelectableVenueIds = undefined,
@@ -38,8 +35,16 @@ export function tonightRowHasListedPub(
   const venueId = canonicalOutVenueId(row.venueId);
   if (!venueId) return false;
   if (selectable === undefined) return true;
-  if (selectable === null) return false;
-  return selectable.has(venueId);
+  return tonightAcceptedVenueId(row, selectable) !== null;
+}
+
+export function tonightAcceptedVenueId(
+  row: WhatsOnRow,
+  selectable: TonightSelectableVenueIds,
+): string | null {
+  const venueId = canonicalOutVenueId(row.venueId);
+  if (!venueId || selectable === undefined || selectable === null) return null;
+  return selectable.has(venueId) ? venueId : null;
 }
 
 /** Past-guarded rows that belong on a pub surface, never a theatre dump. */
@@ -139,6 +144,7 @@ export function tonightListingsStatus(
   whatsOnRows: readonly WhatsOnRow[] = [],
   selectable: TonightSelectableVenueIds = undefined,
 ): TonightListingsStatus {
+  if (selectable === null) return "error";
   const merged = mergeTonightListingRows(
     whatsOnRows,
     out.body?.events ?? [],
@@ -161,6 +167,8 @@ export function tonightListingsStatus(
 export const TONIGHT_WHATS_ON_FAILED_LINE =
   "Couldn't reach tonight's listings just now.";
 export const TONIGHT_OUT_NOT_CONFIGURED_LINE = "Live listings not set up yet.";
+export const TONIGHT_VENUE_INDEX_FAILED_LINE =
+  "Couldn't confirm tonight's venues right now.";
 
 /** One lane's own account of why it is not carrying its share of the night. */
 export type TonightLaneReport = {
@@ -221,7 +229,9 @@ export function tonightLaneReports(
 export function tonightListingsNoteLine(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  selectable: TonightSelectableVenueIds = undefined,
 ): string | null {
+  if (selectable === null) return TONIGHT_VENUE_INDEX_FAILED_LINE;
   const reports = tonightLaneReports(whatsOn, out);
   return reports.length > 0 ? reports.map((report) => report.line).join(" · ") : null;
 }
@@ -235,7 +245,9 @@ export function tonightListingsNoteLine(
 export function tonightNoteOffersRetry(
   whatsOn: TonightWhatsOnStatus,
   out: TonightOutAnswer,
+  selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
+  if (selectable === null) return true;
   return tonightLaneReports(whatsOn, out).some(
     (report) => report.lane === "whats-on" && report.retryable,
   );
