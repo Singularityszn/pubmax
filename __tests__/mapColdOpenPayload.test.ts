@@ -93,6 +93,7 @@ describe("map cold-open payload", () => {
     "components/map/RoutePanel",
     "components/map/MapToolbar",
     "components/map/UnverifiedPubSheet",
+    "components/mobile/MobileMapShell",
   ])("loads %s dynamically rather than in the eager map chunk", (moduleId) => {
     const source = readFileSync(join(ROOT, "components/PubMap.tsx"), "utf8");
     expect(source).toContain(`import("@/${moduleId}")`);

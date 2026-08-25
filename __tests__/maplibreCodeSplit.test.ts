@@ -35,6 +35,8 @@ describe("maplibre cold-open code split", () => {
   it("defers tfl_lines transit GeoJSON past the first assembleScene", () => {
     // First scene assembly must not pass the live transit path (MapLibre would
     // fetch /data/tfl_lines.json on the critical path).
+    expect(canvas).toMatch(/assembleSceneCritical\(/);
+    expect(canvas).toMatch(/assembleSceneDeferred\(/);
     expect(canvas).toMatch(/transitLinesPath:\s*null/);
     expect(canvas).toMatch(/buildTransitLines/);
     expect(canvas).toMatch(/map\.once\(\s*["']idle["']/);

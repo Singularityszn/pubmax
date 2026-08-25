@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import SiteNav from "@/components/nav/SiteNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
@@ -68,7 +67,12 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import SpringDrawer from "@/components/map/SpringDrawer";
+const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
+  ssr: false,
+});
+const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
+  ssr: false,
+});
 // Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
 // and its canvas helpers (donutClusters / useMapCamera). Keep it out of the
 // PubMap shell chunk so first paint is shell + skeleton; MapLibre parses after
@@ -86,7 +90,9 @@ const PubMapCanvas = dynamic(() => import("@/components/PubMapCanvas"), {
     />
   ),
 });
-import MobileMapShell from "@/components/mobile/MobileMapShell";
+const MobileMapShell = dynamic(() => import("@/components/mobile/MobileMapShell"), {
+  ssr: false,
+});
 import { Sheet } from "@/components/ui/sheet";
 import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { Button } from "@/components/ui/button";

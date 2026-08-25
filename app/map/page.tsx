@@ -34,6 +34,20 @@ export const metadata = londonMapMetadata();
 export default function MapPage() {
   return (
     <>
+      <link
+        rel="preload"
+        href="/data/venues_slim.manifest.json"
+        as="fetch"
+        crossOrigin="anonymous"
+      />
+      <link
+        rel="preload"
+        href="/data/venues_slim.core.json"
+        as="fetch"
+        crossOrigin="anonymous"
+      />
+      {/* eslint-disable-next-line @next/next/no-sync-scripts */}
+      <script src="/map-first-paint-init.js" />
       <PubMaxingShell cityId="london" flags={readTrustedHandoffFlags()} />
       {/* Records that a Pint Index arrival reached the map. Renders nothing and
           owns no map state; it only reads its own arrival marker off the URL. */}

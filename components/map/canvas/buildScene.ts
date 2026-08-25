@@ -1399,22 +1399,32 @@ export function buildTonight(ctx: SceneCtx) {
 // layers this function has already added, so running it after assembly is
 // behaviour-identical to the original mid-scene position (paint happens after
 // the synchronous build returns).
-export function assembleScene(ctx: SceneCtx) {
-  applySceneTaste(ctx);
-  buildSkyAndBuildings(ctx);
-  buildTransitLines(ctx);
+/** Pins-first slice so basemap tiles can decode before taste/overlays run. */
+export function assembleSceneCritical(ctx: SceneCtx) {
   registerSceneIcons(ctx);
-  buildLandmarks(ctx);
-  buildPois(ctx);
-  buildRoute(ctx);
-  buildBandCorridor(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
   buildUkBase(ctx);
   buildPubs(ctx);
   buildRouteStops(ctx);
-  buildTonight(ctx);
   applySelectionState(ctx);
+}
+
+/** Visual polish and overlays after the first paint frame. */
+export function assembleSceneDeferred(ctx: SceneCtx) {
+  applySceneTaste(ctx);
+  buildSkyAndBuildings(ctx);
+  buildTransitLines(ctx);
+  buildLandmarks(ctx);
+  buildPois(ctx);
+  buildRoute(ctx);
+  buildBandCorridor(ctx);
+  buildTonight(ctx);
+}
+
+export function assembleScene(ctx: SceneCtx) {
+  assembleSceneCritical(ctx);
+  assembleSceneDeferred(ctx);
 }
 
 // M2 · POI-at-initiation gating — re-apply the selection mute after a fresh

@@ -33,9 +33,11 @@
     var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
   );
 
-  /* Member: the Pub Pal summon pill (/, /map, /map/*, /plan, /plan/*). */
+  /* Member: the Pub Pal summon pill (/, /map, /map/*, /plan, /plan/*). One
+     gap above the phone map planning pill so the full-width Describe control
+     never paints over it (e2e/mobile-map-tile-paint.spec.ts). */
   --pal-summon-h: 52px;
-  --pal-summon-bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
 
   /* Member: the phone map's planning pill. */
   --plan-activation-h: 48px;
@@ -72,6 +74,24 @@
   );
   --float-stack-top-map-arrival: calc(
     var(--map-arrival-bottom) + var(--map-arrival-h)
+  );
+}
+
+/* When a member lifts the map-edge column, its published top edge must move
+   with it or the create action reads a stale berth and lands on Near me. */
+body:has(.palSummon) {
+  --float-stack-top-map-corner: calc(
+    var(--float-stack-top-pal) + var(--float-stack-gap) + var(--map-corner-locate-size)
+  );
+}
+body:has(.mapArrivalCard) {
+  --float-stack-top-map-corner: calc(
+    var(--float-stack-top-map-arrival) + var(--float-stack-gap) + var(--map-corner-locate-size)
+  );
+}
+body:has(.analyticsConsentPrompt) {
+  --float-stack-top-map-corner: calc(
+    var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
   );
 }
 

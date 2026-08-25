@@ -96,8 +96,11 @@ import {
   withBoundedHoverDetailCache, hoverCardCopy, hoverImageUrlFor,
 } from "@/components/map/canvas/hoverCard";
 import {
-  assembleScene, buildTransitLines,
-  CLUSTER_FILL_OPACITY, CLUSTER_STROKE_OPACITY,
+  assembleSceneCritical,
+  assembleSceneDeferred,
+  buildTransitLines,
+  CLUSTER_FILL_OPACITY,
+  CLUSTER_STROKE_OPACITY,
   UK_BASE_MIN_ZOOM,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
@@ -1275,6 +1278,18 @@ export default function PubMapCanvas({
       "top-right",
     );
     mapRef.current = map;
+    // Sync the GL viewport to the laid-out container before the first tile
+    // fetch. A missed or early resize leaves half the canvas on the pre-tile
+    // backbuffer while the other half paints (captain screenshot, Aug 2026).
+    const syncMapSize = () => {
+      if (mapRef.current !== map) return;
+      map.resize();
+      map.triggerRepaint();
+    };
+    syncMapSize();
+    requestAnimationFrame(syncMapSize);
+    requestAnimationFrame(() => requestAnimationFrame(syncMapSize));
+    map.once("load", syncMapSize);
     // Context-loss re-init: restore the pre-teardown camera so selection fly-ins
     // and the user's place on the map survive the rebuild. Selection/landmark
     // state is React-owned and already live across the effect re-run.
@@ -1615,23 +1630,45 @@ export default function PubMapCanvas({
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
       // loading chrome — otherwise "Finding the pubs…" covers the map forever.
-      try {
-        buildSceneBody();
-        settleSceneReady();
-        // Audit F5: one present after the scene graph builds, so a settled
-        // style never waits on user input for its first frame.
-        map.triggerRepaint();
-      } catch (error) {
-        pinRevealCoordinator.cancel();
-        console.error("[pubmap] buildScene failed", error);
-        const detail =
-          error instanceof Error ? error.message : "Scene build threw unexpectedly";
-        settleSceneError({
-          kind: "tiles",
-          message: "The map loaded tiles but couldn't finish drawing pubs.",
-          detail,
-        });
-      }
+      //
+      // Yield before the synchronous scene graph runs. While this handler is on
+      // the stack MapLibre cannot decode or present incoming basemap tiles, which
+      // is the half-canvas black the captain saw on a cold phone open.
+      const runBuildScene = () => {
+        const execute = () => {
+          try {
+            buildSceneBody();
+            settleSceneReady();
+            // Audit F5: one present after the scene graph builds, so a settled
+            // style never waits on user input for its first frame.
+            map.triggerRepaint();
+          } catch (error) {
+            pinRevealCoordinator.cancel();
+            console.error("[pubmap] buildScene failed", error);
+            const detail =
+              error instanceof Error ? error.message : "Scene build threw unexpectedly";
+            settleSceneError({
+              kind: "tiles",
+              message: "The map loaded tiles but couldn't finish drawing pubs.",
+              detail,
+            });
+          }
+        };
+        let scheduled = false;
+        const scheduleExecute = () => {
+          if (scheduled) return;
+          scheduled = true;
+          map.off("render", onFirstRender);
+          window.clearTimeout(buildSceneDeferTimer);
+          requestAnimationFrame(execute);
+        };
+        const onFirstRender = () => {
+          scheduleExecute();
+        };
+        const buildSceneDeferTimer = window.setTimeout(scheduleExecute, 120);
+        map.on("render", onFirstRender);
+      };
+      runBuildScene();
     };
 
     const buildSceneBody = () => {
@@ -1666,7 +1703,7 @@ export default function PubMapCanvas({
       // MapLibre fetches that GeoJSON URL when the source is added (~125 KB for
       // London TfL). Defer it until the first map `idle` so basemap tiles + pub
       // pins win the critical path; transit is an overlay, not first paint.
-      assembleScene({
+      const sceneCtx = {
         map,
         tokens,
         dark,
@@ -1689,7 +1726,24 @@ export default function PubMapCanvas({
         tonightVisible: tonightOverlayVisibleRef.current,
         selectedId: selectedIdRef.current,
         selectionMuteStore: selectionMuteStoreRef.current,
-      });
+      };
+      // Cold-open: taste, sky, landmarks and transit stay off the first frame so
+      // basemap tiles and pub pins can decode (see assembleSceneCritical).
+      assembleSceneCritical(sceneCtx);
+      const scheduleDeferredScene = () => {
+        if (!map.getStyle()) return;
+        try {
+          assembleSceneDeferred(sceneCtx);
+          map.triggerRepaint();
+        } catch (error) {
+          console.warn("[pubmap] deferred scene assembly failed", error);
+        }
+      };
+      if (typeof requestIdleCallback === "function") {
+        requestIdleCallback(scheduleDeferredScene, { timeout: 200 });
+      } else {
+        requestAnimationFrame(scheduleDeferredScene);
+      }
 
       if (transitLinesPath) {
         const deferredTransitPath = transitLinesPath;

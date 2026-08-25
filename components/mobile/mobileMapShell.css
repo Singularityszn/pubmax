@@ -450,6 +450,11 @@
   body:has(.analyticsConsentPrompt) .mobileMapUtilityCorner {
     bottom: var(--map-corner-bottom-consent);
   }
+  /* When the Pub Pal pill is on screen it parks above the plan pill; lift the
+     map-edge column so Near me never paints underneath it. */
+  body:has(.palSummon) .mobileMapUtilityCorner {
+    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
+  }
   /* Same deal for the first-visit arrival card, which is full width and taller
      still: the Near me FAB may not paint over the card whose own primary
      action is Use my location. */

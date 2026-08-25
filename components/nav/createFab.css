@@ -44,13 +44,13 @@
      These four rules share one specificity, so SOURCE ORDER decides, and they are
      ordered by ascending top edge: the last one that matches is the highest
      member present, which is exactly the berth to clear. Adding a member means
-     adding its rule in that order. */
-  body:has(.palSummon) .createFabRoot {
-    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
-  }
-
+     adding its rule in that order (plan pill, Pub Pal, map-edge column). */
   body:has(.mobilePlanActivation) .createFabRoot {
     bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+  }
+
+  body:has(.palSummon) .createFabRoot {
+    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
   }
 
   body:has(.mobileMapUtilityCorner) .createFabRoot {
