@@ -5,6 +5,7 @@ import { cleanText } from "@/lib/textClean";
  * Codex pet picker (a small, memorable cast) without copying its artwork.
  */
 export const PAL_ONBOARDING_SPECIES = [
+  "robin",
   "greyhound",
   "cat",
   "fox",
@@ -41,7 +42,7 @@ export type PalAnimationState = (typeof PAL_ANIMATION_STATES)[number];
 
 export type PalVisualManifest = {
   species: PubPalSpecies;
-  format: "layered-svg";
+  format: "layered-svg" | "circuit-robin";
   silhouette: string;
   face: string;
   signatureProp: string;
@@ -51,6 +52,7 @@ export type PalVisualManifest = {
 };
 
 export const PAL_VISUAL_MANIFEST: Record<(typeof PAL_ONBOARDING_SPECIES)[number], PalVisualManifest> = {
+  robin: { species: "robin", format: "circuit-robin", silhouette: "circuit robin with a warm amber signal chest", face: "bright eyes and a grounded companion gaze", signatureProp: "signal seam", material: "smoked chrome with an amber signal seam", idlePose: "upright and ready beside the route", supportedStates: PAL_ANIMATION_STATES },
   greyhound: { species: "greyhound", format: "layered-svg", silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "smoked chrome with an amber signal seam", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
   cat: { species: "cat", format: "layered-svg", silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell", material: "black glass with a soft edge glow", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
   fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", face: "curious eyes and an alert tapered muzzle", signatureProp: "route compass", material: "copper hologram with glass highlights", idlePose: "forward on its toes with its tail curled", supportedStates: PAL_ANIMATION_STATES },
@@ -231,7 +233,7 @@ export function hasPalRouteActivation(): boolean {
 export const DEFAULT_PAL_DRAFT: PubPalDraft = {
   adultConfirmed: false,
   name: "",
-  appearance: { species: "greyhound", signalAffinity: "beer", material: "hologram", accessory: "none" },
+  appearance: { species: "robin", signalAffinity: "beer", material: "hologram", accessory: "none" },
   personality: { playfulness: 62, energy: 54, storytelling: 58, relationship: "sidekick" },
   voice: { id: "ember", pace: 50, warmth: 64, energy: 52 },
 };

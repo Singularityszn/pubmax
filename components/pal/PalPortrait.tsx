@@ -4,6 +4,7 @@ import {
   type PalAnimationState,
   type PubPalAppearance,
 } from "@/lib/pubPal";
+import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
 const legacySpeciesIcons: Partial<Record<PubPalAppearance["species"], LucideIcon>> = {
   rabbit: Rabbit,
@@ -165,6 +166,7 @@ function CorgiRig() {
 }
 
 const speciesDescriptions: Record<PubPalAppearance["species"], string> = {
+  robin: "the circuit robin companion with a warm amber signal chest",
   greyhound: "a long-nosed signal greyhound with a loyal expression and collar light",
   cat: "a black-glass signal cat with a hooked tail and brass bell",
   pigeon: "a streetwise signal pigeon with an oil-slick chest and transit tag",
@@ -186,7 +188,9 @@ export default function PalPortrait({ appearance, name, compact = false, state =
   state?: PalAnimationState;
 }) {
   const LegacyIcon = legacySpeciesIcons[appearance.species];
-  const Rig = appearance.species === "greyhound" || appearance.species === "hound" ? GreyhoundRig
+  const mascotSize = compact ? 96 : 192;
+  const Rig = appearance.species === "robin" ? null
+    : appearance.species === "greyhound" || appearance.species === "hound" ? GreyhoundRig
     : appearance.species === "cat" ? CatRig
     : appearance.species === "fox" ? FoxRig
     : appearance.species === "pigeon" ? PigeonRig
@@ -199,14 +203,24 @@ export default function PalPortrait({ appearance, name, compact = false, state =
     <div
       className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
       data-pal-state={state}
-      role="img"
-      aria-label={`${name}, ${speciesDescriptions[appearance.species]}. ${appearance.material} material with ${appearance.signalAffinity} affinity. ${state} state.`}
+      {...(appearance.species === "robin"
+        ? {}
+        : {
+            role: "img" as const,
+            "aria-label": `${name}, ${speciesDescriptions[appearance.species]}. ${appearance.material} material with ${appearance.signalAffinity} affinity. ${state} state.`,
+          })}
     >
       <span className="palPortraitField" aria-hidden="true" />
       <span className="palPortraitOrbit palPortraitOrbitA" aria-hidden="true" />
       <span className="palPortraitOrbit palPortraitOrbitB" aria-hidden="true" />
-      <span className="palPortraitCore" aria-hidden="true">
-        {Rig ? <Rig /> : LegacyIcon ? <LegacyIcon className="palLegacyIcon" strokeWidth={1.15} /> : null}
+      <span className="palPortraitCore" aria-hidden={appearance.species !== "robin"}>
+        {appearance.species === "robin" ? (
+          <PubPalMascot size={mascotSize} circular={false} className="palPortraitMascot" />
+        ) : Rig ? (
+          <Rig />
+        ) : LegacyIcon ? (
+          <LegacyIcon className="palLegacyIcon" strokeWidth={1.15} />
+        ) : null}
         <span className="palPortraitScan" />
       </span>
       <span className="palPortraitEcho" aria-hidden="true"><span className="palPortraitSignalMark" /></span>

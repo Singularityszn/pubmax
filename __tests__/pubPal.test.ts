@@ -24,18 +24,22 @@ describe("Pub Pal domain", () => {
     expect(PAL_UNLOCKS.every(unlock => !["ranking", "alcohol", "drink_count"].includes(unlock.category))).toBe(true);
   });
 
-  it("offers six launch companions while retaining every legacy species", () => {
-    expect(PAL_ONBOARDING_SPECIES).toEqual(["greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
-    expect(PAL_SPECIES).toHaveLength(12);
-    expect(new Set(PAL_SPECIES).size).toBe(12);
+  it("offers seven launch companions while retaining every legacy species", () => {
+    expect(PAL_ONBOARDING_SPECIES).toEqual(["robin", "greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
+    expect(PAL_SPECIES).toHaveLength(13);
+    expect(new Set(PAL_SPECIES).size).toBe(13);
     expect(compatiblePalSpecies("black-cat")).toBe("cat");
     expect(compatiblePalSpecies("night_bot")).toBe("bot");
   });
 
-  it("ships six reviewed layered launch rigs with every emotional state", () => {
-    expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
+  it("defaults new Pal drafts to the circuit robin", () => {
+    expect(DEFAULT_PAL_DRAFT.appearance.species).toBe("robin");
+  });
+
+  it("ships seven reviewed launch visuals with every emotional state", () => {
+    expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["robin", "greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
     expect(PAL_ANIMATION_STATES).toEqual(["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]);
-    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => visual.format === "layered-svg" && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
+    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => (visual.format === "layered-svg" || visual.format === "circuit-robin") && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
   });
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {

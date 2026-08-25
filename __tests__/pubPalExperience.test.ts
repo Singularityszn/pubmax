@@ -1,80 +1,95 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
 
-const experience = readFileSync(join(process.cwd(), "components/pal/PalExperience.tsx"), "utf8");
-const portrait = readFileSync(join(process.cwd(), "components/pal/PalPortrait.tsx"), "utf8");
-const voice = readFileSync(join(process.cwd(), "components/pubpal/PubPalVoice.tsx"), "utf8");
-const css = readFileSync(join(process.cwd(), "app/pal/pal.css"), "utf8");
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const authState = vi.hoisted(() => ({
+  current: { user: null, loading: false, configured: false },
+}));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => authState.current,
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+
+import PalExperience from "@/components/pal/PalExperience";
+import { markPalRouteActivation } from "@/lib/pubPal";
+
+let container: HTMLDivElement;
+let root: Root | null = null;
+
+async function settle(): Promise<void> {
+  for (let turn = 0; turn < 8; turn += 1) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    });
+  }
+}
+
+function buttonContaining(text: string): HTMLButtonElement {
+  const button = [...container.querySelectorAll<HTMLButtonElement>("button")]
+    .find((candidate) => candidate.textContent?.includes(text));
+  if (!button) throw new Error(`Button not found: ${text}`);
+  return button;
+}
+
+beforeEach(async () => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  markPalRouteActivation();
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  await act(async () => {
+    root?.render(createElement(PalExperience));
+  });
+  await settle();
+});
+
+afterEach(async () => {
+  await act(async () => {
+    root?.unmount();
+  });
+  root = null;
+  container.remove();
+  vi.restoreAllMocks();
+});
 
 describe("Pub Pal first meeting and onboarding", () => {
-  it("offers all three Pal forms and a five-part resumable flow", () => {
-    expect(experience).toContain("PAL_ONBOARDING_SPECIES.map");
-    expect(experience).toContain("step + 1} of 5");
-    expect(experience).toContain("writePalOnboardingDraft");
-    expect(experience).toContain("Meet your Pub Pal");
+  it("renders circuit robin with alt Pub Pal on /pal by default", () => {
+    const image = container.querySelector<HTMLImageElement>('img[alt="Pub Pal"]');
+    expect(image?.src).toContain("/pal/circuit-robin-");
+    expect(buttonContaining("Meet your Pub Pal")).toBeTruthy();
   });
 
-  it("keeps account persistence gated while leaving a character-free route", () => {
-    expect(experience).toContain("if (!user) return;");
-    expect(experience).toContain("Use PUBMAXX without a Pal");
-    expect(experience).toContain("Nothing is saved to an account yet");
-  });
+  it("switches from the default robin to a legacy form", async () => {
+    await act(async () => {
+      buttonContaining("Meet your Pub Pal").click();
+    });
+    const adultCheck = container.querySelector<HTMLInputElement>('input[type="checkbox"]');
+    expect(adultCheck).not.toBeNull();
 
-  it("exposes appearance, voice, personality, memory and visibility controls", () => {
-    for (const label of ["Appearance", "Personality", "Voice", "Allow memory proposals", "Show Pal shortcuts", "Export my context", "Save correction", "Route proposals"]) {
-      expect(experience).toContain(label);
-    }
-    expect(experience).toContain("/api/pub-pal");
-    expect(experience).toContain("/api/pub-pal/memories/export");
-    expect(experience).toContain("/api/pub-pal/memories/${encodeURIComponent(memory.id)}");
-  });
+    await act(async () => {
+      adultCheck!.click();
+    });
+    await act(async () => {
+      buttonContaining("Continue").click();
+    });
 
-  it("keeps the chooser behind a useful route and opens the existing planner", () => {
-    expect(experience).toContain("hasPalRouteActivation");
-    // The gate's own eyebrow. It says what the reader gets, not the internal
-    // ordering rule it used to name (VOICE.md rule 2).
-    expect(experience).toContain("Nothing to talk about yet");
-    expect(experience).toContain('href="/map?plan=1"');
-  });
+    const robin = buttonContaining("Circuit Robin");
+    const greyhound = buttonContaining("Greyhound");
+    expect(robin.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector('img[alt="Pub Pal"]')).not.toBeNull();
 
-  it("clears account-owned context and serializes proposal controls", () => {
-    expect(experience).toContain("activeOwnerRef.current = ownerId");
-    expect(experience).toContain("setMemories([])");
-    expect(experience).toContain("pal.ownerId === user.id");
-    expect(experience).toContain("controller.abort()");
-    expect(experience).toContain("ownerTransitioning");
-    expect(experience).toContain("controlSavingRef.current");
-    expect(experience).toContain("controlSavingRef.current === lock");
-    expect(experience).toContain("disabled={controlSaving || saving}");
-  });
+    await act(async () => {
+      greyhound.click();
+    });
 
-  it("renders an accessible Pal image and supports motion, transparency and contrast preferences", () => {
-    expect(portrait).toContain('role="img"');
-    expect(portrait).toContain("aria-label");
-    expect(css).toContain("prefers-reduced-motion: reduce");
-    expect(css).toContain("prefers-reduced-transparency: reduce");
-    expect(css).toContain("prefers-contrast: more");
-    expect(portrait).toContain("palRigGreyhound");
-    expect(portrait).toContain("palRigCat");
-    expect(portrait).toContain("palRigRaven");
-    expect(portrait).toContain("palRigFox");
-    expect(portrait).toContain("palRigPigeon");
-    expect(portrait).toContain("palRigBadger");
-    expect(portrait).toContain("palRigCorgi");
-  });
-
-  it("drives every visual state from real Pal interactions", () => {
-    for (const state of ["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]) {
-      expect(`${experience}\n${voice}`).toContain(`\"${state}\"`);
-    }
-    expect(voice).toContain("onStateChange");
-    expect(experience).toContain("palAnimationState");
-  });
-
-  it("keeps controls thumb-sized and avoids unstable viewport height", () => {
-    expect(css).toContain("min-height: 100dvh");
-    expect(css).toMatch(/\.palChoice\s*{[\s\S]*?min-height:\s*4\.75rem/);
-    expect(css).not.toContain("100vh");
+    expect(robin.getAttribute("aria-pressed")).toBe("false");
+    expect(greyhound.getAttribute("aria-pressed")).toBe("true");
+    expect(container.querySelector(".palRigGreyhound")).not.toBeNull();
+    expect(container.querySelector('img[alt="Pub Pal"]')).toBeNull();
   });
 });

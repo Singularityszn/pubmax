@@ -1,6 +1,7 @@
 import { v } from "convex/values";
 
 export const palSpecies = v.union(
+  v.literal("robin"),
   v.literal("greyhound"),
   v.literal("pigeon"),
   v.literal("badger"),
