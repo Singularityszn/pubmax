@@ -53,6 +53,7 @@ import PlanComposer from "@/components/plan/PlanComposer";
 import { ASK_PLAN_DRAFT_STORAGE_KEY } from "@/lib/ask/types";
 import {
   createPlanIntakeDraft,
+  readPlanIntakeDraft,
   skipRemainingPlanIntake,
   writePlanIntakeDraft,
 } from "@/lib/planIntake";
@@ -265,6 +266,34 @@ describe("PlanComposer describe prefill", () => {
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
+  it("does not replace a recovered concierge line when a session ask prefill lands in describe-first", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: DRAFT_ASK,
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+    sessionStorage.setItem(
+      ASK_PLAN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ query: "session-only ask" }),
+    );
+
+    await mountComposer();
+    await settleComposerEffects();
+
+    expect(describeFieldValue()).toBe("session-only ask");
+    expect(conciergeFieldValue()).toBe(DRAFT_ASK);
+  });
+
   it("still lands the URL ask when the browser refuses site data", async () => {
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
     blockStorage();
@@ -285,12 +314,113 @@ describe("PlanComposer describe prefill", () => {
 
     expect(describeFieldValue()).toBe("");
   });
+
+  it("does not generate when describe-first asks for an unsupported night patch", async () => {
+    await mountComposer();
+
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Hackney crawl tonight");
+      clickButton("Make a plan");
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCalls).toHaveLength(0);
+  });
 });
 
 // A URL ask is a fresher intention than anything the browser held, and the two
 // states below are the ones that used to hide the only surface showing it - so
 // the CTA landed on /plan with the ask nowhere on screen and nothing said.
 describe("PlanComposer never drops a URL ask", () => {
+  it("does not start geolocation after typed describe text enters the wizard", async () => {
+    const getCurrentPosition = vi.fn();
+    vi.stubGlobal("navigator", { geolocation: { getCurrentPosition } });
+
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Camden");
+      clickButton("Guide me instead");
+    });
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(readPlanIntakeDraft(localStorage)).toBeNull();
+  });
+
+  it("keeps the full describe-first ask in the composer while typing", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: "",
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+
+    await mountComposer();
+    await act(async () => {
+      typeInto("#plan-describe-first-query", "Camden crawl");
+    });
+
+    expect(conciergeFieldValue()).toBe("Camden crawl");
+  });
+
+  it("uses submitted concierge text as area authority for the main composer button", async () => {
+    writePlanIntakeDraft(skipRemainingPlanIntake(createPlanIntakeDraft({ kind: "patch", id: "clapham" })));
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: "Camden crawl tonight",
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+
+    await mountComposer();
+
+    const concierge = document.querySelector<HTMLInputElement>("#plan-concierge-query");
+    if (!concierge) throw new Error("concierge query did not render");
+    const button = concierge.parentElement?.querySelector<HTMLButtonElement>("button");
+    if (!button) throw new Error("concierge submit did not render");
+
+    await act(async () => {
+      button.click();
+      await Promise.resolve();
+    });
+
+    const generateCalls = vi.mocked(fetch).mock.calls.filter(([input]) => {
+      const url = typeof input === "string" ? input : input instanceof Request ? input.url : String(input);
+      return url.includes("/api/plans/generate");
+    });
+    expect(generateCalls).toHaveLength(1);
+    const body = JSON.parse(String((generateCalls[0]?.[1] as RequestInit).body)) as {
+      intake?: { area?: { id?: string } | null };
+    };
+    expect(body.intake?.area?.id).toBe("camden");
+  });
+
   it("opens describe-first over an unfinished wizard draft", async () => {
     writePlanIntakeDraft(createPlanIntakeDraft({ kind: "patch", id: "soho" }));
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
@@ -550,4 +680,3 @@ describe("Pal handoff auto-generates once on /plan?query=", () => {
     expect(document.body.textContent).toContain("Route refreshed");
   });
 });
-

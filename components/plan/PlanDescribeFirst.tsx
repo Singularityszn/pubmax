@@ -6,6 +6,7 @@ import WantedPlanChips from "@/components/wanted/WantedPlanChips";
 import { CULTURE_CRAWL_CHIPS, CULTURE_CRAWL_MISSION } from "@/lib/cultureCrawl";
 import { DESCRIBE_FIRST_CHIPS } from "@/lib/describeFirstChips";
 import { inferNightContext } from "@/lib/nightPlanning";
+import { resolveDescribeChipSubmit } from "@/lib/planComposerChipFill";
 import { normalizePlanStopCount, type PlanStopCount } from "@/lib/planStopCount";
 import PlanStopCountPicker from "@/components/plan/PlanStopCountPicker";
 
@@ -14,10 +15,15 @@ export { DESCRIBE_FIRST_CHIPS };
 export default function PlanDescribeFirst({
   onSubmit,
   onGuideMeInstead,
+  onQueryChange,
+  onPrefillQueryChange,
   initialQuery = "",
 }: {
   onSubmit: (query: string, stopCount?: PlanStopCount) => void;
   onGuideMeInstead: () => void;
+  onQueryChange?: (query: string) => void;
+  /** External handoffs only: URL or Ask prefills while the field stays untouched. */
+  onPrefillQueryChange?: (query: string) => void;
   /** Prefill from a confirmed Night OS Ask draft_plan proposal. */
   initialQuery?: string;
 }) {
@@ -28,13 +34,42 @@ export default function PlanDescribeFirst({
   // read as a broken destination. Adopt a later prefill only while the field is
   // untouched, never over something the visitor typed.
   const [touched, setTouched] = useState(false);
+  const [stopCountTouched, setStopCountTouched] = useState(false);
   const appliedPrefill = useRef(initialQuery);
+  const reportedPrefill = useRef<string | null>(null);
+  const onQueryChangeRef = useRef(onQueryChange);
+  const onPrefillQueryChangeRef = useRef(onPrefillQueryChange);
+  useEffect(() => {
+    onQueryChangeRef.current = onQueryChange;
+  }, [onQueryChange]);
+  useEffect(() => {
+    onPrefillQueryChangeRef.current = onPrefillQueryChange;
+  }, [onPrefillQueryChange]);
+  useEffect(() => {
+    const nextQuery = initialQuery.slice(0, 500);
+    if (!nextQuery || reportedPrefill.current === nextQuery) return;
+    reportedPrefill.current = nextQuery;
+    onPrefillQueryChangeRef.current?.(nextQuery);
+  }, [initialQuery]);
   useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
-    setQuery(initialQuery.slice(0, 500));
-    setStopCount(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
-  }, [initialQuery, touched]);
+    const nextQuery = initialQuery.slice(0, 500);
+    const nextStopCount = normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount);
+    let cancelled = false;
+    // Prefill is an external handoff. Defer its state adoption so React 19 does
+    // not treat the effect as a synchronous render cascade.
+    void Promise.resolve().then(() => {
+      if (cancelled) return;
+      setQuery(nextQuery);
+      if (!stopCountTouched) setStopCount(nextStopCount);
+      if (nextQuery && reportedPrefill.current !== nextQuery) {
+        reportedPrefill.current = nextQuery;
+        onPrefillQueryChangeRef.current?.(nextQuery);
+      }
+    });
+    return () => { cancelled = true; };
+  }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
     const trimmed = queryOverride.trim();
@@ -43,9 +78,16 @@ export default function PlanDescribeFirst({
   }
 
   function submitChip(value: string) {
-    const inferred = normalizePlanStopCount(inferNightContext(value).context.stopCount);
-    setStopCount(inferred);
-    onSubmit(value, inferred);
+    const chipInferredStopCount = normalizePlanStopCount(inferNightContext(value).context.stopCount);
+    const resolved = resolveDescribeChipSubmit({
+      query,
+      stopCountTouched,
+      stopCount,
+      chipText: value,
+      chipInferredStopCount,
+    });
+    if (!stopCountTouched) setStopCount(resolved.stopCount);
+    onSubmit(resolved.query, resolved.stopCount);
   }
 
   function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
@@ -69,7 +111,10 @@ export default function PlanDescribeFirst({
             setTouched(true);
             const value = event.target.value;
             setQuery(value);
-            setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+            onQueryChange?.(value);
+            if (!stopCountTouched) {
+              setStopCount(normalizePlanStopCount(inferNightContext(value).context.stopCount));
+            }
           }}
           onKeyDown={handleKeyDown}
           placeholder="Quiet in Clapham for 4"
@@ -82,7 +127,13 @@ export default function PlanDescribeFirst({
           {query.trim() ? "Make a plan" : "Guide me"}
         </button>
       </div>
-      <PlanStopCountPicker value={stopCount} onChange={setStopCount} />
+      <PlanStopCountPicker
+        value={stopCount}
+        onChange={(next) => {
+          setStopCountTouched(true);
+          setStopCount(next);
+        }}
+      />
       <WantedPlanChips onPick={submitChip} />
       <div className="planDescribeFirst__culture" role="group" aria-label="Culture Crawl">
         <p className="planDescribeFirst__cultureLead">{CULTURE_CRAWL_MISSION}</p>

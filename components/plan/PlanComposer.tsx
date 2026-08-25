@@ -64,6 +64,14 @@ import {
   UNRESOLVED_ACCEPTED_VENUE_NAME,
   type ComposerHydration,
 } from "@/lib/planComposerHandoff";
+import {
+  composerGeolocationMaySeedIntake,
+  mergeSubmittedNightContext,
+  mergePlanTemplateFields,
+  nightAreaFromPlanQuery,
+  reconcileGeneratedNightContext,
+  syncPlanIntakeAreaFromQuery,
+} from "@/lib/planComposerChipFill";
 import { writePlanCapability } from "@/lib/planSessionCapability";
 import { markPalRouteActivation } from "@/lib/pubPal";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
@@ -1067,6 +1075,9 @@ function describeAskFromLocation(): UrlPrefill {
   }
 }
 
+// The form owns several independent draft and route transitions; keep this
+// warning visible in reviews without turning its state machine into wrappers.
+// eslint-disable-next-line complexity
 function PlanComposerForm({
   recoveredDraft,
   recoveredRouteDraft,
@@ -1238,6 +1249,9 @@ function PlanComposerForm({
         skipRemainingPlanIntake(createPlanIntakeDraft()),
       );
     });
+    // submitFromEntry is intentionally excluded: it is recreated on render,
+    // while this effect must run only when the URL handoff changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [canPersist, urlPrefill.handoffAsk]);
   const [conciergeNote, setConciergeNote] = useState("");
   const routeDraftFields = initialComposerRouteDraft(recoveredRouteDraft);
@@ -1262,18 +1276,29 @@ function PlanComposerForm({
     () => stops.filter((stop) => stop.venueName.trim() && stop.venueId.trim()),
     [stops],
   );
-  const intakeContextPatch = useMemo(
-    () => planIntakeNightContextPatch(planIntake),
-    [planIntake],
+  const conciergeIntake = useMemo(
+    () => syncPlanIntakeAreaFromQuery(planIntake, conciergeQuery),
+    [conciergeQuery, planIntake],
   );
-  const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(planIntake, intakeContextPatch);
+  const intakeContextPatch = useMemo(
+    () => planIntakeNightContextPatch(conciergeIntake),
+    [conciergeIntake],
+  );
+  const unsupportedIntakePatch = unsupportedPatchForCurrentGenerator(conciergeIntake, intakeContextPatch);
+  const queryUnsupportedPatch = useMemo(() => {
+    const queryArea = nightAreaFromPlanQuery(conciergeQuery);
+    return queryArea.kind === "unsupported-patch"
+      ? resolveNightPatch(queryArea.patchId)
+      : null;
+  }, [conciergeQuery]);
+  const activeUnsupportedPatch = unsupportedIntakePatch ?? queryUnsupportedPatch;
   const canSortWithCurrentGenerator = canSortPlan(
     conciergeQuery,
     intakeContextPatch,
     nightContext,
-    unsupportedIntakePatch,
+    activeUnsupportedPatch,
   );
-  const conciergeStatus = conciergeStatusText(sorting, unsupportedIntakePatch, conciergeNote);
+  const conciergeStatus = conciergeStatusText(sorting, activeUnsupportedPatch, conciergeNote);
   const composerVisible =
     planIntake.completed
     || stops.length > 0
@@ -1419,6 +1444,16 @@ function PlanComposerForm({
       seedArea(hydratedHandoff.area.id);
       return () => { cancelled = true; };
     }
+    if (!composerGeolocationMaySeedIntake({
+      showsDescribeFirst: planComposerShowsDescribeFirst({
+        heldVenueId,
+        completed: planIntake.completed,
+        entryMode,
+      }),
+      hasQueryText: Boolean(conciergeQuery.trim() || askDraftQuery.trim()),
+    })) {
+      return () => { cancelled = true; };
+    }
     if (typeof navigator === "undefined" || !navigator.geolocation) {
       seedRememberedSoon();
       return () => { cancelled = true; };
@@ -1433,7 +1468,15 @@ function PlanComposerForm({
       { enableHighAccuracy: false, maximumAge: 5 * 60 * 1000, timeout: 10_000 },
     );
     return () => { cancelled = true; };
-  }, [hasDurableIntakeDraft, hydratedHandoff]);
+  }, [
+    hasDurableIntakeDraft,
+    hydratedHandoff,
+    heldVenueId,
+    planIntake.completed,
+    entryMode,
+    conciergeQuery,
+    askDraftQuery,
+  ]);
 
   function updatePlanIntake(next: PlanIntakeDraft) {
     const reconciled = next.answers.stopCount === undefined
@@ -1460,6 +1503,16 @@ function PlanComposerForm({
     setPlanIntake(reconciled.draft);
   }
 
+  function adoptDescribePrefillQuery(value: string) {
+    setConciergeQuery((current) => {
+      const next = value.trim();
+      if (!next) return current;
+      if (appliedUrlAskRef.current === next) return next;
+      if (!current.trim()) return next;
+      return current;
+    });
+  }
+
   function submitFromEntry(
     query: string,
     requestedStopCount?: PlanStopCount,
@@ -1469,16 +1522,21 @@ function PlanComposerForm({
     // re-rendered yet when sortWithConcierge runs below, so reading the
     // planIntake state variable here would still see the pre-skip draft and
     // send a body the server flags as PLAN_INTAKE_MALFORMED.
+    const areaSynced = syncPlanIntakeAreaFromQuery(intakeBase, query);
     const skippedIntake = skipRemainingPlanIntake({
-      ...intakeBase,
+      ...areaSynced,
       answers: {
-        ...intakeBase.answers,
+        ...areaSynced.answers,
         ...(requestedStopCount !== undefined ? { stopCount: requestedStopCount } : {}),
       },
     });
     setConciergeQuery(query);
     updatePlanIntake(skippedIntake);
-    sortWithConcierge(query, skippedIntake);
+    sortWithConcierge(
+      query,
+      skippedIntake,
+      requestedStopCount === undefined ? undefined : { stopCount: requestedStopCount },
+    );
   }
 
   function updatePlanStartTime(value: string) {
@@ -1582,20 +1640,54 @@ function PlanComposerForm({
     );
   }
 
-  async function sortWithConcierge(queryOverride?: string, intakeOverride?: PlanIntakeDraft) {
-    // Both overrides (from the describe-first entry surface) are used as-is:
-    // they are set in the same event as the call, before React re-renders,
-    // so reading the query/planIntake state here would still see stale
-    // values (the pre-skip intake would fail the server's consistency check).
+  async function sortWithConcierge(
+    queryOverride?: string,
+    intakeOverride?: PlanIntakeDraft,
+    explicitContextOverride?: Partial<NightContext>,
+  ) {
+    // Both overrides (from the describe-first entry surface) are threaded
+    // through explicitly before React re-renders, so state reads here cannot
+    // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
-    const intake = intakeOverride ?? planIntake;
+    const queryArea = nightAreaFromPlanQuery(query);
+    const explicitContextBase = explicitContextOverride
+      ? { ...explicitNightContext, ...explicitContextOverride }
+      : explicitNightContext;
+    const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
+      ? explicitContextBase
+      : nightContext?.nightArea
+        ? { ...explicitContextBase, nightArea: nightContext.nightArea }
+        : explicitContextBase;
+    if (queryArea.kind !== "none") {
+      setExplicitNightContext((current) => ({
+        ...current,
+        nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
+      }));
+    }
+    const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
+    if (queryOverride === undefined && intake !== planIntake) {
+      updatePlanIntake(intake);
+    }
     const intakeContextForSort = planIntakeNightContextPatch(intake);
-    const unsupportedPatchForSort = unsupportedPatchForCurrentGenerator(
+    const intakeUnsupportedPatch = unsupportedPatchForCurrentGenerator(
       intake,
       intakeContextForSort,
     );
+    const queryUnsupportedPatchForSort =
+      queryArea.kind === "unsupported-patch"
+        ? resolveNightPatch(queryArea.patchId)
+        : null;
+    const blockedUnsupportedPatch = intakeUnsupportedPatch ?? queryUnsupportedPatchForSort;
     if (queryOverride === undefined && !canSortWithCurrentGenerator) return;
-    if (queryOverride !== undefined && unsupportedPatchForSort) return;
+    if (blockedUnsupportedPatch) {
+      setConciergeNote(conciergeStatusText(false, blockedUnsupportedPatch, ""));
+      return;
+    }
+    const submittedContext = mergeSubmittedNightContext(
+      explicitContext,
+      intakeContextForSort,
+      queryArea,
+    );
     setSorting(true);
     setError("");
     setRouteStatus("Refreshing the route, rechecking every stop against your updated night.");
@@ -1607,7 +1699,7 @@ function PlanComposerForm({
           intake,
           query,
           nightContext,
-          explicitNightContext,
+          submittedContext,
           handoff?.acceptedAnchor,
         )),
       });
@@ -1646,8 +1738,13 @@ function PlanComposerForm({
       const grounded = isGroundedGeneratedRoute(body, suggested);
       if (body.inferredContext) {
         const inferredContext = body.inferredContext as NightContext;
-        setNightContext(inferredContext);
-        if (!user) writeDeviceNightContext(inferredContext);
+        const reconciled = reconcileGeneratedNightContext(
+          inferredContext,
+          submittedContext,
+          suggested.length,
+        );
+        setNightContext(reconciled);
+        if (!user) writeDeviceNightContext(reconciled);
       }
       setRouteRevision(routeRevisionFromState(body));
       setRouteStale(false);
@@ -1821,6 +1918,8 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
+          onQueryChange={setConciergeQuery}
+          onPrefillQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
       ) : planComposerShowsIntake({
@@ -1930,9 +2029,21 @@ function PlanComposerForm({
               className="planComposer__template"
               title={template.blurb}
               onClick={() => {
-                setTitle(template.title);
-                setConciergeQuery(template.conciergeQuery);
-                setConciergeNote(template.blurb);
+                const merged = mergePlanTemplateFields({
+                  title,
+                  conciergeQuery,
+                  conciergeNote,
+                  template,
+                  hasAcceptedGeography: Boolean(
+                    handoff?.answeredArea
+                    || planIntake.answers.area
+                    || nightContext?.nightArea
+                    || explicitNightContext.nightArea,
+                  ),
+                });
+                setTitle(merged.title);
+                setConciergeQuery(merged.conciergeQuery);
+                setConciergeNote(merged.conciergeNote);
               }}
             >
               {template.label}
