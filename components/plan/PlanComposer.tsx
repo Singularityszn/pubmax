@@ -1503,6 +1503,16 @@ function PlanComposerForm({
     setPlanIntake(reconciled.draft);
   }
 
+  function adoptDescribePrefillQuery(value: string) {
+    setConciergeQuery((current) => {
+      const next = value.trim();
+      if (!next) return current;
+      if (appliedUrlAskRef.current === next) return next;
+      if (!current.trim()) return next;
+      return current;
+    });
+  }
+
   function submitFromEntry(
     query: string,
     requestedStopCount?: PlanStopCount,
@@ -1908,7 +1918,7 @@ function PlanComposerForm({
         <PlanDescribeFirst
           initialQuery={askDraftQuery}
           onSubmit={submitFromEntry}
-          onQueryChange={setConciergeQuery}
+          onQueryChange={adoptDescribePrefillQuery}
           onGuideMeInstead={() => setEntryMode("wizard")}
         />
       ) : planComposerShowsIntake({

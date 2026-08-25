@@ -266,6 +266,34 @@ describe("PlanComposer describe prefill", () => {
     expect(sessionStorage.getItem(ASK_PLAN_DRAFT_STORAGE_KEY)).toBeNull();
   });
 
+  it("does not replace a recovered concierge line when a session ask prefill lands in describe-first", async () => {
+    writePlanDraftEnvelope(
+      {
+        title: "Friday plan",
+        creatorName: "Karan",
+        startTime: "2026-08-28T18:00:00.000Z",
+        conciergeQuery: DRAFT_ASK,
+        stops: [
+          { key: 1, venueId: "venue-a", venueName: "Pub A" },
+          { key: 2, venueId: "venue-b", venueName: "Pub B" },
+          { key: 3, venueId: "venue-c", venueName: "Pub C" },
+        ],
+      },
+      "manual",
+      sessionStorage,
+    );
+    sessionStorage.setItem(
+      ASK_PLAN_DRAFT_STORAGE_KEY,
+      JSON.stringify({ query: "session-only ask" }),
+    );
+
+    await mountComposer();
+    await settleComposerEffects();
+
+    expect(describeFieldValue()).toBe("session-only ask");
+    expect(conciergeFieldValue()).toBe(DRAFT_ASK);
+  });
+
   it("still lands the URL ask when the browser refuses site data", async () => {
     setSearch(`?query=${encodeURIComponent(URL_ASK)}`);
     blockStorage();
