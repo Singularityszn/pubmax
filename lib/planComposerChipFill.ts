@@ -20,7 +20,10 @@ export function resolveDescribeChipSubmit(input: {
 }): { query: string; stopCount: PlanStopCount } {
   const userQuery = input.query.trim();
   const query = userQuery || input.chipText;
-  const stopCount = input.stopCountTouched ? input.stopCount : input.chipInferredStopCount;
+  const typedStopCount = userQuery
+    ? normalizePlanStopCount(inferNightContext(userQuery).context.stopCount)
+    : input.chipInferredStopCount;
+  const stopCount = input.stopCountTouched ? input.stopCount : typedStopCount;
   return { query, stopCount };
 }
 
@@ -31,15 +34,28 @@ export function nightPatchIdForNightArea(slug: NightAreaSlug): NightPatchId | nu
   return null;
 }
 
-export function nightAreaFromPlanQuery(query: string): NightAreaSlug | null {
-  return inferNightContext(query).context.nightArea;
+export type PlanQueryAreaAuthority =
+  | { kind: "none" }
+  | { kind: "supported"; slug: NightAreaSlug; patchId: NightPatchId }
+  | { kind: "unmapped"; slug: NightAreaSlug }
+  | { kind: "unsupported-patch"; patchId: NightPatchId };
+
+export function nightAreaFromPlanQuery(query: string): PlanQueryAreaAuthority {
+  const slug = inferNightContext(query).context.nightArea;
+  if (slug) {
+    const patchId = nightPatchIdForNightArea(slug);
+    return patchId ? { kind: "supported", slug, patchId } : { kind: "unmapped", slug };
+  }
+  const lower = query.toLocaleLowerCase();
+  const patch = NIGHT_PATCHES.find(({ label }) => lower.includes(label.toLocaleLowerCase()));
+  return patch ? { kind: "unsupported-patch", patchId: patch.id } : { kind: "none" };
 }
 
 /** A submitted describe-first query owns intake area over a geo or remembered seed. */
 export function syncPlanIntakeAreaFromQuery(draft: PlanIntakeDraft, query: string): PlanIntakeDraft {
-  const slug = nightAreaFromPlanQuery(query);
-  if (!slug) return draft;
-  const patchId = nightPatchIdForNightArea(slug);
+  const queryArea = nightAreaFromPlanQuery(query);
+  if (queryArea.kind === "none") return draft;
+  const patchId = queryArea.kind === "supported" ? queryArea.patchId : null;
   if (!patchId) {
     if (draft.answers.area === null) return draft;
     return {
@@ -86,12 +102,14 @@ export function mergeInferredNightContext(
 export function mergeSubmittedNightContext(
   explicit: Partial<NightContext>,
   intake: Partial<NightContext>,
-  queryArea: NightAreaSlug | null = null,
+  queryArea: PlanQueryAreaAuthority = { kind: "none" },
 ): Partial<NightContext> {
   return {
     ...explicit,
     ...(intake.nightArea ? { nightArea: intake.nightArea } : {}),
-    ...(queryArea ? { nightArea: queryArea } : {}),
+    ...(queryArea.kind === "supported" || queryArea.kind === "unmapped"
+      ? { nightArea: queryArea.slug }
+      : queryArea.kind === "unsupported-patch" ? { nightArea: null } : {}),
     ...(intake.stopCount !== undefined ? { stopCount: intake.stopCount } : {}),
   };
 }

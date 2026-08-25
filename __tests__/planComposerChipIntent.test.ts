@@ -61,6 +61,17 @@ describe("plan composer chip intent policy", () => {
     expect(result.query).toBe("Plan a crawl in Camden");
   });
 
+  it("keeps a stop count inferred from typed text when a chip is tapped", () => {
+    const result = resolveDescribeChipSubmit({
+      query: "Camden 6 pubs",
+      stopCountTouched: false,
+      stopCount: 6,
+      chipText: "Quiet in Clapham for 4, not pricey",
+      chipInferredStopCount: 3,
+    });
+    expect(result.stopCount).toBe(6);
+  });
+
   it("submits submitted query area over a geo-seeded intake patch", () => {
     const draft = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
     const synced = syncPlanIntakeAreaFromQuery(draft, "Camden crawl tonight");
@@ -119,13 +130,23 @@ describe("plan composer chip intent policy", () => {
 
   it("keeps an unmapped recognized query area over stale context area", () => {
     const queryArea = nightAreaFromPlanQuery("Canary Wharf after work");
-    expect(queryArea).toBe("canary-wharf");
+    expect(queryArea).toEqual({ kind: "unmapped", slug: "canary-wharf" });
     const submitted = mergeSubmittedNightContext(
       { nightArea: "chiswick" },
       {},
       queryArea,
     );
     expect(submitted.nightArea).toBe("canary-wharf");
+  });
+
+  it("clears stale area authority for an unsupported night patch", () => {
+    const draft = createPlanIntakeDraft({ kind: "patch", id: "clapham" });
+    const queryArea = nightAreaFromPlanQuery("Hackney crawl tonight");
+    expect(queryArea).toEqual({ kind: "unsupported-patch", patchId: "hackney" });
+    const synced = syncPlanIntakeAreaFromQuery(draft, "Hackney crawl tonight");
+    expect(synced.answers.area).toBeNull();
+    const submitted = mergeSubmittedNightContext({ nightArea: "clapham" }, {}, queryArea);
+    expect(submitted.nightArea).toBeNull();
   });
 
   it("preserves an explicit stop count when generated route length differs", () => {
