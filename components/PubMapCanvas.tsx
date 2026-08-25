@@ -98,6 +98,7 @@ import {
 import {
   assembleSceneCritical,
   assembleSceneDeferred,
+  applySelectionState,
   buildTransitLines,
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
@@ -1120,8 +1121,10 @@ export default function PubMapCanvas({
     let contextLostTimer: ReturnType<typeof setTimeout> | undefined;
     let didConstruct = false;
     let constructCleanup: (() => void) | undefined;
-    let deferredSceneCancelled = false;
     let deferredSceneIdleId: number | null = null;
+    let deferredSceneFrameId: number | null = null;
+    let deferredTransitFallbackTimer: number | null = null;
+    let deferredTransitHandler: (() => void) | null = null;
 
     // --- Size gate. `.mapStage` is `absolute inset:0` inside a 100dvh shell, so
     // it should be sized at mount — but if the shell hasn't laid out yet MapLibre
@@ -1280,6 +1283,25 @@ export default function PubMapCanvas({
       "top-right",
     );
     mapRef.current = map;
+    let styleGeneration = 0;
+    const cancelDeferredWork = () => {
+      if (deferredSceneIdleId !== null && typeof cancelIdleCallback === "function") {
+        cancelIdleCallback(deferredSceneIdleId);
+        deferredSceneIdleId = null;
+      }
+      if (deferredSceneFrameId !== null) {
+        cancelAnimationFrame(deferredSceneFrameId);
+        deferredSceneFrameId = null;
+      }
+      if (deferredTransitHandler) {
+        map.off("idle", deferredTransitHandler);
+        deferredTransitHandler = null;
+      }
+      if (deferredTransitFallbackTimer !== null) {
+        window.clearTimeout(deferredTransitFallbackTimer);
+        deferredTransitFallbackTimer = null;
+      }
+    };
     // Sync the GL viewport to the laid-out container before the first tile
     // fetch. A missed or early resize leaves half the canvas on the pre-tile
     // backbuffer while the other half paints (captain screenshot, Aug 2026).
@@ -1628,6 +1650,7 @@ export default function PubMapCanvas({
       // so an old Style cannot bubble a stale style.load to this map listener.
       // Keep the app-owned guard for teardown and app-owned setStyle windows.
       if (!styleStructureReadyRef.current) return;
+      const generation = styleGeneration;
 
       // Wave K2: style.load already flipped `styleLoaded`, so the tile hard-fail
       // timer will never fire. Any throw below must still lift the parent
@@ -1638,8 +1661,15 @@ export default function PubMapCanvas({
       // is the half-canvas black the captain saw on a cold phone open.
       const runBuildScene = () => {
         const execute = () => {
+          if (
+            generation !== styleGeneration ||
+            mapRef.current !== map ||
+            !styleStructureReadyRef.current
+          ) {
+            return;
+          }
           try {
-            buildSceneBody();
+            buildSceneBody(generation);
             settleSceneReady();
             // Audit F5: one present after the scene graph builds, so a settled
             // style never waits on user input for its first frame.
@@ -1673,7 +1703,8 @@ export default function PubMapCanvas({
       runBuildScene();
     };
 
-    const buildSceneBody = () => {
+    const buildSceneBody = (generation: number) => {
+      cancelDeferredWork();
       const tokens = readTokens();
       const dark = themeRef.current === "dark";
       publishRenderedState(tokens);
@@ -1732,9 +1763,14 @@ export default function PubMapCanvas({
       // Cold-open: taste, sky and transit stay off the first frame so basemap
       // tiles and pub pins can decode (see assembleSceneCritical).
       assembleSceneCritical(sceneCtx);
-      deferredSceneCancelled = false;
       const scheduleDeferredScene = () => {
-        if (deferredSceneCancelled || mapRef.current !== map || !styleStructureReadyRef.current) {
+        deferredSceneIdleId = null;
+        deferredSceneFrameId = null;
+        if (
+          generation !== styleGeneration ||
+          mapRef.current !== map ||
+          !styleStructureReadyRef.current
+        ) {
           return;
         }
         if (!map.getStyle()) return;
@@ -1749,7 +1785,7 @@ export default function PubMapCanvas({
       if (typeof requestIdleCallback === "function") {
         deferredSceneIdleId = requestIdleCallback(scheduleDeferredScene, { timeout: 200 });
       } else {
-        requestAnimationFrame(scheduleDeferredScene);
+        deferredSceneFrameId = requestAnimationFrame(scheduleDeferredScene);
       }
 
       if (transitLinesPath) {
@@ -1757,9 +1793,19 @@ export default function PubMapCanvas({
         let transitScheduled = false;
         let transitFallbackTimer = 0;
         const loadDeferredTransit = () => {
+          if (
+            generation !== styleGeneration ||
+            mapRef.current !== map ||
+            !styleStructureReadyRef.current
+          ) {
+            return;
+          }
           if (transitScheduled) return;
           transitScheduled = true;
           window.clearTimeout(transitFallbackTimer);
+          deferredTransitFallbackTimer = null;
+          map.off("idle", loadDeferredTransit);
+          deferredTransitHandler = null;
           if (!map.getStyle()) return;
           try {
             buildTransitLines({
@@ -1792,6 +1838,7 @@ export default function PubMapCanvas({
             // ran before idle could only setFilter POI layers; tube-lines-*
             // were missing then, so their visibility must catch up here.
             applyPoiCategoryVisibility(map, poiHiddenRef.current);
+            applySelectionState(sceneCtx);
           } catch {
             // Transit is additive; never block the pub map on overlay failure.
           }
@@ -1799,10 +1846,10 @@ export default function PubMapCanvas({
         // Prefer first full idle (basemap + pins settled). Continuous tile
         // repaint can starve `idle` on some GPUs — fall back after 2.5s so the
         // overlay still appears without riding the critical path.
-        map.once("idle", loadDeferredTransit);
+        deferredTransitHandler = loadDeferredTransit;
+        map.on("idle", loadDeferredTransit);
         transitFallbackTimer = window.setTimeout(loadDeferredTransit, 2500);
-        (map as maplibregl.Map & { __pubmaxTransitFallback?: number }).__pubmaxTransitFallback =
-          transitFallbackTimer;
+        deferredTransitFallbackTimer = transitFallbackTimer;
       }
 
       // --- Tile-paint gate (D2). buildScene runs on `style.load`, which fires
@@ -2100,6 +2147,8 @@ export default function PubMapCanvas({
     // throws "Style is not done loading". With the flag set first, the error
     // handler knows the style did load and never swaps mid-build.
     map.on("style.load", () => {
+      styleGeneration += 1;
+      cancelDeferredWork();
       styleStructureReadyRef.current = true;
       styleLoaded = true;
       clearStyleLoadProtection();
@@ -2686,14 +2735,8 @@ export default function PubMapCanvas({
       pinRevealCoordinator.dispose();
       clearTileFailureRecheck();
       clearPinRetryWait();
-      deferredSceneCancelled = true;
-      if (
-        deferredSceneIdleId !== null &&
-        typeof cancelIdleCallback === "function"
-      ) {
-        cancelIdleCallback(deferredSceneIdleId);
-        deferredSceneIdleId = null;
-      }
+      styleGeneration += 1;
+      cancelDeferredWork();
       pinRetryRef.current = null;
       armPinNoticeRef.current = null;
       map.off("render", markBasemapRecovered);
@@ -2707,11 +2750,6 @@ export default function PubMapCanvas({
       removePaintedPinProbe();
       if (publishCurrentViewportRef.current === publishCurrentViewport) {
         publishCurrentViewportRef.current = null;
-      }
-      {
-        const fallback = (map as maplibregl.Map & { __pubmaxTransitFallback?: number })
-          .__pubmaxTransitFallback;
-        if (fallback) window.clearTimeout(fallback);
       }
       map.remove();
       mapRef.current = null;

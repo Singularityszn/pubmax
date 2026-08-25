@@ -374,7 +374,7 @@ export function buildSkyAndBuildings(ctx: SceneCtx) {
 }
 
 export function buildTransitLines(ctx: SceneCtx) {
-  const { map, tokens, dark, textFont, addLayerOnce, transitLinesPath, poiHidden } = ctx;
+  const { map, tokens, dark, textFont, transitLinesPath, poiHidden } = ctx;
   // --- Transit lines (London TfL by default). Non-London cities pass
   // transitLinesPath=null so we skip the source entirely (no 404).
   if (!transitLinesPath) return;
@@ -385,10 +385,14 @@ export function buildTransitLines(ctx: SceneCtx) {
       attribution: "Rail lines © TfL / OpenStreetMap contributors (ODbL)",
     });
   }
+  const addTransitLayer = (layer: Parameters<maplibregl.Map["addLayer"]>[0]) => {
+    if (map.getLayer(layer.id)) return;
+    map.addLayer(layer, map.getLayer("user-location-halo") ? "user-location-halo" : undefined);
+  };
   const tubeVisibility: "none" | "visible" = isTransitNetworkVisible(poiHidden)
     ? "visible"
     : "none";
-  addLayerOnce({
+  addTransitLayer({
     id: "tube-lines-casing",
     type: "line",
     source: "tube-lines",
@@ -402,7 +406,7 @@ export function buildTransitLines(ctx: SceneCtx) {
       "line-offset": TUBE_LINE_OFFSET_EXPR,
     },
   });
-  addLayerOnce({
+  addTransitLayer({
     id: "tube-lines-color",
     type: "line",
     source: "tube-lines",
@@ -424,7 +428,7 @@ export function buildTransitLines(ctx: SceneCtx) {
   // Line names ride along the route once you zoom in — neutral, high-contrast
   // text (not the line colour, which is unreadable for yellow/pink lines) so
   // the network stays legible over the busy base.
-  addLayerOnce({
+  addTransitLayer({
     id: "tube-lines-label",
     type: "symbol",
     source: "tube-lines",
@@ -1420,6 +1424,7 @@ export function assembleSceneDeferred(ctx: SceneCtx) {
   buildSkyAndBuildings(ctx);
   buildTransitLines(ctx);
   buildTonight(ctx);
+  applySelectionState(ctx);
 }
 
 export function assembleScene(ctx: SceneCtx) {
