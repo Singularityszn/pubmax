@@ -348,7 +348,7 @@
     "sourceUrl": "https://halarestaurant.co.uk/",
     "observedAt": "2026-08-25",
     "anchor": {
-      "kind": "large_doner",
+      "kind": "signature_item",
       "label": "Adana Kofte (Large)",
       "price": 24.5,
       "observedAt": "2026-08-25",
