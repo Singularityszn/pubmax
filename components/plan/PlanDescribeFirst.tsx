@@ -36,10 +36,14 @@ export default function PlanDescribeFirst({
   useEffect(() => {
     if (touched || initialQuery === appliedPrefill.current) return;
     appliedPrefill.current = initialQuery;
-    setQuery(initialQuery.slice(0, 500));
-    if (!stopCountTouched) {
-      setStopCount(normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount));
-    }
+    const nextQuery = initialQuery.slice(0, 500);
+    const nextStopCount = normalizePlanStopCount(inferNightContext(initialQuery).context.stopCount);
+    // Prefill is an external handoff. Defer its state adoption so React 19 does
+    // not treat the effect as a synchronous render cascade.
+    void Promise.resolve().then(() => {
+      setQuery(nextQuery);
+      if (!stopCountTouched) setStopCount(nextStopCount);
+    });
   }, [initialQuery, stopCountTouched, touched]);
 
   function submit(queryOverride = query) {
