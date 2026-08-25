@@ -27,6 +27,10 @@ export type WhatsOnResponse = {
   asOf: string | null;
 };
 
+export type WhatsOnHandlerDeps = LoadWhatsOnDeps & {
+  loadSelectableVenueIds?: () => Promise<ReadonlySet<string> | null>;
+};
+
 function parseKind(raw: string | null): WhatsOnKind | undefined {
   if (!raw) return undefined;
   const v = raw.trim().toLowerCase();
@@ -53,7 +57,7 @@ function parseNear(raw: string | null): { lat: number; lng: number } | undefined
 // Handler with injectable store deps.
 export async function handleWhatsOnRequest(
   request: Request,
-  deps: LoadWhatsOnDeps = {},
+  deps: WhatsOnHandlerDeps = {},
 ): Promise<Response> {
   try {
     // Own key/budget (lib/citymcpRateLimit.ts): whats-on is partly served from
@@ -75,6 +79,13 @@ export async function handleWhatsOnRequest(
     if (near) load.near = near;
     const limit = parseLimit(params.get("limit"));
     if (limit) load.limit = limit;
+    if (params.get("pubOnly") === "1") {
+      const selectableVenueIds = await deps.loadSelectableVenueIds?.();
+      if (!selectableVenueIds) {
+        return jsonNoStore({ rows: [], error: "Could not check listings." });
+      }
+      load.selectableVenueIds = selectableVenueIds;
+    }
 
     // The tonightGrouping V2 flag arrives via deps (the server route reads the
     // canonical registry and injects it — the flag reader depends on server-only,

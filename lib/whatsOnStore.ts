@@ -4,6 +4,7 @@
 // baseline-only, never an error to the caller.
 
 import { haversineKm } from "@/lib/haversine";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import { groupTonightListings } from "@/lib/tonightListGrouping";
 import {
   bundledGeneratedAt,
@@ -178,6 +179,7 @@ export type LoadWhatsOnParams = {
   near?: { lat: number; lng: number };
   limit?: number;
   localityBasis?: WhatsOnLocalityBasis;
+  selectableVenueIds?: ReadonlySet<string>;
 };
 
 export type FetchLiveArgs = { now: number; area?: string; limit?: number };
@@ -292,6 +294,12 @@ function filterRowsForRequest(
   }
   if (params.kind) filtered = filterByKind(filtered, params.kind);
   if (params.window === "tonight") filtered = filterTonight(filtered, now);
+  if (params.selectableVenueIds) {
+    filtered = filtered.filter((row) => {
+      const venueId = canonicalOutVenueId(row.venueId);
+      return venueId !== null && params.selectableVenueIds?.has(venueId) === true;
+    });
+  }
   if (params.near) filtered = sortByNear(filtered, params.near);
 
   if (params.window === "tonight") {

@@ -82,13 +82,14 @@ export const TONIGHT_SNAPSHOT_MAX_AGE_MS = 10 * 60_000;
 /** The request this hook makes. Shared so the snapshot is keyed by the answer's own URL. */
 export function whatsOnTonightRequestUrl(
   near: { lat: number; lng: number } | null | undefined,
+  pubOnly = false,
 ): string {
   const validNear =
     near && Number.isFinite(near.lat) && Number.isFinite(near.lng)
       ? coarsenViewerPoint(near)
       : null;
   const suffix = validNear ? `&near=${validNear.lat},${validNear.lng}` : "";
-  return `/api/whats-on?window=tonight&limit=60${suffix}`;
+  return `/api/whats-on?window=tonight&limit=60${suffix}${pubOnly ? "&pubOnly=1" : ""}`;
 }
 
 export type LoadTonightResult = {
@@ -109,6 +110,7 @@ export type LoadTonightOpts = {
    *  Omitted = the store's own order, exactly as before. */
   near?: { lat: number; lng: number } | null;
   maxAgeMs?: number;
+  pubOnly?: boolean;
   onResult?: (result: LoadTonightResult, source: "snapshot" | "network") => void;
 };
 
@@ -153,7 +155,7 @@ export async function loadWhatsOnTonight(
     opts.timeoutMs ?? FETCH_TIMEOUT_MS,
   );
   await loadSurfaceJson<ApiResponse>(
-    whatsOnTonightRequestUrl(opts.near),
+    whatsOnTonightRequestUrl(opts.near, opts.pubOnly === true),
     {
       signal: opts.signal,
       maxAgeMs: opts.maxAgeMs,
@@ -203,6 +205,7 @@ const EMPTY_SUMMARY = new Map<string, VenueWhatsOnSummary>();
 export function useWhatsOnTonight(
   enabled: boolean,
   near: { lat: number; lng: number } | null = null,
+  options: { pubOnly?: boolean } = {},
 ): WhatsOnTonight {
   const [rows, setRows] = useState<WhatsOnRow[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
@@ -219,6 +222,7 @@ export function useWhatsOnTonight(
   // passing a fresh literal each render doesn't refetch in a loop.
   const nearLat = near?.lat ?? null;
   const nearLng = near?.lng ?? null;
+  const pubOnly = options.pubOnly === true;
 
   useEffect(() => {
     if (!enabled) {
@@ -236,6 +240,7 @@ export function useWhatsOnTonight(
     const load: LoadTonightOpts = {
       signal: controller.signal,
       maxAgeMs: TONIGHT_SNAPSHOT_MAX_AGE_MS,
+      pubOnly,
     };
     if (near) load.near = near;
     let painted = false;
@@ -259,7 +264,7 @@ export function useWhatsOnTonight(
       setStatus(result.status);
     });
     return () => controller.abort();
-  }, [enabled, retryAttempt, nearLat, nearLng]);
+  }, [enabled, retryAttempt, nearLat, nearLng, pubOnly]);
 
   const summary = useMemo(
     () => (rows.length === 0 ? EMPTY_SUMMARY : summariseWhatsOnByVenue(rows)),

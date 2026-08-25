@@ -214,6 +214,7 @@ export default function TonightClient({
   const { rows, asOf, sourceFreshnessKind, kindObservedAt, status, retry } = useWhatsOnTonight(
     true,
     tonightNear?.near ?? null,
+    { pubOnly: true },
   );
   const {
     body: outBody,

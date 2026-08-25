@@ -78,6 +78,7 @@ describe("/tonight pub surface", () => {
     expect(tonightRowLinks(matchedOut, SELECTABLE).mapHref).toBe(
       "/map?sel=venue-the-dove",
     );
+    expect(tonightRowHasListedPub(matchedOut, null)).toBe(false);
     expect(tonightRowLinks(unknownVenueId, SELECTABLE).mapHref).toBeNull();
     expect(tonightRowLinks(matchedOut, null).mapHref).toBeNull();
   });

@@ -11,6 +11,7 @@
 // 500" contract above is unaffected; a 429 is the one allowed exception.
 
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
+import { loadMapSelectableVenueIds } from "@/lib/mapEagerVenueIndex.server";
 import { handleWhatsOnRequest } from "@/lib/whatsOnHandler";
 
 export const runtime = "nodejs";
@@ -22,5 +23,6 @@ export async function GET(request: Request): Promise<Response> {
   // import that the reader depends on.
   return handleWhatsOnRequest(request, {
     tonightGroupingV2: readTrustedHandoffFlag("tonightGrouping"),
+    loadSelectableVenueIds: loadMapSelectableVenueIds,
   });
 }

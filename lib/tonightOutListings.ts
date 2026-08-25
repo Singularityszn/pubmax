@@ -11,6 +11,8 @@ import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
+type TonightSelectableVenueIds = MapSelectableVenueIds | undefined;
+
 export type TonightWhatsOnStatus = "idle" | "ready" | "empty" | "error";
 export type TonightListingsStatus = TonightWhatsOnStatus;
 
@@ -28,17 +30,15 @@ export type TonightOutAnswer = {
 /**
  * Whether a row may appear on /tonight: resolved to a pub the map can open.
  *
- * When the eager index could not be read (`selectable === null`), a canonical
- * venueId is enough to list the row; map links are withheld separately so a
- * read that failed never promises a pub the sheet would refuse.
  */
 export function tonightRowHasListedPub(
   row: WhatsOnRow,
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
   const venueId = canonicalOutVenueId(row.venueId);
   if (!venueId) return false;
-  if (selectable === null) return true;
+  if (selectable === undefined) return true;
+  if (selectable === null) return false;
   return selectable.has(venueId);
 }
 
@@ -46,7 +46,7 @@ export function tonightRowHasListedPub(
 export function filterTonightPubSurfaceRows(
   rows: readonly WhatsOnRow[],
   now: number = Date.now(),
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): WhatsOnRow[] {
   return filterNotPast([...rows], now).filter((row) =>
     tonightRowHasListedPub(row, selectable),
@@ -66,7 +66,7 @@ export function tonightOutEventsForStatus(
   whatsOn: TonightWhatsOnStatus,
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): WhatsOnRow[] {
   if (whatsOn !== "ready" && whatsOn !== "error") return [];
   return filterTonightPubSurfaceRows(outEvents, now, selectable);
@@ -92,7 +92,7 @@ export function mergeTonightListingRows(
   outEvents: readonly WhatsOnRow[],
   now: number = Date.now(),
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): WhatsOnRow[] {
   const pubWhatsOn =
     whatsOnStatus === "ready"
@@ -137,7 +137,7 @@ export function tonightListingsStatus(
   out: TonightOutAnswer,
   now: number = Date.now(),
   whatsOnRows: readonly WhatsOnRow[] = [],
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): TonightListingsStatus {
   const merged = mergeTonightListingRows(
     whatsOnRows,
@@ -391,7 +391,7 @@ export type TonightRowLinks = {
  */
 export function tonightRowLinks(
   row: WhatsOnRow,
-  selectable: MapSelectableVenueIds = null,
+  selectable: TonightSelectableVenueIds = undefined,
 ): TonightRowLinks {
   const rawLabel = row.source?.label ?? "";
   const sourceLabel = outSourceDisplayLabel(rawLabel);
@@ -432,8 +432,9 @@ function joinLabels(labels: string[]): string {
 /** Map deep links only when the eager index confirms the pub opens. */
 function tonightMapHrefAllowed(
   venueId: string,
-  selectable: MapSelectableVenueIds,
+  selectable: TonightSelectableVenueIds,
 ): boolean {
+  if (selectable === undefined) return true;
   if (selectable === null) return false;
   return selectable.has(venueId);
 }
