@@ -1627,9 +1627,20 @@ function PlanComposerForm({
     // send the pre-skip intake to the server.
     const query = queryOverride ?? conciergeQuery;
     const queryArea = nightAreaFromPlanQuery(query);
-    const explicitContext = explicitContextOverride
+    const explicitContextBase = explicitContextOverride
       ? { ...explicitNightContext, ...explicitContextOverride }
       : explicitNightContext;
+    const explicitContext = Object.prototype.hasOwnProperty.call(explicitContextBase, "nightArea")
+      ? explicitContextBase
+      : nightContext?.nightArea
+        ? { ...explicitContextBase, nightArea: nightContext.nightArea }
+        : explicitContextBase;
+    if (queryArea.kind !== "none") {
+      setExplicitNightContext((current) => ({
+        ...current,
+        nightArea: queryArea.kind === "unsupported-patch" ? null : queryArea.slug,
+      }));
+    }
     const intake = syncPlanIntakeAreaFromQuery(intakeOverride ?? planIntake, query);
     if (queryOverride === undefined && intake !== planIntake) {
       updatePlanIntake(intake);
