@@ -7,7 +7,6 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import SiteNav from "@/components/nav/SiteNav";
 import ThemeToggle from "@/components/ThemeToggle";
 import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
@@ -68,7 +67,12 @@ import {
 import { UK_BOUNDS } from "@/components/map/canvas/tokens";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 import { MOBILE_MEDIA_QUERY } from "@/lib/breakpoints";
-import SpringDrawer from "@/components/map/SpringDrawer";
+const SpringDrawer = dynamic(() => import("@/components/map/SpringDrawer"), {
+  ssr: false,
+});
+const SiteNav = dynamic(() => import("@/components/nav/SiteNav"), {
+  ssr: false,
+});
 // Perf (mobile /map cold-open): MapLibre (~327 KB) lives only in PubMapCanvas
 // and its canvas helpers (donutClusters / useMapCamera). Keep it out of the
 // PubMap shell chunk so first paint is shell + skeleton; MapLibre parses after
@@ -86,9 +90,11 @@ const PubMapCanvas = dynamic(() => import("@/components/PubMapCanvas"), {
     />
   ),
 });
-import MobileMapShell from "@/components/mobile/MobileMapShell";
+const MobileMapShell = dynamic(() => import("@/components/mobile/MobileMapShell"), {
+  ssr: false,
+});
 import { Sheet } from "@/components/ui/sheet";
-import MobileTflPanel, { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
+import { useMobileTflStatus } from "@/components/mobile/MobileTflPanel";
 import { Button } from "@/components/ui/button";
 import type { GeneratedMobilePlan } from "@/components/plan/MobilePlanActivation";
 const MobilePlanActivation = dynamic(
@@ -99,15 +105,30 @@ const MobilePlanActivation = dynamic(
   { ssr: false },
 );
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import DrinkLanePicker from "@/components/map/DrinkLanePicker";
-import DrinkShapeChips from "@/components/map/DrinkShapeChips";
-import MapKey from "@/components/map/MapKey";
+const DrinkLanePicker = dynamic(() => import("@/components/map/DrinkLanePicker"), {
+  ssr: false,
+});
+const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips"), {
+  ssr: false,
+});
+const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
 import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
-import MapExperienceLensControl from "@/components/map/MapExperienceLens";
-import FavoritePintPicker from "@/components/map/FavoritePintPicker";
-import MobilePriceChoices from "@/components/map/MobilePriceChoices";
-import PersonaLensPicker from "@/components/map/PersonaLensPicker";
-import PersonaLensCard from "@/components/map/PersonaLensCard";
+const MapExperienceLensControl = dynamic(
+  () => import("@/components/map/MapExperienceLens"),
+  { ssr: false },
+);
+const FavoritePintPicker = dynamic(() => import("@/components/map/FavoritePintPicker"), {
+  ssr: false,
+});
+const MobilePriceChoices = dynamic(() => import("@/components/map/MobilePriceChoices"), {
+  ssr: false,
+});
+const PersonaLensPicker = dynamic(() => import("@/components/map/PersonaLensPicker"), {
+  ssr: false,
+});
+const PersonaLensCard = dynamic(() => import("@/components/map/PersonaLensCard"), {
+  ssr: false,
+});
 import {
   SAVED_ONLY_ARIA_LABEL,
   SAVED_ONLY_EMPTY_NOTE,
@@ -115,8 +136,15 @@ import {
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
 import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
-import MapLayersControl from "@/components/map/MapLayersControl";
-import TonightArcChips from "@/components/map/TonightArcChips";
+const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
+  ssr: false,
+});
+const TonightArcChips = dynamic(() => import("@/components/map/TonightArcChips"), {
+  ssr: false,
+});
+const MobileTflPanel = dynamic(() => import("@/components/mobile/MobileTflPanel"), {
+  ssr: false,
+});
 // Perf (mobile map budget): the planner rail/route panel, venue inspector,
 // mobile plan activation, and the desktop-only map chrome below are NOT on the
 // first mobile map paint — the planner and inspector only mount after a user

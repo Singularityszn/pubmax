@@ -4,7 +4,8 @@ import dynamic from "next/dynamic";
 import { createContext, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
-import { warmCityMapFirstPaint } from "@/lib/mapWarmup";
+import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
+import { cityMapShareUrl } from "@/lib/cityShare";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
@@ -27,6 +28,15 @@ const PubMap = dynamic(() => import("./PubMap"), {
   ssr: false,
   loading: () => <DynamicMapSkeleton />,
 });
+
+// Cold /map (London prerendered document only): start the MapLibre canvas
+// chunk as soon as this module evaluates, instead of waiting for useEffect.
+if (typeof window !== "undefined") {
+  const path = window.location.pathname;
+  if (path === "/map" || path === "/map/") {
+    warmMapFirstPaint(cityMapShareUrl(DEFAULT_CITY_ID));
+  }
+}
 
 // ── One-time-ever "Start with a story" onboarding (UX defect fix) ──────────
 // PubMap gates its onboarding overlay on a sessionStorage flag, so it came

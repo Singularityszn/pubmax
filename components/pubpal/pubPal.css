@@ -170,6 +170,14 @@
   font-size: 9px;
   color: var(--muted);
 }
+@media (max-width: 640px) {
+  /* On the phone map the plan pill is full width and the Near me FAB owns the
+     right edge, so the summon pill stops short of that lane. */
+  body:has(.mobilePlanActivation) .palSummon {
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: calc(max(12px, env(safe-area-inset-right, 0px)) + 52px + 12px);
+  }
+}
 @media (min-width: 641px) {
   .palSummon {
     bottom: 22px;

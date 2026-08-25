@@ -21,6 +21,7 @@ import CellarNotice from "@/components/CellarNotice";
 import { isNativeApp } from "@/lib/nativePlatform";
 
 const DEFERRED_SHELL_FALLBACK_MS = 30_000;
+const E2E_DEFER_SHELL_RELEASE_KEY = "pubmax:e2e-defer-shell:v1";
 
 const NightModeCard = nextDynamic(() => import("@/components/night/NightModeCard"), {
   ssr: false,
@@ -66,6 +67,14 @@ export default function DeferredShellExtras() {
     if (isNativeApp()) {
       const nativeRelease = window.setTimeout(release, 0);
       return () => window.clearTimeout(nativeRelease);
+    }
+    try {
+      if (window.localStorage.getItem(E2E_DEFER_SHELL_RELEASE_KEY) === "now") {
+        release();
+        return;
+      }
+    } catch (storageError) {
+      void storageError;
     }
 
     const fallback = window.setTimeout(release, DEFERRED_SHELL_FALLBACK_MS);

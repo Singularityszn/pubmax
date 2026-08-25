@@ -650,13 +650,6 @@ const REQUIRED_MEMBERS = [
   "locate FAB",
 ] as const;
 
-// One pair predates the floating stack and is NOT this lane's to move: the Pub
-// Pal pill (right 18px, bottom 78, 52 tall) sits inside the map planning pill's
-// full-width band (bottom 86, 48 tall), and the pill paints over it. Named here
-// so the sweep still fails on every OTHER pair, including any new one, instead
-// of being narrowed to the create action alone.
-const KNOWN_PREEXISTING_OVERLAPS = new Set(["Pub Pal pill + plan activation"]);
-
 function overlaps(a: Rect, b: Rect): boolean {
   return (
     a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom
@@ -674,6 +667,7 @@ for (const viewport of VIEWPORTS) {
       // cannot happen - and whether it renders at all depends on a prompt
       // budget, so an undecided seed is nondeterministic as well as blind.
       window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+      window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
       const now = "2026-01-01T00:00:00.000Z";
       window.localStorage.setItem(
         "pubmax_pub_pal_v1",
@@ -727,8 +721,6 @@ for (const viewport of VIEWPORTS) {
 
     for (let i = 0; i < boxes.length; i += 1) {
       for (let j = i + 1; j < boxes.length; j += 1) {
-        const pair = [boxes[i]!.name, boxes[j]!.name].sort().join(" + ");
-        if (KNOWN_PREEXISTING_OVERLAPS.has(pair)) continue;
         expect(
           overlaps(boxes[i]!.rect, boxes[j]!.rect),
           `${boxes[i]!.name} overlaps ${boxes[j]!.name}: ${JSON.stringify([boxes[i]!.rect, boxes[j]!.rect])}`,

@@ -85,6 +85,10 @@ describe("map cold-open payload", () => {
     expect(classifier.has(join(ROOT, "data/london_boroughs_simplified.json"))).toBe(true);
   });
 
+  it("keeps MobileMapShell out of the eager map shell graph", () => {
+    expect(mapShell.has(join(ROOT, "components/mobile/MobileMapShell.tsx"))).toBe(false);
+  });
+
   // Every venue sheet / list / planner surface stays behind next/dynamic, so
   // none of them is parsed before the map can draw.
   it.each([

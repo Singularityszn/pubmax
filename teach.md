@@ -170,7 +170,7 @@ The crawl route is drawn with animated brass "marching ants." Rendering uses
 fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 
 1. **Client-only.** `"use client"`; everything happens inside one mount effect (`:271`). WebGL has no server story.
-2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; `buildScene` derives every paint value from them, so one theme toggle repaints UI and map in lockstep.
+2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; scene assembly derives every paint value from them, so one theme toggle repaints UI and map in lockstep.
 3. **Perf via GeoJSON layers, not React markers.** Every pub/cluster/route/landmark is a GeoJSON source + data-driven style layer. Updating = `source.setData(...)`, rendered on the GPU; route and entrance animation runs without React churn.
 
 ### Key pieces
@@ -180,7 +180,7 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 | `MAP_STYLES` / `FALLBACK_STYLES` | OpenFreeMap primary styles and CARTO fallbacks; `components/map/canvas/tokens.ts` owns the URLs. |
 | `LONDON_VIEW` | Opening London camera; `components/map/canvas/tokens.ts` owns its exact values. |
 | `readTokens()` (`:79`) | CSS vars → a `Tokens` object; every layer colour flows from here. |
-| `buildScene()` (`:309`) | Builds/rebuilds every source + layer from tokens; runs on `style.load`. |
+| `assembleSceneCritical()` / `assembleSceneDeferred()` | Build the first-paint pub layers, then the visual-polish and transit layers; the wrapper runs on `style.load`. |
 | `addLayerOnce()` (`:319`) | Guarded `addLayer` — skips if the layer exists, so a duplicate pass can't throw. |
 | `buildings-3d` (`:345`) | `fill-extrusion` off the basemap's `building` layer. |
 | `pubs-point` (`:459`) | Price-stamp dots: fill by price bucket, brass stroke + larger radius for story pubs. |
@@ -193,12 +193,21 @@ fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 
 ### How it works
 
-**Mount → buildScene.** The mount effect (`:271`) reads the theme, wires
-reduced-motion, constructs the `Map` with the matching vector style and UK pack
-bounds, registers `buildScene` on `style.load` (`:602`), and wires click/cursor
-handlers **by layer id** (bound to the `Map`, so they survive style swaps).
-`buildScene` reads tokens, extrudes buildings, adds every source/layer, and
-finishes with `setMapReady(true)`.
+**Mount → critical scene → deferred scene.** The mount effect reads the theme,
+wires reduced-motion, constructs the `Map` with the matching vector style and
+UK pack bounds, and wires click/cursor handlers **by layer id** (bound to the
+`Map`, so they survive style swaps). On `style.load`, the handler yields to a
+render opportunity, then builds pub, route, and pin layers without holding the
+basemap behind the full scene assembly. It schedules buildings, visual taste,
+transit, and Tonight overlays for idle time or the next frame. `setMapReady(true)`
+still follows scene construction; the parent loading chrome waits for the
+tile-paint gate.
+
+**Cold `/map` warm path.** `app/map/page.tsx` loads
+`public/map-first-paint-init.js` before the client shell. On ordinary network
+profiles it starts the manifest and core shard requests, and
+`lib/mapEarlyWarm.ts` lets the venue loaders reuse those promises. The London
+shell also warms the MapLibre chunk before its effect mounts.
 
 **Two pub sources, two contracts.** The curated `pubs` source owns clustering,
 prices, search, filters, and crawl routing. `lib/ukBasePubs.ts` loads the
@@ -208,11 +217,15 @@ lose symbol collisions to curated pins. Tapping one opens an unverified sheet
 that accepts a community price without adding the pub to the curated index.
 `public/data/uk_base/README.md` owns the shard and identity contract.
 
-**Why `addLayerOnce` guards exist.** `buildScene` runs on *every* `style.load` — first paint and after every theme flip. A bare `map.addLayer` on a live style throws `"Layer with id X already exists"` inside MapLibre's event dispatch, aborting the scene and half-building the map. `addLayerOnce` (`:319`) checks `getLayer` first; sources get `if (!map.getSource(...))` guards.
+**Why `addLayerOnce` guards exist.** Scene assembly runs on *every*
+`style.load` - first paint and after every theme flip. A bare `map.addLayer` on
+a live style throws `"Layer with id X already exists"` inside MapLibre's event
+dispatch, aborting the scene and half-building the map. `addLayerOnce` checks
+`getLayer` first; sources get `if (!map.getSource(...))` guards.
 
 **Why animation checks `isStyleLoaded()`.** During a theme `setStyle({diff:false})` the style is *transiently null*, and calling `getLayer` on a null style throws (the classic "#418 / getLayer-on-null"). The loop checks `!map.isStyleLoaded()` first because it is null-safe and returns `false` mid-swap. It also skips work under `prefers-reduced-motion` and when `document.hidden`.
 
-**Theme flip.** A `MutationObserver` on `html[data-theme]` (`:696`) calls `setStyle(MAP_STYLES[next], { diff: false })`. `diff: false` is deliberate: it forces a full swap so `style.load` re-fires and `buildScene` re-reads the (already-flipped) tokens. A diff'd swap would keep stale-themed layers.
+**Theme flip.** A `MutationObserver` on `html[data-theme]` (`:696`) calls `setStyle(MAP_STYLES[next], { diff: false })`. `diff: false` is deliberate: it forces a full swap so `style.load` re-fires and scene assembly re-reads the (already-flipped) tokens. A diff'd swap would keep stale-themed layers.
 
 **Teardown** (`:711`) cancels the RAF, disconnects the observer, removes listeners, calls `map.remove()`, and nulls the ref — no leaked loop or handler.
 
@@ -222,14 +235,14 @@ that accepts a community price without adding the pub to the curated index.
 
 - **Never touch the mount lifecycle carelessly.** The map is constructed once, with stable `useCallback` deps. Add an unstable dep and the whole map tears down every render. Data changes go through `setData`/`setFilter`, never a remount.
 - **The guards must stay** (`addLayerOnce`, `getSource` checks, the RAF `isStyleLoaded()`). Remove one and the next theme toggle crashes.
-- **Stay token-driven for both basemaps** — no hard-coded hexes; theme choices go through the `dark` boolean inside `buildScene`.
+- **Stay token-driven for both basemaps** - no hard-coded hexes; theme choices go through the `dark` boolean inside scene assembly.
 - **`setStyle` must be `{ diff: false }`.**
 - **No per-listing React markers.**
 - **The WebGL fallback is load-bearing** — the `try/catch` (`:285`) catches a no-WebGL constructor throw and renders a notice while the planner keeps working.
 
 ### Robustness notes
 
-**Strengths:** synchronous WebGL fallback; idempotent `buildScene` + crash-proof
+**Strengths:** synchronous WebGL fallback; idempotent scene assembly + crash-proof
 RAF via style-state guards; clean teardown; refs decouple data from lifecycle;
 reduced-motion + `document.hidden` respected. **Residual risks:** dependence on
 the basemap's OpenMapTiles-style building layer for 3-D buildings (a renamed
@@ -399,7 +412,7 @@ If you want a green/red check *on the PR itself* (what Actions gave you), these 
 | Area | Strength | Watch out for |
 |---|---|---|
 | **Data** | Pure/deterministic, heavily tested; ids pinned to dataset by tests; `decodeCrawl` never throws | Grouping merges pubs sharing name+address+rounded coords (not seen in data) |
-| **Map** | WebGL fallback; idempotent `buildScene`; crash-proof RAF; clean teardown | Depends on remote OpenMapTiles-compatible style shapes for 3-D buildings |
+| **Map** | WebGL fallback; idempotent scene assembly; crash-proof RAF; clean teardown | Depends on remote OpenMapTiles-compatible style shapes for 3-D buildings |
 | **Writes** | Single path; server validation + DB CHECKs; orphan-free photos; production-503 (never lies about durability) | Two backends not unified — fix behaviour in both |
 | **Abuse** | Durable atomic rate-limit RPC; salted-hashed IP; constant-time admin gate | Fails **open** on a Supabase outage; `x-forwarded-for` trust relies on Vercel edge |
 | **The Landlord** | Grounded-only; rejects phantom citations; temp 0 + timeout; honest refusal | — |
