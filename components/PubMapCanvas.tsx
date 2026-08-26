@@ -1010,6 +1010,15 @@ export default function PubMapCanvas({
     onLandmarkSelectRef.current?.(landmark);
   }, []);
 
+  // Deep-link ?landmark= may arrive before the city's landmark catalog loads.
+  // Open the history card once the catalog can resolve the id, not only on mount.
+  useEffect(() => {
+    if (!initialLandmarkId || activeLandmark) return;
+    const landmark = landmarkById(initialLandmarkId);
+    if (!landmark) return;
+    selectLandmark(landmark);
+  }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
+
   useEffect(() => {
     if (!initialLandmarkId || !mapReady) return;
     const landmark = landmarkById(initialLandmarkId);

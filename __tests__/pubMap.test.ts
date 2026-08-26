@@ -120,7 +120,7 @@ describe("buildMapSeed", () => {
 describe("buildMapSeedWithCuratedCrawl", () => {
   it("curated arrival hydrates the named crawl and maps the route", async () => {
     const { buildMapSeedWithCuratedCrawl } = await import("@/lib/mapSeedCrawl");
-    const seed = buildMapSeedWithCuratedCrawl("?crawl=victorian-soho");
+    const seed = await buildMapSeedWithCuratedCrawl("?crawl=victorian-soho");
     expect(seed.activeCrawl?.id).toBe("victorian-soho");
     expect(seed.crawlId).toBe("victorian-soho");
     expect(seed.routeMapped).toBe(true);

@@ -2,12 +2,9 @@
 // eager map shell does not static-import the crawl catalog on a plain /map open.
 
 import type { Filters } from "@/lib/venues";
-import {
-  curatedCrawls,
-  curatedCrawlById,
-  type CuratedCrawl,
-} from "@/lib/curatedCrawls";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import { curatedCrawlsForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 import {
@@ -15,26 +12,29 @@ import {
   type MapSeed,
 } from "@/lib/pubMap";
 
-/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match (London). */
-export function resolveSeededCuratedCrawl(
-  cityId: CityId,
-  crawlId: string | undefined,
-  builtIds: string[],
-): CuratedCrawl | null {
-  const isLondon = cityId === DEFAULT_CITY_ID || cityId === "london";
-  if (crawlId) {
-    if (!isLondon) return null;
-    const byId = curatedCrawlById(crawlId);
-    if (byId) return byId;
-  }
-  if (!isLondon || builtIds.length < 2) return null;
+function matchBuiltIds(crawls: CuratedCrawl[], builtIds: string[]): CuratedCrawl | null {
+  if (builtIds.length < 2) return null;
   return (
-    curatedCrawls.find(
+    crawls.find(
       (crawl) =>
         crawl.venueIds.length === builtIds.length &&
         crawl.venueIds.every((id, i) => id === builtIds[i]),
     ) ?? null
   );
+}
+
+/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
+export async function resolveSeededCuratedCrawl(
+  cityId: CityId,
+  crawlId: string | undefined,
+  builtIds: string[],
+): Promise<CuratedCrawl | null> {
+  const crawls = await curatedCrawlsForCityAsync(cityId);
+  if (crawlId) {
+    const byId = crawls.find((crawl) => crawl.id === crawlId);
+    if (byId) return byId;
+  }
+  return matchBuiltIds(crawls, builtIds);
 }
 
 /** Whether the URL needs the crawl catalog to finish seeding. */
@@ -48,15 +48,15 @@ export function mapSeedNeedsCuratedCrawlLookup(search: string): boolean {
  * Full mount seed including curated crawl hydration. Used by tests and by the
  * async PubMap layout effect — not the eager map shell chunk.
  */
-export function buildMapSeedWithCuratedCrawl(
+export async function buildMapSeedWithCuratedCrawl(
   search: string,
   cityId: CityId = DEFAULT_CITY_ID,
-): MapSeed {
+): Promise<MapSeed> {
   const seeded = seedCrawlState(search);
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
-  const activeCrawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
+  const activeCrawl = await resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
   if (activeCrawl) {
     return {
       ...seeded,
@@ -83,13 +83,13 @@ export type CuratedCrawlHydration = {
 };
 
 /** Apply a resolved crawl onto live PubMap state after the catalog chunk loads. */
-export function curatedCrawlHydrationFromSeed(
+export async function curatedCrawlHydrationFromSeed(
   search: string,
   cityId: CityId,
-): CuratedCrawlHydration | null {
+): Promise<CuratedCrawlHydration | null> {
   if (!mapSeedNeedsCuratedCrawlLookup(search)) return null;
   const seeded = seedCrawlState(search);
-  const crawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
+  const crawl = await resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
   if (!crawl) return null;
   return {
     crawl,

@@ -38,6 +38,9 @@ export function useCityStoryCatalog(
       setCatalog(EMPTY_CATALOG);
       return;
     }
+    // Drop the previous city's rows immediately so a London→Manchester switch
+    // never paints London landmarks or crawl choices under Manchester state.
+    setCatalog(EMPTY_CATALOG);
     let cancelled = false;
     void Promise.all([
       curatedCrawlsForCityAsync(cityId),

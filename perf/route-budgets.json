@@ -29,10 +29,10 @@
       "pinReady": {
         "path": "/map/london",
         "targetMs": 5000,
-        "measuredMs": 32200,
+        "measuredMs": 9800,
         "signal": "window.__pubmaxPaintedMapTapPoints().length > 0",
         "viewport": { "width": 390, "height": 844 },
-        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a SwiftShader production build (fm/map-bundle-diet, eager JS 3066 KB decoded). Basemap style/tile/glyph init is the remaining bottleneck."
+        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a SwiftShader production build. 634 KB eager-JS reduction (3700→3066 KB decoded) does not touch basemap style/tile/glyph init, which remains the pin-ready bottleneck (~9.8s on this harness). A prior interrupted run recorded 32200 ms and was discarded."
       }
     },
     {

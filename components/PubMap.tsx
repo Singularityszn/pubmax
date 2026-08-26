@@ -1044,11 +1044,11 @@ export default function PubMap({
   // before paint so shared ?crawl= links still map-first.
   useLayoutEffect(() => {
     let cancelled = false;
-    import("@/lib/mapSeedCrawl").then(
-      ({ mapSeedNeedsCuratedCrawlLookup, curatedCrawlHydrationFromSeed }) => {
+    void import("@/lib/mapSeedCrawl").then(
+      async ({ mapSeedNeedsCuratedCrawlLookup, curatedCrawlHydrationFromSeed }) => {
         if (cancelled || !mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) return;
-        const hydration = curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
-        if (!hydration) return;
+        const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
+        if (cancelled || !hydration) return;
         setFilters(hydration.filters);
         setAltStyle(hydration.altStyle);
         setActiveCrawl(hydration.crawl);

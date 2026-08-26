@@ -4,9 +4,10 @@ import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The map's cold open is main-thread bound: what the shell chunk STATICALLY
-// imports has to be parsed before MapLibre can even start, so a data blob that
-// travels in on a helper's coat-tails costs first paint directly. These fences
-// hold the boundary that the measurements were taken against.
+// imports has to be parsed before MapLibre can even start. Next/Turbopack place
+// every static import edge from PubMap into the eager client graph, so this
+// graph IS the compile-time boundary the diet lane fences. Runtime decoded KB
+// is measured separately in e2e/map-perf-budget.spec.ts.
 
 const ROOT = join(__dirname, "..");
 
@@ -85,32 +86,19 @@ describe("map cold-open payload", () => {
     expect(classifier.has(join(ROOT, "data/london_boroughs_simplified.json"))).toBe(true);
   });
 
-  it("does not pull persona drink JSON into the map shell chunk", () => {
-    const personaJson = join(ROOT, "data/persona_drinks.json");
-    expect(
-      mapShell.has(personaJson) ? chainTo(mapShell, personaJson) : "not reached",
-    ).toBe("not reached");
-  });
-
-  it("does not pull AuthProvider into the map shell via usePintDrops", () => {
-    const authProvider = join(ROOT, "components/auth/AuthProvider.tsx");
-    expect(
-      mapShell.has(authProvider) ? chainTo(mapShell, authProvider) : "not reached",
-    ).toBe("not reached");
-  });
-
-  it("does not pull the curated crawl catalog into the eager map shell chunk", () => {
-    const crawls = join(ROOT, "lib/curatedCrawls.ts");
-    expect(
-      mapShell.has(crawls) ? chainTo(mapShell, crawls) : "not reached",
-    ).toBe("not reached");
-  });
-
-  it("does not pull CityMCP client into the eager map shell chunk", () => {
-    const citymcp = join(ROOT, "lib/citymcp/client.ts");
-    expect(
-      mapShell.has(citymcp) ? chainTo(mapShell, citymcp) : "not reached",
-    ).toBe("not reached");
+  it("keeps eager heavy catalogs out of the PubMap static import graph", () => {
+    const eagerHeavyModules = [
+      "data/persona_drinks.json",
+      "components/auth/AuthProvider.tsx",
+      "lib/curatedCrawls.ts",
+      "lib/citymcp/client.ts",
+    ];
+    for (const modulePath of eagerHeavyModules) {
+      const resolved = join(ROOT, modulePath);
+      expect(
+        mapShell.has(resolved) ? chainTo(mapShell, resolved) : "not reached",
+      ).toBe("not reached");
+    }
   });
 
   it("keeps MobileMapShell out of the eager map shell graph", () => {
