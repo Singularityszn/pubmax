@@ -68,4 +68,16 @@ describe("curated crawl URL hydration hold", () => {
     expect(window.location.search).not.toContain("crawl=");
     expect(window.location.search).toContain("q=Brixton");
   });
+
+  it("removes an unmatched crawl identity even without a state edit", async () => {
+    await act(async () => {
+      root.render(createElement(Harness, { query: "", pending: true }));
+    });
+    await act(async () => {
+      root.render(createElement(Harness, { query: "", pending: false }));
+      vi.advanceTimersByTime(300);
+    });
+
+    expect(window.location.search).toBe("");
+  });
 });

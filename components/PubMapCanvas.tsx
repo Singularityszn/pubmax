@@ -729,6 +729,7 @@ export default function PubMapCanvas({
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
     initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
   );
+  const initialLandmarkConsumedRef = useRef<string | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
   const hoveredVenueId = hoveredVenue?.id ?? null;
@@ -925,24 +926,24 @@ export default function PubMapCanvas({
     return next;
   }, []);
 
-  // Strict style-load gate for mutations that depend on fully loaded style
+  // Structural style gate for mutations that depend on the style graph
   // resources. Effects fire on their own React cadence, including during a
   // theme setStyle({diff:false}) swap while `mapReady` remains true. Queue those
   // writes by key and flush the latest mutation on style.load. Existing GeoJSON
   // sources use structural-readiness paths instead because isStyleLoaded() also
   // waits for tiles and images; their setData calls are safe once the source
   // exists and must not wait for another style.load that may never arrive.
-  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
   // Structural style readiness owned by this component. MapLibre's public
   // style.load event fires after the style graph is ready for source/layer
   // mutations, while isStyleLoaded() also waits for source tiles and images.
   // Every app-owned setStyle clears this first; the accepted style.load sets it.
   const styleStructureReadyRef = useRef(false);
+  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
   const applyToMap = useCallback(
     (key: string, fn: (map: maplibregl.Map) => void) => {
       const map = mapRef.current;
       if (!map) return;
-      if (map.isStyleLoaded()) {
+      if (styleStructureReadyRef.current) {
         fn(map);
       } else {
         pendingUpdatesRef.current.set(key, fn);
@@ -1016,9 +1017,16 @@ export default function PubMapCanvas({
   // Deep-link ?landmark= may arrive before the city's landmark catalog loads.
   // Open the history card once the catalog can resolve the id, not only on mount.
   useEffect(() => {
-    if (!initialLandmarkId || activeLandmark) return;
+    if (
+      !initialLandmarkId ||
+      initialLandmarkConsumedRef.current === initialLandmarkId
+    ) {
+      return;
+    }
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
+    initialLandmarkConsumedRef.current = initialLandmarkId;
+    if (activeLandmark) return;
     queueMicrotask(() => selectLandmark(landmark));
   }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
 
