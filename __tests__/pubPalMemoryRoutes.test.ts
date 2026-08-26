@@ -63,7 +63,7 @@ describe("Pub Pal memory ownership HTTP contract", () => {
     expect(exported.status).toBe(200);
     expect(exported.headers.get("content-disposition")).toContain("attachment");
     const exportBody = await exported.json();
-    expect(exportBody).toMatchObject({ version: 1, pal: { name: "Morrow", species: "greyhound" }, memories: [{ id: memory.id, provenance: "user_correction" }] });
+    expect(exportBody).toMatchObject({ version: 1, pal: { name: "Morrow", species: DEFAULT_PAL_DRAFT.appearance.species }, memories: [{ id: memory.id, provenance: "user_correction" }] });
     expect(JSON.stringify(exportBody)).not.toContain("pal-owner");
     expect(JSON.stringify(exportBody)).not.toContain('"palId"');
 

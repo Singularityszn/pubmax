@@ -321,7 +321,10 @@ const nextConfig = {
       cacheRule("/:icon(apple-touch-icon.*\\.png)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/:icon(favicon.*)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/brand/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
-      cacheRule("/:boot(theme-init\\.js|splash-init\\.js)", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
+      cacheRule(
+        "/:boot(theme-init\\.js|splash-init\\.js|map-first-paint-init\\.js)",
+        UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,
+      ),
       cacheRule("/manifest.webmanifest", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),

@@ -91,7 +91,17 @@ function evaluateClusterExpression(
   }
   if (operator === ">") return Number(value(args[0])) > Number(value(args[1]));
   if (operator === ">=") return Number(value(args[0])) >= Number(value(args[1]));
+  if (operator === "!=") return value(args[0]) !== value(args[1]);
+  if (operator === "has") return Object.hasOwn(properties, String(args[0]));
+  if (operator === "%") return Number(value(args[0])) % Number(value(args[1]));
   if (operator === "all") return args.every((item) => Boolean(value(item)));
+  if (operator === "match") {
+    const input = value(args[0]);
+    for (let index = 1; index < args.length - 1; index += 2) {
+      if (value(args[index]) === input) return value(args[index + 1]);
+    }
+    return value(args.at(-1));
+  }
   if (operator === "case") {
     for (let index = 0; index < args.length - 1; index += 2) {
       if (value(args[index])) return value(args[index + 1]);
@@ -144,17 +154,17 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     // Wave A: land is a warm near-black constant (hint of house ink, not pure
     // #000 and never the cream --ink). Decoupled from --ink-deep so it can sit
     // a hair warmer than the fog while still blending at the horizon.
-    expect(dark.land).toBe("#0b0908");
+    expect(dark.land).toBe("#0a0c11");
     expect(dark.land).not.toBe(darkTokens.ink);
     expect(lumSum(dark.land)).toBeLessThan(40); // unmistakably near-black
-    expect(light.land).toBe(tokens.paper);
+    expect(light.land).toBe(mixHex(tokens.paper, "#f4efe6", 0.35));
   });
 
   it("keeps dark roads legible but subordinate to product marks", () => {
     const dark = buildPalette(darkTokens, true);
-    expect(dark.roadMajor).toBe("#756f65");
-    expect(dark.road).toBe("#544f48");
-    expect(dark.roadMinor).toBe("#38342f");
+    expect(dark.roadMajor).toBe("#66625c");
+    expect(dark.road).toBe("#484542");
+    expect(dark.roadMinor).toBe("#2c2a28");
     // Strict luminance hierarchy: major > secondary > minor > building > ground.
     expect(lumSum(dark.roadMajor)).toBeGreaterThan(lumSum(dark.road));
     expect(lumSum(dark.road)).toBeGreaterThan(lumSum(dark.roadMinor));
@@ -166,7 +176,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
   it("Wave A — dark buildings are a clear step above ground, warm, never a coral wash", () => {
     const dark = buildPalette(darkTokens, true);
-    expect(dark.building).toBe("#332e28");
+    expect(dark.building).toBe("#2a241e");
     expect(dark.building).not.toBe(darkTokens.inkDeep);
     expect(dark.building).not.toBe(darkTokens.buildingEmissive);
     expect(dark.building).not.toBe(darkTokens.brass);
@@ -181,7 +191,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     const dark = buildPalette(darkTokens, true);
     // Solid deep slate-blue (was a low-alpha --river wash that near-black ground
     // drowned). Blue channel dominates, clearly above the ground floor.
-    expect(dark.water).toBe("#255988");
+    expect(dark.water).toBe("#224e78");
     const n = parseInt(dark.water.slice(1), 16);
     expect(n & 255).toBeGreaterThan((n >> 16) & 255); // blue > red → reads blue
     // The Thames is London's strongest wayfinder. Below about 2:1 against the
@@ -196,7 +206,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     // Old formula washed --pint/--parkTint at low alpha; now a solid dark green
     // constant, hue-distinct from the warm building brown so parks never read
     // as building blocks.
-    expect(dark.park).toBe("#3f5c33");
+    expect(dark.park).toBe("#384f2e");
     expect(dark.park).not.toBe(withAlpha(darkTokens.pint, 0.32));
     // Parks must read as geography, not as a slightly different shade of night.
     // Widen the LUMINANCE to earn that, never the saturation: a park that grows
@@ -265,7 +275,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     applyBasemapTaste(map, darkTokens, true);
 
     const bg = paints.find(([id, prop]) => id === "background" && prop === "background-color");
-    expect(bg?.[2]).toBe("#0b0908"); // Wave A warm near-black ground
+    expect(bg?.[2]).toBe("#0a0c11"); // neon-noir near-black ground
 
     expect(paints.some(([id, prop]) => id === "park" && prop === "fill-color")).toBe(true);
     expect(paints.some(([id, prop]) => id === "water" && prop === "fill-color")).toBe(true);
@@ -280,7 +290,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     ).toBe(0.92);
     expect(
       paints.find(([id, prop]) => id === "building" && prop === "fill-outline-color")?.[2],
-    ).toBe("rgba(150,140,126,0.32)"); // Wave A warm light edge
+    ).toBe("rgba(140,132,122,0.3)"); // warm light edge
     expect(
       paints.some(([id, prop]) => id === "landuse_residential" && prop === "fill-color"),
     ).toBe(true);
@@ -288,14 +298,22 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
   it("makes dark road labels quieter than place labels", () => {
     const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
     const layers = [
       { id: "road_label", type: "symbol" },
       { id: "place_city", type: "symbol" },
+      // OpenFreeMap's `place_other` layer carries neighbourhood features.
+      { id: "place_other", type: "symbol" },
+      { id: "poi_pub", type: "symbol" },
+      { id: "poi_label", type: "symbol" },
     ];
     const map = {
       getLayer: (id: string) => layers.find((layer) => layer.id === id),
       setPaintProperty: (layerId: string, name: string, value: unknown) => {
         paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
       },
       getStyle: () => ({ layers }),
     };
@@ -304,10 +322,104 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
     expect(
       paints.find(([id, prop]) => id === "road_label" && prop === "text-opacity")?.[2],
-    ).toBe(0.52);
+    ).toBe(0.45);
     expect(
       paints.find(([id, prop]) => id === "place_city" && prop === "text-opacity")?.[2],
-    ).toBe(0.78);
+    ).toBe(0.72);
+    expect(
+      paints.find(([id, prop]) => id === "place_other" && prop === "text-opacity")?.[2],
+    ).toBe(0.38);
+    expect(
+      layouts.find(([id, prop]) => id === "place_other" && prop === "text-size")?.[2],
+    ).toBe(9);
+    expect(
+      paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
+    ).toBe(0.86);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_pub" && prop === "text-size")?.[2],
+    ).toBe(10);
+    expect(
+      paints.find(([id, prop]) => id === "poi_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.86);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_label" && prop === "text-size")?.[2],
+    ).toBe(10);
+    expect(
+      paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
+    ).toBeGreaterThan(
+      paints.find(([id, prop]) => id === "place_other" && prop === "text-opacity")?.[2] as number,
+    );
+  });
+
+  it("treats live positron label_other as neighbourhood tier, not poi_barber as pub", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "label_other", type: "symbol" },
+      { id: "poi_barber_label", type: "symbol" },
+      { id: "poi_bar_label", type: "symbol" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(
+      paints.find(([id, prop]) => id === "label_other" && prop === "text-opacity")?.[2],
+    ).toBe(0.38);
+    expect(
+      layouts.find(([id, prop]) => id === "label_other" && prop === "text-size")?.[2],
+    ).toBe(9);
+    expect(
+      paints.find(([id, prop]) => id === "poi_barber_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.72);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_barber_label" && prop === "text-size"),
+    ).toBeUndefined();
+    expect(
+      paints.find(([id, prop]) => id === "poi_bar_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.86);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_bar_label" && prop === "text-size")?.[2],
+    ).toBe(10);
+  });
+
+  it("does not rewrite label layout that already matches", () => {
+    const paintWrites: Array<[string, string, unknown]> = [];
+    const layoutWrites: Array<[string, string, unknown]> = [];
+    const layers = [{ id: "place_other", type: "symbol" }];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      getPaintProperty: (_layerId: string, name: string) =>
+        ({
+          "text-color": darkTokens.ink,
+          "text-halo-color": darkTokens.inkDeep,
+          "text-halo-width": 1.15,
+          "text-opacity": 0.38,
+        })[name],
+      getLayoutProperty: (_layerId: string, name: string) =>
+        name === "text-size" ? 9 : name === "text-letter-spacing" ? 0.04 : undefined,
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paintWrites.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layoutWrites.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(paintWrites).toEqual([]);
+    expect(layoutWrites).toEqual([]);
   });
 
   it("skips missing layers without throwing", () => {

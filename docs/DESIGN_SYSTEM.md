@@ -40,18 +40,29 @@ same **name** (values may retune within the A/B decision).
 | `app/theme.css` | `html[data-theme="dark"]` token overrides, dark-first sheet material, Plan CTA contrast, theme-toggle |
 | `app/layout.tsx` | `next/font` wiring — loads the three type-trio fonts as CSS variables on `<html>` |
 | `lib/springMotion.ts` + `lib/useSpringValue.ts` | Interruptible spring integration, reduced-motion jumps, and React animation ownership |
-| `components/map/canvas/` | Reads live tokens for MapLibre paint; the map is a consumer, never a second colour source |
+| `components/map/canvas/` + `lib/mapBasemapTaste.ts` | Scene marks and label ink read live tokens; the map-owned basemap palette and label hierarchy stay in `lib/mapBasemapTaste.ts` |
 
 If you're adding a new component: reach for a token below before writing a
 literal value. If the token you need does not exist, add it to the theme source
 first, then document its non-obvious role here.
 
+The map has a deliberate style-layer contract. Dark mode uses a neon-noir
+near-black field with slate water and restrained roads; light mode uses warm
+paper land with quieter washes. Pub marks lead the hierarchy: basemap pub POI
+labels are prominent, generic venue-label layers receive the same priority,
+neighbourhood labels are smaller and quieter, and road labels remain
+contextual. This pass changes palette and label paint/layout
+only; it does not add `pubs-hero-glow` or `pubs-confidence-ring` layers. The
+implementation and absence checks live in `lib/mapBasemapTaste.ts` and
+`__tests__/mapSymbolCollision.test.ts`.
+
 ## Colour
 
 ### Palette roles
 
-Literal values and the deliberate map/root versus DOM/body split live in
-`app/globals.css` and `app/theme.css`. The stable roles are:
+DOM token values and the deliberate map/root versus DOM/body split live in
+`app/globals.css` and `app/theme.css`. Map style-layer values and derivations
+live in `lib/mapBasemapTaste.ts`; the stable token roles are:
 
 | Token family | Role |
 |---|---|
@@ -345,8 +356,9 @@ second signature gesture.
 Both themes flip from the same token names — `app/theme.css` only
 overrides values inside `html[data-theme="dark"]`, never introduces new
 variable names. The map token reader in `components/map/canvas/tokens.ts`
-reads current computed values and re-triggers on theme change, so MapLibre
-never owns a second light or dark palette.
+reads current computed values for semantic scene marks and label ink. The
+basemap style-layer palette remains deliberately map-owned in
+`lib/mapBasemapTaste.ts`, where the dark and light map contracts stay together.
 
 This pass audited `app/globals.css` and `app/theme.css` for literals that
 bypassed this: it found six repeated instances of hardcoded cream/dark text

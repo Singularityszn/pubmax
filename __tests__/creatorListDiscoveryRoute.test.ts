@@ -1,9 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
-type Subject = typeof import("@/app/api/creator-lists/route");
+type Subject = typeof import("@/lib/creatorListDiscoveryRoute.server");
 
 async function loadSubject(): Promise<Subject> {
-  const subject = await import("@/app/api/creator-lists/route").catch(() => null);
+  const subject = await import("@/lib/creatorListDiscoveryRoute.server").catch(() => null);
   expect(subject, "creator-list discovery route must exist").not.toBeNull();
   return subject as Subject;
 }
