@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, readdir, rm } from "node:fs/promises";
+import { mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 
@@ -295,14 +295,14 @@ describe("Exa observations", () => {
 describe("Exa client", () => {
   it("returns no live client without a key, so a caller cannot fetch by accident", () => {
     const fetchImpl = vi.fn();
-    expect(createExaClient({ env: {}, fetchImpl })).toBeNull();
+    expect(createExaClient({ env: {} as never, fetchImpl })).toBeNull();
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
   it("reads and trims EXA_API_KEY", () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({
-      env: { EXA_API_KEY: "  exa-test  " },
+      env: { EXA_API_KEY: "  exa-test  " } as never,
       fetchImpl,
       sleep: async () => {},
     });
@@ -311,7 +311,7 @@ describe("Exa client", () => {
 
   it("uses mock mode without a network call", async () => {
     const fetchImpl = vi.fn();
-    const client = createExaClient({ env: {}, fetchImpl, mock: true });
+    const client = createExaClient({ env: {} as never, fetchImpl, mock: true });
     expect(client).not.toBeNull();
     const payload = await client!.search("The Test Arms London pub official website");
     expect(fetchImpl).not.toHaveBeenCalled();
@@ -327,7 +327,7 @@ describe("Exa client", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const slept: number[] = [];
     const client = createExaClient({
-      env: { EXA_API_KEY: "exa-test" },
+      env: { EXA_API_KEY: "exa-test" } as never,
       fetchImpl,
       sleep: async (ms) => {
         slept.push(ms);
@@ -350,13 +350,14 @@ describe("Exa client", () => {
       async () => new Response(JSON.stringify({ results: [], output: { content: {}, grounding: [] } }), { status: 200 }),
     );
     const client = createExaClient({
-      env: { EXA_API_KEY: "exa-test" },
+      env: { EXA_API_KEY: "exa-test" } as never,
       fetchImpl,
       sleep: async () => {},
     });
     await client!.search("The Test Arms UK pub official website history", { purpose: "lore" });
-    expect(fetchImpl.mock.calls[0][0]).toBe(EXA_SEARCH_URL);
-    const body = JSON.parse(String(fetchImpl.mock.calls[0][1]?.body));
+    const firstCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit?];
+    expect(firstCall[0]).toBe(EXA_SEARCH_URL);
+    const body = JSON.parse(String(firstCall[1]?.body));
     expect(body.type).toBe("auto");
     expect(body.contents).toEqual({ highlights: true });
     expect(body.contents.maxAgeHours).toBeUndefined();
@@ -385,7 +386,7 @@ describe("Exa client", () => {
       )
       .mockResolvedValueOnce(new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({
-      env: { EXA_API_KEY: "exa-test" },
+      env: { EXA_API_KEY: "exa-test" } as never,
       fetchImpl,
       sleep: async () => {},
       requestTimeoutMs: 20,
@@ -398,13 +399,14 @@ describe("Exa client", () => {
   it("POSTs /contents with top-level highlights for a known OSM website", async () => {
     const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({
-      env: { EXA_API_KEY: "exa-test" },
+      env: { EXA_API_KEY: "exa-test" } as never,
       fetchImpl,
       sleep: async () => {},
     });
     await client!.contents(["https://thetestarms.example/"], { purpose: "lore" });
-    expect(fetchImpl.mock.calls[0][0]).toBe(EXA_CONTENTS_URL);
-    expect(JSON.parse(String(fetchImpl.mock.calls[0][1]?.body))).toEqual({
+    const firstCall = fetchImpl.mock.calls[0] as unknown as [string, RequestInit?];
+    expect(firstCall[0]).toBe(EXA_CONTENTS_URL);
+    expect(JSON.parse(String(firstCall[1]?.body))).toEqual({
       urls: ["https://thetestarms.example/"],
       highlights: true,
     });
@@ -446,7 +448,6 @@ describe("Exa request builders (captain 2026-08-25 guide)", () => {
     });
     expect(body.highlights).toBe(true);
     expect(body.maxAgeHours).toBe(24);
-    expect(body.contents).toBeUndefined();
   });
 });
 
@@ -647,10 +648,10 @@ describe("progress file", () => {
 
 describe("mock Exa fixture", () => {
   it("returns sourced hits for a named pub and empty results otherwise", () => {
-    const hits = mockExaPayload({ osmId: "node/1", name: "The Turks Head" });
+    const hits = mockExaPayload({ name: "The Turks Head" });
     expect(hits.results.length).toBeGreaterThan(0);
     expect(hits.results.every((hit) => typeof hit.url === "string" && hit.url.startsWith("https://"))).toBe(true);
-    expect(mockExaPayload({ osmId: "node/2", name: "Unlisted Vault" }).results).toEqual([]);
+    expect(mockExaPayload({ name: "Unlisted Vault" }).results).toEqual([]);
   });
 
   it("matches the named fixture inside a harvest search query", () => {

@@ -290,6 +290,7 @@ import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHisto
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
+import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
 const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
 const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false });
@@ -308,10 +309,6 @@ const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), 
   ssr: false,
 });
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
-const MapSearchSuggest = dynamic(
-  () => import("@/components/map/MapSearchSuggest"),
-  { ssr: false },
-);
 import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
@@ -356,6 +353,7 @@ import {
   drinkLaneLabel,
 } from "@/lib/drinkLanes";
 import {
+  bandChipHasResolvedBand,
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
@@ -430,7 +428,6 @@ import {
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
-  mapSeedNeedsCuratedCrawlLookup,
   type MapSeed,
   type MapSelectionNotice,
   type VenueDetailStatus,
@@ -1066,6 +1063,9 @@ export default function PubMap({
   );
   useLayoutEffect(() => {
     let cancelled = false;
+    if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
+      return;
+    }
     const planSnapshot = {
       mode: seed.mode,
       builtIds: seed.builtIds,
@@ -1077,15 +1077,10 @@ export default function PubMap({
     void import("@/lib/mapSeedCrawl")
       .then(
         async ({
-          mapSeedNeedsCuratedCrawlLookup,
           curatedCrawlHydrationFromSeed,
           sameCuratedCrawlHydrationSnapshot,
         }) => {
           if (cancelled) return;
-          if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
-            setCrawlHydrationPending(false);
-            return;
-          }
           const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
           if (cancelled) return;
           if (
@@ -3609,7 +3604,7 @@ export default function PubMap({
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
-    bandResolved: Boolean(activeBand) || (Boolean(activeBandId) && !cityStoryCatalog.ready),
+    bandResolved: bandChipHasResolvedBand(activeBandId, activeBand),
     chipDismissed:
       dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
@@ -4064,16 +4059,12 @@ export default function PubMap({
           outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
-          searchContent={
-            // Limited-coverage arrivals keep search so UK places (and any
-            // resident base pubs) can still answer when venues are emptied.
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mapSearchInput"
-              mode="toolbar"
-              placeholder={mapSearchPlaceholder}
-            />
-          }
+          searchProps={{
+            ...sharedMapSearchProps,
+            id: "mapSearchInput",
+            mode: "toolbar",
+            placeholder: mapSearchPlaceholder,
+          }}
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
           drinkFiltersActive={drinkFiltersActive}
@@ -4277,15 +4268,13 @@ export default function PubMap({
           venueListOpen={mapListOpen}
           bandNoticeOpen={showBandChip}
           onPlan={openPlanning}
-          searchContent={
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mobileMapSearchInput"
-              mode="overlay"
-              placeholder={mapSearchPlaceholder}
-              onClose={() => changeMapOverlay("none")}
-            />
-          }
+          searchProps={{
+            ...sharedMapSearchProps,
+            id: "mobileMapSearchInput",
+            mode: "overlay",
+            placeholder: mapSearchPlaceholder,
+            onClose: () => changeMapOverlay("none"),
+          }}
           filtersContent={
             <div className="mobileMapFilters">
               <MapExperienceLensControl

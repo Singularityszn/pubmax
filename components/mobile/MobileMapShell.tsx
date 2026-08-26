@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { lazy, Suspense } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
@@ -12,6 +13,10 @@ import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobi
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
 import "./mobileMapShell.css";
+
+import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
+
+const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
 
 const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
   "filters",
@@ -178,7 +183,7 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -240,7 +245,9 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
   venueListOpen: boolean;
   bandNoticeOpen: boolean;
   onPlan: () => void;
-  searchContent: React.ReactNode;
+  searchProps?: MapSearchSuggestProps | null;
+  /** Legacy injection seam retained for isolated shell tests and callers. */
+  searchContent?: React.ReactNode;
   filtersContent: React.ReactNode;
   /** The drink-lane picker body. Its own sheet, never a Filters section. */
   drinkContent: React.ReactNode;
@@ -359,7 +366,13 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
         </header>
 
         {overlay === "search" ? (
-          <div className="mobileMapSearchRow">{searchContent}</div>
+          <div className="mobileMapSearchRow">
+            {searchProps ? (
+              <Suspense fallback={null}>
+                <MapSearchSuggest {...searchProps} />
+              </Suspense>
+            ) : searchContent}
+          </div>
         ) : null}
         {/* #395 R1 — active-search chip. When a query filters the map (restored
             session OR typed) and the search field is closed, surface it as a

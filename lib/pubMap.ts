@@ -15,6 +15,7 @@ import {
   eagerCuratedCrawlAltStyle,
   eagerCuratedCrawlAltStyleForBuiltIds,
 } from "@/lib/curatedCrawlHints";
+export { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -84,12 +85,6 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
   };
-}
-
-export function mapSeedNeedsCuratedCrawlLookup(search: string): boolean {
-  if (isDrinkShapeArrival(search)) return false;
-  const seeded = seedCrawlState(search);
-  return Boolean(seeded.crawlId) || seeded.builtIds.length >= 2;
 }
 
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";

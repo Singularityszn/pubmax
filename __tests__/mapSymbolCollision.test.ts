@@ -112,7 +112,7 @@ function buildLateLandmarkLayers() {
     addLayerOnce: ((layer: BuiltLayer, before?: string) => calls.push({ id: layer.id, before })) as SceneCtx["addLayerOnce"],
     showLandmarks: true,
     landmarksGeoJSON: { type: "FeatureCollection", features: [] },
-  } as SceneCtx;
+  } as unknown as SceneCtx;
   buildLandmarks(ctx);
   return calls;
 }

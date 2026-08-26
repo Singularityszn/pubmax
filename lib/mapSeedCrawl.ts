@@ -7,11 +7,8 @@ import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { curatedCrawlsForCityAsync } from "@/lib/cityStoryCatalog.async";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
-import {
-  filtersForCuratedCrawl,
-  mapSeedNeedsCuratedCrawlLookup,
-  type MapSeed,
-} from "@/lib/pubMap";
+import { filtersForCuratedCrawl, type MapSeed } from "@/lib/pubMap";
+import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
 export { mapSeedNeedsCuratedCrawlLookup };
 
