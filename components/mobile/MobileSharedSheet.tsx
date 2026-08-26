@@ -40,6 +40,7 @@ export default function MobileSharedSheet({
   homeTitle = "the map",
   entranceOvershoot = false,
   onInterruptReveal,
+  venueRevealSettleSequence = 0,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -64,6 +65,7 @@ export default function MobileSharedSheet({
   entranceOvershoot?: boolean;
   /** Drop entrance classes on scroll, drag, Escape, or a second pick. */
   onInterruptReveal?: () => void;
+  venueRevealSettleSequence?: number;
   children: React.ReactNode;
 }) {
   const titleId = useId();
@@ -71,6 +73,7 @@ export default function MobileSharedSheet({
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
   const entranceOvershootRef = useRef(entranceOvershoot);
+  const venueRevealSettleSequenceRef = useRef(venueRevealSettleSequence);
   const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
   useEffect(() => {
     entranceOvershootRef.current = entranceOvershoot;
@@ -103,6 +106,12 @@ export default function MobileSharedSheet({
     onInterruptRevealRef.current?.();
     settleToRest();
   }, [settleToRest]);
+  useEffect(() => {
+    if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
+    venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
+    entranceOvershootRef.current = false;
+    settleToRest("half");
+  }, [settleToRest, venueRevealSettleSequence]);
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);

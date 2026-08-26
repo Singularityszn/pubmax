@@ -1259,6 +1259,7 @@ export default function PubMap({
 
   const [venueRevealRequest, setVenueRevealRequest] =
     useState<VenueRevealRequest | null>(null);
+  const [venueRevealSettleSequence, setVenueRevealSettleSequence] = useState(0);
   const revealSequenceRef = useRef(0);
   const lastRevealAtRef = useRef<number | null>(null);
   const interruptVenueReveal = useCallback(() => {
@@ -2031,9 +2032,14 @@ export default function PubMap({
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
+      const reducedMotion = venueRevealPrefersReducedMotion();
+      if (mobileViewport && selectedVenueId && !reducedMotion) {
+        interruptVenueReveal();
+        setVenueRevealSettleSequence((current) => current + 1);
+      }
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
-      if (venueRevealPrefersReducedMotion()) {
+      if (reducedMotion) {
         setVenueRevealRequest(null);
       } else {
         const priceView = venueDrinkPriceView(
@@ -2050,10 +2056,14 @@ export default function PubMap({
       closeComposer,
       communityPrices.byVenueId,
       experienceLens,
+      interruptVenueReveal,
       mapDrinkLensCategory,
+      mobileViewport,
       setSelectedVenueId,
       setSheetSnap,
       setSheetDragY,
+      selectedVenueId,
+      setVenueRevealSettleSequence,
     ],
   );
 
@@ -4602,6 +4612,7 @@ export default function PubMap({
           onBack={mapSurfaceTrail.back}
           entranceOvershoot={detailOpen && venueEntranceOvershoot}
           onInterruptReveal={interruptVenueReveal}
+          venueRevealSettleSequence={venueRevealSettleSequence}
         >
           {detailOpen ? venuePanel : plannerPanel}
         </Sheet>

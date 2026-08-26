@@ -23,7 +23,7 @@ const MOMENTUM_VELOCITY_THRESHOLD = 0.5;
 export interface SheetHeightDrag {
   sheetSnap: SheetSnap;
   setSheetSnap: (snap: SheetSnap) => void;
-  settleToRest: () => void;
+  settleToRest: (snap?: SheetSnap) => void;
   openAtSnap: (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => void;
   requestDismiss: (presentedHeight?: number) => void;
   sheetHeight: number;
@@ -100,9 +100,10 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [animateTo, capsForViewport],
   );
 
-  const settleToRest = useCallback(() => {
+  const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnap) => {
+    setRestingSnap(targetSnap);
     stop();
-    animateTo(capsForViewport()[sheetSnap], { dampingRatio: 1 });
+    animateTo(capsForViewport()[targetSnap], { dampingRatio: 1 });
   }, [animateTo, capsForViewport, sheetSnap, stop]);
 
   const openAtSnap = useCallback(
