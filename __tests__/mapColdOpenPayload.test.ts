@@ -99,6 +99,13 @@ describe("map cold-open payload", () => {
     ).toBe("not reached");
   });
 
+  it("does not pull the curated crawl catalog into the eager map shell chunk", () => {
+    const crawls = join(ROOT, "lib/curatedCrawls.ts");
+    expect(
+      mapShell.has(crawls) ? chainTo(mapShell, crawls) : "not reached",
+    ).toBe("not reached");
+  });
+
   it("keeps MobileMapShell out of the eager map shell graph", () => {
     expect(mapShell.has(join(ROOT, "components/mobile/MobileMapShell.tsx"))).toBe(false);
   });

@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import ThemeToggle from "@/components/ThemeToggle";
+const PubPalMascot = dynamic(
+  () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
+  { ssr: false },
+);
+const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
@@ -19,8 +22,14 @@ import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
 import "@/components/map/mapDesktopRail.css";
 import "@/components/map/tonightLane.css";
-import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
-import UkNationalBrowseBanner from "@/components/map/UkNationalBrowseBanner";
+const UkPlaceArrivalBanner = dynamic(
+  () => import("@/components/map/UkPlaceArrivalBanner"),
+  { ssr: false },
+);
+const UkNationalBrowseBanner = dynamic(
+  () => import("@/components/map/UkNationalBrowseBanner"),
+  { ssr: false },
+);
 
 import {
   buildCrawlRoute,
@@ -158,11 +167,13 @@ const MobileTflPanel = dynamic(() => import("@/components/mobile/MobileTflPanel"
 const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
   ssr: false,
 });
-import { type CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
 const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
   ssr: false,
 });
-import ActiveRoundChip from "@/components/map/ActiveRoundChip";
+const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip"), {
+  ssr: false,
+});
 import type { TabKey } from "@/components/map/VenueInspector";
 const VenueInspector = dynamic(
   () => import("@/components/map/VenueInspector"),
@@ -232,7 +243,13 @@ import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
-import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
+const MapOnboardingOverlay = dynamic(
+  () =>
+    import("@/components/map/pubmap/MapOnboardingOverlay").then((m) => ({
+      default: m.MapOnboardingOverlay,
+    })),
+  { ssr: false },
+);
 const LogIntentFallback = dynamic(
   () =>
     import("@/components/map/pubmap/LogIntentFallback").then(
@@ -285,7 +302,9 @@ const ChooseAreaDesktopDialog = dynamic(
   { ssr: false },
 );
 import type { ChooseAreaPick } from "@/components/map/ChooseAreaSheet";
-import MapArrivalCard from "@/components/map/MapArrivalCard";
+const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), {
+  ssr: false,
+});
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 const MapSearchSuggest = dynamic(
   () => import("@/components/map/MapSearchSuggest"),
@@ -1019,6 +1038,25 @@ export default function PubMap({
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
   const [altStyle, setAltStyle] = useState<AltCrawlStyle>(seed.altStyle);
+  // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
+  // before paint so shared ?crawl= links still map-first.
+  useLayoutEffect(() => {
+    let cancelled = false;
+    import("@/lib/mapSeedCrawl").then(
+      ({ mapSeedNeedsCuratedCrawlLookup, curatedCrawlHydrationFromSeed }) => {
+        if (cancelled || !mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) return;
+        const hydration = curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
+        if (!hydration) return;
+        setFilters(hydration.filters);
+        setAltStyle(hydration.altStyle);
+        setActiveCrawl(hydration.crawl);
+        setRouteMapped(hydration.routeMapped);
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, [arrivalSearch, cityId, setRouteMapped]);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);

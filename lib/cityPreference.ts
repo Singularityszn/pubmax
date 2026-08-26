@@ -5,8 +5,7 @@
 // city the viewer last chose (or was near).
 
 import { getCity, parseCityId, type CityId } from "@/lib/cities";
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityAwareMapPath, cityMapShareUrl } from "@/lib/cityMapHref";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
 const STORAGE_KEY = "pubmax:preferredCity:v1";

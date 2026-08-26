@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
-import { type CrawlMode } from "@/components/map/ControlRail";
-import { type CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CrawlMode } from "@/components/map/ControlRail";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { crawlStopsFromPubIds } from "@/lib/pubMap";
 
 // Issue #15: the landmark card's two journey actions, hoisted into their own

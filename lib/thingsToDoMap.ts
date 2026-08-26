@@ -1,7 +1,7 @@
 // Client-safe helpers for CityMCP `things_to_do` map pins / deep-links.
 // Keep this free of Node-only imports so browser components can use it.
 
-import { cityAwareMapPath } from "@/lib/curatedCrawls";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 
 const LONDON_CITY_ID = "london";

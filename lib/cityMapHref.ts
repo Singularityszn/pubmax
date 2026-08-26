@@ -43,3 +43,21 @@ export function cityMapShareUrl(
   const qs = params.toString();
   return qs ? `${path}?${qs}` : path;
 }
+
+/**
+ * City-aware map path with arbitrary query. London stays `/map` for back-compat.
+ */
+export function cityAwareMapPath(
+  cityId: CityId | string | null | undefined,
+  query?: URLSearchParams | string | null,
+): string {
+  const id = resolveCityId(cityId);
+  const base = id === "london" ? "/map" : `/map/${id}`;
+  const qs =
+    typeof query === "string"
+      ? query.replace(/^\?/, "")
+      : query && [...query.keys()].length > 0
+        ? query.toString()
+        : "";
+  return qs ? `${base}?${qs}` : base;
+}
