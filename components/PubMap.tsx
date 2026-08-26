@@ -1260,6 +1260,8 @@ export default function PubMap({
 
   const [venueRevealRequest, setVenueRevealRequest] =
     useState<VenueRevealRequest | null>(null);
+  const [venueRevealEntranceActive, setVenueRevealEntranceActive] =
+    useState(false);
   const [venueRevealSettleSequence, setVenueRevealSettleSequence] = useState(0);
   const revealSequenceRef = useRef(0);
   const lastRevealAtRef = useRef<number | null>(null);
@@ -1278,6 +1280,7 @@ export default function PubMap({
       const form = revealForm(now, lastRevealAtRef.current);
       lastRevealAtRef.current = now;
       revealSequenceRef.current += 1;
+      setVenueRevealEntranceActive(form === "full");
       setVenueRevealRequest({
         sequence: revealSequenceRef.current,
         venueId,
@@ -1290,11 +1293,22 @@ export default function PubMap({
     },
     [],
   );
+  useEffect(() => {
+    const request = venueRevealRequest;
+    if (!request || request.interrupted || request.form !== "full") return;
+    const remaining = Math.max(
+      0,
+      VENUE_REVEAL_CINEMA_MS - (Date.now() - request.startedAt),
+    );
+    if (remaining === 0) return;
+    const timer = setTimeout(() => setVenueRevealEntranceActive(false), remaining);
+    return () => clearTimeout(timer);
+  }, [venueRevealRequest]);
   const venueEntranceOvershoot =
+    venueRevealEntranceActive &&
     venueRevealRequest?.form === "full" &&
     !venueRevealRequest.interrupted &&
-    venueRevealRequest.venueId === selectedVenueId &&
-    Date.now() - venueRevealRequest.startedAt < VENUE_REVEAL_CINEMA_MS;
+    venueRevealRequest.venueId === selectedVenueId;
 
   const onVenueSheetDragStart = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -3808,11 +3822,7 @@ export default function PubMap({
           <VenueSheetSkeleton
             loadingLabel={selectedVenueLabels.loadingLabel}
             revealForm={skeletonRevealRequest?.form ?? null}
-            revealElapsedMs={
-              skeletonRevealRequest
-                ? Math.max(0, Date.now() - skeletonRevealRequest.startedAt)
-                : null
-            }
+            revealStartedAt={skeletonRevealRequest?.startedAt ?? null}
           />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (

@@ -79,6 +79,7 @@
 
 body:has(.mapStage) {
   --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+  --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
 }
 
 /* When a member lifts the map-edge column, its published top edge must move

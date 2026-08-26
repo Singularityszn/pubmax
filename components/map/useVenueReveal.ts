@@ -43,8 +43,10 @@ function reducedMotionServerSnapshot(): boolean {
 }
 
 export type VenueRevealState = {
+  sequence: number;
   venueId: string;
   startedAt: number;
+  elapsedMs: number;
   form: VenueRevealForm;
   priceMotion: VenuePriceRevealMotion;
   priceMotionClass: string;
@@ -84,7 +86,7 @@ export function useVenueReveal(externallyInterrupted = false) {
       venueId: string,
       rows: readonly CommunityPrice[] | undefined,
       lane: DrinkCategory = DEFAULT_DRINK_LANE,
-      options?: { startedAt?: number; form?: VenueRevealForm },
+      options?: { startedAt?: number; form?: VenueRevealForm; sequence?: number },
     ) => {
       if (prefersReducedMotion) {
         revealRunningRef.current = false;
@@ -114,8 +116,10 @@ export function useVenueReveal(externallyInterrupted = false) {
         revealRunningRef.current = false;
         clearTimer();
         setReveal({
+          sequence: options?.sequence ?? 0,
           venueId,
           startedAt: visualStartAt,
+          elapsedMs: elapsed,
           form,
           priceMotion,
           priceMotionClass: venuePriceRevealMotionClass(priceMotion),
@@ -126,8 +130,10 @@ export function useVenueReveal(externallyInterrupted = false) {
       }
       clearTimer();
       setReveal({
+        sequence: options?.sequence ?? 0,
         venueId,
         startedAt: visualStartAt,
+        elapsedMs: elapsed,
         form,
         priceMotion,
         priceMotionClass: venuePriceRevealMotionClass(priceMotion),
@@ -209,7 +215,7 @@ export function useVenueReveal(externallyInterrupted = false) {
   const revealStyle: CSSProperties | undefined =
     reveal?.active && !externallyInterrupted
     ? ({
-        "--venue-reveal-elapsed": `${Math.max(0, Date.now() - reveal.startedAt)}ms`,
+        "--venue-reveal-elapsed": `${reveal.elapsedMs}ms`,
       } as CSSProperties)
     : undefined;
 

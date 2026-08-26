@@ -2,7 +2,7 @@
 // Matches the sheet's tab + stamp layout so the loading state feels like the
 // real panel, not a bare "Loading…" line.
 
-import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef, type CSSProperties } from "react";
 
 import type { VenueRevealForm } from "@/lib/venueReveal";
 
@@ -10,11 +10,14 @@ export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
   revealForm = null,
   revealElapsedMs = null,
+  revealStartedAt = null,
 }: {
   loadingLabel?: string;
   revealForm?: VenueRevealForm | null;
   revealElapsedMs?: number | null;
+  revealStartedAt?: number | null;
 }) {
+  const skeletonRef = useRef<HTMLDivElement>(null);
   const revealClasses = revealForm ? ` venueReveal venueReveal--${revealForm}` : "";
   const revealStyle =
     typeof revealElapsedMs === "number" && Number.isFinite(revealElapsedMs)
@@ -22,8 +25,22 @@ export default function VenueSheetSkeleton({
           "--venue-reveal-elapsed": `${Math.max(0, revealElapsedMs)}ms`,
         } as CSSProperties)
       : undefined;
+  useLayoutEffect(() => {
+    if (
+      !skeletonRef.current ||
+      typeof revealStartedAt !== "number" ||
+      !Number.isFinite(revealStartedAt)
+    ) {
+      return;
+    }
+    skeletonRef.current.style.setProperty(
+      "--venue-reveal-elapsed",
+      `${Math.max(0, Date.now() - revealStartedAt)}ms`,
+    );
+  }, [revealStartedAt]);
   return (
     <div
+      ref={skeletonRef}
       className={`venueSheetSkeleton${revealClasses}`}
       style={revealStyle}
       role="status"

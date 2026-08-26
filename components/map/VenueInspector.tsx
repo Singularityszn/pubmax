@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
@@ -169,7 +169,6 @@ export default function VenueInspector({
     revealRootRef,
     revealStyle,
   } = useVenueReveal(revealInterrupted);
-  const begunRevealSequenceRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!revealRequest || revealRequest.venueId !== venue.id) return;
@@ -177,18 +176,18 @@ export default function VenueInspector({
       interruptReveal();
       return;
     }
-    if (begunRevealSequenceRef.current === revealRequest.sequence) return;
-    const began = beginReveal(
+    if (reveal?.sequence === revealRequest.sequence) return;
+    beginReveal(
       revealRequest.venueId,
       revealRequest.rows,
       revealRequest.lane,
       {
         startedAt: revealRequest.startedAt,
         form: revealRequest.form,
+        sequence: revealRequest.sequence,
       },
     );
-    if (began) begunRevealSequenceRef.current = revealRequest.sequence;
-  }, [beginReveal, interruptReveal, revealRequest, venue.id]);
+  }, [beginReveal, interruptReveal, reveal, revealRequest, venue.id]);
 
   useEffect(() => {
     if (!revealRequest || revealRequest.venueId !== venue.id) return;
@@ -200,10 +199,10 @@ export default function VenueInspector({
   }, [revealRequest, updateRevealPriceMotion, venue.id]);
 
   const revealIsCurrent = Boolean(
-    reveal &&
+      reveal &&
       revealRequest &&
       revealRequest.venueId === venue.id &&
-      revealRequest.sequence === begunRevealSequenceRef.current &&
+      revealRequest.sequence === reveal.sequence &&
       !revealRequest.interrupted,
   );
   const currentReveal = revealIsCurrent ? reveal : null;
