@@ -125,10 +125,13 @@ export function observationsFromExaResults(
   fetchedAt: string,
 ): HarvestObservation[];
 export function observationsFromExaOutput(
-  content: Record<string, unknown> | undefined,
+  content: ExaStructuredOutput["content"] | undefined,
   grounding: ExaGroundingEntry[] | undefined,
   fetchedAt: string,
 ): HarvestObservation[];
+export function groundedMenuUrls(output: ExaStructuredOutput | undefined): string[];
+export function persistedShardRowCount(dir: string): Promise<number>;
+export function isMainModule(metaUrl: string, argv1?: string): boolean;
 export function buildExaSearchBody(input: { query: string; purpose?: ExaPurpose }): {
   query: string;
   type: "auto";

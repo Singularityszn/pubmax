@@ -10,6 +10,7 @@
 import { existsSync, readdirSync } from "node:fs";
 import { access, mkdir, readdir, readFile, rename, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { MAX_BACKOFF_MS, QUERY_TIMEOUT_S } from "./overpassClient.mjs";
 import { UK_AREA_ID } from "./ukOsmSeed.mjs";
@@ -384,7 +385,7 @@ export function classifyExaHit(hit) {
  * @param {string} fetchedAt
  */
 function pushObservation(observations, seen, kind, value, sourceUrl, fetchedAt, snippet) {
-  const key = `${kind}|${sourceUrl}`;
+  const key = `${kind}|${sourceUrl}|${value}`;
   if (seen.has(key)) return;
   const row = observation(kind, value, sourceUrl, fetchedAt);
   if (!row) return;
@@ -447,6 +448,24 @@ function groundingEntriesFor(grounding, field, index) {
  * @param {any[]} grounding
  * @param {string} fetchedAt
  */
+export function groundedMenuUrls(output) {
+  const pages = output?.content?.menuOrPricePages;
+  const grounding = output?.grounding;
+  if (!Array.isArray(pages)) return [];
+  const urls = [];
+  const seen = new Set();
+  pages.forEach((item, index) => {
+    if (!isNonEmptyString(item)) return;
+    const sourceUrl = firstCitationUrl(groundingEntriesFor(grounding, "menuOrPricePages", index)[0]);
+    if (!sourceUrl) return;
+    const href = httpsUrl(item);
+    if (!href || seen.has(href)) return;
+    seen.add(href);
+    urls.push(href);
+  });
+  return urls;
+}
+
 export function observationsFromExaOutput(content, grounding, fetchedAt) {
   const observations = [];
   const seen = new Set();
@@ -603,18 +622,34 @@ export function createExaClient({
         }
         throw error;
       }
-      clearTimeout(timer);
       if (response.status === 429 || response.status === 502 || response.status === 503) {
+        clearTimeout(timer);
         const wait = backoffMs(attempt, response.headers.get("retry-after"));
         lastError = new Error(`Exa ${response.status}`);
         await sleep(wait);
         continue;
       }
       if (!response.ok) {
+        clearTimeout(timer);
         const text = await response.text().catch(() => "");
         throw new Error(`Exa ${response.status}: ${text.slice(0, 200)}`);
       }
-      return response.json();
+      try {
+        const payload = await response.json();
+        clearTimeout(timer);
+        return payload;
+      } catch (error) {
+        clearTimeout(timer);
+        const aborted =
+          error?.name === "AbortError" ||
+          (error instanceof Error && /aborted|timeout/i.test(error.message));
+        if (aborted && attempt < EXA_MAX_ATTEMPTS - 1) {
+          lastError = new Error(`Exa timeout after ${requestTimeoutMs}ms`);
+          await sleep(backoffMs(attempt, null));
+          continue;
+        }
+        throw error;
+      }
     }
     throw lastError ?? new Error("Exa request failed");
   }
@@ -640,7 +675,7 @@ function mergeObservations(rows) {
   const merged = [];
   for (const row of rows) {
     if (!row) continue;
-    const key = `${row.kind}|${row.sourceUrl}`;
+    const key = `${row.kind}|${row.sourceUrl}|${row.value}`;
     if (seen.has(key)) continue;
     seen.add(key);
     merged.push(row);
@@ -699,14 +734,7 @@ export async function enrichPubWithClient(pub, client, fetchedAt) {
 
   const record = enrichPub(pub, { results, output: searchPayload?.output }, fetchedAt);
 
-  const menuUrls = [];
-  const pages = searchPayload?.output?.content?.menuOrPricePages;
-  if (Array.isArray(pages)) {
-    for (const url of pages) {
-      const href = httpsUrl(url);
-      if (href && href !== site) menuUrls.push(href);
-    }
-  }
+  const menuUrls = groundedMenuUrls(searchPayload?.output).filter((href) => href !== site);
   if (menuUrls.length === 0) return record;
   try {
     const menu = await client.contents(menuUrls.slice(0, 2), { purpose: "menu" });
@@ -754,6 +782,25 @@ export async function listCompleteShardIndexes(dir) {
     .filter((name) => /^shard_\d{4}\.jsonl$/.test(name))
     .map((name) => Number(name.slice(6, 10)))
     .sort((a, b) => a - b);
+}
+
+export async function persistedShardRowCount(dir) {
+  const indexes = await listCompleteShardIndexes(dir);
+  let count = 0;
+  for (const index of indexes) {
+    const rows = await readJsonl(path.join(dir, shardFileName(index)));
+    count += Array.isArray(rows) ? rows.length : 0;
+  }
+  return count;
+}
+
+export function isMainModule(metaUrl, argv1 = process.argv[1]) {
+  if (!metaUrl || !argv1) return false;
+  try {
+    return metaUrl === pathToFileURL(argv1).href;
+  } catch {
+    return false;
+  }
 }
 
 export async function writeJsonlAtomic(filePath, rows) {

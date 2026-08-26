@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-import { loadProgress, pubsEnrichComplete } from "../../lib/ukPubHarvest.mjs";
+import { isMainModule, loadProgress, pubsEnrichComplete } from "../../lib/ukPubHarvest.mjs";
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const HARVEST_DIR = path.join(ROOT, "data-harvest");
@@ -21,15 +21,13 @@ function sleep(ms) {
 
 function pubEnrichProcessRunning() {
   try {
-    const out = execFileSync("pgrep", ["-fl", "uk-pubs/run.mjs"], { encoding: "utf8" });
-    return out
-      .split("\n")
-      .some(
-        (line) =>
-          line.includes("uk-pubs/run.mjs") &&
-          line.includes("--enrich") &&
-          !line.includes("--bars"),
-      );
+    const out = execFileSync("ps", ["-ax", "-o", "command="], { encoding: "utf8" });
+    return out.split("\n").some((line) => {
+      if (!line.includes("uk-pubs/run.mjs")) return false;
+      if (line.includes("--bars")) return false;
+      if (line.includes("start-bars-when-pubs-done")) return false;
+      return true;
+    });
   } catch {
     return false;
   }
@@ -69,6 +67,6 @@ export async function waitThenStartBars() {
   console.log("bars waiter: bars enrich finished");
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   await waitThenStartBars();
 }

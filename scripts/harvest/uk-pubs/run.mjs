@@ -41,8 +41,10 @@ import {
   estimateEta,
   isExaConfigured,
   loadProgress,
+  isMainModule,
   nextShardIndex,
   normalizeHarvestElements,
+  persistedShardRowCount,
   readJsonl,
   seedSample,
   writeJsonlAtomic,
@@ -185,8 +187,11 @@ async function enumerateFromDirectory(rawDir, { startedAt, lane = "pubs", paths,
   const files = (await readdir(rawDir)).filter((name) => name.endsWith(".json") && !name.startsWith("."));
   const elements = [];
   for (const name of files) {
-    const raw = await readRawFile(path.join(rawDir, name));
-    if (!raw) continue;
+    const filePath = path.join(rawDir, name);
+    const raw = await readRawFile(filePath);
+    if (!raw) {
+      throw new Error(`Unreadable Overpass raw ${path.relative(ROOT, filePath)}`);
+    }
     elements.push(...(raw.elements ?? []));
   }
   const fetchedAt = new Date().toISOString();
@@ -227,6 +232,7 @@ async function enumerateFromHarvestRaw({ startedAt, lane = "plain-bars", paths }
 async function writeSeed(rows, paths) {
   await mkdir(HARVEST_DIR, { recursive: true });
   await writeJsonlAtomic(paths.seed, rows);
+  await copyFile(paths.seed, paths.enrichSeed);
   if (!existsSync(paths.sample)) {
     const sample = seedSample(rows, 100);
     await writeJsonlAtomic(paths.sample, sample);
@@ -270,7 +276,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount, paths }) {
 
   await mkdir(paths.enriched, { recursive: true });
   const startIndex = nextShardIndex(paths.enriched);
-  const startOffset = startIndex * SHARD_SIZE;
+  const startOffset = await persistedShardRowCount(paths.enriched);
   const remaining = rows.slice(startOffset);
   const runStarted = Date.now();
   let enriched = 0;
@@ -380,25 +386,24 @@ export async function main(argv = process.argv.slice(2)) {
 
   let rows = [];
   if (args.enumerate) {
-    const result =
-      args.bars && !args.refresh
+    const result = args.fromOsmRaw
+      ? await enumerateFromOsmRaw({ startedAt, lane: paths.lane, paths })
+      : args.bars && !args.refresh
         ? await enumerateFromHarvestRaw({ startedAt, lane: paths.lane, paths })
-        : args.fromOsmRaw
-          ? await enumerateFromOsmRaw({ startedAt, lane: paths.lane, paths })
-          : await enumerateFromOverpass({
-              refresh: args.refresh,
-              allowStale: args.allowStale,
-              chunkId: args.chunk,
-              startedAt,
-              lane: paths.lane,
-              paths,
-            });
+        : await enumerateFromOverpass({
+            refresh: args.refresh,
+            allowStale: args.allowStale,
+            chunkId: args.chunk,
+            startedAt,
+            lane: paths.lane,
+            paths,
+          });
     rows = result.rows;
+    if (!args.chunk) await writeSeed(rows, paths);
     if (args.limit > 0) rows = rows.slice(0, args.limit);
-    await writeSeed(rows, paths);
     await writeProgress(paths.progressDir, {
       stage: "enumerate",
-      seedCount: rows.length,
+      seedCount: args.chunk ? rows.length : result.rows.length,
       enrichedCount: 0,
       completeShards: 0,
       lastCompleteShard: null,
@@ -426,7 +431,7 @@ export async function main(argv = process.argv.slice(2)) {
   if (mock && !isExaConfigured()) {
     console.warn("EXA_API_KEY is not set. Enrichment will run in mock mode and write no live observations.");
   }
-  if (rows.length === 0) rows = await loadSeedForEnrich(paths);
+  if (rows.length === 0 && !args.enumerate) rows = await loadSeedForEnrich(paths);
   const outcome = await enrichSeed(rows, {
     mock,
     startedAt,
@@ -456,6 +461,6 @@ export async function main(argv = process.argv.slice(2)) {
   return outcome;
 }
 
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isMainModule(import.meta.url, process.argv[1])) {
   await main();
 }

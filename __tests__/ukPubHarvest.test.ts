@@ -23,7 +23,9 @@ import {
   createExaClient,
   enrichPub,
   estimateEta,
+  groundedMenuUrls,
   harvestSearchQuery,
+  isMainModule,
   isPlainBar,
   isPubLikeBar,
   pubsEnrichComplete,
@@ -35,6 +37,7 @@ import {
   observationsFromExaResults,
   officialWebsiteUrl,
   osmObjectUrl,
+  persistedShardRowCount,
   readJsonl,
   seedRowFromElement,
   shardFileName,
@@ -143,6 +146,12 @@ describe("plain-bars harvest lane", () => {
       true,
     );
     expect(pubsEnrichComplete({ stage: "done", seedCount: 20, enrichedCount: 20, mock: true })).toBe(false);
+  });
+
+  it("matches the running script through pathToFileURL", () => {
+    expect(isMainModule("file:///tmp/uk%20pubs/run.mjs", "/tmp/uk pubs/run.mjs")).toBe(true);
+    expect(isMainModule("file:///tmp/uk%20pubs/run.mjs", "/tmp/other.mjs")).toBe(false);
+    expect(isMainModule("file:///tmp/run.mjs", "")).toBe(false);
   });
 });
 
@@ -482,6 +491,44 @@ describe("grounded structured output", () => {
     );
   });
 
+  it("keeps two array facts that share one citation URL", () => {
+    const observations = observationsFromExaOutput(
+      {
+        socialHandles: ["https://www.instagram.com/a", "https://www.facebook.com/a"],
+      },
+      [
+        {
+          field: "socialHandles",
+          citations: [{ url: "https://thetestarms.example/contact", title: "Contact" }],
+          confidence: "high",
+        },
+      ],
+      fetchedAt,
+    );
+    expect(observations.filter((row) => row.kind === "social")).toHaveLength(2);
+  });
+
+  it("does not fetch a menu URL with no grounding citation", () => {
+    expect(
+      groundedMenuUrls({
+        content: { menuOrPricePages: ["https://thetestarms.example/menu"] },
+        grounding: [],
+      }),
+    ).toEqual([]);
+    expect(
+      groundedMenuUrls({
+        content: { menuOrPricePages: ["https://thetestarms.example/menu"] },
+        grounding: [
+          {
+            field: "menuOrPricePages[0]",
+            citations: [{ url: "https://thetestarms.example/", title: "Home" }],
+            confidence: "high",
+          },
+        ],
+      }),
+    ).toEqual(["https://thetestarms.example/menu"]);
+  });
+
   it("drops a synthesized field with no citation", () => {
     expect(
       observationsFromExaOutput(
@@ -553,6 +600,14 @@ describe("checkpointed shards", () => {
     expect(first[0]).toEqual({ osmId: "node/0", name: "Pub 0" });
     const names = await readdir(dir);
     expect(names.some((name) => name.endsWith(".tmp"))).toBe(false);
+  });
+
+  it("resumes from the persisted row count, including a short tail shard", async () => {
+    const dir = await tmp();
+    await writeShardAtomic(dir, 0, Array.from({ length: SHARD_SIZE }, (_, i) => ({ osmId: `node/${i}` })));
+    await writeShardAtomic(dir, 1, [{ osmId: "node/tail-0" }, { osmId: "node/tail-1" }]);
+    expect(nextShardIndex(dir)).toBe(2);
+    expect(await persistedShardRowCount(dir)).toBe(SHARD_SIZE + 2);
   });
 
   it("does not treat a leftover tmp file as a complete shard", async () => {
