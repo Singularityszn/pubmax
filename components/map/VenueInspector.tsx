@@ -197,18 +197,22 @@ export default function VenueInspector({
     );
   }, [revealRequest, updateRevealPriceMotion, venue.id]);
 
+  const revealIsCurrent = Boolean(
+    reveal &&
+      revealRequest &&
+      revealRequest.venueId === venue.id &&
+      revealRequest.sequence === begunRevealSequenceRef.current &&
+      !revealRequest.interrupted,
+  );
   const revealVenueId =
-    reveal?.active && reveal.venueId === venue.id && !revealInterrupted
+    revealIsCurrent && reveal.active
       ? venue.id
       : null;
   const revealRecord =
-    reveal?.venueId === venue.id &&
-    reveal.form === "full" &&
-    !reveal.interrupted &&
-    !revealInterrupted;
+    revealIsCurrent && reveal.form === "full";
   const revealRecordLate = revealRecord && !reveal.active;
   const priceRevealMotionClass =
-    reveal?.venueId === venue.id && !revealInterrupted
+    revealIsCurrent
       ? reveal.priceMotionClass
       : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
