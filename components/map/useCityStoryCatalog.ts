@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { CityId } from "@/lib/cities";
 import {
@@ -38,14 +38,6 @@ export function useCityStoryCatalog(
   enabled = true,
 ): CityStoryCatalog {
   const [catalog, setCatalog] = useState<CityStoryCatalog>(() => emptyCatalog(cityId));
-
-  useLayoutEffect(() => {
-    if (!enabled) {
-      setCatalog(emptyCatalog(null));
-      return;
-    }
-    setCatalog(emptyCatalog(cityId));
-  }, [cityId, enabled]);
 
   useEffect(() => {
     if (!enabled) return;

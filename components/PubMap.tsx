@@ -2362,10 +2362,7 @@ export default function PubMap({
   // selecting a different lens by any control implicitly retires the card.
   const [activePersona, setActivePersona] = useState<PersonaDrink | null>(null);
   useEffect(() => {
-    if (!personaLensId) {
-      setActivePersona(null);
-      return;
-    }
+    if (!personaLensId) return;
     let cancelled = false;
     void findPersonaByIdAsync(personaLensId).then((persona) => {
       if (cancelled) return;

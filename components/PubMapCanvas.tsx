@@ -1015,7 +1015,7 @@ export default function PubMapCanvas({
     if (!initialLandmarkId || activeLandmark) return;
     const landmark = landmarkById(initialLandmarkId);
     if (!landmark) return;
-    selectLandmark(landmark);
+    queueMicrotask(() => selectLandmark(landmark));
   }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
 
   useEffect(() => {
