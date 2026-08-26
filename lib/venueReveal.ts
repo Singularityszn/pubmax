@@ -4,6 +4,8 @@ import {
   isWithinMaxAge,
   type CommunityPrice,
 } from "@/lib/communityPrice";
+import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
+import type { DrinkCategory } from "@/lib/drinks";
 
 /** Full choreography only when the previous reveal is at least this old. */
 export const VENUE_REVEAL_STALE_MS = 8_000;
@@ -15,6 +17,45 @@ export const VENUE_REVEAL_SHORT_MS = 160;
 export const VENUE_REVEAL_CINEMA_MS = 480;
 
 export type VenueRevealForm = "full" | "short";
+
+export type VenueRevealRequest = {
+  sequence: number;
+  venueId: string;
+  startedAt: number;
+  form: VenueRevealForm;
+  rows: readonly CommunityPrice[] | undefined;
+  lane: DrinkCategory;
+  interrupted: boolean;
+};
+
+export type VenueDrinkPriceView = {
+  rows: readonly CommunityPrice[] | undefined;
+  lane: DrinkCategory;
+};
+
+export function venueDrinkPriceView(
+  rows: readonly CommunityPrice[] | undefined,
+  experienceLens: "all" | "no-alcohol" | "food",
+  drinkLensCategory: DrinkCategory | null | undefined,
+): VenueDrinkPriceView {
+  if (experienceLens === "food") {
+    return { rows: undefined, lane: DEFAULT_DRINK_LANE };
+  }
+  if (experienceLens === "no-alcohol") {
+    return {
+      rows: rows?.filter(
+        (row) =>
+          row.drinkCategory === "soft-drink" ||
+          row.drinkCategory === "alcohol-free",
+      ),
+      lane: "alcohol-free",
+    };
+  }
+  return {
+    rows,
+    lane: drinkLensCategory ?? DEFAULT_DRINK_LANE,
+  };
+}
 
 /**
  * Whether a tap earns the four-beat entrance or the 160 ms short form.

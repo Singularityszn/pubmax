@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   resolveSheetHeightSnap,
+  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
   sheetSnapCaps,
   type SheetSnap,
 } from "@/lib/sheetSnap";
@@ -18,7 +19,6 @@ const RUBBERBAND_CONSTANT = 0.55;
 const RELEASE_PAUSE_MS = 66;
 const VELOCITY_SMOOTHING = 0.55;
 const MOMENTUM_VELOCITY_THRESHOLD = 0.5;
-const ENTRANCE_OVERSHOOT_DAMPING = 0.82;
 
 export interface SheetHeightDrag {
   sheetSnap: SheetSnap;
@@ -104,7 +104,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
       setRestingSnap(snap);
       jumpTo(0);
       animateTo(capsForViewport()[snap], {
-        dampingRatio: options?.entranceOvershoot ? ENTRANCE_OVERSHOOT_DAMPING : 1,
+        dampingRatio: options?.entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
       });
     },
     [animateTo, capsForViewport, jumpTo],

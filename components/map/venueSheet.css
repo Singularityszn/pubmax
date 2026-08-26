@@ -1450,19 +1450,23 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueReveal--full .venueRevealBloom {
-    animation: venueRevealBloom 280ms var(--ease-out-strong) 80ms both;
+    animation: venueRevealBloom 280ms var(--ease-out-strong)
+      calc(80ms - var(--venue-reveal-elapsed, 0ms)) both;
   }
 
   .venueReveal--short .venueRevealBloom {
-    animation: venueRevealBloomShort 160ms var(--ease-out-strong) both;
+    animation: venueRevealBloomShort 160ms var(--ease-out-strong)
+      calc(0ms - var(--venue-reveal-elapsed, 0ms)) both;
   }
 
   .venueReveal--full .venueRevealPriceChrome--drop {
-    animation: venueRevealBeermatDrop 180ms var(--ease-spring) 240ms both;
+    animation: venueRevealBeermatDrop 180ms var(--ease-spring)
+      calc(240ms - var(--venue-reveal-elapsed, 0ms)) both;
   }
 
   .venueReveal--full .venueRevealPriceChrome--slide {
-    animation: venueRevealPriceSlide 180ms var(--ease-out-strong) 240ms both;
+    animation: venueRevealPriceSlide 180ms var(--ease-out-strong)
+      calc(240ms - var(--venue-reveal-elapsed, 0ms)) both;
   }
 
   .venueReveal--full .venueRevealRecord {
@@ -1470,19 +1474,19 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
-    animation-delay: 200ms;
+    animation-delay: calc(200ms - var(--venue-reveal-elapsed, 0ms));
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="1"] {
-    animation-delay: 240ms;
+    animation-delay: calc(240ms - var(--venue-reveal-elapsed, 0ms));
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="2"] {
-    animation-delay: 280ms;
+    animation-delay: calc(280ms - var(--venue-reveal-elapsed, 0ms));
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
-    animation-delay: 320ms;
+    animation-delay: calc(320ms - var(--venue-reveal-elapsed, 0ms));
   }
 }
 

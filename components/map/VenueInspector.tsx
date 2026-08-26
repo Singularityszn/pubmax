@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { ContributionGateDialog } from "@/components/identity/ContributionGateDialog";
@@ -20,6 +20,8 @@ import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
+import type { VenueRevealRequest } from "@/lib/venueReveal";
+import { useVenueReveal } from "@/components/map/useVenueReveal";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -99,10 +101,7 @@ type VenueInspectorProps = {
   drinkLensCategory?: DrinkCategory | null;
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
-  /** Trust-choreography entrance classes from PubMap. */
-  revealRootClasses?: string;
-  revealVenueId?: string | null;
-  priceRevealMotionClass?: string;
+  revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
 };
 
@@ -154,11 +153,51 @@ export default function VenueInspector({
   experienceLens = "all",
   drinkLensCategory = null,
   zoneIndex = null,
-  revealRootClasses = "",
-  revealVenueId = null,
-  priceRevealMotionClass = "",
+  revealRequest = null,
   onInterruptReveal,
 }: VenueInspectorProps) {
+  const {
+    reveal,
+    beginReveal,
+    updateRevealPriceMotion,
+    interruptReveal,
+    rootClasses: revealRootClasses,
+    revealStyle,
+  } = useVenueReveal();
+  const begunRevealSequenceRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!revealRequest || revealRequest.venueId !== venue.id) return;
+    if (begunRevealSequenceRef.current === revealRequest.sequence) return;
+    begunRevealSequenceRef.current = revealRequest.sequence;
+    beginReveal(
+      revealRequest.venueId,
+      revealRequest.rows,
+      revealRequest.lane,
+      {
+        startedAt: revealRequest.startedAt,
+        form: revealRequest.form,
+      },
+    );
+  }, [beginReveal, revealRequest, venue.id]);
+
+  useEffect(() => {
+    if (!revealRequest || revealRequest.venueId !== venue.id) return;
+    updateRevealPriceMotion(
+      revealRequest.venueId,
+      revealRequest.rows,
+      revealRequest.lane,
+    );
+  }, [revealRequest, updateRevealPriceMotion, venue.id]);
+
+  useEffect(() => {
+    if (revealRequest?.interrupted) interruptReveal();
+  }, [interruptReveal, revealRequest?.interrupted]);
+
+  const revealVenueId =
+    reveal?.active && reveal.venueId === venue.id ? venue.id : null;
+  const priceRevealMotionClass =
+    reveal?.venueId === venue.id ? reveal.priceMotionClass : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
@@ -305,6 +344,7 @@ export default function VenueInspector({
     <section
       className={`venueInspector ${revealRootClasses}`.trim()}
       data-reveal={revealVenueId ?? undefined}
+      style={revealStyle}
     >
       <VenueInspectorHeader
         venue={venue}

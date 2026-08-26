@@ -227,7 +227,11 @@ import {
 } from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
-import { useVenueReveal } from "@/components/map/useVenueReveal";
+import {
+  revealForm,
+  venueDrinkPriceView,
+  type VenueRevealRequest,
+} from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
@@ -1252,14 +1256,41 @@ export default function PubMap({
     onSheetDragEnd,
   } = useSheetDrag(() => surfaceBackRef.current());
 
-  const {
-    reveal: venueReveal,
-    beginReveal,
-    updateRevealPriceMotion,
-    interruptReveal: interruptVenueReveal,
-    rootClasses: venueRevealRootClasses,
-    entranceOvershoot: venueEntranceOvershoot,
-  } = useVenueReveal();
+  const [venueRevealRequest, setVenueRevealRequest] =
+    useState<VenueRevealRequest | null>(null);
+  const revealSequenceRef = useRef(0);
+  const lastRevealAtRef = useRef<number | null>(null);
+  const interruptVenueReveal = useCallback(() => {
+    setVenueRevealRequest((current) =>
+      !current || current.interrupted ? current : { ...current, interrupted: true },
+    );
+  }, []);
+  const beginReveal = useCallback(
+    (
+      venueId: string,
+      rows: VenueRevealRequest["rows"],
+      lane: VenueRevealRequest["lane"],
+    ) => {
+      const now = Date.now();
+      const form = revealForm(now, lastRevealAtRef.current);
+      lastRevealAtRef.current = now;
+      revealSequenceRef.current += 1;
+      setVenueRevealRequest({
+        sequence: revealSequenceRef.current,
+        venueId,
+        startedAt: now,
+        form,
+        rows,
+        lane,
+        interrupted: false,
+      });
+    },
+    [],
+  );
+  const venueEntranceOvershoot =
+    venueRevealRequest?.form === "full" &&
+    !venueRevealRequest.interrupted &&
+    venueRevealRequest.venueId === selectedVenueId;
 
   const onVenueSheetDragStart = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -1927,12 +1958,24 @@ export default function PubMap({
 
   useEffect(() => {
     if (!selectedId) return;
-    updateRevealPriceMotion(
-      selectedId,
+    const priceView = venueDrinkPriceView(
       communityPrices.byVenueId.get(selectedId),
-      mapDrinkLensCategory ?? DEFAULT_DRINK_LANE,
+      experienceLens,
+      mapDrinkLensCategory,
     );
-  }, [communityPrices.byVenueId, mapDrinkLensCategory, selectedId, updateRevealPriceMotion]);
+    setVenueRevealRequest((current) => {
+      if (!current || current.venueId !== selectedId) return current;
+      if (current.rows === priceView.rows && current.lane === priceView.lane) {
+        return current;
+      }
+      return { ...current, rows: priceView.rows, lane: priceView.lane };
+    });
+  }, [
+    communityPrices.byVenueId,
+    experienceLens,
+    mapDrinkLensCategory,
+    selectedId,
+  ]);
 
   useEffect(() => {
     if (tonightStatus !== "ready" || tonightDismissed) return;
@@ -1989,10 +2032,15 @@ export default function PubMap({
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
+      const priceView = venueDrinkPriceView(
+        communityPrices.byVenueId.get(id),
+        experienceLens,
+        mapDrinkLensCategory,
+      );
       beginReveal(
         id,
-        communityPrices.byVenueId.get(id),
-        mapDrinkLensCategory ?? DEFAULT_DRINK_LANE,
+        priceView.rows,
+        priceView.lane,
       );
     },
     [
@@ -2000,6 +2048,7 @@ export default function PubMap({
       claimMapDrawer,
       closeComposer,
       communityPrices.byVenueId,
+      experienceLens,
       mapDrinkLensCategory,
       setSelectedVenueId,
       setSheetSnap,
@@ -2597,6 +2646,7 @@ export default function PubMap({
     planningOpen,
     selectedVenueId,
     onBack: () => surfaceBackRef.current(),
+    onInterruptReveal: interruptVenueReveal,
     logIntentFallbackVisible,
     dismissLogIntent: clearLogIntent,
   });
@@ -3727,11 +3777,7 @@ export default function PubMap({
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton
             loadingLabel={selectedVenueLabels.loadingLabel}
-            revealBloom={
-              venueReveal?.active &&
-              venueReveal.venueId === selectedVenue.id &&
-              !venueReveal.interrupted
-            }
+            revealBloom={venueRevealRequest?.venueId === selectedVenue.id}
           />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (
@@ -3765,20 +3811,10 @@ export default function PubMap({
           onGrabDragStart={mobileViewport ? undefined : onVenueSheetDragStart}
           onGrabDragMove={mobileViewport ? undefined : onVenueSheetDragMove}
           onGrabDragEnd={mobileViewport ? undefined : onVenueSheetDragEnd}
-          revealRootClasses={
-            venueReveal?.venueId === selectedVenue.id
-              ? `${venueRevealRootClasses}${venueReveal.interrupted ? " venueReveal--interrupted" : ""}`
-              : ""
-          }
-          revealVenueId={
-            venueReveal?.active && venueReveal.venueId === selectedVenue.id
-              ? selectedVenue.id
+          revealRequest={
+            venueRevealRequest?.venueId === selectedVenue.id
+              ? venueRevealRequest
               : null
-          }
-          priceRevealMotionClass={
-            venueReveal?.venueId === selectedVenue.id
-              ? venueReveal.priceMotionClass
-              : ""
           }
           onInterruptReveal={interruptVenueReveal}
           onTabSelect={handleInspectorTabSelect}

@@ -16,12 +16,12 @@ import {
 import {
   sheetClosedTranslateY,
   sheetTranslateY,
+  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
   type SheetSnap,
 } from "@/lib/sheetSnap";
 import { useSpringValue } from "@/lib/useSpringValue";
 
 const TABLET_SHEET_QUERY = "(max-width: 768px)";
-const ENTRANCE_OVERSHOOT_DAMPING = 0.82;
 
 function subscribeTabletSheet(onChange: () => void): () => void {
   const query = window.matchMedia(TABLET_SHEET_QUERY);
@@ -170,7 +170,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
               velocity,
               dampingRatio:
                 opening && entranceOvershoot
-                  ? ENTRANCE_OVERSHOOT_DAMPING
+                  ? SHEET_ENTRANCE_OVERSHOOT_DAMPING
                   : Math.abs(velocity) >= 500
                     ? 0.8
                     : 1,
@@ -188,7 +188,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         } else {
           animateHorizontal(target, {
             dampingRatio:
-              opening && entranceOvershoot ? ENTRANCE_OVERSHOOT_DAMPING : 1,
+              opening && entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
             onRest: open ? undefined : clearRetainedChildren,
           });
         }

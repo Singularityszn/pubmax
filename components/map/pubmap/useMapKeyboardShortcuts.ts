@@ -3,6 +3,7 @@ type KeyboardShortcutArgs = {
   planningOpen: boolean;
   selectedVenueId: string;
   onBack: () => void;
+  onInterruptReveal: () => void;
   /** D4 — the Drop pub picker is topmost, and Escape must be a way out of it. */
   logIntentFallbackVisible: boolean;
   dismissLogIntent: () => void;
@@ -17,6 +18,7 @@ export function useMapKeyboardShortcuts({
   planningOpen,
   selectedVenueId,
   onBack,
+  onInterruptReveal,
   logIntentFallbackVisible,
   dismissLogIntent,
 }: KeyboardShortcutArgs) {
@@ -45,7 +47,10 @@ export function useMapKeyboardShortcuts({
           dismissLogIntent();
           return;
         }
-        if (planningOpen || selectedVenueId) onBack();
+        if (planningOpen || selectedVenueId) {
+          onInterruptReveal();
+          onBack();
+        }
       }
     };
     window.addEventListener("keydown", onKeyDown);
@@ -54,6 +59,7 @@ export function useMapKeyboardShortcuts({
     dismissLogIntent,
     logIntentFallbackVisible,
     onBack,
+    onInterruptReveal,
     planningOpen,
     selectedVenueId,
   ]);

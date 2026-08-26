@@ -50,7 +50,8 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
-import { DEFAULT_DRINK_LANE, drinkLaneNoun } from "@/lib/drinkLanes";
+import { drinkLaneNoun } from "@/lib/drinkLanes";
+import { venueDrinkPriceView } from "@/lib/venueReveal";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
@@ -307,28 +308,18 @@ export default function VenueOverviewTab({
   const venueReadStatus =
     communityPrices.venuePriceStatus.get(venue.id) ?? "idle";
   const communityRows = communityPrices.byVenueId.get(venue.id);
-  const noAlcoholRows = communityRows?.filter(
-    (row) =>
-      row.drinkCategory === "soft-drink" ||
-      row.drinkCategory === "alcohol-free",
-  );
   // What the prices-by-drink section may show, and which drink it reads first.
   // The food view reserves the slot for the sourced menu anchor below, and the
   // no-alcohol view admits only its own two categories; every other view shows
   // the pub's whole drink list with the map's lane at the top.
-  const drinkPriceRows =
-    experienceLens === "food"
-      ? undefined
-      : experienceLens === "no-alcohol"
-        ? noAlcoholRows
-        : communityRows;
+  const { rows: drinkPriceRows, lane: leadLane } = venueDrinkPriceView(
+    communityRows,
+    experienceLens,
+    drinkLensCategory,
+  );
   // Which lane leads, and what it is called in a sentence. The no-alcohol view
   // joins two categories, so it keeps its own shared noun rather than naming
   // one of them and hiding the other.
-  const leadLane: DrinkCategory =
-    experienceLens === "no-alcohol"
-      ? "alcohol-free"
-      : drinkLensCategory ?? DEFAULT_DRINK_LANE;
   const leadLaneNoun =
     experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN

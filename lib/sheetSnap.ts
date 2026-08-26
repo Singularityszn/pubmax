@@ -57,6 +57,8 @@ export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
   full: 1 - SHEET_SNAP_FRACTIONS.full,
 } as const;
 
+export const SHEET_ENTRANCE_OVERSHOOT_DAMPING = 0.75;
+
 /** translateY fraction of viewport for a snap (same units as CSS `vh`). */
 export function sheetTranslateYFraction(snap: SheetSnap): number {
   return SHEET_SNAP_TRANSLATE_FRACTIONS[snap];

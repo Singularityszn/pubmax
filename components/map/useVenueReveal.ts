@@ -6,6 +6,7 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
+  type CSSProperties,
 } from "react";
 
 import {
@@ -43,6 +44,7 @@ function reducedMotionServerSnapshot(): boolean {
 
 export type VenueRevealState = {
   venueId: string;
+  startedAt: number;
   form: VenueRevealForm;
   priceMotion: VenuePriceRevealMotion;
   priceMotionClass: string;
@@ -60,6 +62,7 @@ export function useVenueReveal() {
   const revealRunningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [reveal, setReveal] = useState<VenueRevealState | null>(null);
+  const [, setRevealClock] = useState(0);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -81,6 +84,7 @@ export function useVenueReveal() {
       venueId: string,
       rows: readonly CommunityPrice[] | undefined,
       lane: DrinkCategory = DEFAULT_DRINK_LANE,
+      options?: { startedAt?: number; form?: VenueRevealForm },
     ) => {
       if (prefersReducedMotion) {
         revealRunningRef.current = false;
@@ -88,9 +92,10 @@ export function useVenueReveal() {
         setReveal(null);
         return;
       }
-      const now = Date.now();
-      const forceShort = revealRunningRef.current;
-      const form = forceShort ? "short" : revealForm(now, lastRevealAtRef.current);
+      const now = options?.startedAt ?? Date.now();
+      const form = options?.form ?? (revealRunningRef.current
+        ? "short"
+        : revealForm(now, lastRevealAtRef.current));
       lastRevealAtRef.current = now;
       revealRunningRef.current = form === "full";
       const ordered = orderVenueDrinkPrices(rows, lane);
@@ -100,6 +105,7 @@ export function useVenueReveal() {
       clearTimer();
       setReveal({
         venueId,
+        startedAt: now,
         form,
         priceMotion,
         priceMotionClass: venuePriceRevealMotionClass(priceMotion),
@@ -114,7 +120,7 @@ export function useVenueReveal() {
             : current,
         );
         timerRef.current = null;
-      }, duration);
+      }, Math.max(0, duration - Math.max(0, Date.now() - now)));
     },
     [clearTimer, prefersReducedMotion],
   );
@@ -146,6 +152,17 @@ export function useVenueReveal() {
     setReveal(null);
   }, [clearTimer, prefersReducedMotion]);
 
+  useEffect(() => {
+    if (!reveal?.active) return;
+    let frame = 0;
+    const tick = () => {
+      setRevealClock(Date.now());
+      frame = window.requestAnimationFrame(tick);
+    };
+    frame = window.requestAnimationFrame(tick);
+    return () => window.cancelAnimationFrame(frame);
+  }, [reveal?.active]);
+
   useEffect(() => clearTimer, [clearTimer]);
 
   const rootClasses =
@@ -157,6 +174,12 @@ export function useVenueReveal() {
         })
       : "";
 
+  const revealStyle: CSSProperties | undefined = reveal?.active
+    ? ({
+        "--venue-reveal-elapsed": `${Math.max(0, Date.now() - reveal.startedAt)}ms`,
+      } as CSSProperties)
+    : undefined;
+
   const entranceOvershoot = Boolean(
     reveal?.active && reveal.form === "full" && !reveal.interrupted,
   );
@@ -167,6 +190,7 @@ export function useVenueReveal() {
     updateRevealPriceMotion,
     interruptReveal,
     rootClasses,
+    revealStyle,
     entranceOvershoot,
   };
 }
