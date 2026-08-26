@@ -351,6 +351,47 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     );
   });
 
+  it("treats live positron label_other as neighbourhood tier, not poi_barber as pub", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "label_other", type: "symbol" },
+      { id: "poi_barber_label", type: "symbol" },
+      { id: "poi_bar_label", type: "symbol" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(
+      paints.find(([id, prop]) => id === "label_other" && prop === "text-opacity")?.[2],
+    ).toBe(0.38);
+    expect(
+      layouts.find(([id, prop]) => id === "label_other" && prop === "text-size")?.[2],
+    ).toBe(9);
+    expect(
+      paints.find(([id, prop]) => id === "poi_barber_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.72);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_barber_label" && prop === "text-size"),
+    ).toBeUndefined();
+    expect(
+      paints.find(([id, prop]) => id === "poi_bar_label" && prop === "text-opacity")?.[2],
+    ).toBe(0.86);
+    expect(
+      layouts.find(([id, prop]) => id === "poi_bar_label" && prop === "text-size")?.[2],
+    ).toBe(10);
+  });
+
   it("does not rewrite label layout that already matches", () => {
     const paintWrites: Array<[string, string, unknown]> = [];
     const layoutWrites: Array<[string, string, unknown]> = [];

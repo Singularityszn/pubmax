@@ -170,7 +170,7 @@ The crawl route is drawn with animated brass "marching ants." Rendering uses
 fallback. Three deliberate choices run through `components/PubMapCanvas.tsx`:
 
 1. **Client-only.** `"use client"`; everything happens inside one mount effect (`:271`). WebGL has no server story.
-2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; scene assembly derives every paint value from them, so one theme toggle repaints UI and map in lockstep.
+2. **Token-driven.** `readTokens()` (`:79`) reads the app's CSS custom properties; scene assembly derives semantic scene marks and label ink from them, so one theme toggle repaints UI and map in lockstep.
 3. **Perf via GeoJSON layers, not React markers.** Every pub/cluster/route/landmark is a GeoJSON source + data-driven style layer. Updating = `source.setData(...)`, rendered on the GPU; route and entrance animation runs without React churn.
 
 ### Key pieces

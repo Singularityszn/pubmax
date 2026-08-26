@@ -113,16 +113,33 @@ function tryLayout(map: PaintMap, layerId: string, prop: string, value: unknown)
   }
 }
 
+/** Neighbourhood-tier place labels on shipped OpenFreeMap + CARTO basemaps.
+ *  Dark OFM: place_other, place_suburb, place_village (underscore ids).
+ *  Light Positron: label_other, label_village, label_town.
+ *  CARTO fallback: place_hamlet, place_suburbs, place_villages, place_town. */
 function isNeighbourhoodPlaceLabel(id: string): boolean {
-  return /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village|place_other/.test(id);
+  const s = id.toLowerCase();
+  if (/city|capital|country|state|continent/.test(s)) return false;
+  return (
+    /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village/.test(s) ||
+    /(?:^|[-_])(place_other|place_suburb|label_other|label_town)(?:[-_]|$)/.test(s)
+  );
 }
+
+const PUB_POI_LABEL_TOKENS = new Set([
+  "pub",
+  "bar",
+  "beer",
+  "alcohol",
+  "drinking",
+  "nightlife",
+]);
 
 function isBasemapPubPoiLabel(id: string): boolean {
   if (!id.includes("poi")) return false;
-  return (
-    /pub|bar|beer|alcohol|drinking|nightlife/.test(id) ||
-    /(^|[-_])pois?[-_](label|name)([-_]|$)/.test(id)
-  );
+  const tokens = id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (tokens.some((token) => PUB_POI_LABEL_TOKENS.has(token))) return true;
+  return /(^|[-_])pois?[-_](label|name)([-_]|$)/.test(id);
 }
 
 const NUMERIC_SHIELD_FILTER_LAYERS = [
