@@ -84,7 +84,7 @@ export type CuratedCrawlHydration = {
 
 export type CuratedCrawlHydrationSnapshot = Pick<
   MapSeed,
-  "mode" | "builtIds" | "activeCrawl" | "filters" | "altStyle"
+  "mode" | "builtIds" | "activeCrawl" | "filters" | "altStyle" | "routeMapped"
 >;
 
 export function sameCuratedCrawlHydrationSnapshot(
@@ -97,7 +97,8 @@ export function sameCuratedCrawlHydrationSnapshot(
     expected.builtIds.every((id, index) => id === current.builtIds[index]) &&
     expected.activeCrawl?.id === current.activeCrawl?.id &&
     expected.filters === current.filters &&
-    expected.altStyle === current.altStyle
+    expected.altStyle === current.altStyle &&
+    expected.routeMapped === current.routeMapped
   );
 }
 

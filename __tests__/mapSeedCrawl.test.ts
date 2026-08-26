@@ -43,5 +43,8 @@ describe("mapSeedCrawl", () => {
         filters: { ...current.filters, query: "Ancoats" },
       }),
     ).toBe(false);
+    expect(
+      sameCuratedCrawlHydrationSnapshot(seed, { ...current, routeMapped: false }),
+    ).toBe(false);
   });
 });

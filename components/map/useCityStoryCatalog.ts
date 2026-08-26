@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 
 import type { CityId } from "@/lib/cities";
 import {
@@ -13,52 +13,78 @@ import type { Landmark } from "@/lib/landmarks";
 import type { StoryBand } from "@/lib/storyBands";
 
 export type CityStoryCatalog = {
+  cityId: CityId | null;
   curatedCrawls: CuratedCrawl[];
   landmarks: Landmark[];
   storyBands: StoryBand[];
   ready: boolean;
+  degraded: boolean;
 };
 
-const EMPTY_CATALOG: CityStoryCatalog = {
-  curatedCrawls: [],
-  landmarks: [],
-  storyBands: [],
-  ready: false,
-};
+function emptyCatalog(cityId: CityId | null = null): CityStoryCatalog {
+  return {
+    cityId,
+    curatedCrawls: [],
+    landmarks: [],
+    storyBands: [],
+    ready: false,
+    degraded: false,
+  };
+}
 
 /** Loads crawls, landmarks and story bands on demand per city. */
 export function useCityStoryCatalog(
   cityId: CityId,
   enabled = true,
 ): CityStoryCatalog {
-  const [catalog, setCatalog] = useState<CityStoryCatalog>(EMPTY_CATALOG);
+  const [catalog, setCatalog] = useState<CityStoryCatalog>(() => emptyCatalog(cityId));
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!enabled) {
-      setCatalog(EMPTY_CATALOG);
+      setCatalog(emptyCatalog(null));
       return;
     }
-    // Drop the previous city's rows immediately so a London→Manchester switch
-    // never paints London landmarks or crawl choices under Manchester state.
-    setCatalog(EMPTY_CATALOG);
+    setCatalog(emptyCatalog(cityId));
+  }, [cityId, enabled]);
+
+  useEffect(() => {
+    if (!enabled) return;
+    const requestedCity = cityId;
     let cancelled = false;
     void Promise.all([
-      curatedCrawlsForCityAsync(cityId),
-      landmarksForCityAsync(cityId),
-      storyBandsForCityAsync(cityId),
-    ]).then(([curatedCrawls, landmarks, storyBands]) => {
-      if (cancelled) return;
-      setCatalog({
-        curatedCrawls,
-        landmarks,
-        storyBands,
-        ready: true,
+      curatedCrawlsForCityAsync(requestedCity),
+      landmarksForCityAsync(requestedCity),
+      storyBandsForCityAsync(requestedCity),
+    ])
+      .then(([curatedCrawls, landmarks, storyBands]) => {
+        if (cancelled) return;
+        setCatalog({
+          cityId: requestedCity,
+          curatedCrawls,
+          landmarks,
+          storyBands,
+          ready: true,
+          degraded: false,
+        });
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setCatalog({
+          cityId: requestedCity,
+          curatedCrawls: [],
+          landmarks: [],
+          storyBands: [],
+          ready: true,
+          degraded: true,
+        });
       });
-    });
     return () => {
       cancelled = true;
     };
   }, [cityId, enabled]);
 
+  if (!enabled || catalog.cityId !== cityId) {
+    return emptyCatalog(cityId);
+  }
   return catalog;
 }

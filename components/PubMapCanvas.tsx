@@ -2796,14 +2796,14 @@ export default function PubMapCanvas({
     // Intentionally omit mapView / maxBounds / landmarksGeoJSON — those are
     // read via refs so parent re-renders (new array identity) cannot remount
     // MapLibre and flicker the loading chrome. Include cityId so non-London
-    // city switches (shared null transitLinesPath + showLandmarks) still
-    // remount with fresh camera/bounds even if PubMap's key={cityId} is removed.
+    // city switches (shared null transitLinesPath) still remount with fresh
+    // camera/bounds even if PubMap's key={cityId} is removed. Landmark layers
+    // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cityId,
     selectLandmark,
     initAttempt,
     transitLinesPath,
-    showLandmarks,
     publishMapReady,
     publishRenderedState,
     reportMapError,

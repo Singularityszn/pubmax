@@ -1046,10 +1046,18 @@ export default function PubMap({
     activeCrawl,
     filters,
     altStyle,
+    routeMapped,
   });
   useLayoutEffect(() => {
-    planSnapshotRef.current = { mode, builtIds, activeCrawl, filters, altStyle };
-  }, [activeCrawl, altStyle, builtIds, filters, mode]);
+    planSnapshotRef.current = {
+      mode,
+      builtIds,
+      activeCrawl,
+      filters,
+      altStyle,
+      routeMapped,
+    };
+  }, [activeCrawl, altStyle, builtIds, filters, mode, routeMapped]);
   // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
   // before paint so shared ?crawl= links still map-first.
   useLayoutEffect(() => {
@@ -1060,6 +1068,7 @@ export default function PubMap({
       activeCrawl: seed.activeCrawl,
       filters: seed.filters,
       altStyle: seed.altStyle,
+      routeMapped: seed.routeMapped,
     };
     void import("@/lib/mapSeedCrawl").then(
       async ({
@@ -2369,6 +2378,16 @@ export default function PubMap({
       cancelled = true;
     };
   }, [personaLensId, filters.drinkCategory]);
+
+  const personaForCard = useMemo(() => {
+    if (!personaLensId || !activePersona || activePersona.id !== personaLensId) {
+      return null;
+    }
+    const owns = personaHighlightsPubs(activePersona)
+      ? activePersona.drinkCategory === filters.drinkCategory
+      : filters.drinkCategory === "";
+    return owns ? activePersona : null;
+  }, [activePersona, filters.drinkCategory, personaLensId]);
 
   useEffect(() => {
     if (personaLensId) void loadPersonaDrinksModule();
@@ -4138,11 +4157,11 @@ export default function PubMap({
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {activePersona ? (
+        {personaForCard ? (
           <PersonaLensCard
-            persona={activePersona}
+            persona={personaForCard}
             matchCount={
-              personaHighlightsPubs(activePersona) ? filteredPubVenueCount : undefined
+              personaHighlightsPubs(personaForCard) ? filteredPubVenueCount : undefined
             }
             onClose={() => selectPersona(null)}
           />
