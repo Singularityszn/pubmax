@@ -15,7 +15,9 @@ import {
   venuePriceRevealMotionClass,
   venueRevealRootClasses,
   VENUE_REVEAL_CINEMA_MS,
+  VENUE_REVEAL_REDUCED_MOTION_QUERY,
   VENUE_REVEAL_SHORT_MS,
+  venueRevealPrefersReducedMotion,
   type VenuePriceRevealMotion,
   type VenueRevealForm,
 } from "@/lib/venueReveal";
@@ -23,19 +25,17 @@ import type { CommunityPrice } from "@/lib/communityPrice";
 import { orderVenueDrinkPrices, DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 
-const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
-
 function subscribeReducedMotion(onChange: () => void): () => void {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
     return () => {};
   }
-  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  const query = window.matchMedia(VENUE_REVEAL_REDUCED_MOTION_QUERY);
   query.addEventListener("change", onChange);
   return () => query.removeEventListener("change", onChange);
 }
 
 function reducedMotionSnapshot(): boolean {
-  return typeof window !== "undefined" && window.matchMedia?.(REDUCED_MOTION_QUERY).matches === true;
+  return venueRevealPrefersReducedMotion();
 }
 
 function reducedMotionServerSnapshot(): boolean {

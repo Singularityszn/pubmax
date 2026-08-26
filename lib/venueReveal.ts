@@ -16,6 +16,16 @@ export const VENUE_REVEAL_SHORT_MS = 160;
 /** Total full-form choreography budget, overlapped with the camera move. */
 export const VENUE_REVEAL_CINEMA_MS = 480;
 
+export const VENUE_REVEAL_REDUCED_MOTION_QUERY =
+  "(prefers-reduced-motion: reduce)";
+
+export function venueRevealPrefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia?.(VENUE_REVEAL_REDUCED_MOTION_QUERY).matches === true
+  );
+}
+
 export type VenueRevealForm = "full" | "short";
 
 export type VenueRevealRequest = {

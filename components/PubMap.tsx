@@ -230,6 +230,7 @@ import { useSheetDrag } from "@/components/map/useSheetDrag";
 import {
   revealForm,
   venueDrinkPriceView,
+  venueRevealPrefersReducedMotion,
   type VenueRevealRequest,
 } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
@@ -2032,16 +2033,16 @@ export default function PubMap({
       closeComposer();
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
-      const priceView = venueDrinkPriceView(
-        communityPrices.byVenueId.get(id),
-        experienceLens,
-        mapDrinkLensCategory,
-      );
-      beginReveal(
-        id,
-        priceView.rows,
-        priceView.lane,
-      );
+      if (venueRevealPrefersReducedMotion()) {
+        setVenueRevealRequest(null);
+      } else {
+        const priceView = venueDrinkPriceView(
+          communityPrices.byVenueId.get(id),
+          experienceLens,
+          mapDrinkLensCategory,
+        );
+        beginReveal(id, priceView.rows, priceView.lane);
+      }
     },
     [
       beginReveal,
