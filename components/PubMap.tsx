@@ -121,7 +121,9 @@ const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips")
   ssr: false,
 });
 const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
-import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
+const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
+  ssr: false,
+});
 const MapExperienceLensControl = dynamic(
   () => import("@/components/map/MapExperienceLens"),
   { ssr: false },

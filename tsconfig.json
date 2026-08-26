@@ -46,7 +46,9 @@
     ".next-evidence/types/**/*.ts",
     ".next-evidence/dev/types/**/*.ts",
     ".next-e2e/types/**/*.ts",
-    ".next-e2e/dev/types/**/*.ts"
+    ".next-e2e/dev/types/**/*.ts",
+    ".next-bundle-diet/types/**/*.ts",
+    ".next-bundle-diet/dev/types/**/*.ts"
   ],
   "exclude": [
     "node_modules",

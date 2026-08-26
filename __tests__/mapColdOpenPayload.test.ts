@@ -106,6 +106,13 @@ describe("map cold-open payload", () => {
     ).toBe("not reached");
   });
 
+  it("does not pull CityMCP client into the eager map shell chunk", () => {
+    const citymcp = join(ROOT, "lib/citymcp/client.ts");
+    expect(
+      mapShell.has(citymcp) ? chainTo(mapShell, citymcp) : "not reached",
+    ).toBe("not reached");
+  });
+
   it("keeps MobileMapShell out of the eager map shell graph", () => {
     expect(mapShell.has(join(ROOT, "components/mobile/MobileMapShell.tsx"))).toBe(false);
   });
