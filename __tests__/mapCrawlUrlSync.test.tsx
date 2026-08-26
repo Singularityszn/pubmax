@@ -49,8 +49,8 @@ describe("curated crawl URL hydration hold", () => {
     });
     await act(async () => {
       root.render(createElement(Harness, { query: "Brixton", pending: true }));
-      vi.advanceTimersByTime(300);
     });
+    act(() => vi.advanceTimersByTime(300));
 
     expect(window.location.search).toContain("crawl=victorian-soho");
     expect(window.location.search).toContain("q=Brixton");
@@ -62,8 +62,8 @@ describe("curated crawl URL hydration hold", () => {
     });
     await act(async () => {
       root.render(createElement(Harness, { query: "Brixton", pending: false }));
-      vi.advanceTimersByTime(300);
     });
+    act(() => vi.advanceTimersByTime(300));
 
     expect(window.location.search).not.toContain("crawl=");
     expect(window.location.search).toContain("q=Brixton");
@@ -75,8 +75,8 @@ describe("curated crawl URL hydration hold", () => {
     });
     await act(async () => {
       root.render(createElement(Harness, { query: "", pending: false }));
-      vi.advanceTimersByTime(300);
     });
+    act(() => vi.advanceTimersByTime(300));
 
     expect(window.location.search).toBe("");
   });

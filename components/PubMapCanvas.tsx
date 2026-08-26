@@ -1302,7 +1302,7 @@ export default function PubMapCanvas({
       return;
     }
     map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }),
+      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: true }),
       "top-right",
     );
     mapRef.current = map;
@@ -3641,8 +3641,10 @@ export default function PubMapCanvas({
         ) : null}
         {(() => {
           const action = resolveCompassAction(mapBearing, getCity(cityId).mapView);
-          if (action.kind === "none") return null;
-          const rotated = action.kind === "reset-north";
+          // MapLibre owns the reset-to-north action. Keep this app control only
+          // for the complementary city-attitude action, so the two controls do
+          // not duplicate one another when the opening camera is rotated.
+          if (action.kind !== "adopt-attitude") return null;
           return (
             <button
               type="button"
@@ -3652,17 +3654,15 @@ export default function PubMapCanvas({
                 if (!map) return;
                 orbitRef.current?.noteInteraction();
                 map.easeTo(
-                  rotated
-                    ? { bearing: 0, duration: reducedRef.current ? 0 : 450 }
-                    : {
-                        bearing: action.bearing,
-                        pitch: action.pitch,
-                        duration: reducedRef.current ? 0 : 450,
-                      },
+                  {
+                    bearing: action.bearing,
+                    pitch: action.pitch,
+                    duration: reducedRef.current ? 0 : 450,
+                  },
                 );
               }}
-              aria-label={rotated ? "Point north" : "Tilt the city view"}
-              title={rotated ? "Point north" : "Tilt the city view"}
+              aria-label="Tilt the city view"
+              title="Tilt the city view"
             >
               <Navigation2
                 size={14}

@@ -95,7 +95,13 @@ export function mixHex(hexA: string, hexB: string, t: number): string {
 
 function tryPaint(map: PaintMap, layerId: string, prop: string, value: unknown): void {
   if (!map.getLayer(layerId)) return;
-  if (map.getPaintProperty && Object.is(map.getPaintProperty(layerId, prop), value)) return;
+  if (map.getPaintProperty) {
+    try {
+      if (Object.is(map.getPaintProperty(layerId, prop), value)) return;
+    } catch {
+      // Some MapLibre style layers reject reads for optional properties.
+    }
+  }
   try {
     map.setPaintProperty(layerId, prop, value);
   } catch {
