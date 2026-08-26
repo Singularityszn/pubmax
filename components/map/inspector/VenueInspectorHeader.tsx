@@ -25,6 +25,8 @@ type VenueInspectorHeaderProps = {
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
   onTabStripScroll?: () => void;
   revealBloom?: boolean;
+  revealChecked?: boolean;
+  revealCheckedLate?: boolean;
 };
 
 export default function VenueInspectorHeader({
@@ -40,6 +42,8 @@ export default function VenueInspectorHeader({
   onGrabDragEnd,
   onTabStripScroll,
   revealBloom = false,
+  revealChecked = false,
+  revealCheckedLate = false,
 }: VenueInspectorHeaderProps) {
   const { ref: tabStripRef, faded } = useTrailingEdgeFade<HTMLDivElement>();
 
@@ -85,7 +89,8 @@ export default function VenueInspectorHeader({
         name={venue.name}
         latitude={venue.latitude}
         longitude={venue.longitude}
-        revealChecked={revealBloom}
+        revealChecked={revealChecked}
+        revealCheckedLate={revealCheckedLate}
       />
 
       {/* The right-edge fade is drawn only while something really is off the

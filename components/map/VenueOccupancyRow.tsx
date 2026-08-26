@@ -32,6 +32,7 @@ export type VenueOccupancyRowProps = {
   active?: boolean;
   surface?: "venue-sheet" | "pal";
   revealRecord?: boolean;
+  revealRecordLate?: boolean;
 };
 
 export default function VenueOccupancyRow({
@@ -39,6 +40,7 @@ export default function VenueOccupancyRow({
   active = true,
   surface = "venue-sheet",
   revealRecord = false,
+  revealRecordLate = false,
 }: VenueOccupancyRowProps) {
   const { user, session, identityResolved } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
@@ -112,7 +114,7 @@ export default function VenueOccupancyRow({
             .filter(Boolean)
             .join(" ")
         }
-        data-reveal-delay={revealDatedReading ? "2" : undefined}
+        data-reveal-delay={revealDatedReading && !revealRecordLate ? "2" : undefined}
       >
         {shown}
       </p>

@@ -48,7 +48,7 @@ function signedIn(): void {
   authState.session = { access_token: "token", user: { id: "user-a" } };
 }
 
-function render(props: { revealRecord?: boolean } = {}): string {
+function render(props: { revealRecord?: boolean; revealRecordLate?: boolean } = {}): string {
   return renderToStaticMarkup(
     createElement(VenueOccupancyRow, { venueId: "venue-1", ...props }),
   );
@@ -138,6 +138,22 @@ describe("occupancy venue surface", () => {
     const html = render({ revealRecord: true });
     expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
     expect(html).toContain('data-reveal-delay="2"');
+  });
+
+  it("reveals a late dated reading without replaying the entrance delay", () => {
+    signedIn();
+    occupancyState.reading = {
+      now: "some-seats",
+      ageMinutes: 12,
+      reportersLast90: 1,
+      degraded: false,
+      state: "fresh",
+      id: "occ-1",
+    };
+
+    const html = render({ revealRecord: true, revealRecordLate: true });
+    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).not.toContain('data-reveal-delay="2"');
   });
 
   it("says a failed read could not be checked, never that nobody reported", () => {

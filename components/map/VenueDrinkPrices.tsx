@@ -54,6 +54,7 @@ export default function VenueDrinkPrices({
   canLog,
   priceRevealMotionClass = "",
   revealRecord = false,
+  revealRecordLate = false,
 }: {
   venueId: string;
   venueName: string;
@@ -72,6 +73,7 @@ export default function VenueDrinkPrices({
   canLog: boolean;
   priceRevealMotionClass?: string;
   revealRecord?: boolean;
+  revealRecordLate?: boolean;
 }) {
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
@@ -116,7 +118,7 @@ export default function VenueDrinkPrices({
                 .filter(Boolean)
                 .join(" ") || undefined
             }
-            data-reveal-delay={revealRecord ? "0" : undefined}
+            data-reveal-delay={revealRecord && !revealRecordLate ? "0" : undefined}
           >
             {lead.label} · {communityStampLabel(lead.price.submittedAt)}
           </small>
@@ -131,7 +133,7 @@ export default function VenueDrinkPrices({
                   .filter(Boolean)
                   .join(" ") || undefined
               }
-              data-reveal-delay={revealRecord ? "1" : undefined}
+              data-reveal-delay={revealRecord && !revealRecordLate ? "1" : undefined}
             >
               {communityTrustNote(lead.price)}
             </small>

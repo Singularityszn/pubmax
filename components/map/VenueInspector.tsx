@@ -201,6 +201,12 @@ export default function VenueInspector({
     reveal?.active && reveal.venueId === venue.id && !revealInterrupted
       ? venue.id
       : null;
+  const revealRecord =
+    reveal?.venueId === venue.id &&
+    reveal.form === "full" &&
+    !reveal.interrupted &&
+    !revealInterrupted;
+  const revealRecordLate = revealRecord && !reveal.active;
   const priceRevealMotionClass =
     reveal?.venueId === venue.id && !revealInterrupted
       ? reveal.priceMotionClass
@@ -350,7 +356,7 @@ export default function VenueInspector({
   return (
     <section
       ref={revealRootRef}
-      className={`venueInspector ${revealRootClasses}`.trim()}
+      className={`venueInspector ${revealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >
@@ -367,6 +373,8 @@ export default function VenueInspector({
         onGrabDragEnd={onGrabDragEnd}
         onTabStripScroll={onInterruptReveal}
         revealBloom={Boolean(revealVenueId)}
+        revealChecked={revealRecord}
+        revealCheckedLate={revealRecordLate}
       />
 
       {/* Overview — identity, latest price, add-to-crawl, "I'm here tonight". */}
@@ -401,7 +409,8 @@ export default function VenueInspector({
         }
         zoneIndex={zoneIndex}
         priceRevealMotionClass={priceRevealMotionClass}
-        revealRecord={Boolean(revealVenueId)}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
       />
 
       {/* Photos — the pub's community wall. */}
@@ -434,7 +443,8 @@ export default function VenueInspector({
         cityLandmarks={cityLandmarks}
         cityStoryBands={cityStoryBands}
         cityCuratedCrawls={cityCuratedCrawls}
-        revealRecord={Boolean(revealVenueId)}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
       />
 
       {/* Ask — the grounded "Ask the PUBMAXXER" landlord guide. */}

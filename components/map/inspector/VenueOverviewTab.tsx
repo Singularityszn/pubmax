@@ -234,6 +234,7 @@ export default function VenueOverviewTab({
   zoneIndex,
   priceRevealMotionClass = "",
   revealRecord = false,
+  revealRecordLate = false,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -273,6 +274,7 @@ export default function VenueOverviewTab({
   zoneIndex?: ZonePintIndex | null;
   priceRevealMotionClass?: string;
   revealRecord?: boolean;
+  revealRecordLate?: boolean;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -353,6 +355,7 @@ export default function VenueOverviewTab({
         venueId={venue.id}
         active={tab === "overview"}
         revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
       />
       {/* Visit Report peek: newest accounts only. The full composer stays on
           Lore (VenueStoryTab), so Overview never grows a second rating system. */}
@@ -499,6 +502,7 @@ export default function VenueOverviewTab({
           canLog={isPubVenue(venue)}
           priceRevealMotionClass={priceRevealMotionClass}
           revealRecord={revealRecord}
+          revealRecordLate={revealRecordLate}
         />
       )}
       {/* Price honesty on overview: community override wins, then sourced

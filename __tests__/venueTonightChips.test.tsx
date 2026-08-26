@@ -86,4 +86,30 @@ describe("VenueTonightChips reveal", () => {
       container.querySelector(".venueTonightChecked")?.classList.contains("venueRevealRecord"),
     ).toBe(true);
   });
+
+  it("reveals late tonight data without replaying the entrance delay", async () => {
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container);
+      root.render(
+        createElement(VenueTonightChips, {
+          id: "venue-1",
+          name: "The Test Arms",
+          latitude: 51.5,
+          longitude: -0.1,
+          revealChecked: true,
+          revealCheckedLate: true,
+        }),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const chips = [...container.querySelectorAll(".venueTonightChip")];
+    expect(chips).toHaveLength(2);
+    expect(chips.every((chip) => chip.classList.contains("venueRevealRecord"))).toBe(true);
+    expect(chips.every((chip) => chip.getAttribute("data-reveal-delay") === null)).toBe(true);
+    expect(container.querySelector(".venueTonightChecked")?.getAttribute("data-reveal-delay")).toBeNull();
+  });
 });

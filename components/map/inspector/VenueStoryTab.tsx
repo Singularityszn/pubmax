@@ -30,6 +30,7 @@ export default function VenueStoryTab({
   cityStoryBands,
   cityCuratedCrawls,
   revealRecord = false,
+  revealRecordLate = false,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -39,6 +40,7 @@ export default function VenueStoryTab({
   cityStoryBands: StoryBand[];
   cityCuratedCrawls?: CuratedCrawl[];
   revealRecord?: boolean;
+  revealRecordLate?: boolean;
 }) {
   // The distinct, provenance-stamped claim list for the inspected venue.
   // Editorial Sourced claims and contributor/anecdote drops stay separate.
@@ -155,7 +157,7 @@ export default function VenueStoryTab({
       {description ? (
         <div
           className={revealRecord ? "venueRevealRecord" : undefined}
-          data-reveal-delay={revealRecord ? "3" : undefined}
+          data-reveal-delay={revealRecord && !revealRecordLate ? "3" : undefined}
         >
           <p className="description">{description}</p>
           {venue.storySourceUrl ? (
