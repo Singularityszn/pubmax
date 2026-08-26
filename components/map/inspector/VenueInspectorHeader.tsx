@@ -78,17 +78,13 @@ export default function VenueInspectorHeader({
       />
 
       {/* What's on at this venue tonight (A1) — pure sheet DOM, fail-soft. */}
-      <div
-        className={revealBloom ? "venueRevealRecord" : undefined}
-        data-reveal-delay={revealBloom ? "2" : undefined}
-      >
-        <VenueTonightChips
-          id={venue.id}
-          name={venue.name}
-          latitude={venue.latitude}
-          longitude={venue.longitude}
-        />
-      </div>
+      <VenueTonightChips
+        id={venue.id}
+        name={venue.name}
+        latitude={venue.latitude}
+        longitude={venue.longitude}
+        revealChecked={revealBloom}
+      />
 
       {/* The right-edge fade is drawn only while something really is off the
           edge (lib/useTrailingEdgeFade.ts). A static mask left the last tab

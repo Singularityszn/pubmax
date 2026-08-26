@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import {
   revealForm,
@@ -16,6 +22,25 @@ import type { CommunityPrice } from "@/lib/communityPrice";
 import { orderVenueDrinkPrices, DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
 
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+function subscribeReducedMotion(onChange: () => void): () => void {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return () => {};
+  }
+  const query = window.matchMedia(REDUCED_MOTION_QUERY);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+}
+
+function reducedMotionSnapshot(): boolean {
+  return typeof window !== "undefined" && window.matchMedia?.(REDUCED_MOTION_QUERY).matches === true;
+}
+
+function reducedMotionServerSnapshot(): boolean {
+  return true;
+}
+
 export type VenueRevealState = {
   venueId: string;
   form: VenueRevealForm;
@@ -26,6 +51,11 @@ export type VenueRevealState = {
 };
 
 export function useVenueReveal() {
+  const prefersReducedMotion = useSyncExternalStore(
+    subscribeReducedMotion,
+    reducedMotionSnapshot,
+    reducedMotionServerSnapshot,
+  );
   const lastRevealAtRef = useRef<number | null>(null);
   const revealRunningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -52,6 +82,12 @@ export function useVenueReveal() {
       rows: readonly CommunityPrice[] | undefined,
       lane: DrinkCategory = DEFAULT_DRINK_LANE,
     ) => {
+      if (prefersReducedMotion) {
+        revealRunningRef.current = false;
+        clearTimer();
+        setReveal(null);
+        return;
+      }
       const now = Date.now();
       const forceShort = revealRunningRef.current;
       const form = forceShort ? "short" : revealForm(now, lastRevealAtRef.current);
@@ -80,8 +116,15 @@ export function useVenueReveal() {
         timerRef.current = null;
       }, duration);
     },
-    [clearTimer],
+    [clearTimer, prefersReducedMotion],
   );
+
+  useEffect(() => {
+    if (!prefersReducedMotion) return;
+    revealRunningRef.current = false;
+    clearTimer();
+    setReveal(null);
+  }, [clearTimer, prefersReducedMotion]);
 
   useEffect(() => clearTimer, [clearTimer]);
 

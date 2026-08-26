@@ -65,8 +65,10 @@ function kindsForVenue(rows: WhatsOnRow[], venueId: string | undefined): WhatsOn
     .filter((k) => seen.has(k));
 }
 
-export default function VenueTonightChips(props: VenueRef): React.JSX.Element | null {
-  const { id } = props;
+export default function VenueTonightChips(
+  props: VenueRef & { revealChecked?: boolean },
+): React.JSX.Element | null {
+  const { id, revealChecked = false } = props;
   const [kinds, setKinds] = useState<WhatsOnKind[]>([]);
   const [asOf, setAsOf] = useState<string | null>(null);
 
@@ -122,7 +124,12 @@ export default function VenueTonightChips(props: VenueRef): React.JSX.Element | 
           </span>
         );
       })}
-      <span className="venueTonightChecked">{checkedLabel(asOf).toLowerCase()}</span>
+      <span
+        className={revealChecked ? "venueTonightChecked venueRevealRecord" : "venueTonightChecked"}
+        data-reveal-delay={revealChecked ? "2" : undefined}
+      >
+        {checkedLabel(asOf).toLowerCase()}
+      </span>
     </div>
   );
 }

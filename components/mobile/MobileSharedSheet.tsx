@@ -70,6 +70,10 @@ export default function MobileSharedSheet({
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
   const onInterruptRevealRef = useRef(onInterruptReveal);
   useEffect(() => {
     onInterruptRevealRef.current = onInterruptReveal;

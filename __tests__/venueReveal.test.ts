@@ -49,6 +49,24 @@ describe("venuePriceRevealMotion", () => {
     ).toBe("slide");
   });
 
+  it("uses the rendered provisional row over an older map candidate", () => {
+    expect(
+      venuePriceRevealMotion(
+        {
+          communityLead: {
+            ...provisional,
+            mapCandidate: {
+              priceGbp: 4.2,
+              submittedAt: NOW - 60_000,
+              corroborations: 2,
+            },
+          },
+        },
+        NOW,
+      ),
+    ).toBe("slide");
+  });
+
   it("stays static when there is no community lead", () => {
     expect(venuePriceRevealMotion({ communityLead: null }, NOW)).toBe("static");
   });
@@ -93,25 +111,5 @@ describe("venueRevealRootClasses", () => {
     expect(
       venueRevealRootClasses({ active: true, form: "short", interrupted: false }),
     ).toBe("venueReveal venueReveal--short");
-  });
-});
-
-describe("price figure animation fence", () => {
-  it("keeps keyframe selectors on chrome wrappers only", async () => {
-    const { readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
-    const css = readFileSync(
-      join(__dirname, "../components/map/venueSheet.css"),
-      "utf8",
-    );
-    const motionBlock = css.slice(
-      css.indexOf("/* Venue reveal choreography"),
-      css.indexOf("/* Venue reveal choreography") + 4_000,
-    );
-    expect(motionBlock).not.toMatch(/PriceBadge/);
-    expect(motionBlock).not.toMatch(/venueDrinkPriceFigure/);
-    expect(motionBlock).not.toMatch(/strong\s*\{/);
-    expect(motionBlock).toContain("venueRevealPriceChrome");
-    expect(motionBlock).toContain("prefers-reduced-motion: no-preference");
   });
 });

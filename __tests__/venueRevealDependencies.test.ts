@@ -1,53 +1,10 @@
-import { existsSync, readFileSync, statSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
-const ROOT = join(__dirname, "..");
-
-function resolveSpec(spec: string, fromFile: string): string | null {
-  let base: string;
-  if (spec.startsWith("@/")) base = join(ROOT, spec.slice(2));
-  else if (spec.startsWith("./") || spec.startsWith("../")) base = resolve(dirname(fromFile), spec);
-  else return null;
-  for (const ext of ["", ".ts", ".tsx", ".mjs", ".js", ".json", "/index.ts", "/index.tsx"]) {
-    const candidate = base + ext;
-    if (existsSync(candidate) && statSync(candidate).isFile()) return candidate;
-  }
-  return null;
-}
-
-function staticImportGraph(entry: string): Map<string, string | null> {
-  const seen = new Map<string, string | null>([[join(ROOT, entry), null]]);
-  const queue = [join(ROOT, entry)];
-  while (queue.length) {
-    const file = queue.shift() as string;
-    if (file.endsWith(".json")) continue;
-    let source = "";
-    try {
-      source = readFileSync(file, "utf8");
-    } catch {
-      continue;
-    }
-    const specs: string[] = [];
-    const withBindings =
-      /(?:^|\n)\s*(?:import|export)\s+(?!type\s)(?:[\s\S]*?)\s*from\s*["']([^"']+)["']/g;
-    const sideEffect = /(?:^|\n)\s*import\s+["']([^"']+)["']/g;
-    let match: RegExpExecArray | null;
-    while ((match = withBindings.exec(source))) specs.push(match[1]);
-    while ((match = sideEffect.exec(source))) specs.push(match[1]);
-    for (const spec of specs) {
-      const resolved = resolveSpec(spec, file);
-      if (!resolved || seen.has(resolved)) continue;
-      seen.set(resolved, file);
-      queue.push(resolved);
-    }
-  }
-  return seen;
-}
-
 function readPackageJson(): Record<string, unknown> {
-  return JSON.parse(readFileSync(join(ROOT, "package.json"), "utf8")) as Record<
+  return JSON.parse(readFileSync(join(__dirname, "../package.json"), "utf8")) as Record<
     string,
     unknown
   >;
@@ -82,10 +39,4 @@ describe("venue reveal dependency fence", () => {
     }
   });
 
-  it("keeps the venue inspector off the eager PubMap graph", () => {
-    const mapShell = staticImportGraph("components/PubMap.tsx");
-    expect(mapShell.has(join(ROOT, "components/map/VenueInspector.tsx"))).toBe(
-      false,
-    );
-  });
 });

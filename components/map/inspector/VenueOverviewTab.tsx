@@ -74,6 +74,7 @@ function VenuePriceSummary({
   onStartFirstDrop?: () => void;
   priceRevealMotionClass?: string;
 }) {
+  const chromeRevealClass = priceRevealMotionClass || undefined;
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -88,15 +89,15 @@ function VenuePriceSummary({
     venue.cheapestPrice !== undefined
   ) {
     return (
-      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
-        <span>
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         {anchorStamp || venue.anchorSourceUrl ? (
-          <small>
+          <small className={chromeRevealClass}>
             {anchorStamp}
             {venue.anchorSourceUrl ? (
               <>
@@ -112,38 +113,42 @@ function VenuePriceSummary({
             ) : null}
           </small>
         ) : null}
-        <small className="communityPriceNote">Not a pint price.</small>
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+          Not a pint price.
+        </small>
       </div>
     );
   }
 
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return (
-      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
-        <span>
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
         <PriceBadge variant="current">
           {formatPrice(latestContributorPrice)}
         </PriceBadge>
         {venue.latestContributorAt ? (
-          <small>{formatFreshness(venue.latestContributorAt)}</small>
+          <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
-        <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+          {COMMUNITY_PRICE_NOTE}
+        </small>
       </div>
     );
   }
 
   if (sourcedPrice) {
     return (
-      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
-        <span>
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        <small>
+        <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
             className="priceSourceLink"
@@ -160,14 +165,14 @@ function VenuePriceSummary({
 
   if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
     return (
-      <div className={`contributorPrice ${priceRevealMotionClass}`.trim()}>
-        <span>
+      <div className="contributorPrice">
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="baseline" /> Baseline on record
         </span>
         <PriceBadge variant="baseline">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        <small className="communityPriceNote">
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {baselineSource ? (
             <>
               Dataset price from{" "}

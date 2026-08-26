@@ -99,17 +99,23 @@ export default function VenueDrinkPrices({
       aria-label={`Drink prices logged at ${venueName}`}
     >
       {lead ? (
-        <div
-          className={`contributorPrice communityPriceRow ${priceRevealMotionClass}`.trim()}
-        >
-          <span>
+        <div className="contributorPrice communityPriceRow">
+          <span className={priceRevealMotionClass || undefined}>
             <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
           </span>
           <PriceBadge variant="current">
             {formatPrice(lead.price.priceGbp)}
           </PriceBadge>
           <small
-            className={revealRecord ? "communityPriceStamp venueRevealRecord" : "communityPriceStamp"}
+            className={
+              [
+                "communityPriceStamp",
+                priceRevealMotionClass,
+                revealRecord ? "venueRevealRecord" : "",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
             data-reveal-delay={revealRecord ? "0" : undefined}
           >
             {lead.label} · {communityStampLabel(lead.price.submittedAt)}
@@ -117,16 +123,22 @@ export default function VenueDrinkPrices({
           {communityTrustNote(lead.price) ? (
             <small
               className={
-                revealRecord
-                  ? "communityPriceStanding venueRevealRecord"
-                  : "communityPriceStanding"
+                [
+                  "communityPriceStanding",
+                  priceRevealMotionClass,
+                  revealRecord ? "venueRevealRecord" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
               }
               data-reveal-delay={revealRecord ? "1" : undefined}
             >
               {communityTrustNote(lead.price)}
             </small>
           ) : null}
-          <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+            {COMMUNITY_PRICE_NOTE}
+          </small>
           <CommunityPriceReport
             price={lead.price}
             communityPrices={communityPrices}
