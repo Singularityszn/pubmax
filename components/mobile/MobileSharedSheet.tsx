@@ -88,6 +88,7 @@ export default function MobileSharedSheet({
   const {
     sheetSnap,
     setSheetSnap,
+    settleToRest,
     openAtSnap,
     requestDismiss,
     sheetHeight,
@@ -97,6 +98,11 @@ export default function MobileSharedSheet({
     onSheetDragMove,
     onSheetDragEnd,
   } = useSheetHeightDrag(finishDismiss);
+  const interruptAndSettle = useCallback(() => {
+    entranceOvershootRef.current = false;
+    onInterruptRevealRef.current?.();
+    settleToRest();
+  }, [settleToRest]);
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);
@@ -223,6 +229,7 @@ export default function MobileSharedSheet({
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}
+        onScrollCapture={interruptAndSettle}
       >
         <header
           className="mobileSharedSheetHeader sheetDragHandle"
@@ -259,10 +266,7 @@ export default function MobileSharedSheet({
               the way out the instant a sheet opened. */}
           <SurfaceNav backLabel={backLabel} onBack={onBack} homeLabel={closeButtonLabel} onHome={requestClose} />
         </header>
-        <div
-          className="mobileSharedSheetBody"
-          onScroll={() => onInterruptRevealRef.current?.()}
-        >
+        <div className="mobileSharedSheetBody">
           <SheetFooterContext.Provider value={footerEl}>{children}</SheetFooterContext.Provider>
         </div>
         {/* Footer slot: the venue command bar portals in here (SheetFooterContext)

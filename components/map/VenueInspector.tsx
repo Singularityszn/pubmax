@@ -168,6 +168,10 @@ export default function VenueInspector({
 
   useEffect(() => {
     if (!revealRequest || revealRequest.venueId !== venue.id) return;
+    if (revealRequest.interrupted) {
+      interruptReveal();
+      return;
+    }
     if (begunRevealSequenceRef.current === revealRequest.sequence) return;
     begunRevealSequenceRef.current = revealRequest.sequence;
     beginReveal(
@@ -179,7 +183,7 @@ export default function VenueInspector({
         form: revealRequest.form,
       },
     );
-  }, [beginReveal, revealRequest, venue.id]);
+  }, [beginReveal, interruptReveal, revealRequest, venue.id]);
 
   useEffect(() => {
     if (!revealRequest || revealRequest.venueId !== venue.id) return;
@@ -189,10 +193,6 @@ export default function VenueInspector({
       revealRequest.lane,
     );
   }, [revealRequest, updateRevealPriceMotion, venue.id]);
-
-  useEffect(() => {
-    if (revealRequest?.interrupted) interruptReveal();
-  }, [interruptReveal, revealRequest?.interrupted]);
 
   const revealVenueId =
     reveal?.active && reveal.venueId === venue.id ? venue.id : null;
