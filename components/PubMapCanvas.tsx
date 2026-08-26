@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 
@@ -41,7 +42,9 @@ import {
   defaultPoiHiddenMobile,
   type PoiHiddenChange,
 } from "@/lib/poiToggleGroups";
-import MapLayersControl from "@/components/map/MapLayersControl";
+const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
+  ssr: false,
+});
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";

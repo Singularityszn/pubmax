@@ -22,10 +22,6 @@ import {
   MAP_LENS_DRINK_CATEGORIES,
   type DrinkCategory,
 } from "@/lib/drinks";
-import {
-  DRINK_WEATHER_RULES,
-  type DrinkWeatherVerdict,
-} from "@/lib/drinkWeather";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 export type PersonaKind = "person" | "fictional";
@@ -220,50 +216,8 @@ export function personasForCategory(
   return personas.filter((p) => p.drinkCategory === category);
 }
 
-// ── Conditions cross-link ────────────────────────────────────────────────────
-// Bridge tonight's drink-weather verdict to a DrinkCategory WITHOUT duplicating
-// any weather rule (lib/drinkWeather owns the rules). Every current verdict is
-// beer-family, so each ruleId maps to "beer"; the table is keyed by ruleId so a
-// future non-beer rule has one obvious place to extend. Unknown rule => null
-// (no persona is claimed to "fit" on a rule we do not recognise).
-const VERDICT_CATEGORY_BY_RULE: Record<string, DrinkCategory> = {
-  "hard-rain": "beer",
-  cold: "beer",
-  "summer-garden": "beer",
-  "warm-dry": "beer",
-  "winter-porter": "beer",
-  "mild-riverside": "beer",
-  "crisp-autumn": "beer",
-  "cool-spring": "beer",
-  "cool-default": "beer",
-};
-
-/** The DrinkCategory tonight's verdict points at, or null when unmapped. */
-export function drinkCategoryForVerdict(
-  verdict: DrinkWeatherVerdict | null | undefined,
-): DrinkCategory | null {
-  if (!verdict) return null;
-  return VERDICT_CATEGORY_BY_RULE[verdict.ruleId] ?? null;
-}
-
-// The /api/tonight-conditions surface exposes the verdict's `drinkSuggestion`
-// phrase but not its ruleId, so the client bridges through the suggestion.
-// Built by walking the SAME rules table (no rule is duplicated): each rule's
-// suggestion inherits its ruleId's category.
-const SUGGESTION_CATEGORY: Record<string, DrinkCategory> = Object.fromEntries(
-  DRINK_WEATHER_RULES.map((rule) => [
-    rule.drinkSuggestion,
-    VERDICT_CATEGORY_BY_RULE[rule.ruleId],
-  ]).filter((pair): pair is [string, DrinkCategory] => Boolean(pair[1])),
-);
-
-/** The DrinkCategory a verdict's `drinkSuggestion` phrase points at, or null. */
-export function drinkCategoryForSuggestion(
-  suggestion: string | null | undefined,
-): DrinkCategory | null {
-  if (!suggestion) return null;
-  return SUGGESTION_CATEGORY[suggestion.trim()] ?? null;
-}
+// Re-export tonight bridge helpers from the leaf module (no persona JSON).
+export { drinkCategoryForSuggestion, drinkCategoryForVerdict } from "@/lib/personaTonightCategories";
 
 /** True when a persona's order matches the category that fits tonight. */
 export function personaFitsCategory(

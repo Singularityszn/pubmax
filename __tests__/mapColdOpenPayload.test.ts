@@ -85,6 +85,20 @@ describe("map cold-open payload", () => {
     expect(classifier.has(join(ROOT, "data/london_boroughs_simplified.json"))).toBe(true);
   });
 
+  it("does not pull persona drink JSON into the map shell chunk", () => {
+    const personaJson = join(ROOT, "data/persona_drinks.json");
+    expect(
+      mapShell.has(personaJson) ? chainTo(mapShell, personaJson) : "not reached",
+    ).toBe("not reached");
+  });
+
+  it("does not pull AuthProvider into the map shell via usePintDrops", () => {
+    const authProvider = join(ROOT, "components/auth/AuthProvider.tsx");
+    expect(
+      mapShell.has(authProvider) ? chainTo(mapShell, authProvider) : "not reached",
+    ).toBe("not reached");
+  });
+
   it("keeps MobileMapShell out of the eager map shell graph", () => {
     expect(mapShell.has(join(ROOT, "components/mobile/MobileMapShell.tsx"))).toBe(false);
   });

@@ -135,7 +135,8 @@ import {
 } from "@/lib/savedOnlyFilter";
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
-import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
+import { findPersonaByIdAsync, personaHighlightsPubs, loadPersonaDrinksModule } from "@/lib/personaDrinks.async";
+import type { PersonaDrink } from "@/lib/personaDrinks";
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
@@ -158,9 +159,6 @@ const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
   ssr: false,
 });
 import { type CuratedCrawl } from "@/lib/curatedCrawls";
-import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
-import { landmarksForCity } from "@/lib/cityLandmarks";
-import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
 const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
   ssr: false,
 });
@@ -210,7 +208,7 @@ const MapConciergeAsk = dynamic(
 );
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
@@ -272,17 +270,27 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
-import ZonePicker from "@/components/map/ZonePicker";
-import AreaSheet from "@/components/map/AreaSheet";
-import ChooseAreaSheet, {
-  ChooseAreaDesktopDialog,
-  type ChooseAreaPick,
-} from "@/components/map/ChooseAreaSheet";
+import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
+const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
+const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false });
+const ChooseAreaSheet = dynamic(() => import("@/components/map/ChooseAreaSheet"), {
+  ssr: false,
+});
+const ChooseAreaDesktopDialog = dynamic(
+  () =>
+    import("@/components/map/ChooseAreaSheet").then((m) => ({
+      default: m.ChooseAreaDesktopDialog,
+    })),
+  { ssr: false },
+);
+import type { ChooseAreaPick } from "@/components/map/ChooseAreaSheet";
 import MapArrivalCard from "@/components/map/MapArrivalCard";
-import MapSearchSuggest, {
-  type MapSearchSuggestProps,
-} from "@/components/map/MapSearchSuggest";
+import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
+const MapSearchSuggest = dynamic(
+  () => import("@/components/map/MapSearchSuggest"),
+  { ssr: false },
+);
 import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
@@ -733,9 +741,10 @@ export default function PubMap({
     : ukNationalBrowse
       ? "Search pubs or UK places"
       : `Search ${city.displayName} venues or areas`;
-  const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
-  const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
-  const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
+  const cityStoryCatalog = useCityStoryCatalog(cityId);
+  const cityLandmarks = cityStoryCatalog.landmarks;
+  const cityStoryBands = cityStoryCatalog.storyBands;
+  const cityCuratedCrawls = cityStoryCatalog.curatedCrawls;
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -1653,8 +1662,8 @@ export default function PubMap({
         ? "Food"
         : null;
   const activeBand = useMemo(
-    () => bandByIdForCity(cityId, activeBandId),
-    [cityId, activeBandId],
+    () => cityStoryBands.find((band) => band.id === activeBandId),
+    [cityStoryBands, activeBandId],
   );
   const activePriceLegend = mapPriceLegend(
     experienceLens === "food"
@@ -2269,15 +2278,32 @@ export default function PubMap({
   // filter; non-highlighting (non-alcoholic) personas hold it while no other
   // drink lens has taken over (drinkCategory stays cleared). Either way,
   // selecting a different lens by any control implicitly retires the card.
-  const activePersona = useMemo(() => {
-    if (!personaLensId) return null;
-    const persona = findPersonaById(personaLensId);
-    if (!persona) return null;
-    const owns = personaHighlightsPubs(persona)
-      ? persona.drinkCategory === filters.drinkCategory
-      : filters.drinkCategory === "";
-    return owns ? persona : null;
+  const [activePersona, setActivePersona] = useState<PersonaDrink | null>(null);
+  useEffect(() => {
+    if (!personaLensId) {
+      setActivePersona(null);
+      return;
+    }
+    let cancelled = false;
+    void findPersonaByIdAsync(personaLensId).then((persona) => {
+      if (cancelled) return;
+      if (!persona) {
+        setActivePersona(null);
+        return;
+      }
+      const owns = personaHighlightsPubs(persona)
+        ? persona.drinkCategory === filters.drinkCategory
+        : filters.drinkCategory === "";
+      setActivePersona(owns ? persona : null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [personaLensId, filters.drinkCategory]);
+
+  useEffect(() => {
+    if (personaLensId) void loadPersonaDrinksModule();
+  }, [personaLensId]);
 
   // Flip "Saved only". Re-read the saved set from localStorage on every toggle
   // (event handler, not an effect) so a venue saved elsewhere this session is
