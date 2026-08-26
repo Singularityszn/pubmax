@@ -230,6 +230,7 @@ import { useSheetDrag } from "@/components/map/useSheetDrag";
 import {
   revealForm,
   venueRevealPrefersReducedMotion,
+  VENUE_REVEAL_CINEMA_MS,
 } from "@/lib/sheetSnap";
 import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
@@ -1292,7 +1293,8 @@ export default function PubMap({
   const venueEntranceOvershoot =
     venueRevealRequest?.form === "full" &&
     !venueRevealRequest.interrupted &&
-    venueRevealRequest.venueId === selectedVenueId;
+    venueRevealRequest.venueId === selectedVenueId &&
+    Date.now() - venueRevealRequest.startedAt < VENUE_REVEAL_CINEMA_MS;
 
   const onVenueSheetDragStart = useCallback(
     (event: React.PointerEvent<HTMLElement>) => {
@@ -2048,7 +2050,7 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else if (!isUkBaseId(id)) {
+      } else if (!isUkBaseId(id) && venueById.has(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,
@@ -2072,6 +2074,7 @@ export default function PubMap({
       setSheetSnap,
       setSheetDragY,
       selectedVenueId,
+      venueById,
       setVenueRevealSettleSequence,
     ],
   );

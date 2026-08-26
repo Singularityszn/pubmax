@@ -215,6 +215,7 @@ export default function VenueInspector({
     revealIsCurrent
       ? reveal.priceMotionClass
       : "";
+  const currentRevealRootClasses = revealIsCurrent ? revealRootClasses : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
@@ -360,7 +361,7 @@ export default function VenueInspector({
   return (
     <section
       ref={revealRootRef}
-      className={`venueInspector ${revealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
+      className={`venueInspector ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >
