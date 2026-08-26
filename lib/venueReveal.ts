@@ -89,7 +89,9 @@ export type VenuePriceRevealMotion = "drop" | "slide" | "static";
 export type VenuePriceRevealInput = {
   /** Freshest community row for the lead drink lane, if any. */
   communityLead:
-    | Pick<CommunityPrice, "corroborations" | "submittedAt" | "mapCandidate">
+    | (Pick<CommunityPrice, "corroborations" | "submittedAt"> & {
+        mapCandidate?: CommunityPrice["mapCandidate"] | null;
+      })
     | null
     | undefined;
 };

@@ -13,7 +13,8 @@ type KeyboardShortcutArgs = {
 // Map navigation owner to step Back. The effect only adds/removes a DOM listener - the handler
 // calls setState, which is allowed (react-hooks/set-state-in-effect forbids
 // setState in the effect BODY, not in listeners it registers).
-// Extracted verbatim from PubMap (F1).
+// Kept in a small hook so PubMap owns navigation while reveal interruption
+// remains part of the same Escape path.
 export function useMapKeyboardShortcuts({
   planningOpen,
   selectedVenueId,

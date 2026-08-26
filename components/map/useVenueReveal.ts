@@ -149,7 +149,13 @@ export function useVenueReveal() {
     if (!prefersReducedMotion) return;
     revealRunningRef.current = false;
     clearTimer();
-    setReveal(null);
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (!cancelled) setReveal(null);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [clearTimer, prefersReducedMotion]);
 
   useEffect(() => {
@@ -179,7 +185,7 @@ export function useVenueReveal() {
 
   const revealStyle: CSSProperties | undefined = reveal?.active
     ? ({
-        "--venue-reveal-elapsed": `${Math.max(0, Date.now() - reveal.startedAt)}ms`,
+        "--venue-reveal-elapsed": "0ms",
       } as CSSProperties)
     : undefined;
 

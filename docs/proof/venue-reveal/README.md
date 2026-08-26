@@ -4,10 +4,10 @@
 
 ## Scenarios
 
-1. **Established (Beermat Drop)** — corroborated in-window community price: beat 3 uses `venueRevealPriceChrome--drop` (6px rise + spring settle). Chrome only; the figure node stays static.
-2. **Provisional (flat slide)** — one report in window: beat 3 uses `venueRevealPriceChrome--slide` (6px rise, no overshoot).
-3. **Repeat tap** — second pick within 8s: `venueReveal--short` (160ms photo crossfade, no stagger).
-4. **Reduced motion** — `prefers-reduced-motion: reduce`: no `venueReveal` classes on the inspector (`e2e/venue-reveal.spec.ts`).
+1. **Established (Beermat Drop)** - corroborated in-window community price: beat 3 uses `venueRevealPriceChrome--drop` (6px rise + spring settle). Chrome only; the figure node stays static.
+2. **Provisional (flat slide)** - one report in window: beat 3 uses `venueRevealPriceChrome--slide` (6px rise, no overshoot).
+3. **Repeat tap** - second pick in less than 8s: `venueReveal--short` (160ms photo crossfade, no stagger).
+4. **Reduced motion** - `prefers-reduced-motion: reduce`: no `venueReveal` classes on the inspector (`e2e/venue-reveal.spec.ts`).
 
 ## Capture
 

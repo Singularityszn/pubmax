@@ -1965,13 +1965,20 @@ export default function PubMap({
       experienceLens,
       mapDrinkLensCategory,
     );
-    setVenueRevealRequest((current) => {
-      if (!current || current.venueId !== selectedId) return current;
-      if (current.rows === priceView.rows && current.lane === priceView.lane) {
-        return current;
-      }
-      return { ...current, rows: priceView.rows, lane: priceView.lane };
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setVenueRevealRequest((current) => {
+        if (!current || current.venueId !== selectedId) return current;
+        if (current.rows === priceView.rows && current.lane === priceView.lane) {
+          return current;
+        }
+        return { ...current, rows: priceView.rows, lane: priceView.lane };
+      });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [
     communityPrices.byVenueId,
     experienceLens,
@@ -3060,6 +3067,8 @@ export default function PubMap({
       // move must not fit the whole matched set over their choice on blur.
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (targetCityId && targetCityId !== cityId) {
+        // Full navigation resets city-specific map state before the target city loads.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(
           `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
         );
