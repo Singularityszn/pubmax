@@ -305,7 +305,6 @@ export default function VenueInspector({
     <section
       className={`venueInspector ${revealRootClasses}`.trim()}
       data-reveal={revealVenueId ?? undefined}
-      onScroll={onInterruptReveal ? () => onInterruptReveal() : undefined}
     >
       <VenueInspectorHeader
         venue={venue}
@@ -318,6 +317,7 @@ export default function VenueInspector({
         onGrabDragStart={onGrabDragStart}
         onGrabDragMove={onGrabDragMove}
         onGrabDragEnd={onGrabDragEnd}
+        onTabStripScroll={onInterruptReveal}
         revealBloom={Boolean(revealVenueId)}
       />
 

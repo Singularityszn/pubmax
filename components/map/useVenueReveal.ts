@@ -119,6 +119,26 @@ export function useVenueReveal() {
     [clearTimer, prefersReducedMotion],
   );
 
+  const updateRevealPriceMotion = useCallback(
+    (
+      venueId: string,
+      rows: readonly CommunityPrice[] | undefined,
+      lane: DrinkCategory = DEFAULT_DRINK_LANE,
+    ) => {
+      setReveal((current) => {
+        if (!current?.active || current.venueId !== venueId) return current;
+        const lead = orderVenueDrinkPrices(rows, lane)[0]?.price;
+        const priceMotion = venuePriceRevealMotion({ communityLead: lead }, Date.now());
+        return {
+          ...current,
+          priceMotion,
+          priceMotionClass: venuePriceRevealMotionClass(priceMotion),
+        };
+      });
+    },
+    [],
+  );
+
   useEffect(() => {
     if (!prefersReducedMotion) return;
     revealRunningRef.current = false;
@@ -144,6 +164,7 @@ export function useVenueReveal() {
   return {
     reveal,
     beginReveal,
+    updateRevealPriceMotion,
     interruptReveal,
     rootClasses,
     entranceOvershoot,

@@ -71,6 +71,7 @@ export default function MobileSharedSheet({
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
   const entranceOvershootRef = useRef(entranceOvershoot);
+  const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
   useEffect(() => {
     entranceOvershootRef.current = entranceOvershoot;
   }, [entranceOvershoot]);
@@ -122,7 +123,11 @@ export default function MobileSharedSheet({
   // labelled dialog, so focusing it still moves assistive technology inside and
   // still starts the tab order at the top.
   useEffect(() => {
-    if (!kind) return;
+    if (!kind) {
+      initialSnapRequestRef.current = null;
+      return;
+    }
+    initialSnapRequestRef.current = initialSnap;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap, {
       entranceOvershoot: kind === "venue" && entranceOvershootRef.current,
@@ -150,6 +155,9 @@ export default function MobileSharedSheet({
   // expands the venue sheet to full). Only re-applies on change.
   useEffect(() => {
     if (!kind || !requestedSnap) return;
+    const initialSnapRequest = initialSnapRequestRef.current;
+    initialSnapRequestRef.current = null;
+    if (initialSnapRequest === requestedSnap) return;
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 

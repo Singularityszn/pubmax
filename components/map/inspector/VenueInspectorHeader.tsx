@@ -23,6 +23,7 @@ type VenueInspectorHeaderProps = {
   onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
+  onTabStripScroll?: () => void;
   revealBloom?: boolean;
 };
 
@@ -37,6 +38,7 @@ export default function VenueInspectorHeader({
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
+  onTabStripScroll,
   revealBloom = false,
 }: VenueInspectorHeaderProps) {
   const { ref: tabStripRef, faded } = useTrailingEdgeFade<HTMLDivElement>();
@@ -93,6 +95,7 @@ export default function VenueInspectorHeader({
       <div
         ref={tabStripRef}
         className="venueTabs"
+        onScroll={onTabStripScroll}
         data-trailing-fade={faded ? "on" : "off"}
         role="tablist"
         aria-label="Venue detail sections"

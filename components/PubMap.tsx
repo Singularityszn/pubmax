@@ -1255,6 +1255,7 @@ export default function PubMap({
   const {
     reveal: venueReveal,
     beginReveal,
+    updateRevealPriceMotion,
     interruptReveal: interruptVenueReveal,
     rootClasses: venueRevealRootClasses,
     entranceOvershoot: venueEntranceOvershoot,
@@ -1923,6 +1924,15 @@ export default function PubMap({
     }
     return refreshVenueDrops(selectedId);
   }, [selectedId, refreshVenueDrops]);
+
+  useEffect(() => {
+    if (!selectedId) return;
+    updateRevealPriceMotion(
+      selectedId,
+      communityPrices.byVenueId.get(selectedId),
+      mapDrinkLensCategory ?? DEFAULT_DRINK_LANE,
+    );
+  }, [communityPrices.byVenueId, mapDrinkLensCategory, selectedId, updateRevealPriceMotion]);
 
   useEffect(() => {
     if (tonightStatus !== "ready" || tonightDismissed) return;
@@ -4621,6 +4631,7 @@ export default function PubMap({
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
         entranceOvershoot={detailOpen && venueEntranceOvershoot}
+        onScroll={interruptVenueReveal}
         fade
         className={
           "mapDrawer right" +
