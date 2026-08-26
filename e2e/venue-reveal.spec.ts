@@ -1,17 +1,47 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
-function stableVenueIdFromKey(key: string): string {
-  let hash = 0x811c9dc5;
-  for (let index = 0; index < key.length; index += 1) {
-    hash ^= key.charCodeAt(index);
-    hash = Math.imul(hash, 0x01000193);
-  }
-  return `venue-${(hash >>> 0).toString(36)}`;
+type PaintedMapTapPoint = {
+  kind: "pin" | "cluster";
+  x: number;
+  y: number;
+};
+
+async function paintedMarks(page: Page): Promise<PaintedMapTapPoint[]> {
+  return page.evaluate(() =>
+    (
+      window as typeof window & {
+        __pubmaxPaintedMapTapPoints?: () => PaintedMapTapPoint[];
+      }
+    ).__pubmaxPaintedMapTapPoints?.() ?? [],
+  );
 }
 
-const ARNOS_ARMS_ID = stableVenueIdFromKey(
-  ["arnos arms", "338 bowes road, arnos grove, london, n11 1an", "51.61620", "-0.13212"].join("|")
-);
+async function openVenueFromMap(page: Page): Promise<void> {
+  await page.goto("/map");
+  const inspector = page.locator(".venueInspector");
+  await expect
+    .poll(async () => (await paintedMarks(page)).length, {
+      message: "the map paints a tappable pub mark",
+      timeout: 60_000,
+    })
+    .toBeGreaterThan(0);
+
+  await expect
+    .poll(
+      async () => {
+        if (await inspector.count()) return true;
+        const marks = await paintedMarks(page);
+        const target = marks.find((mark) => mark.kind === "pin") ?? marks[0];
+        if (!target) return false;
+        await page.mouse.click(target.x, target.y);
+        await page.waitForTimeout(target.kind === "pin" ? 400 : 900);
+        return (await inspector.count()) > 0;
+      },
+      { message: "a painted map pin opens venue detail", timeout: 90_000 },
+    )
+    .toBe(true);
+  await expect(inspector).toBeVisible();
+}
 
 test.describe("venue reveal reduced motion", () => {
   test("skips entrance classes under prefers-reduced-motion", async ({ page }) => {
@@ -22,9 +52,7 @@ test.describe("venue reveal reduced motion", () => {
     });
 
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
-    const inspector = page.locator(".venueInspector");
-    await expect(inspector).toBeVisible({ timeout: 60_000 });
+    await openVenueFromMap(page);
 
     await page.waitForTimeout(600);
 
@@ -52,10 +80,8 @@ test.describe("venue reveal reduced motion", () => {
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto(`/map?sel=${ARNOS_ARMS_ID}&mode=build`);
-
+    await openVenueFromMap(page);
     const inspector = page.locator(".venueInspector");
-    await expect(inspector).toBeVisible({ timeout: 60_000 });
     const figure = inspector.locator(".priceBadge").first();
     await expect(figure).toBeVisible();
     await expect.poll(() => figure.evaluate((node) => getComputedStyle(node).animationName)).not.toMatch(

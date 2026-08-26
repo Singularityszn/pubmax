@@ -12,7 +12,7 @@ export const VENUE_REVEAL_STALE_MS = 8_000;
 export const VENUE_REVEAL_SHORT_MS = 160;
 
 /** Total full-form choreography budget, overlapped with the camera move. */
-export const VENUE_REVEAL_CINEMA_MS = 600;
+export const VENUE_REVEAL_CINEMA_MS = 480;
 
 export type VenueRevealForm = "full" | "short";
 

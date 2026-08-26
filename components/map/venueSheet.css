@@ -1470,19 +1470,19 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
-    animation-delay: 320ms;
+    animation-delay: 200ms;
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="1"] {
-    animation-delay: 360ms;
+    animation-delay: 240ms;
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="2"] {
-    animation-delay: 400ms;
+    animation-delay: 280ms;
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
-    animation-delay: 440ms;
+    animation-delay: 320ms;
   }
 }
 
@@ -1494,4 +1494,3 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   opacity: 1 !important;
   transform: none !important;
 }
-

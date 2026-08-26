@@ -70,6 +70,10 @@ export default function MobileSharedSheet({
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
+  const entranceOvershootRef = useRef(entranceOvershoot);
+  useEffect(() => {
+    entranceOvershootRef.current = entranceOvershoot;
+  }, [entranceOvershoot]);
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
     onDismissRef.current = onDismiss;
@@ -121,7 +125,7 @@ export default function MobileSharedSheet({
     if (!kind) return;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     openAtSnap(initialSnap, {
-      entranceOvershoot: kind === "venue" && entranceOvershoot,
+      entranceOvershoot: kind === "venue" && entranceOvershootRef.current,
     });
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
@@ -140,7 +144,7 @@ export default function MobileSharedSheet({
       window.removeEventListener("keydown", onKey);
       previousFocus.current?.focus({ preventScroll: true });
     };
-  }, [entranceOvershoot, initialSnap, kind, openAtSnap, requestEscape]);
+  }, [initialSnap, kind, openAtSnap, requestEscape]);
 
   // PubMap/MobileMapShell can request a snap change (e.g. a content-tab tap
   // expands the venue sheet to full). Only re-applies on change.
