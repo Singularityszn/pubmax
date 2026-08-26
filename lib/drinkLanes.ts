@@ -8,6 +8,7 @@ import {
 import {
   drinkLensPriceNoun,
   type CategoryPriceIndexStatus,
+  type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
 import type { Filters } from "@/lib/venues";
 
@@ -41,6 +42,35 @@ export type DrinkLane = {
  * label and the cheapest-pint buckets stay exactly as they were.
  */
 export const DEFAULT_DRINK_LANE: DrinkCategory = "beer";
+
+export type VenueDrinkPriceView = {
+  rows: readonly CommunityPrice[] | undefined;
+  lane: DrinkCategory;
+};
+
+export function venueDrinkPriceView(
+  rows: readonly CommunityPrice[] | undefined,
+  experienceLens: MapExperienceLens,
+  drinkLensCategory: DrinkCategory | null | undefined,
+): VenueDrinkPriceView {
+  if (experienceLens === "food") {
+    return { rows: undefined, lane: DEFAULT_DRINK_LANE };
+  }
+  if (experienceLens === "no-alcohol") {
+    return {
+      rows: rows?.filter(
+        (row) =>
+          row.drinkCategory === "soft-drink" ||
+          row.drinkCategory === "alcohol-free",
+      ),
+      lane: "alcohol-free",
+    };
+  }
+  return {
+    rows,
+    lane: drinkLensCategory ?? DEFAULT_DRINK_LANE,
+  };
+}
 
 /** The map's word for the resting lane. The taxonomy still calls it "Beer". */
 export const DEFAULT_DRINK_LANE_LABEL = "Pints";

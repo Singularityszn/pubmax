@@ -229,10 +229,9 @@ import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
 import {
   revealForm,
-  venueDrinkPriceView,
   venueRevealPrefersReducedMotion,
-  type VenueRevealRequest,
-} from "@/lib/venueReveal";
+} from "@/lib/sheetSnap";
+import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
@@ -331,6 +330,7 @@ import {
   applyDrinkLane,
   DEFAULT_DRINK_LANE,
   drinkLaneLabel,
+  venueDrinkPriceView,
 } from "@/lib/drinkLanes";
 import {
   bandChipDismissedKey,
@@ -2048,13 +2048,15 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else {
+      } else if (!isUkBaseId(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,
           mapDrinkLensCategory,
         );
         beginReveal(id, priceView.rows, priceView.lane);
+      } else {
+        setVenueRevealRequest(null);
       }
     },
     [

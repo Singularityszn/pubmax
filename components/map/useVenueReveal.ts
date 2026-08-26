@@ -52,7 +52,7 @@ export type VenueRevealState = {
   active: boolean;
 };
 
-export function useVenueReveal() {
+export function useVenueReveal(externallyInterrupted = false) {
   const prefersReducedMotion = useSyncExternalStore(
     subscribeReducedMotion,
     reducedMotionSnapshot,
@@ -181,7 +181,7 @@ export function useVenueReveal() {
   useEffect(() => clearTimer, [clearTimer]);
 
   const rootClasses =
-    reveal?.active && !reveal.interrupted
+    reveal?.active && !reveal.interrupted && !externallyInterrupted
       ? venueRevealRootClasses({
           active: true,
           form: reveal.form,
@@ -189,14 +189,18 @@ export function useVenueReveal() {
         })
       : "";
 
-  const revealStyle: CSSProperties | undefined = reveal?.active
+  const revealStyle: CSSProperties | undefined =
+    reveal?.active && !externallyInterrupted
     ? ({
         "--venue-reveal-elapsed": "0ms",
       } as CSSProperties)
     : undefined;
 
   const entranceOvershoot = Boolean(
-    reveal?.active && reveal.form === "full" && !reveal.interrupted,
+    reveal?.active &&
+      reveal.form === "full" &&
+      !reveal.interrupted &&
+      !externallyInterrupted,
   );
 
   return {

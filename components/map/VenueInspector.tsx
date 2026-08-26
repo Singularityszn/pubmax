@@ -156,6 +156,8 @@ export default function VenueInspector({
   revealRequest = null,
   onInterruptReveal,
 }: VenueInspectorProps) {
+  const revealInterrupted =
+    revealRequest?.venueId === venue.id && revealRequest.interrupted;
   const {
     reveal,
     beginReveal,
@@ -164,7 +166,7 @@ export default function VenueInspector({
     revealRootRef,
     rootClasses: revealRootClasses,
     revealStyle,
-  } = useVenueReveal();
+  } = useVenueReveal(revealInterrupted);
   const begunRevealSequenceRef = useRef<number | null>(null);
 
   useEffect(() => {
@@ -196,9 +198,13 @@ export default function VenueInspector({
   }, [revealRequest, updateRevealPriceMotion, venue.id]);
 
   const revealVenueId =
-    reveal?.active && reveal.venueId === venue.id ? venue.id : null;
+    reveal?.active && reveal.venueId === venue.id && !revealInterrupted
+      ? venue.id
+      : null;
   const priceRevealMotionClass =
-    reveal?.venueId === venue.id ? reveal.priceMotionClass : "";
+    reveal?.venueId === venue.id && !revealInterrupted
+      ? reveal.priceMotionClass
+      : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(

@@ -50,8 +50,7 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
-import { drinkLaneNoun } from "@/lib/drinkLanes";
-import { venueDrinkPriceView } from "@/lib/venueReveal";
+import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
