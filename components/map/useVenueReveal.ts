@@ -104,18 +104,26 @@ export function useVenueReveal(externallyInterrupted = false) {
       revealRunningRef.current = form === "full";
       const duration = form === "full" ? VENUE_REVEAL_CINEMA_MS : VENUE_REVEAL_SHORT_MS;
       const elapsed = Math.max(0, Date.now() - visualStartAt);
-      if (elapsed >= duration) {
-        revealRunningRef.current = false;
-        clearTimer();
-        setReveal(null);
-        return;
-      }
       const ordered = orderVenueDrinkPrices(rows, lane);
       const lead = ordered[0]?.price;
       const priceMotion = venuePriceRevealMotion(
         { communityLead: lead },
         visualStartAt,
       );
+      if (elapsed >= duration) {
+        revealRunningRef.current = false;
+        clearTimer();
+        setReveal({
+          venueId,
+          startedAt: visualStartAt,
+          form,
+          priceMotion,
+          priceMotionClass: venuePriceRevealMotionClass(priceMotion),
+          interrupted: false,
+          active: false,
+        });
+        return;
+      }
       clearTimer();
       setReveal({
         venueId,
