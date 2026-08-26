@@ -92,22 +92,30 @@ export function useVenueReveal(externallyInterrupted = false) {
         setReveal(null);
         return;
       }
-      // A venue can take longer than the choreography budget to hydrate. Start
-      // visual time when its inspector mounts, or the class would expire before
-      // a reader could see it. PubMap still chooses full vs short at tap time.
-      const visualStartAt = Date.now();
+      const requestedStartAt = options?.startedAt;
+      const visualStartAt =
+        typeof requestedStartAt === "number" && Number.isFinite(requestedStartAt)
+          ? requestedStartAt
+          : Date.now();
       const form = options?.form ?? (revealRunningRef.current
         ? "short"
         : revealForm(visualStartAt, lastRevealAtRef.current));
       lastRevealAtRef.current = visualStartAt;
       revealRunningRef.current = form === "full";
+      const duration = form === "full" ? VENUE_REVEAL_CINEMA_MS : VENUE_REVEAL_SHORT_MS;
+      const elapsed = Math.max(0, Date.now() - visualStartAt);
+      if (elapsed >= duration) {
+        revealRunningRef.current = false;
+        clearTimer();
+        setReveal(null);
+        return;
+      }
       const ordered = orderVenueDrinkPrices(rows, lane);
       const lead = ordered[0]?.price;
       const priceMotion = venuePriceRevealMotion(
         { communityLead: lead },
         visualStartAt,
       );
-      const duration = form === "full" ? VENUE_REVEAL_CINEMA_MS : VENUE_REVEAL_SHORT_MS;
       clearTimer();
       setReveal({
         venueId,
@@ -126,7 +134,7 @@ export function useVenueReveal(externallyInterrupted = false) {
             : current,
         );
         timerRef.current = null;
-      }, Math.max(0, duration - Math.max(0, Date.now() - visualStartAt)));
+      }, duration - elapsed);
     },
     [clearTimer, prefersReducedMotion],
   );
@@ -192,7 +200,7 @@ export function useVenueReveal(externallyInterrupted = false) {
   const revealStyle: CSSProperties | undefined =
     reveal?.active && !externallyInterrupted
     ? ({
-        "--venue-reveal-elapsed": "0ms",
+        "--venue-reveal-elapsed": `${Math.max(0, Date.now() - reveal.startedAt)}ms`,
       } as CSSProperties)
     : undefined;
 

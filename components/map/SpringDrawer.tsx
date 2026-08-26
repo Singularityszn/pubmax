@@ -111,7 +111,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       useState<ReactNode>(open ? children : null);
     const drawerRef = useRef<HTMLDivElement | null>(null);
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
-    const wasOpenRef = useRef(open);
+    const wasOpenRef = useRef(false);
     const wasDraggingRef = useRef(false);
     const setDrawerRef = useCallback(
       (node: HTMLDivElement | null) => {
@@ -140,6 +140,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       const opening = open && !wasOpenRef.current;
       wasOpenRef.current = open;
       modeRef.current = mode;
+      const initialEntrance = firstRun && opening && entranceOvershoot;
 
       if (tabletSheet) {
         stopHorizontal();
@@ -163,8 +164,15 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
           wasDraggingRef.current = false;
           const target = open ? snapTarget : closedTarget;
           if (firstRun || modeChanged) {
-            jumpVertical(target);
-            if (!open) clearRetainedChildren();
+            if (initialEntrance) {
+              jumpVertical(closedTarget);
+              animateVertical(target, {
+                dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+              });
+            } else {
+              jumpVertical(target);
+              if (!open) clearRetainedChildren();
+            }
           } else {
             animateVertical(target, {
               velocity,
@@ -183,8 +191,14 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         wasDraggingRef.current = false;
         const target = open ? 0 : closedHorizontal;
         if (firstRun || modeChanged) {
-          jumpHorizontal(target);
-          if (!open) clearRetainedChildren();
+          if (initialEntrance) {
+            animateHorizontal(target, {
+              dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+            });
+          } else {
+            jumpHorizontal(target);
+            if (!open) clearRetainedChildren();
+          }
         } else {
           animateHorizontal(target, {
             dampingRatio:
