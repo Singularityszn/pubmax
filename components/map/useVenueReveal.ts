@@ -61,8 +61,8 @@ export function useVenueReveal() {
   const lastRevealAtRef = useRef<number | null>(null);
   const revealRunningRef = useRef(false);
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const revealRootRef = useRef<HTMLElement | null>(null);
   const [reveal, setReveal] = useState<VenueRevealState | null>(null);
-  const [, setRevealClock] = useState(0);
 
   const clearTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -153,15 +153,18 @@ export function useVenueReveal() {
   }, [clearTimer, prefersReducedMotion]);
 
   useEffect(() => {
-    if (!reveal?.active) return;
+    if (!reveal?.active || !revealRootRef.current) return;
     let frame = 0;
     const tick = () => {
-      setRevealClock(Date.now());
+      revealRootRef.current?.style.setProperty(
+        "--venue-reveal-elapsed",
+        `${Math.max(0, Date.now() - reveal.startedAt)}ms`,
+      );
       frame = window.requestAnimationFrame(tick);
     };
     frame = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(frame);
-  }, [reveal?.active]);
+  }, [reveal?.active, reveal?.startedAt]);
 
   useEffect(() => clearTimer, [clearTimer]);
 
@@ -189,6 +192,7 @@ export function useVenueReveal() {
     beginReveal,
     updateRevealPriceMotion,
     interruptReveal,
+    revealRootRef,
     rootClasses,
     revealStyle,
     entranceOvershoot,

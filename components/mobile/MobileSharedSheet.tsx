@@ -106,6 +106,10 @@ export default function MobileSharedSheet({
     onInterruptRevealRef.current?.();
     settleToRest();
   }, [settleToRest]);
+  const interruptAndSettleRef = useRef(interruptAndSettle);
+  useEffect(() => {
+    interruptAndSettleRef.current = interruptAndSettle;
+  }, [interruptAndSettle]);
   useEffect(() => {
     if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
     venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
@@ -154,7 +158,7 @@ export default function MobileSharedSheet({
       // press - otherwise one Escape pops two surface-stack levels at once.
       if (event.key === "Escape") {
         event.preventDefault();
-        onInterruptRevealRef.current?.();
+        interruptAndSettleRef.current();
         requestEscape();
       }
     };

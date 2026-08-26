@@ -161,6 +161,7 @@ export default function VenueInspector({
     beginReveal,
     updateRevealPriceMotion,
     interruptReveal,
+    revealRootRef,
     rootClasses: revealRootClasses,
     revealStyle,
   } = useVenueReveal();
@@ -342,12 +343,13 @@ export default function VenueInspector({
 
   return (
     <section
+      ref={revealRootRef}
       className={`venueInspector ${revealRootClasses}`.trim()}
       data-reveal={revealVenueId ?? undefined}
       style={revealStyle}
     >
       <VenueInspectorHeader
-        venue={venue}
+      venue={venue}
         communityPhotoUrl={communityPhotoUrl}
         TABS={TABS}
         tab={tab}
