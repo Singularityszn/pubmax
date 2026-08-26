@@ -11,7 +11,10 @@ import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
-import { eagerCuratedCrawlAltStyle } from "@/lib/curatedCrawlHints";
+import {
+  eagerCuratedCrawlAltStyle,
+  eagerCuratedCrawlAltStyleForBuiltIds,
+} from "@/lib/curatedCrawlHints";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -74,7 +77,9 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
-  const hintedAltStyle = eagerCuratedCrawlAltStyle(seeded.crawlId);
+  const hintedAltStyle =
+    eagerCuratedCrawlAltStyle(seeded.crawlId) ??
+    eagerCuratedCrawlAltStyleForBuiltIds(seeded.builtIds);
   return {
     ...seeded,
     filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),

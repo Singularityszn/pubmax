@@ -84,6 +84,14 @@ describe("buildMapSeed", () => {
     expect(seed.altStyle).toBe("mocktail");
   });
 
+  it("eagerly applies the mocktail filter to its exact stop-list link", () => {
+    const seed = buildMapSeed(
+      "?mode=build&pubs=venue-11u4gpi,venue-ymqu1w,venue-12bzb84,venue-165ayyi,venue-1jmwk6r",
+    );
+    expect(seed.filters.requireNonAlcoholic).toBe(true);
+    expect(seed.altStyle).toBe("mocktail");
+  });
+
   it("drink-shape arrival lands clean with no active crawl", () => {
     const seed = buildMapSeed("?drink=stout");
     expect(seed.activeCrawl).toBeNull();

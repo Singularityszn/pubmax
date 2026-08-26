@@ -1081,13 +1081,18 @@ export default function PubMap({
           curatedCrawlHydrationFromSeed,
           sameCuratedCrawlHydrationSnapshot,
         }) => {
-          if (cancelled || !mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) return;
+          if (cancelled) return;
+          if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
+            setCrawlHydrationPending(false);
+            return;
+          }
           const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
+          if (cancelled) return;
           if (
-            cancelled ||
             !hydration ||
             !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
           ) {
+            setCrawlHydrationPending(false);
             return;
           }
           setMode("build");
@@ -1100,7 +1105,7 @@ export default function PubMap({
         },
       )
       .catch(() => {
-        // Catalog chunk failed — arrival keeps URL state without silent overwrite.
+        if (!cancelled) setCrawlHydrationPending(false);
       });
     return () => {
       cancelled = true;
@@ -3604,7 +3609,7 @@ export default function PubMap({
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
-    bandResolved: Boolean(activeBand),
+    bandResolved: Boolean(activeBand) || (Boolean(activeBandId) && !cityStoryCatalog.ready),
     chipDismissed:
       dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
@@ -4176,10 +4181,10 @@ export default function PubMap({
         {/* G3: Place story deep-link chip when `?band=` resolves. Distinct
             dismiss key from curated onboarding; suppresses that overlay while
             visible. */}
-        {showBandChip && activeBand ? (
+        {showBandChip ? (
           <BandOnboardingChip
-            title={activeBand.title}
-            copy={activeBand.copy}
+            title={activeBand?.title ?? "Place story"}
+            copy={activeBand?.copy ?? "Loading place story."}
             onWalkStory={dismissBandChip}
             onDismiss={dismissBandChip}
           />
