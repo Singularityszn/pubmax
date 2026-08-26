@@ -180,9 +180,7 @@ export function bandAnchors(
   band: StoryBand,
   catalog: readonly Landmark[] = landmarks,
 ): Landmark[] {
-  return band.anchorLandmarkIds
-    .map((id) => catalog.find((lm) => lm.id === id))
-    .filter((lm): lm is Landmark => Boolean(lm));
+  return resolveBandAnchors(band, catalog);
 }
 
 // --- DTO validation (unit-tested) ------------------------------------------

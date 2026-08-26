@@ -62,17 +62,14 @@ export type MapSeed = ReturnType<typeof seedCrawlState> & {
 };
 
 /**
- * One-shot mount seed from the shareable URL only.
- * Pure module helper so PubMap can lazy-init state without a useMemo that the
- * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
- * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
- * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
- */
-/**
- * Eager map-shell seed — no curated crawl catalog. Crawl-shaped arrivals hydrate
- * via @/lib/mapSeedCrawl after the catalog chunk loads.
+ * One-shot eager map-shell seed from the shareable URL only. No curated crawl
+ * catalog is loaded here; crawl-shaped arrivals hydrate via
+ * @/lib/mapSeedCrawl after the catalog chunk loads. Do NOT resurrect a previous
+ * hand-built crawl from localStorage on a clean /map tab click - that bloated
+ * the address bar with stale ?pubs=… (PR #79).
  */
 export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID): MapSeed {
+  void _cityId;
   const seeded = seedCrawlState(search);
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };

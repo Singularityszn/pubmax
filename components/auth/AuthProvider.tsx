@@ -22,7 +22,7 @@ import {
   useSyncExternalStore,
   type ReactNode,
 } from "react";
-import type { Session, User } from "@supabase/supabase-js";
+import type { Session } from "@supabase/supabase-js";
 
 import "@/app/auth/auth.css";
 import ArrivalWelcome from "@/components/auth/ArrivalWelcome";
@@ -114,7 +114,6 @@ import {
   AuthContext,
   type AuthContextValue,
   type SignOutScope,
-  useAuth,
 } from "@/components/auth/authContext";
 
 export type { AuthContextValue, SignOutScope } from "@/components/auth/authContext";

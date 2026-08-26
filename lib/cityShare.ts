@@ -11,10 +11,7 @@ import {
 import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
-import {
-  cityMapShareUrl,
-  type CityMapHrefOptions,
-} from "@/lib/cityMapHref";
+import type { CityMapHrefOptions } from "@/lib/cityMapHref";
 
 /** Cult / viral Place-story band ids called out in the multi-city PRD. */
 export const CULT_STORY_BAND_IDS = [

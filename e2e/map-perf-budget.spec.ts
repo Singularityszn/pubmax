@@ -10,18 +10,10 @@ import { expect, test } from "@playwright/test";
 // that DID move the LCP: the weight of JavaScript the map route makes the
 // browser download and parse before it can boot.
 //
-// Audit (docs/PERF_AUDIT_2026-07-17.md), mid-tier 4G + 4× CPU, median of 3:
-//   - Before: 5195 KB decoded JS eager on /map → LCP 2940 ms (OVER budget)
-//   - After:  2212 KB decoded JS eager on /map → LCP 2384 ms (under budget)
-// The 57% decoded-JS cut came from dynamic-importing the planner rail, route
-// panel, venue inspector, mobile plan activation and the desktop-only map
-// chrome out of the eager map chunk (they only mount on interaction / on a
-// desktop viewport). Re-static-importing any of them regresses the budget and
-// trips this test.
-//
-// The ceiling is generous-but-real: comfortably above the 2212 KB we ship today
-// (headroom for legitimate growth) yet far below the 5195 KB regression cliff,
-// so a single accidental static re-import of a heavy panel fails here.
+// The current measurement and route ceiling live in perf/route-budgets.json.
+// Keep off-path panels and data out of the eager map chunk. Reintroducing a
+// static import for a surface that mounts only after interaction or on desktop
+// must trip this test. Slim index, MapLibre, and pin-price paths stay eager.
 const EAGER_JS_DECODED_BUDGET_KB = 3400;
 
 // Map-boot sanity: the mobile chrome must appear and the loading skeleton must
