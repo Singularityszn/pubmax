@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { crawlUrlWriteAllowed } from "@/components/map/useCrawlUrl";
+import { crawlUrlWriteAllowed, mergeCrawlUrlSearch } from "@/components/map/useCrawlUrl";
 import { initialFilters } from "@/components/map/ControlRail";
 import { encodeCrawl, type CrawlUrlState } from "@/lib/crawlUrl";
 
@@ -47,5 +47,11 @@ describe("Clean-URL hold — what a restored session may write", () => {
     // change writes as before.
     expect(crawlUrlWriteAllowed(null, restored)).toBe(true);
     expect(crawlUrlWriteAllowed(null, "")).toBe(true);
+  });
+
+  it("keeps a pending curated crawl id in the address", () => {
+    expect(mergeCrawlUrlSearch("", "?crawl=leicester-mocktail-crawl", true)).toBe(
+      "crawl=leicester-mocktail-crawl",
+    );
   });
 });

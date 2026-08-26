@@ -11,6 +11,7 @@ import type { CuratedCrawl } from "@/lib/curatedCrawls";
 import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import { eagerCuratedCrawlAltStyle } from "@/lib/curatedCrawlHints";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -37,9 +38,18 @@ export function crawlStopsFromPubIds(ids: string[]): string[] {
 // lives off PubMap's complexity budget.
 export function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters {
   return {
-    ...current,
+    ...filtersForCuratedCrawlHint(current, crawl.altStyle),
     crawlStyle: crawl.crawlStyle,
-    requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
+  };
+}
+
+export function filtersForCuratedCrawlHint(
+  current: Filters,
+  altStyle: CuratedCrawl["altStyle"],
+): Filters {
+  return {
+    ...current,
+    requireNonAlcoholic: altStyle === "mocktail" ? true : current.requireNonAlcoholic,
   };
 }
 
@@ -64,11 +74,20 @@ export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID):
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
+  const hintedAltStyle = eagerCuratedCrawlAltStyle(seeded.crawlId);
   return {
     ...seeded,
+    filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),
+    altStyle: hintedAltStyle ?? seeded.altStyle,
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
   };
+}
+
+export function mapSeedNeedsCuratedCrawlLookup(search: string): boolean {
+  if (isDrinkShapeArrival(search)) return false;
+  const seeded = seedCrawlState(search);
+  return Boolean(seeded.crawlId) || seeded.builtIds.length >= 2;
 }
 
 export type VenueDetailStatus = "idle" | "loading" | "ready" | "missing" | "unavailable";

@@ -24,8 +24,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { nearestStoryPubs, type Landmark } from "@/lib/landmarks";
-import { bandMemberPubs, type StoryBand } from "@/lib/storyBands";
+import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
+import type { Landmark } from "@/lib/landmarks";
+import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
+import type { StoryBand } from "@/lib/storyBands";
 import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
@@ -549,12 +551,14 @@ export default function PubMapCanvas({
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
   const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
+  const showLandmarksRef = useRef(showLandmarks);
   useEffect(() => {
     mapViewRef.current = mapView;
     maxBoundsRef.current = maxBounds;
     cityBoundsRef.current = cityBounds;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
-  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON]);
+    showLandmarksRef.current = showLandmarks;
+  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -1756,7 +1760,7 @@ export default function PubMapCanvas({
         addLayerOnce,
         poiHidden: poiHiddenRef.current,
         transitLinesPath: null,
-        showLandmarks,
+        showLandmarks: showLandmarksRef.current,
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
         routeLine: routeLineRef.current,

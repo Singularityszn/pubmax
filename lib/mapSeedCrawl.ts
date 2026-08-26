@@ -9,8 +9,11 @@ import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
 import {
   filtersForCuratedCrawl,
+  mapSeedNeedsCuratedCrawlLookup,
   type MapSeed,
 } from "@/lib/pubMap";
+
+export { mapSeedNeedsCuratedCrawlLookup };
 
 function matchBuiltIds(crawls: CuratedCrawl[], builtIds: string[]): CuratedCrawl | null {
   if (builtIds.length < 2) return null;
@@ -35,13 +38,6 @@ export async function resolveSeededCuratedCrawl(
     if (byId) return byId;
   }
   return matchBuiltIds(crawls, builtIds);
-}
-
-/** Whether the URL needs the crawl catalog to finish seeding. */
-export function mapSeedNeedsCuratedCrawlLookup(search: string): boolean {
-  if (isDrinkShapeArrival(search)) return false;
-  const seeded = seedCrawlState(search);
-  return Boolean(seeded.crawlId) || seeded.builtIds.length >= 2;
 }
 
 /**

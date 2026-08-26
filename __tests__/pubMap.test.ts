@@ -104,6 +104,12 @@ describe("filtersForCuratedCrawl", () => {
 });
 
 describe("buildMapSeed", () => {
+  it("eagerly applies the mocktail crawl's non-alcoholic filter", () => {
+    const seed = buildMapSeed("?crawl=leicester-mocktail-crawl");
+    expect(seed.filters.requireNonAlcoholic).toBe(true);
+    expect(seed.altStyle).toBe("mocktail");
+  });
+
   it("drink-shape arrival lands clean with no active crawl", () => {
     const seed = buildMapSeed("?drink=stout");
     expect(seed.activeCrawl).toBeNull();

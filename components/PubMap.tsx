@@ -430,6 +430,7 @@ import {
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
+  mapSeedNeedsCuratedCrawlLookup,
   type MapSeed,
   type MapSelectionNotice,
   type VenueDetailStatus,
@@ -1972,6 +1973,7 @@ export default function PubMap({
       ],
     ),
     restoredMobileSession !== null,
+    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.

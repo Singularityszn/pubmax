@@ -35,12 +35,17 @@ const OWNED_PASSTHROUGH_PARAMS = [
 export function mergeCrawlUrlSearch(
   encodedSearch: string,
   liveSearch: string,
+  preserveCrawlParam = false,
 ): string {
   const params = new URLSearchParams(encodedSearch);
   const live = new URLSearchParams(liveSearch);
   for (const key of OWNED_PASSTHROUGH_PARAMS) {
     const value = live.get(key);
     if (value !== null && !params.has(key)) params.set(key, value);
+  }
+  const crawl = live.get("crawl");
+  if (preserveCrawlParam && crawl !== null && !params.has("crawl")) {
+    params.set("crawl", crawl);
   }
   return params.toString();
 }
@@ -70,9 +75,11 @@ export function useCrawlUrlSync(
   /** True when the reader arrived on a clean URL and a saved session was
    *  restored over it. The address then stays clean until they act. */
   holdCleanUrl = false,
+  holdSeededCrawlParam = false,
 ): void {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const hold = useRef<CleanUrlHold | undefined>(undefined);
+  const crawlHold = useRef<CleanUrlHold | undefined>(undefined);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -80,11 +87,23 @@ export function useCrawlUrlSync(
     if (hold.current === undefined) {
       hold.current = holdCleanUrl ? { encodedAtMount: encoded } : null;
     }
+    if (crawlHold.current === undefined) {
+      crawlHold.current = holdSeededCrawlParam ? { encodedAtMount: encoded } : null;
+    }
     if (!crawlUrlWriteAllowed(hold.current, encoded)) return;
     hold.current = null;
+    const preserveCrawlParam =
+      crawlHold.current !== null &&
+      crawlHold.current !== undefined &&
+      encoded === crawlHold.current.encodedAtMount;
+    if (!preserveCrawlParam) crawlHold.current = null;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
-      const query = mergeCrawlUrlSearch(encoded, window.location.search);
+      const query = mergeCrawlUrlSearch(
+        encoded,
+        window.location.search,
+        preserveCrawlParam,
+      );
       // Keep a clean pathname when nothing meaningful is encoded (no trailing `?`).
       const url = query
         ? `${window.location.pathname}?${query}${window.location.hash}`
@@ -98,5 +117,5 @@ export function useCrawlUrlSync(
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [holdCleanUrl, state]);
+  }, [holdCleanUrl, holdSeededCrawlParam, state]);
 }

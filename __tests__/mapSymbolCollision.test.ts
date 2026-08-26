@@ -96,6 +96,27 @@ function buildScenePieces(selectedId = "") {
   return { layers, sources };
 }
 
+function buildLateLandmarkLayers() {
+  const beforeLayer = { id: "pubs-drops-halo" } as BuiltLayer;
+  const calls: Array<{ id: string; before?: string }> = [];
+  const map = {
+    getSource: () => undefined,
+    addSource: () => {},
+    getLayer: (id: string) => (id === beforeLayer.id ? beforeLayer : undefined),
+  } as unknown as maplibregl.Map;
+  const ctx = {
+    map,
+    tokens: new Proxy({}, { get: () => "#000000" }) as unknown as Tokens,
+    dark: false,
+    textFont: ["Noto Sans Regular"],
+    addLayerOnce: ((layer: BuiltLayer, before?: string) => calls.push({ id: layer.id, before })) as SceneCtx["addLayerOnce"],
+    showLandmarks: true,
+    landmarksGeoJSON: { type: "FeatureCollection", features: [] },
+  } as SceneCtx;
+  buildLandmarks(ctx);
+  return calls;
+}
+
 describe("pub clustering density (scales to a UK-wide source)", () => {
   const { sources } = buildScenePieces();
   const pubs = sources.get("pubs")!;
@@ -246,6 +267,13 @@ describe("symbol collision policy", () => {
       "top-right",
       "bottom-left",
       "bottom-right",
+    ]);
+  });
+
+  it("inserts hydrated landmark layers before the first pub layer", () => {
+    expect(buildLateLandmarkLayers()).toEqual([
+      { id: "landmarks-label", before: "pubs-drops-halo" },
+      { id: "landmarks-icon", before: "pubs-drops-halo" },
     ]);
   });
 

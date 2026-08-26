@@ -2,8 +2,8 @@
 // rendered as a brass symbol layer in PubMapCanvas, tapped for a history card.
 
 import { haversineKm } from "@/lib/haversine";
-import { isPubVenue } from "@/lib/venueKindFilters";
-import type { Venue } from "@/lib/venues";
+export { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
+export type { NearbyStoryPub } from "@/lib/landmarkVenueProximity";
 import attributionTable from "@/public/data/landmark_image_attribution.json";
 
 export type Landmark = {
@@ -524,27 +524,6 @@ export const landmarks: Landmark[] = [
 export function landmarkById(id: string | null | undefined): Landmark | undefined {
   if (!id) return undefined;
   return landmarks.find((landmark) => landmark.id === id);
-}
-
-// Wires the landmark layer into the heritage layer (PRD target #6): tapping a
-// landmark surfaces the nearest story pubs, not just a standalone history card.
-// Distances are straight-line (haversine) per the PRD's out-of-scope rules —
-// no routing — and the UI labels them as such.
-export type NearbyStoryPub = { venue: Venue; km: number };
-
-export function nearestStoryPubs(
-  landmark: Landmark,
-  venues: Venue[],
-  limit = 3,
-): NearbyStoryPub[] {
-  return venues
-    .filter((venue) => venue.hasStory && isPubVenue(venue))
-    .map((venue) => ({
-      venue,
-      km: haversineKm(landmark.coordinates, [venue.longitude, venue.latitude]),
-    }))
-    .sort((a, b) => a.km - b.km)
-    .slice(0, limit);
 }
 
 // Inverse of nearestStoryPubs: given a point (usually a venue), list the
