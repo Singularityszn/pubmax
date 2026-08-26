@@ -113,6 +113,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
     const wasOpenRef = useRef(false);
     const wasDraggingRef = useRef(false);
+    const overshootEntranceDoneRef = useRef(false);
     const setDrawerRef = useCallback(
       (node: HTMLDivElement | null) => {
         drawerRef.current = node;
@@ -140,7 +141,10 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       const opening = open && !wasOpenRef.current;
       wasOpenRef.current = open;
       modeRef.current = mode;
-      const initialEntrance = firstRun && opening && entranceOvershoot;
+      const initialEntrance =
+        entranceOvershoot &&
+        open &&
+        !overshootEntranceDoneRef.current;
 
       if (tabletSheet) {
         stopHorizontal();
@@ -168,6 +172,9 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
               jumpVertical(closedTarget);
               animateVertical(target, {
                 dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+                onRest: () => {
+                  overshootEntranceDoneRef.current = true;
+                },
               });
             } else {
               jumpVertical(target);
@@ -194,6 +201,9 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
           if (initialEntrance) {
             animateHorizontal(target, {
               dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+              onRest: () => {
+                overshootEntranceDoneRef.current = true;
+              },
             });
           } else {
             jumpHorizontal(target);

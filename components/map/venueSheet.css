@@ -1393,7 +1393,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 /* Venue reveal choreography — transform/opacity only; figures stay static.
    Every rule sits behind prefers-reduced-motion: no-preference. */
 @media (prefers-reduced-motion: no-preference) {
-  @keyframes venueRevealBloom {
+  @keyframes venue-reveal-bloom {
     from {
       opacity: 0.6;
       transform: scale(0.96);
@@ -1404,7 +1404,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     }
   }
 
-  @keyframes venueRevealBloomShort {
+  @keyframes venue-reveal-bloom-short {
     from {
       opacity: 0.75;
     }
@@ -1413,7 +1413,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     }
   }
 
-  @keyframes venueRevealBeermatDrop {
+  @keyframes venue-reveal-beermat-drop {
     0% {
       opacity: 0;
       transform: translateY(6px);
@@ -1428,7 +1428,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     }
   }
 
-  @keyframes venueRevealPriceSlide {
+  @keyframes venue-reveal-price-slide {
     from {
       opacity: 0;
       transform: translateY(6px);
@@ -1439,7 +1439,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     }
   }
 
-  @keyframes venueRevealRecord {
+  @keyframes venue-reveal-record {
     from {
       opacity: 0;
       transform: translateY(4px);
@@ -1451,31 +1451,31 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   }
 
   .venueReveal--full .venueRevealBloom {
-    animation: venueRevealBloom 280ms var(--ease-out-strong)
+    animation: venue-reveal-bloom 280ms var(--ease-out-strong)
       calc(80ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
   .venueReveal--short .venueRevealBloom {
-    animation: venueRevealBloomShort 160ms var(--ease-out-strong)
+    animation: venue-reveal-bloom-short 160ms var(--ease-out-strong)
       calc(0ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
   .venueRevealRecords .venueRevealRecord {
-    animation: venueRevealRecord 160ms var(--ease-out-strong) forwards;
+    animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
   }
 
   .venueReveal--full .venueRevealPriceChrome--drop {
-    animation: venueRevealBeermatDrop 180ms var(--ease-spring)
+    animation: venue-reveal-beermat-drop 180ms var(--ease-spring)
       calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
   .venueReveal--full .venueRevealPriceChrome--slide {
-    animation: venueRevealPriceSlide 180ms var(--ease-out-strong)
+    animation: venue-reveal-price-slide 180ms var(--ease-out-strong)
       calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
   }
 
   .venueReveal--full .venueRevealRecord {
-    animation: venueRevealRecord 160ms var(--ease-out-strong) forwards;
+    animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
   }
 
   .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
