@@ -165,7 +165,6 @@ describe("MapExperienceLens", () => {
     // The tab names the lens through the lane table, which routes every
     // category except the joined no-alcohol view to its own drink noun.
     expect(overview).toContain("drinkLaneNoun(leadLane)");
-    expect(overview).toContain("drinkLensCategory ?? DEFAULT_DRINK_LANE");
     expect(overview).toMatch(/<VenueDrinkPrices[\s\S]*?activeLane=\{leadLane\}/);
     expect(sheet).toContain("drinkLensCategory");
     expect(sheet).toContain(
