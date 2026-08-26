@@ -52,11 +52,15 @@ the selected pin. A fresh selection uses a maximum 480 ms entrance overlapped
 with the 700 ms camera move. Content is present at its final values from the
 first frame; reveal motion uses transform and opacity only.
 
-The fresh form gives the sheet a small half-snap overshoot, then staggers the
-photo, price provenance, checked date, Tonight signal, and story content. Drag,
-scroll, another selection, or Escape interrupts the entrance and settles the
-sheet. Reduced motion disables all new reveal motion. The trust-tier choreography,
-short-form timing, and browser contract live in
+The same reveal state, trust rules, and timing apply to the desktop side drawer;
+its side-drawer spring mirrors the phone sheet's entrance. On phones, the sheet
+opens at the half snap with its overshoot. The fresh form staggers the photo,
+price provenance, dated occupancy and Tonight signals, and story content in at
+most four children, 40 ms apart. Figures stay static: live signals use a dated
+rise-in only, with no physics or count-up. Drag, scroll, another selection, or
+Escape interrupts the entrance and settles the sheet. Reduced motion disables
+all new reveal motion. The trust-tier choreography, short-form timing, and
+browser contract live in
 [`docs/proof/venue-reveal/README.md`](proof/venue-reveal/README.md) and
 [`e2e/venue-reveal.spec.ts`](../e2e/venue-reveal.spec.ts).
 

@@ -9,6 +9,10 @@
 3. **Repeat tap** - second pick in less than 8s: `venueReveal--short` (160ms photo crossfade, no stagger).
 4. **Reduced motion** - `prefers-reduced-motion: reduce`: no `venueReveal` classes on the inspector (`e2e/venue-reveal.spec.ts`).
 
+The transition contract, including desktop drawer parity, is owned by
+[`docs/MOBILE_FLOW_SPEC.md`](../../MOBILE_FLOW_SPEC.md). This file owns the
+capture scenarios and evidence location.
+
 ## Capture
 
 ```bash
