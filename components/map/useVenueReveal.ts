@@ -92,20 +92,26 @@ export function useVenueReveal() {
         setReveal(null);
         return;
       }
-      const now = options?.startedAt ?? Date.now();
+      // A venue can take longer than the choreography budget to hydrate. Start
+      // visual time when its inspector mounts, or the class would expire before
+      // a reader could see it. PubMap still chooses full vs short at tap time.
+      const visualStartAt = Date.now();
       const form = options?.form ?? (revealRunningRef.current
         ? "short"
-        : revealForm(now, lastRevealAtRef.current));
-      lastRevealAtRef.current = now;
+        : revealForm(visualStartAt, lastRevealAtRef.current));
+      lastRevealAtRef.current = visualStartAt;
       revealRunningRef.current = form === "full";
       const ordered = orderVenueDrinkPrices(rows, lane);
       const lead = ordered[0]?.price;
-      const priceMotion = venuePriceRevealMotion({ communityLead: lead }, now);
+      const priceMotion = venuePriceRevealMotion(
+        { communityLead: lead },
+        visualStartAt,
+      );
       const duration = form === "full" ? VENUE_REVEAL_CINEMA_MS : VENUE_REVEAL_SHORT_MS;
       clearTimer();
       setReveal({
         venueId,
-        startedAt: now,
+        startedAt: visualStartAt,
         form,
         priceMotion,
         priceMotionClass: venuePriceRevealMotionClass(priceMotion),
@@ -120,7 +126,7 @@ export function useVenueReveal() {
             : current,
         );
         timerRef.current = null;
-      }, Math.max(0, duration - Math.max(0, Date.now() - now)));
+      }, Math.max(0, duration - Math.max(0, Date.now() - visualStartAt)));
     },
     [clearTimer, prefersReducedMotion],
   );

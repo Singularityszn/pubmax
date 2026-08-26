@@ -58,6 +58,16 @@ export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
 } as const;
 
 export const SHEET_ENTRANCE_OVERSHOOT_DAMPING = 0.75;
+/** Keep first phone-sheet frame visible while the entrance spring starts. */
+export const SHEET_ENTRANCE_START_FRACTION = 0.98;
+
+export function sheetEntranceStartHeight(
+  targetHeight: number,
+  overshoot: boolean,
+): number {
+  if (!overshoot || !Number.isFinite(targetHeight) || targetHeight <= 0) return 0;
+  return targetHeight * SHEET_ENTRANCE_START_FRACTION;
+}
 
 /** translateY fraction of viewport for a snap (same units as CSS `vh`). */
 export function sheetTranslateYFraction(snap: SheetSnap): number {
