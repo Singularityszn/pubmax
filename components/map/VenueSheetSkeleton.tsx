@@ -2,19 +2,30 @@
 // Matches the sheet's tab + stamp layout so the loading state feels like the
 // real panel, not a bare "Loading…" line.
 
+import type { CSSProperties } from "react";
+
 import type { VenueRevealForm } from "@/lib/venueReveal";
 
 export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
   revealForm = null,
+  revealElapsedMs = null,
 }: {
   loadingLabel?: string;
   revealForm?: VenueRevealForm | null;
+  revealElapsedMs?: number | null;
 }) {
   const revealClasses = revealForm ? ` venueReveal venueReveal--${revealForm}` : "";
+  const revealStyle =
+    typeof revealElapsedMs === "number" && Number.isFinite(revealElapsedMs)
+      ? ({
+          "--venue-reveal-elapsed": `${Math.max(0, revealElapsedMs)}ms`,
+        } as CSSProperties)
+      : undefined;
   return (
     <div
       className={`venueSheetSkeleton${revealClasses}`}
+      style={revealStyle}
       role="status"
       aria-live="polite"
       aria-busy="true"

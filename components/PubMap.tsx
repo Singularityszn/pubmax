@@ -3733,6 +3733,11 @@ export default function PubMap({
     const showsAcceptedArrivalReceipt =
       acceptedArrivalSource !== null
       && selectedVenue.id === acceptanceQuery().selectedVenueId;
+    const skeletonRevealRequest =
+      venueRevealRequest?.venueId === selectedVenue.id &&
+      !venueRevealRequest.interrupted
+        ? venueRevealRequest
+        : null;
 
     return (
       <>
@@ -3799,10 +3804,10 @@ export default function PubMap({
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton
             loadingLabel={selectedVenueLabels.loadingLabel}
-            revealForm={
-              venueRevealRequest?.venueId === selectedVenue.id &&
-              !venueRevealRequest.interrupted
-                ? venueRevealRequest.form
+            revealForm={skeletonRevealRequest?.form ?? null}
+            revealElapsedMs={
+              skeletonRevealRequest
+                ? Math.max(0, Date.now() - skeletonRevealRequest.startedAt)
                 : null
             }
           />
