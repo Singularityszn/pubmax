@@ -271,9 +271,9 @@ export default function LandingPage({
           <Link prefetch={false} href="/plan">Plan</Link>
           <Link prefetch={false} href="/tonight">Tonight</Link>
           <Link prefetch={false} href="/moment">Moment</Link>
-          <Link prefetch={false} href="/social">
-            {socialFriendsLaunchEnabled ? "Social" : "Social preview"}
-          </Link>
+          {socialFriendsLaunchEnabled ? (
+            <Link prefetch={false} href="/social">Social</Link>
+          ) : null}
           <Link prefetch={false} href="/u/you">You</Link>
         </nav>
 
@@ -509,9 +509,9 @@ export default function LandingPage({
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              <Link prefetch={false} href="/social">
-                {socialFriendsLaunchEnabled ? "Social" : "Social preview"}
-              </Link>
+              {socialFriendsLaunchEnabled ? (
+                <Link prefetch={false} href="/social">Social</Link>
+              ) : null}
               <Link prefetch={false} href="/pal">Pub Pal</Link>
               <Link prefetch={false} href="/choose-city">Pick your city</Link>
               <Link prefetch={false} href="/about">Our story</Link>

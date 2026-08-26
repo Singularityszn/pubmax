@@ -107,13 +107,12 @@ export default function SiteNav({
     serverNowTabHref,
   );
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const links = LINKS.map((link) => {
-    if (link.key === "now") return { ...link, href: nowHref };
-    if (link.key === "social" && !socialFriendsLaunchEnabled) {
-      return { ...link, label: "Social preview" };
-    }
-    return link;
-  });
+  const links = LINKS
+    .filter((link) => socialFriendsLaunchEnabled || link.key !== "social")
+    .map((link) => {
+      if (link.key === "now") return { ...link, href: nowHref };
+      return link;
+    });
 
   // The map is full-bleed with an overflow-hidden shell, so the bar floats
   // (fixed) over it. Every other page keeps the bar in normal flow.
