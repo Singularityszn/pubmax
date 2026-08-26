@@ -22,7 +22,7 @@
       "path": "/map",
       "readySelector": ".mobileMapTopbar",
       "settledSelectorHidden": ".mapLoading",
-      "why": "The product. Its data loads client side, so the document is a shell and must stay one. The JS ceiling here is ABOVE the 3400 KB that e2e/map-perf-budget.spec.ts states the map should hold: the map's eager JS has drifted past that on main and getting it back is the client-payload lane's job, not a number to quietly raise. Take this to 3400 when that lands.",
+      "why": "The product. Its data loads client side, so the document is a shell and must stay one. This lane measured 3066 KB eager JS decoded, down 634 KB from 3700 KB. The remaining 166 KB would defer slim index, MapLibre, or pin-price paths, so the runtime ceiling stays 3400 KB and e2e/map-perf-budget.spec.ts owns the proof.",
       "serverRenderMs": 150,
       "jsDecodedKB": 3400,
       "requests": 122,

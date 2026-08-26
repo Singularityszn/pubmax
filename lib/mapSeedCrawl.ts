@@ -82,6 +82,25 @@ export type CuratedCrawlHydration = {
   routeMapped: boolean;
 };
 
+export type CuratedCrawlHydrationSnapshot = Pick<
+  MapSeed,
+  "mode" | "builtIds" | "activeCrawl" | "filters" | "altStyle"
+>;
+
+export function sameCuratedCrawlHydrationSnapshot(
+  expected: CuratedCrawlHydrationSnapshot,
+  current: CuratedCrawlHydrationSnapshot,
+): boolean {
+  return (
+    expected.mode === current.mode &&
+    expected.builtIds.length === current.builtIds.length &&
+    expected.builtIds.every((id, index) => id === current.builtIds[index]) &&
+    expected.activeCrawl?.id === current.activeCrawl?.id &&
+    expected.filters === current.filters &&
+    expected.altStyle === current.altStyle
+  );
+}
+
 /** Apply a resolved crawl onto live PubMap state after the catalog chunk loads. */
 export async function curatedCrawlHydrationFromSeed(
   search: string,

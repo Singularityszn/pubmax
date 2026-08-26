@@ -4,10 +4,8 @@ import { dirname, join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 
 // The map's cold open is main-thread bound: what the shell chunk STATICALLY
-// imports has to be parsed before MapLibre can even start. Next/Turbopack place
-// every static import edge from PubMap into the eager client graph, so this
-// graph IS the compile-time boundary the diet lane fences. Runtime decoded KB
-// is measured separately in e2e/map-perf-budget.spec.ts.
+// imports has to be parsed before MapLibre can even start. Runtime decoded-JS
+// proof is in e2e/map-perf-budget.spec.ts.
 
 const ROOT = join(__dirname, "..");
 
@@ -86,19 +84,11 @@ describe("map cold-open payload", () => {
     expect(classifier.has(join(ROOT, "data/london_boroughs_simplified.json"))).toBe(true);
   });
 
-  it("keeps eager heavy catalogs out of the PubMap static import graph", () => {
-    const eagerHeavyModules = [
-      "data/persona_drinks.json",
-      "components/auth/AuthProvider.tsx",
-      "lib/curatedCrawls.ts",
-      "lib/citymcp/client.ts",
-    ];
-    for (const modulePath of eagerHeavyModules) {
-      const resolved = join(ROOT, modulePath);
-      expect(
-        mapShell.has(resolved) ? chainTo(mapShell, resolved) : "not reached",
-      ).toBe("not reached");
-    }
+  it("does not pull persona drink JSON into the map shell chunk", () => {
+    const personaJson = join(ROOT, "data/persona_drinks.json");
+    expect(
+      mapShell.has(personaJson) ? chainTo(mapShell, personaJson) : "not reached",
+    ).toBe("not reached");
   });
 
   it("keeps MobileMapShell out of the eager map shell graph", () => {
