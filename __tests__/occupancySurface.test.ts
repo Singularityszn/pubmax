@@ -48,9 +48,9 @@ function signedIn(): void {
   authState.session = { access_token: "token", user: { id: "user-a" } };
 }
 
-function render(): string {
+function render(props: { revealRecord?: boolean } = {}): string {
   return renderToStaticMarkup(
-    createElement(VenueOccupancyRow, { venueId: "venue-1" }),
+    createElement(VenueOccupancyRow, { venueId: "venue-1", ...props }),
   );
 }
 
@@ -122,6 +122,22 @@ describe("occupancy venue surface", () => {
     const aged = render();
     expect(aged).toContain("No fresh reading");
     expect(aged).toContain("venueOccupancyReading--empty");
+  });
+
+  it("reveals only a dated live reading", () => {
+    signedIn();
+    occupancyState.reading = {
+      now: "some-seats",
+      ageMinutes: 12,
+      reportersLast90: 1,
+      degraded: false,
+      state: "fresh",
+      id: "occ-1",
+    };
+
+    const html = render({ revealRecord: true });
+    expect(html).toContain('class="venueOccupancyReading venueRevealRecord"');
+    expect(html).toContain('data-reveal-delay="2"');
   });
 
   it("says a failed read could not be checked, never that nobody reported", () => {

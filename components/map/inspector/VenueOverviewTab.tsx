@@ -350,7 +350,11 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
-      <VenueOccupancyRow venueId={venue.id} active={tab === "overview"} />
+      <VenueOccupancyRow
+        venueId={venue.id}
+        active={tab === "overview"}
+        revealRecord={revealRecord}
+      />
       {/* Visit Report peek: newest accounts only. The full composer stays on
           Lore (VenueStoryTab), so Overview never grows a second rating system. */}
       <VisitReportPanel

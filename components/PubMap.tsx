@@ -3797,7 +3797,12 @@ export default function PubMap({
         {selectedDetailStatus === "loading" ? (
           <VenueSheetSkeleton
             loadingLabel={selectedVenueLabels.loadingLabel}
-            revealBloom={venueRevealRequest?.venueId === selectedVenue.id}
+            revealForm={
+              venueRevealRequest?.venueId === selectedVenue.id &&
+              !venueRevealRequest.interrupted
+                ? venueRevealRequest.form
+                : null
+            }
           />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (

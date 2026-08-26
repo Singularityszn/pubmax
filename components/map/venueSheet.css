@@ -1488,13 +1488,12 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
   .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
     animation-delay: calc(320ms - var(--venue-reveal-elapsed, 0ms));
   }
-}
-
-.venueReveal--interrupted .venueRevealBloom,
-.venueReveal--interrupted .venueRevealPriceChrome--drop,
-.venueReveal--interrupted .venueRevealPriceChrome--slide,
-.venueReveal--interrupted .venueRevealRecord {
-  animation: none !important;
-  opacity: 1 !important;
-  transform: none !important;
+  .venueReveal--interrupted .venueRevealBloom,
+  .venueReveal--interrupted .venueRevealPriceChrome--drop,
+  .venueReveal--interrupted .venueRevealPriceChrome--slide,
+  .venueReveal--interrupted .venueRevealRecord {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

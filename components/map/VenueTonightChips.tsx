@@ -119,7 +119,12 @@ export default function VenueTonightChips(
       {kinds.map((kind) => {
         const Icon = KIND_ICON[kind];
         return (
-          <span key={kind} className="venueTonightChip" data-kind={kind}>
+          <span
+            key={kind}
+            className={revealDatedCheck ? "venueTonightChip venueRevealRecord" : "venueTonightChip"}
+            data-kind={kind}
+            data-reveal-delay={revealDatedCheck ? "2" : undefined}
+          >
             <Icon size={12} aria-hidden="true" />
             {WHATS_ON_KIND_META[kind].badgeLabel}
           </span>

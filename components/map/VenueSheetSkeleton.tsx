@@ -2,18 +2,26 @@
 // Matches the sheet's tab + stamp layout so the loading state feels like the
 // real panel, not a bare "Loading…" line.
 
+import type { VenueRevealForm } from "@/lib/venueReveal";
+
 export default function VenueSheetSkeleton({
   loadingLabel = "Loading full venue details…",
-  revealBloom = false,
+  revealForm = null,
 }: {
   loadingLabel?: string;
-  revealBloom?: boolean;
+  revealForm?: VenueRevealForm | null;
 }) {
+  const revealClasses = revealForm ? ` venueReveal venueReveal--${revealForm}` : "";
   return (
-    <div className="venueSheetSkeleton" role="status" aria-live="polite" aria-busy="true">
+    <div
+      className={`venueSheetSkeleton${revealClasses}`}
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
       <span className="venueSheetSkeletonLabel">{loadingLabel}</span>
       <div
-        className={`venueSheetSkeletonTitle${revealBloom ? " venueRevealBloom" : ""}`}
+        className={`venueSheetSkeletonTitle${revealForm ? " venueRevealBloom" : ""}`}
         aria-hidden="true"
       />
       <div className="venueSheetSkeletonMeta" aria-hidden="true">

@@ -1,5 +1,8 @@
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
+import VenueSheetSkeleton from "@/components/map/VenueSheetSkeleton";
 import {
   revealForm,
   venuePriceRevealMotion,
@@ -111,5 +114,17 @@ describe("venueRevealRootClasses", () => {
     expect(
       venueRevealRootClasses({ active: true, form: "short", interrupted: false }),
     ).toBe("venueReveal venueReveal--short");
+  });
+});
+
+describe("VenueSheetSkeleton", () => {
+  it("uses the reveal root for the loading bloom", () => {
+    const html = renderToStaticMarkup(
+      createElement(VenueSheetSkeleton, { revealForm: "full" }),
+    );
+    expect(html).toContain(
+      'class="venueSheetSkeleton venueReveal venueReveal--full"',
+    );
+    expect(html).toContain('class="venueSheetSkeletonTitle venueRevealBloom"');
   });
 });

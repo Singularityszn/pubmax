@@ -31,12 +31,14 @@ export type VenueOccupancyRowProps = {
   venueId: string;
   active?: boolean;
   surface?: "venue-sheet" | "pal";
+  revealRecord?: boolean;
 };
 
 export default function VenueOccupancyRow({
   venueId,
   active = true,
   surface = "venue-sheet",
+  revealRecord = false,
 }: VenueOccupancyRowProps) {
   const { user, session, identityResolved } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
@@ -95,16 +97,22 @@ export default function VenueOccupancyRow({
 
   const shown = receiptLine ?? line;
   const empty = !receiptLine && !reading?.now;
+  const revealDatedReading =
+    revealRecord && !receiptLine && reading?.now != null && reading.ageMinutes != null;
 
   return (
     <section className="venueOccupancy" aria-label="How busy it is right now">
       <h3 className="venueOccupancyQuestion">How busy is it right now?</h3>
       <p
         className={
-          empty
-            ? "venueOccupancyReading venueOccupancyReading--empty"
-            : "venueOccupancyReading"
+          [
+            empty ? "venueOccupancyReading venueOccupancyReading--empty" : "venueOccupancyReading",
+            revealDatedReading ? "venueRevealRecord" : "",
+          ]
+            .filter(Boolean)
+            .join(" ")
         }
+        data-reveal-delay={revealDatedReading ? "2" : undefined}
       >
         {shown}
       </p>
@@ -158,4 +166,3 @@ export default function VenueOccupancyRow({
     </section>
   );
 }
-
