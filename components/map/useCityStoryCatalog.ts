@@ -51,33 +51,28 @@ export function useCityStoryCatalog(
     if (!enabled) return;
     const requestedCity = cityId;
     let cancelled = false;
-    void Promise.all([
+    void Promise.allSettled([
       curatedCrawlsForCityAsync(requestedCity),
       landmarksForCityAsync(requestedCity),
       storyBandsForCityAsync(requestedCity),
-    ])
-      .then(([curatedCrawls, landmarks, storyBands]) => {
-        if (cancelled) return;
-        setCatalog({
-          cityId: requestedCity,
-          curatedCrawls,
-          landmarks,
-          storyBands,
-          ready: true,
-          degraded: false,
-        });
-      })
-      .catch(() => {
-        if (cancelled) return;
-        setCatalog({
-          cityId: requestedCity,
-          curatedCrawls: [],
-          landmarks: [],
-          storyBands: [],
-          ready: true,
-          degraded: true,
-        });
+    ]).then((results) => {
+      if (cancelled) return;
+      const curatedCrawls =
+        results[0].status === "fulfilled" ? results[0].value : [];
+      const landmarks =
+        results[1].status === "fulfilled" ? results[1].value : [];
+      const storyBands =
+        results[2].status === "fulfilled" ? results[2].value : [];
+      const degraded = results.some((result) => result.status === "rejected");
+      setCatalog({
+        cityId: requestedCity,
+        curatedCrawls,
+        landmarks,
+        storyBands,
+        ready: true,
+        degraded,
       });
+    });
     return () => {
       cancelled = true;
     };

@@ -24,12 +24,8 @@ import {
   type ReactNode,
 } from "react";
 
-import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
-import {
-  bandMemberPubs,
-  STORY_BANDS as LONDON_STORY_BANDS,
-  type StoryBand,
-} from "@/lib/storyBands";
+import { nearestStoryPubs, type Landmark } from "@/lib/landmarks";
+import { bandMemberPubs, type StoryBand } from "@/lib/storyBands";
 import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
@@ -102,10 +98,12 @@ import {
   assembleSceneCritical,
   assembleSceneDeferred,
   applySelectionState,
+  buildLandmarks,
   buildTransitLines,
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
   UK_BASE_MIN_ZOOM,
+  type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
@@ -478,8 +476,8 @@ export default function PubMapCanvas({
   maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
-  cityLandmarks = londonLandmarks,
-  cityStoryBands = LONDON_STORY_BANDS,
+  cityLandmarks = [],
+  cityStoryBands = [],
   cityId = DEFAULT_CITY_ID,
   tonightOpportunities = [],
   tonightOverlayVisible = false,
@@ -985,6 +983,7 @@ export default function PubMapCanvas({
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
+  const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
 
   // Live route mirror so the camera helpers (and the Recenter control) read the
@@ -1739,6 +1738,7 @@ export default function PubMapCanvas({
       // style's glyph server has no Noto Sans Bold; Montserrat Medium is its
       // closest served weight.
       const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
+      textFontRef.current = textFont;
 
       // Assemble every source/layer in load-bearing paint order (see
       // components/map/canvas/buildScene.ts). The D2 tile-paint gate and the
@@ -2813,18 +2813,25 @@ export default function PubMapCanvas({
   useEffect(() => {
     if (!mapReady) return;
     applyToMap("landmarks:data", (map) => {
-      const source = map.getSource("landmarks") as maplibregl.GeoJSONSource | undefined;
       if (!showLandmarks) {
         if (map.getLayer("landmarks-label")) map.removeLayer("landmarks-label");
         if (map.getLayer("landmarks-icon")) map.removeLayer("landmarks-icon");
+        const source = map.getSource("landmarks");
         if (source) map.removeSource("landmarks");
         return;
       }
-      if (source) {
-        source.setData(landmarksGeoJSON);
-      } else {
-        map.addSource("landmarks", { type: "geojson", data: landmarksGeoJSON });
-      }
+      const addLayerOnce = (...args: Parameters<typeof map.addLayer>) => {
+        if (!map.getLayer(args[0].id)) map.addLayer(...args);
+      };
+      buildLandmarks({
+        map,
+        tokens: readTokens(),
+        dark: themeRef.current === "dark",
+        textFont: textFontRef.current,
+        addLayerOnce,
+        showLandmarks: true,
+        landmarksGeoJSON,
+      } as SceneCtx);
     });
   }, [mapReady, applyToMap, showLandmarks, landmarksGeoJSON]);
 

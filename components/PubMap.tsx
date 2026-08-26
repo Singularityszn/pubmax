@@ -1070,29 +1070,33 @@ export default function PubMap({
       altStyle: seed.altStyle,
       routeMapped: seed.routeMapped,
     };
-    void import("@/lib/mapSeedCrawl").then(
-      async ({
-        mapSeedNeedsCuratedCrawlLookup,
-        curatedCrawlHydrationFromSeed,
-        sameCuratedCrawlHydrationSnapshot,
-      }) => {
-        if (cancelled || !mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) return;
-        const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
-        if (
-          cancelled ||
-          !hydration ||
-          !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
-        ) {
-          return;
-        }
-        setMode("build");
-        setBuiltIds(hydration.crawl.venueIds);
-        setRouteMapped(true);
-        setFilters(hydration.filters);
-        setAltStyle(hydration.altStyle);
-        setActiveCrawl(hydration.crawl);
-      },
-    );
+    void import("@/lib/mapSeedCrawl")
+      .then(
+        async ({
+          mapSeedNeedsCuratedCrawlLookup,
+          curatedCrawlHydrationFromSeed,
+          sameCuratedCrawlHydrationSnapshot,
+        }) => {
+          if (cancelled || !mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) return;
+          const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
+          if (
+            cancelled ||
+            !hydration ||
+            !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
+          ) {
+            return;
+          }
+          setMode("build");
+          setBuiltIds(hydration.crawl.venueIds);
+          setRouteMapped(true);
+          setFilters(hydration.filters);
+          setAltStyle(hydration.altStyle);
+          setActiveCrawl(hydration.crawl);
+        },
+      )
+      .catch(() => {
+        // Catalog chunk failed — arrival keeps URL state without silent overwrite.
+      });
     return () => {
       cancelled = true;
     };
