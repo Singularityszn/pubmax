@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 
 type PaintedMapTapPoint = {
   kind: "pin" | "cluster";
@@ -16,7 +16,9 @@ async function paintedMarks(page: Page): Promise<PaintedMapTapPoint[]> {
   );
 }
 
-async function openVenueFromMap(page: Page): Promise<void> {
+async function openVenueFromMap(
+  page: Page,
+): Promise<{ inspector: Locator; tapStartedAt: number }> {
   await page.goto("/map");
   const inspector = page.locator(".venueInspector");
   await expect
@@ -26,21 +28,13 @@ async function openVenueFromMap(page: Page): Promise<void> {
     })
     .toBeGreaterThan(0);
 
-  await expect
-    .poll(
-      async () => {
-        if (await inspector.count()) return true;
-        const marks = await paintedMarks(page);
-        const target = marks.find((mark) => mark.kind === "pin") ?? marks[0];
-        if (!target) return false;
-        await page.mouse.click(target.x, target.y);
-        await page.waitForTimeout(target.kind === "pin" ? 400 : 900);
-        return (await inspector.count()) > 0;
-      },
-      { message: "a painted map pin opens venue detail", timeout: 90_000 },
-    )
-    .toBe(true);
+  const marks = await paintedMarks(page);
+  const target = marks.find((mark) => mark.kind === "pin");
+  if (!target) throw new Error("map painted no tappable venue pin");
+  const tapStartedAt = await page.evaluate(() => performance.now());
+  await page.mouse.click(target.x, target.y);
   await expect(inspector).toBeVisible();
+  return { inspector, tapStartedAt };
 }
 
 test.describe("venue reveal reduced motion", () => {
@@ -80,8 +74,17 @@ test.describe("venue reveal reduced motion", () => {
       window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
     });
     await page.setViewportSize({ width: 390, height: 844 });
-    await openVenueFromMap(page);
-    const inspector = page.locator(".venueInspector");
+    const { inspector, tapStartedAt } = await openVenueFromMap(page);
+    await page.waitForFunction(
+      () => document.querySelector(".venueInspector")?.classList.contains("venueReveal") === true,
+      undefined,
+      { timeout: 200, polling: 10 },
+    );
+    const revealDelay = await page.evaluate(
+      (startedAt) => performance.now() - startedAt,
+      tapStartedAt,
+    );
+    expect(revealDelay).toBeLessThanOrEqual(200);
     const figure = inspector.locator(".priceBadge").first();
     await expect(figure).toBeVisible();
     await expect.poll(() => figure.evaluate((node) => getComputedStyle(node).animationName)).not.toMatch(

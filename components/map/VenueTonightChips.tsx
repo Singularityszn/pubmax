@@ -112,6 +112,7 @@ export default function VenueTonightChips(
   }, [id]);
 
   if (kinds.length === 0) return null;
+  const revealDatedCheck = revealChecked && asOf !== null;
 
   return (
     <div className="venueTonightChips" aria-label="On tonight at this venue">
@@ -125,8 +126,8 @@ export default function VenueTonightChips(
         );
       })}
       <span
-        className={revealChecked ? "venueTonightChecked venueRevealRecord" : "venueTonightChecked"}
-        data-reveal-delay={revealChecked ? "2" : undefined}
+        className={revealDatedCheck ? "venueTonightChecked venueRevealRecord" : "venueTonightChecked"}
+        data-reveal-delay={revealDatedCheck ? "2" : undefined}
       >
         {checkedLabel(asOf).toLowerCase()}
       </span>
