@@ -12,10 +12,15 @@ let personaModulePromise: Promise<PersonaModule> | null = null;
 export async function loadPersonaDrinksModule(): Promise<PersonaModule> {
   if (personaModule) return personaModule;
   if (!personaModulePromise) {
-    personaModulePromise = import("@/lib/personaDrinks").then((mod) => {
-      personaModule = mod;
-      return mod;
-    });
+    personaModulePromise = import("@/lib/personaDrinks")
+      .then((mod) => {
+        personaModule = mod;
+        return mod;
+      })
+      .catch((error) => {
+        personaModulePromise = null;
+        throw error;
+      });
   }
   return personaModulePromise;
 }

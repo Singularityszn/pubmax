@@ -95,8 +95,8 @@ export function useCrawlUrlSync(
     const preserveCrawlParam =
       crawlHold.current !== null &&
       crawlHold.current !== undefined &&
-      encoded === crawlHold.current.encodedAtMount;
-    if (!preserveCrawlParam) crawlHold.current = null;
+      holdSeededCrawlParam;
+    if (!holdSeededCrawlParam) crawlHold.current = null;
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => {
       const query = mergeCrawlUrlSearch(

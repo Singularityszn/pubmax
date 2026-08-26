@@ -1061,6 +1061,9 @@ export default function PubMap({
   }, [activeCrawl, altStyle, builtIds, filters, mode, routeMapped]);
   // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
   // before paint so shared ?crawl= links still map-first.
+  const [crawlHydrationPending, setCrawlHydrationPending] = useState(() =>
+    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
+  );
   useLayoutEffect(() => {
     let cancelled = false;
     const planSnapshot = {
@@ -1093,6 +1096,7 @@ export default function PubMap({
           setFilters(hydration.filters);
           setAltStyle(hydration.altStyle);
           setActiveCrawl(hydration.crawl);
+          setCrawlHydrationPending(false);
         },
       )
       .catch(() => {
@@ -1101,7 +1105,16 @@ export default function PubMap({
     return () => {
       cancelled = true;
     };
-  }, [arrivalSearch, cityId, seed, setBuiltIds, setFilters, setMode, setRouteMapped]);
+  }, [
+    arrivalSearch,
+    cityId,
+    seed,
+    setBuiltIds,
+    setCrawlHydrationPending,
+    setFilters,
+    setMode,
+    setRouteMapped,
+  ]);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
@@ -1973,7 +1986,7 @@ export default function PubMap({
       ],
     ),
     restoredMobileSession !== null,
-    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
+    crawlHydrationPending,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
@@ -2366,21 +2379,25 @@ export default function PubMap({
   useEffect(() => {
     if (!personaLensId) return;
     let cancelled = false;
-    void findPersonaByIdAsync(personaLensId).then((persona) => {
-      if (cancelled) return;
-      if (!persona) {
-        setActivePersona(null);
-        return;
-      }
-      const owns = personaHighlightsPubs(persona)
-        ? persona.drinkCategory === filters.drinkCategory
-        : filters.drinkCategory === "";
-      setActivePersona(owns ? persona : null);
-    });
+    void findPersonaByIdAsync(personaLensId)
+      .then((persona) => {
+        if (cancelled) return;
+        if (!persona) {
+          setActivePersona(null);
+          return;
+        }
+        const owns = personaHighlightsPubs(persona)
+          ? persona.drinkCategory === filters.drinkCategory
+          : filters.drinkCategory === "";
+        setActivePersona(owns ? persona : null);
+      })
+      .catch(() => {
+        if (!cancelled) selectPersona(null);
+      });
     return () => {
       cancelled = true;
     };
-  }, [personaLensId, filters.drinkCategory]);
+  }, [filters.drinkCategory, personaLensId, selectPersona]);
 
   const personaForCard = useMemo(() => {
     if (!personaLensId || !activePersona || activePersona.id !== personaLensId) {
@@ -2393,8 +2410,15 @@ export default function PubMap({
   }, [activePersona, filters.drinkCategory, personaLensId]);
 
   useEffect(() => {
-    if (personaLensId) void loadPersonaDrinksModule();
-  }, [personaLensId]);
+    if (!personaLensId) return;
+    let cancelled = false;
+    void loadPersonaDrinksModule().catch(() => {
+      if (!cancelled) selectPersona(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [personaLensId, selectPersona]);
 
   // Flip "Saved only". Re-read the saved set from localStorage on every toggle
   // (event handler, not an effect) so a venue saved elsewhere this session is
