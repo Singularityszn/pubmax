@@ -5,6 +5,7 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import type { DrinkCategory } from "@/lib/drinks";
+import type { VenueRevealForm } from "@/lib/sheetSnap";
 
 export {
   revealForm,

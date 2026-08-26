@@ -20,7 +20,10 @@ import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
-import type { VenueRevealRequest } from "@/lib/venueReveal";
+import {
+  venueRevealRootClasses,
+  type VenueRevealRequest,
+} from "@/lib/venueReveal";
 import { useVenueReveal } from "@/components/map/useVenueReveal";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
@@ -164,7 +167,6 @@ export default function VenueInspector({
     updateRevealPriceMotion,
     interruptReveal,
     revealRootRef,
-    rootClasses: revealRootClasses,
     revealStyle,
   } = useVenueReveal(revealInterrupted);
   const begunRevealSequenceRef = useRef<number | null>(null);
@@ -176,8 +178,7 @@ export default function VenueInspector({
       return;
     }
     if (begunRevealSequenceRef.current === revealRequest.sequence) return;
-    begunRevealSequenceRef.current = revealRequest.sequence;
-    beginReveal(
+    const began = beginReveal(
       revealRequest.venueId,
       revealRequest.rows,
       revealRequest.lane,
@@ -186,6 +187,7 @@ export default function VenueInspector({
         form: revealRequest.form,
       },
     );
+    if (began) begunRevealSequenceRef.current = revealRequest.sequence;
   }, [beginReveal, interruptReveal, revealRequest, venue.id]);
 
   useEffect(() => {
@@ -204,18 +206,27 @@ export default function VenueInspector({
       revealRequest.sequence === begunRevealSequenceRef.current &&
       !revealRequest.interrupted,
   );
+  const currentReveal = revealIsCurrent ? reveal : null;
   const revealVenueId =
-    revealIsCurrent && reveal.active
+    currentReveal?.active
       ? venue.id
       : null;
   const revealRecord =
-    revealIsCurrent && reveal.form === "full";
-  const revealRecordLate = revealRecord && !reveal.active;
+    currentReveal?.form === "full";
+  const revealRecordLate = revealRecord && !currentReveal?.active;
   const priceRevealMotionClass =
-    revealIsCurrent
-      ? reveal.priceMotionClass
+    currentReveal?.priceMotionClass ?? "";
+  // Keep a completed record class on a late-mounted inspector. Its negative
+  // animation delay places content at final values, while interruption still
+  // removes the class through revealIsCurrent.
+  const currentRevealRootClasses =
+    revealIsCurrent && currentReveal
+      ? venueRevealRootClasses({
+          active: true,
+          form: currentReveal.form,
+          interrupted: false,
+        })
       : "";
-  const currentRevealRootClasses = revealIsCurrent ? revealRootClasses : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(

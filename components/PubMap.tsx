@@ -2050,7 +2050,7 @@ export default function PubMap({
       setSheetDragY(null);
       if (reducedMotion) {
         setVenueRevealRequest(null);
-      } else if (!isUkBaseId(id) && venueById.has(id)) {
+      } else if (!isUkBaseId(id)) {
         const priceView = venueDrinkPriceView(
           communityPrices.byVenueId.get(id),
           experienceLens,

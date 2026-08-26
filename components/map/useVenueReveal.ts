@@ -90,7 +90,7 @@ export function useVenueReveal(externallyInterrupted = false) {
         revealRunningRef.current = false;
         clearTimer();
         setReveal(null);
-        return;
+        return false;
       }
       const requestedStartAt = options?.startedAt;
       const visualStartAt =
@@ -122,7 +122,7 @@ export function useVenueReveal(externallyInterrupted = false) {
           interrupted: false,
           active: false,
         });
-        return;
+        return true;
       }
       clearTimer();
       setReveal({
@@ -143,6 +143,7 @@ export function useVenueReveal(externallyInterrupted = false) {
         );
         timerRef.current = null;
       }, duration - elapsed);
+      return true;
     },
     [clearTimer, prefersReducedMotion],
   );
