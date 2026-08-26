@@ -70,7 +70,8 @@
     "merge:london-chains": "node scripts/merge_london_chain_scrapes.mjs",
     "deadcode": "knip",
     "harvest:run": "tsx scripts/harvest/run.mjs",
-    "harvest:uk-pubs": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs"
+    "harvest:uk-pubs": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs",
+    "harvest:uk-bars": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs --bars"
   },
   "dependencies": {
     "@capacitor/android": "^8.5.0",

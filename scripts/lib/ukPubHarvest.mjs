@@ -122,6 +122,10 @@ export function isPubLikeBar(tags) {
   return statedYes(tags.real_ale) || tags.microbrewery === "yes" || statedYes(tags.brewery);
 }
 
+export function isPlainBar(tags) {
+  return Boolean(tags && tags.amenity === "bar" && !isPubLikeBar(tags));
+}
+
 export function isHarvestableTags(tags) {
   if (!tags) return false;
   if (tags.amenity === "pub") return true;
@@ -189,11 +193,15 @@ function collectSocialTags(tags, sourceUrl, fetchedAt) {
  * @param {any} element
  * @param {{ fetchedAt: string }} options
  */
-export function seedRowFromElement(element, { fetchedAt }) {
+export function seedRowFromElement(element, { fetchedAt, lane = "pubs" } = {}) {
   const tags = element?.tags ?? {};
   const name = typeof tags.name === "string" ? tags.name.trim() : "";
   if (!name) return null;
-  if (!isHarvestableTags(tags)) return null;
+  if (lane === "plain-bars") {
+    if (!isPlainBar(tags)) return null;
+  } else if (!isHarvestableTags(tags)) {
+    return null;
+  }
 
   const lat = Number(element.lat ?? element.center?.lat);
   const lng = Number(element.lon ?? element.center?.lon);
@@ -234,18 +242,24 @@ export function seedRowFromElement(element, { fetchedAt }) {
  * @param {Iterable<any>} elements
  * @param {{ fetchedAt: string }} options
  */
-export function normalizeHarvestElements(elements, { fetchedAt }) {
+export function normalizeHarvestElements(elements, { fetchedAt, lane = "pubs" } = {}) {
   const byOsmId = new Map();
   let droppedUnnamed = 0;
   let droppedPlainBar = 0;
+  let droppedPubOrPubLike = 0;
   let droppedNoPoint = 0;
   for (const element of elements ?? []) {
     const tags = element?.tags ?? {};
-    if (tags.amenity === "bar" && !isPubLikeBar(tags)) {
+    if (lane === "plain-bars") {
+      if (tags.amenity === "pub" || isPubLikeBar(tags)) {
+        droppedPubOrPubLike += 1;
+        continue;
+      }
+    } else if (isPlainBar(tags)) {
       droppedPlainBar += 1;
       continue;
     }
-    const row = seedRowFromElement(element, { fetchedAt });
+    const row = seedRowFromElement(element, { fetchedAt, lane });
     if (!row) {
       const name = typeof tags.name === "string" ? tags.name.trim() : "";
       if (!name) droppedUnnamed += 1;
@@ -258,7 +272,12 @@ export function normalizeHarvestElements(elements, { fetchedAt }) {
   const rows = [...byOsmId.values()].sort((a, b) => a.osmId.localeCompare(b.osmId));
   return {
     rows,
-    drops: { unnamed: droppedUnnamed, plainBar: droppedPlainBar, noPoint: droppedNoPoint },
+    drops: {
+      unnamed: droppedUnnamed,
+      plainBar: droppedPlainBar,
+      pubOrPubLike: droppedPubOrPubLike,
+      noPoint: droppedNoPoint,
+    },
   };
 }
 
@@ -801,8 +820,19 @@ export function harvestSearchQuery(pub) {
     pub?.addressTags?.["addr:town"] ||
     pub?.addressTags?.["addr:village"] ||
     "";
-  const bits = [pub?.name, place, "UK pub official website history"].filter(Boolean);
+  const kind = pub?.amenity === "bar" ? "bar" : "pub";
+  const bits = [pub?.name, place, `UK ${kind} official website history`].filter(Boolean);
   return bits.join(" ");
+}
+
+export function pubsEnrichComplete(progress) {
+  if (!progress || typeof progress !== "object") return false;
+  const seedCount = Number(progress.seedCount);
+  const enrichedCount = Number(progress.enrichedCount);
+  if (!Number.isFinite(seedCount) || seedCount <= 0) return false;
+  if (!Number.isFinite(enrichedCount) || enrichedCount < seedCount) return false;
+  if (progress.mock === true) return false;
+  return progress.stage === "done" || progress.stage === "enrich";
 }
 
 export function seedSample(rows, limit = 100) {

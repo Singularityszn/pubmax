@@ -31,6 +31,7 @@ The run resumes by default.
 | `--allow-stale` | Accept an Overpass snapshot older than 48 hours |
 | `--limit N` | Cap rows (tests and dry runs) |
 | `--chunk=lat50.80_lon-0.70` | One grid cell |
+| `--bars` | Plain-bar lane. Seed from harvest Overpass raw. Enrich writes `data-harvest/bars-enriched/` |
 
 With no stage flag, the command enumerates then enriches.
 
@@ -41,9 +42,10 @@ area clip are `scripts/lib/ukOsmSeed.mjs`. The harvest query asks for
 `amenity=pub` and `amenity=bar` in each 1° cell, clipped to OSM relation
 62149 (United Kingdom).
 
-A bar is kept only when OSM states `real_ale`, `microbrewery=yes` or a
-`brewery` tag. A name that contains "pub" is not evidence. Plain bars are
-dropped and counted.
+A bar is kept in the pub seed only when OSM states `real_ale`,
+`microbrewery=yes` or a `brewery` tag. A name that contains "pub" is not
+evidence. Plain bars are dropped from that seed and counted. The bars
+wave (`--bars`) reads the same Overpass raw and keeps those plain bars.
 
 Output:
 
@@ -98,3 +100,22 @@ and honours `Retry-After`.
 - A failed Exa read is an empty observation list for that pub, not a
   guessed website.
 - Harvest data is not committed. Rebuild it with the command above.
+
+## Bars wave
+
+After the pub enrich finishes, run:
+
+```bash
+node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs --bars --enumerate
+node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs --bars --enrich
+```
+
+Or wait on the live pub run, then start the bars wave:
+
+```bash
+node scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs
+```
+
+Bars shards go to `data-harvest/bars-enriched/` with their own progress
+file, so they cannot overwrite the pub harvest. Same citation law. Same
+resume design.

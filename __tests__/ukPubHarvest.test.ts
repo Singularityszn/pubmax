@@ -24,10 +24,13 @@ import {
   enrichPub,
   estimateEta,
   harvestSearchQuery,
+  isPlainBar,
   isPubLikeBar,
+  pubsEnrichComplete,
   loadProgress,
   mockExaPayload,
   nextShardIndex,
+  normalizeHarvestElements,
   observationsFromExaOutput,
   observationsFromExaResults,
   officialWebsiteUrl,
@@ -87,6 +90,59 @@ describe("pub-like bar gate", () => {
 
   it("does not infer pub-like from a name", () => {
     expect(isPubLikeBar({ amenity: "bar", name: "The Red Lion Pub" })).toBe(false);
+  });
+
+  it("names a plain bar as amenity=bar that is not pub-like", () => {
+    expect(isPlainBar({ amenity: "bar" })).toBe(true);
+    expect(isPlainBar({ amenity: "bar", name: "The Vault" })).toBe(true);
+    expect(isPlainBar({ amenity: "bar", real_ale: "yes" })).toBe(false);
+    expect(isPlainBar({ amenity: "pub" })).toBe(false);
+  });
+});
+
+describe("plain-bars harvest lane", () => {
+  const fetchedAt = "2026-08-25T12:00:00.000Z";
+
+  it("keeps a named plain bar and drops pubs and pub-like bars", () => {
+    const { rows, drops } = normalizeHarvestElements(
+      [
+        element({ tags: { amenity: "bar", name: "The Vault" } }),
+        element({ id: 2, tags: { amenity: "pub", name: "The Test Arms" } }),
+        element({ id: 3, tags: { amenity: "bar", name: "Ale House", real_ale: "yes" } }),
+        element({ id: 4, tags: { amenity: "bar" } }),
+      ],
+      { fetchedAt, lane: "plain-bars" },
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      osmId: "node/42",
+      name: "The Vault",
+      amenity: "bar",
+      license: ODBL_LICENSE,
+      attribution: ODBL_ATTRIBUTION,
+      sourceUrl: "https://www.openstreetmap.org/node/42",
+    });
+    expect(drops.pubOrPubLike).toBe(2);
+    expect(drops.unnamed).toBe(1);
+  });
+
+  it("asks Exa for a UK bar, not a UK pub", () => {
+    expect(
+      harvestSearchQuery({
+        name: "The Vault",
+        amenity: "bar",
+        addressTags: { "addr:city": "Manchester" },
+      } as never),
+    ).toBe("The Vault Manchester UK bar official website history");
+  });
+
+  it("treats pubs enrich as complete only when the count meets the seed", () => {
+    expect(pubsEnrichComplete({ stage: "enrich", seedCount: 38215, enrichedCount: 26300 })).toBe(false);
+    expect(pubsEnrichComplete({ stage: "enrich", seedCount: 38215, enrichedCount: 38215 })).toBe(true);
+    expect(pubsEnrichComplete({ stage: "done", seedCount: 38215, enrichedCount: 38215, mock: false })).toBe(
+      true,
+    );
+    expect(pubsEnrichComplete({ stage: "done", seedCount: 20, enrichedCount: 20, mock: true })).toBe(false);
   });
 });
 

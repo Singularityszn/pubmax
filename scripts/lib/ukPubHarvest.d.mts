@@ -93,7 +93,9 @@ export interface ExaClient {
 }
 
 export function isPubLikeBar(tags: Record<string, string> | undefined): boolean;
+export function isPlainBar(tags: Record<string, string> | undefined): boolean;
 export function isHarvestableTags(tags: Record<string, string> | undefined): boolean;
+export type HarvestLane = "pubs" | "plain-bars";
 export function buildHarvestOverpassQuery(
   bbox: HarvestBbox,
   options?: { timeout?: number },
@@ -101,12 +103,21 @@ export function buildHarvestOverpassQuery(
 export function osmObjectUrl(type: string, id: number | string): string | null;
 export function seedRowFromElement(
   element: unknown,
-  options: { fetchedAt: string },
+  options: { fetchedAt: string; lane?: HarvestLane },
 ): HarvestSeedRow | null;
 export function normalizeHarvestElements(
   elements: Iterable<unknown>,
-  options: { fetchedAt: string },
-): { rows: HarvestSeedRow[]; drops: { unnamed: number; plainBar: number; noPoint: number } };
+  options: { fetchedAt: string; lane?: HarvestLane },
+): {
+  rows: HarvestSeedRow[];
+  drops: { unnamed: number; plainBar: number; pubOrPubLike: number; noPoint: number };
+};
+export function pubsEnrichComplete(progress: {
+  stage?: string;
+  seedCount?: number;
+  enrichedCount?: number;
+  mock?: boolean;
+} | null): boolean;
 export function classifyExaHit(hit: ExaHit): { kind: HarvestObservation["kind"]; url: string } | null;
 export function observationsFromExaResults(
   pub: { osmId: string; name: string },

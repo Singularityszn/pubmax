@@ -99,8 +99,32 @@ function parseArgs(argv) {
     refresh: flags.has("--refresh"),
     fromOsmRaw: flags.has("--from-osm-raw"),
     allowStale: flags.has("--allow-stale"),
+    bars: flags.has("--bars"),
     limit: Number(valueOf("limit", "0")) || 0,
     chunk: valueOf("chunk"),
+  };
+}
+
+function harvestPaths(bars) {
+  if (bars) {
+    return {
+      lane: "plain-bars",
+      label: "bars",
+      seed: path.join(HARVEST_DIR, "uk_bars_seed.jsonl"),
+      enrichSeed: path.join(HARVEST_DIR, "uk_bars_seed.enriching.jsonl"),
+      sample: path.join(HARVEST_DIR, "uk_bars_seed.sample.jsonl"),
+      enriched: path.join(HARVEST_DIR, "bars-enriched"),
+      progressDir: path.join(HARVEST_DIR, "bars-enriched"),
+    };
+  }
+  return {
+    lane: "pubs",
+    label: "pubs",
+    seed: SEED_PATH,
+    enrichSeed: ENRICH_SEED_PATH,
+    sample: SAMPLE_PATH,
+    enriched: ENRICHED_DIR,
+    progressDir: HARVEST_DIR,
   };
 }
 
@@ -109,7 +133,7 @@ async function readRawFile(filePath) {
   return parseOverpassRawText(await readFile(filePath, "utf8"));
 }
 
-async function enumerateFromOverpass({ refresh, allowStale, chunkId, startedAt }) {
+async function enumerateFromOverpass({ refresh, allowStale, chunkId, startedAt, lane = "pubs", paths }) {
   const grid = buildGrid();
   const selected = chunkId ? grid.filter((chunk) => chunk.id === chunkId) : grid;
   if (chunkId && selected.length === 0) {
@@ -146,28 +170,28 @@ async function enumerateFromOverpass({ refresh, allowStale, chunkId, startedAt }
       chunksSkipped: skipped,
       chunksTotal: selected.length,
     };
-    await writeProgress(HARVEST_DIR, progress);
+    await writeProgress(paths?.progressDir ?? HARVEST_DIR, progress);
   }
   const fetchedAt = new Date().toISOString();
-  const { rows, drops } = normalizeHarvestElements(elements, { fetchedAt });
+  const { rows, drops } = normalizeHarvestElements(elements, { fetchedAt, lane });
   return { rows, drops, fetched, skipped };
 }
 
-async function enumerateFromOsmRaw({ startedAt }) {
-  if (!existsSync(OSM_RAW_DIR)) {
-    throw new Error(`No OSM raw pack at ${path.relative(ROOT, OSM_RAW_DIR)}`);
+async function enumerateFromDirectory(rawDir, { startedAt, lane = "pubs", paths, source }) {
+  if (!existsSync(rawDir)) {
+    throw new Error(`No OSM raw pack at ${path.relative(ROOT, rawDir)}`);
   }
   const { readdir } = await import("node:fs/promises");
-  const files = (await readdir(OSM_RAW_DIR)).filter((name) => name.endsWith(".json") && !name.startsWith("."));
+  const files = (await readdir(rawDir)).filter((name) => name.endsWith(".json") && !name.startsWith("."));
   const elements = [];
   for (const name of files) {
-    const raw = await readRawFile(path.join(OSM_RAW_DIR, name));
+    const raw = await readRawFile(path.join(rawDir, name));
     if (!raw) continue;
     elements.push(...(raw.elements ?? []));
   }
   const fetchedAt = new Date().toISOString();
-  const { rows, drops } = normalizeHarvestElements(elements, { fetchedAt });
-  await writeProgress(HARVEST_DIR, {
+  const { rows, drops } = normalizeHarvestElements(elements, { fetchedAt, lane });
+  await writeProgress(paths?.progressDir ?? HARVEST_DIR, {
     stage: "enumerate",
     seedCount: rows.length,
     enrichedCount: 0,
@@ -176,39 +200,57 @@ async function enumerateFromOsmRaw({ startedAt }) {
     startedAt,
     updatedAt: fetchedAt,
     attribution: ODBL_ATTRIBUTION,
-    source: "data/osm/uk/raw",
+    source,
     drops,
   });
   return { rows, drops, fetched: 0, skipped: files.length };
 }
 
-async function writeSeed(rows) {
+async function enumerateFromOsmRaw({ startedAt, lane = "pubs", paths }) {
+  return enumerateFromDirectory(OSM_RAW_DIR, {
+    startedAt,
+    lane,
+    paths,
+    source: "data/osm/uk/raw",
+  });
+}
+
+async function enumerateFromHarvestRaw({ startedAt, lane = "plain-bars", paths }) {
+  return enumerateFromDirectory(RAW_DIR, {
+    startedAt,
+    lane,
+    paths,
+    source: "data-harvest/raw",
+  });
+}
+
+async function writeSeed(rows, paths) {
   await mkdir(HARVEST_DIR, { recursive: true });
-  await writeJsonlAtomic(SEED_PATH, rows);
-  if (!existsSync(SAMPLE_PATH)) {
+  await writeJsonlAtomic(paths.seed, rows);
+  if (!existsSync(paths.sample)) {
     const sample = seedSample(rows, 100);
-    await writeJsonlAtomic(SAMPLE_PATH, sample);
-    console.log(`wrote sample ${sample.length} → ${path.relative(ROOT, SAMPLE_PATH)}`);
+    await writeJsonlAtomic(paths.sample, sample);
+    console.log(`wrote sample ${sample.length} → ${path.relative(ROOT, paths.sample)}`);
   }
-  console.log(`wrote ${rows.length} seed rows → ${path.relative(ROOT, SEED_PATH)}`);
+  console.log(`wrote ${rows.length} seed rows → ${path.relative(ROOT, paths.seed)}`);
 }
 
-async function loadSeed() {
-  if (!existsSync(SEED_PATH)) return [];
-  return readJsonl(SEED_PATH);
+async function loadSeed(paths) {
+  if (!existsSync(paths.seed)) return [];
+  return readJsonl(paths.seed);
 }
 
-async function loadSeedForEnrich() {
-  if (!existsSync(ENRICH_SEED_PATH) && existsSync(SEED_PATH)) {
-    await copyFile(SEED_PATH, ENRICH_SEED_PATH);
-    console.log(`froze enrich seed → ${path.relative(ROOT, ENRICH_SEED_PATH)}`);
+async function loadSeedForEnrich(paths) {
+  if (!existsSync(paths.enrichSeed) && existsSync(paths.seed)) {
+    await copyFile(paths.seed, paths.enrichSeed);
+    console.log(`froze enrich seed → ${path.relative(ROOT, paths.enrichSeed)}`);
   }
-  const pathToRead = existsSync(ENRICH_SEED_PATH) ? ENRICH_SEED_PATH : SEED_PATH;
+  const pathToRead = existsSync(paths.enrichSeed) ? paths.enrichSeed : paths.seed;
   if (!existsSync(pathToRead)) return [];
   return readJsonl(pathToRead);
 }
 
-async function enrichSeed(rows, { mock, startedAt, seedCount }) {
+async function enrichSeed(rows, { mock, startedAt, seedCount, paths }) {
   const client = createExaClient({ mock });
   if (!client) {
     const blocked = {
@@ -222,12 +264,12 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       attribution: ODBL_ATTRIBUTION,
       blockedReason: "EXA_API_KEY required to start enrichment",
     };
-    await writeProgress(HARVEST_DIR, blocked);
+    await writeProgress(paths.progressDir, blocked);
     return { blocked: true, enriched: 0, mock: false };
   }
 
-  await mkdir(ENRICHED_DIR, { recursive: true });
-  const startIndex = nextShardIndex(ENRICHED_DIR);
+  await mkdir(paths.enriched, { recursive: true });
+  const startIndex = nextShardIndex(paths.enriched);
   const startOffset = startIndex * SHARD_SIZE;
   const remaining = rows.slice(startOffset);
   const runStarted = Date.now();
@@ -242,7 +284,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       elapsedMs,
       done: enriched,
     });
-    await writeProgress(HARVEST_DIR, {
+    await writeProgress(paths.progressDir, {
       stage: "enrich",
       seedCount,
       enrichedCount: startOffset + enriched,
@@ -254,6 +296,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       attribution: ODBL_ATTRIBUTION,
       etaIso: eta.etaIso,
       ratePerHour: eta.ratePerHour,
+      lane: paths.label,
     });
     if (note) console.log(note);
   }
@@ -264,7 +307,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
 
   async function flush() {
     if (buffer.length === 0) return;
-    await writeShardAtomic(ENRICHED_DIR, shardIndex, buffer);
+    await writeShardAtomic(paths.enriched, shardIndex, buffer);
     const completeShards = shardIndex + 1;
     const elapsedMs = Date.now() - runStarted;
     const eta = estimateEta({
@@ -272,7 +315,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       elapsedMs,
       done: enriched,
     });
-    await writeProgress(HARVEST_DIR, {
+    await writeProgress(paths.progressDir, {
       stage: "enrich",
       seedCount,
       enrichedCount: startOffset + enriched,
@@ -284,6 +327,7 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
       attribution: ODBL_ATTRIBUTION,
       etaIso: eta.etaIso,
       ratePerHour: eta.ratePerHour,
+      lane: paths.label,
     });
     if (completeShards % 1 === 0 && (startOffset + enriched) % 500 === 0) {
       console.log(
@@ -330,23 +374,29 @@ async function enrichSeed(rows, { mock, startedAt, seedCount }) {
 export async function main(argv = process.argv.slice(2)) {
   loadEnv();
   const args = parseArgs(argv);
+  const paths = harvestPaths(args.bars);
   const startedAt = new Date().toISOString();
   await mkdir(HARVEST_DIR, { recursive: true });
 
   let rows = [];
   if (args.enumerate) {
-    const result = args.fromOsmRaw
-      ? await enumerateFromOsmRaw({ startedAt })
-      : await enumerateFromOverpass({
-          refresh: args.refresh,
-          allowStale: args.allowStale,
-          chunkId: args.chunk,
-          startedAt,
-        });
+    const result =
+      args.bars && !args.refresh
+        ? await enumerateFromHarvestRaw({ startedAt, lane: paths.lane, paths })
+        : args.fromOsmRaw
+          ? await enumerateFromOsmRaw({ startedAt, lane: paths.lane, paths })
+          : await enumerateFromOverpass({
+              refresh: args.refresh,
+              allowStale: args.allowStale,
+              chunkId: args.chunk,
+              startedAt,
+              lane: paths.lane,
+              paths,
+            });
     rows = result.rows;
     if (args.limit > 0) rows = rows.slice(0, args.limit);
-    await writeSeed(rows);
-    await writeProgress(HARVEST_DIR, {
+    await writeSeed(rows, paths);
+    await writeProgress(paths.progressDir, {
       stage: "enumerate",
       seedCount: rows.length,
       enrichedCount: 0,
@@ -358,45 +408,48 @@ export async function main(argv = process.argv.slice(2)) {
       drops: result.drops,
       chunksFetched: result.fetched,
       chunksSkipped: result.skipped,
+      lane: paths.label,
     });
     console.log(
-      `enumerate: ${rows.length} pubs (fetched ${result.fetched}, skipped ${result.skipped}); drops ${JSON.stringify(result.drops)}`,
+      `enumerate: ${rows.length} ${paths.label} (fetched ${result.fetched}, skipped ${result.skipped}); drops ${JSON.stringify(result.drops)}`,
     );
     console.log(`attribution: ${ODBL_ATTRIBUTION} (${MAX_SOURCE_AGE_MS / 3_600_000}h snapshot window)`);
   } else {
-    rows = args.enrich ? await loadSeedForEnrich() : await loadSeed();
+    rows = args.enrich ? await loadSeedForEnrich(paths) : await loadSeed(paths);
   }
 
   if (args.limit > 0) rows = rows.slice(0, args.limit);
 
-  if (!args.enrich) return { stage: "enumerate", seedCount: rows.length };
+  if (!args.enrich) return { stage: "enumerate", seedCount: rows.length, lane: paths.label };
 
   const mock = args.mock || !isExaConfigured();
   if (mock && !isExaConfigured()) {
     console.warn("EXA_API_KEY is not set. Enrichment will run in mock mode and write no live observations.");
   }
-  if (rows.length === 0) rows = await loadSeedForEnrich();
+  if (rows.length === 0) rows = await loadSeedForEnrich(paths);
   const outcome = await enrichSeed(rows, {
     mock,
     startedAt,
     seedCount: rows.length,
+    paths,
   });
   if (outcome.blocked) {
     console.warn("blocked: needs-decision [key=exa-key] EXA_API_KEY required to start enrichment");
     return outcome;
   }
-  await writeProgress(HARVEST_DIR, {
+  await writeProgress(paths.progressDir, {
     stage: "done",
     seedCount: rows.length,
     enrichedCount: outcome.enriched,
-    completeShards: nextShardIndex(ENRICHED_DIR),
-    lastCompleteShard: nextShardIndex(ENRICHED_DIR) - 1,
+    completeShards: nextShardIndex(paths.enriched),
+    lastCompleteShard: nextShardIndex(paths.enriched) - 1,
     startedAt,
     updatedAt: new Date().toISOString(),
     mock: outcome.mock,
     attribution: ODBL_ATTRIBUTION,
+    lane: paths.label,
   });
-  console.log(`enrich: ${outcome.enriched} records mock=${outcome.mock}`);
+  console.log(`enrich: ${outcome.enriched} ${paths.label} records mock=${outcome.mock}`);
   if (outcome.mock && !isExaConfigured()) {
     console.warn("blocked: needs-decision [key=exa-key] EXA_API_KEY required to start enrichment");
   }
