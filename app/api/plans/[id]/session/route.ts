@@ -4,13 +4,14 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { verifyCallerAuth } from "@/lib/authServer";
 import { isPlanId } from "@/lib/plan";
-import { claimPlanMembership } from "@/lib/planCrewIdentity";
+import { claimPlanMembership, recoverPlanMembership } from "@/lib/planCrewIdentity";
 import {
   attachPlanMemberSession,
   planMemberCapability,
   planMemberCookieCapability,
 } from "@/lib/planMemberCapability";
-import { planMemberIdentityResult } from "@/lib/planStore";
+import { planIdempotencyDigest, planMemberIdentityResult } from "@/lib/planStore";
+import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -47,6 +48,83 @@ export async function POST(request: Request, context: Context): Promise<Response
     role: result.identity.role,
     collaborationAuthorized: result.identity.collaborationAuthorized,
   }), request, id, token);
+}
+
+/** Restore a lost Plan capability from the signed-in account's stamped seat. */
+export async function PATCH(request: Request, context: Context): Promise<Response> {
+  const { id } = await context.params;
+  if (!isPlanId(id)) {
+    return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  }
+  const idempotencyKey = planMutationIdempotencyKey(request, {});
+  if (!idempotencyKey) {
+    return publicApiError(
+      PLAN_IDEMPOTENCY_ERROR.error,
+      PLAN_IDEMPOTENCY_ERROR.code,
+      400,
+    );
+  }
+  const auth = await verifyCallerAuth(request);
+  if (auth.status === "unavailable") {
+    return publicApiError(
+      "Account verification is temporarily unavailable.",
+      "PLAN_ACCOUNT_RECOVERY_UNAVAILABLE",
+      503,
+      { retryable: true },
+    );
+  }
+  if (auth.status !== "verified") {
+    return publicApiError(
+      "Sign in to restore this Plan.",
+      "UNAUTHENTICATED",
+      401,
+    );
+  }
+  const limiterKey = `plan-account-recovery:${hashIp(`${clientIp(request)}:${auth.identity.id}`)}`;
+  if (await isLimited(limiterKey, limiterKey, 20)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
+  const memberToken = planIdempotencyDigest(
+    `plan-account-session-recovery:${id}:${auth.identity.id}`,
+    idempotencyKey,
+  );
+  const recovered = await recoverPlanMembership(
+    id,
+    auth.identity.id,
+    memberToken,
+  );
+  if (!recovered.ok) {
+    if (recovered.error === "error") {
+      return publicApiError(
+        "Plan data is temporarily unavailable.",
+        "PLAN_ACCOUNT_RECOVERY_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
+    }
+    if (recovered.error === "conflict") {
+      return publicApiError(
+        "This Plan membership could not be restored.",
+        "PLAN_ACCOUNT_RECOVERY_CONFLICT",
+        409,
+      );
+    }
+    return publicApiError(
+      "No Plan membership was found for this account.",
+      "PLAN_ACCOUNT_MEMBERSHIP_NOT_FOUND",
+      404,
+    );
+  }
+  return attachPlanMemberSession(
+    jsonNoStore({
+      active: true,
+      role: recovered.identity.role,
+      collaborationAuthorized: recovered.identity.collaborationAuthorized,
+    }),
+    request,
+    id,
+    memberToken,
+  );
 }
 
 /** Bind a guest-created Plan to the account that now owns its member session. */

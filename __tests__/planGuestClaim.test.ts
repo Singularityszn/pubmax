@@ -34,7 +34,12 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 import { POST as CREATE } from "@/app/api/plans/route";
+import { POST as REDEEM_INVITE } from "@/app/api/plans/[id]/invites/redeem/route";
 import * as sessionRoute from "@/app/api/plans/[id]/session/route";
+import {
+  __resetPlanCollaboration,
+  planCollaborationStore,
+} from "@/lib/planCollaborationStore";
 import {
   __listMemoryPlanMemberUserIds,
   __resetMemoryPlans,
@@ -63,9 +68,10 @@ async function createGuestPlan() {
     }),
   }));
   expect(response.status).toBe(201);
-  const body = await response.json() as { plan: PlanState };
+  const body = await response.json() as { plan: PlanState; memberToken: string };
   return {
     id: body.plan.plan.id,
+    memberToken: body.memberToken,
     cookie: response.headers.get("set-cookie")?.split(";")[0] ?? "",
   };
 }
@@ -89,8 +95,28 @@ async function claim(planId: string, cookie: string): Promise<Response> {
   }), ctx(planId));
 }
 
+async function recover(planId: string, key = "recover-plan-membership"): Promise<Response> {
+  const handler = (sessionRoute as typeof sessionRoute & {
+    PATCH?: (request: Request, context: ReturnType<typeof ctx>) => Promise<Response>;
+  }).PATCH;
+  if (!handler) {
+    return new Response(JSON.stringify({ code: "PLAN_ACCOUNT_RECOVERY_MISSING" }), {
+      status: 501,
+      headers: { "content-type": "application/json" },
+    });
+  }
+  return handler(new Request(`${PLAN_URL}/${planId}/session`, {
+    method: "PATCH",
+    headers: {
+      authorization: "Bearer verified-auth-session",
+      "idempotency-key": key,
+    },
+  }), ctx(planId));
+}
+
 beforeEach(() => {
   __resetMemoryPlans();
+  __resetPlanCollaboration();
   auth.status = "absent";
   auth.userId = "11111111-1111-4111-8111-111111111111";
   database.configured = false;
@@ -98,6 +124,115 @@ beforeEach(() => {
 });
 
 describe("guest Plan account claim", () => {
+  it("restores a claimed membership after its browser capability is lost", async () => {
+    const guest = await createGuestPlan();
+    auth.status = "verified";
+    expect((await claim(guest.id, guest.cookie)).status).toBe(200);
+    expect((await memoryPlanStore.updatePresence(
+      guest.id,
+      guest.memberToken,
+      "running_late",
+    )).ok).toBe(true);
+
+    const response = await recover(guest.id);
+
+    expect(response.status).toBe(200);
+    expect(await response.clone().json()).toEqual({
+      active: true,
+      role: "host",
+      collaborationAuthorized: true,
+    });
+    const recoveredCookie = response.headers.get("set-cookie")?.split(";")[0] ?? "";
+    expect(recoveredCookie).toContain(`pubmax_plan_member_${guest.id}=`);
+    expect(response.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(
+      (await sessionRoute.GET(
+        new Request(`${PLAN_URL}/${guest.id}/session`, {
+          headers: { cookie: guest.cookie },
+        }),
+        ctx(guest.id),
+      )).json(),
+    ).resolves.toEqual({ active: false });
+    expect(
+      (await sessionRoute.GET(
+        new Request(`${PLAN_URL}/${guest.id}/session`, {
+          headers: { cookie: recoveredCookie },
+        }),
+        ctx(guest.id),
+      )).json(),
+    ).resolves.toMatchObject({ active: true, role: "host" });
+    expect((await memoryPlanStore.get(guest.id))?.crew[0]?.status).toBe("running_late");
+
+    const replay = await recover(guest.id);
+    expect(replay.status).toBe(200);
+    expect(replay.headers.get("set-cookie")?.split(";")[0]).toBe(recoveredCookie);
+  });
+
+  it("does not recover another account or a signed-out visitor", async () => {
+    const guest = await createGuestPlan();
+    auth.status = "verified";
+    expect((await claim(guest.id, guest.cookie)).status).toBe(200);
+
+    auth.userId = "22222222-2222-4222-8222-222222222222";
+    const wrongAccount = await recover(guest.id, "wrong-account-recovery");
+    expect(wrongAccount.status).toBe(404);
+    expect(wrongAccount.headers.get("set-cookie")).toBeNull();
+
+    auth.status = "absent";
+    const signedOut = await recover(guest.id, "signed-out-recovery");
+    expect(signedOut.status).toBe(401);
+    expect(signedOut.headers.get("set-cookie")).toBeNull();
+  });
+
+  it("keeps a private invite pending until the recovered guest redeems it", async () => {
+    const plan = await createGuestPlan();
+    const collaboration = planCollaborationStore();
+    const invite = await collaboration.createInvite(plan.id, plan.memberToken, {
+      expiresInMinutes: 30,
+      idempotencyKey: "lost-guest-private-invite",
+    });
+    expect(invite.ok).toBe(true);
+    if (!invite.ok) return;
+    auth.status = "verified";
+    const guest = await memoryPlanStore.join(plan.id, "Priya", {
+      collaborationAuthorized: false,
+      idempotencyKey: "lost-guest-account-seat",
+      userId: auth.userId,
+    });
+    expect(guest.ok).toBe(true);
+
+    const recovered = await recover(plan.id, "lost-guest-recovery");
+    expect(recovered.status).toBe(200);
+    const recoveredCookie = recovered.headers.get("set-cookie")?.split(";")[0] ?? "";
+    const before = await collaboration.list(plan.id, plan.memberToken);
+    expect(before.ok && before.invites[0]?.redeemedAt).toBeNull();
+
+    const invalid = await REDEEM_INVITE(
+      new Request(`${PLAN_URL}/${plan.id}/invites/redeem`, {
+        method: "POST",
+        headers: { cookie: recoveredCookie, "content-type": "application/json" },
+        body: JSON.stringify({ inviteToken: "invalid-invite" }),
+      }),
+      ctx(plan.id),
+    );
+    expect(invalid.status).toBe(404);
+    const afterFailure = await collaboration.list(plan.id, plan.memberToken);
+    expect(afterFailure.ok && afterFailure.invites[0]?.redeemedAt).toBeNull();
+
+    const redeemed = await REDEEM_INVITE(
+      new Request(`${PLAN_URL}/${plan.id}/invites/redeem`, {
+        method: "POST",
+        headers: { cookie: recoveredCookie, "content-type": "application/json" },
+        body: JSON.stringify({ inviteToken: invite.token }),
+      }),
+      ctx(plan.id),
+    );
+    expect(redeemed.status).toBe(200);
+    expect(await redeemed.json()).toMatchObject({ collaborationAuthorized: true });
+    const after = await collaboration.list(plan.id, plan.memberToken);
+    expect(after.ok && after.invites[0]?.redeemedAt).not.toBeNull();
+  });
+
   it("atomically binds the guest host membership and Plan owner to the signed-in account", async () => {
     const guest = await createGuestPlan();
     auth.status = "verified";

@@ -10,6 +10,10 @@ import { isPlanId } from "@/lib/plan";
 import {
   __listMemoryPlanMemberUserIds,
   claimMemoryPlanMembership,
+  hashPlanMemberToken,
+  planMemberIdentityResult,
+  recoverMemoryPlanMembership,
+  type PlanMemberIdentity,
   type PlanMembershipClaimOutcome,
 } from "@/lib/planStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
@@ -23,6 +27,10 @@ function cleanUserId(value: unknown): string {
 export type PlanMembershipClaimResult =
   | PlanMembershipClaimOutcome
   | "error";
+
+export type PlanMembershipRecoveryResult =
+  | { ok: true; identity: PlanMemberIdentity }
+  | { ok: false; error: "not_found" | "conflict" | "error" };
 
 /** Bind an existing Plan member capability to one auth account in one write. */
 export async function claimPlanMembership(
@@ -58,6 +66,52 @@ export async function claimPlanMembership(
       error instanceof Error ? error.message : error,
     );
     return "error";
+  }
+}
+
+/** Rotate capability for the signed-in account's existing Plan membership. */
+export async function recoverPlanMembership(
+  planId: string,
+  userId: string,
+  memberToken: string,
+  recoveredAt: Date = new Date(),
+): Promise<PlanMembershipRecoveryResult> {
+  if (!isPlanId(planId)) return { ok: false, error: "not_found" };
+  const uid = cleanUserId(userId);
+  if (!uid || !memberToken) return { ok: false, error: "not_found" };
+  if (!isSupabaseConfigured()) {
+    const identity = recoverMemoryPlanMembership(planId, uid, memberToken);
+    return identity
+      ? { ok: true, identity }
+      : { ok: false, error: "not_found" };
+  }
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "recover_plan_account_membership_atomic",
+      {
+        p_plan_id: planId,
+        p_user_id: uid,
+        p_member_token_hash: hashPlanMemberToken(memberToken),
+        p_recovered_at: recoveredAt.toISOString(),
+      },
+    );
+    if (error) throw new Error(error.message);
+    if (data !== "recovered" && data !== "replayed") {
+      return {
+        ok: false,
+        error: data === "conflict" ? "conflict" : "not_found",
+      };
+    }
+    const result = await planMemberIdentityResult(planId, memberToken);
+    return result.ok && result.identity
+      ? { ok: true, identity: result.identity }
+      : { ok: false, error: result.ok ? "not_found" : "error" };
+  } catch (error) {
+    console.error(
+      "[plans] membership recovery failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return { ok: false, error: "error" };
   }
 }
 

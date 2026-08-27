@@ -161,15 +161,22 @@ test("Copy invite link shows for the host's own session and never for an anonymo
   await expect(copyButton).toBeVisible();
   await copyButton.click();
   await expect(page.locator(".planHostInviteLink__status")).toHaveText("Invite link copied.");
+  const copiedUrl = await page.evaluate(() => navigator.clipboard.readText());
+  const copied = new URL(copiedUrl);
+  expect(copied.pathname).toMatch(/^\/plan\/[0-9a-f-]{36}$/);
+  expect(copied.hash).toMatch(/^#invite=[0-9a-f]{32}$/);
 
-  // A genuinely anonymous visitor to the exact same URL never sees it — no
-  // capability in this fresh browser context's memory, and the server page
-  // itself only ever carries the privacy-safe preview.
+  // A genuinely anonymous visitor follows the copied URL through the same
+  // canonical Crew join path as WhatsApp.
   const anonymous = await browser.newContext();
   const anonymousPage = await anonymous.newPage();
-  await anonymousPage.goto(page.url().replace(/#.*$/, ""));
+  await anonymousPage.goto(copiedUrl);
   await expect(anonymousPage.getByRole("heading", { name: /Who.s in/ })).toBeVisible();
   await expect(anonymousPage.getByRole("button", { name: "Copy invite link" })).toHaveCount(0);
+  await anonymousPage.getByPlaceholder("Your name").fill("Priya");
+  await anonymousPage.getByRole("button", { name: "I’m in" }).click();
+  await expect(anonymousPage.getByText("Priya", { exact: true })).toBeVisible();
+  await expect(anonymousPage).toHaveURL(copiedUrl.replace(/#.*$/, ""));
   await anonymous.close();
 });
 

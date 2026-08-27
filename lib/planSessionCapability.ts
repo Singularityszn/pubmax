@@ -1,10 +1,12 @@
 import type { PlanMemberRole } from "@/lib/plan";
+import { signedInActionFetch } from "@/lib/authedFetch";
 
 type VolatileCapability = { token: string; collaborationAuthorized: boolean; role: PlanMemberRole | null };
 
 const volatile = new Map<string, VolatileCapability>();
 const restoration = new Map<string, Promise<VolatileCapability | null>>();
 const legacyRecovery = new Map<string, string>();
+const accountRecoveryKeys = new Map<string, string>();
 export const PLAN_HTTP_ONLY_SESSION = "__pubmax_http_only_plan_session__";
 /** Keep invite and route surfaces from waiting forever on a stalled session read. */
 export const PLAN_SESSION_RESTORE_TIMEOUT_MS = 5_000;
@@ -31,6 +33,28 @@ async function fetchPlanSession(
   try {
     return await Promise.race([
       fetch(input, { ...init, signal: controller.signal }),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
+  }
+}
+
+async function fetchSignedInPlanSession(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response | null> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new PlanSessionUnavailableError());
+    }, PLAN_SESSION_RESTORE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      signedInActionFetch(input, { ...init, signal: controller.signal }),
       timeout,
     ]);
   } finally {
@@ -109,7 +133,33 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
         if (exchange.status !== 401 && exchange.status !== 403) return null;
         legacyRecovery.delete(planId);
       }
-      return await readResponse(await fetchPlanSession(`/api/plans/${planId}/session`, { cache: "no-store" }));
+      const currentResponse = await fetchPlanSession(
+        `/api/plans/${planId}/session`,
+        { cache: "no-store" },
+      );
+      const current = await readResponse(currentResponse);
+      if (current || !currentResponse.ok) return current;
+      const recoveryKey = accountRecoveryKeys.get(planId)
+        ?? globalThis.crypto?.randomUUID?.()
+        ?? `plan-recovery-${Date.now().toString(36)}`;
+      accountRecoveryKeys.set(planId, recoveryKey);
+      const recoveryResponse = await fetchSignedInPlanSession(
+        `/api/plans/${planId}/session`,
+        {
+          method: "PATCH",
+          cache: "no-store",
+          headers: { "idempotency-key": recoveryKey },
+        },
+      );
+      if (!recoveryResponse) {
+        accountRecoveryKeys.delete(planId);
+        return null;
+      }
+      const recovered = await readResponse(recoveryResponse);
+      if (recovered || recoveryResponse.status < 500) {
+        accountRecoveryKeys.delete(planId);
+      }
+      return recovered;
     } catch (error) {
       if (error instanceof PlanSessionUnavailableError) throw error;
       throw new PlanSessionUnavailableError();

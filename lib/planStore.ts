@@ -1020,6 +1020,26 @@ export function __listMemoryPlanMemberUserIds(
     .map((member) => ({ memberId: member.id, userId: member.userId }));
 }
 
+/** Rotate one account-owned memory membership without creating another seat. */
+export function recoverMemoryPlanMembership(
+  planId: string,
+  userId: string,
+  memberToken: string,
+): PlanMemberIdentity | null {
+  const plan = memoryPlans.get(planId);
+  if (!plan || !userId || !memberToken) return null;
+  const memberIndex = plan.crew.findIndex((member) => member.userId === userId);
+  const member = plan.crew[memberIndex];
+  if (!member) return null;
+  member.tokenHash = hashPlanMemberToken(memberToken);
+  member.updatedAt = stamp();
+  return {
+    memberId: member.id,
+    role: memberIndex === 0 ? "host" : "guest",
+    collaborationAuthorized: memberIndex === 0 || member.collaborationAuthorized,
+  };
+}
+
 export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | { ok: false; error: "error" };
 
 /**
