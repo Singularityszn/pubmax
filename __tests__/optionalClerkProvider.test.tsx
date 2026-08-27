@@ -43,12 +43,8 @@ function renderProvider() {
         {
           clerkIntegrationConfigured: true,
           appearance: undefined,
-          children: createElement(
-            "main",
-            { "data-testid": "product-surface" },
-            "Map chrome",
-          ),
         },
+        createElement("main", { "data-testid": "product-surface" }, "Map chrome"),
       ),
     );
   });
