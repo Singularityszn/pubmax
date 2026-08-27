@@ -150,6 +150,21 @@ test.describe("map keyboard and screen-reader venue path", () => {
     await dismissFirstRunChrome(page);
   });
 
+  test("keeps desktop MapLibre zoom controls at the 44px target floor", async ({
+    page,
+  }) => {
+    await page.goto("/map");
+
+    for (const name of ["Zoom in", "Zoom out"] as const) {
+      const control = page.getByRole("button", { name });
+      await expect(control).toBeVisible({ timeout: 30_000 });
+      const box = await control.boundingBox();
+      expect(box).not.toBeNull();
+      expect(box!.width).toBeGreaterThanOrEqual(44);
+      expect(box!.height).toBeGreaterThanOrEqual(44);
+    }
+  });
+
   test("tabs into venue list and opens a named venue without canvas hit-testing", async ({
     page,
   }) => {
