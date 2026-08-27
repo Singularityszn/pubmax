@@ -204,9 +204,8 @@ describe("out desktop grouping", () => {
 });
 
 describe("outUnmatchedListingsNotice", () => {
-  // When every listing is at an unlisted place, /out shows the quiet status
-  // line instead of a wall of untappable gig cards. The notice only speaks
-  // when SOME matched cards are already on screen ("N more…").
+  // Unmatched provider cards stay hidden. The notice still names what was
+  // hidden, even when no listing resolves to a PUBMAXX venue.
   const unmatched = (id: string, placeName: string, label = "Ticketmaster") =>
     row({
       id,
@@ -222,7 +221,7 @@ describe("outUnmatchedListingsNotice", () => {
     expect(outUnmatchedListingsNotice([matched], "tonight", "ready")).toBeNull();
   });
 
-  it("is silent when the match ran and nothing landed on a listed pub", () => {
+  it("counts and names listings when the match ran and none landed on a listed pub", () => {
     expect(
       outUnmatchedListingsNotice(
         [
@@ -234,7 +233,11 @@ describe("outUnmatchedListingsNotice", () => {
         "tonight",
         "ready",
       ),
-    ).toBeNull();
+    ).toMatchObject({
+      line: "4 listings tonight are at places we don't list yet.",
+      places: "Jazz Cafe, Up The Creek, Soul Mama and The Comedy Store.",
+      way: { href: "/tonight", label: "See what else is on tonight" },
+    });
   });
 
   it("says 'more' when the pub list is not empty, so the count is about the hidden rows alone", () => {
@@ -324,7 +327,7 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
-  it("stays silent when no matched card is served even with a pre-cap count", () => {
+  it("uses the pre-cap summary when no matched card is served", () => {
     expect(
       outUnmatchedListingsNotice(
         [unmatched("a", "The O2")],
@@ -337,7 +340,11 @@ describe("outUnmatchedListingsNotice", () => {
           unmatchedSources: ["Ticketmaster"],
         },
       ),
-    ).toBeNull();
+    ).toMatchObject({
+      line: "1 listing tonight is at a place we don't list yet.",
+      places: "The O2.",
+      way: { href: "/tonight", label: "See what else is on tonight" },
+    });
   });
 
   it("counts distinct places beyond the six names carried by the response", () => {

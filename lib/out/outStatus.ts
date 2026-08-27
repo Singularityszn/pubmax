@@ -1,7 +1,5 @@
 import type { OutResponse, OutStatus } from "@/lib/out/types";
-import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
-import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export const OUT_READY_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=0";
@@ -71,13 +69,6 @@ export function outListingsHealth(body: OutListingsBody): {
   return { status: body.status, reason: body.reason };
 }
 
-function matchedPubListingCount(events: readonly WhatsOnRow[]): number {
-  return events.reduce(
-    (count, row) => (canonicalOutVenueId(row.venueId) !== null ? count + 1 : count),
-    0,
-  );
-}
-
 /**
  * What /out says above the list, in order.
  *
@@ -113,9 +104,6 @@ export function outStatusLines(input: {
   if (body.events.length === 0) {
     lines.push(OUT_EMPTY_LINE);
     return lines;
-  }
-  if (body.venueMatch === "ready" && matchedPubListingCount(body.events) === 0) {
-    lines.push(OUT_EMPTY_LINE);
   }
   return lines;
 }
