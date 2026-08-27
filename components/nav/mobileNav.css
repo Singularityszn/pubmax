@@ -218,6 +218,13 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
     transform: translateY(110%);
   }
 
+  body:has(.mapStage):has(.mapArrivalCard) .mobileTabBar {
+    opacity: 0;
+    pointer-events: none;
+    visibility: hidden;
+    transform: translateY(110%);
+  }
+
   /* The on-screen keyboard. The bar is fixed to the LAYOUT viewport, which no
      phone browser shrinks for the keyboard, so it otherwise floats on top of
      the field being typed into - the captain's screenshot was the six tabs

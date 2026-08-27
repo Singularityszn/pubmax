@@ -102,27 +102,27 @@ Ship in the reviewed Task 1 and Task 2 batch.
 - Keeps TfL content in More → Transit.
 - Keeps Near me on Map edge.
 
-- [ ] **Step 1: Write failing drink-lane behaviour test**
+- [x] **Step 1: Write failing drink-lane behaviour test**
 
 Assert default Pints returns no resting chip. Assert an explicit whisky lens returns a chip named `Whisky`.
 
-- [ ] **Step 2: Write failing chrome ownership tests**
+- [x] **Step 2: Write failing chrome ownership tests**
 
 Assert Map edge renders Near me only. Assert mobile app attitude control is hidden. Update source contracts so TfL remains available through More → Transit, not as a second floating utility.
 
-- [ ] **Step 3: Run focused tests and verify RED**
+- [x] **Step 3: Run focused tests and verify RED**
 
 Run: `npx vitest run __tests__/mapChromeTiers.test.ts __tests__/mapChromeOneBar.test.ts __tests__/mapChromeDebris.test.ts __tests__/mobileChromeFit.test.ts __tests__/mobileMapPriceChrome.test.ts`
 
-- [ ] **Step 4: Apply minimal component and CSS changes**
+- [x] **Step 4: Apply minimal component and CSS changes**
 
 Render Map chip row only when an explicit drink lens or a useful Tonight chip exists. Remove TfL from `MapEdgeControls`. Hide `.mapCameraControls` at phone width while preserving MapLibre compass recovery.
 
-- [ ] **Step 5: Run focused tests and verify GREEN**
+- [x] **Step 5: Run focused tests and verify GREEN**
 
 Run the same focused Vitest command.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Commit message: `fix(mobile): calm resting map chrome`
 
@@ -136,23 +136,23 @@ Commit message: `fix(mobile): calm resting map chrome`
 - First Visit owns top bar plus arrival card.
 - Primary navigation returns after arrival is dismissed or answered.
 
-- [ ] **Step 1: Write failing shipped-style contract**
+- [x] **Step 1: Write failing shipped-style contract**
 
 Assert `.mobileTabBar` is hidden and cannot receive pointer events while `.mapArrivalCard` exists.
 
-- [ ] **Step 2: Run test and verify RED**
+- [x] **Step 2: Run test and verify RED**
 
 Run: `npx vitest run __tests__/mobileMapFirstVisitArrival.test.ts`
 
-- [ ] **Step 3: Add scoped CSS rule**
+- [x] **Step 3: Add scoped CSS rule**
 
 Hide only phone primary navigation during Map First Visit. Do not change other routes or analytics consent.
 
-- [ ] **Step 4: Run test and verify GREEN**
+- [x] **Step 4: Run test and verify GREEN**
 
 Run the same focused test.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 Commit message: `fix(mobile): give first visit one clear choice`
 
@@ -171,27 +171,27 @@ Commit message: `fix(mobile): give first visit one clear choice`
 - Produces: `.mapCanvasWrap[data-uk-base-status]` and existing `data-uk-base-count`.
 - Manifest or shard failure must not look like a valid empty viewport.
 
-- [ ] **Step 1: Write failing loader result tests**
+- [x] **Step 1: Write failing loader result tests**
 
 Assert manifest failure returns `unavailable`. Assert valid empty bounds return `ready` with zero rows. Assert a successful shard returns `ready` with pubs.
 
-- [ ] **Step 2: Run tests and verify RED**
+- [x] **Step 2: Run tests and verify RED**
 
 Run: `npx vitest run __tests__/ukBasePubs.test.ts __tests__/ukBaseColdRestore.test.ts`
 
-- [ ] **Step 3: Add typed load result**
+- [x] **Step 3: Add typed load result**
 
 Change viewport loading to return status beside pubs. Keep cold restore behaviour unchanged.
 
-- [ ] **Step 4: Publish hook state**
+- [x] **Step 4: Publish hook state**
 
 Set `zoom_required` below zoom 12, `suspended` during an experience lens, `loading` while viewport request is active, `ready` after a valid result, and `unavailable` after manifest or required shard failure.
 
-- [ ] **Step 5: Run tests and verify GREEN**
+- [x] **Step 5: Run tests and verify GREEN**
 
 Run the focused Vitest command again.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 Commit message: `fix(map): expose UK pub stream state`
 

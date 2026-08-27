@@ -7,6 +7,10 @@ const mobileMapShellCss = readFileSync(
   resolve(process.cwd(), "components/mobile/mobileMapShell.css"),
   "utf8",
 );
+const mobileNavCss = readFileSync(
+  resolve(process.cwd(), "components/nav/mobileNav.css"),
+  "utf8",
+);
 const mobileMapShellSource = readFileSync(
   resolve(process.cwd(), "components/mobile/MobileMapShell.tsx"),
   "utf8",
@@ -24,6 +28,10 @@ const firstVisitHideBlock =
   mobileMapShellCss.match(
     /body:has\(\.mapArrivalCard\) \.mobileMapUtilityCorner,[\s\S]*?display:\s*none;/,
   )?.[0] ?? "";
+const firstVisitTabBarHideBlock =
+  mobileNavCss.match(
+    /body:has\(\.mapStage\):has\(\.mapArrivalCard\) \.mobileTabBar\s*\{[\s\S]*?\}/,
+  )?.[0] ?? "";
 
 describe("mobile map first-visit presentation", () => {
   it("leaves only the top bar and First visit card", () => {
@@ -32,6 +40,14 @@ describe("mobile map first-visit presentation", () => {
     expect(firstVisitHideBlock).toContain(".mobilePlanActivation");
     expect(firstVisitHideBlock).toContain(".mobileMapUtilityCorner");
     expect(firstVisitHideBlock).toMatch(/display:\s*none/);
+  });
+
+  it("hides primary navigation until the arrival choice", () => {
+    expect(firstVisitTabBarHideBlock, "First visit tab bar rule present").not.toBe("");
+    expect(firstVisitTabBarHideBlock).toMatch(/opacity:\s*0/);
+    expect(firstVisitTabBarHideBlock).toMatch(/pointer-events:\s*none/);
+    expect(firstVisitTabBarHideBlock).toMatch(/visibility:\s*hidden/);
+    expect(firstVisitTabBarHideBlock).toMatch(/transform:\s*translateY\(110%\)/);
   });
 
   it("locks map and chrome interaction until the arrival choice", () => {
