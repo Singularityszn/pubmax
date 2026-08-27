@@ -92,6 +92,16 @@ function eventRow(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
   };
 }
 
+const SOHO_PUB_INDEX = buildOutVenueMatchIndex([
+  {
+    id: "venue-soho-theatre",
+    name: "Soho Theatre",
+    borough: "Westminster",
+    lat: 51.5144,
+    lng: -0.1321,
+  },
+]);
+
 function openPlan(overrides: Partial<OutOpenPlan> = {}): OutOpenPlan {
   return {
     crewId: "50000000-0000-4000-8000-000000000001",
@@ -183,6 +193,7 @@ describe("buildOutResponse", () => {
         now: FIXTURE_NOW.getTime(),
         loadBaseline: () => [eventRow({ venueId: "venue-soho-theatre" })],
         liveProviders: noLiveLane(),
+        loadVenueMatchIndex: async () => SOHO_PUB_INDEX,
       },
     );
     expect(body.status).toBe("ready");
@@ -431,6 +442,7 @@ describe("buildOutResponse", () => {
         now: FIXTURE_NOW.getTime(),
         loadBaseline: () => [eventRow({ venueId: "venue-soho-theatre" })],
         liveProviders: [],
+        loadVenueMatchIndex: async () => SOHO_PUB_INDEX,
       },
     );
     expect(body.events[0].venueId).toBe("venue-soho-theatre");
@@ -547,6 +559,7 @@ describe("the two lanes fold onto one listing", () => {
         liveProviders: [
           { name: "ticketmaster", isConfigured: () => true, fetchTonight: async () => [live] },
         ],
+        loadVenueMatchIndex: async () => SOHO_PUB_INDEX,
       },
     );
     expect(body.events).toHaveLength(1);
@@ -1088,12 +1101,12 @@ describe("the live lane is venue-matched at request time", () => {
     expect(JSON.stringify(body)).not.toContain("unreadable");
   });
 
-  it("does not re-match a row the bundled lane already matched", async () => {
+  it("does not re-match a row whose bundled pub id is still accepted", async () => {
     const bundled = eventRow({
       id: "events-tm-lex",
       sourceId: "tm-lex",
       placeName: "The Lexington",
-      venueId: "venue-from-refresh",
+      venueId: "venue-1d1tez",
       lat: 51.5326,
       lng: -0.1119,
     });
@@ -1107,7 +1120,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].venueId).toBe("venue-from-refresh");
+    expect(body.events[0].venueId).toBe("venue-1d1tez");
   });
 
   it("does not promote an unresolved bundled row through the weaker live matcher", async () => {
@@ -1130,5 +1143,29 @@ describe("the live lane is venue-matched at request time", () => {
     );
     expect(body.events[0].venueId).toBeUndefined();
     expect(body.unmatchedCount).toBe(1);
+  });
+
+  it("keeps pre-resolved non-pub inventory out of primary pub cards", async () => {
+    const arena = eventRow({
+      id: "events-tm-arena",
+      sourceId: "tm-arena",
+      placeName: "The O2",
+      venueId: "arena-1",
+      lat: 51.503,
+      lng: 0.0032,
+    });
+    const body = await buildOutResponse(
+      { city: "london", day: "today" },
+      {
+        now: FIXTURE_NOW.getTime(),
+        loadBaseline: () => [arena],
+        liveProviders: [],
+        loadVenueMatchIndex: async () => slimIndex,
+      },
+    );
+
+    expect(body.events[0].venueId).toBeUndefined();
+    expect(body.unmatchedCount).toBe(1);
+    expect(groupOutListings(body.events)).toEqual([]);
   });
 });

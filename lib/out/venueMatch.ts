@@ -112,10 +112,11 @@ export type AttachOutVenuesResult = {
 };
 
 /**
- * Attach a venue to every row that carries none.
+ * Attach a pub venue to every row that carries none.
  *
- * A row the refresh already matched is left exactly as it is: the CLI had the
- * address and the postcode to confirm with, so its answer is the stronger one.
+ * A row the refresh already matched is left alone only when its id belongs to
+ * the accepted pub-only index. This prevents stale or non-pub inventory from
+ * bypassing the same eligibility gate used by request-time matching.
  */
 export function attachOutVenues(
   rows: readonly WhatsOnRow[],
@@ -125,18 +126,21 @@ export function attachOutVenues(
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
-    if (canonicalOutVenueId(row.venueId)) return row;
-    if (!mayMatch(row)) {
+    const heldVenueId = canonicalOutVenueId(row.venueId);
+    if (heldVenueId && isOutVenueId(index, heldVenueId)) return row;
+
+    const unresolved = heldVenueId ? { ...row, venueId: undefined } : row;
+    if (!mayMatch(unresolved)) {
       unmatched += 1;
-      return row;
+      return unresolved;
     }
-    const venueId = matchOutRowVenue(row, index);
+    const venueId = matchOutRowVenue(unresolved, index);
     if (!venueId) {
       unmatched += 1;
-      return row;
+      return unresolved;
     }
     matchedAtRequest += 1;
-    return { ...row, venueId };
+    return { ...unresolved, venueId };
   });
   return { rows: out, matchedAtRequest, unmatched };
 }

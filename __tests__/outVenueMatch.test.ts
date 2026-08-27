@@ -114,12 +114,26 @@ describe("attachOutVenues", () => {
     expect(result.unmatched).toBe(1);
   });
 
-  it("leaves a row the refresh already matched alone", () => {
-    const bundled = liveRow({ venueId: "venue-from-refresh", placeName: "The Dublin Castle" });
+  it("leaves a row with a pub id from the accepted index alone", () => {
+    const bundled = liveRow({ venueId: "venue-1d1tez", placeName: "The Dublin Castle" });
     const result = attachOutVenues([bundled], index);
-    expect(result.rows[0].venueId).toBe("venue-from-refresh");
+    expect(result.rows[0].venueId).toBe("venue-1d1tez");
     expect(result.matchedAtRequest).toBe(0);
     expect(result.unmatched).toBe(0);
+  });
+
+  it("rejects a pre-resolved id that is not in the pub-only index", () => {
+    const nonPub = liveRow({
+      venueId: "arena-1",
+      placeName: "The O2",
+      lat: 51.503,
+      lng: 0.0032,
+    });
+    const result = attachOutVenues([nonPub], index, () => false);
+
+    expect(result.rows[0].venueId).toBeUndefined();
+    expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(1);
   });
 
   it("reattaches a row whose venueId is only whitespace", () => {
