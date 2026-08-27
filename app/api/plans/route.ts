@@ -5,9 +5,8 @@ import { parseCityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isLimited } from "@/lib/pintDrops";
 import { cleanPlanAnchor } from "@/lib/plan";
 import { planStopResolver } from "@/lib/planRoute";
-import { linkPlanMemberUser, linkPlanOwnerUser } from "@/lib/planCrewIdentity";
+import { claimPlanMembership } from "@/lib/planCrewIdentity";
 import { planMemberIdentity, planRequestDigest, planStore } from "@/lib/planStore";
-import { profileStore } from "@/lib/profileStore";
 import {
   readPlanGroundingClaimsV2,
   verifyAnchoredPlanGroundingProofV2,
@@ -37,6 +36,61 @@ function anchorProofError(reason: PlanGroundingRejectionV2): { message: string; 
       return { message: "The grounding proof was issued for a different operation.", code: "PLAN_ANCHOR_PROOF_OPERATION_MISMATCH" };
     default:
       return { message: "That saved route could not be checked.", code: "PLAN_ANCHOR_PROOF_INVALID" };
+  }
+}
+
+function createEventTokens(input: {
+  anchor: ReturnType<typeof cleanPlanAnchor>;
+  anchorAnchored: boolean;
+  createdAt: string;
+  grounded: boolean;
+  planId: string;
+  routeReadyAt: string | null;
+  stopCount: number;
+}): Record<string, string> {
+  if (!input.anchor) {
+    return planLoopEventTokens({
+      planId: input.planId,
+      createdAt: input.createdAt,
+      stops: input.stopCount,
+      grounded: input.grounded,
+    });
+  }
+  if (input.anchor.outcome === "anchor-only") {
+    return {
+      planDraftSaved: planDraftSavedEventToken({
+        planId: input.planId,
+        savedAt: input.createdAt,
+        source: input.anchor.source,
+      }),
+      planAccepted: "",
+      meaningfulCoreAction: "",
+    };
+  }
+  return {
+    planDraftSaved: "",
+    ...planAcceptedEventTokens({
+      planId: input.planId,
+      acceptedAt: input.routeReadyAt ?? input.createdAt,
+      anchored: input.anchorAnchored,
+      source: input.anchor.source,
+    }),
+  };
+}
+
+async function claimSignedInPlanCreator(
+  request: Request,
+  planId: string,
+  memberToken: string,
+): Promise<void> {
+  try {
+    const hostUserId = await callerUserId(request);
+    if (!hostUserId) return;
+    const hostIdentity = await planMemberIdentity(planId, memberToken);
+    if (!hostIdentity?.memberId) return;
+    await claimPlanMembership(planId, hostIdentity.memberId, hostUserId);
+  } catch {
+    // Plan creation still succeeds. Account claim retries from ActivePlanMarker.
   }
 }
 
@@ -128,66 +182,23 @@ export async function POST(request: Request): Promise<Response> {
         );
   let eventTokens: Record<string, string>;
   try {
-    if (anchor) {
-      // A one-Stop draft emits plan_draft_saved and NEVER plan_accepted; a
-      // grounded three-Stop route emits plan_accepted (keyed by planId so it
-      // counts once across replays and later upgrades).
-      eventTokens = anchor.outcome === "anchor-only"
-        ? {
-            planDraftSaved: planDraftSavedEventToken({
-              planId: result.plan.plan.id,
-              savedAt: result.plan.plan.createdAt,
-              source: anchor.source,
-            }),
-            planAccepted: "",
-            meaningfulCoreAction: "",
-          }
-        : {
-            planDraftSaved: "",
-            ...planAcceptedEventTokens({
-              planId: result.plan.plan.id,
-              acceptedAt: result.plan.plan.routeReadyAt ?? result.plan.plan.createdAt,
-              anchored: anchorAnchored,
-              source: anchor.source,
-            }),
-          };
-    } else {
-      eventTokens = planLoopEventTokens({
-        planId: result.plan.plan.id,
-        createdAt: result.plan.plan.createdAt,
-        stops: result.plan.stops.length,
-        grounded,
-      });
-    }
+    eventTokens = createEventTokens({
+      anchor,
+      anchorAnchored,
+      createdAt: result.plan.plan.createdAt,
+      grounded,
+      planId: result.plan.plan.id,
+      routeReadyAt: result.plan.plan.routeReadyAt,
+      stopCount: result.plan.stops.length,
+    });
   } catch (error) {
     const unavailable = planSigningUnavailableResponse(error);
     if (unavailable) return unavailable;
     throw error;
   }
-  // WP7: when the host is signed in with a claimed handle, stamp owner + host
-  // member so a later claimed join can form the mutual follow pair.
-  try {
-    const hostUserId = await callerUserId(request);
-    if (hostUserId) {
-      const hostHandle = await profileStore().getHandleByUserId(hostUserId);
-      if (hostHandle) {
-        await linkPlanOwnerUser(result.plan.plan.id, hostUserId);
-        const hostIdentity = await planMemberIdentity(
-          result.plan.plan.id,
-          result.memberToken,
-        );
-        if (hostIdentity?.memberId) {
-          await linkPlanMemberUser(
-            result.plan.plan.id,
-            hostIdentity.memberId,
-            hostUserId,
-          );
-        }
-      }
-    }
-  } catch {
-    // Join still works without a stamped host; friend edges simply wait.
-  }
+  // Bind a signed-in creator to the host membership and Plan in one write.
+  // A public handle is not required to keep Plan ownership after signup.
+  await claimSignedInPlanCreator(request, result.plan.plan.id, result.memberToken);
 
   return attachPlanMemberSession(
     jsonNoStore({

@@ -933,6 +933,39 @@ export function __resetMemoryPlans(): void {
   planMemory.sequence = 0;
 }
 
+export type PlanMembershipClaimOutcome =
+  | "claimed"
+  | "already_claimed"
+  | "conflict"
+  | "not_found";
+
+/** Atomically bind one memory-store Plan membership to one auth account. */
+export function claimMemoryPlanMembership(
+  planId: string,
+  memberId: string,
+  userId: string,
+): PlanMembershipClaimOutcome {
+  const plan = memoryPlans.get(planId);
+  const member = plan?.crew.find((row) => row.id === memberId);
+  if (!plan || !member || !userId) return "not_found";
+  if (
+    plan.crew.some(
+      (row) => row.id !== memberId && row.userId === userId,
+    )
+  ) {
+    return "conflict";
+  }
+  const host = plan.crew[0]?.id === memberId;
+  if (member.userId && member.userId !== userId) return "conflict";
+  if (host && plan.ownerUserId && plan.ownerUserId !== userId) return "conflict";
+
+  const alreadyClaimed =
+    member.userId === userId && (!host || plan.ownerUserId === userId);
+  member.userId = userId;
+  if (host) plan.ownerUserId = userId;
+  return alreadyClaimed ? "already_claimed" : "claimed";
+}
+
 /** Test/dev seam: stamp a crew member's auth user (mirrors plan_crew_members.user_id). */
 export function __linkMemoryPlanMemberUser(
   planId: string,

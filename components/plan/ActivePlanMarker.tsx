@@ -2,6 +2,11 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
+import {
+  accountBoundFetch,
+  captureAccountAuth,
+} from "@/lib/accountBoundFetch";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   parsePlanCapabilitySnapshot,
@@ -23,6 +28,7 @@ import {
 // writes the same capability event (role "guest") the host gets at creation
 // (role "host"), so a mate who joins mid-visit picks this up live, no reload.
 export default function ActivePlanMarker({ id, startTime }: { id: string; startTime: string }) {
+  const { session, user } = useAuth();
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
       const event = planCapabilityEvent(id);
@@ -46,6 +52,41 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     // capability event and re-runs this effect with role set.
     void restorePlanCapability(id).catch(() => undefined);
   }, [id, startTime, role]);
+
+  useEffect(() => {
+    const auth = captureAccountAuth(user?.id ?? null, session);
+    if (!auth || (role !== "host" && role !== "guest")) {
+      return;
+    }
+    let cancelled = false;
+    let retryTimer: ReturnType<typeof setTimeout> | undefined;
+    const wait = (delayMs: number): Promise<void> => new Promise((resolve) => {
+      retryTimer = setTimeout(resolve, delayMs);
+    });
+    const claim = async (): Promise<void> => {
+      for (const delayMs of [0, 250, 1_000]) {
+        if (delayMs > 0) await wait(delayMs);
+        if (cancelled) return;
+        try {
+          const response = await accountBoundFetch(
+            auth,
+            `/api/plans/${id}/session`,
+            { method: "PUT" },
+          );
+          if (response.ok || (response.status !== 429 && response.status !== 503)) {
+            return;
+          }
+        } catch {
+          // A session or network race gets the same bounded retry as a 503.
+        }
+      }
+    };
+    void claim();
+    return () => {
+      cancelled = true;
+      if (retryTimer) clearTimeout(retryTimer);
+    };
+  }, [id, role, session, user?.id]);
 
   return null;
 }

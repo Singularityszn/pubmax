@@ -8,17 +8,53 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __linkMemoryPlanMemberUser,
   __listMemoryPlanMemberUserIds,
-  __setMemoryPlanOwnerUserId,
+  claimMemoryPlanMembership,
+  type PlanMembershipClaimOutcome,
 } from "@/lib/planStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const MEMBERS = "plan_crew_members";
-const PLANS = "plans";
 
 function cleanUserId(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+export type PlanMembershipClaimResult =
+  | PlanMembershipClaimOutcome
+  | "error";
+
+/** Bind an existing Plan member capability to one auth account in one write. */
+export async function claimPlanMembership(
+  planId: string,
+  memberId: string,
+  userId: string,
+): Promise<PlanMembershipClaimResult> {
+  if (!isPlanId(planId) || !isPlanId(memberId)) return "not_found";
+  const uid = cleanUserId(userId);
+  if (!uid) return "not_found";
+  if (!isSupabaseConfigured()) {
+    return claimMemoryPlanMembership(planId, memberId, uid);
+  }
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "claim_plan_membership",
+      {
+        p_plan_id: planId,
+        p_member_id: memberId,
+        p_user_id: uid,
+      },
+    );
+    if (error) throw new Error(error.message);
+    return data === "claimed" ||
+      data === "already_claimed" ||
+      data === "conflict" ||
+      data === "not_found"
+      ? data
+      : "error";
+  } catch {
+    return "error";
+  }
 }
 
 /** Stamp an auth user onto a crew member row. Idempotent for the same user. */
@@ -31,66 +67,8 @@ export async function linkPlanMemberUser(
   const uid = cleanUserId(userId);
   if (!uid) return false;
 
-  if (!isSupabaseConfigured()) {
-    return __linkMemoryPlanMemberUser(planId, memberId, uid);
-  }
-  try {
-    const { data, error } = await requireSupabaseAdmin()
-      .from(MEMBERS)
-      .update({ user_id: uid })
-      .eq("plan_id", planId)
-      .eq("id", memberId)
-      .is("user_id", null)
-      .select("id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return true;
-    // Already linked to this user counts as success; a different user is refused.
-    const existing = await requireSupabaseAdmin()
-      .from(MEMBERS)
-      .select("user_id")
-      .eq("plan_id", planId)
-      .eq("id", memberId)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-    return existing.data?.user_id === uid;
-  } catch {
-    return false;
-  }
-}
-
-/** Stamp the plan owner when the host creates while signed in. */
-export async function linkPlanOwnerUser(
-  planId: string,
-  userId: string,
-): Promise<boolean> {
-  if (!isPlanId(planId)) return false;
-  const uid = cleanUserId(userId);
-  if (!uid) return false;
-
-  if (!isSupabaseConfigured()) {
-    return __setMemoryPlanOwnerUserId(planId, uid);
-  }
-  try {
-    const { data, error } = await requireSupabaseAdmin()
-      .from(PLANS)
-      .update({ owner_user_id: uid })
-      .eq("id", planId)
-      .is("owner_user_id", null)
-      .select("id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return true;
-    const existing = await requireSupabaseAdmin()
-      .from(PLANS)
-      .select("owner_user_id")
-      .eq("id", planId)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-    return existing.data?.owner_user_id === uid;
-  } catch {
-    return false;
-  }
+  const outcome = await claimPlanMembership(planId, memberId, uid);
+  return outcome === "claimed" || outcome === "already_claimed";
 }
 
 /** Claimed-member candidates already stamped on this plan (internal only). */

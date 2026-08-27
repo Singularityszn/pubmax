@@ -11,22 +11,34 @@ export function planMemberCapability(request: Request, bodyToken: unknown): stri
   if (bearer && bearer !== PLAN_HTTP_ONLY_SESSION) return bearer;
   const planId = new URL(request.url).pathname.match(/^\/api\/plans\/([0-9a-f-]{36})(?:\/|$)/i)?.[1];
   if (planId) {
-    const cookieName = planMemberCookieName(planId);
-    const rawCookie = request.headers.get("cookie")?.split(";").map((part) => part.trim()).find((part) => part.startsWith(`${cookieName}=`));
-    if (rawCookie) {
-      try {
-        const token = decodeURIComponent(rawCookie.slice(cookieName.length + 1));
-        if (token) return token;
-      } catch {
-        // Malformed cookies are unauthorised, never fatal.
-      }
-    }
+    const cookieToken = planMemberCookieCapability(request, planId);
+    if (cookieToken) return cookieToken;
   }
   return typeof bodyToken === "string" && bodyToken.trim() && bodyToken !== PLAN_HTTP_ONLY_SESSION ? bodyToken.trim() : undefined;
 }
 
 export function planMemberCookieName(planId: string): string {
   return `pubmax_plan_member_${planId}`;
+}
+
+/** Read only the script-inaccessible Plan member cookie, never an auth bearer. */
+export function planMemberCookieCapability(
+  request: Request,
+  planId: string,
+): string | undefined {
+  const cookieName = planMemberCookieName(planId);
+  const rawCookie = request.headers
+    .get("cookie")
+    ?.split(";")
+    .map((part) => part.trim())
+    .find((part) => part.startsWith(`${cookieName}=`));
+  if (!rawCookie) return undefined;
+  try {
+    const token = decodeURIComponent(rawCookie.slice(cookieName.length + 1));
+    return token || undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /** Attach a path-scoped, script-inaccessible recovery session to create/join. */
