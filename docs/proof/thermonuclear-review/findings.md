@@ -4,7 +4,7 @@ Fixed point: `origin/main` at `d19b05cf8`.
 
 Reviewed candidate heads:
 
-- London v0 PR #1237 at `3325c3446`.
+- London v0 PR #1237 at `0a4ec594e`.
 - Native at `c56ad7b46`.
 - TfL D1 at `eeb663635`.
 - Voice D2 at `a57b0c55d` and `9e51fc398`.
@@ -14,13 +14,13 @@ Reviewed candidate heads:
 ### Open
 
 1. **P1: Mobile price publisher status is missing.** `components/PubMap.tsx` renders the selected Venue price and a freshness label in the mobile peek, but it does not name and link a known source or state that no publisher is recorded. Contributor attribution is also absent. `docs/VOICE.md` requires every price to show publisher status beside its figure. Test baseline with known source, baseline without source, contributor, and sourced-refresh lanes.
-2. **P2: Arrival greeting covers mobile navigation.** At `390 x 844` on deployed Tonight, the `ArrivalWelcome` toast covers the Day/Tonight navigation until it retires. `components/auth/arrivalWelcome.css` offsets only the top app bar even though its own contract says it must never cover a control. Add rendered phone-width coverage for a route with secondary navigation.
-3. **P2: Out matching policy is duplicated.** `lib/out/venueMatch.ts` adds `heldVenueMatchesRow` beside the canonical resolver and scans the full Venue index for each row. Move by-ID lookup into the canonical resolver index and keep one matcher.
-4. **P3: Locality generator has a weak executable seam.** `scripts/gen_london_localities.mjs` adds a one-line distance wrapper and changes direct-run failure behavior through `arguments.length`. Extract pure generator behavior from the executable entry point.
+2. **P2: Out matching policy is duplicated.** `lib/out/venueMatch.ts` adds `heldVenueMatchesRow` beside the canonical resolver and scans the full Venue index for each row. Move by-ID lookup into the canonical resolver index and keep one matcher.
+3. **P3: Locality generator has a weak executable seam.** `scripts/gen_london_localities.mjs` adds a one-line distance wrapper and changes direct-run failure behavior through `arguments.length`. Extract pure generator behavior from the executable entry point.
 
 ### Closed
 
 - `VenueOverviewTab` no longer renders the broken sentence boundary `price. as of ...`.
+- `ArrivalWelcome` now clears the phone Day/Tonight switch. The rendered `390 x 844` test proves separated geometry and centre-point hit ownership for both destinations.
 - D2 voice rewrite has no safe selective port. Main contains stronger current voice law and evolved copy. The old branch includes misleading price and error copy.
 
 ## Spec review
