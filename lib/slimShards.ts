@@ -239,7 +239,9 @@ export function createSlimShardLoader(
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       let payload: unknown;
-      const early = takeEarlyWarmJson(manifestPath);
+      const early = options.bypassInFlight
+        ? undefined
+        : takeEarlyWarmJson(manifestPath);
       if (early) {
         try {
           payload = await early;

@@ -212,7 +212,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
-  const [openNotice, setOpenNotice] = useState<string | null>(null);
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -246,12 +245,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     (venueId: string) => {
       trackEvent("concierge_result_tap");
       const target = resolvePalVenueOpenTarget(venueId, knownVenueIds);
-      if (target.kind === "fallback") {
-        setOpenNotice(target.notice);
-        router.push(target.href);
-        return;
-      }
-      setOpenNotice(null);
       router.push(target.href);
     },
     [knownVenueIds, router],
@@ -480,11 +473,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
       </header>
 
       <div className="palChatScroll" ref={scrollRef}>
-        {openNotice ? (
-          <p className="palChatOpenNotice" role="status">
-            {openNotice}
-          </p>
-        ) : null}
         <div className="palChatTranscript" aria-live="polite">
           {entries.map((entry) => {
             if (entry.kind === "user") {

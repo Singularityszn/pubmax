@@ -203,8 +203,15 @@ function normalizeRows(data: unknown): SlimVenue[] {
  * propagate — preserving the pre-offline contract for callers that show a
  * load-error state.
  */
-async function readSlimPayload(path: string): Promise<unknown> {
-  const early = takeEarlyWarmJson(path);
+export type SlimVenueLoadOptions = {
+  bypassInFlight?: boolean;
+};
+
+async function readSlimPayload(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): Promise<unknown> {
+  const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
@@ -220,10 +227,6 @@ async function readSlimPayload(path: string): Promise<unknown> {
   return response.json();
 }
 
-export type SlimVenueLoadOptions = {
-  bypassInFlight?: boolean;
-};
-
 export async function loadSlimVenuesFromPath(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -233,7 +236,7 @@ export async function loadSlimVenuesFromPath(
     if (inFlight) return inFlight;
   }
 
-  const pending = loadSlimVenuesFromPathUnshared(path);
+  const pending = loadSlimVenuesFromPathUnshared(path, options);
   slimLoadPromises.set(path, pending);
   const clearInFlight = () => {
     if (slimLoadPromises.get(path) === pending) slimLoadPromises.delete(path);
@@ -244,10 +247,11 @@ export async function loadSlimVenuesFromPath(
 
 async function loadSlimVenuesFromPathUnshared(
   path: string,
+  options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenue[]> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    const data: unknown = await readSlimPayload(path);
+    const data: unknown = await readSlimPayload(path, options);
     const rows = normalizeRows(data);
     if (rows.length > 0) void offlineCache.set(offlineKey, rows);
     return rows;
