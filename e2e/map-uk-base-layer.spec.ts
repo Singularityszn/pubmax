@@ -3,16 +3,16 @@ import { expect, test, type Page } from "@playwright/test";
 // The UK base layer's two load-bearing promises, asserted in a real browser
 // with a real MapLibre canvas (this spec runs in the `chromium-gl` project):
 //
-//   1. PAYLOAD. Nothing under /data/uk_base/ is fetched at first paint. The
-//      layer only exists past UK_BASE_MIN_ZOOM, which is what keeps the
-//      curated London overview costing exactly what it cost before it landed.
-//   2. THE FLYWHEEL. Crossing the gate paints base pubs, and tapping one opens
-//      the unverified sheet with the price-submission card on it - an unpriced
-//      pub is where the first price is worth the most.
+//   1. NORMAL ENTRY. London starts at UK_BASE_MIN_ZOOM, loads its bounded
+//      viewport shards, and publishes a ready state.
+//   2. PAYLOAD. A restored camera below UK_BASE_MIN_ZOOM fetches nothing under
+//      /data/uk_base/ and publishes zoom_required.
+//   3. THE FLYWHEEL. A base pub opens the unverified sheet with the
+//      price-submission card on it - an unpriced pub is where the first price
+//      is worth the most.
 //
-// `data-uk-base-count` on .mapCanvasWrap is how the layer is observable from
-// outside MapLibre; without it, "loaded but too quiet to see" and "never
-// loaded" are the same screenshot.
+// `data-uk-base-count` and `data-uk-base-status` on .mapCanvasWrap make the
+// layer observable from outside MapLibre.
 
 const VIEWPORT = { width: 390, height: 844 };
 
@@ -34,7 +34,7 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test("costs nothing until the camera crosses the zoom gate, then paints and takes a price", async ({
+test("loads London base pubs on normal entry, then paints and takes a price", async ({
   page,
 }) => {
   test.setTimeout(180_000);
@@ -44,19 +44,13 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   expect(response?.status()).toBe(200);
   const wrap = page.locator(".mapCanvasWrap");
   await expect(wrap).toBeVisible({ timeout: 20_000 });
-  await page.waitForTimeout(8000);
-
-  // (1) The whole layer - manifest included - is absent from first paint.
-  expect(requests).toEqual([]);
-  expect(await wrap.getAttribute("data-uk-base-count")).toBe("0");
   const curatedBefore = await wrap.getAttribute("data-venue-count");
 
-  // Cross the gate with the map's own keyboard zoom (no test-only hook).
-  await page.locator(".maplibregl-canvas").first().focus();
-  for (let press = 0; press < 3; press += 1) {
-    await page.keyboard.press("Equal");
-    await page.waitForTimeout(1400);
-  }
+  // (1) London starts at the stream gate, so a normal entry loads a bounded
+  // viewport without requiring a hidden zoom gesture.
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+    timeout: 30_000,
+  });
   await expect
     .poll(async () => Number(await wrap.getAttribute("data-uk-base-count")), { timeout: 30_000 })
     .toBeGreaterThan(0);
@@ -66,7 +60,7 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   expect(requests.length).toBeGreaterThan(1);
   expect(requests.length).toBeLessThanOrEqual(8);
 
-  // (2) A base pin opens the unverified sheet, and moving the selection STRAIGHT
+  // (3) A base pin opens the unverified sheet, and moving the selection STRAIGHT
   // from one base pub to another hands the second one a clean form. A price
   // typed for pub A that survives into pub B's form is a wrong price one tap
   // from being submitted, so the transition is driven here through a single
@@ -153,4 +147,51 @@ test("costs nothing until the camera crosses the zoom gate, then paints and take
   const restoredSheet = page.locator(".unverifiedPub");
   await expect(restoredSheet).toBeVisible({ timeout: 45_000 });
   await expect(restoredSheet.locator(".unverifiedPubName")).toHaveText(pubName);
+});
+
+test("restored London camera below the stream gate fetches no UK Base data", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const requests = ukBaseRequests(page);
+
+  await page.goto("/map");
+  const wrap = page.locator(".mapCanvasWrap");
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "ready", {
+    timeout: 30_000,
+  });
+  await expect
+    .poll(() =>
+      page.evaluate(() =>
+        window.localStorage.getItem("pubmaxx.mobile-map-session.v1"),
+      ),
+    )
+    .not.toBeNull();
+
+  await page.evaluate(() => {
+    const key = "pubmaxx.mobile-map-session.v1";
+    const raw = JSON.parse(window.localStorage.getItem(key) ?? "null") as {
+      viewport?: { center?: [number, number]; zoom?: number; pitch?: number; bearing?: number };
+      selectedVenueId?: string | null;
+      openSheet?: string | null;
+    } | null;
+    if (!raw) throw new Error("mobile map session missing");
+    raw.viewport = {
+      center: [-0.12, 51.52],
+      zoom: 11,
+      pitch: 38,
+      bearing: -8,
+    };
+    raw.selectedVenueId = null;
+    raw.openSheet = null;
+    window.localStorage.setItem(key, JSON.stringify(raw));
+  });
+  requests.length = 0;
+
+  await page.reload();
+  await expect(wrap).toHaveAttribute("data-uk-base-status", "zoom_required", {
+    timeout: 20_000,
+  });
+  await expect(wrap).toHaveAttribute("data-uk-base-count", "0");
+  expect(requests).toEqual([]);
 });

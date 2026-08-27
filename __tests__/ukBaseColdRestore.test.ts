@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  initialUkBaseStreamStatus,
+  isCurrentUkBaseStreamToken,
+  nextUkBaseStreamToken,
   parseUkBaseRestoreResponse,
   resolveUkBaseRestorePub,
 } from "@/components/map/pubmap/useUkBaseStreaming";
@@ -17,7 +20,7 @@ const PUB: UkBasePub = {
 
 function loader(restore: UkBasePub | null): UkBaseLoader {
   return {
-    pubsForBounds: async () => [],
+    pubsForBounds: async () => ({ status: "ready", pubs: [] }),
     find: () => null,
     restorePub: async () => restore,
   };
@@ -85,5 +88,23 @@ describe("resolveUkBaseRestorePub", () => {
     );
     expect(result).toEqual({ pub: null, failure: "missing" });
     expect(fetchById).not.toHaveBeenCalled();
+  });
+});
+
+describe("UK Base viewport request state", () => {
+  it("starts a normal map as loading until its zoom is classified", () => {
+    expect(initialUkBaseStreamStatus(false)).toBe("loading");
+    expect(initialUkBaseStreamStatus(true)).toBe("suspended");
+  });
+
+  it("rejects an older viewport result as soon as a newer settle is queued", () => {
+    const generation = { current: 0 };
+    const first = nextUkBaseStreamToken(generation, 13, 12);
+    const second = nextUkBaseStreamToken(generation, 13, 12);
+
+    expect(first).toBe(1);
+    expect(second).toBe(2);
+    expect(isCurrentUkBaseStreamToken(generation, first)).toBe(false);
+    expect(isCurrentUkBaseStreamToken(generation, second)).toBe(true);
   });
 });

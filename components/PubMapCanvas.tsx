@@ -3578,6 +3578,7 @@ export default function PubMapCanvas({
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
+      data-uk-base-status={ukBase.status}
     >
       <div ref={containerRef} className="maplibreMap" />
       {/* The reader's dot is painted on the canvas, which says nothing to a

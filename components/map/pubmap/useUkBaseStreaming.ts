@@ -79,21 +79,37 @@ type Options = {
  * membership; keeping padding here lets that list update during a pan without
  * waiting for the next debounced shard fetch.
  */
-export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
+export type UkBaseStreamStatus =
+  | "zoom_required"
+  | "loading"
+  | "ready"
+  | "unavailable"
+  | "suspended";
+
+type UkBasePubsState = { count: number; pubs: UkBasePub[] };
+export type UkBaseStreamState = UkBasePubsState & {
+  status: UkBaseStreamStatus;
+};
 type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
 
-const EMPTY_UK_BASE_STREAM_STATE: UkBaseStreamState = {
+export function initialUkBaseStreamStatus(
+  suspended: boolean,
+): UkBaseStreamStatus {
+  return suspended ? "suspended" : "loading";
+}
+
+const EMPTY_UK_BASE_PUBS_STATE: UkBasePubsState = {
   count: 0,
   pubs: [],
 };
 
 export function visibleUkBaseStreamState(
-  published: PublishedUkBaseStreamState,
+  published: UkBasePubsState & { scopeKey: string },
   scopeKey: string,
   suspended: boolean,
-): UkBaseStreamState {
+): UkBasePubsState {
   if (suspended || published.scopeKey !== scopeKey) {
-    return EMPTY_UK_BASE_STREAM_STATE;
+    return EMPTY_UK_BASE_PUBS_STATE;
   }
   return { count: published.count, pubs: published.pubs };
 }
@@ -105,6 +121,13 @@ export function nextUkBaseStreamToken(
 ): number | null {
   const token = ++generation.current;
   return zoom < minZoom ? null : token;
+}
+
+export function isCurrentUkBaseStreamToken(
+  generation: { current: number },
+  token: number | null,
+): boolean {
+  return token !== null && token === generation.current;
 }
 
 /**
@@ -208,11 +231,16 @@ export function useUkBaseStreaming({
     restoreHintRef.current = restoreHint;
   }, [restoreHint]);
   const [published, setPublished] = useState<PublishedUkBaseStreamState>(
-    () => ({ scopeKey, count: 0, pubs: [] }),
+    () => ({
+      scopeKey,
+      status: initialUkBaseStreamStatus(suspended),
+      count: 0,
+      pubs: [],
+    }),
   );
 
   const publish = useCallback(
-    (nextPubs: UkBasePub[]) => {
+    (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {
       const drawablePubs = ukBasePubsForDrawableVenues(
         nextPubs,
         drawableVenueIds,
@@ -224,6 +252,7 @@ export function useUkBaseStreaming({
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
+        status,
         count: drawablePubs.length,
         // Keep the padded source rows available for immediate reprojection as
         // the camera moves. PubMapCanvas publishes only rows actually on the
@@ -243,6 +272,18 @@ export function useUkBaseStreaming({
       scopeKey,
       ukBaseDataRef,
     ],
+  );
+
+  const publishStatus = useCallback(
+    (status: UkBaseStreamStatus) => {
+      setPublished((current) => {
+        if (current.scopeKey !== scopeKey) {
+          return { scopeKey, status, count: 0, pubs: [] };
+        }
+        return current.status === status ? current : { ...current, status };
+      });
+    },
+    [scopeKey],
   );
 
   // Cold restore: resolve the shared link before (and without) the viewport
@@ -285,18 +326,26 @@ export function useUkBaseStreaming({
     // move must not overwrite the newer viewport's pins.
     const generation = { current: 0 };
 
-    const stream = () => {
+    const stream = (token: number | null) => {
       const current = mapRef.current;
       if (cancelled || !current) return;
-      const token = nextUkBaseStreamToken(
-        generation,
-        current.getZoom(),
-        UK_BASE_MIN_ZOOM,
-      );
-      if (token === null || suspended) {
-        if (ukBaseDataRef.current.features.length > 0) publish([]);
+      if (suspended) {
+        if (ukBaseDataRef.current.features.length > 0) {
+          publish([], "suspended");
+        } else {
+          publishStatus("suspended");
+        }
         return;
       }
+      if (token === null) {
+        if (ukBaseDataRef.current.features.length > 0) {
+          publish([], "zoom_required");
+        } else {
+          publishStatus("zoom_required");
+        }
+        return;
+      }
+      publishStatus("loading");
       if (!loaderRef.current) loaderRef.current = createUkBaseLoader();
       const bounds = current.getBounds();
       const viewportBounds = {
@@ -307,21 +356,33 @@ export function useUkBaseStreaming({
       };
       void loaderRef.current
         .pubsForBounds(viewportBounds)
-        .then((pubs) => {
-          if (cancelled || token !== generation.current) return;
-          const drawablePubs = publish(pubs);
+        .then((result) => {
+          if (cancelled || !isCurrentUkBaseStreamToken(generation, token)) return;
+          const drawablePubs = publish(result.pubs, result.status);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
           const hit = drawablePubs.find((pub) => pub.id === wanted);
           if (!hit) return;
           restoreIdRef.current = null;
           onRestorePubRef.current?.(hit);
+        })
+        .catch(() => {
+          if (cancelled || !isCurrentUkBaseStreamToken(generation, token)) return;
+          publish([], "unavailable");
         });
     };
 
     const schedule = () => {
       if (timer) clearTimeout(timer);
-      timer = setTimeout(stream, STREAM_DEBOUNCE_MS);
+      const current = mapRef.current;
+      if (!current) return;
+      const token = nextUkBaseStreamToken(
+        generation,
+        current.getZoom(),
+        UK_BASE_MIN_ZOOM,
+      );
+      if (!suspended && token !== null) publishStatus("loading");
+      timer = setTimeout(() => stream(token), STREAM_DEBOUNCE_MS);
     };
 
     map.on("moveend", schedule);
@@ -335,9 +396,18 @@ export function useUkBaseStreaming({
       map.off("moveend", schedule);
       map.off("zoomend", schedule);
     };
-  }, [mapReady, mapRef, publish, suspended, ukBaseDataRef]);
+  }, [mapReady, mapRef, publish, publishStatus, suspended, ukBaseDataRef]);
 
   // Suspension answers zero the moment it is set, ahead of the debounce that
   // empties the source, so the list beside the map never outlives the pins.
-  return visibleUkBaseStreamState(published, scopeKey, suspended);
+  const visible = visibleUkBaseStreamState(published, scopeKey, suspended);
+  return {
+    ...visible,
+    status:
+      suspended
+        ? "suspended"
+        : published.scopeKey === scopeKey
+          ? published.status
+          : "loading",
+  };
 }

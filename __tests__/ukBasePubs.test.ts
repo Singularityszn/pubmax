@@ -250,13 +250,14 @@ describe("createUkBaseLoader", () => {
 
   it("fetches only the cells the viewport covers, and the manifest exactly once", async () => {
     const loader = createUkBaseLoader();
-    const pubs = await loader.pubsForBounds({
+    const result = await loader.pubsForBounds({
       west: -0.19,
       south: 51.42,
       east: -0.17,
       north: 51.44,
     });
-    expect(pubs.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell"]);
+    expect(result.status).toBe("ready");
+    expect(result.pubs.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell"]);
     expect(fetched).toContain("/data/uk_base/a.json");
     // Manchester is nowhere near this viewport and must cost nothing.
     expect(fetched).not.toContain("/data/uk_base/far.json");
@@ -272,17 +273,22 @@ describe("createUkBaseLoader", () => {
     const both = await loader.pubsForBounds({ west: -0.15, south: 51.42, east: -0.03, north: 51.46 });
     // A source setData replaces everything, so a partial answer would blank the
     // cells the camera is still over.
-    expect(both.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell", "The Crown"]);
+    expect(both.status).toBe("ready");
+    expect(both.pubs.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell", "The Crown"]);
   });
 
-  it("degrades to no pins (and retries next time) when a cell fails", async () => {
+  it("reports unavailable (and retries next time) when a required cell fails", async () => {
     installFetch(new Set(["/data/uk_base/a.json"]));
     const loader = createUkBaseLoader();
-    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual([]);
+    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual({
+      status: "unavailable",
+      pubs: [],
+    });
 
     installFetch();
     const retried = await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });
-    expect(retried.map((p) => p.name)).toEqual(["The Anchor", "The Bell"]);
+    expect(retried.status).toBe("ready");
+    expect(retried.pubs.map((p) => p.name)).toEqual(["The Anchor", "The Bell"]);
   });
 
   it.each([
@@ -312,7 +318,7 @@ describe("createUkBaseLoader", () => {
         east: -0.17,
         north: 51.44,
       }),
-    ).toEqual([]);
+    ).toEqual({ status: "unavailable", pubs: [] });
 
     installFetch();
     const retried = await loader.pubsForBounds({
@@ -321,13 +327,25 @@ describe("createUkBaseLoader", () => {
       east: -0.17,
       north: 51.44,
     });
-    expect(retried.map((pub) => pub.name).sort()).toEqual(["The Anchor", "The Bell"]);
+    expect(retried.status).toBe("ready");
+    expect(retried.pubs.map((pub) => pub.name).sort()).toEqual(["The Anchor", "The Bell"]);
   });
 
-  it("yields no pins at all when the manifest is unreachable", async () => {
+  it("reports unavailable when the manifest is unreachable", async () => {
     installFetch(new Set([UK_BASE_MANIFEST_PATH]));
     const loader = createUkBaseLoader();
-    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual([]);
+    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual({
+      status: "unavailable",
+      pubs: [],
+    });
+  });
+
+  it("reports ready with no pubs when valid bounds cover no shard", async () => {
+    const loader = createUkBaseLoader();
+    expect(await loader.pubsForBounds({ west: 10, south: 10, east: 11, north: 11 })).toEqual({
+      status: "ready",
+      pubs: [],
+    });
   });
 
   it("find() resolves a resident pub by id and nothing else", async () => {
@@ -374,8 +392,9 @@ describe("createUkBaseLoader", () => {
       east: -0.11,
       north: 51.44,
     });
-    expect(drawn.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell"]);
-    expect(drawn.map((p) => p.name)).not.toContain("The Crown");
+    expect(drawn.status).toBe("ready");
+    expect(drawn.pubs.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell"]);
+    expect(drawn.pubs.map((p) => p.name)).not.toContain("The Crown");
     // Prefetch warmed b into residency; find must not need another fetch.
     const before = [...fetched];
     expect(loader.find("venue-uk-n3")?.name).toBe("The Crown");

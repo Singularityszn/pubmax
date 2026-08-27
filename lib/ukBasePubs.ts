@@ -294,12 +294,13 @@ export type UkBaseLoader = {
   /**
    * Every base pub from the cells covering `bounds`, fetching the ones that are
    * not resident. Returns the WHOLE viewport's set (not just the new cells), so
-   * a caller can hand the result straight to a map source. Never throws: a cell
-   * that fails to load is simply absent and is retried on the next call.
+   * a caller can hand the result straight to a map source. Never throws. A
+   * manifest or required cell failure is unavailable and is retried on the
+   * next call; it is never reported as a valid empty viewport.
    * On a sustained pan, neighbour cells along the pan direction are warmed into
    * residency (up to MAX_PAN_PREFETCH_SHARDS) but not returned here.
    */
-  pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]>;
+  pubsForBounds(bounds: MapBounds): Promise<UkBaseViewportLoadResult>;
   /** A resident pub by id, for the sheet a tap opens. Null when not resident. */
   find(id: string): UkBasePub | null;
   /**
@@ -313,6 +314,10 @@ export type UkBaseLoader = {
     hint?: { lat: number; lng: number } | null,
   ): Promise<UkBasePub | null>;
 };
+
+export type UkBaseViewportLoadResult =
+  | { status: "ready"; pubs: UkBasePub[] }
+  | { status: "unavailable"; pubs: [] };
 
 const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
 
@@ -330,7 +335,7 @@ export function createUkBaseLoader(): UkBaseLoader {
   // Insertion-ordered LRU: re-reading a shard moves it to the back.
   const resident = new Map<string, UkBasePub[]>();
   // In-flight fetches, so a burst of moveends cannot stack duplicate requests.
-  const inFlight = new Map<string, Promise<UkBasePub[]>>();
+  const inFlight = new Map<string, Promise<UkBasePub[] | null>>();
   // Previous settle, for pan-direction prefetch. Null until the first call.
   let lastBounds: MapBounds | null = null;
 
@@ -384,7 +389,7 @@ export function createUkBaseLoader(): UkBaseLoader {
     }
   }
 
-  function loadShard(entry: ShardEntry): Promise<UkBasePub[]> {
+  function loadShard(entry: ShardEntry): Promise<UkBasePub[] | null> {
     const cached = resident.get(entry.url);
     if (cached) {
       touch(entry.url, cached);
@@ -400,7 +405,7 @@ export function createUkBaseLoader(): UkBaseLoader {
         touch(entry.url, pubs);
         return pubs;
       })
-      .catch(() => [] as UkBasePub[])
+      .catch(() => null)
       .finally(() => {
         inFlight.delete(entry.url);
       });
@@ -418,16 +423,16 @@ export function createUkBaseLoader(): UkBaseLoader {
   }
 
   return {
-    async pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]> {
+    async pubsForBounds(bounds: MapBounds): Promise<UkBaseViewportLoadResult> {
       const loaded = await manifest();
-      if (!loaded) return [];
+      if (!loaded) return { status: "unavailable", pubs: [] };
       const pan = panDeltaBetween(lastBounds, bounds);
       lastBounds = bounds;
       const drawPad = padBounds(bounds);
       const drawEntries = loaded.shards.filter((shard) =>
         bboxIntersects(shard.bbox, drawPad),
       );
-      if (drawEntries.length === 0) return [];
+      if (drawEntries.length === 0) return { status: "ready", pubs: [] };
       const drawUrls = new Set(drawEntries.map((entry) => entry.url));
       const prefetchEntries = selectPanPrefetchShards(
         loaded.shards,
@@ -444,7 +449,14 @@ export function createUkBaseLoader(): UkBaseLoader {
           ...prefetchEntries.map((entry) => entry.url),
         ]),
       );
-      return results.slice(0, drawEntries.length).flat();
+      const drawResults = results.slice(0, drawEntries.length);
+      if (drawResults.some((pubs) => pubs === null)) {
+        return { status: "unavailable", pubs: [] };
+      }
+      return {
+        status: "ready",
+        pubs: drawResults.flatMap((pubs) => pubs ?? []),
+      };
     },
 
     find(id: string): UkBasePub | null {
@@ -475,7 +487,7 @@ export function createUkBaseLoader(): UkBaseLoader {
       if (!entry) return null;
       const pubs = await loadShard(entry);
       prune(new Set([entry.url]));
-      return pubs.find((pub) => pub.id === id) ?? null;
+      return pubs?.find((pub) => pub.id === id) ?? null;
     },
   };
 }
