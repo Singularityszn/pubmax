@@ -104,8 +104,12 @@ describe("landing Plan tonight together hierarchy", () => {
   });
 
   it("keeps the canonical PUBMAXX wordmark readable at 390px", () => {
-    expect(landingTsx.match(/aria-label="PUBMAXX home"/g)).toHaveLength(2);
-    expect(landingTsx).not.toContain('aria-label="PUBMAXXING home"');
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const homeLinks = rendered.match(/<a[^>]*aria-label="PUBMAXX home"[^>]*>/g) ?? [];
+
+    expect(homeLinks).toHaveLength(2);
+    expect(homeLinks.every((link) => link.includes('href="/"'))).toBe(true);
+    expect(rendered).not.toContain('aria-label="PUBMAXXING home"');
     expect(landingCss).toMatch(
       /@media \(max-width: 430px\)[\s\S]*?\.lpWordmark\s*\{[^}]*min-width:\s*82px/,
     );
@@ -119,10 +123,10 @@ describe("landing Plan tonight together hierarchy", () => {
 
     expect(how, "How PUBMAXX works section present").toBeTruthy();
     expect(how).toContain("How PUBMAXX works");
-    expect(how).toMatch(/href="\/map"[^>]*>Map<\/a>/);
-    expect(how).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
-    expect(how).toMatch(/href="\/map\?log=1"[^>]*>Pint Drop<\/a>/);
-    expect(how).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
+    const steps = how?.match(/<ol class="lpMemorySteps">[\s\S]*?<\/ol>/)?.[0];
+    expect(
+      Array.from(steps?.matchAll(/<a[^>]*href="([^"]+)"[^>]*>/g) ?? [], (match) => match[1]),
+    ).toEqual(["/map", "/plan", "/map?log=1", "/pal"]);
   });
 
   it("CSS scopes dominant primary and high-contrast secondary text", () => {

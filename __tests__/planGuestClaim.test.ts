@@ -4,12 +4,20 @@ const auth = vi.hoisted(() => ({
   status: "absent" as "absent" | "invalid" | "unavailable" | "verified",
   userId: "11111111-1111-4111-8111-111111111111",
 }));
+const database = vi.hoisted(() => ({
+  configured: false,
+  rpc: vi.fn(),
+}));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
-  return { ...actual, isSupabaseConfigured: () => false };
+  return {
+    ...actual,
+    isSupabaseConfigured: () => database.configured,
+    requireSupabaseAdmin: () => ({ rpc: database.rpc }),
+  };
 });
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
@@ -33,7 +41,7 @@ import {
   __setMemoryPlanOwnerUserId,
   memoryPlanStore,
 } from "@/lib/planStore";
-import { linkPlanMemberUser } from "@/lib/planCrewIdentity";
+import { claimPlanMembership, linkPlanMemberUser } from "@/lib/planCrewIdentity";
 import type { PlanState } from "@/lib/plan";
 
 const PLAN_URL = "http://localhost/api/plans";
@@ -85,6 +93,8 @@ beforeEach(() => {
   __resetMemoryPlans();
   auth.status = "absent";
   auth.userId = "11111111-1111-4111-8111-111111111111";
+  database.configured = false;
+  database.rpc.mockReset();
 });
 
 describe("guest Plan account claim", () => {
@@ -164,5 +174,22 @@ describe("guest Plan account claim", () => {
       await linkPlanMemberUser(guest.id, secondMember!.id, auth.userId),
     ).toBe(false);
     expect(__listMemoryPlanMemberUserIds(guest.id)).toHaveLength(1);
+  });
+
+  it("logs a durable claim failure before returning the retryable outcome", async () => {
+    database.configured = true;
+    database.rpc.mockResolvedValue({ data: null, error: { message: "claim RPC missing" } });
+    const error = vi.spyOn(console, "error").mockImplementation(() => undefined);
+
+    await expect(claimPlanMembership(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+    )).resolves.toBe("error");
+    expect(error).toHaveBeenCalledWith(
+      "[plans] membership claim failed:",
+      "claim RPC missing",
+    );
+    error.mockRestore();
   });
 });

@@ -42,8 +42,12 @@ vi.mock("@/lib/planSessionCapability", () => ({
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
 
+(globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
+  .IS_REACT_ACT_ENVIRONMENT = true;
+
 let root: Root;
 let container: HTMLDivElement;
+let rootUnmounted = false;
 
 beforeEach(() => {
   state.user = { id: "11111111-1111-4111-8111-111111111111" };
@@ -58,10 +62,11 @@ beforeEach(() => {
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
+  rootUnmounted = false;
 });
 
 afterEach(async () => {
-  await act(async () => root.unmount());
+  if (!rootUnmounted) await act(async () => root.unmount());
   container.remove();
   vi.clearAllMocks();
 });
@@ -135,6 +140,33 @@ describe("active Plan account claim", () => {
     });
 
     expect(state.accountBoundFetch).toHaveBeenCalledTimes(2);
+    vi.useRealTimers();
+  });
+
+  it("does not schedule a retry after unmount while the first claim is pending", async () => {
+    vi.useFakeTimers();
+    let resolveClaim: ((response: Response) => void) | undefined;
+    state.accountBoundFetch.mockImplementationOnce(() => new Promise<Response>((resolve) => {
+      resolveClaim = resolve;
+    }));
+
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+    expect(state.accountBoundFetch).toHaveBeenCalledOnce();
+
+    await act(async () => root.unmount());
+    rootUnmounted = true;
+    await act(async () => {
+      resolveClaim?.(new Response(null, { status: 503 }));
+      await Promise.resolve();
+    });
+
+    expect(vi.getTimerCount()).toBe(0);
     vi.useRealTimers();
   });
 });

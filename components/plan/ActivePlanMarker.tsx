@@ -65,6 +65,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     });
     const claim = async (): Promise<void> => {
       for (const delayMs of [0, 250, 1_000]) {
+        if (cancelled) return;
         if (delayMs > 0) await wait(delayMs);
         if (cancelled) return;
         try {

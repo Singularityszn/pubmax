@@ -210,6 +210,20 @@ describe("Plan membership account claim", () => {
     expect(() => session!.sql(`insert into public.plan_crew_members(id, plan_id, user_id, joined_at) values ('00000000-0000-4000-8000-000000000005', '${plan}', '${account}', now())`)).toThrow();
   });
 
+  it("refuses a Plan already owned by a social account", () => {
+    const plan = "00000000-0000-4000-8000-000000000011";
+    const member = "00000000-0000-4000-8000-000000000012";
+    const social = "00000000-0000-4000-8000-000000000013";
+    const account = "00000000-0000-4000-8000-000000000014";
+    session!.sql(`
+      insert into public.plans(id, social_owner_account_id) values ('${plan}', '${social}');
+      insert into public.plan_crew_members(id, plan_id, joined_at) values
+        ('${member}', '${plan}', '2026-08-27T18:00:00Z');
+    `);
+
+    expect(session!.sql(`select public.claim_plan_membership('${plan}', '${member}', '${account}')`)).toBe("not_found");
+  });
+
   it("keeps execution service-only and rollback removes both additions", () => {
     expect(session!.sql(`select has_function_privilege('service_role', 'public.claim_plan_membership(uuid,uuid,uuid)', 'execute') || '|' || has_function_privilege('authenticated', 'public.claim_plan_membership(uuid,uuid,uuid)', 'execute') || '|' || has_function_privilege('anon', 'public.claim_plan_membership(uuid,uuid,uuid)', 'execute')`)).toBe("true|false|false");
 

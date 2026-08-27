@@ -93,14 +93,25 @@ describe("script great-circle distance", () => {
     const { isDirectRun } = await import("@/scripts/gen_london_localities.mjs");
     const tempDir = mkdtempSync(join(tmpdir(), "pubmax-localities-entry-"));
     const symlinkPath = join(tempDir, "localities.mjs");
-    symlinkSync(scriptPath, symlinkPath);
     try {
+      symlinkSync(scriptPath, symlinkPath);
       expect(isDirectRun(scriptPath, moduleUrl)).toBe(true);
       expect(isDirectRun(relative(process.cwd(), scriptPath), moduleUrl)).toBe(true);
       expect(isDirectRun(symlinkPath, moduleUrl)).toBe(true);
       expect(isDirectRun(join(tempDir, "missing.mjs"), moduleUrl)).toBe(false);
     } finally {
       rmSync(tempDir, { recursive: true, force: true });
+    }
+  });
+
+  it("reports a missing default direct-entry path", async () => {
+    const { isDirectRun } = await import("@/scripts/gen_london_localities.mjs");
+    const original = process.argv[1];
+    process.argv[1] = join(tmpdir(), "pubmax-missing-localities-entry.mjs");
+    try {
+      expect(() => isDirectRun()).toThrow();
+    } finally {
+      process.argv[1] = original;
     }
   });
 

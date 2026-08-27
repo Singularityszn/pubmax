@@ -52,7 +52,11 @@ export async function claimPlanMembership(
       data === "not_found"
       ? data
       : "error";
-  } catch {
+  } catch (error) {
+    console.error(
+      "[plans] membership claim failed:",
+      error instanceof Error ? error.message : error,
+    );
     return "error";
   }
 }

@@ -374,10 +374,12 @@ export function isDirectRun(
   argvPath = process.argv[1],
   moduleUrl = import.meta.url,
 ) {
+  const reportResolutionFailure = arguments.length === 0;
   if (typeof argvPath !== "string" || typeof moduleUrl !== "string") return false;
   try {
     return realpathSync(resolve(argvPath)) === realpathSync(fileURLToPath(moduleUrl));
-  } catch {
+  } catch (error) {
+    if (reportResolutionFailure) throw error;
     return false;
   }
 }
