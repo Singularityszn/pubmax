@@ -301,7 +301,7 @@ describe("Exa client", () => {
   });
 
   it("reads and trims EXA_API_KEY", () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({
       env: { EXA_API_KEY: "  exa-test  " } as never,
       fetchImpl,
@@ -347,7 +347,7 @@ describe("Exa client", () => {
   });
 
   it("POSTs /search with nested highlights, outputSchema and systemPrompt, and omits maxAgeHours for lore", async () => {
-    const fetchImpl = vi.fn(
+    const fetchImpl = vi.fn<typeof fetch>(
       async () => new Response(JSON.stringify({ results: [], output: { content: {}, grounding: [] } }), { status: 200 }),
     );
     const client = createExaClient({
@@ -398,7 +398,7 @@ describe("Exa client", () => {
   });
 
   it("POSTs /contents with top-level highlights for a known OSM website", async () => {
-    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
+    const fetchImpl = vi.fn<typeof fetch>(async () => new Response(JSON.stringify({ results: [] }), { status: 200 }));
     const client = createExaClient({
       env: { EXA_API_KEY: "exa-test" } as never,
       fetchImpl,
@@ -449,6 +449,7 @@ describe("Exa request builders (captain 2026-08-25 guide)", () => {
     });
     expect(body.highlights).toBe(true);
     expect(body.maxAgeHours).toBe(24);
+    expect("contents" in body ? body.contents : undefined).toBeUndefined();
   });
 });
 

@@ -1439,10 +1439,6 @@ export default function PubMap({
       0,
       VENUE_REVEAL_CINEMA_MS - (Date.now() - request.startedAt),
     );
-    if (remaining === 0) {
-      setVenueRevealEntranceActive(false);
-      return;
-    }
     const timer = setTimeout(() => setVenueRevealEntranceActive(false), remaining);
     return () => clearTimeout(timer);
   }, [venueRevealRequest]);
