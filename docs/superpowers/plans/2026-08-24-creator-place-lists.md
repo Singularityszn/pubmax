@@ -81,7 +81,7 @@
 - Create: `components/wanted/WantedPromotionControl.tsx`
 - Modify: `lib/savedPubsStore.ts`
 - Modify: `lib/wantedStore.ts`
-- Create: `supabase/migrations/20260824100000_0119_wanted_public_list_promotion.sql`
+- Create: `supabase/migrations/20260827110000_0121_wanted_public_list_promotion.sql`
 - Create: `__tests__/wantedPromotion.test.ts`
 - Modify: `__tests__/wantedRoute.test.ts`
 

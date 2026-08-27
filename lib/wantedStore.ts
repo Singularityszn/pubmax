@@ -330,7 +330,7 @@ export const supabaseWantedStore: WantedStore = {
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: "wanteds",
-          migrationHint: "apply migration 0119",
+          migrationHint: "apply migration 0121",
           fallback: () =>
             memoryWantedStore.recordPromotion(ownerActor, id, listType, now),
         }),
