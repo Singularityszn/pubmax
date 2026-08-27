@@ -94,7 +94,7 @@ afterEach(async () => {
 
 describe("Pal venue card navigation", () => {
   it("routes a card press through the router and keeps tap analytics", async () => {
-    const input = container.querySelector<HTMLInputElement>('input[type="text"]');
+    const input = container.querySelector<HTMLInputElement>('.palChatInput');
     const form = container.querySelector<HTMLFormElement>("form");
     if (!input || !form) throw new Error("Pal chat form not found");
 
@@ -121,7 +121,7 @@ describe("Pal venue card navigation", () => {
       ...answer,
       cards: [{ ...answer.cards[0], key: "venue-unknown", venueId: "venue-unknown" }],
     };
-    const input = container.querySelector<HTMLInputElement>('input[type="text"]');
+    const input = container.querySelector<HTMLInputElement>('.palChatInput');
     const form = container.querySelector<HTMLFormElement>("form");
     if (!input || !form) throw new Error("Pal chat form not found");
 
