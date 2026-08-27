@@ -386,6 +386,13 @@ export async function buildOutResponse(
       error: err instanceof Error ? err.message : "venue index unreadable",
     });
   }
+  if (venueMatch === "unavailable") {
+    matchedRows = inWindow.map((row) =>
+      canonicalOutVenueId(row.venueId) ? { ...row, venueId: undefined } : row,
+    );
+    matchedAtRequest = 0;
+    unmatched = matchedRows.length;
+  }
 
   const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
   const matchedCount = matchedRows.length - unmatched;

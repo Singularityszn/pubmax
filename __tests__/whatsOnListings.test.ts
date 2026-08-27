@@ -125,6 +125,27 @@ describe("preferDurableWhatsOn", () => {
     expect(preferDurableWhatsOn(durable, bundled, NOW)[0].venueId).toBeUndefined();
   });
 
+  it("does not inherit a recurring venue after the listing moves pub", () => {
+    const bundled = [
+      row({
+        id: "weekly-quiz",
+        sourceId: undefined,
+        venueId: "venue-white-hart",
+        placeName: "White Hart, Whitechapel",
+      }),
+    ];
+    const durable = [
+      row({
+        id: "weekly-quiz",
+        sourceId: undefined,
+        venueId: undefined,
+        placeName: "Royal Oak, Twickenham",
+      }),
+    ];
+
+    expect(preferDurableWhatsOn(durable, bundled, NOW)[0].venueId).toBeUndefined();
+  });
+
   it("falls back to bundled rows when the durable set is empty", () => {
     const bundled = [row({ id: "quiz-1", kind: "quiz", title: "Pub quiz" })];
     const served = preferDurableWhatsOn([], bundled, NOW);

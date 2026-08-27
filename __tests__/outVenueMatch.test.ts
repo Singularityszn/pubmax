@@ -115,10 +115,56 @@ describe("attachOutVenues", () => {
   });
 
   it("leaves a row with a pub id from the accepted index alone", () => {
-    const bundled = liveRow({ venueId: "venue-1d1tez", placeName: "The Dublin Castle" });
+    const bundled = liveRow({
+      venueId: "venue-1d1tez",
+      placeName: "The Dublin Castle",
+      lat: 51.5397,
+      lng: -0.1429,
+    });
     const result = attachOutVenues([bundled], index);
     expect(result.rows[0].venueId).toBe("venue-1d1tez");
     expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(0);
+  });
+
+  it("rejects a listed pub id when the row names a different venue", () => {
+    const wrongPub = liveRow({
+      venueId: "venue-1d1tez",
+      placeName: "The Lexington",
+      lat: 51.5326,
+      lng: -0.1119,
+    });
+    const result = attachOutVenues([wrongPub], index, () => false);
+
+    expect(result.rows[0].venueId).toBeUndefined();
+    expect(result.matchedAtRequest).toBe(0);
+    expect(result.unmatched).toBe(1);
+  });
+
+  it("keeps a refresh-matched pub when the provider appends its locality", () => {
+    const whiteHartIndex = buildOutVenueMatchIndex([
+      {
+        id: "venue-5cqxbo",
+        name: "The White Hart",
+        borough: "Tower Hamlets",
+        lat: 51.5168,
+        lng: -0.0612,
+      },
+    ]);
+    const result = attachOutVenues(
+      [
+        liveRow({
+          venueId: "venue-5cqxbo",
+          placeName: "White Hart, Whitechapel",
+          lat: undefined,
+          lng: undefined,
+        }),
+      ],
+      whiteHartIndex,
+      () => false,
+    );
+
+    expect(result.rows[0].venueId).toBe("venue-5cqxbo");
     expect(result.unmatched).toBe(0);
   });
 

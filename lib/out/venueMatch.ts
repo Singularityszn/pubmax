@@ -20,6 +20,7 @@
 import { normalizeVenueIdentityName } from "@/scripts/lib/venueCanonicalization.mjs";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
+  haversineMeters,
   resolveVenueId,
   VENUE_MATCH_PROXIMITY_METERS,
   type VenueResolverCandidate,
@@ -103,6 +104,49 @@ export function isOutVenueId(
   return false;
 }
 
+function venueNamesAgree(listingName: string, canonicalName: string): boolean {
+  const listing = normalizeVenueIdentityName(listingName);
+  const canonical = normalizeVenueIdentityName(canonicalName);
+  if (!listing || !canonical) return false;
+  return (
+    listing === canonical ||
+    listing.startsWith(`${canonical} `) ||
+    canonical.startsWith(`${listing} `)
+  );
+}
+
+function heldVenueMatchesRow(
+  row: WhatsOnRow,
+  index: OutVenueMatchIndex,
+  venueId: string,
+): boolean {
+  const canonicalId = canonicalOutVenueId(venueId);
+  if (!canonicalId) return false;
+  for (const candidates of index.byNormalizedName.values()) {
+    for (const candidate of candidates) {
+      if (canonicalOutVenueId(candidate.venueId) !== canonicalId) continue;
+      if (!venueNamesAgree(row.placeName, candidate.name)) return false;
+      if (
+        Number.isFinite(row.lat) &&
+        Number.isFinite(row.lng) &&
+        Number.isFinite(candidate.lat) &&
+        Number.isFinite(candidate.lng)
+      ) {
+        return (
+          haversineMeters(
+            row.lat as number,
+            row.lng as number,
+            candidate.lat as number,
+            candidate.lng as number,
+          ) <= OUT_VENUE_MATCH_PROXIMITY_METERS
+        );
+      }
+      return true;
+    }
+  }
+  return false;
+}
+
 export type AttachOutVenuesResult = {
   rows: WhatsOnRow[];
   /** Rows that gained a venueId here, at request time. */
@@ -127,7 +171,7 @@ export function attachOutVenues(
   let unmatched = 0;
   const out = rows.map((row) => {
     const heldVenueId = canonicalOutVenueId(row.venueId);
-    if (heldVenueId && isOutVenueId(index, heldVenueId)) return row;
+    if (heldVenueId && heldVenueMatchesRow(row, index, heldVenueId)) return row;
 
     const unresolved = heldVenueId ? { ...row, venueId: undefined } : row;
     if (!mayMatch(unresolved)) {

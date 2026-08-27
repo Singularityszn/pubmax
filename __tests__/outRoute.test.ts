@@ -964,7 +964,10 @@ describe("the live lane is venue-matched at request time", () => {
         id: "matched-" + index,
         sourceId: "matched-" + index,
         title: "Matched " + index,
+        placeName: "The Lexington",
         venueId: "venue-1137z1c",
+        lat: 51.5326,
+        lng: -0.1119,
         startsAt: "2026-08-16T18:00:00.000Z",
       }),
     );
@@ -1101,7 +1104,7 @@ describe("the live lane is venue-matched at request time", () => {
     expect(JSON.stringify(body)).not.toContain("unreadable");
   });
 
-  it("does not re-match a row whose bundled pub id is still accepted", async () => {
+  it("rejects a conflicting bundled pub id and rematches the live venue evidence", async () => {
     const bundled = eventRow({
       id: "events-tm-lex",
       sourceId: "tm-lex",
@@ -1120,7 +1123,7 @@ describe("the live lane is venue-matched at request time", () => {
       },
     );
     expect(body.events).toHaveLength(1);
-    expect(body.events[0].venueId).toBe("venue-1d1tez");
+    expect(body.events[0].venueId).toBe("venue-1137z1c");
   });
 
   it("does not promote an unresolved bundled row through the weaker live matcher", async () => {
@@ -1168,4 +1171,37 @@ describe("the live lane is venue-matched at request time", () => {
     expect(body.unmatchedCount).toBe(1);
     expect(groupOutListings(body.events)).toEqual([]);
   });
+
+  it.each(["missing", "unreadable"] as const)(
+    "strips pre-resolved venue ids when the pub index is %s",
+    async (indexState) => {
+      const arena = eventRow({
+        id: `events-tm-arena-${indexState}`,
+        sourceId: `tm-arena-${indexState}`,
+        placeName: "The O2",
+        venueId: "arena-1",
+        lat: 51.503,
+        lng: 0.0032,
+      });
+      const body = await buildOutResponse(
+        { city: "london", day: "today" },
+        {
+          now: FIXTURE_NOW.getTime(),
+          loadBaseline: () => [arena],
+          liveProviders: [],
+          loadVenueMatchIndex:
+            indexState === "missing"
+              ? async () => null
+              : async () => {
+                  throw new Error("pub index unreadable");
+                },
+        },
+      );
+
+      expect(body.venueMatch).toBe("unavailable");
+      expect(body.events[0].venueId).toBeUndefined();
+      expect(body.unmatchedCount).toBe(1);
+      expect(groupOutListings(body.events)).toEqual([]);
+    },
+  );
 });
