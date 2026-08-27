@@ -220,14 +220,9 @@ describe("editorial poller: one request per feed per tick", () => {
       previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "degraded", items: [] },
       fetchImpl: async (input) => {
         if (String(input).includes("deserter")) {
-          return {
-            status: 200,
-            headers: new Headers(),
-            bodyUsed: false,
-            text: async () => {
-              throw new Error("body failed");
-            },
-          } as Response;
+          const response = new Response("broken", { status: 200 });
+          vi.spyOn(response, "text").mockRejectedValue(new Error("body failed"));
+          return response;
         }
         secondHit = true;
         return new Response(rssItem("Second feed", "https://enjoyingpubs.substack.com/second"), {

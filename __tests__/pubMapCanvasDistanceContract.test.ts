@@ -11,7 +11,7 @@ describe("PubMapCanvas nearby distance contract", () => {
     );
 
     expect(source).toMatch(
-      /import\s*\{[^}]*formatLogNearbyDistance[^}]*\}\s*from\s*["']@\/lib\/mapLogIntent["']/s,
+      /import\s*\{[\s\S]*?formatLogNearbyDistance[\s\S]*?\}\s*from\s*["']@\/lib\/mapLogIntent["']/,
     );
     expect(source).not.toMatch(/km\s*<\s*1\s*\?\s*`\$\{Math\.round\(km\s*\*\s*1000\)/);
   });
