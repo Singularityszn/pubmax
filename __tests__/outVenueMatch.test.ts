@@ -168,6 +168,24 @@ describe("attachOutVenues", () => {
     expect(result.unmatched).toBe(0);
   });
 
+  it("rejects a held suffix match when more than one indexed pub agrees", () => {
+    const result = attachOutVenues(
+      [
+        liveRow({
+          venueId: WINDMILL_BRIXTON.id,
+          placeName: "The Windmill Brixton",
+          lat: undefined,
+          lng: undefined,
+        }),
+      ],
+      index,
+      () => false,
+    );
+
+    expect(result.rows[0].venueId).toBeUndefined();
+    expect(result.unmatched).toBe(1);
+  });
+
   it("rejects a pre-resolved id that is not in the pub-only index", () => {
     const nonPub = liveRow({
       venueId: "arena-1",

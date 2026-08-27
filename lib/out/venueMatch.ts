@@ -122,6 +122,9 @@ function heldVenueMatchesRow(
 ): boolean {
   const canonicalId = canonicalOutVenueId(venueId);
   if (!canonicalId) return false;
+  const agreeingCandidates = [...index.byNormalizedName.values()]
+    .flat()
+    .filter((candidate) => venueNamesAgree(row.placeName, candidate.name));
   for (const candidates of index.byNormalizedName.values()) {
     for (const candidate of candidates) {
       if (canonicalOutVenueId(candidate.venueId) !== canonicalId) continue;
@@ -141,7 +144,7 @@ function heldVenueMatchesRow(
           ) <= OUT_VENUE_MATCH_PROXIMITY_METERS
         );
       }
-      return true;
+      return agreeingCandidates.length === 1;
     }
   }
   return false;

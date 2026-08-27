@@ -38,7 +38,7 @@
 // Run: node scripts/gen_london_localities.mjs
 // Plain Node ESM — no deps, no build step.
 
-import { writeFileSync } from "node:fs";
+import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join, resolve } from "node:path";
 
@@ -370,10 +370,19 @@ async function main() {
   console.log("Per borough:", perBorough);
 }
 
-const isDirectRun = typeof process.argv[1] === "string"
-  && resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+export function isDirectRun(
+  argvPath = process.argv[1],
+  moduleUrl = import.meta.url,
+) {
+  if (typeof argvPath !== "string" || typeof moduleUrl !== "string") return false;
+  try {
+    return realpathSync(resolve(argvPath)) === realpathSync(fileURLToPath(moduleUrl));
+  } catch {
+    return false;
+  }
+}
 
-if (isDirectRun) {
+if (isDirectRun()) {
   main().catch((err) => {
     console.error("FAILED:", err.message);
     process.exit(1);

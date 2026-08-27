@@ -1,5 +1,13 @@
-import { readFileSync, readdirSync } from "node:fs";
-import { join } from "node:path";
+import {
+  mkdtempSync,
+  readFileSync,
+  readdirSync,
+  rmSync,
+  symlinkSync,
+} from "node:fs";
+import { tmpdir } from "node:os";
+import { join, relative } from "node:path";
+import { pathToFileURL } from "node:url";
 
 import { describe, expect, it } from "vitest";
 
@@ -77,6 +85,23 @@ describe("script great-circle distance", () => {
     expect(localityDistanceKm(...longitudeFirst)).not.toBe(
       haversineKm(...longitudeFirst),
     );
+  });
+
+  it("recognises absolute, relative, and symlinked direct entry paths", async () => {
+    const scriptPath = join(process.cwd(), "scripts/gen_london_localities.mjs");
+    const moduleUrl = pathToFileURL(scriptPath).href;
+    const { isDirectRun } = await import("@/scripts/gen_london_localities.mjs");
+    const tempDir = mkdtempSync(join(tmpdir(), "pubmax-localities-entry-"));
+    const symlinkPath = join(tempDir, "localities.mjs");
+    symlinkSync(scriptPath, symlinkPath);
+    try {
+      expect(isDirectRun(scriptPath, moduleUrl)).toBe(true);
+      expect(isDirectRun(relative(process.cwd(), scriptPath), moduleUrl)).toBe(true);
+      expect(isDirectRun(symlinkPath, moduleUrl)).toBe(true);
+      expect(isDirectRun(join(tempDir, "missing.mjs"), moduleUrl)).toBe(false);
+    } finally {
+      rmSync(tempDir, { recursive: true, force: true });
+    }
   });
 
   it.each([5, 30])("keeps the %i kilometre decision boundary stable", async (threshold) => {
