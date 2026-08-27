@@ -13,6 +13,9 @@ import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import PalGuestAccountGate from "@/components/pal/PalGuestAccountGate";
+import PalPortrait from "@/components/pal/PalPortrait";
+import PalTalkControl from "@/components/pal/PalTalkControl";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import IntentLink from "@/components/nav/IntentLink";
@@ -37,6 +40,19 @@ import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/pal
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
+import { speakPalAnswer } from "@/lib/palBrowserSpeech";
+import {
+  PAL_GUEST_PROMPT_LIMIT,
+  readPalGuestTrial,
+  recordPalGuestAnswer,
+  type PalGuestTrialState,
+  writePalGuestChoice,
+} from "@/lib/palGuestTrial";
+import {
+  DEFAULT_PAL_DRAFT,
+  PAL_LAUNCH_COPY,
+  PAL_ONBOARDING_SPECIES,
+} from "@/lib/pubPal";
 import {
   cheapestGlanceLine,
   countTonightKinds,
@@ -216,6 +232,8 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  const [guestTrial, setGuestTrial] = useState<PalGuestTrialState>(() => readPalGuestTrial(null));
+  const [trialReady, setTrialReady] = useState(false);
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -223,6 +241,26 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      const stored = readPalGuestTrial(window.localStorage);
+      const params = new URLSearchParams(window.location.search);
+      const requestedSpecies = params.get("pal");
+      const requestedMode = params.get("mode");
+      const species = PAL_ONBOARDING_SPECIES.includes(
+        requestedSpecies as (typeof PAL_ONBOARDING_SPECIES)[number],
+      )
+        ? requestedSpecies as (typeof PAL_ONBOARDING_SPECIES)[number]
+        : stored.species;
+      const mode = requestedMode === "talk" || requestedMode === "text"
+        ? requestedMode
+        : stored.mode;
+      setGuestTrial(writePalGuestChoice(window.localStorage, species, mode));
+      setTrialReady(true);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
@@ -266,7 +304,13 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     async (raw: string) => {
       const text = raw.trim();
       if (!text || pending) return;
-      sessionRef.current ??= createPalChatSession();
+      if (!user && (!trialReady || guestTrial.answeredPrompts >= PAL_GUEST_PROMPT_LIMIT)) return;
+      sessionRef.current ??= createPalChatSession({
+        onAnswered: () => {
+          if (user) return;
+          setGuestTrial(recordPalGuestAnswer(window.localStorage));
+        },
+      });
       // Read the recall BEFORE this ask joins the transcript, so the Pal never
       // recalls the question it is answering.
       const recall = palRecall(priorAsksRef.current, text);
@@ -285,6 +329,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         ]);
         return;
       }
+      if (guestTrial.mode === "talk") speakPalAnswer(result.message);
       // Ground WHERE this answer applies from the query and remembered area,
       // only when the handoff is on. Off = no locality copy, byte-identical.
       const locality = palHandoff ? resolvePalLocality(text, readRememberedArea()) : null;
@@ -297,7 +342,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
       ]);
     },
-    [nextId, pending, palHandoff],
+    [guestTrial.answeredPrompts, guestTrial.mode, nextId, pending, palHandoff, trialReady, user],
   );
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
@@ -392,7 +437,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   // fire under StrictMode re-mounts.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (autoAskedRef.current) return;
+    if (!trialReady || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
@@ -402,7 +447,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     const timer = setTimeout(() => void ask(text), 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
-  }, []);
+  }, [trialReady]);
 
   const empty = entries.length === 0 && !pending;
   // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
@@ -456,6 +501,10 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatPrice) : null),
     [cheapest],
   );
+  const guestLocked = trialReady && !user && guestTrial.answeredPrompts >= PAL_GUEST_PROMPT_LIMIT;
+  const guestPalName = guestTrial.species in PAL_LAUNCH_COPY
+    ? PAL_LAUNCH_COPY[guestTrial.species as keyof typeof PAL_LAUNCH_COPY].title
+    : PAL_LAUNCH_COPY.robin.title;
 
   return (
     <>
@@ -467,10 +516,22 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
             ← Pub Pal
           </Link>
         ) : null}
-        <p className="palChatEyebrow">
-          <PubPalMascot size={18} circular />
-          Ask your Pub Pal
-        </p>
+        <div className="palChatIdentity">
+          <div className="palChatIdentityPortrait">
+            <PalPortrait
+              appearance={{ ...DEFAULT_PAL_DRAFT.appearance, species: guestTrial.species }}
+              name={guestPalName}
+              compact
+            />
+          </div>
+          <div>
+            <p className="palChatEyebrow">
+              <PubPalMascot size={18} circular />
+              Ask your Pub Pal
+            </p>
+            <p className="palChatPalName">{guestPalName}</p>
+          </div>
+        </div>
         <h1 className="palChatTitle">{"What's the night?"}</h1>
         <p className="palChatIntro">
           Straight answers from what we have actually seen. Every card keeps its
@@ -654,7 +715,18 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         ) : null}
       </div>
 
+      {!user && trialReady && !guestLocked ? (
+        <p className="palGuestTrialStatus" role="status">
+          {PAL_GUEST_PROMPT_LIMIT - guestTrial.answeredPrompts} guest {PAL_GUEST_PROMPT_LIMIT - guestTrial.answeredPrompts === 1 ? "answer" : "answers"} left
+        </p>
+      ) : null}
+      {guestLocked ? (
+        <PalGuestAccountGate answeredPrompts={guestTrial.answeredPrompts} />
+      ) : (
       <form className="palChatComposer" onSubmit={onSubmit}>
+        {guestTrial.mode === "talk" ? (
+          <PalTalkControl onTranscript={setQuery} />
+        ) : null}
         <label className="palChatSr" htmlFor={inputId}>
           Describe the outing
         </label>
@@ -677,6 +749,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           <ArrowUp size={18} aria-hidden="true" />
         </button>
       </form>
+      )}
       </main>
     </>
   );

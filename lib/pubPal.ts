@@ -13,6 +13,18 @@ export const PAL_ONBOARDING_SPECIES = [
   "badger",
   "corgi",
 ] as const;
+export const PAL_LAUNCH_COPY = {
+  robin: { title: "Circuit Robin", note: "Bright · grounded" },
+  greyhound: { title: "Greyhound", note: "Loyal · perceptive" },
+  cat: { title: "Black Cat", note: "Calm · mischievous" },
+  fox: { title: "Fox", note: "Curious · quick" },
+  pigeon: { title: "Pigeon", note: "Streetwise · social" },
+  badger: { title: "Badger", note: "Steady · protective" },
+  corgi: { title: "Corgi", note: "Bright · encouraging" },
+} as const satisfies Record<(typeof PAL_ONBOARDING_SPECIES)[number], {
+  title: string;
+  note: string;
+}>;
 export const PAL_LEGACY_SPECIES = [
   "hound",
   "raven",

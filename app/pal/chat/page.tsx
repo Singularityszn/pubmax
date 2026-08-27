@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 
 import PalChat from "@/components/pal/PalChat";
 import { readTrustedHandoffFlags } from "@/lib/trustedHandoffFlags.server";
+import "../pal.css";
 
 export const metadata: Metadata = {
   title: "Ask your Pub Pal",

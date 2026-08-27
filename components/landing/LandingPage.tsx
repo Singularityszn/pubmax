@@ -44,7 +44,9 @@ import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 
 import PintDropStripLoading from "./PintDropStripLoading";
+import LandingPalEntry from "./LandingPalEntry";
 import ThamesHero from "./ThamesHero";
+import "@/app/pal/pal.css";
 import "./landing.css";
 import "./heroCinema.css";
 
@@ -225,19 +227,13 @@ export default function LandingPage({
     };
   }, []);
 
-  const heroPrimary = (
-    <Link prefetch={false}
-      className="lpButton lpButtonPrimary"
-      href="/plan"
-      onClick={() => trackLandingCta("plan")}
-    >
-      <UsersRound size={18} aria-hidden="true" /> Plan tonight together
-    </Link>
-  );
   const heroActions = (
     <div className="lpHeroActions">
-      {heroPrimary}
+      <LandingPalEntry onTarget={trackLandingCta} />
       <div className="lpHeroSecondaryRow">
+        <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
+          <UsersRound size={17} aria-hidden="true" /> Plan a night
+        </Link>
         <Link prefetch={false}
           className="lpTextLink"
           href={primaryCtaHref}
@@ -254,8 +250,7 @@ export default function LandingPage({
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Open the map, pick a drink, and see which nearby pubs pour it cheapest.
-      We name the source when there is one, and say when there is not.
+      Choose a companion. Talk or type. Your first five grounded answers need no account.
     </p>
   );
 
@@ -297,9 +292,9 @@ export default function LandingPage({
           </div>
 
           <div className="lpHeroCopy">
-            <h1 id="hero-title">London pints can cost eight quid.</h1>
-            {heroActions}
+            <h1 id="hero-title">Tell your Pub Pal.</h1>
             {heroLede}
+            {heroActions}
             {readout.length > 0 ? (
               <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
                 {readout.map(({ icon: Icon, value, label }) => (
@@ -332,7 +327,7 @@ export default function LandingPage({
         {/* Human beat (S1/S4): why this exists, between hero and the feature
             grid. Desire first, honesty second. Not a mission statement.
             Outing jobs (coffee, food, quiet Spoons, soft drink / AF) sit here
-            so the hero can stay map-first and pint-led. */}
+            so the hero can keep one clear Pal-first action. */}
         <section className="lpWhySection" id="why" aria-labelledby="why-title">
           <div className="lpWhyCopy">
             <p className="lpSectionLabel">Why PUBMAXX</p>
@@ -458,7 +453,7 @@ export default function LandingPage({
             className="lpButton lpButtonPrimary"
             onClick={() => trackLandingCta("plan")}
           >
-            Plan tonight together <ArrowRight size={18} aria-hidden="true" />
+            Plan a night <ArrowRight size={18} aria-hidden="true" />
           </Link>
           <Link prefetch={false}
             href={primaryCtaHref}

@@ -115,6 +115,15 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
+  it("discloses the five-answer Pub Pal guest trial and browser talk mode", () => {
+    expect(privacyText).toMatch(/five-answer guest trial/i);
+    expect(privacyText).toMatch(/selected Pub Pal[^.]*Talk or Text[^.]*successful answer count/i);
+    expect(privacyText).toMatch(/does not store your question, answer, transcript or audio/i);
+    expect(privacyText).toMatch(/browser speech recognition[^.]*reviewable text/i);
+    expect(privacyText).toMatch(/only that reviewed text[^.]*PUBMAXX/i);
+    expect(privacyText).toMatch(/browser or operating system provider may process the speech/i);
+  });
+
   it("discloses Social ownership and the self-asserted 18+ gate", () => {
     for (const page of [privacy, terms]) {
       expect(page).toMatch(/18\+/);

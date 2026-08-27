@@ -21,6 +21,7 @@ export const PAL_CHAT_TIMEOUT_MS = 12_000;
 type SessionOptions = {
   timeoutMs?: number;
   fetchImpl?: typeof fetch;
+  onAnswered?: () => void;
 };
 
 function askBodyToPal(body: unknown): PalChatResult {
@@ -91,6 +92,7 @@ function askBodyToPal(body: unknown): PalChatResult {
 export function createPalChatSession(options: SessionOptions = {}) {
   const timeoutMs = options.timeoutMs ?? PAL_CHAT_TIMEOUT_MS;
   const fetchImpl = options.fetchImpl ?? fetch;
+  const onAnswered = options.onAnswered;
   let currentId = 0;
   const turns: AskTurn[] = [];
 
@@ -136,6 +138,7 @@ export function createPalChatSession(options: SessionOptions = {}) {
         turns.push({ role: "user", content: query });
         turns.push({ role: "assistant", content: result.message });
         while (turns.length > 6) turns.shift();
+        onAnswered?.();
       }
       return result;
     } catch {

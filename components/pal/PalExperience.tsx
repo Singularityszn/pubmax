@@ -26,6 +26,7 @@ import {
   anonymousPalDraftOwner,
   clearPalOnboardingDraft,
   migrateLegacyPalOnboardingDraft,
+  PAL_LAUNCH_COPY,
   PAL_UNLOCKS,
   palMasteryProgress,
   PAL_ONBOARDING_SPECIES,
@@ -52,13 +53,7 @@ const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
-  robin: { title: "Circuit Robin", note: "Bright · grounded" },
-  greyhound: { title: "Greyhound", note: "Loyal · perceptive" },
-  cat: { title: "Black Cat", note: "Calm · mischievous" },
-  fox: { title: "Fox", note: "Curious · quick" },
-  pigeon: { title: "Pigeon", note: "Streetwise · social" },
-  badger: { title: "Badger", note: "Steady · protective" },
-  corgi: { title: "Corgi", note: "Bright · encouraging" },
+  ...PAL_LAUNCH_COPY,
   hound: { title: "Signal Hound", note: "Legacy companion" },
   raven: { title: "Raven", note: "Legacy companion" },
   rabbit: { title: "Rabbit", note: "Alert · spontaneous" },

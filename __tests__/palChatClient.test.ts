@@ -2,7 +2,7 @@
 // timeout, curated house-voice error copy (no raw JS error text ever reaches the
 // UI), and provenance preserved through both response shapes. Hermetic: injected
 // fetch, no network, deterministic timers.
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import { PAL_ERROR_FALLBACK } from "@/lib/palChat";
 import { createPalChatSession } from "@/lib/palChatClient";
@@ -44,6 +44,24 @@ const WHATS_ON_BODY = {
 };
 
 describe("createPalChatSession", () => {
+  it("counts answered and honest-empty results, but never failures", async () => {
+    const onAnswered = vi.fn();
+    const responses = [
+      jsonResponse(VENUE_BODY),
+      jsonResponse({ venues: [], message: "Nothing matching that is on record." }),
+      jsonResponse({ error: "Try that again." }, 503),
+    ];
+    const ask = createPalChatSession({
+      onAnswered,
+      fetchImpl: async () => responses.shift() ?? jsonResponse({}, 500),
+    });
+
+    expect((await ask("first", "london"))?.status).toBe("answered");
+    expect((await ask("second", "london"))?.status).toBe("empty");
+    expect((await ask("third", "london"))?.status).toBe("error");
+    expect(onAnswered).toHaveBeenCalledTimes(2);
+  });
+
   it("returns a grounded venue answer with On-record provenance", async () => {
     const ask = createPalChatSession({
       fetchImpl: async () => jsonResponse(VENUE_BODY),

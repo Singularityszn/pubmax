@@ -43,7 +43,7 @@ async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promis
   const tops = await page
     .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
-  expect(tops.length, `${label} should render PUBMA, the doubled X and ING`).toBe(3);
+  expect(tops.length, `${label} should render PUBMAX and the accent X`).toBe(2);
   expect(
     Math.max(...tops) - Math.min(...tops),
     `${label} should keep the wordmark letters on one row`,
@@ -71,6 +71,7 @@ test.describe("mobile landing entry", () => {
     test.setTimeout(60_000);
     await context.setGeolocation({ latitude: 51.5137, longitude: -0.132 });
     await page.goto("/", { waitUntil: "domcontentloaded" });
+    await expect(page.getByRole("heading", { name: "Tell your Pub Pal." })).toBeVisible();
     await context.grantPermissions(["geolocation"], {
       origin: new URL(page.url()).origin,
     });
@@ -154,7 +155,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "London pints can cost eight quid.",
+        name: "Tell your Pub Pal.",
         exact: true,
       }),
     ).toBeVisible();
@@ -163,12 +164,13 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
-    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+    const talk = page.locator(".lpHeroActions").getByRole("link", { name: "Talk", exact: true });
     await expectTappable(
-      planTonight,
-      "hero Plan tonight together CTA",
+      talk,
+      "hero Talk CTA",
     );
-    await expectWithinFirstViewport(page, planTonight, "hero Plan tonight together CTA");
+    await expectWithinFirstViewport(page, talk, "hero Talk CTA");
+    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Text", exact: true }), "hero Text CTA");
     await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
     await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
 
@@ -196,12 +198,12 @@ test.describe("mobile landing entry", () => {
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
-      const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+      const talk = page.locator(".lpHeroActions").getByRole("link", { name: "Talk", exact: true });
       await expectTappable(
-        planTonight,
-        `hero Plan tonight together CTA at ${width}px`,
+        talk,
+        `hero Talk CTA at ${width}px`,
       );
-      await expectWithinFirstViewport(page, planTonight, `hero Plan tonight together CTA at ${width}px`);
+      await expectWithinFirstViewport(page, talk, `hero Talk CTA at ${width}px`);
       await expectNoHorizontalOverflow(page, width);
       await page.screenshot({
         path: testInfo.outputPath(`landing-root-${width}-light.png`),
@@ -218,12 +220,12 @@ test.describe("mobile landing entry", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
-    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+    const talk = page.locator(".lpHeroActions").getByRole("link", { name: "Talk", exact: true });
     await expectTappable(
-      planTonight,
-      "dark hero Plan tonight together CTA",
+      talk,
+      "dark hero Talk CTA",
     );
-    await expectWithinFirstViewport(page, planTonight, "dark hero Plan tonight together CTA");
+    await expectWithinFirstViewport(page, talk, "dark hero Talk CTA");
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: testInfo.outputPath("landing-root-390-dark.png"),
@@ -231,15 +233,19 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("routes primary and secondary mobile CTAs to Plan and Map", async ({ page }) => {
+  test("routes Pub Pal and keeps Plan and Map destinations in the mobile hero", async ({ page }) => {
     await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Tell your Pub Pal." })).toBeVisible();
+    await expect(page.locator('.lpPalEntry[data-ready="true"]')).toBeVisible();
 
-    await page.getByRole("link", { name: "Plan tonight together" }).first().click();
-    await expect(page).toHaveURL(/\/plan$/);
+    await page.getByRole("button", { name: "Fox", exact: true }).click();
+    await page.getByRole("link", { name: "Text", exact: true }).first().click();
+    await expect(page).toHaveURL(/\/pal\/chat\?mode=text&pal=fox$/);
     await page.goto("/");
+    await expect(page.getByRole("heading", { name: "Tell your Pub Pal." })).toBeVisible();
 
-    await page.getByRole("link", { name: "Open the map" }).first().click();
-    await expect(page).toHaveURL(/\/(choose-city|map)/);
+    await expect(page.getByRole("link", { name: "Plan a night", exact: true }).first()).toHaveAttribute("href", "/plan");
+    await expect(page.getByRole("link", { name: "Open the map" }).first()).toHaveAttribute("href", /\/(choose-city|map)/);
   });
 });
 
@@ -269,8 +275,8 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
 
   await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
-    page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" }),
-    "desktop hero Plan tonight together CTA",
+    page.locator(".lpHeroActions").getByRole("link", { name: "Talk", exact: true }),
+    "desktop hero Talk CTA",
   );
   await expectNoHorizontalOverflow(page, 1440);
 });

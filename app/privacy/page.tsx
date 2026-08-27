@@ -603,6 +603,12 @@ export default function PrivacyPage() {
             on your device unless you sign in and choose to bring it to your
             account.
           </li>
+          <li>
+            The Pub Pal five-answer guest trial stores your selected Pub Pal,
+            Talk or Text choice, and successful answer count from zero to five
+            in this browser. That record does not store your question, answer,
+            transcript or audio.
+          </li>
         </ul>
         <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
@@ -715,10 +721,15 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask The Landlord about a pub, or talk to Pub Pal, the text
-              or audio of that request goes to the model provider that answers
-              it (OpenRouter, and ElevenLabs for voice) and nothing else about
-              you goes with it.
+              If you ask The Landlord or Pub Pal, the text of that request goes
+              to the model provider that answers it, OpenRouter when the model
+              path is enabled. Guest Talk starts only after you tap its control.
+              Browser speech recognition turns your speech into reviewable text,
+              and only that reviewed text is sent to PUBMAXX when you press Ask.
+              Your browser or operating system provider may process the speech
+              under its own terms. Browser speech synthesis can read the answer
+              aloud. An account-owned provider voice uses ElevenLabs under its
+              separate signed-in Voice Session Grant.
             </dd>
           </div>
           <div className="legalRow">

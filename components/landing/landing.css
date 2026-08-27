@@ -161,7 +161,7 @@
    prefers-reduced-motion: no-preference only. The page-wide reduce rule below
    also kills animation/transition as a second gate. */
 
-.lpHeroCopy { position: relative; z-index: 2; max-width: 610px; }
+.lpHeroCopy { position: relative; z-index: 2; min-width: 0; max-width: 620px; }
 .lpHeroKicker {
   width: fit-content;
   margin: 0 0 20px;
@@ -179,7 +179,7 @@
 }
 .lpHeroKicker span { width: 7px; height: 7px; border-radius: 50%; background: var(--brass); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brass) 14%, transparent); }
 .lpHero h1 {
-  max-width: 18ch;
+  max-width: 12ch;
   margin: 0;
   font: 760 clamp(56px, 4.45vw, 64px)/.95 var(--font-display);
   letter-spacing: -.04em;
@@ -187,7 +187,7 @@
 }
 .lpHeroLede { max-width: 500px; margin: 18px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
 .lpHeroActions {
-  width: min(100%, 420px);
+  width: min(100%, 560px);
   margin-top: 22px;
   display: grid;
   grid-template-columns: 1fr;
@@ -199,6 +199,102 @@
   /* Brass on on-accent is the house high-contrast primary. */
   box-shadow: 0 16px 38px color-mix(in srgb, var(--brass) 28%, transparent);
 }
+.lpPalEntry {
+  min-width: 0;
+  padding: clamp(14px, 2vw, 20px);
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--brass) 28%);
+  border-radius: clamp(22px, 3vw, 30px);
+  background:
+    radial-gradient(circle at 12% 0%, color-mix(in srgb, var(--brass) 15%, transparent), transparent 48%),
+    color-mix(in srgb, var(--panel-raised) 92%, transparent);
+  box-shadow: 0 24px 64px color-mix(in srgb, var(--ink-deep) 16%, transparent);
+  backdrop-filter: blur(18px) saturate(1.08);
+  -webkit-backdrop-filter: blur(18px) saturate(1.08);
+}
+.lpPalEntryStage {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 108px minmax(0, 1fr);
+  align-items: center;
+  gap: 16px;
+}
+.lpPalEntryPortrait {
+  min-width: 0;
+  height: 104px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brass) 35%, var(--line));
+  border-radius: 22px;
+  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass) 12%);
+}
+.lpPalEntryPortrait .palPortrait { width: 104px; min-height: 104px; transform: scale(.82); }
+.lpPalEntryIdentity { min-width: 0; display: grid; gap: 5px; }
+.lpPalEntryIdentity h2 {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 700 11px/1.2 var(--font-data);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.lpPalEntryIdentity strong {
+  overflow-wrap: anywhere;
+  font: 760 clamp(24px, 2.3vw, 32px)/1 var(--font-display);
+  letter-spacing: -.035em;
+}
+.lpPalEntryIdentity span {
+  width: fit-content;
+  padding: 5px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--river) 12%, transparent);
+  color: var(--ink-soft);
+  font: 650 10px/1 var(--font-data);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.lpPalChoices {
+  min-width: 0;
+  margin: 14px -2px 0;
+  padding: 2px;
+  display: flex;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.lpPalChoices::-webkit-scrollbar { display: none; }
+.lpPalChoice {
+  min-height: 44px;
+  flex: 0 0 auto;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--panel) 86%, transparent);
+  color: var(--ink-soft);
+  font: 700 12px/1 var(--font-body);
+  cursor: pointer;
+  transition: color var(--duration-lift) var(--ease-standard), border-color var(--duration-lift) var(--ease-standard), background var(--duration-lift) var(--ease-standard), transform var(--duration-lift) var(--ease-standard);
+}
+.lpPalChoice:hover { color: var(--ink); border-color: color-mix(in srgb, var(--brass) 52%, var(--line)); }
+.lpPalChoice:active { transform: scale(.97); }
+.lpPalChoice[aria-pressed="true"] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 14%, var(--panel-raised));
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 42%, transparent);
+}
+.lpPalEntryModes {
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, .8fr);
+  gap: 10px;
+}
+.lpPalEntryModes .lpButton { min-width: 0; min-height: 52px; }
+.lpPalModeText {
+  border-color: color-mix(in srgb, var(--line) 72%, var(--river) 28%);
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+  color: var(--ink);
+}
+.lpPalModeText:hover { border-color: var(--river); background: color-mix(in srgb, var(--river) 10%, var(--panel-raised)); }
 .lpHeroSecondaryRow {
   display: flex;
   flex-wrap: wrap;
