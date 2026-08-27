@@ -403,7 +403,7 @@ export default function LandingPage({
           <div className="lpMemoryCanvas">
             <div className="lpMemoryCopy">
               <h2 id="memory-title">How PUBMAXX works</h2>
-              <p>Find the pub, plan the route, log the pint, or ask for help.</p>
+              <p>Plan the outing. Keep the parts that mattered. Your outing stays private until you say otherwise.</p>
               <div className="lpMemoryActions">
                 <Link prefetch={false} href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
                 {socialFriendsLaunchEnabled ? (
