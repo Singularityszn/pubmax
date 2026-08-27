@@ -2,13 +2,13 @@
 
 **Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. Paid-account work includes enrolment, certificates, Sign in with Apple activation, and the first binary upload, listed as the owner checklist in the last section.
 
-**App:** PUBMAXX. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
+**App:** PUBMAXXING. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
 
 **Identity (already fixed in the repo, do not change):**
 
 | Field | Value | Source |
 | --- | --- | --- |
-| App name | PUBMAXX | `capacitor.config.ts` `appName`; iOS `CFBundleDisplayName`; Android `app_name` |
+| App name | PUBMAXXING | `capacitor.config.ts` `appName`; iOS `CFBundleDisplayName`; Android `app_name` |
 | iOS bundle id | `com.pubmaxx.app` | `capacitor.config.ts` `appId` |
 | Android applicationId | `com.pubmaxx.app` | `android/app/build.gradle` (same string, iOS convention) |
 | Version name | 1.0 | `android/app/build.gradle` `versionName`; iOS `MARKETING_VERSION` |
@@ -24,7 +24,7 @@
 Keep the name clean and let the subtitle and keyword field carry the search terms. Do not stuff keywords into the name or subtitle, both stores penalise it and Apple bins duplicates between the name, subtitle, and keyword field.
 
 **App name (30 char max, Apple / 30 char, Google):**
-> PUBMAXX
+> PUBMAXXING
 
 **Subtitle (Apple, 30 char max):**
 > Cheap pints near you, tonight
