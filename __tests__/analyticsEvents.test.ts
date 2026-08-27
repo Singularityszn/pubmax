@@ -720,6 +720,12 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("landing_cta_clicked", { target: "plan" })?.props).toEqual({
       target: "plan",
     });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "pal_talk" })?.props).toEqual({
+      target: "pal_talk",
+    });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "pal_text" })?.props).toEqual({
+      target: "pal_text",
+    });
     expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
     expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
   });
