@@ -254,8 +254,8 @@ describe("loadWhatsOn orchestration", () => {
     });
     const response = await handleWhatsOnRequest(req("?window=tonight&limit=60&pubOnly=1"), {
       now: NOW,
-      loadBaseline: () => [...unmatched, matched],
-      fetchLive: async () => [],
+      loadBaseline: () => unmatched,
+      fetchLive: async () => [matched],
       loadVenueMatchIndex: async () =>
         buildOutVenueMatchIndex([
           { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
@@ -265,6 +265,27 @@ describe("loadWhatsOn orchestration", () => {
     const body = await response.json();
     expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["matched-pub"]);
     expect(body.rows[0].venueId).toBe("pub-1");
+  });
+
+  it("does not request-time match a bundled row that has no venue identity", async () => {
+    const result = await loadWhatsOn(
+      {
+        window: "tonight",
+        pubOnly: true,
+        venueMatchIndex: buildOutVenueMatchIndex([
+          { id: "pub-1", name: "The Test Arms", borough: "Camden", lat: 51.5, lng: -0.1 },
+        ]),
+      },
+      {
+        now: NOW,
+        loadBaseline: () => [
+          makeRow({ id: "bundled-unresolved", placeName: "The Test Arms", lat: 51.5, lng: -0.1 }),
+        ],
+        fetchLive: async () => [],
+      },
+    );
+
+    expect(result.rows).toEqual([]);
   });
 
   it("drops an ambiguous pub name instead of assigning a guessed venue id", async () => {
