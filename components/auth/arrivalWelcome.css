@@ -132,6 +132,20 @@
   color: var(--ink);
 }
 
+/* Day and Tonight own a 44px destination switch directly below the phone
+   top bar. The arrival line starts after that switch, so a greeting never
+   masks either destination while it is visible. Other routes keep the tighter
+   top-bar offset above. */
+@media (max-width: 640px) {
+  body:has(.nowSegment) .arrivalWelcome {
+    top: calc(
+      max(0.5rem, env(safe-area-inset-top))
+      + var(--topbar-h, 52px)
+      + 3.75rem
+    );
+  }
+}
+
 @keyframes arrivalWelcomeIn {
   from {
     opacity: 0;

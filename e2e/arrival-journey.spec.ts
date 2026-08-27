@@ -156,6 +156,37 @@ test.describe("returning drinker", () => {
     await page.goto("/today");
     const welcome = page.getByText(`Welcome back, @${HANDLE}.`);
     await expect(welcome).toBeVisible({ timeout: 10_000 });
+    const greeting = page.locator(".arrivalWelcome");
+    const nowNavigation = page.getByRole("navigation", { name: "Now" });
+    await expect(nowNavigation).toBeVisible();
+    await greeting.evaluate(async (element) => {
+      await Promise.all(element.getAnimations().map(async (animation) => {
+        try {
+          await animation.finished;
+        } catch {
+          // A replaced animation cannot own the settled geometry.
+        }
+      }));
+    });
+    const [greetingBox, navigationBox] = await Promise.all([
+      greeting.boundingBox(),
+      nowNavigation.boundingBox(),
+    ]);
+    expect(greetingBox).not.toBeNull();
+    expect(navigationBox).not.toBeNull();
+    const separated = greetingBox!.y + greetingBox!.height <= navigationBox!.y
+      || greetingBox!.y >= navigationBox!.y + navigationBox!.height;
+    expect(separated, JSON.stringify({ greetingBox, navigationBox })).toBe(true);
+    for (const label of ["Day", "Tonight"] as const) {
+      const destination = nowNavigation.getByRole("link", { name: label, exact: true });
+      expect(await destination.evaluate((element) => {
+        const box = element.getBoundingClientRect();
+        return document.elementFromPoint(
+          box.left + box.width / 2,
+          box.top + box.height / 2,
+        )?.closest("a") === element;
+      })).toBe(true);
+    }
     await page.screenshot({ path: `${SHOTS}/returning-4-welcome-back.png` });
 
     // A greeting, not a gate: no dialog, and it retires itself.
