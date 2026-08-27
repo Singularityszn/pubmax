@@ -6,9 +6,9 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // Reuses plan_invite_sent / plan_invite_link_copied from the invite loop.
 // ShareBar stays as overflow under "More ways to share".
 //
-// WhatsApp / ShareBar must carry #invite={classicToken} so guests can tap
-// "I'm in" on PlanCrew after invite-only join. Copy invite stays /invite/{token}
-// for the RSVP page (e2e/plan-invite.spec.ts, soft-launch runbook).
+// WhatsApp, ShareBar, and Copy carry #invite={classicToken} so guests enter
+// the same PlanCrew join path. The separate /invite/{token} page remains the
+// account-free RSVP surface.
 
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 

@@ -31,6 +31,18 @@ const MEMBERSHIP_REUSE_FORWARD = join(
   MIGRATIONS,
   "20260827200000_open_social_crew_plan_membership_reuse.sql",
 );
+const ACCOUNT_CLAIM_FORWARD = join(
+  MIGRATIONS,
+  "20260827120448_plan_membership_account_claim.sql",
+);
+const ACCOUNT_UNIQUENESS_FORWARD = join(
+  MIGRATIONS,
+  "20260827121253_plan_membership_account_uniqueness.sql",
+);
+const ACCOUNT_JOIN_FORWARD = join(
+  MIGRATIONS,
+  "20260827190000_plan_join_account_atomicity.sql",
+);
 const ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260816220000_0110_open_social_crews_rollback.sql",
@@ -221,6 +233,8 @@ const DIGEST = "a".repeat(64);
 
 let database: Database | null = null;
 let skipReason: string | null = null;
+let splitPreflightError = "";
+let splitPreflightRows = "";
 let keySequence = 0;
 /** The rollback narrows the CHECK, so a reseed after it may not say `open`. */
 let seedVisibility: "open" | "private" = "open";
@@ -399,6 +413,40 @@ beforeAll(async () => {
   database.apply(FORWARD);
   database.apply(QUEUE_FORWARD);
   database.apply(PUBLIC_PREVIEW_FORWARD);
+  database.apply(ACCOUNT_CLAIM_FORWARD);
+  database.apply(ACCOUNT_UNIQUENESS_FORWARD);
+  database.apply(ACCOUNT_JOIN_FORWARD);
+  seed(database);
+  database.sql(`insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate
+    ) values(
+      '77777777-3000-4000-8000-000000000001','${OPEN_PLAN}','Mate account',
+      md5('split-account')||md5('split-account-2'),'in','${MATE_USER}',now(),now(),false
+    );
+    insert into public.plan_crew_members(
+      id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate,social_account_id
+    ) values(
+      '77777777-3000-4000-8000-000000000002','${OPEN_PLAN}','Mate Social',
+      md5('split-social')||md5('split-social-2'),'in',now(),now(),true,'${MATE_ACCOUNT}'
+    );
+    insert into public.social_crew_members(
+      id,crew_id,social_account_id,plan_member_id,role,state
+    ) values(
+      '77777777-3000-4000-8000-000000000003','${OPEN_CREW}','${MATE_ACCOUNT}',
+      '77777777-3000-4000-8000-000000000002','member','active'
+    )`);
+  try {
+    database.apply(MEMBERSHIP_REUSE_FORWARD);
+  } catch (error) {
+    const stderr = (error as { stderr?: unknown }).stderr;
+    splitPreflightError = String(stderr ?? error);
+  }
+  splitPreflightRows = database.sql(`select count(*) from public.plan_crew_members
+    where id in (
+      '77777777-3000-4000-8000-000000000001',
+      '77777777-3000-4000-8000-000000000002'
+    )`);
+  seed(database);
   database.apply(MEMBERSHIP_REUSE_FORWARD);
 }, 300_000);
 
@@ -412,6 +460,11 @@ afterAll(async () => {
 });
 
 describe("0110 and 0114 applied to PostgreSQL", () => {
+  it("stops before changing a split Social and account Plan membership", () => {
+    expect(splitPreflightError).toMatch(/split Social and account Plan membership/);
+    expect(splitPreflightRows).toBe("2");
+  });
+
   it("shows pending requests only to current crew managers", () => {
     requestJoin(STRANGER_ACCOUNT, OPEN_CREW);
     expect(joinRequestQueue(HOST_ACCOUNT, HOST_PROFILE, OPEN_CREW)).toEqual({
