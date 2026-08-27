@@ -198,24 +198,24 @@ Commit message: `fix(map): expose UK pub stream state`
 ### Task 6: Browser proof and PR review
 
 **Files:**
-- Evidence only: `.playwright-mcp/`
+- Evidence: `docs/proof/v0-recovery/live-map-1de8c82f40abf9050ff936de96b79101fab62cf1/`
 
-- [ ] **Step 1: Run focused code checks**
+- [x] **Step 1: Run focused code checks**
 
-Run focused Vitest files from Tasks 1 to 5, targeted ESLint for changed TypeScript, and `git diff --check`.
+Tasks 1 to 5 completed their authorised focused Vitest, targeted ESLint, review, and diff checks before the proof run. The malformed Supabase configuration repair added two RED regressions, then passed 32 focused tests and targeted ESLint at `1de8c82f40abf9050ff936de96b79101fab62cf1`.
 
-- [ ] **Step 2: Test production-like local Map manually**
+- [x] **Step 2: Test local Map manually**
 
-Use 390x844 and 1440x900. Verify First Visit, resting Map, zoom-12 base load, explicit drink lens, More → Transit, Search, Filters, Near me, Plan, Venue selection, Back, Escape, and focus return.
+Codex in-app browser verified 390x844 and 1440x900. First Visit owns phone tab-bar input, default Pints has no resting phone chip, Drinks remains reachable through More > Prices, TfL remains reachable through More > Transit, Near me is the sole phone Map edge action, and UK Base reaches `ready` with a non-zero count. Escape and focus return passed. Browser Back was not separately exercised before the authorised server stopped and is recorded as a proof limitation.
 
-- [ ] **Step 3: Capture evidence**
+- [x] **Step 3: Capture evidence**
 
-Capture mobile initial, mobile resting, mobile base loaded, desktop resting, and one selected UK Base Venue.
+Captured fresh mobile First Visit, mobile resting Map, mobile Drinks, mobile Transit, desktop resting Map, and desktop `zoom_required` state. No selected Venue was required by the authorised recovery matrix.
 
-- [ ] **Step 4: Review diff**
+- [x] **Step 4: Review diff**
 
 Review against repository standards and this plan. Resolve all actionable findings.
 
-- [ ] **Step 5: Push PR head**
+- [x] **Step 5: Prepare PR evidence**
 
-Push the coherent commits to `codex/v0-recovery`. Do not merge or deploy until review and shared release gates accept the new head.
+Code and regression tests are published at `1de8c82f40abf9050ff936de96b79101fab62cf1`. Commit this evidence and leave PR merge, production build, database work, native work, and deployment held until shared release gates accept the head.
