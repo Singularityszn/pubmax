@@ -4,7 +4,7 @@ Fixed point: `origin/main` at `d19b05cf8`.
 
 Reviewed candidate heads:
 
-- London v0 PR #1237 at `5df55a687`.
+- London v0 PR #1237 at `3325c3446`.
 - Native at `c56ad7b46`.
 - TfL D1 at `eeb663635`.
 - Voice D2 at `a57b0c55d` and `9e51fc398`.
@@ -40,10 +40,8 @@ Reviewed candidate heads:
 
 ### Open merge blockers
 
-1. **P1: Plan uniqueness migration can fail on legacy data.** `20260827121253_plan_membership_account_uniqueness.sql` creates a unique `(plan_id, user_id)` index without duplicate preflight or repair. Current main could stamp the same account on more than one member row. Seed a duplicate legacy fixture, define deterministic repair or explicit operator abort output, then create the index.
-2. **P1: Repair rollback erases an earlier capability.** `20260827172414_align_one_tap_pint_drop_price_rollback.sql` drops `create_one_tap_price_pair`. Rolling back only the repair must restore the `20260827123131` function. It must not remove a still-applied prior migration. Test rollback behavior, then let the original rollback remove the function.
-3. **P1: Mobile selected-price disclosure remains incomplete.** Freshness provenance is now correct, but publisher and contributor disclosure is not.
-4. **P2: Repeated signed-in join leaves a ghost crew member.** Join inserts a second member before fail-soft account claim rejects it. Route returns success and leaves a visible, unclaimable seat. Enforce account uniqueness inside join transaction or reuse the existing membership. Test one account joining with two idempotency keys.
+1. **P1: Repair rollback erases an earlier capability.** `20260827172414_align_one_tap_pint_drop_price_rollback.sql` drops `create_one_tap_price_pair`. Rolling back only the repair must restore the `20260827123131` function. It must not remove a still-applied prior migration. Test rollback behavior, then let the original rollback remove the function.
+2. **P1: Mobile selected-price disclosure remains incomplete.** Freshness provenance is now correct, but publisher and contributor disclosure is not.
 
 ### Closed
 
@@ -52,6 +50,8 @@ Reviewed candidate heads:
 - Named RPC arguments and newer-existing-row parity have effective tests.
 - Memory fallback now uses compare-and-restore rollback and covers failure plus equal concurrent writes.
 - Mobile freshness helper now selects sourced observation time, contributor time when that price owns the figure, non-pub anchor time, or baseline dataset time.
+- Legacy duplicate Plan memberships now fail before unique-index creation with deterministic reconciliation output. Effective proof keeps both legacy rows unchanged and confirms the index is absent.
+- Signed-in Plan joins now create and claim one seat atomically for classic and collaboration invites. Current head also binds memory invite replays to the account, so a second account cannot receive the first account's member capability.
 - No confirmed auth bypass, RLS exposure, or native iOS/Android security defect was found in reviewed diffs.
 
 ## Maintainability review
@@ -62,10 +62,11 @@ Reviewed candidate heads:
 ## Verification evidence
 
 - `git diff --check` passed for London and native candidate diffs.
-- Focused London repair suite passed at `d8cd96406`: 6 files, 33 tests. The later `5df55a687` commit changes only the mobile floating-stack CSS and its rendered E2E proof; it does not close the four blockers.
+- Price-focused London repair suite passed at `3325c3446`: 6 files, 33 tests.
+- Plan-focused London suite passed at `3325c3446`: 4 files, 17 tests with one worker. Targeted ESLint and three-dot diff validation passed.
 - Native branch passed the latest focused suite at `eb25c04cf`: 8 files, 57 tests, plus targeted ESLint and diff validation. Browser-equivalent proof was added at `1e2a24c15`. It remains blocked from final compile and store proof by missing toolchains and shared release checkpoint.
 - GitHub PR #1237 is open. Hosted checks show 3 passed, 13 failed before hosted execution, and 1 skipped. Human review remains required because Cursor Bugbot exhausted usage.
 
 ## Merge decision
 
-Do not merge PR #1237 yet. Do not rebase native branch yet. Do not deploy or build signed native artefacts. Re-review exact replacement SHA after all four merge blockers are fixed and focused plus full available gates pass.
+Do not merge PR #1237 yet. Do not rebase native branch yet. Do not deploy or build signed native artefacts. Re-review exact replacement SHA after both remaining merge blockers are fixed and focused plus full available gates pass.
