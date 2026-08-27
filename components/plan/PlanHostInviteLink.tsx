@@ -6,6 +6,7 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
+import { planCrewSharePath } from "@/lib/planCrewInviteUrl";
 import {
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
@@ -117,7 +118,7 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }
 
   async function copyLink() {
-    const url = `${window.location.origin}/invite/${inviteToken}`;
+    const url = `${window.location.origin}${planCrewSharePath(planId, inviteToken)}`;
     setStatus("");
     try {
       if (!navigator.clipboard?.writeText) throw new Error("clipboard unavailable");
