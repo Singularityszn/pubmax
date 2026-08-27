@@ -188,7 +188,7 @@ export async function POST(request: Request): Promise<Response> {
       createdAt: result.plan.plan.createdAt,
       grounded,
       planId: result.plan.plan.id,
-      routeReadyAt: result.plan.plan.routeReadyAt,
+      routeReadyAt: result.plan.plan.routeReadyAt ?? null,
       stopCount: result.plan.stops.length,
     });
   } catch (error) {
