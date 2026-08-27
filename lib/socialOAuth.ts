@@ -4,10 +4,17 @@ import { createCipheriv, createHash, randomBytes } from "node:crypto";
 
 import {
   SOCIAL_PROVIDERS,
+  isSocialOAuthProvider,
   type SocialOAuthProvider,
-  type SocialProviderAvailability,
+  type SocialProvider,
 } from "@/lib/socialConnections";
 import { type OAuthConnectionInput } from "@/lib/socialConnectionStore";
+import {
+  SOCIAL_PROVIDER_CAPABILITIES,
+  availableProviderCapabilities,
+  providerCapability,
+  type SocialProviderCapabilities,
+} from "@/lib/socialProviderCapabilities";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 type OAuthState = {
@@ -31,24 +38,20 @@ const SECRET_KEYS: Record<SocialOAuthProvider, string> = {
 };
 
 /**
- * Server-derived capabilities. A client id alone is not enough to complete an
- * OAuth connection, so the UI only advertises OAuth for providers with the full
- * secret and encryption configuration required by the callback path. Manual is
- * true everywhere: typing your own handle needs nobody's app registration.
+ * Certified product capabilities. Environment configuration cannot grant a
+ * capability that has not passed provider review and lifecycle certification.
  */
-export function socialProviderAvailability(): SocialProviderAvailability {
+export function socialProviderAvailability(): Record<SocialProvider, SocialProviderCapabilities> {
   const encrypted = (process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY?.length ?? 0) >= 32;
-  const oauthReady = (provider: SocialOAuthProvider) =>
+  const oauthReady = (provider: SocialProvider) =>
+    isSocialOAuthProvider(provider) &&
     Boolean(process.env[CLIENT_KEYS[provider]] && process.env[SECRET_KEYS[provider]] && encrypted);
   return Object.fromEntries(
     SOCIAL_PROVIDERS.map((provider) => [
       provider,
-      {
-        oauth: provider in CLIENT_KEYS && oauthReady(provider as SocialOAuthProvider),
-        manual: true,
-      },
+      availableProviderCapabilities(SOCIAL_PROVIDER_CAPABILITIES[provider], oauthReady(provider)),
     ]),
-  ) as SocialProviderAvailability;
+  ) as Record<SocialProvider, SocialProviderCapabilities>;
 }
 
 const AUTHORIZE_URLS: Record<SocialOAuthProvider, string> = {
@@ -131,7 +134,7 @@ export async function createSocialOAuthStart(input: {
   provider: SocialOAuthProvider;
   origin: string;
 }): Promise<{ authorizeUrl: string }> {
-  if (!socialProviderAvailability()[input.provider].oauth) {
+  if (!socialProviderAvailability()[input.provider].oauth_identity) {
     throw new Error(`${input.provider} OAuth is not configured.`);
   }
   const clientId = process.env[CLIENT_KEYS[input.provider]];
@@ -195,6 +198,9 @@ export async function completeSocialOAuth(input: {
   code: string;
   state: string;
 }): Promise<{ ownerId: string; connection: OAuthConnectionInput }> {
+  if (!providerCapability(input.provider, "oauth_identity")) {
+    throw new Error(`${input.provider} OAuth is not certified.`);
+  }
   const state = await readSocialOAuthState(input.state, input.provider);
   const clientId = process.env[CLIENT_KEYS[input.provider]];
   if (!clientId) throw new Error(`${input.provider} OAuth is not configured.`);

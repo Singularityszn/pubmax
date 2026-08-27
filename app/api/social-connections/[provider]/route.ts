@@ -28,7 +28,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   catch { return publicApiError("Malformed request body.", "INVALID_JSON", 400); }
 
   if (body.mode === "manual") {
-    if (!socialProviderAvailability()[provider].manual) {
+    if (!socialProviderAvailability()[provider].manual_link) {
       return publicApiError("Manual connection is unavailable for this provider.", "SOCIAL_PROVIDER_MODE_UNAVAILABLE", 400);
     }
     const manualKey = `social-link:${ownerId}:${hashIp(clientIp(request))}`;
@@ -55,7 +55,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
 
   try {
-    if (!isSocialOAuthProvider(provider) || !socialProviderAvailability()[provider].oauth) {
+    if (!isSocialOAuthProvider(provider) || !socialProviderAvailability()[provider].oauth_identity) {
       return publicApiError("That social connection is not configured.", "SOCIAL_PROVIDER_UNAVAILABLE", 503, { retryable: false });
     }
     const rateKey = `social-oauth:${ownerId}:${hashIp(clientIp(request))}`;

@@ -6,6 +6,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import {
+  completeSocialOAuth,
   createSocialOAuthStart,
   readSocialOAuthState,
   socialProviderAvailability,
@@ -22,20 +23,26 @@ describe("social OAuth state", () => {
     delete process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY;
   });
 
-  it("keeps ownership and the PKCE verifier server-side and consumes state once", async () => {
+  it("refuses OAuth before provider certification even when credentials exist", async () => {
     process.env.X_CLIENT_ID = "client-id";
     process.env.X_CLIENT_SECRET = "client-secret";
     process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY = "e".repeat(32);
-    const { authorizeUrl } = await createSocialOAuthStart({ ownerId: "user-1", provider: "x", origin: "https://pubmaxxing.com" });
-    const state = new URL(authorizeUrl).searchParams.get("state")!;
-
-    expect(state).not.toContain("user-1");
-    const stored = await readSocialOAuthState(state, "x");
-    expect(stored).toMatchObject({ ownerId: "user-1", provider: "x" });
-    await expect(readSocialOAuthState(state, "x")).rejects.toThrow("Expired or mismatched OAuth state");
+    await expect(
+      createSocialOAuthStart({
+        ownerId: "user-1",
+        provider: "x",
+        origin: "https://pubmaxxing.com",
+      }),
+    ).rejects.toThrow("x OAuth is not configured");
+    await expect(readSocialOAuthState("unused", "x")).rejects.toThrow(
+      "Expired or mismatched OAuth state",
+    );
+    await expect(
+      completeSocialOAuth({ provider: "x", code: "code", state: "stale-state" }),
+    ).rejects.toThrow("x OAuth is not certified");
   });
 
-  it("advertises OAuth only when the server can complete and encrypt the flow", () => {
+  it("does not let environment credentials grant an uncertified capability", () => {
     process.env.X_CLIENT_ID = "x-id";
     process.env.X_CLIENT_SECRET = "x-secret";
     process.env.INSTAGRAM_CLIENT_ID = "instagram-id";
@@ -44,21 +51,19 @@ describe("social OAuth state", () => {
     // Manual is never gated on an app registration: typing your own handle
     // needs nobody's client id. Only the OAuth arm waits on configuration.
     expect(socialProviderAvailability()).toMatchObject({
-      x: { oauth: false, manual: true },
-      instagram: { oauth: false, manual: true },
-      tiktok: { oauth: false, manual: true },
-      letterboxd: { oauth: false, manual: true },
-      website: { oauth: false, manual: true },
+      x: { oauth_identity: false, manual_link: true },
+      instagram: { oauth_identity: false, manual_link: true },
+      tiktok: { oauth_identity: false, manual_link: true },
+      letterboxd: { oauth_identity: false, manual_link: true },
+      website: { oauth_identity: false, manual_link: true },
     });
 
     process.env.SOCIAL_CONNECTION_ENCRYPTION_KEY = "e".repeat(32);
     expect(socialProviderAvailability()).toMatchObject({
-      x: { oauth: true },
-      instagram: { oauth: true, manual: true },
-      tiktok: { oauth: false },
-      // A provider with no OAuth app can never advertise OAuth, however the
-      // environment is configured.
-      letterboxd: { oauth: false, manual: true },
+      x: { oauth_identity: false },
+      instagram: { oauth_identity: false, manual_link: true },
+      tiktok: { oauth_identity: false },
+      letterboxd: { oauth_identity: false, manual_link: true },
     });
   });
 });

@@ -24,6 +24,9 @@ function stored(
     username: "nightowl",
     profileUrl: `https://example.test/${provider}`,
     scopes: [],
+    refreshStatus: "not_applicable",
+    consentVersion: "manual-link-v1",
+    upstreamRevocationState: "not_applicable",
     connectedAt: "2026-07-15T12:00:00.000Z",
     updatedAt: "2026-07-15T12:00:00.000Z",
     ...overrides,
@@ -182,6 +185,9 @@ describe("public projections", () => {
       scopes: ["user.info.basic"],
       accessTokenCiphertext: "secret-access-token",
       refreshTokenCiphertext: "secret-refresh-token",
+      refreshStatus: "current",
+      consentVersion: "oauth-identity-v1",
+      upstreamRevocationState: "active",
       // Keep this projection test independent of the wall clock. Expiry
       // behavior has its own tests; this fixture exercises secret redaction.
       tokenExpiresAt: "2099-07-16T12:00:00.000Z",
@@ -201,6 +207,20 @@ describe("public projections", () => {
     });
     expect(JSON.stringify(projected)).not.toContain("secret");
     expect(JSON.stringify(projected)).not.toContain("providerAccountId");
+  });
+
+  it("requires action for an uncertified legacy OAuth grant", () => {
+    const projected = publicSocialConnection(stored("instagram", {
+      mode: "oauth",
+      accessTokenCiphertext: "encrypted-token",
+      refreshStatus: "refresh_due",
+      consentVersion: "legacy-oauth-v1",
+      upstreamRevocationState: "unknown",
+      tokenExpiresAt: "2099-07-16T12:00:00.000Z",
+    }));
+
+    expect(projected.status).toBe("action_required");
+    expect(JSON.stringify(projected)).not.toContain("legacy-oauth-v1");
   });
 
   it("gives a public card the link and nothing else about the connection", () => {
