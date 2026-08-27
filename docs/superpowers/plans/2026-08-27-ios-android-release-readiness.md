@@ -298,4 +298,3 @@ Upload iOS build to TestFlight and Android bundle to Play Internal testing. Do n
 - [ ] **Step 6: Record immutable release proof**
 
 Write commit SHA, version/build number, artefact checksums, signing identities without secrets, store upload IDs, device matrix, and deferred features in `docs/proof/native-v0-release/README.md`.
-
