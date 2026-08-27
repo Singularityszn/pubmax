@@ -78,6 +78,26 @@ describe("plan session capabilities", () => {
       .mockResolvedValueOnce(new Response(JSON.stringify({ active: true, role: "host", collaborationAuthorized: true })));
     await expect(restorePlanCapability(id)).resolves.toMatchObject({ role: "host" });
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "POST" });
-    expect(fetchMock.mock.calls[1]?.[1]).toEqual({ cache: "no-store" });
+    expect(fetchMock.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ cache: "no-store" }));
+  });
+
+  it("settles a stalled session read as unavailable", async () => {
+    const id = "55555555-6666-4777-8888-999999999999";
+    (globalThis as { window?: unknown }).window = {
+      dispatchEvent: vi.fn(),
+      sessionStorage: { getItem: vi.fn(() => null), removeItem: vi.fn() },
+    };
+    vi.useFakeTimers();
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockImplementation(
+      () => new Promise<Response>(() => undefined),
+    );
+
+    const restoration = restorePlanCapability(id);
+    const rejection = expect(restoration).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    await vi.advanceTimersByTimeAsync(5_000);
+
+    await rejection;
+    expect(fetchMock).toHaveBeenCalledWith(`/api/plans/${id}/session`, expect.anything());
+    vi.useRealTimers();
   });
 });

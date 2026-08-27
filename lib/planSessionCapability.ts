@@ -6,11 +6,35 @@ const volatile = new Map<string, VolatileCapability>();
 const restoration = new Map<string, Promise<VolatileCapability | null>>();
 const legacyRecovery = new Map<string, string>();
 export const PLAN_HTTP_ONLY_SESSION = "__pubmax_http_only_plan_session__";
+/** Keep invite and route surfaces from waiting forever on a stalled session read. */
+export const PLAN_SESSION_RESTORE_TIMEOUT_MS = 5_000;
 
 export class PlanSessionUnavailableError extends Error {
   constructor() {
     super("Plan session temporarily unavailable.");
     this.name = "PlanSessionUnavailableError";
+  }
+}
+
+async function fetchPlanSession(
+  input: RequestInfo | URL,
+  init?: RequestInit,
+): Promise<Response> {
+  const controller = new AbortController();
+  let timeoutId: ReturnType<typeof setTimeout> | null = null;
+  const timeout = new Promise<never>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      controller.abort();
+      reject(new PlanSessionUnavailableError());
+    }, PLAN_SESSION_RESTORE_TIMEOUT_MS);
+  });
+  try {
+    return await Promise.race([
+      fetch(input, { ...init, signal: controller.signal }),
+      timeout,
+    ]);
+  } finally {
+    if (timeoutId !== null) clearTimeout(timeoutId);
   }
 }
 
@@ -72,7 +96,7 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
   const request = (async () => {
     try {
       if (legacyToken) {
-        const exchange = await fetch(`/api/plans/${planId}/session`, {
+        const exchange = await fetchPlanSession(`/api/plans/${planId}/session`, {
           method: "POST",
           cache: "no-store",
           headers: { authorization: `Bearer ${legacyToken}` },
@@ -85,7 +109,7 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
         if (exchange.status !== 401 && exchange.status !== 403) return null;
         legacyRecovery.delete(planId);
       }
-      return await readResponse(await fetch(`/api/plans/${planId}/session`, { cache: "no-store" }));
+      return await readResponse(await fetchPlanSession(`/api/plans/${planId}/session`, { cache: "no-store" }));
     } catch (error) {
       if (error instanceof PlanSessionUnavailableError) throw error;
       throw new PlanSessionUnavailableError();

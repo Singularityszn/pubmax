@@ -9,10 +9,10 @@ import InvitePrivacyPreview from "@/components/plan/InvitePrivacyPreview";
 import RoundStarter from "@/components/round/RoundStarter";
 import { planViewModel } from "@/components/plan/planPresentation";
 import { anchorConflictMessage, routeStopsFromGenerated } from "@/components/plan/PlanComposer";
-import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot } from "@/lib/planSessionCapability";
+import { parsePlanCapabilitySnapshot, planCapabilityEvent, readPlanCapabilitySnapshot, restorePlanCapability } from "@/lib/planSessionCapability";
 import { setActivePlanRole } from "@/lib/activePlan";
-import { buildInvitePrivacyPreview, type InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { PlanPrivacyPreviewDTO } from "@/lib/planPrivacy";
+import type { InvitePrivacyPreviewDTO } from "@/lib/invitePrivacyPreview";
 import type { VibeTally } from "@/lib/vibeTally";
 import { isPlanStopCount, normalizePlanStopCount } from "@/lib/planStopCount";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
@@ -293,7 +293,6 @@ function canonicalStateFromBody(value: unknown): PlanState | null {
 export default function PlanSummary({
   planId,
   initialPreview,
-  vibeTally,
 }: {
   planId: string;
   initialPreview: PlanPrivacyPreviewDTO;
@@ -302,13 +301,18 @@ export default function PlanSummary({
   const [state, setState] = useState<PlanState | null>(null);
   useEffect(() => {
     let active = true;
-    fetch(`/api/plans/${planId}`, { cache: "no-store" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body) => {
-        const canonical = canonicalStateFromBody(body);
-        if (active && canonical) setState(canonical);
-      })
-      .catch(() => undefined);
+    void restorePlanCapability(planId)
+      .catch(() => undefined)
+      .finally(() => {
+        if (!active) return;
+        void fetch(`/api/plans/${planId}`, { cache: "no-store" })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((body) => {
+            const canonical = canonicalStateFromBody(body);
+            if (active && canonical) setState(canonical);
+          })
+          .catch(() => undefined);
+      });
     return () => {
       active = false;
     };
@@ -327,10 +331,10 @@ export default function PlanSummary({
     );
   }
 
-  return <PlanSummaryMember planId={planId} state={state} vibeTally={vibeTally} />;
+  return <PlanSummaryMember planId={planId} state={state} />;
 }
 
-function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state: PlanState; vibeTally?: VibeTally | null }) {
+function PlanSummaryMember({ planId, state }: { planId: string; state: PlanState }) {
   const view = planViewModel(state);
   const tokenEvent = planCapabilityEvent(planId);
   const pendingEvent = `pubmax:pending-route:${planId}`;
@@ -345,7 +349,6 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
     () => "|0|",
   );
   const { token: memberToken, collaborationAuthorized, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
-  const invitePreview = useMemo(() => buildInvitePrivacyPreview(state, vibeTally), [state, vibeTally]);
   const pendingRaw = useSyncExternalStore(
     (onChange) => {
       window.addEventListener("storage", onChange);
@@ -600,25 +603,23 @@ function PlanSummaryMember({ planId, state, vibeTally }: { planId: string; state
       {status ? <p className="planSummary__status" role="status" aria-live="polite">{status}</p> : null}
       {error ? <p className="planComposer__error" role="alert">{error}</p> : null}
       {!editing && !pending ? (
-        memberToken
-          ? (
-            <>
-              <PlanRoute
-                planId={planId}
-                startTime={state.plan.startTime}
-                stops={canonicalRouteStops}
-              />
-              {/* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */}
-              <RoundStarter
-                defaultTitle={state.plan.title}
-                seedStops={canonicalRouteStops.map((stop) => ({
-                  id: stop.venueId,
-                  name: stop.venueName,
-                }))}
-              />
-            </>
-          )
-          : <InvitePrivacyPreview preview={invitePreview} />
+        <>
+          <PlanRoute
+            planId={planId}
+            startTime={state.plan.startTime}
+            stops={canonicalRouteStops}
+          />
+          {memberToken ? (
+            /* Round has no Plan-constraint fields, so this bridge carries only title and ordered venue identity. */
+            <RoundStarter
+              defaultTitle={state.plan.title}
+              seedStops={canonicalRouteStops.map((stop) => ({
+                id: stop.venueId,
+                name: stop.venueName,
+              }))}
+            />
+          ) : null}
+        </>
       ) : null}
       {memberToken && canCollaborate ? (
         <PlanCollaborationPanel
