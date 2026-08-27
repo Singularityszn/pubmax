@@ -5,7 +5,20 @@ import {
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
 } from "@/lib/serverEnv";
-import { requiresSupabaseStore } from "@/lib/supabase";
+import { isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+
+describe("isSupabaseConfigured", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a malformed server URL even when the service key is present", () => {
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+
+    expect(isSupabaseConfigured()).toBe(false);
+  });
+});
 
 describe("assertProductionSecrets", () => {
   afterEach(() => {
