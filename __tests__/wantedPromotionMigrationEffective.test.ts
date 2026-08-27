@@ -52,8 +52,11 @@ function postgresBinary(name: "initdb" | "postgres" | "psql"): string | null {
 }
 
 function missingPostgresReason(): string | null {
-  if (process.env.PUBMAX_WANTED_MIGRATION_NO_PG === "1") {
-    return "PostgreSQL was deliberately hidden by PUBMAX_WANTED_MIGRATION_NO_PG=1.";
+  if (
+    process.env.PUBMAX_RLS_NO_PG === "1"
+    || process.env.PUBMAX_WANTED_MIGRATION_NO_PG === "1"
+  ) {
+    return "PostgreSQL was deliberately hidden by the migration test no-PG gate.";
   }
   const missing = (["initdb", "postgres", "psql"] as const).filter(
     (name) => postgresBinary(name) === null,

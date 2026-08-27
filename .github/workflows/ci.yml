@@ -149,6 +149,7 @@ jobs:
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
           --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
           --exclude '__tests__/**/*Migration.test.ts'
 
   coverage:
@@ -184,6 +185,7 @@ jobs:
           --exclude '__tests__/socialCrewLegacyRoutesRls.test.ts'
           --exclude '__tests__/socialCrewMigration.test.ts'
           --exclude '__tests__/pintDropVerifiedReportsMigrationEffective.test.ts'
+          --exclude '__tests__/wantedPromotionMigrationEffective.test.ts'
           --exclude '__tests__/**/*Migration.test.ts'
 
   freshness:
