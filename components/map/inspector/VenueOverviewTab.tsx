@@ -232,6 +232,7 @@ export default function VenueOverviewTab({
   priceAuthLoading,
   priceFocusRequest,
   zoneIndex,
+  onLogged,
   priceRevealMotionClass = "",
   revealRecord = false,
   revealRecordLate = false,
