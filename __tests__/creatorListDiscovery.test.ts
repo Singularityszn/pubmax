@@ -13,9 +13,43 @@ async function loadSubject(): Promise<Subject> {
 }
 
 describe("creator-list discovery", () => {
+  it("reads examined creators through one batched saved-list read", async () => {
+    const { discoverCreatorLists } = await loadSubject();
+    const listSavedByHandles = vi.fn(async ({ handles }: { handles: readonly string[] }) =>
+      new Map(
+        handles.map((handle) => [
+          handle,
+          handle === "alice"
+            ? [
+                {
+                  venueId: "venue-1",
+                  venueName: "The Fox",
+                  venueMapUrl: "/map?sel=venue-1",
+                  listType: "Sunday roasts",
+                  savedAt: "2026-08-24T12:00:00.000Z",
+                },
+              ]
+            : [],
+        ]),
+      ),
+    );
+
+    const result = await discoverCreatorLists(
+      { limit: 2 },
+      {
+        listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }],
+        listSavedByHandles,
+      },
+    );
+
+    expect(result.lists.map((list) => list.ownerHandle)).toEqual(["alice"]);
+    expect(listSavedByHandles).toHaveBeenCalledTimes(1);
+    expect(listSavedByHandles).toHaveBeenCalledWith({ handles: ["alice", "bob"] });
+  });
+
   it("groups public saves into creator lists without exposing notes", async () => {
     const { discoverCreatorLists } = await loadSubject();
-    const listSaved = vi.fn(async ({ handle }: { handle: string }) =>
+    const savedForHandle = (handle: string) =>
       handle === "alice"
         ? [
             {
@@ -56,7 +90,9 @@ describe("creator-list discovery", () => {
               savedAt: "2026-08-20T12:00:00.000Z",
             },
           ]
-        : [],
+        : [];
+    const listSavedByHandles = vi.fn(async ({ handles }: { handles: readonly string[] }) =>
+      new Map(handles.map((handle) => [handle, savedForHandle(handle)])),
     );
 
     const result = await discoverCreatorLists(
@@ -70,7 +106,7 @@ describe("creator-list discovery", () => {
           },
           { handle: "bob" },
         ],
-        listSaved,
+        listSavedByHandles,
       },
     );
 
@@ -130,7 +166,8 @@ describe("creator-list discovery", () => {
     expect(JSON.stringify(result)).not.toContain("Private note");
     expect(parsePlanDescribeFromSearch(result.lists[0]!.planUrl.split("?")[1] ?? ""))
       .toBe("Plan Sunday roasts by @alice");
-    expect(listSaved).toHaveBeenCalledTimes(2);
+    expect(listSavedByHandles).toHaveBeenCalledTimes(1);
+    expect(listSavedByHandles).toHaveBeenCalledWith({ handles: ["alice", "bob"] });
   });
 
   it("pages by examined creator even when that creator has no saved pubs", async () => {
@@ -142,7 +179,7 @@ describe("creator-list discovery", () => {
           expect(input).toEqual({ limit: 2, afterHandle: "before" });
           return [{ handle: "empty" }, { handle: "next" }];
         },
-        listSaved: async () => [],
+        listSavedByHandles: async ({ handles }) => new Map(handles.map((handle) => [handle, []])),
       },
     );
 
@@ -155,7 +192,8 @@ describe("creator-list discovery", () => {
       { limit: 1 },
       {
         listProfiles: async () => [{ handle: "alice" }],
-        listSaved: async () => ({ status: "unavailable" }),
+        listSavedByHandles: async ({ handles }) =>
+          new Map(handles.map((handle) => [handle, { status: "unavailable" as const }])),
       },
     );
 
@@ -169,18 +207,23 @@ describe("creator-list discovery", () => {
       { limit: 2 },
       {
         listProfiles: async () => [{ handle: "alice" }, { handle: "bob" }],
-        listSaved: async ({ handle }) =>
-          handle === "alice"
-            ? [
-                {
-                  venueId: "venue-1",
-                  venueName: "The Fox",
-                  venueMapUrl: "/map?sel=venue-1",
-                  listType: "Sunday roasts",
-                  savedAt: "2026-08-24T12:00:00.000Z",
-                },
-              ]
-            : { status: "unavailable" },
+        listSavedByHandles: async ({ handles }) =>
+          new Map(
+            handles.map((handle) => [
+              handle,
+              handle === "alice"
+                ? [
+                    {
+                      venueId: "venue-1",
+                      venueName: "The Fox",
+                      venueMapUrl: "/map?sel=venue-1",
+                      listType: "Sunday roasts",
+                      savedAt: "2026-08-24T12:00:00.000Z",
+                    },
+                  ]
+                : { status: "unavailable" as const },
+            ]),
+          ),
       },
     );
 

@@ -18,15 +18,21 @@ describe("GET /api/creator-lists", () => {
         isLimited: async () => false,
         isStoreAvailable: () => true,
         listProfiles,
-        listSaved: async () => [
-          {
-            venueId: "venue-1",
-            venueName: "The Fox",
-            venueMapUrl: "/map?sel=venue-1",
-            listType: "Best gardens",
-            savedAt: "2026-08-24T12:00:00.000Z",
-          },
-        ],
+        listSavedByHandles: async ({ handles }) =>
+          new Map(
+            handles.map((handle) => [
+              handle,
+              [
+                {
+                  venueId: "venue-1",
+                  venueName: "The Fox",
+                  venueMapUrl: "/map?sel=venue-1",
+                  listType: "Best gardens",
+                  savedAt: "2026-08-24T12:00:00.000Z",
+                },
+              ],
+            ]),
+          ),
       },
     );
 
@@ -69,7 +75,7 @@ describe("GET /api/creator-lists", () => {
         isLimited: async () => false,
         isStoreAvailable: () => true,
         listProfiles,
-        listSaved: vi.fn(),
+        listSavedByHandles: vi.fn(),
       },
     );
 
@@ -89,7 +95,8 @@ describe("GET /api/creator-lists", () => {
         isLimited: async () => false,
         isStoreAvailable: () => true,
         listProfiles: async () => [{ handle: "alice" }],
-        listSaved: async () => ({ status: "unavailable" }),
+        listSavedByHandles: async ({ handles }) =>
+          new Map(handles.map((handle) => [handle, { status: "unavailable" as const }])),
       },
     );
 
@@ -109,7 +116,7 @@ describe("GET /api/creator-lists", () => {
         isLimited: async () => false,
         isStoreAvailable: () => false,
         listProfiles: vi.fn(),
-        listSaved: vi.fn(),
+        listSavedByHandles: vi.fn(),
       },
     );
 
