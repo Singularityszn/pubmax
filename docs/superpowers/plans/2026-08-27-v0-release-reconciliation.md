@@ -8,16 +8,16 @@
 
 ## Current evidence
 
-- GitHub has zero open pull requests and no remote or local branch tip that is ahead of `origin/main`.
-- `origin/main` is `3cd520e15d63220c9505af61bbe80f786f26170b`.
+- GitHub has zero open pull requests. Audited local candidate branches contain no unshipped product-code salvage.
+- `origin/main` is `9b2efa13e11a6c11b25211780d19cf78a45b0c13`.
 - Production is behind current source.
 - Primary local checkout is 420 commits behind `origin/main` and contains 63 tracked product changes plus 34 untracked product paths.
 - Most dirty changes are older versions of work already shipped on `main`.
 - UK Base contains 38,215 OSM pubs. This is a separate, unpriced discovery layer.
 - Earlier Exa enrichment produced usable content for 2,443 pubs. Sample review found about 27 percent wrong-name matches. Opening-hour coverage is zero.
-- Fresh bar enrichment is running. Website-content enrichment has not started and must follow it.
+- Fresh bar enrichment stopped at 2,200 of 6,892 targets because Exa returned `402 NO_MORE_CREDITS`. Partial shards are preserved. Website-content enrichment has not started and must follow it.
 - Production What's-On reads are empty or degraded. Migration `0119` is not applied.
-- Migrations `0120` and `0121` also remain owner-controlled release operations.
+- Migrations `0120`, `0121`, and `0122` also remain owner-controlled release operations.
 - GitHub Actions is configured but cannot start because of account billing or runner allocation.
 
 ## Reconciliation decisions
@@ -55,7 +55,7 @@ Each salvage item needs a failing test on current `main`. No dirty file is copie
 
 ### 1.1 Data and schema
 
-- Captain applies migrations `0119`, `0120`, and `0121` in ledger order.
+- Captain applies migrations `0119`, `0120`, `0121`, and `0122` in ledger order.
 - Run one What's-On refresh after `0119`.
 - Record provider retrieval, date filter, London filter, canonical Venue match, and served-row counts.
 - Require either useful venue-matched rows or one precise monitored provider-empty result.
