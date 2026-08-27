@@ -16,13 +16,13 @@
 // ──────────────────────────────────────────────────────────────────────────
 
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useId, useRef, useState, useSyncExternalStore } from "react";
 import { LogIn } from "lucide-react";
 
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
-import ClerkAccountControls from "@/components/auth/ClerkAccountControls";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import {
   loadPublicProfileCard,
@@ -42,6 +42,17 @@ import {
   AUTH_MENU_FOCUSABLE_SELECTOR,
   authMenuFocusBoundary,
 } from "@/lib/authFocus";
+
+const ClerkAccountControls = dynamic(
+  () => import("@/components/auth/ClerkAccountControls"),
+  {
+    loading: () => (
+      <div className="clerkAccount clerkAccountLoading" hidden aria-hidden="true">
+        Clerk account controls
+      </div>
+    ),
+  },
+);
 
 /** Phone band: full-page /login instead of the nav popover. */
 const PHONE_LOGIN_MEDIA = "(max-width: 640px)";

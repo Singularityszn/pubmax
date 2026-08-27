@@ -56,7 +56,7 @@ jobs:
           e2e/landing-find-my-pint.spec.ts
           e2e/out-tab.spec.ts
           --project=chromium
-          --workers=2
+          --workers=1
 
   full-suite:
     name: Full browser suite (${{ matrix.suite }}, ${{ matrix.shard }}/4)

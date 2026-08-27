@@ -1,4 +1,4 @@
-export type PinRevealReason = "tiles" | "idle" | "timeout";
+export type PinRevealReason = "tiles" | "pins" | "idle" | "timeout";
 export type BasemapNoticeOwner = "none" | "timeout" | "errors";
 
 export const BASEMAP_RETRY_NOTICE = {
@@ -151,6 +151,8 @@ type PinRevealCoordinatorOptions = {
   readyCeilingMs: number;
   hasBasemapPainted: () => boolean;
   hasPinsPaintable: () => boolean;
+  /** Phone can reveal local pins on their own frame while basemap tiles load. */
+  requiresBasemapPaint?: boolean;
   /**
    * Keep parent loading chrome up for one render after pin layers become
    * visible. The render that discovers source readiness was painted while
@@ -190,6 +192,7 @@ export function createPinRevealCoordinator({
   readyCeilingMs,
   hasBasemapPainted,
   hasPinsPaintable,
+  requiresBasemapPaint = true,
   confirmVisibleFrameBeforeReveal = false,
   visibleFrameHoldMs = 0,
   setPinsVisible,
@@ -306,11 +309,19 @@ export function createPinRevealCoordinator({
       });
     };
     const revealPainted = (reason: Exclude<PinRevealReason, "timeout">) => {
-      if (!isCurrent() || !hasBasemapPainted() || !hasPinsPaintable()) return;
+      if (
+        !isCurrent() ||
+        !hasPinsPaintable() ||
+        (requiresBasemapPaint && !hasBasemapPainted())
+      ) {
+        return;
+      }
       reveal(reason);
     };
 
-    unsubscribeRender = subscribeRender(() => revealPainted("tiles"));
+    unsubscribeRender = subscribeRender(() =>
+      revealPainted(requiresBasemapPaint ? "tiles" : "pins"),
+    );
     unsubscribeIdle = subscribeIdle(() => revealPainted("idle"));
     // Short fallback: un-gate the local pins so they can't hang hidden. This
     // runs behind the still-present parent skeleton and never lifts the chrome.

@@ -157,6 +157,9 @@ const cacheRule = (source, value) => ({
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   deploymentId,
+  typescript: {
+    tsconfigPath: "./tsconfig.build.json",
+  },
   // Don't advertise the framework/version on dynamic responses.
   poweredByHeader: false,
   distDir: process.env.NEXT_DIST_DIR ?? ".next",

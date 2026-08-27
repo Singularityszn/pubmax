@@ -760,10 +760,6 @@ export default function PubMap({
     : ukNationalBrowse
       ? "Search pubs or UK places"
       : `Search ${city.displayName} venues or areas`;
-  const cityStoryCatalog = useCityStoryCatalog(cityId);
-  const cityLandmarks = cityStoryCatalog.landmarks;
-  const cityStoryBands = cityStoryCatalog.storyBands;
-  const cityCuratedCrawls = cityStoryCatalog.curatedCrawls;
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -816,6 +812,26 @@ export default function PubMap({
   // `loaded` means the slim map index has settled. Source datasets are not
   // fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
+  // Story catalogs are secondary to the slim index and pin-price path. A
+  // shared story URL still loads them immediately so its claim is ready on
+  // arrival; a clean map waits until the map has settled before fetching the
+  // catalog and its city data.
+  const storyCatalogDeepLink = (() => {
+    const search = currentSearch();
+    const params = new URLSearchParams(search);
+    return (
+      mapSeedNeedsCuratedCrawlLookup(search) ||
+      params.has("band") ||
+      params.has("landmark")
+    );
+  })();
+  const cityStoryCatalog = useCityStoryCatalog(
+    cityId,
+    loaded || storyCatalogDeepLink,
+  );
+  const cityLandmarks = cityStoryCatalog.landmarks;
+  const cityStoryBands = cityStoryCatalog.storyBands;
+  const cityCuratedCrawls = cityStoryCatalog.curatedCrawls;
   // Pair settlement with its city. On a client-side city switch there is one
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.

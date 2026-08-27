@@ -22,17 +22,17 @@
       "path": "/map",
       "readySelector": ".mobileMapTopbar",
       "settledSelectorHidden": ".mapLoading",
-      "why": "The product. Its data loads client side, so the document is a shell and must stay one. This lane measured 3066 KB eager JS decoded, down 634 KB from 3700 KB. The remaining 166 KB would defer slim index, MapLibre, or pin-price paths, so the runtime ceiling stays 3400 KB and e2e/map-perf-budget.spec.ts owns the proof.",
+      "why": "The product. Its data loads client side, so the document is a shell and must stay one. The final keyless cold-open measurement was 2877 KB eager JS decoded, down 823 KB from the 3700 KB baseline. Slim index, MapLibre, and pin-price paths remain eager, so the runtime ceiling stays 3400 KB and e2e/map-perf-budget.spec.ts owns the proof.",
       "serverRenderMs": 150,
       "jsDecodedKB": 3400,
       "requests": 122,
       "pinReady": {
         "path": "/map/london",
         "targetMs": 5000,
-        "measuredMs": 9800,
+        "measuredMs": 3999,
         "signal": "window.__pubmaxPaintedMapTapPoints().length > 0",
         "viewport": { "width": 390, "height": 844 },
-        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a SwiftShader production build. 634 KB eager-JS reduction (3700→3066 KB decoded) does not touch basemap style/tile/glyph init, which remains the pin-ready bottleneck (~9.8s on this harness). A prior interrupted run recorded 32200 ms and was discarded."
+        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. Final run: 3999 ms. Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane."
       }
     },
     {

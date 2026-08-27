@@ -22,9 +22,11 @@ import {
 function harness({
   confirmVisibleFrameBeforeReveal = false,
   visibleFrameHoldMs = 0,
+  requiresBasemapPaint = true,
 }: {
   confirmVisibleFrameBeforeReveal?: boolean;
   visibleFrameHoldMs?: number;
+  requiresBasemapPaint?: boolean;
 } = {}) {
   let basemapPainted = false;
   let pinsPaintable = true;
@@ -43,6 +45,7 @@ function harness({
     readyCeilingMs: 12_000,
     hasBasemapPainted: () => basemapPainted,
     hasPinsPaintable: () => pinsPaintable,
+    requiresBasemapPaint,
     confirmVisibleFrameBeforeReveal,
     visibleFrameHoldMs,
     setPinsVisible: (visible) => visibility.push(visible),
@@ -289,6 +292,16 @@ describe("pin reveal coordinator", () => {
     expect(h.renderListeners.size).toBe(0);
     expect(h.idleListeners.size).toBe(0);
     expect(h.timers.size).toBe(0);
+  });
+
+  it("can reveal phone pins from their own painted source before basemap tiles settle", () => {
+    const h = harness({ requiresBasemapPaint: false });
+    h.coordinator.arm();
+
+    h.fireRender();
+
+    expect(h.visibility).toEqual([false, true]);
+    expect(h.reveals).toEqual([{ reason: "pins", generation: 1 }]);
   });
 
   it("keeps readiness gated until the latest pub source is paintable", () => {

@@ -384,10 +384,10 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Honest upper bound for the visible-map handoff. Desktop and phone both
 // degrade to the existing basemap retry toast; neither unmounts the canvas.
 // Phone still requires a confirmed visible frame before a successful reveal.
-// Keep the ceiling inside the phone pin-ready SLA so slow basemap tiles cannot
-// hold local pub pins past the point where the map must become usable. The
-// shorter ceiling leaves room for style setup and the first browser frame.
-const PIN_READY_CEILING_MS = 1_500;
+// Keep the ceiling above the measured slow stream. The phone can reveal local
+// pins from their own painted source before basemap tiles settle; this ceiling
+// remains only for the honest parent loading handoff when that signal fails.
+const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.
@@ -1603,6 +1603,11 @@ export default function PubMapCanvas({
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      // On a phone, local pub GeoJSON is the useful content that the reader
+      // is waiting for. Do not hold its first painted frame behind remote
+      // basemap tiles; tile failures still use their independent classifier
+      // and retry lane below.
+      requiresBasemapPaint: !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
