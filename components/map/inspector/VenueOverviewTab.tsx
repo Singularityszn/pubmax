@@ -54,6 +54,7 @@ import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
+import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
 
 function VenuePriceSummary({
   venue,
@@ -183,12 +184,12 @@ function VenuePriceSummary({
               >
                 {baselineSource.label}
               </a>
-              . Not a live tonight feed.
+              . {formatPintDatasetAsOf()}. Not a live tonight feed.
             </>
           ) : (
             <>
-              Price on record. Publisher not recorded for this price. Not a live
-              tonight feed.
+              Price on record. Publisher not recorded for this price. {formatPintDatasetAsOf()}.
+              {" "}Not a live tonight feed.
             </>
           )}
         </small>

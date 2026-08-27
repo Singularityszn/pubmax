@@ -7,6 +7,7 @@ import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { Drink } from "@/lib/drinks";
 import { venueDrinkMenu } from "@/lib/drinkMenu";
+import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
@@ -304,6 +305,7 @@ describe("baseline price-source presentation", () => {
     expect(html).toContain(
       "Price on record. Publisher not recorded for this price.",
     );
+    expect(html).toContain(formatPintDatasetAsOf());
     expect(html).not.toContain("Source not named in record");
   });
 

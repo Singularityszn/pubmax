@@ -40,6 +40,7 @@ import {
   type Filters,
   type Venue,
 } from "@/lib/venues";
+import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -3959,7 +3960,7 @@ export default function PubMap({
           ) : typeof selectedVenue.cheapestPrice === "number" ? (
             <span>
               <PriceBadge>{formatPrice(selectedVenue.cheapestPrice)}</PriceBadge>
-              <small>current recorded price</small>
+              <small>{formatPintDatasetAsOf()}</small>
             </span>
           ) : selectedVenueIsPub ? (
             <button
