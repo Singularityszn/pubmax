@@ -6,6 +6,7 @@ import {
   type CoverageStatus,
   type NightArea,
 } from "@/lib/nightAreas";
+import { nightAreaCoverageDetail } from "@/lib/nightPresentation";
 
 type CoverageBucket = "route_ready" | CoverageStatus;
 type CoverageTone = "ready" | "captured" | "reviewed" | "discovered" | "paused";
@@ -40,10 +41,7 @@ function stateForArea(area: NightArea, now: Date): CoverageState {
     };
   }
 
-  const openChecks = area.missingEvidence.length;
-  const gateDetail = openChecks > 0
-    ? `${openChecks} more price ${openChecks === 1 ? "check" : "checks"} to do here before a crawl.`
-    : "Not enough fresh prices here yet to plan a crawl.";
+  const gateDetail = nightAreaCoverageDetail(area, now);
   const shared = {
     actionLabel: "See the pubs",
     href: `/map?q=${encodeURIComponent(area.name)}`,

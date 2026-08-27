@@ -64,6 +64,11 @@ import {
 } from "@/lib/lateFood";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
 import { haversineKm } from "@/lib/haversine";
+import {
+  getHomeEndingDescription,
+  keepGoingDistanceDescription,
+  nextStopWalkDescription,
+} from "@/lib/nightPresentation";
 import { legMinutes } from "@/lib/routeLegs";
 import RouteEndingCard, {
   GetHomeHandoffRow,
@@ -330,9 +335,7 @@ export function endingOptionsForSignals({
     {
       id: "get_home",
       title: "Get home",
-      description: leaveByIso
-        ? `Live last-train time for ${stationName ?? "the nearest station"}.`
-        : `Check ${stationName ?? "the nearest station"} before you confirm.`,
+      description: getHomeEndingDescription(stationName, leaveByIso),
       actionLabel: "Check the way home",
       recommended: true,
     },
@@ -1023,7 +1026,7 @@ function NightModeSheet({
           onClick={advance}
           aria-label={`Next, ${nextStop.venueName}${
             nextStopWalkMinutes !== null
-              ? `, about ${nextStopWalkMinutes} min walk`
+              ? `, ${nextStopWalkDescription(nextStopWalkMinutes)}`
               : ""
           }. Mark here now.`}
         >
@@ -1032,7 +1035,7 @@ function NightModeSheet({
           {nextStopWalkMinutes !== null ? (
             <span className="nightCard__nextWalk">
               <Footprints size={18} aria-hidden="true" />
-              about {nextStopWalkMinutes} min on foot
+              {nextStopWalkDescription(nextStopWalkMinutes)}
             </span>
           ) : null}
           <span className="nightCard__nextAction">
@@ -1365,11 +1368,7 @@ function GetHomeEndingConfirmation({
   return (
     <div className="nightCard__foodPicker" aria-label="Confirm Get home ending">
       <strong>Getting home</strong>
-      <p>
-        {leaveByIso
-          ? `We've got a live last-train time for ${stationName ?? "the nearest station"}.`
-          : `Check the last trains from ${stationName ?? "the nearest station"} before you head off.`}
-      </p>
+      <p>{getHomeEndingDescription(stationName, leaveByIso)}</p>
       {handoffVenue ? (
         <GetHomeHandoffRow venue={handoffVenue} decision={decision} />
       ) : null}
@@ -1426,7 +1425,7 @@ function KeepGoingPicker({
             >
               <span>{extension.name}</span>
               <small>
-                {extension.distanceKm.toFixed(1)} km away ·{" "}
+                {keepGoingDistanceDescription(extension.distanceKm)} ·{" "}
                 {extension.cheapestPrice === null
                   ? "no price yet"
                   : `about £${extension.cheapestPrice.toFixed(2)} a pint`}{" "}

@@ -126,10 +126,9 @@ export function relevantLineIdsForPatch(patchId: string): Set<string> {
 // ---------------------------------------------------------------------------
 //
 // Same offset technique as lib/whatsOn.ts londonServiceDayBounds: read the London
-// wall clock for `now`, derive the UTC offset at that instant, and rebuild the
-// window edges as real UTC instants. This is what lets a planned-closure window
-// (which TfL gives as absolute ISO instants) be compared honestly regardless of
-// the server timezone or BST/GMT.
+// wall clock for `now`, then resolve each edge against the offset at that edge.
+// This is what lets a planned-closure window (which TfL gives as absolute ISO
+// instants) be compared honestly regardless of the server timezone or BST/GMT.
 
 export const NIGHT_WINDOW_OPEN_HOUR = 17;
 export const NIGHT_WINDOW_CLOSE_HOUR = 2;
@@ -164,16 +163,27 @@ function londonOffsetMs(base: Date): number {
   return asIfUtc - Math.floor(base.getTime() / 1000) * 1000;
 }
 
+function londonWallTimeToUtcMs(
+  year: number,
+  month: number,
+  day: number,
+  hour: number,
+): number {
+  const wallAsUtc = Date.UTC(year, month - 1, day, hour, 0, 0);
+  let instant = wallAsUtc - londonOffsetMs(new Date(wallAsUtc));
+  instant = wallAsUtc - londonOffsetMs(new Date(instant));
+  return instant;
+}
+
 /**
  * Tonight's window as absolute epoch-ms bounds: [17:00, 02:00) London. Before
  * 02:00 the window's evening date rolls back a day — at 00:30 we are still inside
  * the night that opened at 17:00 yesterday, so a closure running to 02:00 must
- * still count. A single offset (read at `now`) is exact enough; the window never
- * straddles the 01:00 DST switch in a way that changes an overlap decision here.
+ * still count. Each edge is converted independently because clock-change nights
+ * use different offsets at 17:00 and 02:00.
  */
 export function tonightWindow(now: Date): { start: number; end: number } {
   const p = londonParts(now);
-  const offset = londonOffsetMs(now);
 
   let ey = p.year;
   let em = p.month;
@@ -186,8 +196,8 @@ export function tonightWindow(now: Date): { start: number; end: number } {
     ed = prev.getUTCDate();
   }
 
-  const start = Date.UTC(ey, em - 1, ed, NIGHT_WINDOW_OPEN_HOUR, 0, 0) - offset;
-  const end = Date.UTC(ey, em - 1, ed + 1, NIGHT_WINDOW_CLOSE_HOUR, 0, 0) - offset;
+  const start = londonWallTimeToUtcMs(ey, em, ed, NIGHT_WINDOW_OPEN_HOUR);
+  const end = londonWallTimeToUtcMs(ey, em, ed + 1, NIGHT_WINDOW_CLOSE_HOUR);
   return { start, end };
 }
 
