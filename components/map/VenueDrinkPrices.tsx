@@ -52,6 +52,9 @@ export default function VenueDrinkPrices({
   communityPrices,
   onLogPrice,
   canLog,
+  priceRevealMotionClass = "",
+  revealRecord = false,
+  revealRecordLate = false,
 }: {
   venueId: string;
   venueName: string;
@@ -68,6 +71,9 @@ export default function VenueDrinkPrices({
   onLogPrice: () => void;
   /** False where this venue takes no community price (a bar, a restaurant). */
   canLog: boolean;
+  priceRevealMotionClass?: string;
+  revealRecord?: boolean;
+  revealRecordLate?: boolean;
 }) {
   const ordered = orderVenueDrinkPrices(rows, activeLane);
   const [lead, ...rest] = ordered;
@@ -96,21 +102,45 @@ export default function VenueDrinkPrices({
     >
       {lead ? (
         <div className="contributorPrice communityPriceRow">
-          <span>
+          <span className={priceRevealMotionClass || undefined}>
             <ClaimBadge kind="contributor" /> Logged by a Pubmaxxer
           </span>
           <PriceBadge variant="current">
             {formatPrice(lead.price.priceGbp)}
           </PriceBadge>
-          <small className="communityPriceStamp">
+          <small
+            className={
+              [
+                "communityPriceStamp",
+                priceRevealMotionClass,
+                revealRecord ? "venueRevealRecord" : "",
+              ]
+                .filter(Boolean)
+                .join(" ") || undefined
+            }
+            data-reveal-delay={revealRecord && !revealRecordLate ? "0" : undefined}
+          >
             {lead.label} · {communityStampLabel(lead.price.submittedAt)}
           </small>
           {communityTrustNote(lead.price) ? (
-            <small className="communityPriceStanding">
+            <small
+              className={
+                [
+                  "communityPriceStanding",
+                  priceRevealMotionClass,
+                  revealRecord ? "venueRevealRecord" : "",
+                ]
+                  .filter(Boolean)
+                  .join(" ") || undefined
+              }
+              data-reveal-delay={revealRecord && !revealRecordLate ? "1" : undefined}
+            >
               {communityTrustNote(lead.price)}
             </small>
           ) : null}
-          <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+          <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+            {COMMUNITY_PRICE_NOTE}
+          </small>
           <CommunityPriceReport
             price={lead.price}
             communityPrices={communityPrices}

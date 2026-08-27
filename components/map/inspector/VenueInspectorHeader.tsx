@@ -23,6 +23,10 @@ type VenueInspectorHeaderProps = {
   onGrabDragStart?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragMove?: (event: React.PointerEvent<HTMLElement>) => void;
   onGrabDragEnd?: (event: React.PointerEvent<HTMLElement>) => void;
+  onTabStripScroll?: () => void;
+  revealBloom?: boolean;
+  revealChecked?: boolean;
+  revealCheckedLate?: boolean;
 };
 
 export default function VenueInspectorHeader({
@@ -36,6 +40,10 @@ export default function VenueInspectorHeader({
   onGrabDragStart,
   onGrabDragMove,
   onGrabDragEnd,
+  onTabStripScroll,
+  revealBloom = false,
+  revealChecked = false,
+  revealCheckedLate = false,
 }: VenueInspectorHeaderProps) {
   const { ref: tabStripRef, faded } = useTrailingEdgeFade<HTMLDivElement>();
 
@@ -65,7 +73,7 @@ export default function VenueInspectorHeader({
           placeholder for photo-less venues. Additive/self-contained so it does
           not touch the tab strip or grab-zone layout N3 owns below. */}
       <VenueImage
-        className="venueImage--header venueBaselinePhoto"
+        className={`venueImage--header venueBaselinePhoto${revealBloom ? " venueRevealBloom" : ""}`}
         sources={[
           { url: venue.imageUrl, provenance: "chain" },
           { url: communityPhotoUrl, provenance: "community" },
@@ -81,6 +89,8 @@ export default function VenueInspectorHeader({
         name={venue.name}
         latitude={venue.latitude}
         longitude={venue.longitude}
+        revealChecked={revealChecked}
+        revealCheckedLate={revealCheckedLate}
       />
 
       {/* The right-edge fade is drawn only while something really is off the
@@ -90,6 +100,7 @@ export default function VenueInspectorHeader({
       <div
         ref={tabStripRef}
         className="venueTabs"
+        onScroll={onTabStripScroll}
         data-trailing-fade={faded ? "on" : "off"}
         role="tablist"
         aria-label="Venue detail sections"

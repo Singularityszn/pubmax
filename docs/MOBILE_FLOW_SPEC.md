@@ -45,6 +45,25 @@ After any successful route generation, including describe-first chips and the
 concierge path, the route status moves into view and receives focus. Reduced
 motion changes the scroll to an immediate jump, not a skipped reveal.
 
+### Venue reveal
+
+Selecting a Venue opens its mobile sheet at the half snap while the map centres
+the selected pin. A fresh selection uses a maximum 480 ms entrance overlapped
+with the 700 ms camera move. Content is present at its final values from the
+first frame; reveal motion uses transform and opacity only.
+
+The same reveal state, trust rules, and timing apply to the desktop side drawer;
+its side-drawer spring mirrors the phone sheet's entrance. On phones, the sheet
+opens at the half snap with its overshoot. The fresh form staggers the photo,
+price provenance, dated occupancy and Tonight signals, and story content in at
+most four children, 40 ms apart. Figures stay static: live signals use a dated
+rise-in only, with no physics or count-up. Drag, scroll, another selection, or
+Escape interrupts the entrance and settles the sheet. Reduced motion disables
+all new reveal motion. The trust-tier choreography, short-form timing, and
+browser contract live in
+[`docs/proof/venue-reveal/README.md`](proof/venue-reveal/README.md) and
+[`e2e/venue-reveal.spec.ts`](../e2e/venue-reveal.spec.ts).
+
 ## 3. The `/map` URL param contract (single source of truth)
 
 Read/round-tripped in `lib/crawlUrl.ts` + `components/PubMap.tsx`. Decode never throws;

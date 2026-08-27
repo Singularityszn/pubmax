@@ -57,6 +57,42 @@ export const SHEET_SNAP_TRANSLATE_FRACTIONS = {
   full: 1 - SHEET_SNAP_FRACTIONS.full,
 } as const;
 
+export const SHEET_ENTRANCE_OVERSHOOT_DAMPING = 0.75;
+/** Keep first phone-sheet frame visible while the entrance spring starts. */
+export const SHEET_ENTRANCE_START_FRACTION = 0.05;
+
+export const VENUE_REVEAL_STALE_MS = 8_000;
+export const VENUE_REVEAL_SHORT_MS = 160;
+export const VENUE_REVEAL_CINEMA_MS = 480;
+export const VENUE_REVEAL_REDUCED_MOTION_QUERY =
+  "(prefers-reduced-motion: reduce)";
+
+export function venueRevealPrefersReducedMotion(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    window.matchMedia?.(VENUE_REVEAL_REDUCED_MOTION_QUERY).matches === true
+  );
+}
+
+export type VenueRevealForm = "full" | "short";
+
+export function revealForm(
+  now: number,
+  lastRevealAt: number | null,
+): VenueRevealForm {
+  if (lastRevealAt === null || !Number.isFinite(lastRevealAt)) return "full";
+  if (now - lastRevealAt >= VENUE_REVEAL_STALE_MS) return "full";
+  return "short";
+}
+
+export function sheetEntranceStartHeight(
+  targetHeight: number,
+  overshoot: boolean,
+): number {
+  if (!overshoot || !Number.isFinite(targetHeight) || targetHeight <= 0) return 0;
+  return targetHeight * SHEET_ENTRANCE_START_FRACTION;
+}
+
 /** translateY fraction of viewport for a snap (same units as CSS `vh`). */
 export function sheetTranslateYFraction(snap: SheetSnap): number {
   return SHEET_SNAP_TRANSLATE_FRACTIONS[snap];

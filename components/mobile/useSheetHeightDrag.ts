@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   resolveSheetHeightSnap,
+  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+  sheetEntranceStartHeight,
   sheetSnapCaps,
   type SheetSnap,
 } from "@/lib/sheetSnap";
@@ -22,7 +24,8 @@ const MOMENTUM_VELOCITY_THRESHOLD = 0.5;
 export interface SheetHeightDrag {
   sheetSnap: SheetSnap;
   setSheetSnap: (snap: SheetSnap) => void;
-  openAtSnap: (snap: SheetSnap) => void;
+  settleToRest: (snap?: SheetSnap) => void;
+  openAtSnap: (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => void;
   requestDismiss: (presentedHeight?: number) => void;
   sheetHeight: number;
   dragging: boolean;
@@ -98,11 +101,25 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
     [animateTo, capsForViewport],
   );
 
+  const settleToRest = useCallback((targetSnap: SheetSnap = sheetSnap) => {
+    setRestingSnap(targetSnap);
+    stop();
+    animateTo(capsForViewport()[targetSnap], { dampingRatio: 1 });
+  }, [animateTo, capsForViewport, sheetSnap, stop]);
+
   const openAtSnap = useCallback(
-    (snap: SheetSnap) => {
+    (snap: SheetSnap, options?: { entranceOvershoot?: boolean }) => {
       setRestingSnap(snap);
-      jumpTo(0);
-      animateTo(capsForViewport()[snap], { dampingRatio: 1 });
+      const targetHeight = capsForViewport()[snap];
+      jumpTo(
+        sheetEntranceStartHeight(
+          targetHeight,
+          options?.entranceOvershoot === true,
+        ),
+      );
+      animateTo(targetHeight, {
+        dampingRatio: options?.entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
+      });
     },
     [animateTo, capsForViewport, jumpTo],
   );
@@ -232,6 +249,7 @@ export function useSheetHeightDrag(onDismiss: () => void): SheetHeightDrag {
   return {
     sheetSnap,
     setSheetSnap,
+    settleToRest,
     openAtSnap,
     requestDismiss,
     sheetHeight,

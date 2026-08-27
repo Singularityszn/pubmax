@@ -50,7 +50,7 @@ import {
   NO_ALCOHOL_LENS_PRICE_NOUN,
   type MapExperienceLens,
 } from "@/lib/mapExperienceLens";
-import { DEFAULT_DRINK_LANE, drinkLaneNoun } from "@/lib/drinkLanes";
+import { drinkLaneNoun, venueDrinkPriceView } from "@/lib/drinkLanes";
 import { namedLegacyPintPriceSource, type DrinkCategory } from "@/lib/drinks";
 import { overviewDisplayablePintGbp } from "@/lib/overviewDisplayablePint";
 import type { ZonePintIndex } from "@/lib/zones";
@@ -63,6 +63,7 @@ function VenuePriceSummary({
   anchorStamp,
   onLogTonightPrice,
   onStartFirstDrop,
+  priceRevealMotionClass = "",
 }: {
   venue: Venue;
   latestContributorPrice: number | null | undefined;
@@ -71,7 +72,9 @@ function VenuePriceSummary({
   anchorStamp: string | null;
   onLogTonightPrice: () => void;
   onStartFirstDrop?: () => void;
+  priceRevealMotionClass?: string;
 }) {
+  const chromeRevealClass = priceRevealMotionClass || undefined;
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -87,14 +90,14 @@ function VenuePriceSummary({
   ) {
     return (
       <div className="contributorPrice">
-        <span>
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> {venue.anchorLabel}
         </span>
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
         {anchorStamp || venue.anchorSourceUrl ? (
-          <small>
+          <small className={chromeRevealClass}>
             {anchorStamp}
             {venue.anchorSourceUrl ? (
               <>
@@ -110,7 +113,9 @@ function VenuePriceSummary({
             ) : null}
           </small>
         ) : null}
-        <small className="communityPriceNote">Not a pint price.</small>
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+          Not a pint price.
+        </small>
       </div>
     );
   }
@@ -118,16 +123,18 @@ function VenuePriceSummary({
   if (latestContributorPrice !== null && latestContributorPrice !== undefined) {
     return (
       <div className="contributorPrice">
-        <span>
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
         <PriceBadge variant="current">
           {formatPrice(latestContributorPrice)}
         </PriceBadge>
         {venue.latestContributorAt ? (
-          <small>{formatFreshness(venue.latestContributorAt)}</small>
+          <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
-        <small className="communityPriceNote">{COMMUNITY_PRICE_NOTE}</small>
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
+          {COMMUNITY_PRICE_NOTE}
+        </small>
       </div>
     );
   }
@@ -135,13 +142,13 @@ function VenuePriceSummary({
   if (sourcedPrice) {
     return (
       <div className="contributorPrice">
-        <span>
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="sourced" /> Sourced price
         </span>
         <PriceBadge variant="current">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        <small>
+        <small className={chromeRevealClass}>
           {sourcedObserved ? `${sourcedObserved} · ` : ""}
           <a
             className="priceSourceLink"
@@ -159,13 +166,13 @@ function VenuePriceSummary({
   if (venue.cheapestPrice !== null && venue.cheapestPrice !== undefined) {
     return (
       <div className="contributorPrice">
-        <span>
+        <span className={chromeRevealClass}>
           <ClaimBadge kind="baseline" /> Baseline on record
         </span>
         <PriceBadge variant="baseline">
           {formatPrice(venue.cheapestPrice)}
         </PriceBadge>
-        <small className="communityPriceNote">
+        <small className={`communityPriceNote ${priceRevealMotionClass}`.trim()}>
           {baselineSource ? (
             <>
               Dataset price from{" "}
@@ -225,6 +232,9 @@ export default function VenueOverviewTab({
   priceAuthLoading,
   priceFocusRequest,
   zoneIndex,
+  priceRevealMotionClass = "",
+  revealRecord = false,
+  revealRecordLate = false,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -262,6 +272,9 @@ export default function VenueOverviewTab({
   /** Per-zone median pint index from the map's priced pubs — zone fallback
    *  when the Pint Index league has no borough row for this pub. */
   zoneIndex?: ZonePintIndex | null;
+  priceRevealMotionClass?: string;
+  revealRecord?: boolean;
+  revealRecordLate?: boolean;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -296,28 +309,18 @@ export default function VenueOverviewTab({
   const venueReadStatus =
     communityPrices.venuePriceStatus.get(venue.id) ?? "idle";
   const communityRows = communityPrices.byVenueId.get(venue.id);
-  const noAlcoholRows = communityRows?.filter(
-    (row) =>
-      row.drinkCategory === "soft-drink" ||
-      row.drinkCategory === "alcohol-free",
-  );
   // What the prices-by-drink section may show, and which drink it reads first.
   // The food view reserves the slot for the sourced menu anchor below, and the
   // no-alcohol view admits only its own two categories; every other view shows
   // the pub's whole drink list with the map's lane at the top.
-  const drinkPriceRows =
-    experienceLens === "food"
-      ? undefined
-      : experienceLens === "no-alcohol"
-        ? noAlcoholRows
-        : communityRows;
+  const { rows: drinkPriceRows, lane: leadLane } = venueDrinkPriceView(
+    communityRows,
+    experienceLens,
+    drinkLensCategory,
+  );
   // Which lane leads, and what it is called in a sentence. The no-alcohol view
   // joins two categories, so it keeps its own shared noun rather than naming
   // one of them and hiding the other.
-  const leadLane: DrinkCategory =
-    experienceLens === "no-alcohol"
-      ? "alcohol-free"
-      : drinkLensCategory ?? DEFAULT_DRINK_LANE;
   const leadLaneNoun =
     experienceLens === "no-alcohol"
       ? NO_ALCOHOL_LENS_PRICE_NOUN
@@ -348,7 +351,12 @@ export default function VenueOverviewTab({
     >
       <p className="venueAddress">{venue.address}</p>
       <VenueActionStrip venue={venue} />
-      <VenueOccupancyRow venueId={venue.id} active={tab === "overview"} />
+      <VenueOccupancyRow
+        venueId={venue.id}
+        active={tab === "overview"}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
+      />
       {/* Visit Report peek: newest accounts only. The full composer stays on
           Lore (VenueStoryTab), so Overview never grows a second rating system. */}
       <VisitReportPanel
@@ -492,6 +500,9 @@ export default function VenueOverviewTab({
           communityPrices={communityPrices}
           onLogPrice={onLogTonightPrice}
           canLog={isPubVenue(venue)}
+          priceRevealMotionClass={priceRevealMotionClass}
+          revealRecord={revealRecord}
+          revealRecordLate={revealRecordLate}
         />
       )}
       {/* Price honesty on overview: community override wins, then sourced
@@ -512,6 +523,9 @@ export default function VenueOverviewTab({
           anchorStamp={anchorStamp}
           onLogTonightPrice={onLogTonightPrice}
           onStartFirstDrop={onStartFirstDrop}
+          priceRevealMotionClass={
+            drinkPriceRows?.length ? "" : priceRevealMotionClass
+          }
         />
       ) : null}
       {/* What a pint here used to cost: one dated figure from the archives,

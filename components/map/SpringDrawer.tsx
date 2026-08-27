@@ -16,6 +16,7 @@ import {
 import {
   sheetClosedTranslateY,
   sheetTranslateY,
+  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
   type SheetSnap,
 } from "@/lib/sheetSnap";
 import { useSpringValue } from "@/lib/useSpringValue";
@@ -46,6 +47,8 @@ type SpringDrawerProps = Omit<
   releaseVelocityY: number;
   keepMounted?: boolean;
   fade?: boolean;
+  /** Beat 1: a fresh venue open springs past half with a subtle overshoot. */
+  entranceOvershoot?: boolean;
   children: ReactNode;
 };
 
@@ -70,6 +73,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       releaseVelocityY,
       keepMounted = false,
       fade = false,
+      entranceOvershoot = false,
       className,
       children,
       ...divProps
@@ -107,7 +111,9 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       useState<ReactNode>(open ? children : null);
     const drawerRef = useRef<HTMLDivElement | null>(null);
     const modeRef = useRef<"horizontal" | "vertical" | null>(null);
+    const wasOpenRef = useRef(false);
     const wasDraggingRef = useRef(false);
+    const overshootEntranceDoneRef = useRef(false);
     const setDrawerRef = useCallback(
       (node: HTMLDivElement | null) => {
         drawerRef.current = node;
@@ -132,7 +138,13 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       const mode = tabletSheet ? "vertical" : "horizontal";
       const modeChanged = modeRef.current !== mode;
       const firstRun = modeRef.current === null;
+      const opening = open && !wasOpenRef.current;
+      wasOpenRef.current = open;
       modeRef.current = mode;
+      const initialEntrance =
+        entranceOvershoot &&
+        open &&
+        !overshootEntranceDoneRef.current;
 
       if (tabletSheet) {
         stopHorizontal();
@@ -156,12 +168,27 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
           wasDraggingRef.current = false;
           const target = open ? snapTarget : closedTarget;
           if (firstRun || modeChanged) {
-            jumpVertical(target);
-            if (!open) clearRetainedChildren();
+            if (initialEntrance) {
+              jumpVertical(closedTarget);
+              animateVertical(target, {
+                dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+                onRest: () => {
+                  overshootEntranceDoneRef.current = true;
+                },
+              });
+            } else {
+              jumpVertical(target);
+              if (!open) clearRetainedChildren();
+            }
           } else {
             animateVertical(target, {
               velocity,
-              dampingRatio: Math.abs(velocity) >= 500 ? 0.8 : 1,
+              dampingRatio:
+                opening && entranceOvershoot
+                  ? SHEET_ENTRANCE_OVERSHOOT_DAMPING
+                  : Math.abs(velocity) >= 500
+                    ? 0.8
+                    : 1,
               onRest: open ? undefined : clearRetainedChildren,
             });
           }
@@ -171,11 +198,21 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
         wasDraggingRef.current = false;
         const target = open ? 0 : closedHorizontal;
         if (firstRun || modeChanged) {
-          jumpHorizontal(target);
-          if (!open) clearRetainedChildren();
+          if (initialEntrance) {
+            animateHorizontal(target, {
+              dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+              onRest: () => {
+                overshootEntranceDoneRef.current = true;
+              },
+            });
+          } else {
+            jumpHorizontal(target);
+            if (!open) clearRetainedChildren();
+          }
         } else {
           animateHorizontal(target, {
-            dampingRatio: 1,
+            dampingRatio:
+              opening && entranceOvershoot ? SHEET_ENTRANCE_OVERSHOOT_DAMPING : 1,
             onRest: open ? undefined : clearRetainedChildren,
           });
         }
@@ -196,6 +233,7 @@ const SpringDrawer = forwardRef<HTMLDivElement, SpringDrawerProps>(
       stopHorizontal,
       stopVertical,
       tabletSheet,
+      entranceOvershoot,
     ]);
 
     const transform = tabletSheet

@@ -1060,6 +1060,7 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
     gap: 3px;
     margin-top: 10px;
     padding: 3px;
+    scroll-padding-inline: 3px;
     border-radius: var(--radius-lg);
   }
 
@@ -1387,4 +1388,117 @@ html[data-theme="dark"] .trainBadge[data-tone="risk"] {
 .venueTabPanel .heritageFollowUp:focus-visible {
   outline: 2px solid var(--brass);
   outline-offset: 2px;
+}
+
+/* Venue reveal choreography — transform/opacity only; figures stay static.
+   Every rule sits behind prefers-reduced-motion: no-preference. */
+@media (prefers-reduced-motion: no-preference) {
+  @keyframes venue-reveal-bloom {
+    from {
+      opacity: 0.6;
+      transform: scale(0.96);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  @keyframes venue-reveal-bloom-short {
+    from {
+      opacity: 0.75;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+
+  @keyframes venue-reveal-beermat-drop {
+    0% {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    72% {
+      opacity: 1;
+      transform: translateY(-1px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes venue-reveal-price-slide {
+    from {
+      opacity: 0;
+      transform: translateY(6px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes venue-reveal-record {
+    from {
+      opacity: 0;
+      transform: translateY(4px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .venueReveal--full .venueRevealBloom {
+    animation: venue-reveal-bloom 280ms var(--ease-out-strong)
+      calc(80ms - var(--venue-reveal-elapsed, 0ms)) forwards;
+  }
+
+  .venueReveal--short .venueRevealBloom {
+    animation: venue-reveal-bloom-short 160ms var(--ease-out-strong)
+      calc(0ms - var(--venue-reveal-elapsed, 0ms)) forwards;
+  }
+
+  .venueRevealRecords .venueRevealRecord {
+    animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
+  }
+
+  .venueReveal--full .venueRevealPriceChrome--drop {
+    animation: venue-reveal-beermat-drop 180ms var(--ease-spring)
+      calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
+  }
+
+  .venueReveal--full .venueRevealPriceChrome--slide {
+    animation: venue-reveal-price-slide 180ms var(--ease-out-strong)
+      calc(240ms - var(--venue-reveal-elapsed, 0ms)) forwards;
+  }
+
+  .venueReveal--full .venueRevealRecord {
+    animation: venue-reveal-record 160ms var(--ease-out-strong) forwards;
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="0"] {
+    animation-delay: calc(200ms - var(--venue-reveal-elapsed, 0ms));
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="1"] {
+    animation-delay: calc(240ms - var(--venue-reveal-elapsed, 0ms));
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="2"] {
+    animation-delay: calc(280ms - var(--venue-reveal-elapsed, 0ms));
+  }
+
+  .venueReveal--full .venueRevealRecord[data-reveal-delay="3"] {
+    animation-delay: calc(320ms - var(--venue-reveal-elapsed, 0ms));
+  }
+  .venueReveal--interrupted .venueRevealBloom,
+  .venueReveal--interrupted .venueRevealPriceChrome--drop,
+  .venueReveal--interrupted .venueRevealPriceChrome--slide,
+  .venueReveal--interrupted .venueRevealRecord {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
 }

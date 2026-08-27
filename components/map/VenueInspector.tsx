@@ -20,6 +20,11 @@ import type { LocationRequestStatus } from "@/components/map/VenueGettingThere";
 import type { MapExperienceLens } from "@/lib/mapExperienceLens";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { ZonePintIndex } from "@/lib/zones";
+import {
+  venueRevealRootClasses,
+  type VenueRevealRequest,
+} from "@/lib/venueReveal";
+import { useVenueReveal } from "@/components/map/useVenueReveal";
 import { prefetchLastRide } from "@/lib/lastRideClient";
 import {
   runPriceContributionRequest,
@@ -99,6 +104,8 @@ type VenueInspectorProps = {
   drinkLensCategory?: DrinkCategory | null;
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
+  revealRequest?: VenueRevealRequest | null;
+  onInterruptReveal?: () => void;
 };
 
 function focusPriceDestination(id: string): void {
@@ -149,7 +156,76 @@ export default function VenueInspector({
   experienceLens = "all",
   drinkLensCategory = null,
   zoneIndex = null,
+  revealRequest = null,
+  onInterruptReveal,
 }: VenueInspectorProps) {
+  const revealInterrupted =
+    revealRequest?.venueId === venue.id && revealRequest.interrupted;
+  const {
+    reveal,
+    beginReveal,
+    updateRevealPriceMotion,
+    interruptReveal,
+    revealRootRef,
+    revealStyle,
+  } = useVenueReveal(revealInterrupted);
+
+  useEffect(() => {
+    if (!revealRequest || revealRequest.venueId !== venue.id) return;
+    if (revealRequest.interrupted) {
+      interruptReveal();
+      return;
+    }
+    if (reveal?.sequence === revealRequest.sequence) return;
+    beginReveal(
+      revealRequest.venueId,
+      revealRequest.rows,
+      revealRequest.lane,
+      {
+        startedAt: revealRequest.startedAt,
+        form: revealRequest.form,
+        sequence: revealRequest.sequence,
+      },
+    );
+  }, [beginReveal, interruptReveal, reveal, revealRequest, venue.id]);
+
+  useEffect(() => {
+    if (!revealRequest || revealRequest.venueId !== venue.id) return;
+    updateRevealPriceMotion(
+      revealRequest.venueId,
+      revealRequest.rows,
+      revealRequest.lane,
+    );
+  }, [revealRequest, updateRevealPriceMotion, venue.id]);
+
+  const revealIsCurrent = Boolean(
+      reveal &&
+      revealRequest &&
+      revealRequest.venueId === venue.id &&
+      revealRequest.sequence === reveal.sequence &&
+      !revealRequest.interrupted,
+  );
+  const currentReveal = revealIsCurrent ? reveal : null;
+  const revealVenueId =
+    currentReveal?.active
+      ? venue.id
+      : null;
+  const revealRecord =
+    currentReveal?.form === "full";
+  const revealRecordLate = revealRecord && !currentReveal?.active;
+  const priceRevealMotionClass =
+    currentReveal?.priceMotionClass ?? "";
+  // Keep a completed record class on a late-mounted inspector. Its negative
+  // animation delay places content at final values, while interruption still
+  // removes the class through revealIsCurrent.
+  const currentRevealRootClasses =
+    revealIsCurrent && currentReveal
+      ? venueRevealRootClasses({
+          active: true,
+          form: currentReveal.form,
+          interrupted: false,
+        })
+      : "";
   const { dropsByVenueId, setComposerOpen } = pintDrops;
   const { user, handle, loading: authLoading, configured: authConfigured } = useAuth();
   const [priceSignInVenueId, setPriceSignInVenueId] = useState<string | null>(
@@ -293,9 +369,14 @@ export default function VenueInspector({
   }
 
   return (
-    <section className="venueInspector">
+    <section
+      ref={revealRootRef}
+      className={`venueInspector ${currentRevealRootClasses}${revealRecord ? " venueRevealRecords" : ""}`.trim()}
+      data-reveal={revealVenueId ?? undefined}
+      style={revealStyle}
+    >
       <VenueInspectorHeader
-        venue={venue}
+      venue={venue}
         communityPhotoUrl={communityPhotoUrl}
         TABS={TABS}
         tab={tab}
@@ -305,6 +386,10 @@ export default function VenueInspector({
         onGrabDragStart={onGrabDragStart}
         onGrabDragMove={onGrabDragMove}
         onGrabDragEnd={onGrabDragEnd}
+        onTabStripScroll={onInterruptReveal}
+        revealBloom={Boolean(revealVenueId)}
+        revealChecked={revealRecord}
+        revealCheckedLate={revealRecordLate}
       />
 
       {/* Overview — identity, latest price, add-to-crawl, "I'm here tonight". */}
@@ -338,6 +423,9 @@ export default function VenueInspector({
             : 0
         }
         zoneIndex={zoneIndex}
+        priceRevealMotionClass={priceRevealMotionClass}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
       />
 
       {/* Photos — the pub's community wall. */}
@@ -370,6 +458,8 @@ export default function VenueInspector({
         cityLandmarks={cityLandmarks}
         cityStoryBands={cityStoryBands}
         cityCuratedCrawls={cityCuratedCrawls}
+        revealRecord={revealRecord}
+        revealRecordLate={revealRecordLate}
       />
 
       {/* Ask — the grounded "Ask the PUBMAXXER" landlord guide. */}

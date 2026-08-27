@@ -11,7 +11,10 @@ import {
   SHEET_SNAP_ORDER,
   SHEET_SNAP_TRANSLATE_FRACTIONS,
   mobileSelectCameraOffset,
+  sheetEntranceStartHeight,
+  SHEET_ENTRANCE_OVERSHOOT_DAMPING,
 } from "@/lib/sheetSnap";
+import { stepSpring } from "@/lib/springMotion";
 
 const VH = 800; // a plausible phone viewport height in px
 
@@ -53,6 +56,25 @@ describe("sheetClosedTranslateY", () => {
   it("ignores invalid and negative bottom clearances", () => {
     expect(sheetClosedTranslateY(800, -20)).toBe(800);
     expect(sheetClosedTranslateY(800, Number.NaN)).toBe(800);
+  });
+});
+
+describe("sheetEntranceStartHeight", () => {
+  it("calibrates phone entrance spring overshoot to 2-3 percent", () => {
+    const target = 440;
+    const start = sheetEntranceStartHeight(target, true);
+    let state = { value: start, velocity: 0 };
+    let peak = start;
+    for (let frame = 0; frame < 240; frame += 1) {
+      state = stepSpring(state, target, 1 / 240, {
+        response: 0.34,
+        dampingRatio: SHEET_ENTRANCE_OVERSHOOT_DAMPING,
+      });
+      peak = Math.max(peak, state.value);
+    }
+    const overshoot = (peak - target) / target;
+    expect(overshoot).toBeGreaterThanOrEqual(0.02);
+    expect(overshoot).toBeLessThanOrEqual(0.03);
   });
 });
 

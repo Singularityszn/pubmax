@@ -227,6 +227,12 @@ import {
 } from "@/components/map/communityPriceSignals";
 import { useLiveDrops } from "@/components/map/useLiveDrops";
 import { useSheetDrag } from "@/components/map/useSheetDrag";
+import {
+  revealForm,
+  venueRevealPrefersReducedMotion,
+  VENUE_REVEAL_CINEMA_MS,
+} from "@/lib/sheetSnap";
+import type { VenueRevealRequest } from "@/lib/venueReveal";
 import { useBuiltIdsPersistence } from "@/components/map/pubmap/useBuiltIdsPersistence";
 import { useSelParamSync } from "@/components/map/pubmap/useSelParamSync";
 import { useMapKeyboardShortcuts } from "@/components/map/pubmap/useMapKeyboardShortcuts";
@@ -325,6 +331,7 @@ import {
   applyDrinkLane,
   DEFAULT_DRINK_LANE,
   drinkLaneLabel,
+  venueDrinkPriceView,
 } from "@/lib/drinkLanes";
 import {
   bandChipDismissedKey,
@@ -1251,6 +1258,84 @@ export default function PubMap({
     onSheetDragEnd,
   } = useSheetDrag(() => surfaceBackRef.current());
 
+  const [venueRevealRequest, setVenueRevealRequest] =
+    useState<VenueRevealRequest | null>(null);
+  const [venueRevealEntranceActive, setVenueRevealEntranceActive] =
+    useState(false);
+  const [venueRevealSettleSequence, setVenueRevealSettleSequence] = useState(0);
+  const revealSequenceRef = useRef(0);
+  const lastRevealAtRef = useRef<number | null>(null);
+  const interruptVenueReveal = useCallback(() => {
+    setVenueRevealRequest((current) =>
+      !current || current.interrupted ? current : { ...current, interrupted: true },
+    );
+  }, []);
+  const beginReveal = useCallback(
+    (
+      venueId: string,
+      rows: VenueRevealRequest["rows"],
+      lane: VenueRevealRequest["lane"],
+    ) => {
+      const now = Date.now();
+      const form = revealForm(now, lastRevealAtRef.current);
+      lastRevealAtRef.current = now;
+      revealSequenceRef.current += 1;
+      setVenueRevealEntranceActive(form === "full");
+      setVenueRevealRequest({
+        sequence: revealSequenceRef.current,
+        venueId,
+        startedAt: now,
+        form,
+        rows,
+        lane,
+        interrupted: false,
+      });
+    },
+    [],
+  );
+  useEffect(() => {
+    const request = venueRevealRequest;
+    if (!request || request.interrupted || request.form !== "full") return;
+    const remaining = Math.max(
+      0,
+      VENUE_REVEAL_CINEMA_MS - (Date.now() - request.startedAt),
+    );
+    if (remaining === 0) {
+      setVenueRevealEntranceActive(false);
+      return;
+    }
+    const timer = setTimeout(() => setVenueRevealEntranceActive(false), remaining);
+    return () => clearTimeout(timer);
+  }, [venueRevealRequest]);
+  const venueEntranceOvershoot =
+    venueRevealEntranceActive &&
+    venueRevealRequest?.form === "full" &&
+    !venueRevealRequest.interrupted &&
+    venueRevealRequest.venueId === selectedVenueId;
+
+  const onVenueSheetDragStart = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      interruptVenueReveal();
+      onSheetDragStart(event);
+    },
+    [interruptVenueReveal, onSheetDragStart],
+  );
+
+  const onVenueSheetDragMove = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      interruptVenueReveal();
+      onSheetDragMove(event);
+    },
+    [interruptVenueReveal, onSheetDragMove],
+  );
+
+  const onVenueSheetDragEnd = useCallback(
+    (event: React.PointerEvent<HTMLElement>) => {
+      onSheetDragEnd(event);
+    },
+    [onSheetDragEnd],
+  );
+
   // Ref so fling-dismiss can call the same closePlanning as chrome buttons
   // without a hook ↔ callback cycle (useSheetDrag needs onDismiss up front).
   const closePlanningRef = useRef<() => void>(() => {
@@ -1893,6 +1978,34 @@ export default function PubMap({
   }, [selectedId, refreshVenueDrops]);
 
   useEffect(() => {
+    if (!selectedId) return;
+    const priceView = venueDrinkPriceView(
+      communityPrices.byVenueId.get(selectedId),
+      experienceLens,
+      mapDrinkLensCategory,
+    );
+    let cancelled = false;
+    Promise.resolve().then(() => {
+      if (cancelled) return;
+      setVenueRevealRequest((current) => {
+        if (!current || current.venueId !== selectedId) return current;
+        if (current.rows === priceView.rows && current.lane === priceView.lane) {
+          return current;
+        }
+        return { ...current, rows: priceView.rows, lane: priceView.lane };
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    communityPrices.byVenueId,
+    experienceLens,
+    mapDrinkLensCategory,
+    selectedId,
+  ]);
+
+  useEffect(() => {
     if (tonightStatus !== "ready" || tonightDismissed) return;
     Promise.resolve().then(() => setTonightOverlayVisible(true));
   }, [tonightStatus, tonightDismissed]);
@@ -1945,15 +2058,41 @@ export default function PubMap({
       setVenueInitialTab(initialTab);
       setSelectedVenueId(id);
       closeComposer();
+      const reducedMotion = venueRevealPrefersReducedMotion();
+      if (mobileViewport && selectedVenueId && !reducedMotion) {
+        interruptVenueReveal();
+        setVenueRevealSettleSequence((current) => current + 1);
+      }
       setSheetSnap("half"); // a fresh pick always opens at the readable mid-height snap
       setSheetDragY(null);
+      if (reducedMotion) {
+        setVenueRevealRequest(null);
+      } else if (!isUkBaseId(id)) {
+        const priceView = venueDrinkPriceView(
+          communityPrices.byVenueId.get(id),
+          experienceLens,
+          mapDrinkLensCategory,
+        );
+        beginReveal(id, priceView.rows, priceView.lane);
+      } else {
+        setVenueRevealRequest(null);
+      }
     },
     [
+      beginReveal,
       claimMapDrawer,
       closeComposer,
+      communityPrices.byVenueId,
+      experienceLens,
+      interruptVenueReveal,
+      mapDrinkLensCategory,
+      mobileViewport,
       setSelectedVenueId,
       setSheetSnap,
       setSheetDragY,
+      selectedVenueId,
+      venueById,
+      setVenueRevealSettleSequence,
     ],
   );
 
@@ -2547,6 +2686,7 @@ export default function PubMap({
     planningOpen,
     selectedVenueId,
     onBack: () => surfaceBackRef.current(),
+    onInterruptReveal: interruptVenueReveal,
     logIntentFallbackVisible,
     dismissLogIntent: clearLogIntent,
   });
@@ -2949,6 +3089,8 @@ export default function PubMap({
       // move must not fit the whole matched set over their choice on blur.
       searchQueryCameraOwnedRef.current = trimmedMapQuery;
       if (targetCityId && targetCityId !== cityId) {
+        // Full navigation resets city-specific map state before the target city loads.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
         window.location.assign(
           `${cityMapShareUrl(targetCityId)}?sel=${encodeURIComponent(id)}`,
         );
@@ -3611,6 +3753,11 @@ export default function PubMap({
     const showsAcceptedArrivalReceipt =
       acceptedArrivalSource !== null
       && selectedVenue.id === acceptanceQuery().selectedVenueId;
+    const skeletonRevealRequest =
+      venueRevealRequest?.venueId === selectedVenue.id &&
+      !venueRevealRequest.interrupted
+        ? venueRevealRequest
+        : null;
 
     return (
       <>
@@ -3675,7 +3822,11 @@ export default function PubMap({
           ) : null}
         </div>
         {selectedDetailStatus === "loading" ? (
-          <VenueSheetSkeleton loadingLabel={selectedVenueLabels.loadingLabel} />
+          <VenueSheetSkeleton
+            loadingLabel={selectedVenueLabels.loadingLabel}
+            revealForm={skeletonRevealRequest?.form ?? null}
+            revealStartedAt={skeletonRevealRequest?.startedAt ?? null}
+          />
         ) : null}
         {selectedDetailStatus === "unavailable" ? (
           <div style={DETAIL_WARNING_STYLE} role="status">
@@ -3705,9 +3856,15 @@ export default function PubMap({
           communityPrices={communityPrices}
           experienceLens={experienceLens}
           drinkLensCategory={mapDrinkLensCategory}
-          onGrabDragStart={mobileViewport ? undefined : onSheetDragStart}
-          onGrabDragMove={mobileViewport ? undefined : onSheetDragMove}
-          onGrabDragEnd={mobileViewport ? undefined : onSheetDragEnd}
+          onGrabDragStart={mobileViewport ? undefined : onVenueSheetDragStart}
+          onGrabDragMove={mobileViewport ? undefined : onVenueSheetDragMove}
+          onGrabDragEnd={mobileViewport ? undefined : onVenueSheetDragEnd}
+          revealRequest={
+            venueRevealRequest?.venueId === selectedVenue.id
+              ? venueRevealRequest
+              : null
+          }
+          onInterruptReveal={interruptVenueReveal}
           onTabSelect={handleInspectorTabSelect}
           cityLandmarks={cityLandmarks}
           cityStoryBands={cityStoryBands}
@@ -4490,6 +4647,9 @@ export default function PubMap({
           closeLabel={detailOpen ? selectedVenueLabels.closeLabel : undefined}
           backLabel={mapSurfaceTrail.backLabel}
           onBack={mapSurfaceTrail.back}
+          entranceOvershoot={detailOpen && venueEntranceOvershoot}
+          onInterruptReveal={interruptVenueReveal}
+          venueRevealSettleSequence={venueRevealSettleSequence}
         >
           {detailOpen ? venuePanel : plannerPanel}
         </Sheet>
@@ -4555,6 +4715,8 @@ export default function PubMap({
         snap={sheetSnap}
         dragOffsetY={sheetDragY}
         releaseVelocityY={sheetReleaseVelocity}
+        entranceOvershoot={detailOpen && venueEntranceOvershoot}
+        onScroll={interruptVenueReveal}
         fade
         className={
           "mapDrawer right" +
@@ -4567,10 +4729,10 @@ export default function PubMap({
       >
         <div
           className="mapDrawerHead sheetDragHandle"
-          onPointerDown={onSheetDragStart}
-          onPointerMove={onSheetDragMove}
-          onPointerUp={onSheetDragEnd}
-          onPointerCancel={onSheetDragEnd}
+          onPointerDown={onVenueSheetDragStart}
+          onPointerMove={onVenueSheetDragMove}
+          onPointerUp={onVenueSheetDragEnd}
+          onPointerCancel={onVenueSheetDragEnd}
         >
           {/* Finding 2.16: this close used to be a bordered box that drew a
               coral ring on hover, so the way out shouted louder than the pub's

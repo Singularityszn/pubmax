@@ -38,6 +38,9 @@ export default function MobileSharedSheet({
   backLabel = null,
   onBack,
   homeTitle = "the map",
+  entranceOvershoot = false,
+  onInterruptReveal,
+  venueRevealSettleSequence = 0,
   children,
 }: {
   kind: MapSheetKind | null;
@@ -58,21 +61,37 @@ export default function MobileSharedSheet({
   onBack?: () => void;
   /** What the host page calls its own top level, for the Home action's name. */
   homeTitle?: string;
+  /** Beat 1 overshoot when the venue sheet opens at half. */
+  entranceOvershoot?: boolean;
+  /** Drop entrance classes on scroll, drag, Escape, or a second pick. */
+  onInterruptReveal?: () => void;
+  venueRevealSettleSequence?: number;
   children: React.ReactNode;
 }) {
   const titleId = useId();
   const sheetRef = useRef<HTMLElement>(null);
   const previousFocus = useRef<HTMLElement | null>(null);
   const [footerEl, setFooterEl] = useState<HTMLElement | null>(null);
+  const entranceOvershootRef = useRef(entranceOvershoot);
+  const venueRevealSettleSequenceRef = useRef(venueRevealSettleSequence);
+  const initialSnapRequestRef = useRef<MapSheetDetent | null>(null);
+  useEffect(() => {
+    entranceOvershootRef.current = entranceOvershoot;
+  }, [entranceOvershoot]);
   const onDismissRef = useRef(onDismiss);
   useEffect(() => {
     onDismissRef.current = onDismiss;
   }, [onDismiss]);
+  const onInterruptRevealRef = useRef(onInterruptReveal);
+  useEffect(() => {
+    onInterruptRevealRef.current = onInterruptReveal;
+  }, [onInterruptReveal]);
   const finishDismiss = useCallback(() => onDismissRef.current(), []);
 
   const {
     sheetSnap,
     setSheetSnap,
+    settleToRest,
     openAtSnap,
     requestDismiss,
     sheetHeight,
@@ -82,6 +101,21 @@ export default function MobileSharedSheet({
     onSheetDragMove,
     onSheetDragEnd,
   } = useSheetHeightDrag(finishDismiss);
+  const interruptAndSettle = useCallback(() => {
+    entranceOvershootRef.current = false;
+    onInterruptRevealRef.current?.();
+    settleToRest();
+  }, [settleToRest]);
+  const interruptAndSettleRef = useRef(interruptAndSettle);
+  useEffect(() => {
+    interruptAndSettleRef.current = interruptAndSettle;
+  }, [interruptAndSettle]);
+  useEffect(() => {
+    if (venueRevealSettleSequenceRef.current === venueRevealSettleSequence) return;
+    venueRevealSettleSequenceRef.current = venueRevealSettleSequence;
+    entranceOvershootRef.current = false;
+    settleToRest("half");
+  }, [settleToRest, venueRevealSettleSequence]);
   const requestClose = useCallback(() => {
     requestDismiss(sheetRef.current?.getBoundingClientRect().height);
   }, [requestDismiss]);
@@ -108,9 +142,15 @@ export default function MobileSharedSheet({
   // labelled dialog, so focusing it still moves assistive technology inside and
   // still starts the tab order at the top.
   useEffect(() => {
-    if (!kind) return;
+    if (!kind) {
+      initialSnapRequestRef.current = null;
+      return;
+    }
+    initialSnapRequestRef.current = initialSnap;
     previousFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    openAtSnap(initialSnap);
+    openAtSnap(initialSnap, {
+      entranceOvershoot: kind === "venue" && entranceOvershootRef.current,
+    });
     const frame = requestAnimationFrame(() => sheetRef.current?.focus({ preventScroll: true }));
     const onKey = (event: KeyboardEvent) => {
       // Claim the key so useMapKeyboardShortcuts' own Escape fallback (which
@@ -118,6 +158,7 @@ export default function MobileSharedSheet({
       // press - otherwise one Escape pops two surface-stack levels at once.
       if (event.key === "Escape") {
         event.preventDefault();
+        interruptAndSettleRef.current();
         requestEscape();
       }
     };
@@ -133,6 +174,9 @@ export default function MobileSharedSheet({
   // expands the venue sheet to full). Only re-applies on change.
   useEffect(() => {
     if (!kind || !requestedSnap) return;
+    const initialSnapRequest = initialSnapRequestRef.current;
+    initialSnapRequestRef.current = null;
+    if (initialSnapRequest === requestedSnap) return;
     setSheetSnap(requestedSnap);
   }, [kind, requestedSnap, setSheetSnap]);
 
@@ -198,10 +242,14 @@ export default function MobileSharedSheet({
         aria-labelledby={titleId}
         tabIndex={-1}
         style={sectionStyle}
+        onScrollCapture={interruptAndSettle}
       >
         <header
           className="mobileSharedSheetHeader sheetDragHandle"
-          onPointerDown={onSheetDragStart}
+          onPointerDown={(event) => {
+            onInterruptRevealRef.current?.();
+            onSheetDragStart(event);
+          }}
           onPointerMove={onSheetDragMove}
           onPointerUp={onSheetDragEnd}
           onPointerCancel={onSheetDragEnd}
