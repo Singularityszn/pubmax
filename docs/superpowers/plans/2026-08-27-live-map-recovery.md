@@ -206,7 +206,7 @@ Tasks 1 to 5 completed their authorised focused Vitest, targeted ESLint, review,
 
 - [x] **Step 2: Test local Map manually**
 
-Codex in-app browser verified 390x844 and 1440x900. First Visit owns phone tab-bar input, default Pints has no resting phone chip, Drinks remains reachable through More > Prices, TfL remains reachable through More > Transit, Near me is the sole phone Map edge action, and UK Base reaches `ready` with a non-zero count. Escape and focus return passed. Browser Back was not separately exercised before the authorised server stopped and is recorded as a proof limitation.
+Codex in-app browser verified 390x844 and 1440x900. First Visit owns phone tab-bar input, default Pints has no resting phone chip, Drinks remains reachable through More > Prices, TfL remains reachable through More > Transit, Near me is the sole phone Map edge action, and UK Base reaches `ready` with a non-zero count. Escape and focus return passed. A proof rerun at `09e43c9f1906f1fd0e52f4f24879614deb5e3652` used visible Search > Camden > The Ice Wharf, then actual browser Back. It restored the Camden `This area` sheet and `Back to Search` at `/map`, cleared the selected Venue, and caused no document `GET /map`, browser warning or error, or failed application request. The legacy Ice Wharf image returned a cacheable HTTP 204 miss and showed the existing honest fallback.
 
 - [x] **Step 3: Capture evidence**
 
