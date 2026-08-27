@@ -5,7 +5,7 @@ Fixed point: `origin/main` at `d19b05cf8`.
 Reviewed candidate heads:
 
 - London v0 PR #1237 at `5df55a687`.
-- Native at `1e2a24c15`.
+- Native at `c56ad7b46`.
 - TfL D1 at `eeb663635`.
 - Voice D2 at `a57b0c55d` and `9e51fc398`.
 
@@ -14,8 +14,9 @@ Reviewed candidate heads:
 ### Open
 
 1. **P1: Mobile price publisher status is missing.** `components/PubMap.tsx` renders the selected Venue price and a freshness label in the mobile peek, but it does not name and link a known source or state that no publisher is recorded. Contributor attribution is also absent. `docs/VOICE.md` requires every price to show publisher status beside its figure. Test baseline with known source, baseline without source, contributor, and sourced-refresh lanes.
-2. **P2: Out matching policy is duplicated.** `lib/out/venueMatch.ts` adds `heldVenueMatchesRow` beside the canonical resolver and scans the full Venue index for each row. Move by-ID lookup into the canonical resolver index and keep one matcher.
-3. **P3: Locality generator has a weak executable seam.** `scripts/gen_london_localities.mjs` adds a one-line distance wrapper and changes direct-run failure behavior through `arguments.length`. Extract pure generator behavior from the executable entry point.
+2. **P2: Arrival greeting covers mobile navigation.** At `390 x 844` on deployed Tonight, the `ArrivalWelcome` toast covers the Day/Tonight navigation until it retires. `components/auth/arrivalWelcome.css` offsets only the top app bar even though its own contract says it must never cover a control. Add rendered phone-width coverage for a route with secondary navigation.
+3. **P2: Out matching policy is duplicated.** `lib/out/venueMatch.ts` adds `heldVenueMatchesRow` beside the canonical resolver and scans the full Venue index for each row. Move by-ID lookup into the canonical resolver index and keep one matcher.
+4. **P3: Locality generator has a weak executable seam.** `scripts/gen_london_localities.mjs` adds a one-line distance wrapper and changes direct-run failure behavior through `arguments.length`. Extract pure generator behavior from the executable entry point.
 
 ### Closed
 
@@ -33,7 +34,7 @@ Reviewed candidate heads:
 
 - D1 TfL repeated fall-back-hour work is patch-equivalent to main commit `36f05dd05`. Current main preserves `serviceHour`, distinguishes `25:xx`, and has exact route regression coverage. Do not cherry-pick `eeb663635`.
 - Native install name `PUBMAXXING` follows current `CONTEXT.md`. One stale plan line that says `PUBMAXX` must not override product terminology.
-- Native browser-equivalent evidence now includes a README and four verified `390 x 844` PNG captures under `docs/proof/native-v0-browser/`. Measured Map client width and scroll width are both 390px, with every visible Map button at least 44px high. Codex browser could not inject the Capacitor bridge before page scripts, so this evidence does not claim native-runtime coverage.
+- Native browser-equivalent evidence now includes a README and four verified `390 x 844` PNG captures under `docs/proof/native-v0-browser/`. Measured Map client width and scroll width are both 390px, with every visible Map button at least 44px high. Codex browser could not inject the Capacitor bridge before page scripts, so this evidence does not claim native-runtime coverage. The clean Tonight capture was refreshed at `c56ad7b46` after the one-shot arrival greeting retired.
 
 ## Security and correctness review
 
