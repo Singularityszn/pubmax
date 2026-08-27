@@ -207,5 +207,6 @@ describe("Phone map area switcher", () => {
   it("keeps a base-pub arrival in the same switcher", () => {
     const html = renderShell({ limitedCoverage: true, cityLabel: "Bath" });
     expect(html).toContain('aria-label="Map area: Bath. Change city"');
+    expect(html).toContain('aria-label="Search the map"');
   });
 });

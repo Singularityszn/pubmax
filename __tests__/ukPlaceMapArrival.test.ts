@@ -154,6 +154,7 @@ describe("UK place map arrival", () => {
     expect(mobileShell).toContain("limitedCoverage: boolean;");
     expect(mobileShell).toContain("if (limitedCoverage)");
     expect(mobileShell).toContain("mobileMapTopbar mobileMapTopbarLimited");
+    expect(mobileShell).toContain('aria-label="Search the map"');
   });
 
   it("keeps route-level loading copy neutral before place query is available", () => {

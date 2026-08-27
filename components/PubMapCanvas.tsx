@@ -1029,7 +1029,13 @@ export default function PubMapCanvas({
     if (!landmark) return;
     initialLandmarkConsumedRef.current = initialLandmarkId;
     if (activeLandmark) return;
-    queueMicrotask(() => selectLandmark(landmark));
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) selectLandmark(landmark);
+    });
+    return () => {
+      cancelled = true;
+    };
   }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
 
   useEffect(() => {
