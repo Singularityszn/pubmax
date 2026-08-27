@@ -12,7 +12,10 @@ import {
   normalizeOsmPubElement,
   sortOsmPubs,
 } from "./osmPubNormalizer.mjs";
+import { haversineMeters } from "./geo.mjs";
 import { normalisePubName } from "./venueMatch.mjs";
+
+export { haversineMeters };
 
 /** Bounding box of the United Kingdom, [south, west, north, east] (Overpass order).
  * West reaches St Kilda (-8.58), north Out Stack (60.86), east Lowestoft (1.76),
@@ -122,19 +125,6 @@ export function normalizeElements(elements) {
   }
   const pubs = [...byOsmId.values()];
   return sortOsmPubs(pubs);
-}
-
-const EARTH_RADIUS_M = 6_371_000;
-
-export function haversineMeters(aLat, aLng, bLat, bLng) {
-  const toRad = Math.PI / 180;
-  const dLat = (bLat - aLat) * toRad;
-  const dLng = (bLng - aLng) * toRad;
-  const lat1 = aLat * toRad;
-  const lat2 = bLat * toRad;
-  const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 // ~0.01° ≈ 1.1 km of latitude: one cell plus its 8 neighbours always contains

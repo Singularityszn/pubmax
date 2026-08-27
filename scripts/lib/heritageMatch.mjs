@@ -11,6 +11,10 @@
 // test share one source of truth; the build script owns network + spatial
 // bucketing and calls evaluateMatch() per candidate.
 
+import { haversineMeters } from "./geo.mjs";
+
+export { haversineMeters };
+
 // Distance gates (metres). Deliberately tight — a listed building on the pub is
 // the pub; a "same name" listing a street away is not worth a wrong badge.
 export const STRONG_MATCH_M = 120;
@@ -138,20 +142,6 @@ function isSubset(inner, outer) {
 const PUB_MARKER_RE = /\b(public house|coaching inn|inn|tavern|hotel|arms)\b/;
 export function hasPubMarker(name) {
   return PUB_MARKER_RE.test(normaliseName(name));
-}
-
-/** Great-circle distance in metres between two [lat,lng] points. */
-export function haversineMeters(aLat, aLng, bLat, bLng) {
-  const R = 6371000;
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const dLat = toRad(bLat - aLat);
-  const dLng = toRad(bLng - aLng);
-  const lat1 = toRad(aLat);
-  const lat2 = toRad(bLat);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 /** The building-type word to echo, or "building" when the name names no type. */

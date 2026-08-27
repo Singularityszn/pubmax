@@ -28,6 +28,10 @@
  *      differing postcode outward code BLOCKS the merge.
  */
 
+import { haversineMeters } from "./geo.mjs";
+
+export { haversineMeters };
+
 // --- venue identity (mirror of lib/venues.ts — keep in lockstep) -------------
 
 export function normaliseVenueKeyPart(value) {
@@ -91,17 +95,6 @@ export function postcodeOutward(address) {
   const last = matches[matches.length - 1].replace(/\s+/g, " ").trim();
   const outward = last.match(/^([A-Z]{1,2}\d[A-Z\d]?)\s*\d[A-Z]{2}$/);
   return outward ? outward[1] : null;
-}
-
-export function haversineMeters(aLat, aLng, bLat, bLng) {
-  const R = 6371000;
-  const toRad = (x) => (x * Math.PI) / 180;
-  const dLat = toRad(bLat - aLat);
-  const dLng = toRad(bLng - aLng);
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
 // Two records may be the same physical pub only when they are geographically

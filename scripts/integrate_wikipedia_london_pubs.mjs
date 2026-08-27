@@ -17,6 +17,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { boroughForPoint, loadBoroughIndex } from "./lib/boroughFromPoint.mjs";
+import { haversineMeters } from "./lib/geo.mjs";
 import {
   buildVenueIndexes,
   normalisePubName,
@@ -110,17 +111,6 @@ function loadJson(path, fallback) {
     // A corrupt/partial existing dataset must not be silently overwritten.
     throw new Error(`Failed to parse ${path} as JSON: ${err?.message ?? err}`);
   }
-}
-
-function haversineM(lat1, lng1, lat2, lng2) {
-  const R = 6371000;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLng = toRad(lng2 - lng1);
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
 }
 
 function venueKey(name, lat, lng) {
@@ -253,7 +243,7 @@ function getWikipediaSummary(url, fetchCache) {
   return fetchCache[url] ?? null;
 }
 
-function resolveMatch(pub, summary, indexes) {
+export function resolveMatch(pub, summary, indexes) {
   if (summary?.lat == null || summary?.lng == null) return null;
 
   const candidates = new Map();
@@ -275,7 +265,7 @@ function resolveMatch(pub, summary, indexes) {
   for (const key of candidates.keys()) {
     const row = indexes.rowsByKey.get(key);
     if (!row) continue;
-    const dist = haversineM(summary.lat, summary.lng, row.latitude, row.longitude);
+    const dist = haversineMeters(summary.lat, summary.lng, row.latitude, row.longitude);
     if (dist < bestDist) {
       bestDist = dist;
       best = key;
