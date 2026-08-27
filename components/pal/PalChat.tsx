@@ -46,7 +46,10 @@ import {
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
-import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import {
+  loadSlimVenuesForCity,
+  loadSlimVenuesForCityResult,
+} from "@/lib/venuesSlim";
 import { VibeChipButton, VibeChips } from "@/components/vibe/VibeChips";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
@@ -227,10 +230,12 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
 
   useEffect(() => {
     let alive = true;
-    void loadSlimVenuesForCity(DEFAULT_CITY_ID)
-      .then((slim) => {
+    void loadSlimVenuesForCityResult(DEFAULT_CITY_ID)
+      .then((result) => {
         if (!alive) return;
-        setKnownVenueIds(palKnownVenueIds(slim));
+        setKnownVenueIds(
+          result.status === "ready" ? palKnownVenueIds(result.rows) : null,
+        );
       })
       .catch(() => {
         if (!alive) return;

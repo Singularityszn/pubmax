@@ -8,6 +8,7 @@ const router = vi.hoisted(() => ({ push: vi.fn() }));
 const trackEvent = vi.hoisted(() => vi.fn());
 const askSession = vi.hoisted(() => vi.fn());
 const loadSlim = vi.hoisted(() => vi.fn());
+const loadSlimResult = vi.hoisted(() => vi.fn());
 const sessionAnswer = vi.hoisted(() => ({ value: null as unknown }));
 
 vi.mock("next/navigation", () => ({
@@ -32,6 +33,7 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({
 vi.mock("@/lib/analytics", () => ({ trackEvent }));
 vi.mock("@/lib/venuesSlim", () => ({
   loadSlimVenuesForCity: loadSlim,
+  loadSlimVenuesForCityResult: loadSlimResult,
 }));
 vi.mock("@/lib/palChatClient", () => ({
   createPalChatSession: () => askSession,
@@ -66,6 +68,12 @@ beforeEach(async () => {
   loadSlim.mockReset().mockResolvedValue([
     { id: "venue-a", name: "The Anchor", lat: 0, lng: 0, cheapestPrice: 4.5, borough: "Brixton" },
   ]);
+  loadSlimResult.mockReset().mockResolvedValue({
+    status: "ready",
+    rows: [
+      { id: "venue-a", name: "The Anchor", lat: 0, lng: 0, cheapestPrice: 4.5, borough: "Brixton" },
+    ],
+  });
   sessionAnswer.value = answer;
   askSession.mockReset().mockImplementation(() => Promise.resolve(sessionAnswer.value));
   container = document.createElement("div");

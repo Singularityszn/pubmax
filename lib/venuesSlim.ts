@@ -27,7 +27,7 @@ import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues
 const OFFLINE_KEY_PREFIX = "venues_slim:v1";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
-const slimLoadPromises = new Map<string, Promise<SlimVenue[]>>();
+const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
 
 function offlineKeyForPath(path: string): string {
   return path === SLIM_VENUES_PATH
@@ -207,6 +207,11 @@ export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
 };
 
+export type SlimVenueLoadResult = {
+  rows: SlimVenue[];
+  status: "ready" | "unavailable";
+};
+
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -227,10 +232,10 @@ async function readSlimPayload(
   return response.json();
 }
 
-export async function loadSlimVenuesFromPath(
+export function loadSlimVenuesFromPathResult(
   path: string,
   options: SlimVenueLoadOptions = {},
-): Promise<SlimVenue[]> {
+): Promise<SlimVenueLoadResult> {
   if (!options.bypassInFlight) {
     const inFlight = slimLoadPromises.get(path);
     if (inFlight) return inFlight;
@@ -245,20 +250,34 @@ export async function loadSlimVenuesFromPath(
   return pending;
 }
 
-async function loadSlimVenuesFromPathUnshared(
+export async function loadSlimVenuesFromPath(
   path: string,
   options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenue[]> {
+  const result = await loadSlimVenuesFromPathResult(path, options);
+  return result.rows;
+}
+
+async function loadSlimVenuesFromPathUnshared(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
     const data: unknown = await readSlimPayload(path, options);
+    if (!Array.isArray(data)) {
+      return { rows: [], status: "unavailable" };
+    }
     const rows = normalizeRows(data);
     if (rows.length > 0) void offlineCache.set(offlineKey, rows);
-    return rows;
+    return {
+      rows,
+      status: data.length > 0 && rows.length === 0 ? "unavailable" : "ready",
+    };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);
     const fallback = normalizeRows(stored);
-    if (fallback.length > 0) return fallback;
+    if (fallback.length > 0) return { rows: fallback, status: "ready" };
     throw error;
   }
 }
@@ -279,4 +298,11 @@ export async function loadSlimVenuesForCity(
 ): Promise<SlimVenue[]> {
   const city = getCity(cityId);
   return loadSlimVenuesFromPath(city.slimVenuesPath);
+}
+
+export function loadSlimVenuesForCityResult(
+  cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
+): Promise<SlimVenueLoadResult> {
+  const city = getCity(cityId);
+  return loadSlimVenuesFromPathResult(city.slimVenuesPath);
 }
