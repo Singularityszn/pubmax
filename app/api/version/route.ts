@@ -11,9 +11,17 @@ function currentDeploymentId(): string | null {
   return typeof deploymentId === "string" && deploymentId ? deploymentId : null;
 }
 
+function currentCommitSha(): string | null {
+  const commitSha = process.env.VERCEL_GIT_COMMIT_SHA ?? process.env.GITHUB_SHA;
+  return typeof commitSha === "string" && commitSha ? commitSha : null;
+}
+
 export function GET(): NextResponse {
   return NextResponse.json(
-    { deploymentId: currentDeploymentId() },
+    {
+      deploymentId: currentDeploymentId(),
+      commitSha: currentCommitSha(),
+    },
     {
       headers: {
         "Cache-Control": "no-store, no-cache, must-revalidate, max-age=0",
