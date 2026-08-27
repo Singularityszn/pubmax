@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
@@ -25,7 +26,12 @@ import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
+import {
+  palKnownVenueIds,
+  resolvePalVenueOpenTarget,
+} from "@/lib/palOpenVenue";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
+import { venueAcceptUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
@@ -40,7 +46,10 @@ import {
   type CheapestGlanceCard,
 } from "@/lib/palGlance";
 import { formatPrice } from "@/lib/venues";
-import { loadSlimVenuesForCity } from "@/lib/venuesSlim";
+import {
+  loadSlimVenuesForCity,
+  loadSlimVenuesForCityResult,
+} from "@/lib/venuesSlim";
 import { VibeChipButton, VibeChips } from "@/components/vibe/VibeChips";
 import { VIBE_CHIPS } from "@/lib/vibeChips";
 import { useWhatsOnTonight } from "@/components/map/useWhatsOnTonight";
@@ -63,22 +72,39 @@ type Entry =
 function VenueLink({
   card,
   onOpen,
+  knownVenueIds,
   children,
 }: {
   card: PalCard;
-  onOpen: () => void;
+  onOpen: (venueId: string) => void;
+  knownVenueIds: ReadonlySet<string> | null;
   children: React.ReactNode;
 }) {
   // A card is only tappable when it deep-links to a real venue on the map. The
   // static variant still renders every fact and its provenance.
   if (!card.venueId) {
-    return <div className="palChatCardBody palChatCardBody--static">{children}</div>;
+    return <div className="palChatCardMain">{children}</div>;
   }
+  const target = resolvePalVenueOpenTarget(card.venueId, knownVenueIds);
+  const href = target.href;
   return (
     <Link
-      className="palChatCardBody palChatCardBody--link"
-      href={`/map?sel=${encodeURIComponent(card.venueId)}`}
-      onClick={onOpen}
+      className="palChatCardMain palChatCardBody--link"
+      href={href}
+      onClick={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
+        event.preventDefault();
+        onOpen(card.venueId);
+      }}
     >
       {children}
     </Link>
@@ -97,7 +123,6 @@ function ProvChip({ card }: { card: PalCard }) {
         href={provenance.url}
         target="_blank"
         rel="noreferrer noopener"
-        // Stop the outer venue link from also firing.
         onClick={(event) => event.stopPropagation()}
       >
         {label}
@@ -129,48 +154,52 @@ function acceptPalVenue(card: PalCard, locality: PalLocality | null): void {
 export function AnswerCard({
   card,
   onOpen,
+  knownVenueIds = null,
   palHandoff,
   locality,
 }: {
   card: PalCard;
-  onOpen: () => void;
+  onOpen: (venueId: string) => void;
+  knownVenueIds?: ReadonlySet<string> | null;
   palHandoff: boolean;
   locality: PalLocality | null;
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
     <li className="palChatCard">
-      <VenueLink card={card} onOpen={onOpen}>
-        <div className="palChatCardTop">
-          <p className="palChatCardTitle">{card.title}</p>
-          {typeof card.price === "number" ? (
-            <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+      <div className="palChatCardBody">
+        <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
+          <div className="palChatCardTop">
+            <p className="palChatCardTitle">{card.title}</p>
+            {typeof card.price === "number" ? (
+              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+            ) : null}
+          </div>
+          {card.place ? (
+            <p className="palChatCardPlace">
+              <MapPin size={12} aria-hidden="true" />
+              <span>{card.place}</span>
+            </p>
           ) : null}
-        </div>
-        {card.place ? (
-          <p className="palChatCardPlace">
-            <MapPin size={12} aria-hidden="true" />
-            <span>{card.place}</span>
-          </p>
-        ) : null}
-        {when ? <p className="palChatCardWhen">{when}</p> : null}
-        {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
-        <div className="palChatCardMeta">
-          <ProvChip card={card} />
-          {card.confidence ? (
-            <span className="palChatConfidence">{card.confidence}</span>
-          ) : null}
+          {when ? <p className="palChatCardWhen">{when}</p> : null}
+          {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
           {card.venueId ? (
             <span className="palChatCardCta" aria-hidden="true">
               Show on map
             </span>
           ) : null}
+        </VenueLink>
+        <div className="palChatCardMeta">
+          <ProvChip card={card} />
+          {card.confidence ? (
+            <span className="palChatConfidence">{card.confidence}</span>
+          ) : null}
         </div>
-      </VenueLink>
+      </div>
       {palHandoff && card.venueId ? (
         <Link
           className="palChatCardAccept pressable"
-          href={`/map?sel=${encodeURIComponent(card.venueId)}&accept=1&src=pal`}
+          href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
           Use this Venue
@@ -181,11 +210,13 @@ export function AnswerCard({
 }
 
 export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
+  const router = useRouter();
   const { user, session } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
@@ -197,6 +228,33 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     counterRef.current += 1;
     return `t-${counterRef.current}`;
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void loadSlimVenuesForCityResult(DEFAULT_CITY_ID)
+      .then((result) => {
+        if (!alive) return;
+        setKnownVenueIds(
+          result.status === "ready" ? palKnownVenueIds(result.rows) : null,
+        );
+      })
+      .catch(() => {
+        if (!alive) return;
+        setKnownVenueIds(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const openVenue = useCallback(
+    (venueId: string) => {
+      trackEvent("concierge_result_tap");
+      const target = resolvePalVenueOpenTarget(venueId, knownVenueIds);
+      router.push(target.href);
+    },
+    [knownVenueIds, router],
+  );
 
   // Keep the newest turn in view as the transcript grows.
   useEffect(() => {
@@ -255,13 +313,11 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   }, []);
 
   const confirmProposal = useCallback((proposal: AskProposal, entryId?: string) => {
-    trackEvent("concierge_result_tap");
     if (proposal.kind === "open_venue") {
-      window.location.assign(
-        `/map?sel=${encodeURIComponent(proposal.venueId)}`,
-      );
+      openVenue(proposal.venueId);
       return;
     }
+    trackEvent("concierge_result_tap");
     if (proposal.kind === "fly_to") {
       const params = new URLSearchParams({
         lat: String(proposal.lat),
@@ -319,7 +375,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
     }
-  }, [auth, dismissProposal, nextId]);
+  }, [auth, dismissProposal, nextId, openVenue]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -328,10 +384,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     },
     [ask, query],
   );
-
-  const openVenue = useCallback(() => {
-    trackEvent("concierge_result_tap");
-  }, []);
 
   // Vibe deep link (?ask=...): a Tonight vibe chip can hand its preset ask to
   // this surface pre-fired. Read from location once on mount — a client-only,
@@ -515,6 +567,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                         key={card.key}
                         card={card}
                         onOpen={openVenue}
+                        knownVenueIds={knownVenueIds}
                         palHandoff={palHandoff}
                         locality={locality}
                       />

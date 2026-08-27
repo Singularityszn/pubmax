@@ -146,12 +146,12 @@ export function buildExaContentsBody(input: { urls: string[]; purpose?: ExaPurpo
   maxAgeHours?: number;
 };
 export function officialWebsiteUrl(pub: { website?: HarvestSeedRow["website"] | null }): string | null;
-export function exaApiKey(env?: NodeJS.ProcessEnv): string | null;
-export function isExaConfigured(env?: NodeJS.ProcessEnv): boolean;
+export function exaApiKey(env?: Record<string, string | undefined>): string | null;
+export function isExaConfigured(env?: Record<string, string | undefined>): boolean;
 export function backoffMs(attempt: number, retryAfterHeader: string | null): number;
-export function mockExaPayload(pub: { name: string }): ExaPayload;
+export function mockExaPayload(pub: { name: string; osmId?: string }): ExaPayload;
 export function createExaClient(options?: {
-  env?: NodeJS.ProcessEnv;
+  env?: Record<string, string | undefined>;
   fetchImpl?: typeof fetch;
   sleep?: (ms: number) => Promise<void>;
   mock?: boolean;

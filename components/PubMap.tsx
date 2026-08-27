@@ -431,7 +431,9 @@ import {
   buildMapSeed,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeFromSearch,
   MAP_SELECTION_LOOKUP_FAILED_NOTE,
+  MAP_SELECTION_NOTICE_PARAM,
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
@@ -927,7 +929,23 @@ export default function PubMap({
     acceptedArrivalSnapshot,
     noAcceptedArrivalSource,
   );
-  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
+  const [arrivalSelectionNotice, setArrivalSelectionNotice] = useState<MapSelectionNotice | null>(
+    () => mapSelectionNoticeFromSearch(currentSearch()),
+  );
+  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
+    () => arrivalSelectionNotice,
+  );
+  useEffect(() => {
+    if (!selectionNotice || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(MAP_SELECTION_NOTICE_PARAM)) return;
+    url.searchParams.delete(MAP_SELECTION_NOTICE_PARAM);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [selectionNotice]);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");
@@ -1421,10 +1439,6 @@ export default function PubMap({
       0,
       VENUE_REVEAL_CINEMA_MS - (Date.now() - request.startedAt),
     );
-    if (remaining === 0) {
-      setVenueRevealEntranceActive(false);
-      return;
-    }
     const timer = setTimeout(() => setVenueRevealEntranceActive(false), remaining);
     return () => clearTimeout(timer);
   }, [venueRevealRequest]);
@@ -1594,7 +1608,9 @@ export default function PubMap({
 
   useEffect(() => {
     let cancelled = false;
-    const loader = createSlimShardLoader(cityId);
+    const loader = createSlimShardLoader(cityId, {
+      bypassInFlight: venueIndexAttempt > 0,
+    });
     slimLoaderRef.current = loader;
     void Promise.resolve().then(() => {
       if (cancelled) return;
@@ -2142,6 +2158,7 @@ export default function PubMap({
       initialTab: TabKey = "overview",
     ) => {
       if (!id) return;
+      setArrivalSelectionNotice(null);
       setSelectionNotice(null);
       setAcceptanceError(null);
       setDetailStatusById((current) => {
@@ -4115,6 +4132,7 @@ export default function PubMap({
             note rather than stacking under it. */}
         {pickMapSurfaceToast({
           selectionNotice: selectionNotice !== null,
+          selectionNoticePriority: arrivalSelectionNotice !== null,
           softRetry: mapSoftRetryActive,
         }) === "soft-retry" ? null : selectionNotice ? (
           <aside
@@ -4138,7 +4156,10 @@ export default function PubMap({
             <button
               type="button"
               className="ukPlaceArrivalDismiss"
-              onClick={() => setSelectionNotice(null)}
+              onClick={() => {
+                setArrivalSelectionNotice(null);
+                setSelectionNotice(null);
+              }}
               aria-label="Dismiss pub lookup note"
             >
               <X size={18} aria-hidden="true" />

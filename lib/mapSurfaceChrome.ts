@@ -10,8 +10,10 @@ export type MapSurfaceToastKind = "none" | "selection" | "soft-retry";
 
 export function pickMapSurfaceToast(input: {
   selectionNotice: boolean;
+  selectionNoticePriority?: boolean;
   softRetry: boolean;
 }): MapSurfaceToastKind {
+  if (input.selectionNotice && input.selectionNoticePriority) return "selection";
   if (input.softRetry) return "soft-retry";
   if (input.selectionNotice) return "selection";
   return "none";

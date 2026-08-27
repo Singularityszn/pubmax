@@ -24,7 +24,7 @@ export { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 export function hasCrawlArrivalParams(search: string): boolean {
   // Intentional deep links (landmark/band/food/log/etc.) must also suppress
   // curated onboarding — not only crawl planner params (#79 follow-up).
-  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience)=/.test(
+  return /[?&](pubs|sel|style|mode|q|drink|cocktails|landmark|band|food|max|alt|log|crawl|experience|mapNotice)=/.test(
     search,
   );
 }
@@ -100,6 +100,13 @@ export function detailStatusFor(
 }
 
 export type MapSelectionNotice = "unknown" | "lookup-failed";
+
+export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";
+
+export function mapSelectionNoticeFromSearch(search: string): MapSelectionNotice | null {
+  const value = new URLSearchParams(search).get(MAP_SELECTION_NOTICE_PARAM);
+  return value === "unknown" || value === "lookup-failed" ? value : null;
+}
 
 export function mapSelectionNotice(input: {
   loaded: boolean;

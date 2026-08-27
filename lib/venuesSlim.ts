@@ -13,9 +13,11 @@
 // drift, so malformed rows are dropped rather than allowed to poison the map.
 //
 // Offline (issue #32): the service worker caches the /data/… bytes; on top of
-// that, every successful load is mirrored into IndexedDB (lib/offlineCache.ts)
+// that, every COMPLETE load is mirrored into IndexedDB (lib/offlineCache.ts)
 // so a fetch that fails ENTIRELY (no SW yet, dead cellar signal on a cold tab)
-// can still return the last parsed index instead of an empty map.
+// can still return the last parsed index instead of an empty map. A payload
+// that dropped malformed rows is never stored: a later fetch failure would
+// otherwise treat a truncated index as the whole city.
 
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
@@ -24,9 +26,10 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 
-const OFFLINE_KEY_PREFIX = "venues_slim:v1";
+const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
+const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
 
 function offlineKeyForPath(path: string): string {
   return path === SLIM_VENUES_PATH
@@ -196,14 +199,27 @@ function normalizeRows(data: unknown): SlimVenue[] {
  * a non-array payload yields [] so the map degrades to "no pins" rather than
  * throwing.
  *
- * Offline: a good load is mirrored to IndexedDB (fire-and-forget); if the
+ * Offline: a complete load is mirrored to IndexedDB (fire-and-forget); if the
  * fetch itself fails, the last mirrored index for that path is returned
- * instead. Only when there is no fallback either does the original error
- * propagate — preserving the pre-offline contract for callers that show a
+ * instead. A payload that dropped malformed rows is unavailable and is not
+ * cached. Only when there is no fallback either does the original error
+ * propagate. That preserves the pre-offline contract for callers that show a
  * load-error state.
  */
-async function readSlimPayload(path: string): Promise<unknown> {
-  const early = takeEarlyWarmJson(path);
+export type SlimVenueLoadOptions = {
+  bypassInFlight?: boolean;
+};
+
+export type SlimVenueLoadResult = {
+  rows: SlimVenue[];
+  status: "ready" | "unavailable";
+};
+
+async function readSlimPayload(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): Promise<unknown> {
+  const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
@@ -219,19 +235,53 @@ async function readSlimPayload(path: string): Promise<unknown> {
   return response.json();
 }
 
+export function loadSlimVenuesFromPathResult(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): Promise<SlimVenueLoadResult> {
+  if (!options.bypassInFlight) {
+    const inFlight = slimLoadPromises.get(path);
+    if (inFlight) return inFlight;
+  }
+
+  const pending = loadSlimVenuesFromPathUnshared(path, options);
+  slimLoadPromises.set(path, pending);
+  const clearInFlight = () => {
+    if (slimLoadPromises.get(path) === pending) slimLoadPromises.delete(path);
+  };
+  void pending.then(clearInFlight, clearInFlight);
+  return pending;
+}
+
 export async function loadSlimVenuesFromPath(
   path: string,
+  options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenue[]> {
+  const result = await loadSlimVenuesFromPathResult(path, options);
+  return result.rows;
+}
+
+async function loadSlimVenuesFromPathUnshared(
+  path: string,
+  options: SlimVenueLoadOptions = {},
+): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    const data: unknown = await readSlimPayload(path);
+    const data: unknown = await readSlimPayload(path, options);
+    if (!Array.isArray(data)) {
+      return { rows: [], status: "unavailable" };
+    }
     const rows = normalizeRows(data);
-    if (rows.length > 0) void offlineCache.set(offlineKey, rows);
-    return rows;
+    const complete = rows.length === data.length;
+    if (complete && rows.length > 0) void offlineCache.set(offlineKey, rows);
+    return {
+      rows,
+      status: complete ? "ready" : "unavailable",
+    };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);
     const fallback = normalizeRows(stored);
-    if (fallback.length > 0) return fallback;
+    if (fallback.length > 0) return { rows: fallback, status: "ready" };
     throw error;
   }
 }
@@ -252,4 +302,11 @@ export async function loadSlimVenuesForCity(
 ): Promise<SlimVenue[]> {
   const city = getCity(cityId);
   return loadSlimVenuesFromPath(city.slimVenuesPath);
+}
+
+export function loadSlimVenuesForCityResult(
+  cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
+): Promise<SlimVenueLoadResult> {
+  const city = getCity(cityId);
+  return loadSlimVenuesFromPathResult(city.slimVenuesPath);
 }
