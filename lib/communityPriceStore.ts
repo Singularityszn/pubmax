@@ -1139,6 +1139,19 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   },
 };
 
+/** Roll back the keyless memory half of a paired one-tap write. */
+export function removeMemoryCommunityPricePairing(id: string): boolean {
+  if (!id) return false;
+  for (const [venueId, rows] of venues) {
+    const index = rows.findIndex((row) => row.id === id);
+    if (index < 0) continue;
+    rows.splice(index, 1);
+    if (rows.length === 0) venues.delete(venueId);
+    return true;
+  }
+  return false;
+}
+
 // ── Supabase implementation ──────────────────────────────────────────────────
 const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
   tag: "community-price",
