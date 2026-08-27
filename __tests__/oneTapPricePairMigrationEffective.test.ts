@@ -299,10 +299,25 @@ describe("one-tap price pair migration", () => {
     expect(session!.sql("select (select count(*) from community_prices where actor = 'profile:retry') || '|' || (select count(*) from pint_drops where handle = 'force-fail')")).toBe("1|1");
   });
 
-  it("is service-only and rollback removes the RPC", () => {
+  it("is service-only and repair rollback restores the original paired writer", () => {
     const signature = "public.create_one_tap_price_pair(text,text,integer,text,text,timestamptz,uuid,text,text,text,text,text)";
     expect(session!.sql(`select has_function_privilege('service_role', '${signature}', 'execute') || '|' || has_function_privilege('authenticated', '${signature}', 'execute') || '|' || has_function_privilege('anon', '${signature}', 'execute')`)).toBe("true|false|false");
     session!.apply(REPAIR_ROLLBACK);
-    expect(session!.sql(`select to_regprocedure('${signature}') is null`)).toBe("t");
+    expect(session!.sql(`select to_regprocedure('${signature}') is not null`)).toBe("t");
+    expect(session!.sql(`select has_function_privilege('service_role', '${signature}', 'execute') || '|' || has_function_privilege('authenticated', '${signature}', 'execute') || '|' || has_function_privilege('anon', '${signature}', 'execute')`)).toBe("true|false|false");
+
+    const newerArgs = PAIR_ARGS
+      .replace("profile:test", "profile:rollback")
+      .replace("420", "510")
+      .replace("2026-08-27T19:00:00Z", "2026-08-27T20:00:00Z")
+      .replace("00000000-0000-4000-8000-000000000124", "00000000-0000-4000-8000-000000000140");
+    const olderArgs = PAIR_ARGS
+      .replace("profile:test", "profile:rollback")
+      .replace("00000000-0000-4000-8000-000000000124", "00000000-0000-4000-8000-000000000141");
+
+    expect(session!.sql(`select price_pennies from public.create_one_tap_price_pair(${newerArgs})`)).toBe("510");
+    expect(session!.sql(`select price_pennies from public.create_one_tap_price_pair(${olderArgs})`)).toBe("510");
+    expect(session!.sql(`select round(price_gbp * 100)::integer from public.pint_drops
+      where id = '00000000-0000-4000-8000-000000000141'`)).toBe("420");
   });
 });

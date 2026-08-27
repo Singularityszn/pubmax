@@ -31,6 +31,10 @@ const MEMBERSHIP_REUSE_FORWARD = join(
   MIGRATIONS,
   "20260827200000_open_social_crew_plan_membership_reuse.sql",
 );
+const CAPACITY_ATOMICITY_FORWARD = join(
+  MIGRATIONS,
+  "20260827211500_social_crew_capacity_atomicity.sql",
+);
 const ACCOUNT_CLAIM_FORWARD = join(
   MIGRATIONS,
   "20260827120448_plan_membership_account_claim.sql",
@@ -58,6 +62,10 @@ const PUBLIC_PREVIEW_ROLLBACK = join(
 const MEMBERSHIP_REUSE_ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260827200000_open_social_crew_plan_membership_reuse_rollback.sql",
+);
+const CAPACITY_ATOMICITY_ROLLBACK = join(
+  ROOT,
+  "supabase/migrations/rollback/20260827211500_social_crew_capacity_atomicity_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -448,6 +456,7 @@ beforeAll(async () => {
     )`);
   seed(database);
   database.apply(MEMBERSHIP_REUSE_FORWARD);
+  database.apply(CAPACITY_ATOMICITY_FORWARD);
 }, 300_000);
 
 beforeEach((context) => {
@@ -658,6 +667,68 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
       db.sql(`select concat(social_account_id, ':', can_collaborate)
         from public.plan_crew_members where id='${existingPlanMember}'`),
     ).toBe(`${MATE_ACCOUNT}:t`);
+  });
+
+  it("does not activate Plan authority when a full crew refuses an inactive member", () => {
+    const db = requireDatabase();
+    const matePlanMember = "77777777-1100-4000-8000-000000000001";
+    const mateCrewMember = "77777777-1100-4000-8000-000000000002";
+
+    db.sql(`
+      create temporary table capacity_fill as
+      select sequence,
+             gen_random_uuid() as user_id,
+             gen_random_uuid() as profile_id,
+             gen_random_uuid() as account_id,
+             gen_random_uuid() as plan_member_id,
+             gen_random_uuid() as crew_member_id
+      from generate_series(1,19) sequence;
+
+      insert into auth.users(id) select user_id from capacity_fill;
+      insert into public.profiles(id,user_id,handle)
+      select profile_id,user_id,'capacity-' || sequence from capacity_fill;
+      insert into public.private_social_accounts(
+        id,clerk_user_id,supabase_user_id,profile_id,ownership_state
+      ) select account_id,'clerk-capacity-' || sequence,user_id,profile_id,'active'
+        from capacity_fill;
+      insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) select plan_member_id,'${OPEN_PLAN}','Capacity ' || sequence,
+               md5('capacity-' || sequence)||md5('capacity-token-' || sequence),
+               'in',user_id,now(),now(),true,account_id
+        from capacity_fill;
+      insert into public.social_crew_members(
+        id,crew_id,social_account_id,plan_member_id,role,state
+      ) select crew_member_id,'${OPEN_CREW}',account_id,plan_member_id,'member','active'
+        from capacity_fill;
+
+      insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) values(
+        '${matePlanMember}','${OPEN_PLAN}','Mate',
+        md5('capacity-mate')||md5('capacity-mate-token'),'on_the_way','${MATE_USER}',now(),now(),false,
+        '${MATE_ACCOUNT}'
+      );
+      insert into public.social_crew_members(
+        id,crew_id,social_account_id,plan_member_id,role,state,ended_at
+      ) values(
+        '${mateCrewMember}','${OPEN_CREW}','${MATE_ACCOUNT}','${matePlanMember}','member','left',now()
+      );
+    `);
+
+    expect(
+      db.sql(`select coalesce(
+        public._activate_social_crew_member('${OPEN_CREW}','${MATE_ACCOUNT}')::text,
+        'null'
+      )`),
+    ).toBe("null");
+    expect(
+      db.sql(`select status || '|' || can_collaborate || '|' || state
+        from public.plan_crew_members plan_member
+        join public.social_crew_members crew_member
+          on crew_member.plan_member_id=plan_member.id
+        where plan_member.id='${matePlanMember}'`),
+    ).toBe("on_the_way|false|left");
   });
 
   it("fails closed when an account Plan seat belongs to another Social account", () => {
@@ -910,6 +981,7 @@ describe("0114 and 0110 rolled back", () => {
   beforeAll(() => {
     if (skipReason || !database) return;
     seed(database);
+    database.apply(CAPACITY_ATOMICITY_ROLLBACK);
     database.apply(MEMBERSHIP_REUSE_ROLLBACK);
     database.apply(PUBLIC_PREVIEW_ROLLBACK);
     database.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);

@@ -1,51 +1,6 @@
--- Open Crew acceptance and direct Plan invite acceptance must converge on one
--- account-owned Plan seat. Reuse a seat already stamped with the Supabase user
--- before creating a Social-only seat.
-
--- Old activation could create a Social-only seat after the same account had
--- already joined through a Plan invite. Do not guess which row owns child
--- history. Stop with exact identifiers so an operator can reconcile it first.
-do $$
-declare
-  split_membership record;
-begin
-  select crew.plan_id,
-         social_member.social_account_id,
-         social_member.id as social_plan_member_id,
-         account_member.id as account_plan_member_id
-    into split_membership
-  from public.social_crew_members crew_member
-  join public.social_crews crew on crew.id=crew_member.crew_id
-  join public.plan_crew_members social_member
-    on social_member.id=crew_member.plan_member_id
-   and social_member.plan_id=crew.plan_id
-  join public.private_social_accounts account
-    on account.id=crew_member.social_account_id
-   and account.supabase_user_id is not null
-  join public.plan_crew_members account_member
-    on account_member.plan_id=crew.plan_id
-   and account_member.user_id=account.supabase_user_id
-   and account_member.id<>social_member.id
-  order by crew.plan_id,crew_member.social_account_id
-  limit 1;
-
-  if found then
-    raise exception using
-      errcode='check_violation',
-      message=format(
-        'split Social and account Plan membership: plan_id=%s social_account_id=%s',
-        split_membership.plan_id,
-        split_membership.social_account_id
-      ),
-      detail=format(
-        'Social seat %s and account seat %s both carry authority. No rows were changed.',
-        split_membership.social_plan_member_id,
-        split_membership.account_plan_member_id
-      ),
-      hint='Reconcile child references into one Plan member before rerunning this migration.';
-  end if;
-end;
-$$;
+-- Serialise Social Crew admission and refuse capacity before granting Plan
+-- authority. A full Crew must not leave an inactive member with an active Plan
+-- capability.
 
 create or replace function public._activate_social_crew_member(p_crew uuid,p_account uuid)
 returns uuid language plpgsql security definer set search_path=''
@@ -116,7 +71,8 @@ begin
     return v_member.id;
   end if;
 
-  if (select count(*) from public.social_crew_members where crew_id=p_crew and state='active')>=20 then
+  if (select count(*) from public.social_crew_members
+      where crew_id=p_crew and state='active')>=20 then
     return null;
   end if;
 
