@@ -201,6 +201,20 @@ describe("loadSlimVenues offline fallback (lib/venuesSlim.ts wiring)", () => {
     const payloads = new Map<string, unknown>([
       ["/data/slim-malformed-result.json", { malformed: true }],
       ["/data/slim-invalid-result.json", [{}]],
+      [
+        "/data/slim-partial-result.json",
+        [
+          {},
+          {
+            id: "venue-partial",
+            name: "Partial Arms",
+            lat: 51.5,
+            lng: -0.1,
+            cheapestPrice: 5,
+            borough: "Camden",
+          },
+        ],
+      ],
       ["/data/slim-empty-result.json", []],
     ]);
     globalThis.fetch = ((input: RequestInfo | URL) =>
@@ -215,6 +229,21 @@ describe("loadSlimVenues offline fallback (lib/venuesSlim.ts wiring)", () => {
       await expect(
         loadSlimVenuesFromPathResult("/data/slim-invalid-result.json"),
       ).resolves.toEqual({ rows: [], status: "unavailable" });
+      await expect(
+        loadSlimVenuesFromPathResult("/data/slim-partial-result.json"),
+      ).resolves.toEqual({
+        rows: [
+          {
+            id: "venue-partial",
+            name: "Partial Arms",
+            lat: 51.5,
+            lng: -0.1,
+            cheapestPrice: 5,
+            borough: "Camden",
+          },
+        ],
+        status: "unavailable",
+      });
       await expect(
         loadSlimVenuesFromPathResult("/data/slim-empty-result.json"),
       ).resolves.toEqual({ rows: [], status: "ready" });

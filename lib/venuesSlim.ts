@@ -272,7 +272,7 @@ async function loadSlimVenuesFromPathUnshared(
     if (rows.length > 0) void offlineCache.set(offlineKey, rows);
     return {
       rows,
-      status: data.length > 0 && rows.length === 0 ? "unavailable" : "ready",
+      status: rows.length === data.length ? "ready" : "unavailable",
     };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);
