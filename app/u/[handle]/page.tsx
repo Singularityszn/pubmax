@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { identityHandleStore } from "@/lib/identityHandleStore";
 import { normalizeHandle } from "@/lib/profiles";
 
 import ProfilePageClient from "./ProfilePageClient";
@@ -11,23 +12,22 @@ import ProfilePageClient from "./ProfilePageClient";
 // in this folder, so generateMetadata deliberately sets NO openGraph.images —
 // Next merges the file-convention image in automatically.
 //
-// PRIVACY: the metadata reads ONLY the handle, which is already public in the
-// URL. It never fetches the profile row, drops, saves, or follow graph, so the
-// title/description can never leak anything the page doesn't already render
-// publicly. "you" is the viewer's own sentinel route (it redirects to their
-// real handle client-side), so it is noindex — it is a per-viewer surface, not
-// a public profile.
+// PRIVACY: the metadata resolves only the public handle alias so retired links
+// canonicalise to the current handle. It never fetches profile content, drops,
+// saves, or the follow graph, so the title/description cannot leak anything the
+// page does not already render publicly. "you" is the viewer's own sentinel
+// route (it redirects to their real handle client-side), so it is noindex.
 
 const YOU_SENTINEL = "you";
 
 type PageProps = { params: Promise<{ handle: string }> };
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const handle = normalizeHandle((await params).handle);
+  const requestedHandle = normalizeHandle((await params).handle);
 
   // Missing / unusable handle, or the per-viewer "you" sentinel: keep it out of
   // search. Neither is a stable public profile URL worth indexing.
-  if (!handle || handle === YOU_SENTINEL) {
+  if (!requestedHandle || requestedHandle === YOU_SENTINEL) {
     return {
       title: "Your profile",
       description: "Your PUBMAXX identity: your Pint Drops, saved venues, and crawls.",
@@ -35,18 +35,59 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
     };
   }
 
+  // Resolve a retired public handle before publishing a canonical. Only an
+  // explicit live result can publish the resolved handle. A missing answer,
+  // storage failure, or tombstone keeps the requested URL out of search.
+  let handle = requestedHandle;
+  let canonicalVerified = false;
+  let accountHasLeft = false;
+  try {
+    const resolution = await identityHandleStore().resolve(requestedHandle);
+    accountHasLeft = resolution?.status === "gone";
+    if (resolution?.status === "live") {
+      handle = normalizeHandle(resolution.currentHandle) || requestedHandle;
+      canonicalVerified = true;
+    }
+  } catch {
+    canonicalVerified = false;
+  }
+
   const title = `@${handle}`;
+  if (accountHasLeft) {
+    const description =
+      "This account has left. The handle is still reserved, but there is no live profile here any more.";
+
+    return {
+      title,
+      description,
+      robots: { index: false, follow: false },
+      openGraph: {
+        title,
+        description,
+        type: "profile",
+        siteName: "PUBMAXX",
+      },
+      twitter: {
+        card: "summary_large_image",
+        title,
+        description,
+      },
+    };
+  }
+
   const description = `@${handle}'s pint passport on PUBMAXX. Their Pint Drops, saved venues, and the crawls they've walked.`;
   const url = `/u/${handle}`;
 
   return {
     title,
     description,
-    alternates: { canonical: url },
+    ...(canonicalVerified
+      ? { alternates: { canonical: url } }
+      : { robots: { index: false, follow: false } }),
     openGraph: {
       title,
       description,
-      url,
+      ...(canonicalVerified ? { url } : {}),
       type: "profile",
       siteName: "PUBMAXX",
     },
