@@ -83,13 +83,13 @@ function VenueLink({
   // A card is only tappable when it deep-links to a real venue on the map. The
   // static variant still renders every fact and its provenance.
   if (!card.venueId) {
-    return <div className="palChatCardBody palChatCardBody--static">{children}</div>;
+    return <div className="palChatCardMain">{children}</div>;
   }
   const target = resolvePalVenueOpenTarget(card.venueId, knownVenueIds);
   const href = target.href;
   return (
     <Link
-      className="palChatCardBody palChatCardBody--link"
+      className="palChatCardMain palChatCardBody--link"
       href={href}
       onClick={(event) => {
         if (
@@ -123,7 +123,6 @@ function ProvChip({ card }: { card: PalCard }) {
         href={provenance.url}
         target="_blank"
         rel="noreferrer noopener"
-        // Stop the outer venue link from also firing.
         onClick={(event) => event.stopPropagation()}
       >
         {label}
@@ -168,33 +167,35 @@ export function AnswerCard({
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
     <li className="palChatCard">
-      <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
-        <div className="palChatCardTop">
-          <p className="palChatCardTitle">{card.title}</p>
-          {typeof card.price === "number" ? (
-            <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+      <div className="palChatCardBody">
+        <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
+          <div className="palChatCardTop">
+            <p className="palChatCardTitle">{card.title}</p>
+            {typeof card.price === "number" ? (
+              <span className="palChatCardPrice">£{card.price.toFixed(2)}</span>
+            ) : null}
+          </div>
+          {card.place ? (
+            <p className="palChatCardPlace">
+              <MapPin size={12} aria-hidden="true" />
+              <span>{card.place}</span>
+            </p>
           ) : null}
-        </div>
-        {card.place ? (
-          <p className="palChatCardPlace">
-            <MapPin size={12} aria-hidden="true" />
-            <span>{card.place}</span>
-          </p>
-        ) : null}
-        {when ? <p className="palChatCardWhen">{when}</p> : null}
-        {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
-        <div className="palChatCardMeta">
-          <ProvChip card={card} />
-          {card.confidence ? (
-            <span className="palChatConfidence">{card.confidence}</span>
-          ) : null}
+          {when ? <p className="palChatCardWhen">{when}</p> : null}
+          {card.note ? <p className="palChatCardNote">{card.note}</p> : null}
           {card.venueId ? (
             <span className="palChatCardCta" aria-hidden="true">
               Show on map
             </span>
           ) : null}
+        </VenueLink>
+        <div className="palChatCardMeta">
+          <ProvChip card={card} />
+          {card.confidence ? (
+            <span className="palChatConfidence">{card.confidence}</span>
+          ) : null}
         </div>
-      </VenueLink>
+      </div>
       {palHandoff && card.venueId ? (
         <Link
           className="palChatCardAccept pressable"

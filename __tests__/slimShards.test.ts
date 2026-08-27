@@ -199,6 +199,51 @@ describe("createSlimShardLoader (London)", () => {
     expect(loader.coverageComplete(overGreenwich)).toBe(false);
   });
 
+  it("coverageComplete() stays false when a shard payload is unavailable", async () => {
+    fetched = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (url === "/data/venues_slim.greenwich.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{}, slimRow("g1", 51.48, 0.05)]),
+        } as Response);
+      }
+      if (url in BODIES) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(BODIES[url]) } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    await loader.core();
+    const overGreenwich = { west: 0.01, south: 51.47, east: 0.08, north: 51.51 };
+    await expect(loader.inBounds(overGreenwich)).resolves.toEqual([slimRow("g1", 51.48, 0.05)]);
+    expect(loader.coverageComplete(overGreenwich)).toBe(false);
+  });
+
+  it("coverageComplete() stays false when the unsharded index is unavailable", async () => {
+    fetched = [];
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (url === "/data/venues_slim.manifest.json") {
+        return Promise.resolve({ ok: false, status: 404 } as Response);
+      }
+      if (url === "/data/venues_slim.json") {
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve([{}, slimRow("c1", 51.5, -0.1)]),
+        } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+    const loader = createSlimShardLoader("london");
+    const coreOnly = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+    await expect(loader.core()).resolves.toEqual([slimRow("c1", 51.5, -0.1)]);
+    expect(loader.coverageComplete(coreOnly)).toBe(false);
+  });
+
   it("degrades honestly: a failed shard yields [] and is retried on the next call", async () => {
     installFetch({ "/data/venues_slim.greenwich.json": "fail" });
     const loader = createSlimShardLoader("london");

@@ -46,4 +46,28 @@ describe("Pub Pal card acceptance handoff", () => {
     expect(html).not.toContain("Use this Venue");
     expect(html).not.toContain("accept=1");
   });
+
+  it("keeps the provenance link outside the venue link", () => {
+    const html = renderToStaticMarkup(
+      createElement(AnswerCard, {
+        card: card({
+          provenance: {
+            label: "Skiddle",
+            kind: "whats-on",
+            url: "https://example.test/event",
+          },
+        }),
+        onOpen: noop,
+        palHandoff: false,
+        locality: null,
+      }),
+    );
+    expect(html).toContain('href="/map?sel=venue-a"');
+    expect(html).toContain('href="https://example.test/event"');
+    const venueOpen = html.search(/<a[^>]*href="\/map\?sel=venue-a"/);
+    expect(venueOpen).toBeGreaterThanOrEqual(0);
+    const venueTagEnd = html.indexOf(">", venueOpen);
+    const firstClose = html.indexOf("</a>", venueTagEnd);
+    expect(html.slice(venueTagEnd, firstClose)).not.toContain("https://example.test/event");
+  });
 });

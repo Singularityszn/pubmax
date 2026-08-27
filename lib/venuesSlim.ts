@@ -13,9 +13,11 @@
 // drift, so malformed rows are dropped rather than allowed to poison the map.
 //
 // Offline (issue #32): the service worker caches the /data/… bytes; on top of
-// that, every successful load is mirrored into IndexedDB (lib/offlineCache.ts)
+// that, every COMPLETE load is mirrored into IndexedDB (lib/offlineCache.ts)
 // so a fetch that fails ENTIRELY (no SW yet, dead cellar signal on a cold tab)
-// can still return the last parsed index instead of an empty map.
+// can still return the last parsed index instead of an empty map. A payload
+// that dropped malformed rows is never stored: a later fetch failure would
+// otherwise treat a truncated index as the whole city.
 
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
@@ -24,7 +26,7 @@ import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
 
-const OFFLINE_KEY_PREFIX = "venues_slim:v1";
+const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
 const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
@@ -197,10 +199,11 @@ function normalizeRows(data: unknown): SlimVenue[] {
  * a non-array payload yields [] so the map degrades to "no pins" rather than
  * throwing.
  *
- * Offline: a good load is mirrored to IndexedDB (fire-and-forget); if the
+ * Offline: a complete load is mirrored to IndexedDB (fire-and-forget); if the
  * fetch itself fails, the last mirrored index for that path is returned
- * instead. Only when there is no fallback either does the original error
- * propagate — preserving the pre-offline contract for callers that show a
+ * instead. A payload that dropped malformed rows is unavailable and is not
+ * cached. Only when there is no fallback either does the original error
+ * propagate. That preserves the pre-offline contract for callers that show a
  * load-error state.
  */
 export type SlimVenueLoadOptions = {
@@ -269,10 +272,11 @@ async function loadSlimVenuesFromPathUnshared(
       return { rows: [], status: "unavailable" };
     }
     const rows = normalizeRows(data);
-    if (rows.length > 0) void offlineCache.set(offlineKey, rows);
+    const complete = rows.length === data.length;
+    if (complete && rows.length > 0) void offlineCache.set(offlineKey, rows);
     return {
       rows,
-      status: rows.length === data.length ? "ready" : "unavailable",
+      status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);

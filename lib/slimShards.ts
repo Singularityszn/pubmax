@@ -24,7 +24,7 @@ import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
-import { loadSlimVenuesFromPath, type SlimVenue } from "@/lib/venuesSlim";
+import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -278,9 +278,9 @@ export function createSlimShardLoader(
   }
 
   function loadWholeIndex(): Promise<SlimVenue[]> {
-    return loadSlimVenuesFromPath(slimVenuesPath, options).then((rows) => {
-      wholeIndexLoaded = true;
-      return rows;
+    return loadSlimVenuesFromPathResult(slimVenuesPath, options).then((result) => {
+      if (result.status === "ready") wholeIndexLoaded = true;
+      return result.rows;
     });
   }
 
@@ -289,10 +289,14 @@ export function createSlimShardLoader(
   function loadShard(url: string): Promise<SlimVenue[]> {
     const existing = shardPromises.get(url);
     if (existing) return existing;
-    const p = loadSlimVenuesFromPath(url, options)
-      .then((rows) => {
-        loadedUrls.add(url);
-        return rows;
+    const p = loadSlimVenuesFromPathResult(url, options)
+      .then((result) => {
+        if (result.status === "ready") {
+          loadedUrls.add(url);
+        } else {
+          shardPromises.delete(url);
+        }
+        return result.rows;
       })
       .catch(() => {
         shardPromises.delete(url); // allow retry
