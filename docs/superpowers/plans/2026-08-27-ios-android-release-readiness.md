@@ -1,8 +1,8 @@
-# PUBMAXX iOS and Android Release Readiness Implementation Plan
+# PUBMAXXING iOS and Android Release Readiness Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship existing PUBMAXX Capacitor shells as tested iOS and Android store candidates that render same London v0 mobile UI as browser.
+**Goal:** Ship existing PUBMAXXING Capacitor shells as tested iOS and Android store candidates that render same London v0 mobile UI as browser.
 
 **Architecture:** Keep one server-rendered Next.js product and two checked-in Capacitor 8 native projects at `ios/` and `android/`. Both shells load `https://pubmaxxing.com` through remote-URL mode. Native behaviour stays behind `lib/native*.ts` and `components/native/**`; no React Native, SwiftUI, duplicate map, or duplicate product UI is added.
 
@@ -21,7 +21,7 @@
 - Do not run final Vercel production build/deploy, App Store archive, Play release bundle, or store submission before shared release checkpoint.
 - Keep remote URL HTTPS-only and `native/web-stub/offline.html` as truthful first-load failure surface.
 - Keep all direct Capacitor imports inside `lib/native*.ts`.
-- Use app name `PUBMAXX`, app ID `com.pubmaxx.app`, iOS minimum 15, Android minimum API 24, Android target API 36.
+- Use app name `PUBMAXXING`, app ID `com.pubmaxx.app`, iOS minimum 15, Android minimum API 24, Android target API 36.
 - Use one native UI source: current web mobile surface at 320, 390, and 430 CSS-pixel widths.
 
 ---
