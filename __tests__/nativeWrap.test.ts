@@ -3,10 +3,23 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import capacitorConfig from "../capacitor.config";
+import { APP_NAME } from "@/lib/brandNaming";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
 describe("Capacitor wrapped-build contract", () => {
+  it("uses the canonical app name on both native install surfaces", () => {
+    expect(capacitorConfig.appName).toBe(APP_NAME);
+
+    const info = rootFile("ios/App/App/Info.plist");
+    expect(info).toContain(
+      `<key>CFBundleDisplayName</key>\n        <string>${APP_NAME}</string>`,
+    );
+
+    const strings = rootFile("android/app/src/main/res/values/strings.xml");
+    expect(strings).toContain(`<string name="app_name">${APP_NAME}</string>`);
+  });
+
   it("loads production remotely and has a bundled, truthful outage fallback", () => {
     expect(capacitorConfig.webDir).toBe("native/web-stub");
     expect(capacitorConfig.server?.url).toBe("https://pubmaxxing.com");

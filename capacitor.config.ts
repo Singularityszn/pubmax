@@ -11,7 +11,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 
 const config: CapacitorConfig = {
   appId: "com.pubmaxx.app",
-  appName: "PUBMAXX",
+  appName: "PUBMAXXING",
   webDir: "native/web-stub",
   server: {
     url: "https://pubmaxxing.com",
