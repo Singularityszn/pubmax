@@ -26,6 +26,7 @@ import {
 
 import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
 import type { Landmark } from "@/lib/landmarks";
+import { formatLogNearbyDistance } from "@/lib/mapLogIntent";
 import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
 import type { StoryBand } from "@/lib/storyBands";
 import {
@@ -3769,9 +3770,7 @@ export default function PubMapCanvas({
                   }}
                 >
                   <span>{venue.name}</span>
-                  <span>
-                    {km < 1 ? `${Math.round(km * 1000)} m` : `${km.toFixed(1)} km`} straight-line
-                  </span>
+                  <span>{formatLogNearbyDistance(km)} straight-line</span>
                 </button>
               ))}
             </div>

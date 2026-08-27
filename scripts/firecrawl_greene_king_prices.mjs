@@ -63,7 +63,7 @@ const DRINK_CATEGORIES = new Set([
   "other",
 ]);
 
-// --- parser (mirror lib/greeneKingMenuParser.ts) ----------------------------
+// --- parser -----------------------------------------------------------------
 
 const SECTION_HEADING = /^###\s+(.+)$/;
 const ITEM_HEADING = /^####\s+(.+)$/;
@@ -100,7 +100,6 @@ function mapSectionToCategory(section) {
   if (s.includes("vodka")) return "vodka";
   if (s.includes("rum")) return "rum";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  // Keep in sync with lib/greeneKingMenuParser.ts.
   if (s.includes("coffee") || s.includes("hot drink")) return "coffee";
   if (
     s.includes("alcohol-free") ||

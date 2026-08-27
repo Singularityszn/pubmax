@@ -25,7 +25,9 @@ export async function POST(request: Request): Promise<Response> {
 
   const identity = await callerAuthIdentity(request);
   if (!identity) {
-    return reply({ error: "Sign in to record an invite." }, 401);
+    return publicApiError("Sign in to record an invite.", "AUTH_REQUIRED", 401, {
+      retryable: false,
+    });
   }
   if (!request.headers.get("content-type")?.startsWith("application/json")) {
     return publicApiError(
