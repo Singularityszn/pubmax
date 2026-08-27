@@ -161,7 +161,7 @@ export default function PlanRouteMiniMap({ stops }: { stops: Stop[] }) {
 
   const geometry = useMemo(() => {
     if (!activeResolved || !activeDrawn) return null;
-    const bounds = boundsFromCoords(activeResolved.coords);
+    const bounds = boundsFromCoords([...activeResolved.coords, ...activeDrawn.line]);
     if (!bounds) return null;
     const viewport = { width: VIEW_W, height: VIEW_H, padding: PADDING };
     const discs = projectCoords(activeResolved.coords, bounds, viewport);

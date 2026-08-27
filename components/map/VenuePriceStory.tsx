@@ -125,7 +125,8 @@ function usePriceConfirmTally(
   baselineGbp: number | null,
   nowGbp: number | null,
 ): ConfirmRead | null {
-  const [read, setRead] = useState<ConfirmRead | null>(null);
+  const requestKey = `${venueId}:${confirmTargetGbp}:${baselineGbp ?? ""}:${nowGbp ?? ""}`;
+  const [result, setResult] = useState<{ key: string; read: ConfirmRead } | null>(null);
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -158,10 +159,13 @@ function usePriceConfirmTally(
           }),
           { now: Date.now() },
         );
-        setRead({
-          tally,
-          confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
-          conflictGbps: conflictPrices(resolution),
+        setResult({
+          key: requestKey,
+          read: {
+            tally,
+            confidence: tally.confirms > 0 ? priceConfidence(tally, Date.now()) : null,
+            conflictGbps: conflictPrices(resolution),
+          },
         });
       } catch {
         // Fail-soft: no tally, chip behaves as before.
@@ -170,8 +174,8 @@ function usePriceConfirmTally(
     return () => {
       cancelled = true;
     };
-  }, [venueId, confirmTargetGbp, baselineGbp, nowGbp]);
-  return read;
+  }, [venueId, confirmTargetGbp, baselineGbp, nowGbp, requestKey]);
+  return result?.key === requestKey ? result.read : null;
 }
 
 // One-tap "still accurate?" micro-contribution. Tapping vouches the displayed
