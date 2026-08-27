@@ -2,7 +2,8 @@ import { expect, test } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { mkdir } from "node:fs/promises";
 
-test("completed Plan recap stays inside 320px viewport and explicit discard survives remount", async ({ page, request }) => {
+test("completed Plan recap stays usable across mobile widths and explicit discard survives remount", async ({ page, request }) => {
+  test.setTimeout(60_000);
   const startTime = new Date().toISOString();
   const venueResponse = await request.get("/data/venues_slim.json");
   const venues = (await venueResponse.json() as Array<{ id: string; name: string }>).slice(0, 3);
@@ -19,6 +20,15 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   expect(createdResponse.ok()).toBe(true);
   const created = await createdResponse.json() as { plan: { plan: { id: string } }; memberToken: string };
   const planId = created.plan.plan.id;
+  const arrivalResponse = await request.post(`/api/plans/${planId}/actions`, {
+    headers: { "idempotency-key": randomUUID() },
+    data: {
+      memberToken: created.memberToken,
+      type: "arrived",
+      stopPosition: 0,
+    },
+  });
+  expect(arrivalResponse.ok()).toBe(true);
   const completionResponse = await request.post(`/api/plans/${planId}/complete`, {
     data: {
       memberToken: created.memberToken,
@@ -33,15 +43,49 @@ test("completed Plan recap stays inside 320px viewport and explicit discard surv
   });
   expect(completionResponse.ok()).toBe(true);
 
-  await page.setViewportSize({ width: 320, height: 568 });
   await page.addInitScript(({ id, start, token }) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
+    window.localStorage.setItem("pubmax:e2e-defer-shell:v1", "now");
     window.localStorage.setItem("pubmax_active_plan", JSON.stringify({ id, startTime: start, stopIndex: 2 }));
     window.sessionStorage.setItem(`pubmax-plan-member:${id}`, token);
   }, { id: planId, start: startTime, token: created.memberToken });
 
-  await page.goto("/tonight");
-  await page.getByRole("button", { name: "Show tonight's plan" }).click();
+  const viewports = [
+    { width: 390, height: 844 },
+    { width: 430, height: 932 },
+    { width: 320, height: 568 },
+  ];
+  for (const [index, viewport] of viewports.entries()) {
+    await page.setViewportSize(viewport);
+    await page.goto("/tonight");
+    const nightPill = page.getByRole("button", { name: "Show tonight's plan" });
+    const createAction = page.locator(".createFabRoot");
+    await expect(nightPill).toBeVisible();
+    await expect(createAction).toBeVisible();
+
+    const [nightBox, createBox] = await Promise.all([
+      nightPill.boundingBox(),
+      createAction.boundingBox(),
+    ]);
+    expect(nightBox).not.toBeNull();
+    expect(createBox).not.toBeNull();
+    expect(createBox!.y + createBox!.height).toBeLessThanOrEqual(nightBox!.y);
+    expect(await nightPill.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      )?.closest(".nightPill") === element;
+    })).toBe(true);
+
+    await nightPill.click();
+    await expect(page.getByRole("dialog", { name: "Tonight's plan" })).toBeVisible();
+    if (index < viewports.length - 1) {
+      await page.keyboard.press("Escape");
+      await expect(nightPill).toBeFocused();
+    }
+  }
+
   const sheet = page.getByRole("dialog", { name: "Tonight's plan" });
   await expect(sheet).toBeVisible();
   await sheet.getByRole("button", { name: "Review private recap" }).click();

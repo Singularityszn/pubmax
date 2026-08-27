@@ -43,6 +43,12 @@
   --plan-activation-h: 48px;
   --plan-activation-bottom: calc(var(--float-stack-base) + 10px);
 
+  /* Member: active Planned Night pill on non-map routes. */
+  --night-pill-h: 44px;
+  --night-pill-bottom: calc(
+    var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + 10px
+  );
+
   /* Member: the map-edge corner column. Its box spans most of the viewport, but
      what sits in this band is the Near me FAB parked at the column's own bottom
      (justify-content: space-between). The consent variant is the lifted berth
@@ -68,6 +74,9 @@
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
   --float-stack-top-plan: calc(
     var(--plan-activation-bottom) + var(--plan-activation-h)
+  );
+  --float-stack-top-night: calc(
+    var(--night-pill-bottom) + var(--night-pill-h)
   );
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom) + var(--map-corner-locate-size)

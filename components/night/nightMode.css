@@ -629,7 +629,7 @@ html:has(.nightPill) {
 
 @media (max-width: 640px) {
   .nightPill {
-    bottom: calc(var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + 10px);
+    bottom: var(--night-pill-bottom);
   }
 }
 

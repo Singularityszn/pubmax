@@ -49,6 +49,10 @@
     bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
   }
 
+  body:has(.nightPill) .createFabRoot {
+    bottom: calc(var(--float-stack-top-night) + var(--float-stack-gap));
+  }
+
   body:has(.palSummon) .createFabRoot {
     bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
   }
