@@ -27,6 +27,10 @@ const PUBLIC_PREVIEW_FORWARD = join(
   MIGRATIONS,
   "20260823120000_0115_social_crew_public_preview.sql",
 );
+const MEMBERSHIP_REUSE_FORWARD = join(
+  MIGRATIONS,
+  "20260827200000_open_social_crew_plan_membership_reuse.sql",
+);
 const ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260816220000_0110_open_social_crews_rollback.sql",
@@ -38,6 +42,10 @@ const QUEUE_ROLLBACK = join(
 const PUBLIC_PREVIEW_ROLLBACK = join(
   ROOT,
   "supabase/migrations/rollback/20260823120000_0115_social_crew_public_preview_rollback.sql",
+);
+const MEMBERSHIP_REUSE_ROLLBACK = join(
+  ROOT,
+  "supabase/migrations/rollback/20260827200000_open_social_crew_plan_membership_reuse_rollback.sql",
 );
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
@@ -391,6 +399,7 @@ beforeAll(async () => {
   database.apply(FORWARD);
   database.apply(QUEUE_FORWARD);
   database.apply(PUBLIC_PREVIEW_FORWARD);
+  database.apply(MEMBERSHIP_REUSE_FORWARD);
 }, 300_000);
 
 beforeEach((context) => {
@@ -548,6 +557,11 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
       db.sql(`select count(*) from public.social_crew_members
         where crew_id='${OPEN_CREW}' and social_account_id='${STRANGER_ACCOUNT}' and state='active'`),
     ).toBe("1");
+    expect(
+      db.sql(`select count(*) from public.plan_crew_members
+        where plan_id='${OPEN_PLAN}' and user_id='${STRANGER_USER}'
+          and social_account_id='${STRANGER_ACCOUNT}'`),
+    ).toBe("1");
 
     // A request made before a block must not be accepted after one.
     const later = requestJoin(MATE_ACCOUNT, OPEN_CREW);
@@ -564,6 +578,57 @@ describe("0110 and 0114 applied to PostgreSQL", () => {
     expect(
       db.sql(`select count(*) from public.social_crew_members
         where crew_id='${OPEN_CREW}' and social_account_id='${MATE_ACCOUNT}' and state='active'`),
+    ).toBe("0");
+  });
+
+  it("reuses an existing account Plan seat when an open crew request is accepted", () => {
+    const db = requireDatabase();
+    const existingPlanMember = "77777777-1000-4000-8000-000000000001";
+    db.sql(`insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate
+      ) values(
+        '${existingPlanMember}','${OPEN_PLAN}','Mate',
+        md5('open-mate')||md5('open-mate-2'),'in','${MATE_USER}',now(),now(),false
+      )`);
+
+    acceptIntoOpenCrew(MATE_ACCOUNT);
+
+    expect(
+      db.sql(`select count(*) from public.plan_crew_members
+        where plan_id='${OPEN_PLAN}' and user_id='${MATE_USER}'`),
+    ).toBe("1");
+    expect(
+      db.sql(`select plan_member_id from public.social_crew_members
+        where crew_id='${OPEN_CREW}' and social_account_id='${MATE_ACCOUNT}'`),
+    ).toBe(existingPlanMember);
+    expect(
+      db.sql(`select concat(social_account_id, ':', can_collaborate)
+        from public.plan_crew_members where id='${existingPlanMember}'`),
+    ).toBe(`${MATE_ACCOUNT}:t`);
+  });
+
+  it("fails closed when an account Plan seat belongs to another Social account", () => {
+    const db = requireDatabase();
+    db.sql(`insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,user_id,joined_at,updated_at,can_collaborate,social_account_id
+      ) values(
+        '77777777-2000-4000-8000-000000000001','${OPEN_PLAN}','Mate',
+        md5('wrong-social')||md5('wrong-social-2'),'in','${MATE_USER}',now(),now(),false,
+        '${STRANGER_ACCOUNT}'
+      )`);
+    const requested = requestJoin(MATE_ACCOUNT, OPEN_CREW);
+
+    expect(
+      json(
+        db.sql(`select public.decide_social_crew_join_request_atomic(
+          '${HOST_ACCOUNT}','${OPEN_CREW}','${String(requested.request_id)}','accepted',
+          '${writeKey("decide")}','${DIGEST}'
+        )`),
+      ),
+    ).toEqual({ ok: false, code: "full" });
+    expect(
+      db.sql(`select count(*) from public.social_crew_members
+        where crew_id='${OPEN_CREW}' and social_account_id='${MATE_ACCOUNT}'`),
     ).toBe("0");
   });
 
@@ -792,6 +857,7 @@ describe("0114 and 0110 rolled back", () => {
   beforeAll(() => {
     if (skipReason || !database) return;
     seed(database);
+    database.apply(MEMBERSHIP_REUSE_ROLLBACK);
     database.apply(PUBLIC_PREVIEW_ROLLBACK);
     database.sql(`update public.plans set start_time=now() - interval '9 hours' where id='${OPEN_PLAN}'`);
     listAfterPublicPreviewRollback = jsonValue(
