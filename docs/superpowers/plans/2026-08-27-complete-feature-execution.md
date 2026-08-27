@@ -151,6 +151,10 @@ Exa `402` remains a human gate, not a silent provider substitution.
 - [ ] Merge only accepted source to GitHub `main`.
 - [ ] Send exact merge SHA to native task.
 - [ ] Do not deploy yet.
+- [ ] Inspect unique TfL commit `eeb663635` after PR findings stabilise.
+- [ ] Port its repeated fall-back-hour fix from `lib/tfl.ts`,
+  `lib/lastTrain.server.ts`, and `__tests__/lastTrainRoute.test.ts`, or record an
+  explicit retirement reason with a current-main regression.
 
 Verification:
 
@@ -251,6 +255,10 @@ lost, but no task may modify conflicting London v0 files early.
    releases.
 10. Refactor slice closes issue #727 only where stores have identical policy and
     semantics.
+11. Coordination reviews remote-backed voice commits `9e51fc398` and
+    `a57b0c55d` against current `docs/VOICE.md`. Port only current fixes through
+    bounded files, or archive with fixed-point evidence. Do not merge the broad
+    34-file rewrite into London v0 by default.
 
 Each slice requires a bounded spec, owned files, failing test first, rollout
 flag where behaviour is risky, rollback path, browser proof, and measurable
