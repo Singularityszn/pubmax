@@ -212,6 +212,29 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((v) => v.id)).toEqual(["g1"]);
   });
 
+  it("bypasses a shared in-flight read when a new loader retries", async () => {
+    let coreFetches = 0;
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === "/data/venues_slim.core.json") {
+        coreFetches += 1;
+        if (coreFetches === 1) return new Promise<Response>(() => {});
+      }
+      if (url in BODIES) {
+        return Promise.resolve({ ok: true, json: () => Promise.resolve(BODIES[url]) } as Response);
+      }
+      return Promise.resolve({ ok: false, status: 404 } as Response);
+    }) as typeof fetch;
+
+    void createSlimShardLoader("london", { bypassInFlight: true }).core();
+    await Promise.resolve();
+    const retryLoader = createSlimShardLoader("london", { bypassInFlight: true });
+    const core = await retryLoader.core();
+
+    expect(core.map((v) => v.id).sort()).toEqual(["c1", "c2"]);
+    expect(coreFetches).toBe(2);
+  });
+
   // The core shard is fetched SPECULATIVELY beside the manifest so first paint
   // does not pay two serial round trips. A path that discards that guess must
   // not wait for it: a hanging (or simply slow) speculative request would hold

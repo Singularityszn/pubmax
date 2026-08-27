@@ -220,11 +220,18 @@ async function readSlimPayload(path: string): Promise<unknown> {
   return response.json();
 }
 
+export type SlimVenueLoadOptions = {
+  bypassInFlight?: boolean;
+};
+
 export async function loadSlimVenuesFromPath(
   path: string,
+  options: SlimVenueLoadOptions = {},
 ): Promise<SlimVenue[]> {
-  const inFlight = slimLoadPromises.get(path);
-  if (inFlight) return inFlight;
+  if (!options.bypassInFlight) {
+    const inFlight = slimLoadPromises.get(path);
+    if (inFlight) return inFlight;
+  }
 
   const pending = loadSlimVenuesFromPathUnshared(path);
   slimLoadPromises.set(path, pending);

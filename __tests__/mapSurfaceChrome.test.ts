@@ -8,6 +8,13 @@ describe("pickMapSurfaceToast", () => {
       pickMapSurfaceToast({ selectionNotice: true, softRetry: true }),
     ).toBe("soft-retry");
     expect(
+      pickMapSurfaceToast({
+        selectionNotice: true,
+        selectionNoticePriority: true,
+        softRetry: true,
+      }),
+    ).toBe("selection");
+    expect(
       pickMapSurfaceToast({ selectionNotice: true, softRetry: false }),
     ).toBe("selection");
     expect(

@@ -929,8 +929,11 @@ export default function PubMap({
     acceptedArrivalSnapshot,
     noAcceptedArrivalSource,
   );
-  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
+  const [arrivalSelectionNotice] = useState<MapSelectionNotice | null>(
     () => mapSelectionNoticeFromSearch(currentSearch()),
+  );
+  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
+    () => arrivalSelectionNotice,
   );
   useEffect(() => {
     if (!selectionNotice || typeof window === "undefined") return;
@@ -1609,7 +1612,9 @@ export default function PubMap({
 
   useEffect(() => {
     let cancelled = false;
-    const loader = createSlimShardLoader(cityId);
+    const loader = createSlimShardLoader(cityId, {
+      bypassInFlight: venueIndexAttempt > 0,
+    });
     slimLoaderRef.current = loader;
     void Promise.resolve().then(() => {
       if (cancelled) return;
@@ -4130,6 +4135,7 @@ export default function PubMap({
             note rather than stacking under it. */}
         {pickMapSurfaceToast({
           selectionNotice: selectionNotice !== null,
+          selectionNoticePriority: arrivalSelectionNotice !== null,
           softRetry: mapSoftRetryActive,
         }) === "soft-retry" ? null : selectionNotice ? (
           <aside

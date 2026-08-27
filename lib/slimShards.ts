@@ -218,6 +218,7 @@ export type SlimShardLoader = {
  */
 export function createSlimShardLoader(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
+  options: { bypassInFlight?: boolean } = {},
 ): SlimShardLoader {
   const city = getCity(cityId);
   const slimVenuesPath = city.slimVenuesPath;
@@ -275,7 +276,7 @@ export function createSlimShardLoader(
   }
 
   function loadWholeIndex(): Promise<SlimVenue[]> {
-    return loadSlimVenuesFromPath(slimVenuesPath).then((rows) => {
+    return loadSlimVenuesFromPath(slimVenuesPath, options).then((rows) => {
       wholeIndexLoaded = true;
       return rows;
     });
@@ -286,7 +287,7 @@ export function createSlimShardLoader(
   function loadShard(url: string): Promise<SlimVenue[]> {
     const existing = shardPromises.get(url);
     if (existing) return existing;
-    const p = loadSlimVenuesFromPath(url)
+    const p = loadSlimVenuesFromPath(url, options)
       .then((rows) => {
         loadedUrls.add(url);
         return rows;
