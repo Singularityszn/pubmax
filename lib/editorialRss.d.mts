@@ -55,3 +55,4 @@ export function feedIsDue(
   options?: { force?: boolean },
 ): boolean;
 export function licenceForSource(sourceId: string): EditorialLicence;
+export function attributionLabelForSource(sourceId: string): string | null;

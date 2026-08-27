@@ -2551,6 +2551,9 @@ function isHttpUrl(value) {
 
 const EDITORIAL_OVERLAY_FILE = join(DATA_DIR, "editorial", "latest.json");
 const EDITORIAL_ALLOWED_SOURCES = new Set(EDITORIAL_FEEDS.map((feed) => feed.id));
+const EDITORIAL_ATTRIBUTION_LABELS = new Map(
+  EDITORIAL_FEEDS.map((feed) => [feed.id, feed.name]),
+);
 const EDITORIAL_FORBIDDEN_ITEM_KEYS = [
   "body",
   "content",
@@ -2638,6 +2641,12 @@ function validateEditorialOverlay() {
         }
         if (typeof item.attribution_label !== "string" || item.attribution_label.trim().length === 0) {
           errors.push(`item ${i}: attribution_label must be a non-empty string`);
+        } else if (
+          EDITORIAL_ATTRIBUTION_LABELS.get(item.source_id) !== item.attribution_label
+        ) {
+          errors.push(
+            `item ${i}: attribution_label must match the allowlisted source name`,
+          );
         }
       });
     }

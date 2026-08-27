@@ -56,10 +56,29 @@ describe("editorial rail", () => {
     expect(markup).toContain('target="_blank"');
     expect(markup).toContain("via Leytonstoner");
     expect(markup).toContain("via Greater London Authority");
-    expect(markup).toContain("OGL");
+    expect(markup).toContain(
+      "Contains public sector information licensed under the Open Government Licence v3.0.",
+    );
+    expect(markup).toContain(
+      'href="https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/"',
+    );
     expect(markup).not.toMatch(/09:00/);
     expect(markup).not.toMatch(/starts/i);
     expect(markup).not.toMatch(/observed/i);
+  });
+
+  it("hides stale picks and names the stale snapshot state", () => {
+    const markup = renderToStaticMarkup(
+      createElement(EditorialRailView, {
+        snapshot: {
+          ...readyItems,
+          generatedAt: "2026-08-13T10:00:00.000Z",
+        },
+        now: NOW,
+      }),
+    );
+    expect(markup).toContain("Picks need a fresh check.");
+    expect(markup).not.toContain("Point Taproom opens");
   });
 
   it("says a quiet week honestly, and a failed read as a failed read", () => {

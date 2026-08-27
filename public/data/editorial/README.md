@@ -2,7 +2,7 @@
 
 Credited link-out picks for `/out` and `/tonight`. Not a harvest. Not a What's-On kind.
 
-`latest.json` is written by `npm run editorial:poll` (`scripts/editorial/poll.mjs`). The rail reads that static file. This repo cannot run serverless cron for ingest, so a poll is a build or manual step.
+`latest.json` is written by `npm run editorial:poll` (`scripts/editorial/poll.mjs`). The rail reads that static file. This repo cannot run serverless cron for ingest, so a poll is a build or manual step. The poller currently checks 14 allowlisted feeds. Its private `poll-state.json` lives under `data/editorial/`, outside public assets.
 
 ## The hard rule
 
@@ -30,7 +30,11 @@ Allowlist lives in `lib/editorialRss.mjs`. ArtRabbit stays out.
 }
 ```
 
-GLA rows (`gla-80117`) carry Open Government Licence credit in the rail, not as a stored field. Poll state (`poll-state.json`) is gitignored.
+GLA rows (`gla-80117`) carry this linked attribution in the rail, not as a stored field: "Contains public sector information licensed under the Open Government Licence v3.0." The link is [Open Government Licence v3.0](https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/). Poll state (`poll-state.json`) is gitignored.
+
+## Snapshot freshness
+
+`generatedAt` records the poll time. A `ready` snapshot older than 48 hours, or one stamped in the future, is stale at read time. The rail withholds its rows and says `Picks need a fresh check.` A valid ready snapshot with no current-week rows says `No picks this week.` A degraded snapshot says that picks could not be checked. These states must not be merged.
 
 ## Refresh
 

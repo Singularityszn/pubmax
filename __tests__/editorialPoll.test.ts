@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
   EDITORIAL_BACKOFF_MS,
@@ -6,7 +6,10 @@ import {
   feedIsDue,
   interpretEditorialResponse,
 } from "@/lib/editorialRss.mjs";
-import { pollEditorialFeeds } from "../scripts/editorial/poll.mjs";
+import {
+  EDITORIAL_STATE_PATH,
+  pollEditorialFeeds,
+} from "../scripts/editorial/poll.mjs";
 
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
 
@@ -32,6 +35,11 @@ function rssItem(title: string, link: string) {
 }
 
 describe("editorial poller: due / backoff / interpret", () => {
+  it("keeps poll state outside public assets", () => {
+    expect(EDITORIAL_STATE_PATH).not.toContain("/public/");
+    expect(EDITORIAL_STATE_PATH.endsWith("/data/editorial/poll-state.json")).toBe(true);
+  });
+
   it("backs off 24 hours after 403 or 429", () => {
     expect(EDITORIAL_BACKOFF_MS).toBe(24 * 60 * 60 * 1000);
     expect(interpretEditorialResponse(403, 4)).toEqual({ status: "backoff" });
@@ -58,6 +66,18 @@ describe("editorial poller: due / backoff / interpret", () => {
         force: true,
       }),
     ).toBe(true);
+  });
+
+  it("uses current time when feedIsDue now is omitted", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(NOW);
+    try {
+      expect(
+        feedIsDue(ONE_FEED[0], { backoffUntil: NOW + 60 * 1000 }),
+      ).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 
@@ -140,5 +160,93 @@ describe("editorial poller: one request per feed per tick", () => {
     expect(hits).toBe(1);
     expect(snapshot.status).toBe("degraded");
     expect(state.deserter?.backoffUntil).toBe(NOW + EDITORIAL_BACKOFF_MS);
+  });
+
+  it("keeps a malformed feed degraded and preserves its previous rows", async () => {
+    const previousItem = {
+      source_id: "deserter",
+      title: "Held over",
+      canonical_url: "https://deserter.co.uk/held",
+      published_at: "2026-08-14T09:00:00.000Z",
+      excerpt: "Still here.",
+      attribution_label: "Deserter",
+    };
+    const snapshot = await pollEditorialFeeds({
+      now: NOW,
+      feeds: ONE_FEED,
+      previous: {
+        version: 1,
+        generatedAt: "2026-08-15T12:00:00.000Z",
+        status: "ready",
+        items: [previousItem],
+      },
+      fetchImpl: async () =>
+        new Response(
+          `<?xml version="1.0"?><rss version="2.0"><channel><item><title>Missing URL</title></item></channel></rss>`,
+          { status: 200 },
+        ),
+    });
+    expect(snapshot.status).toBe("degraded");
+    expect(snapshot.items).toEqual([previousItem]);
+  });
+
+  it("retries failed feeds without waiting for their normal cadence", async () => {
+    const snapshot = await pollEditorialFeeds({
+      now: NOW,
+      feeds: ONE_FEED,
+      previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "ready", items: [] },
+      state: { deserter: { lastFetchedAt: NOW - 60 * 60 * 1000 } },
+      force: true,
+      fetchImpl: async () => new Response("upstream failed", { status: 500 }),
+    });
+    expect(snapshot.status).toBe("degraded");
+    expect(snapshot.state.deserter?.lastFetchedAt).toBeUndefined();
+    expect(
+      feedIsDue(ONE_FEED[0], snapshot.state.deserter, NOW + 60 * 60 * 1000),
+    ).toBe(true);
+  });
+
+  it("continues after a response-body failure and keeps a previous degraded status on idle", async () => {
+    const secondFeed = {
+      ...ONE_FEED[0],
+      id: "enjoying-pubs",
+      name: "Enjoying pubs",
+      url: "https://enjoyingpubs.substack.com/feed",
+    };
+    let secondHit = false;
+    const snapshot = await pollEditorialFeeds({
+      now: NOW,
+      feeds: [ONE_FEED[0], secondFeed],
+      previous: { version: 1, generatedAt: "2026-08-15T12:00:00.000Z", status: "degraded", items: [] },
+      fetchImpl: async (input) => {
+        if (String(input).includes("deserter")) {
+          return {
+            status: 200,
+            headers: new Headers(),
+            bodyUsed: false,
+            text: async () => {
+              throw new Error("body failed");
+            },
+          } as Response;
+        }
+        secondHit = true;
+        return new Response(rssItem("Second feed", "https://enjoyingpubs.substack.com/second"), {
+          status: 200,
+        });
+      },
+    });
+    expect(secondHit).toBe(true);
+    expect(snapshot.status).toBe("degraded");
+
+    const idle = await pollEditorialFeeds({
+      now: NOW,
+      feeds: ONE_FEED,
+      previous: snapshot,
+      state: snapshot.state,
+      fetchImpl: async () => {
+        throw new Error("should not fetch while not due");
+      },
+    });
+    expect(idle.status).toBe("degraded");
   });
 });

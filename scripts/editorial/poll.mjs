@@ -23,7 +23,7 @@ import {
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 export const EDITORIAL_LATEST_PATH = join(ROOT, "public", "data", "editorial", "latest.json");
-export const EDITORIAL_STATE_PATH = join(ROOT, "public", "data", "editorial", "poll-state.json");
+export const EDITORIAL_STATE_PATH = join(ROOT, "data", "editorial", "poll-state.json");
 
 function emptySnapshot() {
   return {
@@ -58,7 +58,7 @@ export async function pollEditorialFeeds({
 } = {}) {
   const nextState = { ...(state ?? {}) };
   let items = [...(previous?.items ?? [])];
-  let anyDegraded = false;
+  let anyDegraded = previous?.status === "degraded";
 
   for (const feed of feeds) {
     const feedState = nextState[feed.id] ?? {};
@@ -81,7 +81,7 @@ export async function pollEditorialFeeds({
       });
     } catch {
       anyDegraded = true;
-      nextState[feed.id] = { ...feedState, lastFetchedAt: now };
+      nextState[feed.id] = { ...feedState, lastFetchedAt: undefined, backoffUntil: undefined };
       continue;
     }
 
@@ -93,7 +93,7 @@ export async function pollEditorialFeeds({
       releaseBody(response);
       nextState[feed.id] = {
         ...feedState,
-        lastFetchedAt: now,
+        lastFetchedAt: undefined,
         backoffUntil: now + EDITORIAL_BACKOFF_MS,
       };
       continue;
@@ -108,13 +108,31 @@ export async function pollEditorialFeeds({
     if (response.status !== 200) {
       anyDegraded = true;
       releaseBody(response);
-      nextState[feed.id] = { ...feedState, lastFetchedAt: now, lastModified };
+      nextState[feed.id] = {
+        ...feedState,
+        lastFetchedAt: undefined,
+        lastModified,
+        backoffUntil: undefined,
+      };
       continue;
     }
 
-    const xml = await response.text();
-    const parsed = parseEditorialFeedXml(xml, feed.id);
-    const outcome = interpretEditorialResponse(200, parsed.itemCount);
+    let parsed;
+    try {
+      const xml = await response.text();
+      parsed = parseEditorialFeedXml(xml, feed.id);
+    } catch {
+      anyDegraded = true;
+      releaseBody(response);
+      nextState[feed.id] = {
+        ...feedState,
+        lastFetchedAt: undefined,
+        lastModified,
+        backoffUntil: undefined,
+      };
+      continue;
+    }
+    const outcome = interpretEditorialResponse(200, parsed.items.length);
     nextState[feed.id] = {
       ...feedState,
       lastFetchedAt: now,
@@ -126,6 +144,8 @@ export async function pollEditorialFeeds({
       anyDegraded = true;
       continue;
     }
+
+    if (parsed.items.length < parsed.itemCount) anyDegraded = true;
 
     const stored = parsed.items.map((item) => storedEditorialItem(item, feed.name));
     items = items.filter((item) => item.source_id !== feed.id).concat(stored);
@@ -149,6 +169,7 @@ function writeLatest(snapshot) {
     items: snapshot.items,
   };
   mkdirSync(dirname(EDITORIAL_LATEST_PATH), { recursive: true });
+  mkdirSync(dirname(EDITORIAL_STATE_PATH), { recursive: true });
   writeFileSync(EDITORIAL_LATEST_PATH, `${JSON.stringify(body, null, 2)}\n`);
   writeFileSync(EDITORIAL_STATE_PATH, `${JSON.stringify(snapshot.state, null, 2)}\n`);
 }

@@ -8,8 +8,14 @@ import {
   EDITORIAL_DEGRADED_LINE,
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_ITEM_KEYS,
+  EDITORIAL_OGL_ATTRIBUTION,
+  EDITORIAL_OGL_URL,
   EDITORIAL_RAIL_TITLE,
+  EDITORIAL_SNAPSHOT_MAX_AGE_MS,
+  EDITORIAL_STALE_LINE,
   editorialOglMark,
+  editorialOglAttributionForSource,
+  editorialSnapshotIsStale,
   editorialThisWeekItems,
   editorialViaChip,
   parseEditorialSnapshot,
@@ -19,6 +25,7 @@ import {
   EDITORIAL_EXCERPT_MAX,
   EDITORIAL_FEEDS,
   EDITORIAL_USER_AGENT,
+  decodeXmlEntities,
   dedupeEditorialItems,
   excerptFromDescription,
   parseEditorialFeedXml,
@@ -105,6 +112,11 @@ describe("editorial overlay: allowlisted feeds only", () => {
 });
 
 describe("editorial overlay: excerpt cap and no republication", () => {
+  it("does not throw on numeric entities outside Unicode range", () => {
+    expect(() => decodeXmlEntities("Bad &#x110000; and &#99999999; entities")).not.toThrow();
+    expect(decodeXmlEntities("Bad &#x110000; and &#99999999; entities")).toContain("\ufffd");
+  });
+
   it("strips tags and hard-caps at 240 characters", () => {
     const long = `<p>${"word ".repeat(80)}</p>`;
     const excerpt = excerptFromDescription(long);
@@ -251,6 +263,67 @@ describe("editorial overlay: degraded reads are not empty", () => {
     expect(JSON.stringify(snapshot.items)).not.toMatch(/full post/i);
   });
 
+  it("rejects a snapshot row that credits a different publisher", () => {
+    const snapshot = parseEditorialSnapshot({
+      version: 1,
+      generatedAt: "2026-08-16T10:00:00.000Z",
+      status: "ready",
+      items: [
+        {
+          source_id: "gla-80117",
+          title: "Diwali on the Square",
+          canonical_url: "https://www.london.gov.uk/events/diwali",
+          published_at: "2026-08-16T09:00:00.000Z",
+          excerpt: "A civic night.",
+          attribution_label: "A different publisher",
+        },
+      ],
+    });
+    expect(snapshot.status).toBe("degraded");
+    expect(snapshot.items).toEqual([]);
+  });
+
+  it("degrades a ready snapshot when it drops malformed rows", () => {
+    const snapshot = parseEditorialSnapshot({
+      version: 1,
+      generatedAt: "2026-08-16T10:00:00.000Z",
+      status: "ready",
+      items: [
+        {
+          source_id: "deserter",
+          title: "Valid row",
+          canonical_url: "https://deserter.co.uk/valid",
+          published_at: "2026-08-16T09:00:00.000Z",
+          excerpt: "A valid row.",
+          attribution_label: "Deserter",
+        },
+        { source_id: "deserter", title: "Missing URL" },
+      ],
+    });
+    expect(snapshot.status).toBe("degraded");
+    expect(snapshot.items).toHaveLength(1);
+  });
+
+  it("keeps a valid empty ready snapshot distinct from a stale snapshot", () => {
+    expect(EDITORIAL_SNAPSHOT_MAX_AGE_MS).toBe(48 * 60 * 60 * 1000);
+    const now = Date.parse("2026-08-18T12:00:00.000Z");
+    const fresh = parseEditorialSnapshot({
+      version: 1,
+      generatedAt: "2026-08-18T10:00:00.000Z",
+      status: "ready",
+      items: [],
+    });
+    const old = parseEditorialSnapshot({
+      version: 1,
+      generatedAt: "2026-08-15T10:00:00.000Z",
+      status: "ready",
+      items: [],
+    });
+    expect(editorialSnapshotIsStale(fresh, now)).toBe(false);
+    expect(editorialSnapshotIsStale(old, now)).toBe(true);
+    expect(EDITORIAL_STALE_LINE).toBe("Picks need a fresh check.");
+  });
+
   it("a shipped overlay file never stores a body or extra keys", () => {
     const path = join(ROOT, "public/data/editorial/latest.json");
     if (!existsSync(path)) return;
@@ -275,6 +348,17 @@ describe("editorial overlay: copy", () => {
     expect(editorialViaChip("Deserter")).toBe("via Deserter");
     expect(editorialOglMark("ogl")).toBe("OGL");
     expect(editorialOglMark("rss-std")).toBeNull();
+    expect(editorialOglAttributionForSource("gla-80117")).toEqual({
+      label: EDITORIAL_OGL_ATTRIBUTION,
+      url: EDITORIAL_OGL_URL,
+    });
+    expect(editorialOglAttributionForSource("deserter")).toBeNull();
+    expect(EDITORIAL_OGL_ATTRIBUTION).toBe(
+      "Contains public sector information licensed under the Open Government Licence v3.0.",
+    );
+    expect(EDITORIAL_OGL_URL).toBe(
+      "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/",
+    );
     expect(EDITORIAL_EMPTY_LINE).toBe("No picks this week.");
     expect(EDITORIAL_DEGRADED_LINE).toBe("Some picks could not be checked.");
     expect(EDITORIAL_DEGRADED_EMPTY_LINE).toBe("Picks could not be checked.");

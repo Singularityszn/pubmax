@@ -4,6 +4,7 @@
 
 import {
   EDITORIAL_ITEM_KEYS as RSS_ITEM_KEYS,
+  attributionLabelForSource,
   dedupeEditorialItems,
   licenceForSource,
   storedEditorialItem,
@@ -14,9 +15,18 @@ export const EDITORIAL_RAIL_TITLE = "Also picked this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
 export const EDITORIAL_DEGRADED_LINE = "Some picks could not be checked.";
 export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";
+export const EDITORIAL_STALE_LINE = "Picks need a fresh check.";
 export const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+// A generated overlay is a build artifact, not a live feed. Once it is two
+// days old, its current-week rows are withheld until a new poll lands.
+export const EDITORIAL_SNAPSHOT_MAX_AGE_MS = 48 * 60 * 60 * 1000;
 export const EDITORIAL_RAIL_LIMIT = 12;
 export const EDITORIAL_ITEM_KEYS = RSS_ITEM_KEYS;
+
+export const EDITORIAL_OGL_ATTRIBUTION =
+  "Contains public sector information licensed under the Open Government Licence v3.0.";
+export const EDITORIAL_OGL_URL =
+  "https://www.nationalarchives.gov.uk/doc/open-government-licence/version/3/";
 
 export type { EditorialItem };
 
@@ -37,6 +47,14 @@ export function editorialOglMark(licence: string): "OGL" | null {
 
 export function editorialOglMarkForSource(sourceId: string): "OGL" | null {
   return editorialOglMark(licenceForSource(sourceId));
+}
+
+export function editorialOglAttributionForSource(
+  sourceId: string,
+): { label: string; url: string } | null {
+  return editorialOglMarkForSource(sourceId)
+    ? { label: EDITORIAL_OGL_ATTRIBUTION, url: EDITORIAL_OGL_URL }
+    : null;
 }
 
 function isIso(value: unknown): value is string {
@@ -64,6 +82,7 @@ function readItem(value: unknown): EditorialItem | null {
   if (typeof row.attribution_label !== "string" || row.attribution_label.trim().length === 0) {
     return null;
   }
+  if (row.attribution_label !== attributionLabelForSource(row.source_id)) return null;
   return storedEditorialItem({
     source_id: row.source_id,
     title: row.title,
@@ -79,18 +98,34 @@ export function parseEditorialSnapshot(raw: unknown): EditorialSnapshot {
     return { version: 1, generatedAt: "", status: "degraded", items: [] };
   }
   const body = raw as Record<string, unknown>;
-  const items = Array.isArray(body.items)
-    ? dedupeEditorialItems(body.items.map(readItem).filter((item): item is EditorialItem => item !== null))
+  const rawItems = Array.isArray(body.items) ? body.items : null;
+  const parsedItems = rawItems
+    ? rawItems.map(readItem).filter((item): item is EditorialItem => item !== null)
     : [];
-  const status = body.status === "ready" ? "ready" : "degraded";
+  const items = dedupeEditorialItems(parsedItems);
+  const droppedRows = rawItems !== null && parsedItems.length !== rawItems.length;
+  const status = body.status === "ready" && !droppedRows ? "ready" : "degraded";
   const generatedAt = isIso(body.generatedAt) ? body.generatedAt : "";
   if (body.status !== "ready" && body.status !== "degraded") {
     return { version: 1, generatedAt, status: "degraded", items };
   }
-  if (!Array.isArray(body.items)) {
+  if (rawItems === null) {
     return { version: 1, generatedAt, status: "degraded", items: [] };
   }
   return { version: 1, generatedAt, status, items };
+}
+
+export function editorialSnapshotIsStale(
+  snapshot: EditorialSnapshot,
+  now: number = Date.now(),
+): boolean {
+  if (snapshot.status !== "ready") return false;
+  const generatedAt = Date.parse(snapshot.generatedAt);
+  return (
+    !Number.isFinite(generatedAt) ||
+    generatedAt > now ||
+    now - generatedAt > EDITORIAL_SNAPSHOT_MAX_AGE_MS
+  );
 }
 
 export function editorialThisWeekItems(

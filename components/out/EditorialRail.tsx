@@ -7,7 +7,9 @@ import {
   EDITORIAL_DEGRADED_LINE,
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_RAIL_TITLE,
-  editorialOglMarkForSource,
+  EDITORIAL_STALE_LINE,
+  editorialOglAttributionForSource,
+  editorialSnapshotIsStale,
   editorialThisWeekItems,
   editorialViaChip,
   type EditorialSnapshot,
@@ -23,13 +25,16 @@ export function EditorialRailView({
   snapshot: EditorialSnapshot;
   now?: number;
 }) {
-  const items = editorialThisWeekItems(snapshot, now);
+  const stale = editorialSnapshotIsStale(snapshot, now);
+  const items = stale ? [] : editorialThisWeekItems(snapshot, now);
   const empty = items.length === 0;
   const statusLine =
     snapshot.status === "degraded"
       ? empty
         ? EDITORIAL_DEGRADED_EMPTY_LINE
         : EDITORIAL_DEGRADED_LINE
+      : stale
+        ? EDITORIAL_STALE_LINE
       : empty
         ? EDITORIAL_EMPTY_LINE
         : null;
@@ -43,7 +48,7 @@ export function EditorialRailView({
       {items.length > 0 ? (
         <ul className="editorialRailList">
           {items.map((item) => {
-            const ogl = editorialOglMarkForSource(item.source_id);
+            const ogl = editorialOglAttributionForSource(item.source_id);
             return (
               <li key={item.canonical_url} className="editorialRailItem">
                 <a
@@ -57,7 +62,16 @@ export function EditorialRailView({
                 {item.excerpt ? <p className="editorialRailExcerpt">{item.excerpt}</p> : null}
                 <p className="editorialRailCredit">
                   <span className="editorialRailChip">{editorialViaChip(item.attribution_label)}</span>
-                  {ogl ? <span className="editorialRailOgl">{ogl}</span> : null}
+                  {ogl ? (
+                    <a
+                      className="editorialRailOgl"
+                      href={ogl.url}
+                      rel="license noopener noreferrer"
+                      target="_blank"
+                    >
+                      {ogl.label}
+                    </a>
+                  ) : null}
                 </p>
               </li>
             );
