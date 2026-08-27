@@ -15,3 +15,8 @@ export function haversineMeters(aLat, aLng, bLat, bLng) {
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(haversine)));
 }
+
+/** Great-circle distance in kilometres between two latitude/longitude points. */
+export function haversineKm(aLat, aLng, bLat, bLng) {
+  return haversineMeters(aLat, aLng, bLat, bLng) / 1_000;
+}

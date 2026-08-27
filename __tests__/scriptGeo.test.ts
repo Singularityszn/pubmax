@@ -10,11 +10,16 @@ const SCALAR_METRE_DISTANCE_CONSUMERS = [
   "scripts/integrate_wikipedia_london_pubs.mjs",
 ] as const;
 
-const ALLOWED_KILOMETRE_FORMULA_OWNERS = new Set([
-  "scripts/gen_london_localities.mjs",
+const SCALAR_KILOMETRE_DISTANCE_CONSUMERS = [
   "scripts/lib/postcodeCoordinateConsistency.mjs",
   "scripts/lib/stationZones.mjs",
   "scripts/lib/ukPlaceIndex.mjs",
+] as const;
+
+const ALLOWED_KILOMETRE_FORMULA_OWNERS = new Set([
+  // This one-time network generator accepts longitude first. Keeping its local
+  // helper avoids a silent coordinate swap until the generator is hermetic.
+  "scripts/gen_london_localities.mjs",
 ]);
 
 function scriptModules(directory: string): string[] {
@@ -47,6 +52,52 @@ describe("script great-circle distance", () => {
     for (const relativePath of SCALAR_METRE_DISTANCE_CONSUMERS) {
       const source = readFileSync(join(process.cwd(), relativePath), "utf8");
       expect(source, relativePath).toMatch(/(?:\.\/(?:lib\/)?|\.\.\/lib\/)geo\.mjs/);
+      expect(source, relativePath).not.toMatch(/Math\.(?:sin|cos|asin|acos|atan2)\s*\(/);
+    }
+  });
+
+  it("keeps existing kilometre exports numerically compatible", async () => {
+    const { haversineKm } = await import("@/scripts/lib/geo.mjs");
+    const { haversineKm: stationDistance } = await import("@/scripts/lib/stationZones.mjs");
+    const { haversineDistanceKm: postcodeDistance } = await import(
+      "@/scripts/lib/postcodeCoordinateConsistency.mjs"
+    );
+    const coordinates = [51.5074, -0.1278, 55.9533, -3.1883] as const;
+
+    const originalStationValue = 533.6522003390048;
+    const originalPostcodeValue = 533.6522003390049;
+    expect(haversineKm(...coordinates)).toBe(originalStationValue);
+    expect(stationDistance(...coordinates)).toBe(originalStationValue);
+    expect(postcodeDistance(...coordinates)).toBeCloseTo(originalPostcodeValue, 12);
+  });
+
+  it.each([5, 30])("keeps the %i kilometre decision boundary stable", async (threshold) => {
+    const { haversineKm } = await import("@/scripts/lib/geo.mjs");
+    const insideDelta = ((threshold - 0.0001) / 6_371) * (180 / Math.PI);
+    const outsideDelta = ((threshold + 0.0001) / 6_371) * (180 / Math.PI);
+
+    expect(haversineKm(0, 0, insideDelta, 0)).toBeLessThan(threshold);
+    expect(haversineKm(0, 0, outsideDelta, 0)).toBeGreaterThan(threshold);
+  });
+
+  it("keeps the UK place cluster decision on both sides of 30 kilometres", async () => {
+    const { buildUkPlaceIndex } = await import("@/scripts/lib/ukPlaceIndex.mjs");
+    const placeNode = (id: number, lat: number) => ({
+      type: "node",
+      id,
+      lat,
+      lon: 0,
+      tags: { amenity: "pub", name: `Pub ${id}`, "addr:village": "Newton" },
+    });
+
+    expect(buildUkPlaceIndex([placeNode(1, 0), placeNode(2, 0.2697)]).places).toHaveLength(1);
+    expect(buildUkPlaceIndex([placeNode(1, 0), placeNode(2, 0.2699)]).places).toHaveLength(2);
+  });
+
+  it("keeps compatible kilometre consumers on the canonical script owner", () => {
+    for (const relativePath of SCALAR_KILOMETRE_DISTANCE_CONSUMERS) {
+      const source = readFileSync(join(process.cwd(), relativePath), "utf8");
+      expect(source, relativePath).toMatch(/\.\/geo\.mjs/);
       expect(source, relativePath).not.toMatch(/Math\.(?:sin|cos|asin|acos|atan2)\s*\(/);
     }
   });

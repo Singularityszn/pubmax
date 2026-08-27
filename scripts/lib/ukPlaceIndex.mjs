@@ -6,6 +6,7 @@ import {
   displayUkPlaceName,
   isPublishableUkPlaceName,
 } from "../../lib/ukPlaceName.mjs";
+import { haversineKm as scalarHaversineKm } from "./geo.mjs";
 
 const LOCALITY_TAGS = [
   ["addr:city", "city"],
@@ -24,7 +25,6 @@ const KIND_RANK = new Map([
 ]);
 
 const CLUSTER_DISTANCE_KM = 30;
-const EARTH_RADIUS_KM = 6_371;
 
 function normalizeName(value) {
   return displayUkPlaceName(value);
@@ -49,15 +49,7 @@ function postcodeArea(value) {
 }
 
 function haversineKm(a, b) {
-  const toRad = Math.PI / 180;
-  const dLat = (b.lat - a.lat) * toRad;
-  const dLng = (b.lng - a.lng) * toRad;
-  const lat1 = a.lat * toRad;
-  const lat2 = b.lat * toRad;
-  const h =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+  return scalarHaversineKm(a.lat, a.lng, b.lat, b.lng);
 }
 
 function clustersFor(observations) {
