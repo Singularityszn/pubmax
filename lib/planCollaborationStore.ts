@@ -342,7 +342,12 @@ const memoryStore: PlanCollaborationStore = {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim()) return { ok: false, error: "invalid" };
     const hash = inviteHash(rawToken.trim());
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
-    const requestHash = planRequestDigest({ name, inviteHash: hash });
+    const userId = typeof options.userId === "string" ? options.userId.trim() : "";
+    const requestHash = planRequestDigest({
+      name,
+      inviteHash: hash,
+      ...(userId ? { userId } : {}),
+    });
     const requestKey = `${planId}:invite:join:${key}`;
     const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } } | undefined;
     if (replay) return replay.requestHash === requestHash ? structuredClone(replay.result) : { ok: false, error: "conflict" };
@@ -357,7 +362,7 @@ const memoryStore: PlanCollaborationStore = {
     const joined = await planStore().join(planId, name, {
       collaborationAuthorized: true,
       idempotencyKey: key,
-      userId: options.userId,
+      userId: userId || undefined,
     });
     if (!joined.ok) {
       invite.redeemedAt = null;

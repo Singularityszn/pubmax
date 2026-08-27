@@ -33,6 +33,7 @@ import {
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
 
 beforeEach(() => {
+  auth.userId = "11111111-1111-4111-8111-111111111111";
   __resetMemoryPlans();
   __resetPlanCollaboration();
 });
@@ -121,5 +122,39 @@ describe("signed-in Plan join account atomicity", () => {
     const state = await store.list(created.plan.plan.id, created.memberToken);
     if (!state.ok) throw new Error(state.error);
     expect(state.invites.find((invite) => invite.id === secondInvite.invite.id)?.redeemedAt).toBeNull();
+  });
+
+  it("does not replay one account's member capability to another account", async () => {
+    const created = await createPlan();
+    const invite = await planCollaborationStore().createInvite(
+      created.plan.plan.id,
+      created.memberToken,
+      {
+        expiresInMinutes: 30,
+        idempotencyKey: "cross-account-invite",
+      },
+    );
+    if (!invite.ok) throw new Error("missing collaboration invite");
+
+    const first = await join(
+      created.plan.plan.id,
+      invite.token,
+      "cross-account-join-key",
+      "First account",
+    );
+    expect(first.status).toBe(200);
+    const firstBody = await first.json() as { memberToken: string };
+
+    auth.userId = "22222222-2222-4222-8222-222222222222";
+    const second = await join(
+      created.plan.plan.id,
+      invite.token,
+      "cross-account-join-key",
+      "First account",
+    );
+    expect(second.status).toBe(409);
+    expect(await second.json()).toMatchObject({ code: "PLAN_COLLAB_CONFLICT" });
+    expect((await memoryPlanStore.get(created.plan.plan.id))?.crew).toHaveLength(2);
+    expect(firstBody.memberToken).toBeTruthy();
   });
 });
