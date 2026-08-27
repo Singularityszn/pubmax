@@ -3,6 +3,7 @@ import {
   namedLegacyPintPriceSource,
   type LegacyPintPrice,
 } from "@/lib/drinks";
+import { firstHttp } from "@/lib/httpUrl";
 import { formatFreshness, formatObservedAt } from "@/lib/venues";
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
@@ -65,7 +66,7 @@ export function venuePriceCaption(
   if (!isPubVenueKind(venue.kind) && venue.anchorObservedAt) {
     return {
       label: venue.anchorLabel ?? "Venue price",
-      href: venue.anchorSourceUrl ?? null,
+      href: firstHttp(venue.anchorSourceUrl) || null,
       freshness,
     };
   }

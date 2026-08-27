@@ -132,4 +132,21 @@ describe("venuePriceCaption", () => {
       freshness: "observed 38 days ago",
     });
   });
+
+  it("does not link an unsafe non-pub anchor URL", () => {
+    expect(venuePriceCaption({
+      kind: "bar",
+      cheapestPrice: 12,
+      latestContributorPrice: null,
+      latestContributorAt: null,
+      sourcedPrice: null,
+      anchorLabel: "House cocktail",
+      anchorObservedAt: "2026-07-20T12:00:00.000Z",
+      anchorSourceUrl: "javascript:alert('test')",
+    }, NOW)).toEqual({
+      label: "House cocktail",
+      href: null,
+      freshness: "observed 38 days ago",
+    });
+  });
 });
