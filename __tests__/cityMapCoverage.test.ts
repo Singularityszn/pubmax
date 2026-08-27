@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
+import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
 import { summarizeCityPubCoverage } from "@/lib/cityMapCoverage";
+import { getCity } from "@/lib/cities";
 
 describe("summarizeCityPubCoverage", () => {
   it("uses only pub rows for mapped count and pint range", () => {
@@ -20,5 +22,9 @@ describe("summarizeCityPubCoverage", () => {
       min: null,
       max: null,
     });
+  });
+
+  it("starts London at the UK Base stream gate", () => {
+    expect(getCity("london").mapView.zoom).toBeGreaterThanOrEqual(UK_BASE_MIN_ZOOM);
   });
 });

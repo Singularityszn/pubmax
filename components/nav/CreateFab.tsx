@@ -16,6 +16,7 @@ import {
 import { shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import {
   CREATE_FAB_ACTIONS,
+  createFabAvailableOnPath,
   createFabMenuVisible,
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
@@ -52,7 +53,7 @@ function CreateFabGate() {
   const pathname = usePathname() ?? "";
   const searchParams = useSearchParams();
   const query = searchParams.toString();
-  if (!shouldShowMobileTabBar(pathname)) return null;
+  if (!shouldShowMobileTabBar(pathname) || !createFabAvailableOnPath(pathname)) return null;
   return <CreateFabContent routerReturnTo={`${pathname}${query ? `?${query}` : ""}`} />;
 }
 

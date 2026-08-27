@@ -157,6 +157,11 @@ describe("what the create action renders for each keyboard answer", () => {
     expect(await renderFab(false, "/")).toContain("createFabRoot");
   });
 
+  it("removes duplicate creation from Map but keeps it on Out", async () => {
+    expect(await renderFab(false, "/map")).toBe("");
+    expect(await renderFab(false, "/out")).toContain("createFabRoot");
+  });
+
   it("keeps the control inert after a strict modal outlives the keyboard", async () => {
     const markup = await renderFab(false, "/out", "", true);
     expect(rootTag(markup)).not.toContain("isKeyboardHidden");

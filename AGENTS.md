@@ -1,5 +1,18 @@
 # AGENTS.md
 
+## Browser tooling
+
+- Use the Codex in-app browser for all interactive browsing, visual inspection,
+  and browser proof.
+- Never open or control the external Google Chrome application. Do not run
+  `open -a "Google Chrome"`, the Chrome application binary,
+  `chrome-devtools-axi`, headed Playwright, or a standalone Chrome/CDP session.
+- Repository-owned headless Playwright tests are test commands, not interactive
+  browsing. Run them only when the current task and resource gate explicitly
+  authorise them.
+- If the Codex in-app browser is unavailable, stop and report the blocker. Do
+  not fall back to external Chrome.
+
 ## Cursor Cloud specific instructions
 
 PubMaxing is a single Next.js 16 (App Router, React 19, TypeScript) web app — a price-aware London pub-crawl planner with a MapLibre 3-D map. There is one service.

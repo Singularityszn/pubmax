@@ -50,3 +50,8 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
 export function createFabMenuVisible(open: boolean, keyboardOpen: boolean): boolean {
   return open && !keyboardOpen;
 }
+
+/** Keep Map's dedicated mobile creation controls as the only resting action. */
+export function createFabAvailableOnPath(pathname: string): boolean {
+  return pathname !== "/map";
+}
