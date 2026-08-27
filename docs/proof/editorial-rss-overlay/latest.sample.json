@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "generatedAt": "2026-08-27T05:33:37.768Z",
+  "status": "ready",
+  "itemCount": 292,
+  "closedKeys": [
+    "attribution_label",
+    "canonical_url",
+    "excerpt",
+    "published_at",
+    "source_id",
+    "title"
+  ],
+  "items": [
+    {
+      "source_id": "hot-dinners-features",
+      "title": "The big new London restaurants opening in September 2026",
+      "canonical_url": "https://www.hot-dinners.com/Features/Hot-Dinners-recommends/new-london-restaurants-opening-in-september-2026",
+      "published_at": "2026-08-27T06:55:40.000Z",
+      "excerpt": "If August was a quiet month, September is usually the busiest for new restaurant openings and this year is no different. Everyone's back from their summer holiday and there are some really big names in the mix, featuring everything from mod",
+      "attribution_label": "Hot Dinners"
+    },
+    {
+      "source_id": "hot-dinners-features",
+      "title": "The best things we ate and drank in August 2026",
+      "canonical_url": "https://www.hot-dinners.com/Features/Hot-Dinners-recommends/best-food-drink-london-august-2026",
+      "published_at": "2026-08-27T06:00:08.000Z",
+      "excerpt": "This month's selection has a distinct seaside focus due to plenty of out of town trips to the British seaside, along with a seriously good sandwich in Mayfair and a one bite treat in Queen's Park. Read More...",
+      "attribution_label": "Hot Dinners"
+    },
+    {
+      "source_id": "secret-london",
+      "title": "UK-Ireland ferry passengers will need a passport under new rules",
+      "canonical_url": "https://secretldn.com/new-passport-rules-uk-ireland-ferry-passengers/",
+      "published_at": "2026-08-26T22:47:16.000Z",
+      "excerpt": "Ferry passengers travelling between Britain and the Republic of Ireland will soon need to show a valid passport before boarding, following new UK Border Force requirements. The change, which comes into effect on Monday 28 September 2026, wi",
+      "attribution_label": "Secret London"
+    }
+  ]
+}
