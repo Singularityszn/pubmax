@@ -1,4 +1,5 @@
 import { haversineKm } from "@/lib/haversine";
+import { WALK_KMH } from "@/lib/routeLegs";
 import { DAY_MS } from "@/lib/dayMs";
 import {
   MAX_PLAN_STOP_COUNT,
@@ -28,7 +29,7 @@ export {
   MIN_PLAN_STOP_COUNT,
 } from "@/lib/planStopCount";
 export const PLAN_STOP_MINUTES = 50;
-export const PLAN_WALKING_KMH = 4.8;
+export const PLAN_WALKING_KMH = WALK_KMH;
 export const PLAN_TRANSFER_UNCERTAINTY_MINUTES = 5;
 export const MAX_PLAN_ROUTE_SEGMENT_KM = 1.6;
 export const MAX_PLAN_ROUTE_WALKING_KM = 3;

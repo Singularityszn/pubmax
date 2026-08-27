@@ -125,6 +125,10 @@ describe("walkMinutesForKm", () => {
     expect(walkMinutesForKm(0.4)).toBe(5);
   });
 
+  it("keeps a short positive walk above zero minutes", () => {
+    expect(walkMinutesForKm(0.01)).toBe(1);
+  });
+
   it("treats zero/negative/non-finite distance as zero minutes", () => {
     expect(walkMinutesForKm(0)).toBe(0);
     expect(walkMinutesForKm(-1)).toBe(0);

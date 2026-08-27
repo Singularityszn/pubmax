@@ -878,15 +878,6 @@ export function filterVenues(
   });
 }
 
-export function priceColor(price: number | null): string {
-  // Warm muted ink for "no price yet" — sits with Candle Coral paper better
-  // than cold slate, so gazetteer pins still read as pubs on the map.
-  if (price === null) return "#8a7368";
-  if (price <= 5.5) return "#138a63";
-  if (price <= 7) return "#d28b16";
-  return "#c24132";
-}
-
 export function distanceKm(a: Venue, b: Venue): number {
   // Thin adapter over the canonical great-circle helper (GeoJSON [lng, lat]).
   return haversineKm([a.longitude, a.latitude], [b.longitude, b.latitude]);

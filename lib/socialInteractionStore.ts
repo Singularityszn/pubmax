@@ -32,6 +32,7 @@ import {
   type SocialQuoteInput,
   type SocialReportReason,
 } from "@/lib/socialInteractions";
+import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { requireSupabaseAdmin, requiresSupabaseStore, hashActor } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
@@ -534,9 +535,9 @@ export function createMemorySocialInteractionStore(options: {
           else result.needsReview += 1;
         } catch (error) {
           job.attempts += 1;
-          const retryable = !(error && typeof error === "object" && "retryable" in error && (error as { retryable?: unknown }).retryable === false) && job.attempts < 8;
+          const retryable = moderationJobShouldRetry(error, job.attempts);
           if (retryable) {
-            job.nextAttemptAt = now().getTime() + 60_000 * 2 ** Math.max(job.attempts - 1, 0);
+            job.nextAttemptAt = now().getTime() + moderationRetryBackoffMs(job.attempts);
             result.retried += 1;
           } else {
             job.nextAttemptAt = Number.POSITIVE_INFINITY;
@@ -1072,9 +1073,9 @@ export const supabaseSocialInteractionStore: SocialInteractionStore = {
           else result.needsReview += 1;
         } catch (moderationError) {
           const attempts = Number(valueRow.attempts ?? 1);
-          const retryable = !(moderationError && typeof moderationError === "object" && "retryable" in moderationError && (moderationError as { retryable?: unknown }).retryable === false) && attempts < 8;
+          const retryable = moderationJobShouldRetry(moderationError, attempts);
           const retryAt = retryable
-            ? new Date(Date.now() + Math.min(60_000 * 2 ** Math.max(attempts - 1, 0), 3_600_000)).toISOString()
+            ? new Date(Date.now() + moderationRetryBackoffMs(attempts)).toISOString()
             : null;
           const completion = await requireSupabaseAdmin().rpc("complete_social_interaction_moderation_job", {
             p_kind: kind,

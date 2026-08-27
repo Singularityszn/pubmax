@@ -13,6 +13,7 @@ import {
 } from "@/lib/socialPosts";
 import { requireSupabaseAdmin, requiresSupabaseStore } from "@/lib/supabase";
 import { isMissingTableSchema, onMissingDurableWrite, selectStore } from "@/lib/storeBackend";
+import { moderationJobShouldRetry, moderationRetryBackoffMs } from "@/lib/moderationRetry";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 import { signSocialPhotoObject } from "@/lib/socialPostMedia.server";
 import { socialMemoryBlockedProfiles } from "@/lib/socialBlockMemory";
@@ -385,11 +386,6 @@ type MemoryJob = {
   attempts: number;
 };
 
-function moderationFailureIsRetryable(error: unknown): boolean {
-  return !error || typeof error !== "object" || !("retryable" in error) ||
-    (error as { retryable?: unknown }).retryable !== false;
-}
-
 export function createMemorySocialPostStore(options: {
   now?: () => Date;
   relationships?: RelationshipResolver;
@@ -585,12 +581,12 @@ export function createMemorySocialPostStore(options: {
           const currentJob = jobs.get(post.id);
           if (!currentJob || currentJob.revision !== job.revision) return;
           const attempts = job.attempts + 1;
-          const retryable = moderationFailureIsRetryable(error) && attempts < 8;
+          const retryable = moderationJobShouldRetry(error, attempts);
           jobs.set(post.id, {
             ...currentJob,
             attempts,
             nextAttemptAt: retryable
-              ? currentTime + Math.min(60_000 * 2 ** (attempts - 1), 3_600_000)
+              ? currentTime + moderationRetryBackoffMs(attempts)
               : Number.POSITIVE_INFINITY,
           });
           if (retryable) result.retried += 1;
@@ -909,8 +905,8 @@ export const supabaseSocialPostStore: SocialPostStore = {
           });
         } catch (moderationError) {
           const attempts = Number(job.attempts ?? 1);
-          const retryable = moderationFailureIsRetryable(moderationError) && attempts < 8;
-          const retryAt = new Date(Date.now() + Math.min(60_000 * 2 ** Math.max(attempts - 1, 0), 3_600_000)).toISOString();
+          const retryable = moderationJobShouldRetry(moderationError, attempts);
+          const retryAt = new Date(Date.now() + moderationRetryBackoffMs(attempts)).toISOString();
           const completion = await requireSupabaseAdmin().rpc("complete_social_post_moderation_job", {
             p_post_id: postId,
             p_revision: revision,

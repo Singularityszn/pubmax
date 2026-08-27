@@ -18,12 +18,6 @@
 // and a future key rotation each get their own single exact origin, and no
 // directive ever has to widen to a wildcard host.
 
-/** The public env var carrying the instance key. Safe to expose to browsers. */
-export const CLERK_PUBLISHABLE_KEY_ENV = "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY";
-
-/** The server-only env var. NEVER read it into a NEXT_PUBLIC_* value. */
-export const CLERK_SECRET_KEY_ENV = "CLERK_SECRET_KEY";
-
 /**
  * Cloudflare Turnstile, which Clerk uses for bot protection on sign-up.
  * Needed by `script-src` (the challenge widget) and `frame-src` (its iframe).

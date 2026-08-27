@@ -67,6 +67,8 @@ test.describe("Pub Pal concierge at 390px", () => {
       }, theme);
       await page.goto("/pal/chat");
       await askOnPhone(page, "Quiet-ish near Bank, not pricey");
+      const answer = page.locator(".palChatRow--pal").last();
+      await expect(answer.locator(".palChatBubble").first()).not.toBeEmpty();
       await mkdir(SHOTS, { recursive: true });
       await page.screenshot({
         path: `${SHOTS}/pal-chat-390-${theme}.png`,

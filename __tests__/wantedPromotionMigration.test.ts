@@ -30,3 +30,38 @@ describe("Wanted promotion migration", () => {
     expect(store).not.toContain('migrationHint: "apply migration 0119"');
   });
 });
+
+describe("Wanted promotion already-saved fix migration", () => {
+  it("reports already_saved, not saved, when the first-promotion insert hits an existing row", () => {
+    const sql = readFileSync(
+      join(
+        ROOT,
+        "supabase/migrations/20260827120000_0122_wanted_promotion_already_saved_fix.sql",
+      ),
+      "utf8",
+    );
+
+    expect(sql).toContain("promote_wanted_to_saved_list");
+    // The first-promotion branch must check whether its own insert actually
+    // inserted a row (v_inserted := found, immediately after the insert) and
+    // branch the outcome on it, rather than always answering 'saved'.
+    const firstPromotionBranch = sql.slice(sql.lastIndexOf("insert into public.saved_pubs"));
+    expect(firstPromotionBranch).toMatch(/v_inserted\s*:=\s*found/i);
+    expect(firstPromotionBranch).toMatch(/if\s+v_inserted\s+then/i);
+    expect(firstPromotionBranch).toContain("'already_saved'::text, p_list_type, v_promoted_at");
+  });
+
+  it("has a rollback restoring 0121's original unconditional 'saved' outcome", () => {
+    const rollback = readFileSync(
+      join(
+        ROOT,
+        "supabase/migrations/rollback/20260827120000_0122_wanted_promotion_already_saved_fix_rollback.sql",
+      ),
+      "utf8",
+    );
+
+    expect(rollback).toContain("promote_wanted_to_saved_list");
+    expect(rollback).not.toContain("v_inserted");
+    expect(rollback).toMatch(/return query select\s+'saved'::text, p_list_type, v_promoted_at;\s*\nend/i);
+  });
+});

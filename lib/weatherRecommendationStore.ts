@@ -458,12 +458,6 @@ export function readWeatherRecommendations(
   return weatherRecommendationStore().listForVenue(venueId);
 }
 
-export function readWeatherRecommendationContributorCount(
-  contributorHandle: string,
-): Promise<WeatherRecommendationContributorCountResult> {
-  return weatherRecommendationStore().countForContributor(contributorHandle);
-}
-
 export function __resetWeatherRecommendations(): void {
   memoryRows.clear();
   memoryIdsByNaturalKey.clear();
