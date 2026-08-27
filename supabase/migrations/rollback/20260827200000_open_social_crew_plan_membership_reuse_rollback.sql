@@ -38,4 +38,3 @@ begin
   return v_member.id;
 end;
 $$;
-
