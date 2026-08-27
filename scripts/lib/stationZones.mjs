@@ -15,23 +15,12 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
+import { haversineKm } from "./geo.mjs";
+
+export { haversineKm };
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const STATION_ZONES_PATH = path.resolve(__dirname, "..", "..", "data", "tfl_station_zones.json");
-
-// Great-circle distance in km between [lat, lng] points. Mirrors lib/haversine
-// (which works in GeoJSON [lng, lat]); here we take (lat, lng) scalars for the
-// station comparison and only ever compare relative magnitudes.
-export function haversineKm(latA, lngA, latB, lngB) {
-  const R = 6371;
-  const toRad = (deg) => (deg * Math.PI) / 180;
-  const dLat = toRad(latB - latA);
-  const dLng = toRad(lngB - lngA);
-  const lat1 = toRad(latA);
-  const lat2 = toRad(latB);
-  const a =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(a));
-}
 
 /**
  * Nearest station's zone to a point, or null when no station is comparable

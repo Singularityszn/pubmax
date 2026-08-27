@@ -1,6 +1,10 @@
 // Measured against the committed UK OSM pub reference on 2026-07-29. Product
 // rows formed one cluster through 3.87 km, then a clear gap to contradictions
 // starting at 5.44 km. Five kilometres keeps that empirical separation.
+import { haversineKm as haversineDistanceKm } from "./geo.mjs";
+
+export { haversineDistanceKm };
+
 export const POSTCODE_COORDINATE_MAX_DISTANCE_KM = 5;
 
 // Build matching and published leak detection intentionally have opposite
@@ -91,23 +95,6 @@ function median(values) {
   return sorted.length % 2 === 1
     ? sorted[middle]
     : (sorted[middle - 1] + sorted[middle]) / 2;
-}
-
-export function haversineDistanceKm(
-  firstLatitude,
-  firstLongitude,
-  secondLatitude,
-  secondLongitude,
-) {
-  const radians = Math.PI / 180;
-  const latitudeDelta = (secondLatitude - firstLatitude) * radians;
-  const longitudeDelta = (secondLongitude - firstLongitude) * radians;
-  const haversine =
-    Math.sin(latitudeDelta / 2) ** 2 +
-    Math.cos(firstLatitude * radians) *
-      Math.cos(secondLatitude * radians) *
-      Math.sin(longitudeDelta / 2) ** 2;
-  return 2 * 6371 * Math.asin(Math.sqrt(haversine));
 }
 
 export function buildOutwardCodeReferences(osmPubs) {
