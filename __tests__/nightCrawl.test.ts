@@ -4,6 +4,7 @@ import {
   advanceNightCrawl,
   classifyActionOutcome,
   isFinalStop,
+  nightCrawlCanFinish,
   nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlGlance,
@@ -91,6 +92,23 @@ describe("isFinalStop", () => {
     expect(isFinalStop(THREE, 2)).toBe(true);
     expect(isFinalStop(THREE, 99)).toBe(true);
     expect(isFinalStop([], 0)).toBe(false);
+  });
+});
+
+describe("nightCrawlCanFinish", () => {
+  it("offers the ending only after the final stop action is confirmed", () => {
+    expect(nightCrawlCanFinish(THREE, 2, [])).toBe(false);
+    expect(nightCrawlCanFinish(THREE, 2, [action("arrived", 2)])).toBe(true);
+    expect(nightCrawlCanFinish(THREE, 2, [action("arrived", 0), action("skipped", 2)])).toBe(true);
+    expect(nightCrawlCanFinish(THREE, 1, [action("arrived", 1)])).toBe(false);
+  });
+
+  it("keeps an arrival action available when every stop was skipped", () => {
+    expect(nightCrawlCanFinish(THREE, 2, [
+      action("skipped", 0),
+      action("skipped", 1),
+      action("skipped", 2),
+    ])).toBe(false);
   });
 });
 

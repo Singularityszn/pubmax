@@ -280,7 +280,11 @@ export function flushPlanMutationOutbox(options?: {
   signal?: AbortSignal;
 }): Promise<PlanMutationFlushResult[]> {
   if (!flushPromise) {
-    const run = (async (): Promise<PlanMutationFlushResult[]> => {
+    // Defer the drain by one microtask. This lets `flushPromise` become visible
+    // before attempt metadata emits the outbox event and wakes another host.
+    // Without this boundary, that host starts another synchronous drain for the
+    // same pending row and can recurse until the action endpoint rate-limits.
+    const run = Promise.resolve().then(async (): Promise<PlanMutationFlushResult[]> => {
       hydrate();
       // Always drain the full queue so concurrent plan-scoped callers share work.
       const pending = listPlanMutationOutbox().filter((row) => row.status === "pending");
@@ -336,7 +340,7 @@ export function flushPlanMutationOutbox(options?: {
         }
       }
       return results;
-    })();
+    });
     flushPromise = run;
     void run.finally(() => {
       if (flushPromise === run) flushPromise = null;

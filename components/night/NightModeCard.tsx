@@ -70,6 +70,12 @@ import {
   nextStopWalkDescription,
 } from "@/lib/nightPresentation";
 import { legMinutes } from "@/lib/routeLegs";
+import {
+  hasNightModeOpenRequest,
+  NIGHT_MODE_OPEN_EVENT,
+  safeBrowserSessionStorage,
+  takeNightModeOpenRequest,
+} from "@/lib/nightCrawlEngage";
 import RouteEndingCard, {
   GetHomeHandoffRow,
   type RouteEndingId,
@@ -407,6 +413,29 @@ export default function NightModeCard() {
 function NightModeSurface({ entry }: { entry: ActivePlanRef }) {
   const [expanded, setExpanded] = useState(false);
   const [restoreFocus, setRestoreFocus] = useState(false);
+  useEffect(() => {
+    let active = true;
+    const storage = safeBrowserSessionStorage();
+    if (hasNightModeOpenRequest(storage, entry.id)) {
+      window.queueMicrotask(() => {
+        if (!active || !takeNightModeOpenRequest(storage, entry.id)) return;
+        setRestoreFocus(false);
+        setExpanded(true);
+      });
+    }
+    const openFromCrawl = (event: Event) => {
+      const detail = (event as CustomEvent<{ planId?: string }>).detail;
+      if (detail?.planId && detail.planId !== entry.id) return;
+      takeNightModeOpenRequest(safeBrowserSessionStorage(), entry.id);
+      setRestoreFocus(false);
+      setExpanded(true);
+    };
+    window.addEventListener(NIGHT_MODE_OPEN_EVENT, openFromCrawl);
+    return () => {
+      active = false;
+      window.removeEventListener(NIGHT_MODE_OPEN_EVENT, openFromCrawl);
+    };
+  }, [entry.id]);
   const open = () => {
     setRestoreFocus(false);
     setExpanded(true);

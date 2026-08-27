@@ -31,6 +31,7 @@ import {
   advanceNightCrawl,
   classifyActionOutcome,
   isFinalStop,
+  nightCrawlCanFinish,
   nightCrawlActionNote,
   nightCrawlActionPayload,
   nightCrawlGlance,
@@ -41,7 +42,7 @@ import {
   reconcileNightCrawlAction,
   type NightCrawlActionType,
 } from "@/lib/nightCrawl";
-import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
+import { NIGHT_CRAWL_ENGAGE_EVENT, requestNightModeOpen } from "@/lib/nightCrawlEngage";
 import { clearPersistentPlanMutationKey, persistentPlanMutationKey } from "@/lib/planMutationKey";
 import {
   applyActivePlanFlushRollback,
@@ -265,6 +266,7 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
   const hero = nightCrawlHero(stops, cursor);
   const nextStop = nightCrawlNextStop(stops, cursor);
   const finalStop = isFinalStop(stops, cursor);
+  const canFinish = nightCrawlCanFinish(stops, cursor, plan.actions);
   const heroPosition = clampStopIndex(cursor, Math.max(stops.length, 1));
   const glance = nightCrawlGlance({
     currentName: hero?.venueName ?? null,
@@ -294,6 +296,11 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
     }
     setOpen(false);
   }, [collapseKey]);
+
+  const finishNight = useCallback(() => {
+    collapse();
+    requestNightModeOpen(planId);
+  }, [collapse, planId]);
 
   const runAction = useCallback(
     async (type: NightCrawlActionType) => {
@@ -480,24 +487,33 @@ export default function NightCrawlMode({ planId, initialState }: { planId: strin
                 <div className="nightCrawl__spacer" />
 
                 <div className="nightCrawl__actions">
-                  <button
-                    type="button"
-                    className="nightCrawl__arrive"
-                    onClick={() => void runAction("arrived")}
-                    disabled={busy !== null}
-                  >
-                    We are here
-                    <small>{finalStop ? "check in the last stop" : `check in stop ${heroPosition + 1}`}</small>
-                  </button>
-                  <button
-                    type="button"
-                    className="nightCrawl__skip"
-                    onClick={() => void runAction("skipped")}
-                    disabled={busy !== null}
-                  >
-                    Skip it
-                    <small>{finalStop ? "wrap the crawl" : "jump to the next"}</small>
-                  </button>
+                  {canFinish ? (
+                    <button type="button" className="nightCrawl__arrive" onClick={finishNight}>
+                      Finish the night
+                      <small>choose food, home, or one more</small>
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        type="button"
+                        className="nightCrawl__arrive"
+                        onClick={() => void runAction("arrived")}
+                        disabled={busy !== null}
+                      >
+                        We are here
+                        <small>{finalStop ? "check in the last stop" : `check in stop ${heroPosition + 1}`}</small>
+                      </button>
+                      <button
+                        type="button"
+                        className="nightCrawl__skip"
+                        onClick={() => void runAction("skipped")}
+                        disabled={busy !== null}
+                      >
+                        Skip it
+                        <small>{finalStop ? "wrap the crawl" : "jump to the next"}</small>
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {note ? (

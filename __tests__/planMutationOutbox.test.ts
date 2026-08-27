@@ -8,6 +8,7 @@ import {
   hasPendingPlanMutation,
   listPlanMutationOutbox,
   PLAN_MUTATION_OUTBOX_KEY,
+  subscribePlanMutationOutbox,
 } from "@/lib/planMutationOutbox";
 
 const stop = { venueId: "venue-1", venueName: "The Bull", position: 0 };
@@ -214,5 +215,27 @@ describe("planMutationOutbox", () => {
     expect(bResults[0]?.planId).toBe("plan-b");
     expect(listPlanMutationOutbox()).toHaveLength(0);
     expect(fetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not start another network attempt when a flush notification wakes another host", async () => {
+    await enqueueNightCrawlAction({
+      planId: "plan-1",
+      type: "arrived",
+      stop,
+      idempotencyKey: "key-single-flight",
+      fingerprint: "fp-single-flight",
+      previousCursor: 0,
+      optimisticCursor: 1,
+    });
+
+    const followerRuns: Array<Promise<unknown>> = [];
+    const unsubscribe = subscribePlanMutationOutbox(() => {
+      followerRuns.push(flushPlanMutationOutbox({ planId: "plan-1" }));
+    });
+    await flushPlanMutationOutbox({ planId: "plan-1" });
+    await Promise.all(followerRuns);
+    unsubscribe();
+
+    expect(fetch).toHaveBeenCalledTimes(1);
   });
 });

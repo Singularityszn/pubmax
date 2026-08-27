@@ -185,6 +185,9 @@ export default function RecapDetail({ planId }: { planId: string }) {
           <Link className="recapFooter__plan" href={`/plan/${planId}`}>
             Back to the plan
           </Link>
+          <Link className="recapFooter__plan" href="/plan">
+            Plan again
+          </Link>
         </div>
       </footer>
     </>

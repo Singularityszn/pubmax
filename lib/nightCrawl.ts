@@ -91,6 +91,18 @@ export function isFinalStop(stops: readonly PlanStopDTO[], cursor: number): bool
   return count > 0 && clampStopIndex(cursor, count) === count - 1;
 }
 
+/** The ending becomes available only after the final stop write is canonical. */
+export function nightCrawlCanFinish(
+  stops: readonly PlanStopDTO[],
+  cursor: number,
+  actions: readonly PlanActionDTO[] | undefined,
+): boolean {
+  if (!isFinalStop(stops, cursor)) return false;
+  const final = nightCrawlHero(stops, cursor);
+  if (!final || stopDisposition(actions, final.position) === null) return false;
+  return stops.some((stop) => stopDisposition(actions, stop.position) === "arrived");
+}
+
 /** Advance the cursor one stop, clamped so it never walks past the last pub. */
 export function advanceNightCrawl(cursor: number, stopCount: number): number {
   return clampStopIndex(cursor + 1, stopCount);
