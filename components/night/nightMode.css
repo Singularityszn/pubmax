@@ -16,7 +16,6 @@
    when one is really floating: no dead whitespace on a night with no live plan,
    and nothing to guess: the number is derived from the pill's own tokens. */
 :root {
-  --night-pill-h: 44px;    /* the pill's touch-target height */
   --night-pill-inset: 10px; /* the pill's own gap above the tab bar (mobile) */
   --night-pill-clearance: 0px;
 }
@@ -217,7 +216,7 @@ html:has(.nightPill) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  min-height: 44px;
+  min-height: var(--night-pill-h);
   padding: 0 14px;
   border-radius: 999px;
   background: var(--brass);

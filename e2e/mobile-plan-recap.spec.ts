@@ -59,7 +59,7 @@ test("completed Plan recap stays usable across mobile widths and explicit discar
     await page.setViewportSize(viewport);
     await page.goto("/tonight");
     const nightPill = page.getByRole("button", { name: "Show tonight's plan" });
-    const createAction = page.locator(".createFabRoot");
+    const createAction = page.locator(".createFab");
     await expect(nightPill).toBeVisible();
     await expect(createAction).toBeVisible();
 
@@ -69,13 +69,24 @@ test("completed Plan recap stays usable across mobile widths and explicit discar
     ]);
     expect(nightBox).not.toBeNull();
     expect(createBox).not.toBeNull();
-    expect(createBox!.y + createBox!.height).toBeLessThanOrEqual(nightBox!.y);
+    const stackGap = await page.evaluate(() => Number.parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue("--float-stack-gap"),
+    ));
+    expect(stackGap).toBe(12);
+    expect(nightBox!.y - (createBox!.y + createBox!.height)).toBeGreaterThanOrEqual(stackGap);
     expect(await nightPill.evaluate((element) => {
       const box = element.getBoundingClientRect();
       return document.elementFromPoint(
         box.left + box.width / 2,
         box.top + box.height / 2,
       )?.closest(".nightPill") === element;
+    })).toBe(true);
+    expect(await createAction.evaluate((element) => {
+      const box = element.getBoundingClientRect();
+      return document.elementFromPoint(
+        box.left + box.width / 2,
+        box.top + box.height / 2,
+      )?.closest(".createFab") === element;
     })).toBe(true);
 
     await nightPill.click();
