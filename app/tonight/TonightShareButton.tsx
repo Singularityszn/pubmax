@@ -8,14 +8,17 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // signal on a real share/copy. Failures stay visible, and a successful copy shows a brief
 // "Link copied" acknowledgement on the clipboard path.
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Share2 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 
 export default function TonightShareButton(): React.JSX.Element {
+  const [hydrated, setHydrated] = useState(false);
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
+
+  useEffect(() => setHydrated(true), []);
 
   async function onShare() {
     if (typeof window === "undefined") return;
@@ -58,6 +61,7 @@ export default function TonightShareButton(): React.JSX.Element {
           type="button"
           className="tonightShare pressable"
           onClick={onShare}
+          disabled={!hydrated}
           aria-label="Share tonight's listings"
         >
           {copied ? (
