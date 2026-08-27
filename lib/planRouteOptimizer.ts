@@ -324,13 +324,47 @@ function bestRouteFromCombination<T>(
   combination: readonly GroundedPlanRouteCandidate<T>[],
   constraints: GroundedPlanRouteConstraints,
   incumbent: EvaluatedRoute<T> | null,
+  prefix: readonly GroundedPlanRouteCandidate<T>[] = [],
 ): EvaluatedRoute<T> | null {
   let best = incumbent;
   for (const permutation of routePermutations(combination.length)) {
-    const route = permutation.map((index) => combination[index]!);
+    const route = [...prefix, ...permutation.map((index) => combination[index]!)];
     const evaluated = evaluateRoute(route, constraints);
     if (evaluated && better(evaluated, best)) best = evaluated;
   }
+  return best;
+}
+
+function searchBestRouteCombinations<T>(
+  ranked: readonly GroundedPlanRouteCandidate<T>[],
+  targetCount: number,
+  prefix: readonly GroundedPlanRouteCandidate<T>[],
+  constraints: GroundedPlanRouteConstraints,
+): EvaluatedRoute<T> | null {
+  const combination: GroundedPlanRouteCandidate<T>[] = [];
+  const prefixScore = prefix.reduce((total, candidate) => total + candidate.score, 0);
+  let best: EvaluatedRoute<T> | null = null;
+
+  const visit = (start: number, partialScore: number): void => {
+    const remaining = targetCount - combination.length;
+    if (remaining === 0) {
+      best = bestRouteFromCombination(combination, constraints, best, prefix);
+      return;
+    }
+
+    for (let index = start; index <= ranked.length - remaining; index += 1) {
+      let upperScore = prefixScore + partialScore + ranked[index]!.score;
+      for (let offset = 1; offset < remaining; offset += 1) {
+        upperScore += ranked[index + offset]!.score;
+      }
+      if (best && upperScore < best.score) break;
+      combination.push(ranked[index]!);
+      visit(index + 1, partialScore + ranked[index]!.score);
+      combination.pop();
+    }
+  };
+
+  visit(0, 0);
   return best;
 }
 
@@ -410,30 +444,7 @@ function findBestRoute<T>(
       constraints,
     );
   }
-  const combination: GroundedPlanRouteCandidate<T>[] = [];
-  let best: EvaluatedRoute<T> | null = null;
-
-  const visit = (start: number, partialScore: number): void => {
-    const remaining = target - combination.length;
-    if (remaining === 0) {
-      best = bestRouteFromCombination(combination, constraints, best);
-      return;
-    }
-
-    for (let index = start; index <= ranked.length - remaining; index += 1) {
-      let upperScore = partialScore + ranked[index]!.score;
-      for (let offset = 1; offset < remaining; offset += 1) {
-        upperScore += ranked[index + offset]!.score;
-      }
-      if (best && upperScore < best.score) break;
-      combination.push(ranked[index]!);
-      visit(index + 1, partialScore + ranked[index]!.score);
-      combination.pop();
-    }
-  };
-
-  visit(0, 0);
-  return best;
+  return searchBestRouteCombinations(ranked, target, [], constraints);
 }
 
 type RouteRejectionCounts = { safety: number; exclusions: number; accessibility: number; budgetEvidence: number; budgetCeiling: number };
@@ -546,32 +557,12 @@ function findBestAnchoredRoute<T>(
   if (targetCompanions > 2) {
     return beamBestRoute([[anchor]], ranked, planStopCount(constraints.stopCount), constraints);
   }
-  const combination: GroundedPlanRouteCandidate<T>[] = [];
-  let best: EvaluatedRoute<T> | null = null;
-
-  const visit = (start: number, partialScore: number): void => {
-    const remaining = targetCompanions - combination.length;
-    if (remaining === 0) {
-      for (const permutation of routePermutations(combination.length)) {
-        const ordered = permutation.map((index) => combination[index]!);
-        const evaluated = evaluateRoute([anchor, ...ordered], constraints);
-        if (evaluated && better(evaluated, best)) best = evaluated;
-      }
-      return;
-    }
-    for (let index = start; index <= ranked.length - remaining; index += 1) {
-      let upperScore = anchor.score + partialScore + ranked[index]!.score;
-      for (let offset = 1; offset < remaining; offset += 1) {
-        upperScore += ranked[index + offset]!.score;
-      }
-      if (best && upperScore < best.score) break;
-      combination.push(ranked[index]!);
-      visit(index + 1, partialScore + ranked[index]!.score);
-      combination.pop();
-    }
-  };
-  visit(0, 0);
-  return best;
+  return searchBestRouteCombinations(
+    ranked,
+    targetCompanions,
+    [anchor],
+    constraints,
+  );
 }
 
 /** Keep accepted anchor as Stop 1; return an anchor-only draft when N-1 companions cannot be grounded. */

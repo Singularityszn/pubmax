@@ -27,6 +27,7 @@ import { parsePlanGenerationRequest } from "@/lib/planGenerationRequest";
 import { reconcilePlanContext } from "@/lib/planGenerationContext";
 import { planGenerationEndings } from "@/lib/planGenerationEndings.server";
 import {
+	buildPlanGenerationStops,
 	planBudgetSummary,
 	planRouteTimingDisclosure,
 } from "@/lib/planGenerationDto";
@@ -37,7 +38,6 @@ import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanConstraintReport, PlanRouteTiming, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
-import { WALK_KMH } from "@/lib/routeLegs";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
@@ -472,85 +472,14 @@ export async function POST(request: Request): Promise<Response> {
 		cityId,
 		stops: chosenWalkingStops,
 	});
-	const stops = chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
-		const grounded = groundedStops?.[index] ?? null;
-		const alternativeCandidates = groundedAlternatives?.[index]
-			?? candidates.filter(({ venue: alternative }) =>
-				!chosen.some(({ venue: selected }) => selected.id === alternative.id));
-		// The leg feeding THIS stop (from the previous stop). Routed only when
-		// estimatePlanWalking secured an ORS duration for it; drives both the
-		// per-stop minutes and an honest transportBasis label below.
-		const legRouted = walkingEstimate.legs.some((leg) => leg.toIndex === index && leg.source === "ors");
-		return {
-			venueId: venue.id,
-			venueName: venue.name,
-			position: index,
-			walkingMinutesFromPrevious: walkingEstimate.walkingMinutesFromPrevious[index] ?? null,
-			distanceKm: Number(distance.toFixed(2)),
-			estimatedPintPricePence: grounded
-				? grounded.price.pence
-				: venue.cheapestPrice === null ? null : Math.round(venue.cheapestPrice * 100),
-			priceEvidence: grounded?.price ?? null,
-			accessEvidence: grounded?.access ?? null,
-			evidence: reasons,
-			constraintFlags: grounded?.constraintFlags ?? [],
-			operationalEvidence: {
-				openingAtVisit: grounded?.opening.state ?? null,
-				openingSource: grounded?.opening.source ?? null,
-				visitWindow: grounded?.visitWindow ?? null,
-				transportBasis: legRouted
-					? "openrouteservice foot-walking route duration"
-					: grounded
-						? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-						: "compact-straight-line",
-			},
-			provenance: [
-				{ kind: "venue_dataset", label: `PUBMAXX venue record for ${venue.name}` },
-				{ kind: "night_area_review", label: `${area.name} route review`, asOf: area.lastReviewedAt },
-				...tonightEvents.map((event) => ({ kind: "night_signal" as const, label: `${event.source.label}: ${event.title}`, asOf: event.observedAt })),
-				...signalClaims.map((signal) => ({ kind: "night_signal" as const, label: `${signal.publisher}: ${signal.claim}`, asOf: signal.observedAt })),
-				...(grounded?.opening.source ? [{
-					kind: "night_signal" as const,
-					label: grounded.opening.source.label,
-					asOf: grounded.opening.source.observedAt,
-				}] : []),
-				...(planningWeather ? [{
-					kind: "night_signal" as const,
-					label: `${planningWeather.source.publisher}: ${planningWeather.condition}`,
-					asOf: planningWeather.observedAt,
-				}] : []),
-			],
-			reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-			alternatives: alternativeCandidates
-				.map((alternativeEntry) => {
-					const alternativeGrounded = "value" in alternativeEntry ? alternativeEntry : null;
-					const alternative = alternativeGrounded
-						? alternativeGrounded.value.venue
-						: (alternativeEntry as Candidate).venue;
-					return {
-						venueId: alternative.id,
-						venueName: alternative.name,
-						distanceKm: Number(distanceKm(venue, alternative).toFixed(2)),
-						estimatedPintPricePence: alternativeGrounded
-							? alternativeGrounded.price.pence
-							: alternative.cheapestPrice === null ? null : Math.round(alternative.cheapestPrice * 100),
-						priceEvidence: alternativeGrounded?.price ?? null,
-						accessEvidence: alternativeGrounded?.access ?? null,
-						constraintFlags: alternativeGrounded?.constraintFlags ?? [],
-						operationalEvidence: {
-							openingAtVisit: alternativeGrounded?.opening.state ?? null,
-							openingSource: alternativeGrounded?.opening.source ?? null,
-							visitWindow: alternativeGrounded?.visitWindow ?? null,
-							transportBasis: alternativeGrounded
-								? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-								: "compact-straight-line",
-						},
-						provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
-					};
-				})
-				.sort((left, right) => left.distanceKm - right.distanceKm)
-				.slice(0, 2),
-		};
+	const stops = buildPlanGenerationStops({
+		chosen,
+		candidates,
+		groundedStops,
+		groundedAlternatives,
+		walkingEstimate,
+		area,
+		planningWeather,
 	});
 	// Ground the proof over exactly the venues this response commits to: the
 	// three chosen stops plus every alternative id we actually emit above.
