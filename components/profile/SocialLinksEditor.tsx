@@ -12,28 +12,34 @@ import {
   socialProviderPlaceholder,
   type PublicSocialConnection,
   type SocialProvider,
-  type SocialProviderAvailability,
 } from "@/lib/socialConnections";
+import { type SocialProviderCapabilities } from "@/lib/socialProviderCapabilities";
 
 type LoadState = "loading" | "ready" | "unavailable";
 
-const NO_SOCIAL_PROVIDERS: SocialProviderAvailability = Object.fromEntries(
-  SOCIAL_PROVIDERS.map((provider) => [provider, { oauth: false, manual: false }]),
-) as SocialProviderAvailability;
+const NO_SOCIAL_PROVIDERS = Object.fromEntries(
+  SOCIAL_PROVIDERS.map((provider) => [provider, {
+    manual_link: false,
+    oauth_identity: false,
+    read_selected_content: false,
+    publish: false,
+  }]),
+) as Record<SocialProvider, SocialProviderCapabilities>;
 
 /**
- * OAuth buttons for the providers the server says are fully configured. A
- * client id alone is not a connection, so an unconfigured provider offers no
- * button at all rather than one that fails on tap.
+ * OAuth buttons for certified providers. Environment keys cannot make an
+ * uncertified provider action visible.
  */
 export function SocialConnectionActions({
   providers,
   onConnect,
 }: {
-  providers: SocialProviderAvailability;
+  providers: Record<SocialProvider, SocialProviderCapabilities>;
   onConnect: (provider: SocialProvider) => void;
 }): React.JSX.Element | null {
-  const available = SOCIAL_OAUTH_PROVIDERS.filter((provider) => providers[provider].oauth);
+  const available = SOCIAL_OAUTH_PROVIDERS.filter(
+    (provider) => providers[provider].oauth_identity,
+  );
   if (available.length === 0) return null;
   return (
     <div className="socialLinksOauth">
@@ -53,7 +59,9 @@ export function SocialConnectionActions({
  */
 export default function SocialLinksEditor(): React.JSX.Element {
   const [connections, setConnections] = useState<PublicSocialConnection[]>([]);
-  const [providers, setProviders] = useState<SocialProviderAvailability>(NO_SOCIAL_PROVIDERS);
+  const [providers, setProviders] = useState<Record<SocialProvider, SocialProviderCapabilities>>(
+    NO_SOCIAL_PROVIDERS,
+  );
   const [state, setState] = useState<LoadState>("loading");
   const [provider, setProvider] = useState<SocialProvider>("instagram");
   const [value, setValue] = useState("");
@@ -76,7 +84,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
       }
       const body = (await response.json().catch(() => null)) as {
         connections?: PublicSocialConnection[];
-        providers?: SocialProviderAvailability;
+        providers?: Record<SocialProvider, SocialProviderCapabilities>;
       } | null;
       if (controller.signal.aborted) return;
       setConnections(body?.connections ?? []);
@@ -89,7 +97,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
 
   async function addLink(event: FormEvent) {
     event.preventDefault();
-    if (busy || !value.trim()) return;
+    if (busy || !value.trim() || !providers[provider].manual_link) return;
     setBusy(true);
     setNotice("");
     const response = await authedActionFetch(`/api/social-connections/${provider}`, {
@@ -209,7 +217,11 @@ export default function SocialLinksEditor(): React.JSX.Element {
             disabled={busy}
           >
             {SOCIAL_PROVIDERS.map((option) => (
-              <option key={option} value={option}>
+              <option
+                key={option}
+                value={option}
+                disabled={!providers[option].manual_link}
+              >
                 {socialProviderLabel(option)}
               </option>
             ))}
@@ -228,7 +240,11 @@ export default function SocialLinksEditor(): React.JSX.Element {
             disabled={busy}
           />
         </label>
-        <button type="submit" className="socialLinksAdd" disabled={busy || !value.trim()}>
+        <button
+          type="submit"
+          className="socialLinksAdd"
+          disabled={busy || !value.trim() || !providers[provider].manual_link}
+        >
           {linkedProviders.has(provider) ? "Replace" : "Add"}
         </button>
       </form>

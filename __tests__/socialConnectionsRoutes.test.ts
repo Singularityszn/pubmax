@@ -79,7 +79,7 @@ describe("social connection APIs", () => {
     response = await listConnections(request("/api/social-connections"));
     expect(await response.json()).toMatchObject({
       connections: [],
-      providers: { instagram: { manual: true, oauth: false } },
+      providers: { instagram: { manual_link: true, oauth_identity: false } },
     });
   });
 
@@ -92,7 +92,7 @@ describe("social connection APIs", () => {
     const location = new URL(response.headers.get("location")!);
     expect(location.pathname).toBe("/u/you");
     expect(location.searchParams.get("socialConnection")).toBe("x");
-    expect(location.searchParams.get("status")).toBe("cancelled");
+    expect(location.searchParams.get("status")).toBe("failed");
   });
 
   it("returns deployed OAuth outcomes through the production site", async () => {
@@ -108,7 +108,7 @@ describe("social connection APIs", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://pubmaxxing.com/u/you?socialConnection=x&status=cancelled",
+      "https://pubmaxxing.com/u/you?socialConnection=x&status=failed",
     );
   });
 
@@ -126,7 +126,7 @@ describe("social connection APIs", () => {
 
     expect(response.status).toBe(303);
     expect(response.headers.get("location")).toBe(
-      "https://pubmaxxing.com/u/you?socialConnection=x&status=cancelled",
+      "https://pubmaxxing.com/u/you?socialConnection=x&status=failed",
     );
     expect(diagnostic).toHaveBeenCalledWith(
       expect.stringMatching(
@@ -135,7 +135,7 @@ describe("social connection APIs", () => {
     );
   });
 
-  it("starts deployed OAuth with a production callback URI", async () => {
+  it("does not let deployed credentials enable uncertified OAuth", async () => {
     authState.userId = "user-1";
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("NEXT_PUBLIC_SITE_URL", "https://pubmaxxing.com");
@@ -155,11 +155,10 @@ describe("social connection APIs", () => {
       { params: Promise.resolve({ provider: "x" }) },
     );
 
-    expect(response.status).toBe(200);
-    const body = await response.json();
-    const authorizeUrl = new URL(body.authorizeUrl);
-    expect(authorizeUrl.searchParams.get("redirect_uri")).toBe(
-      "https://pubmaxxing.com/api/social-connections/x/callback",
-    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "SOCIAL_PROVIDER_UNAVAILABLE",
+      retryable: false,
+    });
   });
 });

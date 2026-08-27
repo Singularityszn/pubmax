@@ -31,11 +31,18 @@ export type SocialOAuthProvider = (typeof SOCIAL_OAUTH_PROVIDERS)[number];
 
 export type SocialConnectionMode = "oauth" | "manual";
 export type SocialAccountKind = "personal" | "professional";
-
-export type SocialProviderAvailability = Record<
-  SocialProvider,
-  { oauth: boolean; manual: boolean }
->;
+export type SocialRefreshStatus =
+  | "not_applicable"
+  | "current"
+  | "refresh_due"
+  | "refresh_failed";
+export type SocialRevocationState =
+  | "not_applicable"
+  | "active"
+  | "unknown"
+  | "pending"
+  | "revoked"
+  | "failed";
 
 export function isSocialProvider(value: unknown): value is SocialProvider {
   return typeof value === "string" && SOCIAL_PROVIDERS.includes(value as SocialProvider);
@@ -60,6 +67,10 @@ export type StoredSocialConnection = {
   accessTokenCiphertext?: string;
   refreshTokenCiphertext?: string;
   tokenExpiresAt?: string;
+  refreshStatus: SocialRefreshStatus;
+  consentVersion: string;
+  fetchedAt?: string;
+  upstreamRevocationState: SocialRevocationState;
   connectedAt: string;
   updatedAt: string;
 };
@@ -83,7 +94,10 @@ export function publicSocialConnection(row: StoredSocialConnection): PublicSocia
     mode: row.mode,
     accountKind: row.accountKind,
     status:
-      row.mode === "manual" || !row.tokenExpiresAt || Date.parse(row.tokenExpiresAt) > Date.now()
+      row.mode === "manual" ||
+      (row.refreshStatus !== "refresh_failed" &&
+        row.upstreamRevocationState === "active" &&
+        (!row.tokenExpiresAt || Date.parse(row.tokenExpiresAt) > Date.now()))
         ? "connected"
         : "action_required",
     ...(row.username ? { username: row.username } : {}),

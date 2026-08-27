@@ -51,6 +51,19 @@ function fromRow(row: Record<string, unknown>): StoredSocialConnection {
     ...(row.access_token_ciphertext ? { accessTokenCiphertext: String(row.access_token_ciphertext) } : {}),
     ...(row.refresh_token_ciphertext ? { refreshTokenCiphertext: String(row.refresh_token_ciphertext) } : {}),
     ...(row.token_expires_at ? { tokenExpiresAt: String(row.token_expires_at) } : {}),
+    refreshStatus: row.refresh_status === "current" || row.refresh_status === "refresh_due" || row.refresh_status === "refresh_failed"
+      ? row.refresh_status
+      : "not_applicable",
+    consentVersion: typeof row.consent_version === "string" ? row.consent_version : "legacy-v1",
+    ...(row.fetched_at ? { fetchedAt: String(row.fetched_at) } : {}),
+    upstreamRevocationState:
+      row.upstream_revocation_state === "active" ||
+      row.upstream_revocation_state === "unknown" ||
+      row.upstream_revocation_state === "pending" ||
+      row.upstream_revocation_state === "revoked" ||
+      row.upstream_revocation_state === "failed"
+        ? row.upstream_revocation_state
+        : "not_applicable",
     connectedAt: String(row.connected_at),
     updatedAt: String(row.updated_at),
   };
@@ -72,6 +85,9 @@ export const memorySocialConnectionStore: SocialConnectionStore = {
       username: input.username,
       profileUrl: input.profileUrl,
       scopes: [],
+      refreshStatus: "not_applicable",
+      consentVersion: "manual-link-v1",
+      upstreamRevocationState: "not_applicable",
       connectedAt: memoryRows.get(key)?.connectedAt ?? now,
       updatedAt: now,
     };
@@ -87,6 +103,10 @@ export const memorySocialConnectionStore: SocialConnectionStore = {
       mode: "oauth",
       connectedAt: memoryRows.get(key)?.connectedAt ?? now,
       updatedAt: now,
+      refreshStatus: input.refreshTokenCiphertext ? "current" : "refresh_due",
+      consentVersion: "oauth-identity-v1",
+      fetchedAt: now,
+      upstreamRevocationState: "active",
       ...input,
     };
     memoryRows.set(key, row);
@@ -125,6 +145,10 @@ export const supabaseSocialConnectionStore: SocialConnectionStore = {
         access_token_ciphertext: null,
         refresh_token_ciphertext: null,
         token_expires_at: null,
+        refresh_status: "not_applicable",
+        consent_version: "manual-link-v1",
+        fetched_at: null,
+        upstream_revocation_state: "not_applicable",
         updated_at: now,
       }, { onConflict: "owner_id,provider" })
       .select("*")
@@ -148,6 +172,10 @@ export const supabaseSocialConnectionStore: SocialConnectionStore = {
         access_token_ciphertext: input.accessTokenCiphertext,
         refresh_token_ciphertext: input.refreshTokenCiphertext ?? null,
         token_expires_at: input.tokenExpiresAt ?? null,
+        refresh_status: input.refreshTokenCiphertext ? "current" : "refresh_due",
+        consent_version: "oauth-identity-v1",
+        fetched_at: now,
+        upstream_revocation_state: "active",
         updated_at: now,
       }, { onConflict: "owner_id,provider" })
       .select("*")
