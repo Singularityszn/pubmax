@@ -37,6 +37,7 @@ import {
 } from "../lib/nightOutPlaceContract.mjs";
 import { CITY_VENUE_PACKS } from "../lib/cityVenuePacks.mjs";
 import { CITY_BOUNDS } from "../lib/cityBounds.mjs";
+import { EDITORIAL_FEEDS, EDITORIAL_ITEM_KEYS } from "../lib/editorialRss.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -129,6 +130,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "weather_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "pint_index_snapshot", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
   { id: "late_food_evidence", required: true, reason: "not yet reviewed for softening; keep as a hard gate" },
+  { id: "editorial_overlay", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the file is absent; a file that IS present with a body or extra keys is a genuine defect and stays a hard gate" },
 ];
 
 function classificationFor(id) {
@@ -2547,6 +2549,118 @@ function isHttpUrl(value) {
   }
 }
 
+const EDITORIAL_OVERLAY_FILE = join(DATA_DIR, "editorial", "latest.json");
+const EDITORIAL_ALLOWED_SOURCES = new Set(EDITORIAL_FEEDS.map((feed) => feed.id));
+const EDITORIAL_ATTRIBUTION_LABELS = new Map(
+  EDITORIAL_FEEDS.map((feed) => [feed.id, feed.name]),
+);
+const EDITORIAL_FORBIDDEN_ITEM_KEYS = [
+  "body",
+  "content",
+  "content:encoded",
+  "content_encoded",
+  "html",
+  "fullText",
+  "full_text",
+];
+
+// Editorial overlay is a credited link-out pack, not a harvest. Absence of
+// latest.json is SKIP (the rail degrades); a present file with a body, extra
+// keys, or an off-allowlist source is a hard fail.
+function validateEditorialOverlay() {
+  const name = "public/data/editorial/latest.json";
+  if (!existsSync(EDITORIAL_OVERLAY_FILE)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  let data;
+  try {
+    data = JSON.parse(readFileSync(EDITORIAL_OVERLAY_FILE, "utf8"));
+  } catch (e) {
+    console.log(`FAIL ${name}: could not read/parse (${e.message})`);
+    return { ok: false, count: 0 };
+  }
+
+  const errors = [];
+  if (!data || typeof data !== "object" || Array.isArray(data)) {
+    errors.push("snapshot must be an object");
+  } else {
+    if (data.version !== 1) {
+      errors.push(`version must be 1 (got ${JSON.stringify(data.version)})`);
+    }
+    if (data.status !== "ready" && data.status !== "degraded") {
+      errors.push(`status must be ready or degraded (got ${JSON.stringify(data.status)})`);
+    }
+    if (typeof data.generatedAt !== "string" || !Number.isFinite(Date.parse(data.generatedAt))) {
+      errors.push("generatedAt must be an ISO timestamp");
+    }
+    if ("state" in data) {
+      errors.push("snapshot must not store poller state");
+    }
+    if (!Array.isArray(data.items)) {
+      errors.push("items must be an array");
+    } else {
+      data.items.forEach((item, i) => {
+        if (!item || typeof item !== "object" || Array.isArray(item)) {
+          errors.push(`item ${i}: not an object`);
+          return;
+        }
+        const keys = Object.keys(item);
+        for (const key of keys) {
+          if (!EDITORIAL_ITEM_KEYS.includes(key)) {
+            errors.push(`item ${i}: extra key ${key}`);
+          }
+        }
+        for (const key of EDITORIAL_ITEM_KEYS) {
+          if (!(key in item)) errors.push(`item ${i}: missing ${key}`);
+        }
+        for (const key of EDITORIAL_FORBIDDEN_ITEM_KEYS) {
+          if (key in item) errors.push(`item ${i}: forbidden key ${key}`);
+        }
+        if (typeof item.source_id !== "string" || !EDITORIAL_ALLOWED_SOURCES.has(item.source_id)) {
+          errors.push(`item ${i}: source_id is not on the allowlist`);
+        }
+        if (typeof item.title !== "string" || item.title.trim().length === 0) {
+          errors.push(`item ${i}: title must be a non-empty string`);
+        }
+        if (!isHttpUrl(item.canonical_url)) {
+          errors.push(`item ${i}: canonical_url must be an http(s) URL`);
+        }
+        if (typeof item.published_at !== "string" || !Number.isFinite(Date.parse(item.published_at))) {
+          errors.push(`item ${i}: published_at must be an ISO timestamp`);
+        }
+        if (typeof item.excerpt !== "string") {
+          errors.push(`item ${i}: excerpt must be a string`);
+        } else {
+          if (item.excerpt.length > 240) {
+            errors.push(`item ${i}: excerpt exceeds 240 characters`);
+          }
+          if (/<[^>]+>/.test(item.excerpt)) {
+            errors.push(`item ${i}: excerpt still has tags`);
+          }
+        }
+        if (typeof item.attribution_label !== "string" || item.attribution_label.trim().length === 0) {
+          errors.push(`item ${i}: attribution_label must be a non-empty string`);
+        } else if (
+          EDITORIAL_ATTRIBUTION_LABELS.get(item.source_id) !== item.attribution_label
+        ) {
+          errors.push(
+            `item ${i}: attribution_label must match the allowlisted source name`,
+          );
+        }
+      });
+    }
+  }
+
+  const count = Array.isArray(data?.items) ? data.items.length : 0;
+  const ok = errors.length === 0;
+  console.log(
+    `${ok ? "PASS" : "FAIL"} ${name}: ${count} item(s), ${errors.length} error(s)`,
+  );
+  if (!ok) for (const error of errors.slice(0, 20)) console.log(`  - ${error}`);
+  return { ok, count };
+}
+
 function validatePubmaxxingSource(data, errs) {
   if (data.version !== 1) {
     errs.add(`version must be 1 (got ${JSON.stringify(data.version)})`);
@@ -3283,6 +3397,7 @@ const DATASET_RUNS = [
   { id: "pint_index_editions", run: validatePintIndexEditions },
   { id: "late_food_evidence", run: validateLateFoodEvidenceSnapshot },
   { id: "pubmaxxing_seed", run: validatePubmaxxingSeed },
+  { id: "editorial_overlay", run: validateEditorialOverlay },
 ];
 
 async function main() {

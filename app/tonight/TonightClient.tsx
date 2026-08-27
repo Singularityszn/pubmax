@@ -30,6 +30,7 @@ import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
+import EditorialRail from "@/components/out/EditorialRail";
 import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
@@ -816,6 +817,7 @@ export default function TonightClient({
       {mobileLanes}
 
       <div className="tonightAfterPrimary">
+      <EditorialRail />
       {softPlansWindow ? (
         <TonightSoftPlansModule hasQuietPint={Boolean(quietPint)} />
       ) : null}

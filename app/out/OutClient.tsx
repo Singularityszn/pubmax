@@ -8,6 +8,7 @@ import { OutCardBody } from "@/components/out/OutCard";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
+import EditorialRail from "@/components/out/EditorialRail";
 import { useOutListings } from "@/components/out/useOutListings";
 import { trackEvent } from "@/lib/analytics";
 import { outCardSource } from "@/lib/out/attribution";
@@ -148,6 +149,8 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           ))}
         </div>
       </section>
+
+      <EditorialRail />
 
       {showOpenPlans ? (
         <section className="outPlans" aria-labelledby="out-plans-heading">
