@@ -254,7 +254,13 @@ describe("POST /api/plans/generate", () => {
     expect(response.status).toBe(200);
     const expectedKey = `plan-generate:${hashIp(rawIp)}`;
     expect(isLimitedMock).toHaveBeenCalledOnce();
-    expect(isLimitedMock).toHaveBeenCalledWith(expectedKey, expectedKey, 8, 60_000);
+    expect(isLimitedMock).toHaveBeenCalledWith(
+      expectedKey,
+      expectedKey,
+      8,
+      60_000,
+      { failClosed: true },
+    );
     expect(JSON.stringify(isLimitedMock.mock.calls)).not.toContain(rawIp);
   });
 

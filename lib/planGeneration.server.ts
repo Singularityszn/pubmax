@@ -231,7 +231,13 @@ export async function preparePlanGeneration(
 	if (signingUnavailable) return { response: signingUnavailable };
 	const operationKey = parsedRequest.value.operationKey ?? `create-${randomUUID()}`;
 	const limiterKey = `plan-generate:${hashIp(clientIp(request))}`;
-	if (await isLimited(limiterKey, limiterKey, RATE_LIMIT_MAX, RATE_LIMIT_WINDOW_MS)) {
+	if (await isLimited(
+		limiterKey,
+		limiterKey,
+		RATE_LIMIT_MAX,
+		RATE_LIMIT_WINDOW_MS,
+		{ failClosed: true },
+	)) {
 		return { response: publicApiError("Too many requests.", "RATE_LIMITED", 429, { retryable: true }) };
 	}
 	if (intake?.unsupportedPatch) {
