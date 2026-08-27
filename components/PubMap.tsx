@@ -40,7 +40,7 @@ import {
   type Filters,
   type Venue,
 } from "@/lib/venues";
-import { venuePriceFreshnessLabel } from "@/lib/venuePriceFreshness";
+import { venuePriceCaption } from "@/lib/venuePriceFreshness";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -3929,6 +3929,7 @@ export default function PubMap({
     if (!detailOpen || !selectedVenue) return null;
     const selectedLensPrice =
       activeLensPrices?.get(selectedVenue.id) ?? null;
+    const mobilePriceCaption = venuePriceCaption(selectedVenue);
     const showsAcceptedArrivalReceipt =
       acceptedArrivalSource !== null
       && selectedVenue.id === acceptanceQuery().selectedVenueId;
@@ -3964,7 +3965,23 @@ export default function PubMap({
           ) : typeof selectedVenue.cheapestPrice === "number" ? (
             <span>
               <PriceBadge>{formatPrice(selectedVenue.cheapestPrice)}</PriceBadge>
-              <small>{venuePriceFreshnessLabel(selectedVenue)}</small>
+              <small>
+                {mobilePriceCaption.href ? (
+                  <>
+                    <a
+                      href={mobilePriceCaption.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {mobilePriceCaption.label}
+                    </a>
+                    {" · "}
+                  </>
+                ) : (
+                  <>{mobilePriceCaption.label}{" · "}</>
+                )}
+                {mobilePriceCaption.freshness}
+              </small>
             </span>
           ) : selectedVenueIsPub ? (
             <button

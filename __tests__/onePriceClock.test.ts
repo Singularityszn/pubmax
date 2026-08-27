@@ -60,7 +60,11 @@ describe("public pint-price clock", () => {
     const map = readFileSync(join(ROOT, "components/PubMap.tsx"), "utf8");
 
     expect(overview).toContain("formatPintDatasetAsOf()");
-    expect(map).toContain("venuePriceFreshnessLabel(selectedVenue)");
+    expect(map).toContain("venuePriceCaption(selectedVenue)");
+    expect(map).toContain("href={mobilePriceCaption.href}");
+    expect(map).toContain("{mobilePriceCaption.label}");
+    expect(map).toContain("{mobilePriceCaption.freshness}");
+    expect(map).not.toContain("venuePriceFreshnessLabel(selectedVenue)");
     expect(map).not.toContain("<small>{formatPintDatasetAsOf()}</small>");
     expect(map).not.toContain("current recorded price");
   });
