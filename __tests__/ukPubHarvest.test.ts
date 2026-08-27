@@ -22,6 +22,7 @@ import {
   classifyExaHit,
   createExaClient,
   enrichPub,
+  enrichPubWithClient,
   estimateEta,
   groundedMenuUrls,
   harvestSearchQuery,
@@ -660,5 +661,39 @@ describe("mock Exa fixture", () => {
     } as never);
     expect(query).toContain("The Turks Head");
     expect(mockExaPayload({ name: query }).results.length).toBeGreaterThan(0);
+  });
+});
+
+describe("fatal Exa errors", () => {
+  const fetchedAt = "2026-08-27T00:00:00.000Z";
+  const pub = {
+    osmId: "node/42",
+    name: "The Test Arms",
+    amenity: "pub",
+    lat: 51.5,
+    lng: -0.1,
+    addressTags: {},
+    website: {
+      value: "https://thetestarms.example/",
+      sourceUrl: "https://www.openstreetmap.org/node/42",
+      fetchedAt,
+    },
+    socialTags: {},
+    license: ODBL_LICENSE,
+    attribution: ODBL_ATTRIBUTION,
+    sourceUrl: "https://www.openstreetmap.org/node/42",
+    fetchedAt,
+  };
+
+  it("does not swallow an Exa credits refusal as an empty observation list", async () => {
+    const search = vi.fn(async () => {
+      throw new Error('Exa 402: {"tag":"NO_MORE_CREDITS"}');
+    });
+    const contents = vi.fn(async () => {
+      throw new Error('Exa 402: {"tag":"NO_MORE_CREDITS"}');
+    });
+    await expect(
+      enrichPubWithClient(pub, { mock: false, search, contents }, fetchedAt),
+    ).rejects.toThrow(/NO_MORE_CREDITS|Exa 402/);
   });
 });

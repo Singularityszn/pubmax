@@ -40,6 +40,7 @@ import {
   enrichPubWithClient,
   estimateEta,
   isExaConfigured,
+  isFatalExaError,
   loadProgress,
   isMainModule,
   nextShardIndex,
@@ -350,6 +351,9 @@ async function enrichSeed(rows, { mock, startedAt, seedCount, paths }) {
     try {
       buffer.push(await enrichPubWithClient(pub, client, fetchedAt));
     } catch (error) {
+      if (isFatalExaError(error)) {
+        throw error;
+      }
       console.warn(`  enrich failed for ${pub.osmId}: ${error instanceof Error ? error.message : error}`);
       buffer.push({
         osmId: pub.osmId,
