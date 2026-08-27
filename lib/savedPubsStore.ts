@@ -100,6 +100,15 @@ export type SavedPubsStore = {
   /** All of a handle's saves, newest-first, as enriched DTOs. Never throws. */
   listSaved(input: { handle?: string; actorHash?: string }): Promise<SavedPubDTO[]>;
   /**
+   * Read several public handle partitions in one bounded store operation.
+   * Missing handles are ready empty reads. A shared backend failure marks every
+   * requested handle unavailable so discovery cannot turn an outage into an
+   * empty public market.
+   */
+  readSavedByHandles(input: {
+    handles: readonly string[];
+  }): Promise<ReadonlyMap<string, SavedPubsRead>>;
+  /**
    * Same read as listSaved, but a store outage names itself. Profile pages still
    * use listSaved (fail-soft to []). Discovery must not treat that as no lists.
    */
@@ -113,22 +122,52 @@ export type SavedPubsStore = {
 // Fold raw rows into DTOs, resolving each venue id to its real pub name + map url
 // through the bundled index. An id the dataset no longer carries falls back to a
 // friendly label — never the raw "venue-…" id. Newest save first.
+function dtoFromRow(row: SavedRow, index: Awaited<ReturnType<typeof getVenueIndex>>): SavedPubDTO {
+  return {
+    venueId: row.venueId,
+    venueName: index.get(row.venueId)?.name ?? "A London venue",
+    venueMapUrl: venueMapUrl(row.venueId),
+    listType: row.listType,
+    ...(row.note ? { note: row.note } : {}),
+    savedAt: row.savedAt,
+  };
+}
+
+function enrichRows(
+  rows: SavedRow[],
+  index: Awaited<ReturnType<typeof getVenueIndex>>,
+): SavedPubDTO[] {
+  return rows
+    .map((row) => dtoFromRow(row, index))
+    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+}
+
 async function enrich(rows: SavedRow[]): Promise<SavedPubDTO[]> {
   const index = await getVenueIndex();
-  return rows
-    .map((row) => ({
-      venueId: row.venueId,
-      venueName: index.get(row.venueId)?.name ?? "A London venue",
-      venueMapUrl: venueMapUrl(row.venueId),
-      listType: row.listType,
-      ...(row.note ? { note: row.note } : {}),
-      savedAt: row.savedAt,
-    }))
-    .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+  return enrichRows(rows, index);
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────
 const TABLE = "saved_pubs";
+const PROFILE_TABLE = "profiles";
+
+function normalizedHandleKeys(handles: readonly string[]): string[] {
+  return [...new Set(handles.map((handle) => normalizeHandle(handle)).filter(Boolean))];
+}
+
+function readyBatch(handles: readonly string[]): Map<string, SavedPubsRead> {
+  return new Map(normalizedHandleKeys(handles).map((handle) => [
+    handle,
+    { status: "ready", rows: [] },
+  ]));
+}
+
+function unavailableBatch(handles: readonly string[]): Map<string, SavedPubsRead> {
+  return new Map(normalizedHandleKeys(handles).map((handle) => [
+    handle,
+    { status: "unavailable" },
+  ]));
+}
 
 function admin() {
   return requireSupabaseAdmin();
@@ -162,6 +201,66 @@ function rowFrom(raw: Record<string, unknown>): SavedRow | null {
 }
 
 export const supabaseSavedPubsStore: SavedPubsStore = {
+  async readSavedByHandles({ handles }) {
+    const keys = normalizedHandleKeys(handles);
+    if (keys.length === 0) return new Map();
+
+    try {
+      // Resolve active, claimed owners in one query. This keeps the public
+      // discovery seam from exposing saves belonging to unclaimed or departed
+      // profiles, even though the service role bypasses RLS.
+      const { data: profiles, error: profileError } = await admin()
+        .from(PROFILE_TABLE)
+        .select("id, handle")
+        .in("handle", keys)
+        .not("user_id", "is", null)
+        .is("tombstoned_at", null);
+      if (profileError) throw new Error(profileError.message);
+
+      const handleByProfileId = new Map<string, string>();
+      for (const raw of profiles ?? []) {
+        const row = raw as { id?: unknown; handle?: unknown };
+        const id = typeof row.id === "string" ? row.id : "";
+        const handle = typeof row.handle === "string" ? normalizeHandle(row.handle) : "";
+        if (id && handle) handleByProfileId.set(id, handle);
+      }
+
+      const result = readyBatch(keys);
+      const profileIds = [...handleByProfileId.keys()];
+      if (profileIds.length === 0) return result;
+
+      const { data, error } = await admin()
+        .from(TABLE)
+        .select("profile_id, venue_id, list_type, note, created_at")
+        .in("profile_id", profileIds)
+        .order("created_at", { ascending: false });
+      if (error) throw new Error(error.message);
+
+      const rowsByHandle = new Map<string, SavedRow[]>();
+      for (const raw of data ?? []) {
+        const record = raw as Record<string, unknown>;
+        const profileId = typeof record.profile_id === "string" ? record.profile_id : "";
+        const handle = handleByProfileId.get(profileId);
+        const row = rowFrom(record);
+        if (!handle || !row) continue;
+        const rows = rowsByHandle.get(handle) ?? [];
+        rows.push(row);
+        rowsByHandle.set(handle, rows);
+      }
+
+      const index = await getVenueIndex();
+      for (const handle of keys) {
+        result.set(handle, {
+          status: "ready",
+          rows: enrichRows(rowsByHandle.get(handle) ?? [], index),
+        });
+      }
+      return result;
+    } catch {
+      return unavailableBatch(keys);
+    }
+  },
+
   async readSaved({ handle }) {
     try {
       const profileId = await profileIdForHandle(supabaseProfileStore, handle ?? "", false);
@@ -253,6 +352,21 @@ function rowKey(venueId: string, listType: string): string {
 }
 
 export const memorySavedPubsStore: SavedPubsStore = {
+  async readSavedByHandles({ handles }) {
+    const keys = normalizedHandleKeys(handles);
+    if (keys.length === 0) return new Map();
+    const index = await getVenueIndex();
+    const result = readyBatch(keys);
+    for (const handle of keys) {
+      const partition = memoryRows.get(ownerKey(handle));
+      result.set(handle, {
+        status: "ready",
+        rows: enrichRows(partition ? [...partition.values()] : [], index),
+      });
+    }
+    return result;
+  },
+
   async readSaved({ handle, actorHash }) {
     const partition = memoryRows.get(ownerKey(handle, actorHash));
     return {

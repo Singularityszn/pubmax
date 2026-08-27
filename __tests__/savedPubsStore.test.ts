@@ -42,6 +42,27 @@ describe("savedPubsStore() — seam selection", () => {
       rows: [],
     });
   });
+
+  it("reads saved pubs for several handles in one keyed result", async () => {
+    const { id } = await aRealVenue();
+    await memorySavedPubsStore.toggleSaved({
+      handle: "alice",
+      venueId: id,
+      listType: "Historic",
+    });
+
+    const result = await memorySavedPubsStore.readSavedByHandles({
+      handles: ["ALICE", "bob", "nobody"],
+    });
+
+    expect([...result.keys()]).toEqual(["alice", "bob", "nobody"]);
+    expect(result.get("alice")).toMatchObject({
+      status: "ready",
+      rows: [{ venueId: id, listType: "Historic" }],
+    });
+    expect(result.get("bob")).toEqual({ status: "ready", rows: [] });
+    expect(result.get("nobody")).toEqual({ status: "ready", rows: [] });
+  });
 });
 
 const BUILT_INS = [

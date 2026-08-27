@@ -30,7 +30,9 @@ export type CreatorListDiscoveryDependencies = {
     limit: number;
     afterHandle?: string;
   }): Promise<CreatorListProfile[]>;
-  listSaved(input: { handle: string }): Promise<CreatorListSavedRead>;
+  listSavedByHandles(input: {
+    handles: readonly string[];
+  }): Promise<ReadonlyMap<string, CreatorListSavedRead>>;
 };
 
 function savedListReadIsUnavailable(
@@ -97,12 +99,12 @@ export async function discoverCreatorLists(
   const nextCursor = profiles.length > examined.length && examined.length > 0
     ? examined[examined.length - 1]!.handle
     : null;
-  const savedByProfile = await Promise.all(
-    examined.map((profile) => dependencies.listSaved({ handle: profile.handle })),
-  );
+  const savedByProfile = await dependencies.listSavedByHandles({
+    handles: examined.map((profile) => profile.handle),
+  });
   let unavailableCount = 0;
-  const lists = examined.flatMap((profile, index) => {
-    const saved = savedByProfile[index];
+  const lists = examined.flatMap((profile) => {
+    const saved = savedByProfile.get(profile.handle);
     if (savedListReadIsUnavailable(saved)) {
       unavailableCount += 1;
       return [];
@@ -131,8 +133,13 @@ export const creatorListDiscoveryDependencies: CreatorListDiscoveryDependencies 
         };
       });
   },
-  async listSaved(input) {
-    const read = await savedPubsStore().readSaved(input);
-    return read.status === "ready" ? read.rows : { status: "unavailable" };
+  async listSavedByHandles({ handles }) {
+    const reads = await savedPubsStore().readSavedByHandles({ handles });
+    return new Map(
+      [...reads].map(([handle, read]) => [
+        handle,
+        read.status === "ready" ? read.rows : { status: "unavailable" },
+      ]),
+    );
   },
 };
