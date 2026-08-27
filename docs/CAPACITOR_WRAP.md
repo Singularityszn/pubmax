@@ -25,6 +25,7 @@ later-session fallback after at least one healthy remote load.
 | Native projects | `ios/` (SPM, no CocoaPods) and `android/` |
 | Platform detection seam | `lib/nativePlatform.ts` (`isNativeApp()` / `nativePlatform()`) |
 | Native camera seam | `lib/nativeCamera.ts`, wired into `components/moment/MomentCapture.tsx` |
+| Foreground location declarations | `ios/App/App/Info.plist`, `android/app/src/main/AndroidManifest.xml` |
 | Native system-bar seam | `lib/nativeSystemBars.ts`, mounted by `components/native/NativeSystemBars.tsx` |
 | Universal/app-link route seam | `lib/nativeDeepLinks.ts`, mounted by `components/native/NativeDeepLinks.tsx` |
 | Push registration seam | `lib/nativePush.ts` → `POST /api/push-tokens` |
@@ -69,6 +70,10 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
    `NSPhotoLibraryAddUsageDescription` is deliberately omitted: the capture
    seam never writes to the gallery (`saveToGallery` stays at its `false`
    default in `lib/nativeCamera.ts`) — add the key only if that changes.
+   Foreground location is also declared on both platforms for existing
+   nearby-pub and walk-time actions. iOS carries
+   `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine
+   location together. Neither platform requests background location.
 3. **Push (APNs)**
    - Add the *Push Notifications* capability to the App target.
    - ~~AppDelegate forwarding~~ — **done in repo**: `ios/App/App/AppDelegate.swift`
