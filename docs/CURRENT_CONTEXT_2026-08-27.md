@@ -8,7 +8,7 @@ This document records current operational truth after the 23-27 August merge wav
 
 | Area | Current state | Decision |
 | --- | --- | --- |
-| GitHub `main` | Reviewed through #1223 | Only clean release source |
+| GitHub `main` | Reviewed through #1226 | Only clean release source |
 | Production | `dpl_EGv3MXtogGzUbttVDaKATCcH5aLS`, deployed 25 August | Behind current `main` |
 | Vercel project | `pubmax69/chengdu` | Deploy only after Captain approval and release gate |
 | GitHub Actions | Jobs stop before execution because of account billing | Local verification is required until owner repairs billing |
@@ -17,7 +17,7 @@ This document records current operational truth after the 23-27 August merge wav
 | Open pull requests | 0 | #1206 and #1211 were superseded and closed |
 | Open issues | 15 after closing #1184, #1186, and #1187 with merged evidence | Resolve by release impact |
 
-Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1212, #1213, #1214, #1215, #1216, #1218, #1219, #1220, #1221, #1222, and #1223.
+Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1212, #1213, #1214, #1215, #1216, #1218, #1219, #1220, #1221, #1222, #1223, #1225, and #1226.
 
 ## 2. Product state
 
@@ -28,6 +28,8 @@ Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1
 - Account-bound Pint Drops, Community Prices, moderation, provisional marks, corroboration, and freshness policy.
 - Tonight and Out honesty gates, transport context, Pal, profiles, creator-list discovery, Social shells, and consented analytics.
 - Mobile first-paint work, signature Map palette, Beermat Drop reveal, lazy Map dependencies, and Pal-to-venue navigation.
+- Manual social links now sit behind explicit provider capabilities and credential lifecycle state. OAuth remains disabled until each provider passes identity, refresh, and revocation acceptance checks.
+- A signed-in owner can explicitly promote an open, resolved pub Wanted to one public creator list without publishing its private note or source URL.
 - UK OSM harvest machinery and fail-loud Exa handling.
 
 ### 2.2 Proven in production
@@ -46,7 +48,7 @@ Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1
 - No real production evidence yet proves the full create, invite, run, complete, recap, contribute, repeat loop.
 - Community-price stock remains thin. A large UK map does not mean verified price, hour, access, or heritage coverage.
 - Pal voice remains unavailable. Text chat exists.
-- Social provider connection work is preserved on `codex/social-provider-capabilities` at `a97c7b5d5`, but it is based on an older stack and needs a fresh semantic port.
+- Social provider capability and lifecycle work is ported through #1225. No provider OAuth capability is certified yet.
 
 ## 3. Review findings
 
@@ -132,7 +134,7 @@ Never commit secret values. Required names and decisions are:
 
 ### Gate A: data honesty
 
-1. Apply migration `0119` through Captain's database process.
+1. Apply migrations `0119`, `0120`, and `0121` through Captain's database process in ledger order.
 2. Refresh What's-On and prove non-empty, correctly matched pub supply.
 3. Add aliases only from verified Venue identity evidence.
 
@@ -146,6 +148,8 @@ Completed on 27 August:
 - #1221 merged as `d1ee7b0b2` and superseded #1211.
 - #1222 merged the current-context record.
 - #1223 merged creator-list batching and full TypeScript-check repairs.
+- #1225 merged social provider capability and credential lifecycle policy as migration `0120`.
+- #1226 merged explicit Wanted-to-public-list promotion as migration `0121`.
 - Admin enforcement was restored after every merge.
 
 ### Gate C: v0 customer journey
@@ -187,7 +191,8 @@ Completed on 27 August:
 
 - Fresh UK bars enrichment, followed by website-content enrichment.
 - Creator-list batching is merged. Full TypeScript check and 37 focused tests passed locally.
-- Migration `0119` and What's-On refresh remain Captain database operations.
+- Social provider lifecycle and Wanted promotion are merged with full TypeScript checks and focused tests.
+- Migrations `0119`, `0120`, and `0121`, plus What's-On refresh, remain Captain database operations.
 - Clean production build, browser journeys, and release screenshots remain before deployment.
 
 Do not deploy while any Gate A blocker remains.
