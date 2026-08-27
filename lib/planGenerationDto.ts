@@ -48,7 +48,7 @@ export function planBudgetSummary(
 
 export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary | null) {
   return grounded ? {
-    walkingSpeedKmh: 4.8,
+    walkingSpeedKmh: WALK_KMH,
     walkingMinutes: grounded.walkingMinutes,
     transferUncertaintyMinutes: grounded.transferUncertaintyMinutes,
     scheduledRouteMinutes: grounded.scheduledRouteMinutes,
@@ -57,3 +57,4 @@ export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary |
 }
 import type { NightContext } from "@/lib/nightPlanning";
 import type { PlanBudgetSummary } from "@/lib/planIntelligence";
+import { WALK_KMH } from "@/lib/routeLegs";

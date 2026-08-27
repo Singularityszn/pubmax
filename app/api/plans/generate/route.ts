@@ -37,6 +37,7 @@ import { planTemporalEvidence } from "@/lib/planGenerationTemporalEvidence";
 import type { PlanConstraintReport, PlanRouteTiming, SelectedGroundedPlanStop } from "@/lib/planRouteOptimizer";
 import { resolvePlanningAnchor } from "@/lib/planningAnchor.server";
 import type { PlanningIntentSource } from "@/lib/planningIntent";
+import { WALK_KMH } from "@/lib/routeLegs";
 import { mintPlanGroundingProof, mintPlanGroundingProofV2 } from "@/lib/planGrounding.server";
 import { planSigningPreflightResponse, planSigningUnavailableResponse } from "@/lib/planSigningHttp.server";
 import { normalizePlanStopCount } from "@/lib/planStopCount";
@@ -500,7 +501,7 @@ export async function POST(request: Request): Promise<Response> {
 				transportBasis: legRouted
 					? "openrouteservice foot-walking route duration"
 					: grounded
-						? "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+						? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
 						: "compact-straight-line",
 			},
 			provenance: [
@@ -541,7 +542,7 @@ export async function POST(request: Request): Promise<Response> {
 							openingSource: alternativeGrounded?.opening.source ?? null,
 							visitWindow: alternativeGrounded?.visitWindow ?? null,
 							transportBasis: alternativeGrounded
-								? "direct-distance at 4.8 km/h plus 5 minutes uncertainty per leg"
+								? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
 								: "compact-straight-line",
 						},
 						provenance: [{ kind: "venue_dataset", label: `PUBMAXX venue record for ${alternative.name}` }],
