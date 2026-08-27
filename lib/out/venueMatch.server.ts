@@ -3,6 +3,7 @@ import "server-only";
 import { venueIdMatchesCity } from "@/lib/cityVenueIds";
 import type { CityId } from "@/lib/cities";
 import { buildOutVenueMatchIndex, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { getVenueIndexSnapshot, type VenueIndexSnapshot } from "@/lib/venueIndex";
 
 const built = new Map<CityId, OutVenueMatchIndex>();
@@ -25,7 +26,9 @@ async function buildCityIndex(city: CityId): Promise<OutVenueMatchIndex | null> 
   const snapshot = await loadSnapshot();
   if (!snapshot.loadedCities.has(city)) return null;
   return buildOutVenueMatchIndex(
-    [...snapshot.index.values()].filter((venue) => venueIdMatchesCity(venue.id, city)),
+    [...snapshot.index.values()].filter(
+      (venue) => venueIdMatchesCity(venue.id, city) && isPubVenueKind(venue.kind),
+    ),
   );
 }
 

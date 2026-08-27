@@ -403,9 +403,10 @@ export async function loadWhatsOn(
     revalidation = { status: "unmeasured", reason: "baseline-read-failed" };
   }
 
-  const baselineForRequest = params.venueMatchIndex
-    ? attachOutVenues(baseline, params.venueMatchIndex).rows
-    : baseline;
+  // Bundled rows were matched by the refresh pipeline, with its stronger
+  // address/postcode evidence. An unresolved bundled row must stay unresolved
+  // until the next refresh; the request-time matcher is only for live rows.
+  const baselineForRequest = baseline;
   const liveForRequest = params.venueMatchIndex
     ? attachOutVenues(live.rows, params.venueMatchIndex).rows
     : live.rows;

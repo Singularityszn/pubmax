@@ -94,4 +94,65 @@ describe("loadOutVenueMatchIndex", () => {
       expect.objectContaining({ venueId: "venue-london-1" }),
     ]);
   });
+
+  it("indexes only pub venues for public event matching", async () => {
+    venueState.read.mockResolvedValue({
+      ...snapshot(),
+      index: new Map([
+        [
+          "venue-london-pub",
+          {
+            id: "venue-london-pub",
+            name: "The Shared Arms",
+            borough: "Camden",
+            lat: 51.5326,
+            lng: -0.1119,
+            kind: "pub",
+          },
+        ],
+        [
+          "venue-london-bar",
+          {
+            id: "venue-london-bar",
+            name: "The Shared Arms",
+            borough: "Camden",
+            lat: 51.5326,
+            lng: -0.1119,
+            kind: "bar",
+          },
+        ],
+        [
+          "venue-london-food",
+          {
+            id: "venue-london-food",
+            name: "The Kitchen",
+            borough: "Camden",
+            lat: 51.5326,
+            lng: -0.1119,
+            kind: "food",
+          },
+        ],
+        [
+          "venue-london-restaurant",
+          {
+            id: "venue-london-restaurant",
+            name: "The Dining Room",
+            borough: "Camden",
+            lat: 51.5326,
+            lng: -0.1119,
+            kind: "restaurant",
+          },
+        ],
+      ]),
+    });
+
+    const { loadOutVenueMatchIndex } = await loadIndex();
+    const index = await loadOutVenueMatchIndex("london");
+
+    expect(index?.byNormalizedName.get("shared arms")).toEqual([
+      expect.objectContaining({ venueId: "venue-london-pub" }),
+    ]);
+    expect(index?.byNormalizedName.has("kitchen")).toBe(false);
+    expect(index?.byNormalizedName.has("dining room")).toBe(false);
+  });
 });
