@@ -36,7 +36,13 @@ function venueResponse(latitude: number, longitude: number): Response {
   });
 }
 
-function routeResponse(): Response {
+function routeResponse(
+  coordinates: number[][] = [
+    [-0.14, 51.51],
+    [-0.135, 51.515],
+    [-0.13, 51.52],
+  ],
+): Response {
   return Response.json({
     source: "ors",
     line: {
@@ -46,11 +52,7 @@ function routeResponse(): Response {
           type: "Feature",
           geometry: {
             type: "LineString",
-            coordinates: [
-              [-0.14, 51.51],
-              [-0.135, 51.515],
-              [-0.13, 51.52],
-            ],
+            coordinates,
           },
         },
       ],
@@ -106,6 +108,38 @@ afterEach(async () => {
 });
 
 describe("PlanRouteMiniMap request identity", () => {
+  it("frames routed detour vertices inside the padded viewport", async () => {
+    await act(async () => {
+      root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A }));
+    });
+    await settleVenueLookups([
+      { id: "venue-a", latitude: 51.51, longitude: -0.14 },
+      { id: "venue-b", latitude: 51.52, longitude: -0.13 },
+    ]);
+
+    await act(async () => {
+      resolvePending(
+        "/api/walk-route?",
+        routeResponse([
+          [-0.14, 51.51],
+          [-0.16, 51.515],
+          [-0.13, 51.52],
+        ]),
+      );
+      await Promise.resolve();
+    });
+
+    const path = host.querySelector<SVGPathElement>(".planRouteMiniMap__line");
+    const values = path?.getAttribute("d")?.match(/-?\d+(?:\.\d+)?/g)?.map(Number) ?? [];
+    expect(values).toHaveLength(6);
+    for (let index = 0; index < values.length; index += 2) {
+      expect(values[index]).toBeGreaterThanOrEqual(26);
+      expect(values[index]).toBeLessThanOrEqual(294);
+      expect(values[index + 1]).toBeGreaterThanOrEqual(26);
+      expect(values[index + 1]).toBeLessThanOrEqual(150);
+    }
+  });
+
   it("does not let a late previous route paint while a new plan resolves", async () => {
     await act(async () => {
       root.render(createElement(PlanRouteMiniMap, { stops: PLAN_A }));
