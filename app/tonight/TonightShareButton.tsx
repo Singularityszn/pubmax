@@ -8,17 +8,23 @@ import { offlineOrMessage } from "@/lib/apiErrorMessage";
 // signal on a real share/copy. Failures stay visible, and a successful copy shows a brief
 // "Link copied" acknowledgement on the clipboard path.
 
-import { useEffect, useState } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { Check, Share2 } from "lucide-react";
 
 import { trackEvent } from "@/lib/analytics";
 
+const subscribeToHydration = () => () => {};
+const readClientHydration = () => true;
+const readServerHydration = () => false;
+
 export default function TonightShareButton(): React.JSX.Element {
-  const [hydrated, setHydrated] = useState(false);
+  const hydrated = useSyncExternalStore(
+    subscribeToHydration,
+    readClientHydration,
+    readServerHydration,
+  );
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
-
-  useEffect(() => setHydrated(true), []);
 
   async function onShare() {
     if (typeof window === "undefined") return;
