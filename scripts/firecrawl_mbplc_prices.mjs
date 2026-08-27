@@ -59,7 +59,7 @@ const DRINK_CATEGORIES = new Set([
   "other",
 ]);
 
-// --- parser (mirror lib/mbplcMenuParser.ts) ---------------------------------
+// --- parser ------------------------------------------------------------------
 
 const TOP_SECTION = /^##\s+(.+)$/;
 const SUB_SECTION = /^###\s+(.+)$/;
@@ -68,7 +68,6 @@ const POUND_PRICE = /£\s*(\d+(?:\.\d{2})?)/;
 const BARE_PRICE = /^\s*(\d+\.\d{2})\s*$/;
 
 function mapMbplcSectionToCategory(section) {
-  // Keep in sync with lib/mbplcMenuParser.ts.
   const s = section.toLowerCase();
   if (
     s.includes("fever-tree") ||
@@ -113,8 +112,7 @@ function mapMbplcSectionToCategory(section) {
   if (s.includes("rum")) return "rum";
   if (s.includes("tequila")) return "shot";
   if (s.includes("spirit") || s.includes("shot")) return "shot";
-  // Unrecognised section: DROP (null), never coerce into "other" - keep in
-  // sync with lib/mbplcMenuParser.ts.
+  // Unrecognised section: DROP (null), never coerce into "other".
   if (s.includes("other")) return "other";
   return null;
 }

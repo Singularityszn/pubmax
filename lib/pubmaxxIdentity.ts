@@ -1,8 +1,10 @@
 import { normalizeHandle } from "@/lib/profiles";
+import { HANDLE_MAX } from "@/lib/handleNormalize";
 
 export const HANDLE_RENAME_COOLDOWN_MS = 30 * 24 * 60 * 60 * 1_000;
 
-const HANDLE_PATTERN = /^[a-z0-9_]{3,30}$/;
+const HANDLE_MIN = 3;
+const HANDLE_PATTERN = new RegExp(`^[a-z0-9_]{${HANDLE_MIN},${HANDLE_MAX}}$`);
 export const RESERVED_CONTRIBUTOR_HANDLES = [
   "karan",
   "sarah",

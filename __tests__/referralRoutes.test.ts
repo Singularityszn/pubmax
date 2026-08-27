@@ -49,7 +49,15 @@ describe("referral routes", () => {
   it("rejects account APIs without verified auth", async () => {
     expect((await inviteLink(request("/api/referrals/invite-link", { method: "POST" }))).status).toBe(401);
     expect((await referralStatus(request("/api/referrals/status"))).status).toBe(401);
-    expect((await claimAttribution(request("/api/referrals/claim-attribution", { method: "POST" }))).status).toBe(401);
+    const response = await claimAttribution(
+      request("/api/referrals/claim-attribution", { method: "POST" }),
+    );
+    expect(response.status).toBe(401);
+    expect(await response.json()).toEqual({
+      error: "Sign in to record an invite.",
+      code: "AUTH_REQUIRED",
+      retryable: false,
+    });
   });
 
   it("creates an opaque account-owned invite link without returning an account id", async () => {
