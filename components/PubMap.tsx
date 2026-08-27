@@ -349,6 +349,7 @@ import {
   filterVenuesForExperienceLens,
   isMapLensDrinkCategory,
   lensPricesForVenues,
+  mapLensPriceCaption,
   parseMapExperienceLensParam,
   trustedDrinkLensPrices,
   trustedNoAlcoholLensPrices,
@@ -3929,6 +3930,9 @@ export default function PubMap({
     if (!detailOpen || !selectedVenue) return null;
     const selectedLensPrice =
       activeLensPrices?.get(selectedVenue.id) ?? null;
+    const selectedLensPriceCaption = selectedLensPrice
+      ? mapLensPriceCaption(selectedLensPrice)
+      : null;
     const mobilePriceCaption = venuePriceCaption(selectedVenue);
     const showsAcceptedArrivalReceipt =
       acceptedArrivalSource !== null
@@ -3960,6 +3964,24 @@ export default function PubMap({
                     activeLensNoun?.toLowerCase() ?? "this view",
                     drinkIndexStatus,
                   )}
+                {selectedLensPriceCaption ? (
+                  <>
+                    {" · "}{selectedLensPriceCaption.label}
+                    {" · "}{selectedLensPriceCaption.freshness}
+                    {selectedLensPriceCaption.sourceUrl && selectedLensPriceCaption.sourceLabel ? (
+                      <>
+                        {" · "}
+                        <a
+                          href={selectedLensPriceCaption.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          {selectedLensPriceCaption.sourceLabel}
+                        </a>
+                      </>
+                    ) : null}
+                  </>
+                ) : null}
               </small>
             </span>
           ) : typeof selectedVenue.cheapestPrice === "number" ? (

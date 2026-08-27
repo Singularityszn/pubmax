@@ -1,12 +1,14 @@
 import {
   drivesMap,
+  formatPriceDay,
   mapCandidateOf,
   NO_ALCOHOL_DRINK_CATEGORIES,
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import { CATEGORY_META, type DrinkCategory } from "@/lib/drinks";
+import { firstHttp } from "@/lib/httpUrl";
 import { compactVenueAnchor } from "@/lib/venueAnchorPresentation";
-import type { Filters, Venue } from "@/lib/venues";
+import { formatObservedAt, type Filters, type Venue } from "@/lib/venues";
 
 export type MapExperienceLens = "all" | "no-alcohol" | "food";
 
@@ -42,8 +44,42 @@ export type MapLensPrice = {
   submittedAt?: number;
   observedAt?: string;
   source: "community" | "sourced-anchor";
+  sourceLabel?: string;
   sourceUrl?: string;
 };
+
+export type MapLensPriceCaption = {
+  label: "Community price" | "Sourced price";
+  freshness: string;
+  sourceLabel: string | null;
+  sourceUrl: string | null;
+};
+
+/** Identify the provenance lane that owns one selected-lens figure. */
+export function mapLensPriceCaption(
+  price: MapLensPrice,
+  now: number = Date.now(),
+): MapLensPriceCaption {
+  if (price.source === "community") {
+    const freshness = typeof price.submittedAt === "number"
+      ? formatPriceDay(price.submittedAt, now)
+      : "";
+    return {
+      label: "Community price",
+      freshness: freshness || "date not recorded",
+      sourceLabel: null,
+      sourceUrl: null,
+    };
+  }
+  const sourceUrl = firstHttp(price.sourceUrl) || null;
+  const freshness = formatObservedAt(price.observedAt, new Date(now));
+  return {
+    label: "Sourced price",
+    freshness: freshness || "date not recorded",
+    sourceLabel: sourceUrl ? price.sourceLabel?.trim() || "Source" : null,
+    sourceUrl,
+  };
+}
 
 /** Pint and brand refinements cannot answer a category-price lens. */
 export function filtersForDrinkPriceLens(
@@ -211,6 +247,7 @@ function sourcedAnchorPrice(venue: Venue): MapLensPrice | null {
     priceGbp: price,
     observedAt: venue.anchorObservedAt,
     source: "sourced-anchor",
+    sourceLabel: anchor.sourceLabel,
     sourceUrl: anchor.sourceUrl,
   };
 }

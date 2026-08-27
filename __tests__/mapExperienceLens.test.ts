@@ -12,6 +12,7 @@ import {
   filterVenuesForExperienceLens,
   lensPriceForVenue,
   isMapLensDrinkCategory,
+  mapLensPriceCaption,
   MAP_LENS_DRINK_CATEGORIES,
   type MapLensPrice,
   NO_ALCOHOL_LENS_PRICE_NOUN,
@@ -136,6 +137,56 @@ describe("no-alcohol lens price policy", () => {
 });
 
 describe("selected drink lens price policy", () => {
+  it("dates and attributes a trusted Community price", () => {
+    expect(mapLensPriceCaption({
+      venueId: "pub-1",
+      category: "soft-drink",
+      categoryLabel: "Soft drinks",
+      priceGbp: 3.2,
+      submittedAt: Date.parse("2026-08-27T10:00:00.000Z"),
+      source: "community",
+    }, Date.parse("2026-08-27T12:00:00.000Z"))).toEqual({
+      label: "Community price",
+      freshness: "today",
+      sourceLabel: null,
+      sourceUrl: null,
+    });
+  });
+
+  it("dates and links a sourced anchor price", () => {
+    expect(mapLensPriceCaption({
+      venueId: "food-1",
+      category: null,
+      categoryLabel: "House cocktail",
+      priceGbp: 12,
+      observedAt: "2026-07-20T12:00:00.000Z",
+      source: "sourced-anchor",
+      sourceLabel: "example.test",
+      sourceUrl: "https://example.test/menu",
+    }, Date.parse("2026-08-27T12:00:00.000Z"))).toEqual({
+      label: "Sourced price",
+      freshness: "observed 38 days ago",
+      sourceLabel: "example.test",
+      sourceUrl: "https://example.test/menu",
+    });
+  });
+
+  it("keeps an unsafe sourced anchor URL out of the caption link", () => {
+    expect(mapLensPriceCaption({
+      venueId: "food-1",
+      category: null,
+      categoryLabel: "House cocktail",
+      priceGbp: 12,
+      observedAt: "2026-07-20T12:00:00.000Z",
+      source: "sourced-anchor",
+      sourceLabel: "unsafe",
+      sourceUrl: "javascript:alert('test')",
+    }, Date.parse("2026-08-27T12:00:00.000Z"))).toMatchObject({
+      sourceLabel: null,
+      sourceUrl: null,
+    });
+  });
+
   it("stands the pint cap down for non-pint prices", () => {
     const filters = {
       maxPrice: 5.5,

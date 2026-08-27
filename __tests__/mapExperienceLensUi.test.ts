@@ -57,6 +57,10 @@ describe("MapExperienceLens", () => {
     expect(pubMap).toMatch(
       /selectedLensPrice\?\.categoryLabel \?\?\s*\n?\s*drinkLensUnknownRowLabel\(/,
     );
+    expect(pubMap).toContain("mapLensPriceCaption(selectedLensPrice)");
+    expect(pubMap).toContain("href={selectedLensPriceCaption.sourceUrl}");
+    expect(pubMap).toContain("{selectedLensPriceCaption.label}");
+    expect(pubMap).toContain("{selectedLensPriceCaption.freshness}");
     expect(pubMap).not.toContain("No price logged");
     expect(pubMap).toContain("experienceLens={experienceLens}");
     expect(pubMap).toContain("drinkLensCategory={mapDrinkLensCategory}");
