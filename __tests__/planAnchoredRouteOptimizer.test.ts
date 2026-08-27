@@ -103,6 +103,35 @@ describe("selectAnchoredGroundedPlanRoute", () => {
     expect(result.ok && result.outcome === "route" && ids(result.stops)).toEqual(["a", "c", "b"]);
   });
 
+  it("uses the lexical route key when score and distance tie", () => {
+    const result = selectAnchoredGroundedPlanRoute(
+      [candidate("a"), candidate("d"), candidate("c"), candidate("b")],
+      constraints(),
+      "a",
+    );
+
+    expect(result.ok && result.outcome === "route" && ids(result.stops)).toEqual(["a", "b", "c"]);
+  });
+
+  it("keeps the anchor score in the pruning bound", () => {
+    const result = selectAnchoredGroundedPlanRoute(
+      [
+        candidate("a", { score: 100, lng: -0.1 }),
+        candidate("b", { score: 9, lng: -0.082 }),
+        candidate("c", { score: 7, lng: -0.118 }),
+        candidate("d", { score: 6, lng: -0.118 }),
+        candidate("f", { score: 1, lng: -0.082 }),
+      ],
+      constraints(),
+      "a",
+    );
+
+    // b can only form a valid route with low-scoring f. c + d scores higher,
+    // but the search reaches that branch after it has an incumbent. Dropping
+    // the fixed anchor score from the upper bound would prune c + d unsafely.
+    expect(result.ok && result.outcome === "route" && ids(result.stops)).toEqual(["a", "c", "d"]);
+  });
+
   it("never duplicates the anchor when a stray candidate reuses its id", () => {
     const result = selectAnchoredGroundedPlanRoute(
       [candidate("a", { score: 10 }), candidate("a", { score: 2 }), candidate("b", { score: 5 }), candidate("c", { score: 4 })],
