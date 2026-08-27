@@ -99,6 +99,25 @@ describe("tonightWindow", () => {
     expect(new Date(start).toISOString()).toBe("2026-07-24T16:00:00.000Z");
     expect(new Date(end).toISOString()).toBe("2026-07-25T01:00:00.000Z");
   });
+
+  it.each([
+    {
+      name: "spring forward",
+      now: new Date("2026-03-28T20:00:00Z"),
+      expectedStart: "2026-03-28T17:00:00.000Z",
+      expectedEnd: "2026-03-29T01:00:00.000Z",
+    },
+    {
+      name: "autumn fall back",
+      now: new Date("2026-10-24T19:00:00Z"),
+      expectedStart: "2026-10-24T16:00:00.000Z",
+      expectedEnd: "2026-10-25T02:00:00.000Z",
+    },
+  ])("converts each $name boundary with its own London offset", ({ now, expectedStart, expectedEnd }) => {
+    const { start, end } = tonightWindow(now);
+    expect(new Date(start).toISOString()).toBe(expectedStart);
+    expect(new Date(end).toISOString()).toBe(expectedEnd);
+  });
 });
 
 describe("periodOverlapsTonight", () => {
