@@ -101,6 +101,13 @@ export function detailStatusFor(
 
 export type MapSelectionNotice = "unknown" | "lookup-failed";
 
+export const MAP_SELECTION_NOTICE_PARAM = "mapNotice";
+
+export function mapSelectionNoticeFromSearch(search: string): MapSelectionNotice | null {
+  const value = new URLSearchParams(search).get(MAP_SELECTION_NOTICE_PARAM);
+  return value === "unknown" || value === "lookup-failed" ? value : null;
+}
+
 export function mapSelectionNotice(input: {
   loaded: boolean;
   selectedVenueId: string;

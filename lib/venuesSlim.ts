@@ -27,6 +27,7 @@ import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues
 const OFFLINE_KEY_PREFIX = "venues_slim:v1";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
+const slimLoadPromises = new Map<string, Promise<SlimVenue[]>>();
 
 function offlineKeyForPath(path: string): string {
   return path === SLIM_VENUES_PATH
@@ -220,6 +221,21 @@ async function readSlimPayload(path: string): Promise<unknown> {
 }
 
 export async function loadSlimVenuesFromPath(
+  path: string,
+): Promise<SlimVenue[]> {
+  const inFlight = slimLoadPromises.get(path);
+  if (inFlight) return inFlight;
+
+  const pending = loadSlimVenuesFromPathUnshared(path);
+  slimLoadPromises.set(path, pending);
+  const clearInFlight = () => {
+    if (slimLoadPromises.get(path) === pending) slimLoadPromises.delete(path);
+  };
+  void pending.then(clearInFlight, clearInFlight);
+  return pending;
+}
+
+async function loadSlimVenuesFromPathUnshared(
   path: string,
 ): Promise<SlimVenue[]> {
   const offlineKey = offlineKeyForPath(path);

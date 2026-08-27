@@ -7,6 +7,8 @@ import {
   buildMapSeed,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeFromSearch,
+  MAP_SELECTION_NOTICE_PARAM,
   MAP_SELECTION_LOOKUP_FAILED_NOTE,
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
@@ -175,6 +177,17 @@ describe("mapSelectionNotice", () => {
     expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).toBe("We could not check that pub right now.");
     expect(UNKNOWN_MAP_SELECTION_NOTE).not.toMatch(/\u2014/);
     expect(MAP_SELECTION_LOOKUP_FAILED_NOTE).not.toMatch(/\u2014/);
+  });
+});
+
+describe("mapSelectionNoticeFromSearch", () => {
+  it("reads one-shot map-owned notice without creating a selection", () => {
+    expect(mapSelectionNoticeFromSearch(`?${MAP_SELECTION_NOTICE_PARAM}=unknown`)).toBe("unknown");
+    expect(new URLSearchParams(`?${MAP_SELECTION_NOTICE_PARAM}=unknown`).has("sel")).toBe(false);
+  });
+
+  it("ignores unsupported notice values", () => {
+    expect(mapSelectionNoticeFromSearch(`?${MAP_SELECTION_NOTICE_PARAM}=other`)).toBeNull();
   });
 });
 

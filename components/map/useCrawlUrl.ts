@@ -30,6 +30,7 @@ const OWNED_PASSTHROUGH_PARAMS = [
   "lat",
   "lng",
   "uk",
+  "mapNotice",
 ] as const;
 
 export function mergeCrawlUrlSearch(

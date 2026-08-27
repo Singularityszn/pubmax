@@ -431,7 +431,9 @@ import {
   buildMapSeed,
   detailStatusFor,
   mapSelectionNotice,
+  mapSelectionNoticeFromSearch,
   MAP_SELECTION_LOOKUP_FAILED_NOTE,
+  MAP_SELECTION_NOTICE_PARAM,
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
@@ -927,7 +929,20 @@ export default function PubMap({
     acceptedArrivalSnapshot,
     noAcceptedArrivalSource,
   );
-  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(null);
+  const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
+    () => mapSelectionNoticeFromSearch(currentSearch()),
+  );
+  useEffect(() => {
+    if (!selectionNotice || typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (!url.searchParams.has(MAP_SELECTION_NOTICE_PARAM)) return;
+    url.searchParams.delete(MAP_SELECTION_NOTICE_PARAM);
+    window.history.replaceState(
+      window.history.state,
+      "",
+      `${url.pathname}${url.search}${url.hash}`,
+    );
+  }, [selectionNotice]);
   const [acceptanceError, setAcceptanceError] = useState<string | null>(null);
   const preSheetFocusRef = useRef<HTMLElement | null>(null);
   const [venueInitialTab, setVenueInitialTab] = useState<TabKey>("overview");

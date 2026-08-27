@@ -3,7 +3,6 @@ import { describe, expect, it } from "vitest";
 import {
   PAL_UNMATCHED_VENUE_NOTICE,
   palKnownVenueIds,
-  palMapBrowseHref,
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -47,7 +46,7 @@ describe("resolvePalVenueOpenTarget", () => {
   it("falls back to the map without selection when the id is not listed", () => {
     expect(resolvePalVenueOpenTarget("venue-unknown", known)).toEqual({
       kind: "fallback",
-      href: palMapBrowseHref(),
+      href: "/map?mapNotice=unknown",
       notice: PAL_UNMATCHED_VENUE_NOTICE,
     });
   });
@@ -55,7 +54,7 @@ describe("resolvePalVenueOpenTarget", () => {
   it("falls back to the city map when an unmatched id names a non-London city", () => {
     expect(resolvePalVenueOpenTarget("venue-mcr-zzzzzz", known)).toEqual({
       kind: "fallback",
-      href: "/map/manchester",
+      href: "/map/manchester?mapNotice=unknown",
       notice: PAL_UNMATCHED_VENUE_NOTICE,
     });
   });
@@ -63,7 +62,7 @@ describe("resolvePalVenueOpenTarget", () => {
   it("refuses an empty id with the same unknown-pub line", () => {
     expect(resolvePalVenueOpenTarget("  ", known)).toEqual({
       kind: "fallback",
-      href: palMapBrowseHref(),
+      href: "/map?mapNotice=unknown",
       notice: PAL_UNMATCHED_VENUE_NOTICE,
     });
   });

@@ -1,7 +1,10 @@
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
-import { UNKNOWN_MAP_SELECTION_NOTE } from "@/lib/pubMap";
+import {
+  MAP_SELECTION_NOTICE_PARAM,
+  UNKNOWN_MAP_SELECTION_NOTE,
+} from "@/lib/pubMap";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
@@ -22,7 +25,10 @@ export function palKnownVenueIds(slim: readonly SlimVenue[]): ReadonlySet<string
 
 /** Map browse link with no `?sel=` — the unmatched fallback lands here. */
 export function palMapBrowseHref(cityId: CityId | null = DEFAULT_CITY_ID): string {
-  return cityAwareMapPath(cityId ?? DEFAULT_CITY_ID);
+  return cityAwareMapPath(
+    cityId ?? DEFAULT_CITY_ID,
+    `${MAP_SELECTION_NOTICE_PARAM}=unknown`,
+  );
 }
 
 /**
