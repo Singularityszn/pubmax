@@ -727,6 +727,7 @@ describe("invite loop events", () => {
   it("registers Wanted Wave A events with closed venueKind props only", () => {
     expect(ANALYTICS_EVENTS.wanted_created).toEqual(["venueKind", "hasSourceUrl"]);
     expect(ANALYTICS_EVENTS.wanted_fulfilled).toEqual(["venueKind"]);
+    expect(ANALYTICS_EVENTS.wanted_promoted).toEqual([]);
     expect(
       sanitizeEvent("wanted_created", {
         venueKind: "curated",

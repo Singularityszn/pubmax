@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   detectSourcePlatform,
+  isWantedPromotable,
   splitWantedPaste,
   validateWantedCreate,
   wantedFulfilledLine,
@@ -92,5 +93,34 @@ describe("wanted copy", () => {
 
   it("labels pending Wanteds honestly", () => {
     expect(wantedPendingLabel("mystery riverside")).toContain("Still matching");
+  });
+});
+
+describe("Wanted public-list eligibility", () => {
+  const resolved = {
+    id: "wanted-1",
+    ownerActor: "profile:11111111-1111-1111-1111-111111111111",
+    venueKind: "curated" as const,
+    venueId: "venue-1",
+    venueName: "The Dove",
+    sourceUrl: "",
+    sourcePlatform: "none" as const,
+    note: "",
+    rawPaste: "The Dove",
+    status: "open" as const,
+    createdAt: "2026-08-24T09:00:00.000Z",
+    fulfilledAt: null,
+    promotedListType: null,
+    promotedAt: null,
+  };
+
+  it("allows only open resolved Venue Dataset Wanteds", () => {
+    expect(isWantedPromotable(resolved)).toBe(true);
+    expect(isWantedPromotable({ ...resolved, venueKind: "pending", venueId: "" }))
+      .toBe(false);
+    expect(isWantedPromotable({ ...resolved, venueKind: "uk_base" })).toBe(false);
+    expect(isWantedPromotable({ ...resolved, status: "fulfilled" })).toBe(false);
+    expect(isWantedPromotable({ ...resolved, promotedListType: "Want to Visit" }))
+      .toBe(false);
   });
 });

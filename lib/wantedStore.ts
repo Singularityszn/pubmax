@@ -12,6 +12,7 @@ import {
   onMissingDurableWrite,
 } from "@/lib/storeBackend";
 import type { Wanted, WantedDTO, WantedFields, WantedStatus } from "@/lib/wanted";
+import { cleanText } from "@/lib/textClean";
 
 const TABLE = "wanteds";
 const MIGRATION_HINT = "apply migration 0093";
@@ -28,6 +29,12 @@ export type WantedStore = {
   ): Promise<WantedDTO[]>;
   delete(ownerActor: string, id: string): Promise<boolean>;
   getById(ownerActor: string, id: string): Promise<WantedDTO | null>;
+  recordPromotion(
+    ownerActor: string,
+    id: string,
+    listType: string,
+    now?: number,
+  ): Promise<WantedDTO | null>;
 };
 
 function toDTO(row: Wanted): WantedDTO {
@@ -56,6 +63,8 @@ export const memoryWantedStore: WantedStore = {
       status: "open",
       createdAt: new Date(now).toISOString(),
       fulfilledAt: null,
+      promotedListType: null,
+      promotedAt: null,
     };
     byId.set(wanted.id, wanted);
     return toDTO(wanted);
@@ -96,6 +105,24 @@ export const memoryWantedStore: WantedStore = {
     if (!hit || hit.ownerActor !== ownerActor) return null;
     return toDTO(hit);
   },
+
+  async recordPromotion(ownerActor, id, rawListType, now = Date.now()) {
+    const hit = byId.get(id);
+    const listType = cleanText(rawListType, 60);
+    if (
+      !hit
+      || hit.ownerActor !== ownerActor
+      || hit.status !== "open"
+      || hit.venueKind !== "curated"
+      || !listType
+    ) return null;
+    if (hit.promotedListType) {
+      return hit.promotedListType === listType ? toDTO(hit) : null;
+    }
+    hit.promotedListType = listType;
+    hit.promotedAt = new Date(now).toISOString();
+    return toDTO(hit);
+  },
 };
 
 // ── Supabase ─────────────────────────────────────────────────────────────────
@@ -119,6 +146,8 @@ function toRow(wanted: Wanted) {
     status: wanted.status,
     created_at: wanted.createdAt,
     fulfilled_at: wanted.fulfilledAt,
+    promoted_list_type: wanted.promotedListType,
+    promoted_at: wanted.promotedAt,
   };
 }
 
@@ -152,6 +181,9 @@ function fromRow(row: Record<string, unknown>): Wanted | null {
     status,
     createdAt: typeof row.created_at === "string" ? row.created_at : new Date(0).toISOString(),
     fulfilledAt: typeof row.fulfilled_at === "string" ? row.fulfilled_at : null,
+    promotedListType:
+      typeof row.promoted_list_type === "string" ? row.promoted_list_type : null,
+    promotedAt: typeof row.promoted_at === "string" ? row.promoted_at : null,
   };
 }
 
@@ -163,6 +195,8 @@ export const supabaseWantedStore: WantedStore = {
       status: "open",
       createdAt: new Date(now).toISOString(),
       fulfilledAt: null,
+      promotedListType: null,
+      promotedAt: null,
     };
     return guard({
       context: "create",
@@ -275,6 +309,50 @@ export const supabaseWantedStore: WantedStore = {
           .maybeSingle();
         if (error) throw new Error(error.message);
         if (!data) return null;
+        const row = fromRow(data as Record<string, unknown>);
+        return row ? toDTO(row) : null;
+      },
+    });
+  },
+
+  async recordPromotion(ownerActor, id, rawListType, now = Date.now()) {
+    const listType = cleanText(rawListType, 60);
+    if (!listType) return null;
+    const current = await this.getById(ownerActor, id);
+    if (!current) return null;
+    if (current.status !== "open" || current.venueKind !== "curated") return null;
+    if (current.promotedListType) {
+      return current.promotedListType === listType ? current : null;
+    }
+    const promotedAt = new Date(now).toISOString();
+    return guard({
+      context: "record-promotion",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: "wanteds",
+          migrationHint: "apply migration 0121",
+          fallback: () =>
+            memoryWantedStore.recordPromotion(ownerActor, id, listType, now),
+        }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .update({
+            promoted_list_type: listType,
+            promoted_at: promotedAt,
+          })
+          .eq("owner_actor", ownerActor)
+          .eq("id", id)
+          .eq("status", "open")
+          .eq("venue_kind", "curated")
+          .is("promoted_list_type", null)
+          .select("*")
+          .maybeSingle();
+        if (error) throw new Error(error.message);
+        if (!data) {
+          const latest = await this.getById(ownerActor, id);
+          return latest?.promotedListType === listType ? latest : null;
+        }
         const row = fromRow(data as Record<string, unknown>);
         return row ? toDTO(row) : null;
       },
