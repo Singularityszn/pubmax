@@ -228,7 +228,7 @@ describe("plan composer chip intent policy", () => {
 });
 
 describe("PlanDescribeFirst chip intent", () => {
-  it("keeps a selected stop count when typing before tapping a chip", async () => {
+  it("keeps typed text and waits for explicit submit when tapping a chip", async () => {
     const onSubmit = vi.fn();
     await act(async () => {
       root.render(createElement(PlanDescribeFirst, {
@@ -253,7 +253,8 @@ describe("PlanDescribeFirst chip intent", () => {
       chip?.click();
     });
 
-    expect(onSubmit).toHaveBeenCalledWith("Camden", 6);
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(query.value).toBe("Camden");
   });
 
   it("reports typed query text to the composer before leaving describe-first", async () => {

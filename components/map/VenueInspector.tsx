@@ -104,6 +104,8 @@ type VenueInspectorProps = {
   drinkLensCategory?: DrinkCategory | null;
   /** Per-zone median pint index for the Overview area-price compare line. */
   zoneIndex?: ZonePintIndex | null;
+  /** Refresh this venue's Pint Drops after a successful Log it. */
+  onLogged?: (venueId: string) => void;
   revealRequest?: VenueRevealRequest | null;
   onInterruptReveal?: () => void;
 };
@@ -156,6 +158,7 @@ export default function VenueInspector({
   experienceLens = "all",
   drinkLensCategory = null,
   zoneIndex = null,
+  onLogged,
   revealRequest = null,
   onInterruptReveal,
 }: VenueInspectorProps) {
@@ -423,6 +426,7 @@ export default function VenueInspector({
             : 0
         }
         zoneIndex={zoneIndex}
+        onLogged={onLogged}
         priceRevealMotionClass={priceRevealMotionClass}
         revealRecord={revealRecord}
         revealRecordLate={revealRecordLate}

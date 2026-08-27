@@ -103,8 +103,10 @@ type VenuePriceSubmitProps = {
    * The sheet mounts this form before its mission read answers. Hold Log it
    * until that read lands or times out, or a typed price is submitted under
    * a drink that arrived after typing began.
-   */
+  */
   missionPending?: boolean;
+  /** Refresh this venue's Pint Drops after a successful Log it. */
+  onLogged?: (venueId: string) => void;
 };
 
 /**
@@ -129,6 +131,7 @@ export default function VenuePriceSubmit({
   laneCategory = DEFAULT_SUBMIT_CATEGORY,
   mission = null,
   missionPending = false,
+  onLogged,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -318,6 +321,7 @@ export default function VenuePriceSubmit({
       setPrice("");
       setHeldCategory(null);
       clearPintPhoto();
+      onLogged?.(venueId);
     });
   }
 

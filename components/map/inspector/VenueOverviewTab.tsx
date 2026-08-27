@@ -272,6 +272,8 @@ export default function VenueOverviewTab({
   /** Per-zone median pint index from the map's priced pubs — zone fallback
    *  when the Pint Index league has no borough row for this pub. */
   zoneIndex?: ZonePintIndex | null;
+  /** Refresh this venue's Pint Drops after a successful Log it. */
+  onLogged?: (venueId: string) => void;
   priceRevealMotionClass?: string;
   revealRecord?: boolean;
   revealRecordLate?: boolean;
@@ -577,6 +579,7 @@ export default function VenueOverviewTab({
           // The composer opens on the drink the map is under, so a cocktail map
           // does not ask a drinker to find cocktails again.
           laneCategory={leadLane}
+          onLogged={onLogged}
         />
       ) : null}
       {mode === "build" && isPubVenue(venue) ? (

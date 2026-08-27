@@ -42,10 +42,19 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   const [inviteLoad, setInviteLoad] = useState<"idle" | "loading" | "ready" | "missing">("idle");
   const [status, setStatus] = useState("");
   const [rotating, setRotating] = useState(false);
+  const [sessionCheckedPlanId, setSessionCheckedPlanId] = useState<string | null>(null);
 
   useEffect(() => {
     if (memberToken) return;
-    void restorePlanCapability(planId).catch(() => undefined);
+    let active = true;
+    void restorePlanCapability(planId)
+      .catch(() => undefined)
+      .finally(() => {
+        if (active) setSessionCheckedPlanId(planId);
+      });
+    return () => {
+      active = false;
+    };
   }, [memberToken, planId]);
 
   useEffect(() => {
@@ -75,10 +84,13 @@ export default function PlanHostInviteLink({ planId }: { planId: string }) {
   }, [memberToken, planId]);
 
   if (!memberToken) {
+    const sessionChecked = sessionCheckedPlanId === planId;
     return (
-      <div className="planHostInviteLink" aria-busy="true">
+      <div className="planHostInviteLink" aria-busy={!sessionChecked}>
         <p className="planHostInviteLink__status" role="status">
-          Restoring your invite tools…
+          {sessionChecked
+            ? "Invite tools need a crew session. Join the plan, then try again."
+            : "Restoring your invite tools…"}
         </p>
       </div>
     );

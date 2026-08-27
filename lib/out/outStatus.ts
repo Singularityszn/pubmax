@@ -1,5 +1,7 @@
 import type { OutResponse, OutStatus } from "@/lib/out/types";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { OutVenueMatchStatus } from "@/lib/out/venueMatch";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 
 export const OUT_READY_CACHE_CONTROL = "public, s-maxage=300, stale-while-revalidate=900";
 export const OUT_UNSETTLED_CACHE_CONTROL = "public, s-maxage=30, stale-while-revalidate=0";
@@ -48,7 +50,7 @@ export function outAnswerView<T>(
 }
 
 export type OutListingsBody = Pick<OutResponse, "status" | "events" | "reason"> &
-  Partial<Pick<OutResponse, "listingsStatus" | "listingsReason">>;
+  Partial<Pick<OutResponse, "listingsStatus" | "listingsReason" | "venueMatch">>;
 
 /**
  * The listings lane's own health, for every surface that shows only listings.
@@ -67,6 +69,13 @@ export function outListingsHealth(body: OutListingsBody): {
     return { status: body.listingsStatus, reason: body.listingsReason };
   }
   return { status: body.status, reason: body.reason };
+}
+
+function matchedPubListingCount(events: readonly WhatsOnRow[]): number {
+  return events.reduce(
+    (count, row) => (canonicalOutVenueId(row.venueId) !== null ? count + 1 : count),
+    0,
+  );
 }
 
 /**
@@ -100,6 +109,13 @@ export function outStatusLines(input: {
     lines.push(listings.reason ?? OUT_NOT_CONFIGURED_LINE);
     return lines;
   }
-  if (!input.failed && body.events.length === 0) lines.push(OUT_EMPTY_LINE);
+  if (input.failed) return lines;
+  if (body.events.length === 0) {
+    lines.push(OUT_EMPTY_LINE);
+    return lines;
+  }
+  if (body.venueMatch === "ready" && matchedPubListingCount(body.events) === 0) {
+    lines.push(OUT_EMPTY_LINE);
+  }
   return lines;
 }

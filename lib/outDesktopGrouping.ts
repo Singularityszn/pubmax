@@ -199,6 +199,9 @@ export function outUnmatchedListingsNotice(
   const count = options.unmatchedCount ?? hidden.length;
   if (count === 0) return null;
   const shown = rows.length - hidden.length;
+  // Match answered and every row is off a listed pub: quiet, not a wall of
+  // untappable provider cards described as "listings tonight".
+  if (shown === 0 && venueMatch === "ready") return null;
   const noun = outWindowNoun(window);
   // "at the weekend" reads as a phrase; "tonight" and "tomorrow" stand alone.
   const when = window === "weekend" ? `at ${noun}` : noun;
