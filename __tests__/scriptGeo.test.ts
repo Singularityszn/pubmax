@@ -16,12 +16,6 @@ const SCALAR_KILOMETRE_DISTANCE_CONSUMERS = [
   "scripts/lib/ukPlaceIndex.mjs",
 ] as const;
 
-const ALLOWED_KILOMETRE_FORMULA_OWNERS = new Set([
-  // This one-time network generator accepts longitude first. Keeping its local
-  // helper avoids a silent coordinate swap until the generator is hermetic.
-  "scripts/gen_london_localities.mjs",
-]);
-
 function scriptModules(directory: string): string[] {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
     const absolute = join(directory, entry.name);
@@ -71,6 +65,20 @@ describe("script great-circle distance", () => {
     expect(postcodeDistance(...coordinates)).toBeCloseTo(originalPostcodeValue, 12);
   });
 
+  it("keeps longitude-first generator coordinates in longitude-first order", async () => {
+    const { haversineKm } = await import("@/scripts/lib/geo.mjs");
+    const { localityDistanceKm } = await import("@/scripts/gen_london_localities.mjs");
+    const longitudeFirst = [-0.1278, 51.5074, -3.1883, 55.9533] as const;
+
+    expect(localityDistanceKm(...longitudeFirst)).toBe(533.6522003390048);
+    expect(localityDistanceKm(...longitudeFirst)).toBe(
+      haversineKm(51.5074, -0.1278, 55.9533, -3.1883),
+    );
+    expect(localityDistanceKm(...longitudeFirst)).not.toBe(
+      haversineKm(...longitudeFirst),
+    );
+  });
+
   it.each([5, 30])("keeps the %i kilometre decision boundary stable", async (threshold) => {
     const { haversineKm } = await import("@/scripts/lib/geo.mjs");
     const insideDelta = ((threshold - 0.0001) / 6_371) * (180 / Math.PI);
@@ -110,7 +118,6 @@ describe("script great-circle distance", () => {
       const source = readFileSync(absolutePath, "utf8");
       const normalizedNumbers = source.replaceAll("_", "").toLowerCase();
       expect(normalizedNumbers, relativePath).not.toMatch(/6371000|6\.371e\+?6/);
-      if (ALLOWED_KILOMETRE_FORMULA_OWNERS.has(relativePath)) continue;
       const ownsGreatCircleTrig = /Math\.(?:asin|atan2)\s*\(/.test(source)
         && /Math\.sin\s*\(/.test(source)
         && /Math\.cos\s*\(/.test(source);
