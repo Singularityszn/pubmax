@@ -156,6 +156,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/weather-recommendations`
 - `PUT app/api/me/night-profile`
 - `PUT app/api/me/pending-plan-recaps`
+- `PUT app/api/plans/[id]/session`
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
 <!-- mutation-handler-inventory:end -->
@@ -174,6 +175,11 @@ Protection in a sibling method cannot certify another method.
 These boundaries compose. For example, Plan creation is rate-limited and fails
 closed when durable enforcement is unavailable; later lifecycle writes require a
 Plan member capability and use idempotency keys or atomic store operations.
+
+`POST /api/plans/generate` delegates its public abuse boundary to
+`preparePlanGeneration` in `lib/planGeneration.server.ts`. That helper parses
+the request, checks signing readiness, and spends the fail-closed
+`plan-generate` budget before candidate selection or provider work starts.
 
 Referral writes are account-bound. `POST /api/referrals/invite-link` derives the
 inviter from the verified JWT. `POST /api/referrals/claim-attribution` derives

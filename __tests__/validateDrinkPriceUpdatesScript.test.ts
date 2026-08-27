@@ -61,6 +61,10 @@ function setupScratch(files: Record<string, unknown>): string {
       POSTCODE_CONSISTENCY_MODULE,
       join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
     );
+    cpSync(
+      join(ROOT, "scripts", "lib", "geo.mjs"),
+      join(scratchScripts, "lib", "geo.mjs"),
+    );
   }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
@@ -82,6 +86,12 @@ function setupScratch(files: Record<string, unknown>): string {
   cpSync(
     join(ROOT, "lib", "whatsOnRowShape.mjs"),
     join(scratchLib, "whatsOnRowShape.mjs"),
+  );
+  // Editorial RSS validation shares one URL and row-shape module with the
+  // poller. The scratch validator must carry that production dependency.
+  cpSync(
+    join(ROOT, "lib", "editorialRss.mjs"),
+    join(scratchLib, "editorialRss.mjs"),
   );
   // The UK place index is checked against the same name rule the chooser and
   // the builder share, which the script imports rather than restates.

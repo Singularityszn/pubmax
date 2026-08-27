@@ -113,9 +113,11 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 // the same journey. `handleProfileCoverPhoto*` is the same delegation for the
 // cover ROTATION (lib/profileCoverPhotoRoute.server.ts): the same ownership
 // gate, a per-actor budget on every add, remove and reorder, and a per-actor
-// budget on the reader flag.
+// budget on the reader flag. `preparePlanGeneration` is the Plan generation
+// delegation; lib/planGeneration.server.ts spends its public rate-limit budget
+// before the route selects candidates or calls providers.
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
-  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
+  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report)|preparePlanGeneration)\b/,
   account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity|requireVerifiedSocialActor|handleProfileImage(?:Upload|Delete)|handleProfileCoverPhoto(?:Upload|Delete|Move))\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
@@ -169,7 +171,7 @@ describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
     // Each mutation method is one coordination point. Exact path and method
     // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    expect(mutationHandlers).toHaveLength(140);
+    expect(mutationHandlers).toHaveLength(141);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );

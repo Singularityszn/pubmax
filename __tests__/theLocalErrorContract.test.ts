@@ -149,8 +149,10 @@ describe("app/api public error envelope (tree-wide)", () => {
 // `handleProfileCoverPhoto*` is that same delegation for the cover ROTATION:
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
+// `preparePlanGeneration` is the Plan-generation delegation: it spends the
+// fail-closed `plan-generate` budget before candidate selection starts.
 const LIMITER_TOKENS =
-  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
+  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b|\bpreparePlanGeneration\b/;
 
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {

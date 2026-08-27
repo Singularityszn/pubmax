@@ -143,6 +143,35 @@ describe("active Plan account claim", () => {
     vi.useRealTimers();
   });
 
+  it("discards a transient failure body before retrying", async () => {
+    vi.useFakeTimers();
+    let cancelled = false;
+    state.accountBoundFetch
+      .mockResolvedValueOnce(new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode('{"error":"busy"}'));
+          },
+          cancel() {
+            cancelled = true;
+          },
+        }),
+        { status: 503 },
+      ))
+      .mockResolvedValueOnce(new Response(null, { status: 200 }));
+
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "ffffffff-ffff-4fff-8fff-ffffffffffff",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(cancelled).toBe(true);
+    vi.useRealTimers();
+  });
+
   it("does not schedule a retry after unmount while the first claim is pending", async () => {
     vi.useFakeTimers();
     let resolveClaim: ((response: Response) => void) | undefined;

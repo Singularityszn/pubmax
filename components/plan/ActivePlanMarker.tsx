@@ -14,6 +14,7 @@ import {
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
+import { discardBody } from "@/lib/responseBody";
 
 // Records the plan being viewed as "on tonight" (lib/activePlan), so the shell's
 // Night Mode card can surface it across every screen. Renders nothing — it's a
@@ -74,9 +75,9 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
             `/api/plans/${id}/session`,
             { method: "PUT" },
           );
-          if (response.ok || (response.status !== 429 && response.status !== 503)) {
-            return;
-          }
+          const retryableStatus = response.status === 429 || response.status === 503;
+          if (!response.ok) discardBody(response);
+          if (response.ok || !retryableStatus) return;
         } catch {
           // A session or network race gets the same bounded retry as a 503.
         }
