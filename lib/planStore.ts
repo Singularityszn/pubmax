@@ -30,7 +30,7 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
-export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
+export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
@@ -49,7 +49,7 @@ export type PlanCreateOptions = {
 export type PlanStore = {
   create(input: CreatePlanInput, options?: PlanCreateOptions): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
-  join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string }): Promise<PlanJoinResult>;
+  join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string; userId?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
@@ -312,13 +312,20 @@ export const supabasePlanStore: PlanStore = {
     const current = lookup.plan;
     if (!current) return { ok: false, error: "not_found" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, key);
-    const requestHash = planRequestDigest({ name, collaborationAuthorized: options.collaborationAuthorized === true });
+    const requestHash = planRequestDigest({
+      name,
+      collaborationAuthorized: options.collaborationAuthorized === true,
+      ...(userId ? { userId } : {}),
+    });
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_idempotent_atomic", {
+      const { data, error } = await requireSupabaseAdmin().rpc(userId
+        ? "join_plan_account_idempotent_atomic"
+        : "join_plan_idempotent_atomic", {
         p_plan_id: id,
         p_member_id: memberId,
         p_member_name: name,
@@ -327,10 +334,12 @@ export const supabasePlanStore: PlanStore = {
         p_can_collaborate: options.collaborationAuthorized === true,
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
+        ...(userId ? { p_user_id: userId } : {}),
       });
       if (error) throw new Error(error.message);
       if (data === "full") return { ok: false, error: "full" };
       if (data === "conflict") return { ok: false, error: "conflict" };
+      if (data === "account_conflict") return { ok: false, error: "account_conflict" };
       if (data === "not_found") return { ok: false, error: "not_found" };
       if (data !== "joined" && data !== "replayed") return { ok: false, error: "error" };
       const plan = await this.get(id);
@@ -631,8 +640,13 @@ export const memoryPlanStore: PlanStore = {
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, key);
-    const requestHash = planRequestDigest({ name, collaborationAuthorized: options.collaborationAuthorized === true });
+    const requestHash = planRequestDigest({
+      name,
+      collaborationAuthorized: options.collaborationAuthorized === true,
+      ...(userId ? { userId } : {}),
+    });
     const replay = planMemory.joinRequests.get(`${id}:${keyHash}`);
     if (replay) {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
@@ -642,12 +656,15 @@ export const memoryPlanStore: PlanStore = {
         role: "guest", collaborationAuthorized: options.collaborationAuthorized === true,
       };
     }
+    if (userId && plan.crew.some((member) => member.userId === userId)) {
+      return { ok: false, error: "account_conflict" };
+    }
     if (plan.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const at = stamp();
     const collaborationAuthorized = options.collaborationAuthorized === true;
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
-    plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
+    plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized, ...(userId ? { userId } : {}) });
     planMemory.joinRequests.set(`${id}:${keyHash}`, { requestHash, memberId });
     return { ok: true, plan: publicState(plan), memberToken, role: "guest", collaborationAuthorized };
   },

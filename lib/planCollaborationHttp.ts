@@ -9,7 +9,7 @@ export function collaborationError(error: PlanCollaborationError): { body: Publi
   const status = error === "not_found" ? 404
     : error === "forbidden" ? 403
       : error === "expired" ? 410
-        : ["replayed", "revoked", "conflict", "constraints_unresolved"].includes(error) ? 409
+        : ["replayed", "revoked", "conflict", "account_conflict", "constraints_unresolved"].includes(error) ? 409
           : error === "error" ? 503
             : 400;
   const message = error === "constraints_unresolved" ? "Required crew constraints remain unresolved."
@@ -18,7 +18,8 @@ export function collaborationError(error: PlanCollaborationError): { body: Publi
         : error === "revoked" ? "That capability was revoked."
           : error === "forbidden" ? "That member capability cannot perform this action."
             : error === "not_found" ? "That collaboration item does not exist."
-              : error === "conflict" ? "The Plan changed before this action could be applied."
+              : error === "account_conflict" ? "This account is already in the Plan."
+                : error === "conflict" ? "The Plan changed before this action could be applied."
                 : error === "error" ? "The collaboration update is temporarily unavailable."
                   : "Add a valid collaboration request.";
   return { body: { error: message, code: `PLAN_COLLAB_${error.toUpperCase()}`, retryable: error === "error" || error === "conflict" }, status };

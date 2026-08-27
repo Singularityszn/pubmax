@@ -81,7 +81,7 @@ async function freePort(): Promise<number> {
   });
 }
 
-async function startPostgres(): Promise<PostgresSession> {
+async function startPostgres(applyUnique = true): Promise<PostgresSession> {
   const initdb = postgresBinary("initdb");
   const postgres = postgresBinary("postgres");
   const psql = postgresBinary("psql");
@@ -139,9 +139,19 @@ async function startPostgres(): Promise<PostgresSession> {
       { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
     ).trim();
     const apply = (path: string): void => {
-      execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", "-f", path], {
-        stdio: "pipe",
-      });
+      try {
+        execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", "-f", path], {
+          stdio: "pipe",
+        });
+      } catch (error) {
+        const stderr = error && typeof error === "object" && "stderr" in error
+          ? String((error as { stderr?: Buffer | string }).stderr ?? "")
+          : "";
+        throw new Error([
+          error instanceof Error ? error.message : String(error),
+          stderr,
+        ].filter(Boolean).join("\n"));
+      }
     };
     sql(`
       create role anon nologin;
@@ -162,7 +172,7 @@ async function startPostgres(): Promise<PostgresSession> {
       grant all on public.plans, public.plan_crew_members to service_role;
     `);
     apply(CLAIM);
-    apply(UNIQUE);
+    if (applyUnique) apply(UNIQUE);
     return { sql, apply, stop };
   } catch (error) {
     await stop();
@@ -171,6 +181,7 @@ async function startPostgres(): Promise<PostgresSession> {
 }
 
 let session: PostgresSession | null = null;
+let legacySession: PostgresSession | null = null;
 let skipReason: string | null = null;
 
 beforeAll(async () => {
@@ -180,6 +191,7 @@ beforeAll(async () => {
     return;
   }
   session = await startPostgres();
+  legacySession = await startPostgres(false);
 }, 30_000);
 
 beforeEach((context) => {
@@ -188,9 +200,35 @@ beforeEach((context) => {
 
 afterAll(async () => {
   await session?.stop();
+  await legacySession?.stop();
 });
 
 describe("Plan membership account claim", () => {
+  it("reports legacy duplicate stamped memberships before creating the uniqueness index", () => {
+    const plan = "00000000-0000-4000-8000-000000000021";
+    const account = "00000000-0000-4000-8000-000000000022";
+    const first = "00000000-0000-4000-8000-000000000023";
+    const duplicate = "00000000-0000-4000-8000-000000000024";
+    legacySession!.sql(`
+      insert into public.plans(id) values ('${plan}');
+      insert into public.plan_crew_members(id, plan_id, user_id, joined_at) values
+        ('${first}', '${plan}', '${account}', '2026-08-27T18:00:00Z'),
+        ('${duplicate}', '${plan}', '${account}', '2026-08-27T18:01:00Z');
+    `);
+
+    expect(() => legacySession!.apply(UNIQUE)).toThrow(
+      /legacy duplicate stamped Plan membership/i,
+    );
+    expect(legacySession!.sql(`
+      select count(*)
+      from public.plan_crew_members
+      where plan_id = '${plan}' and user_id = '${account}'
+    `)).toBe("2");
+    expect(legacySession!.sql(
+      "select to_regclass('public.plan_crew_members_plan_user_unique_idx') is null",
+    )).toBe("t");
+  });
+
   it("owns host and member atomically, stays idempotent, and rejects duplicates", () => {
     const plan = "00000000-0000-4000-8000-000000000001";
     const host = "00000000-0000-4000-8000-000000000002";
