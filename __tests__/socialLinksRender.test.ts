@@ -14,8 +14,9 @@ import SocialLinksEditor, {
 } from "@/components/profile/SocialLinksEditor";
 import {
   SOCIAL_PROVIDERS,
-  type SocialProviderAvailability,
+  type SocialProvider,
 } from "@/lib/socialConnections";
+import { type SocialProviderCapabilities } from "@/lib/socialProviderCapabilities";
 
 vi.mock("@/lib/authedFetch", () => ({
   authedFetch: async () => new Response("{}", { status: 401 }),
@@ -23,14 +24,20 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 function availability(
-  overrides: Partial<Record<string, { oauth: boolean; manual: boolean }>>,
-): SocialProviderAvailability {
+  overrides: Partial<Record<SocialProvider, Partial<SocialProviderCapabilities>>>,
+): Record<SocialProvider, SocialProviderCapabilities> {
   return Object.fromEntries(
     SOCIAL_PROVIDERS.map((provider) => [
       provider,
-      overrides[provider] ?? { oauth: false, manual: true },
+      {
+        manual_link: true,
+        oauth_identity: false,
+        read_selected_content: false,
+        publish: false,
+        ...overrides[provider],
+      },
     ]),
-  ) as SocialProviderAvailability;
+  ) as Record<SocialProvider, SocialProviderCapabilities>;
 }
 
 describe("public social links", () => {
@@ -96,14 +103,16 @@ describe("social links editor", () => {
     ]) {
       expect(html).toContain(`>${label}</option>`);
     }
+    expect(html).toMatch(/<option value="instagram" disabled=""[^>]*>Instagram<\/option>/);
+    expect(html).toContain('class="socialLinksAdd" disabled=""');
   });
 
   it("renders only OAuth providers declared available by the server", () => {
     const html = renderToStaticMarkup(
       createElement(SocialConnectionActions, {
         providers: availability({
-          x: { oauth: true, manual: true },
-          instagram: { oauth: true, manual: true },
+          x: { oauth_identity: true },
+          instagram: { oauth_identity: true },
         }),
         onConnect: vi.fn(),
       }),
