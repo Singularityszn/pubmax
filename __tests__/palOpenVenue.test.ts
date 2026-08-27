@@ -11,8 +11,8 @@ import { venueMapUrl } from "@/lib/venueMapUrl";
 describe("palKnownVenueIds", () => {
   it("collects ids from slim rows", () => {
     const ids = palKnownVenueIds([
-      { id: "venue-a", name: "A", lat: 0, lng: 0, cheapestPrice: null },
-      { id: "venue-b", name: "B", lat: 0, lng: 0, cheapestPrice: 4.2 },
+      { id: "venue-a", name: "A", lat: 0, lng: 0, cheapestPrice: null, borough: "City" },
+      { id: "venue-b", name: "B", lat: 0, lng: 0, cheapestPrice: 4.2, borough: "City" },
     ]);
     expect(ids.has("venue-a")).toBe(true);
     expect(ids.has("venue-b")).toBe(true);
