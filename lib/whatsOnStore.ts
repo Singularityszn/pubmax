@@ -17,12 +17,12 @@ import {
   filterByKind,
   filterNotPast,
   filterTonight,
-  mapThingsToDoToRows,
   parseWhatsOnRows,
   type WhatsOnKind,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { mapThingsToDoToRows } from "@/lib/whatsOnCitymcp";
 import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
 import rawQuizLondon from "../public/data/whats_on/quiz_london.json";
 import rawDealsLondon from "../public/data/whats_on/deals_london.json";

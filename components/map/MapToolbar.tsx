@@ -2,6 +2,8 @@
 
 import { GlassWater, Layers, Route, Wine } from "lucide-react";
 import {
+  lazy,
+  Suspense,
   useEffect,
   useLayoutEffect,
   useRef,
@@ -31,6 +33,9 @@ import type {
 } from "@/lib/mapExperienceLens";
 import { useSpringValue } from "@/lib/useSpringValue";
 import type { ZonePintIndex } from "@/lib/zones";
+import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
+
+const MapSearchSuggest = lazy(() => import("@/components/map/MapSearchSuggest"));
 
 
 /**
@@ -129,7 +134,9 @@ type MapToolbarProps = {
    * Shared gazetteer search surface, configured by PubMap for desktop mode.
    * Null on a base-pub-only arrival, where no venue is priced to be found.
    */
-  searchContent: ReactNode;
+  searchProps?: MapSearchSuggestProps | null;
+  /** Legacy injection seam retained for isolated toolbar tests and callers. */
+  searchContent?: ReactNode;
   favoritePint: string | null;
   onFavoritePintChange: (beerId: string | null) => void;
   drinkFiltersActive: boolean;
@@ -183,6 +190,7 @@ type MapToolbarProps = {
 export default function MapToolbar({
   query,
   onQueryChange,
+  searchProps,
   searchContent,
   favoritePint,
   onFavoritePintChange,
@@ -344,11 +352,17 @@ export default function MapToolbar({
       }
       // No search control on a base-pub-only arrival, so no search landmark:
       // navigating by landmark to a region with nothing to search is a dead end.
-      role={searchContent ? "search" : undefined}
+      role={searchProps || searchContent ? "search" : undefined}
     >
       <div className="mapToolbarRow">
-        {searchContent ? (
-          <div className="mapToolbarSearch">{searchContent}</div>
+        {searchProps || searchContent ? (
+          <div className="mapToolbarSearch">
+            {searchProps ? (
+              <Suspense fallback={null}>
+                <MapSearchSuggest {...searchProps} />
+              </Suspense>
+            ) : searchContent}
+          </div>
         ) : null}
 
         {laneAvailable ? (

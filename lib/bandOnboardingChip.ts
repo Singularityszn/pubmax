@@ -10,6 +10,13 @@ export function bandChipDismissedKey(bandId: string): string {
   return `${BAND_CHIP_DISMISSED_KEY_PREFIX}:${bandId}`;
 }
 
+export function bandChipHasResolvedBand(
+  activeBandId: string,
+  activeBand: { id: string } | null | undefined,
+): boolean {
+  return Boolean(activeBandId && activeBand?.id === activeBandId);
+}
+
 export function shouldShowBandOnboardingChip(input: {
   loaded: boolean;
   activeBandId: string;

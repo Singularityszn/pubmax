@@ -14,6 +14,9 @@
 import { haversineKm } from "@/lib/haversine";
 import { landmarks, type Landmark } from "@/lib/landmarks";
 import type { Venue } from "@/lib/venues";
+import { bandAnchors as resolveBandAnchors } from "@/lib/storyBandGeometry";
+import { bandMemberPubs as matchBandMemberPubs } from "@/lib/storyBandVenueProximity";
+import type { BandMember as BandMemberResult } from "@/lib/storyBandVenueProximity";
 
 // The kind drives nothing in logic today, but tags each band so a future
 // filter (e.g. "only literary walks") or an analytics slice stays cheap.
@@ -177,9 +180,7 @@ export function bandAnchors(
   band: StoryBand,
   catalog: readonly Landmark[] = landmarks,
 ): Landmark[] {
-  return band.anchorLandmarkIds
-    .map((id) => catalog.find((lm) => lm.id === id))
-    .filter((lm): lm is Landmark => Boolean(lm));
+  return resolveBandAnchors(band, catalog);
 }
 
 // --- DTO validation (unit-tested) ------------------------------------------
@@ -248,7 +249,7 @@ export function validateAllStoryBands(
 
 // --- Member-pub matching (unit-tested) -------------------------------------
 
-export type BandMember = { venue: Venue; km: number };
+export type { BandMember } from "@/lib/storyBandVenueProximity";
 
 // The member pubs of a band under the current venue set: every venue within
 // `radiusKm` (straight-line) of ANY anchor landmark, tagged with its distance
@@ -259,21 +260,8 @@ export function bandMemberPubs(
   band: StoryBand,
   venues: Venue[],
   catalog: readonly Landmark[] = landmarks,
-): BandMember[] {
-  const anchors = bandAnchors(band, catalog);
-  if (anchors.length === 0) return [];
-  const members: BandMember[] = [];
-  for (const venue of venues) {
-    if (!venue.hasStory) continue;
-    const point: [number, number] = [venue.longitude, venue.latitude];
-    let nearest = Infinity;
-    for (const anchor of anchors) {
-      const km = haversineKm(anchor.coordinates, point);
-      if (km < nearest) nearest = km;
-    }
-    if (nearest <= band.radiusKm) members.push({ venue, km: nearest });
-  }
-  return members.sort((a, b) => a.km - b.km);
+): BandMemberResult[] {
+  return matchBandMemberPubs(band, venues, catalog);
 }
 
 // Just the member ids — the map's halo filter wants a plain id list, and the

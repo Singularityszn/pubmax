@@ -8,7 +8,8 @@ import {
 } from "@/lib/mapIcons";
 import type { Landmark } from "@/lib/landmarks";
 import type { MapLensPrice } from "@/lib/mapExperienceLens";
-import { bandAnchors, type StoryBand } from "@/lib/storyBands";
+import { bandAnchors } from "@/lib/storyBandGeometry";
+import type { StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";

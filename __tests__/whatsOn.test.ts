@@ -18,10 +18,9 @@ import {
   matchVenueId,
   normaliseEventTitle,
   normaliseSourceLabel,
-  mapThingsToDoToRows,
-  THINGS_TO_DO_KIND_MAP,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { mapThingsToDoToRows, THINGS_TO_DO_KIND_MAP } from "@/lib/whatsOnCitymcp";
 import type { ThingsToDoResult, ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { laneTimeLabel, listingUrgency } from "@/lib/whatsOnBadges";
 

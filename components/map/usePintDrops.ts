@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useAuth } from "@/components/auth/authContext";
 import { readActiveRoundCode } from "@/lib/activeRound";
 import { getAnonId } from "@/lib/anonId";
 import { authedActionFetch } from "@/lib/authedFetch";

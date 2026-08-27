@@ -432,6 +432,23 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(map.setPaintProperty).not.toHaveBeenCalled();
   });
 
+  it("keeps painting when a basemap getter rejects an optional property", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const map = {
+      getLayer: (id: string) => (id === "background" ? { id } : undefined),
+      getPaintProperty: () => {
+        throw new TypeError("Cannot read properties of undefined (reading 'value')");
+      },
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers: [{ id: "background", type: "background" }] }),
+    };
+
+    expect(() => applyBasemapTaste(map, darkTokens, true)).not.toThrow();
+    expect(paints).toContainEqual(["background", "background-color", "#0a0c11"]);
+  });
+
   it("does not force night-black casings in light mode", () => {
     const paints: Array<[string, string, unknown]> = [];
     const layers = new Set(["highway_major_casing", "road_minor"]);

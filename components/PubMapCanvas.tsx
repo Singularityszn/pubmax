@@ -1,5 +1,6 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import "maplibre-gl/dist/maplibre-gl.css";
 import "./map/mapColor.css";
 
@@ -23,12 +24,10 @@ import {
   type ReactNode,
 } from "react";
 
-import { landmarks as londonLandmarks, nearestStoryPubs, type Landmark } from "@/lib/landmarks";
-import {
-  bandMemberPubs,
-  STORY_BANDS as LONDON_STORY_BANDS,
-  type StoryBand,
-} from "@/lib/storyBands";
+import { nearestStoryPubs } from "@/lib/landmarkVenueProximity";
+import type { Landmark } from "@/lib/landmarks";
+import { bandMemberPubs } from "@/lib/storyBandVenueProximity";
+import type { StoryBand } from "@/lib/storyBands";
 import {
   loadPoisFromPath,
   LONDON_POIS_PATH,
@@ -41,7 +40,9 @@ import {
   defaultPoiHiddenMobile,
   type PoiHiddenChange,
 } from "@/lib/poiToggleGroups";
-import MapLayersControl from "@/components/map/MapLayersControl";
+const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
+  ssr: false,
+});
 import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
@@ -99,10 +100,12 @@ import {
   assembleSceneCritical,
   assembleSceneDeferred,
   applySelectionState,
+  buildLandmarks,
   buildTransitLines,
   CLUSTER_FILL_OPACITY,
   CLUSTER_STROKE_OPACITY,
   UK_BASE_MIN_ZOOM,
+  type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import { createDonutClusterSync, type DonutClusterSync } from "@/components/map/canvas/donutClusters";
 import {
@@ -381,7 +384,9 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Honest upper bound for the visible-map handoff. Desktop and phone both
 // degrade to the existing basemap retry toast; neither unmounts the canvas.
 // Phone still requires a confirmed visible frame before a successful reveal.
-// Kept above the measured slow stream and first-frame watchdog windows.
+// Keep the ceiling above the measured slow stream. The phone can reveal local
+// pins from their own painted source before basemap tiles settle; this ceiling
+// remains only for the honest parent loading handoff when that signal fails.
 const PIN_READY_CEILING_MS = 12_000;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
@@ -475,8 +480,8 @@ export default function PubMapCanvas({
   maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
-  cityLandmarks = londonLandmarks,
-  cityStoryBands = LONDON_STORY_BANDS,
+  cityLandmarks = [],
+  cityStoryBands = [],
   cityId = DEFAULT_CITY_ID,
   tonightOpportunities = [],
   tonightOverlayVisible = false,
@@ -548,12 +553,14 @@ export default function PubMapCanvas({
   const maxBoundsRef = useRef(maxBounds);
   const cityBoundsRef = useRef(cityBounds);
   const landmarksGeoJSONRef = useRef(landmarksGeoJSON);
+  const showLandmarksRef = useRef(showLandmarks);
   useEffect(() => {
     mapViewRef.current = mapView;
     maxBoundsRef.current = maxBounds;
     cityBoundsRef.current = cityBounds;
     landmarksGeoJSONRef.current = landmarksGeoJSON;
-  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON]);
+    showLandmarksRef.current = showLandmarks;
+  }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [mapReady, setMapReady] = useState(false);
@@ -724,6 +731,7 @@ export default function PubMapCanvas({
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
     initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
   );
+  const initialLandmarkConsumedRef = useRef<string | null>(null);
   const [heroDismissed, setHeroDismissed] = useState(false);
   const [hoveredVenue, setHoveredVenue] = useState<HoveredVenue | null>(null);
   const hoveredVenueId = hoveredVenue?.id ?? null;
@@ -920,24 +928,24 @@ export default function PubMapCanvas({
     return next;
   }, []);
 
-  // Strict style-load gate for mutations that depend on fully loaded style
+  // Structural style gate for mutations that depend on the style graph
   // resources. Effects fire on their own React cadence, including during a
   // theme setStyle({diff:false}) swap while `mapReady` remains true. Queue those
   // writes by key and flush the latest mutation on style.load. Existing GeoJSON
   // sources use structural-readiness paths instead because isStyleLoaded() also
   // waits for tiles and images; their setData calls are safe once the source
   // exists and must not wait for another style.load that may never arrive.
-  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
   // Structural style readiness owned by this component. MapLibre's public
   // style.load event fires after the style graph is ready for source/layer
   // mutations, while isStyleLoaded() also waits for source tiles and images.
   // Every app-owned setStyle clears this first; the accepted style.load sets it.
   const styleStructureReadyRef = useRef(false);
+  const pendingUpdatesRef = useRef<Map<string, (map: maplibregl.Map) => void>>(new Map());
   const applyToMap = useCallback(
     (key: string, fn: (map: maplibregl.Map) => void) => {
       const map = mapRef.current;
       if (!map) return;
-      if (map.isStyleLoaded()) {
+      if (styleStructureReadyRef.current) {
         fn(map);
       } else {
         pendingUpdatesRef.current.set(key, fn);
@@ -982,6 +990,7 @@ export default function PubMapCanvas({
   const reducedRef = useRef(false);
   const blurredRef = useRef(false);
   const themeRef = useRef<"dark" | "light">("dark");
+  const textFontRef = useRef<string[]>(["Noto Sans Bold"]);
   const hoverCapableRef = useRef(false);
 
   // Live route mirror so the camera helpers (and the Recenter control) read the
@@ -1006,6 +1015,28 @@ export default function PubMapCanvas({
     setActiveLandmark(landmark);
     onLandmarkSelectRef.current?.(landmark);
   }, []);
+
+  // Deep-link ?landmark= may arrive before the city's landmark catalog loads.
+  // Open the history card once the catalog can resolve the id, not only on mount.
+  useEffect(() => {
+    if (
+      !initialLandmarkId ||
+      initialLandmarkConsumedRef.current === initialLandmarkId
+    ) {
+      return;
+    }
+    const landmark = landmarkById(initialLandmarkId);
+    if (!landmark) return;
+    initialLandmarkConsumedRef.current = initialLandmarkId;
+    if (activeLandmark) return;
+    let cancelled = false;
+    void Promise.resolve().then(() => {
+      if (!cancelled) selectLandmark(landmark);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [initialLandmarkId, activeLandmark, landmarkById, selectLandmark]);
 
   useEffect(() => {
     if (!initialLandmarkId || !mapReady) return;
@@ -1279,7 +1310,7 @@ export default function PubMapCanvas({
       return;
     }
     map.addControl(
-      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: false }),
+      new maplibregl.NavigationControl({ visualizePitch: true, showCompass: true }),
       "top-right",
     );
     mapRef.current = map;
@@ -1578,6 +1609,11 @@ export default function PubMapCanvas({
       readyCeilingMs: PIN_READY_CEILING_MS,
       hasBasemapPainted: () => basemapTileReadyForPaint,
       hasPinsPaintable: () => !phoneFirstImpression || hasPinsPaintable(),
+      // On a phone, local pub GeoJSON is the useful content that the reader
+      // is waiting for. Do not hold its first painted frame behind remote
+      // basemap tiles; tile failures still use their independent classifier
+      // and retry lane below.
+      requiresBasemapPaint: !phoneFirstImpression,
       confirmVisibleFrameBeforeReveal: phoneFirstImpression,
       visibleFrameHoldMs: phoneFirstImpression ? PHONE_PIN_COMPOSITE_HOLD_MS : 0,
       setPinsVisible: (visible) => {
@@ -1727,6 +1763,7 @@ export default function PubMapCanvas({
       // style's glyph server has no Noto Sans Bold; Montserrat Medium is its
       // closest served weight.
       const textFont = [usingFallback ? "Montserrat Medium" : "Noto Sans Bold"];
+      textFontRef.current = textFont;
 
       // Assemble every source/layer in load-bearing paint order (see
       // components/map/canvas/buildScene.ts). The D2 tile-paint gate and the
@@ -1744,7 +1781,7 @@ export default function PubMapCanvas({
         addLayerOnce,
         poiHidden: poiHiddenRef.current,
         transitLinesPath: null,
-        showLandmarks,
+        showLandmarks: showLandmarksRef.current,
         landmarksGeoJSON: landmarksGeoJSONRef.current,
         poisData: poisDataRef.current,
         routeLine: routeLineRef.current,
@@ -2784,14 +2821,14 @@ export default function PubMapCanvas({
     // Intentionally omit mapView / maxBounds / landmarksGeoJSON — those are
     // read via refs so parent re-renders (new array identity) cannot remount
     // MapLibre and flicker the loading chrome. Include cityId so non-London
-    // city switches (shared null transitLinesPath + showLandmarks) still
-    // remount with fresh camera/bounds even if PubMap's key={cityId} is removed.
+    // city switches (shared null transitLinesPath) still remount with fresh
+    // camera/bounds even if PubMap's key={cityId} is removed. Landmark layers
+    // sync in their own effect — toggling showLandmarks must not remount MapLibre.
     cinematic,
     cityId,
     selectLandmark,
     initAttempt,
     transitLinesPath,
-    showLandmarks,
     publishMapReady,
     publishRenderedState,
     reportMapError,
@@ -2801,18 +2838,25 @@ export default function PubMapCanvas({
   useEffect(() => {
     if (!mapReady) return;
     applyToMap("landmarks:data", (map) => {
-      const source = map.getSource("landmarks") as maplibregl.GeoJSONSource | undefined;
       if (!showLandmarks) {
         if (map.getLayer("landmarks-label")) map.removeLayer("landmarks-label");
         if (map.getLayer("landmarks-icon")) map.removeLayer("landmarks-icon");
+        const source = map.getSource("landmarks");
         if (source) map.removeSource("landmarks");
         return;
       }
-      if (source) {
-        source.setData(landmarksGeoJSON);
-      } else {
-        map.addSource("landmarks", { type: "geojson", data: landmarksGeoJSON });
-      }
+      const addLayerOnce = (...args: Parameters<typeof map.addLayer>) => {
+        if (!map.getLayer(args[0].id)) map.addLayer(...args);
+      };
+      buildLandmarks({
+        map,
+        tokens: readTokens(),
+        dark: themeRef.current === "dark",
+        textFont: textFontRef.current,
+        addLayerOnce,
+        showLandmarks: true,
+        landmarksGeoJSON,
+      } as SceneCtx);
     });
   }, [mapReady, applyToMap, showLandmarks, landmarksGeoJSON]);
 
@@ -3610,8 +3654,10 @@ export default function PubMapCanvas({
         ) : null}
         {(() => {
           const action = resolveCompassAction(mapBearing, getCity(cityId).mapView);
-          if (action.kind === "none") return null;
-          const rotated = action.kind === "reset-north";
+          // MapLibre owns the reset-to-north action. Keep this app control only
+          // for the complementary city-attitude action, so the two controls do
+          // not duplicate one another when the opening camera is rotated.
+          if (action.kind !== "adopt-attitude") return null;
           return (
             <button
               type="button"
@@ -3621,17 +3667,15 @@ export default function PubMapCanvas({
                 if (!map) return;
                 orbitRef.current?.noteInteraction();
                 map.easeTo(
-                  rotated
-                    ? { bearing: 0, duration: reducedRef.current ? 0 : 450 }
-                    : {
-                        bearing: action.bearing,
-                        pitch: action.pitch,
-                        duration: reducedRef.current ? 0 : 450,
-                      },
+                  {
+                    bearing: action.bearing,
+                    pitch: action.pitch,
+                    duration: reducedRef.current ? 0 : 450,
+                  },
                 );
               }}
-              aria-label={rotated ? "Point north" : "Tilt the city view"}
-              title={rotated ? "Point north" : "Tilt the city view"}
+              aria-label="Tilt the city view"
+              title="Tilt the city view"
             >
               <Navigation2
                 size={14}

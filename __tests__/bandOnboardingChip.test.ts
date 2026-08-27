@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
 import {
+  bandChipHasResolvedBand,
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
@@ -55,6 +56,17 @@ describe("shouldShowBandOnboardingChip", () => {
     expect(shouldShowBandOnboardingChip({ ...base, bandResolved: false })).toBe(false);
     expect(shouldShowBandOnboardingChip({ ...base, activeBandId: "" })).toBe(false);
     expect(shouldShowBandOnboardingChip({ ...base, loaded: false })).toBe(false);
+  });
+});
+
+describe("bandChipHasResolvedBand", () => {
+  it("does not resolve a band while its catalog is still loading", () => {
+    expect(bandChipHasResolvedBand("river-history", null)).toBe(false);
+  });
+
+  it("resolves only the requested band", () => {
+    expect(bandChipHasResolvedBand("river-history", { id: "other-band" })).toBe(false);
+    expect(bandChipHasResolvedBand("river-history", { id: "river-history" })).toBe(true);
   });
 });
 

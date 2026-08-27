@@ -11,6 +11,7 @@ import {
 import { curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
 import { bandByIdForCity } from "@/lib/cityStoryBands";
 import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import type { CityMapHrefOptions } from "@/lib/cityMapHref";
 
 /** Cult / viral Place-story band ids called out in the multi-city PRD. */
 export const CULT_STORY_BAND_IDS = [
@@ -24,10 +25,7 @@ export const CULT_STORY_BAND_IDS = [
 
 export type CultStoryBandId = (typeof CULT_STORY_BAND_IDS)[number];
 
-export type CityMapShareOptions = {
-  band?: string | null;
-  /** Curated crawl id from `?crawl=` share links. */
-  crawl?: string | null;
+export type CityMapShareOptions = CityMapHrefOptions & {
   /**
    * Stop count from `?pubs=` (comma-separated venue ids). When omitted and a
    * curated crawl resolves, OG copy falls back to that crawl's venueIds length.
@@ -92,24 +90,7 @@ export function firstSearchParam(
   return value;
 }
 
-/**
- * Canonical share path for a city map. London stays `/map` for back-compat;
- * other cities use `/map/{id}`. Optional `band` / `crawl` become query params.
- */
-export function cityMapShareUrl(
-  cityId: CityId | string | null | undefined,
-  options: CityMapShareOptions = {},
-): string {
-  const id = resolveCityId(cityId);
-  const path = id === "london" ? "/map" : `/map/${id}`;
-  const params = new URLSearchParams();
-  const band = normalizeBandId(options.band ?? undefined);
-  const crawl = normalizeCrawlId(options.crawl ?? undefined);
-  if (band) params.set("band", band);
-  if (crawl) params.set("crawl", crawl);
-  const qs = params.toString();
-  return qs ? `${path}?${qs}` : path;
-}
+export { cityMapShareUrl } from "@/lib/cityMapHref";
 
 /**
  * OG / document title for a city map. Curated crawl wins when it resolves;

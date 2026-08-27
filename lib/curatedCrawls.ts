@@ -3,6 +3,7 @@ import {
   parseCityId,
   type CityId,
 } from "@/lib/cities";
+import { cityAwareMapPath } from "@/lib/cityMapHref";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { AltCrawlStyle } from "@/lib/crawlUrl";
 import type { CrawlStyle } from "@/lib/venues";
@@ -318,24 +319,7 @@ export function curatedCrawlById(id: string | null | undefined): CuratedCrawl | 
   return curatedCrawls.find((crawl) => crawl.id === id);
 }
 
-/**
- * City-aware map path: London stays `/map` for back-compat; other cities use
- * `/map/{id}`. Optional query string is appended when non-empty.
- */
-export function cityAwareMapPath(
-  cityId: CityId | string | null | undefined,
-  query?: URLSearchParams | string | null,
-): string {
-  const id = parseCityId(cityId) ?? DEFAULT_CITY_ID;
-  const base = id === "london" ? "/map" : `/map/${id}`;
-  const qs =
-    typeof query === "string"
-      ? query.replace(/^\?/, "")
-      : query && [...query.keys()].length > 0
-        ? query.toString()
-        : "";
-  return qs ? `${base}?${qs}` : base;
-}
+export { cityAwareMapPath };
 
 function resolveHrefCity(
   cityId: CityId | string | null | undefined,

@@ -10,7 +10,7 @@
 import { useEffect, useState } from "react";
 
 import type { DrinkCategory } from "@/lib/drinks";
-import { drinkCategoryForSuggestion } from "@/lib/personaDrinks";
+import { drinkCategoryForSuggestion } from "@/lib/personaTonightCategories";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 
 type ConditionsResponse = {

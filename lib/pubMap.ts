@@ -7,11 +7,15 @@
 // boundary in.
 
 import { venueGroupingKey, type Filters, type Venue } from "@/lib/venues";
-import { type CuratedCrawl } from "@/lib/curatedCrawls";
-import { curatedCrawlsForCity, curatedCrawlByIdForCity } from "@/lib/cityCuratedCrawls";
-import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
+import { type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { seedCrawlState } from "@/lib/crawlUrl";
 import { isDrinkShapeArrival } from "@/lib/mapArrival";
+import {
+  eagerCuratedCrawlAltStyle,
+  eagerCuratedCrawlAltStyleForBuiltIds,
+} from "@/lib/curatedCrawlHints";
+export { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 
 // §4.5: did the page arrive with any crawl-shaping URL param (a shared/deep
 // link)? If any are present the arrival is intentional and we never onboard.
@@ -38,29 +42,19 @@ export function crawlStopsFromPubIds(ids: string[]): string[] {
 // lives off PubMap's complexity budget.
 export function filtersForCuratedCrawl(current: Filters, crawl: CuratedCrawl): Filters {
   return {
-    ...current,
+    ...filtersForCuratedCrawlHint(current, crawl.altStyle),
     crawlStyle: crawl.crawlStyle,
-    requireNonAlcoholic: crawl.altStyle === "mocktail" ? true : current.requireNonAlcoholic,
   };
 }
 
-/** Resolve a curated crawl from ?crawl= or an exact pubs= stop list match. */
-export function resolveSeededCuratedCrawl(
-  cityId: CityId,
-  crawlId: string | undefined,
-  builtIds: string[],
-): CuratedCrawl | null {
-  const byId = curatedCrawlByIdForCity(cityId, crawlId);
-  if (byId) return byId;
-  if (builtIds.length < 2) return null;
-  const cityCrawls = curatedCrawlsForCity(cityId);
-  return (
-    cityCrawls.find(
-      (crawl) =>
-        crawl.venueIds.length === builtIds.length &&
-        crawl.venueIds.every((id, i) => id === builtIds[i]),
-    ) ?? null
-  );
+export function filtersForCuratedCrawlHint(
+  current: Filters,
+  altStyle: CuratedCrawl["altStyle"],
+): Filters {
+  return {
+    ...current,
+    requireNonAlcoholic: altStyle === "mocktail" ? true : current.requireNonAlcoholic,
+  };
 }
 
 export type MapSeed = ReturnType<typeof seedCrawlState> & {
@@ -69,33 +63,25 @@ export type MapSeed = ReturnType<typeof seedCrawlState> & {
 };
 
 /**
- * One-shot mount seed from the shareable URL only.
- * Pure module helper so PubMap can lazy-init state without a useMemo that the
- * React Compiler cannot preserve (react-hooks/preserve-manual-memoization).
- * Do NOT resurrect a previous hand-built crawl from localStorage on a clean
- * /map tab click — that bloated the address bar with stale ?pubs=… (PR #79).
+ * One-shot eager map-shell seed from the shareable URL only. No curated crawl
+ * catalog is loaded here; crawl-shaped arrivals hydrate via
+ * @/lib/mapSeedCrawl after the catalog chunk loads. Do NOT resurrect a previous
+ * hand-built crawl from localStorage on a clean /map tab click - that bloated
+ * the address bar with stale ?pubs=… (PR #79).
  */
-export function buildMapSeed(search: string, cityId: CityId = DEFAULT_CITY_ID): MapSeed {
+export function buildMapSeed(search: string, _cityId: CityId = DEFAULT_CITY_ID): MapSeed {
+  void _cityId;
   const seeded = seedCrawlState(search);
-  // Landing drink-shape taps should land on a clean filtered map.
   if (isDrinkShapeArrival(search)) {
     return { ...seeded, activeCrawl: null, routeMapped: false };
   }
-  // Curated / featured arrival: hydrate the named crawl so the polyline +
-  // blurb show map-first (planner stays closed via shouldOpenPlanningInitially).
-  const activeCrawl = resolveSeededCuratedCrawl(cityId, seeded.crawlId, seeded.builtIds);
-  if (activeCrawl) {
-    return {
-      ...seeded,
-      filters: filtersForCuratedCrawl(seeded.filters, activeCrawl),
-      altStyle: activeCrawl.altStyle ?? seeded.altStyle,
-      crawlId: activeCrawl.id,
-      activeCrawl,
-      routeMapped: true,
-    };
-  }
+  const hintedAltStyle =
+    eagerCuratedCrawlAltStyle(seeded.crawlId) ??
+    eagerCuratedCrawlAltStyleForBuiltIds(seeded.builtIds);
   return {
     ...seeded,
+    filters: filtersForCuratedCrawlHint(seeded.filters, hintedAltStyle),
+    altStyle: hintedAltStyle ?? seeded.altStyle,
     activeCrawl: null,
     routeMapped: seeded.builtIds.length >= 2,
   };

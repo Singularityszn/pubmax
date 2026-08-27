@@ -11,10 +11,7 @@ import MobileTabBar, {
 } from "@/components/nav/MobileTabBar";
 import DeferredShellExtras from "@/components/DeferredShellExtras";
 import OfflineReady from "@/components/OfflineReady";
-import { ClerkProvider } from "@clerk/nextjs";
-
 import { AuthProvider } from "@/components/auth/AuthProvider";
-import ClerkAuthRevision from "@/components/auth/ClerkAuthRevision";
 import { clerkAppearance } from "@/lib/clerkAppearance";
 import {
   isClerkConfigured,
@@ -34,6 +31,11 @@ import SplashAperture from "@/components/splash/SplashAperture";
 import DeploymentSkewRecovery from "@/components/DeploymentSkewRecovery";
 import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 import { SocialFriendsLaunchProvider } from "@/lib/useSocialFriendsLaunch";
+import OptionalClerkProvider from "@/components/auth/OptionalClerkProvider";
+
+// Clerk is optional. Keep its provider, revision bridge, and client auth graph
+// out of every keyless route, which is the normal map build, by loading one
+// client boundary only when both Clerk keys open its provider branch below.
 
 // Site-wide structured data (Wave S1.3). WebSite + Organization only — the
 // identity graph Google reads for the brand panel and AI engines read to know
@@ -343,14 +345,13 @@ export default async function RootLayout({
             prop (would call auth() and break prefetch skips in proxy.ts).
             appearance re-skins Clerk chrome in PUBMAXX tokens. */}
         {isClerkConfigured() ? (
-          <ClerkProvider appearance={clerkAppearance}>
-            {/* Publish opaque provider readiness and account revisions before
-                Social surfaces decide whether protected state is available. */}
-            <ClerkAuthRevision />
+          <OptionalClerkProvider
+            appearance={clerkAppearance}
+            clerkIntegrationConfigured={clerkIntegrationConfigured}
+          >
             {/* AuthProvider is additive: it establishes identity for signed-in users
-                but never gates a route — anonymous browsing stays fully public. The
+                but never gates a route - anonymous browsing stays fully public. The
                 session loads async client-side, so children render immediately. */}
-            <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
               {/* Global ⌘K / Ctrl+K command palette (feature N1). A client provider
                   mounted at the root so the shortcut works from any page; it owns the
                   open/close state and renders the dialog only while open. Wraps
@@ -385,8 +386,7 @@ export default async function RootLayout({
                     a wordmark tap instead of bouncing back to /tonight. */}
                 <EntryBootStamp />
               </CommandPaletteProvider>
-            </AuthProvider>
-          </ClerkProvider>
+          </OptionalClerkProvider>
         ) : (
           <AuthProvider clerkIntegrationConfigured={clerkIntegrationConfigured}>
             <CommandPaletteProvider>

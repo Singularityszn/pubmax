@@ -181,6 +181,7 @@ export const PIN_PRICE_LABEL_PADDING = 4;
 // already occupies the spot; at/above it (the landmark-inspector camera flies
 // to 15) the curated icon is the hero and always draws.
 export const LANDMARK_ICON_PRIORITY_ZOOM = 14;
+export const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
 
 export type SceneCtx = {
   map: maplibregl.Map;
@@ -487,6 +488,9 @@ export function buildLandmarks(ctx: SceneCtx) {
   } else {
     (map.getSource("landmarks") as maplibregl.GeoJSONSource).setData(landmarksGeoJSON);
   }
+  const beforePubLayer = map.getLayer(FIRST_PUB_LAYER_ID)
+    ? FIRST_PUB_LAYER_ID
+    : undefined;
   // Names and pictograms are separate collision candidates. A pub cluster can
   // own the landmark's exact coordinate while a compact name still finds room
   // beside it via variable anchors. Both layers stay below pubs in style order,
@@ -546,7 +550,7 @@ export function buildLandmarks(ctx: SceneCtx) {
       ],
     },
     minzoom: 9.5,
-  });
+  }, beforePubLayer);
 
   // Landmark-inspector zoom is 15 (selectLandmark cinematic). No maxzoom -
   // every curated landmark pin must stay rendered and prominent there so
@@ -598,7 +602,7 @@ export function buildLandmarks(ctx: SceneCtx) {
       "icon-opacity": 1,
     },
     minzoom: 9.5,
-  });
+  }, beforePubLayer);
 }
 
 export function buildPois(ctx: SceneCtx) {

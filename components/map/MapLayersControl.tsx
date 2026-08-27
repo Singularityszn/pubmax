@@ -16,7 +16,7 @@ import {
   type PoiToggleGroup,
 } from "@/lib/poiToggleGroups";
 import type { PoiCategory } from "@/lib/pois";
-import { STORY_BANDS, type StoryBand } from "@/lib/storyBands";
+import type { StoryBand } from "@/lib/storyBands";
 
 import "./mapLayersControl.css";
 
@@ -89,7 +89,7 @@ export default function MapLayersControl({
   onPoiHiddenChange,
   activeBandId = "",
   onBandChange,
-  storyBands = STORY_BANDS,
+  storyBands = [],
   cityId = DEFAULT_CITY_ID,
   embedded = false,
   onRequestClose,

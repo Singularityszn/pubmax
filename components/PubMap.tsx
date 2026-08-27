@@ -6,8 +6,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
-import { PubPalMascot } from "@/components/pal/PubPalMascot";
-import ThemeToggle from "@/components/ThemeToggle";
+const PubPalMascot = dynamic(
+  () => import("@/components/pal/PubPalMascot").then((m) => m.PubPalMascot),
+  { ssr: false },
+);
+const ThemeToggle = dynamic(() => import("@/components/ThemeToggle"), { ssr: false });
 import PriceBadge from "@/components/PriceBadge";
 import "@/components/map/venueSheet.css";
 import "@/components/map/spillComposer.css";
@@ -19,8 +22,14 @@ import "@/components/map/cityStatusBanner.css";
 import "@/components/map/mapConciergeAsk.css";
 import "@/components/map/mapDesktopRail.css";
 import "@/components/map/tonightLane.css";
-import UkPlaceArrivalBanner from "@/components/map/UkPlaceArrivalBanner";
-import UkNationalBrowseBanner from "@/components/map/UkNationalBrowseBanner";
+const UkPlaceArrivalBanner = dynamic(
+  () => import("@/components/map/UkPlaceArrivalBanner"),
+  { ssr: false },
+);
+const UkNationalBrowseBanner = dynamic(
+  () => import("@/components/map/UkNationalBrowseBanner"),
+  { ssr: false },
+);
 
 import {
   buildCrawlRoute,
@@ -112,7 +121,9 @@ const DrinkShapeChips = dynamic(() => import("@/components/map/DrinkShapeChips")
   ssr: false,
 });
 const MapKey = dynamic(() => import("@/components/map/MapKey"), { ssr: false });
-import MapPriceFilterChips from "@/components/map/MapPriceFilterChips";
+const MapPriceFilterChips = dynamic(() => import("@/components/map/MapPriceFilterChips"), {
+  ssr: false,
+});
 const MapExperienceLensControl = dynamic(
   () => import("@/components/map/MapExperienceLens"),
   { ssr: false },
@@ -135,7 +146,8 @@ import {
 } from "@/lib/savedOnlyFilter";
 import { useTonightLaneCue } from "@/components/map/usePersonaTonight";
 import type { WhatsOnKind } from "@/lib/whatsOn";
-import { findPersonaById, personaHighlightsPubs, type PersonaDrink } from "@/lib/personaDrinks";
+import { findPersonaByIdAsync, personaHighlightsPubs, loadPersonaDrinksModule } from "@/lib/personaDrinks.async";
+import type { PersonaDrink } from "@/lib/personaDrinks";
 const MapLayersControl = dynamic(() => import("@/components/map/MapLayersControl"), {
   ssr: false,
 });
@@ -157,14 +169,13 @@ const MobileTflPanel = dynamic(() => import("@/components/mobile/MobileTflPanel"
 const ControlRail = dynamic(() => import("@/components/map/ControlRail"), {
   ssr: false,
 });
-import { type CuratedCrawl } from "@/lib/curatedCrawls";
-import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
-import { landmarksForCity } from "@/lib/cityLandmarks";
-import { storyBandsForCity, bandByIdForCity } from "@/lib/cityStoryBands";
+import type { CuratedCrawl } from "@/lib/curatedCrawls";
 const RoutePanel = dynamic(() => import("@/components/map/RoutePanel"), {
   ssr: false,
 });
-import ActiveRoundChip from "@/components/map/ActiveRoundChip";
+const ActiveRoundChip = dynamic(() => import("@/components/map/ActiveRoundChip"), {
+  ssr: false,
+});
 import type { TabKey } from "@/components/map/VenueInspector";
 const VenueInspector = dynamic(
   () => import("@/components/map/VenueInspector"),
@@ -210,7 +221,7 @@ const MapConciergeAsk = dynamic(
 );
 import { trackEvent } from "@/lib/analytics";
 import { writePreferredCity } from "@/lib/cityPreference";
-import { cityMapShareUrl } from "@/lib/cityShare";
+import { cityMapShareUrl } from "@/lib/cityMapHref";
 import { usePintDrops } from "@/components/map/usePintDrops";
 import { useCommunityPrices } from "@/components/map/useCommunityPrices";
 import { mapPriceLegend } from "@/lib/mapPriceLegend";
@@ -240,7 +251,13 @@ import { useLandmarkJourney } from "@/components/map/pubmap/useLandmarkJourney";
 import { useLogIntent } from "@/components/map/pubmap/useLogIntent";
 import { MappedRouteChip } from "@/components/map/pubmap/MappedRouteChip";
 import { BandOnboardingChip } from "@/components/map/pubmap/BandOnboardingChip";
-import { MapOnboardingOverlay } from "@/components/map/pubmap/MapOnboardingOverlay";
+const MapOnboardingOverlay = dynamic(
+  () =>
+    import("@/components/map/pubmap/MapOnboardingOverlay").then((m) => ({
+      default: m.MapOnboardingOverlay,
+    })),
+  { ssr: false },
+);
 const LogIntentFallback = dynamic(
   () =>
     import("@/components/map/pubmap/LogIntentFallback").then(
@@ -278,17 +295,26 @@ import { slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
-import ZonePicker from "@/components/map/ZonePicker";
-import AreaSheet from "@/components/map/AreaSheet";
-import ChooseAreaSheet, {
-  ChooseAreaDesktopDialog,
-  type ChooseAreaPick,
-} from "@/components/map/ChooseAreaSheet";
+import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
+import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
 import { completeNeighbourhoodCountSlugs } from "@/lib/mapAreaPicker";
-import MapArrivalCard from "@/components/map/MapArrivalCard";
-import MapSearchSuggest, {
-  type MapSearchSuggestProps,
-} from "@/components/map/MapSearchSuggest";
+const ZonePicker = dynamic(() => import("@/components/map/ZonePicker"), { ssr: false });
+const AreaSheet = dynamic(() => import("@/components/map/AreaSheet"), { ssr: false });
+const ChooseAreaSheet = dynamic(() => import("@/components/map/ChooseAreaSheet"), {
+  ssr: false,
+});
+const ChooseAreaDesktopDialog = dynamic(
+  () =>
+    import("@/components/map/ChooseAreaSheet").then((m) => ({
+      default: m.ChooseAreaDesktopDialog,
+    })),
+  { ssr: false },
+);
+import type { ChooseAreaPick } from "@/components/map/ChooseAreaSheet";
+const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), {
+  ssr: false,
+});
+import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
 import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
@@ -334,6 +360,7 @@ import {
   venueDrinkPriceView,
 } from "@/lib/drinkLanes";
 import {
+  bandChipHasResolvedBand,
   bandChipDismissedKey,
   shouldShowBandOnboardingChip,
   shouldShowCuratedOnboarding,
@@ -740,9 +767,6 @@ export default function PubMap({
     : ukNationalBrowse
       ? "Search pubs or UK places"
       : `Search ${city.displayName} venues or areas`;
-  const cityLandmarks = useMemo(() => landmarksForCity(cityId), [cityId]);
-  const cityStoryBands = useMemo(() => storyBandsForCity(cityId), [cityId]);
-  const cityCuratedCrawls = useMemo(() => curatedCrawlsForCity(cityId), [cityId]);
   const searchParams = useSearchParams();
   useEffect(() => {
     markPubmaxTiming("pubmax:map-chunk-ready");
@@ -795,6 +819,26 @@ export default function PubMap({
   // `loaded` means the slim map index has settled. Source datasets are not
   // fetched on /map mount; full details arrive lazily per selected venue.
   const [loaded, setLoaded] = useState(false);
+  // Story catalogs are secondary to the slim index and pin-price path. A
+  // shared story URL still loads them immediately so its claim is ready on
+  // arrival; a clean map waits until the map has settled before fetching the
+  // catalog and its city data.
+  const storyCatalogDeepLink = (() => {
+    const search = currentSearch();
+    const params = new URLSearchParams(search);
+    return (
+      mapSeedNeedsCuratedCrawlLookup(search) ||
+      params.has("band") ||
+      params.has("landmark")
+    );
+  })();
+  const cityStoryCatalog = useCityStoryCatalog(
+    cityId,
+    loaded || storyCatalogDeepLink,
+  );
+  const cityLandmarks = cityStoryCatalog.landmarks;
+  const cityStoryBands = cityStoryCatalog.storyBands;
+  const cityCuratedCrawls = cityStoryCatalog.curatedCrawls;
   // Pair settlement with its city. On a client-side city switch there is one
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
@@ -1017,6 +1061,83 @@ export default function PubMap({
   // synced back so a shared link reproduces it. Only shapes copy + the .ics
   // export noun; the scoring crawlStyle is untouched.
   const [altStyle, setAltStyle] = useState<AltCrawlStyle>(seed.altStyle);
+  const planSnapshotRef = useRef({
+    mode,
+    builtIds,
+    activeCrawl,
+    filters,
+    altStyle,
+    routeMapped,
+  });
+  useLayoutEffect(() => {
+    planSnapshotRef.current = {
+      mode,
+      builtIds,
+      activeCrawl,
+      filters,
+      altStyle,
+      routeMapped,
+    };
+  }, [activeCrawl, altStyle, builtIds, filters, mode, routeMapped]);
+  // Curated crawl catalog is a separate chunk — hydrate crawl-shaped arrivals
+  // before paint so shared ?crawl= links still map-first.
+  const [crawlHydrationPending, setCrawlHydrationPending] = useState(() =>
+    mapSeedNeedsCuratedCrawlLookup(arrivalSearch),
+  );
+  useLayoutEffect(() => {
+    let cancelled = false;
+    if (!mapSeedNeedsCuratedCrawlLookup(arrivalSearch)) {
+      return;
+    }
+    const planSnapshot = {
+      mode: seed.mode,
+      builtIds: seed.builtIds,
+      activeCrawl: seed.activeCrawl,
+      filters: seed.filters,
+      altStyle: seed.altStyle,
+      routeMapped: seed.routeMapped,
+    };
+    void import("@/lib/mapSeedCrawl")
+      .then(
+        async ({
+          curatedCrawlHydrationFromSeed,
+          sameCuratedCrawlHydrationSnapshot,
+        }) => {
+          if (cancelled) return;
+          const hydration = await curatedCrawlHydrationFromSeed(arrivalSearch, cityId);
+          if (cancelled) return;
+          if (
+            !hydration ||
+            !sameCuratedCrawlHydrationSnapshot(planSnapshot, planSnapshotRef.current)
+          ) {
+            setCrawlHydrationPending(false);
+            return;
+          }
+          setMode("build");
+          setBuiltIds(hydration.crawl.venueIds);
+          setRouteMapped(true);
+          setFilters(hydration.filters);
+          setAltStyle(hydration.altStyle);
+          setActiveCrawl(hydration.crawl);
+          setCrawlHydrationPending(false);
+        },
+      )
+      .catch(() => {
+        if (!cancelled) setCrawlHydrationPending(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    arrivalSearch,
+    cityId,
+    seed,
+    setBuiltIds,
+    setCrawlHydrationPending,
+    setFilters,
+    setMode,
+    setRouteMapped,
+  ]);
   // §4.5 onboarding: has the viewer dismissed (or acted on) the "Start with a
   // story" overlay this session? Lazy init reads sessionStorage once, SSR-safe.
   const [onboardingDismissed, setOnboardingDismissed] = useState<boolean>(readOnboardingDismissed);
@@ -1738,8 +1859,8 @@ export default function PubMap({
         ? "Food"
         : null;
   const activeBand = useMemo(
-    () => bandByIdForCity(cityId, activeBandId),
-    [cityId, activeBandId],
+    () => cityStoryBands.find((band) => band.id === activeBandId),
+    [cityStoryBands, activeBandId],
   );
   const activePriceLegend = mapPriceLegend(
     experienceLens === "food"
@@ -1966,6 +2087,7 @@ export default function PubMap({
       ],
     ),
     restoredMobileSession !== null,
+    crawlHydrationPending,
   );
 
   // Load the venue's community Pint Drops whenever the inspected venue changes.
@@ -2408,15 +2530,50 @@ export default function PubMap({
   // filter; non-highlighting (non-alcoholic) personas hold it while no other
   // drink lens has taken over (drinkCategory stays cleared). Either way,
   // selecting a different lens by any control implicitly retires the card.
-  const activePersona = useMemo(() => {
-    if (!personaLensId) return null;
-    const persona = findPersonaById(personaLensId);
-    if (!persona) return null;
-    const owns = personaHighlightsPubs(persona)
-      ? persona.drinkCategory === filters.drinkCategory
+  const [activePersona, setActivePersona] = useState<PersonaDrink | null>(null);
+  useEffect(() => {
+    if (!personaLensId) return;
+    let cancelled = false;
+    void findPersonaByIdAsync(personaLensId)
+      .then((persona) => {
+        if (cancelled) return;
+        if (!persona) {
+          setActivePersona(null);
+          return;
+        }
+        const owns = personaHighlightsPubs(persona)
+          ? persona.drinkCategory === filters.drinkCategory
+          : filters.drinkCategory === "";
+        setActivePersona(owns ? persona : null);
+      })
+      .catch(() => {
+        if (!cancelled) selectPersona(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.drinkCategory, personaLensId, selectPersona]);
+
+  const personaForCard = useMemo(() => {
+    if (!personaLensId || !activePersona || activePersona.id !== personaLensId) {
+      return null;
+    }
+    const owns = personaHighlightsPubs(activePersona)
+      ? activePersona.drinkCategory === filters.drinkCategory
       : filters.drinkCategory === "";
-    return owns ? persona : null;
-  }, [personaLensId, filters.drinkCategory]);
+    return owns ? activePersona : null;
+  }, [activePersona, filters.drinkCategory, personaLensId]);
+
+  useEffect(() => {
+    if (!personaLensId) return;
+    let cancelled = false;
+    void loadPersonaDrinksModule().catch(() => {
+      if (!cancelled) selectPersona(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [personaLensId, selectPersona]);
 
   // Flip "Saved only". Re-read the saved set from localStorage on every toggle
   // (event handler, not an effect) so a venue saved elsewhere this session is
@@ -3605,7 +3762,7 @@ export default function PubMap({
   const showBandChip = shouldShowBandOnboardingChip({
     loaded,
     activeBandId,
-    bandResolved: Boolean(activeBand),
+    bandResolved: bandChipHasResolvedBand(activeBandId, activeBand),
     chipDismissed:
       dismissedBandIds.has(activeBandId) || readBandChipDismissed(activeBandId),
   });
@@ -4075,16 +4232,12 @@ export default function PubMap({
           outsideCurated={outsideCuratedBounds || ukNationalBrowse}
           query={filters.query}
           onQueryChange={changeMapSearchQuery}
-          searchContent={
-            // Limited-coverage arrivals keep search so UK places (and any
-            // resident base pubs) can still answer when venues are emptied.
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mapSearchInput"
-              mode="toolbar"
-              placeholder={mapSearchPlaceholder}
-            />
-          }
+          searchProps={{
+            ...sharedMapSearchProps,
+            id: "mapSearchInput",
+            mode: "toolbar",
+            placeholder: mapSearchPlaceholder,
+          }}
           favoritePint={favoritePint}
           onFavoritePintChange={changeFavoritePint}
           drinkFiltersActive={drinkFiltersActive}
@@ -4192,19 +4345,19 @@ export default function PubMap({
         {/* G3: Place story deep-link chip when `?band=` resolves. Distinct
             dismiss key from curated onboarding; suppresses that overlay while
             visible. */}
-        {showBandChip && activeBand ? (
+        {showBandChip ? (
           <BandOnboardingChip
-            title={activeBand.title}
-            copy={activeBand.copy}
+            title={activeBand?.title ?? "Place story"}
+            copy={activeBand?.copy ?? "Loading place story."}
             onWalkStory={dismissBandChip}
             onDismiss={dismissBandChip}
           />
         ) : null}
-        {activePersona ? (
+        {personaForCard ? (
           <PersonaLensCard
-            persona={activePersona}
+            persona={personaForCard}
             matchCount={
-              personaHighlightsPubs(activePersona) ? filteredPubVenueCount : undefined
+              personaHighlightsPubs(personaForCard) ? filteredPubVenueCount : undefined
             }
             onClose={() => selectPersona(null)}
           />
@@ -4288,15 +4441,13 @@ export default function PubMap({
           venueListOpen={mapListOpen}
           bandNoticeOpen={showBandChip}
           onPlan={openPlanning}
-          searchContent={
-            <MapSearchSuggest
-              {...sharedMapSearchProps}
-              id="mobileMapSearchInput"
-              mode="overlay"
-              placeholder={mapSearchPlaceholder}
-              onClose={() => changeMapOverlay("none")}
-            />
-          }
+          searchProps={{
+            ...sharedMapSearchProps,
+            id: "mobileMapSearchInput",
+            mode: "overlay",
+            placeholder: mapSearchPlaceholder,
+            onClose: () => changeMapOverlay("none"),
+          }}
           filtersContent={
             <div className="mobileMapFilters">
               <MapExperienceLensControl
