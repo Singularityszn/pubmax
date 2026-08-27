@@ -6,7 +6,7 @@ import { join } from "node:path";
 // The integration script exports its pure guards for testing; importing it must
 // not run main() (guarded by the process.argv[1] === import.meta.url check).
 // @ts-expect-error — .mjs script has no type declarations.
-import { inLondon, loadJson } from "@/scripts/integrate_wikipedia_london_pubs.mjs";
+import { inLondon, loadJson, resolveMatch } from "@/scripts/integrate_wikipedia_london_pubs.mjs";
 
 const tmpDirs: string[] = [];
 function tmp(): string {
@@ -69,5 +69,29 @@ describe("loadJson error handling (item 2)", () => {
     const sub = join(dir, "adir");
     mkdirSync(sub);
     expect(() => loadJson(sub, [])).toThrow(/Failed to read/);
+  });
+});
+
+describe("Wikipedia venue distance gate", () => {
+  const pub = { name: "Boundary Arms", url: "https://en.wikipedia.org/wiki/Boundary_Arms" };
+  const summary = { title: "Boundary Arms", lat: 51.5, lng: -0.1 };
+
+  function indexesAt(distanceMetres: number) {
+    const latitudeDelta = (distanceMetres / 6_371_000) * (180 / Math.PI);
+    return {
+      nameToKeys: new Map([["boundary arms", ["venue-boundary"]]]),
+      rowsByKey: new Map([[
+        "venue-boundary",
+        { latitude: summary.lat + latitudeDelta, longitude: summary.lng },
+      ]]),
+    };
+  }
+
+  it("accepts a same-name venue inside 350 metres", () => {
+    expect(resolveMatch(pub, summary, indexesAt(349.9))).toBe("venue-boundary");
+  });
+
+  it("rejects a same-name venue outside 350 metres", () => {
+    expect(resolveMatch(pub, summary, indexesAt(350.1))).toBeNull();
   });
 });
