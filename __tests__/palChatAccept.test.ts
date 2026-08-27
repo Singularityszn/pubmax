@@ -21,7 +21,7 @@ function card(overrides: Partial<PalCard> = {}): PalCard {
   };
 }
 
-const noop = () => {};
+const noop = (_venueId: string) => {};
 
 describe("Pub Pal card acceptance handoff", () => {
   it("offers an explicit source-pal acceptance to Map when palHandoff is on", () => {

@@ -9,6 +9,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { ArrowUp, MapPin, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
@@ -25,7 +26,12 @@ import { DEFAULT_CITY_ID } from "@/lib/cities";
 import { writeAskPlanDraft } from "@/lib/conciergeAskClient";
 import { rankNearMe } from "@/lib/nearMeAnswer";
 import { CENTRAL_PATCH, readRememberedArea, resolveNightPatch } from "@/lib/nightPatches";
+import {
+  palKnownVenueIds,
+  resolvePalVenueOpenTarget,
+} from "@/lib/palOpenVenue";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
+import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
@@ -66,7 +72,7 @@ function VenueLink({
   children,
 }: {
   card: PalCard;
-  onOpen: () => void;
+  onOpen: (venueId: string) => void;
   children: React.ReactNode;
 }) {
   // A card is only tappable when it deep-links to a real venue on the map. The
@@ -74,11 +80,16 @@ function VenueLink({
   if (!card.venueId) {
     return <div className="palChatCardBody palChatCardBody--static">{children}</div>;
   }
+  const target = resolvePalVenueOpenTarget(card.venueId, null);
+  const href = target.kind === "open" ? target.href : venueMapUrl(card.venueId);
   return (
     <Link
       className="palChatCardBody palChatCardBody--link"
-      href={`/map?sel=${encodeURIComponent(card.venueId)}`}
-      onClick={onOpen}
+      href={href}
+      onClick={(event) => {
+        event.preventDefault();
+        onOpen(card.venueId);
+      }}
     >
       {children}
     </Link>
@@ -133,7 +144,7 @@ export function AnswerCard({
   locality,
 }: {
   card: PalCard;
-  onOpen: () => void;
+  onOpen: (venueId: string) => void;
   palHandoff: boolean;
   locality: PalLocality | null;
 }) {
@@ -170,7 +181,7 @@ export function AnswerCard({
       {palHandoff && card.venueId ? (
         <Link
           className="palChatCardAccept pressable"
-          href={`/map?sel=${encodeURIComponent(card.venueId)}&accept=1&src=pal`}
+          href={venueAcceptUrl(card.venueId, "pal")}
           onClick={() => acceptPalVenue(card, locality)}
         >
           Use this Venue
@@ -181,11 +192,14 @@ export function AnswerCard({
 }
 
 export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
+  const router = useRouter();
   const { user, session } = useAuth();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  const [openNotice, setOpenNotice] = useState<string | null>(null);
+  const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const sessionRef = useRef<ReturnType<typeof createPalChatSession> | null>(null);
@@ -197,6 +211,37 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     counterRef.current += 1;
     return `t-${counterRef.current}`;
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    void loadSlimVenuesForCity(DEFAULT_CITY_ID)
+      .then((slim) => {
+        if (!alive) return;
+        setKnownVenueIds(palKnownVenueIds(slim));
+      })
+      .catch(() => {
+        if (!alive) return;
+        setKnownVenueIds(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const openVenue = useCallback(
+    (venueId: string) => {
+      trackEvent("concierge_result_tap");
+      const target = resolvePalVenueOpenTarget(venueId, knownVenueIds);
+      if (target.kind === "fallback") {
+        setOpenNotice(target.notice);
+        router.push(target.href);
+        return;
+      }
+      setOpenNotice(null);
+      router.push(target.href);
+    },
+    [knownVenueIds, router],
+  );
 
   // Keep the newest turn in view as the transcript grows.
   useEffect(() => {
@@ -255,13 +300,11 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   }, []);
 
   const confirmProposal = useCallback((proposal: AskProposal, entryId?: string) => {
-    trackEvent("concierge_result_tap");
     if (proposal.kind === "open_venue") {
-      window.location.assign(
-        `/map?sel=${encodeURIComponent(proposal.venueId)}`,
-      );
+      openVenue(proposal.venueId);
       return;
     }
+    trackEvent("concierge_result_tap");
     if (proposal.kind === "fly_to") {
       const params = new URLSearchParams({
         lat: String(proposal.lat),
@@ -319,7 +362,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         if (entryId) dismissProposal(entryId, proposal.id);
       })();
     }
-  }, [auth, dismissProposal, nextId]);
+  }, [auth, dismissProposal, nextId, openVenue]);
 
   const onSubmit = useCallback(
     (event: React.FormEvent<HTMLFormElement>) => {
@@ -328,10 +371,6 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     },
     [ask, query],
   );
-
-  const openVenue = useCallback(() => {
-    trackEvent("concierge_result_tap");
-  }, []);
 
   // Vibe deep link (?ask=...): a Tonight vibe chip can hand its preset ask to
   // this surface pre-fired. Read from location once on mount — a client-only,
@@ -427,6 +466,11 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
       </header>
 
       <div className="palChatScroll" ref={scrollRef}>
+        {openNotice ? (
+          <p className="palChatOpenNotice" role="status">
+            {openNotice}
+          </p>
+        ) : null}
         <div className="palChatTranscript" aria-live="polite">
           {entries.map((entry) => {
             if (entry.kind === "user") {
