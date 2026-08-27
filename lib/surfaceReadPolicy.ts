@@ -96,7 +96,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/prefetchVenue.ts", fetchCount: 1, reason: "hover prefetch warms an interaction detail, not a painted reload read" },
   { path: "lib/ukBasePubs.ts", fetchCount: 2, reason: "UK base shard loading is viewport-owned static map data" },
   { path: "lib/webPush.ts", fetchCount: 2, reason: "push subscription transport is an account action" },
-  { path: "lib/planSessionCapability.ts", fetchCount: 2, reason: "plan capability exchange is an auth-gated session read" },
+  { path: "lib/planSessionCapability.ts", fetchCount: 1, reason: "plan capability exchange is an auth-gated session read" },
   { path: "lib/planMutationOutbox.ts", fetchCount: 1, reason: "offline plan outbox replays mutations" },
   { path: "lib/mapWarmup.ts", fetchCount: 3, reason: "map warmup prefetch is owned by map startup and never paints directly" },
   { path: "lib/planRouteTotalsClient.ts", fetchCount: 1, reason: "plan route totals are interactive route state" },

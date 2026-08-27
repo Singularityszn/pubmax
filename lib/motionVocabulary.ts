@@ -38,28 +38,3 @@ export function onReducedMotionChange(
   mql.addEventListener("change", handler);
   return () => mql.removeEventListener("change", handler);
 }
-
-/** Durations in ms. */
-export const motionDuration = {
-  /** Aperture splash hard ceiling - the whole splash must resolve by here. */
-  splashCeiling: 700,
-  /** Aperture splash hold before the coral X starts opening. */
-  splashHold: 180,
-  /** Settle time for a non-scroll-linked micro-transition inside the cinema
-   *  (e.g. hero pins fading in once the card has settled). Not used by the
-   *  scroll-scrubbed transform itself, which is driven by scroll position,
-   *  not a duration. */
-  cinemaSettle: 480,
-} as const;
-
-/**
- * Easing curves. `weighted` is the cinema house curve: damped, physical,
- * settles without overshoot or snap - used as the animation-timing-function
- * on the scroll-scrubbed keyframes (see components/landing/heroCinema.css)
- * so the transform's response to scroll position feels weighted even though
- * a scrubbed animation has no duration of its own.
- */
-export const motionEase = {
-  weighted: "cubic-bezier(0.22, 1, 0.36, 1)",
-  splashAperture: "cubic-bezier(0.16, 1, 0.3, 1)",
-} as const;

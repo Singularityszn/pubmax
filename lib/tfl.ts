@@ -1,3 +1,4 @@
+import { WALK_KMH } from "@/lib/routeLegs";
 import { whatsappShareHref } from "@/lib/shareArtifacts";
 
 // TfL "last drink / last train home" helpers — pure, unit-tested, no network.
@@ -204,15 +205,11 @@ export type LastPintDecision = {
 // number in the route) so the threshold story is legible in one place.
 export const BUFFER_MINUTES = 5;
 
-// Walking pace used to turn a straight-line venue→station distance into a time
-// estimate. ~4.8km/h is a brisk-but-realistic evening walking speed; we label
-// the result as straight-line (not routed), since MapLibre/OSRM routing is out
-// of scope here.
-const WALKING_KMH = 4.8;
-
 export function walkMinutesForKm(distanceKm: number): number {
   if (!Number.isFinite(distanceKm) || distanceKm <= 0) return 0;
-  return Math.round((distanceKm / WALKING_KMH) * 60);
+  // Floored at 1 so a short-but-real distance never reads "0 min walk" - a
+  // drinker still needs a moment to get up and out of the pub.
+  return Math.max(1, Math.round((distanceKm / WALK_KMH) * 60));
 }
 
 // Minutes from now until a last train departs, off ACTUAL clock time rather than

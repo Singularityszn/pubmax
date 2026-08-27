@@ -3,6 +3,7 @@ import { cityAwareMapPath } from "@/lib/curatedCrawls";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import { NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { haversineKm } from "@/lib/haversine";
+import { WALK_KMH } from "@/lib/routeLegs";
 import {
   MAP_EXPERIENCE_LENS_URL_PARAM,
 } from "@/lib/mapExperienceLens";
@@ -287,7 +288,7 @@ function terminalFromRaw(
             note: "Choose a final route stop to calculate distance.",
           }
         : {
-            minutes: Math.ceil((directKm / 4.8) * 60),
+            minutes: Math.ceil((directKm / WALK_KMH) * 60),
             distanceKm: Number(directKm.toFixed(2)),
             basis: "straight-line-from-final-stop",
             note: "Direct-distance estimate from the route's actual final stop; confirm the walking route before leaving.",

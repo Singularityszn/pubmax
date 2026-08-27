@@ -1,4 +1,5 @@
 import { haversineKm } from "@/lib/haversine";
+import { WALK_KMH } from "@/lib/routeLegs";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
@@ -15,9 +16,9 @@ import type { VenueKind } from "@/lib/venues";
 // The slim index has no per-venue "closed" flag, so a priced pub is the whole
 // of the quality bar here; when a closed flag lands, extend `qualifies`.
 
-// Unhurried city walking pace. 80 m/min ≈ 4.8 km/h — the same order the map's
-// route metrics assume, kept conservative so a quoted "8 min" never undersells.
-export const WALK_METRES_PER_MIN = 80;
+// Unhurried city walking pace, derived from the same shared pace routeLegs
+// uses everywhere else, so a change to the pace can't drift between surfaces.
+export const WALK_METRES_PER_MIN = (WALK_KMH * 1000) / 60;
 
 // ~12 min walk ≈ 960 m. The "walkable right now" ring the persona actually
 // cares about. Kept as 1 km so the arithmetic reads cleanly and a card at the

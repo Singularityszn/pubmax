@@ -46,22 +46,6 @@ export function planBudgetSummary(
   };
 }
 
-export function planRouteSummary(
-  venues: readonly { lat: number; lng: number }[],
-  grounded: GroundedRouteTimingSummary | null,
-): PlanRouteTotals {
-  let distance = grounded?.straightLineWalkingKm ?? 0;
-  if (!grounded) for (let index = 0; index < venues.length - 1; index += 1) {
-    distance += haversineKm([venues[index].lng, venues[index].lat], [venues[index + 1].lng, venues[index + 1].lat]);
-  }
-  return {
-    stopCount: venues.length,
-    straightLineWalkingKm: Number(distance.toFixed(2)),
-    estimatedWalkingMinutes: grounded?.walkingMinutes ?? Math.ceil((distance / 4.8) * 60),
-    distanceBasis: "straight-line",
-  };
-}
-
 export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary | null) {
   return grounded ? {
     walkingSpeedKmh: 4.8,
@@ -71,6 +55,5 @@ export function planRouteTimingDisclosure(grounded: GroundedRouteTimingSummary |
     basis: "straight-line walking estimate; add five minutes uncertainty per transfer",
   } : null;
 }
-import { haversineKm } from "@/lib/haversine";
 import type { NightContext } from "@/lib/nightPlanning";
-import type { PlanBudgetSummary, PlanRouteTotals } from "@/lib/planIntelligence";
+import type { PlanBudgetSummary } from "@/lib/planIntelligence";

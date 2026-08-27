@@ -104,10 +104,6 @@ export function isUkBaseVenueId(venueId: string): boolean {
   return venueId.startsWith(UK_BASE_ID_PREFIX);
 }
 
-export function venueKindForId(venueId: string): Exclude<WantedVenueKind, "pending"> {
-  return isUkBaseVenueId(venueId) ? "uk_base" : "curated";
-}
-
 export function detectSourcePlatform(url: string): WantedSourcePlatform {
   if (!url) return "none";
   try {

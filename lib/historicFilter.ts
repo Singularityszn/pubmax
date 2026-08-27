@@ -20,13 +20,6 @@ export type HistoricFilters = {
   sort: HistoricSort;
 };
 
-export const DEFAULT_HISTORIC_FILTERS: HistoricFilters = {
-  borough: null,
-  listedOnly: false,
-  hasDate: false,
-  sort: "oldest",
-};
-
 // Map an era string to a comparable *start year* for "oldest first".
 //   - a plain 3–4 digit year ("1520", "1667")      → that year
 //   - "Nth century" ("17th century")               → (N-1)*100, i.e. its start
