@@ -1,6 +1,6 @@
 # Capacitor Native Wrap
 
-PUBMAXX ships to the App Store as a Capacitor shell around the production PWA.
+PUBMAXXING ships to the App Store as a Capacitor shell around the production PWA.
 The Next.js app is **server-rendered** — there is no static export — so the
 shells run in **remote-URL mode**: `capacitor.config.ts` points
 `server.url` at `https://pubmaxxing.com` and the WKWebView loads the live site.
