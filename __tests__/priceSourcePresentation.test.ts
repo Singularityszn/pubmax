@@ -303,9 +303,10 @@ describe("baseline price-source presentation", () => {
 
     expect(html).toContain("£6.40");
     expect(html).toContain(
-      "Price on record. Publisher not recorded for this price.",
+      "Price on record. Publisher not recorded for this price",
     );
-    expect(html).toContain(formatPintDatasetAsOf());
+    expect(html).toContain(`(${formatPintDatasetAsOf()})`);
+    expect(html).not.toContain(`. ${formatPintDatasetAsOf()}`);
     expect(html).not.toContain("Source not named in record");
   });
 
@@ -315,6 +316,8 @@ describe("baseline price-source presentation", () => {
 
     expect(html).toContain(`href="${sourceUrl}"`);
     expect(html).toContain(">Pint Prices</a>");
+    expect(html).toContain(`(${formatPintDatasetAsOf()})`);
+    expect(html).not.toContain(`. ${formatPintDatasetAsOf()}`);
     expect(html).not.toContain("Publisher not recorded for this price");
   });
 

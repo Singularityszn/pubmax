@@ -184,11 +184,11 @@ function VenuePriceSummary({
               >
                 {baselineSource.label}
               </a>
-              . {formatPintDatasetAsOf()}. Not a live tonight feed.
+              {" "}({formatPintDatasetAsOf()}). Not a live tonight feed.
             </>
           ) : (
             <>
-              Price on record. Publisher not recorded for this price. {formatPintDatasetAsOf()}.
+              Price on record. Publisher not recorded for this price ({formatPintDatasetAsOf()}).
               {" "}Not a live tonight feed.
             </>
           )}

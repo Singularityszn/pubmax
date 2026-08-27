@@ -847,8 +847,11 @@ function priceContributionRecord(
   };
 }
 
-export const memoryCommunityPriceStore: CommunityPriceStore = {
-  async submit(input, now = Date.now()) {
+/** Synchronous memory write used by the keyless one-tap transaction. */
+export function submitMemoryCommunityPriceSync(
+  input: CommunityPriceWrite,
+  now: number = Date.now(),
+): CommunityPriceWriteResult {
     const key = normalize(input);
     if (!key) return { price: null };
     const roundSource = cleanRoundPriceSource(input.roundSource);
@@ -946,6 +949,11 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
       price: published(stored),
       ...(roundSource ? { sourceBecameOwner: true } : {}),
     };
+}
+
+export const memoryCommunityPriceStore: CommunityPriceStore = {
+  async submit(input, now = Date.now()) {
+    return submitMemoryCommunityPriceSync(input, now);
   },
 
   async submitSignal(input, now = Date.now()) {
@@ -1139,17 +1147,44 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
   },
 };
 
-/** Roll back the keyless memory half of a paired one-tap write. */
-export function removeMemoryCommunityPricePairing(id: string): boolean {
-  if (!id) return false;
-  for (const [venueId, rows] of venues) {
-    const index = rows.findIndex((row) => row.id === id);
-    if (index < 0) continue;
-    rows.splice(index, 1);
-    if (rows.length === 0) venues.delete(venueId);
+function cloneStoredPrice(row: StoredPrice): StoredPrice {
+  return {
+    ...row,
+    roundSource: row.roundSource ? { ...row.roundSource } : null,
+    reporters: row.reporters ? new Set(row.reporters) : undefined,
+  };
+}
+
+/** Capture a compare-and-restore rollback for one keyless paired write. */
+export function captureMemoryCommunityPricePairingRollback(
+  input: CommunityPriceWrite,
+): (saved: CommunityPrice) => boolean {
+  const key = normalize(input);
+  const actor = input.actor ?? null;
+  if (!key || actor === null) return () => false;
+  const ownsKey = (row: StoredPrice) =>
+    row.drinkCategory === key.drinkCategory && row.actor === actor;
+  const previous = (venues.get(key.venueId) ?? []).find(ownsKey);
+  const snapshot = previous ? cloneStoredPrice(previous) : null;
+
+  return (saved) => {
+    if (!saved.id) return false;
+    const rows = venues.get(key.venueId) ?? [];
+    const current = rows.find(ownsKey);
+    if (
+      !current
+      || current.id !== saved.id
+      || current.priceGbp !== saved.priceGbp
+      || current.submittedAt !== saved.submittedAt
+    ) {
+      return false;
+    }
+    const restored = rows.filter((row) => !ownsKey(row));
+    if (snapshot) restored.push(cloneStoredPrice(snapshot));
+    if (restored.length > 0) venues.set(key.venueId, restored);
+    else venues.delete(key.venueId);
     return true;
-  }
-  return false;
+  };
 }
 
 // ── Supabase implementation ──────────────────────────────────────────────────

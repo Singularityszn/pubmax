@@ -7,8 +7,8 @@ import {
   type CommunityPrice,
 } from "@/lib/communityPrice";
 import {
-  removeMemoryCommunityPricePairing,
-  submitCommunityPrice,
+  captureMemoryCommunityPricePairingRollback,
+  submitMemoryCommunityPriceSync,
 } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { log } from "@/lib/log";
@@ -16,7 +16,7 @@ import type { PintDrop } from "@/lib/pintDrops";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import {
   deletePhotos,
-  pintDropsStore,
+  memoryPintDropPairWriter,
   toDTOWithPhotos,
   uploadPhoto,
   type PersistableDrop,
@@ -80,10 +80,9 @@ function buildDrop(input: OneTapPintDropInput): PintDrop {
   };
 }
 
-async function writeMemoryOneTapPintDrop(
+function writeMemoryOneTapPintDrop(
   input: OneTapPintDropInput,
-  photos: PintDropPhotos = { pint: null, venue: null },
-): Promise<OneTapPintDropOutcome> {
+): OneTapPintDropOutcome {
   const handle = normalizeViewerHandle(input.handle);
   if (!handle) {
     return {
@@ -94,7 +93,7 @@ async function writeMemoryOneTapPintDrop(
   }
 
   try {
-    const drop = await pintDropsStore().create(buildDrop(input), photos);
+    const drop = memoryPintDropPairWriter.create(buildDrop(input));
     void ensureProfileForHandle(handle);
     return { ok: true, drop };
   } catch (err) {
@@ -134,7 +133,8 @@ export async function writeOneTapPricePair(
   }
 
   if (!isSupabaseConfigured()) {
-    const { price, failed } = await submitCommunityPrice({
+    const rollbackPrice = captureMemoryCommunityPricePairingRollback(input);
+    const { price, failed } = submitMemoryCommunityPriceSync({
       venueId: input.venueId,
       drinkCategory: input.drinkCategory,
       priceGbp: input.priceGbp,
@@ -142,9 +142,12 @@ export async function writeOneTapPricePair(
       contributorHandle: input.handle,
     });
     if (failed || !price) return storageFailure();
-    const dropOutcome = await writeMemoryOneTapPintDrop(input, photos);
+    const dropOutcome = writeMemoryOneTapPintDrop({
+      ...input,
+      priceGbp: price.priceGbp,
+    });
     if (!dropOutcome.ok) {
-      removeMemoryCommunityPricePairing(price.id ?? "");
+      rollbackPrice(price);
       return dropOutcome;
     }
     return { ok: true, price, drop: dropOutcome.drop };
@@ -193,19 +196,29 @@ export async function writeOneTapPricePair(
     const saved = Array.isArray(data) && data[0] && typeof data[0] === "object"
       ? data[0] as Record<string, unknown>
       : null;
-    if (!saved || typeof saved.price_id !== "string") {
+    const savedAt = typeof saved?.submitted_at === "string"
+      ? Date.parse(saved.submitted_at)
+      : Number.NaN;
+    const pennies = saved?.price_pennies;
+    if (
+      !saved
+      || typeof saved.price_id !== "string"
+      || saved.price_id.length === 0
+      || typeof pennies !== "number"
+      || !Number.isInteger(pennies)
+      || pennies < 0
+      || !Number.isFinite(savedAt)
+      || saved.drop_id !== drop.id
+    ) {
       throw new Error("Paired price write returned no receipt.");
     }
-    const savedAt = typeof saved.submitted_at === "string"
-      ? Date.parse(saved.submitted_at)
-      : Date.parse(submittedAt);
-    const pennies = Number(saved.price_pennies);
+    persistable.priceGbp = pennies / 100;
     const price: CommunityPrice = {
       id: saved.price_id,
       venueId: input.venueId,
       drinkCategory: input.drinkCategory,
-      priceGbp: Number.isInteger(pennies) ? pennies / 100 : input.priceGbp,
-      submittedAt: Number.isFinite(savedAt) ? savedAt : Date.parse(submittedAt),
+      priceGbp: pennies / 100,
+      submittedAt: savedAt,
       source: "community",
     };
     void ensureProfileForHandle(input.handle);

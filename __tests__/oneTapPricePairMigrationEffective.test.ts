@@ -13,9 +13,13 @@ const MIGRATION = join(
   process.cwd(),
   "supabase/migrations/20260827123131_one_tap_price_pair.sql",
 );
-const ROLLBACK = join(
+const REPAIR_MIGRATION = join(
   process.cwd(),
-  "supabase/migrations/rollback/20260827123131_one_tap_price_pair_rollback.sql",
+  "supabase/migrations/20260827172414_align_one_tap_pint_drop_price.sql",
+);
+const REPAIR_ROLLBACK = join(
+  process.cwd(),
+  "supabase/migrations/rollback/20260827172414_align_one_tap_pint_drop_price_rollback.sql",
 );
 
 type Session = {
@@ -160,15 +164,30 @@ async function startSession(): Promise<Session> {
         id uuid, price_pennies integer, submitted_at timestamptz,
         round_spend_id uuid, round_line_index integer, source_became_owner boolean
       ) language plpgsql as $$
+      declare
+        v_id uuid;
+        v_pennies integer;
+        v_submitted_at timestamptz;
       begin
-        return query insert into public.community_prices as price
+        insert into public.community_prices as price
           (venue_id, drink_category, price_pennies, actor, contributor_handle, submitted_at)
         values (p_venue_id, p_drink_category, p_price_pennies, p_actor, p_contributor_handle, p_submitted_at)
         on conflict (venue_id, drink_category, actor) do update
           set price_pennies = excluded.price_pennies,
               contributor_handle = excluded.contributor_handle,
               submitted_at = excluded.submitted_at
-        returning price.id, price.price_pennies, price.submitted_at, null::uuid, null::integer, true;
+          where price.submitted_at <= excluded.submitted_at
+        returning price.id, price.price_pennies, price.submitted_at
+          into v_id, v_pennies, v_submitted_at;
+        if not found then
+          select price.id, price.price_pennies, price.submitted_at
+            into v_id, v_pennies, v_submitted_at
+            from public.community_prices price
+            where price.venue_id = p_venue_id
+              and price.drink_category = p_drink_category
+              and price.actor = p_actor;
+        end if;
+        return query select v_id, v_pennies, v_submitted_at, null::uuid, null::integer, true;
       end $$;
       grant all on public.community_prices, public.pint_drops to service_role;
       grant execute on function public.upsert_attributed_community_price_if_newer(
@@ -176,6 +195,7 @@ async function startSession(): Promise<Session> {
       ) to service_role;
     `);
     execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", MIGRATION], { stdio: "pipe" });
+    execFileSync(psql, [...args, "-v", "ON_ERROR_STOP=1", "-f", REPAIR_MIGRATION], { stdio: "pipe" });
     return {
       sql: (statement) => run(statement),
       refuse: (statement) => run(statement, true),
@@ -215,10 +235,50 @@ const PAIR_ARGS = `
   'karan', 'Pint', null, null, 'authority-a'
 `;
 
+const PAIR_NAMED_ARGS = `
+  p_venue_id => 'venue-xjf3n0',
+  p_drink_category => 'beer',
+  p_price_pennies => 420,
+  p_actor => 'profile:test',
+  p_contributor_handle => 'karan',
+  p_submitted_at => '2026-08-27T19:00:00Z',
+  p_drop_id => '00000000-0000-4000-8000-000000000124',
+  p_handle => 'karan',
+  p_drink => 'Pint',
+  p_pint_photo_key => null,
+  p_venue_photo_key => null,
+  p_authority_key => 'authority-a'
+`;
+
 describe("one-tap price pair migration", () => {
   it("commits one Community Price and one Pint Drop together", () => {
-    expect(session!.sql(`select price_pennies || '|' || drop_id from public.create_one_tap_price_pair(${PAIR_ARGS})`)).toBe("420|00000000-0000-4000-8000-000000000124");
+    expect(session!.sql(`
+      select
+        (price_id is not null)::text || '|' || price_pennies || '|' ||
+        (submitted_at = '2026-08-27T19:00:00Z'::timestamptz)::text || '|' || drop_id
+      from public.create_one_tap_price_pair(${PAIR_NAMED_ARGS})
+    `)).toBe("true|420|true|00000000-0000-4000-8000-000000000124");
     expect(session!.sql("select (select count(*) from community_prices) || '|' || (select count(*) from pint_drops)")).toBe("1|1");
+  });
+
+  it("uses the stored Community Price when an older observation loses ownership", () => {
+    const newerArgs = PAIR_ARGS
+      .replace("profile:test", "profile:atomic")
+      .replace("420", "510")
+      .replace("2026-08-27T19:00:00Z", "2026-08-27T20:00:00Z")
+      .replace("00000000-0000-4000-8000-000000000124", "00000000-0000-4000-8000-000000000130");
+    const olderArgs = PAIR_ARGS
+      .replace("profile:test", "profile:atomic")
+      .replace("00000000-0000-4000-8000-000000000124", "00000000-0000-4000-8000-000000000131");
+
+    expect(session!.sql(`select price_pennies from public.create_one_tap_price_pair(${newerArgs})`)).toBe("510");
+    expect(session!.sql(`select price_pennies from public.create_one_tap_price_pair(${olderArgs})`)).toBe("510");
+    expect(session!.sql(`
+      select
+        (select price_pennies from public.community_prices where actor = 'profile:atomic')
+        || '|' ||
+        (select round(price_gbp * 100)::integer from public.pint_drops where id = '00000000-0000-4000-8000-000000000131')
+    `)).toBe("510|510");
   });
 
   it("rolls the price back when Pint Drop insert fails, then retries cleanly", () => {
@@ -242,7 +302,7 @@ describe("one-tap price pair migration", () => {
   it("is service-only and rollback removes the RPC", () => {
     const signature = "public.create_one_tap_price_pair(text,text,integer,text,text,timestamptz,uuid,text,text,text,text,text)";
     expect(session!.sql(`select has_function_privilege('service_role', '${signature}', 'execute') || '|' || has_function_privilege('authenticated', '${signature}', 'execute') || '|' || has_function_privilege('anon', '${signature}', 'execute')`)).toBe("true|false|false");
-    session!.apply(ROLLBACK);
+    session!.apply(REPAIR_ROLLBACK);
     expect(session!.sql(`select to_regprocedure('${signature}') is null`)).toBe("t");
   });
 });

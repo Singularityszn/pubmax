@@ -40,7 +40,7 @@ import {
   type Filters,
   type Venue,
 } from "@/lib/venues";
-import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
+import { venuePriceFreshnessLabel } from "@/lib/venuePriceFreshness";
 import {
   isMapSearchField,
   typedSearchCameraMove,
@@ -56,7 +56,11 @@ import {
   type WetherspoonsPub,
 } from "@/lib/wetherspoonsDirectory";
 import type { WetherspoonsMatchVenue } from "@/lib/wetherspoonsMatch";
-import { mergePriceUpdates, parsePriceUpdates, type PriceUpdate } from "@/lib/priceUpdates";
+import {
+  mergePriceUpdates,
+  parsePriceUpdates,
+  type PriceUpdate,
+} from "@/lib/priceUpdates";
 import { nearestVenueIds } from "@/lib/nearby";
 import {
   NEAR_ME_MAP_MIN_VENUES,
@@ -3960,7 +3964,7 @@ export default function PubMap({
           ) : typeof selectedVenue.cheapestPrice === "number" ? (
             <span>
               <PriceBadge>{formatPrice(selectedVenue.cheapestPrice)}</PriceBadge>
-              <small>{formatPintDatasetAsOf()}</small>
+              <small>{venuePriceFreshnessLabel(selectedVenue)}</small>
             </span>
           ) : selectedVenueIsPub ? (
             <button
