@@ -719,7 +719,8 @@ export async function enrichPubWithClient(pub, client, fetchedAt) {
     try {
       const page = await client.contents([site], { purpose: "lore" });
       results.push(...(page?.results ?? []));
-    } catch {
+    } catch (error) {
+      if (isFatalExaError(error)) throw error;
       // A failed contents read is absence, not a guessed website.
     }
   }
@@ -728,7 +729,8 @@ export async function enrichPubWithClient(pub, client, fetchedAt) {
   try {
     searchPayload = await client.search(harvestSearchQuery(pub), { purpose: "lore" });
     results.push(...(searchPayload?.results ?? []));
-  } catch {
+  } catch (error) {
+    if (isFatalExaError(error)) throw error;
     // A failed search is an empty observation list, not a guessed fact.
   }
 
@@ -742,10 +744,16 @@ export async function enrichPubWithClient(pub, client, fetchedAt) {
       ...record.observations,
       ...observationsFromExaResults(pub, menu?.results, fetchedAt),
     ]);
-  } catch {
+  } catch (error) {
+    if (isFatalExaError(error)) throw error;
     // Keep the search observations. A failed menu fetch does not invent a menu.
   }
   return record;
+}
+
+export function isFatalExaError(error) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  return /Exa 401\b|Exa 402\b|NO_MORE_CREDITS|INVALID_API_KEY/.test(message);
 }
 
 export function shardFileName(index) {

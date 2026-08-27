@@ -183,6 +183,7 @@ export function enrichPubWithClient(
   fetchedAt: string;
   output?: ExaStructuredOutput;
 }>;
+export function isFatalExaError(error: unknown): boolean;
 export function shardFileName(index: number): string;
 export function nextShardIndexFromNames(names: string[]): number;
 export function nextShardIndex(dirOrNames: string | string[]): number;
