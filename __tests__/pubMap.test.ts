@@ -48,6 +48,7 @@ describe("hasCrawlArrivalParams", () => {
     expect(hasCrawlArrivalParams("?drink=stout")).toBe(true);
     expect(hasCrawlArrivalParams("?band=fleet")).toBe(true);
     expect(hasCrawlArrivalParams("?log=1")).toBe(true);
+    expect(hasCrawlArrivalParams("?mapNotice=unknown")).toBe(true);
   });
 
   it("returns false for a clean arrival", () => {

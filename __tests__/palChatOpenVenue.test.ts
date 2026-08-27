@@ -129,6 +129,11 @@ describe("Pal venue card navigation", () => {
 
     const venueLink = container.querySelector<HTMLAnchorElement>(".palChatCardBody--link");
     if (!venueLink) throw new Error("Pal venue card link not found");
+    expect(venueLink.getAttribute("href")).toBe("/map?mapNotice=unknown");
+    await act(async () => {
+      venueLink.dispatchEvent(new MouseEvent("click", { bubbles: true, ctrlKey: true }));
+    });
+    expect(router.push).not.toHaveBeenCalled();
     await act(async () => venueLink.click());
 
     expect(router.push).toHaveBeenCalledWith("/map?mapNotice=unknown");

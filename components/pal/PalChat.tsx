@@ -31,7 +31,7 @@ import {
   resolvePalVenueOpenTarget,
 } from "@/lib/palOpenVenue";
 import { formatPalWhen, type PalAnswer, type PalCard } from "@/lib/palChat";
-import { venueAcceptUrl, venueMapUrl } from "@/lib/venueMapUrl";
+import { venueAcceptUrl } from "@/lib/venueMapUrl";
 import { palRecall, type PalRecall } from "@/lib/palRecall";
 import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/palLocality";
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
@@ -69,10 +69,12 @@ type Entry =
 function VenueLink({
   card,
   onOpen,
+  knownVenueIds,
   children,
 }: {
   card: PalCard;
   onOpen: (venueId: string) => void;
+  knownVenueIds: ReadonlySet<string> | null;
   children: React.ReactNode;
 }) {
   // A card is only tappable when it deep-links to a real venue on the map. The
@@ -80,13 +82,23 @@ function VenueLink({
   if (!card.venueId) {
     return <div className="palChatCardBody palChatCardBody--static">{children}</div>;
   }
-  const target = resolvePalVenueOpenTarget(card.venueId, null);
-  const href = target.kind === "open" ? target.href : venueMapUrl(card.venueId);
+  const target = resolvePalVenueOpenTarget(card.venueId, knownVenueIds);
+  const href = target.href;
   return (
     <Link
       className="palChatCardBody palChatCardBody--link"
       href={href}
       onClick={(event) => {
+        if (
+          event.defaultPrevented ||
+          event.button !== 0 ||
+          event.metaKey ||
+          event.ctrlKey ||
+          event.shiftKey ||
+          event.altKey
+        ) {
+          return;
+        }
         event.preventDefault();
         onOpen(card.venueId);
       }}
@@ -140,18 +152,20 @@ function acceptPalVenue(card: PalCard, locality: PalLocality | null): void {
 export function AnswerCard({
   card,
   onOpen,
+  knownVenueIds = null,
   palHandoff,
   locality,
 }: {
   card: PalCard;
   onOpen: (venueId: string) => void;
+  knownVenueIds?: ReadonlySet<string> | null;
   palHandoff: boolean;
   locality: PalLocality | null;
 }) {
   const when = card.when ? formatPalWhen(card.when) : "";
   return (
     <li className="palChatCard">
-      <VenueLink card={card} onOpen={onOpen}>
+      <VenueLink card={card} onOpen={onOpen} knownVenueIds={knownVenueIds}>
         <div className="palChatCardTop">
           <p className="palChatCardTitle">{card.title}</p>
           {typeof card.price === "number" ? (
@@ -559,6 +573,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
                         key={card.key}
                         card={card}
                         onOpen={openVenue}
+                        knownVenueIds={knownVenueIds}
                         palHandoff={palHandoff}
                         locality={locality}
                       />

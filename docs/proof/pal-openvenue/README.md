@@ -18,4 +18,4 @@ Viewport: 390×844, dark theme, reduced motion (matches `e2e/pal-openvenue.spec.
 
 ## Unmatched fallback
 
-When the slim index has answered and the card's id is not listed, Pal opens `/map` without `?sel=` and prints `That pub is not one we know.` in the transcript (`role="status"`). Covered in `__tests__/palOpenVenue.test.ts`.
+When the slim index has answered and the card's id is not listed, Pal opens `/map` without `?sel=` and the map-owned notice prints `That pub is not one we know.` (`role="status"`). Covered in `__tests__/palOpenVenue.test.ts` and `__tests__/palChatOpenVenue.test.ts`.
