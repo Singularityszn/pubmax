@@ -46,6 +46,23 @@ describe("Capacitor wrapped-build contract", () => {
     );
   });
 
+  it("declares foreground location access for native nearby and walk-time flows", () => {
+    const info = rootFile("ios/App/App/Info.plist");
+    expect(info).toContain("NSLocationWhenInUseUsageDescription");
+    expect(info).not.toContain("NSLocationAlwaysAndWhenInUseUsageDescription");
+
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(manifest).toContain(
+      'android.permission.ACCESS_COARSE_LOCATION',
+    );
+    expect(manifest).toContain(
+      'android.permission.ACCESS_FINE_LOCATION',
+    );
+    expect(manifest).not.toContain(
+      'android.permission.ACCESS_BACKGROUND_LOCATION',
+    );
+  });
+
   it("declares the same supported paths for iOS and Android deep links", () => {
     const aasa = JSON.parse(
       rootFile("public/.well-known/apple-app-site-association"),
