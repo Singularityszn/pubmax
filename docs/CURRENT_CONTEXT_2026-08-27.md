@@ -8,16 +8,16 @@ This document records current operational truth after the 23-27 August merge wav
 
 | Area | Current state | Decision |
 | --- | --- | --- |
-| GitHub `main` | Reviewed through #1226 | Only clean release source |
+| GitHub `main` | `9b2efa13e`, reviewed through #1235 | Only clean release source |
 | Production | `dpl_EGv3MXtogGzUbttVDaKATCcH5aLS`, deployed 25 August | Behind current `main` |
 | Vercel project | `pubmax69/chengdu` | Deploy only after Captain approval and release gate |
 | GitHub Actions | Jobs stop before execution because of account billing | Local verification is required until owner repairs billing |
 | Primary local clone | `docs/dag-handoff`, 476 changed or untracked paths, ahead 1 and behind 415 at audit time | Preserve. Do not pull, clean, reset, or deploy from it |
 | Clean audit worktree | `codex/review-20260827` from `origin/main` | Review and repair lane |
-| Open pull requests | 0 | #1206 and #1211 were superseded and closed |
-| Open issues | 15 after closing #1184, #1186, and #1187 with merged evidence | Resolve by release impact |
+| Open pull requests | 0 | All current review slices are merged |
+| Open issues | 13 | Resolve by release impact. Deferred milestones are not v0 blockers |
 
-Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1212, #1213, #1214, #1215, #1216, #1218, #1219, #1220, #1221, #1222, #1223, #1225, and #1226.
+Production does not contain the 27 August review wave through #1235. Do not use production as evidence for these source changes.
 
 ## 2. Product state
 
@@ -97,10 +97,11 @@ Closed with current-main evidence: #1184 by #1198, #1186 by #1199, and #1187 by 
 - Opening-hour coverage from this harvest is zero.
 - An earlier bars and website-content pass wrote empty rows after Exa credit refusal. #1215 now makes this fail loudly.
 
-### 4.2 Active work
+### 4.2 Blocked work
 
-- Fresh bars enrichment resumed from 500 durable rows after the Mac shutdown.
-- Website-content enrichment must run after bars finish. Do not start a duplicate process.
+- Fresh bars enrichment reached 2,200 of 6,892 current targets, then Exa returned `402 NO_MORE_CREDITS`.
+- Four partial shards and `progress.json` are preserved under `data-harvest/bars-enriched/` in the harvest worktree.
+- Website-content enrichment has not started. Do not start it before bars completes.
 - Fold once after both passes finish and quality sampling passes.
 
 ### 4.3 Publication rules
@@ -118,8 +119,8 @@ Never commit secret values. Required names and decisions are:
 
 | Need | Configuration or action | State |
 | --- | --- | --- |
-| Durable app data | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, public Supabase keys | Configured in production; apply migration `0119` |
-| UK enrichment | `EXA_API_KEY` | Fresh local key exists; credits expire or can exhaust |
+| Durable app data | `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, public Supabase keys | Configured in production; apply migrations `0119`-`0122` |
+| UK enrichment | `EXA_API_KEY` | Key exists, but account returned `402 NO_MORE_CREDITS` |
 | Ticketmaster | `TICKETMASTER_API_KEY` | Connected, but venue matching is weak |
 | Skiddle | `SKIDDLE_API_KEY` plus written commercial and logo approval | Captain action |
 | Eventbrite | `EVENTBRITE_API_TOKEN` | Provider currently yields no useful stock |
@@ -134,7 +135,7 @@ Never commit secret values. Required names and decisions are:
 
 ### Gate A: data honesty
 
-1. Apply migrations `0119`, `0120`, and `0121` through Captain's database process in ledger order.
+1. Apply migrations `0119`, `0120`, `0121`, and `0122` through Captain's database process in ledger order.
 2. Refresh What's-On and prove non-empty, correctly matched pub supply.
 3. Add aliases only from verified Venue identity evidence.
 
@@ -150,6 +151,14 @@ Completed on 27 August:
 - #1223 merged creator-list batching and full TypeScript-check repairs.
 - #1225 merged social provider capability and credential lifecycle policy as migration `0120`.
 - #1226 merged explicit Wanted-to-public-list promotion as migration `0121`.
+- #1228 fixed Plan mini-map routed bounds and stale Venue price-story writes.
+- #1229 fixed TfL daylight-saving boundaries and Night Mode labels.
+- #1230 fixed profile metadata privacy and MapLibre control target size.
+- #1231 merged current health repairs and migration `0122`.
+- #1232 extracted Plan DTO projection and deduplicated route search. Issue #1205 closed.
+- #1233 centralised compatible metre calculations.
+- #1234 centralised compatible kilometre calculations. The longitude-first generator remains fenced.
+- #1235 extracted Plan request and anchored-selection orchestration. Issue #1203 closed.
 - Admin enforcement was restored after every merge.
 
 ### Gate C: v0 customer journey
@@ -187,12 +196,12 @@ Completed on 27 August:
 6. Captain gives explicit Vercel deployment authority.
 7. Deploy `main` once to `chengdu`, smoke critical journeys, and record deployment id and commit SHA.
 
-## 7. Immediate work in progress
+## 7. Immediate release state
 
-- Fresh UK bars enrichment, followed by website-content enrichment.
-- Creator-list batching is merged. Full TypeScript check and 37 focused tests passed locally.
-- Social provider lifecycle and Wanted promotion are merged with full TypeScript checks and focused tests.
-- Migrations `0119`, `0120`, and `0121`, plus What's-On refresh, remain Captain database operations.
+- GitHub has zero open pull requests. `main` is `9b2efa13e`.
+- Old local candidate branches were audited. Their product changes are already represented on current `main`; no hidden product-code salvage remains.
+- UK bars enrichment is blocked at 2,200 of 6,892 by Exa credits. Website-content enrichment has not started.
+- Migrations `0119`-`0122`, plus What's-On refresh, remain Captain database operations.
 - Clean production build, browser journeys, and release screenshots remain before deployment.
 
 Do not deploy while any Gate A blocker remains.
