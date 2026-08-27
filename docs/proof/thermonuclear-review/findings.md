@@ -4,8 +4,8 @@ Fixed point: `origin/main` at `d19b05cf8`.
 
 Reviewed candidate heads:
 
-- London v0 PR #1237 at `d8cd96406`.
-- Native at `95ce143bd`.
+- London v0 PR #1237 at `5df55a687`.
+- Native at `1e2a24c15`.
 - TfL D1 at `eeb663635`.
 - Voice D2 at `a57b0c55d` and `9e51fc398`.
 
@@ -27,13 +27,13 @@ Reviewed candidate heads:
 ### Open acceptance gaps
 
 1. **London end-to-end proof is incomplete.** Two-browser host and guest completion, real persisted Pint Drop, moderation, Map authority, and exact release SHA proof remain required.
-2. **Native browser proof is incomplete.** Required browser-proxy README and four screenshots under `docs/proof/native-v0-browser/` are absent.
-3. **Native store readiness is incomplete.** Simulator build, Android debug build, physical-device checks, London rebase, signed artefacts, and store upload are not complete. Toolchains, enrolment, signing data, and shared London checkpoint remain external blockers.
+2. **Native store readiness is incomplete.** Simulator build, Android debug build, physical-device checks, London rebase, signed artefacts, and store upload are not complete. Toolchains, enrolment, signing data, and shared London checkpoint remain external blockers.
 
 ### Closed
 
 - D1 TfL repeated fall-back-hour work is patch-equivalent to main commit `36f05dd05`. Current main preserves `serviceHour`, distinguishes `25:xx`, and has exact route regression coverage. Do not cherry-pick `eeb663635`.
 - Native install name `PUBMAXXING` follows current `CONTEXT.md`. One stale plan line that says `PUBMAXX` must not override product terminology.
+- Native browser-equivalent evidence now includes a README and four verified `390 x 844` PNG captures under `docs/proof/native-v0-browser/`. Measured Map client width and scroll width are both 390px, with every visible Map button at least 44px high. Codex browser could not inject the Capacitor bridge before page scripts, so this evidence does not claim native-runtime coverage.
 
 ## Security and correctness review
 
@@ -61,8 +61,8 @@ Reviewed candidate heads:
 ## Verification evidence
 
 - `git diff --check` passed for London and native candidate diffs.
-- Focused London repair suite passed at `d8cd96406`: 6 files, 33 tests.
-- Native branch previously passed lint, typecheck, Capacitor Doctor, and 56 native-focused tests. It remains blocked from final compile and store proof by missing toolchains and shared release checkpoint.
+- Focused London repair suite passed at `d8cd96406`: 6 files, 33 tests. The later `5df55a687` commit changes only the mobile floating-stack CSS and its rendered E2E proof; it does not close the four blockers.
+- Native branch passed the latest focused suite at `eb25c04cf`: 8 files, 57 tests, plus targeted ESLint and diff validation. Browser-equivalent proof was added at `1e2a24c15`. It remains blocked from final compile and store proof by missing toolchains and shared release checkpoint.
 - GitHub PR #1237 is open. Hosted checks show 3 passed, 13 failed before hosted execution, and 1 skipped. Human review remains required because Cursor Bugbot exhausted usage.
 
 ## Merge decision
