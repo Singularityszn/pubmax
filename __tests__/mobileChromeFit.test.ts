@@ -150,7 +150,7 @@ describe("mobile chrome fit at 390px", () => {
       164,
     );
 
-    // The row clears the published map-edge lane so TfL cannot steal taps.
+    // The row clears the published map-edge lane so Near me cannot steal taps.
     expect(mobileMapCss).toMatch(
       /\.mobileMapChipRow\s*{[^}]*padding-right:\s*calc\(\s*var\(--mobile-map-corner-lane\)\s*-\s*var\(--mobile-map-stack-right\)/,
     );
@@ -172,12 +172,11 @@ describe("mobile chrome fit at 390px", () => {
     );
   });
 
-  it("keeps the map-edge lane clear for the two controls that live on it", () => {
+  it("keeps the map-edge lane clear for its sole control", () => {
     // The Tonight Arc used to be a full-width band in this same vertical strip,
-    // and the TfL button swallowed the taps meant for its fifth chip. The arc
-    // has left the phone map entirely (finding 2.3), so what the lane has to
-    // describe now is the two map-edge controls themselves: TfL at the top and
-    // the Near me FAB at the thumb.
+    // and the map-edge utility swallowed the taps meant for its fifth chip. The
+    // arc has left the phone map entirely (finding 2.3), so the lane now only
+    // needs to clear the Near me FAB.
     const cornerInset = Number(
       mobileMapCss.match(/--mobile-map-corner-inset:\s*max\((\d+)px/)?.[1],
     );
@@ -202,9 +201,10 @@ describe("mobile chrome fit at 390px", () => {
     expect(mobileMapCss).toMatch(
       /\.mobileMapUtilityCorner > button\s*{[^}]*min-width:\s*var\(--mobile-map-corner-btn\)/,
     );
-    // TfL at the top, Near me at the bottom of that one lane.
+    expect(mobileMapCss).not.toMatch(/mobileMapTflButton/);
+    // Near me is the only action in that one lane.
     expect(mobileMapCss).toMatch(
-      /\.mobileMapUtilityCorner\s*{[^}]*justify-content:\s*space-between/,
+      /\.mobileMapUtilityCorner\s*{[^}]*justify-content:\s*flex-end/,
     );
     const fab = mobileMapCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab, ".mobileMapLocateFab rule present").not.toBe("");

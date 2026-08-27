@@ -1,11 +1,25 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildDrinkLaneChip,
   buildFiltersChip,
   buildNearMeChip,
-  buildTflCorner,
   buildTonightChip,
 } from "@/lib/mapChromeTiers";
+
+describe("buildDrinkLaneChip", () => {
+  it("omits the default Pints lane from resting map chrome", () => {
+    expect(buildDrinkLaneChip("Pints", false)).toBeNull();
+  });
+
+  it("names an explicitly selected drink lens", () => {
+    expect(buildDrinkLaneChip("Whisky", true)).toMatchObject({
+      label: "Whisky",
+      pressed: true,
+      disabled: false,
+    });
+  });
+});
 
 describe("buildNearMeChip", () => {
   it("labels every status honestly", () => {
@@ -79,20 +93,6 @@ describe("buildFiltersChip", () => {
       refinements: 2,
       ariaLabel: "Filters: saved only and open now active",
     });
-  });
-});
-
-describe("buildTflCorner", () => {
-  it("keeps the compact status vocabulary from the old chip", () => {
-    expect(buildTflCorner("clear", 0)).toMatchObject({ statusSuffix: "OK", badge: null });
-    expect(buildTflCorner("unavailable", 0).statusSuffix).toBe("?");
-    expect(buildTflCorner("issues", 15)).toMatchObject({ statusSuffix: null, badge: 15 });
-    expect(buildTflCorner("checking", 0)).toMatchObject({ statusSuffix: null, badge: null });
-  });
-
-  it("aria labels carry the status meaning", () => {
-    expect(buildTflCorner("issues", 15).ariaLabel).toBe("TfL live: 15 updates");
-    expect(buildTflCorner("clear", 3).ariaLabel).toBe("TfL live: lines running well");
   });
 });
 

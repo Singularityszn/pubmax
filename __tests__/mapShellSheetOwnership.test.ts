@@ -69,8 +69,6 @@ function shellProps(overrides: Record<string, unknown> = {}) {
     nearbyCount: 0,
     tonightCount: 0,
     tonightNearReader: false,
-    tflCount: 0,
-    tflStatus: "clear" as const,
     priceLabel: "Any price",
     drinkFiltersActive: false,
     zoneActive: false,

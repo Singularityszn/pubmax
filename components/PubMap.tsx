@@ -1,6 +1,6 @@
 "use client";
 
-import { CalendarClock, List, MapPinned, ShieldCheck, X } from "lucide-react";
+import { CalendarClock, GlassWater, List, MapPinned, ShieldCheck, X } from "lucide-react";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
@@ -4475,8 +4475,6 @@ export default function PubMap({
           nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
           tonightNearReader={userLocation != null}
-          tflCount={tflStatus.issueCount}
-          tflStatus={tflStatus.failed ? "unavailable" : !tflStatus.payload ? "checking" : tflStatus.issueCount ? "issues" : "clear"}
           priceLabel={filters.maxPrice < NO_PINT_PRICE_CAP ? `≤£${filters.maxPrice.toFixed(2)}` : "Price"}
           drinkFiltersActive={drinkFiltersActive}
           drinkLaneLabel={drinkLaneLabel(activeMapDrinkLane)}
@@ -4665,6 +4663,16 @@ export default function PubMap({
               </TabsContent>
               <TabsContent value="layers" className="mobileLayersPanel">
                 <div className="mobileLayerShortcuts">
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    className="w-full justify-start"
+                    aria-label="Choose drink shown on the map"
+                    onClick={() => changeMapOverlay("drink")}
+                  >
+                    <GlassWater size={18} aria-hidden="true" />
+                    Drinks
+                  </Button>
                   <Button className="mobilePlannerLaunch w-full justify-start" onClick={openPlanning}>
                     <MapPinned size={18} aria-hidden="true" />
                     Plan an outing

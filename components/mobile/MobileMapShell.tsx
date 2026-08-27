@@ -1,14 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, TrainFront, X } from "lucide-react";
+import { Ellipsis, GlassWater, LocateFixed, LocateOff, MoonStar, Route, Search, SlidersHorizontal, X } from "lucide-react";
 import { lazy, Suspense } from "react";
 
 import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 import CitySwitcher from "@/components/map/CitySwitcher";
 import { IconButton } from "@/components/ui/icon-button";
 import { Sheet } from "@/components/ui/sheet";
-import { buildFiltersChip, buildNearMeChip, buildTflCorner, buildTonightChip, type CornerUtilityModel, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
+import { buildDrinkLaneChip, buildFiltersChip, buildNearMeChip, buildTonightChip, type PrimaryChipModel, type TonightChipModel } from "@/lib/mapChromeTiers";
 import { MAP_SHEET_TITLES, type MapOverlay, type MapSheetKind } from "@/lib/mobileShell";
 import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 
@@ -32,7 +32,7 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
 ];
 
 /**
- * The map edge, top to bottom: TfL at the top, Near me at the thumb.
+ * The map edge owns Near me as its one action.
  *
  * Near me is a round FAB rather than a bar chip because that is what a map
  * reader already knows a locate control looks like, and because the one top
@@ -41,27 +41,16 @@ const CONTEXTUAL_SHEETS: readonly MapSheetKind[] = [
  * "Try near me".
  */
 function MapEdgeControls({
-  tfl,
-  tflOpen,
-  onOpenTfl,
   nearMe,
   nearbyCount,
   onNearMe,
 }: {
-  tfl: CornerUtilityModel;
-  tflOpen: boolean;
-  onOpenTfl: () => void;
   nearMe: PrimaryChipModel;
   nearbyCount: number;
   onNearMe: () => void;
 }) {
   return (
-    <div className="mobileMapUtilityCorner" aria-label="Map utilities">
-      <IconButton className="mobileMapTflButton" aria-label={tfl.ariaLabel} aria-expanded={tflOpen} onClick={onOpenTfl}>
-        <TrainFront size={19} />
-        {tfl.statusSuffix ? <span className="mobileMapCornerSuffix" aria-hidden="true">{tfl.statusSuffix}</span> : null}
-        {tfl.badge ? <span className="mobileMapCornerBadge">{tfl.badge}</span> : null}
-      </IconButton>
+    <div className="mobileMapUtilityCorner" aria-label="Map edge">
       <button
         type="button"
         className="mobileMapLocateFab"
@@ -126,41 +115,42 @@ function sheetBodyFor(
  * Right (P5 cold-start): What's On listings earn a one-tap path into the
  * Tonight sheet, and a quiet night simply leaves that half empty.
  *
- * The row stops short of the published map-edge lane so TfL never swallows a
+ * The row stops short of the published map-edge lane so the edge action never swallows a
  * chip's taps (components/mobile/mobileMapShell.css).
  */
 function MapChipRow({
   overlay,
-  drinkLaneLabel,
-  drinkLaneSelected,
+  drinkChip,
   tonightChip,
   onOpen,
 }: {
   overlay: MapOverlay;
-  drinkLaneLabel: string;
-  drinkLaneSelected: boolean;
+  drinkChip: PrimaryChipModel | null;
   tonightChip: TonightChipModel | null;
   onOpen: (overlay: MapOverlay) => void;
 }) {
+  if (!drinkChip && !tonightChip) return null;
   const drinkOpen = overlay === "drink";
   const tonightOpen = overlay === "tonight";
   return (
     <div className="mobileMapChipRow">
-      <button
-        type="button"
-        className={
-          drinkOpen || drinkLaneSelected
-            ? "mobileMapDrinkChip isActive"
-            : "mobileMapDrinkChip"
-        }
-        aria-label={`Drink shown on the map: ${drinkLaneLabel}. Choose another drink`}
-        aria-expanded={drinkOpen}
-        aria-haspopup="dialog"
-        onClick={() => onOpen("drink")}
-      >
-        <GlassWater size={15} aria-hidden="true" />
-        <span className="mobileMapDrinkChipLabel">{drinkLaneLabel}</span>
-      </button>
+      {drinkChip ? (
+        <button
+          type="button"
+          className={
+            drinkOpen || drinkChip.pressed
+              ? "mobileMapDrinkChip isActive"
+              : "mobileMapDrinkChip"
+          }
+          aria-label={`Drink shown on the map: ${drinkChip.label}. Choose another drink`}
+          aria-expanded={drinkOpen}
+          aria-haspopup="dialog"
+          onClick={() => onOpen("drink")}
+        >
+          <GlassWater size={15} aria-hidden="true" />
+          <span className="mobileMapDrinkChipLabel">{drinkChip.label}</span>
+        </button>
+      ) : null}
       {tonightChip ? (
         <button
           type="button"
@@ -183,7 +173,7 @@ function MapChipRow({
   );
 }
 
-export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, tflCount, tflStatus, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
+export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, limitedCoverage, interactionLocked = false, overlay, onOverlayChange, backLabel, onBack, onHome, activeQuery, onClearQuery, onNearMe, nearMeStatus, nearMeError, onDismissNearMeError, nearbyCount, tonightCount, tonightNearReader, priceLabel, drinkFiltersActive, drinkLaneLabel, drinkLaneSelected, experienceFilterLabel, priceCapActive, zoneActive, savedOnlyActive = false, openNowActive, planOpen, planActive, planStopCount, planInteractive, venueListOpen, bandNoticeOpen, onPlan, searchProps, searchContent, filtersContent, drinkContent, tflContent, tonightContent, layersContent, palContent, momentContent, nearMeContent, areaContent, chooseAreaContent, sheetsEnabled = true }: {
   cityId?: CityId;
   cityLabel: string;
   /** Base-pub-only arrival: omit city-guide controls that cannot answer here. */
@@ -222,8 +212,6 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
    * near= seam). City-wide cold-start must not claim "near you".
    */
   tonightNearReader: boolean;
-  tflCount: number;
-  tflStatus: "checking" | "clear" | "issues" | "unavailable";
   priceLabel: string;
   drinkFiltersActive: boolean;
   /** The drink the map is under, as the lane chip prints it ("Pints"). */
@@ -327,7 +315,7 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
     savedOnlyActive,
     openNowActive,
   });
-  const tflCorner = buildTflCorner(tflStatus, tflCount);
+  const drinkChip = buildDrinkLaneChip(drinkLaneLabel, drinkLaneSelected);
   const tonightChip = buildTonightChip(tonightCount, tonightNearReader);
   const sheetKind = contextualSheetKind(overlay, sheetsEnabled);
   const sheetContent = sheetBodyFor(sheetKind, {
@@ -411,11 +399,10 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
             </button>
           </div>
         ) : null}
-        {overlay === "search" ? null : (
+        {overlay === "search" || (!drinkChip && !tonightChip) ? null : (
           <MapChipRow
             overlay={overlay}
-            drinkLaneLabel={drinkLaneLabel}
-            drinkLaneSelected={drinkLaneSelected}
+            drinkChip={drinkChip}
             tonightChip={tonightChip}
             onOpen={set}
           />
@@ -449,16 +436,13 @@ export default function MobileMapShell({ cityId = DEFAULT_CITY_ID, cityLabel, li
           </button>
         </div>
       ) : null}
-      {/* The map edge, top to bottom: TfL at the top, Near me at the thumb.
-          Near me is a round FAB rather than a bar chip because that is what a
-          map reader already knows a locate control looks like, and because the
-          bar has no room left at 320px. Its state stays in the accessible
-          name ("Near me", "Locating", "Nearby 12", "Try near me"). */}
+      {/* The map edge owns Near me as its one action. Near me is a round FAB
+          rather than a bar chip because that is what a map reader already
+          knows a locate control looks like, and because the bar has no room
+          left at 320px. Its state stays in the accessible name ("Near me",
+          "Locating", "Nearby 12", "Try near me"). */}
       {overlay !== "search" ? (
         <MapEdgeControls
-          tfl={tflCorner}
-          tflOpen={overlay === "tfl"}
-          onOpenTfl={() => set("tfl")}
           nearMe={nearMe}
           nearbyCount={nearbyCount}
           onNearMe={onNearMe}

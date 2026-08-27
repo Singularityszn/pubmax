@@ -10,8 +10,8 @@
 //                                absorbs the old Drinks + price chips (both
 //                                always opened the same sheet), the zone
 //                                picker, and the venue-type toggles.
-//   TIER 3  TfL               — compact corner icon-button with badges, out of
-//                                the answer's way. List lives in Layers.
+//   TIER 3  Transit           — live TfL content stays in More → Transit, out
+//                                of the answer's way. List lives in Layers.
 //
 // Design judgement 2026-08-01, finding 2.3 collapsed the phone chrome to ONE
 // bar. A permanent Tonight slot in that bar still fails the 320px arithmetic,
@@ -25,13 +25,29 @@
 // docs/MAP_CHROME_TIERS.md.
 
 export type NearMeStatus = "idle" | "requesting" | "ready" | "error";
-export type TflStatus = "checking" | "clear" | "issues" | "unavailable";
 
 export type PrimaryChipModel = {
   label: string;
   disabled: boolean;
   pressed: boolean;
 };
+
+/**
+ * Optional map drink-lane chip. The ordinary map is already a pint map, so
+ * the default lane needs no extra resting control. An explicit lens stays
+ * visible because its pin figures need a named drink context.
+ */
+export function buildDrinkLaneChip(
+  label: string,
+  selected: boolean,
+): PrimaryChipModel | null {
+  if (!selected || label === "Pints") return null;
+  return {
+    label,
+    disabled: false,
+    pressed: true,
+  };
+}
 
 export type FiltersChipModel = {
   label: "Filters";
@@ -45,14 +61,6 @@ export type TonightChipModel = {
   label: "On tonight";
   count: number;
   /** Screen-reader detail, e.g. "On tonight: 3 listings" or "... near you". */
-  ariaLabel: string;
-};
-
-export type CornerUtilityModel = {
-  id: "tfl";
-  /** Compact status suffix rendered beside the icon ("OK", "?", or null). */
-  statusSuffix: string | null;
-  badge: number | null;
   ariaLabel: string;
 };
 
@@ -102,23 +110,6 @@ export function buildFiltersChip(input: {
     label: "Filters",
     refinements,
     ariaLabel: refinements === 0 ? "Filters" : `Filters: ${parts.join(" and ")} active`,
-  };
-}
-
-export function buildTflCorner(status: TflStatus, count: number): CornerUtilityModel {
-  const statusSuffix = status === "clear" ? "OK" : status === "unavailable" ? "?" : null;
-  return {
-    id: "tfl",
-    statusSuffix,
-    badge: count > 0 ? count : null,
-    ariaLabel:
-      status === "clear"
-        ? "TfL live: lines running well"
-        : status === "unavailable"
-          ? "TfL live: status unavailable"
-          : count > 0
-            ? `TfL live: ${count} updates`
-            : "TfL live",
   };
 }
 

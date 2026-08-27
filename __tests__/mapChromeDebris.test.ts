@@ -7,8 +7,8 @@ import { describe, expect, it } from "vitest";
 // finding M7). Both were invisible to a desktop browser, so both are held in
 // the shipped CSS, the same house pattern as mobileChromeFit.test.ts.
 //
-//  - MapLibre's control group parked a bare dark square under the round TfL
-//    chip, over cluster pins. It is a control, so it wears the lane's shape.
+//  - MapLibre's control group parked a bare dark square over cluster pins. It
+//    is a control, so it wears the lane's shape.
 //  - The map key's three closed sections carried no affordance at all:
 //    `display: flex` on a <summary> drops the browser's disclosure triangle, so
 //    "Pin shapes", "Dots and rings" and "Routes" read as headings over nothing.
@@ -16,6 +16,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
+const mapCanvas = read("components/PubMapCanvas.tsx");
 const mapKeyCss = read("components/map/mapKey.css");
 
 /**
@@ -54,6 +55,16 @@ describe("phone map compass — a control, not a box", () => {
     expect(mobileMapCss).not.toMatch(
       /\.maplibregl-ctrl-compass\s*{[^}]*display:\s*none/,
     );
+  });
+
+  it("hides the app camera attitude control on phones", () => {
+    expect(mobileMapCss).toMatch(
+      /\.appShell \.mapStage \.mapCameraControls\s*{[^}]*display:\s*none/,
+    );
+    // Desktop still owns the designed attitude action. Phone CSS removes its
+    // app container while the native MapLibre compass remains available.
+    expect(mapCanvas).toContain('className="mapCameraControls"');
+    expect(mapCanvas).toContain('className="mapCompassBtn"');
   });
 });
 

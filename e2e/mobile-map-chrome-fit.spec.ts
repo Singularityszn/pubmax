@@ -26,7 +26,6 @@ type Rect = {
 
 type ShellLayout = {
   topbar: Rect;
-  utility: Rect;
   locate: Rect;
   plan: Rect;
   barControls: Array<Rect & { label: string }>;
@@ -165,7 +164,6 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
 
     return {
       topbar: rect(".mobileMapTopbar"),
-      utility: rect(".mobileMapTflButton"),
       locate: rect(".mobileMapLocateFab"),
       plan: rect(".mobilePlanActivation"),
       barControls: [...bar.querySelectorAll<HTMLElement>("a, button")].map(
@@ -290,21 +288,10 @@ for (const viewport of VIEWPORTS) {
       "phone top chrome height",
     ).toBeLessThanOrEqual(60);
 
-    // The map-edge lane runs TfL at the top and Near me at the thumb, both
-    // right-aligned and both clear of the bar.
-    expect(layout.utility.top, "TfL clears the bar").toBeGreaterThan(
-      layout.topbar.bottom,
-    );
-    expect(layout.locate.top, "Near me sits below TfL").toBeGreaterThan(
-      layout.utility.bottom,
-    );
+    // Near me is the sole map-edge action and stays clear of the plan pill.
     expect(layout.locate.bottom, "Near me clears the plan pill").toBeLessThanOrEqual(
       layout.plan.top,
     );
-    expect(
-      Math.round(layout.locate.right),
-      "map-edge controls share one right edge",
-    ).toBe(Math.round(layout.utility.right));
 
     // Near me's own size is published with the floating stack, so what it owes
     // is measured here rather than read back out of that declaration: the tap
@@ -390,9 +377,11 @@ for (const viewport of VIEWPORTS) {
 
     const more = topbar.getByRole("button", { name: "More map controls" });
     await tapRenderedCentre(page, more, viewport.width, "More map controls");
-    await expect(
-      page.locator('.mobileSheetPortal[data-sheet-kind="layers"]:visible'),
-    ).toHaveCount(1);
+    const moreSheet = page.locator(
+      '.mobileSheetPortal[data-sheet-kind="layers"]:visible',
+    );
+    await expect(moreSheet).toHaveCount(1);
+    await expect(moreSheet.getByRole("tab", { name: "Transit" })).toBeVisible();
     await dismissSheet(page);
 
     const filters = topbar.getByRole("button", { name: /^Filters/ });
@@ -507,15 +496,11 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
       const rect = element.getBoundingClientRect();
       return { left: rect.left, right: rect.right, width: rect.width };
     };
-    return {
-      tfl: box(".mobileMapTflButton"),
-      locate: box(".mobileMapLocateFab"),
-    };
+    return box(".mobileMapLocateFab");
   });
-  expect(safeAreaLayout.tfl.right).toBe(viewport.width - safeAreaRight);
   expect(
-    Math.round(safeAreaLayout.locate.right),
-    "both map-edge controls honour the safe-area inset",
+    Math.round(safeAreaLayout.right),
+    "Near me honours the safe-area inset",
   ).toBe(viewport.width - safeAreaRight);
 });
 
@@ -637,7 +622,6 @@ const FLOATING_RIGHT_EDGE = [
   { name: "Pub Pal pill", selector: ".palSummon" },
   { name: "plan activation", selector: ".mobilePlanActivation" },
   { name: "locate FAB", selector: ".mobileMapLocateFab" },
-  { name: "TfL control", selector: ".mobileMapTflButton" },
 ] as const;
 
 // Members that MUST be measured, or the sweep would pass by shrinking rather

@@ -7,9 +7,9 @@ truth; the shell renders its descriptors.
 
 | Tier | Surface | Treatment |
 |---|---|---|
-| 1 | **Near me** | The only primary-weight chip (`.mobileMapChipPrimary`, filled accent); on phone a round map-edge FAB |
+| 1 | **Near me** | The sole phone map-edge action: a neutral round `.mobileMapLocateFab` |
 | 2 | **Filters** | Quiet icon-button in the one top bar. Absorbs drinks + price + zone + venue-type toggles; refinement count is the badge |
-| 3 | **TfL** | Compact 44px icon-button in `.mobileMapUtilityCorner` (fixed, right edge, badge-capable). **List view** lives in the Layers sheet shortcut grid. |
+| 3 | **Transit** | Live TfL status lives in More → Transit. **List view** remains in the Layers sheet shortcut grid. |
 
 **Tonight cold-start (P5):** when `whatsOnTonight.rows.length > 0`, a measured
 `.mobileMapTonightChip` docks under the bar (not a sixth bar slot) and opens
@@ -32,7 +32,7 @@ exact boundary and layout.
 
 - **#309 near-me sheet** (`feat/instant-answer`): its Near-me chip behavior
   replaces `onNearMe`'s recenter-only success with the answer sheet — keep the
-  Tier-1 chip mount exactly as here (`.mobileMapChipPrimary`), wire its sheet
+  Tier-1 control mount exactly as here (`.mobileMapLocateFab`), wire its sheet
   open into the existing `onNearMe` callback. No new chip.
 - **#329 zone lens** (`feat/zone-price-lens`): do NOT mount the Zone chip on
   mobile. The zone picker already renders inside the mobile filters sheet on
@@ -41,7 +41,7 @@ exact boundary and layout.
   the count/aria parts). Desktop toolbar chip unchanged.
 - **#346 list view** (`fix/a11y-findings`): mount the List toggle inside the
   Layers sheet's `.mobileLayerShortcuts`, reusing its existing handler; drop its
-  standalone placement and keep `.mobileMapUtilityCorner` reserved for TfL.
+  standalone placement and keep `.mobileMapUtilityCorner` for Near me only.
 
 ## Props change (shell)
 

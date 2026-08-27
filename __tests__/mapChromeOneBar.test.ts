@@ -26,6 +26,7 @@ const shell = read("components/mobile/MobileMapShell.tsx");
 const shellCss = read("components/mobile/mobileMapShell.css");
 const pubMap = read("components/PubMap.tsx");
 const toolbar = read("components/map/MapToolbar.tsx");
+const chromeTiers = read("lib/mapChromeTiers.ts");
 
 function mapChromeMarkup(): string {
   const start = shell.lastIndexOf('<div className="mobileMapChrome"');
@@ -47,7 +48,9 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     // Tonight cold-start chip share that row rather than docking one each, so
     // a second chip can never grow into a second control rail.
     expect(chrome).toMatch(/overlay === "search" \? \([\s\S]*?mobileMapSearchRow/);
-    expect(chrome).toMatch(/overlay === "search" \? null : \([\s\S]*?<MapChipRow/);
+    expect(chrome).toMatch(
+      /overlay === "search" \|\| \(!drinkChip && !tonightChip\) \? null : \([\s\S]*?<MapChipRow/,
+    );
     expect((shell.match(/className="mobileMapChipRow"/g) ?? []).length).toBe(1);
     expect(shell).toMatch(
       /mobileMapChipRow"[\s\S]*?mobileMapDrinkChip[\s\S]*?tonightChip \? \([\s\S]*?mobileMapTonightChip/,
@@ -66,10 +69,33 @@ describe("finding 2.3 — the phone map chrome is one bar", () => {
     expect(shell).toMatch(/mobileMapLocateFab[\s\S]{0,200}aria-label=\{nearMe\.label\}/);
     const fab = shellCss.match(/\.mobileMapLocateFab\s*{([^}]*)}/)?.[1] ?? "";
     expect(fab).toMatch(/border-radius:\s*50%/);
-    // It shares the one published map-edge lane with the TfL control.
+    // It shares the one published map-edge lane with the edge action.
     expect(shell).toMatch(
       /className="mobileMapUtilityCorner"[\s\S]*?mobileMapLocateFab/,
     );
+  });
+
+  it("keeps TfL out of the floating map edge", () => {
+    const edgeStart = shell.indexOf("function MapEdgeControls");
+    const edgeEnd = shell.indexOf("\n}\n\n/**", edgeStart);
+    expect(edgeStart, "MapEdgeControls exists").toBeGreaterThan(-1);
+    expect(edgeEnd, "MapEdgeControls closes").toBeGreaterThan(edgeStart);
+    const edge = shell.slice(edgeStart, edgeEnd);
+    expect(edge).toContain("mobileMapLocateFab");
+    expect(edge).not.toContain("mobileMapTflButton");
+    expect(edge).not.toContain("TrainFront");
+    // Transit remains reachable from the More sheet's Transit tab.
+    expect(pubMap).toMatch(/<TabsTrigger value="transit">Transit<\/TabsTrigger>/);
+    expect(pubMap).toMatch(/<TabsContent value="transit"><MobileTflPanel/);
+    expect(chromeTiers).not.toContain("buildTflCorner");
+    expect(chromeTiers).not.toContain("CornerUtilityModel");
+  });
+
+  it("keeps the full drink picker reachable from More at default Pints", () => {
+    expect(pubMap).toMatch(
+      /className="mobileLayerShortcuts"[\s\S]*?aria-label="Choose drink shown on the map"[\s\S]*?onClick=\{\(\) => changeMapOverlay\("drink"\)\}/,
+    );
+    expect(pubMap).toMatch(/drinkContent=\{\s*<DrinkLanePicker/);
   });
 
   it("keeps the bar to controls, and the category toggles out of it", () => {
