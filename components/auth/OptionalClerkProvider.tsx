@@ -9,7 +9,7 @@ import { AuthProvider } from "@/components/auth/AuthProvider";
 type OptionalClerkProviderProps = {
   appearance?: ComponentProps<typeof ClerkProvider>["appearance"];
   clerkIntegrationConfigured: boolean;
-  children: ReactNode;
+  children?: ReactNode;
 };
 
 type ConfiguredClerkTreeProps = {
