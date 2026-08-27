@@ -284,7 +284,7 @@ function flattenGroupsBeforeLimit(
   return selected.flatMap((group) => [group.row, ...group.alternates]);
 }
 
-function markVerifiedLondonLiveRows(rows: WhatsOnRow[], trusted: boolean): void {
+function markVerifiedLondonRows(rows: WhatsOnRow[], trusted: boolean): void {
   if (!trusted) return;
   for (const row of rows) londonVerifiedRows.add(row);
 }
@@ -355,6 +355,10 @@ export async function loadWhatsOn(
           window: params.window,
         });
         baseline = served.rows;
+        // Bundled files and the durable store are both populated by the bounded
+        // London refresh pipeline. A venue-resolved recurring row may not carry
+        // coordinates, but that omission must not erase its London provenance.
+        markVerifiedLondonRows(baseline, true);
         baselineProviderObservedAt = canonicalPastIso(served.providerObservedAt, now);
       } catch (error) {
         console.warn(
@@ -390,7 +394,7 @@ export async function loadWhatsOn(
     const fetchLive = deps.fetchLive ?? defaultFetchLive;
     const fetchArgs = deps.fetchLive ? { now } : { now, area: "London" };
     live = normaliseLiveResult(await fetchLive(fetchArgs), now);
-    markVerifiedLondonLiveRows(live.rows, !deps.fetchLive);
+    markVerifiedLondonRows(live.rows, !deps.fetchLive);
     if (live.stale) {
       revalidation = { status: "unmeasured", reason: "live-provider-failed" };
     }

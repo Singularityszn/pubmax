@@ -11,6 +11,21 @@ function providerKey(label: string): string {
   return label.trim().toLocaleLowerCase("en-GB");
 }
 
+function stableProviderRowKey(row: WhatsOnRow): string | null {
+  const id = row.id.trim();
+  const provider = providerKey(row.source.label);
+  return id && provider ? `${provider}|${id}` : null;
+}
+
+function venueIdentityKeys(row: WhatsOnRow): string[] {
+  const eventIdentity = eventIdentityKey(row);
+  const stableProviderRow = stableProviderRowKey(row);
+  return [
+    ...(eventIdentity ? [`event:${eventIdentity}`] : []),
+    ...(stableProviderRow ? [`row:${stableProviderRow}`] : []),
+  ];
+}
+
 export function isServableWhatsOnRow(row: WhatsOnRow): boolean {
   return !(skiddleLaneFenced() && providerKey(row.source.label) === "skiddle");
 }
@@ -26,17 +41,20 @@ export function preferDurableWhatsOn(
     filterNotPast(bundled, now).filter(isServableWhatsOnRow),
   );
   const bundledVenueByIdentity = new Map<string, string>();
-  for (const row of bundledRows) {
-    const identity = eventIdentityKey(row);
+  for (const row of bundled.filter(isServableWhatsOnRow)) {
     const venueId = typeof row.venueId === "string" ? row.venueId.trim() : "";
-    if (identity && venueId && !bundledVenueByIdentity.has(identity)) {
-      bundledVenueByIdentity.set(identity, venueId);
+    if (!venueId) continue;
+    for (const identity of venueIdentityKeys(row)) {
+      if (!bundledVenueByIdentity.has(identity)) {
+        bundledVenueByIdentity.set(identity, venueId);
+      }
     }
   }
   const enrichedDurableRows = durableRows.map((row) => {
     if (typeof row.venueId === "string" && row.venueId.trim()) return row;
-    const identity = eventIdentityKey(row);
-    const venueId = identity ? bundledVenueByIdentity.get(identity) : undefined;
+    const venueId = venueIdentityKeys(row)
+      .map((identity) => bundledVenueByIdentity.get(identity))
+      .find((candidate) => candidate !== undefined);
     return venueId ? { ...row, venueId } : row;
   });
   return [

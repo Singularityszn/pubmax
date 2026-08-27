@@ -71,6 +71,60 @@ describe("preferDurableWhatsOn", () => {
     expect(served[0]).toMatchObject({ title: "Durable title", venueId: "venue-confirmed" });
   });
 
+  it("keeps a recurring pub venue when the provider reuses its stable row id", () => {
+    const bundled = [
+      row({
+        id: "question-one-white-hart",
+        sourceId: undefined,
+        venueId: "venue-white-hart",
+        startsAt: "2026-08-20T19:00:00.000Z",
+        endsAt: "2026-08-20T22:00:00.000Z",
+      }),
+    ];
+    const durable = [
+      row({
+        id: "question-one-white-hart",
+        sourceId: undefined,
+        venueId: undefined,
+        startsAt: "2026-08-27T19:00:00.000Z",
+        endsAt: "2026-08-27T22:00:00.000Z",
+      }),
+    ];
+
+    const served = preferDurableWhatsOn(
+      durable,
+      bundled,
+      Date.parse("2026-08-27T12:00:00.000Z"),
+    );
+
+    expect(served[0]).toMatchObject({
+      id: "question-one-white-hart",
+      venueId: "venue-white-hart",
+      startsAt: "2026-08-27T19:00:00.000Z",
+    });
+  });
+
+  it("does not inherit a recurring venue across different providers", () => {
+    const bundled = [
+      row({
+        id: "weekly-quiz",
+        sourceId: undefined,
+        venueId: "venue-white-hart",
+        source: { label: "Question One", url: "https://example.com/old" },
+      }),
+    ];
+    const durable = [
+      row({
+        id: "weekly-quiz",
+        sourceId: undefined,
+        venueId: undefined,
+        source: { label: "Another provider", url: "https://example.com/new" },
+      }),
+    ];
+
+    expect(preferDurableWhatsOn(durable, bundled, NOW)[0].venueId).toBeUndefined();
+  });
+
   it("falls back to bundled rows when the durable set is empty", () => {
     const bundled = [row({ id: "quiz-1", kind: "quiz", title: "Pub quiz" })];
     const served = preferDurableWhatsOn([], bundled, NOW);
