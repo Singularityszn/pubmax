@@ -929,7 +929,7 @@ export default function PubMap({
     acceptedArrivalSnapshot,
     noAcceptedArrivalSource,
   );
-  const [arrivalSelectionNotice] = useState<MapSelectionNotice | null>(
+  const [arrivalSelectionNotice, setArrivalSelectionNotice] = useState<MapSelectionNotice | null>(
     () => mapSelectionNoticeFromSearch(currentSearch()),
   );
   const [selectionNotice, setSelectionNotice] = useState<MapSelectionNotice | null>(
@@ -2162,6 +2162,7 @@ export default function PubMap({
       initialTab: TabKey = "overview",
     ) => {
       if (!id) return;
+      setArrivalSelectionNotice(null);
       setSelectionNotice(null);
       setAcceptanceError(null);
       setDetailStatusById((current) => {
@@ -4159,7 +4160,10 @@ export default function PubMap({
             <button
               type="button"
               className="ukPlaceArrivalDismiss"
-              onClick={() => setSelectionNotice(null)}
+              onClick={() => {
+                setArrivalSelectionNotice(null);
+                setSelectionNotice(null);
+              }}
               aria-label="Dismiss pub lookup note"
             >
               <X size={18} aria-hidden="true" />
