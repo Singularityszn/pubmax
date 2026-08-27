@@ -7,7 +7,6 @@ import {
   ArrowRight,
   Building2,
   CalendarClock,
-  Camera,
   Coins,
   Compass,
   LocateFixed,
@@ -75,10 +74,11 @@ const PRODUCT_SIGNALS = [
   },
 ] as const;
 
-const MEMORY_STEPS = [
-  { icon: Compass, n: "01", title: "See what's on nearby", body: "Start with a mood, a price, or something happening round the corner." },
-  { icon: UsersRound, n: "02", title: "Get the crew in", body: "Turn a saved pub into a night your mates can join and shape with you." },
-  { icon: Camera, n: "03", title: "Keep the good bits", body: "Snap the night privately, then share only what everyone signs off." },
+const HOW_IT_WORKS_STEPS = [
+  { icon: MapPin, href: "/map", n: "01", title: "Map", body: "Find nearby pubs and check the source behind each price." },
+  { icon: Route, href: "/plan", n: "02", title: "Plan", body: "Build a route and invite your crew." },
+  { icon: Receipt, href: "/map?log=1", n: "03", title: "Pint Drop", body: "Log what you paid at the bar." },
+  { icon: Compass, href: "/pal", n: "04", title: "Pub Pal", body: "Ask for a pub or Plan that fits tonight." },
 ] as const;
 
 // Locale integer with grouping (2800 -> "2,800"). British thousands separators
@@ -262,12 +262,12 @@ export default function LandingPage({
   return (
     <div className="lp">
       <header className="lpNav">
-        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+        <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
           <PubmaxxWordmark />
         </Link>
 
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
-          <Link prefetch={false} href={primaryCtaHref} {...warmProps}>Map</Link>
+          <Link prefetch={false} href="/map">Map</Link>
           <Link prefetch={false} href="/plan">Plan</Link>
           <Link prefetch={false} href="/tonight">Tonight</Link>
           <Link prefetch={false} href="/moment">Moment</Link>
@@ -402,9 +402,8 @@ export default function LandingPage({
         <section className="lpMemorySection" aria-labelledby="memory-title">
           <div className="lpMemoryCanvas">
             <div className="lpMemoryCopy">
-              <p className="lpSectionLabel">From a pin to a story</p>
-              <h2 id="memory-title">Plan the outing. Keep the parts that mattered.</h2>
-              <p>Your outing stays private until you say otherwise. When the crew&rsquo;s ready, turn the moments everyone likes into a story worth keeping.</p>
+              <h2 id="memory-title">How PUBMAXX works</h2>
+              <p>Find the pub, plan the route, log the pint, or ask for help.</p>
               <div className="lpMemoryActions">
                 <Link prefetch={false} href="/plan" className="lpButton lpButtonPrimary">Start a plan</Link>
                 {socialFriendsLaunchEnabled ? (
@@ -419,10 +418,10 @@ export default function LandingPage({
               </div>
             </div>
             <ol className="lpMemorySteps">
-              {MEMORY_STEPS.map(({ icon: Icon, n, title, body }) => (
+              {HOW_IT_WORKS_STEPS.map(({ icon: Icon, href, n, title, body }) => (
                 <li key={n}>
                   <span className="lpStepIcon"><Icon size={19} strokeWidth={1.6} aria-hidden="true" /></span>
-                  <div><span>{n}</span><h3>{title}</h3><p>{body}</p></div>
+                  <div><span>{n}</span><h3><Link prefetch={false} href={href}>{title}</Link></h3><p>{body}</p></div>
                 </li>
               ))}
             </ol>
@@ -477,7 +476,7 @@ export default function LandingPage({
       <footer className="lpFooter">
         <div className="lpFooterInner">
           <div className="lpFooterBrand">
-            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXXING home">
+            <Link prefetch={false} href="/" className="lpWordmark" aria-label="PUBMAXX home">
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterPitch">
@@ -499,7 +498,7 @@ export default function LandingPage({
           <nav className="lpFooterNav" aria-label="Footer">
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
-              <Link prefetch={false} href={primaryCtaHref} {...warmProps}>The map</Link>
+              <Link prefetch={false} href="/map">The map</Link>
               {/* Bare /near: a footer directory tap is browsing, so it must not
                   fire the geolocation prompt. Only the two deliberate one-tap
                   CTAs above ask for a location on arrival. */}

@@ -88,6 +88,43 @@ describe("landing Plan tonight together hierarchy", () => {
     expect(landingTsx).toMatch(/href="\/near\?locate=1"[\s\S]*Find my pint/);
   });
 
+  it("keeps landing navigation Map links on the canonical map", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const primaryNav = rendered.match(
+      /<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/,
+    )?.[0];
+    const footerNav = rendered.match(
+      /<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/,
+    )?.[0];
+
+    expect(primaryNav, "landing primary nav present").toBeTruthy();
+    expect(primaryNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
+    expect(footerNav, "landing footer nav present").toBeTruthy();
+    expect(footerNav).toMatch(/href="\/map"[^>]*>The map<\/a>/);
+  });
+
+  it("keeps the canonical PUBMAXX wordmark readable at 390px", () => {
+    expect(landingTsx.match(/aria-label="PUBMAXX home"/g)).toHaveLength(2);
+    expect(landingTsx).not.toContain('aria-label="PUBMAXXING home"');
+    expect(landingCss).toMatch(
+      /@media \(max-width: 430px\)[\s\S]*?\.lpWordmark\s*\{[^}]*min-width:\s*82px/,
+    );
+  });
+
+  it("introduces Map, Plan, Pint Drop, and Pub Pal in one concise sequence", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const how = rendered.match(
+      /<section class="lpMemorySection"[^>]*>[\s\S]*?<\/section>/,
+    )?.[0];
+
+    expect(how, "How PUBMAXX works section present").toBeTruthy();
+    expect(how).toContain("How PUBMAXX works");
+    expect(how).toMatch(/href="\/map"[^>]*>Map<\/a>/);
+    expect(how).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
+    expect(how).toMatch(/href="\/map\?log=1"[^>]*>Pint Drop<\/a>/);
+    expect(how).toMatch(/href="\/pal"[^>]*>Pub Pal<\/a>/);
+  });
+
   it("CSS scopes dominant primary and high-contrast secondary text", () => {
     expect(landingCss).toMatch(/\.lpHeroActions\s*\{/);
     expect(landingCss).toMatch(/\.lpHeroSecondaryRow\s*\{/);
