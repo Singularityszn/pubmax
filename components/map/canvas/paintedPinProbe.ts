@@ -15,9 +15,9 @@ import type * as maplibregl from "maplibre-gl";
 // mark the map has stopped drawing. A returned point has cleared three gates:
 //   1. the mark survived symbol collision (queryRenderedFeatures over the
 //      viewport returns placed symbols only, so an unpainted mark is absent);
-//   2. re-querying that point returns the same mark, and for a pin that means
-//      the click router in `interactions.ts` resolves a pub there, so the tap
-//      opens the venue sheet rather than a landmark card;
+//   2. the projected centre is on the map canvas; symbol pins also pass a
+//      point re-query, which means the click router in `interactions.ts`
+//      resolves a pub there rather than a landmark card;
 //   3. nothing in the app chrome covers it, so the map canvas - not a topbar
 //      button - receives the tap.
 export const PAINTED_MAP_PROBE_KEY = "__pubmaxPaintedMapTapPoints";
@@ -39,6 +39,7 @@ type ProbeWindow = Window & {
 // a point that hits either of these opens the venue sheet.
 const PIN_LAYERS = ["pubs-point-selected", "pubs-point"] as const;
 const CLUSTER_LAYER = "clusters";
+const PIN_PROBE_OVERVIEW_ZOOM = 12;
 
 function markId(
   feature: maplibregl.MapGeoJSONFeature,
@@ -62,7 +63,11 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
   const canvas = map.getCanvas();
 
   const points: PaintedMapTapPoint[] = [];
-  const collect = (kind: PaintedMapTapPoint["kind"], layers: string[]) => {
+  const collect = (
+    kind: PaintedMapTapPoint["kind"],
+    layers: string[],
+    firstOnly = false,
+  ) => {
     if (!layers.length) return;
     const seen = new Set<string>();
     for (const feature of map.queryRenderedFeatures({ layers })) {
@@ -78,17 +83,39 @@ export function paintedMapTapPoints(map: maplibregl.Map): PaintedMapTapPoint[] {
       // mark's centre (buildScene.ts).
       const point = map.project([lng, lat]);
 
-      const hits = map.queryRenderedFeatures(point, { layers });
-      if (!hits.some((hit) => markId(hit, kind) === id)) continue;
-
       const x = rect.left + point.x;
       const y = rect.top + point.y;
       if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) continue;
       if (ownerDocument.elementFromPoint(x, y) !== canvas) continue;
 
+      // Circle clusters have no placement box. Once the viewport query found
+      // one and the projected centre is on the map canvas, the click router's
+      // own point query will resolve it. Avoid repeating that query for every
+      // cluster while the browser is waiting for first paint. Symbol pins keep
+      // the stricter point re-query because collision placement can change
+      // their hit result.
+      if (kind === "pin") {
+        const hits = map.queryRenderedFeatures(point, { layers });
+        if (!hits.some((hit) => markId(hit, kind) === id)) continue;
+      }
+
       points.push({ kind, id, x, y });
+      if (firstOnly) return;
     }
   };
+
+  // At the opening zoom, clusters are the only pub marks that can paint. Check
+  // them before asking MapLibre for symbol placement: repeated symbol queries
+  // during the browser wait can otherwise occupy the render thread and delay
+  // the very paint this probe is waiting to observe. At street zoom, retain
+  // pin-first ordering because a pin is the shorter route into a venue.
+  if (
+    typeof map.getZoom === "function" &&
+    map.getZoom() < PIN_PROBE_OVERVIEW_ZOOM
+  ) {
+    collect("cluster", clusterLayers, true);
+    if (points.length > 0) return points;
+  }
 
   // Pins first: where a pin and a cluster share a point the router opens the
   // pub, so a caller taking the first point takes the shorter way in.

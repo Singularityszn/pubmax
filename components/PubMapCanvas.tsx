@@ -384,8 +384,10 @@ const PIN_REVEAL_TIMEOUT_MS = 3000;
 // Honest upper bound for the visible-map handoff. Desktop and phone both
 // degrade to the existing basemap retry toast; neither unmounts the canvas.
 // Phone still requires a confirmed visible frame before a successful reveal.
-// Kept above the measured slow stream and first-frame watchdog windows.
-const PIN_READY_CEILING_MS = 12_000;
+// Keep the ceiling inside the phone pin-ready SLA so slow basemap tiles cannot
+// hold local pub pins past the point where the map must become usable. The
+// shorter ceiling leaves room for style setup and the first browser frame.
+const PIN_READY_CEILING_MS = 1_500;
 // How long a spent pin Retry is given before it reports back. Long enough for a
 // re-fetched venue index plus a MapLibre source settle, short enough that the
 // reader is not left watching an empty map with nothing to read.

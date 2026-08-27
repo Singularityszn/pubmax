@@ -24,6 +24,7 @@ type FakeMapOptions = {
   covered?: string[];
   layers?: string[];
   rect?: { left: number; top: number; width: number; height: number };
+  zoom?: number;
 };
 
 function makeMap(options: FakeMapOptions): maplibregl.Map {
@@ -33,6 +34,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     covered = [],
     layers = ["pubs-point", "clusters"],
     rect = { left: 0, top: 0, width: 390, height: 844 },
+    zoom = 14,
   } = options;
 
   const canvas = { nodeName: "CANVAS" } as unknown as HTMLCanvasElement;
@@ -68,6 +70,7 @@ function makeMap(options: FakeMapOptions): maplibregl.Map {
     getLayer: (id: string) => (layers.includes(id) ? { id } : undefined),
     getContainer: () => container,
     getCanvas: () => canvas,
+    getZoom: () => zoom,
     project: ([lng, lat]: [number, number]) => {
       const mark = painted.find((item) => item.lng === lng && item.lat === lat);
       return { x: mark?.x ?? -1, y: mark?.y ?? -1 };
@@ -136,6 +139,15 @@ describe("paintedMapTapPoints", () => {
   it("puts pins before clusters, so a caller takes the shorter way in", () => {
     const points = paintedMapTapPoints(makeMap({ painted: [CLUSTER, PIN_A] }));
     expect(points.map((point) => point.kind)).toEqual(["pin", "cluster"]);
+  });
+
+  it("checks overview clusters before expensive symbol placement", () => {
+    const points = paintedMapTapPoints(
+      makeMap({ painted: [CLUSTER, PIN_A], zoom: 10.7 }),
+    );
+    expect(points).toEqual([
+      { kind: "cluster", id: "77", x: 180, y: 300 },
+    ]);
   });
 
   it("carries the container offset, so a tap lands where the map draws", () => {
