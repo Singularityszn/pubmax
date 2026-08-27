@@ -12,6 +12,10 @@ import {
   recommendedEndingForPlan,
   routeRevisionFromPlan,
 } from "@/components/night/NightModeCard";
+import {
+  keepGoingDistanceDescription,
+  nextStopWalkDescription,
+} from "@/lib/nightPresentation";
 import type { PlanState } from "@/lib/plan";
 
 function plan(overrides: Partial<NonNullable<PlanState["context"]>> = {}): PlanState {
@@ -72,6 +76,24 @@ describe("endingOptionsForSignals", () => {
     expect(options[0].description).toContain("2 reviewed nearby options");
     expect(options[1].description).toContain("Clapham Common");
     expect(options[2].description).toContain("2 nearby spots");
+  });
+
+  it("calls the safety-adjusted deadline a live leave-by time", () => {
+    const options = endingOptionsForSignals({
+      lateFoodCount: 0,
+      stationName: "Clapham Common",
+      leaveByIso: "2026-07-16T23:40:00.000Z",
+      extensionCount: 0,
+    });
+
+    expect(options[1].description).toBe("Live leave-by time for Clapham Common.");
+  });
+
+  it("labels Night Mode distance estimates as straight-line", () => {
+    expect(keepGoingDistanceDescription(0.4)).toBe("0.4 km straight-line");
+    expect(nextStopWalkDescription(8)).toBe(
+      "about 8 min on foot, straight-line estimate",
+    );
   });
 });
 
