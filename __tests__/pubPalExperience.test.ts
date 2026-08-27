@@ -14,7 +14,6 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 
 import PalExperience from "@/components/pal/PalExperience";
-import { markPalRouteActivation } from "@/lib/pubPal";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -38,7 +37,6 @@ beforeEach(async () => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
   window.sessionStorage.clear();
-  markPalRouteActivation();
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -58,6 +56,11 @@ afterEach(async () => {
 });
 
 describe("Pub Pal first meeting and onboarding", () => {
+  it("opens the Pub Pal meeting without route activation", () => {
+    expect(container.textContent).toContain("A little signal that becomes yours.");
+    expect(container.textContent).not.toContain("Make one useful route first.");
+  });
+
   it("renders circuit robin with alt Pub Pal on /pal by default", () => {
     const image = container.querySelector<HTMLImageElement>('img[alt="Pub Pal"]');
     expect(image?.src).toContain("/pal/circuit-robin-");
