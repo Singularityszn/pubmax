@@ -150,6 +150,13 @@ describe("attachOutVenues", () => {
         lat: 51.5168,
         lng: -0.0612,
       },
+      {
+        id: "venue-another-white-hart",
+        name: "The White Hart",
+        borough: "Southwark",
+        lat: 51.47,
+        lng: -0.08,
+      },
     ]);
     const result = attachOutVenues(
       [
@@ -162,6 +169,7 @@ describe("attachOutVenues", () => {
       ],
       whiteHartIndex,
       () => false,
+      () => true,
     );
 
     expect(result.rows[0].venueId).toBe("venue-5cqxbo");

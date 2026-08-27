@@ -1,9 +1,9 @@
 // GET /api/out?city=london&day=today|tomorrow|weekend
 //
-// Public Out listing. Events half is L2 (buildOutResponse: bundled file plus
-// Ticketmaster / Skiddle). Open plans come from list_open_social_crews with
-// city and time window in the RPC. A failed plans read is degraded, never an
-// empty market.
+// Public Out listing. What's-On uses the durable listing spine plus bounded
+// Ticketmaster / Skiddle refreshes. Open plans come from
+// list_open_social_crews with city and time window in the RPC. A failed plans
+// read is degraded, never an empty market.
 
 import { publicApiError } from "@/lib/apiError";
 import {

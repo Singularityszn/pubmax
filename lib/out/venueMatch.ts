@@ -169,11 +169,19 @@ export function attachOutVenues(
   rows: readonly WhatsOnRow[],
   index: OutVenueMatchIndex,
   mayMatch: (row: WhatsOnRow) => boolean = () => true,
+  trustHeld: (row: WhatsOnRow, venueId: string) => boolean = () => false,
 ): AttachOutVenuesResult {
   let matchedAtRequest = 0;
   let unmatched = 0;
   const out = rows.map((row) => {
     const heldVenueId = canonicalOutVenueId(row.venueId);
+    if (
+      heldVenueId &&
+      trustHeld(row, heldVenueId) &&
+      isOutVenueId(index, heldVenueId)
+    ) {
+      return row;
+    }
     if (heldVenueId && heldVenueMatchesRow(row, index, heldVenueId)) return row;
 
     const unresolved = heldVenueId ? { ...row, venueId: undefined } : row;

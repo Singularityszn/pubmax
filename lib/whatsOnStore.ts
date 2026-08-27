@@ -355,6 +355,7 @@ export async function loadWhatsOn(
           window: params.window,
         });
         baseline = served.rows;
+        if (served.readStatus === "degraded") readStatus = "degraded";
         // Bundled files and the durable store are both populated by the bounded
         // London refresh pipeline. A venue-resolved recurring row may not carry
         // coordinates, but that omission must not erase its London provenance.

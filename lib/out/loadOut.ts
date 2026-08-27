@@ -8,6 +8,7 @@ import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { log } from "@/lib/log";
 import { fillEventArea } from "@/lib/out/eventArea";
 import { outSourceAttribution } from "@/lib/out/attribution";
+import { OUT_LISTING_KINDS } from "@/lib/outListings";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   attachOutVenues,
@@ -36,6 +37,7 @@ import {
   tonightServiceWindow,
   type WhatsOnRow,
 } from "@/lib/whatsOn";
+import { loadBaselineWhatsOn } from "@/lib/whatsOnStore";
 
 export const OUT_CITIES = EVENT_REFRESH_CITIES;
 export type OutCity = (typeof OUT_CITIES)[number];
@@ -98,17 +100,43 @@ export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
   return parseWhatsOnRows(raw, bundledGeneratedAt(raw));
 }
 
-async function loadServedOutEvents(city: OutCity, now: number): Promise<WhatsOnRow[]> {
-  const bundled = loadBundledOutEvents(city);
+/** Durable What's-On supplies Out's baseline. Deals stay on Tonight. */
+export type ServedOutListings = {
+  rows: WhatsOnRow[];
+  readStatus: "ready" | "degraded";
+};
+
+export async function loadServedOutListings(
+  city: OutCity,
+  now: number,
+): Promise<ServedOutListings> {
+  if (city !== "london") {
+    return {
+      rows: loadBundledOutEvents(city).filter((row) =>
+        OUT_LISTING_KINDS.includes(row.kind)
+      ),
+      readStatus: "ready",
+    };
+  }
+  const bundled = loadBaselineWhatsOn();
   try {
-    const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
-    return loadServedWhatsOnListings({ bundled, now, kind: "event" });
+    const { loadServedWhatsOnListingsWithFreshness } = await import(
+      "@/lib/whatsOnListings.server"
+    );
+    const served = await loadServedWhatsOnListingsWithFreshness({ bundled, now });
+    return {
+      rows: served.rows.filter((row) => OUT_LISTING_KINDS.includes(row.kind)),
+      readStatus: served.readStatus,
+    };
   } catch (error) {
     log("warn", "out.whats_on_store_fallback", {
       city,
       detail: error instanceof Error ? error.message : String(error),
     });
-    return bundled;
+    return {
+      rows: bundled.filter((row) => OUT_LISTING_KINDS.includes(row.kind)),
+      readStatus: "degraded",
+    };
   }
 }
 
@@ -223,6 +251,10 @@ function foldBySourceId(rows: readonly WhatsOnRow[]): WhatsOnRow[] {
   return [...byKey.values(), ...noSourceId];
 }
 
+function outListingIdentity(row: WhatsOnRow): string {
+  return eventIdentityKey(row) ?? dedupeKey(row);
+}
+
 function observedAtBySource(rows: readonly WhatsOnRow[]): Record<string, string> {
   const out: Record<string, string> = {};
   for (const row of rows) {
@@ -295,9 +327,16 @@ export async function buildOutResponse(
   let reason: string | undefined;
   let baseline: WhatsOnRow[] = [];
   try {
-    baseline = opts.loadBaseline
-      ? opts.loadBaseline(city)
-      : await loadServedOutEvents(city, now);
+    if (opts.loadBaseline) {
+      baseline = opts.loadBaseline(city);
+    } else {
+      const served = await loadServedOutListings(city, now);
+      baseline = served.rows;
+      if (served.readStatus === "degraded") {
+        status = "degraded";
+        reason = "Some listings could not be checked.";
+      }
+    }
   } catch {
     status = "degraded";
     reason = "Some listings could not be checked.";
@@ -353,7 +392,12 @@ export async function buildOutResponse(
     reason = "Some listings could not be checked.";
   }
 
-  const liveRowKeys = new Set(liveRows.map(dedupeKey));
+  const liveRowKeys = new Set(liveRows.map(outListingIdentity));
+  const trustedBaselineVenueKeys = new Set(
+    baseline
+      .filter((row) => canonicalOutVenueId(row.venueId) !== null)
+      .map(outListingIdentity),
+  );
   const folded = dedupeRows(foldBySourceId([...baseline, ...liveRows]));
   const inWindow = filterNotPast(folded, now).filter((row) =>
     rowOverlapsWindow(row, window, query.day),
@@ -371,7 +415,15 @@ export async function buildOutResponse(
   try {
     const index = await loadVenueMatchIndex(city as CityId);
     if (index) {
-      const attached = attachOutVenues(inWindow, index, (row) => liveRowKeys.has(dedupeKey(row)));
+      const attached = attachOutVenues(
+        inWindow,
+        index,
+        (row) => liveRowKeys.has(outListingIdentity(row)),
+        (row) => {
+          const identity = outListingIdentity(row);
+          return trustedBaselineVenueKeys.has(identity) && !liveRowKeys.has(identity);
+        },
+      );
       matchedRows = attached.rows;
       matchedAtRequest = attached.matchedAtRequest;
       unmatched = attached.unmatched;

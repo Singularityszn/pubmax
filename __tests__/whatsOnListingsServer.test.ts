@@ -74,6 +74,26 @@ describe("loadServedWhatsOnListings", () => {
     expect(served.map((item) => item.title)).toEqual(["Bundled"]);
   });
 
+  it("reports a failed durable read while returning bundled fallback", async () => {
+    const failedStore: WhatsOnListingStore = {
+      replaceKind: async () => ({ written: 0 }),
+      readAll: async () => ({
+        rows: [],
+        generatedAt: null,
+        failed: true,
+      }),
+    };
+
+    const served = await loadServedWhatsOnListingsWithFreshness({
+      store: failedStore,
+      bundled: [row({ title: "Bundled" })],
+      now: NOW,
+    });
+
+    expect(served.readStatus).toBe("degraded");
+    expect(served.rows.map((item) => item.title)).toEqual(["Bundled"]);
+  });
+
   it("never serves expired durable rows", async () => {
     const expired = row({
       id: "past",
