@@ -8,16 +8,16 @@ This document records current operational truth after the 23-27 August merge wav
 
 | Area | Current state | Decision |
 | --- | --- | --- |
-| GitHub `main` | `d1ee7b0b2` | Only clean release source |
+| GitHub `main` | Reviewed through #1223 | Only clean release source |
 | Production | `dpl_EGv3MXtogGzUbttVDaKATCcH5aLS`, deployed 25 August | Behind current `main` |
 | Vercel project | `pubmax69/chengdu` | Deploy only after Captain approval and release gate |
 | GitHub Actions | Jobs stop before execution because of account billing | Local verification is required until owner repairs billing |
-| Primary local clone | `docs/dag-handoff`, 269 changed or untracked paths, ahead 1 and behind 410 | Preserve. Do not pull, clean, reset, or deploy from it |
+| Primary local clone | `docs/dag-handoff`, 476 changed or untracked paths, ahead 1 and behind 415 at audit time | Preserve. Do not pull, clean, reset, or deploy from it |
 | Clean audit worktree | `codex/review-20260827` from `origin/main` | Review and repair lane |
 | Open pull requests | 0 | #1206 and #1211 were superseded and closed |
 | Open issues | 15 after closing #1184, #1186, and #1187 with merged evidence | Resolve by release impact |
 
-Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1212, #1213, #1214, #1215, #1216, #1218, #1219, #1220, and #1221.
+Production does not contain these merged changes: #1207, #1208, #1209, #1210, #1212, #1213, #1214, #1215, #1216, #1218, #1219, #1220, #1221, #1222, and #1223.
 
 ## 2. Product state
 
@@ -60,7 +60,7 @@ Resolved in source by #1219: bundled rows retain refresh-owned identity, and pub
 
 ### 3.2 Important follow-up defects
 
-- Creator-list discovery performs one saved-list read per examined profile, up to 24 concurrent reads. Replace it with one batched read.
+- Creator-list discovery now uses one bounded batch read through #1223. The Supabase path resolves claimed profiles once, loads their saves once, and enriches them through one Venue index read.
 - #1218 is merged with linked Open Government Licence v3 attribution, 48-hour snapshot freshness, and resilient polling.
 - #1211 is closed. Its valid behaviours were ported through #1221 with fresh tests and a full TypeScript check.
 - #1206 is closed. Its missing safe fixes were ported through #1220; already-shipped and stale work was not copied.
@@ -144,6 +144,8 @@ Completed on 27 August:
 - #1219 merged as `84af07523`.
 - #1220 merged as `cbd87395d` and superseded #1206.
 - #1221 merged as `d1ee7b0b2` and superseded #1211.
+- #1222 merged the current-context record.
+- #1223 merged creator-list batching and full TypeScript-check repairs.
 - Admin enforcement was restored after every merge.
 
 ### Gate C: v0 customer journey
@@ -159,7 +161,7 @@ Completed on 27 August:
 
 1. Keep cold mobile Map pin-ready at or below 4 seconds.
 2. Build versioned, bounded repeat-visit caching only after measuring current cache misses.
-3. Batch creator-list reads.
+3. Keep the #1223 creator-list batch contract green and measure its production latency after release.
 4. Complete mobile and desktop click, keyboard, screen-reader, light, dark, and consent-state passes.
 5. Fix zero-console-error, layout, and copy defects before release.
 
@@ -184,6 +186,7 @@ Completed on 27 August:
 ## 7. Immediate work in progress
 
 - Fresh UK bars enrichment, followed by website-content enrichment.
+- Creator-list batching is merged. Full TypeScript check and 37 focused tests passed locally.
 - Migration `0119` and What's-On refresh remain Captain database operations.
 - Clean production build, browser journeys, and release screenshots remain before deployment.
 
