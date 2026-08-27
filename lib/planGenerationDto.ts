@@ -74,6 +74,38 @@ function venueDistanceKm(left: PlanGenerationDtoVenue, right: PlanGenerationDtoV
   return haversineKm([left.lng, left.lat], [right.lng, right.lat]);
 }
 
+function planAlternativeDto(
+  origin: PlanGenerationDtoVenue,
+  alternative: PlanGenerationDtoVenue,
+  grounded: PlanGenerationDtoGroundedStop | null,
+) {
+  return {
+    venueId: alternative.id,
+    venueName: alternative.name,
+    distanceKm: Number(venueDistanceKm(origin, alternative).toFixed(2)),
+    estimatedPintPricePence: grounded
+      ? grounded.price.pence
+      : alternative.cheapestPrice === null
+        ? null
+        : Math.round(alternative.cheapestPrice * 100),
+    priceEvidence: grounded?.price ?? null,
+    accessEvidence: grounded?.access ?? null,
+    constraintFlags: grounded?.constraintFlags ?? [],
+    operationalEvidence: {
+      openingAtVisit: grounded?.opening.state ?? null,
+      openingSource: grounded?.opening.source ?? null,
+      visitWindow: grounded?.visitWindow ?? null,
+      transportBasis: grounded
+        ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
+        : "compact-straight-line",
+    },
+    provenance: [{
+      kind: "venue_dataset",
+      label: `PUBMAXX venue record for ${alternative.name}`,
+    }],
+  };
+}
+
 /** Pure projection from selected candidates and evidence to public Stop DTOs. */
 export function buildPlanGenerationStops(params: {
   chosen: readonly PlanGenerationDtoCandidate[];
@@ -81,7 +113,7 @@ export function buildPlanGenerationStops(params: {
   groundedStops: readonly PlanGenerationDtoGroundedStop[] | null;
   groundedAlternatives: readonly (readonly PlanGenerationDtoGroundedStop[])[] | null;
   walkingEstimate: PlanGenerationDtoWalking;
-  area: { name: string; lastReviewedAt: string };
+  area: { name: string; lastReviewedAt: string | null };
   planningWeather: PlanGenerationDtoWeather | null;
 }) {
   const {
@@ -97,10 +129,13 @@ export function buildPlanGenerationStops(params: {
 
   return chosen.map(({ venue, distance, reasons, tonightEvents, signalClaims }, index) => {
     const grounded = groundedStops?.[index] ?? null;
-    const alternativeCandidates: readonly (
-      PlanGenerationDtoGroundedStop | PlanGenerationDtoCandidate
-    )[] = groundedAlternatives?.[index]
-      ?? candidates.filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id));
+    const groundedAlternativeCandidates = groundedAlternatives?.[index] ?? null;
+    const alternatives = groundedAlternativeCandidates
+      ? groundedAlternativeCandidates.map((entry) =>
+          planAlternativeDto(venue, entry.value.venue, entry))
+      : candidates
+          .filter(({ venue: alternative }) => !chosenVenueIds.has(alternative.id))
+          .map((entry) => planAlternativeDto(venue, entry.venue, null));
     const legRouted = walkingEstimate.legs.some(
       (leg) => leg.toIndex === index && leg.source === "ors",
     );
@@ -153,40 +188,7 @@ export function buildPlanGenerationStops(params: {
         }] : []),
       ],
       reason: `${distance < 0.5 ? "Close to the heart of the area" : `${distance.toFixed(1)} km from the area centre`}${reasons.length ? `, ${reasons.slice(0, 2).join(", ")}` : ""}.`,
-      alternatives: alternativeCandidates
-        .map((alternativeEntry) => {
-          const alternativeGrounded = "value" in alternativeEntry
-            ? alternativeEntry
-            : null;
-          const alternative = alternativeGrounded
-            ? alternativeGrounded.value.venue
-            : alternativeEntry.venue;
-          return {
-            venueId: alternative.id,
-            venueName: alternative.name,
-            distanceKm: Number(venueDistanceKm(venue, alternative).toFixed(2)),
-            estimatedPintPricePence: alternativeGrounded
-              ? alternativeGrounded.price.pence
-              : alternative.cheapestPrice === null
-                ? null
-                : Math.round(alternative.cheapestPrice * 100),
-            priceEvidence: alternativeGrounded?.price ?? null,
-            accessEvidence: alternativeGrounded?.access ?? null,
-            constraintFlags: alternativeGrounded?.constraintFlags ?? [],
-            operationalEvidence: {
-              openingAtVisit: alternativeGrounded?.opening.state ?? null,
-              openingSource: alternativeGrounded?.opening.source ?? null,
-              visitWindow: alternativeGrounded?.visitWindow ?? null,
-              transportBasis: alternativeGrounded
-                ? `direct-distance at ${WALK_KMH} km/h plus 5 minutes uncertainty per leg`
-                : "compact-straight-line",
-            },
-            provenance: [{
-              kind: "venue_dataset",
-              label: `PUBMAXX venue record for ${alternative.name}`,
-            }],
-          };
-        })
+      alternatives: alternatives
         .sort((left, right) => left.distanceKm - right.distanceKm)
         .slice(0, 2),
     };
