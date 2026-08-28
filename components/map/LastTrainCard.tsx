@@ -869,6 +869,7 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: "pointer",
   },
   destinationCancel: {
+    minHeight: 44,
     padding: "6px 8px",
     border: "none",
     background: "none",
