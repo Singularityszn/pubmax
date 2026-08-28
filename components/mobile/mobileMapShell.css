@@ -141,6 +141,17 @@
     white-space: normal;
   }
 
+  .appShell .mapStage .maplibregl-ctrl-attrib-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 44px;
+    height: 44px;
+    min-width: 44px;
+    min-height: 44px;
+    box-sizing: border-box;
+  }
+
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
      open so the compass cannot paint over or intercept sheet content. */
   body:has(.mobileSheetPortal) .appShell .mapStage .maplibregl-ctrl-top-right {
