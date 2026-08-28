@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  areaNewsExtractPrompt,
   buildAreaNewsEntry,
   fetchKeenable,
   parseExtractedFact,
@@ -118,6 +119,29 @@ describe("Keenable area-news extraction", () => {
       title: "The White Hart reopens in Soho",
       detail: "The White Hart reopened in Soho on 27 August 2026 after a refurbishment.",
     });
+  });
+
+  it("rejects historical and generic markdown pages", () => {
+    expect(
+      parseExtractedFact(
+        {
+          content: "# Soho pub award in 2024\n\nThe pub won an award in 2024.",
+        },
+        { knownAreas: new Set(["soho"]), currentYear: 2026 },
+      ),
+    ).toBeNull();
+    expect(
+      parseExtractedFact(
+        {
+          content: "# Soho pub award in 2026\n\nThe pub won an award in 2026.",
+        },
+        { knownAreas: new Set(["soho"]), currentYear: 2026 },
+      ),
+    ).toBeNull();
+  });
+
+  it("generates extraction instructions for refresh year", () => {
+    expect(areaNewsExtractPrompt(2027)).toContain("current 2027 event");
   });
 
   it("builds a dated, https, source-attributed entry from a fetched page", () => {

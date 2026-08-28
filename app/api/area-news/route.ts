@@ -6,9 +6,9 @@
 //   ?venueId=<id>     → { award }   — the award fact venue-matched to this pin,
 //                        or null. Powers the venue sheet brass-plaque badge.
 //
-// Derived purely from the committed dataset (data/area_news.json), so it is safe
-// to hold at the CDN edge (jsonCached). Never 500s: any failure degrades to an
-// empty result, matching the layer's fail-soft contract.
+// Derived purely from committed dataset (data/area_news.json). Successful reads
+// are edge-cacheable. Read failures are no-store and keep unavailable distinct
+// from a successful empty result.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
@@ -24,23 +24,29 @@ import { loadAreaNews } from "@/lib/areaNews.server";
 export async function GET(request: Request): Promise<Response> {
   try {
     const params = new URL(request.url).searchParams;
-    const { entries } = await loadAreaNews();
-
     const venueId = params.get("venueId")?.trim();
-    if (venueId) {
-      return jsonCached({ award: awardForVenue(venueId, freshAreaNews(entries)) });
+    const area = params.get("area")?.trim();
+    if (!venueId && !area) return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);
+
+    const loaded = await loadAreaNews();
+    if (loaded.status === "unavailable") {
+      return jsonNoStore({ status: "unavailable", entries: [], award: null }, { status: 200 });
     }
 
-    const area = params.get("area")?.trim();
+    const { entries } = loaded;
+    if (venueId) {
+      return jsonCached({ status: "ready", award: awardForVenue(venueId, freshAreaNews(entries)) });
+    }
+
     if (area) {
       const freshEntries = freshAreaNews(entries);
       const nightArea = entriesForNightArea(area, freshEntries);
       const resolved = nightArea.length ? nightArea : entriesForBorough(area, freshEntries);
-      return jsonCached({ entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
+      return jsonCached({ status: "ready", entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
     }
 
     return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);
   } catch {
-    return jsonNoStore({ entries: [], award: null }, { status: 200 });
+    return jsonNoStore({ status: "unavailable", entries: [], award: null }, { status: 200 });
   }
 }

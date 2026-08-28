@@ -29,6 +29,7 @@ export const KEENABLE_API_BASE: string;
 export const KEENABLE_TITLE: string;
 export const KNOWN_AREA_SLUGS: ReadonlySet<string>;
 export const AREA_NEWS_EXTRACT_PROMPT: string;
+export function areaNewsExtractPrompt(year?: number): string;
 export function areaNewsRefreshQueries(now?: number | string): string[];
 
 export function searchKeenable(
@@ -38,7 +39,7 @@ export function searchKeenable(
 export function fetchKeenable(sourceUrl: string, options?: Record<string, unknown>): Promise<KeenablePage>;
 export function parseExtractedFact(
   payload: KeenablePage | null,
-  options?: { knownAreas?: ReadonlySet<string> },
+  options?: { knownAreas?: ReadonlySet<string>; currentYear?: number },
 ): AreaNewsFact | null;
 export function buildAreaNewsEntry(input: {
   result?: KeenableResult;

@@ -18,12 +18,14 @@ import "./areaNews.css";
 export default function AreaNewsList({
   areaLabel,
   entries,
+  status = "ready",
   cap = NEW_ROUND_HERE_CAP,
   headingId = "areaNewsHeading",
 }: {
   /** Human-readable area name for the heading, e.g. "Shoreditch". */
   areaLabel: string;
   entries: AreaNewsEntry[];
+  status?: "ready" | "unavailable";
   cap?: number;
   headingId?: string;
 }) {
@@ -35,7 +37,11 @@ export default function AreaNewsList({
       <h2 id={headingId} className="areaNewsHeading">
         {areaLabel}, lately
       </h2>
-      {shown.length === 0 ? (
+      {status === "unavailable" ? (
+        <p className="areaNewsUnavailable" role="status">
+          Area updates are unavailable right now.
+        </p>
+      ) : shown.length === 0 ? (
         <p className="areaNewsEmpty">No current updates here.</p>
       ) : (
         <ul className="areaNewsList">

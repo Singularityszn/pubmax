@@ -5,27 +5,38 @@ import path from "node:path";
 
 import type { AreaNewsDataset } from "@/lib/areaNews";
 
-let cache: AreaNewsDataset | null = null;
+export type AreaNewsLoadResult =
+  | (AreaNewsDataset & { status: "ready" })
+  | { status: "unavailable"; version: 1; generatedAt: ""; entries: [] };
 
-/** Read the committed dataset once. Never throws: a read/parse failure yields an
- *  empty dataset so every surface fails soft to "nothing here" rather than 500. */
-export async function loadAreaNews(): Promise<AreaNewsDataset> {
-  if (cache) return cache;
+let loadResult: AreaNewsLoadResult | null = null;
+
+/** Read the committed dataset once and preserve read failure as a distinct state. */
+export async function loadAreaNews(): Promise<AreaNewsLoadResult> {
+  if (loadResult) return loadResult;
   try {
     const file = path.join(process.cwd(), "data", "area_news.json");
     const parsed = JSON.parse(await readFile(file, "utf8")) as Partial<AreaNewsDataset>;
-    cache = {
-      version: typeof parsed.version === "number" ? parsed.version : 1,
-      generatedAt: typeof parsed.generatedAt === "string" ? parsed.generatedAt : "",
-      entries: Array.isArray(parsed.entries) ? parsed.entries : [],
+    if (
+      typeof parsed.version !== "number" ||
+      typeof parsed.generatedAt !== "string" ||
+      !Array.isArray(parsed.entries)
+    ) {
+      throw new Error("Area news dataset shape is invalid.");
+    }
+    loadResult = {
+      status: "ready",
+      version: parsed.version,
+      generatedAt: parsed.generatedAt,
+      entries: parsed.entries,
     };
   } catch {
-    cache = { version: 1, generatedAt: "", entries: [] };
+    loadResult = { status: "unavailable", version: 1, generatedAt: "", entries: [] };
   }
-  return cache;
+  return loadResult;
 }
 
 /** Test-only: drop the in-memory cache between cases. */
 export function __resetAreaNewsCache(): void {
-  cache = null;
+  loadResult = null;
 }

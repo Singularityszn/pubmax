@@ -13,4 +13,17 @@ describe("AreaNewsList empty state", () => {
     expect(html).toContain("Soho, lately");
     expect(html).toContain("No current updates here.");
   });
+
+  it("renders a degraded state when the dataset is unavailable", () => {
+    const html = renderToStaticMarkup(
+      createElement(AreaNewsList, {
+        areaLabel: "Soho",
+        entries: [],
+        status: "unavailable",
+      }),
+    );
+
+    expect(html).toContain("Area updates are unavailable right now.");
+    expect(html).not.toContain("No current updates here.");
+  });
 });

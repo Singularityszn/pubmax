@@ -21,7 +21,7 @@ type AreaNewsEntry = {
   observedAt: string;
 };
 
-type AreaNewsResponse = { entries?: AreaNewsEntry[] };
+type AreaNewsResponse = { status?: "ready" | "unavailable"; entries?: AreaNewsEntry[] };
 
 function shortDate(iso: string): string | null {
   const t = Date.parse(iso);
@@ -35,7 +35,7 @@ function shortDate(iso: string): string | null {
 
 export default function AreaNewsRail({ area }: { area: string | null }) {
   const [entries, setEntries] = useState<AreaNewsEntry[]>([]);
-  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [status, setStatus] = useState<"loading" | "ready" | "unavailable">("loading");
   const [loadedArea, setLoadedArea] = useState<string | null>(null);
 
   useEffect(() => {
@@ -51,18 +51,37 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
       })
       .then((body: AreaNewsResponse | null) => {
         if (controller.signal.aborted) return;
+        if (body?.status === "unavailable") {
+          setEntries([]);
+          setLoadedArea(area);
+          setStatus("unavailable");
+          return;
+        }
         if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");
         setEntries(body.entries.slice(0, 3));
         setLoadedArea(area);
         setStatus("ready");
       })
       .catch(() => {
-        if (!controller.signal.aborted) setStatus("error");
+        if (!controller.signal.aborted) {
+          setEntries([]);
+          setLoadedArea(area);
+          setStatus("unavailable");
+        }
       });
     return () => controller.abort();
   }, [area]);
 
-  if (!area || loadedArea !== area || status !== "ready") return null;
+  if (!area || loadedArea !== area || status === "loading") return null;
+
+  if (status === "unavailable") {
+    return (
+      <section className="areaNewsRail" aria-label="New round here">
+        <h2 className="areaNewsRailTitle">New round here</h2>
+        <p className="areaNewsRailEmpty">Area updates are unavailable right now.</p>
+      </section>
+    );
+  }
 
   if (entries.length === 0) {
     return (

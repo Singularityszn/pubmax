@@ -9,7 +9,11 @@ export const KNOWN_AREA_SLUGS = new Set(canonicalAreaSlugs);
 const KINDS = new Set(["opening", "closure", "refurb", "award", "threat", "buzz"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-export const AREA_NEWS_EXTRACT_PROMPT = `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current 2026 event or status, not a historical fact mentioned in a new article. Do not infer or invent facts. Do not include em dashes or en dashes.`;
+export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
+  return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or status, not a historical fact mentioned in a new article. Do not infer or invent facts. Do not include em dashes or en dashes.`;
+}
+
+export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
 
 function apiUrl(apiBase, path, key) {
   const base = apiBase.replace(/\/$/, "");
@@ -88,7 +92,7 @@ export async function fetchKeenable(
     apiBase = KEENABLE_API_BASE,
     title = KEENABLE_TITLE,
     maxChars = 6000,
-    prompt = AREA_NEWS_EXTRACT_PROMPT,
+    prompt = areaNewsExtractPrompt(),
   } = {},
 ) {
   let parsedUrl;
@@ -171,7 +175,49 @@ function markdownKind(text) {
   return null;
 }
 
-function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
+const GENERIC_PUB_WORDS = new Set([
+  "a",
+  "an",
+  "and",
+  "award",
+  "bar",
+  "best",
+  "close",
+  "closed",
+  "closing",
+  "closure",
+  "current",
+  "in",
+  "london",
+  "new",
+  "news",
+  "now",
+  "open",
+  "opened",
+  "opening",
+  "pub",
+  "reopen",
+  "reopened",
+  "reopens",
+  "refurb",
+  "the",
+  "this",
+  "to",
+  "won",
+]);
+
+function hasNamedPub(text, knownAreas) {
+  const areaWords = new Set([...knownAreas].flatMap((slug) => slug.replace(/-/g, " ").split(" ")));
+  const properNounPhrases = text.match(/\b[A-Z][A-Za-z'’]*(?:\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
+  return properNounPhrases.some((phrase) =>
+    phrase
+      .toLowerCase()
+      .split(/\s+/)
+      .some((word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1),
+  );
+}
+
+function parseMarkdownFact(content, knownAreas, fallbackTitle = "", currentYear = new Date().getUTCFullYear()) {
   if (typeof content !== "string" || !content.trim()) return null;
   const blocks = content.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
   const heading = blocks
@@ -181,11 +227,18 @@ function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
   const detail = blocks
     .map((block) => cleanMarkdownText(block.replace(/^#{1,6}\s+.*$/gm, "")))
     .find((block) => block && block !== title);
-  if (!title || !detail || !/\b20\d{2}\b|\b(?:today|currently|current|this week|this month)\b/i.test(`${title} ${detail}`)) {
+  const combined = `${title} ${detail}`;
+  const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
+  if (
+    !title ||
+    !detail ||
+    years.length === 0 ||
+    years.some((year) => year !== currentYear) ||
+    !hasNamedPub(combined, knownAreas)
+  ) {
     return null;
   }
 
-  const combined = `${title} ${detail}`;
   const area = markdownArea(combined, knownAreas);
   const kind = markdownKind(combined);
   if (!area || !kind) return null;
@@ -206,9 +259,12 @@ function validateFact(raw, knownAreas) {
   return { area, kind, title, detail };
 }
 
-export function parseExtractedFact(payload, { knownAreas = KNOWN_AREA_SLUGS } = {}) {
+export function parseExtractedFact(
+  payload,
+  { knownAreas = KNOWN_AREA_SLUGS, currentYear = new Date().getUTCFullYear() } = {},
+) {
   const raw = parseJsonText(payload?.content);
-  return validateFact(raw, knownAreas) ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title);
+  return validateFact(raw, knownAreas) ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title, currentYear);
 }
 
 function publishedTime(value) {

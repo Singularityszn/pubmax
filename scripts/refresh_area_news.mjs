@@ -3,8 +3,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
 import {
-  AREA_NEWS_EXTRACT_PROMPT,
   KNOWN_AREA_SLUGS,
+  areaNewsExtractPrompt,
   buildAreaNewsEntry,
   fetchKeenable,
   parseExtractedFact,
@@ -17,18 +17,24 @@ export const AREA_NEWS_DATASET_COMMENT =
   "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.";
 
 export function areaNewsRefreshQueries(now = Date.now()) {
-  const monthYear = new Intl.DateTimeFormat("en-GB", {
+  const formatMonthYear = (time) => new Intl.DateTimeFormat("en-GB", {
     month: "long",
     year: "numeric",
     timeZone: "UTC",
-  }).format(new Date(now));
+  }).format(new Date(time));
+  const currentDate = new Date(now);
+  const currentMonth = formatMonthYear(currentDate);
+  const previousMonth = formatMonthYear(
+    new Date(Date.UTC(currentDate.getUTCFullYear(), currentDate.getUTCMonth() - 1, 1)),
+  );
+  const monthTerms = `${previousMonth} and ${currentMonth}`;
   return [
-    `London pub bar opening reopening ${monthYear}`,
-    `London pub refurbishment closure threat ${monthYear}`,
-    `London pub award price pint sighting ${monthYear}`,
-    `Soho Mayfair London pub opening refurbishment closure ${monthYear}`,
-    `East London pub opening closure refurbishment ${monthYear}`,
-    `South London pub opening closure refurbishment ${monthYear}`,
+    `London pub bar opening reopening ${monthTerms}`,
+    `London pub refurbishment closure threat ${monthTerms}`,
+    `London pub award price pint sighting ${monthTerms}`,
+    `Soho Mayfair London pub opening refurbishment closure ${monthTerms}`,
+    `East London pub opening closure refurbishment ${monthTerms}`,
+    `South London pub opening closure refurbishment ${monthTerms}`,
   ];
 }
 
@@ -130,13 +136,13 @@ async function collectCandidates({ queries, env, searchFn, logger, publishedAfte
   return candidates;
 }
 
-async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, knownAreas }) {
+async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, knownAreas, extractPrompt }) {
   const freshEntries = [];
   let fetchFailures = 0;
   for (const { result, sourceUrl } of candidates) {
     let page;
     try {
-      page = await fetchFn(sourceUrl, { env, prompt: AREA_NEWS_EXTRACT_PROMPT });
+      page = await fetchFn(sourceUrl, { env, prompt: extractPrompt });
     } catch (error) {
       fetchFailures += 1;
       logger(`FETCH FAILED ${sourceUrl}: ${errorMessage(error)}`);
@@ -146,7 +152,7 @@ async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, 
     const entry = buildAreaNewsEntry({
       result,
       page,
-      fact: parseExtractedFact(page, { knownAreas }),
+      fact: parseExtractedFact(page, { knownAreas, currentYear: new Date(nowTime).getUTCFullYear() }),
       now: nowTime,
       knownAreas,
     });
@@ -175,6 +181,8 @@ export async function refreshAreaNews({
   const nowTime = typeof now === "number" ? now : Date.parse(now);
   if (!Number.isFinite(nowTime)) throw new Error("Area news refresh requires a valid current time.");
   const refreshQueries = queries ?? areaNewsRefreshQueries(nowTime);
+  const currentYear = new Date(nowTime).getUTCFullYear();
+  const extractPrompt = areaNewsExtractPrompt(currentYear);
   if (!Number.isInteger(maxResults) || maxResults <= 0) {
     throw new Error("--max-results must be a positive integer.");
   }
@@ -202,6 +210,7 @@ export async function refreshAreaNews({
     logger,
     nowTime,
     knownAreas,
+    extractPrompt,
   });
 
   if (fetchFailures > 0) {

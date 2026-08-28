@@ -10,7 +10,9 @@ function factContent(title: string, detail: string): string {
 
 describe("area-news refresh job", () => {
   it("builds refresh queries from the current month", () => {
-    expect(areaNewsRefreshQueries(Date.parse("2027-02-10T12:00:00Z"))[0]).toContain("February 2027");
+    const queries = areaNewsRefreshQueries(Date.parse("2027-02-10T12:00:00Z"));
+    expect(queries[0]).toContain("February 2027");
+    expect(queries[0]).toContain("January 2027");
   });
 
   it("rejects non-positive or non-finite CLI bounds", () => {

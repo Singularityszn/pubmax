@@ -10,7 +10,11 @@ import { useEffect, useState } from "react";
 import type { AreaNewsEntry } from "@/lib/areaNews";
 import AreaNewsList from "./AreaNewsList";
 
-type BlockState = { area: string; entries: AreaNewsEntry[] };
+type BlockState = {
+  area: string;
+  status: "ready" | "unavailable";
+  entries: AreaNewsEntry[];
+};
 
 export default function AreaNewsBlock({
   area,
@@ -33,13 +37,17 @@ export default function AreaNewsBlock({
         if (!res.ok) throw new Error(`Area news request failed: ${res.status}`);
         return res.json();
       })
-      .then((body: { entries?: AreaNewsEntry[] } | null) => {
+      .then((body: { status?: "ready" | "unavailable"; entries?: AreaNewsEntry[] } | null) => {
+        if (body?.status === "unavailable") {
+          setState({ area, status: "unavailable", entries: [] });
+          return;
+        }
         if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");
         const entries = body.entries;
-        setState({ area, entries });
+        setState({ area, status: "ready", entries });
       })
       .catch(() => {
-        // Fail silent: a missing block is simply absent, never an error.
+        if (!controller.signal.aborted) setState({ area, status: "unavailable", entries: [] });
       });
     return () => controller.abort();
   }, [area]);
@@ -50,6 +58,7 @@ export default function AreaNewsBlock({
     <AreaNewsList
       areaLabel={areaLabel}
       entries={state.entries}
+      status={state.status}
       headingId={headingId ?? "mapAreaNewsHeading"}
     />
   );

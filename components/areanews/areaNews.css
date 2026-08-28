@@ -29,7 +29,8 @@
   color: var(--ink);
 }
 
-.areaNewsEmpty {
+.areaNewsEmpty,
+.areaNewsUnavailable {
   margin: 0;
   font-size: 0.85rem;
   color: var(--muted);
