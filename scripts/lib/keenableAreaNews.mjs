@@ -180,6 +180,7 @@ const GENERIC_PUB_WORDS = new Set([
   "an",
   "and",
   "award",
+  "april",
   "bar",
   "best",
   "close",
@@ -187,8 +188,16 @@ const GENERIC_PUB_WORDS = new Set([
   "closing",
   "closure",
   "current",
+  "august",
+  "december",
+  "february",
   "in",
+  "january",
   "london",
+  "july",
+  "june",
+  "march",
+  "may",
   "new",
   "news",
   "now",
@@ -200,24 +209,29 @@ const GENERIC_PUB_WORDS = new Set([
   "reopened",
   "reopens",
   "refurb",
+  "september",
   "the",
   "this",
   "to",
   "won",
+  "november",
+  "october",
 ]);
 
 function hasNamedPub(text, knownAreas) {
   const areaWords = new Set([...knownAreas].flatMap((slug) => slug.replace(/-/g, " ").split(" ")));
-  const properNounPhrases = text.match(/\b[A-Z][A-Za-z'’]*(?:\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
-  return properNounPhrases.some((phrase) =>
-    phrase
-      .toLowerCase()
-      .split(/\s+/)
-      .some((word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1),
-  );
+  const properNounPhrases = text.match(/\b[A-Z][A-Za-z'’]*(?:\s+(?:&|and|of|the)\s+[A-Z][A-Za-z'’]*|\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
+  return properNounPhrases.some((phrase) => {
+    const words = phrase.toLowerCase().split(/\s+/);
+    const meaningfulWords = words.filter(
+      (word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1,
+    );
+    if (meaningfulWords.length >= 2) return true;
+    return meaningfulWords.length === 1 && words[0] === "the";
+  });
 }
 
-function parseMarkdownFact(content, knownAreas, fallbackTitle = "", currentYear = new Date().getUTCFullYear()) {
+function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
   if (typeof content !== "string" || !content.trim()) return null;
   const blocks = content.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
   const heading = blocks
@@ -227,25 +241,16 @@ function parseMarkdownFact(content, knownAreas, fallbackTitle = "", currentYear 
   const detail = blocks
     .map((block) => cleanMarkdownText(block.replace(/^#{1,6}\s+.*$/gm, "")))
     .find((block) => block && block !== title);
-  const combined = `${title} ${detail}`;
-  const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
-  if (
-    !title ||
-    !detail ||
-    years.length === 0 ||
-    years.some((year) => year !== currentYear) ||
-    !hasNamedPub(combined, knownAreas)
-  ) {
-    return null;
-  }
+  if (!title || !detail) return null;
 
+  const combined = `${title} ${detail}`;
   const area = markdownArea(combined, knownAreas);
   const kind = markdownKind(combined);
   if (!area || !kind) return null;
   return { area, kind, title, detail };
 }
 
-function validateFact(raw, knownAreas) {
+function validateFact(raw, knownAreas, currentYear) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 
   const area = cleanText(raw.area);
@@ -255,6 +260,16 @@ function validateFact(raw, knownAreas) {
   if (!knownAreas.has(area) || !KINDS.has(kind) || !title || !detail) return null;
   if (/[—–]/u.test(`${title} ${detail}`)) return null;
   if (title.length > 180 || detail.length > 500) return null;
+  const combined = `${title} ${detail}`;
+  const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
+  if (
+    !Number.isInteger(currentYear) ||
+    years.length === 0 ||
+    years.some((year) => year !== currentYear) ||
+    !hasNamedPub(combined, knownAreas)
+  ) {
+    return null;
+  }
 
   return { area, kind, title, detail };
 }
@@ -264,7 +279,8 @@ export function parseExtractedFact(
   { knownAreas = KNOWN_AREA_SLUGS, currentYear = new Date().getUTCFullYear() } = {},
 ) {
   const raw = parseJsonText(payload?.content);
-  return validateFact(raw, knownAreas) ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title, currentYear);
+  const parsed = raw ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title);
+  return validateFact(parsed, knownAreas, currentYear);
 }
 
 function publishedTime(value) {
@@ -284,9 +300,6 @@ function sourceName(sourceUrl) {
 }
 
 export function buildAreaNewsEntry({ result, page, fact, now = Date.now(), knownAreas = KNOWN_AREA_SLUGS } = {}) {
-  const validFact = parseExtractedFact({ content: JSON.stringify(fact) }, { knownAreas });
-  if (!validFact) return null;
-
   const candidateUrl = page?.url || result?.url;
   let url;
   try {
@@ -300,6 +313,11 @@ export function buildAreaNewsEntry({ result, page, fact, now = Date.now(), known
   if (!Number.isFinite(publishedAt)) return null;
   const nowTime = typeof now === "number" ? now : Date.parse(now);
   if (!Number.isFinite(nowTime) || publishedAt > nowTime) return null;
+  const validFact = parseExtractedFact(
+    { content: JSON.stringify(fact) },
+    { knownAreas, currentYear: new Date(nowTime).getUTCFullYear() },
+  );
+  if (!validFact) return null;
 
   const nowDay = new Date(nowTime);
   nowDay.setUTCHours(0, 0, 0, 0);

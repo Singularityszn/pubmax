@@ -6,12 +6,11 @@
 //   ?venueId=<id>     → { award }   — the award fact venue-matched to this pin,
 //                        or null. Powers the venue sheet brass-plaque badge.
 //
-// Derived purely from committed dataset (data/area_news.json). Successful reads
-// are edge-cacheable. Read failures are no-store and keep unavailable distinct
-// from a successful empty result.
+// Derived purely from committed dataset (data/area_news.json). Successful and
+// unavailable read states remain distinct.
 
 import { publicApiError } from "@/lib/apiError";
-import { jsonCached, jsonNoStore } from "@/lib/apiResponses";
+import { jsonNoStore } from "@/lib/apiResponses";
 import {
   awardForVenue,
   entriesForBorough,
@@ -35,14 +34,14 @@ export async function GET(request: Request): Promise<Response> {
 
     const { entries } = loaded;
     if (venueId) {
-      return jsonCached({ status: "ready", award: awardForVenue(venueId, freshAreaNews(entries)) });
+      return jsonNoStore({ status: "ready", award: awardForVenue(venueId, freshAreaNews(entries)) });
     }
 
     if (area) {
       const freshEntries = freshAreaNews(entries);
       const nightArea = entriesForNightArea(area, freshEntries);
       const resolved = nightArea.length ? nightArea : entriesForBorough(area, freshEntries);
-      return jsonCached({ status: "ready", entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
+      return jsonNoStore({ status: "ready", entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
     }
 
     return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);

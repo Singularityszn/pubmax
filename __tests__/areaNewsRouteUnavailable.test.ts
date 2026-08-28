@@ -16,4 +16,21 @@ describe("GET /api/area-news unavailable response", () => {
     expect(response.status).toBe(200);
     expect(body).toEqual({ status: "unavailable", entries: [], award: null });
   });
+
+  it("does not cache successful reads past the rolling freshness cutoff", async () => {
+    loadAreaNews.mockResolvedValue({
+      status: "ready",
+      version: 1,
+      generatedAt: "2026-08-28T00:00:00.000Z",
+      entries: [],
+    });
+
+    const areaResponse = await GET(new Request("https://x/api/area-news?area=soho"));
+    const venueResponse = await GET(new Request("https://x/api/area-news?venueId=venue-nope"));
+
+    expect(areaResponse.headers.get("Cache-Control")).toBe("no-store");
+    expect(venueResponse.headers.get("Cache-Control")).toBe("no-store");
+    expect(await areaResponse.json()).toEqual({ status: "ready", entries: [] });
+    expect(await venueResponse.json()).toEqual({ status: "ready", award: null });
+  });
 });

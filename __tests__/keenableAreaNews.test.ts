@@ -18,8 +18,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 const FACT = {
   area: "soho",
   kind: "opening",
-  title: "A new Soho bar opens",
-  detail: "The page states that a new bar opened in Soho.",
+  title: "The White Hart opens in Soho",
+  detail: "The White Hart opened in Soho on 27 August 2026.",
 };
 
 describe("Keenable area-news client", () => {
@@ -96,12 +96,50 @@ describe("Keenable area-news client", () => {
 
 describe("Keenable area-news extraction", () => {
   it("parses plain or fenced JSON and rejects non-facts", () => {
-    expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` })).toEqual(FACT);
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "wimbledon" }) })).toMatchObject({ area: "wimbledon" });
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "greenwich" }) })).toMatchObject({ area: "greenwich" });
+    const options = { currentYear: 2026 };
+    expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` }, options)).toEqual(FACT);
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "wimbledon" }) }, options)).toMatchObject({ area: "wimbledon" });
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "greenwich" }) }, options)).toMatchObject({ area: "greenwich" });
     expect(parseExtractedFact({ content: "null" })).toBeNull();
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "Leeds" }) })).toBeNull();
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, title: "A — bad title" }) })).toBeNull();
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "Leeds" }) }, options)).toBeNull();
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, title: "A — bad title" }) }, options)).toBeNull();
+  });
+
+  it("rejects historical or unnamed JSON facts even when the page is recent", () => {
+    const options = { knownAreas: new Set(["soho"]), currentYear: 2026 };
+    expect(
+      parseExtractedFact(
+        {
+          content: JSON.stringify({
+            ...FACT,
+            title: "Soho pub award in 2024",
+            detail: "The pub won an award in 2024.",
+          }),
+        },
+        options,
+      ),
+    ).toBeNull();
+    expect(
+      parseExtractedFact(
+        {
+          content: JSON.stringify({
+            ...FACT,
+            title: "Soho Pub News August 2026",
+            detail: "A pub opening was reported in August 2026.",
+          }),
+        },
+        options,
+      ),
+    ).toBeNull();
+    expect(
+      buildAreaNewsEntry({
+        result: { url: "https://example.com/article", published_at: "2026-08-27T12:00:00Z" },
+        page: { url: "https://example.com/article", published_at: "2026-08-27T12:00:00Z" },
+        fact: { ...FACT, title: "Soho pub award in 2024", detail: "The pub won an award in 2024." },
+        now: Date.parse("2026-08-28T12:00:00Z"),
+        knownAreas: new Set(["soho"]),
+      }),
+    ).toBeNull();
   });
 
   it("extracts a dated fact from clean fetched markdown", () => {

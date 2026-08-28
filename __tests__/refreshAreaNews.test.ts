@@ -5,7 +5,12 @@ import { areaNewsRefreshQueries, parseArgs, refreshAreaNews } from "../scripts/r
 const NOW = Date.parse("2026-08-28T12:00:00Z");
 
 function factContent(title: string, detail: string): string {
-  return JSON.stringify({ area: "soho", kind: "opening", title, detail });
+  return JSON.stringify({
+    area: "soho",
+    kind: "opening",
+    title: `The White Hart ${title}`,
+    detail: `${detail} on 27 August 2026.`,
+  });
 }
 
 describe("area-news refresh job", () => {
