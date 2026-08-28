@@ -142,7 +142,8 @@ describe("app/api public error envelope (tree-wide)", () => {
 // ---------------------------------------------------------------------------
 
 // Tokens that prove a route (or its named gate) consults a rate limiter.
-// `socialCrewActor` is a delegation: lib/socialCrewHttp.ts rate-limits every
+// `preparePlanGeneration` is a delegation: lib/planGeneration.server.ts
+// rate-limits generation before loading planning data. `socialCrewActor` is a delegation: lib/socialCrewHttp.ts rate-limits every
 // write actor before the route body runs. `handleProfileImage*` are the same
 // shape: lib/profileImageRoute.server.ts owns the per-actor budget for the
 // avatar and cover slots, which take one identical journey.
@@ -150,7 +151,7 @@ describe("app/api public error envelope (tree-wide)", () => {
 // lib/profileCoverPhotoRoute.server.ts spends a per-actor budget on every add,
 // remove and reorder, and a per-actor budget on every reader flag.
 const LIMITER_TOKENS =
-  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
+  /\bisLimited\b|[a-zA-Z]+RateLimited\b|\bis[A-Z][a-zA-Z]*Limited\b|\bpreparePlanGeneration\b|\bsocialCrewActor\b|\bhandleProfileImage(?:Upload|Delete|Report)\b|\bhandleProfileCoverPhoto(?:Upload|Delete|Move|Report)\b/;
 
 describe("app/api rate limiting (tree-wide)", () => {
   it("gates every cron route with assertCronRequest instead of a limiter", () => {

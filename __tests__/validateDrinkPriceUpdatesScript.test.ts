@@ -61,6 +61,13 @@ function setupScratch(files: Record<string, unknown>): string {
       POSTCODE_CONSISTENCY_MODULE,
       join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
     );
+    // postcodeCoordinateConsistency imports the shared geo primitives. Keep
+    // the scratch copy executable when that dependency is present in the real
+    // validator tree.
+    cpSync(
+      join(ROOT, "scripts", "lib", "geo.mjs"),
+      join(scratchScripts, "lib", "geo.mjs"),
+    );
   }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
@@ -96,6 +103,7 @@ function setupScratch(files: Record<string, unknown>): string {
     join(scratchLib, "cityVenuePacks.mjs"),
   );
   cpSync(join(ROOT, "lib", "cityBounds.mjs"), join(scratchLib, "cityBounds.mjs"));
+  cpSync(join(ROOT, "lib", "editorialRss.mjs"), join(scratchLib, "editorialRss.mjs"));
   for (const f of [
     "london_pois.json",
     "london_localities.json",

@@ -204,9 +204,8 @@ describe("out desktop grouping", () => {
 });
 
 describe("outUnmatchedListingsNotice", () => {
-  // When every listing is at an unlisted place, /out shows the quiet status
-  // line instead of a wall of untappable gig cards. The notice only speaks
-  // when SOME matched cards are already on screen ("N more…").
+  // When every listing is at an unlisted place, /out still names the hidden
+  // supply so a populated event feed cannot read as an empty city.
   const unmatched = (id: string, placeName: string, label = "Ticketmaster") =>
     row({
       id,
@@ -222,19 +221,18 @@ describe("outUnmatchedListingsNotice", () => {
     expect(outUnmatchedListingsNotice([matched], "tonight", "ready")).toBeNull();
   });
 
-  it("is silent when the match ran and nothing landed on a listed pub", () => {
-    expect(
-      outUnmatchedListingsNotice(
-        [
-          unmatched("a", "Jazz Cafe"),
-          unmatched("b", "Up The Creek"),
-          unmatched("c", "Soul Mama"),
-          unmatched("d", "The Comedy Store"),
-        ],
-        "tonight",
-        "ready",
-      ),
-    ).toBeNull();
+  it("names listings when the match ran and none landed on a listed pub", () => {
+    const notice = outUnmatchedListingsNotice(
+      [
+        unmatched("a", "Jazz Cafe"),
+        unmatched("b", "Up The Creek"),
+        unmatched("c", "Soul Mama"),
+        unmatched("d", "The Comedy Store"),
+      ],
+      "tonight",
+      "ready",
+    );
+    expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
   });
 
   it("says 'more' when the pub list is not empty, so the count is about the hidden rows alone", () => {
@@ -324,7 +322,7 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
-  it("stays silent when no matched card is served even with a pre-cap count", () => {
+  it("names hidden rows when no matched card is served", () => {
     expect(
       outUnmatchedListingsNotice(
         [unmatched("a", "The O2")],
@@ -336,8 +334,8 @@ describe("outUnmatchedListingsNotice", () => {
           unmatchedPlaceCount: 1,
           unmatchedSources: ["Ticketmaster"],
         },
-      ),
-    ).toBeNull();
+      )?.line,
+    ).toBe("1 listing tonight is at a place we don't list yet.");
   });
 
   it("counts distinct places beyond the six names carried by the response", () => {
