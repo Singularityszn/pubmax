@@ -13,6 +13,8 @@ import { resolveCanonicalVenueId } from "@/lib/venueAliases";
 import { matchVenuePermalinkSlug } from "@/lib/venuePermalinkSlug";
 import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { canonicalOsmId } from "@/lib/harvestFold";
+import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -31,6 +33,7 @@ export type VenueRef = {
   lat: number;
   lng: number;
   kind?: VenueKind;
+  osmId?: string;
 };
 
 export type CanonicalVenueLookup =
@@ -166,13 +169,44 @@ async function readSlimIndex(
   return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
 }
 
+async function attachCityOsmIds(
+  cityId: string,
+  index: Map<string, IndexedVenue>,
+): Promise<void> {
+  try {
+    const raw = await fs.readFile(
+      /* turbopackIgnore: true */ path.join(
+        process.cwd(),
+        "data",
+        "cities",
+        cityId,
+        "osm_pubs.json",
+      ),
+      "utf8",
+    );
+    const pubs = JSON.parse(raw)?.pubs;
+    if (!Array.isArray(pubs)) return;
+    for (const pub of pubs) {
+      const venueId = cityVenueIdForPub(cityId, pub);
+      const osmId = canonicalOsmId(pub?.osmId);
+      if (!venueId || !osmId) continue;
+      const entry = index.get(venueId);
+      if (entry) entry.venue.osmId = osmId;
+    }
+  } catch {
+    // OSM identity enrichment is optional when a source pack is unavailable.
+  }
+}
+
 async function getCityVenueIndex(
-  publicPath: string,
+  city: { id: string; slimVenuesPath: string },
 ): Promise<Map<string, IndexedVenue> | null> {
+  const publicPath = city.slimVenuesPath;
   const existing = cityCache.get(publicPath);
   if (existing) return existing;
   try {
     const index = await readSlimIndex(publicPath);
+    await attachCityOsmIds(city.id, index);
     cityCache.set(publicPath, index);
     return index;
   } catch {
@@ -206,7 +240,7 @@ export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   let allLoaded = true;
   const loadedCities = new Set<CityId>();
   for (const city of cities) {
-    if (await getCityVenueIndex(city.slimVenuesPath)) loadedCities.add(city.id);
+    if (await getCityVenueIndex(city)) loadedCities.add(city.id);
     else allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
@@ -232,7 +266,7 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   if (!city.enabled) {
     return { status: "unknown", canonicalId };
   }
-  const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+  const cityIndex = await getCityVenueIndex(city);
   if (!cityIndex) {
     return { status: "unavailable", canonicalId };
   }
@@ -276,7 +310,7 @@ export async function resolveVenuePermalinkSlug(
   }[] = [];
   const candidateById = new Map<string, (typeof candidates)[number]>();
   for (const city of cities) {
-    const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+    const cityIndex = await getCityVenueIndex(city);
     if (!cityIndex) continue;
     for (const { slimVenue } of cityIndex.values()) {
       const row = {

@@ -29,6 +29,7 @@ import {
   MANIFEST_FILE,
   SHARD_VERSION,
 } from "./lib/slimShards.mjs";
+import { cityVenueIdForPub as sharedCityVenueIdForPub } from "../lib/cityVenueId.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -41,37 +42,8 @@ function parseArgs(argv) {
   return { city };
 }
 
-function normaliseVenueKeyPart(value) {
-  return String(value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
-}
-
-/** City-salted grouping key — mirrors lib/venues.ts venueGroupingKey + city salt. */
-function cityVenueGroupingKey(cityId, pub) {
-  return [
-    cityId,
-    normaliseVenueKeyPart(pub.name),
-    normaliseVenueKeyPart(pub.address ?? ""),
-    Number(pub.lat).toFixed(5),
-    Number(pub.lng).toFixed(5),
-  ].join("|");
-}
-
-/** FNV-1a 32-bit → base36, prefixed with venue-{shortPrefix}- to avoid London collisions. */
-function stableCityVenueId(shortPrefix, key) {
-  let hash = 2166136261;
-  for (let i = 0; i < key.length; i += 1) {
-    hash ^= key.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  return `venue-${shortPrefix}-${(hash >>> 0).toString(36)}`;
-}
-
 export function cityVenueIdForPub(city, pub) {
-  const key = cityVenueGroupingKey(city.id, pub);
-  return stableCityVenueId(city.shortPrefix, key);
+  return sharedCityVenueIdForPub(city.id, pub);
 }
 
 function inBbox(lat, lng, bbox) {

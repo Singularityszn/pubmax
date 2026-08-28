@@ -8,6 +8,8 @@ import {
 
 const row = parseOverlayRow({
   osmId: "node/123",
+  name: "The Red Lion",
+  town: "Clapham",
   website: "https://redlion.example/",
   menuUrl: "https://redlion.example/menu",
   matchedLore: {
@@ -47,6 +49,8 @@ describe("harvestOverlayStore", () => {
     await harvestOverlayStore().upsertMany([row]);
     const updated = parseOverlayRow({
       osmId: "node/123",
+      name: "The Red Lion",
+      town: "Clapham",
       website: "https://redlion.example/new",
       menuUrl: null,
       matchedLore: null,

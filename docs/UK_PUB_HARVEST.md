@@ -125,17 +125,28 @@ resume design.
 Fold the completed overlay into the product store. Identity is OSM id,
 never the pub name. Website and menu URLs must be https. Lore folds only
 with a name+town match and https citations, as HeritageFact source
-`web`. Social observations are refused. Counts must match
+`web`. Social observations are excluded. Counts must match
 `data/uk-pub-harvest/fold-stats.md` or the command fails.
 
 ```bash
-npm run harvest:fold -- --dry-run --overlay data-harvest/fold-ready/overlay.jsonl --stats data/uk-pub-harvest/fold-stats.md
-npm run harvest:fold -- --overlay data-harvest/fold-ready/overlay.jsonl --stats data/uk-pub-harvest/fold-stats.md
+npm run harvest:fold -- --dry-run \
+  --enriched-dir data-harvest/enriched \
+  --bars-enriched-dir data-harvest/bars-enriched \
+  --seed data-harvest/uk_pubs_seed.enriching.jsonl \
+  --bars-seed data-harvest/uk_bars_seed.enriching.jsonl \
+  --stats data/uk-pub-harvest/fold-stats.md
+npm run harvest:fold -- \
+  --enriched-dir data-harvest/enriched \
+  --bars-enriched-dir data-harvest/bars-enriched \
+  --seed data-harvest/uk_pubs_seed.enriching.jsonl \
+  --bars-seed data-harvest/uk_bars_seed.enriching.jsonl \
+  --stats data/uk-pub-harvest/fold-stats.md
 ```
 
-Copy `overlay.jsonl` out of the harvest worktree first. Never write back
-into it. Upserts are idempotent on `osm_id`. Malformed rows fail the
-process.
+The fold reads completed pub and bar `shard_*.jsonl` output plus their frozen
+seed metadata. It derives the overlay in memory, so no converter file is
+required. A prebuilt overlay may still be supplied with `--overlay`. Upserts
+are idempotent on `osm_id`. Malformed rows fail the process.
 
 Serving: GET `/api/harvest-overlay?venueId=` is the lazy sheet overlay.
 Cited lore also rides GET `/api/heritage` when the venue id maps to an

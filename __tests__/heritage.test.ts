@@ -86,6 +86,8 @@ describe("retrieveHeritage — trust boundary", () => {
     await harvestOverlayStore().upsertMany([
       parseOverlayRow({
         osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
         website: "https://redlion.example/",
         matchedLore: {
           text: "The Red Lion in Clapham has stood on the common since the eighteenth century.",

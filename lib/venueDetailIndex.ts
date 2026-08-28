@@ -281,7 +281,9 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    const overlay = await harvestOverlayStore().getByVenueId(enriched.id);
+    const overlay = await harvestOverlayStore().getByVenueId(
+      venueLookup.venue.osmId ?? enriched.id,
+    );
     const withHarvest = applyHarvestWebsiteMenu(enriched, overlay);
     cachedDetails.set(id, withHarvest);
     return { status: "found", venue: withHarvest };

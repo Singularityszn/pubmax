@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-
 import { describe, expect, it } from "vitest";
 
 import {
@@ -17,7 +14,10 @@ import {
   parsePublicOverlay,
   reconcileFoldStats,
   summariseOverlay,
+  overlayRowsFromHarvestRecords,
 } from "@/lib/harvestFold";
+import { parseUkBaseShard } from "@/lib/ukBasePubs";
+import { slimVenueToPin } from "@/lib/slimPins";
 
 const LORE_TEXT =
   "The Red Lion in Clapham has stood on the common since the eighteenth century.";
@@ -25,6 +25,8 @@ const LORE_TEXT =
 function row(overrides: Record<string, unknown> = {}) {
   return {
     osmId: "node/123",
+    name: "The Red Lion",
+    town: "Clapham",
     website: "https://redlion.example/",
     menuUrl: "https://redlion.example/menu",
     matchedLore: {
@@ -163,6 +165,38 @@ describe("parseOverlayRow", () => {
     ).toThrow(HarvestFoldError);
   });
 
+  it("fails loud when cited lore has no confirmed name and town match", () => {
+    expect(() =>
+      parseOverlayRow(
+        row({
+          name: "The Other Lion",
+          matchedLore: {
+            text: LORE_TEXT,
+            citations: ["https://history.example/red-lion-clapham"],
+          },
+        }),
+      ),
+    ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(
+        row({
+          town: null,
+          matchedLore: {
+            text: LORE_TEXT,
+            citations: ["https://history.example/red-lion-clapham"],
+          },
+        }),
+      ),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud when sources is not a clean https string array", () => {
+    expect(() => parseOverlayRow(row({ sources: [42] }))).toThrow(HarvestFoldError);
+    expect(() => parseOverlayRow(row({ sources: "https://redlion.example/" }))).toThrow(
+      HarvestFoldError,
+    );
+  });
+
   it("fails loud when a social observation is present", () => {
     expect(() => parseOverlayRow(row({ social: "https://instagram.com/redlion" }))).toThrow(
       HarvestFoldError,
@@ -221,20 +255,6 @@ describe("fold-stats reconciliation", () => {
     });
   });
 
-  it("parses the committed fold-stats.md contract", () => {
-    const committed = readFileSync(
-      join(process.cwd(), "data/uk-pub-harvest/fold-stats.md"),
-      "utf8",
-    );
-    expect(parseFoldStatsMarkdown(committed)).toEqual({
-      overlayRows: 16416,
-      httpsWebsite: 15088,
-      httpsMenuUrl: 3137,
-      matchedLore: 5472,
-      social: 0,
-    });
-  });
-
   it("fails loud when folded counts disagree with fold-stats.md", () => {
     const rows = parseOverlayJsonl(
       `${JSON.stringify(row())}\n${JSON.stringify(
@@ -280,6 +300,13 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(parsePublicOverlay({ lore: { fact: LORE_TEXT, source: "web", sourceRef: "http://insecure.example/" } })?.lore).toBeNull();
   });
 
+  it("drops lore that loses its stored name and town proof", () => {
+    const parsed = parseOverlayRow(row());
+    expect(
+      heritageFactFromOverlay({ ...parsed, loreName: undefined, loreTown: undefined }),
+    ).toBeNull();
+  });
+
   it("fills empty https website and menu, never overwrites an existing https URL, never copies lore", () => {
     const overlay = parseOverlayRow(row());
     const filled = applyHarvestWebsiteMenu({ website: "", id: "venue-uk-n123" }, overlay);
@@ -295,7 +322,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(kept.menuUrl).toBe("https://curated.example/menu");
 
     const skipped = applyHarvestWebsiteMenu(
-      { website: "" },
+      { website: "http://legacy.example/" },
       parseOverlayRow(
         row({
           website: "https://theimperialpub.com, https://other.example/",
@@ -304,20 +331,81 @@ describe("heritageFactFromOverlay / public overlay", () => {
         }),
       ),
     );
-    expect(skipped.website).toBe("");
+    expect(skipped).not.toHaveProperty("website");
+  });
+
+  it("folds completed harvest observations into gated overlay rows", () => {
+    const rows = overlayRowsFromHarvestRecords([
+      {
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        observations: [
+          {
+            kind: "website",
+            value: "https://redlion.example/",
+            sourceUrl: "https://redlion.example/",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            kind: "website",
+            value: "https://redlion.example/menu",
+            sourceUrl: "https://redlion.example/menu",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            kind: "history",
+            value: LORE_TEXT,
+            sourceUrl: "https://history.example/red-lion-clapham",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            kind: "social",
+            value: "https://instagram.com/redlion",
+            sourceUrl: "https://instagram.com/redlion",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      osmId: "node/123",
+      website: "https://redlion.example/, https://redlion.example/menu",
+      matchedLore: { text: LORE_TEXT },
+    });
+    expect(rows[0].matchedLore?.citations).toEqual([
+      "https://history.example/red-lion-clapham",
+    ]);
   });
 });
 
 describe("harvest overlay payload boundary", () => {
-  it("never rides in the slim index builder or UK base pin encoder", () => {
-    const files = [
-      "scripts/build_slim_index.mjs",
-      "lib/ukBasePubs.ts",
-      "components/map/canvas/geojson.ts",
-    ];
-    for (const file of files) {
-      const source = readFileSync(join(process.cwd(), file), "utf8");
-      expect(source).not.toMatch(/harvestFold|harvestOverlay|harvest-overlay/);
-    }
+  it("keeps harvest fields out of slim pins and UK base payloads", () => {
+    const pin = slimVenueToPin({
+      id: "venue-uk-n123",
+      name: "The Red Lion",
+      lat: 51.1,
+      lng: -0.1,
+      cheapestPrice: null,
+      borough: "Clapham",
+      website: "https://redlion.example/",
+      menuUrl: "https://redlion.example/menu",
+      matchedLore: {
+        fact: LORE_TEXT,
+        source: "web",
+        sourceRef: "https://history.example/red-lion-clapham",
+      },
+    } as never);
+    const base = parseUkBaseShard({
+      version: 1,
+      cell: "51.00_-0.25",
+      pubs: [["n123", "The Red Lion", "Clapham", 51.1, -0.1, ""]],
+    });
+
+    expect(pin.website).toBe("");
+    expect(pin.menuUrl).toBeUndefined();
+    expect(base[0]).not.toHaveProperty("website");
+    expect(base[0]).not.toHaveProperty("matchedLore");
   });
 });

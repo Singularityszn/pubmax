@@ -17,6 +17,8 @@ create table if not exists public.harvest_venue_overlays (
   menu_url text,
   lore_text text,
   lore_citations jsonb not null default '[]'::jsonb,
+  lore_match_name text,
+  lore_match_town text,
   sources jsonb not null default '[]'::jsonb,
   folded_at timestamptz not null default now()
 );
@@ -25,22 +27,22 @@ alter table public.harvest_venue_overlays
   drop constraint if exists harvest_venue_overlays_website_https;
 alter table public.harvest_venue_overlays
   add constraint harvest_venue_overlays_website_https
-  check (website is null or website like 'https://%');
+  check (website is null or website ilike 'https://%');
 
 alter table public.harvest_venue_overlays
   drop constraint if exists harvest_venue_overlays_menu_https;
 alter table public.harvest_venue_overlays
   add constraint harvest_venue_overlays_menu_https
-  check (menu_url is null or menu_url like 'https://%');
+  check (menu_url is null or menu_url ilike 'https://%');
 
 alter table public.harvest_venue_overlays
   drop constraint if exists harvest_venue_overlays_lore_pair;
 alter table public.harvest_venue_overlays
   add constraint harvest_venue_overlays_lore_pair
   check (
-    (lore_text is null and lore_citations = '[]'::jsonb)
+    (lore_text is null and lore_citations = '[]'::jsonb and lore_match_name is null and lore_match_town is null)
     or
-    (lore_text is not null and jsonb_typeof(lore_citations) = 'array' and jsonb_array_length(lore_citations) > 0)
+    (lore_text is not null and lore_match_name is not null and lore_match_town is not null and jsonb_typeof(lore_citations) = 'array' and jsonb_array_length(lore_citations) > 0)
   );
 
 comment on table public.harvest_venue_overlays is

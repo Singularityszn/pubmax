@@ -16,3 +16,17 @@ export function firstHttp(...candidates: Array<string | undefined | null>): stri
   }
   return "";
 }
+
+/** First non-empty trimmed https candidate, or "" if none. */
+export function firstHttps(...candidates: Array<string | undefined | null>): string {
+  for (const candidate of candidates) {
+    const trimmed = typeof candidate === "string" ? candidate.trim() : "";
+    if (!/^https:\/\//i.test(trimmed)) continue;
+    try {
+      if (new URL(trimmed).protocol === "https:") return trimmed;
+    } catch {
+      // Try next candidate.
+    }
+  }
+  return "";
+}

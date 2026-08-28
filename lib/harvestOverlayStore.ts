@@ -69,6 +69,8 @@ type OverlaySqlRow = {
   lore_text: string | null;
   lore_citations: unknown;
   sources: unknown;
+  lore_match_name: string | null;
+  lore_match_town: string | null;
 };
 
 function toSql(row: HarvestOverlayRow, foldedAt: string) {
@@ -80,6 +82,8 @@ function toSql(row: HarvestOverlayRow, foldedAt: string) {
     lore_text: row.matchedLore?.text ?? null,
     lore_citations: row.matchedLore?.citations ?? [],
     sources: row.sources,
+    lore_match_name: row.loreName ?? null,
+    lore_match_town: row.loreTown ?? null,
     folded_at: foldedAt,
   };
 }
@@ -93,6 +97,8 @@ function fromSql(row: OverlaySqlRow): HarvestOverlayRow | null {
       matchedLore: row.lore_text
         ? { text: row.lore_text, citations: row.lore_citations }
         : null,
+      name: row.lore_match_name,
+      town: row.lore_match_town,
       sources: row.sources,
     });
   } catch {
@@ -136,7 +142,7 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
     return guard(async () => {
       const { data, error } = await admin()
         .from(TABLE)
-        .select("osm_id, osm_ref, website, menu_url, lore_text, lore_citations, sources")
+        .select("osm_id, osm_ref, website, menu_url, lore_text, lore_citations, sources, lore_match_name, lore_match_town")
         .eq("osm_id", osmId)
         .maybeSingle();
       if (error) throw error;

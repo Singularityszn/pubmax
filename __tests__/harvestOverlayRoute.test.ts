@@ -42,6 +42,8 @@ describe("GET /api/harvest-overlay", () => {
     await harvestOverlayStore().upsertMany([
       parseOverlayRow({
         osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
         website: "https://redlion.example/",
         menuUrl: "https://redlion.example/menu",
         matchedLore: {

@@ -103,7 +103,7 @@ describe("getVenueIndex", () => {
     // Loaded cities stay cached — only the failed pack is re-read.
     const callsAfterFirst = readFile.mock.calls.length;
     await getVenueIndex();
-    expect(readFile.mock.calls.length).toBe(callsAfterFirst + 1);
+    expect(readFile.mock.calls.length).toBe(callsAfterFirst + 2);
 
     // Once the pack recovers, its venues appear without a restart.
     failManchester = false;
@@ -129,6 +129,7 @@ describe("getVenueIndex", () => {
     expect(index.get("venue-mcr-1lwo5lo")).toMatchObject({
       name: "Peveril of the Peak",
       borough: "Manchester",
+      osmId: "way/100646638",
     });
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
   });

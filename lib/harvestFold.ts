@@ -2,7 +2,7 @@
 //
 // Identity is OSM id, never the pub name. Lore folds only with a name+town
 // match AND https citations, as HeritageFact source "web". Website and menu
-// URLs must be https. Social observations are out of scope and fail the fold.
+// URLs must be https. Social observations are out of scope and are excluded.
 // Folded counts must reconcile with fold-stats.md — a mismatch is an error,
 // not a warning.
 
@@ -30,6 +30,20 @@ export type HarvestMatchedLore = {
   citations: string[];
 };
 
+export type HarvestObservation = {
+  kind: "website" | "history" | "social" | "menu" | "coverage";
+  value: string;
+  sourceUrl: string;
+  fetchedAt: string;
+};
+
+export type HarvestObservationRecord = {
+  osmId: string;
+  name: string;
+  town: string | null;
+  observations: HarvestObservation[];
+};
+
 export type HarvestOverlayRow = {
   osmId: string;
   osmRef: string;
@@ -37,6 +51,8 @@ export type HarvestOverlayRow = {
   menuUrl: string | null;
   matchedLore: HarvestMatchedLore | null;
   sources: string[];
+  loreName?: string;
+  loreTown?: string;
 };
 
 export type FoldCounts = {
@@ -170,7 +186,12 @@ function httpsOrNull(value: unknown, field: string, line?: number): string | nul
   return trimmed;
 }
 
-function parseLore(value: unknown, line?: number): HarvestMatchedLore | null {
+function parseLore(
+  value: unknown,
+  name: unknown,
+  town: unknown,
+  line?: number,
+): HarvestMatchedLore | null {
   if (value === null || value === undefined) return null;
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     fail("MALFORMED_ROW", "matchedLore must be an object or null", line);
@@ -181,6 +202,18 @@ function parseLore(value: unknown, line?: number): HarvestMatchedLore | null {
   const citations = httpsCitations(record.citations);
   if (citations.length === 0) {
     fail("MALFORMED_ROW", "matchedLore requires at least one https citation", line);
+  }
+  const matchName = typeof name === "string" ? name.trim() : "";
+  const matchTown = typeof town === "string" ? town.trim() : "";
+  if (
+    !loreMayFold({
+      text,
+      name: matchName,
+      town: matchTown || null,
+      citations,
+    })
+  ) {
+    fail("MALFORMED_ROW", "matchedLore requires a confirmed name and town match", line);
   }
   return { text, citations };
 }
@@ -209,10 +242,20 @@ export function parseOverlayRow(raw: unknown, line?: number): HarvestOverlayRow 
   if (!osmId) fail("MALFORMED_ROW", `Unrecognised OSM id ${record.osmId}`, line);
   const website = httpsOrNull(record.website, "website", line);
   const menuUrl = httpsOrNull(record.menuUrl, "menuUrl", line);
-  const matchedLore = parseLore(record.matchedLore, line);
-  const sources = Array.isArray(record.sources)
-    ? record.sources.filter((entry): entry is string => typeof entry === "string" && isHttpsUrl(entry))
-    : [];
+  const matchedLore = parseLore(record.matchedLore, record.name, record.town, line);
+  const loreName = typeof record.name === "string" ? record.name.trim() : "";
+  const loreTown = typeof record.town === "string" ? record.town.trim() : "";
+  if (!Array.isArray(record.sources)) {
+    fail("MALFORMED_ROW", "sources must be an array of https URLs", line);
+  }
+  const sources: string[] = [];
+  for (const entry of record.sources) {
+    if (typeof entry !== "string" || !isHttpsUrl(entry.trim())) {
+      fail("MALFORMED_ROW", "sources must contain only https URLs", line);
+    }
+    const trimmed = entry.trim();
+    if (!sources.includes(trimmed)) sources.push(trimmed);
+  }
   if (!website && !menuUrl && !matchedLore) {
     fail("MALFORMED_ROW", "row has no usable https website, menu, or cited lore", line);
   }
@@ -223,6 +266,12 @@ export function parseOverlayRow(raw: unknown, line?: number): HarvestOverlayRow 
     menuUrl,
     matchedLore,
     sources,
+    ...(matchedLore
+      ? {
+          loreName,
+          loreTown,
+        }
+      : {}),
   };
 }
 
@@ -239,6 +288,118 @@ export function parseOverlayJsonl(text: string): HarvestOverlayRow[] {
       fail("MALFORMED_ROW", "JSONL line is not JSON", i + 1);
     }
     rows.push(parseOverlayRow(parsed, i + 1));
+  }
+  return rows;
+}
+
+function observationValue(
+  record: Record<string, unknown>,
+  key: string,
+  line: number,
+): string {
+  const value = record[key];
+  if (typeof value !== "string" || !value.trim()) {
+    fail("MALFORMED_ROW", `observation.${key} is required`, line);
+  }
+  return value.trim();
+}
+
+/** Convert completed enriched harvest records into one OSM-keyed overlay row. */
+export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOverlayRow[] {
+  if (!Array.isArray(rawRecords)) {
+    fail("MALFORMED_ROW", "harvest records must be an array");
+  }
+
+  const grouped = new Map<
+    string,
+    {
+      name: string;
+      town: string | null;
+      websites: string[];
+      menus: string[];
+      lore: HarvestMatchedLore | null;
+      sources: string[];
+    }
+  >();
+
+  rawRecords.forEach((raw, index) => {
+    const line = index + 1;
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+      fail("MALFORMED_ROW", "harvest record must be an object", line);
+    }
+    const record = raw as Record<string, unknown>;
+    if (typeof record.osmId !== "string" || !record.osmId.trim()) {
+      fail("MALFORMED_ROW", "harvest record osmId is required", line);
+    }
+    if (typeof record.name !== "string" || !record.name.trim()) {
+      fail("MALFORMED_ROW", "harvest record name is required", line);
+    }
+    if (record.town !== null && record.town !== undefined && typeof record.town !== "string") {
+      fail("MALFORMED_ROW", "harvest record town must be a string or null", line);
+    }
+    if (!Array.isArray(record.observations)) {
+      fail("MALFORMED_ROW", "harvest record observations must be an array", line);
+    }
+
+    const osmId = canonicalOsmId(record.osmId);
+    if (!osmId) fail("MALFORMED_ROW", `Unrecognised OSM id ${record.osmId}`, line);
+    const name = record.name.trim();
+    const town = typeof record.town === "string" && record.town.trim() ? record.town.trim() : null;
+    const existing = grouped.get(osmId);
+    const current =
+      existing ?? { name, town, websites: [], menus: [], lore: null, sources: [] };
+    if (existing && (existing.name !== name || existing.town !== town)) {
+      fail("MALFORMED_ROW", `conflicting venue metadata for ${osmId}`, line);
+    }
+
+    for (const rawObservation of record.observations) {
+      if (!rawObservation || typeof rawObservation !== "object" || Array.isArray(rawObservation)) {
+        fail("MALFORMED_ROW", "harvest observation must be an object", line);
+      }
+      const observation = rawObservation as Record<string, unknown>;
+      const kind = observation.kind;
+      if (!["website", "history", "social", "menu", "coverage"].includes(String(kind))) {
+        fail("MALFORMED_ROW", "harvest observation kind is invalid", line);
+      }
+      const value = observationValue(observation, "value", line);
+      const sourceUrl = observationValue(observation, "sourceUrl", line);
+      observationValue(observation, "fetchedAt", line);
+      if (kind === "social") continue;
+      if (!isHttpsUrl(sourceUrl)) {
+        fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
+      }
+      if (kind === "website") {
+        if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest website must be https", line);
+        if (!current.websites.includes(value)) current.websites.push(value);
+        if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
+      } else if (kind === "menu") {
+        if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest menu must be https", line);
+        if (!current.menus.includes(value)) current.menus.push(value);
+        if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
+      } else if (kind === "history") {
+        if (!current.lore && loreMayFold({ text: value, name, town, citations: [sourceUrl] })) {
+          current.lore = { text: value, citations: [sourceUrl] };
+          if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
+        }
+      }
+    }
+    grouped.set(osmId, current);
+  });
+
+  const rows: HarvestOverlayRow[] = [];
+  for (const [osmId, value] of grouped) {
+    if (value.websites.length === 0 && value.menus.length === 0 && !value.lore) continue;
+    rows.push(
+      parseOverlayRow({
+        osmId,
+        name: value.name,
+        town: value.town,
+        website: value.websites.length > 0 ? value.websites.join(", ") : null,
+        menuUrl: value.menus.length > 0 ? value.menus.join(", ") : null,
+        matchedLore: value.lore,
+        sources: value.sources,
+      }),
+    );
   }
   return rows;
 }
@@ -301,6 +462,16 @@ export function heritageFactFromOverlay(row: HarvestOverlayRow): {
   sourceRef: string;
 } | null {
   if (!row.matchedLore) return null;
+  if (
+    !loreMayFold({
+      text: row.matchedLore.text,
+      name: row.loreName ?? "",
+      town: row.loreTown ?? null,
+      citations: row.matchedLore.citations,
+    })
+  ) {
+    return null;
+  }
   const sourceRef = row.matchedLore.citations[0];
   if (!sourceRef || !isHttpsUrl(sourceRef)) return null;
   return {
@@ -356,12 +527,12 @@ export function applyHarvestWebsiteMenu<T extends { website?: string; menuUrl?: 
   venue: T,
   overlay: HarvestOverlayRow | PublicHarvestOverlay | null,
 ): T {
-  if (!overlay) return venue;
-  const website = keepHttps(venue.website) ?? keepHttps(overlay.website) ?? venue.website;
-  const menuUrl = keepHttps(venue.menuUrl) ?? keepHttps(overlay.menuUrl) ?? venue.menuUrl;
-  return {
-    ...venue,
-    ...(website !== undefined ? { website } : {}),
-    ...(menuUrl !== undefined ? { menuUrl } : {}),
-  };
+  const website = keepHttps(venue.website) ?? keepHttps(overlay?.website);
+  const menuUrl = keepHttps(venue.menuUrl) ?? keepHttps(overlay?.menuUrl);
+  const next = { ...venue };
+  delete next.website;
+  delete next.menuUrl;
+  if (website) next.website = website;
+  if (menuUrl) next.menuUrl = menuUrl;
+  return next;
 }

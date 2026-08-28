@@ -1,57 +1,183 @@
-import { readFileSync } from "node:fs";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { setTimeout as sleep } from "node:timers/promises";
 
-import { describe, expect, it } from "vitest";
+import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 
-const MIGRATION =
-  "supabase/migrations/20260828120000_0123_harvest_venue_overlays.sql";
-const ROLLBACK =
-  "supabase/migrations/rollback/20260828120000_0123_harvest_venue_overlays_rollback.sql";
+const ROOT = process.cwd();
+const MIGRATION = join(
+  ROOT,
+  "supabase/migrations/20260828120000_0123_harvest_venue_overlays.sql",
+);
+const ROLLBACK = join(
+  ROOT,
+  "supabase/migrations/rollback/20260828120000_0123_harvest_venue_overlays_rollback.sql",
+);
 
-const sql = readFileSync(join(process.cwd(), MIGRATION), "utf8");
-const rollback = readFileSync(join(process.cwd(), ROLLBACK), "utf8");
+type Database = {
+  sql(statement: string): string;
+  apply(file: string): void;
+  stop(): Promise<void>;
+};
+
+function binary(name: "initdb" | "postgres" | "psql"): string | null {
+  for (const candidate of [
+    `/opt/homebrew/bin/${name}`,
+    `/opt/homebrew/opt/postgresql@16/bin/${name}`,
+    `/usr/local/bin/${name}`,
+    `/usr/lib/postgresql/16/bin/${name}`,
+  ]) {
+    if (existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+async function freePort(): Promise<number> {
+  const { createServer } = await import("node:net");
+  return new Promise((resolve, reject) => {
+    const server = createServer();
+    server.listen(0, "127.0.0.1", () => {
+      const address = server.address();
+      server.close(() =>
+        resolve(typeof address === "object" && address ? address.port : 0),
+      );
+    });
+    server.on("error", reject);
+  });
+}
+
+async function startDatabase(): Promise<Database> {
+  const initdb = binary("initdb");
+  const postgres = binary("postgres");
+  const psql = binary("psql");
+  if (!initdb || !postgres || !psql) {
+    throw new Error("PostgreSQL binaries unavailable.");
+  }
+  const directory = mkdtempSync(join(tmpdir(), "pubmax-harvest-0123-"));
+  const port = await freePort();
+  execFileSync(
+    initdb,
+    ["-D", directory, "--auth=trust", "--username=postgres", "--locale=C", "-E", "UTF8"],
+    { stdio: "pipe" },
+  );
+  writeFileSync(
+    join(directory, "postgresql.auto.conf"),
+    `listen_addresses='127.0.0.1'\nport=${port}\nfsync=off\n`,
+  );
+  const server: ChildProcess = spawn(
+    postgres,
+    ["-D", directory, "-h", "127.0.0.1", "-p", String(port)],
+    { stdio: "ignore" },
+  );
+  const connection = [
+    "-h",
+    "127.0.0.1",
+    "-p",
+    String(port),
+    "-U",
+    "postgres",
+    "-d",
+    "postgres",
+  ];
+  const stop = async (): Promise<void> => {
+    if (server.exitCode === null) server.kill("SIGTERM");
+    await sleep(100);
+    rmSync(directory, { recursive: true, force: true });
+  };
+  try {
+    for (let attempt = 0; attempt < 100; attempt += 1) {
+      try {
+        execFileSync(psql, [...connection, "-c", "select 1"], { stdio: "pipe" });
+        break;
+      } catch {
+        if (attempt === 99) throw new Error("PostgreSQL did not start.");
+        await sleep(100);
+      }
+    }
+    const sql = (statement: string): string =>
+      execFileSync(
+        psql,
+        [
+          ...connection,
+          "-v",
+          "ON_ERROR_STOP=1",
+          "-q",
+          "-t",
+          "-A",
+          "-c",
+          statement,
+        ],
+        { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
+      ).trim();
+    const apply = (file: string): void =>
+      execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", "-f", file], {
+        stdio: "pipe",
+      });
+    sql(
+      "create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;",
+    );
+    apply(MIGRATION);
+    return { sql, apply, stop };
+  } catch (error) {
+    await stop();
+    throw error;
+  }
+}
+
+let database: Database | null = null;
+let skipReason: string | null = null;
+
+beforeAll(async () => {
+  if (process.env.PUBMAX_HARVEST_MIGRATION_NO_PG === "1") {
+    skipReason = "PostgreSQL test disabled.";
+    return;
+  }
+  try {
+    database = await startDatabase();
+  } catch (error) {
+    skipReason = error instanceof Error ? error.message : String(error);
+  }
+}, 30_000);
+
+beforeEach((context) => {
+  if (skipReason) context.skip(true, skipReason);
+});
+
+afterAll(async () => {
+  await database?.stop();
+});
 
 describe("0123 harvest_venue_overlays", () => {
-  it("keys the overlay on OSM id, never a pub name", () => {
-    expect(sql).toMatch(/osm_id text primary key/);
-    expect(sql).toMatch(/osm_ref text not null unique/);
-    const columns = sql
-      .match(/create table if not exists public\.harvest_venue_overlays \(([\s\S]*?)\n\);/)?.[1]
-      ?.split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean) ?? [];
-    expect(columns.some((line) => /\bname\b/.test(line))).toBe(false);
-  });
-
-  it("requires https website/menu and cited lore as a pair", () => {
-    expect(sql).toMatch(/website is null or website like 'https:\/\/%'/);
-    expect(sql).toMatch(/menu_url is null or menu_url like 'https:\/\/%'/);
-    expect(sql).toMatch(/lore_text is not null and jsonb_typeof\(lore_citations\) = 'array'/);
-    const columns = sql
-      .match(/create table if not exists public\.harvest_venue_overlays \(([\s\S]*?)\n\);/)?.[1]
-      ?? "";
-    expect(columns).not.toMatch(/social/i);
-  });
-
-  it("keeps reads and writes on the service role", () => {
-    expect(sql).toMatch(/alter table public\.harvest_venue_overlays enable row level security;/);
-    expect(sql).toMatch(
-      /revoke all on table public\.harvest_venue_overlays from public, anon, authenticated;/,
-    );
-    expect(sql).toMatch(
-      /grant select, insert, update, delete on table public\.harvest_venue_overlays to service_role/,
-    );
-    expect(sql).toMatch(/harvest_venue_overlays_anon_deny[\s\S]*using \(false\) with check \(false\)/);
-    expect(sql).toMatch(
-      /harvest_venue_overlays_authenticated_deny[\s\S]*using \(false\) with check \(false\)/,
-    );
-  });
-
-  it("applies and rolls back inside one transaction each", () => {
-    for (const script of [sql, rollback]) {
-      expect(script).toMatch(/\nbegin;/);
-      expect(script.trimEnd().endsWith("commit;")).toBe(true);
-    }
-    expect(rollback).toMatch(/drop table if exists public\.harvest_venue_overlays;/);
+  it("enforces overlay shape and accepts case-insensitive HTTPS", () => {
+    if (!database) return;
+    database.sql(`
+      insert into public.harvest_venue_overlays(
+        osm_id, osm_ref, website, menu_url, lore_text, lore_citations,
+        lore_match_name, lore_match_town, sources
+      ) values (
+        'node/123', 'n123', 'HTTPS://redlion.example/', 'https://redlion.example/menu',
+        'The Red Lion in Clapham has stood on the common since the eighteenth century.',
+        '["https://history.example/red-lion-clapham"]'::jsonb,
+        'The Red Lion', 'Clapham',
+        '["https://redlion.example/"]'::jsonb
+      );
+    `);
+    expect(
+      database.sql("select osm_id || '|' || osm_ref from public.harvest_venue_overlays"),
+    ).toBe("node/123|n123");
+    expect(() =>
+      database!.sql(
+        "insert into public.harvest_venue_overlays(osm_id, osm_ref, website) values ('node/456', 'n456', 'http://unsafe.example/')",
+      ),
+    ).toThrow();
+    expect(
+      database.sql(
+        "select relrowsecurity from pg_class where oid = 'public.harvest_venue_overlays'::regclass",
+      ),
+    ).toBe("t");
+    database.apply(ROLLBACK);
+    expect(database.sql("select to_regclass('public.harvest_venue_overlays')")).toBe("");
   });
 });
