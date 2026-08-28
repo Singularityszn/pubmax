@@ -1736,6 +1736,7 @@ export default function PubMap({
   const initialShardLoadStartedRef = useRef(false);
   const initialShardLoadSettledRef = useRef(false);
   const liveShardLoadStatusRef = useRef<MapResumeLiveLoadStatus>("pending");
+  const liveShardRowsCommittedRef = useRef(false);
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
   const latestMapBoundsCityRef = useRef<CityId | null>(null);
   const activeMapCityIdRef = useRef(cityId);
@@ -1882,6 +1883,7 @@ export default function PubMap({
     initialShardLoadStartedRef.current = false;
     initialShardLoadSettledRef.current = false;
     liveShardLoadStatusRef.current = "pending";
+    liveShardRowsCommittedRef.current = false;
     ringLoadPendingKeyRef.current = null;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
@@ -1920,6 +1922,7 @@ export default function PubMap({
             if (!isCurrentLoader()) return;
             const rows = result.rows;
             liveShardLoadStatusRef.current = result.status;
+            if (rows.length > 0) liveShardRowsCommittedRef.current = true;
             setVenueIndexFailed(result.status !== "ready");
             mergeSlimVenues(rows);
             if (rows.length > 0) {
@@ -1957,7 +1960,7 @@ export default function PubMap({
             !snapshot ||
             mapCameraTouchedRef.current ||
             snapshot.savedAt <= mapResumeSeed.savedAt ||
-            liveShardLoadStatusRef.current === "ready"
+            liveShardRowsCommittedRef.current
           ) return;
           const refreshVersion = ++resumeRefreshVersion;
           setMapResumeViewport(snapshot.viewport);
@@ -1969,6 +1972,7 @@ export default function PubMap({
                 !isCurrentLoader() ||
                 !isCurrentMapResumeRefresh(
                   liveShardLoadStatusRef.current,
+                  liveShardRowsCommittedRef.current,
                   resumeRefreshVersion,
                   refreshVersion,
                 )
@@ -1992,7 +1996,7 @@ export default function PubMap({
               !isCurrentLoader() ||
               !snapshot ||
               mapCameraTouchedRef.current ||
-              liveShardLoadStatusRef.current === "ready"
+              liveShardRowsCommittedRef.current
             ) return;
             setSlimPins(slimVenuesToPins(snapshot.rows));
             setLoadedCityId(cityId);
@@ -2008,6 +2012,7 @@ export default function PubMap({
                   !isCurrentLoader() ||
                   !isCurrentMapResumeRefresh(
                     liveShardLoadStatusRef.current,
+                    liveShardRowsCommittedRef.current,
                     resumeRefreshVersion,
                     refreshVersion,
                   )
@@ -2033,6 +2038,7 @@ export default function PubMap({
       initialShardLoadStartedRef.current = false;
       initialShardLoadSettledRef.current = false;
       liveShardLoadStatusRef.current = "pending";
+      liveShardRowsCommittedRef.current = false;
       ringLoadPendingKeyRef.current = null;
     };
   }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, openingLocationResolved, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
@@ -2077,6 +2083,7 @@ export default function PubMap({
           if (!isCurrentLoader()) return;
           const rows = result.rows;
           liveShardLoadStatusRef.current = result.status;
+          if (rows.length > 0) liveShardRowsCommittedRef.current = true;
           setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {
@@ -2826,20 +2833,35 @@ export default function PubMap({
     }
     const loaderGeneration = slimLoaderGenerationRef.current;
     let cancelled = false;
+    const failNearbyLoad = () => {
+      if (
+        cancelled ||
+        !request ||
+        slimLoaderRef.current !== loader ||
+        pendingNearMeRequest !== request
+      ) return;
+      setNearbyError("Nearby venues are unavailable right now.");
+      setNearbyLoading(false);
+      setPendingNearMeRequest(null);
+    };
     void loader.nearPoint(location.lat, location.lng)
-      .then((rows) => {
+      .then((result) => {
         if (
           cancelled ||
           slimLoaderRef.current !== loader ||
           slimLoaderGenerationRef.current !== loaderGeneration
         ) return;
-        mergeSlimVenues(rows);
+        mergeSlimVenues(result.rows);
         refreshCountCoverage();
         if (request) setNearbyLoadVersion((version) => version + 1);
-        if (rows.length === 0) finish();
+        if (result.status === "unavailable") {
+          failNearbyLoad();
+          return;
+        }
+        if (result.rows.length === 0) finish();
       })
       .catch(() => {
-        finish();
+        failNearbyLoad();
       });
     return () => {
       cancelled = true;

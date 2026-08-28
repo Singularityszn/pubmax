@@ -83,12 +83,9 @@
       return readCurrentLocation();
     }
     return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
-      if (!permission || permission.state === "prompt") return null;
-      if (permission.state !== "granted") return fallback;
+      if (permission && permission.state === "denied") return fallback;
       return readCurrentLocation();
-    }).catch(function () {
-      return fallback;
-    });
+    }).catch(readCurrentLocation);
   }
   void manifestWarm.then(function (manifest) {
     if (!manifest || !Array.isArray(manifest.shards)) return;

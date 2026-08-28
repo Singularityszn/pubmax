@@ -70,16 +70,8 @@ export async function readOpeningMapLocation(
   options: MapOpeningLocationReadOptions = {},
 ): Promise<MapOpeningLocation | null> {
   if (!environment?.geolocation) return null;
-  try {
-    if (environment.permissions) {
-      const permission = await environment.permissions.query({ name: "geolocation" });
-      if (permission.state === "denied") return null;
-      if (permission.state === "prompt") options.onPermissionPrompt?.();
-      if (permission.state !== "granted" && permission.state !== "prompt") return null;
-    } else {
-      options.onPermissionPrompt?.();
-    }
-    return await new Promise<MapOpeningLocation | null>((resolve) => {
+  const readCurrentLocation = () =>
+    new Promise<MapOpeningLocation | null>((resolve) => {
       environment.geolocation?.getCurrentPosition(
         (position) => {
           const location = {
@@ -92,9 +84,19 @@ export async function readOpeningMapLocation(
         { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
       );
     });
-  } catch {
-    return null;
+
+  if (!environment.permissions || typeof environment.permissions.query !== "function") {
+    options.onPermissionPrompt?.();
+    return readCurrentLocation();
   }
+  try {
+    const permission = await environment.permissions.query({ name: "geolocation" });
+    if (permission?.state === "denied") return null;
+    if (permission?.state !== "granted") options.onPermissionPrompt?.();
+  } catch {
+    options.onPermissionPrompt?.();
+  }
+  return readCurrentLocation();
 }
 
 export const MAP_OPENING_LOCATION_STORAGE_KEY = STORAGE_KEY;

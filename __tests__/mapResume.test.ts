@@ -40,9 +40,10 @@ describe("map resume", () => {
   });
 
   it("allows resume refresh after unavailable live loading", () => {
-    expect(isCurrentMapResumeRefresh("pending", 4, 4)).toBe(true);
-    expect(isCurrentMapResumeRefresh("unavailable", 4, 4)).toBe(true);
-    expect(isCurrentMapResumeRefresh("ready", 4, 4)).toBe(false);
-    expect(isCurrentMapResumeRefresh("pending", 5, 4)).toBe(false);
+    expect(isCurrentMapResumeRefresh("pending", false, 4, 4)).toBe(true);
+    expect(isCurrentMapResumeRefresh("unavailable", false, 4, 4)).toBe(true);
+    expect(isCurrentMapResumeRefresh("unavailable", true, 4, 4)).toBe(false);
+    expect(isCurrentMapResumeRefresh("ready", true, 4, 4)).toBe(false);
+    expect(isCurrentMapResumeRefresh("pending", false, 5, 4)).toBe(false);
   });
 });

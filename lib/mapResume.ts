@@ -121,8 +121,12 @@ export type MapResumeLiveLoadStatus = "pending" | "ready" | "unavailable";
 
 export function isCurrentMapResumeRefresh(
   liveLoadStatus: MapResumeLiveLoadStatus,
+  liveRowsCommitted: boolean,
   currentVersion: number,
   refreshVersion: number,
 ): boolean {
-  return liveLoadStatus !== "ready" && currentVersion === refreshVersion;
+  const liveResultBlocksResume =
+    liveRowsCommitted &&
+    (liveLoadStatus === "ready" || liveLoadStatus === "unavailable");
+  return !liveResultBlocksResume && currentVersion === refreshVersion;
 }

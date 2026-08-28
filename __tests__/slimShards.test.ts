@@ -218,16 +218,26 @@ describe("createSlimShardLoader (London)", () => {
 
   it("nearPoint() loads the shard the user geolocated into", async () => {
     const loader = createSlimShardLoader("london");
-    const rows = await loader.nearPoint(51.65, -0.08);
-    expect(rows.map((v) => v.id)).toEqual(["e1"]);
-    expect((await loader.nearPoint(51.5, -0.1)).map((v) => v.id)).toEqual(["c1", "c2"]);
+    const result = await loader.nearPoint(51.65, -0.08);
+    expect(result.rows.map((v) => v.id)).toEqual(["e1"]);
+    expect(result.status).toBe("ready");
+    expect((await loader.nearPoint(51.5, -0.1)).rows.map((v) => v.id)).toEqual(["c1", "c2"]);
   });
 
   it("nearPoint() loads every location shard intersecting its walk radius", async () => {
     const loader = createSlimShardLoader("london");
-    const rows = await loader.nearPoint(51.5, 0.001);
+    const rows = (await loader.nearPoint(51.5, 0.001)).rows;
 
     expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
+  });
+
+  it("nearPoint() reports unavailable when a radius shard cannot load", async () => {
+    installFetch({ "/data/venues_slim.enfield.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const result = await loader.nearPoint(51.65, -0.08);
+
+    expect(result.rows).toEqual([]);
+    expect(result.status).toBe("unavailable");
   });
 
   it("all() loads core plus every outer shard", async () => {
@@ -471,6 +481,6 @@ describe("createSlimShardLoader (London)", () => {
     expect(core.map((v) => v.id)).toEqual(["m1"]);
     // No manifest → nothing lazy to resolve.
     expect(await loader.inBounds({ west: -3, south: 53, east: -2, north: 54 })).toEqual([]);
-    expect(await loader.nearPoint(53.4, -2.2)).toEqual([]);
+    expect(await loader.nearPoint(53.4, -2.2)).toEqual({ rows: [], status: "ready" });
   });
 });

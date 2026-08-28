@@ -295,10 +295,10 @@ export type SlimShardLoader = {
   initial(bounds: MapBounds): Promise<SlimVenue[]>;
   initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
-   * Venues from the location shard containing `point`, loaded (with one retry)
-   * if needed. [] when the point is not covered or the shard can't load.
+   * Venues from location shards intersecting the walk radius, loaded (with one
+   * retry) if needed. Status reports whether all required shards loaded.
    */
-  nearPoint(lat: number, lng: number): Promise<SlimVenue[]>;
+  nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
   /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
@@ -519,16 +519,21 @@ export function createSlimShardLoader(
 
     initialResult,
 
-    async nearPoint(lat: number, lng: number): Promise<SlimVenue[]> {
+    async nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult> {
       const m = await manifest();
-      if (!m) return [];
+      if (!m) {
+        return {
+          rows: [],
+          status: wholeIndexLoaded && !manifestRevisionRejected ? "ready" : "unavailable",
+        };
+      }
       const needed = shardsForBounds(
         m,
         boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
         0,
         true,
       ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
-      if (needed.length === 0) return [];
+      if (needed.length === 0) return { rows: [], status: "ready" };
       let results = await Promise.all(needed.map((s) => loadShard(s.url)));
       const unavailable = needed.filter((s, index) => results[index].status === "unavailable");
       if (unavailable.length > 0) {
@@ -536,7 +541,12 @@ export function createSlimShardLoader(
         const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
         results = results.map((result, index) => retryByUrl.get(needed[index].url) ?? result);
       }
-      return results.flatMap((result) => result.rows);
+      return {
+        rows: results.flatMap((result) => result.rows),
+        status: results.every((result) => result.status === "ready")
+          ? "ready"
+          : "unavailable",
+      };
     },
 
     async all(): Promise<SlimVenue[]> {

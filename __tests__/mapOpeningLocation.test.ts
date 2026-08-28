@@ -110,4 +110,38 @@ describe("map opening location", () => {
     expect(location).toBeNull();
     expect(getCurrentPosition).not.toHaveBeenCalled();
   });
+
+  it("tries coordinates when the permission query fails", async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: { latitude: 51.5, longitude: -0.1 },
+      } as GeolocationPosition);
+    });
+    const location = await readOpeningMapLocation({
+      permissions: {
+        query: vi.fn(async () => { throw new Error("unsupported"); }),
+      },
+      geolocation: { getCurrentPosition },
+    });
+
+    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
+
+  it("tries coordinates when the permission result is malformed", async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: { latitude: 51.5, longitude: -0.1 },
+      } as GeolocationPosition);
+    });
+    const location = await readOpeningMapLocation({
+      permissions: {
+        query: vi.fn(async () => null as unknown as PermissionStatus),
+      },
+      geolocation: { getCurrentPosition },
+    });
+
+    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
 });
