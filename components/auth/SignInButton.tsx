@@ -142,6 +142,7 @@ export default function SignInButton({
     handle: accountHandle,
     clerkIntegrationConfigured,
     socialProviders,
+    providerAuthState,
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
@@ -336,12 +337,9 @@ export default function SignInButton({
     );
   }
 
-  // Avoid a flash of the wrong state while the first getSession() resolves.
-  // Skip the wait only for an already established product session.
-  if (loading && !clerkSessionAvailable) {
-    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
-  }
-
+  // A user in context is signed-in even while the rest of bootstrap finishes,
+  // so a hard reload of a cached document can paint Account as soon as the
+  // session is known rather than waiting for the loading flag to drop.
   if (user) {
     const { navName: name, cardName, avatar } = accountIdentity(
       (user.user_metadata ?? {}) as Record<string, unknown>,
@@ -428,6 +426,15 @@ export default function SignInButton({
         {clerkSessionAvailable ? <ClerkAccountControls /> : null}
       </div>
     );
+  }
+
+  // Avoid a flash of Sign in while the first getSession() or durable resume
+  // still has not answered. `loading` alone is not enough: a cached landing
+  // document can settle loading false before resume names the account, and
+  // this header would then paint the signed-out pill. Skip the wait only for
+  // an already established product session (the branch above).
+  if ((loading || providerAuthState === "unresolved") && !clerkSessionAvailable) {
+    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;
