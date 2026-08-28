@@ -1622,7 +1622,8 @@ function validateSlimShards() {
     try {
       const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
       shardRawById.set(exp.id, raw);
-      rows = JSON.parse(raw);
+      const payload = JSON.parse(raw);
+      rows = Array.isArray(payload) ? payload : payload?.rows;
       const bytes = Buffer.byteLength(raw);
       totalBytes += bytes;
       if (exp.core) eagerBytes += bytes;

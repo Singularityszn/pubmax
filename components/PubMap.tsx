@@ -1912,7 +1912,7 @@ export default function PubMap({
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
             setLoaded(true);
-            if (resumeRefreshVersion === loadResumeVersion) setMapResumeUpdating(false);
+            setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = false;
           });
       };
@@ -1923,7 +1923,8 @@ export default function PubMap({
             !isCurrentLoader() ||
             !snapshot ||
             mapCameraTouchedRef.current ||
-            snapshot.savedAt <= mapResumeSeed.savedAt
+            snapshot.savedAt <= mapResumeSeed.savedAt ||
+            liveShardLoadSettledRef.current
           ) return;
           const refreshVersion = ++resumeRefreshVersion;
           setMapResumeViewport(snapshot.viewport);

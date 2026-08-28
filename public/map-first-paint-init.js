@@ -25,7 +25,15 @@
   window.__pubmaxMapWarm = { json: json };
   var manifestWarm = fetch(manifestRequestPath, { cache: "force-cache" }).then(function (response) {
     if (!response.ok) throw new Error("HTTP " + response.status);
-    return response.json();
+    return response.json().then(function (manifest) {
+      if (
+        manifestRevision !== "local" &&
+        (!manifest || manifest.revision !== manifestRevision)
+      ) {
+        throw new Error("stale map manifest");
+      }
+      return manifest;
+    });
   });
   json.set(manifestPath, manifestWarm);
   function validLocation(value) {
@@ -100,13 +108,26 @@
           minLat > bounds.north ||
           maxLat < bounds.south
         ) return;
-        var warm = fetch(shard.url, { cache: "force-cache" }).then(function (response) {
+        var shardPath = manifestRevision === "local"
+          ? shard.url
+          : shard.url + "?v=" + encodeURIComponent(manifestRevision);
+        var warm = fetch(shardPath, { cache: "force-cache" }).then(function (response) {
           if (!response.ok) throw new Error("HTTP " + response.status);
-          return response.json();
+          return response.json().then(function (payload) {
+            if (
+              manifestRevision !== "local" &&
+              (!payload || payload.revision !== manifestRevision || !Array.isArray(payload.rows))
+            ) {
+              throw new Error("stale map shard");
+            }
+            return payload;
+          });
         });
         json.set(shard.url, warm);
+        json.set(shardPath, warm);
         void warm.catch(function () {
           if (json.get(shard.url) === warm) json.delete(shard.url);
+          if (json.get(shardPath) === warm) json.delete(shardPath);
         });
       });
     });

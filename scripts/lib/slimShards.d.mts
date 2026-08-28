@@ -9,6 +9,7 @@ export const MANIFEST_FILE: string;
 export const CORE_FILE: string;
 export const SHARD_VERSION: number;
 export const SPATIAL_SHARD_VERSION: number;
+export const DATA_REVISION: string;
 
 export interface SpatialGrid {
   originLat: number;
@@ -54,6 +55,7 @@ export interface ShardManifestEntry {
 
 export interface ShardManifest {
   version: number;
+  revision?: string;
   grid?: SpatialGrid;
   shards: ShardManifestEntry[];
 }
@@ -65,6 +67,7 @@ export interface SpatialCell {
 }
 
 export function dataUrl(fileName: string): string;
+export function buildShardPayload(rows: SlimShardRow[]): { revision: string; rows: SlimShardRow[] };
 export function slugifyBorough(borough: unknown): string;
 export function shardFileForSlug(slug: string): string;
 export function spatialCellIndex(

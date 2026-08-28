@@ -22,6 +22,7 @@ import { fileURLToPath } from "node:url";
 
 import {
   CORE_FILE,
+  buildShardPayload,
   MANIFEST_FILE,
   SPATIAL_GRID,
   buildSpatialShardManifest,
@@ -813,7 +814,7 @@ async function main() {
   const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID, coreId);
   const coreCell = cells.get(coreId);
   if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
-  const coreText = JSON.stringify(coreCell.venues);
+  const coreText = JSON.stringify(buildShardPayload(coreCell.venues));
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
@@ -829,7 +830,7 @@ async function main() {
   const shardReport = [];
   for (const [id, { lat, lon, venues }] of cells) {
     if (id === coreId) continue;
-    const text = JSON.stringify(venues);
+    const text = JSON.stringify(buildShardPayload(venues));
     spatialBytesTotal += Buffer.byteLength(text);
     await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({

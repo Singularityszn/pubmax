@@ -341,6 +341,15 @@ function expectedVenueManifestVersion(pathname) {
   return null;
 }
 
+function isVenueShardPath(pathname) {
+  return (
+    pathname === "/data/venues_slim.core.json" ||
+    /^\/data\/venues_slim\.cell\..+\.json$/.test(pathname) ||
+    /^\/data\/venues_slim\.(?!manifest|core|cell\.).+\.json$/.test(pathname) ||
+    /^\/data\/cities\/[^/]+\/venues_slim\.core\.json$/.test(pathname)
+  );
+}
+
 async function isCompatibleVenueManifest(request, response, options = {}) {
   const expectedVersion = expectedVenueManifestVersion(new URL(request.url).pathname);
   if (expectedVersion === null || !response) return true;
@@ -348,7 +357,28 @@ async function isCompatibleVenueManifest(request, response, options = {}) {
   if (!options.network && requestRevision && requestRevision !== VERSION) return false;
   try {
     const manifest = await response.clone().json();
-    return manifest?.version === expectedVersion && Array.isArray(manifest.shards);
+    return (
+      manifest?.version === expectedVersion &&
+      Array.isArray(manifest.shards) &&
+      (options.network || !requestRevision || manifest.revision === requestRevision)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function isCompatibleVenueShard(request, response, options = {}) {
+  const requestUrl = new URL(request.url);
+  if (!isVenueShardPath(requestUrl.pathname) || !response) return true;
+  const requestRevision = requestUrl.searchParams.get("v");
+  if (options.network) return true;
+  if (requestRevision !== VERSION) return false;
+  try {
+    const payload = await response.clone().json();
+    return (
+      payload?.revision === VERSION &&
+      Array.isArray(payload.rows)
+    );
   } catch {
     return false;
   }
@@ -446,12 +476,13 @@ async function staleWhileRevalidate(
   const cache = await caches.open(cacheName);
   const current = await cache.match(request);
   const cachedCandidate = current ?? await matchCacheFamily(cacheName, request);
-  const cached = await isCompatibleVenueManifest(request, cachedCandidate)
-    ? cachedCandidate
-    : undefined;
+  const cachedManifest = await isCompatibleVenueManifest(request, cachedCandidate);
+  const cachedShard = await isCompatibleVenueShard(request, cachedCandidate);
+  const cached = cachedManifest && cachedShard ? cachedCandidate : undefined;
   const network = fetch(request)
     .then(async (response) =>
-      (await isCompatibleVenueManifest(request, response, { network: true }))
+      (await isCompatibleVenueManifest(request, response, { network: true })) &&
+      (await isCompatibleVenueShard(request, response, { network: true }))
         ? response
         : undefined,
     )

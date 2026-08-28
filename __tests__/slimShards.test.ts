@@ -137,6 +137,13 @@ describe("parseShardManifest", () => {
       )?.version,
     ).toBe(1);
   });
+
+  it("requires matching deployment revision when one is supplied", () => {
+    const current = { ...MANIFEST, revision: "deploy-42" };
+    expect(parseShardManifest(current, 2, "deploy-42")?.revision).toBe("deploy-42");
+    expect(parseShardManifest(current, 2, "other-deploy")).toBeNull();
+    expect(parseShardManifest(MANIFEST, 2, "deploy-42")).toBeNull();
+  });
 });
 
 describe("createSlimShardLoader (London)", () => {
@@ -340,7 +347,7 @@ describe("createSlimShardLoader (London)", () => {
     expect(getSpy).toHaveBeenCalledWith(
       "venues_slim_manifest:v2:/data/venues_slim.manifest.json",
     );
-    expect(fetched).toContain("/data/venues_slim.json");
+    expect(fetched).not.toContain("/data/venues_slim.json");
     expect(fetched).not.toContain("/data/venues_slim.core.json");
   });
 

@@ -35,6 +35,13 @@ export const MANIFEST_FILE = "venues_slim.manifest.json";
 export const CORE_FILE = "venues_slim.core.json";
 export const SHARD_VERSION = 1;
 export const SPATIAL_SHARD_VERSION = 2;
+export const DATA_REVISION =
+  process.env.NEXT_PUBLIC_SW_VERSION ??
+  process.env.DEPLOYMENT_VERSION ??
+  process.env.VERCEL_DEPLOYMENT_ID ??
+  process.env.VERCEL_GIT_COMMIT_SHA ??
+  process.env.GITHUB_SHA ??
+  "local";
 
 // The map opens on a viewport, not on a borough. A fixed grid keeps the first
 // request proportional to what the reader can see and makes a pan predictable.
@@ -52,6 +59,10 @@ export const SPATIAL_SHARD_PREFIX = "venues_slim.cell.";
 /** Public URL path (what the client fetches) for a data filename. */
 export function dataUrl(fileName) {
   return `/data/${fileName}`;
+}
+
+export function buildShardPayload(rows) {
+  return { revision: DATA_REVISION, rows };
 }
 
 /** File-safe borough slug, matching the OSM raw-file naming (barking_and_dagenham). */
@@ -121,7 +132,7 @@ export function buildSpatialShardManifest(cells, grid = SPATIAL_GRID, coreId = n
       ],
     });
   }
-  return { version: SPATIAL_SHARD_VERSION, grid, shards };
+  return { version: SPATIAL_SHARD_VERSION, revision: DATA_REVISION, grid, shards };
 }
 
 function pricedRatio(venues) {
@@ -238,5 +249,5 @@ export function buildShardManifest({ core, outer }) {
       bbox: computeBbox(venues),
     });
   }
-  return { version: SHARD_VERSION, shards };
+  return { version: SHARD_VERSION, revision: DATA_REVISION, shards };
 }

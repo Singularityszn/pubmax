@@ -41,6 +41,7 @@ export type ShardEntry = {
 
 export type ShardManifest = {
   version: number;
+  revision?: string;
   grid?: { originLat: number; originLon: number; latStep: number; lonStep: number };
   shards: ShardEntry[];
 };
@@ -84,6 +85,7 @@ function isGrid(value: unknown): value is ShardManifest["grid"] {
 export function parseShardManifest(
   value: unknown,
   expectedVersion?: number,
+  expectedRevision?: string,
 ): ShardManifest | null {
   if (typeof value !== "object" || value === null) return null;
   const obj = value as Record<string, unknown>;
@@ -93,6 +95,13 @@ export function parseShardManifest(
     (obj.version !== LEGACY_SHARD_MANIFEST_VERSION &&
       obj.version !== SPATIAL_SHARD_MANIFEST_VERSION) ||
     (expectedVersion !== undefined && obj.version !== expectedVersion)
+  ) {
+    return null;
+  }
+  if (
+    (obj.revision !== undefined &&
+      (typeof obj.revision !== "string" || obj.revision.length === 0)) ||
+    (expectedRevision !== undefined && obj.revision !== expectedRevision)
   ) {
     return null;
   }
@@ -138,6 +147,7 @@ export function parseShardManifest(
   }
   return {
     version: obj.version,
+    ...(typeof obj.revision === "string" ? { revision: obj.revision } : {}),
     ...(obj.grid ? { grid: obj.grid } : {}),
     shards,
   };
@@ -263,6 +273,11 @@ function manifestRequestPath(path: string): string {
   return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
 }
 
+function shardRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local") return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
 /** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
 export function guessedCoreShardUrl(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".core.json");
@@ -318,6 +333,7 @@ export function createSlimShardLoader(
   // Settled manifest snapshot, so coverage can be answered without awaiting.
   let manifestAnswered = false;
   let settledManifest: ShardManifest | null = null;
+  let manifestRevisionRejected = false;
   // A city with no manifest ships one file, so loading it covers everything.
   let wholeIndexLoaded = false;
   // url -> in-flight/settled fetch of that shard's venues.
@@ -328,6 +344,7 @@ export function createSlimShardLoader(
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       let payload: unknown;
+      let earlyPayloadRejected = false;
       const early = options.bypassInFlight
         ? undefined
         : takeEarlyWarmJson(manifestPath);
@@ -336,22 +353,59 @@ export function createSlimShardLoader(
           payload = await early;
         } catch {
           payload = undefined;
+          earlyPayloadRejected = true;
         }
       }
       if (payload === undefined) {
-        const response = await fetch(manifestRequestPath(manifestPath));
+        const response = earlyPayloadRejected
+          ? await fetch(manifestRequestPath(manifestPath), { cache: "no-store" })
+          : await fetch(manifestRequestPath(manifestPath));
         if (!response.ok) {
           discardBody(response);
           throw new Error(`HTTP ${response.status}`);
         }
         payload = await response.json();
       }
-      const parsed = parseShardManifest(payload, expectedManifestVersion);
+      let parsed = parseShardManifest(
+        payload,
+        expectedManifestVersion,
+        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+      );
+      if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
+        manifestRevisionRejected = true;
+        if (!earlyPayloadRejected) {
+          try {
+            const response = await fetch(manifestRequestPath(manifestPath), {
+              cache: "no-store",
+            });
+            if (response.ok) {
+              parsed = parseShardManifest(
+                await response.json(),
+                expectedManifestVersion,
+                MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+              );
+            } else {
+              discardBody(response);
+            }
+          } catch {
+            parsed = null;
+          }
+        }
+      }
       if (parsed) void offlineCache.set(manifestOfflineKey, parsed);
+      if (parsed) manifestRevisionRejected = false;
       return parsed;
     } catch {
       const stored = await offlineCache.get<unknown>(manifestOfflineKey);
-      return parseShardManifest(stored, expectedManifestVersion);
+      const parsed = parseShardManifest(
+        stored,
+        expectedManifestVersion,
+        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+      );
+      if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
+        manifestRevisionRejected = true;
+      }
+      return parsed;
     }
   }
 
@@ -382,7 +436,11 @@ export function createSlimShardLoader(
   function loadShard(url: string): Promise<SlimShardLoadResult> {
     const existing = shardPromises.get(url);
     if (existing) return existing;
-    const p = loadSlimVenuesFromPathResult(url, options)
+    const shardOptions =
+      MAP_DATA_REVISION === "local"
+        ? options
+        : { ...options, expectedRevision: MAP_DATA_REVISION };
+    const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
       .then((result) => {
         if (result.status === "ready") {
           loadedUrls.add(url);
@@ -405,7 +463,11 @@ export function createSlimShardLoader(
 
   async function initialResult(bounds: MapBounds): Promise<SlimShardLoadResult> {
     const m = await manifest();
-    if (!m) return loadWholeIndexResult();
+    if (!m) {
+      return manifestRevisionRejected
+        ? { rows: [], status: "unavailable" }
+        : loadWholeIndexResult();
+    }
     const needed = shardsForBounds(m, bounds, 0, true).filter(
       (s) => !loadedUrls.has(s.url),
     );
@@ -427,9 +489,9 @@ export function createSlimShardLoader(
       // request its answer discards. loadShard never rejects.
       const guessedRows = loadShard(guessedCoreUrl);
       const m = await manifest();
-      if (!m) return loadWholeIndex();
+      if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const core = coreEntry(m);
-      if (!core) return loadWholeIndex();
+      if (!core) return manifestRevisionRejected ? [] : loadWholeIndex();
       if (core.url === guessedCoreUrl) {
         const result = await guessedRows;
         if (result.rows.length > 0) return result.rows;
@@ -474,7 +536,7 @@ export function createSlimShardLoader(
 
     async all(): Promise<SlimVenue[]> {
       const m = await manifest();
-      if (!m) return loadWholeIndex();
+      if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
       return results.flatMap((result) => result.rows);
     },

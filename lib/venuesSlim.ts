@@ -208,6 +208,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
  */
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
+  expectedRevision?: string;
 };
 
 export type SlimVenueLoadResult = {
@@ -219,20 +220,40 @@ async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
 ): Promise<unknown> {
+  let earlyPayloadRejected = false;
   const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
     } catch {
-      // Fall through to a live fetch.
+      earlyPayloadRejected = true;
     }
   }
-  const response = await fetch(path);
+  const response = earlyPayloadRejected
+    ? await fetch(path, { cache: "no-store" })
+    : await fetch(path);
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);
   }
   return response.json();
+}
+
+function rowsFromPayload(
+  value: unknown,
+  expectedRevision?: string,
+): unknown[] | null {
+  if (Array.isArray(value)) return expectedRevision ? null : value;
+  if (typeof value !== "object" || value === null) return null;
+  const payload = value as Record<string, unknown>;
+  if (
+    !Array.isArray(payload.rows) ||
+    typeof payload.revision !== "string" ||
+    (expectedRevision !== undefined && payload.revision !== expectedRevision)
+  ) {
+    return null;
+  }
+  return payload.rows;
 }
 
 export function loadSlimVenuesFromPathResult(
@@ -268,19 +289,25 @@ async function loadSlimVenuesFromPathUnshared(
   const offlineKey = offlineKeyForPath(path);
   try {
     const data: unknown = await readSlimPayload(path, options);
-    if (!Array.isArray(data)) {
+    const payloadRows = rowsFromPayload(data, options.expectedRevision);
+    if (!payloadRows) {
       return { rows: [], status: "unavailable" };
     }
-    const rows = normalizeRows(data);
-    const complete = rows.length === data.length;
-    if (complete && rows.length > 0) void offlineCache.set(offlineKey, rows);
+    const rows = normalizeRows(payloadRows);
+    const complete = rows.length === payloadRows.length;
+    if (complete && rows.length > 0) {
+      const stored = options.expectedRevision
+        ? { revision: options.expectedRevision, rows }
+        : rows;
+      void offlineCache.set(offlineKey, stored);
+    }
     return {
       rows,
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);
-    const fallback = normalizeRows(stored);
+    const fallback = normalizeRows(rowsFromPayload(stored, options.expectedRevision) ?? []);
     if (fallback.length > 0) return { rows: fallback, status: "ready" };
     throw error;
   }

@@ -324,6 +324,68 @@ describe("service worker map cache", () => {
     expect(response).toBe(manifest);
   });
 
+  it("does not serve an unversioned cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("serves a current-revision cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(shard);
+  });
+
+  it("does not serve a prior-revision cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "previous", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
   it("does not force takeover for future write-safe policy changes", async () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:
@@ -451,7 +513,7 @@ describe("service worker map cache", () => {
     expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
   });
 
-  it("uses old stable data only after current cache and network miss", async () => {
+  it("does not use old stable data after current cache and network miss", async () => {
     const oldData = new Response("legacy data");
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
@@ -473,7 +535,9 @@ describe("service worker map cache", () => {
       listeners.get("fetch")!,
       new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
     );
-    await expect(data.response).resolves.toBe(oldData);
+    const response = (await data.response) as Response;
+    expect(response.type).toBe("error");
+    expect(response).not.toBe(oldData);
   });
 
   it("does not serve an incompatible venue manifest from an old cache", async () => {

@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 
 import { describe, expect, it, vi } from "vitest";
 
-import { loadSlimVenuesFromPath } from "@/lib/venuesSlim";
+import { loadSlimVenuesFromPath, loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
 
 describe("mapEarlyWarm", () => {
   it("reuses head-start JSON instead of fetching again", async () => {
@@ -34,6 +34,7 @@ describe("mapEarlyWarm", () => {
 
   it("warms granted geolocation cells before the London fallback", async () => {
     const manifest = {
+      revision: "deploy-42",
       shards: [
         { url: "/data/london.json", bbox: [-0.3, 51.3, -0.1, 51.6] },
         { url: "/data/granted.json", bbox: [0.1, 51.7, 0.4, 51.75] },
@@ -92,7 +93,32 @@ describe("mapEarlyWarm", () => {
     expect(fetchSpy.mock.calls.map(([input]) => input)).toContain(
       "/data/venues_slim.manifest.json?v=deploy-42",
     );
-    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json");
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json?v=deploy-42");
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
+  });
+
+  it("rejects a shard payload from another deployment revision", async () => {
+    vi.stubGlobal("window", { __pubmaxMapWarm: { json: new Map() } });
+    vi.stubGlobal("fetch", vi.fn(async () => ({
+      ok: true,
+      json: async () => [
+        {
+          id: "stale-venue",
+          name: "Stale Arms",
+          lat: 51.5,
+          lng: -0.1,
+          cheapestPrice: null,
+          borough: "Camden",
+        },
+      ],
+    })));
+
+    await expect(
+      loadSlimVenuesFromPathResult("/data/venues_slim.cell.stale.json", {
+        expectedRevision: "deploy-42",
+      }),
+    ).resolves.toEqual({ rows: [], status: "unavailable" });
+
+    vi.unstubAllGlobals();
   });
 });
