@@ -10,11 +10,13 @@ import {
   type MapBounds,
   type ShardManifest,
 } from "@/lib/slimShards";
+import { offlineCache } from "@/lib/offlineCache";
 
 // A small synthetic London-ish manifest: one core + two outer shards whose
 // bboxes are deliberately non-overlapping so viewport/point mapping is exact.
 const MANIFEST: ShardManifest = {
-  version: 1,
+  version: 2,
+  grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
   shards: [
     { id: "core", core: true, url: "/data/venues_slim.core.json", count: 2, bbox: [-0.2, 51.45, 0.0, 51.55] },
     { id: "greenwich", core: false, borough: "Greenwich", url: "/data/venues_slim.greenwich.json", count: 1, bbox: [0.0, 51.46, 0.1, 51.52] },
@@ -119,6 +121,21 @@ describe("parseShardManifest", () => {
         }],
       }),
     ).toBeNull();
+  });
+
+  it("rejects a legacy schema when spatial version is required", () => {
+    expect(
+      parseShardManifest(
+        { ...MANIFEST, version: 1, grid: undefined },
+        2,
+      ),
+    ).toBeNull();
+    expect(
+      parseShardManifest(
+        { ...MANIFEST, version: 1, grid: undefined },
+        1,
+      )?.version,
+    ).toBe(1);
   });
 });
 
@@ -306,6 +323,25 @@ describe("createSlimShardLoader (London)", () => {
       rows: [],
       status: "unavailable",
     });
+  });
+
+  it("does not restore a legacy manifest from the offline boundary", async () => {
+    installFetch({ "/data/venues_slim.manifest.json": "fail" });
+    const getSpy = vi.spyOn(offlineCache, "get").mockResolvedValue({
+      ...MANIFEST,
+      version: 1,
+      grid: undefined,
+    });
+    const loader = createSlimShardLoader("london");
+
+    await expect(
+      loader.initialResult({ west: -0.2, south: 51.45, east: 0, north: 51.55 }),
+    ).resolves.toEqual({ rows: [], status: "unavailable" });
+    expect(getSpy).toHaveBeenCalledWith(
+      "venues_slim_manifest:v2:/data/venues_slim.manifest.json",
+    );
+    expect(fetched).toContain("/data/venues_slim.json");
+    expect(fetched).not.toContain("/data/venues_slim.core.json");
   });
 
   it("bypasses a shared in-flight read when a new loader retries", async () => {

@@ -58,6 +58,9 @@ export type SlimShardLoadResult = {
   status: "ready" | "unavailable";
 };
 
+const LEGACY_SHARD_MANIFEST_VERSION = 1;
+const SPATIAL_SHARD_MANIFEST_VERSION = 2;
+
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {
@@ -77,10 +80,21 @@ function isGrid(value: unknown): value is ShardManifest["grid"] {
 }
 
 /** Parse an unknown payload into a ShardManifest, or null if malformed. */
-export function parseShardManifest(value: unknown): ShardManifest | null {
+export function parseShardManifest(
+  value: unknown,
+  expectedVersion?: number,
+): ShardManifest | null {
   if (typeof value !== "object" || value === null) return null;
   const obj = value as Record<string, unknown>;
-  if (typeof obj.version !== "number") return null;
+  if (
+    typeof obj.version !== "number" ||
+    !Number.isInteger(obj.version) ||
+    (obj.version !== LEGACY_SHARD_MANIFEST_VERSION &&
+      obj.version !== SPATIAL_SHARD_MANIFEST_VERSION) ||
+    (expectedVersion !== undefined && obj.version !== expectedVersion)
+  ) {
+    return null;
+  }
   if (!Array.isArray(obj.shards)) return null;
   const shards: ShardEntry[] = [];
   for (const raw of obj.shards) {
@@ -115,6 +129,12 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
     });
   }
   if (obj.grid !== undefined && !isGrid(obj.grid)) return null;
+  if (
+    (obj.version === SPATIAL_SHARD_MANIFEST_VERSION) !==
+    (obj.grid !== undefined)
+  ) {
+    return null;
+  }
   return {
     version: obj.version,
     ...(obj.grid ? { grid: obj.grid } : {}),
@@ -231,7 +251,7 @@ export function shardForPoint(
 
 // --- stateful per-city loader ------------------------------------------------
 
-const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v1";
+const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v2";
 
 function manifestPathFor(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".manifest.json");
@@ -283,6 +303,10 @@ export function createSlimShardLoader(
   const slimVenuesPath = city.slimVenuesPath;
   const manifestPath = manifestPathFor(slimVenuesPath);
   const manifestOfflineKey = `${MANIFEST_OFFLINE_PREFIX}:${manifestPath}`;
+  const expectedManifestVersion =
+    manifestPath === "/data/venues_slim.manifest.json"
+      ? SPATIAL_SHARD_MANIFEST_VERSION
+      : LEGACY_SHARD_MANIFEST_VERSION;
 
   let manifestPromise: Promise<ShardManifest | null> | null = null;
   // Settled manifest snapshot, so coverage can be answered without awaiting.
@@ -316,12 +340,12 @@ export function createSlimShardLoader(
         }
         payload = await response.json();
       }
-      const parsed = parseShardManifest(payload);
+      const parsed = parseShardManifest(payload, expectedManifestVersion);
       if (parsed) void offlineCache.set(manifestOfflineKey, parsed);
       return parsed;
     } catch {
       const stored = await offlineCache.get<unknown>(manifestOfflineKey);
-      return parseShardManifest(stored);
+      return parseShardManifest(stored, expectedManifestVersion);
     }
   }
 
