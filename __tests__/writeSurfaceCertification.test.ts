@@ -11,9 +11,6 @@ const CERTIFICATION = readFileSync(
   "utf8",
 );
 const MUTATION_METHODS = ["POST", "PUT", "PATCH", "DELETE"] as const;
-const EXECUTABLE_BOUNDARY_ROUTES = new Set([
-  "POST app/api/plans/generate",
-]);
 type MutationMethod = (typeof MUTATION_METHODS)[number];
 type MutationHandler = {
   file: string;
@@ -120,7 +117,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 // gate, a per-actor budget on every add, remove and reorder, and a per-actor
 // budget on the reader flag.
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
-  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
+  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|preparePlanGeneration|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
   account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity|requireVerifiedSocialActor|handleProfileImage(?:Upload|Delete)|handleProfileCoverPhoto(?:Upload|Delete|Move))\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,
@@ -261,7 +258,6 @@ describe("mutating API surface certification", () => {
   it("gives every mutating handler its own abuse or authority boundary", () => {
     const uncovered = mutationHandlers
       .filter(({ method, route, source }) =>
-        !EXECUTABLE_BOUNDARY_ROUTES.has(`${method} ${route}`) &&
         boundaries(source).length === 0,
       )
       .map(mutationHandlerKey);

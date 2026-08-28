@@ -66,17 +66,22 @@
     }
     function readCurrentLocation() {
       return new Promise(function (resolve) {
-        nav.geolocation.getCurrentPosition(
-          function (position) {
-            var location = {
-              lat: position.coords.latitude,
-              lng: position.coords.longitude,
-            };
-            resolve(validLocation(location) ? location : fallback);
-          },
-          function () { resolve(fallback); },
-          { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
-        );
+        function settle(value) { resolve(value); }
+        try {
+          nav.geolocation.getCurrentPosition(
+            function (position) {
+              try {
+                var location = {
+                  lat: position && position.coords && position.coords.latitude,
+                  lng: position && position.coords && position.coords.longitude,
+                };
+                settle(validLocation(location) ? location : fallback);
+              } catch { settle(fallback); }
+            },
+            function () { settle(fallback); },
+            { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
+          );
+        } catch { settle(fallback); }
       });
     }
     if (!nav.permissions || typeof nav.permissions.query !== "function") {

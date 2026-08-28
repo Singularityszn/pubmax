@@ -22,6 +22,7 @@ import {
 import {
   CORE_FILE,
   MANIFEST_FILE,
+  SPATIAL_SHARD_VERSION,
   buildShardManifest,
   buildSpatialShardManifest,
   classifySlimShards,
@@ -1581,6 +1582,13 @@ function validateSlimShards() {
     for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
   }
 
+  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
+    errs.add("manifest must use the spatial shard schema");
+  }
+  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
+    errs.add("manifest must carry a non-empty revision");
+  }
+
   if (manifest.version !== expectedManifest.version) {
     errs.add(
       `manifest version ${manifest.version} !== expected ${expectedManifest.version}`,
@@ -1629,7 +1637,18 @@ function validateSlimShards() {
       const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
       shardRawById.set(exp.id, raw);
       const payload = JSON.parse(raw);
-      rows = Array.isArray(payload) ? payload : payload?.rows;
+      if (
+        !payload ||
+        Array.isArray(payload) ||
+        typeof payload.revision !== "string" ||
+        payload.revision !== manifest.revision ||
+        !Array.isArray(payload.rows)
+      ) {
+        errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
+        rows = [];
+      } else {
+        rows = payload.rows;
+      }
       const bytes = Buffer.byteLength(raw);
       totalBytes += bytes;
       if (exp.core) eagerBytes += bytes;

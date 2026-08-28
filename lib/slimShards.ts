@@ -431,7 +431,12 @@ export function createSlimShardLoader(
   }
 
   function loadWholeIndexResult(): Promise<SlimShardLoadResult> {
-    return loadSlimVenuesFromPathResult(slimVenuesPath, options).then((result) => {
+    const wholeIndexPath = shardRequestPath(slimVenuesPath);
+    const wholeIndexOptions =
+      MAP_DATA_REVISION === "local"
+        ? options
+        : { ...options, expectedRevision: MAP_DATA_REVISION };
+    return loadSlimVenuesFromPathResult(wholeIndexPath, wholeIndexOptions).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
       return result;
     });

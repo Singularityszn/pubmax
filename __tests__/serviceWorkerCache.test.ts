@@ -7,6 +7,8 @@ type Listener = (event: unknown) => void;
 type FakeResponse = {
   ok: boolean;
   type: "cors" | "opaque";
+  headers?: { get: (name: string) => string | null };
+  json?: ReturnType<typeof vi.fn>;
   clone: ReturnType<typeof vi.fn>;
 };
 
@@ -243,9 +245,15 @@ function dispatchLifecycle(listener: Listener): Promise<unknown>[] {
   return lifetime;
 }
 
-function fakeResponse(type: FakeResponse["type"], ok = true): FakeResponse {
+function fakeResponse(type: FakeResponse["type"], ok = true, cacheControl?: string): FakeResponse {
   const clone = vi.fn();
-  const response: FakeResponse = { ok, type, clone };
+  const response: FakeResponse = {
+    ok,
+    type,
+    ...(cacheControl ? { headers: { get: () => cacheControl } } : {}),
+    json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    clone,
+  };
   clone.mockReturnValue(response);
   return response;
 }
@@ -312,7 +320,7 @@ describe("service worker map cache", () => {
       ok: true,
       type: "cors" as const,
       clone: vi.fn(),
-      json: vi.fn(async () => ({ version: 2, shards: [] })),
+      json: vi.fn(async () => ({ version: 2, revision: "other-deploy", shards: [] })),
     };
     manifest.clone.mockReturnValue(manifest);
     const { listeners } = workerHarness({ response: manifest });
@@ -323,6 +331,26 @@ describe("service worker map cache", () => {
 
     const response = await dispatched.response;
     expect(response).toBe(manifest);
+  });
+
+  it("rejects and does not cache a network shard from another revision", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "stale-deploy", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners, put } = workerHarness({ response: shard });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=other-deploy"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("does not serve an unversioned cached venue shard", async () => {
@@ -589,8 +617,8 @@ describe("service worker map cache", () => {
   });
 
   it("prefers fresh network data over an old stable-data fallback", async () => {
-    const oldData = new Response("legacy data");
-    const freshData = new Response("fresh data");
+    const oldData = new Response(JSON.stringify({ revision: "legacy", rows: [] }));
+    const freshData = new Response(JSON.stringify({ revision: "target", rows: [] }));
     Object.defineProperty(freshData, "type", { value: "basic" });
     const { listeners, records } = rolloutWorkerHarness({
       response: freshData,
@@ -614,7 +642,7 @@ describe("service worker map cache", () => {
       .get("pubmax-sw-data-target")
       ?.get("https://pubmaxxing.com/data/venues_slim.core.json")
       ?.response;
-    expect(await stored?.text()).toBe("fresh data");
+    expect(await stored?.text()).toBe(JSON.stringify({ revision: "target", rows: [] }));
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(false);
   });
 
@@ -657,6 +685,19 @@ describe("service worker map cache", () => {
     expect(event.response).not.toBeNull();
     await expect(event.response).resolves.toBe(networkResponse);
     expect(put).toHaveBeenCalledOnce();
+  });
+
+  it("does not cache a tile when its host forbids storage", async () => {
+    const networkResponse = fakeResponse("cors", true, "no-store");
+    const { listeners, put } = workerHarness({ response: networkResponse });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request(TILE_URL, { mode: "cors" }),
+    );
+
+    await expect(event.response).resolves.toBe(networkResponse);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("returns successful static data when Cache Storage rejects the write", async () => {

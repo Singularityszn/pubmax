@@ -332,7 +332,22 @@ self.addEventListener("fetch", (event) => {
 });
 
 function isCacheable(response) {
-  return Boolean(response && response.ok && (response.type === "basic" || response.type === "cors"));
+  if (!response || !response.ok || (response.type !== "basic" && response.type !== "cors")) {
+    return false;
+  }
+  const cacheControl = response.headers?.get?.("cache-control")?.toLowerCase() || "";
+  return !cacheControl.split(",").some((directive) => {
+    const [name, value] = directive.trim().split("=", 2);
+    return (
+      ["no-store", "no-cache", "private", "must-revalidate", "proxy-revalidate"].includes(name) ||
+      (["max-age", "s-maxage"].includes(name) && value?.trim() === "0")
+    );
+  });
+}
+
+function requestedVenueRevision(request) {
+  const revision = new URL(request.url).searchParams.get("v")?.trim();
+  return revision || (VERSION === "local" ? null : VERSION);
 }
 
 function expectedVenueManifestVersion(pathname) {
@@ -357,10 +372,11 @@ async function isCompatibleVenueManifest(request, response, options = {}) {
   if (!options.network && requestRevision && requestRevision !== VERSION) return false;
   try {
     const manifest = await response.clone().json();
+    const expectedRevision = requestedVenueRevision(request);
     return (
       manifest?.version === expectedVersion &&
       Array.isArray(manifest.shards) &&
-      (options.network || !requestRevision || manifest.revision === requestRevision)
+      (expectedRevision === null || manifest.revision === expectedRevision)
     );
   } catch {
     return false;
@@ -371,13 +387,13 @@ async function isCompatibleVenueShard(request, response, options = {}) {
   const requestUrl = new URL(request.url);
   if (!isVenueShardPath(requestUrl.pathname) || !response) return true;
   const requestRevision = requestUrl.searchParams.get("v");
-  if (options.network) return true;
-  if (requestRevision && requestRevision !== VERSION) return false;
-  if (!requestRevision && VERSION !== "local") return false;
+  if (!options.network && requestRevision && requestRevision !== VERSION) return false;
+  if (!options.network && !requestRevision && VERSION !== "local") return false;
   try {
     const payload = await response.clone().json();
+    const expectedRevision = requestedVenueRevision(request);
     return (
-      payload?.revision === VERSION &&
+      (expectedRevision === null || payload?.revision === expectedRevision) &&
       Array.isArray(payload.rows)
     );
   } catch {
@@ -390,6 +406,7 @@ async function isCompatibleVenueShard(request, response, options = {}) {
 // versioned cache sets). A valid network response must still reach its caller:
 // cache.put() failure is never a network failure.
 async function cachePutBestEffort(cache, request, response) {
+  if (!isCacheable(response)) return false;
   try {
     await cache.put(request, response.clone());
     return true;

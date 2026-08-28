@@ -144,4 +144,22 @@ describe("map opening location", () => {
     expect(location).toEqual({ lat: 51.5, lng: -0.1 });
     expect(getCurrentPosition).toHaveBeenCalledOnce();
   });
+
+  it("falls back when geolocation throws or returns malformed coordinates", async () => {
+    const throwing = await readOpeningMapLocation({
+      geolocation: {
+        getCurrentPosition: vi.fn(() => { throw new Error("unsupported"); }),
+      },
+    });
+    expect(throwing).toBeNull();
+
+    const malformed = await readOpeningMapLocation({
+      geolocation: {
+        getCurrentPosition: vi.fn((success: PositionCallback) => {
+          success({ coords: null } as unknown as GeolocationPosition);
+        }),
+      },
+    });
+    expect(malformed).toBeNull();
+  });
 });

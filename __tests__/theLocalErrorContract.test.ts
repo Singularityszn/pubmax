@@ -12,10 +12,6 @@ function routeFiles(directory: string): string[] {
 }
 
 const ALL_ROUTES = routeFiles(join(ROOT, "app/api"));
-const EXECUTABLE_RATE_LIMIT_ROUTES = new Set([
-  "app/api/plans/generate/route.ts",
-]);
-
 // ---------------------------------------------------------------------------
 // Static call scanner: find JSON-emitting calls that carry an `error:` payload
 // field and a 4xx/5xx status, without executing the route.
@@ -173,7 +169,6 @@ describe("app/api rate limiting (tree-wide)", () => {
         source,
       );
       if (!mutating) continue;
-      if (EXECUTABLE_RATE_LIMIT_ROUTES.has(relative(ROOT, file))) continue;
       if (LIMITER_TOKENS.test(source)) continue;
       failures.push(relative(ROOT, file));
     }

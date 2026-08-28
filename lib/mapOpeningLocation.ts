@@ -70,20 +70,29 @@ export async function readOpeningMapLocation(
   options: MapOpeningLocationReadOptions = {},
 ): Promise<MapOpeningLocation | null> {
   if (!environment?.geolocation) return null;
-  const readCurrentLocation = () =>
-    new Promise<MapOpeningLocation | null>((resolve) => {
-      environment.geolocation?.getCurrentPosition(
+  const geolocation = environment.geolocation;
+  const readCurrentLocation = () => new Promise<MapOpeningLocation | null>((resolve) => {
+    const settle = (value: MapOpeningLocation | null) => resolve(value);
+    try {
+      geolocation.getCurrentPosition(
         (position) => {
-          const location = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude,
-          };
-          resolve(validLocation(location) ? location : null);
+          try {
+            const location = {
+              lat: position?.coords?.latitude,
+              lng: position?.coords?.longitude,
+            };
+            settle(validLocation(location) ? location : null);
+          } catch {
+            settle(null);
+          }
         },
-        () => resolve(null),
+        () => settle(null),
         { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
       );
-    });
+    } catch {
+      settle(null);
+    }
+  });
 
   if (!environment.permissions || typeof environment.permissions.query !== "function") {
     options.onPermissionPrompt?.();

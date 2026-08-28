@@ -733,6 +733,7 @@ export default function PubMapCanvas({
   // Construct-scoped flags reset on every effect re-run and would loop forever
   // if the new canvas is also dead. User Retry (soft toast / full card) resets.
   const contextAutoReinitSpentRef = useRef(false);
+  const appliedResumeViewportKeyRef = useRef<string | null>(null);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
     initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
   );
@@ -843,7 +844,18 @@ export default function PubMapCanvas({
   ]);
 
   useEffect(() => {
-    if (!resumeViewport || !mapReady || !mapRef.current) return;
+    const resumeKey = resumeViewport
+      ? `${resumeViewport.center[0]},${resumeViewport.center[1]},${resumeViewport.zoom},${resumeViewport.pitch},${resumeViewport.bearing}`
+      : null;
+    if (!resumeKey) {
+      appliedResumeViewportKeyRef.current = null;
+      return;
+    }
+    if (
+      appliedResumeViewportKeyRef.current === resumeKey ||
+      !mapReady ||
+      !mapRef.current
+    ) return;
     const map = mapRef.current;
     if (userCameraInteractionRef.current || map.isMoving()) return;
     try {
@@ -853,6 +865,7 @@ export default function PubMapCanvas({
         pitch: resumeViewport.pitch,
         bearing: resumeViewport.bearing,
       });
+      appliedResumeViewportKeyRef.current = resumeKey;
       publishCurrentViewportRef.current?.();
       map.triggerRepaint();
     } catch {

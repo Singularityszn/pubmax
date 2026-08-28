@@ -220,6 +220,51 @@ describe("mapEarlyWarm", () => {
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
   });
 
+  it("uses the fallback when warmup geolocation throws", async () => {
+    const manifest = {
+      revision: "deploy-42",
+      shards: [
+        { url: "/data/london.json", bbox: [-0.3, 51.3, -0.1, 51.6] },
+        { url: "/data/other.json", bbox: [0.1, 51.7, 0.4, 51.75] },
+      ],
+    };
+    const fetchSpy = vi.fn(async (input: string) => ({
+      ok: true,
+      json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
+    }));
+    const window = {
+      innerWidth: 390,
+      innerHeight: 844,
+      location: { href: "https://pubmaxxing.com/map" },
+      localStorage: { getItem: vi.fn(() => null) },
+    };
+    const script = readFileSync(
+      new URL("../public/map-first-paint-init.js", import.meta.url),
+      "utf8",
+    );
+    new Function("window", "document", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", "URL", script)(
+      window,
+      { currentScript: { src: "https://pubmaxxing.com/map-first-paint-init.js?v=deploy-42" } },
+      {
+        connection: null,
+        geolocation: { getCurrentPosition: vi.fn(() => { throw new Error("unsupported"); }) },
+      },
+      fetchSpy,
+      Map,
+      Math,
+      Number,
+      Promise,
+      setTimeout,
+      URL,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/london.json?v=deploy-42");
+    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/other.json?v=deploy-42");
+  });
+
   it("rejects a shard payload from another deployment revision", async () => {
     vi.stubGlobal("window", { __pubmaxMapWarm: { json: new Map() } });
     vi.stubGlobal("fetch", vi.fn(async () => ({
