@@ -29,6 +29,7 @@ export const KEENABLE_API_BASE: string;
 export const KEENABLE_TITLE: string;
 export const KNOWN_AREA_SLUGS: ReadonlySet<string>;
 export const AREA_NEWS_EXTRACT_PROMPT: string;
+export function areaNewsRefreshQueries(now?: number | string): string[];
 
 export function searchKeenable(
   query: string,

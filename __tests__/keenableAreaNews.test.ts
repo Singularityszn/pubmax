@@ -103,6 +103,23 @@ describe("Keenable area-news extraction", () => {
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, title: "A — bad title" }) })).toBeNull();
   });
 
+  it("extracts a dated fact from clean fetched markdown", () => {
+    expect(
+      parseExtractedFact(
+        {
+          content:
+            "# The White Hart reopens in Soho\n\nThe White Hart reopened in Soho on 27 August 2026 after a refurbishment.",
+        },
+        { knownAreas: new Set(["soho"]) },
+      ),
+    ).toEqual({
+      area: "soho",
+      kind: "opening",
+      title: "The White Hart reopens in Soho",
+      detail: "The White Hart reopened in Soho on 27 August 2026 after a refurbishment.",
+    });
+  });
+
   it("builds a dated, https, source-attributed entry from a fetched page", () => {
     const entry = buildAreaNewsEntry({
       result: {

@@ -142,8 +142,57 @@ function cleanText(value) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-export function parseExtractedFact(payload, { knownAreas = KNOWN_AREA_SLUGS } = {}) {
-  const raw = parseJsonText(payload?.content);
+function cleanMarkdownText(value) {
+  return cleanText(value)
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/[`*_~]/g, "")
+    .replace(/\s+/g, " ");
+}
+
+function markdownArea(text, knownAreas) {
+  const normalized = text.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
+  const searchable = ` ${normalized} `;
+  return [...knownAreas]
+    .sort((left, right) => right.length - left.length)
+    .find((slug) => {
+      const areaName = slug.replace(/-/g, " ");
+      return searchable.includes(` ${areaName} `);
+    });
+}
+
+function markdownKind(text) {
+  if (/\b(?:open(?:s|ed|ing)?|reopen(?:s|ed|ing)?|launch(?:es|ed|ing)?)\b/i.test(text)) return "opening";
+  if (/\b(?:close(?:s|d|ing)?|closure|shut(?:s|ting)?)\b/i.test(text)) return "closure";
+  if (/\b(?:refurb(?:ishment)?|renovat(?:e|es|ed|ing))\b/i.test(text)) return "refurb";
+  if (/\b(?:award|awarded|winner|won)\b/i.test(text)) return "award";
+  if (/\b(?:threat|threatened|licensing|planning|at risk|save the)\b/i.test(text)) return "threat";
+  if (/\b(?:price|pint|menu|news)\b/i.test(text)) return "buzz";
+  return null;
+}
+
+function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
+  if (typeof content !== "string" || !content.trim()) return null;
+  const blocks = content.split(/\n\s*\n/).map((block) => block.trim()).filter(Boolean);
+  const heading = blocks
+    .flatMap((block) => block.split("\n"))
+    .find((line) => /^#{1,6}\s+/.test(line));
+  const title = cleanMarkdownText(heading?.replace(/^#{1,6}\s+/, "") || fallbackTitle);
+  const detail = blocks
+    .map((block) => cleanMarkdownText(block.replace(/^#{1,6}\s+.*$/gm, "")))
+    .find((block) => block && block !== title);
+  if (!title || !detail || !/\b20\d{2}\b|\b(?:today|currently|current|this week|this month)\b/i.test(`${title} ${detail}`)) {
+    return null;
+  }
+
+  const combined = `${title} ${detail}`;
+  const area = markdownArea(combined, knownAreas);
+  const kind = markdownKind(combined);
+  if (!area || !kind) return null;
+  return { area, kind, title, detail };
+}
+
+function validateFact(raw, knownAreas) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 
   const area = cleanText(raw.area);
@@ -155,6 +204,11 @@ export function parseExtractedFact(payload, { knownAreas = KNOWN_AREA_SLUGS } = 
   if (title.length > 180 || detail.length > 500) return null;
 
   return { area, kind, title, detail };
+}
+
+export function parseExtractedFact(payload, { knownAreas = KNOWN_AREA_SLUGS } = {}) {
+  const raw = parseJsonText(payload?.content);
+  return validateFact(raw, knownAreas) ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title);
 }
 
 function publishedTime(value) {

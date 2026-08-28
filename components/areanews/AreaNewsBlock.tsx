@@ -2,9 +2,8 @@
 
 // The map's "New round here" surface. A client leaf that fetches the fresh-facts
 // for the active area from /api/area-news and renders them through AreaNewsList.
-// It carries the area it describes in state so a stale block never shows against
-// a newly selected area, and it renders NOTHING until (and unless) real facts
-// arrive — a quiet area stays quiet, an error is simply an absent block.
+// It carries area it describes in state so stale data never shows against newly
+// selected area. Empty successful responses render through AreaNewsList.
 
 import { useEffect, useState } from "react";
 
@@ -30,9 +29,13 @@ export default function AreaNewsBlock({
     if (!area) return;
     const controller = new AbortController();
     fetch(`/api/area-news?area=${encodeURIComponent(area)}`, { signal: controller.signal })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error(`Area news request failed: ${res.status}`);
+        return res.json();
+      })
       .then((body: { entries?: AreaNewsEntry[] } | null) => {
-        const entries = Array.isArray(body?.entries) ? body.entries : [];
+        if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");
+        const entries = body.entries;
         setState({ area, entries });
       })
       .catch(() => {
@@ -41,7 +44,7 @@ export default function AreaNewsBlock({
     return () => controller.abort();
   }, [area]);
 
-  if (!area || !state || state.area !== area || state.entries.length === 0) return null;
+  if (!area || !state || state.area !== area) return null;
 
   return (
     <AreaNewsList

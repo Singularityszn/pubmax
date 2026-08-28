@@ -20,6 +20,12 @@
   color: var(--ink-soft);
 }
 
+.areaNewsRailEmpty {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--ink-soft);
+}
+
 .areaNewsRailList {
   list-style: none;
   margin: 0;

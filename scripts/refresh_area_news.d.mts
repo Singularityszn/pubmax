@@ -9,7 +9,8 @@ export type AreaNewsSnapshot = {
 
 export const AREA_NEWS_DATASET_PATH: string;
 export const AREA_NEWS_DATASET_COMMENT: string;
-export const AREA_NEWS_REFRESH_QUERIES: readonly string[];
+export function areaNewsRefreshQueries(now?: number | string): string[];
+export function parseArgs(argv: string[]): { maxResults?: number; maxCandidates?: number };
 
 export function readAreaNewsDataset(path?: string): AreaNewsSnapshot;
 export function writeAreaNewsDataset(snapshot: AreaNewsSnapshot, path?: string): void;

@@ -15,14 +15,22 @@ const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const AREA_NEWS_DATASET_PATH = join(ROOT, "data", "area_news.json");
 export const AREA_NEWS_DATASET_COMMENT =
   "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.";
-export const AREA_NEWS_REFRESH_QUERIES = [
-  "London pub bar opening reopening August 2026",
-  "London pub refurbishment closure threat August 2026",
-  "London pub award price pint sighting August 2026",
-  "Soho Mayfair London pub opening refurbishment closure August 2026",
-  "East London pub opening closure refurbishment August 2026",
-  "South London pub opening closure refurbishment August 2026",
-];
+
+export function areaNewsRefreshQueries(now = Date.now()) {
+  const monthYear = new Intl.DateTimeFormat("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(now));
+  return [
+    `London pub bar opening reopening ${monthYear}`,
+    `London pub refurbishment closure threat ${monthYear}`,
+    `London pub award price pint sighting ${monthYear}`,
+    `Soho Mayfair London pub opening refurbishment closure ${monthYear}`,
+    `East London pub opening closure refurbishment ${monthYear}`,
+    `South London pub opening closure refurbishment ${monthYear}`,
+  ];
+}
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_RESULTS = 8;
@@ -153,7 +161,7 @@ async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, 
 
 export async function refreshAreaNews({
   now = Date.now(),
-  queries = AREA_NEWS_REFRESH_QUERIES,
+  queries,
   env = process.env,
   knownAreas = KNOWN_AREA_SLUGS,
   searchFn = searchKeenable,
@@ -166,8 +174,15 @@ export async function refreshAreaNews({
 } = {}) {
   const nowTime = typeof now === "number" ? now : Date.parse(now);
   if (!Number.isFinite(nowTime)) throw new Error("Area news refresh requires a valid current time.");
+  const refreshQueries = queries ?? areaNewsRefreshQueries(nowTime);
+  if (!Number.isInteger(maxResults) || maxResults <= 0) {
+    throw new Error("--max-results must be a positive integer.");
+  }
+  if (!Number.isInteger(maxCandidates) || maxCandidates <= 0) {
+    throw new Error("--max-candidates must be a positive integer.");
+  }
   const candidates = await collectCandidates({
-    queries,
+    queries: refreshQueries,
     env,
     searchFn,
     logger,
@@ -217,11 +232,18 @@ export async function refreshAreaNews({
   return snapshot;
 }
 
-function parseArgs(argv) {
+export function parseArgs(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 1) {
-    if (argv[index] === "--max-results") options.maxResults = Number(argv[index + 1]);
-    if (argv[index] === "--max-candidates") options.maxCandidates = Number(argv[index + 1]);
+    const flag = argv[index];
+    if (flag !== "--max-results" && flag !== "--max-candidates") continue;
+    const value = argv[index + 1];
+    const parsed = Number(value);
+    if (!Number.isInteger(parsed) || parsed <= 0) {
+      throw new Error(`${flag} must be a positive integer.`);
+    }
+    options[flag === "--max-results" ? "maxResults" : "maxCandidates"] = parsed;
+    index += 1;
   }
   return options;
 }

@@ -2,7 +2,8 @@
 
 // "New round here" rail block for wide viewports. Reads the fresh-facts layer
 // (/api/area-news, Cycle 15 Lane A). Fail-soft by design: while that API is not
-// yet deployed (PR #380), or the area has no dated facts, this renders NOTHING.
+// yet deployed (PR #380), or the read fails, this renders nothing. A successful
+// empty read renders an honest empty state.
 // Every item is a dated, source-linked fact; no filler, no em dashes.
 
 import { useEffect, useState } from "react";
@@ -34,25 +35,43 @@ function shortDate(iso: string): string | null {
 
 export default function AreaNewsRail({ area }: { area: string | null }) {
   const [entries, setEntries] = useState<AreaNewsEntry[]>([]);
+  const [status, setStatus] = useState<"loading" | "ready" | "error">("loading");
+  const [loadedArea, setLoadedArea] = useState<string | null>(null);
 
   useEffect(() => {
     if (!area) return;
+    setStatus("loading");
     const controller = new AbortController();
     fetch(`/api/area-news?area=${encodeURIComponent(area)}`, {
       signal: controller.signal,
     })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        if (!res.ok) throw new Error(`Area news request failed: ${res.status}`);
+        return res.json();
+      })
       .then((body: AreaNewsResponse | null) => {
         if (controller.signal.aborted) return;
-        setEntries(Array.isArray(body?.entries) ? body.entries.slice(0, 3) : []);
+        if (!Array.isArray(body?.entries)) throw new Error("Area news response was not valid.");
+        setEntries(body.entries.slice(0, 3));
+        setLoadedArea(area);
+        setStatus("ready");
       })
       .catch(() => {
-        if (!controller.signal.aborted) setEntries([]);
+        if (!controller.signal.aborted) setStatus("error");
       });
     return () => controller.abort();
   }, [area]);
 
-  if (!area || entries.length === 0) return null;
+  if (!area || loadedArea !== area || status !== "ready") return null;
+
+  if (entries.length === 0) {
+    return (
+      <section className="areaNewsRail" aria-label="New round here">
+        <h2 className="areaNewsRailTitle">New round here</h2>
+        <p className="areaNewsRailEmpty">No current updates here.</p>
+      </section>
+    );
+  }
 
   return (
     <section className="areaNewsRail" aria-label="New round here">

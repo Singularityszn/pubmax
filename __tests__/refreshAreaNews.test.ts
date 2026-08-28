@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { refreshAreaNews } from "../scripts/refresh_area_news.mjs";
+import { areaNewsRefreshQueries, parseArgs, refreshAreaNews } from "../scripts/refresh_area_news.mjs";
 
 const NOW = Date.parse("2026-08-28T12:00:00Z");
 
@@ -9,6 +9,15 @@ function factContent(title: string, detail: string): string {
 }
 
 describe("area-news refresh job", () => {
+  it("builds refresh queries from the current month", () => {
+    expect(areaNewsRefreshQueries(Date.parse("2027-02-10T12:00:00Z"))[0]).toContain("February 2027");
+  });
+
+  it("rejects non-positive or non-finite CLI bounds", () => {
+    expect(() => parseArgs(["--max-results", "nope"])).toThrow("--max-results must be a positive integer");
+    expect(() => parseArgs(["--max-candidates", "0"])).toThrow("--max-candidates must be a positive integer");
+  });
+
   it("deduplicates sources, keeps dated facts newest first, and writes one snapshot", async () => {
     const writeDataset = vi.fn();
     const searchFn = vi.fn(async (query: string) =>
