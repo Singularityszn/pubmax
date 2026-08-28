@@ -157,8 +157,8 @@ const PUB_POI_LABEL_TOKENS = new Set([
  *  the pub opacity and pub text sizing reserved for drinking venues. Same rule
  *  that already keeps `poi_barber_label` out: name a drink or stay generic. */
 function isBasemapPubPoiLabel(id: string): boolean {
-  if (!id.includes("poi")) return false;
   const tokens = id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
+  if (!tokens.includes("poi") && !tokens.includes("pois")) return false;
   return tokens.some((token) => PUB_POI_LABEL_TOKENS.has(token));
 }
 

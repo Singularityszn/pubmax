@@ -403,6 +403,8 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       { id: "poi_name", type: "symbol" },
       { id: "pois-label", type: "symbol" },
       { id: "poi-name", type: "symbol" },
+      // A non-POI id can contain `poi` as part of another token.
+      { id: "point_bar_label", type: "symbol" },
       // Named drink categories still earn the pub treatment, plurals included.
       { id: "pois-pubs-label", type: "symbol" },
       { id: "poi_breweries_name", type: "symbol" },
@@ -420,7 +422,13 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
 
     applyBasemapTaste(map, darkTokens, true);
 
-    for (const generic of ["poi_label", "poi_name", "pois-label", "poi-name"]) {
+    for (const generic of [
+      "poi_label",
+      "poi_name",
+      "pois-label",
+      "poi-name",
+      "point_bar_label",
+    ]) {
       expect(
         paints.find(([id, prop]) => id === generic && prop === "text-opacity")?.[2],
       ).toBe(0.72);
