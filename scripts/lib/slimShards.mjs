@@ -35,13 +35,17 @@ export const MANIFEST_FILE = "venues_slim.manifest.json";
 export const CORE_FILE = "venues_slim.core.json";
 export const SHARD_VERSION = 1;
 export const SPATIAL_SHARD_VERSION = 2;
-export const DATA_REVISION =
-  process.env.NEXT_PUBLIC_SW_VERSION ??
-  process.env.DEPLOYMENT_VERSION ??
-  process.env.VERCEL_DEPLOYMENT_ID ??
-  process.env.VERCEL_GIT_COMMIT_SHA ??
-  process.env.GITHUB_SHA ??
+const nonEmptyRevision = (...values) =>
+  values.find((value) => typeof value === "string" && value.trim())?.trim() ??
   "local";
+
+export const DATA_REVISION = nonEmptyRevision(
+  process.env.NEXT_PUBLIC_SW_VERSION,
+  process.env.DEPLOYMENT_VERSION,
+  process.env.VERCEL_DEPLOYMENT_ID,
+  process.env.VERCEL_GIT_COMMIT_SHA,
+  process.env.GITHUB_SHA,
+);
 
 // The map opens on a viewport, not on a borough. A fixed grid keeps the first
 // request proportional to what the reader can see and makes a pan predictable.

@@ -69,13 +69,17 @@ const feedDataFiles = withRuntimeDataPacks(
 // same client chunk once per id. Use one revision supplied by the release
 // environment instead. Local builds use a stable marker because no worker from
 // a local build can cross into production.
-const swVersion =
-  process.env.NEXT_PUBLIC_SW_VERSION ??
-  process.env.DEPLOYMENT_VERSION ??
-  process.env.VERCEL_DEPLOYMENT_ID ??
-  process.env.VERCEL_GIT_COMMIT_SHA ??
-  process.env.GITHUB_SHA ??
+const nonEmptyRevision = (...values) =>
+  values.find((value) => typeof value === "string" && value.trim())?.trim() ??
   "local";
+
+const swVersion = nonEmptyRevision(
+  process.env.NEXT_PUBLIC_SW_VERSION,
+  process.env.DEPLOYMENT_VERSION,
+  process.env.VERCEL_DEPLOYMENT_ID,
+  process.env.VERCEL_GIT_COMMIT_SHA,
+  process.env.GITHUB_SHA,
+);
 
 // Next 16 tags framework-owned assets and navigations with this identifier,
 // allowing skew protection to keep stale clients on one deployment during a

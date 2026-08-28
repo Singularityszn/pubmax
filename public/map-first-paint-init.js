@@ -61,12 +61,10 @@
   }
   function resolveOpeningLocation() {
     var fallback = fallbackLocation();
-    if (!nav.permissions || typeof nav.permissions.query !== "function" || !nav.geolocation) {
+    if (!nav.geolocation) {
       return Promise.resolve(fallback);
     }
-    return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
-      if (!permission || permission.state === "prompt") return null;
-      if (permission.state !== "granted") return fallback;
+    function readCurrentLocation() {
       return new Promise(function (resolve) {
         nav.geolocation.getCurrentPosition(
           function (position) {
@@ -80,6 +78,14 @@
           { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
         );
       });
+    }
+    if (!nav.permissions || typeof nav.permissions.query !== "function") {
+      return readCurrentLocation();
+    }
+    return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
+      if (!permission || permission.state === "prompt") return null;
+      if (permission.state !== "granted") return fallback;
+      return readCurrentLocation();
     }).catch(function () {
       return fallback;
     });

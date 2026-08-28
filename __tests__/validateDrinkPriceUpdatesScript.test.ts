@@ -537,6 +537,34 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(stdout).toContain("could not read body");
     expect(stdout).toContain("DATA VALIDATION FAILED");
   });
+
+  it("FAILS when same-count spatial shard bodies are swapped", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; count: number; url: string }>;
+    };
+    const groups = new Map<number, typeof manifest.shards>();
+    for (const shard of manifest.shards) {
+      if (shard.core) continue;
+      const group = groups.get(shard.count) ?? [];
+      group.push(shard);
+      groups.set(shard.count, group);
+    }
+    const pair = [...groups.values()].find((group) => group.length >= 2);
+    if (!pair) throw new Error("fixture has no same-count spatial shard pair");
+    const firstPath = join(scriptsDir, "..", "public", "data", pair[0].url.replace(/^\/data\//, ""));
+    const secondPath = join(scriptsDir, "..", "public", "data", pair[1].url.replace(/^\/data\//, ""));
+    const first = readFileSync(firstPath, "utf8");
+    const second = readFileSync(secondPath, "utf8");
+    writeFileSync(firstPath, second, "utf8");
+    writeFileSync(secondPath, first, "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("belongs to another cell");
+  });
 });
 
 describe("validate-data.mjs postcode-coordinate validation", () => {

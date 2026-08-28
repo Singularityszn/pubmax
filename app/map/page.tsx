@@ -30,7 +30,7 @@ export const dynamic = "force-static";
 export const revalidate = 3600;
 
 export const metadata = londonMapMetadata();
-const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? "local";
+const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 
 export default function MapPage() {
   return (

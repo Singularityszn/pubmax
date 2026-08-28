@@ -1564,6 +1564,7 @@ function validateSlimShards() {
   // older fixtures that still use borough shards.
   let expectedCore;
   let expectedManifest;
+  const expectedRowsByShard = new Map();
   if (manifest?.grid) {
     const grid = manifest.grid;
     const cells = classifySpatialShards(full, grid);
@@ -1571,10 +1572,13 @@ function validateSlimShards() {
     const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
     expectedCore = cells.get(coreId)?.venues ?? [];
     expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
+    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
   } else {
     const { core, outer } = classifySlimShards(full);
     expectedCore = core;
     expectedManifest = buildShardManifest({ core, outer });
+    expectedRowsByShard.set("core", core);
+    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
   }
 
   if (manifest.version !== expectedManifest.version) {
@@ -1639,14 +1643,51 @@ function validateSlimShards() {
       );
       continue;
     }
+    const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
+    const expectedIds = new Set(expectedRows.map((row) => row?.id));
+    const shardIds = new Set();
     for (const r of rows) {
-      if (!r || typeof r.id !== "string") {
+      if (!r || typeof r !== "object") {
+        errs.add(`shard "${exp.id}": a row is not an object`);
+        continue;
+      }
+      if (typeof r.id !== "string" || r.id.length === 0) {
         errs.add(`shard "${exp.id}": a row is missing an id`);
         continue;
       }
+      if (typeof r.name !== "string" || r.name.length === 0) {
+        errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
+      }
+      if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
+      }
+      if (typeof r.borough !== "string") {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
+      }
+      if (
+        r.cheapestPrice !== null &&
+        (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
+      ) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
+      }
+      if (
+        r.zone !== undefined &&
+        (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
+      ) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
+      }
+      if (!expectedIds.has(r.id)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
+      }
+      shardIds.add(r.id);
       if (allIds.has(r.id))
         errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
       allIds.add(r.id);
+    }
+    for (const id of expectedIds) {
+      if (!shardIds.has(id)) {
+        errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
+      }
     }
   }
 

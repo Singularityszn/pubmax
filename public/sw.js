@@ -26,7 +26,7 @@
  */
 
 const WORKER_URL = new URL(self.location.href);
-const VERSION = WORKER_URL.searchParams.get("v") || "dev";
+const VERSION = WORKER_URL.searchParams.get("v")?.trim() || "local";
 const CACHE_POLICY = WORKER_URL.searchParams.get("cache-policy");
 const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1"]);
 

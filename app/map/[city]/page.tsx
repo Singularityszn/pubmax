@@ -19,7 +19,7 @@ type CityMapPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };
 
-const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION ?? "local";
+const mapWarmVersion = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 
 export async function generateMetadata({ params, searchParams }: CityMapPageProps): Promise<Metadata> {
   const { city: raw } = await params;

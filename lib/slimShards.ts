@@ -61,7 +61,7 @@ export type SlimShardLoadResult = {
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
 const SPATIAL_SHARD_MANIFEST_VERSION = 2;
-const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION ?? "local";
+const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
 
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 

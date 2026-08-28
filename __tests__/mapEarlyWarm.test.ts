@@ -99,6 +99,66 @@ describe("mapEarlyWarm", () => {
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
   });
 
+  it("uses geolocation when Permissions API is unavailable", async () => {
+    const manifest = {
+      revision: "deploy-42",
+      shards: [
+        { url: "/data/london.json", bbox: [-0.3, 51.3, -0.1, 51.6] },
+        { url: "/data/granted.json", bbox: [0.1, 51.7, 0.4, 51.75] },
+      ],
+    };
+    const fetchSpy = vi.fn(async (input: string) => ({
+      ok: true,
+      json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
+    }));
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({ coords: { latitude: 51.74, longitude: 0.25 } } as GeolocationPosition);
+    });
+    const window = {
+      innerWidth: 390,
+      innerHeight: 844,
+      location: { href: "https://pubmaxxing.com/map" },
+      localStorage: { getItem: vi.fn(() => null) },
+    };
+    const script = readFileSync(
+      new URL("../public/map-first-paint-init.js", import.meta.url),
+      "utf8",
+    );
+    const context = {
+      window,
+      document: { currentScript: { src: "https://pubmaxxing.com/map-first-paint-init.js?v=deploy-42" } },
+      navigator: {
+        connection: null,
+        geolocation: { getCurrentPosition },
+      },
+      fetch: fetchSpy,
+      Map,
+      Math,
+      Number,
+      Promise,
+      setTimeout,
+    };
+    new Function("window", "document", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", "URL", script)(
+      window,
+      context.document,
+      context.navigator,
+      fetchSpy,
+      Map,
+      Math,
+      Number,
+      Promise,
+      setTimeout,
+      URL,
+    );
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json?v=deploy-42");
+    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
+  });
+
   it("rejects a shard payload from another deployment revision", async () => {
     vi.stubGlobal("window", { __pubmaxMapWarm: { json: new Map() } });
     vi.stubGlobal("fetch", vi.fn(async () => ({
