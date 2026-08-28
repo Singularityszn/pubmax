@@ -107,6 +107,8 @@ function mutationHandlerKey(handler: Pick<MutationHandler, "method" | "route">):
 
 type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirmation" | "session";
 
+// `preparePlanGeneration` is a named delegation: lib/planGeneration.server.ts
+// spends the per-IP generation budget before loading planning data.
 // `handleProfileImage*` are named delegations: lib/profileImageRoute.server.ts
 // owns the ownership gate and the per-actor budget for both image slots, so
 // the avatar and cover routes stay one thin call each instead of two copies of
@@ -115,7 +117,7 @@ type Boundary = "rate_limit" | "account" | "capability" | "moderator" | "confirm
 // gate, a per-actor budget on every add, remove and reorder, and a per-actor
 // budget on the reader flag.
 const BOUNDARY_PATTERNS: Record<Boundary, RegExp> = {
-  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
+  rate_limit: /\b(?:isLimited|is[A-Z][A-Za-z]+Limited|is[A-Z][A-Za-z]+RateLimited|preparePlanGeneration|handleProfileImage(?:Upload|Delete|Report)|handleProfileCoverPhoto(?:Upload|Delete|Move|Report))\b/,
   account: /\b(?:callerUserId|callerAuthIdentity|verifyCallerAuth|resolveContributionIdentity|requireVerifiedSocialActor|handleProfileImage(?:Upload|Delete)|handleProfileCoverPhoto(?:Upload|Delete|Move))\b/,
   capability: /\b(?:planMemberCapability|memberToken|requireRoundOwnership)\b/,
   moderator: /\b(?:isModerator|isAdminAuthorized|verifyAdminToken)\b/,

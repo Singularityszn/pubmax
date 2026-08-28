@@ -137,11 +137,11 @@ export default function SignInButton({
 }): React.JSX.Element | null {
   const {
     user,
-    loading,
     configured,
     handle: accountHandle,
     clerkIntegrationConfigured,
     socialProviders,
+    supabaseAuthState,
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
@@ -336,12 +336,9 @@ export default function SignInButton({
     );
   }
 
-  // Avoid a flash of the wrong state while the first getSession() resolves.
-  // Skip the wait only for an already established product session.
-  if (loading && !clerkSessionAvailable) {
-    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
-  }
-
+  // A user in context is signed-in even while the rest of bootstrap finishes,
+  // so a hard reload of a cached document can paint Account as soon as the
+  // session is known.
   if (user) {
     const { navName: name, cardName, avatar } = accountIdentity(
       (user.user_metadata ?? {}) as Record<string, unknown>,
@@ -428,6 +425,14 @@ export default function SignInButton({
         {clerkSessionAvailable ? <ClerkAccountControls /> : null}
       </div>
     );
+  }
+
+  // Avoid a flash of Sign in until Supabase has answered. The provider state is
+  // the auth readiness contract: loading may remain true briefly after a
+  // signed-out answer, and optional Clerk readiness must not delay Supabase's
+  // own control.
+  if (supabaseAuthState === "unresolved" && !clerkSessionAvailable) {
+    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;

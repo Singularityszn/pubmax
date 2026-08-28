@@ -9,7 +9,7 @@ import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import type { CommunityVenueSignal } from "@/lib/communityVenueSignals";
 import type { Venue } from "@/lib/venues";
 
-const NOW = Date.parse("2026-07-28T20:00:00Z");
+const NOW = Date.now();
 const noop = () => {};
 
 function render(

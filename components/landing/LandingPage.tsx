@@ -42,6 +42,7 @@ import { planOccasionHref } from "@/lib/planOccasion";
 import { CONTACT_MAILTO } from "@/lib/siteContact";
 import { trackEvent } from "@/lib/analytics";
 import type { LandingCtaTarget } from "@/lib/analyticsEvents";
+import { socialSurfaceName } from "@/lib/socialLaunch";
 
 import PintDropStripLoading from "./PintDropStripLoading";
 import ThamesHero from "./ThamesHero";
@@ -156,6 +157,7 @@ export default function LandingPage({
     : {};
 
   const readout = heroReadout(stats);
+  const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
 
   useEffect(() => {
     const hour = new Date().getHours();
@@ -271,9 +273,7 @@ export default function LandingPage({
           <Link prefetch={false} href="/plan">Plan</Link>
           <Link prefetch={false} href="/tonight">Tonight</Link>
           <Link prefetch={false} href="/moment">Moment</Link>
-          {socialFriendsLaunchEnabled ? (
-            <Link prefetch={false} href="/social">Social</Link>
-          ) : null}
+          <Link prefetch={false} href="/social">{socialLabel}</Link>
           <Link prefetch={false} href="/u/you">You</Link>
         </nav>
 
@@ -509,9 +509,7 @@ export default function LandingPage({
             </div>
             <div className="lpFooterCol">
               <h2>The good stuff</h2>
-              {socialFriendsLaunchEnabled ? (
-                <Link prefetch={false} href="/social">Social</Link>
-              ) : null}
+              <Link prefetch={false} href="/social">{socialLabel}</Link>
               <Link prefetch={false} href="/pal">Pub Pal</Link>
               <Link prefetch={false} href="/choose-city">Pick your city</Link>
               <Link prefetch={false} href="/about">Our story</Link>

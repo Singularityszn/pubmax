@@ -90,10 +90,10 @@ describe("the phone Social tab", () => {
 });
 
 describe("the desktop Social nav link", () => {
-  it("keeps Social out of primary desktop chrome while launch is gated", () => {
-    expect(
-      serverRender(SiteNav, false).querySelector('a[href="/social"]'),
-    ).toBeNull();
+  it("names the gated desktop destination Social preview", () => {
+    const tab = serverRender(SiteNav, false).querySelector<HTMLAnchorElement>('a[href="/social"]');
+    expect(tab?.textContent).toBe("Social preview");
+    expect(tab?.getAttribute("aria-label")).toBe("Social preview");
   });
 
   it("names Social in the served HTML when the launch is on", () => {
