@@ -288,8 +288,15 @@ describe("service worker map cache", () => {
     expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
   });
 
-  it("does not serve a manifest requested for another deployment revision", async () => {
-    const { listeners } = workerHarness({});
+  it("does not serve a cached manifest requested for another deployment revision", async () => {
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, shards: [] })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners } = workerHarness({ cached: manifest, fetchError: new Error("offline") });
     const request = new Request(
       "https://pubmaxxing.com/data/venues_slim.manifest.json?v=other-deploy",
     );
@@ -297,6 +304,24 @@ describe("service worker map cache", () => {
 
     const response = await dispatched.response;
     expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("returns a fresh manifest when deployment revisions differ", async () => {
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, shards: [] })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners } = workerHarness({ response: manifest });
+    const request = new Request(
+      "https://pubmaxxing.com/data/venues_slim.manifest.json?v=other-deploy",
+    );
+    const dispatched = dispatchFetch(listeners.get("fetch")!, request);
+
+    const response = await dispatched.response;
+    expect(response).toBe(manifest);
   });
 
   it("does not force takeover for future write-safe policy changes", async () => {

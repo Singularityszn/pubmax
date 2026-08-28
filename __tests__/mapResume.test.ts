@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  isCurrentMapResumeRefresh,
   readMapResumeSync,
   writeMapResume,
 } from "@/lib/mapResume";
@@ -36,5 +37,11 @@ describe("map resume", () => {
     const store = storage();
     store.setItem("map-resume:v1:london", "broken");
     expect(readMapResumeSync("london", 1_000, store)).toBeNull();
+  });
+
+  it("rejects refresh completion after live loading settles", () => {
+    expect(isCurrentMapResumeRefresh(false, 4, 4)).toBe(true);
+    expect(isCurrentMapResumeRefresh(true, 4, 4)).toBe(false);
+    expect(isCurrentMapResumeRefresh(false, 5, 4)).toBe(false);
   });
 });

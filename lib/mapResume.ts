@@ -116,3 +116,11 @@ export function writeMapResume(
 }
 
 export const MAP_RESUME_MAX_AGE = MAP_RESUME_MAX_AGE_MS;
+
+export function isCurrentMapResumeRefresh(
+  liveLoadSettled: boolean,
+  currentVersion: number,
+  refreshVersion: number,
+): boolean {
+  return !liveLoadSettled && currentVersion === refreshVersion;
+}

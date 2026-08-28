@@ -341,11 +341,11 @@ function expectedVenueManifestVersion(pathname) {
   return null;
 }
 
-async function isCompatibleVenueManifest(request, response) {
+async function isCompatibleVenueManifest(request, response, options = {}) {
   const expectedVersion = expectedVenueManifestVersion(new URL(request.url).pathname);
   if (expectedVersion === null || !response) return true;
   const requestRevision = new URL(request.url).searchParams.get("v");
-  if (requestRevision && requestRevision !== VERSION) return false;
+  if (!options.network && requestRevision && requestRevision !== VERSION) return false;
   try {
     const manifest = await response.clone().json();
     return manifest?.version === expectedVersion && Array.isArray(manifest.shards);
@@ -451,7 +451,9 @@ async function staleWhileRevalidate(
     : undefined;
   const network = fetch(request)
     .then(async (response) =>
-      (await isCompatibleVenueManifest(request, response)) ? response : undefined,
+      (await isCompatibleVenueManifest(request, response, { network: true }))
+        ? response
+        : undefined,
     )
     .catch(() => undefined);
   const update = network.then(async (response) => {

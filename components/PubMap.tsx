@@ -328,7 +328,12 @@ import {
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
-import { readMapResume, readMapResumeSync, writeMapResume } from "@/lib/mapResume";
+import {
+  isCurrentMapResumeRefresh,
+  readMapResume,
+  readMapResumeSync,
+  writeMapResume,
+} from "@/lib/mapResume";
 import {
   readGrantedMapOpeningLocation,
   readMapOpeningLocation,
@@ -1878,7 +1883,6 @@ export default function PubMap({
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
-        const loadResumeVersion = resumeRefreshVersion;
         void loader.initialResult(bounds)
           .then((result) => {
             if (!isCurrentLoader()) return;
@@ -1891,9 +1895,10 @@ export default function PubMap({
               markPubmaxTiming("pubmax:slim-venues-ready");
             }
             initialShardLoadSettledRef.current = true;
+            resumeRefreshVersion += 1;
             setLoadedCityId(cityId);
             setLoaded(true);
-            if (resumeRefreshVersion === loadResumeVersion) setMapResumeUpdating(false);
+            setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready") {
               const ringBounds = latestMapBoundsRef.current ?? bounds;
@@ -1926,7 +1931,14 @@ export default function PubMap({
           const resumeBounds = boundsForOpeningView(snapshot.viewport);
           void loader.initial(resumeBounds)
             .then((rows) => {
-              if (!isCurrentLoader()) return;
+              if (
+                !isCurrentLoader() ||
+                !isCurrentMapResumeRefresh(
+                  liveShardLoadSettledRef.current,
+                  resumeRefreshVersion,
+                  refreshVersion,
+                )
+              ) return;
               mergeSlimVenues(rows);
               refreshCountCoverage();
               if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
@@ -1958,7 +1970,14 @@ export default function PubMap({
             setMapResumeUpdating(true);
             void loader.initial(boundsForOpeningView(snapshot.viewport))
               .then((rows) => {
-                if (!isCurrentLoader()) return;
+                if (
+                  !isCurrentLoader() ||
+                  !isCurrentMapResumeRefresh(
+                    liveShardLoadSettledRef.current,
+                    resumeRefreshVersion,
+                    refreshVersion,
+                  )
+                ) return;
                 mergeSlimVenues(rows);
                 refreshCountCoverage();
                 if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
