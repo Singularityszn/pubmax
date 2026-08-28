@@ -95,6 +95,20 @@ describe("header waits for the live session", () => {
     expect(html).toContain("Sign in");
     expect(html).not.toContain("Account");
   });
+
+  it("still offers Sign in while optional Clerk is unresolved", () => {
+    const html = compactHeader({
+      user: null,
+      handle: null,
+      loading: false,
+      configured: true,
+      clerkIntegrationConfigured: true,
+      providerAuthState: "unresolved",
+    });
+
+    expect(html).toContain("Sign in");
+    expect(html).not.toContain('data-auth-resolved="false"');
+  });
 });
 
 describe("landing header auth state", () => {
