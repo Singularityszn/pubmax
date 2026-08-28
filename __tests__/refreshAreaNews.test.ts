@@ -45,6 +45,31 @@ describe("area-news refresh job", () => {
     expect(writeDataset).toHaveBeenCalledWith(snapshot);
   });
 
+  it("keeps distinct same-day facts in one area", async () => {
+    const snapshot = await refreshAreaNews({
+      now: NOW,
+      queries: ["one"],
+      knownAreas: new Set(["soho"]),
+      searchFn: vi.fn().mockResolvedValue([
+        { url: "https://news.example/one", published_at: "2026-08-27T08:00:00Z" },
+        { url: "https://news.example/two", published_at: "2026-08-27T09:00:00Z" },
+      ]),
+      fetchFn: vi.fn().mockImplementation(async (url: string) => ({
+        url,
+        published_at: "2026-08-27T08:00:00Z",
+        content: factContent(url.endsWith("one") ? "First opening" : "Second opening", "The page states this fact."),
+      })),
+      writeDataset: vi.fn(),
+      logger: vi.fn(),
+    });
+
+    expect(snapshot.entries).toHaveLength(2);
+    expect(snapshot.entries.map((entry: { title: string }) => entry.title)).toEqual([
+      "First opening",
+      "Second opening",
+    ]);
+  });
+
   it("keeps existing archive rows while adding fresh rows", async () => {
     const previous = {
       id: "old-row",
@@ -112,30 +137,28 @@ describe("area-news refresh job", () => {
     expect(writeDataset).not.toHaveBeenCalled();
   });
 
-  it("logs fetch failures but still writes usable facts", async () => {
+  it("fails and preserves the prior dataset when any page fetch fails", async () => {
     const logger = vi.fn();
     const writeDataset = vi.fn();
-    const snapshot = await refreshAreaNews({
-      now: NOW,
-      queries: ["one"],
-      searchFn: vi.fn().mockResolvedValue([
-        { url: "https://news.example/broken", published_at: "2026-08-27T08:00:00Z" },
-        { url: "https://news.example/good", published_at: "2026-08-26T08:00:00Z" },
-      ]),
-      fetchFn: vi
-        .fn()
-        .mockRejectedValueOnce(new Error("provider timeout"))
-        .mockResolvedValueOnce({
-          url: "https://news.example/good",
-          published_at: "2026-08-26T08:00:00Z",
-          content: factContent("Usable opening", "The page states this usable fact."),
-        }),
-      writeDataset,
-      logger,
-    });
-
-    expect(snapshot.entries).toHaveLength(1);
+    await expect(refreshAreaNews({
+        now: NOW,
+        queries: ["one"],
+        searchFn: vi.fn().mockResolvedValue([
+          { url: "https://news.example/broken", published_at: "2026-08-27T08:00:00Z" },
+          { url: "https://news.example/good", published_at: "2026-08-26T08:00:00Z" },
+        ]),
+        fetchFn: vi
+          .fn()
+          .mockRejectedValueOnce(new Error("provider timeout"))
+          .mockResolvedValueOnce({
+            url: "https://news.example/good",
+            published_at: "2026-08-26T08:00:00Z",
+            content: factContent("Usable opening", "The page states this usable fact."),
+          }),
+        writeDataset,
+        logger,
+      })).rejects.toThrow("Area news refresh failed: 1 fetch failure");
     expect(logger).toHaveBeenCalledWith(expect.stringContaining("FETCH FAILED"));
-    expect(writeDataset).toHaveBeenCalledOnce();
+    expect(writeDataset).not.toHaveBeenCalled();
   });
 });

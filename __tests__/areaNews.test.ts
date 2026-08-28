@@ -137,13 +137,13 @@ describe("GET /api/area-news", () => {
     expect(body.entries.every((entry) => entry.observedAt >= cutoff)).toBe(true);
   });
 
-  it("returns the award for a venue-matched pin, null otherwise", async () => {
+  it("withholds a stale venue-matched award", async () => {
     const leyton = dataset.entries.find((e) => e.id === "leyton-engineer-camra-award");
     const res = await GET(
       new Request(`https://x/api/area-news?venueId=${leyton!.venueMatch!.venueId}`),
     );
     const body = (await res.json()) as { award: AreaNewsEntry | null };
-    expect(body.award?.id).toBe("leyton-engineer-camra-award");
+    expect(body.award).toBeNull();
 
     const none = await GET(new Request("https://x/api/area-news?venueId=venue-nope"));
     expect(((await none.json()) as { award: AreaNewsEntry | null }).award).toBeNull();
@@ -175,6 +175,15 @@ describe("pure resolvers", () => {
       "new",
       "boundary",
     ]);
+  });
+
+  it("keeps distinct facts from one area and day", () => {
+    const entries: AreaNewsEntry[] = [
+      { ...FIXTURES[0], id: "same-day-one", observedAt: "2026-08-27", title: "First opening" },
+      { ...FIXTURES[0], id: "same-day-two", observedAt: "2026-08-27", title: "Second opening" },
+    ];
+
+    expect(freshAreaNews(entries, { now: Date.parse("2026-08-28T12:00:00Z") })).toHaveLength(2);
   });
 
   it("entriesForBorough joins neighbourhoods into their borough, newest first", () => {

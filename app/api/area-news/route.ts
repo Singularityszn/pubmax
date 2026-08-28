@@ -28,7 +28,7 @@ export async function GET(request: Request): Promise<Response> {
 
     const venueId = params.get("venueId")?.trim();
     if (venueId) {
-      return jsonCached({ award: awardForVenue(venueId, entries) });
+      return jsonCached({ award: awardForVenue(venueId, freshAreaNews(entries)) });
     }
 
     const area = params.get("area")?.trim();

@@ -96,6 +96,8 @@ describe("Keenable area-news client", () => {
 describe("Keenable area-news extraction", () => {
   it("parses plain or fenced JSON and rejects non-facts", () => {
     expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` })).toEqual(FACT);
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "wimbledon" }) })).toMatchObject({ area: "wimbledon" });
+    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "greenwich" }) })).toMatchObject({ area: "greenwich" });
     expect(parseExtractedFact({ content: "null" })).toBeNull();
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "Leeds" }) })).toBeNull();
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, title: "A — bad title" }) })).toBeNull();

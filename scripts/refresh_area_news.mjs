@@ -76,21 +76,12 @@ function archiveWithFreshEntries(previousEntries, freshEntries) {
   return [...sortedEntries(freshById.values()), ...byId.values()];
 }
 
-function sourcePriority(entry) {
-  const source = String(entry.sourceName).toLowerCase();
-  if (source.includes("guardian") || source.includes("timeout") || source.includes("morningadvertiser")) return 3;
-  if (source.includes("mirror") || source.includes("press") || source.includes("newsarchy")) return 0;
-  return 1;
-}
-
 function deduplicateFreshEntries(entries) {
-  const byFactDay = new Map();
+  const byFact = new Map();
   for (const entry of entries) {
-    const key = `${entry.area}|${entry.kind}|${entry.observedAt}`;
-    const previous = byFactDay.get(key);
-    if (!previous || sourcePriority(entry) > sourcePriority(previous)) byFactDay.set(key, entry);
+    byFact.set(entry.id, entry);
   }
-  return [...byFactDay.values()];
+  return [...byFact.values()];
 }
 
 async function collectCandidates({ queries, env, searchFn, logger, publishedAfter, maxResults, maxCandidates }) {
@@ -197,6 +188,12 @@ export async function refreshAreaNews({
     nowTime,
     knownAreas,
   });
+
+  if (fetchFailures > 0) {
+    throw new Error(
+      `Area news refresh failed: ${fetchFailures} fetch failure${fetchFailures === 1 ? "" : "s"}. Existing dataset was not changed.`,
+    );
+  }
 
   if (freshEntries.length === 0) {
     throw new Error(

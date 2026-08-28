@@ -1,19 +1,10 @@
 import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
+import canonicalAreaSlugs from "../../data/area_news_areas.json" with { type: "json" };
 
 export const KEENABLE_API_BASE = "https://api.keenable.ai";
 export const KEENABLE_TITLE = "PUBMAXX area news refresh";
 
-function loadKnownAreaSlugs() {
-  const dataset = JSON.parse(readFileSync(new URL("../../data/area_news.json", import.meta.url), "utf8"));
-  return new Set(
-    Array.isArray(dataset.entries)
-      ? dataset.entries.filter((entry) => typeof entry?.area === "string").map((entry) => entry.area)
-      : [],
-  );
-}
-
-export const KNOWN_AREA_SLUGS = loadKnownAreaSlugs();
+export const KNOWN_AREA_SLUGS = new Set(canonicalAreaSlugs);
 
 const KINDS = new Set(["opening", "closure", "refurb", "award", "threat", "buzz"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
