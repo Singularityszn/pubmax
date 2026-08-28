@@ -86,7 +86,9 @@ describe("area_news.json dataset shape", () => {
     expect(validateAreaNewsEntry({
       ...dataset.entries[0],
       sourceUrl: "https://",
-    })).toContain("sourceUrl must be an https URL");
+    })).toEqual(expect.arrayContaining([
+      expect.stringContaining("sourceUrl must be an https URL"),
+    ]));
   });
 
   it("has unique ids", () => {
@@ -225,7 +227,9 @@ describe("pure resolvers", () => {
 
   it("rejects impossible calendar dates before freshness filtering", () => {
     const invalid = { ...FIXTURES[0], observedAt: "2026-02-31" };
-    expect(validateAreaNewsEntry(invalid)).toContain("observedAt must be an ISO date");
+    expect(validateAreaNewsEntry(invalid)).toEqual(expect.arrayContaining([
+      expect.stringContaining("observedAt must be an ISO date"),
+    ]));
     expect(freshAreaNews([invalid], { now: Date.parse("2026-03-10T12:00:00Z") })).toEqual([]);
   });
 

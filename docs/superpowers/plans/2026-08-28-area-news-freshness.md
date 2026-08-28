@@ -188,7 +188,9 @@ Use a focused commit with the affected files.
 
 ## Execution notes
 
-Focused area-news tests, data validation, lint, and typecheck passed. The full
-Vitest run exposed unrelated existing worker timeouts and certification-suite
-failures, so it was stopped after the failures were identified. The live
-refresh completed with seven current facts and zero fetch failures.
+Focused area-news tests, data validation, and lint passed. Typecheck currently
+reports an unused `@ts-expect-error` at `__tests__/areaNews.test.ts:27` because
+the new Keenable declaration file now types that import. The full Vitest run
+exposed unrelated existing worker timeouts and certification-suite failures, so
+it was stopped after the failures were identified. The live refresh completed
+with seven current facts and zero fetch failures.

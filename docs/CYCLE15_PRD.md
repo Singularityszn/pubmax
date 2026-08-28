@@ -11,7 +11,7 @@ Owner directive: make PUBMAXX the one-stop app for planning any night out with f
 ## Lanes (execution: Opus 4.8 high per owner; Fable reviews and merges on green)
 
 ### Lane A: Fresh-facts layer (NOW)
-Committed dataset data/area_news.json from the four sweep briefs: every entry {area, kind: opening|closure|refurb|award|threat|buzz, title, detail, sourceUrl, sourceName, observedAt, venueMatch?}. Conservative venue matching to existing pins (heritage-lane idiom). Surfaces:
+The initial data/area_news.json snapshot came from the four sweep briefs. The current reviewed artifact also accepts rows from the repeatable Keenable refresh; every entry is {area, kind: opening|closure|refurb|award|threat|buzz, title, detail, sourceUrl, sourceName, observedAt, venueMatch?}. Conservative venue matching to existing pins (heritage-lane idiom). Surfaces:
 - Area pages + map area context: "New round here" block, max 3 items, dated, source-linked.
 - Venue sheet: award badge when a venue matches an award fact (The George: "Best Pub in London 2026, National Pub and Bar Awards").
 - Freshness registry entry; refresh workflow = `npm run refresh:area-news` (manual because the deployed server cannot publish committed files). Readers show only facts from the last 21 days and sort newest first.

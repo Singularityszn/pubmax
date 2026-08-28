@@ -81,8 +81,8 @@ describe("area-news refresh job", () => {
 
     expect(snapshot.entries).toHaveLength(2);
     expect(snapshot.entries.map((entry: { title: string }) => entry.title)).toEqual([
-      "First opening",
-      "Second opening",
+      "The White Hart First opening",
+      "The White Hart Second opening",
     ]);
   });
 

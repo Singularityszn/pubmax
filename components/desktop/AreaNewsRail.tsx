@@ -40,7 +40,6 @@ export default function AreaNewsRail({ area }: { area: string | null }) {
 
   useEffect(() => {
     if (!area) return;
-    setStatus("loading");
     const controller = new AbortController();
     fetch(`/api/area-news?area=${encodeURIComponent(area)}`, {
       signal: controller.signal,
