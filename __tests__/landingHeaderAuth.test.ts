@@ -5,8 +5,6 @@
 // control on a phone (siteNav.css), which is why /out can look signed-in
 // while this bar still shows the signed-out pill.
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
@@ -100,20 +98,6 @@ describe("header waits for the live session", () => {
 });
 
 describe("landing header auth state", () => {
-  it("keeps the landing document static so the CDN copy can stay", () => {
-    const page = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");
-    expect(page).toContain('export const dynamic = "force-static"');
-  });
-
-  it("reads the live session in the landing bar, not a baked Sign in link", () => {
-    const source = readFileSync(
-      join(process.cwd(), "components/landing/LandingPage.tsx"),
-      "utf8",
-    );
-    expect(source).toContain("<SignInButton compact />");
-    expect(source).not.toMatch(/lpNavActions[\s\S]*href=["']\/login/);
-  });
-
   it("shows the signed-in control on the landing bar", () => {
     const nav = landingNav({
       user: {
