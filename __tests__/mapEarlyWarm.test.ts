@@ -41,7 +41,7 @@ describe("mapEarlyWarm", () => {
     };
     const fetchSpy = vi.fn(async (input: string) => ({
       ok: true,
-      json: async () => (input === "/data/venues_slim.manifest.json" ? manifest : []),
+      json: async () => (input === "/data/venues_slim.manifest.json?v=2" ? manifest : []),
     }));
     const query = vi.fn(async () => ({ state: "granted" } as PermissionStatus));
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
@@ -87,6 +87,9 @@ describe("mapEarlyWarm", () => {
 
     expect(query).toHaveBeenCalledOnce();
     expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain(
+      "/data/venues_slim.manifest.json?v=2",
+    );
     expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json");
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
   });
