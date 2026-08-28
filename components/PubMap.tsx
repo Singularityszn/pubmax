@@ -1673,6 +1673,9 @@ export default function PubMap({
   const initialShardLoadSettledRef = useRef(false);
   const liveShardLoadSettledRef = useRef(false);
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
+  const latestMapBoundsCityRef = useRef<CityId | null>(null);
+  const activeMapCityIdRef = useRef(cityId);
+  activeMapCityIdRef.current = cityId;
   const ringLoadPendingKeyRef = useRef<string | null>(null);
   // Which night areas the loader can vouch a complete pub count for. A shard
   // can land carrying no pin this map had not already seen, so this is refreshed
@@ -1821,7 +1824,6 @@ export default function PubMap({
     initialShardLoadStartedRef.current = false;
     initialShardLoadSettledRef.current = false;
     liveShardLoadSettledRef.current = false;
-    latestMapBoundsRef.current = null;
     ringLoadPendingKeyRef.current = null;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
@@ -1845,7 +1847,13 @@ export default function PubMap({
       !ukNationalBrowse &&
       openingLocationResolved
     ) {
-      const openingBounds = boundsForOpeningView(openingLoadViewport);
+      const settledOpeningBounds =
+        latestMapBoundsCityRef.current === cityId &&
+        (mapCameraTouchedRef.current || openingLocationCancelledRef.current)
+          ? latestMapBoundsRef.current
+          : null;
+      const openingBounds =
+        settledOpeningBounds ?? boundsForOpeningView(openingLoadViewport);
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
@@ -1961,7 +1969,9 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
+      if (activeMapCityIdRef.current !== cityId) return;
       latestMapBoundsRef.current = bounds;
+      latestMapBoundsCityRef.current = cityId;
       // Same settled camera the place claim is measured against, so the name in
       // the bar can never describe a view the reader has already left.
       setMapBounds((current) =>

@@ -335,6 +335,23 @@ function isCacheable(response) {
   return Boolean(response && response.ok && (response.type === "basic" || response.type === "cors"));
 }
 
+function expectedVenueManifestVersion(pathname) {
+  if (pathname === "/data/venues_slim.manifest.json") return 2;
+  if (/^\/data\/cities\/[^/]+\/venues_slim\.manifest\.json$/.test(pathname)) return 1;
+  return null;
+}
+
+async function isCompatibleVenueManifest(request, response) {
+  const expectedVersion = expectedVenueManifestVersion(new URL(request.url).pathname);
+  if (expectedVersion === null || !response) return true;
+  try {
+    const manifest = await response.clone().json();
+    return manifest?.version === expectedVersion && Array.isArray(manifest.shards);
+  } catch {
+    return false;
+  }
+}
+
 // Cache Storage is progressive enhancement. Safari may reject writes under
 // storage pressure (especially while an update temporarily keeps two
 // versioned cache sets). A valid network response must still reach its caller:
@@ -426,8 +443,15 @@ async function staleWhileRevalidate(
 ) {
   const cache = await caches.open(cacheName);
   const current = await cache.match(request);
-  const cached = current ?? await matchCacheFamily(cacheName, request);
-  const network = fetch(request).catch(() => undefined);
+  const cachedCandidate = current ?? await matchCacheFamily(cacheName, request);
+  const cached = await isCompatibleVenueManifest(request, cachedCandidate)
+    ? cachedCandidate
+    : undefined;
+  const network = fetch(request)
+    .then(async (response) =>
+      (await isCompatibleVenueManifest(request, response)) ? response : undefined,
+    )
+    .catch(() => undefined);
   const update = network.then(async (response) => {
     if (!isCacheable(response)) return;
     const stored = await cachePutBestEffort(cache, request, response);

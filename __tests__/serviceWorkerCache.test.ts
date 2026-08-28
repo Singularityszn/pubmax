@@ -440,6 +440,32 @@ describe("service worker map cache", () => {
     await expect(data.response).resolves.toBe(oldData);
   });
 
+  it("does not serve an incompatible venue manifest from an old cache", async () => {
+    const legacyManifest = new Response(
+      JSON.stringify({
+        version: 1,
+        shards: [{ url: "/data/venues_slim.borough.json" }],
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-data-legacy-active": [
+          ["/data/venues_slim.manifest.json", legacyManifest],
+        ],
+      },
+    });
+
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.manifest.json"),
+    );
+    const response = (await event.response) as Response;
+
+    expect(response.type).toBe("error");
+    expect(response.status).toBe(0);
+  });
+
   it("prefers fresh network data over an old stable-data fallback", async () => {
     const oldData = new Response("legacy data");
     const freshData = new Response("fresh data");
