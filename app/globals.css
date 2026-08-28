@@ -5228,7 +5228,7 @@ button:disabled {
     --map-mobile-legend-clearance: 0px;
     --map-overlay-shadow: 0 8px 20px rgba(44, 30, 62, 0.12);
     --map-overlay-shadow-tight: 0 5px 13px rgba(44, 30, 62, 0.11);
-    /* Compact matched chrome: nav (~40px) + gap + safe area; toolbar twins at ~40px. */
+    /* Compact matched chrome: nav (~40px) + gap + safe area; toolbar controls use 44px targets. */
     --map-top-clearance: calc(
       10px + env(safe-area-inset-top, 0px) + 40px + var(--map-chrome-gap)
     );
