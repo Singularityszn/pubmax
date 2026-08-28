@@ -128,24 +128,38 @@ function isNeighbourhoodPlaceLabel(id: string): boolean {
   if (/city|capital|country|state|continent/.test(s)) return false;
   return (
     /neighbourhood|neighborhood|suburb|quarter|locality|hamlet|village/.test(s) ||
-    /(?:^|[-_])(place_other|place_suburb|label_other|label_town)(?:[-_]|$)/.test(s)
+    /(?:^|[-_])(place_other|place_suburb|place_town|label_other|label_town)(?:[-_]|$)/.test(s)
   );
 }
 
+/** Drink-category tokens that make a basemap POI layer a PUB layer. Plural and
+ *  compound spellings are listed because basemaps disagree (`poi_pub_label`,
+ *  `pois-pubs-label`, `poi_breweries_name`), and token matching is whole-word so
+ *  `poi_barber_label` never reads as `bar`. */
 const PUB_POI_LABEL_TOKENS = new Set([
   "pub",
+  "pubs",
   "bar",
+  "bars",
   "beer",
+  "beers",
+  "brewery",
+  "breweries",
   "alcohol",
   "drinking",
   "nightlife",
 ]);
 
+/** A drink-category token is REQUIRED, never inferred from the layer's shape.
+ *  CARTO and OpenFreeMap both ship ONE generic POI layer (`poi_label`,
+ *  `poi_name`, `pois-label`) carrying every category at once, so the old
+ *  `pois?[-_](label|name)` fallback handed barbers, bus stops and cash machines
+ *  the pub opacity and pub text sizing reserved for drinking venues. Same rule
+ *  that already keeps `poi_barber_label` out: name a drink or stay generic. */
 function isBasemapPubPoiLabel(id: string): boolean {
   if (!id.includes("poi")) return false;
   const tokens = id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
-  if (tokens.some((token) => PUB_POI_LABEL_TOKENS.has(token))) return true;
-  return /(^|[-_])pois?[-_](label|name)([-_]|$)/.test(id);
+  return tokens.some((token) => PUB_POI_LABEL_TOKENS.has(token));
 }
 
 const NUMERIC_SHIELD_FILTER_LAYERS = [
