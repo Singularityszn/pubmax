@@ -60,7 +60,7 @@ describe("map opening location", () => {
     expect(getCurrentPosition).toHaveBeenCalledOnce();
   });
 
-  it("requests coordinates when permission is prompt", async () => {
+  it("returns immediately after showing an ungranted permission prompt", async () => {
     const getCurrentPosition = vi.fn();
     getCurrentPosition.mockImplementation((success: PositionCallback) => {
       success({ coords: { latitude: 51.5, longitude: -0.1 } } as GeolocationPosition);
@@ -76,9 +76,9 @@ describe("map opening location", () => {
       { onPermissionPrompt },
     );
 
-    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(location).toBeNull();
     expect(onPermissionPrompt).toHaveBeenCalledOnce();
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 
   it("requests coordinates when Permissions API is unavailable", async () => {

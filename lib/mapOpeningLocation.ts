@@ -101,7 +101,10 @@ export async function readOpeningMapLocation(
   try {
     const permission = await environment.permissions.query({ name: "geolocation" });
     if (permission?.state === "denied") return null;
-    if (permission?.state !== "granted") options.onPermissionPrompt?.();
+    if (permission?.state === "prompt") {
+      options.onPermissionPrompt?.();
+      return null;
+    }
   } catch {
     options.onPermissionPrompt?.();
   }
