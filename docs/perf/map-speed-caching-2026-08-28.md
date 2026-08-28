@@ -32,6 +32,13 @@ server: `e2e/mobile-map-chrome-fit.spec.ts` reported 4.1 s with its 5 s
 enforcement ceiling. The stricter network-shaped probe remains host-sensitive
 and is recorded above rather than hidden.
 
+## Post-fix diagnostic
+
+The current production build was also checked in one same-session Chromium run
+at 390x844 with SwiftShader and no network shaping. Cold pin-ready was 11,574
+ms and the following reload was 2,940 ms. These local figures are diagnostic
+only and do not replace the network-shaped SLA evidence above.
+
 ## Coverage
 
 - `public/sw.js` uses versioned stale-while-revalidate caches for map data,

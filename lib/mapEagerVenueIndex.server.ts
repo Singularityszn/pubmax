@@ -20,9 +20,15 @@ import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 let cached: ReadonlySet<string> | null = null;
 
 function parseVenueIds(payload: unknown): ReadonlySet<string> | null {
-  if (!Array.isArray(payload)) return null;
+  const rows = Array.isArray(payload)
+    ? payload
+    : typeof payload === "object" && payload !== null &&
+        Array.isArray((payload as { rows?: unknown }).rows)
+      ? (payload as { rows: unknown[] }).rows
+      : null;
+  if (!rows) return null;
   const ids = new Set<string>();
-  for (const row of payload) {
+  for (const row of rows) {
     if (typeof row !== "object" || row === null) continue;
     const id = (row as { id?: unknown }).id;
     if (typeof id === "string" && id) ids.add(id);

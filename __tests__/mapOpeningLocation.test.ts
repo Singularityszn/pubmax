@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  readGrantedMapOpeningLocation,
+  readOpeningMapLocation,
   readMapOpeningLocation,
   resolveMapOpeningLocation,
   writeMapOpeningLocation,
@@ -43,13 +43,13 @@ describe("map opening location", () => {
     expect(readMapOpeningLocation(store)).toBeNull();
   });
 
-  it("reads current coordinates only when permission is already granted", async () => {
+  it("reads current coordinates when permission is granted", async () => {
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({
         coords: { latitude: 51.5, longitude: -0.1 },
       } as GeolocationPosition);
     });
-    const location = await readGrantedMapOpeningLocation({
+    const location = await readOpeningMapLocation({
       permissions: {
         query: vi.fn(async () => ({ state: "granted" } as PermissionStatus)),
       },
@@ -60,11 +60,32 @@ describe("map opening location", () => {
     expect(getCurrentPosition).toHaveBeenCalledOnce();
   });
 
-  it("does not request coordinates while permission is prompt or denied", async () => {
+  it("requests coordinates when permission is prompt", async () => {
     const getCurrentPosition = vi.fn();
-    const location = await readGrantedMapOpeningLocation({
+    getCurrentPosition.mockImplementation((success: PositionCallback) => {
+      success({ coords: { latitude: 51.5, longitude: -0.1 } } as GeolocationPosition);
+    });
+    const onPermissionPrompt = vi.fn();
+    const location = await readOpeningMapLocation(
+      {
+        permissions: {
+          query: vi.fn(async () => ({ state: "prompt" } as PermissionStatus)),
+        },
+        geolocation: { getCurrentPosition },
+      },
+      { onPermissionPrompt },
+    );
+
+    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(onPermissionPrompt).toHaveBeenCalledOnce();
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
+
+  it("does not request coordinates after permission is denied", async () => {
+    const getCurrentPosition = vi.fn();
+    const location = await readOpeningMapLocation({
       permissions: {
-        query: vi.fn(async () => ({ state: "prompt" } as PermissionStatus)),
+        query: vi.fn(async () => ({ state: "denied" } as PermissionStatus)),
       },
       geolocation: { getCurrentPosition },
     });

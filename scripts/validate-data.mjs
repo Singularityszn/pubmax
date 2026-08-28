@@ -1548,7 +1548,9 @@ function validateSlimShards() {
   let coreRows;
   try {
     manifest = JSON.parse(readRaw(MANIFEST_FILE));
-    coreRows = JSON.parse(readRaw(CORE_FILE));
+    const corePayload = JSON.parse(readRaw(CORE_FILE));
+    coreRows = Array.isArray(corePayload) ? corePayload : corePayload?.rows;
+    if (!Array.isArray(coreRows)) coreRows = [];
   } catch (e) {
     console.log(
       `FAIL ${name}: missing/broken manifest or core shard (${e.message})`,

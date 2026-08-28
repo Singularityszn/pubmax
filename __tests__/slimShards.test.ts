@@ -411,7 +411,8 @@ describe("createSlimShardLoader (London)", () => {
 
   it("does not wait for the speculative shard when the manifest names another core", async () => {
     const renamedCore: ShardManifest = {
-      version: 1,
+      version: 2,
+      grid: MANIFEST.grid,
       shards: [
         { ...MANIFEST.shards[0]!, url: "/data/venues_slim.central.json" },
         ...MANIFEST.shards.slice(1),

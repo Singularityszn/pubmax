@@ -567,6 +567,7 @@ export default function PubMapCanvas({
   }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
   const orbitRef = useRef<IdleOrbit | null>(null);
@@ -843,15 +844,17 @@ export default function PubMapCanvas({
 
   useEffect(() => {
     if (!resumeViewport || !mapReady || !mapRef.current) return;
+    const map = mapRef.current;
+    if (userCameraInteractionRef.current || map.isMoving()) return;
     try {
-      mapRef.current.jumpTo({
+      map.jumpTo({
         center: resumeViewport.center,
         zoom: resumeViewport.zoom,
         pitch: resumeViewport.pitch,
         bearing: resumeViewport.bearing,
       });
       publishCurrentViewportRef.current?.();
-      mapRef.current.triggerRepaint();
+      map.triggerRepaint();
     } catch {
       // A resume is an optimisation. A map that is still constructing can ignore it.
     }
@@ -1418,7 +1421,9 @@ export default function PubMapCanvas({
     // the whole test: a banner steps off the map when the READER moves it, and
     // never when the app flies the camera for them.
     const emitUserCameraMove = (event: { originalEvent?: unknown }) => {
-      if (event.originalEvent) onUserCameraMoveRef.current?.();
+      if (!event.originalEvent) return;
+      userCameraInteractionRef.current = true;
+      onUserCameraMoveRef.current?.();
     };
     map.on("dragstart", emitUserCameraMove);
     map.on("zoomstart", emitUserCameraMove);

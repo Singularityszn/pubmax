@@ -335,7 +335,7 @@ import {
   writeMapResume,
 } from "@/lib/mapResume";
 import {
-  readGrantedMapOpeningLocation,
+  readOpeningMapLocation,
   readMapOpeningLocation,
   resolveMapOpeningLocation,
   writeMapOpeningLocation,
@@ -667,6 +667,12 @@ type PendingNearMeRequest =
     };
 
 const LOCATION_FIRST_ZOOM = 15;
+const OPENING_LOCATION_HOLD_VIEW: MapViewportSnapshot = {
+  center: [0, 0],
+  zoom: 0,
+  pitch: 0,
+  bearing: 0,
+};
 
 function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
   const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
@@ -765,6 +771,8 @@ export default function PubMap({
   const [lastKnownLocation] = useState(() =>
     currentSearch() ? null : readMapOpeningLocation(),
   );
+  const mapOpeningNeedsResolution =
+    !currentSearch() && !ukPlaceArrival && !ukNationalBrowse;
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -774,6 +782,7 @@ export default function PubMap({
         bearing: city.mapView.bearing ?? 0,
       };
     }
+    if (mapOpeningNeedsResolution) return OPENING_LOCATION_HOLD_VIEW;
     const cityDefault = {
       lat: city.mapView.center[1],
       lng: city.mapView.center[0],
@@ -901,6 +910,7 @@ export default function PubMap({
     !restoredMobileSession?.viewport;
   const [grantedOpeningLocation, setGrantedOpeningLocation] =
     useState<MapOpeningLocation | null>(null);
+  const [openingLocationPromptActive, setOpeningLocationPromptActive] = useState(false);
   const [openingLocationResolved, setOpeningLocationResolved] = useState(
     !shouldResolveOpeningLocation,
   );
@@ -910,7 +920,11 @@ export default function PubMap({
       return;
     }
     let cancelled = false;
-    void readGrantedMapOpeningLocation().then((location) => {
+    void readOpeningMapLocation(undefined, {
+      onPermissionPrompt: () => {
+        if (!cancelled) setOpeningLocationPromptActive(true);
+      },
+    }).then((location) => {
       if (cancelled) return;
       if (
         location &&
@@ -920,6 +934,7 @@ export default function PubMap({
         setGrantedOpeningLocation(location);
         writeMapOpeningLocation(location);
       }
+      setOpeningLocationPromptActive(false);
       setOpeningLocationResolved(true);
     });
     return () => {
@@ -1011,20 +1026,42 @@ export default function PubMap({
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
-  const locationFirstMapView = useMemo(
-    () =>
-      grantedOpeningLocation
-        ? {
-            ...initialMapView,
-            zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
-            center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
-              number,
-              number,
-            ],
-          }
-        : initialMapView,
-    [grantedOpeningLocation, initialMapView],
-  );
+  const fallbackOpeningMapView = useMemo(() => {
+    const cityDefault = {
+      lat: city.mapView.center[1],
+      lng: city.mapView.center[0],
+    };
+    const location = resolveMapOpeningLocation(
+      lastKnownLocation &&
+        pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
+        ? lastKnownLocation
+        : null,
+      cityDefault,
+    );
+    return {
+      ...city.mapView,
+      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
+      center: [location.lng, location.lat] as [number, number],
+    };
+  }, [city, lastKnownLocation]);
+  const locationFirstMapView = useMemo(() => {
+    if (!mapOpeningNeedsResolution) return initialMapView;
+    if (!openingLocationResolved) return OPENING_LOCATION_HOLD_VIEW;
+    if (!grantedOpeningLocation) return fallbackOpeningMapView;
+    return {
+      ...fallbackOpeningMapView,
+      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
+        number,
+        number,
+      ],
+    };
+  }, [
+    fallbackOpeningMapView,
+    grantedOpeningLocation,
+    initialMapView,
+    mapOpeningNeedsResolution,
+    openingLocationResolved,
+  ]);
   const openingLoadViewport = useMemo(
     () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
     [locationFirstMapView, mapResumeSeed, restoredMobileSession],
@@ -1738,18 +1775,12 @@ export default function PubMap({
 
   useEffect(() => {
     if (
-      !grantedOpeningLocation ||
+      !shouldResolveOpeningLocation ||
+      !openingLocationResolved ||
       openingLocationCancelledRef.current ||
       mapCameraTouchedRef.current
     ) return;
-    const viewport = {
-      ...initialMapView,
-      zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
-      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
-        number,
-        number,
-      ],
-    };
+    const viewport = locationFirstMapView;
     setOpeningLocationFocus((current) => {
       if (
         current?.center[0] === viewport.center[0] &&
@@ -1764,7 +1795,7 @@ export default function PubMap({
         token: (current?.token ?? 0) + 1,
       };
     });
-  }, [grantedOpeningLocation, initialMapView]);
+  }, [locationFirstMapView, openingLocationResolved, shouldResolveOpeningLocation]);
 
   const scheduleRingLoad = useCallback(
     (loader: SlimShardLoader, bounds: MapBounds) => {
@@ -2011,6 +2042,7 @@ export default function PubMap({
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
       if (activeMapCityIdRef.current !== cityId) return;
+      if (shouldResolveOpeningLocation && !openingLocationResolved) return;
       latestMapBoundsRef.current = bounds;
       latestMapBoundsCityRef.current = cityId;
       // Same settled camera the place claim is measured against, so the name in
@@ -2074,7 +2106,14 @@ export default function PubMap({
           if (firstLoad) initialShardLoadStartedRef.current = false;
         });
     },
-    [cityId, mergeSlimVenues, refreshCountCoverage, scheduleRingLoad],
+    [
+      cityId,
+      mergeSlimVenues,
+      openingLocationResolved,
+      refreshCountCoverage,
+      scheduleRingLoad,
+      shouldResolveOpeningLocation,
+    ],
   );
   const handleVisibleVenueIdsChange = useCallback(
     (membership: {
@@ -2192,94 +2231,6 @@ export default function PubMap({
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
   );
-
-  useEffect(() => {
-    const request = pendingNearMeRequest;
-    const location = request?.location ?? userLocation ?? venueJourneyLocation;
-    if (!location) return;
-    const loader = slimLoaderRef.current;
-    const finish = () => {
-      if (
-        !request ||
-        slimLoaderRef.current !== loader ||
-        pendingNearMeRequest !== request
-      ) return;
-      if (request.kind === "map") {
-        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-        const withinRing = withinNearMeRing(location, filteredVenues);
-        setNearbyMapResult({
-          location,
-          venueIds: nearby.map((venue) => venue.id),
-          radiusKm: NEAR_ME_MAP_RADIUS_KM,
-          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-        });
-        setNearbyLoading(false);
-        setPendingNearMeRequest(null);
-        if (request.mode !== "resume") setMapOverlay("near-me");
-        return;
-      }
-      const ids = nearestVenueIds(
-        location.lat,
-        location.lng,
-        filteredPubVenues,
-        request.stopCount,
-      );
-      setNearbyLoading(false);
-      setPendingNearMeRequest(null);
-      if (ids.length === 0) {
-        setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
-        return;
-      }
-      setMode("build");
-      setBuiltIds(ids);
-      setRouteMapped(true);
-      setActiveCrawl(null);
-      showLoadedRoute(ids[0]);
-    };
-    if (!loader) {
-      if (!request || !loaded) return;
-      finish();
-      return;
-    }
-    const loaderGeneration = slimLoaderGenerationRef.current;
-    let cancelled = false;
-    void loader.nearPoint(location.lat, location.lng)
-      .then((rows) => {
-        if (
-          cancelled ||
-          slimLoaderRef.current !== loader ||
-          slimLoaderGenerationRef.current !== loaderGeneration
-        ) return;
-        mergeSlimVenues(rows);
-        refreshCountCoverage();
-        if (request) setNearbyLoadVersion((version) => version + 1);
-        if (rows.length === 0) finish();
-      })
-      .catch(() => {
-        finish();
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    cityId,
-    filteredPubVenues,
-    filteredVenues,
-    loaded,
-    mergeSlimVenues,
-    nearbyLoadVersion,
-    openingLocationResolved,
-    pendingNearMeRequest,
-    refreshCountCoverage,
-    setActiveCrawl,
-    setBuiltIds,
-    setMode,
-    setRouteMapped,
-    showLoadedRoute,
-    userLocation,
-    venueJourneyLocation,
-    venueIndexAttempt,
-  ]);
 
   useEffect(() => {
     if (!nearbyMapResult) return;
@@ -2821,6 +2772,94 @@ export default function PubMap({
     },
     [openPlanning, selectVenue],
   );
+
+  useEffect(() => {
+    const request = pendingNearMeRequest;
+    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    if (!location) return;
+    const loader = slimLoaderRef.current;
+    const finish = () => {
+      if (
+        !request ||
+        slimLoaderRef.current !== loader ||
+        pendingNearMeRequest !== request
+      ) return;
+      if (request.kind === "map") {
+        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+        const withinRing = withinNearMeRing(location, filteredVenues);
+        setNearbyMapResult({
+          location,
+          venueIds: nearby.map((venue) => venue.id),
+          radiusKm: NEAR_ME_MAP_RADIUS_KM,
+          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+        });
+        setNearbyLoading(false);
+        setPendingNearMeRequest(null);
+        if (request.mode !== "resume") setMapOverlay("near-me");
+        return;
+      }
+      const ids = nearestVenueIds(
+        location.lat,
+        location.lng,
+        filteredPubVenues,
+        request.stopCount,
+      );
+      setNearbyLoading(false);
+      setPendingNearMeRequest(null);
+      if (ids.length === 0) {
+        setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
+        return;
+      }
+      setMode("build");
+      setBuiltIds(ids);
+      setRouteMapped(true);
+      setActiveCrawl(null);
+      showLoadedRoute(ids[0]);
+    };
+    if (!loader) {
+      if (!request || !loaded) return;
+      finish();
+      return;
+    }
+    const loaderGeneration = slimLoaderGenerationRef.current;
+    let cancelled = false;
+    void loader.nearPoint(location.lat, location.lng)
+      .then((rows) => {
+        if (
+          cancelled ||
+          slimLoaderRef.current !== loader ||
+          slimLoaderGenerationRef.current !== loaderGeneration
+        ) return;
+        mergeSlimVenues(rows);
+        refreshCountCoverage();
+        if (request) setNearbyLoadVersion((version) => version + 1);
+        if (rows.length === 0) finish();
+      })
+      .catch(() => {
+        finish();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    cityId,
+    filteredPubVenues,
+    filteredVenues,
+    loaded,
+    mergeSlimVenues,
+    nearbyLoadVersion,
+    openingLocationResolved,
+    pendingNearMeRequest,
+    refreshCountCoverage,
+    setActiveCrawl,
+    setBuiltIds,
+    setMode,
+    setRouteMapped,
+    showLoadedRoute,
+    userLocation,
+    venueJourneyLocation,
+    venueIndexAttempt,
+  ]);
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
   const changeFavoritePint = useCallback((beerId: string | null) => {
@@ -4648,6 +4687,7 @@ export default function PubMap({
           <MapLoadingFrame
             mapDisplayName={mapDisplayName}
             progress={mapLoadingProgress}
+            openingLocationPromptActive={openingLocationPromptActive}
           />
         ) : null}
         {mapResumeUpdating ? (

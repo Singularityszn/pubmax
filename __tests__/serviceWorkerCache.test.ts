@@ -19,6 +19,7 @@ function workerHarness(input: {
   activeWorker?: string;
   cacheNames?: string[];
   workerPolicy?: string;
+  workerVersion?: string;
 }) {
   const listeners = new Map<string, Listener>();
   const put = vi.fn(async () => {
@@ -36,7 +37,7 @@ function workerHarness(input: {
   const fakeSelf = {
     location: {
       href:
-        `https://pubmaxxing.com/sw.js?v=test&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
+        `https://pubmaxxing.com/sw.js?v=${input.workerVersion ?? "test"}&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
       origin: "https://pubmaxxing.com",
     },
     registration: {
@@ -360,6 +361,27 @@ describe("service worker map cache", () => {
     const event = dispatchFetch(
       listeners.get("fetch")!,
       new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(shard);
+  });
+
+  it("serves an unversioned cached venue shard for local builds", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "local", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      workerVersion: "local",
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
     );
 
     await expect(event.response).resolves.toBe(shard);

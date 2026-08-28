@@ -402,7 +402,12 @@ export function createSlimShardLoader(
         expectedManifestVersion,
         MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
       );
-      if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
+      if (
+        stored !== null &&
+        stored !== undefined &&
+        !parsed &&
+        expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION
+      ) {
         manifestRevisionRejected = true;
       }
       return parsed;

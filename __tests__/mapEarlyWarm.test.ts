@@ -51,6 +51,7 @@ describe("mapEarlyWarm", () => {
     const window = {
       innerWidth: 390,
       innerHeight: 844,
+      location: { href: "https://pubmaxxing.com/map" },
       localStorage: { getItem: vi.fn(() => null) },
     };
 
@@ -73,7 +74,7 @@ describe("mapEarlyWarm", () => {
       Promise,
       setTimeout,
     };
-    new Function("window", "document", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", script)(
+    new Function("window", "document", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", "URL", script)(
       window,
       context.document,
       context.navigator,
@@ -83,6 +84,7 @@ describe("mapEarlyWarm", () => {
       Number,
       Promise,
       setTimeout,
+      URL,
     );
 
     await new Promise((resolve) => setTimeout(resolve, 0));

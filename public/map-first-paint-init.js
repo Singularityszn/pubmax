@@ -65,7 +65,8 @@
       return Promise.resolve(fallback);
     }
     return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
-      if (!permission || permission.state !== "granted") return fallback;
+      if (!permission || permission.state === "prompt") return null;
+      if (permission.state !== "granted") return fallback;
       return new Promise(function (resolve) {
         nav.geolocation.getCurrentPosition(
           function (position) {
@@ -86,6 +87,7 @@
   void manifestWarm.then(function (manifest) {
     if (!manifest || !Array.isArray(manifest.shards)) return;
     return resolveOpeningLocation().then(function (location) {
+      if (!location) return;
       var zoom = 15;
       var scale = 512 * Math.pow(2, zoom);
       var longitudeDelta = (Math.max(window.innerWidth, 1) * 180) / scale;

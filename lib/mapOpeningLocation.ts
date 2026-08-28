@@ -9,6 +9,10 @@ export type MapOpeningLocationEnvironment = {
   permissions?: Pick<Permissions, "query">;
 };
 
+export type MapOpeningLocationReadOptions = {
+  onPermissionPrompt?: () => void;
+};
+
 function validLocation(value: unknown): value is MapOpeningLocation {
   if (!value || typeof value !== "object") return false;
   const raw = value as Record<string, unknown>;
@@ -60,14 +64,17 @@ export function resolveMapOpeningLocation(
   return validLocation(lastKnown) ? lastKnown : cityDefault;
 }
 
-export async function readGrantedMapOpeningLocation(
+export async function readOpeningMapLocation(
   environment: MapOpeningLocationEnvironment | null =
     typeof navigator === "undefined" ? null : navigator,
+  options: MapOpeningLocationReadOptions = {},
 ): Promise<MapOpeningLocation | null> {
   if (!environment?.geolocation || !environment.permissions) return null;
   try {
     const permission = await environment.permissions.query({ name: "geolocation" });
-    if (permission.state !== "granted") return null;
+    if (permission.state === "denied") return null;
+    if (permission.state === "prompt") options.onPermissionPrompt?.();
+    if (permission.state !== "granted" && permission.state !== "prompt") return null;
     return await new Promise<MapOpeningLocation | null>((resolve) => {
       environment.geolocation?.getCurrentPosition(
         (position) => {

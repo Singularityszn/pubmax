@@ -372,7 +372,8 @@ async function isCompatibleVenueShard(request, response, options = {}) {
   if (!isVenueShardPath(requestUrl.pathname) || !response) return true;
   const requestRevision = requestUrl.searchParams.get("v");
   if (options.network) return true;
-  if (requestRevision !== VERSION) return false;
+  if (requestRevision && requestRevision !== VERSION) return false;
+  if (!requestRevision && VERSION !== "local") return false;
   try {
     const payload = await response.clone().json();
     return (
