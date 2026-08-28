@@ -45,6 +45,8 @@ afterEach(() => {
 const session = {
   loading: false,
   configured: true,
+  providerAuthState: "signed-out",
+  supabaseAuthState: "signed-out",
   clerkIntegrationConfigured: false,
   socialProviders: { google: false, apple: false },
   signInWithGoogle: async () => ({}),
