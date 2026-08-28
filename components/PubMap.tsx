@@ -330,6 +330,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
+  type MapResumeLiveLoadStatus,
   readMapResume,
   readMapResumeSync,
   writeMapResume,
@@ -1734,7 +1735,7 @@ export default function PubMap({
   const slimLoaderGenerationRef = useRef(0);
   const initialShardLoadStartedRef = useRef(false);
   const initialShardLoadSettledRef = useRef(false);
-  const liveShardLoadSettledRef = useRef(false);
+  const liveShardLoadStatusRef = useRef<MapResumeLiveLoadStatus>("pending");
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
   const latestMapBoundsCityRef = useRef<CityId | null>(null);
   const activeMapCityIdRef = useRef(cityId);
@@ -1880,7 +1881,7 @@ export default function PubMap({
     slimLoaderRef.current = loader;
     initialShardLoadStartedRef.current = false;
     initialShardLoadSettledRef.current = false;
-    liveShardLoadSettledRef.current = false;
+    liveShardLoadStatusRef.current = "pending";
     ringLoadPendingKeyRef.current = null;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
@@ -1918,7 +1919,7 @@ export default function PubMap({
           .then((result) => {
             if (!isCurrentLoader()) return;
             const rows = result.rows;
-            liveShardLoadSettledRef.current = true;
+            liveShardLoadStatusRef.current = result.status;
             setVenueIndexFailed(result.status !== "ready");
             mergeSlimVenues(rows);
             if (rows.length > 0) {
@@ -1939,6 +1940,7 @@ export default function PubMap({
           })
           .catch(() => {
             if (!isCurrentLoader()) return;
+            liveShardLoadStatusRef.current = "unavailable";
             initialShardLoadSettledRef.current = true;
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
@@ -1955,7 +1957,7 @@ export default function PubMap({
             !snapshot ||
             mapCameraTouchedRef.current ||
             snapshot.savedAt <= mapResumeSeed.savedAt ||
-            liveShardLoadSettledRef.current
+            liveShardLoadStatusRef.current === "ready"
           ) return;
           const refreshVersion = ++resumeRefreshVersion;
           setMapResumeViewport(snapshot.viewport);
@@ -1966,7 +1968,7 @@ export default function PubMap({
               if (
                 !isCurrentLoader() ||
                 !isCurrentMapResumeRefresh(
-                  liveShardLoadSettledRef.current,
+                  liveShardLoadStatusRef.current,
                   resumeRefreshVersion,
                   refreshVersion,
                 )
@@ -1990,7 +1992,7 @@ export default function PubMap({
               !isCurrentLoader() ||
               !snapshot ||
               mapCameraTouchedRef.current ||
-              liveShardLoadSettledRef.current
+              liveShardLoadStatusRef.current === "ready"
             ) return;
             setSlimPins(slimVenuesToPins(snapshot.rows));
             setLoadedCityId(cityId);
@@ -2005,7 +2007,7 @@ export default function PubMap({
                 if (
                   !isCurrentLoader() ||
                   !isCurrentMapResumeRefresh(
-                    liveShardLoadSettledRef.current,
+                    liveShardLoadStatusRef.current,
                     resumeRefreshVersion,
                     refreshVersion,
                   )
@@ -2030,7 +2032,7 @@ export default function PubMap({
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
       initialShardLoadStartedRef.current = false;
       initialShardLoadSettledRef.current = false;
-      liveShardLoadSettledRef.current = false;
+      liveShardLoadStatusRef.current = "pending";
       ringLoadPendingKeyRef.current = null;
     };
   }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, openingLocationResolved, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
@@ -2042,9 +2044,9 @@ export default function PubMap({
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
       if (activeMapCityIdRef.current !== cityId) return;
-      if (shouldResolveOpeningLocation && !openingLocationResolved) return;
       latestMapBoundsRef.current = bounds;
       latestMapBoundsCityRef.current = cityId;
+      if (shouldResolveOpeningLocation && !openingLocationResolved) return;
       // Same settled camera the place claim is measured against, so the name in
       // the bar can never describe a view the reader has already left.
       setMapBounds((current) =>
@@ -2074,7 +2076,7 @@ export default function PubMap({
         .then((result) => {
           if (!isCurrentLoader()) return;
           const rows = result.rows;
-          liveShardLoadSettledRef.current = true;
+          liveShardLoadStatusRef.current = result.status;
           setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {
@@ -2095,6 +2097,7 @@ export default function PubMap({
         })
         .catch(() => {
           if (!isCurrentLoader()) return;
+          liveShardLoadStatusRef.current = "unavailable";
           if (firstLoad) {
             initialShardLoadSettledRef.current = true;
             setVenueIndexFailed(true);
@@ -4202,7 +4205,7 @@ export default function PubMap({
   }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
   useEffect(() => {
-    if (ukPlaceArrival || slimPins.length === 0 || !liveShardLoadSettledRef.current || venueIndexFailed) return;
+    if (ukPlaceArrival || slimPins.length === 0 || liveShardLoadStatusRef.current !== "ready" || venueIndexFailed) return;
     const timer = window.setTimeout(() => {
       writeMapResume({
         cityId,

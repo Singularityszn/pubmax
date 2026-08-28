@@ -81,6 +81,23 @@ describe("map opening location", () => {
     expect(getCurrentPosition).toHaveBeenCalledOnce();
   });
 
+  it("requests coordinates when Permissions API is unavailable", async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: { latitude: 51.5, longitude: -0.1 },
+      } as GeolocationPosition);
+    });
+    const onPermissionPrompt = vi.fn();
+    const location = await readOpeningMapLocation(
+      { geolocation: { getCurrentPosition } },
+      { onPermissionPrompt },
+    );
+
+    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(onPermissionPrompt).toHaveBeenCalledOnce();
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
+
   it("does not request coordinates after permission is denied", async () => {
     const getCurrentPosition = vi.fn();
     const location = await readOpeningMapLocation({

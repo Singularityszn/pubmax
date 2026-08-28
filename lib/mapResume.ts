@@ -117,10 +117,12 @@ export function writeMapResume(
 
 export const MAP_RESUME_MAX_AGE = MAP_RESUME_MAX_AGE_MS;
 
+export type MapResumeLiveLoadStatus = "pending" | "ready" | "unavailable";
+
 export function isCurrentMapResumeRefresh(
-  liveLoadSettled: boolean,
+  liveLoadStatus: MapResumeLiveLoadStatus,
   currentVersion: number,
   refreshVersion: number,
 ): boolean {
-  return !liveLoadSettled && currentVersion === refreshVersion;
+  return liveLoadStatus !== "ready" && currentVersion === refreshVersion;
 }

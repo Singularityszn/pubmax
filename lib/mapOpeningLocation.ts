@@ -69,12 +69,16 @@ export async function readOpeningMapLocation(
     typeof navigator === "undefined" ? null : navigator,
   options: MapOpeningLocationReadOptions = {},
 ): Promise<MapOpeningLocation | null> {
-  if (!environment?.geolocation || !environment.permissions) return null;
+  if (!environment?.geolocation) return null;
   try {
-    const permission = await environment.permissions.query({ name: "geolocation" });
-    if (permission.state === "denied") return null;
-    if (permission.state === "prompt") options.onPermissionPrompt?.();
-    if (permission.state !== "granted" && permission.state !== "prompt") return null;
+    if (environment.permissions) {
+      const permission = await environment.permissions.query({ name: "geolocation" });
+      if (permission.state === "denied") return null;
+      if (permission.state === "prompt") options.onPermissionPrompt?.();
+      if (permission.state !== "granted" && permission.state !== "prompt") return null;
+    } else {
+      options.onPermissionPrompt?.();
+    }
     return await new Promise<MapOpeningLocation | null>((resolve) => {
       environment.geolocation?.getCurrentPosition(
         (position) => {
