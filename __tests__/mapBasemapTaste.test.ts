@@ -305,6 +305,7 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
       // OpenFreeMap's `place_other` layer carries neighbourhood features.
       { id: "place_other", type: "symbol" },
       { id: "poi_pub", type: "symbol" },
+      // CARTO/OFM generic POI layer: every category at once, so it stays generic.
       { id: "poi_label", type: "symbol" },
     ];
     const map = {
@@ -340,10 +341,10 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     ).toBe(10);
     expect(
       paints.find(([id, prop]) => id === "poi_label" && prop === "text-opacity")?.[2],
-    ).toBe(0.86);
+    ).toBe(0.72);
     expect(
-      layouts.find(([id, prop]) => id === "poi_label" && prop === "text-size")?.[2],
-    ).toBe(10);
+      layouts.find(([id, prop]) => id === "poi_label" && prop === "text-size"),
+    ).toBeUndefined();
     expect(
       paints.find(([id, prop]) => id === "poi_pub" && prop === "text-opacity")?.[2],
     ).toBeGreaterThan(
@@ -390,6 +391,109 @@ describe("mapBasemapTaste (Wave A / dark basemap overhaul)", () => {
     expect(
       layouts.find(([id, prop]) => id === "poi_bar_label" && prop === "text-size")?.[2],
     ).toBe(10);
+  });
+
+  it("withholds pub styling from generic POI layers that name no drink", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
+    // CARTO Positron and OpenFreeMap each ship ONE generic POI layer carrying
+    // every category, so pub opacity/sizing here would promote cash machines.
+    const layers = [
+      { id: "poi_label", type: "symbol" },
+      { id: "poi_name", type: "symbol" },
+      { id: "pois-label", type: "symbol" },
+      { id: "poi-name", type: "symbol" },
+      // A non-POI id can contain `poi` as part of another token.
+      { id: "point_bar_label", type: "symbol" },
+      // Named drink categories still earn pub treatment, including plurals.
+      { id: "poi_pub_label", type: "symbol" },
+      { id: "poi_bars_label", type: "symbol" },
+      { id: "poi_beer_name", type: "symbol" },
+      { id: "poi_brewery_name", type: "symbol" },
+      { id: "pois-pubs-label", type: "symbol" },
+      { id: "poi_breweries_name", type: "symbol" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    for (const generic of [
+      "poi_label",
+      "poi_name",
+      "pois-label",
+      "poi-name",
+      "point_bar_label",
+    ]) {
+      expect(
+        paints.find(([id, prop]) => id === generic && prop === "text-opacity")?.[2],
+      ).toBe(0.72);
+      expect(
+        layouts.find(([id, prop]) => id === generic && prop === "text-size"),
+      ).toBeUndefined();
+    }
+
+    for (const drink of [
+      "poi_pub_label",
+      "poi_bars_label",
+      "poi_beer_name",
+      "poi_brewery_name",
+      "pois-pubs-label",
+      "poi_breweries_name",
+    ]) {
+      expect(
+        paints.find(([id, prop]) => id === drink && prop === "text-opacity")?.[2],
+      ).toBe(0.86);
+      expect(
+        layouts.find(([id, prop]) => id === drink && prop === "text-size")?.[2],
+      ).toBe(10);
+    }
+  });
+
+  it("treats CARTO place_town as neighbourhood tier, not city tier", () => {
+    const paints: Array<[string, string, unknown]> = [];
+    const layouts: Array<[string, string, unknown]> = [];
+    const layers = [
+      { id: "place_town", type: "symbol" },
+      { id: "place_hamlet", type: "symbol" },
+      // City tier must stay louder — `place_town` sits below it, not beside it.
+      { id: "place_city", type: "symbol" },
+    ];
+    const map = {
+      getLayer: (id: string) => layers.find((layer) => layer.id === id),
+      setPaintProperty: (layerId: string, name: string, value: unknown) => {
+        paints.push([layerId, name, value]);
+      },
+      setLayoutProperty: (layerId: string, name: string, value: unknown) => {
+        layouts.push([layerId, name, value]);
+      },
+      getStyle: () => ({ layers }),
+    };
+
+    applyBasemapTaste(map, darkTokens, true);
+
+    expect(
+      paints.find(([id, prop]) => id === "place_town" && prop === "text-opacity")?.[2],
+    ).toBe(0.38);
+    expect(
+      layouts.find(([id, prop]) => id === "place_town" && prop === "text-size")?.[2],
+    ).toBe(9);
+    expect(
+      paints.find(([id, prop]) => id === "place_town" && prop === "text-opacity")?.[2],
+    ).toBe(
+      paints.find(([id, prop]) => id === "place_hamlet" && prop === "text-opacity")?.[2],
+    );
+    expect(
+      paints.find(([id, prop]) => id === "place_city" && prop === "text-opacity")?.[2],
+    ).toBe(0.72);
   });
 
   it("does not rewrite label layout that already matches", () => {
