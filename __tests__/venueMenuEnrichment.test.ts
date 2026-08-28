@@ -94,6 +94,15 @@ describe("applyVenueMenuEnrichment", () => {
     // Tile kept (id+label) but non-http href/imageUrl dropped
     expect(merged.categoryTiles).toEqual([{ id: "mains", label: "Mains" }]);
   });
+
+  it("rejects HTTP menu URLs and tile links", () => {
+    const merged = applyVenueMenuEnrichment(venue(), {
+      menuUrl: "http://pub.example/menu",
+      categoryTiles: [{ id: "mains", label: "Mains", href: "http://pub.example/mains" }],
+    });
+    expect(merged.menuUrl).toBeUndefined();
+    expect(merged.categoryTiles).toEqual([{ id: "mains", label: "Mains" }]);
+  });
 });
 
 describe("loadVenueMenuEnrichmentIndex", () => {

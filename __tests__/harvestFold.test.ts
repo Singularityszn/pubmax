@@ -57,6 +57,12 @@ describe("loreNameTownGate", () => {
       "name-mismatch",
     );
   });
+
+  it("does not match a name token inside a longer word", () => {
+    expect(
+      loreNameTownGate("The Starling pub in York is old.", "The Star", "York"),
+    ).toBe("name-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {
@@ -162,6 +168,26 @@ describe("parseOverlayRow", () => {
           },
         }),
       ),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud on malformed concatenated website observations", () => {
+    expect(() => parseOverlayRow(row({ website: "https://", matchedLore: null }))).toThrow(
+      HarvestFoldError,
+    );
+    expect(() =>
+      parseOverlayRow(
+        row({ website: "https://good.example/, http://bad.example/", matchedLore: null }),
+      ),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud when website or menu points to a social host", () => {
+    expect(() =>
+      parseOverlayRow(row({ website: "https://www.instagram.com/redlion", matchedLore: null })),
+    ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(row({ menuUrl: "https://www.facebook.com/redlion", matchedLore: null })),
     ).toThrow(HarvestFoldError);
   });
 
@@ -377,6 +403,32 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(rows[0].matchedLore?.citations).toEqual([
       "https://history.example/red-lion-clapham",
     ]);
+  });
+
+  it("excludes social-host website observations", () => {
+    expect(() =>
+      overlayRowsFromHarvestRecords([
+        {
+          osmId: "node/123",
+          name: "The Red Lion",
+          town: "Clapham",
+          observations: [
+            {
+              kind: "website",
+              value: "https://www.instagram.com/redlion",
+              sourceUrl: "https://www.instagram.com/redlion",
+              fetchedAt: "2026-08-28T00:00:00.000Z",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud on duplicate OSM overlay rows", () => {
+    expect(() =>
+      parseOverlayJsonl(`${JSON.stringify(row())}\n${JSON.stringify(row({ website: "https://other.example/" }))}`),
+    ).toThrow(HarvestFoldError);
   });
 });
 

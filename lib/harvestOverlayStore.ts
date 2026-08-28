@@ -139,16 +139,21 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
   async getByVenueId(venueId) {
     const osmId = canonicalOsmId(venueId);
     if (!osmId) return null;
-    return guard(async () => {
-      const { data, error } = await admin()
-        .from(TABLE)
-        .select("osm_id, osm_ref, website, menu_url, lore_text, lore_citations, sources, lore_match_name, lore_match_town")
-        .eq("osm_id", osmId)
-        .maybeSingle();
-      if (error) throw error;
-      if (!data) return null;
-      return fromSql(data as OverlaySqlRow);
-    }, null);
+    return guard({
+      context: "read",
+      run: async () => {
+        const { data, error } = await admin()
+          .from(TABLE)
+          .select("osm_id, osm_ref, website, menu_url, lore_text, lore_citations, sources, lore_match_name, lore_match_town")
+          .eq("osm_id", osmId)
+          .maybeSingle();
+        if (error) throw error;
+        if (!data) return null;
+        return fromSql(data as OverlaySqlRow);
+      },
+      onSchemaMiss: async () => null,
+      onError: () => null,
+    });
   },
 };
 

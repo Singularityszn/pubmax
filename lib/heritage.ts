@@ -21,10 +21,11 @@ import path from "node:path";
 
 import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
-import { heritageFactFromOverlay } from "@/lib/harvestFold";
+import { canonicalOsmId, heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { resolveVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
@@ -36,8 +37,7 @@ export type HeritageFact = {
   sourceRef?: string;
 };
 
-// Sources that count as trusted/sourced facts (server-retrieved). Every source
-// now qualifies; the set stays as the one place that names them. "nhle" is
+// Sources that count as trusted/sourced facts (server-retrieved). "nhle" is
 // Historic England's official National Heritage List for England. "web" is
 // cited harvest lore, keyed by OSM id (never by pub name).
 const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
@@ -94,7 +94,12 @@ async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
       .eq("venue_key", venueKey);
     if (error || !Array.isArray(data)) return [];
     return data
-      .filter((row) => row && typeof row.fact === "string")
+      .filter(
+        (row) =>
+          row &&
+          typeof row.fact === "string" &&
+          String(row.source ?? "").toLowerCase() !== "web",
+      )
       // A "contributor" row in the DB would still be untrusted; coerce any
       // unknown/contributor source to "seed" so DB rows are always sourced.
       .map((row) => ({
@@ -130,7 +135,12 @@ export async function retrieveHeritage(input: {
   const cached = cache[venueKey];
   if (Array.isArray(cached)) {
     for (const entry of cached) {
-      if (entry && typeof entry.fact === "string" && entry.fact.trim()) {
+      if (
+        entry &&
+        String(entry.source ?? "").toLowerCase() !== "web" &&
+        typeof entry.fact === "string" &&
+        entry.fact.trim()
+      ) {
         const source = entry.source ?? "seed";
         // Cache is server-owned, but never let a cache entry masquerade as
         // trusted if it somehow carries a non-sourced label.
@@ -150,7 +160,10 @@ export async function retrieveHeritage(input: {
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
   // somehow lost its https citation.
   if (input.venueId) {
-    const overlay = await harvestOverlayStore().getByVenueId(input.venueId);
+    const directOsmId = canonicalOsmId(input.venueId);
+    const resolvedVenue = directOsmId ? null : await resolveVenue(input.venueId);
+    const overlayVenueId = directOsmId ?? resolvedVenue?.osmId ?? input.venueId;
+    const overlay = await harvestOverlayStore().getByVenueId(overlayVenueId);
     const lore = overlay ? heritageFactFromOverlay(overlay) : null;
     if (lore) facts.push(lore);
   }

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ExternalLink, MapPinned } from "lucide-react";
+import { firstHttps } from "@/lib/httpUrl";
 
 import BookingClickAnalytics from "@/components/pubs/BookingClickAnalytics";
 import PubsFilters, {
@@ -149,6 +150,7 @@ export default function PubsGallery({
 
       <ul className="pubsGrid">
         {pubs.map((pub) => {
+          const menuUrl = firstHttps(pub.menuUrl);
           const booking = resolveBookingAction({
             name: pub.name,
             bookingUrl: pub.bookingUrl,
@@ -200,10 +202,10 @@ export default function PubsGallery({
                     <MapPinned size={14} aria-hidden="true" />
                     See on map
                   </Link>
-                  {pub.menuUrl ? (
+                  {menuUrl ? (
                     <a
                       className="pubsMenuLink"
-                      href={pub.menuUrl}
+                      href={menuUrl}
                       target="_blank"
                       rel="noopener noreferrer"
                     >

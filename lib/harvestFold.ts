@@ -65,6 +65,16 @@ export type FoldCounts = {
 
 const NAME_STOP = new Set(["the", "a", "an", "and", "of"]);
 const SOCIAL_KEYS = new Set(["social", "socials", "socialHandle", "socialHandles"]);
+const SOCIAL_HOSTS = new Set([
+  "facebook.com",
+  "fb.com",
+  "instagram.com",
+  "x.com",
+  "twitter.com",
+  "tiktok.com",
+  "youtube.com",
+  "youtu.be",
+]);
 
 export function isHttpsUrl(value: string): boolean {
   try {
@@ -74,9 +84,26 @@ export function isHttpsUrl(value: string): boolean {
   }
 }
 
-/** Harvest ingest bar: the value starts with https://. Serving still uses {@link isHttpsUrl}. */
+/** Harvest observations may contain several comma-separated https URLs. */
 export function isHttpsObservation(value: string): boolean {
-  return value.trim().toLowerCase().startsWith("https://");
+  const parts = value.trim().split(/,\s*(?=https:\/\/)/i).map((part) => part.trim());
+  return parts.length > 0 && parts.every((part) => part.length > 0 && isHttpsUrl(part));
+}
+
+function isSocialUrl(value: string): boolean {
+  try {
+    const host = new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+    return [...SOCIAL_HOSTS].some(
+      (socialHost) => host === socialHost || host.endsWith(`.${socialHost}`),
+    );
+  } catch {
+    return false;
+  }
+}
+
+function containsWord(haystack: string, word: string): boolean {
+  const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
 export function nameTokens(name: string): string[] {
@@ -96,12 +123,12 @@ export function loreNameTownGate(
 ): LoreGateResult {
   const hay = text.toLowerCase();
   const tokens = nameTokens(name);
-  if (tokens.length === 0 || !tokens.every((token) => hay.includes(token))) {
+  if (tokens.length === 0 || !tokens.every((token) => containsWord(hay, token))) {
     return "name-mismatch";
   }
   const place = typeof town === "string" ? town.trim() : "";
   if (!place) return "town-missing";
-  if (!hay.includes(place.toLowerCase())) return "town-mismatch";
+  if (!containsWord(hay, place.toLowerCase())) return "town-mismatch";
   return "pass";
 }
 
@@ -182,6 +209,9 @@ function httpsOrNull(value: unknown, field: string, line?: number): string | nul
   if (!trimmed) fail("MALFORMED_ROW", `${field} must be an https URL or null`, line);
   if (!isHttpsObservation(trimmed)) {
     fail("MALFORMED_ROW", `${field} must be https`, line);
+  }
+  if (trimmed.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+    fail("SOCIAL_PRESENT", `${field} points to a social host`, line);
   }
   return trimmed;
 }
@@ -277,6 +307,7 @@ export function parseOverlayRow(raw: unknown, line?: number): HarvestOverlayRow 
 
 export function parseOverlayJsonl(text: string): HarvestOverlayRow[] {
   const rows: HarvestOverlayRow[] = [];
+  const seenOsmIds = new Set<string>();
   const lines = text.split(/\r?\n/);
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i].trim();
@@ -287,7 +318,12 @@ export function parseOverlayJsonl(text: string): HarvestOverlayRow[] {
     } catch {
       fail("MALFORMED_ROW", "JSONL line is not JSON", i + 1);
     }
-    rows.push(parseOverlayRow(parsed, i + 1));
+    const row = parseOverlayRow(parsed, i + 1);
+    if (seenOsmIds.has(row.osmId)) {
+      fail("MALFORMED_ROW", `duplicate OSM id ${row.osmId}`, i + 1);
+    }
+    seenOsmIds.add(row.osmId);
+    rows.push(row);
   }
   return rows;
 }
@@ -365,14 +401,23 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       const sourceUrl = observationValue(observation, "sourceUrl", line);
       observationValue(observation, "fetchedAt", line);
       if (kind === "social") continue;
+      if (isSocialUrl(sourceUrl)) {
+        fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
+      }
       if (!isHttpsUrl(sourceUrl)) {
         fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
       }
       if (kind === "website") {
+        if (value.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+          fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
+        }
         if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest website must be https", line);
         if (!current.websites.includes(value)) current.websites.push(value);
         if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
       } else if (kind === "menu") {
+        if (value.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+          fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
+        }
         if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest menu must be https", line);
         if (!current.menus.includes(value)) current.menus.push(value);
         if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);

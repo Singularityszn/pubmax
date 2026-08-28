@@ -108,6 +108,26 @@ describe("retrieveHeritage — trust boundary", () => {
     const byName = await retrieveHeritage({ venueName: "The Red Lion" });
     expect(byName.some((f) => f.source === "web")).toBe(false);
   });
+
+  it("resolves salted city venue ids before reading harvest lore", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "way/100646638",
+        name: "Peveril of the Peak",
+        town: "Manchester",
+        matchedLore: {
+          text: "Peveril of the Peak in Manchester has a long history.",
+          citations: ["https://history.example/peveril"],
+        },
+        sources: ["https://history.example/peveril"],
+      }),
+    ]);
+    const facts = await retrieveHeritage({
+      venueId: "venue-mcr-1lwo5lo",
+      venueName: "Peveril of the Peak",
+    });
+    expect(facts.some((fact) => fact.source === "web")).toBe(true);
+  });
 });
 
 describe("answerHeritage (no key — grounded only)", () => {

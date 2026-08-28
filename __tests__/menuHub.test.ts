@@ -99,6 +99,11 @@ describe("menuHubTiles", () => {
     expect(tiles.some((t) => t.kind === "food-external")).toBe(true);
   });
 
+  it("does not emit an HTTP food CTA", () => {
+    const tiles = menuHubTiles(venue({ menuUrl: "http://pub.example/menu" }), []);
+    expect(tiles.some((tile) => tile.kind === "food-external")).toBe(false);
+  });
+
   it("labels a late-food external menu without calling it a pub site", () => {
     const tiles = menuHubTiles(
       venue({
