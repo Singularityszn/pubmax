@@ -649,6 +649,18 @@ type UserLocation = {
   lng: number;
 };
 
+type PendingNearMeRequest =
+  | {
+      kind: "map";
+      location: UserLocation;
+      mode: "tap" | "arrival" | "resume";
+    }
+  | {
+      kind: "crawl";
+      location: UserLocation;
+      stopCount: number;
+    };
+
 const LOCATION_FIRST_ZOOM = 15;
 
 function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
@@ -994,18 +1006,24 @@ export default function PubMap({
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
-  const locationFirstMapView = grantedOpeningLocation
-    ? {
-        ...initialMapView,
-        zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
-        center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
-          number,
-          number,
-        ],
-      }
-    : initialMapView;
-  const openingLoadViewport =
-    mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView;
+  const locationFirstMapView = useMemo(
+    () =>
+      grantedOpeningLocation
+        ? {
+            ...initialMapView,
+            zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
+            center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
+              number,
+              number,
+            ],
+          }
+        : initialMapView,
+    [grantedOpeningLocation, initialMapView],
+  );
+  const openingLoadViewport = useMemo(
+    () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
+    [locationFirstMapView, mapResumeSeed, restoredMobileSession],
+  );
   useEffect(() => {
     if (!mapResumeSeed) return;
     markPubmaxTiming("pubmax:first-pins");
@@ -1125,6 +1143,9 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const [pendingNearMeRequest, setPendingNearMeRequest] =
+    useState<PendingNearMeRequest | null>(null);
+  const [nearbyLoadVersion, setNearbyLoadVersion] = useState(0);
   const {
     mode,
     setMode,
@@ -2045,35 +2066,6 @@ export default function PubMap({
     [cityId],
   );
 
-  // Near-me: geolocating into a hollow outer borough loads that borough's shard
-  // (with one retry inside the loader) so the nearby pins exist. Until it lands
-  // the near-me flows fall back honestly to the already-loaded pins.
-  useEffect(() => {
-    const loc = userLocation ?? venueJourneyLocation;
-    if (!loc) return;
-    const loader = slimLoaderRef.current;
-    if (!loader) return;
-    const loaderGeneration = slimLoaderGenerationRef.current;
-    let cancelled = false;
-    void loader
-      .nearPoint(loc.lat, loc.lng)
-      .then((rows) => {
-        if (
-          cancelled ||
-          slimLoaderRef.current !== loader ||
-          slimLoaderGenerationRef.current !== loaderGeneration
-        ) return;
-        mergeSlimVenues(rows);
-        refreshCountCoverage();
-      })
-      .catch(() => {
-        // Honest fallback: keep whatever pins already loaded.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userLocation, venueJourneyLocation, mergeSlimVenues, refreshCountCoverage]);
-
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
   // and ignore any stale London updates while viewing them (no setState clear).
@@ -2180,6 +2172,94 @@ export default function PubMap({
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
   );
+
+  useEffect(() => {
+    const request = pendingNearMeRequest;
+    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    if (!location) return;
+    const loader = slimLoaderRef.current;
+    const finish = () => {
+      if (
+        !request ||
+        slimLoaderRef.current !== loader ||
+        pendingNearMeRequest !== request
+      ) return;
+      if (request.kind === "map") {
+        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+        const withinRing = withinNearMeRing(location, filteredVenues);
+        setNearbyMapResult({
+          location,
+          venueIds: nearby.map((venue) => venue.id),
+          radiusKm: NEAR_ME_MAP_RADIUS_KM,
+          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+        });
+        setNearbyLoading(false);
+        setPendingNearMeRequest(null);
+        if (request.mode !== "resume") setMapOverlay("near-me");
+        return;
+      }
+      const ids = nearestVenueIds(
+        location.lat,
+        location.lng,
+        filteredPubVenues,
+        request.stopCount,
+      );
+      setNearbyLoading(false);
+      setPendingNearMeRequest(null);
+      if (ids.length === 0) {
+        setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
+        return;
+      }
+      setMode("build");
+      setBuiltIds(ids);
+      setRouteMapped(true);
+      setActiveCrawl(null);
+      showLoadedRoute(ids[0]);
+    };
+    if (!loader) {
+      if (!request || !loaded) return;
+      finish();
+      return;
+    }
+    const loaderGeneration = slimLoaderGenerationRef.current;
+    let cancelled = false;
+    void loader.nearPoint(location.lat, location.lng)
+      .then((rows) => {
+        if (
+          cancelled ||
+          slimLoaderRef.current !== loader ||
+          slimLoaderGenerationRef.current !== loaderGeneration
+        ) return;
+        mergeSlimVenues(rows);
+        refreshCountCoverage();
+        if (request) setNearbyLoadVersion((version) => version + 1);
+        if (rows.length === 0) finish();
+      })
+      .catch(() => {
+        finish();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    cityId,
+    filteredPubVenues,
+    filteredVenues,
+    loaded,
+    mergeSlimVenues,
+    nearbyLoadVersion,
+    openingLocationResolved,
+    pendingNearMeRequest,
+    refreshCountCoverage,
+    setActiveCrawl,
+    setBuiltIds,
+    setMode,
+    setRouteMapped,
+    showLoadedRoute,
+    userLocation,
+    venueJourneyLocation,
+    venueIndexAttempt,
+  ]);
 
   useEffect(() => {
     if (!nearbyMapResult) return;
@@ -3371,25 +3451,14 @@ export default function PubMap({
     setNearbyLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setNearbyLoading(false);
         const location = { lat: position.coords.latitude, lng: position.coords.longitude };
         setUserLocation(location);
         writeMapOpeningLocation(location);
-        const ids = nearestVenueIds(
-          position.coords.latitude,
-          position.coords.longitude,
-          filteredPubVenues,
-          filters.stopCount,
-        );
-        if (ids.length === 0) {
-          setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
-          return;
-        }
-        setMode("build");
-        setBuiltIds(ids);
-        setRouteMapped(true);
-        setActiveCrawl(null); // a near-me crawl isn't a curated one
-        showLoadedRoute(ids[0]);
+        setPendingNearMeRequest({
+          kind: "crawl",
+          location,
+          stopCount: filters.stopCount,
+        });
       },
       (error) => {
         setNearbyLoading(false);
@@ -3398,16 +3467,10 @@ export default function PubMap({
       NEAR_ME_LOCATION_OPTIONS,
     );
   }, [
-    filteredPubVenues,
     filters.stopCount,
-    setActiveCrawl,
-    setBuiltIds,
-    setMode,
-    setNearbyError,
     setNearbyLoading,
-    setRouteMapped,
+    setPendingNearMeRequest,
     setUserLocation,
-    showLoadedRoute,
   ]);
 
   // Three ways in, one flow, and they differ ONLY in what a refusal owes.
@@ -3448,19 +3511,9 @@ export default function PubMap({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          // The map answers the same ring the sheet names — about a 12-minute
-          // walk. The chip counts THIS set, so its number and the sheet's
-          // sentence stay one claim.
-          const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-          const withinRing = withinNearMeRing(location, filteredVenues);
           setUserLocation(location);
           writeMapOpeningLocation(location);
-          setNearbyMapResult({
-            location,
-            venueIds: nearby.map((venue) => venue.id),
-            radiusKm: NEAR_ME_MAP_RADIUS_KM,
-            strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-          });
+          setPendingNearMeRequest({ kind: "map", location, mode });
           // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
           writeMapChosenArea({
             cityId,
@@ -3468,11 +3521,6 @@ export default function PubMap({
             slug: "near-me",
             kind: "near-me",
           });
-          setNearbyLoading(false);
-          if (mode === "resume") return;
-          // Highlight nearby pins AND present the instant-answer cards (Lane 1):
-          // the chip now yields an ANSWER, not just a recentre.
-          setMapOverlay("near-me");
         },
         (error) => {
           setNearbyLoading(false);
@@ -3481,7 +3529,7 @@ export default function PubMap({
         NEAR_ME_LOCATION_OPTIONS,
       );
     },
-    [cityId, filteredVenues],
+    [cityId, setPendingNearMeRequest],
   );
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);

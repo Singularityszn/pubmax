@@ -344,6 +344,8 @@ function expectedVenueManifestVersion(pathname) {
 async function isCompatibleVenueManifest(request, response) {
   const expectedVersion = expectedVenueManifestVersion(new URL(request.url).pathname);
   if (expectedVersion === null || !response) return true;
+  const requestRevision = new URL(request.url).searchParams.get("v");
+  if (requestRevision && requestRevision !== VERSION) return false;
   try {
     const manifest = await response.clone().json();
     return manifest?.version === expectedVersion && Array.isArray(manifest.shards);

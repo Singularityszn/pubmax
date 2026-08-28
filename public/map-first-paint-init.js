@@ -13,7 +13,14 @@
   // the opening camera. This preserves location-first loading while allowing
   // the cell response to overlap React and MapLibre startup.
   var manifestPath = "/data/venues_slim.manifest.json";
-  var manifestRequestPath = manifestPath + "?v=2";
+  var manifestRevision = "local";
+  try {
+    var scriptUrl = document.currentScript && new URL(document.currentScript.src, window.location.href);
+    if (scriptUrl && scriptUrl.searchParams.get("v")) {
+      manifestRevision = scriptUrl.searchParams.get("v");
+    }
+  } catch {}
+  var manifestRequestPath = manifestPath + "?v=" + encodeURIComponent(manifestRevision);
   var json = new Map();
   window.__pubmaxMapWarm = { json: json };
   var manifestWarm = fetch(manifestRequestPath, { cache: "force-cache" }).then(function (response) {

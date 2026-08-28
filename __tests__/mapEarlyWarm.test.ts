@@ -41,7 +41,7 @@ describe("mapEarlyWarm", () => {
     };
     const fetchSpy = vi.fn(async (input: string) => ({
       ok: true,
-      json: async () => (input === "/data/venues_slim.manifest.json?v=2" ? manifest : []),
+      json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
     const query = vi.fn(async () => ({ state: "granted" } as PermissionStatus));
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
@@ -59,6 +59,7 @@ describe("mapEarlyWarm", () => {
     );
     const context = {
       window,
+      document: { currentScript: { src: "https://pubmaxxing.com/map-first-paint-init.js?v=deploy-42" } },
       navigator: {
         connection: null,
         permissions: { query },
@@ -71,8 +72,9 @@ describe("mapEarlyWarm", () => {
       Promise,
       setTimeout,
     };
-    new Function("window", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", script)(
+    new Function("window", "document", "navigator", "fetch", "Map", "Math", "Number", "Promise", "setTimeout", script)(
       window,
+      context.document,
       context.navigator,
       fetchSpy,
       Map,
@@ -88,7 +90,7 @@ describe("mapEarlyWarm", () => {
     expect(query).toHaveBeenCalledOnce();
     expect(getCurrentPosition).toHaveBeenCalledOnce();
     expect(fetchSpy.mock.calls.map(([input]) => input)).toContain(
-      "/data/venues_slim.manifest.json?v=2",
+      "/data/venues_slim.manifest.json?v=deploy-42",
     );
     expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json");
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");

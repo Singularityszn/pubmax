@@ -288,6 +288,17 @@ describe("service worker map cache", () => {
     expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
   });
 
+  it("does not serve a manifest requested for another deployment revision", async () => {
+    const { listeners } = workerHarness({});
+    const request = new Request(
+      "https://pubmaxxing.com/data/venues_slim.manifest.json?v=other-deploy",
+    );
+    const dispatched = dispatchFetch(listeners.get("fetch")!, request);
+
+    const response = await dispatched.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
   it("does not force takeover for future write-safe policy changes", async () => {
     const { fakeSelf, listeners } = workerHarness({
       activeWorker:

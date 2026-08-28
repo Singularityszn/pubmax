@@ -60,6 +60,7 @@ export type SlimShardLoadResult = {
 
 const LEGACY_SHARD_MANIFEST_VERSION = 1;
 const SPATIAL_SHARD_MANIFEST_VERSION = 2;
+const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION ?? "local";
 
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
@@ -257,6 +258,11 @@ function manifestPathFor(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".manifest.json");
 }
 
+function manifestRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local") return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
 /** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
 export function guessedCoreShardUrl(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".core.json");
@@ -333,7 +339,7 @@ export function createSlimShardLoader(
         }
       }
       if (payload === undefined) {
-        const response = await fetch(manifestPath);
+        const response = await fetch(manifestRequestPath(manifestPath));
         if (!response.ok) {
           discardBody(response);
           throw new Error(`HTTP ${response.status}`);
