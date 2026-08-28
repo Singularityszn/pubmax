@@ -142,6 +142,7 @@ export default function SignInButton({
     handle: accountHandle,
     clerkIntegrationConfigured,
     socialProviders,
+    supabaseAuthState,
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
@@ -432,7 +433,7 @@ export default function SignInButton({
   // document can settle loading false before resume names the account, and
   // this header would then paint the signed-out pill. Skip the wait only for
   // an already established product session (the branch above).
-  if (loading && !clerkSessionAvailable) {
+  if ((loading || supabaseAuthState === "unresolved") && !clerkSessionAvailable) {
     return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
   }
 

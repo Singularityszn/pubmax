@@ -4,6 +4,7 @@ import { createContext, useContext } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 
 import type { AccountAuthSnapshot } from "@/lib/accountBoundFetch";
+import type { ProviderAuthState } from "@/lib/authProviderRevision";
 import {
   NO_SOCIAL_AUTH_PROVIDERS,
   type SocialAuthProviderAvailability,
@@ -67,7 +68,9 @@ export type AuthContextValue = {
   /** Opaque account boundary shared by Supabase and Clerk-backed Social auth. */
   accountRevision: number;
   /** Provider-neutral auth readiness. No provider identity leaves this seam. */
-  providerAuthState: "unresolved" | "authenticated" | "signed-out";
+  providerAuthState: ProviderAuthState;
+  /** Supabase session readiness, used by Supabase sign-in controls. */
+  supabaseAuthState: ProviderAuthState;
   rejectedContributionAuth: AccountAuthSnapshot | null;
   contributionAuth: AccountAuthSnapshot | null;
   invalidateContributionAuth: (auth: AccountAuthSnapshot) => void;
@@ -98,6 +101,7 @@ const SIGNED_OUT_AUTH: AuthContextValue = {
   identityResolved: false,
   accountRevision: 0,
   providerAuthState: "signed-out",
+  supabaseAuthState: "signed-out",
   rejectedContributionAuth: null,
   contributionAuth: null,
   invalidateContributionAuth: () => {},

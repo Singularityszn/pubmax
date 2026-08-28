@@ -77,7 +77,7 @@ describe("header waits for the live session", () => {
       user: null,
       handle: null,
       loading: false,
-      providerAuthState: "unresolved",
+      supabaseAuthState: "unresolved",
     });
 
     expect(html).not.toContain("Sign in");
@@ -103,11 +103,12 @@ describe("header waits for the live session", () => {
       loading: false,
       configured: true,
       clerkIntegrationConfigured: true,
+      supabaseAuthState: "signed-out",
       providerAuthState: "unresolved",
     });
 
     expect(html).toContain("Sign in");
-    expect(html).not.toContain('data-auth-resolved="false"');
+    expect(html).not.toContain("Account");
   });
 });
 
