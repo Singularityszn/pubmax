@@ -160,7 +160,11 @@ async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, 
     const entry = buildAreaNewsEntry({
       result,
       page,
-      fact: parseExtractedFact(page, { knownAreas, currentYear: new Date(nowTime).getUTCFullYear() }),
+      fact: parseExtractedFact(page, {
+        knownAreas,
+        currentYear: new Date(nowTime).getUTCFullYear(),
+        now: nowTime,
+      }),
       now: nowTime,
       knownAreas,
     });

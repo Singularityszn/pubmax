@@ -24,6 +24,9 @@ import {
 // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { matchVenue, slugifyBorough } from "../scripts/lib/areaNewsMatch.mjs";
 
+// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
+import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
+
 const dataset = JSON.parse(
   readFileSync(path.join(process.cwd(), "data", "area_news.json"), "utf8"),
 ) as AreaNewsDataset;
@@ -50,6 +53,40 @@ describe("area_news.json dataset shape", () => {
   it("every entry passes the schema + house-rule validator", () => {
     const problems = dataset.entries.flatMap((entry) => validateAreaNewsEntry(entry));
     expect(problems).toEqual([]);
+  });
+
+  it("keeps current generated rows valid under refresh extraction rules", () => {
+    const now = Date.parse(dataset.generatedAt);
+    const nowDay = new Date(now);
+    nowDay.setUTCHours(0, 0, 0, 0);
+    const currentYear = nowDay.getUTCFullYear();
+    const oldest = nowDay.getTime() - 21 * 24 * 60 * 60 * 1000;
+    const currentRows = dataset.entries.filter((entry) => {
+      const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      return observedAt >= oldest && observedAt <= nowDay.getTime();
+    });
+
+    expect(currentRows).not.toHaveLength(0);
+    for (const entry of currentRows) {
+      expect(
+        parseExtractedFact(
+          { content: JSON.stringify(entry) },
+          { knownAreas: KNOWN_AREA_SLUGS, currentYear, now: nowDay.getTime() },
+        ),
+      ).toEqual({
+        area: entry.area,
+        kind: entry.kind,
+        title: entry.title,
+        detail: entry.detail,
+      });
+    }
+  });
+
+  it("rejects an https URL without a hostname", () => {
+    expect(validateAreaNewsEntry({
+      ...dataset.entries[0],
+      sourceUrl: "https://",
+    })).toContain("sourceUrl must be an https URL");
   });
 
   it("has unique ids", () => {

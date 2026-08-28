@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  areaNewsExtractPrompt,
   buildAreaNewsEntry,
   fetchKeenable,
   KNOWN_AREA_SLUGS,
@@ -126,8 +125,8 @@ describe("Keenable area-news extraction", () => {
         {
           content: JSON.stringify({
             ...FACT,
-            title: "The Mayor opens in Soho",
-            detail: "The Mayor civic office opened in Soho on 27 August 2026.",
+            title: "John Smith said the pub opened in Soho",
+            detail: "John Smith said the pub opened in Soho on 27 August 2026.",
           }),
         },
         options,
@@ -161,7 +160,7 @@ describe("Keenable area-news extraction", () => {
       parseExtractedFact(
         {
           content:
-            "# The White Hart reopens in Soho\n\nThe White Hart pub reopened in Soho on 27 August 2026 after a refurbishment.",
+            "# The White Hart reopens in Soho\n\nThe White Hart pub reopened in Soho on 27 August 2026 after a relaunch.",
         },
         { knownAreas: new Set(["soho"]) },
       ),
@@ -169,8 +168,20 @@ describe("Keenable area-news extraction", () => {
       area: "soho",
       kind: "opening",
       title: "The White Hart reopens in Soho",
-      detail: "The White Hart pub reopened in Soho on 27 August 2026 after a refurbishment.",
+      detail: "The White Hart pub reopened in Soho on 27 August 2026 after a relaunch.",
     });
+  });
+
+  it("classifies closing refurbishment pages as refurbishments", () => {
+    expect(
+      parseExtractedFact(
+        {
+          content:
+            "# The White Hart pub is closing in Soho\n\nThe White Hart pub is closing for refurbishment and will reopen on 22 October 2026.",
+        },
+        { knownAreas: new Set(["soho"]) },
+      ),
+    ).toMatchObject({ area: "soho", kind: "refurb" });
   });
 
   it("accepts a prior-year fact during January rollover", () => {
@@ -179,7 +190,11 @@ describe("Keenable area-news extraction", () => {
       title: "The White Hart reopens in Soho",
       detail: "The White Hart pub reopened in Soho on 31 December 2026.",
     };
-    expect(parseExtractedFact({ content: JSON.stringify(fact) }, { knownAreas: new Set(["soho"]), currentYear: 2027 })).toEqual(fact);
+    expect(parseExtractedFact({ content: JSON.stringify(fact) }, {
+      knownAreas: new Set(["soho"]),
+      currentYear: 2027,
+      now: Date.parse("2027-01-05T12:00:00Z"),
+    })).toEqual(fact);
     expect(buildAreaNewsEntry({
       result: { url: "https://example.com/article", published_at: "2027-01-04T12:00:00Z" },
       page: { url: "https://example.com/article", published_at: "2027-01-04T12:00:00Z" },
@@ -187,6 +202,15 @@ describe("Keenable area-news extraction", () => {
       now: Date.parse("2027-01-05T12:00:00Z"),
       knownAreas: new Set(["soho"]),
     })).not.toBeNull();
+
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...fact,
+      detail: "The White Hart pub reopened in Soho on 1 January 2026.",
+    }) }, {
+      knownAreas: new Set(["soho"]),
+      currentYear: 2027,
+      now: Date.parse("2027-01-05T12:00:00Z"),
+    })).toBeNull();
   });
 
   it("rejects historical and generic markdown pages", () => {
@@ -206,10 +230,6 @@ describe("Keenable area-news extraction", () => {
         { knownAreas: new Set(["soho"]), currentYear: 2026 },
       ),
     ).toBeNull();
-  });
-
-  it("generates extraction instructions for refresh year", () => {
-    expect(areaNewsExtractPrompt(2027)).toContain("current 2027 event");
   });
 
   it("builds a dated, https, source-attributed entry from a fetched page", () => {

@@ -39,7 +39,7 @@ export function searchKeenable(
 export function fetchKeenable(sourceUrl: string, options?: Record<string, unknown>): Promise<KeenablePage>;
 export function parseExtractedFact(
   payload: KeenablePage | null,
-  options?: { knownAreas?: ReadonlySet<string>; currentYear?: number },
+  options?: { knownAreas?: ReadonlySet<string>; currentYear?: number; now?: number | string },
 ): AreaNewsFact | null;
 export function buildAreaNewsEntry(input: {
   result?: KeenableResult;

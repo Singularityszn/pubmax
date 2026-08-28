@@ -300,6 +300,16 @@ export function awardForVenue(
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EM_DASH_RE = /[—–]/; // em dash and en dash both banned from titles
 
+function isValidHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && Boolean(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
 /** Validate one entry against the schema + house rules. Returns a list of
  *  human-readable problems (empty means valid). Shared by the dataset shape
  *  test so the rules live in one place. */
@@ -321,7 +331,7 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   if (typeof entry.sourceName !== "string" || !entry.sourceName.trim()) {
     problems.push(`${id}: missing sourceName`);
   }
-  if (typeof entry.sourceUrl !== "string" || !/^https:\/\//.test(entry.sourceUrl)) {
+  if (!isValidHttpsUrl(entry.sourceUrl)) {
     problems.push(`${id}: sourceUrl must be an https URL`);
   }
   if (typeof entry.observedAt !== "string" || !ISO_DATE_RE.test(entry.observedAt)) {

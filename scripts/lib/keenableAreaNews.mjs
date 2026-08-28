@@ -166,9 +166,9 @@ function markdownArea(text, knownAreas) {
 }
 
 function markdownKind(text) {
-  if (/\b(?:open(?:s|ed|ing)?|reopen(?:s|ed|ing)?|launch(?:es|ed|ing)?)\b/i.test(text)) return "opening";
-  if (/\b(?:close(?:s|d|ing)?|closure|shut(?:s|ting)?)\b/i.test(text)) return "closure";
   if (/\b(?:refurb(?:ishment)?|renovat(?:e|es|ed|ing))\b/i.test(text)) return "refurb";
+  if (/\b(?:close(?:s|d|ing)?|closure|shut(?:s|ting)?)\b/i.test(text)) return "closure";
+  if (/\b(?:open(?:s|ed|ing)?|reopen(?:s|ed|ing)?|launch(?:es|ed|ing)?)\b/i.test(text)) return "opening";
   if (/\b(?:award|awarded|winner|won)\b/i.test(text)) return "award";
   if (/\b(?:threat|threatened|licensing|planning|at risk|save the)\b/i.test(text)) return "threat";
   if (/\b(?:price|pint|menu|news)\b/i.test(text)) return "buzz";
@@ -217,20 +217,23 @@ const GENERIC_PUB_WORDS = new Set([
   "november",
   "october",
 ]);
-const PUB_EVIDENCE_RE = /\b(?:pub|public house|bar|tavern|inn|arms|brewery|taproom|alehouse|restaurant|club|venue)\b/i;
+const PUB_EVIDENCE_WORDS = "(?:pub|public house|bar|tavern|inn|arms|brewery|taproom|alehouse|restaurant|club|venue)";
+const PROPER_NAME = "(?:The\\s+)?[A-Z][A-Za-z'’]*(?:\\s+(?:&|and|of|the)\\s+[A-Z][A-Za-z'’]*|\\s+[A-Z][A-Za-z'’]*)*";
+const NAMED_VENUE_RE = new RegExp(
+  `\\b(${PROPER_NAME})\\s+${PUB_EVIDENCE_WORDS}\\b|\\b${PUB_EVIDENCE_WORDS}\\s+(${PROPER_NAME})\\b`,
+  "gi",
+);
 
 function hasNamedPub(title, detail, knownAreas) {
   const areaWords = new Set([...knownAreas].flatMap((slug) => slug.replace(/-/g, " ").split(" ")));
   return [title, detail].some((field) => {
-    const properNounPhrases = field.match(/\b[A-Z][A-Za-z'’]*(?:\s+(?:&|and|of|the)\s+[A-Z][A-Za-z'’]*|\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
-    return properNounPhrases.some((phrase) => {
+    return [...field.matchAll(NAMED_VENUE_RE)].some((match) => {
+      const phrase = match[1] ?? match[2] ?? "";
       const words = phrase.toLowerCase().split(/\s+/);
       const meaningfulWords = words.filter(
         (word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1,
       );
-      if (!PUB_EVIDENCE_RE.test(field)) return false;
-      if (meaningfulWords.length >= 2) return true;
-      return meaningfulWords.length === 1 && words[0] === "the";
+      return meaningfulWords.length > 0;
     });
   });
 }
@@ -254,7 +257,58 @@ function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
   return { area, kind, title, detail };
 }
 
-function validateFact(raw, knownAreas, currentYear) {
+const MONTH_NUMBERS = new Map([
+  ["january", 0],
+  ["february", 1],
+  ["march", 2],
+  ["april", 3],
+  ["may", 4],
+  ["june", 5],
+  ["july", 6],
+  ["august", 7],
+  ["september", 8],
+  ["october", 9],
+  ["november", 10],
+  ["december", 11],
+]);
+
+function eventDateRanges(text) {
+  const ranges = [];
+  const addRange = (year, month, day) => {
+    const start = Date.UTC(year, month, day ?? 1);
+    const date = new Date(start);
+    if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month || (day && date.getUTCDate() !== day)) return;
+    const end = day ? start : Date.UTC(year, month + 1, 0);
+    ranges.push({ year, start, end });
+  };
+  for (const [, year, month, day] of text.matchAll(/\b(20\d{2})-(\d{1,2})-(\d{1,2})\b/g)) {
+    addRange(Number(year), Number(month) - 1, Number(day));
+  }
+  for (const [, day, month, year] of text.matchAll(/\b(\d{1,2})(?:st|nd|rd|th)?\s+(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
+    addRange(Number(year), MONTH_NUMBERS.get(month.toLowerCase()), Number(day));
+  }
+  for (const [, month, day, year] of text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(20\d{2})\b/gi)) {
+    addRange(Number(year), MONTH_NUMBERS.get(month.toLowerCase()), Number(day));
+  }
+  for (const [, month, year] of text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
+    addRange(Number(year), MONTH_NUMBERS.get(month.toLowerCase()));
+  }
+  return ranges;
+}
+
+function previousYearFactIsCurrent(text, currentYear, now) {
+  const nowTime = typeof now === "number" ? now : Date.parse(now);
+  if (!Number.isFinite(nowTime)) return false;
+  const nowDay = new Date(nowTime);
+  nowDay.setUTCHours(0, 0, 0, 0);
+  const oldestAllowed = nowDay.getTime() - 21 * DAY_MS;
+  return eventDateRanges(text).some(
+    ({ year, start, end }) =>
+      year === currentYear - 1 && end >= oldestAllowed && start <= nowDay.getTime(),
+  );
+}
+
+function validateFact(raw, knownAreas, currentYear, now) {
   if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
 
   const area = cleanText(raw.area);
@@ -267,10 +321,12 @@ function validateFact(raw, knownAreas, currentYear) {
   const combined = `${title} ${detail}`;
   const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
   const allowedYears = new Set([currentYear, currentYear - 1]);
+  const hasPreviousYear = years.includes(currentYear - 1);
   if (
     !Number.isInteger(currentYear) ||
     years.length === 0 ||
     years.some((year) => !allowedYears.has(year)) ||
+    (hasPreviousYear && !previousYearFactIsCurrent(combined, currentYear, now)) ||
     !hasNamedPub(title, detail, knownAreas)
   ) {
     return null;
@@ -281,11 +337,11 @@ function validateFact(raw, knownAreas, currentYear) {
 
 export function parseExtractedFact(
   payload,
-  { knownAreas = KNOWN_AREA_SLUGS, currentYear = new Date().getUTCFullYear() } = {},
+  { knownAreas = KNOWN_AREA_SLUGS, currentYear = new Date().getUTCFullYear(), now } = {},
 ) {
   const raw = parseJsonText(payload?.content);
   const parsed = raw ?? parseMarkdownFact(payload?.content, knownAreas, payload?.title);
-  return validateFact(parsed, knownAreas, currentYear);
+  return validateFact(parsed, knownAreas, currentYear, now);
 }
 
 function publishedTime(value) {
@@ -320,7 +376,7 @@ export function buildAreaNewsEntry({ result, page, fact, now = Date.now(), known
   if (!Number.isFinite(nowTime) || publishedAt > nowTime) return null;
   const validFact = parseExtractedFact(
     { content: JSON.stringify(fact) },
-    { knownAreas, currentYear: new Date(nowTime).getUTCFullYear() },
+    { knownAreas, currentYear: new Date(nowTime).getUTCFullYear(), now: nowTime },
   );
   if (!validFact) return null;
 
