@@ -9,6 +9,7 @@ import {
   awardForVenue,
   entriesForBorough,
   entriesForNightArea,
+  freshAreaNews,
   formatAreaNewsDate,
   isKnownAreaSlug,
   resolveAreaBorough,
@@ -121,11 +122,19 @@ describe("GET /api/area-news", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { entries: AreaNewsEntry[] };
     expect(Array.isArray(body.entries)).toBe(true);
-    expect(body.entries.length).toBeGreaterThan(0);
     expect(body.entries.length).toBeLessThanOrEqual(3);
     // newest first
     const dates = body.entries.map((e) => e.observedAt);
     expect([...dates].sort().reverse()).toEqual(dates);
+  });
+
+  it("withholds facts older than the 21-day serving window", async () => {
+    __resetAreaNewsCache();
+    const res = await GET(new Request("https://x/api/area-news?area=soho"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { entries: AreaNewsEntry[] };
+    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    expect(body.entries.every((entry) => entry.observedAt >= cutoff)).toBe(true);
   });
 
   it("returns the award for a venue-matched pin, null otherwise", async () => {
@@ -153,6 +162,21 @@ const FIXTURES: AreaNewsEntry[] = [
 ];
 
 describe("pure resolvers", () => {
+  it("keeps only current facts and orders them newest first", () => {
+    const now = Date.parse("2026-08-28T12:00:00Z");
+    const entries: AreaNewsEntry[] = [
+      { ...FIXTURES[0], id: "old", observedAt: "2026-08-06" },
+      { ...FIXTURES[1], id: "new", observedAt: "2026-08-27" },
+      { ...FIXTURES[2], id: "boundary", observedAt: "2026-08-07" },
+      { ...FIXTURES[0], id: "future", observedAt: "2026-08-29" },
+    ];
+
+    expect(freshAreaNews(entries, { now }).map((entry) => entry.id)).toEqual([
+      "new",
+      "boundary",
+    ]);
+  });
+
   it("entriesForBorough joins neighbourhoods into their borough, newest first", () => {
     // shoreditch + hackney both resolve to the Hackney borough.
     const hackney = entriesForBorough("hackney", FIXTURES);

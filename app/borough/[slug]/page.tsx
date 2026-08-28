@@ -24,7 +24,7 @@ import { ProseDisclosure } from "@/components/Disclosure";
 import BoroughPassportSlice from "@/components/borough/BoroughPassportSlice";
 import BoroughPintPriceCard from "@/components/borough/BoroughPintPriceCard";
 import AreaNewsList from "@/components/areanews/AreaNewsList";
-import { entriesForBorough, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
+import { entriesForBorough, freshAreaNews, NEW_ROUND_HERE_CAP } from "@/lib/areaNews";
 import { loadAreaNews } from "@/lib/areaNews.server";
 
 import "./borough.css";
@@ -213,10 +213,10 @@ export default async function BoroughPage({ params }: PageProps) {
 
   // Fresh-facts layer (Cycle 15 Lane A): dated, sourced pub news for this
   // borough. Renders nothing when the borough carries no facts (anti-slop).
-  const areaNews = entriesForBorough(boroughSlug, (await loadAreaNews()).entries).slice(
-    0,
-    NEW_ROUND_HERE_CAP,
-  );
+  const areaNews = entriesForBorough(
+    boroughSlug,
+    freshAreaNews((await loadAreaNews()).entries),
+  ).slice(0, NEW_ROUND_HERE_CAP);
   const factStats = pintFactStats(pubs, name, boroughSlug);
   const faq = faqItems(factStats, {
     monthYear: formatMonthYear(observedAt),

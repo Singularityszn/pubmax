@@ -16,6 +16,7 @@ import {
   awardForVenue,
   entriesForBorough,
   entriesForNightArea,
+  freshAreaNews,
   NEW_ROUND_HERE_CAP,
 } from "@/lib/areaNews";
 import { loadAreaNews } from "@/lib/areaNews.server";
@@ -32,8 +33,9 @@ export async function GET(request: Request): Promise<Response> {
 
     const area = params.get("area")?.trim();
     if (area) {
-      const nightArea = entriesForNightArea(area, entries);
-      const resolved = nightArea.length ? nightArea : entriesForBorough(area, entries);
+      const freshEntries = freshAreaNews(entries);
+      const nightArea = entriesForNightArea(area, freshEntries);
+      const resolved = nightArea.length ? nightArea : entriesForBorough(area, freshEntries);
       return jsonCached({ entries: resolved.slice(0, NEW_ROUND_HERE_CAP) });
     }
 

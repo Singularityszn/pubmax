@@ -59,6 +59,9 @@ export type AreaNewsDataset = {
 // not a feed.
 export const NEW_ROUND_HERE_CAP = 3;
 
+/** A dated fact may only support the "New round here" claim for 21 days. */
+export const AREA_NEWS_MAX_AGE_DAYS = 21;
+
 // Short, dry labels for each kind. No exclamation, no hype — the fact carries
 // the weight.
 export const KIND_LABEL: Record<AreaNewsKind, string> = {
@@ -232,6 +235,24 @@ export function isAreaNewsPlaceLabel(value: string): boolean {
 function byRecency(a: AreaNewsEntry, b: AreaNewsEntry): number {
   if (a.observedAt !== b.observedAt) return a.observedAt < b.observedAt ? 1 : -1;
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
+}
+
+/** Keep only dated facts that are current enough to support a fresh-facts claim. */
+export function freshAreaNews(
+  entries: AreaNewsEntry[],
+  opts: { now?: number; maxAgeDays?: number } = {},
+): AreaNewsEntry[] {
+  const now = opts.now ?? Date.now();
+  const maxAgeDays = opts.maxAgeDays ?? AREA_NEWS_MAX_AGE_DAYS;
+  const nowDay = new Date(now);
+  nowDay.setUTCHours(0, 0, 0, 0);
+  const oldestAllowed = nowDay.getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
+  return entries
+    .filter((entry) => {
+      const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      return Number.isFinite(observedAt) && observedAt >= oldestAllowed && observedAt <= nowDay.getTime();
+    })
+    .sort(byRecency);
 }
 
 /** All entries that belong to a borough (via each entry's area → borough),

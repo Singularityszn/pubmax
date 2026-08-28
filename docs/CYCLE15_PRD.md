@@ -14,7 +14,7 @@ Owner directive: make PUBMAXX the one-stop app for planning any night out with f
 Committed dataset data/area_news.json from the four sweep briefs: every entry {area, kind: opening|closure|refurb|award|threat|buzz, title, detail, sourceUrl, sourceName, observedAt, venueMatch?}. Conservative venue matching to existing pins (heritage-lane idiom). Surfaces:
 - Area pages + map area context: "New round here" block, max 3 items, dated, source-linked.
 - Venue sheet: award badge when a venue matches an award fact (The George: "Best Pub in London 2026, National Pub and Bar Awards").
-- Freshness registry entry; refresh workflow = re-run sweep scripts (documented, manual for now).
+- Freshness registry entry; refresh workflow = `npm run refresh:area-news` (manual because the deployed server cannot publish committed files). Readers show only facts from the last 21 days and sort newest first.
 Anti-slop rule: only sourced, dated facts render; empty area shows nothing.
 
 ### Lane B: Tonight Conditions (NOW)

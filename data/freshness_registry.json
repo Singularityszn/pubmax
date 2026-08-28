@@ -274,10 +274,10 @@
       "class": "snapshot",
       "artifact": "data/area_news.json",
       "stamp": { "kind": "field", "pointer": "generatedAt" },
-      "cadence": "snapshot — re-extracted when the research sweeps re-run",
-      "stalenessBudgetHours": 1080,
-      "refreshWorkflow": "manual (re-run the research sweeps, re-extract into data/area_news.json, then node scripts/build_area_news_matches.mjs)",
-      "gate": "none (committed dataset; EXA_API_KEY / FIRECRAWL_API_KEY arm the underlying research sweeps but the layer ships static)"
+      "cadence": "snapshot - npm run refresh:area-news",
+      "stalenessBudgetHours": 504,
+      "refreshWorkflow": "manual (KEENABLE_API_KEY optional; npm run refresh:area-news, then node scripts/build_area_news_matches.mjs when venue badges need rebuilding)",
+      "gate": "Keenable search_web_pages + fetch_page_content; a provider failure or zero valid facts leaves the prior dataset unchanged. Vercel cron cannot write this committed file, so refresh runs locally or in a review workflow."
     },
     {
       "id": "persona_drinks",

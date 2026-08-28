@@ -1,0 +1,141 @@
+import { describe, expect, it, vi } from "vitest";
+
+import { refreshAreaNews } from "../scripts/refresh_area_news.mjs";
+
+const NOW = Date.parse("2026-08-28T12:00:00Z");
+
+function factContent(title: string, detail: string): string {
+  return JSON.stringify({ area: "soho", kind: "opening", title, detail });
+}
+
+describe("area-news refresh job", () => {
+  it("deduplicates sources, keeps dated facts newest first, and writes one snapshot", async () => {
+    const writeDataset = vi.fn();
+    const searchFn = vi.fn(async (query: string) =>
+      query === "first"
+        ? [
+            { url: "https://news.example/old", published_at: "2026-08-20T09:00:00Z" },
+            { url: "https://news.example/new", published_at: "2026-08-27T09:00:00Z" },
+          ]
+        : [{ url: "https://news.example/new", published_at: "2026-08-27T09:00:00Z" }],
+    );
+    const fetchFn = vi.fn(async (url: string) => ({
+      url,
+      published_at: url.endsWith("old") ? "2026-08-20T09:00:00Z" : "2026-08-27T09:00:00Z",
+      content: factContent(url.endsWith("old") ? "Older opening" : "Newer opening", "The page states this fact."),
+    }));
+
+    const snapshot = await refreshAreaNews({
+      now: NOW,
+      queries: ["first", "second"],
+      knownAreas: new Set(["soho"]),
+      searchFn,
+      fetchFn,
+      previousDataset: { version: 1, generatedAt: "2026-07-18T12:00:00Z", entries: [] },
+      writeDataset,
+      logger: vi.fn(),
+    });
+
+    expect(snapshot.entries.map((entry: { observedAt: string }) => entry.observedAt)).toEqual([
+      "2026-08-27",
+      "2026-08-20",
+    ]);
+    expect(fetchFn).toHaveBeenCalledTimes(2);
+    expect(writeDataset).toHaveBeenCalledOnce();
+    expect(writeDataset).toHaveBeenCalledWith(snapshot);
+  });
+
+  it("keeps existing archive rows while adding fresh rows", async () => {
+    const previous = {
+      id: "old-row",
+      area: "soho",
+      kind: "award",
+      title: "Historic award",
+      detail: "A dated historic fact.",
+      sourceUrl: "https://archive.example/award",
+      sourceName: "archive.example",
+      observedAt: "2026-07-18",
+    };
+    const replacedMachineRow = { ...previous, id: "area-news-old-machine-row", observedAt: "2026-08-01" };
+
+    const snapshot = await refreshAreaNews({
+      now: NOW,
+      queries: ["one"],
+      knownAreas: new Set(["soho"]),
+      searchFn: vi.fn().mockResolvedValue([
+        { url: "https://news.example/current", published_at: "2026-08-28T08:00:00Z" },
+      ]),
+      fetchFn: vi.fn().mockResolvedValue({
+        url: "https://news.example/current",
+        published_at: "2026-08-28T08:00:00Z",
+        content: factContent("Current opening", "The page states this current fact."),
+      }),
+      previousDataset: {
+        version: 1,
+        generatedAt: "2026-07-18T12:00:00Z",
+        entries: [replacedMachineRow, previous],
+      },
+      writeDataset: vi.fn(),
+      logger: vi.fn(),
+    });
+
+    expect(snapshot.entries.map((entry: { id: string }) => entry.id)).toEqual([
+      expect.stringMatching(/^area-news-/),
+      "old-row",
+    ]);
+  });
+
+  it("fails without writing when search fails or produces no valid facts", async () => {
+    const writeDataset = vi.fn();
+    await expect(
+      refreshAreaNews({
+        now: NOW,
+        queries: ["broken"],
+        searchFn: vi.fn().mockRejectedValue(new Error("402 payment required")),
+        fetchFn: vi.fn(),
+        writeDataset,
+        logger: vi.fn(),
+      }),
+    ).rejects.toThrow("Area news search failed for \"broken\": 402 payment required");
+    expect(writeDataset).not.toHaveBeenCalled();
+
+    await expect(
+      refreshAreaNews({
+        now: NOW,
+        queries: ["empty"],
+        searchFn: vi.fn().mockResolvedValue([]),
+        fetchFn: vi.fn(),
+        writeDataset,
+        logger: vi.fn(),
+      }),
+    ).rejects.toThrow("Area news refresh found no valid facts");
+    expect(writeDataset).not.toHaveBeenCalled();
+  });
+
+  it("logs fetch failures but still writes usable facts", async () => {
+    const logger = vi.fn();
+    const writeDataset = vi.fn();
+    const snapshot = await refreshAreaNews({
+      now: NOW,
+      queries: ["one"],
+      searchFn: vi.fn().mockResolvedValue([
+        { url: "https://news.example/broken", published_at: "2026-08-27T08:00:00Z" },
+        { url: "https://news.example/good", published_at: "2026-08-26T08:00:00Z" },
+      ]),
+      fetchFn: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("provider timeout"))
+        .mockResolvedValueOnce({
+          url: "https://news.example/good",
+          published_at: "2026-08-26T08:00:00Z",
+          content: factContent("Usable opening", "The page states this usable fact."),
+        }),
+      writeDataset,
+      logger,
+    });
+
+    expect(snapshot.entries).toHaveLength(1);
+    expect(logger).toHaveBeenCalledWith(expect.stringContaining("FETCH FAILED"));
+    expect(writeDataset).toHaveBeenCalledOnce();
+  });
+});

@@ -1,0 +1,239 @@
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+
+import {
+  AREA_NEWS_EXTRACT_PROMPT,
+  KNOWN_AREA_SLUGS,
+  buildAreaNewsEntry,
+  fetchKeenable,
+  parseExtractedFact,
+  searchKeenable,
+} from "./lib/keenableAreaNews.mjs";
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
+export const AREA_NEWS_DATASET_PATH = join(ROOT, "data", "area_news.json");
+export const AREA_NEWS_DATASET_COMMENT =
+  "Sourced, dated London pub news from Keenable search_web_pages and fetch_page_content. Every entry carries a real https sourceUrl and observedAt. confidence:'social' marks self-reported price sightings, news-layer texture only, never a Pint Index input. venueMatch is written by scripts/build_area_news_matches.mjs. Refresh: npm run refresh:area-news. See lib/areaNews.ts and data/freshness_registry.json.";
+export const AREA_NEWS_REFRESH_QUERIES = [
+  "London pub bar opening reopening August 2026",
+  "London pub refurbishment closure threat August 2026",
+  "London pub award price pint sighting August 2026",
+  "Soho Mayfair London pub opening refurbishment closure August 2026",
+  "East London pub opening closure refurbishment August 2026",
+  "South London pub opening closure refurbishment August 2026",
+];
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const DEFAULT_MAX_RESULTS = 8;
+const DEFAULT_MAX_CANDIDATES = 36;
+const SECONDARY_SOURCE_HOSTS = new Set([
+  "newsarchyuk.com",
+  "sylhetmirror.com",
+  "wesearch.press",
+  "worldbillionaireday.com",
+]);
+
+function dateOnly(time) {
+  return new Date(time).toISOString().slice(0, 10);
+}
+
+function errorMessage(error) {
+  return error instanceof Error ? error.message : String(error);
+}
+
+export function readAreaNewsDataset(path = AREA_NEWS_DATASET_PATH) {
+  if (!existsSync(path)) return { version: 1, generatedAt: "", entries: [] };
+  return JSON.parse(readFileSync(path, "utf8"));
+}
+
+export function writeAreaNewsDataset(snapshot, path = AREA_NEWS_DATASET_PATH) {
+  const temporaryPath = `${path}.tmp-${process.pid}`;
+  writeFileSync(temporaryPath, `${JSON.stringify(snapshot, null, 2)}\n`);
+  renameSync(temporaryPath, path);
+}
+
+function sortedEntries(entries) {
+  return [...entries].sort((left, right) => {
+    const dateOrder = String(right.observedAt).localeCompare(String(left.observedAt));
+    return dateOrder || String(left.id).localeCompare(String(right.id));
+  });
+}
+
+function archiveWithFreshEntries(previousEntries, freshEntries) {
+  const byId = new Map();
+  for (const entry of previousEntries) {
+    if (
+      entry &&
+      typeof entry === "object" &&
+      typeof entry.id === "string" &&
+      !entry.id.startsWith("area-news-")
+    ) {
+      byId.set(entry.id, entry);
+    }
+  }
+  const freshById = new Map(freshEntries.map((entry) => [entry.id, entry]));
+  return [...sortedEntries(freshById.values()), ...byId.values()];
+}
+
+function sourcePriority(entry) {
+  const source = String(entry.sourceName).toLowerCase();
+  if (source.includes("guardian") || source.includes("timeout") || source.includes("morningadvertiser")) return 3;
+  if (source.includes("mirror") || source.includes("press") || source.includes("newsarchy")) return 0;
+  return 1;
+}
+
+function deduplicateFreshEntries(entries) {
+  const byFactDay = new Map();
+  for (const entry of entries) {
+    const key = `${entry.area}|${entry.kind}|${entry.observedAt}`;
+    const previous = byFactDay.get(key);
+    if (!previous || sourcePriority(entry) > sourcePriority(previous)) byFactDay.set(key, entry);
+  }
+  return [...byFactDay.values()];
+}
+
+async function collectCandidates({ queries, env, searchFn, logger, publishedAfter, maxResults, maxCandidates }) {
+  const candidates = [];
+  const seenUrls = new Set();
+  for (const query of queries) {
+    let results;
+    try {
+      results = await searchFn(query, { env, publishedAfter, maxResults });
+    } catch (error) {
+      throw new Error(`Area news search failed for "${query}": ${errorMessage(error)}`, { cause: error });
+    }
+    if (!Array.isArray(results)) {
+      throw new Error(`Area news search failed for "${query}": response was not an array.`);
+    }
+    logger(`SEARCH ${query}: ${results.length} results`);
+
+    for (const result of results) {
+      if (candidates.length >= maxCandidates) break;
+      let parsed;
+      try {
+        parsed = new URL(result?.url);
+        if (parsed.protocol !== "https:") throw new Error("source is not https");
+        if (SECONDARY_SOURCE_HOSTS.has(parsed.hostname.toLowerCase())) {
+          logger(`DROP ${parsed.toString()}: secondary copy of a primary source`);
+          continue;
+        }
+      } catch {
+        logger(`DROP search result without an https URL: ${String(result?.url ?? "")}`);
+        continue;
+      }
+      const sourceUrl = parsed.toString();
+      if (seenUrls.has(sourceUrl)) continue;
+      seenUrls.add(sourceUrl);
+      candidates.push({ result, sourceUrl });
+    }
+  }
+  return candidates;
+}
+
+async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, knownAreas }) {
+  const freshEntries = [];
+  let fetchFailures = 0;
+  for (const { result, sourceUrl } of candidates) {
+    let page;
+    try {
+      page = await fetchFn(sourceUrl, { env, prompt: AREA_NEWS_EXTRACT_PROMPT });
+    } catch (error) {
+      fetchFailures += 1;
+      logger(`FETCH FAILED ${sourceUrl}: ${errorMessage(error)}`);
+      continue;
+    }
+
+    const entry = buildAreaNewsEntry({
+      result,
+      page,
+      fact: parseExtractedFact(page, { knownAreas }),
+      now: nowTime,
+      knownAreas,
+    });
+    if (!entry) {
+      logger(`DROP ${sourceUrl}: no current, dated, mapped pub fact`);
+      continue;
+    }
+    freshEntries.push(entry);
+  }
+  return { freshEntries, fetchFailures };
+}
+
+export async function refreshAreaNews({
+  now = Date.now(),
+  queries = AREA_NEWS_REFRESH_QUERIES,
+  env = process.env,
+  knownAreas = KNOWN_AREA_SLUGS,
+  searchFn = searchKeenable,
+  fetchFn = fetchKeenable,
+  previousDataset = { version: 1, generatedAt: "", entries: [] },
+  writeDataset = writeAreaNewsDataset,
+  logger = (line) => console.log(line),
+  maxResults = DEFAULT_MAX_RESULTS,
+  maxCandidates = DEFAULT_MAX_CANDIDATES,
+} = {}) {
+  const nowTime = typeof now === "number" ? now : Date.parse(now);
+  if (!Number.isFinite(nowTime)) throw new Error("Area news refresh requires a valid current time.");
+  const candidates = await collectCandidates({
+    queries,
+    env,
+    searchFn,
+    logger,
+    publishedAfter: dateOnly(nowTime - 21 * DAY_MS),
+    maxResults,
+    maxCandidates,
+  });
+
+  if (candidates.length === 0) {
+    throw new Error("Area news refresh found no valid facts. Existing dataset was not changed.");
+  }
+
+  const { freshEntries, fetchFailures } = await collectFreshEntries({
+    candidates,
+    env,
+    fetchFn,
+    logger,
+    nowTime,
+    knownAreas,
+  });
+
+  if (freshEntries.length === 0) {
+    throw new Error(
+      `Area news refresh found no valid facts after ${candidates.length} fetches (${fetchFailures} fetch failures). Existing dataset was not changed.`,
+    );
+  }
+
+  const deduplicatedFreshEntries = deduplicateFreshEntries(freshEntries);
+  const previousEntries = Array.isArray(previousDataset?.entries) ? previousDataset.entries : [];
+  const snapshot = {
+    ...(previousDataset && typeof previousDataset === "object" ? previousDataset : {}),
+    $comment: AREA_NEWS_DATASET_COMMENT,
+    version: 1,
+    generatedAt: new Date(nowTime).toISOString(),
+    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries),
+  };
+  writeDataset(snapshot);
+  logger(
+    `READY area news: ${deduplicatedFreshEntries.length} fresh facts from ${freshEntries.length} candidates, ${fetchFailures} fetch failures, ${snapshot.entries.length} total archive rows`,
+  );
+  return snapshot;
+}
+
+function parseArgs(argv) {
+  const options = {};
+  for (let index = 0; index < argv.length; index += 1) {
+    if (argv[index] === "--max-results") options.maxResults = Number(argv[index + 1]);
+    if (argv[index] === "--max-candidates") options.maxCandidates = Number(argv[index + 1]);
+  }
+  return options;
+}
+
+async function main() {
+  const previousDataset = readAreaNewsDataset();
+  await refreshAreaNews({ previousDataset, ...parseArgs(process.argv.slice(2)) });
+}
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  await main();
+}

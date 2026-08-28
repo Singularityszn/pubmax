@@ -5,6 +5,15 @@ Freshness jobs cover weather, all bounded What's-On lanes, permissible-source
 price retrieval, Night Signal candidates, and a rotating UK city pub-enrichment
 sweep. No job fabricates data or reports false success.
 
+Area news is a committed research snapshot, not a Vercel cron lane. Refresh it
+from a local checkout with `npm run refresh:area-news`. The job searches and
+fetches current London pub sources through Keenable, keeps only dated facts in
+the 21-day serving window, and preserves the existing archive rows. A provider
+error or a run with no valid facts fails loudly and does not replace the file.
+Set `KEENABLE_API_KEY` for the keyed API. Without it, the job uses Keenable's
+public endpoint. Run `node scripts/build_area_news_matches.mjs` after the
+refresh only when venue-match badges need rebuilding.
+
 > **Vercel owns server-safe scheduled work.** File-producing acquisition runs through
 > the Mac's local launchd scheduler and review PRs; see
 > [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). One exception is
