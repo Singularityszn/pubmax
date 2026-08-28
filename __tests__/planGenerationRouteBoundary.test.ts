@@ -28,6 +28,7 @@ it("delegates request preparation to the server orchestration boundary", async (
 
   const response = await POST(request);
 
+  expect(preparePlanGenerationMock).toHaveBeenCalledOnce();
   expect(response.status).toBe(207);
   expect(await response.json()).toEqual({ delegated: true });
 });

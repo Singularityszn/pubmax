@@ -1740,6 +1740,8 @@ export default function PubMap({
       void readMapResume(cityId).then((snapshot) => {
         if (cancelled || !snapshot) return;
         if (mapCameraTouchedRef.current) return;
+        if (mapResumeSeed && snapshot.savedAt <= mapResumeSeed.savedAt) return;
+        if (liveShardLoadSettledRef.current && !mapResumeSeed) return;
         if (!liveShardLoadSettledRef.current) {
           setSlimPins(slimVenuesToPins(snapshot.rows));
           setLoadedCityId(cityId);
@@ -1752,7 +1754,7 @@ export default function PubMap({
         const resumeBounds = boundsForOpeningView(snapshot.viewport);
         void loader.initial(resumeBounds)
           .then((rows) => {
-            if (cancelled) return;
+            if (cancelled || (liveShardLoadSettledRef.current && !mapResumeSeed)) return;
             mergeSlimVenues(rows);
             refreshCountCoverage();
             if (!mapResumeSeed) setMapResumeUpdating(false);
@@ -1763,11 +1765,12 @@ export default function PubMap({
       });
       const openingBounds = boundsForOpeningView(openingLoadViewport);
       initialShardLoadStartedRef.current = true;
-      void loader.initial(openingBounds)
-        .then((rows) => {
+      void loader.initialResult(openingBounds)
+        .then((result) => {
           if (cancelled) return;
+          const rows = result.rows;
           liveShardLoadSettledRef.current = true;
-          setVenueIndexFailed(false);
+          setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (rows.length > 0) {
             markPubmaxTiming("pubmax:first-pins");
@@ -1777,8 +1780,11 @@ export default function PubMap({
           setLoadedCityId(cityId);
           setLoaded(true);
           setMapResumeUpdating(false);
-          const ringBounds = latestMapBoundsRef.current ?? openingBounds;
-          if (!cancelled) scheduleRingLoad(loader, ringBounds);
+          initialShardLoadStartedRef.current = result.status === "ready";
+          if (result.status === "ready") {
+            const ringBounds = latestMapBoundsRef.current ?? openingBounds;
+            if (!cancelled) scheduleRingLoad(loader, ringBounds);
+          }
           refreshCountCoverage();
         })
         .catch(() => {
@@ -1828,10 +1834,11 @@ export default function PubMap({
         return;
       }
       initialShardLoadStartedRef.current = true;
-      void loader.initial(bounds)
-        .then((rows) => {
+      void loader.initialResult(bounds)
+        .then((result) => {
+          const rows = result.rows;
           liveShardLoadSettledRef.current = true;
-          setVenueIndexFailed(false);
+          setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {
             markPubmaxTiming("pubmax:first-pins");
@@ -1842,7 +1849,8 @@ export default function PubMap({
             setLoadedCityId(cityId);
             setLoaded(true);
             setMapResumeUpdating(false);
-            scheduleRingLoad(loader, bounds);
+            initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status === "ready") scheduleRingLoad(loader, bounds);
           }
           refreshCountCoverage();
         })

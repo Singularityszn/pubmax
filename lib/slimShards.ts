@@ -52,6 +52,11 @@ export type MapBounds = {
   north: number;
 };
 
+export type SlimShardLoadResult = {
+  rows: SlimVenue[];
+  status: "ready" | "unavailable";
+};
+
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {
@@ -227,6 +232,7 @@ export type SlimShardLoader = {
   inBounds(bounds: MapBounds, ring?: number): Promise<SlimVenue[]>;
   /** First map read: viewport cells, or the legacy core. */
   initial(bounds: MapBounds): Promise<SlimVenue[]>;
+  initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
    * Venues from the location shard containing `point`, loaded (with one retry)
    * if needed. [] when the point is not covered or the shard can't load.
@@ -265,7 +271,7 @@ export function createSlimShardLoader(
   // A city with no manifest ships one file, so loading it covers everything.
   let wholeIndexLoaded = false;
   // url -> in-flight/settled fetch of that shard's venues.
-  const shardPromises = new Map<string, Promise<SlimVenue[]>>();
+  const shardPromises = new Map<string, Promise<SlimShardLoadResult>>();
   // shard urls that have successfully contributed venues (so inBounds skips them).
   const loadedUrls = new Set<string>();
 
@@ -310,16 +316,20 @@ export function createSlimShardLoader(
     return manifestPromise;
   }
 
-  function loadWholeIndex(): Promise<SlimVenue[]> {
+  function loadWholeIndexResult(): Promise<SlimShardLoadResult> {
     return loadSlimVenuesFromPathResult(slimVenuesPath, options).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
-      return result.rows;
+      return result;
     });
   }
 
-  // Fetch one shard body once; a failure (no offline mirror) resolves to [] and
-  // is NOT memoized as loaded, so a later call retries it.
-  function loadShard(url: string): Promise<SlimVenue[]> {
+  function loadWholeIndex(): Promise<SlimVenue[]> {
+    return loadWholeIndexResult().then((result) => result.rows);
+  }
+
+  // Fetch one shard body once; a failure (no offline mirror) is NOT memoized as
+  // loaded, so a later call retries it.
+  function loadShard(url: string): Promise<SlimShardLoadResult> {
     const existing = shardPromises.get(url);
     if (existing) return existing;
     const p = loadSlimVenuesFromPathResult(url, options)
@@ -333,7 +343,7 @@ export function createSlimShardLoader(
       })
       .catch(() => {
         shardPromises.delete(url); // allow retry
-        return [] as SlimVenue[];
+        return { rows: [], status: "unavailable" as const };
       });
     shardPromises.set(url, p);
     return p;
@@ -341,6 +351,20 @@ export function createSlimShardLoader(
 
   function coreEntry(m: ShardManifest): ShardEntry | undefined {
     return m.shards.find((s) => s.core);
+  }
+
+  async function initialResult(bounds: MapBounds): Promise<SlimShardLoadResult> {
+    const m = await manifest();
+    if (!m) return loadWholeIndexResult();
+    const needed = shardsForBounds(m, bounds, 0, true).filter(
+      (s) => !loadedUrls.has(s.url),
+    );
+    if (needed.length === 0) return { rows: [], status: "ready" };
+    const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+    return {
+      rows: results.flatMap((result) => result.rows),
+      status: results.every((result) => result.status === "ready") ? "ready" : "unavailable",
+    };
   }
 
   return {
@@ -357,10 +381,10 @@ export function createSlimShardLoader(
       const core = coreEntry(m);
       if (!core) return loadWholeIndex();
       if (core.url === guessedCoreUrl) {
-        const rows = await guessedRows;
-        if (rows.length > 0) return rows;
+        const result = await guessedRows;
+        if (result.rows.length > 0) return result.rows;
       }
-      return loadShard(core.url);
+      return (await loadShard(core.url)).rows;
     },
 
     async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
@@ -369,19 +393,14 @@ export function createSlimShardLoader(
       const needed = shardsForBounds(m, bounds, ring).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
       const results = await Promise.all(needed.map((s) => loadShard(s.url)));
-      return results.flat();
+      return results.flatMap((result) => result.rows);
     },
 
     async initial(bounds: MapBounds): Promise<SlimVenue[]> {
-      const m = await manifest();
-      if (!m) return loadWholeIndex();
-      const needed = shardsForBounds(m, bounds, 0, true).filter(
-        (s) => !loadedUrls.has(s.url),
-      );
-      if (needed.length === 0) return [];
-      const results = await Promise.all(needed.map((s) => loadShard(s.url)));
-      return results.flat();
+      return (await initialResult(bounds)).rows;
     },
+
+    initialResult,
 
     async nearPoint(lat: number, lng: number): Promise<SlimVenue[]> {
       const m = await manifest();
@@ -389,19 +408,19 @@ export function createSlimShardLoader(
       const shard = shardForPoint(m, lat, lng);
       if (!shard) return [];
       if (loadedUrls.has(shard.url)) return [];
-      let rows = await loadShard(shard.url);
-      if (rows.length === 0 && !loadedUrls.has(shard.url)) {
+      let result = await loadShard(shard.url);
+      if (result.status === "unavailable" && !loadedUrls.has(shard.url)) {
         // One honest retry before giving up (transient cellar signal).
-        rows = await loadShard(shard.url);
+        result = await loadShard(shard.url);
       }
-      return rows;
+      return result.rows;
     },
 
     async all(): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return loadWholeIndex();
       const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
-      return results.flat();
+      return results.flatMap((result) => result.rows);
     },
 
     coverageComplete(bounds: MapBounds): boolean | null {

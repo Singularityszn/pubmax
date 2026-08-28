@@ -272,6 +272,17 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((v) => v.id)).toEqual(["g1"]);
   });
 
+  it("preserves initial shard failure status for the map readiness gate", async () => {
+    installFetch({ "/data/venues_slim.core.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+
+    await expect(loader.initialResult(bounds)).resolves.toEqual({
+      rows: [],
+      status: "unavailable",
+    });
+  });
+
   it("bypasses a shared in-flight read when a new loader retries", async () => {
     let coreFetches = 0;
     globalThis.fetch = ((input: RequestInfo | URL) => {
