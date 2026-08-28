@@ -81,7 +81,7 @@ describe("header waits for the live session", () => {
     });
 
     expect(html).not.toContain("Sign in");
-    expect(html).toContain('data-auth-resolved="false"');
+    expect(html).not.toContain("Account");
   });
 
   it("still offers Sign in once the session has answered nobody", () => {
@@ -90,6 +90,18 @@ describe("header waits for the live session", () => {
       handle: null,
       loading: false,
       providerAuthState: "signed-out",
+    });
+
+    expect(html).toContain("Sign in");
+    expect(html).not.toContain("Account");
+  });
+
+  it("uses Supabase readiness after it settles signed-out", () => {
+    const html = compactHeader({
+      user: null,
+      handle: null,
+      loading: true,
+      supabaseAuthState: "signed-out",
     });
 
     expect(html).toContain("Sign in");

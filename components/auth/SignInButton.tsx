@@ -137,7 +137,6 @@ export default function SignInButton({
 }): React.JSX.Element | null {
   const {
     user,
-    loading,
     configured,
     handle: accountHandle,
     clerkIntegrationConfigured,
@@ -339,7 +338,7 @@ export default function SignInButton({
 
   // A user in context is signed-in even while the rest of bootstrap finishes,
   // so a hard reload of a cached document can paint Account as soon as the
-  // session is known rather than waiting for the loading flag to drop.
+  // session is known.
   if (user) {
     const { navName: name, cardName, avatar } = accountIdentity(
       (user.user_metadata ?? {}) as Record<string, unknown>,
@@ -428,12 +427,11 @@ export default function SignInButton({
     );
   }
 
-  // Avoid a flash of Sign in while the first getSession() or durable resume
-  // still has not answered. `loading` alone is not enough: a cached landing
-  // document can settle loading false before resume names the account, and
-  // this header would then paint the signed-out pill. Skip the wait only for
-  // an already established product session (the branch above).
-  if ((loading || supabaseAuthState === "unresolved") && !clerkSessionAvailable) {
+  // Avoid a flash of Sign in until Supabase has answered. The provider state is
+  // the auth readiness contract: loading may remain true briefly after a
+  // signed-out answer, and optional Clerk readiness must not delay Supabase's
+  // own control.
+  if (supabaseAuthState === "unresolved" && !clerkSessionAvailable) {
     return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
   }
 
