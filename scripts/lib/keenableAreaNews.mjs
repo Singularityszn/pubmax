@@ -10,7 +10,7 @@ const KINDS = new Set(["opening", "closure", "refurb", "award", "threat", "buzz"
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
-  return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or status, not a historical fact mentioned in a new article. Do not infer or invent facts. Do not include em dashes or en dashes.`;
+  return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or a fact from late ${year - 1} that is still within the 21-day window, not an older historical fact. Include the named pub and explicit pub or venue evidence in the fact. Do not infer or invent facts. Do not include em dashes or en dashes.`;
 }
 
 export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
@@ -217,17 +217,21 @@ const GENERIC_PUB_WORDS = new Set([
   "november",
   "october",
 ]);
+const PUB_EVIDENCE_RE = /\b(?:pub|public house|bar|tavern|inn|arms|brewery|taproom|alehouse|restaurant|club|venue)\b/i;
 
-function hasNamedPub(text, knownAreas) {
+function hasNamedPub(title, detail, knownAreas) {
   const areaWords = new Set([...knownAreas].flatMap((slug) => slug.replace(/-/g, " ").split(" ")));
-  const properNounPhrases = text.match(/\b[A-Z][A-Za-z'’]*(?:\s+(?:&|and|of|the)\s+[A-Z][A-Za-z'’]*|\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
-  return properNounPhrases.some((phrase) => {
-    const words = phrase.toLowerCase().split(/\s+/);
-    const meaningfulWords = words.filter(
-      (word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1,
-    );
-    if (meaningfulWords.length >= 2) return true;
-    return meaningfulWords.length === 1 && words[0] === "the";
+  return [title, detail].some((field) => {
+    const properNounPhrases = field.match(/\b[A-Z][A-Za-z'’]*(?:\s+(?:&|and|of|the)\s+[A-Z][A-Za-z'’]*|\s+[A-Z][A-Za-z'’]*)*/g) ?? [];
+    return properNounPhrases.some((phrase) => {
+      const words = phrase.toLowerCase().split(/\s+/);
+      const meaningfulWords = words.filter(
+        (word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1,
+      );
+      if (!PUB_EVIDENCE_RE.test(field)) return false;
+      if (meaningfulWords.length >= 2) return true;
+      return meaningfulWords.length === 1 && words[0] === "the";
+    });
   });
 }
 
@@ -262,11 +266,12 @@ function validateFact(raw, knownAreas, currentYear) {
   if (title.length > 180 || detail.length > 500) return null;
   const combined = `${title} ${detail}`;
   const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
+  const allowedYears = new Set([currentYear, currentYear - 1]);
   if (
     !Number.isInteger(currentYear) ||
     years.length === 0 ||
-    years.some((year) => year !== currentYear) ||
-    !hasNamedPub(combined, knownAreas)
+    years.some((year) => !allowedYears.has(year)) ||
+    !hasNamedPub(title, detail, knownAreas)
   ) {
     return null;
   }

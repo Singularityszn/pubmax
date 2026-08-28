@@ -304,6 +304,9 @@ const EM_DASH_RE = /[—–]/; // em dash and en dash both banned from titles
  *  human-readable problems (empty means valid). Shared by the dataset shape
  *  test so the rules live in one place. */
 export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return ["(invalid row): entry must be an object"];
+  }
   const problems: string[] = [];
   const id = entry?.id ?? "(no id)";
   if (typeof entry.id !== "string" || !entry.id.trim()) problems.push(`${id}: missing id`);
@@ -329,11 +332,15 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   }
   if (entry.venueMatch !== undefined) {
     const vm = entry.venueMatch;
-    if (typeof vm.venueId !== "string" || !/^venue-/.test(vm.venueId)) {
-      problems.push(`${id}: venueMatch.venueId must be a venue- id`);
-    }
-    if (vm.confidence !== "high" && vm.confidence !== "medium") {
-      problems.push(`${id}: venueMatch.confidence must be high|medium`);
+    if (!vm || typeof vm !== "object" || Array.isArray(vm)) {
+      problems.push(`${id}: venueMatch must be an object`);
+    } else {
+      if (typeof vm.venueId !== "string" || !/^venue-/.test(vm.venueId)) {
+        problems.push(`${id}: venueMatch.venueId must be a venue- id`);
+      }
+      if (vm.confidence !== "high" && vm.confidence !== "medium") {
+        problems.push(`${id}: venueMatch.confidence must be high|medium`);
+      }
     }
   }
   return problems;

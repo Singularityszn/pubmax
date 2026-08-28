@@ -74,20 +74,28 @@ function sortedEntries(entries) {
   });
 }
 
-function archiveWithFreshEntries(previousEntries, freshEntries) {
-  const byId = new Map();
+function isCurrentGeneratedEntry(entry, nowTime) {
+  const observedTime = Date.parse(`${entry.observedAt}T00:00:00Z`);
+  if (!Number.isFinite(observedTime)) return false;
+  const nowDay = new Date(nowTime);
+  nowDay.setUTCHours(0, 0, 0, 0);
+  return observedTime >= nowDay.getTime() - 21 * DAY_MS && observedTime <= nowDay.getTime();
+}
+
+function archiveWithFreshEntries(previousEntries, freshEntries, nowTime) {
+  const generatedById = new Map(freshEntries.map((entry) => [entry.id, entry]));
+  const archiveEntries = [];
   for (const entry of previousEntries) {
-    if (
-      entry &&
-      typeof entry === "object" &&
-      typeof entry.id === "string" &&
-      !entry.id.startsWith("area-news-")
-    ) {
-      byId.set(entry.id, entry);
+    if (!entry || typeof entry !== "object" || typeof entry.id !== "string") continue;
+    if (entry.id.startsWith("area-news-")) {
+      if (isCurrentGeneratedEntry(entry, nowTime) && !generatedById.has(entry.id)) {
+        generatedById.set(entry.id, entry);
+      }
+    } else {
+      archiveEntries.push(entry);
     }
   }
-  const freshById = new Map(freshEntries.map((entry) => [entry.id, entry]));
-  return [...sortedEntries(freshById.values()), ...byId.values()];
+  return [...sortedEntries(generatedById.values()), ...archiveEntries];
 }
 
 function deduplicateFreshEntries(entries) {
@@ -232,7 +240,7 @@ export async function refreshAreaNews({
     $comment: AREA_NEWS_DATASET_COMMENT,
     version: 1,
     generatedAt: new Date(nowTime).toISOString(),
-    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries),
+    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries, nowTime),
   };
   writeDataset(snapshot);
   logger(

@@ -4,6 +4,7 @@ import {
   areaNewsExtractPrompt,
   buildAreaNewsEntry,
   fetchKeenable,
+  KNOWN_AREA_SLUGS,
   parseExtractedFact,
   searchKeenable,
 } from "../scripts/lib/keenableAreaNews.mjs";
@@ -19,7 +20,7 @@ const FACT = {
   area: "soho",
   kind: "opening",
   title: "The White Hart opens in Soho",
-  detail: "The White Hart opened in Soho on 27 August 2026.",
+  detail: "The White Hart pub opened in Soho on 27 August 2026.",
 };
 
 describe("Keenable area-news client", () => {
@@ -97,6 +98,7 @@ describe("Keenable area-news client", () => {
 describe("Keenable area-news extraction", () => {
   it("parses plain or fenced JSON and rejects non-facts", () => {
     const options = { currentYear: 2026 };
+    expect(KNOWN_AREA_SLUGS.has("hackney")).toBe(true);
     expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` }, options)).toEqual(FACT);
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "wimbledon" }) }, options)).toMatchObject({ area: "wimbledon" });
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "greenwich" }) }, options)).toMatchObject({ area: "greenwich" });
@@ -114,6 +116,18 @@ describe("Keenable area-news extraction", () => {
             ...FACT,
             title: "Soho pub award in 2024",
             detail: "The pub won an award in 2024.",
+          }),
+        },
+        options,
+      ),
+    ).toBeNull();
+    expect(
+      parseExtractedFact(
+        {
+          content: JSON.stringify({
+            ...FACT,
+            title: "The Mayor opens in Soho",
+            detail: "The Mayor civic office opened in Soho on 27 August 2026.",
           }),
         },
         options,
@@ -147,7 +161,7 @@ describe("Keenable area-news extraction", () => {
       parseExtractedFact(
         {
           content:
-            "# The White Hart reopens in Soho\n\nThe White Hart reopened in Soho on 27 August 2026 after a refurbishment.",
+            "# The White Hart reopens in Soho\n\nThe White Hart pub reopened in Soho on 27 August 2026 after a refurbishment.",
         },
         { knownAreas: new Set(["soho"]) },
       ),
@@ -155,8 +169,24 @@ describe("Keenable area-news extraction", () => {
       area: "soho",
       kind: "opening",
       title: "The White Hart reopens in Soho",
-      detail: "The White Hart reopened in Soho on 27 August 2026 after a refurbishment.",
+      detail: "The White Hart pub reopened in Soho on 27 August 2026 after a refurbishment.",
     });
+  });
+
+  it("accepts a prior-year fact during January rollover", () => {
+    const fact = {
+      ...FACT,
+      title: "The White Hart reopens in Soho",
+      detail: "The White Hart pub reopened in Soho on 31 December 2026.",
+    };
+    expect(parseExtractedFact({ content: JSON.stringify(fact) }, { knownAreas: new Set(["soho"]), currentYear: 2027 })).toEqual(fact);
+    expect(buildAreaNewsEntry({
+      result: { url: "https://example.com/article", published_at: "2027-01-04T12:00:00Z" },
+      page: { url: "https://example.com/article", published_at: "2027-01-04T12:00:00Z" },
+      fact,
+      now: Date.parse("2027-01-05T12:00:00Z"),
+      knownAreas: new Set(["soho"]),
+    })).not.toBeNull();
   });
 
   it("rejects historical and generic markdown pages", () => {

@@ -9,7 +9,7 @@ function factContent(title: string, detail: string): string {
     area: "soho",
     kind: "opening",
     title: `The White Hart ${title}`,
-    detail: `${detail} on 27 August 2026.`,
+    detail: `${detail} The White Hart pub opened on 27 August 2026.`,
   });
 }
 
@@ -98,6 +98,7 @@ describe("area-news refresh job", () => {
       observedAt: "2026-07-18",
     };
     const replacedMachineRow = { ...previous, id: "area-news-old-machine-row", observedAt: "2026-08-01" };
+    const currentMachineRow = { ...previous, id: "area-news-current-machine-row", observedAt: "2026-08-20" };
 
     const snapshot = await refreshAreaNews({
       now: NOW,
@@ -114,7 +115,7 @@ describe("area-news refresh job", () => {
       previousDataset: {
         version: 1,
         generatedAt: "2026-07-18T12:00:00Z",
-        entries: [replacedMachineRow, previous],
+        entries: [replacedMachineRow, currentMachineRow, previous],
       },
       writeDataset: vi.fn(),
       logger: vi.fn(),
@@ -122,6 +123,7 @@ describe("area-news refresh job", () => {
 
     expect(snapshot.entries.map((entry: { id: string }) => entry.id)).toEqual([
       expect.stringMatching(/^area-news-/),
+      "area-news-current-machine-row",
       "old-row",
     ]);
   });
