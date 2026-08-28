@@ -517,6 +517,26 @@ describe("validate-data.mjs slim venue index validation", () => {
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
   });
+
+  it("collects missing spatial shard errors without aborting during budget checks", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; url: string }>;
+    };
+    const missing = manifest.shards.find((shard) => !shard.core);
+    if (!missing) throw new Error("fixture has no spatial shard");
+    rmSync(
+      join(scriptsDir, "..", "public", "data", missing.url.replace(/^\/data\//, "")),
+      { force: true },
+    );
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("could not read body");
+    expect(stdout).toContain("DATA VALIDATION FAILED");
+  });
 });
 
 describe("validate-data.mjs postcode-coordinate validation", () => {

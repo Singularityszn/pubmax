@@ -1588,6 +1588,7 @@ function validateSlimShards() {
   }
   const shipById = new Map(shipShards.map((s) => [s.id, s]));
   const allIds = new Set();
+  const shardRawById = new Map();
   let eagerBytes = Buffer.byteLength(readRaw(MANIFEST_FILE));
   let totalBytes = eagerBytes;
 
@@ -1620,6 +1621,7 @@ function validateSlimShards() {
     let rows;
     try {
       const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
+      shardRawById.set(exp.id, raw);
       rows = JSON.parse(raw);
       const bytes = Buffer.byteLength(raw);
       totalBytes += bytes;
@@ -1672,7 +1674,8 @@ function validateSlimShards() {
     );
   }
   for (const exp of expectedManifest.shards) {
-    const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
+    const raw = shardRawById.get(exp.id);
+    if (raw === undefined) continue;
     if (Buffer.byteLength(raw) >= 150 * 1024) {
       errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
     }

@@ -1803,24 +1803,32 @@ export default function PubMap({
         });
         startInitialLoad(openingBounds);
       } else {
+        startInitialLoad(openingBounds);
         void readMapResume(cityId)
           .then((snapshot) => {
             if (cancelled) return;
-            if (!snapshot || mapCameraTouchedRef.current || initialShardLoadStartedRef.current) {
-              startInitialLoad(openingBounds);
-              return;
-            }
+            if (!snapshot || mapCameraTouchedRef.current || liveShardLoadSettledRef.current) return;
             setSlimPins(slimVenuesToPins(snapshot.rows));
             setLoadedCityId(cityId);
             setLoaded(true);
             markPubmaxTiming("pubmax:first-pins");
             markPubmaxTiming("pubmax:slim-venues-ready");
             setMapResumeViewport(snapshot.viewport);
-            ++resumeRefreshVersion;
+            const refreshVersion = ++resumeRefreshVersion;
             setMapResumeUpdating(true);
-            startInitialLoad(boundsForOpeningView(snapshot.viewport));
-          })
-          .catch(() => startInitialLoad(openingBounds));
+            void loader.initial(boundsForOpeningView(snapshot.viewport))
+              .then((rows) => {
+                if (cancelled) return;
+                mergeSlimVenues(rows);
+                refreshCountCoverage();
+                if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
+              })
+              .catch(() => {
+                if (!cancelled && resumeRefreshVersion === refreshVersion) {
+                  setMapResumeUpdating(false);
+                }
+              });
+          });
       }
     }
     return () => {
