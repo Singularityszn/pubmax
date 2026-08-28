@@ -20,53 +20,86 @@
     return response.json();
   });
   json.set(manifestPath, manifestWarm);
-  void manifestWarm.then(function (manifest) {
-    if (!manifest || !Array.isArray(manifest.shards)) return;
-    var location = { lat: 51.52, lng: -0.12 };
+  function validLocation(value) {
+    return (
+      value &&
+      Number.isFinite(value.lat) &&
+      Number.isFinite(value.lng) &&
+      value.lat >= -90 &&
+      value.lat <= 90 &&
+      value.lng >= -180 &&
+      value.lng <= 180
+    );
+  }
+  function fallbackLocation() {
     try {
       var raw = window.localStorage.getItem("pubmax:map-opening-location:v1");
       var saved = raw ? JSON.parse(raw) : null;
-      if (
-        saved &&
-        Number.isFinite(saved.lat) &&
-        Number.isFinite(saved.lng) &&
-        saved.lat >= 51.25 && saved.lat <= 51.75 &&
-        saved.lng >= -0.6 && saved.lng <= 0.4
-      ) {
-        location = saved;
+      if (validLocation(saved) && saved.lat >= 51.25 && saved.lat <= 51.75 && saved.lng >= -0.6 && saved.lng <= 0.4) {
+        return saved;
       }
     } catch {
       // Opening location is an optional hint. Default London center stays safe.
     }
-    var zoom = 15;
-    var scale = 512 * Math.pow(2, zoom);
-    var longitudeDelta = (Math.max(window.innerWidth, 1) * 180) / scale;
-    var latitudeDelta = (Math.max(window.innerHeight, 1) * 180 * 1.4) / scale;
-    var bounds = {
-      west: location.lng - longitudeDelta,
-      south: Math.max(-85, location.lat - latitudeDelta),
-      east: location.lng + longitudeDelta,
-      north: Math.min(85, location.lat + latitudeDelta),
-    };
-    manifest.shards.forEach(function (shard) {
-      if (!Array.isArray(shard.bbox) || shard.bbox.length !== 4) return;
-      var minLng = shard.bbox[0];
-      var minLat = shard.bbox[1];
-      var maxLng = shard.bbox[2];
-      var maxLat = shard.bbox[3];
-      if (
-        minLng > bounds.east ||
-        maxLng < bounds.west ||
-        minLat > bounds.north ||
-        maxLat < bounds.south
-      ) return;
-      var warm = fetch(shard.url, { cache: "force-cache" }).then(function (response) {
-        if (!response.ok) throw new Error("HTTP " + response.status);
-        return response.json();
+    return { lat: 51.52, lng: -0.12 };
+  }
+  function resolveOpeningLocation() {
+    var fallback = fallbackLocation();
+    if (!nav.permissions || typeof nav.permissions.query !== "function" || !nav.geolocation) {
+      return Promise.resolve(fallback);
+    }
+    return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
+      if (!permission || permission.state !== "granted") return fallback;
+      return new Promise(function (resolve) {
+        nav.geolocation.getCurrentPosition(
+          function (position) {
+            var location = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude,
+            };
+            resolve(validLocation(location) ? location : fallback);
+          },
+          function () { resolve(fallback); },
+          { enableHighAccuracy: false, timeout: 2_000, maximumAge: 60_000 },
+        );
       });
-      json.set(shard.url, warm);
-      void warm.catch(function () {
-        if (json.get(shard.url) === warm) json.delete(shard.url);
+    }).catch(function () {
+      return fallback;
+    });
+  }
+  void manifestWarm.then(function (manifest) {
+    if (!manifest || !Array.isArray(manifest.shards)) return;
+    return resolveOpeningLocation().then(function (location) {
+      var zoom = 15;
+      var scale = 512 * Math.pow(2, zoom);
+      var longitudeDelta = (Math.max(window.innerWidth, 1) * 180) / scale;
+      var latitudeDelta = (Math.max(window.innerHeight, 1) * 180 * 1.4) / scale;
+      var bounds = {
+        west: location.lng - longitudeDelta,
+        south: Math.max(-85, location.lat - latitudeDelta),
+        east: location.lng + longitudeDelta,
+        north: Math.min(85, location.lat + latitudeDelta),
+      };
+      manifest.shards.forEach(function (shard) {
+        if (!Array.isArray(shard.bbox) || shard.bbox.length !== 4) return;
+        var minLng = shard.bbox[0];
+        var minLat = shard.bbox[1];
+        var maxLng = shard.bbox[2];
+        var maxLat = shard.bbox[3];
+        if (
+          minLng > bounds.east ||
+          maxLng < bounds.west ||
+          minLat > bounds.north ||
+          maxLat < bounds.south
+        ) return;
+        var warm = fetch(shard.url, { cache: "force-cache" }).then(function (response) {
+          if (!response.ok) throw new Error("HTTP " + response.status);
+          return response.json();
+        });
+        json.set(shard.url, warm);
+        void warm.catch(function () {
+          if (json.get(shard.url) === warm) json.delete(shard.url);
+        });
       });
     });
   }).catch(function () {

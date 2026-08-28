@@ -800,8 +800,10 @@ export default function PubMap({
     zoom: number;
     token: number;
   } | null>(null);
+  const openingLocationCancelledRef = useRef(false);
   const dismissAmbientBanners = useCallback(() => {
     mapCameraTouchedRef.current = true;
+    openingLocationCancelledRef.current = true;
     setOpeningLocationFocus(null);
     setMapCameraTouched(true);
   }, []);
@@ -893,7 +895,11 @@ export default function PubMap({
     let cancelled = false;
     void readGrantedMapOpeningLocation().then((location) => {
       if (cancelled) return;
-      if (location && pointInCityBounds(location.lat, location.lng, city)) {
+      if (
+        location &&
+        !openingLocationCancelledRef.current &&
+        pointInCityBounds(location.lat, location.lng, city)
+      ) {
         setGrantedOpeningLocation(location);
         writeMapOpeningLocation(location);
       }
@@ -1662,6 +1668,7 @@ export default function PubMap({
   // manifest (non-London packs behave exactly as before). City switches reset
   // pins asynchronously so we never setState in the effect body.
   const slimLoaderRef = useRef<SlimShardLoader | null>(null);
+  const slimLoaderGenerationRef = useRef(0);
   const initialShardLoadStartedRef = useRef(false);
   const initialShardLoadSettledRef = useRef(false);
   const liveShardLoadSettledRef = useRef(false);
@@ -1701,7 +1708,11 @@ export default function PubMap({
   }, []);
 
   useEffect(() => {
-    if (!grantedOpeningLocation || mapCameraTouchedRef.current) return;
+    if (
+      !grantedOpeningLocation ||
+      openingLocationCancelledRef.current ||
+      mapCameraTouchedRef.current
+    ) return;
     const viewport = {
       ...initialMapView,
       zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
@@ -1736,17 +1747,22 @@ export default function PubMap({
       ]);
       if (ringLoadPendingKeyRef.current === key) return;
       ringLoadPendingKeyRef.current = key;
+      const loaderGeneration = slimLoaderGenerationRef.current;
+      const isCurrentLoader = () =>
+        slimLoaderRef.current === loader &&
+        slimLoaderGenerationRef.current === loaderGeneration;
       const load = () => {
-        if (slimLoaderRef.current !== loader) return;
+        if (!isCurrentLoader()) return;
         void loader
           .inBounds(bounds, 1)
           .then((rows) => {
+            if (!isCurrentLoader()) return;
             mergeSlimVenues(rows);
             refreshCountCoverage();
           })
           .catch(() => undefined)
           .finally(() => {
-            if (ringLoadPendingKeyRef.current === key) {
+            if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
               ringLoadPendingKeyRef.current = null;
             }
           });
@@ -1793,9 +1809,14 @@ export default function PubMap({
       return;
     }
     let cancelled = false;
+    const loaderGeneration = ++slimLoaderGenerationRef.current;
     const loader = createSlimShardLoader(cityId, {
       bypassInFlight: venueIndexAttempt > 0,
     });
+    const isCurrentLoader = () =>
+      !cancelled &&
+      slimLoaderRef.current === loader &&
+      slimLoaderGenerationRef.current === loaderGeneration;
     slimLoaderRef.current = loader;
     initialShardLoadStartedRef.current = false;
     initialShardLoadSettledRef.current = false;
@@ -1826,12 +1847,12 @@ export default function PubMap({
     ) {
       const openingBounds = boundsForOpeningView(openingLoadViewport);
       const startInitialLoad = (bounds: MapBounds) => {
-        if (cancelled || initialShardLoadStartedRef.current) return;
+        if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
         const loadResumeVersion = resumeRefreshVersion;
         void loader.initialResult(bounds)
           .then((result) => {
-            if (cancelled) return;
+            if (!isCurrentLoader()) return;
             const rows = result.rows;
             liveShardLoadSettledRef.current = true;
             setVenueIndexFailed(result.status !== "ready");
@@ -1847,12 +1868,12 @@ export default function PubMap({
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready") {
               const ringBounds = latestMapBoundsRef.current ?? bounds;
-              if (!cancelled) scheduleRingLoad(loader, ringBounds);
+              if (isCurrentLoader()) scheduleRingLoad(loader, ringBounds);
             }
             refreshCountCoverage();
           })
           .catch(() => {
-            if (cancelled) return;
+            if (!isCurrentLoader()) return;
             initialShardLoadSettledRef.current = true;
             setVenueIndexFailed(true);
             setLoadedCityId(cityId);
@@ -1865,7 +1886,7 @@ export default function PubMap({
       if (mapResumeSeed) {
         void readMapResume(cityId).then((snapshot) => {
           if (
-            cancelled ||
+            !isCurrentLoader() ||
             !snapshot ||
             mapCameraTouchedRef.current ||
             snapshot.savedAt <= mapResumeSeed.savedAt
@@ -1876,13 +1897,13 @@ export default function PubMap({
           const resumeBounds = boundsForOpeningView(snapshot.viewport);
           void loader.initial(resumeBounds)
             .then((rows) => {
-              if (cancelled) return;
+              if (!isCurrentLoader()) return;
               mergeSlimVenues(rows);
               refreshCountCoverage();
               if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
             })
             .catch(() => {
-              if (!cancelled && resumeRefreshVersion === refreshVersion) {
+              if (isCurrentLoader() && resumeRefreshVersion === refreshVersion) {
                 setMapResumeUpdating(false);
               }
             });
@@ -1892,8 +1913,12 @@ export default function PubMap({
         startInitialLoad(openingBounds);
         void readMapResume(cityId)
           .then((snapshot) => {
-            if (cancelled) return;
-            if (!snapshot || mapCameraTouchedRef.current || liveShardLoadSettledRef.current) return;
+            if (
+              !isCurrentLoader() ||
+              !snapshot ||
+              mapCameraTouchedRef.current ||
+              liveShardLoadSettledRef.current
+            ) return;
             setSlimPins(slimVenuesToPins(snapshot.rows));
             setLoadedCityId(cityId);
             setLoaded(true);
@@ -1904,13 +1929,13 @@ export default function PubMap({
             setMapResumeUpdating(true);
             void loader.initial(boundsForOpeningView(snapshot.viewport))
               .then((rows) => {
-                if (cancelled) return;
+                if (!isCurrentLoader()) return;
                 mergeSlimVenues(rows);
                 refreshCountCoverage();
                 if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
               })
               .catch(() => {
-                if (!cancelled && resumeRefreshVersion === refreshVersion) {
+                if (isCurrentLoader() && resumeRefreshVersion === refreshVersion) {
                   setMapResumeUpdating(false);
                 }
               });
@@ -1919,6 +1944,9 @@ export default function PubMap({
     }
     return () => {
       cancelled = true;
+      if (slimLoaderGenerationRef.current === loaderGeneration) {
+        slimLoaderGenerationRef.current += 1;
+      }
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
       initialShardLoadStartedRef.current = false;
       initialShardLoadSettledRef.current = false;
@@ -1947,6 +1975,11 @@ export default function PubMap({
       );
       const loader = slimLoaderRef.current;
       if (!loader) return;
+      const loaderGeneration = slimLoaderGenerationRef.current;
+      const isCurrentLoader = () =>
+        slimLoaderRef.current === loader &&
+        slimLoaderGenerationRef.current === loaderGeneration;
+      if (!isCurrentLoader()) return;
       const firstLoad = !initialShardLoadStartedRef.current;
       if (!firstLoad && !initialShardLoadSettledRef.current) return;
       if (!firstLoad) {
@@ -1956,6 +1989,7 @@ export default function PubMap({
       initialShardLoadStartedRef.current = true;
       void loader.initialResult(bounds)
         .then((result) => {
+          if (!isCurrentLoader()) return;
           const rows = result.rows;
           liveShardLoadSettledRef.current = true;
           setVenueIndexFailed(result.status !== "ready");
@@ -1970,11 +2004,14 @@ export default function PubMap({
             setLoaded(true);
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
-            if (result.status === "ready") scheduleRingLoad(loader, bounds);
+            if (result.status === "ready" && isCurrentLoader()) {
+              scheduleRingLoad(loader, bounds);
+            }
           }
           refreshCountCoverage();
         })
         .catch(() => {
+          if (!isCurrentLoader()) return;
           if (firstLoad) {
             initialShardLoadSettledRef.current = true;
             setVenueIndexFailed(true);
@@ -2006,11 +2043,16 @@ export default function PubMap({
     if (!loc) return;
     const loader = slimLoaderRef.current;
     if (!loader) return;
+    const loaderGeneration = slimLoaderGenerationRef.current;
     let cancelled = false;
     void loader
       .nearPoint(loc.lat, loc.lng)
       .then((rows) => {
-        if (cancelled) return;
+        if (
+          cancelled ||
+          slimLoaderRef.current !== loader ||
+          slimLoaderGenerationRef.current !== loaderGeneration
+        ) return;
         mergeSlimVenues(rows);
         refreshCountCoverage();
       })
@@ -3514,6 +3556,7 @@ export default function PubMap({
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
+      openingLocationCancelledRef.current = true;
       setOpeningLocationFocus(null);
       setAreaFocus((prev) => ({
         center: camera.center,
