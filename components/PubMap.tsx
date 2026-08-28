@@ -3936,7 +3936,7 @@ export default function PubMap({
   }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
   useEffect(() => {
-    if (ukPlaceArrival || slimPins.length === 0) return;
+    if (ukPlaceArrival || slimPins.length === 0 || !liveShardLoadSettledRef.current || venueIndexFailed) return;
     const timer = window.setTimeout(() => {
       writeMapResume({
         cityId,
@@ -3945,7 +3945,7 @@ export default function PubMap({
       });
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [cityId, mapViewport, slimPins, ukPlaceArrival]);
+  }, [cityId, mapViewport, slimPins, ukPlaceArrival, venueIndexFailed]);
 
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,

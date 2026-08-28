@@ -43,19 +43,18 @@ export async function loadMapSelectableVenueIds(): Promise<MapSelectableVenueIds
     );
     const coreFile = join(root, MAP_EAGER_VENUE_INDEX_FILE.replace(/^public\/data\//, ""));
     const files = [coreFile];
-    try {
-      const manifest = JSON.parse(
-        await readFile(join(root, "venues_slim.manifest.json"), "utf8"),
-      ) as { shards?: Array<{ core?: boolean; url?: string }> };
-      for (const shard of manifest.shards ?? []) {
-        if (shard.core || typeof shard.url !== "string") continue;
-        const name = shard.url.split("/").at(-1);
-        if (name?.startsWith("venues_slim.cell.") && name.endsWith(".json")) {
-          files.push(join(root, name));
-        }
-      }
-    } catch {
-      // Legacy packs have one core file and no spatial manifest.
+    const manifest = JSON.parse(
+      await readFile(join(root, "venues_slim.manifest.json"), "utf8"),
+    ) as { shards?: Array<{ core?: boolean; url?: string }> };
+    if (!Array.isArray(manifest.shards)) return null;
+    for (const shard of manifest.shards) {
+      if (typeof shard !== "object" || shard === null) return null;
+      if (typeof shard.core !== "boolean") return null;
+      if (shard.core) continue;
+      if (typeof shard.url !== "string") return null;
+      const name = shard.url.split("/").at(-1);
+      if (!name?.startsWith("venues_slim.cell.") || !name.endsWith(".json")) return null;
+      files.push(join(root, name));
     }
     const payloads = await Promise.all(
       files.map((file) => readFile(/* turbopackIgnore: true */ file, "utf8")),
