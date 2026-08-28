@@ -44,6 +44,11 @@
   box-sizing: border-box;
 }
 
+.mapToolbarDesktopExtras .favoritePintSelect {
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
 .mapToolbarSearch {
   position: relative;
   min-width: 0;

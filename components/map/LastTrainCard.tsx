@@ -847,6 +847,7 @@ const styles: Record<string, React.CSSProperties> = {
   destinationInput: {
     flex: "1 1 140px",
     minWidth: 0,
+    minHeight: 44,
     padding: "6px 8px",
     borderRadius: "var(--radius-sm, 6px)",
     border: "1px solid var(--line, #d9d4c7)",
@@ -856,6 +857,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 13,
   },
   destinationSubmit: {
+    minHeight: 44,
     padding: "6px 10px",
     borderRadius: "var(--radius-sm, 6px)",
     border: "1px solid var(--line, #d9d4c7)",

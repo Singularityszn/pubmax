@@ -1110,7 +1110,7 @@ input[type="range"] {
   display: flex;
   align-items: center;
   gap: 6px;
-  min-height: 34px;
+  min-height: 44px;
   padding: 7px 10px;
   border: 1px solid var(--line);
   border-radius: var(--radius-sm);
@@ -1337,6 +1337,7 @@ input[type="range"] {
   color: var(--ink);
   font-size: 0.85rem;
   min-width: 168px;
+  min-height: 44px;
 }
 
 .mapToolbarClear {
@@ -3198,7 +3199,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
 .addStopBtn {
   width: 100%;
   margin-top: 12px;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid var(--ink-deep);
   border-radius: var(--control-radius, 14px);
   background: var(--ink-deep);
@@ -3507,6 +3508,10 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
    row cannot repeat it. */
 .contributorPrice a,
 .priceSourceLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
   color: inherit;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -3672,7 +3677,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   justify-content: center;
   gap: 7px;
   width: 100%;
-  min-height: 42px;
+  min-height: 44px;
   border: 1px solid var(--ink-deep);
   border-radius: var(--radius-sm);
   background: linear-gradient(135deg, var(--ink-deep), color-mix(in srgb, var(--ink-deep) 70%, var(--river)));
@@ -3716,6 +3721,7 @@ html[data-theme="dark"] .appShell .mapStage .maplibregl-ctrl-group button .mapli
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--brass);
   border-radius: var(--radius-pill);
@@ -5274,8 +5280,8 @@ button:disabled {
 
   .mapFitLondonBtn,
   .mapRecenterBtn {
-    min-height: 30px;
-    padding: 5px 9px;
+    min-height: 44px;
+    padding: 0 9px;
     font-size: 0.68rem;
     border-radius: 999px;
   }

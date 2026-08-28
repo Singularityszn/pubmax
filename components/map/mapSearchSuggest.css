@@ -71,6 +71,7 @@
 .mapSearchSuggest--toolbar input {
   width: 100%;
   min-width: 0;
+  min-height: 44px;
   font-size: 0.85rem;
 }
 

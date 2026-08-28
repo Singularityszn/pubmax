@@ -65,6 +65,8 @@
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  min-height: 44px;
+  vertical-align: middle;
   color: var(--ink);
   font-weight: 700;
   text-decoration: none;
@@ -76,6 +78,10 @@
 }
 
 .nightSafe__link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  vertical-align: middle;
   color: var(--ink);
   font-weight: 700;
   text-decoration: underline;

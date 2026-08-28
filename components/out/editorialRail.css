@@ -49,6 +49,9 @@
 }
 
 .editorialRailLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   color: inherit;
   font-family: var(--font-display);
   font-size: 1.05rem;
