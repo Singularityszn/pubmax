@@ -8,8 +8,8 @@ function factContent(title: string, detail: string): string {
   return JSON.stringify({
     area: "soho",
     kind: "opening",
-    title: `The White Hart ${title}`,
-    detail: `${detail} The White Hart pub opened on 27 August 2026.`,
+    title: `Golden Lion (Soho) ${title}`,
+    detail: `${detail} Golden Lion (Soho) pub opened on 27 August 2026.`,
   });
 }
 
@@ -23,6 +23,45 @@ describe("area-news refresh job", () => {
   it("rejects non-positive or non-finite CLI bounds", () => {
     expect(() => parseArgs(["--max-results", "nope"])).toThrow("--max-results must be a positive integer");
     expect(() => parseArgs(["--max-candidates", "0"])).toThrow("--max-candidates must be a positive integer");
+    expect(() => parseArgs(["--max-result", "1"])).toThrow("Unsupported argument: --max-result");
+  });
+
+  it("fails loud when a search operation exceeds its deadline", async () => {
+    const writeDataset = vi.fn();
+    let receivedSignal: AbortSignal | undefined;
+    await expect(refreshAreaNews({
+      now: NOW,
+      queries: ["slow"],
+      operationTimeoutMs: 1,
+      searchFn: vi.fn((_query: string, options?: Record<string, unknown>) => {
+        receivedSignal = options?.signal as AbortSignal | undefined;
+        return new Promise<never>(() => {});
+      }),
+      fetchFn: vi.fn(),
+      writeDataset,
+      logger: vi.fn(),
+    })).rejects.toThrow("Area news search timed out after 1ms");
+    expect(receivedSignal?.aborted).toBe(true);
+    expect(writeDataset).not.toHaveBeenCalled();
+  });
+
+  it("fails loud when a fetch response exceeds its deadline", async () => {
+    const writeDataset = vi.fn();
+    let receivedSignal: AbortSignal | undefined;
+    await expect(refreshAreaNews({
+      now: NOW,
+      queries: ["slow"],
+      operationTimeoutMs: 1,
+      searchFn: vi.fn().mockResolvedValue([{ url: "https://news.example/slow" }]),
+      fetchFn: vi.fn((_url: string, options?: Record<string, unknown>) => {
+        receivedSignal = options?.signal as AbortSignal | undefined;
+        return new Promise<never>(() => {});
+      }),
+      writeDataset,
+      logger: vi.fn(),
+    })).rejects.toThrow("Area news refresh failed: 1 fetch failure");
+    expect(receivedSignal?.aborted).toBe(true);
+    expect(writeDataset).not.toHaveBeenCalled();
   });
 
   it("deduplicates sources, keeps dated facts newest first, and writes one snapshot", async () => {
@@ -81,8 +120,8 @@ describe("area-news refresh job", () => {
 
     expect(snapshot.entries).toHaveLength(2);
     expect(snapshot.entries.map((entry: { title: string }) => entry.title)).toEqual([
-      "The White Hart First opening",
-      "The White Hart Second opening",
+      "Golden Lion (Soho) First opening",
+      "Golden Lion (Soho) Second opening",
     ]);
   });
 
@@ -91,8 +130,8 @@ describe("area-news refresh job", () => {
       id: "old-row",
       area: "soho",
       kind: "award",
-      title: "The White Hart opens in Soho",
-      detail: "The White Hart pub opened in Soho on 20 August 2026.",
+      title: "Golden Lion (Soho) opens in Soho",
+      detail: "Golden Lion (Soho) pub opened in Soho on 20 August 2026.",
       sourceUrl: "https://archive.example/award",
       sourceName: "archive.example",
       observedAt: "2026-07-18",

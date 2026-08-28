@@ -26,4 +26,5 @@ export function refreshAreaNews(input?: {
   logger?: (line: string) => void;
   maxResults?: number;
   maxCandidates?: number;
+  operationTimeoutMs?: number;
 }): Promise<AreaNewsSnapshot>;

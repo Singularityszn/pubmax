@@ -1,6 +1,7 @@
 import { createHash } from "node:crypto";
 import canonicalAreaSlugs from "../../data/area_news_areas.json" with { type: "json" };
 import venueIndex from "../../public/data/venues_slim.json" with { type: "json" };
+import { matchVenue, slugifyBorough } from "./areaNewsMatch.mjs";
 
 export const KEENABLE_API_BASE = "https://api.keenable.ai";
 export const KEENABLE_TITLE = "PUBMAXX area news refresh";
@@ -9,6 +10,83 @@ export const KNOWN_AREA_SLUGS = new Set(canonicalAreaSlugs);
 
 const KINDS = new Set(["opening", "closure", "refurb", "award", "threat", "buzz"]);
 const DAY_MS = 24 * 60 * 60 * 1000;
+const AREA_BOROUGH_BY_SLUG = new Map(Object.entries({
+  soho: "westminster",
+  fitzrovia: "westminster",
+  marylebone: "westminster",
+  mayfair: "westminster",
+  "covent-garden": "westminster",
+  bloomsbury: "camden",
+  holborn: "camden",
+  "notting-hill": "kensington-and-chelsea",
+  hammersmith: "hammersmith-and-fulham",
+  fulham: "hammersmith-and-fulham",
+  chiswick: "hounslow",
+  isleworth: "hounslow",
+  richmond: "richmond-upon-thames",
+  teddington: "richmond-upon-thames",
+  hampton: "richmond-upon-thames",
+  twickenham: "richmond-upon-thames",
+  kingston: "kingston-upon-thames",
+  shoreditch: "hackney",
+  "hackney-wick": "hackney",
+  dalston: "hackney",
+  "stoke-newington": "hackney",
+  "bethnal-green": "tower-hamlets",
+  bow: "tower-hamlets",
+  whitechapel: "tower-hamlets",
+  limehouse: "tower-hamlets",
+  "canary-wharf": "tower-hamlets",
+  walthamstow: "waltham-forest",
+  leyton: "waltham-forest",
+  stratford: "newham",
+  dagenham: "barking-and-dagenham",
+  romford: "havering",
+  ilford: "redbridge",
+  clapham: "lambeth",
+  "clapham-junction": "wandsworth",
+  battersea: "wandsworth",
+  brixton: "lambeth",
+  streatham: "lambeth",
+  peckham: "southwark",
+  camberwell: "southwark",
+  dulwich: "southwark",
+  "tulse-hill": "lambeth",
+  tooting: "wandsworth",
+  putney: "wandsworth",
+  wimbledon: "merton",
+  deptford: "lewisham",
+  "new-cross": "lewisham",
+  catford: "lewisham",
+  "grove-park": "lewisham",
+  "forest-hill": "lewisham",
+  "crystal-palace": "croydon",
+  penge: "bromley",
+  purley: "croydon",
+  camden: "camden",
+  "kentish-town": "camden",
+  islington: "islington",
+  highbury: "islington",
+  holloway: "islington",
+  archway: "islington",
+  highgate: "haringey",
+  hampstead: "camden",
+  "west-hampstead": "camden",
+  "crouch-end": "haringey",
+  "muswell-hill": "haringey",
+  "wood-green": "haringey",
+  tottenham: "haringey",
+  harringay: "haringey",
+  "kings-cross": "camden",
+  euston: "camden",
+  greenwich: "greenwich",
+  finchley: "barnet",
+  "palmers-green": "enfield",
+  wembley: "brent",
+  pinner: "harrow",
+  kilburn: "brent",
+  willesden: "brent",
+}));
 
 export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
   return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or a fact from late ${year - 1} that is still within the 21-day window, not an older historical fact. Include an exact day, month, and year, plus a venue name present in the London venue dataset. Do not infer or invent facts. Do not include em dashes or en dashes.`;
@@ -57,6 +135,7 @@ export async function searchKeenable(
     queryTime,
     maxResults = 10,
     snippetMaxLength = 1200,
+    signal,
   } = {},
 ) {
   if (typeof query !== "string" || !query.trim()) {
@@ -77,6 +156,7 @@ export async function searchKeenable(
     method: "POST",
     headers: requestHeaders(key, title),
     body: JSON.stringify(body),
+    signal,
   });
   const payload = await readJson(response, "search");
   if (!Array.isArray(payload?.results)) {
@@ -94,6 +174,7 @@ export async function fetchKeenable(
     title = KEENABLE_TITLE,
     maxChars = 6000,
     prompt = areaNewsExtractPrompt(),
+    signal,
   } = {},
 ) {
   let parsedUrl;
@@ -115,6 +196,7 @@ export async function fetchKeenable(
 
   const response = await fetchImpl(`${apiUrl(apiBase, "/v1/fetch", key)}?${params}`, {
     headers: key ? { "X-API-Key": key } : { "X-Keenable-Title": title },
+    signal,
   });
   const payload = await readJson(response, "fetch");
   if (typeof payload?.content !== "string" || !payload.content.trim()) {
@@ -176,12 +258,13 @@ function markdownKind(text) {
   return null;
 }
 
-const KNOWN_VENUE_NAMES = [...new Set(
-  venueIndex
-    .map((venue) => typeof venue?.name === "string" ? venue.name : "")
-    .map((name) => name.trim())
-    .filter(Boolean),
-)];
+const KNOWN_VENUES = venueIndex
+  .map((venue) => ({
+    id: typeof venue?.id === "string" ? venue.id : "",
+    name: typeof venue?.name === "string" ? venue.name.trim() : "",
+    borough: typeof venue?.borough === "string" ? venue.borough.trim() : "",
+  }))
+  .filter((venue) => venue.id && venue.name && venue.borough);
 
 function venueWords(value) {
   return String(value ?? "")
@@ -193,16 +276,33 @@ function venueWords(value) {
     .filter(Boolean);
 }
 
-function hasNamedPub(title, detail, knownAreas) {
-  if (![...knownAreas].some((area) => typeof area === "string" && area.trim())) return false;
-  return [title, detail].some((field) => {
-    const words = venueWords(field);
-    return KNOWN_VENUE_NAMES.some((name) => {
-      const candidate = venueWords(name);
-      if (candidate.length === 0 || candidate.length > words.length) return false;
-      return words.some((_, index) => candidate.every((word, offset) => words[index + offset] === word));
-    });
-  });
+function areaBoroughSlug(area, knownAreas) {
+  if (!knownAreas.has(area)) return null;
+  return AREA_BOROUGH_BY_SLUG.get(area) ?? area;
+}
+
+function venueNameOccurs(text, name) {
+  const words = venueWords(text);
+  const candidate = venueWords(name);
+  if (candidate.length === 0 || candidate.length > words.length) return false;
+  return words.some((_, index) => candidate.every((word, offset) => words[index + offset] === word));
+}
+
+function hasNamedPub(title, detail, area, knownAreas) {
+  const expectedBorough = areaBoroughSlug(area, knownAreas);
+  if (!expectedBorough) return false;
+  const names = new Set();
+  for (const field of [title, detail]) {
+    for (const venue of KNOWN_VENUES) {
+      if (venueNameOccurs(field, venue.name)) names.add(venue.name);
+    }
+  }
+  const longestNameWords = Math.max(0, ...[...names].map((name) => venueWords(name).length));
+  const longestNames = [...names].filter((name) => venueWords(name).length === longestNameWords);
+  const resolved = longestNames
+    .map((name) => matchVenue(name, slugifyBorough(expectedBorough), KNOWN_VENUES))
+    .filter(Boolean);
+  return resolved.length === 1;
 }
 
 function parseMarkdownFact(content, knownAreas, fallbackTitle = "") {
@@ -260,15 +360,14 @@ function eventDateRanges(text) {
   return ranges;
 }
 
-function previousYearFactIsCurrent(text, currentYear, now) {
+function factDateIsCurrent(text, now) {
   const nowTime = typeof now === "number" ? now : Date.parse(now);
   if (!Number.isFinite(nowTime)) return false;
   const nowDay = new Date(nowTime);
   nowDay.setUTCHours(0, 0, 0, 0);
   const oldestAllowed = nowDay.getTime() - 21 * DAY_MS;
   return eventDateRanges(text).some(
-    ({ year, start, end }) =>
-      year === currentYear - 1 && end >= oldestAllowed && start <= nowDay.getTime(),
+    ({ start, end }) => end >= oldestAllowed && start <= nowDay.getTime(),
   );
 }
 
@@ -286,14 +385,13 @@ function validateFact(raw, knownAreas, currentYear, now) {
   const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
   const allowedYears = new Set([currentYear, currentYear - 1]);
   const eventDates = eventDateRanges(combined);
-  const hasPreviousYear = years.includes(currentYear - 1);
   if (
     !Number.isInteger(currentYear) ||
     years.length === 0 ||
     !eventDates.some(({ year }) => allowedYears.has(year)) ||
     years.some((year) => !allowedYears.has(year)) ||
-    (hasPreviousYear && !previousYearFactIsCurrent(combined, currentYear, now)) ||
-    !hasNamedPub(title, detail, knownAreas)
+    !factDateIsCurrent(combined, now ?? Date.now()) ||
+    !hasNamedPub(title, detail, area, knownAreas)
   ) {
     return null;
   }

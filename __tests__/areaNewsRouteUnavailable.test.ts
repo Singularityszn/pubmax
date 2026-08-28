@@ -17,6 +17,20 @@ describe("GET /api/area-news unavailable response", () => {
     expect(body).toEqual({ status: "unavailable", entries: [], award: null });
   });
 
+  it("rejects an unknown area filter before reading the dataset", async () => {
+    loadAreaNews.mockClear();
+
+    const response = await GET(new Request("https://x/api/area-news?area=not-an-area"));
+
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({
+      error: "Unknown area.",
+      code: "INVALID_REQUEST",
+      retryable: false,
+    });
+    expect(loadAreaNews).not.toHaveBeenCalled();
+  });
+
   it("does not cache successful reads past the rolling freshness cutoff", async () => {
     loadAreaNews.mockResolvedValue({
       status: "ready",

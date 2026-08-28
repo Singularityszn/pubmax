@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const readFile = vi.hoisted(() => vi.fn());
 
@@ -10,16 +10,21 @@ const VALID_ENTRY = {
   id: "area-news-valid",
   area: "soho",
   kind: "opening",
-  title: "The White Hart opens in Soho",
-  detail: "The White Hart pub opened in Soho on 27 August 2026.",
+  title: "Golden Lion (Soho) opens in Soho",
+  detail: "Golden Lion (Soho) pub opened in Soho on 27 August 2026.",
   sourceUrl: "https://example.com/article",
   sourceName: "example.com",
   observedAt: "2026-08-27",
 };
 
 beforeEach(() => {
+  vi.useFakeTimers({ now: Date.parse("2026-08-28T12:00:00Z") });
   __resetAreaNewsCache();
   readFile.mockReset();
+});
+
+afterEach(() => {
+  vi.useRealTimers();
 });
 
 describe("area-news dataset loader", () => {

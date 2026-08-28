@@ -16,6 +16,7 @@ import {
   entriesForBorough,
   entriesForNightArea,
   freshAreaNews,
+  isKnownAreaSlug,
   NEW_ROUND_HERE_CAP,
 } from "@/lib/areaNews";
 import { loadAreaNews } from "@/lib/areaNews.server";
@@ -26,6 +27,9 @@ export async function GET(request: Request): Promise<Response> {
     const venueId = params.get("venueId")?.trim();
     const area = params.get("area")?.trim();
     if (!venueId && !area) return publicApiError("Pass area or venueId.", "INVALID_REQUEST", 400);
+    if (area && !venueId && !isKnownAreaSlug(area)) {
+      return publicApiError("Unknown area.", "INVALID_REQUEST", 400);
+    }
 
     const loaded = await loadAreaNews();
     if (loaded.status === "unavailable") {

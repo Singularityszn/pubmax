@@ -4,16 +4,6 @@
   "generatedAt": "2026-08-28T07:05:17.997Z",
   "entries": [
     {
-      "id": "area-news-d572872972c55e23",
-      "area": "mayfair",
-      "kind": "refurb",
-      "title": "Coach & Horses pub",
-      "detail": "Mayfair's oldest surviving pub is reopening in 2026 following a major refurbishment featuring refreshed decor, new flooring, wall finishes, furniture, and a complete outside redecoration. The report was published on 24 August 2026.",
-      "sourceUrl": "https://www.softlaunchlondon.com/coach-horses-mayfair/",
-      "sourceName": "softlaunchlondon.com",
-      "observedAt": "2026-08-24"
-    },
-    {
       "id": "area-news-5d5066f27b6150c5",
       "area": "hampstead",
       "kind": "closure",
@@ -22,26 +12,6 @@
       "sourceUrl": "https://www.london-now.co.uk/news/26485962.magdala-tavern-closes-due-mice-cockroach-infestation/",
       "sourceName": "london-now.co.uk",
       "observedAt": "2026-08-21"
-    },
-    {
-      "id": "area-news-37d4db958b3e5f1b",
-      "area": "teddington",
-      "kind": "refurb",
-      "title": "The King's Head pub is closing for a little refresh",
-      "detail": "The King's Head pub in Teddington is closing for a refurbishment starting at the end of business on Saturday 26th September 2026, and will reopen at 5pm on Thursday 22nd October 2026.",
-      "sourceUrl": "https://kingsheadteddington.com/blog/the-kings-head-refurbishment/",
-      "sourceName": "kingsheadteddington.com",
-      "observedAt": "2026-08-14"
-    },
-    {
-      "id": "area-news-1ff9070fb4857a99",
-      "area": "peckham",
-      "kind": "buzz",
-      "title": "Rice Paddy at the White Horse pub",
-      "detail": "Bruce Dessau reports from the Rice Paddy in the White Horse pub in Peckham in 2026. The report was published on 10 August 2026.",
-      "sourceUrl": "https://professionallunch.substack.com/p/west-end-booze-threat-bodeans-and",
-      "sourceName": "professionallunch.substack.com",
-      "observedAt": "2026-08-10"
     },
     {
       "id": "area-news-66cf49011a3e1477",

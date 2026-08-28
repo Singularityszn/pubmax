@@ -18,8 +18,8 @@ function jsonResponse(body: unknown, status = 200): Response {
 const FACT = {
   area: "soho",
   kind: "opening",
-  title: "The White Hart opens in Soho",
-  detail: "The White Hart pub opened in Soho on 27 August 2026.",
+  title: "Golden Lion (Soho) opens in Soho",
+  detail: "Golden Lion (Soho) pub opened in Soho on 27 August 2026.",
 };
 
 describe("Keenable area-news client", () => {
@@ -99,8 +99,18 @@ describe("Keenable area-news extraction", () => {
     const options = { currentYear: 2026 };
     expect(KNOWN_AREA_SLUGS.has("hackney")).toBe(true);
     expect(parseExtractedFact({ content: `\`\`\`json\n${JSON.stringify(FACT)}\n\`\`\`` }, options)).toEqual(FACT);
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "wimbledon" }) }, options)).toMatchObject({ area: "wimbledon" });
-    expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "greenwich" }) }, options)).toMatchObject({ area: "greenwich" });
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...FACT,
+      area: "wimbledon",
+      title: "The Dog & Fox opens in Wimbledon",
+      detail: "The Dog & Fox pub opened in Wimbledon on 27 August 2026.",
+    }) }, options)).toMatchObject({ area: "wimbledon" });
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...FACT,
+      area: "greenwich",
+      title: "The Valley opens in Greenwich",
+      detail: "The Valley pub opened in Greenwich on 27 August 2026.",
+    }) }, options)).toMatchObject({ area: "greenwich" });
     expect(parseExtractedFact({ content: "null" })).toBeNull();
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, area: "Leeds" }) }, options)).toBeNull();
     expect(parseExtractedFact({ content: JSON.stringify({ ...FACT, title: "A — bad title" }) }, options)).toBeNull();
@@ -160,15 +170,15 @@ describe("Keenable area-news extraction", () => {
       parseExtractedFact(
         {
           content:
-            "# The White Hart reopens in Soho\n\nThe White Hart pub reopened in Soho on 27 August 2026 after a relaunch.",
+            "# Golden Lion (Soho) reopens in Soho\n\nGolden Lion (Soho) pub reopened in Soho on 27 August 2026 after a relaunch.",
         },
         { knownAreas: new Set(["soho"]) },
       ),
     ).toEqual({
       area: "soho",
       kind: "opening",
-      title: "The White Hart reopens in Soho",
-      detail: "The White Hart pub reopened in Soho on 27 August 2026 after a relaunch.",
+      title: "Golden Lion (Soho) reopens in Soho",
+      detail: "Golden Lion (Soho) pub reopened in Soho on 27 August 2026 after a relaunch.",
     });
   });
 
@@ -177,7 +187,7 @@ describe("Keenable area-news extraction", () => {
       parseExtractedFact(
         {
           content:
-            "# The White Hart pub is closing in Soho\n\nThe White Hart pub is closing for refurbishment and will reopen on 22 October 2026.",
+            "# Golden Lion (Soho) pub is closing in Soho\n\nGolden Lion (Soho) pub closed for refurbishment on 27 August 2026 and will reopen on 22 October 2026.",
         },
         { knownAreas: new Set(["soho"]) },
       ),
@@ -187,8 +197,8 @@ describe("Keenable area-news extraction", () => {
   it("accepts a prior-year fact during January rollover", () => {
     const fact = {
       ...FACT,
-      title: "The White Hart reopens in Soho",
-      detail: "The White Hart pub reopened in Soho on 31 December 2026.",
+      title: "Golden Lion (Soho) reopens in Soho",
+      detail: "Golden Lion (Soho) pub reopened in Soho on 31 December 2026.",
     };
     expect(parseExtractedFact({ content: JSON.stringify(fact) }, {
       knownAreas: new Set(["soho"]),
@@ -205,7 +215,7 @@ describe("Keenable area-news extraction", () => {
 
     expect(parseExtractedFact({ content: JSON.stringify({
       ...fact,
-      detail: "The White Hart pub reopened in Soho on 1 January 2026.",
+      detail: "Golden Lion (Soho) pub reopened in Soho on 1 January 2026.",
     }) }, {
       knownAreas: new Set(["soho"]),
       currentYear: 2027,
@@ -214,11 +224,40 @@ describe("Keenable area-news extraction", () => {
 
     expect(parseExtractedFact({ content: JSON.stringify({
       ...fact,
-      detail: "The White Hart pub reopened in Soho in December 2026.",
+      detail: "Golden Lion (Soho) pub reopened in Soho in December 2026.",
     }) }, {
       knownAreas: new Set(["soho"]),
       currentYear: 2027,
       now: Date.parse("2027-01-05T12:00:00Z"),
+    })).toBeNull();
+  });
+
+  it("requires an exact current-year event date inside the rolling window", () => {
+    const options = {
+      knownAreas: new Set(["soho"]),
+      currentYear: 2026,
+      now: Date.parse("2026-08-28T12:00:00Z"),
+    };
+
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...FACT,
+      detail: "Golden Lion (Soho) pub opened in Soho on 2 January 2026.",
+    }) }, options)).toBeNull();
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...FACT,
+      detail: "Golden Lion (Soho) pub opens in Soho on 29 August 2026.",
+    }) }, options)).toBeNull();
+  });
+
+  it("rejects a known venue when its dataset borough does not match the fact area", () => {
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...FACT,
+      area: "teddington",
+      title: "The Old King's Head opens in Teddington",
+      detail: "The Old King's Head pub opened in Teddington on 27 August 2026.",
+    }) }, {
+      currentYear: 2026,
+      now: Date.parse("2026-08-28T12:00:00Z"),
     })).toBeNull();
   });
 

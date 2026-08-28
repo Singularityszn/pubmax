@@ -41,6 +41,7 @@ export function areaNewsRefreshQueries(now = Date.now()) {
 const DAY_MS = 24 * 60 * 60 * 1000;
 const DEFAULT_MAX_RESULTS = 8;
 const DEFAULT_MAX_CANDIDATES = 36;
+const DEFAULT_OPERATION_TIMEOUT_MS = 30_000;
 const SECONDARY_SOURCE_HOSTS = new Set([
   "newsarchyuk.com",
   "sylhetmirror.com",
@@ -54,6 +55,19 @@ function dateOnly(time) {
 
 function errorMessage(error) {
   return error instanceof Error ? error.message : String(error);
+}
+
+function withOperationTimeout(operation, timeoutMs, label) {
+  const controller = new AbortController();
+  let timer;
+  const operationResult = Promise.resolve().then(() => operation(controller.signal));
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      controller.abort();
+      reject(new Error(`Area news ${label} timed out after ${timeoutMs}ms.`));
+    }, timeoutMs);
+  });
+  return Promise.race([operationResult, timeout]).finally(() => clearTimeout(timer));
 }
 
 export function readAreaNewsDataset(path = AREA_NEWS_DATASET_PATH) {
@@ -140,13 +154,17 @@ function deduplicateFreshEntries(entries) {
   return [...byFact.values()];
 }
 
-async function collectCandidates({ queries, env, searchFn, logger, publishedAfter, maxResults, maxCandidates }) {
+async function collectCandidates({ queries, env, searchFn, logger, publishedAfter, maxResults, maxCandidates, operationTimeoutMs }) {
   const candidates = [];
   const seenUrls = new Set();
   for (const query of queries) {
     let results;
     try {
-      results = await searchFn(query, { env, publishedAfter, maxResults });
+      results = await withOperationTimeout(
+        (signal) => searchFn(query, { env, publishedAfter, maxResults, signal }),
+        operationTimeoutMs,
+        "search",
+      );
     } catch (error) {
       throw new Error(`Area news search failed for "${query}": ${errorMessage(error)}`, { cause: error });
     }
@@ -178,13 +196,17 @@ async function collectCandidates({ queries, env, searchFn, logger, publishedAfte
   return candidates;
 }
 
-async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, knownAreas, extractPrompt }) {
+async function collectFreshEntries({ candidates, env, fetchFn, logger, nowTime, knownAreas, extractPrompt, operationTimeoutMs }) {
   const freshEntries = [];
   let fetchFailures = 0;
   for (const { result, sourceUrl } of candidates) {
     let page;
     try {
-      page = await fetchFn(sourceUrl, { env, prompt: extractPrompt });
+      page = await withOperationTimeout(
+        (signal) => fetchFn(sourceUrl, { env, prompt: extractPrompt, signal }),
+        operationTimeoutMs,
+        "fetch",
+      );
     } catch (error) {
       fetchFailures += 1;
       logger(`FETCH FAILED ${sourceUrl}: ${errorMessage(error)}`);
@@ -223,6 +245,7 @@ export async function refreshAreaNews({
   logger = (line) => console.log(line),
   maxResults = DEFAULT_MAX_RESULTS,
   maxCandidates = DEFAULT_MAX_CANDIDATES,
+  operationTimeoutMs = DEFAULT_OPERATION_TIMEOUT_MS,
 } = {}) {
   const nowTime = typeof now === "number" ? now : Date.parse(now);
   if (!Number.isFinite(nowTime)) throw new Error("Area news refresh requires a valid current time.");
@@ -235,6 +258,9 @@ export async function refreshAreaNews({
   if (!Number.isInteger(maxCandidates) || maxCandidates <= 0) {
     throw new Error("--max-candidates must be a positive integer.");
   }
+  if (!Number.isInteger(operationTimeoutMs) || operationTimeoutMs <= 0) {
+    throw new Error("operationTimeoutMs must be a positive integer.");
+  }
   const candidates = await collectCandidates({
     queries: refreshQueries,
     env,
@@ -243,6 +269,7 @@ export async function refreshAreaNews({
     publishedAfter: dateOnly(nowTime - 21 * DAY_MS),
     maxResults,
     maxCandidates,
+    operationTimeoutMs,
   });
 
   if (candidates.length === 0) {
@@ -257,6 +284,7 @@ export async function refreshAreaNews({
     nowTime,
     knownAreas,
     extractPrompt,
+    operationTimeoutMs,
   });
 
   if (fetchFailures > 0) {
@@ -291,7 +319,9 @@ export function parseArgs(argv) {
   const options = {};
   for (let index = 0; index < argv.length; index += 1) {
     const flag = argv[index];
-    if (flag !== "--max-results" && flag !== "--max-candidates") continue;
+    if (flag !== "--max-results" && flag !== "--max-candidates") {
+      throw new Error(`Unsupported argument: ${flag}`);
+    }
     const value = argv[index + 1];
     const parsed = Number(value);
     if (!Number.isInteger(parsed) || parsed <= 0) {
