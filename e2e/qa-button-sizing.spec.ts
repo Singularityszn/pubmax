@@ -33,7 +33,7 @@ test("desktop map camera and favourite-pint controls meet the tap floor", async 
     "favourite pint control",
   );
   await expectTapTarget(page.locator(".mapFitLondonBtn"), "map fit control");
-}
+});
 
 test("existing Last Train destinations keep Cancel at the tap floor", async ({ page }) => {
   await seedChrome(page);
