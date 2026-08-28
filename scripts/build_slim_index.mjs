@@ -790,7 +790,7 @@ async function main() {
   detailIndex.count = detailLines.length;
 
   // Compact JSON (no whitespace) — the map never reads this file by hand.
-  const slimText = JSON.stringify(slim);
+  const slimText = JSON.stringify(buildShardPayload(slim));
   const detailText = detailLines.join("");
   const detailIndexText = JSON.stringify(detailIndex);
   await mkdir(GENERATED_DIR, { recursive: true });

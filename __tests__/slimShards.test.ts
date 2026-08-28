@@ -471,7 +471,10 @@ describe("createSlimShardLoader (London)", () => {
         return Promise.resolve({ ok: false, status: 404 } as Response);
       }
       if (url === "/data/cities/manchester/venues_slim.json") {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([slimRow("m1", 53.4, -2.2)]) } as Response);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ revision: "local", rows: [slimRow("m1", 53.4, -2.2)] }),
+        } as Response);
       }
       return Promise.resolve({ ok: false, status: 404 } as Response);
     }) as typeof fetch;

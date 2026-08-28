@@ -85,12 +85,12 @@
       });
     }
     if (!nav.permissions || typeof nav.permissions.query !== "function") {
-      return readCurrentLocation();
+      return Promise.resolve(fallback);
     }
     return nav.permissions.query({ name: "geolocation" }).then(function (permission) {
-      if (permission && permission.state === "denied") return fallback;
-      return readCurrentLocation();
-    }).catch(readCurrentLocation);
+      if (permission && permission.state === "granted") return readCurrentLocation();
+      return fallback;
+    }).catch(function () { return fallback; });
   }
   void manifestWarm.then(function (manifest) {
     if (!manifest || !Array.isArray(manifest.shards)) return;

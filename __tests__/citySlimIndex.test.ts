@@ -29,7 +29,8 @@ describe("manchester city slim index", () => {
   });
 
   it("has >100 venues with unique city-prefixed ids, in-bounds coords, null prices", () => {
-    const rows = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as SlimRow[];
+    const payload = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as { rows?: SlimRow[] };
+    const rows = payload.rows ?? [];
     expect(Array.isArray(rows)).toBe(true);
     expect(rows.length).toBeGreaterThan(100);
 

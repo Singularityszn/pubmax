@@ -498,18 +498,15 @@ describe("validate-data.mjs slim venue index validation", () => {
 
   it("FAILS when the slim index does not match the full dataset ids", () => {
     const scriptsDir = setupScratch({});
+    const slimPath = join(scriptsDir, "..", "public", "data", "venues_slim.json");
+    const payload = JSON.parse(readFileSync(slimPath, "utf8")) as {
+      revision: string;
+      rows: Array<Record<string, unknown>>;
+    };
+    payload.rows[0] = { ...payload.rows[0], id: "venue-not-real" };
     writeFileSync(
-      join(scriptsDir, "..", "public", "data", "venues_slim.json"),
-      JSON.stringify([
-        {
-          id: "venue-not-real",
-          name: "Imaginary Arms",
-          lat: 51.5,
-          lng: -0.1,
-          cheapestPrice: 5,
-          borough: "Camden",
-        },
-      ]),
+      slimPath,
+      JSON.stringify(payload),
       "utf8",
     );
     const { code, stdout } = runValidate(scriptsDir);
@@ -564,6 +561,28 @@ describe("validate-data.mjs slim venue index validation", () => {
 
     expect(code).toBe(1);
     expect(stdout).toContain("belongs to another cell");
+  });
+
+  it("FAILS when a shard row keeps its id but changes content", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; url: string }>;
+    };
+    const shard = manifest.shards.find((entry) => !entry.core);
+    if (!shard) throw new Error("fixture has no spatial shard");
+    const shardPath = join(scriptsDir, "..", "public", "data", shard.url.replace(/^\/data\//, ""));
+    const payload = JSON.parse(readFileSync(shardPath, "utf8")) as {
+      revision: string;
+      rows: Array<Record<string, unknown>>;
+    };
+    payload.rows[0] = { ...payload.rows[0], name: "Wrong Arms" };
+    writeFileSync(shardPath, JSON.stringify(payload), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("differs from monolith");
   });
 });
 

@@ -57,7 +57,12 @@ function latestPriceSnapshotDate() {
 }
 
 function main() {
-  const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8"));
+  const payload = JSON.parse(readFileSync(SLIM_PATH, "utf8"));
+  const slim = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.rows)
+      ? payload.rows
+      : [];
 
   const stat = new Map();
   for (const b of LONDON_BOROUGHS) stat.set(b, { total: 0, priced: 0, geoMismatch: 0 });

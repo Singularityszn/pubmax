@@ -1441,6 +1441,7 @@ export default function PubMapCanvas({
     map.on("dragstart", emitUserCameraMove);
     map.on("zoomstart", emitUserCameraMove);
     map.on("rotatestart", emitUserCameraMove);
+    map.on("pitchstart", emitUserCameraMove);
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire

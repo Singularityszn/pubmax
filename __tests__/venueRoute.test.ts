@@ -13,7 +13,8 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
-const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as SlimVenue[];
+const slimPayload = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as { rows?: SlimVenue[] };
+const slim = slimPayload.rows ?? [];
 
 function ctx(id: string) {
   return { params: Promise.resolve({ id }) };

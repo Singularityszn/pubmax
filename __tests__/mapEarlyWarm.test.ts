@@ -99,7 +99,7 @@ describe("mapEarlyWarm", () => {
     expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
   });
 
-  it("uses geolocation when Permissions API is unavailable", async () => {
+  it("uses fallback when Permissions API is unavailable", async () => {
     const manifest = {
       revision: "deploy-42",
       shards: [
@@ -111,9 +111,7 @@ describe("mapEarlyWarm", () => {
       ok: true,
       json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
-    const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 51.74, longitude: 0.25 } } as GeolocationPosition);
-    });
+    const getCurrentPosition = vi.fn();
     const window = {
       innerWidth: 390,
       innerHeight: 844,
@@ -154,12 +152,12 @@ describe("mapEarlyWarm", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
-    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json?v=deploy-42");
-    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/london.json?v=deploy-42");
+    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/granted.json?v=deploy-42");
   });
 
-  it("uses geolocation when the permission query fails", async () => {
+  it("uses fallback when the permission query fails", async () => {
     const manifest = {
       revision: "deploy-42",
       shards: [
@@ -171,9 +169,7 @@ describe("mapEarlyWarm", () => {
       ok: true,
       json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
-    const getCurrentPosition = vi.fn((success: PositionCallback) => {
-      success({ coords: { latitude: 51.74, longitude: 0.25 } } as GeolocationPosition);
-    });
+    const getCurrentPosition = vi.fn();
     const window = {
       innerWidth: 390,
       innerHeight: 844,
@@ -215,9 +211,9 @@ describe("mapEarlyWarm", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
 
-    expect(getCurrentPosition).toHaveBeenCalledOnce();
-    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/granted.json?v=deploy-42");
-    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/london.json");
+    expect(getCurrentPosition).not.toHaveBeenCalled();
+    expect(fetchSpy.mock.calls.map(([input]) => input)).toContain("/data/london.json?v=deploy-42");
+    expect(fetchSpy.mock.calls.map(([input]) => input)).not.toContain("/data/granted.json?v=deploy-42");
   });
 
   it("uses the fallback when warmup geolocation throws", async () => {

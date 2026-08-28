@@ -176,7 +176,7 @@ async function buildCity(city) {
   const { slim, droppedOob, droppedDup } = buildCitySlim(city, pack);
 
   await mkdir(outDir, { recursive: true });
-  const text = JSON.stringify(slim);
+  const text = JSON.stringify(buildShardPayload(slim));
   await writeFile(outPath, text);
   await writeFile(path.join(outDir, CORE_FILE), JSON.stringify(buildShardPayload(slim)));
   await writeFile(

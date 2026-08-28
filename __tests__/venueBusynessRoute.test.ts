@@ -6,9 +6,10 @@ import { describe, expect, it } from "vitest";
 import { GET } from "@/app/api/venue/[id]/route";
 import type { SlimVenue } from "@/lib/venuesSlim";
 
-const slim = JSON.parse(
+const slimPayload = JSON.parse(
   readFileSync(path.resolve(__dirname, "../public/data/venues_slim.json"), "utf8"),
-) as SlimVenue[];
+) as { rows?: SlimVenue[] };
+const slim = slimPayload.rows ?? [];
 
 describe("GET /api/venue/[id] busyness fields", () => {
   it("adds an explicitly estimated get-in read without changing the venue contract", async () => {

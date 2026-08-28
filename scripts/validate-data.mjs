@@ -10,6 +10,7 @@
 
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
@@ -1189,10 +1190,17 @@ function validateSlimVenues() {
     return { ok: false, count: 0 };
   }
 
-  if (!Array.isArray(slim)) {
-    console.log(`FAIL ${name}: expected a top-level array`);
+  if (
+    !slim ||
+    Array.isArray(slim) ||
+    typeof slim.revision !== "string" ||
+    slim.revision.trim().length === 0 ||
+    !Array.isArray(slim.rows)
+  ) {
+    console.log(`FAIL ${name}: expected a revisioned rows payload`);
     return { ok: false, count: 0 };
   }
+  slim = slim.rows;
   if (!Array.isArray(rows)) {
     console.log(
       `FAIL ${name}: expected full pint dataset to be a top-level array`,
@@ -1492,10 +1500,18 @@ function validateCityVenuePacks() {
       errs.add(`${cityId}: could not read/parse ${pack.slimVenuesPath} (${e.message})`);
       continue;
     }
-    if (!Array.isArray(rows) || rows.length === 0) {
-      errs.add(`${cityId}: ${pack.slimVenuesPath} is not a non-empty array`);
+    if (
+      !rows ||
+      Array.isArray(rows) ||
+      typeof rows.revision !== "string" ||
+      rows.revision.trim().length === 0 ||
+      !Array.isArray(rows.rows) ||
+      rows.rows.length === 0
+    ) {
+      errs.add(`${cityId}: ${pack.slimVenuesPath} is not a revisioned non-empty payload`);
       continue;
     }
+    rows = rows.rows;
     const bytes = Buffer.byteLength(raw);
     if (bytes >= CITY_PACK_BUDGET_BYTES) {
       errs.add(
@@ -1537,10 +1553,18 @@ function validateSlimShards() {
     );
     return { ok: false, count: 0 };
   }
-  if (!Array.isArray(full)) {
-    console.log(`FAIL ${name}: venues_slim.json is not a top-level array`);
+  if (
+    !full ||
+    Array.isArray(full) ||
+    typeof full.revision !== "string" ||
+    full.revision.trim().length === 0 ||
+    !Array.isArray(full.rows)
+  ) {
+    console.log(`FAIL ${name}: venues_slim.json is not a revisioned rows payload`);
     return { ok: false, count: 0 };
   }
+  const fullRevision = full.revision;
+  full = full.rows;
 
   const readRaw = (fileName) => readFileSync(join(DATA_DIR, fileName), "utf8");
   const fileFromUrl = (url) => url.replace(/^\/data\//, "");
@@ -1587,6 +1611,9 @@ function validateSlimShards() {
   }
   if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
     errs.add("manifest must carry a non-empty revision");
+  }
+  if (manifest?.revision !== fullRevision) {
+    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
   }
 
   if (manifest.version !== expectedManifest.version) {
@@ -1664,6 +1691,7 @@ function validateSlimShards() {
     }
     const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
     const expectedIds = new Set(expectedRows.map((row) => row?.id));
+    const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
     const shardIds = new Set();
     for (const r of rows) {
       if (!r || typeof r !== "object") {
@@ -1697,6 +1725,10 @@ function validateSlimShards() {
       }
       if (!expectedIds.has(r.id)) {
         errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
+      }
+      const expectedRow = expectedById.get(r.id);
+      if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
       }
       shardIds.add(r.id);
       if (allIds.has(r.id))
@@ -1905,7 +1937,8 @@ function loadUkBaseCuratedVenueIds() {
   const curatedVenueIds = new Set();
   try {
     const londonSlim = loadJson("venues_slim.json");
-    for (const venue of Array.isArray(londonSlim) ? londonSlim : []) {
+    const londonRows = Array.isArray(londonSlim) ? londonSlim : londonSlim?.rows;
+    for (const venue of Array.isArray(londonRows) ? londonRows : []) {
       if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
     }
     const citiesDir = join(DATA_DIR, "cities");
@@ -1914,7 +1947,8 @@ function loadUkBaseCuratedVenueIds() {
       const citySlimPath = join(citiesDir, entry.name, "venues_slim.json");
       if (!existsSync(citySlimPath)) continue;
       const citySlim = JSON.parse(readFileSync(citySlimPath, "utf8"));
-      for (const venue of Array.isArray(citySlim) ? citySlim : []) {
+      const cityRows = Array.isArray(citySlim) ? citySlim : citySlim?.rows;
+      for (const venue of Array.isArray(cityRows) ? cityRows : []) {
         if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
       }
     }
@@ -2046,8 +2080,9 @@ function validateUkBaseCuratedIdCollisions(ids) {
   // both would double-pin that pub.
   try {
     const slim = loadJson("venues_slim.json");
-    if (Array.isArray(slim)) {
-      for (const venue of slim) {
+    const slimRows = Array.isArray(slim) ? slim : slim?.rows;
+    if (Array.isArray(slimRows)) {
+      for (const venue of slimRows) {
         if (venue && ids.has(venue.id)) {
           errors.push(`base id "${venue.id}" also exists in venues_slim`);
         }

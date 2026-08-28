@@ -43,10 +43,15 @@ const SLIM_KEYS = [
   "name",
 ];
 
-const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
+const slimPayload = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as unknown;
+const slim = (
+  slimPayload && typeof slimPayload === "object" && !Array.isArray(slimPayload)
+    ? (slimPayload as { rows?: unknown }).rows
+    : slimPayload
+) as SlimVenue[];
 const rawRows = JSON.parse(readFileSync(RAW_PATH, "utf8")) as VenuePrice[];
 const famousIds = new Set(
-  (slim as SlimVenue[])
+  slim
     .filter((venue) => venue.kind !== undefined && venue.kind !== "pub")
     .map((venue) => venue.id),
 );
