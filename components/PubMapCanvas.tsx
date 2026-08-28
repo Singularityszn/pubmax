@@ -282,6 +282,8 @@ type PubMapCanvasProps = {
     pitch: number;
     bearing: number;
   };
+  /** IndexedDB last-view camera, applied after its async read completes. */
+  resumeViewport?: MapViewportSnapshot | null;
   /**
    * MapLibre maxBounds [[west, south], [east, north]]. Defaults to the UK pack
    * boundary while mapView continues to own the city-specific opening frame.
@@ -478,6 +480,7 @@ export default function PubMapCanvas({
   onMapReady,
   onMapErrored,
   mapView = LONDON_VIEW,
+  resumeViewport = null,
   maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
@@ -837,6 +840,21 @@ export default function PubMapCanvas({
     onBoundsChange,
     cityLandmarks,
   ]);
+
+  useEffect(() => {
+    if (!resumeViewport || !mapReady || !mapRef.current) return;
+    try {
+      mapRef.current.jumpTo({
+        center: resumeViewport.center,
+        zoom: resumeViewport.zoom,
+        pitch: resumeViewport.pitch,
+        bearing: resumeViewport.bearing,
+      });
+      mapRef.current.triggerRepaint();
+    } catch {
+      // A resume is an optimisation. A map that is still constructing can ignore it.
+    }
+  }, [mapReady, resumeViewport]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -1391,6 +1409,10 @@ export default function PubMapCanvas({
       emitBounds();
     };
     publishCurrentViewportRef.current = publishCurrentViewport;
+    // Start the location-scoped venue read as soon as MapLibre knows its
+    // opening frame. Waiting for style or tile idle made the data request pay
+    // for the basemap, which is the slower and independent lane.
+    queueMicrotask(publishCurrentViewport);
     // A gesture carries an originalEvent; a programmatic fly does not. That is
     // the whole test: a banner steps off the map when the READER moves it, and
     // never when the app flies the camera for them.

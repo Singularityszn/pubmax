@@ -34,6 +34,20 @@ export const LAZY_KIND_SHARDS = { restaurant: "restaurants" };
 export const MANIFEST_FILE = "venues_slim.manifest.json";
 export const CORE_FILE = "venues_slim.core.json";
 export const SHARD_VERSION = 1;
+export const SPATIAL_SHARD_VERSION = 2;
+
+// The map opens on a viewport, not on a borough. A fixed grid keeps the first
+// request proportional to what the reader can see and makes a pan predictable.
+// The client reads these values from the manifest, so the grid can change with
+// a data refresh without shipping a second copy of the maths in the bundle.
+export const SPATIAL_GRID = {
+  originLat: 51.25,
+  originLon: -0.575,
+  latStep: 0.025,
+  lonStep: 0.025,
+};
+
+export const SPATIAL_SHARD_PREFIX = "venues_slim.cell.";
 
 /** Public URL path (what the client fetches) for a data filename. */
 export function dataUrl(fileName) {
@@ -51,6 +65,63 @@ export function slugifyBorough(borough) {
 
 export function shardFileForSlug(slug) {
   return `venues_slim.${slug}.json`;
+}
+
+export function spatialCellIndex(lat, lng, grid = SPATIAL_GRID) {
+  return {
+    lat: Math.floor((lat - grid.originLat) / grid.latStep),
+    lon: Math.floor((lng - grid.originLon) / grid.lonStep),
+  };
+}
+
+export function spatialCellId(latIndex, lonIndex, grid = SPATIAL_GRID) {
+  const lat = grid.originLat + latIndex * grid.latStep;
+  const lon = grid.originLon + lonIndex * grid.lonStep;
+  return `${lat.toFixed(3)}_${lon.toFixed(3)}`;
+}
+
+export function spatialShardFile(latIndex, lonIndex, grid = SPATIAL_GRID) {
+  return `${SPATIAL_SHARD_PREFIX}${spatialCellId(latIndex, lonIndex, grid)}.json`;
+}
+
+/** Partition every slim row into one deterministic geographic cell. */
+export function classifySpatialShards(slim, grid = SPATIAL_GRID) {
+  const cells = new Map();
+  for (const venue of slim) {
+    const { lat, lon } = spatialCellIndex(Number(venue.lat), Number(venue.lng), grid);
+    const id = spatialCellId(lat, lon, grid);
+    const existing = cells.get(id);
+    if (existing) existing.venues.push(venue);
+    else cells.set(id, { lat, lon, venues: [venue] });
+  }
+  return new Map(
+    [...cells.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([id, cell]) => [
+      id,
+      cell,
+    ]),
+  );
+}
+
+/** Build a viewport-resolvable manifest with no eager monolithic core. */
+export function buildSpatialShardManifest(cells, grid = SPATIAL_GRID, coreId = null) {
+  const shards = [];
+  for (const [id, { lat, lon, venues }] of cells) {
+    const core = id === coreId;
+    shards.push({
+      id,
+      core,
+      ...(core ? {} : { partition: "grid" }),
+      url: dataUrl(core ? CORE_FILE : spatialShardFile(lat, lon, grid)),
+      count: venues.length,
+      bbox: [
+        grid.originLon + lon * grid.lonStep,
+        grid.originLat + lat * grid.latStep,
+        grid.originLon + (lon + 1) * grid.lonStep,
+        grid.originLat + (lat + 1) * grid.latStep,
+      ],
+    });
+  }
+  return { version: SPATIAL_SHARD_VERSION, grid, shards };
 }
 
 function pricedRatio(venues) {

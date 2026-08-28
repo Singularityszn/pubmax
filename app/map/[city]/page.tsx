@@ -47,5 +47,13 @@ export default async function CityMapPage({ params }: CityMapPageProps) {
   const { city: raw } = await params;
   const cityId = parseCityId(raw);
   if (!cityId || !getCity(cityId).enabled) notFound();
-  return <PubMaxingShell cityId={cityId} flags={readTrustedHandoffFlags()} />;
+  return (
+    <>
+      {cityId === "london" ? (
+        // eslint-disable-next-line @next/next/no-sync-scripts
+        <script src="/map-first-paint-init.js" />
+      ) : null}
+      <PubMaxingShell cityId={cityId} flags={readTrustedHandoffFlags()} />
+    </>
+  );
 }

@@ -84,6 +84,10 @@ function setupScratch(files: Record<string, unknown>): string {
     join(ROOT, "lib", "pintIndexCanonical.mjs"),
     join(scratchLib, "pintIndexCanonical.mjs"),
   );
+  cpSync(
+    join(ROOT, "lib", "editorialRss.mjs"),
+    join(scratchLib, "editorialRss.mjs"),
+  );
   // What's-On files share one row-shape predicate with the app. The validator
   // imports it, so scratch runs must carry the same module.
   cpSync(

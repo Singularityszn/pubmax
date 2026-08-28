@@ -5,8 +5,8 @@ import {
   bboxIntersects,
   createSlimShardLoader,
   parseShardManifest,
-  shardForPoint,
   shardsForBounds,
+  shardForPoint,
   type MapBounds,
   type ShardManifest,
 } from "@/lib/slimShards";
@@ -79,6 +79,21 @@ describe("slimShards pure geometry", () => {
       east: 0.1,
       north: 51.55,
     }).map((shard) => shard.id)).toContain("restaurants");
+  });
+
+  it("includes one grid ring only when requested", () => {
+    const gridManifest: ShardManifest = {
+      version: 2,
+      grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
+      shards: [
+        { id: "centre", core: false, partition: "grid", url: "/centre", count: 1, bbox: [1, 1, 2, 2] },
+        { id: "north", core: false, partition: "grid", url: "/north", count: 1, bbox: [1, 2, 2, 3] },
+        { id: "far", core: false, partition: "grid", url: "/far", count: 1, bbox: [4, 4, 5, 5] },
+      ],
+    };
+    const bounds = { west: 1.1, south: 1.1, east: 1.9, north: 1.9 };
+    expect(shardsForBounds(gridManifest, bounds).map((shard) => shard.id)).toEqual(["centre"]);
+    expect(shardsForBounds(gridManifest, bounds, 1).map((shard) => shard.id)).toEqual(["centre", "north"]);
   });
 });
 

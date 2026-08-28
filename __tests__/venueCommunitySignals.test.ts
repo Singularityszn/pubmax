@@ -332,7 +332,7 @@ describe("VenueOverviewTab community signals", () => {
       -1,
     );
     expect(signalsAt).toBeLessThan(priceStoryAt);
-    expect(html).toContain("One drinker saw people eating.");
+    expect(html).toContain("Older drinker reports saw people eating.");
     // Price-entry path keeps the authoring surface; Overview's own mount is
     // read-only, so the first block never offers the composer.
     const firstBlock = html.slice(signalsAt, priceStoryAt);

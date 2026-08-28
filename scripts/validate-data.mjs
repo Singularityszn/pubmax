@@ -23,7 +23,11 @@ import {
   CORE_FILE,
   MANIFEST_FILE,
   buildShardManifest,
+  buildSpatialShardManifest,
   classifySlimShards,
+  classifySpatialShards,
+  spatialCellId,
+  spatialCellIndex,
 } from "./lib/slimShards.mjs";
 import {
   POSTCODE_COORDINATE_MAX_DISTANCE_KM,
@@ -1553,11 +1557,23 @@ function validateSlimShards() {
   }
 
   // Rebuild the expected plan from the monolith and compare structurally.
-  const { core: expectedCore, outer: expectedOuter } = classifySlimShards(full);
-  const expectedManifest = buildShardManifest({
-    core: expectedCore,
-    outer: expectedOuter,
-  });
+  // Version 2 is location-first: every row is in a geographic cell, with one
+  // central compatibility core file. Version 1 remains accepted for city and
+  // older fixtures that still use borough shards.
+  let expectedCore;
+  let expectedManifest;
+  if (manifest?.grid) {
+    const grid = manifest.grid;
+    const cells = classifySpatialShards(full, grid);
+    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
+    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
+    expectedCore = cells.get(coreId)?.venues ?? [];
+    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
+  } else {
+    const { core, outer } = classifySlimShards(full);
+    expectedCore = core;
+    expectedManifest = buildShardManifest({ core, outer });
+  }
 
   if (manifest.version !== expectedManifest.version) {
     errs.add(
@@ -1654,6 +1670,12 @@ function validateSlimShards() {
     errs.add(
       `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
     );
+  }
+  for (const exp of expectedManifest.shards) {
+    const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
+    if (Buffer.byteLength(raw) >= 150 * 1024) {
+      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
+    }
   }
   if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
     errs.add(

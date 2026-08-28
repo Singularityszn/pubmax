@@ -8,6 +8,17 @@ export const LAZY_KIND_SHARDS: Record<string, string>;
 export const MANIFEST_FILE: string;
 export const CORE_FILE: string;
 export const SHARD_VERSION: number;
+export const SPATIAL_SHARD_VERSION: number;
+
+export interface SpatialGrid {
+  originLat: number;
+  originLon: number;
+  latStep: number;
+  lonStep: number;
+}
+
+export const SPATIAL_GRID: SpatialGrid;
+export const SPATIAL_SHARD_PREFIX: string;
 
 export interface SlimShardRow {
   id: string;
@@ -37,18 +48,49 @@ export interface ShardManifestEntry {
   url: string;
   count: number;
   bbox: ShardBbox;
-  partition?: "borough" | "kind";
+  partition?: "borough" | "kind" | "grid";
   borough?: string;
 }
 
 export interface ShardManifest {
   version: number;
+  grid?: SpatialGrid;
   shards: ShardManifestEntry[];
+}
+
+export interface SpatialCell {
+  lat: number;
+  lon: number;
+  venues: SlimShardRow[];
 }
 
 export function dataUrl(fileName: string): string;
 export function slugifyBorough(borough: unknown): string;
 export function shardFileForSlug(slug: string): string;
+export function spatialCellIndex(
+  lat: number,
+  lng: number,
+  grid?: SpatialGrid,
+): { lat: number; lon: number };
+export function spatialCellId(
+  latIndex: number,
+  lonIndex: number,
+  grid?: SpatialGrid,
+): string;
+export function spatialShardFile(
+  latIndex: number,
+  lonIndex: number,
+  grid?: SpatialGrid,
+): string;
+export function classifySpatialShards(
+  slim: SlimShardRow[],
+  grid?: SpatialGrid,
+): Map<string, SpatialCell>;
+export function buildSpatialShardManifest(
+  cells: Map<string, SpatialCell>,
+  grid?: SpatialGrid,
+  coreId?: string | null,
+): ShardManifest;
 export function computeBbox(venues: Array<{ lat?: unknown; lng?: unknown }>): ShardBbox;
 export function classifySlimShards(slim: SlimShardRow[]): ShardPlan;
 export function buildShardManifest(plan: ShardPlan): ShardManifest;

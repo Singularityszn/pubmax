@@ -3,22 +3,21 @@
 // #315 grew venues_slim.json to ~805 KB by adding Outer-London presence pins.
 // scripts/build_slim_index.mjs now emits, alongside the monolithic file:
 //   • venues_slim.manifest.json — shard -> { url, bbox, count } (tiny, eager)
-//   • venues_slim.core.json     — the priced inner-London index (eager)
-//   • venues_slim.{shard}.json - lazy borough and curated-kind shards
+//   • venues_slim.core.json     — the central compatibility cell
+//   • venues_slim.cell.*.json   - lazy location cells
 //
-// The MAP is the only true first-paint surface, so it loads CORE eagerly and
-// pulls a lazy shard only when it actually needs it:
-//   (a) the viewport intersects that borough's bbox,
-//   (b) near-me geolocates into it.
+// The MAP is the only true first-paint surface, so it loads the viewport first,
+// starts one neighbouring grid ring after pins settle, and pulls another cell
+// only when needed.
 // Everything is one code path: consumers hold a loader from
-// createSlimShardLoader() and call core()/inBounds()/nearPoint()/all(); the
+// createSlimShardLoader() and call initial()/inBounds()/nearPoint()/all(); the
 // loader hides fetching, dedup, offline mirroring, and the non-sharded
 // fallback for cities that ship a single file (no manifest).
 //
 // Degradation: a shard fetch that fails with no offline mirror yields [] and is
 // NOT marked loaded, so the next moveend / near-me retries it. The map keeps
-// working with whatever shards did load. Cache-first `/data/*.json` handling in
-// public/sw.js already covers every shard URL (see its strategy table).
+// working with whatever shards did load. Stale-while-revalidate `/data/*.json`
+// handling in public/sw.js covers every shard URL (see its strategy table).
 
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
@@ -35,12 +34,13 @@ export type ShardEntry = {
   url: string;
   count: number;
   bbox: ShardBbox;
-  partition?: "borough" | "kind";
+  partition?: "borough" | "kind" | "grid";
   borough?: string;
 };
 
 export type ShardManifest = {
   version: number;
+  grid?: { originLat: number; originLon: number; latStep: number; lonStep: number };
   shards: ShardEntry[];
 };
 
@@ -62,6 +62,14 @@ function isBbox(value: unknown): value is ShardBbox {
   );
 }
 
+function isGrid(value: unknown): value is ShardManifest["grid"] {
+  if (typeof value !== "object" || value === null) return false;
+  const grid = value as Record<string, unknown>;
+  return ["originLat", "originLon", "latStep", "lonStep"].every(
+    (key) => typeof grid[key] === "number" && Number.isFinite(grid[key]),
+  );
+}
+
 /** Parse an unknown payload into a ShardManifest, or null if malformed. */
 export function parseShardManifest(value: unknown): ShardManifest | null {
   if (typeof value !== "object" || value === null) return null;
@@ -80,12 +88,14 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
     if (
       s.partition !== undefined &&
       s.partition !== "borough" &&
-      s.partition !== "kind"
+      s.partition !== "kind" &&
+      s.partition !== "grid"
     ) {
       return null;
     }
     if (s.partition === "borough" && typeof s.borough !== "string") return null;
     if (s.partition === "kind" && s.borough !== undefined) return null;
+    if (s.partition === "grid" && s.borough !== undefined) return null;
     shards.push({
       id: s.id,
       core: s.core,
@@ -98,7 +108,12 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
       ...(typeof s.borough === "string" ? { borough: s.borough } : {}),
     });
   }
-  return { version: obj.version, shards };
+  if (obj.grid !== undefined && !isGrid(obj.grid)) return null;
+  return {
+    version: obj.version,
+    ...(obj.grid ? { grid: obj.grid } : {}),
+    shards,
+  };
 }
 
 /** Does a shard bbox overlap the viewport bounds? (inclusive edges) */
@@ -119,8 +134,24 @@ export function bboxContainsPoint(bbox: ShardBbox, lat: number, lng: number): bo
 }
 
 /** Non-core shards whose bbox intersects the viewport. */
-export function shardsForBounds(manifest: ShardManifest, bounds: MapBounds): ShardEntry[] {
-  return manifest.shards.filter((s) => !s.core && bboxIntersects(s.bbox, bounds));
+export function shardsForBounds(
+  manifest: ShardManifest,
+  bounds: MapBounds,
+  ring = 0,
+  includeCore = false,
+): ShardEntry[] {
+  const grid = manifest.grid;
+  const padLat = grid && Number.isFinite(ring) ? Math.max(0, ring) * grid.latStep : 0;
+  const padLng = grid && Number.isFinite(ring) ? Math.max(0, ring) * grid.lonStep : 0;
+  const padded = {
+    west: bounds.west - padLng,
+    south: bounds.south - padLat,
+    east: bounds.east + padLng,
+    north: bounds.north + padLat,
+  };
+  return manifest.shards.filter(
+    (s) => (includeCore || !s.core) && bboxIntersects(s.bbox, padded),
+  );
 }
 
 /**
@@ -187,19 +218,21 @@ export function guessedCoreShardUrl(slimVenuesPath: string): string {
 }
 
 export type SlimShardLoader = {
-  /** Eager first-paint payload: the core shard. */
+  /** Compatibility read for consumers that need the central shard. */
   core(): Promise<SlimVenue[]>;
   /**
-   * Venues from outer shards intersecting `bounds` that are not already
+   * Venues from location shards intersecting `bounds` that are not already
    * loaded. Returns [] when nothing new is needed. Never throws.
    */
-  inBounds(bounds: MapBounds): Promise<SlimVenue[]>;
+  inBounds(bounds: MapBounds, ring?: number): Promise<SlimVenue[]>;
+  /** First map read: viewport cells, or the legacy core. */
+  initial(bounds: MapBounds): Promise<SlimVenue[]>;
   /**
-   * Venues from the outer shard containing `point`, loaded (with one retry) if
-   * needed. [] when the point is in core territory or the shard can't load.
+   * Venues from the location shard containing `point`, loaded (with one retry)
+   * if needed. [] when the point is not covered or the shard can't load.
    */
   nearPoint(lat: number, lng: number): Promise<SlimVenue[]>;
-  /** Core + every outer shard (for by-id / whole-index consumers). */
+  /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
    * Whether every shard that could hold a venue inside `bounds` has loaded, so
@@ -330,10 +363,21 @@ export function createSlimShardLoader(
       return loadShard(core.url);
     },
 
-    async inBounds(bounds: MapBounds): Promise<SlimVenue[]> {
+    async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
-      const needed = shardsForBounds(m, bounds).filter((s) => !loadedUrls.has(s.url));
+      const needed = shardsForBounds(m, bounds, ring).filter((s) => !loadedUrls.has(s.url));
+      if (needed.length === 0) return [];
+      const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      return results.flat();
+    },
+
+    async initial(bounds: MapBounds): Promise<SlimVenue[]> {
+      const m = await manifest();
+      if (!m) return loadWholeIndex();
+      const needed = shardsForBounds(m, bounds, 0, true).filter(
+        (s) => !loadedUrls.has(s.url),
+      );
       if (needed.length === 0) return [];
       const results = await Promise.all(needed.map((s) => loadShard(s.url)));
       return results.flat();

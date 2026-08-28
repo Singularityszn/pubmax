@@ -136,6 +136,7 @@ const SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL =
 // reach. They revalidate on every request. (components/OfflineReady.tsx also
 // registers /sw.js under a per-deploy ?v=, so this is the second line.)
 const WORKER_CACHE_CONTROL = "public, max-age=0, must-revalidate";
+const HASHED_STATIC_CACHE_CONTROL = "public, max-age=31536000, immutable";
 
 /** One header rule: `source` takes `Cache-Control: value`. */
 const cacheRule = (source, value) => ({
@@ -316,6 +317,7 @@ const nextConfig = {
           { key: "Cache-Control", value: UNHASHED_PUBLIC_ASSET_CACHE_CONTROL },
         ],
       },
+      cacheRule("/_next/static/:path*", HASHED_STATIC_CACHE_CONTROL),
       cacheRule("/landing/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/vendor/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/store-assets/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),

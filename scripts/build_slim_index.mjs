@@ -16,16 +16,19 @@
 // the ids this produces equals stableVenueIdFromKey(venueGroupingKey(...)) from
 // the real TS, so the mirror can never silently drift.
 
-import { mkdir, readFile, writeFile } from "node:fs/promises";
+import { mkdir, readdir, readFile, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
   CORE_FILE,
   MANIFEST_FILE,
-  buildShardManifest,
-  classifySlimShards,
-  shardFileForSlug,
+  SPATIAL_GRID,
+  buildSpatialShardManifest,
+  classifySpatialShards,
+  spatialCellIndex,
+  spatialCellId,
+  spatialShardFile,
 } from "./lib/slimShards.mjs";
 import { loadStationZones, nearestStationZone } from "./lib/stationZones.mjs";
 import { isCurrentNightOutPlace } from "../lib/nightOutPlaceContract.mjs";
@@ -46,11 +49,10 @@ const FAMOUS_VENUE_PATHS = [
   path.join(ROOT, "data", "famous_venues", "restaurants.json"),
 ];
 
-// First-paint budget: the eager map payload is the manifest + core shard ONLY.
-// Restored to 600 KB after #315 (which had raised it to 900 KB to fit the raw
-// Outer-London pins into one file). The outer boroughs now stream in lazily, so
-// first paint never pays for them again.
-const EAGER_BUDGET_BYTES = 600 * 1024;
+// A region is loaded from the manifest plus the viewport and one grid ring.
+// Keep individual cells small enough that a phone never pays for London-wide
+// presence pins before it has looked there.
+const SHARD_BUDGET_BYTES = 150 * 1024;
 // All-in budget across every shard (core + outer). A regression that bloats the
 // whole index — not just first paint — still fails CI.
 const TOTAL_BUDGET_BYTES = 1200 * 1024;
@@ -800,23 +802,38 @@ async function main() {
   await writeFile(DETAIL_ROWS_PATH, detailText);
   await writeFile(DETAIL_INDEX_PATH, detailIndexText);
 
-  // --- shard the slim index for the map's first paint ------------------------
-  const { core, outer } = classifySlimShards(slim);
-  const manifest = buildShardManifest({ core, outer });
-  const coreText = JSON.stringify(core);
+  // --- spatially shard the slim index for the map's first paint --------------
+  const cells = classifySpatialShards(slim, SPATIAL_GRID);
+  const londonCentreCell = spatialCellIndex(51.5074, -0.1278, SPATIAL_GRID);
+  const coreId = spatialCellId(
+    londonCentreCell.lat,
+    londonCentreCell.lon,
+    SPATIAL_GRID,
+  );
+  const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID, coreId);
+  const coreCell = cells.get(coreId);
+  if (!coreCell) throw new Error(`Spatial core cell ${coreId} is missing`);
+  const coreText = JSON.stringify(coreCell.venues);
   const manifestText = JSON.stringify(manifest);
   await writeFile(path.join(DATA_DIR, CORE_FILE), coreText);
   await writeFile(path.join(DATA_DIR, MANIFEST_FILE), manifestText);
 
-  let outerBytesTotal = 0;
+  // The previous borough pack is generated output. Remove only its known
+  // venue-slim shard family before writing the new cell family.
+  const oldShardFiles = (await readdir(DATA_DIR)).filter(
+    (file) => /^venues_slim\.(?!manifest|core)[^.].*\.json$/.test(file),
+  );
+  await Promise.all(oldShardFiles.map((file) => unlink(path.join(DATA_DIR, file))));
+
+  let spatialBytesTotal = 0;
   const shardReport = [];
-  for (const [slug, { borough, venues }] of outer) {
+  for (const [id, { lat, lon, venues }] of cells) {
+    if (id === coreId) continue;
     const text = JSON.stringify(venues);
-    outerBytesTotal += Buffer.byteLength(text);
-    await writeFile(path.join(DATA_DIR, shardFileForSlug(slug)), text);
+    spatialBytesTotal += Buffer.byteLength(text);
+    await writeFile(path.join(DATA_DIR, spatialShardFile(lat, lon, SPATIAL_GRID)), text);
     shardReport.push({
-      slug,
-      borough: borough ?? slug,
+      slug: id,
       count: venues.length,
       bytes: Buffer.byteLength(text),
     });
@@ -824,8 +841,7 @@ async function main() {
 
   const manifestBytes = Buffer.byteLength(manifestText);
   const coreBytes = Buffer.byteLength(coreText);
-  const eagerBytes = manifestBytes + coreBytes;
-  const totalShardBytes = eagerBytes + outerBytesTotal;
+  const totalShardBytes = manifestBytes + coreBytes + spatialBytesTotal;
 
   const rawBytes = Buffer.byteLength(rawText);
   const slimBytes = Buffer.byteLength(slimText);
@@ -850,7 +866,7 @@ async function main() {
   console.log(`wrote: ${path.relative(ROOT, DETAIL_INDEX_PATH)}`);
 
   // Zone coverage (nearest-station fare zone) — stamped per venue above, so the
-  // core + outer shards inherit it via classifySlimShards. Logged here, after
+  // spatial shards inherit it. Logged here, after
   // the shard budgets, as a build-time honesty spot-check.
   const zoneSummary = Object.keys(zoneCounts)
     .map(Number)
@@ -862,9 +878,9 @@ async function main() {
   );
 
   console.log("");
-  console.log(`shards: ${outer.size} lazy outer shard(s) + core`);
+  console.log(`shards: ${cells.size} spatial cell(s), one central compatibility core`);
   console.log(
-    `  core (eager):  ${core.length} venues   ${kb(coreBytes)} KB   (+ manifest ${kb(manifestBytes)} KB)`,
+    `  core compatibility cell: ${coreCell.venues.length} venues   ${kb(coreBytes)} KB   (+ manifest ${kb(manifestBytes)} KB)`,
   );
   for (const { slug, count, bytes } of shardReport) {
     console.log(
@@ -872,18 +888,23 @@ async function main() {
     );
   }
   console.log(
-    `  EAGER first-paint: ${kb(eagerBytes)} KB / ${kb(EAGER_BUDGET_BYTES)} KB budget`,
+    `  core compatibility cell: ${coreId}`,
   );
   console.log(
     `  TOTAL all shards:  ${kb(totalShardBytes)} KB / ${kb(TOTAL_BUDGET_BYTES)} KB budget`,
   );
 
-  if (eagerBytes >= EAGER_BUDGET_BYTES) {
+  if (coreBytes >= SHARD_BUDGET_BYTES) {
     throw new Error(
-      `eager first-paint payload ${kb(eagerBytes)} KB exceeds ${kb(EAGER_BUDGET_BYTES)} KB budget ` +
-        `(manifest ${kb(manifestBytes)} KB + core ${kb(coreBytes)} KB). ` +
-        `A borough gained enough presence pins that core no longer fits — retune ` +
-        `OUTER_MAX_PRICED_RATIO/OUTER_MIN_VENUES in scripts/lib/slimShards.mjs, or split core further.`,
+      `spatial core cell ${kb(coreBytes)} KB exceeds ${kb(SHARD_BUDGET_BYTES)} KB budget`,
+    );
+  }
+  const oversized = shardReport.filter(({ bytes }) => bytes >= SHARD_BUDGET_BYTES);
+  if (oversized.length > 0) {
+    throw new Error(
+      `spatial shard(s) exceed ${kb(SHARD_BUDGET_BYTES)} KB budget: ${oversized
+        .map(({ slug, bytes }) => `${slug} (${kb(bytes)} KB)`)
+        .join(", ")}`,
     );
   }
   if (totalShardBytes >= TOTAL_BUDGET_BYTES) {

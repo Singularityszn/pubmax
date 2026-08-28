@@ -30,10 +30,8 @@ export type MapCanvasWarmDeps = {
 };
 
 export const MAP_INTENT_WARM_PATHS = [
-  // Cycle-5 sharding: the map's first paint fetches the manifest + core shard,
-  // NOT the monolithic venues_slim.json — warm exactly what it will request so
-  // slow connections prime the right bytes (and never the 824 KB monolith the
-  // map no longer reads).
+  // Intent warmup can prepare the core before navigation. The document's own
+  // first-paint warmup uses only the manifest and opening cells.
   "/data/venues_slim.manifest.json",
   "/data/venues_slim.core.json",
   "/data/london_pois.json",
@@ -76,6 +74,10 @@ export function warmPathsForMapHref(href: string): readonly string[] {
 
 /** Only the venue index: what the map's FIRST frame reads. */
 export function mapFirstPaintWarmPaths(href: string): readonly string[] {
+  const path = href.split("?")[0] || href;
+  if (path === "/map" || path === "/map/") {
+    return ["/data/venues_slim.manifest.json"];
+  }
   return mapWarmPathsFor(href).venueIndex;
 }
 
