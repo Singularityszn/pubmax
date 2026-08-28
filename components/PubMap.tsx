@@ -335,6 +335,7 @@ import {
   resolveMapOpeningLocation,
   writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
+import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
@@ -873,6 +874,35 @@ export default function PubMap({
   const [mapResumeSeed] = useState(() =>
     currentSearch() ? null : readMapResumeSync(cityId),
   );
+  const shouldResolveOpeningLocation =
+    !currentSearch() &&
+    !ukPlaceArrival &&
+    !ukNationalBrowse &&
+    !mapResumeSeed &&
+    !restoredMobileSession?.viewport;
+  const [grantedOpeningLocation, setGrantedOpeningLocation] =
+    useState<MapOpeningLocation | null>(null);
+  const [openingLocationResolved, setOpeningLocationResolved] = useState(
+    !shouldResolveOpeningLocation,
+  );
+  useEffect(() => {
+    if (!shouldResolveOpeningLocation) {
+      setOpeningLocationResolved(true);
+      return;
+    }
+    let cancelled = false;
+    void readGrantedMapOpeningLocation().then((location) => {
+      if (cancelled) return;
+      if (location && pointInCityBounds(location.lat, location.lng, city)) {
+        setGrantedOpeningLocation(location);
+        writeMapOpeningLocation(location);
+      }
+      setOpeningLocationResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [city, shouldResolveOpeningLocation]);
   const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
   // fetched on /map mount; full details arrive lazily per selected venue.
@@ -958,8 +988,18 @@ export default function PubMap({
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
+  const locationFirstMapView = grantedOpeningLocation
+    ? {
+        ...initialMapView,
+        zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
+        center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
+          number,
+          number,
+        ],
+      }
+    : initialMapView;
   const openingLoadViewport =
-    mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? initialMapView;
+    mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView;
   useEffect(() => {
     if (!mapResumeSeed) return;
     markPubmaxTiming("pubmax:first-pins");
@@ -1061,7 +1101,7 @@ export default function PubMap({
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
     openingViewport
       ? withCityCameraAttitude(openingViewport, city.mapView)
-      : initialMapView,
+      : locationFirstMapView,
   );
   // The settled view's own edges, published by the canvas on every moveend. The
   // centre alone cannot answer what the view is OVER, which is what a place
@@ -1661,58 +1701,30 @@ export default function PubMap({
   }, []);
 
   useEffect(() => {
-    if (
-      arrivalSearch ||
-      ukPlaceArrival ||
-      ukNationalBrowse ||
-      mapResumeSeed ||
-      restoredMobileSession?.viewport
-    ) return;
-    let cancelled = false;
-    void readGrantedMapOpeningLocation().then((location) => {
+    if (!grantedOpeningLocation || mapCameraTouchedRef.current) return;
+    const viewport = {
+      ...initialMapView,
+      zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
+      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
+        number,
+        number,
+      ],
+    };
+    setOpeningLocationFocus((current) => {
       if (
-        cancelled ||
-        !location ||
-        mapCameraTouchedRef.current ||
-        !pointInCityBounds(location.lat, location.lng, city)
-      ) return;
-      const viewport = {
-        ...initialMapView,
-        zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
-        center: [location.lng, location.lat] as [number, number],
-      };
-      writeMapOpeningLocation(location);
-      setOpeningLocationFocus((current) => ({
+        current?.center[0] === viewport.center[0] &&
+        current.center[1] === viewport.center[1] &&
+        current.zoom === viewport.zoom
+      ) {
+        return current;
+      }
+      return {
         center: viewport.center,
         zoom: viewport.zoom,
         token: (current?.token ?? 0) + 1,
-      }));
-      const loader = slimLoaderRef.current;
-      if (!loader) return;
-      void loader
-        .inBounds(boundsForOpeningView(viewport))
-        .then((rows) => {
-          if (!cancelled) {
-            mergeSlimVenues(rows);
-            refreshCountCoverage();
-          }
-        })
-        .catch(() => undefined);
+      };
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [
-    arrivalSearch,
-    city,
-    initialMapView,
-    mapResumeSeed,
-    mergeSlimVenues,
-    refreshCountCoverage,
-    restoredMobileSession?.viewport,
-    ukNationalBrowse,
-    ukPlaceArrival,
-  ]);
+  }, [grantedOpeningLocation, initialMapView]);
 
   const scheduleRingLoad = useCallback(
     (loader: SlimShardLoader, bounds: MapBounds) => {
@@ -1772,6 +1784,14 @@ export default function PubMap({
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
 
   useEffect(() => {
+    if (
+      !openingLocationResolved &&
+      !arrivalSearch &&
+      !ukPlaceArrival &&
+      !ukNationalBrowse
+    ) {
+      return;
+    }
     let cancelled = false;
     const loader = createSlimShardLoader(cityId, {
       bypassInFlight: venueIndexAttempt > 0,
@@ -1798,7 +1818,12 @@ export default function PubMap({
         setMapResumeUpdating(false);
       }
     });
-    if (!arrivalSearch && !ukPlaceArrival && !ukNationalBrowse) {
+    if (
+      !arrivalSearch &&
+      !ukPlaceArrival &&
+      !ukNationalBrowse &&
+      openingLocationResolved
+    ) {
       const openingBounds = boundsForOpeningView(openingLoadViewport);
       const startInitialLoad = (bounds: MapBounds) => {
         if (cancelled || initialShardLoadStartedRef.current) return;
@@ -1900,7 +1925,7 @@ export default function PubMap({
       liveShardLoadSettledRef.current = false;
       ringLoadPendingKeyRef.current = null;
     };
-  }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, openingLocationResolved, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -4545,7 +4570,7 @@ export default function PubMap({
           onMapErrored={setMapCanvasErrored}
           mapView={openingViewport
             ? withCityCameraAttitude(openingViewport, city.mapView)
-            : initialMapView}
+            : locationFirstMapView}
           resumeViewport={mapResumeViewport}
           maxBounds={UK_BOUNDS}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
