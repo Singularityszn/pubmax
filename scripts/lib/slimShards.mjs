@@ -36,16 +36,22 @@ export const CORE_FILE = "venues_slim.core.json";
 export const SHARD_VERSION = 1;
 export const SPATIAL_SHARD_VERSION = 2;
 const nonEmptyRevision = (...values) =>
-  values.find((value) => typeof value === "string" && value.trim())?.trim() ??
-  "local";
+  values.find((value) => typeof value === "string" && value.trim())?.trim();
 
-export const DATA_REVISION = nonEmptyRevision(
+const configuredDataRevision = nonEmptyRevision(
   process.env.NEXT_PUBLIC_SW_VERSION,
   process.env.DEPLOYMENT_VERSION,
   process.env.VERCEL_DEPLOYMENT_ID,
   process.env.VERCEL_GIT_COMMIT_SHA,
   process.env.GITHUB_SHA,
 );
+
+export const DATA_REVISION = configuredDataRevision ??
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("A deploy revision is required for production data builds");
+      })()
+    : "local");
 
 // The map opens on a viewport, not on a borough. A fixed grid keeps the first
 // request proportional to what the reader can see and makes a pan predictable.

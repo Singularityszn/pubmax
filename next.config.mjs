@@ -70,8 +70,7 @@ const feedDataFiles = withRuntimeDataPacks(
 // environment instead. Local builds use a stable marker because no worker from
 // a local build can cross into production.
 const nonEmptyRevision = (...values) =>
-  values.find((value) => typeof value === "string" && value.trim())?.trim() ??
-  "local";
+  values.find((value) => typeof value === "string" && value.trim())?.trim();
 
 const swVersion = nonEmptyRevision(
   process.env.NEXT_PUBLIC_SW_VERSION,
@@ -79,7 +78,12 @@ const swVersion = nonEmptyRevision(
   process.env.VERCEL_DEPLOYMENT_ID,
   process.env.VERCEL_GIT_COMMIT_SHA,
   process.env.GITHUB_SHA,
-);
+) ??
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("A deploy revision is required for production builds");
+      })()
+    : "local");
 
 // Next 16 tags framework-owned assets and navigations with this identifier,
 // allowing skew protection to keep stale clients on one deployment during a

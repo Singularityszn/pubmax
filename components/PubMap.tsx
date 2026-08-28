@@ -2827,8 +2827,6 @@ export default function PubMap({
       showLoadedRoute(ids[0]);
     };
     if (!loader) {
-      if (!request || !loaded) return;
-      finish();
       return;
     }
     const loaderGeneration = slimLoaderGenerationRef.current;

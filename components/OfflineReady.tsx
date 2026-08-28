@@ -17,7 +17,8 @@ export default function OfflineReady() {
     if (!("serviceWorker" in navigator)) return;
 
     const register = () => {
-      const version = process.env.NEXT_PUBLIC_SW_VERSION?.trim() || "local";
+      const version = process.env.NEXT_PUBLIC_SW_VERSION?.trim();
+      if (!version) return;
       navigator.serviceWorker
         .register(
           `/sw.js?v=${encodeURIComponent(version)}&cache-policy=write-safe-v1`,
