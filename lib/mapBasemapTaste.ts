@@ -4,6 +4,8 @@
 // Dark-mode contract: land must stay night-dark (`inkDeep` / `paper`), never the
 // cream `--ink` text token. Roads stay readable without outranking pub marks.
 
+import { clamp } from "@/lib/mathClamp";
+
 export type BasemapTasteTokens = {
   paper: string;
   panelRaised: string;
@@ -81,11 +83,11 @@ export function mixHex(hexA: string, hexB: string, t: number): string {
   if (!a || !b) return hexA;
   const na = parseInt(a[1], 16);
   const nb = parseInt(b[1], 16);
-  const clamp = Math.min(1, Math.max(0, t));
+  const clampedT = clamp(t, 0, 1);
   const mix = (shift: number) => {
     const ca = (na >> shift) & 255;
     const cb = (nb >> shift) & 255;
-    return Math.round(ca + (cb - ca) * clamp);
+    return Math.round(ca + (cb - ca) * clampedT);
   };
   const r = mix(16);
   const g = mix(8);
