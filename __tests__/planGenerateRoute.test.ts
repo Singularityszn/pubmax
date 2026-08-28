@@ -51,6 +51,7 @@ vi.mock("@/lib/walkRouteStore", () => ({
 }));
 
 import { GET, POST } from "@/app/api/plans/generate/route";
+import { preparePlanGeneration } from "@/lib/planGeneration.server";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
 import { hashIp } from "@/lib/supabase";
 import type { LngLat } from "@/lib/walkRoute";
@@ -256,6 +257,18 @@ describe("POST /api/plans/generate", () => {
     expect(isLimitedMock).toHaveBeenCalledOnce();
     expect(isLimitedMock).toHaveBeenCalledWith(expectedKey, expectedKey, 8, 60_000);
     expect(JSON.stringify(isLimitedMock.mock.calls)).not.toContain(rawIp);
+  });
+
+  it("enforces rate limiting inside request preparation", async () => {
+    isLimitedMock.mockResolvedValueOnce(true);
+
+    const preparation = await preparePlanGeneration(new Request("http://localhost/api/plans/generate", {
+      method: "POST",
+      body: JSON.stringify({ query: "A quiet night in Barnes" }),
+    }));
+
+    expect(isLimitedMock).toHaveBeenCalledOnce();
+    expect("response" in preparation ? preparation.response.status : null).toBe(429);
   });
 
   it("isolates plan-generation budgets by client and preserves the flat 429 contract", async () => {

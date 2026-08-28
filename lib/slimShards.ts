@@ -339,7 +339,7 @@ export function createSlimShardLoader(
         } else {
           shardPromises.delete(url);
         }
-        return result.rows;
+        return result;
       })
       .catch(() => {
         shardPromises.delete(url); // allow retry

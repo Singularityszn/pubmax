@@ -1724,6 +1724,7 @@ export default function PubMap({
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
     mapResumeSeedConsumedRef.current = true;
+    let resumeRefreshVersion = 0;
     void Promise.resolve().then(() => {
       if (cancelled) return;
       setVenueIndexFailed(false);
@@ -1737,65 +1738,90 @@ export default function PubMap({
       }
     });
     if (!arrivalSearch && !ukPlaceArrival && !ukNationalBrowse) {
-      void readMapResume(cityId).then((snapshot) => {
-        if (cancelled || !snapshot) return;
-        if (mapCameraTouchedRef.current) return;
-        if (mapResumeSeed && snapshot.savedAt <= mapResumeSeed.savedAt) return;
-        if (liveShardLoadSettledRef.current && !mapResumeSeed) return;
-        if (!liveShardLoadSettledRef.current) {
-          setSlimPins(slimVenuesToPins(snapshot.rows));
-          setLoadedCityId(cityId);
-          setLoaded(true);
-          markPubmaxTiming("pubmax:first-pins");
-          markPubmaxTiming("pubmax:slim-venues-ready");
-        }
-        setMapResumeViewport(snapshot.viewport);
-        if (!mapResumeSeed) setMapResumeUpdating(true);
-        const resumeBounds = boundsForOpeningView(snapshot.viewport);
-        void loader.initial(resumeBounds)
-          .then((rows) => {
-            if (cancelled || (liveShardLoadSettledRef.current && !mapResumeSeed)) return;
+      const openingBounds = boundsForOpeningView(openingLoadViewport);
+      const startInitialLoad = (bounds: MapBounds) => {
+        if (cancelled || initialShardLoadStartedRef.current) return;
+        initialShardLoadStartedRef.current = true;
+        const loadResumeVersion = resumeRefreshVersion;
+        void loader.initialResult(bounds)
+          .then((result) => {
+            if (cancelled) return;
+            const rows = result.rows;
+            liveShardLoadSettledRef.current = true;
+            setVenueIndexFailed(result.status !== "ready");
             mergeSlimVenues(rows);
+            if (rows.length > 0) {
+              markPubmaxTiming("pubmax:first-pins");
+              markPubmaxTiming("pubmax:slim-venues-ready");
+            }
+            initialShardLoadSettledRef.current = true;
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            if (resumeRefreshVersion === loadResumeVersion) setMapResumeUpdating(false);
+            initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status === "ready") {
+              const ringBounds = latestMapBoundsRef.current ?? bounds;
+              if (!cancelled) scheduleRingLoad(loader, ringBounds);
+            }
             refreshCountCoverage();
-            if (!mapResumeSeed) setMapResumeUpdating(false);
           })
           .catch(() => {
-            if (!cancelled && !mapResumeSeed) setMapResumeUpdating(false);
+            if (cancelled) return;
+            initialShardLoadSettledRef.current = true;
+            setVenueIndexFailed(true);
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            if (resumeRefreshVersion === loadResumeVersion) setMapResumeUpdating(false);
+            initialShardLoadStartedRef.current = false;
           });
-      });
-      const openingBounds = boundsForOpeningView(openingLoadViewport);
-      initialShardLoadStartedRef.current = true;
-      void loader.initialResult(openingBounds)
-        .then((result) => {
-          if (cancelled) return;
-          const rows = result.rows;
-          liveShardLoadSettledRef.current = true;
-          setVenueIndexFailed(result.status !== "ready");
-          mergeSlimVenues(rows);
-          if (rows.length > 0) {
+      };
+
+      if (mapResumeSeed) {
+        void readMapResume(cityId).then((snapshot) => {
+          if (
+            cancelled ||
+            !snapshot ||
+            mapCameraTouchedRef.current ||
+            snapshot.savedAt <= mapResumeSeed.savedAt
+          ) return;
+          const refreshVersion = ++resumeRefreshVersion;
+          setMapResumeViewport(snapshot.viewport);
+          setMapResumeUpdating(true);
+          const resumeBounds = boundsForOpeningView(snapshot.viewport);
+          void loader.initial(resumeBounds)
+            .then((rows) => {
+              if (cancelled) return;
+              mergeSlimVenues(rows);
+              refreshCountCoverage();
+              if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
+            })
+            .catch(() => {
+              if (!cancelled && resumeRefreshVersion === refreshVersion) {
+                setMapResumeUpdating(false);
+              }
+            });
+        });
+        startInitialLoad(openingBounds);
+      } else {
+        void readMapResume(cityId)
+          .then((snapshot) => {
+            if (cancelled) return;
+            if (!snapshot || mapCameraTouchedRef.current || initialShardLoadStartedRef.current) {
+              startInitialLoad(openingBounds);
+              return;
+            }
+            setSlimPins(slimVenuesToPins(snapshot.rows));
+            setLoadedCityId(cityId);
+            setLoaded(true);
             markPubmaxTiming("pubmax:first-pins");
             markPubmaxTiming("pubmax:slim-venues-ready");
-          }
-          initialShardLoadSettledRef.current = true;
-          setLoadedCityId(cityId);
-          setLoaded(true);
-          setMapResumeUpdating(false);
-          initialShardLoadStartedRef.current = result.status === "ready";
-          if (result.status === "ready") {
-            const ringBounds = latestMapBoundsRef.current ?? openingBounds;
-            if (!cancelled) scheduleRingLoad(loader, ringBounds);
-          }
-          refreshCountCoverage();
-        })
-        .catch(() => {
-          if (cancelled) return;
-          initialShardLoadSettledRef.current = true;
-          setVenueIndexFailed(true);
-          setLoadedCityId(cityId);
-          setLoaded(true);
-          setMapResumeUpdating(false);
-          initialShardLoadStartedRef.current = false;
-        });
+            setMapResumeViewport(snapshot.viewport);
+            ++resumeRefreshVersion;
+            setMapResumeUpdating(true);
+            startInitialLoad(boundsForOpeningView(snapshot.viewport));
+          })
+          .catch(() => startInitialLoad(openingBounds));
+      }
     }
     return () => {
       cancelled = true;
