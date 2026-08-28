@@ -305,7 +305,7 @@ self.addEventListener("fetch", (event) => {
         DATA_CACHE,
         MAX_DATA_ENTRIES,
         () => true,
-        true,
+        false,
         () => migrateCacheFamily(DATA_CACHE_FAMILY),
       ),
     );

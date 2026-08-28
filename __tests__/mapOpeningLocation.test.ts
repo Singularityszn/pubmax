@@ -1,6 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import {
+  readGrantedMapOpeningLocation,
   readMapOpeningLocation,
   resolveMapOpeningLocation,
   writeMapOpeningLocation,
@@ -40,5 +41,35 @@ describe("map opening location", () => {
 
     store.setItem("pubmax:map-opening-location:v1", JSON.stringify({ lat: 99, lng: 0 }));
     expect(readMapOpeningLocation(store)).toBeNull();
+  });
+
+  it("reads current coordinates only when permission is already granted", async () => {
+    const getCurrentPosition = vi.fn((success: PositionCallback) => {
+      success({
+        coords: { latitude: 51.5, longitude: -0.1 },
+      } as GeolocationPosition);
+    });
+    const location = await readGrantedMapOpeningLocation({
+      permissions: {
+        query: vi.fn(async () => ({ state: "granted" } as PermissionStatus)),
+      },
+      geolocation: { getCurrentPosition },
+    });
+
+    expect(location).toEqual({ lat: 51.5, lng: -0.1 });
+    expect(getCurrentPosition).toHaveBeenCalledOnce();
+  });
+
+  it("does not request coordinates while permission is prompt or denied", async () => {
+    const getCurrentPosition = vi.fn();
+    const location = await readGrantedMapOpeningLocation({
+      permissions: {
+        query: vi.fn(async () => ({ state: "prompt" } as PermissionStatus)),
+      },
+      geolocation: { getCurrentPosition },
+    });
+
+    expect(location).toBeNull();
+    expect(getCurrentPosition).not.toHaveBeenCalled();
   });
 });

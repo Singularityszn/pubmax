@@ -199,6 +199,13 @@ describe("createSlimShardLoader (London)", () => {
     expect((await loader.nearPoint(51.5, -0.1)).map((v) => v.id)).toEqual(["c1", "c2"]);
   });
 
+  it("nearPoint() loads every location shard intersecting its walk radius", async () => {
+    const loader = createSlimShardLoader("london");
+    const rows = await loader.nearPoint(51.5, 0.001);
+
+    expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
+  });
+
   it("all() loads core plus every outer shard", async () => {
     const loader = createSlimShardLoader("london");
     const rows = await loader.all();

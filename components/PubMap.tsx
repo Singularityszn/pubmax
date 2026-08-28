@@ -330,6 +330,7 @@ import { warmVenueDetail } from "@/lib/warmVenueDetail";
 import { markPubmaxTiming } from "@/lib/performanceMarks";
 import { readMapResume, readMapResumeSync, writeMapResume } from "@/lib/mapResume";
 import {
+  readGrantedMapOpeningLocation,
   readMapOpeningLocation,
   resolveMapOpeningLocation,
   writeMapOpeningLocation,
@@ -793,8 +794,14 @@ export default function PubMap({
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
   const mapCameraTouchedRef = useRef(false);
+  const [openingLocationFocus, setOpeningLocationFocus] = useState<{
+    center: [number, number];
+    zoom: number;
+    token: number;
+  } | null>(null);
   const dismissAmbientBanners = useCallback(() => {
     mapCameraTouchedRef.current = true;
+    setOpeningLocationFocus(null);
     setMapCameraTouched(true);
   }, []);
   const ambientBannerLane = !mobileViewport && !mapCameraTouched;
@@ -1653,6 +1660,60 @@ export default function PubMap({
     });
   }, []);
 
+  useEffect(() => {
+    if (
+      arrivalSearch ||
+      ukPlaceArrival ||
+      ukNationalBrowse ||
+      mapResumeSeed ||
+      restoredMobileSession?.viewport
+    ) return;
+    let cancelled = false;
+    void readGrantedMapOpeningLocation().then((location) => {
+      if (
+        cancelled ||
+        !location ||
+        mapCameraTouchedRef.current ||
+        !pointInCityBounds(location.lat, location.lng, city)
+      ) return;
+      const viewport = {
+        ...initialMapView,
+        zoom: Math.max(initialMapView.zoom, LOCATION_FIRST_ZOOM),
+        center: [location.lng, location.lat] as [number, number],
+      };
+      writeMapOpeningLocation(location);
+      setOpeningLocationFocus((current) => ({
+        center: viewport.center,
+        zoom: viewport.zoom,
+        token: (current?.token ?? 0) + 1,
+      }));
+      const loader = slimLoaderRef.current;
+      if (!loader) return;
+      void loader
+        .inBounds(boundsForOpeningView(viewport))
+        .then((rows) => {
+          if (!cancelled) {
+            mergeSlimVenues(rows);
+            refreshCountCoverage();
+          }
+        })
+        .catch(() => undefined);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    arrivalSearch,
+    city,
+    initialMapView,
+    mapResumeSeed,
+    mergeSlimVenues,
+    refreshCountCoverage,
+    restoredMobileSession?.viewport,
+    ukNationalBrowse,
+    ukPlaceArrival,
+  ]);
+
   const scheduleRingLoad = useCallback(
     (loader: SlimShardLoader, bounds: MapBounds) => {
       const key = JSON.stringify([
@@ -2042,6 +2103,25 @@ export default function PubMap({
     () => filteredVenues.filter(isPubVenue),
     [filteredVenues],
   );
+
+  useEffect(() => {
+    if (!nearbyMapResult) return;
+    const { location } = nearbyMapResult;
+    const nextVenues = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+    const nextIds = nextVenues.map((venue) => venue.id);
+    const nextStrategy = withinNearMeRing(location, filteredVenues) >= NEAR_ME_MAP_MIN_VENUES
+      ? "within-radius"
+      : "nearest-20";
+    setNearbyMapResult((current) => {
+      if (!current || current.location.lat !== location.lat || current.location.lng !== location.lng) {
+        return current;
+      }
+      const sameIds = current.venueIds.length === nextIds.length &&
+        current.venueIds.every((id, index) => id === nextIds[index]);
+      if (sameIds && current.strategy === nextStrategy) return current;
+      return { ...current, venueIds: nextIds, strategy: nextStrategy };
+    });
+  }, [filteredVenues, nearbyMapResult]);
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
@@ -3409,6 +3489,7 @@ export default function PubMap({
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
+      setOpeningLocationFocus(null);
       setAreaFocus((prev) => ({
         center: camera.center,
         zoom: camera.zoom,
@@ -4489,7 +4570,7 @@ export default function PubMap({
           onListOpenChange={setMapListOpen}
           listCount={mapVenueListModel.total + ukBasePubListModel.total}
           onSoftRetryChange={setMapSoftRetryActive}
-          focusPoint={areaFocus}
+          focusPoint={openingLocationFocus ?? areaFocus}
           onViewportChange={setMapViewport}
           onUserCameraMove={dismissAmbientBanners}
           onBoundsChange={handleMapBoundsChange}

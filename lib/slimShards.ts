@@ -24,6 +24,7 @@ import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
+import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -136,6 +137,22 @@ export function bboxIntersects(bbox: ShardBbox, bounds: MapBounds): boolean {
 export function bboxContainsPoint(bbox: ShardBbox, lat: number, lng: number): boolean {
   const [minLng, minLat, maxLng, maxLat] = bbox;
   return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
+}
+
+const METRES_PER_DEGREE_LAT = 111_320;
+
+function boundsForRadius(lat: number, lng: number, radiusKm: number): MapBounds {
+  const radiusMetres = Math.max(0, radiusKm) * 1_000;
+  const latitudeDelta = radiusMetres / METRES_PER_DEGREE_LAT;
+  const longitudeDelta = radiusMetres / (
+    METRES_PER_DEGREE_LAT * Math.max(Math.cos((lat * Math.PI) / 180), 0.01)
+  );
+  return {
+    west: lng - longitudeDelta,
+    south: Math.max(-90, lat - latitudeDelta),
+    east: lng + longitudeDelta,
+    north: Math.min(90, lat + latitudeDelta),
+  };
 }
 
 /** Non-core shards whose bbox intersects the viewport. */
@@ -408,15 +425,21 @@ export function createSlimShardLoader(
     async nearPoint(lat: number, lng: number): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
-      const shard = shardForPoint(m, lat, lng);
-      if (!shard) return [];
-      if (loadedUrls.has(shard.url)) return [];
-      let result = await loadShard(shard.url);
-      if (result.status === "unavailable" && !loadedUrls.has(shard.url)) {
-        // One honest retry before giving up (transient cellar signal).
-        result = await loadShard(shard.url);
+      const needed = shardsForBounds(
+        m,
+        boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
+        0,
+        true,
+      ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
+      if (needed.length === 0) return [];
+      let results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      const unavailable = needed.filter((s, index) => results[index].status === "unavailable");
+      if (unavailable.length > 0) {
+        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url)));
+        const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
+        results = results.map((result, index) => retryByUrl.get(needed[index].url) ?? result);
       }
-      return result.rows;
+      return results.flatMap((result) => result.rows);
     },
 
     async all(): Promise<SlimVenue[]> {
