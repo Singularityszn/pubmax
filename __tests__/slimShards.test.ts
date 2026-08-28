@@ -51,10 +51,10 @@ describe("slimShards pure geometry", () => {
     expect(ids).toEqual(["greenwich"]);
   });
 
-  it("shardForPoint picks the containing outer shard, or null in core territory", () => {
+  it("shardForPoint picks the containing shard", () => {
     expect(shardForPoint(MANIFEST, 51.48, 0.05)?.id).toBe("greenwich");
     expect(shardForPoint(MANIFEST, 51.65, -0.08)?.id).toBe("enfield");
-    expect(shardForPoint(MANIFEST, 51.5, -0.1)).toBeNull(); // central: core covers it
+    expect(shardForPoint(MANIFEST, 51.5, -0.1)?.id).toBe("core");
   });
 
   it("excludes kind shards from point partitioning", () => {
@@ -72,7 +72,7 @@ describe("slimShards pure geometry", () => {
         },
       ],
     };
-    expect(shardForPoint(withRestaurants, 51.5, -0.1)).toBeNull();
+    expect(shardForPoint(withRestaurants, 51.5, -0.1)?.id).toBe("core");
     expect(shardsForBounds(withRestaurants, {
       west: -0.2,
       south: 51.45,
@@ -172,13 +172,31 @@ describe("createSlimShardLoader (London)", () => {
     expect(fetched).not.toContain("/data/venues_slim.greenwich.json");
   });
 
+  it("inBounds() loads core when a later viewport reaches central London", async () => {
+    const loader = createSlimShardLoader("london");
+
+    await loader.inBounds({
+      west: -0.15,
+      south: 51.62,
+      east: -0.02,
+      north: 51.68,
+    });
+    const rows = await loader.inBounds({
+      west: -0.16,
+      south: 51.48,
+      east: -0.08,
+      north: 51.53,
+    });
+
+    expect(rows.map((venue) => venue.id)).toEqual(["c1", "c2"]);
+    expect(fetched).toContain("/data/venues_slim.core.json");
+  });
+
   it("nearPoint() loads the shard the user geolocated into", async () => {
     const loader = createSlimShardLoader("london");
-    await loader.core();
     const rows = await loader.nearPoint(51.65, -0.08);
     expect(rows.map((v) => v.id)).toEqual(["e1"]);
-    // A central point needs no outer shard.
-    expect(await loader.nearPoint(51.5, -0.1)).toEqual([]);
+    expect((await loader.nearPoint(51.5, -0.1)).map((v) => v.id)).toEqual(["c1", "c2"]);
   });
 
   it("all() loads core plus every outer shard", async () => {

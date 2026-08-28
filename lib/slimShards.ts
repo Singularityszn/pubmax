@@ -178,16 +178,19 @@ export function boundsCoveredByLoadedShards(
 }
 
 /**
- * The outer shard a point falls in. Prefers a bbox that CONTAINS the point;
- * when several do (bboxes can overlap) or none does but one is close, picks the
- * shard whose bbox centre is nearest. Returns null when there is no plausible
- * outer shard (the point is squarely in core territory).
+ * The shard a point falls in. Prefers core when its bbox contains the point;
+ * otherwise picks the containing outer shard when one exists.
  */
 export function shardForPoint(
   manifest: ShardManifest,
   lat: number,
   lng: number,
 ): ShardEntry | null {
+  const core = manifest.shards.find(
+    (s) => s.core && bboxContainsPoint(s.bbox, lat, lng),
+  );
+  if (core) return core;
+
   const outer = manifest.shards.filter(
     (s) => !s.core && s.partition !== "kind",
   );
@@ -390,7 +393,7 @@ export function createSlimShardLoader(
     async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
-      const needed = shardsForBounds(m, bounds, ring).filter((s) => !loadedUrls.has(s.url));
+      const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
       const results = await Promise.all(needed.map((s) => loadShard(s.url)));
       return results.flatMap((result) => result.rows);
