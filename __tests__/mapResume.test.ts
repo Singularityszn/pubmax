@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   isCurrentMapResumeRefresh,
+  isPersistableMapResumeViewport,
   readMapResumeSync,
   writeMapResume,
 } from "@/lib/mapResume";
@@ -27,6 +28,13 @@ const value = {
 };
 
 describe("map resume", () => {
+  it("rejects the neutral hold viewport until location and camera settle", () => {
+    const hold = { center: [0, 0] as [number, number], zoom: 0, pitch: 0, bearing: 0 };
+    expect(isPersistableMapResumeViewport(hold, false, false)).toBe(false);
+    expect(isPersistableMapResumeViewport(hold, true, true)).toBe(false);
+    expect(isPersistableMapResumeViewport(value.viewport, true, true)).toBe(true);
+  });
+
   it("mirrors a valid snapshot for synchronous warm paint", () => {
     const store = storage();
     writeMapResume(value, 1_000, store);

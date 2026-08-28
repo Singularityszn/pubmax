@@ -1,5 +1,6 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 import { describe, expect, it } from "vitest";
 
@@ -40,7 +41,7 @@ type PackRow = { id: string; lat: number; lng: number };
 
 function cityPack(city: string): PackRow[] {
   const file = join(process.cwd(), "public", "data", "cities", city, "venues_slim.json");
-  return JSON.parse(readFileSync(file, "utf8")) as PackRow[];
+  return (rowsFromSlimPayload(JSON.parse(readFileSync(file, "utf8"))) ?? []) as PackRow[];
 }
 
 describe("each last-ride route reads its own city pack", () => {

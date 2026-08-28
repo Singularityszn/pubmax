@@ -8,7 +8,7 @@ const INTENT_KEY = "pubmax:planning-intent:v1";
 const CARRIED = "Carried over from what you accepted";
 
 test("permanent path: a seeded acceptance surfaces as the carried-over panel", async ({ page, request }) => {
-  const venues = (await (await request.get("/data/venues_slim.json")).json()) as Array<{ id: string; name: string }>;
+  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Array<{ id: string; name: string }> }).rows;
   const venueId = venues[0]?.id;
   const venueName = venues[0]?.name;
   expect(typeof venueId).toBe("string");

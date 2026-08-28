@@ -17,6 +17,18 @@ export type MapResumeSnapshot = {
   rows: SlimVenue[];
 };
 
+export function isPersistableMapResumeViewport(
+  viewport: MapViewportSnapshot,
+  openingLocationResolved: boolean,
+  cameraSettled: boolean,
+): boolean {
+  return (
+    openingLocationResolved &&
+    cameraSettled &&
+    !(viewport.center[0] === 0 && viewport.center[1] === 0 && viewport.zoom === 0)
+  );
+}
+
 function keyFor(cityId: CityId): string {
   return `${MAP_RESUME_KEY_PREFIX}${cityId}`;
 }

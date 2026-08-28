@@ -25,6 +25,7 @@ import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -243,17 +244,12 @@ function rowsFromPayload(
   value: unknown,
   expectedRevision?: string,
 ): unknown[] | null {
-  if (Array.isArray(value)) return expectedRevision ? null : value;
-  if (typeof value !== "object" || value === null) return null;
-  const payload = value as Record<string, unknown>;
-  if (
-    !Array.isArray(payload.rows) ||
-    typeof payload.revision !== "string" ||
-    (expectedRevision !== undefined && payload.revision !== expectedRevision)
-  ) {
-    return null;
-  }
-  return payload.rows;
+  const rows = rowsFromSlimPayload(value);
+  if (!rows) return null;
+  if (expectedRevision === undefined) return rows;
+  if (Array.isArray(value) || typeof value !== "object" || value === null) return null;
+  const revision = (value as { revision?: unknown }).revision;
+  return revision === expectedRevision ? rows : null;
 }
 
 export function loadSlimVenuesFromPathResult(

@@ -8,6 +8,7 @@ import {
   type WorkFriendlyVenueKind,
 } from "@/lib/ask/conciergeTools";
 import { getCity, type CityId } from "@/lib/cities";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 // The work-friendly half of the city pack, read for `find_desk` alone.
 //
@@ -78,11 +79,10 @@ export async function loadDeskVenues(cityId: CityId): Promise<DeskVenueRead> {
         "utf8",
       );
       const parsed: unknown = JSON.parse(raw);
-      const venues = Array.isArray(parsed)
-        ? parsed
-            .map(toDeskVenue)
-            .filter((venue): venue is DeskVenue => venue !== null)
-        : [];
+      const rows = rowsFromSlimPayload(parsed) ?? [];
+      const venues = rows
+        .map(toDeskVenue)
+        .filter((venue): venue is DeskVenue => venue !== null);
       const result: DeskVenueRead = { venues, status: "ready" };
       cache.set(cityId, result);
       return result;

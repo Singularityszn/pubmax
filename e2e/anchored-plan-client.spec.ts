@@ -4,10 +4,10 @@ const INTENT_KEY = "pubmax:planning-intent:v1";
 const CARRIED = "Carried over from what you accepted";
 
 async function firstVenue(request: APIRequestContext) {
-  const venues = (await (await request.get("/data/venues_slim.json")).json()) as Array<{
+  const venues = ((await (await request.get("/data/venues_slim.json")).json()) as { rows: Array<{
     id: string;
     name: string;
-  }>;
+  }> }).rows;
   const venue = venues[0];
   expect(venue).toBeTruthy();
   return venue!;
