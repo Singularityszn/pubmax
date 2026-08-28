@@ -844,13 +844,11 @@ export default function PubMapCanvas({
   ]);
 
   useEffect(() => {
-    const resumeKey = resumeViewport
-      ? `${resumeViewport.center[0]},${resumeViewport.center[1]},${resumeViewport.zoom},${resumeViewport.pitch},${resumeViewport.bearing}`
-      : null;
-    if (!resumeKey) {
+    if (!resumeViewport) {
       appliedResumeViewportKeyRef.current = null;
       return;
     }
+    const resumeKey = `${resumeViewport.center[0]},${resumeViewport.center[1]},${resumeViewport.zoom},${resumeViewport.pitch},${resumeViewport.bearing}`;
     if (
       appliedResumeViewportKeyRef.current === resumeKey ||
       !mapReady ||

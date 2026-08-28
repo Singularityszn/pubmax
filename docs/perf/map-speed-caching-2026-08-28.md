@@ -6,11 +6,11 @@ Measured from the production build data files:
 
 | Payload | Bytes | Use |
 | --- | ---: | --- |
-| Legacy `venues_slim.json` | 932,944 | Full index baseline |
-| Spatial manifest | 43,227 | Opening lookup |
-| `51.500_-0.125` cell | 44,315 | Central London viewport |
-| `51.525_-0.125` cell | 22,251 | Central London viewport |
-| Initial viewport rows | 109,793 | Manifest plus two cells |
+| Legacy `venues_slim.json` | 933,007 | Full index baseline |
+| Spatial manifest | 43,281 | Opening lookup |
+| `51.500_-0.125` cell | 44,378 | Central London viewport |
+| `51.525_-0.125` cell | 22,314 | Central London viewport |
+| Initial viewport rows | 109,973 | Manifest plus two cells |
 
 The initial viewport payload is 8.5x smaller than the legacy index. The ring
 loads after the initial shard settles and follows the current map bounds.
