@@ -49,10 +49,10 @@ first, then document its non-obvious role here.
 The map has a deliberate style-layer contract. Dark mode uses a neon-noir
 near-black field with slate water and restrained roads; light mode uses warm
 paper land with quieter washes. Pub marks lead the hierarchy: basemap pub POI
-labels are prominent, generic POI label layers stay generic, neighbourhood
-labels are smaller and quieter, and road labels remain contextual. This pass
-changes palette and label paint/layout only; it does not add
-`pubs-hero-glow` or `pubs-confidence-ring` layers. The
+labels are prominent, generic venue-label layers receive the same priority,
+neighbourhood labels are smaller and quieter, and road labels remain
+contextual. This pass changes palette and label paint/layout
+only; it does not add `pubs-hero-glow` or `pubs-confidence-ring` layers. The
 implementation and absence checks live in `lib/mapBasemapTaste.ts` and
 `__tests__/mapSymbolCollision.test.ts`.
 
