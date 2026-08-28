@@ -1,6 +1,6 @@
 // The landing document is prerendered and CDN-cached, so it cannot name the
 // viewer in HTML. The header still has to read the live session after hydrate:
-// a signed-in drinker must not see "Sign in", and "Sign in" must not appear
+// a signed-in Pubmaxxer must not see "Sign in", and "Sign in" must not appear
 // while the session has not answered. Other app pages hide the whole auth
 // control on a phone (siteNav.css), which is why /out can look signed-in
 // while this bar still shows the signed-out pill.
