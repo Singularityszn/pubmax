@@ -374,6 +374,46 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
     expect(a.answer).toBe("Whitby answer.");
     expect(b.answer).not.toBe(a.answer); // distinct key → distinct answer
   });
+
+  it("separates cached answers by canonical OSM venue identity", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        matchedLore: {
+          text: "The Red Lion in Clapham has stood here for centuries.",
+          citations: ["https://history.example/red-lion-a"],
+        },
+        sources: ["https://history.example/red-lion-a"],
+      }),
+      parseOverlayRow({
+        osmId: "node/456",
+        name: "The Red Lion",
+        town: "Clapham",
+        matchedLore: {
+          text: "The Red Lion in Clapham was rebuilt after a fire.",
+          citations: ["https://history.example/red-lion-b"],
+        },
+        sources: ["https://history.example/red-lion-b"],
+      }),
+    ]);
+    const fetchMock = vi.fn(async () => okResponse("Distinct answer."));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await answerHeritage({
+      venueId: "node/123",
+      venueName: "The Red Lion",
+      question: "What is its story?",
+    });
+    await answerHeritage({
+      venueId: "node/456",
+      venueName: "The Red Lion",
+      question: "What is its story?",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
 
 // FIX 1 guard: retrieval (lib/heritage.ts), the writer (enrich_heritage.mjs),

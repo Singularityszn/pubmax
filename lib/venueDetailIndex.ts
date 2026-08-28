@@ -73,7 +73,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
-const cachedDetails = new Map<string, Venue>();
+const cachedDetails = new Map<string, { venue: Venue; overlayVenueId: string }>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
 const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
@@ -258,7 +258,14 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
   const cached = cachedDetails.get(id);
-  if (cached) return { status: "found", venue: cached };
+  if (cached) {
+    try {
+      const overlay = await harvestOverlayStore().getByVenueId(cached.overlayVenueId);
+      return { status: "found", venue: applyHarvestWebsiteMenu(cached.venue, overlay) };
+    } catch {
+      return { status: "unavailable" };
+    }
+  }
 
   const venueLookup = await lookupCanonicalVenue(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
@@ -281,11 +288,10 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    const overlay = await harvestOverlayStore().getByVenueId(
-      venueLookup.venue.osmId ?? enriched.id,
-    );
+    const overlayVenueId = venueLookup.venue.osmId ?? enriched.id;
+    cachedDetails.set(id, { venue: enriched, overlayVenueId });
+    const overlay = await harvestOverlayStore().getByVenueId(overlayVenueId);
     const withHarvest = applyHarvestWebsiteMenu(enriched, overlay);
-    cachedDetails.set(id, withHarvest);
     return { status: "found", venue: withHarvest };
   } catch {
     return { status: "unavailable" };

@@ -6,6 +6,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { toPublicOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
+import { resolveHarvestOverlayVenueId } from "@/lib/harvestOverlayVenue";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -24,7 +25,8 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const row = await harvestOverlayStore().getByVenueId(venueId);
+    const overlayVenueId = await resolveHarvestOverlayVenueId(venueId);
+    const row = await harvestOverlayStore().getByVenueId(overlayVenueId);
     if (!row) {
       return Response.json(
         { status: "ready", overlay: null },

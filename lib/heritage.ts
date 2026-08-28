@@ -21,11 +21,11 @@ import path from "node:path";
 
 import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
-import { canonicalOsmId, heritageFactFromOverlay } from "@/lib/harvestFold";
+import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
+import { resolveHarvestOverlayVenueId } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
-import { resolveVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 
@@ -80,9 +80,8 @@ async function readHeritageCache(): Promise<Record<string, HeritageFact[]>> {
   }
 }
 
-// Keyed by venue_key (= normaliseVenueName) — the SAME key the enrichment
-// script writes and the migration indexes. There is no server `pubs` table, so
-// venues are matched by normalised name everywhere, not by an opaque id.
+// Keyed by venue_key (= normaliseVenueName), the same key the enrichment
+// script writes and the migration indexes.
 async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
   if (!venueKey || !isSupabaseConfigured()) return [];
   try {
@@ -160,9 +159,7 @@ export async function retrieveHeritage(input: {
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
   // somehow lost its https citation.
   if (input.venueId) {
-    const directOsmId = canonicalOsmId(input.venueId);
-    const resolvedVenue = directOsmId ? null : await resolveVenue(input.venueId);
-    const overlayVenueId = directOsmId ?? resolvedVenue?.osmId ?? input.venueId;
+    const overlayVenueId = await resolveHarvestOverlayVenueId(input.venueId);
     const overlay = await harvestOverlayStore().getByVenueId(overlayVenueId);
     const lore = overlay ? heritageFactFromOverlay(overlay) : null;
     if (lore) facts.push(lore);
@@ -272,9 +269,10 @@ async function answerWithModel(
   }
 }
 
-// P2 — 5-minute in-memory cache for LLM answers. Keyed by normalised venue key
-// + a hash of the question, so it can never leak an answer across venues. Only
-// the paid LLM path is cached (the deterministic fallback is already cheap), and
+// P2 — 5-minute in-memory cache for LLM answers. Keyed by canonical venue
+// identity plus a hash of the question, so it cannot leak answers across OSM
+// venues. Only the paid LLM path is cached (the deterministic fallback is
+// already cheap), and
 // hidden/moderated content never flows through here — facts come from the
 // server stores, and a bounded TTL means a moderation change is reflected within
 // five minutes. Bounded to ANSWER_CACHE_MAX entries with insertion-order eviction
@@ -295,11 +293,16 @@ function setAnswerCache(key: string, entry: { at: number; response: HeritageResp
   }
 }
 
-function cacheKey(venueName: string, question: string, venueNoun: string): string {
+function cacheKey(
+  venueName: string,
+  question: string,
+  venueNoun: string,
+  venueIdentity: string,
+): string {
   const qHash = createHash("sha256")
-    .update(`${venueNoun}\0${question}`)
+    .update(`${venueIdentity}\0${venueNoun}\0${question}`)
     .digest("hex");
-  return `${normaliseVenueName(venueName)}::${qHash}`;
+  return `${venueIdentity || normaliseVenueName(venueName)}::${qHash}`;
 }
 
 export async function answerHeritage(input: {
@@ -310,8 +313,11 @@ export async function answerHeritage(input: {
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
   const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
+  const venueIdentity = useLlm && input.venueId
+    ? await resolveHarvestOverlayVenueId(input.venueId)
+    : input.venueId ?? "";
   const key = useLlm
-    ? cacheKey(input.venueName, input.question, venueNoun)
+    ? cacheKey(input.venueName, input.question, venueNoun, venueIdentity)
     : null;
 
   if (key) {

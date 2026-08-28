@@ -66,4 +66,23 @@ describe("GET /api/harvest-overlay", () => {
     });
     expect(JSON.stringify(body)).not.toMatch(/instagram|social/i);
   });
+
+  it("resolves a salted city id before reading its OSM overlay", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "way/100646638",
+        name: "Peveril of the Peak",
+        town: "Manchester",
+        matchedLore: {
+          text: "Peveril of the Peak in Manchester has a long history.",
+          citations: ["https://history.example/peveril"],
+        },
+        sources: ["https://history.example/peveril"],
+      }),
+    ]);
+
+    const res = await get("venueId=venue-mcr-1lwo5lo");
+    expect(res.status).toBe(200);
+    expect((await res.json()).overlay.lore.source).toBe("web");
+  });
 });

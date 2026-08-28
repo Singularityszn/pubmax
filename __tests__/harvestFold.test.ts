@@ -60,7 +60,11 @@ describe("loreNameTownGate", () => {
 
   it("does not match a name token inside a longer word", () => {
     expect(
-      loreNameTownGate("The Starling pub in York is old.", "The Star", "York"),
+      loreNameTownGate(
+        "The Starling pub in York has a star on its sign.",
+        "The Star",
+        "York",
+      ),
     ).toBe("name-mismatch");
   });
 });
@@ -229,6 +233,22 @@ describe("parseOverlayRow", () => {
     );
     expect(() =>
       parseOverlayRow(row({ socials: [{ handle: "@redlion" }] })),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud when lore citations or sources use social hosts", () => {
+    expect(() =>
+      parseOverlayRow(
+        row({
+          matchedLore: {
+            text: LORE_TEXT,
+            citations: ["https://instagram.com/redlion"],
+          },
+        }),
+      ),
+    ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(row({ matchedLore: null, sources: ["https://facebook.com/redlion"] })),
     ).toThrow(HarvestFoldError);
   });
 

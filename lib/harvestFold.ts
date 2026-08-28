@@ -106,6 +106,18 @@ function containsWord(haystack: string, word: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
+function containsVenueName(haystack: string, name: string): boolean {
+  const tokens = name
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (tokens.length === 0) return false;
+  const phrase = tokens
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[^a-z0-9]+");
+  return new RegExp(`(?:^|[^a-z0-9])${phrase}(?:$|[^a-z0-9])`, "i").test(haystack);
+}
+
 export function nameTokens(name: string): string[] {
   const tokens = name
     .toLowerCase()
@@ -122,8 +134,7 @@ export function loreNameTownGate(
   town: string | null,
 ): LoreGateResult {
   const hay = text.toLowerCase();
-  const tokens = nameTokens(name);
-  if (tokens.length === 0 || !tokens.every((token) => containsWord(hay, token))) {
+  if (!containsVenueName(hay, name)) {
     return "name-mismatch";
   }
   const place = typeof town === "string" ? town.trim() : "";
@@ -151,6 +162,7 @@ function httpsCitations(value: unknown): string[] {
     if (typeof entry !== "string") return [];
     const trimmed = entry.trim();
     if (!isHttpsUrl(trimmed)) return [];
+    if (isSocialUrl(trimmed)) return [];
     if (!out.includes(trimmed)) out.push(trimmed);
   }
   return out;
@@ -284,6 +296,9 @@ export function parseOverlayRow(raw: unknown, line?: number): HarvestOverlayRow 
       fail("MALFORMED_ROW", "sources must contain only https URLs", line);
     }
     const trimmed = entry.trim();
+    if (isSocialUrl(trimmed)) {
+      fail("SOCIAL_PRESENT", "sources cannot contain social hosts", line);
+    }
     if (!sources.includes(trimmed)) sources.push(trimmed);
   }
   if (!website && !menuUrl && !matchedLore) {
