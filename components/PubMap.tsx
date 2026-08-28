@@ -792,7 +792,11 @@ export default function PubMap({
    * stores, because ignoring an offer is not rejecting it.
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
-  const dismissAmbientBanners = useCallback(() => setMapCameraTouched(true), []);
+  const mapCameraTouchedRef = useRef(false);
+  const dismissAmbientBanners = useCallback(() => {
+    mapCameraTouchedRef.current = true;
+    setMapCameraTouched(true);
+  }, []);
   const ambientBannerLane = !mobileViewport && !mapCameraTouched;
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
@@ -947,6 +951,8 @@ export default function PubMap({
   const [mapResumeViewport, setMapResumeViewport] =
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
+  const openingLoadViewport =
+    mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? initialMapView;
   useEffect(() => {
     if (!mapResumeSeed) return;
     markPubmaxTiming("pubmax:first-pins");
@@ -1611,8 +1617,9 @@ export default function PubMap({
   const slimLoaderRef = useRef<SlimShardLoader | null>(null);
   const initialShardLoadStartedRef = useRef(false);
   const initialShardLoadSettledRef = useRef(false);
+  const liveShardLoadSettledRef = useRef(false);
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
-  const ringLoadScheduledRef = useRef(false);
+  const ringLoadPendingKeyRef = useRef<string | null>(null);
   // Which night areas the loader can vouch a complete pub count for. A shard
   // can land carrying no pin this map had not already seen, so this is refreshed
   // off the LOADER settling rather than off the pins changing.
@@ -1648,14 +1655,28 @@ export default function PubMap({
 
   const scheduleRingLoad = useCallback(
     (loader: SlimShardLoader, bounds: MapBounds) => {
-      if (ringLoadScheduledRef.current) return;
-      ringLoadScheduledRef.current = true;
+      const key = JSON.stringify([
+        bounds.west,
+        bounds.south,
+        bounds.east,
+        bounds.north,
+      ]);
+      if (ringLoadPendingKeyRef.current === key) return;
+      ringLoadPendingKeyRef.current = key;
       const load = () => {
         if (slimLoaderRef.current !== loader) return;
-        void loader.inBounds(bounds, 1).then((rows) => {
-          mergeSlimVenues(rows);
-          refreshCountCoverage();
-        });
+        void loader
+          .inBounds(bounds, 1)
+          .then((rows) => {
+            mergeSlimVenues(rows);
+            refreshCountCoverage();
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (ringLoadPendingKeyRef.current === key) {
+              ringLoadPendingKeyRef.current = null;
+            }
+          });
       };
       if (typeof window.requestIdleCallback === "function") {
         window.requestIdleCallback(load, { timeout: 3_000 });
@@ -1697,8 +1718,9 @@ export default function PubMap({
     slimLoaderRef.current = loader;
     initialShardLoadStartedRef.current = false;
     initialShardLoadSettledRef.current = false;
+    liveShardLoadSettledRef.current = false;
     latestMapBoundsRef.current = null;
-    ringLoadScheduledRef.current = false;
+    ringLoadPendingKeyRef.current = null;
     const preserveSyncResume =
       !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
     mapResumeSeedConsumedRef.current = true;
@@ -1714,22 +1736,37 @@ export default function PubMap({
         setMapResumeUpdating(false);
       }
     });
-    void readMapResume(cityId).then((snapshot) => {
-      if (cancelled || !snapshot) return;
-      setSlimPins(slimVenuesToPins(snapshot.rows));
-      setMapResumeViewport(snapshot.viewport);
-      setMapResumeUpdating(true);
-      setLoadedCityId(cityId);
-      setLoaded(true);
-      markPubmaxTiming("pubmax:first-pins");
-      markPubmaxTiming("pubmax:slim-venues-ready");
-    });
     if (!arrivalSearch && !ukPlaceArrival && !ukNationalBrowse) {
-      const openingBounds = boundsForOpeningView(initialMapView);
+      void readMapResume(cityId).then((snapshot) => {
+        if (cancelled || !snapshot) return;
+        if (mapCameraTouchedRef.current) return;
+        if (!liveShardLoadSettledRef.current) {
+          setSlimPins(slimVenuesToPins(snapshot.rows));
+          setLoadedCityId(cityId);
+          setLoaded(true);
+          markPubmaxTiming("pubmax:first-pins");
+          markPubmaxTiming("pubmax:slim-venues-ready");
+        }
+        setMapResumeViewport(snapshot.viewport);
+        if (!mapResumeSeed) setMapResumeUpdating(true);
+        const resumeBounds = boundsForOpeningView(snapshot.viewport);
+        void loader.initial(resumeBounds)
+          .then((rows) => {
+            if (cancelled) return;
+            mergeSlimVenues(rows);
+            refreshCountCoverage();
+            if (!mapResumeSeed) setMapResumeUpdating(false);
+          })
+          .catch(() => {
+            if (!cancelled && !mapResumeSeed) setMapResumeUpdating(false);
+          });
+      });
+      const openingBounds = boundsForOpeningView(openingLoadViewport);
       initialShardLoadStartedRef.current = true;
       void loader.initial(openingBounds)
         .then((rows) => {
           if (cancelled) return;
+          liveShardLoadSettledRef.current = true;
           setVenueIndexFailed(false);
           mergeSlimVenues(rows);
           if (rows.length > 0) {
@@ -1759,9 +1796,10 @@ export default function PubMap({
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
       initialShardLoadStartedRef.current = false;
       initialShardLoadSettledRef.current = false;
-      ringLoadScheduledRef.current = false;
+      liveShardLoadSettledRef.current = false;
+      ringLoadPendingKeyRef.current = null;
     };
-  }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -1792,6 +1830,7 @@ export default function PubMap({
       initialShardLoadStartedRef.current = true;
       void loader.initial(bounds)
         .then((rows) => {
+          liveShardLoadSettledRef.current = true;
           setVenueIndexFailed(false);
           mergeSlimVenues(rows);
           if (firstLoad && rows.length > 0) {

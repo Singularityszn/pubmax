@@ -850,6 +850,7 @@ export default function PubMapCanvas({
         pitch: resumeViewport.pitch,
         bearing: resumeViewport.bearing,
       });
+      publishCurrentViewportRef.current?.();
       mapRef.current.triggerRepaint();
     } catch {
       // A resume is an optimisation. A map that is still constructing can ignore it.

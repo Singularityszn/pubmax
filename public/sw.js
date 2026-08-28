@@ -292,7 +292,8 @@ self.addEventListener("fetch", (event) => {
   if (sameOrigin && url.pathname.startsWith("/data/") && url.pathname.endsWith(".json")) {
     if (
       url.pathname.includes("/price_updates/") ||
-      url.pathname.includes("/drink_price_updates/")
+      url.pathname.includes("/drink_price_updates/") ||
+      url.pathname.includes("/food_price_updates/")
     ) {
       event.respondWith(networkFirstWithCache(event, request));
       return;
