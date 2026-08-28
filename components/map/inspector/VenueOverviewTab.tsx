@@ -236,6 +236,7 @@ export default function VenueOverviewTab({
   priceRevealMotionClass = "",
   revealRecord = false,
   revealRecordLate = false,
+  now,
 }: {
   venue: Venue;
   tab: TabKey;
@@ -278,6 +279,7 @@ export default function VenueOverviewTab({
   priceRevealMotionClass?: string;
   revealRecord?: boolean;
   revealRecordLate?: boolean;
+  now?: number;
 }) {
   // Known-true accessibility facts only (PRD issue #28). Unknown/known-false
   // facets render nothing — never a "No" — per the provenance-honesty rule.
@@ -481,6 +483,7 @@ export default function VenueOverviewTab({
         venueName={venue.name}
         signals={communityPrices.signalsByVenueId.get(venue.id) ?? []}
         readStatus={venueReadStatus}
+        now={now}
         readOnly
       />
       {/* Tonight's community prices sit ATOP the price on record, never

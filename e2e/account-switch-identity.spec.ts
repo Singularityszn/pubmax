@@ -388,7 +388,17 @@ function decodeResumeCookie(value: string | null): { rt?: string; em?: string } 
 }
 
 function youLink(page: Page) {
-  return page.getByRole("link", { name: "You", exact: true }).first();
+  // A Next transition can retain the outgoing layout briefly. Read current
+  // visible navigation, not the first link in that transient tree.
+  return page
+    .locator('nav[aria-label="Primary"]:visible')
+    .getByRole("link", { name: "You", exact: true })
+    .last();
+}
+
+async function expectYouDestination(page: Page, handle: string): Promise<void> {
+  await youLink(page).click();
+  await expect(page).toHaveURL(new RegExp(`/u/${handle}$`));
 }
 
 test.use({
@@ -406,9 +416,7 @@ test.describe("account switch on one device", () => {
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBe(ACCOUNTS.A.handle);
-    await expect
-      .poll(async () => youLink(page).getAttribute("href"), { timeout: 10_000 })
-      .toBe(`/u/${ACCOUNTS.A.handle}`);
+    await expectYouDestination(page, ACCOUNTS.A.handle);
     // The durable resume cookie is written by the real route, off the render
     // path, so poll rather than assume it landed with the first paint.
     await expect
@@ -426,9 +434,7 @@ test.describe("account switch on one device", () => {
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBe(ACCOUNTS.B.handle);
-    await expect
-      .poll(async () => youLink(page).getAttribute("href"), { timeout: 10_000 })
-      .toBe(`/u/${ACCOUNTS.B.handle}`);
+    await expectYouDestination(page, ACCOUNTS.B.handle);
     await page.screenshot({ path: `${SHOTS}/3-switched-to-b.png` });
 
     // Every surface that NAMES the viewer, not only the ones that route them.
@@ -475,9 +481,7 @@ test.describe("account switch on one device", () => {
     await expect
       .poll(async () => (await readDeviceIdentity(page)).handle, { timeout: 10_000 })
       .toBeNull();
-    await expect
-      .poll(async () => youLink(page).getAttribute("href"), { timeout: 10_000 })
-      .toBe("/u/you");
+    await expect(youLink(page)).toHaveAttribute("href", "/u/you");
     await page.screenshot({ path: `${SHOTS}/5-unclaimed-b.png` });
   });
 });

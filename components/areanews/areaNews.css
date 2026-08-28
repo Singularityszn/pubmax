@@ -29,6 +29,13 @@
   color: var(--ink);
 }
 
+.areaNewsEmpty,
+.areaNewsUnavailable {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
 .areaNewsList {
   list-style: none;
   margin: 0;

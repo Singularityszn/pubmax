@@ -9,6 +9,7 @@ import {
   awardForVenue,
   entriesForBorough,
   entriesForNightArea,
+  freshAreaNews,
   formatAreaNewsDate,
   isKnownAreaSlug,
   resolveAreaBorough,
@@ -22,6 +23,8 @@ import {
 // prettier-ignore
 // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { matchVenue, slugifyBorough } from "../scripts/lib/areaNewsMatch.mjs";
+
+import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
 
 const dataset = JSON.parse(
   readFileSync(path.join(process.cwd(), "data", "area_news.json"), "utf8"),
@@ -49,6 +52,42 @@ describe("area_news.json dataset shape", () => {
   it("every entry passes the schema + house-rule validator", () => {
     const problems = dataset.entries.flatMap((entry) => validateAreaNewsEntry(entry));
     expect(problems).toEqual([]);
+  });
+
+  it("keeps current generated rows valid under refresh extraction rules", () => {
+    const now = Date.parse(dataset.generatedAt);
+    const nowDay = new Date(now);
+    nowDay.setUTCHours(0, 0, 0, 0);
+    const currentYear = nowDay.getUTCFullYear();
+    const oldest = nowDay.getTime() - 21 * 24 * 60 * 60 * 1000;
+    const currentRows = dataset.entries.filter((entry) => {
+      const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      return observedAt >= oldest && observedAt <= nowDay.getTime();
+    });
+
+    expect(currentRows).not.toHaveLength(0);
+    for (const entry of currentRows) {
+      expect(
+        parseExtractedFact(
+          { content: JSON.stringify(entry) },
+          { knownAreas: KNOWN_AREA_SLUGS, currentYear, now: nowDay.getTime() },
+        ),
+      ).toEqual({
+        area: entry.area,
+        kind: entry.kind,
+        title: entry.title,
+        detail: entry.detail,
+      });
+    }
+  });
+
+  it("rejects an https URL without a hostname", () => {
+    expect(validateAreaNewsEntry({
+      ...dataset.entries[0],
+      sourceUrl: "https://",
+    })).toEqual(expect.arrayContaining([
+      expect.stringContaining("sourceUrl must be an https URL"),
+    ]));
   });
 
   it("has unique ids", () => {
@@ -121,20 +160,28 @@ describe("GET /api/area-news", () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { entries: AreaNewsEntry[] };
     expect(Array.isArray(body.entries)).toBe(true);
-    expect(body.entries.length).toBeGreaterThan(0);
     expect(body.entries.length).toBeLessThanOrEqual(3);
     // newest first
     const dates = body.entries.map((e) => e.observedAt);
     expect([...dates].sort().reverse()).toEqual(dates);
   });
 
-  it("returns the award for a venue-matched pin, null otherwise", async () => {
+  it("withholds facts older than the 21-day serving window", async () => {
+    __resetAreaNewsCache();
+    const res = await GET(new Request("https://x/api/area-news?area=soho"));
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as { entries: AreaNewsEntry[] };
+    const cutoff = new Date(Date.now() - 21 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+    expect(body.entries.every((entry) => entry.observedAt >= cutoff)).toBe(true);
+  });
+
+  it("withholds a stale venue-matched award", async () => {
     const leyton = dataset.entries.find((e) => e.id === "leyton-engineer-camra-award");
     const res = await GET(
       new Request(`https://x/api/area-news?venueId=${leyton!.venueMatch!.venueId}`),
     );
     const body = (await res.json()) as { award: AreaNewsEntry | null };
-    expect(body.award?.id).toBe("leyton-engineer-camra-award");
+    expect(body.award).toBeNull();
 
     const none = await GET(new Request("https://x/api/area-news?venueId=venue-nope"));
     expect(((await none.json()) as { award: AreaNewsEntry | null }).award).toBeNull();
@@ -153,6 +200,38 @@ const FIXTURES: AreaNewsEntry[] = [
 ];
 
 describe("pure resolvers", () => {
+  it("keeps only current facts and orders them newest first", () => {
+    const now = Date.parse("2026-08-28T12:00:00Z");
+    const entries: AreaNewsEntry[] = [
+      { ...FIXTURES[0], id: "old", observedAt: "2026-08-06" },
+      { ...FIXTURES[1], id: "new", observedAt: "2026-08-27" },
+      { ...FIXTURES[2], id: "boundary", observedAt: "2026-08-07" },
+      { ...FIXTURES[0], id: "future", observedAt: "2026-08-29" },
+    ];
+
+    expect(freshAreaNews(entries, { now }).map((entry) => entry.id)).toEqual([
+      "new",
+      "boundary",
+    ]);
+  });
+
+  it("keeps distinct facts from one area and day", () => {
+    const entries: AreaNewsEntry[] = [
+      { ...FIXTURES[0], id: "same-day-one", observedAt: "2026-08-27", title: "First opening" },
+      { ...FIXTURES[0], id: "same-day-two", observedAt: "2026-08-27", title: "Second opening" },
+    ];
+
+    expect(freshAreaNews(entries, { now: Date.parse("2026-08-28T12:00:00Z") })).toHaveLength(2);
+  });
+
+  it("rejects impossible calendar dates before freshness filtering", () => {
+    const invalid = { ...FIXTURES[0], observedAt: "2026-02-31" };
+    expect(validateAreaNewsEntry(invalid)).toEqual(expect.arrayContaining([
+      expect.stringContaining("observedAt must be an ISO date"),
+    ]));
+    expect(freshAreaNews([invalid], { now: Date.parse("2026-03-10T12:00:00Z") })).toEqual([]);
+  });
+
   it("entriesForBorough joins neighbourhoods into their borough, newest first", () => {
     // shoreditch + hackney both resolve to the Hackney borough.
     const hackney = entriesForBorough("hackney", FIXTURES);

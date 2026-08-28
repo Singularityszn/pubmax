@@ -5,6 +5,38 @@ Freshness jobs cover weather, all bounded What's-On lanes, permissible-source
 price retrieval, Night Signal candidates, and a rotating UK city pub-enrichment
 sweep. No job fabricates data or reports false success.
 
+Area news is a committed research snapshot, not a Vercel cron lane. Refresh it
+from a local checkout with `npm run refresh:area-news`. The job searches and
+fetches current London pub sources through Keenable, keeps only dated facts in
+the 21-day serving window, and preserves the existing archive rows. A provider
+error or a run with no valid facts fails loudly and does not replace the file.
+Set `KEENABLE_API_KEY` for the keyed API. Without it, the job uses Keenable's
+public endpoint. Run `node scripts/build_area_news_matches.mjs` after the
+refresh only when venue-match badges need rebuilding.
+
+### Area-news investigation handoff
+
+The snapshot stopped at 18 July because the original Lane A implementation was
+a one-time editorial extraction. `docs/research/sweep-central-west.md`,
+`sweep-east.md`, `sweep-north.md`, and `sweep-south.md` were compiled on 18
+July from Exa search plus Firecrawl REST extraction, with WebFetch used in the
+north sweep. The app loaded their reviewed facts from `data/area_news.json`,
+but no repeatable acquisition command or scheduled writer existed. The July
+snapshot therefore aged in place while its reader continued to serve archive
+rows.
+
+`npm run refresh:area-news` is now the repeatable July-extraction replacement:
+Keenable `search_web_pages` finds candidates, `fetch_page_content` reads each
+page and extracts one dated fact, and the command keeps the prior artifact when
+any search or page fetch fails. It does not publish partial success.
+
+This differs from What's-On. What's-On's official event lane refreshes durable
+Supabase rows from its authenticated Vercel cron and preserves each failed
+provider lane. Its broader harvested lanes still use local files and review
+PRs. Area news has no durable store or server-safe file writer, so it remains a
+manually run, reviewed static artifact. Its 21-day read filter is the safety
+net until a successful refresh is merged.
+
 > **Vercel owns server-safe scheduled work.** File-producing acquisition runs through
 > the Mac's local launchd scheduler and review PRs; see
 > [`LOCAL_REFRESH_SCHEDULER.md`](./LOCAL_REFRESH_SCHEDULER.md). One exception is

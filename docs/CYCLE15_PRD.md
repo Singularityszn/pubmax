@@ -11,11 +11,13 @@ Owner directive: make PUBMAXX the one-stop app for planning any night out with f
 ## Lanes (execution: Opus 4.8 high per owner; Fable reviews and merges on green)
 
 ### Lane A: Fresh-facts layer (NOW)
-Committed dataset data/area_news.json from the four sweep briefs: every entry {area, kind: opening|closure|refurb|award|threat|buzz, title, detail, sourceUrl, sourceName, observedAt, venueMatch?}. Conservative venue matching to existing pins (heritage-lane idiom). Surfaces:
+The initial data/area_news.json snapshot came from the four sweep briefs. The current reviewed artifact also accepts rows from the repeatable Keenable refresh; every entry is {area, kind: opening|closure|refurb|award|threat|buzz, title, detail, sourceUrl, sourceName, observedAt, venueMatch?}. Conservative venue matching to existing pins (heritage-lane idiom). Surfaces:
 - Area pages + map area context: "New round here" block, max 3 items, dated, source-linked.
 - Venue sheet: award badge when a venue matches an award fact (The George: "Best Pub in London 2026, National Pub and Bar Awards").
-- Freshness registry entry; refresh workflow = re-run sweep scripts (documented, manual for now).
-Anti-slop rule: only sourced, dated facts render; empty area shows nothing.
+- Freshness registry entry; refresh workflow = `npm run refresh:area-news` (manual because the deployed server cannot publish committed files). Readers show only facts from the last 21 days and sort newest first.
+Anti-slop rule: only sourced, dated facts render; a successful empty read shows
+an honest empty state, while an unavailable read says that area updates are
+unavailable.
 
 ### Lane B: Tonight Conditions (NOW)
 The owner's "date + weather + what to drink" surface. Uses the existing cached weather. A rules table (lib/drinkWeather.ts, pure, tested): temp/rain/season to drink suggestion + venue lens (18C+ sun: beer garden lens + lager/cider; cold rain: fireplace lens + stout/ale; crisp autumn: amber ale). One calm strip on map/Tonight: "Saturday 19 Jul, 22C sun. Beer garden weather. 4 gardens near you under 6 quid." Taps existing amenity data (beer garden, fireplace) and price data. Honest: no data, no claim.
