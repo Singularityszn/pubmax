@@ -24,7 +24,6 @@ import {
 // @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { matchVenue, slugifyBorough } from "../scripts/lib/areaNewsMatch.mjs";
 
-// @ts-expect-error -- untyped .mjs module (resolves fine at runtime under vitest)
 import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
 
 const dataset = JSON.parse(

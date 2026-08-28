@@ -316,6 +316,7 @@ describe("VenueOverviewTab community signals", () => {
         priceSignInRequested: false,
         priceAuthLoading: false,
         priceFocusRequest: 0,
+        now: NOW,
       }),
     );
   }
