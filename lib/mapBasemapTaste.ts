@@ -154,8 +154,9 @@ const PUB_POI_LABEL_TOKENS = new Set([
  *  CARTO and OpenFreeMap both ship ONE generic POI layer (`poi_label`,
  *  `poi_name`, `pois-label`) carrying every category at once, so the old
  *  `pois?[-_](label|name)` fallback handed barbers, bus stops and cash machines
- *  the pub opacity and pub text sizing reserved for drinking venues. Same rule
- *  that already keeps `poi_barber_label` out: name a drink or stay generic. */
+ *  the pub opacity and pub text sizing reserved for drinking venues. Once this
+ *  drink-token gate exists, that fallback is unreachable and is deleted. Same
+ *  rule that already keeps `poi_barber_label` out: name a drink or stay generic. */
 function isBasemapPubPoiLabel(id: string): boolean {
   const tokens = id.toLowerCase().split(/[^a-z0-9]+/).filter(Boolean);
   if (!tokens.includes("poi") && !tokens.includes("pois")) return false;
