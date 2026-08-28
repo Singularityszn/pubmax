@@ -75,20 +75,54 @@ function sortedEntries(entries) {
 }
 
 function isCurrentGeneratedEntry(entry, nowTime) {
-  const observedTime = Date.parse(`${entry.observedAt}T00:00:00Z`);
-  if (!Number.isFinite(observedTime)) return false;
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(entry?.observedAt ?? "")) return false;
+  const observedDate = new Date(`${entry.observedAt}T00:00:00Z`);
+  const observedTime = observedDate.getTime();
+  if (
+    !Number.isFinite(observedTime) ||
+    observedDate.toISOString().slice(0, 10) !== entry.observedAt
+  ) return false;
   const nowDay = new Date(nowTime);
   nowDay.setUTCHours(0, 0, 0, 0);
   return observedTime >= nowDay.getTime() - 21 * DAY_MS && observedTime <= nowDay.getTime();
 }
 
-function archiveWithFreshEntries(previousEntries, freshEntries, nowTime) {
+function isValidHttpsUrl(value) {
+  if (typeof value !== "string") return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
+function isRetainableGeneratedEntry(entry, nowTime, knownAreas) {
+  if (
+    typeof entry?.id !== "string" ||
+    !entry.id.trim() ||
+    typeof entry.area !== "string" ||
+    typeof entry.kind !== "string" ||
+    typeof entry.title !== "string" ||
+    typeof entry.detail !== "string" ||
+    typeof entry.sourceName !== "string" ||
+    !entry.sourceName.trim() ||
+    !isCurrentGeneratedEntry(entry, nowTime) ||
+    !isValidHttpsUrl(entry.sourceUrl)
+  ) return false;
+  return Boolean(parseExtractedFact(
+    { content: JSON.stringify(entry) },
+    { knownAreas, currentYear: new Date(nowTime).getUTCFullYear(), now: nowTime },
+  ));
+}
+
+function archiveWithFreshEntries(previousEntries, freshEntries, nowTime, knownAreas) {
   const generatedById = new Map(freshEntries.map((entry) => [entry.id, entry]));
   const archiveEntries = [];
   for (const entry of previousEntries) {
     if (!entry || typeof entry !== "object" || typeof entry.id !== "string") continue;
     if (entry.id.startsWith("area-news-")) {
-      if (isCurrentGeneratedEntry(entry, nowTime) && !generatedById.has(entry.id)) {
+      if (isRetainableGeneratedEntry(entry, nowTime, knownAreas) && !generatedById.has(entry.id)) {
         generatedById.set(entry.id, entry);
       }
     } else {
@@ -244,7 +278,7 @@ export async function refreshAreaNews({
     $comment: AREA_NEWS_DATASET_COMMENT,
     version: 1,
     generatedAt: new Date(nowTime).toISOString(),
-    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries, nowTime),
+    entries: archiveWithFreshEntries(previousEntries, deduplicatedFreshEntries, nowTime, knownAreas),
   };
   writeDataset(snapshot);
   logger(

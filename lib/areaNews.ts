@@ -243,12 +243,13 @@ export function freshAreaNews(
   opts: { now?: number; maxAgeDays?: number } = {},
 ): AreaNewsEntry[] {
   const now = opts.now ?? Date.now();
-  const maxAgeDays = opts.maxAgeDays ?? AREA_NEWS_MAX_AGE_DAYS;
+  const maxAgeDays = Math.min(opts.maxAgeDays ?? AREA_NEWS_MAX_AGE_DAYS, AREA_NEWS_MAX_AGE_DAYS);
   const nowDay = new Date(now);
   nowDay.setUTCHours(0, 0, 0, 0);
   const oldestAllowed = nowDay.getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
   return entries
     .filter((entry) => {
+      if (validateAreaNewsEntry(entry).length > 0) return false;
       const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
       return Number.isFinite(observedAt) && observedAt >= oldestAllowed && observedAt <= nowDay.getTime();
     })
@@ -300,11 +301,17 @@ export function awardForVenue(
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EM_DASH_RE = /[—–]/; // em dash and en dash both banned from titles
 
+function isValidIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !ISO_DATE_RE.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
 function isValidHttpsUrl(value: unknown): value is string {
   if (typeof value !== "string") return false;
   try {
     const parsed = new URL(value);
-    return parsed.protocol === "https:" && Boolean(parsed.hostname);
+    return parsed.protocol === "https:" && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
   } catch {
     return false;
   }
@@ -334,7 +341,7 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   if (!isValidHttpsUrl(entry.sourceUrl)) {
     problems.push(`${id}: sourceUrl must be an https URL`);
   }
-  if (typeof entry.observedAt !== "string" || !ISO_DATE_RE.test(entry.observedAt)) {
+  if (!isValidIsoDate(entry.observedAt)) {
     problems.push(`${id}: observedAt must be an ISO date`);
   }
   if (entry.confidence !== undefined && entry.confidence !== "social") {

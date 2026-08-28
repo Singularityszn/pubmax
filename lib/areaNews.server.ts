@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import path from "node:path";
 
 import { validateAreaNewsEntry, type AreaNewsDataset } from "@/lib/areaNews";
+import { KNOWN_AREA_SLUGS, parseExtractedFact } from "../scripts/lib/keenableAreaNews.mjs";
 
 export type AreaNewsLoadResult =
   | (AreaNewsDataset & { status: "ready" })
@@ -24,6 +25,22 @@ export async function loadAreaNews(): Promise<AreaNewsLoadResult> {
       parsed.entries.some((entry) => validateAreaNewsEntry(entry).length > 0)
     ) {
       throw new Error("Area news dataset shape is invalid.");
+    }
+    const now = Date.now();
+    const nowDay = new Date(now);
+    nowDay.setUTCHours(0, 0, 0, 0);
+    const oldestAllowed = nowDay.getTime() - 21 * 24 * 60 * 60 * 1000;
+    const currentYear = nowDay.getUTCFullYear();
+    for (const entry of parsed.entries) {
+      const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      if (observedAt < oldestAllowed || observedAt > nowDay.getTime()) continue;
+      if (!parseExtractedFact({ content: JSON.stringify(entry) }, {
+        knownAreas: KNOWN_AREA_SLUGS,
+        currentYear,
+        now: nowDay.getTime(),
+      })) {
+        throw new Error("Area news dataset current fact is invalid.");
+      }
     }
     const ready: AreaNewsLoadResult = {
       status: "ready",

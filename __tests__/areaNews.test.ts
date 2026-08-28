@@ -223,6 +223,12 @@ describe("pure resolvers", () => {
     expect(freshAreaNews(entries, { now: Date.parse("2026-08-28T12:00:00Z") })).toHaveLength(2);
   });
 
+  it("rejects impossible calendar dates before freshness filtering", () => {
+    const invalid = { ...FIXTURES[0], observedAt: "2026-02-31" };
+    expect(validateAreaNewsEntry(invalid)).toContain("observedAt must be an ISO date");
+    expect(freshAreaNews([invalid], { now: Date.parse("2026-03-10T12:00:00Z") })).toEqual([]);
+  });
+
   it("entriesForBorough joins neighbourhoods into their borough, newest first", () => {
     // shoreditch + hackney both resolve to the Hackney borough.
     const hackney = entriesForBorough("hackney", FIXTURES);

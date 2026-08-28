@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import canonicalAreaSlugs from "../../data/area_news_areas.json" with { type: "json" };
+import venueIndex from "../../public/data/venues_slim.json" with { type: "json" };
 
 export const KEENABLE_API_BASE = "https://api.keenable.ai";
 export const KEENABLE_TITLE = "PUBMAXX area news refresh";
@@ -10,7 +11,7 @@ const KINDS = new Set(["opening", "closure", "refurb", "award", "threat", "buzz"
 const DAY_MS = 24 * 60 * 60 * 1000;
 
 export function areaNewsExtractPrompt(year = new Date().getUTCFullYear()) {
-  return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or a fact from late ${year - 1} that is still within the 21-day window, not an older historical fact. Include the named pub and explicit pub or venue evidence in the fact. Do not infer or invent facts. Do not include em dashes or en dashes.`;
+  return `Return JSON only with keys area, kind, title, detail for one real London pub fact explicitly stated on this page. Use area as one of ${[...KNOWN_AREA_SLUGS].join(", ")}, or null if no named pub fact maps to one of those areas. Use kind opening for a new opening, closure for a closing, refurb for refurbishment, award for an award, threat for a risk or licensing threat, and buzz for a current price or other pub news. The fact itself must describe a current ${year} event or a fact from late ${year - 1} that is still within the 21-day window, not an older historical fact. Include an exact day, month, and year, plus a venue name present in the London venue dataset. Do not infer or invent facts. Do not include em dashes or en dashes.`;
 }
 
 export const AREA_NEWS_EXTRACT_PROMPT = areaNewsExtractPrompt();
@@ -175,65 +176,31 @@ function markdownKind(text) {
   return null;
 }
 
-const GENERIC_PUB_WORDS = new Set([
-  "a",
-  "an",
-  "and",
-  "award",
-  "april",
-  "bar",
-  "best",
-  "close",
-  "closed",
-  "closing",
-  "closure",
-  "current",
-  "august",
-  "december",
-  "february",
-  "in",
-  "january",
-  "london",
-  "july",
-  "june",
-  "march",
-  "may",
-  "new",
-  "news",
-  "now",
-  "open",
-  "opened",
-  "opening",
-  "pub",
-  "reopen",
-  "reopened",
-  "reopens",
-  "refurb",
-  "september",
-  "the",
-  "this",
-  "to",
-  "won",
-  "november",
-  "october",
-]);
-const PUB_EVIDENCE_WORDS = "(?:pub|public house|bar|tavern|inn|arms|brewery|taproom|alehouse|restaurant|club|venue)";
-const PROPER_NAME = "(?:The\\s+)?[A-Z][A-Za-z'’]*(?:\\s+(?:&|and|of|the)\\s+[A-Z][A-Za-z'’]*|\\s+[A-Z][A-Za-z'’]*)*";
-const NAMED_VENUE_RE = new RegExp(
-  `\\b(${PROPER_NAME})\\s+${PUB_EVIDENCE_WORDS}\\b|\\b${PUB_EVIDENCE_WORDS}\\s+(${PROPER_NAME})\\b`,
-  "gi",
-);
+const KNOWN_VENUE_NAMES = [...new Set(
+  venueIndex
+    .map((venue) => typeof venue?.name === "string" ? venue.name : "")
+    .map((name) => name.trim())
+    .filter(Boolean),
+)];
+
+function venueWords(value) {
+  return String(value ?? "")
+    .toLowerCase()
+    .replace(/[’']/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+}
 
 function hasNamedPub(title, detail, knownAreas) {
-  const areaWords = new Set([...knownAreas].flatMap((slug) => slug.replace(/-/g, " ").split(" ")));
+  if (![...knownAreas].some((area) => typeof area === "string" && area.trim())) return false;
   return [title, detail].some((field) => {
-    return [...field.matchAll(NAMED_VENUE_RE)].some((match) => {
-      const phrase = match[1] ?? match[2] ?? "";
-      const words = phrase.toLowerCase().split(/\s+/);
-      const meaningfulWords = words.filter(
-        (word) => !GENERIC_PUB_WORDS.has(word) && !areaWords.has(word) && word.length > 1,
-      );
-      return meaningfulWords.length > 0;
+    const words = venueWords(field);
+    return KNOWN_VENUE_NAMES.some((name) => {
+      const candidate = venueWords(name);
+      if (candidate.length === 0 || candidate.length > words.length) return false;
+      return words.some((_, index) => candidate.every((word, offset) => words[index + offset] === word));
     });
   });
 }
@@ -290,9 +257,6 @@ function eventDateRanges(text) {
   for (const [, month, day, year] of text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(\d{1,2})(?:st|nd|rd|th)?[,]?\s+(20\d{2})\b/gi)) {
     addRange(Number(year), MONTH_NUMBERS.get(month.toLowerCase()), Number(day));
   }
-  for (const [, month, year] of text.matchAll(/\b(January|February|March|April|May|June|July|August|September|October|November|December)\s+(20\d{2})\b/gi)) {
-    addRange(Number(year), MONTH_NUMBERS.get(month.toLowerCase()));
-  }
   return ranges;
 }
 
@@ -321,10 +285,12 @@ function validateFact(raw, knownAreas, currentYear, now) {
   const combined = `${title} ${detail}`;
   const years = [...combined.matchAll(/\b20\d{2}\b/g)].map(([year]) => Number(year));
   const allowedYears = new Set([currentYear, currentYear - 1]);
+  const eventDates = eventDateRanges(combined);
   const hasPreviousYear = years.includes(currentYear - 1);
   if (
     !Number.isInteger(currentYear) ||
     years.length === 0 ||
+    !eventDates.some(({ year }) => allowedYears.has(year)) ||
     years.some((year) => !allowedYears.has(year)) ||
     (hasPreviousYear && !previousYearFactIsCurrent(combined, currentYear, now)) ||
     !hasNamedPub(title, detail, knownAreas)

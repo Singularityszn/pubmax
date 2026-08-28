@@ -91,14 +91,15 @@ describe("area-news refresh job", () => {
       id: "old-row",
       area: "soho",
       kind: "award",
-      title: "Historic award",
-      detail: "A dated historic fact.",
+      title: "The White Hart opens in Soho",
+      detail: "The White Hart pub opened in Soho on 20 August 2026.",
       sourceUrl: "https://archive.example/award",
       sourceName: "archive.example",
       observedAt: "2026-07-18",
     };
     const replacedMachineRow = { ...previous, id: "area-news-old-machine-row", observedAt: "2026-08-01" };
     const currentMachineRow = { ...previous, id: "area-news-current-machine-row", observedAt: "2026-08-20" };
+    const invalidMachineRow = { ...previous, id: "area-news-invalid-machine-row", title: "Soho pub news", detail: "A pub opening was reported in August 2026.", observedAt: "2026-08-21" };
 
     const snapshot = await refreshAreaNews({
       now: NOW,
@@ -115,7 +116,7 @@ describe("area-news refresh job", () => {
       previousDataset: {
         version: 1,
         generatedAt: "2026-07-18T12:00:00Z",
-        entries: [replacedMachineRow, currentMachineRow, previous],
+        entries: [replacedMachineRow, currentMachineRow, invalidMachineRow, previous],
       },
       writeDataset: vi.fn(),
       logger: vi.fn(),

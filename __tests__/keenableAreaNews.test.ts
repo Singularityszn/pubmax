@@ -211,6 +211,15 @@ describe("Keenable area-news extraction", () => {
       currentYear: 2027,
       now: Date.parse("2027-01-05T12:00:00Z"),
     })).toBeNull();
+
+    expect(parseExtractedFact({ content: JSON.stringify({
+      ...fact,
+      detail: "The White Hart pub reopened in Soho in December 2026.",
+    }) }, {
+      knownAreas: new Set(["soho"]),
+      currentYear: 2027,
+      now: Date.parse("2027-01-05T12:00:00Z"),
+    })).toBeNull();
   });
 
   it("rejects historical and generic markdown pages", () => {

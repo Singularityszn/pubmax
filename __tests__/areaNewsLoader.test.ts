@@ -37,4 +37,18 @@ describe("area-news dataset loader", () => {
 
     await expect(loadAreaNews()).resolves.toMatchObject({ status: "unavailable" });
   });
+
+  it("rejects a current row that fails extraction rules", async () => {
+    readFile.mockResolvedValue(JSON.stringify({
+      version: 1,
+      generatedAt: "2026-08-28T00:00:00Z",
+      entries: [{
+        ...VALID_ENTRY,
+        title: "John Smith said the pub opened in Soho",
+        detail: "John Smith said the pub opened in Soho on 27 August 2026.",
+      }],
+    }));
+
+    await expect(loadAreaNews()).resolves.toMatchObject({ status: "unavailable" });
+  });
 });
