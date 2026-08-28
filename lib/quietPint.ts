@@ -20,7 +20,7 @@
 //     don't. No em dashes in any copy this module builds.
 
 import { estimateBusyness } from "@/lib/busyness";
-import type { HeritageFact } from "@/lib/heritageFacts";
+import { isFeaturedHeritageSource, type HeritageFact } from "@/lib/heritageFacts";
 import { eraStartYear, heritageSourceLabel, listedBadge } from "@/lib/historicFilter";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
 import { venueMapUrl } from "@/lib/venueMapUrl";
@@ -107,7 +107,10 @@ function sourcePriority(source: HeritageFact["source"]): number {
 
 function bestSourcedFact(facts: readonly HeritageFact[]): HeritageFact | null {
   const sourced = facts.filter(
-    (fact) => fact.source !== "seed" && typeof fact.fact === "string" && fact.fact.trim(),
+    (fact) =>
+      isFeaturedHeritageSource(fact.source) &&
+      typeof fact.fact === "string" &&
+      fact.fact.trim(),
   );
   if (sourced.length === 0) return null;
   return [...sourced].sort((a, b) => sourcePriority(a.source) - sourcePriority(b.source))[0];

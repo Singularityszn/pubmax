@@ -16,6 +16,11 @@ import {
   __heritageCacheSizeForTests,
   __HERITAGE_CACHE_MAX_FOR_TESTS,
 } from "@/lib/heritage";
+import { parseOverlayRow } from "@/lib/harvestFold";
+import {
+  __resetHarvestOverlayStore,
+  harvestOverlayStore,
+} from "@/lib/harvestOverlayStore";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
@@ -29,6 +34,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetHeritageCache();
+  __resetHarvestOverlayStore();
 });
 
 // A malicious client trying to forge "sourced" pub history via a context object
@@ -74,6 +80,31 @@ describe("retrieveHeritage — trust boundary", () => {
     // The shipped seed/wikipedia cache facts are present and trusted.
     expect(sourced.some((f) => f.source === "seed")).toBe(true);
     expect(facts.some((f) => f.fact.includes("Grade II* listed"))).toBe(true);
+  });
+
+  it("attaches cited harvest lore by OSM venue id, never by pub name", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/123",
+        website: "https://redlion.example/",
+        matchedLore: {
+          text: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+          citations: ["https://history.example/red-lion-clapham"],
+        },
+        sources: ["https://redlion.example/"],
+      }),
+    ]);
+    const byId = await retrieveHeritage({
+      venueId: "venue-uk-n123",
+      venueName: "Nowhere Tavern",
+    });
+    expect(byId.some((f) => f.source === "web")).toBe(true);
+    expect(byId.some((f) => f.sourceRef === "https://history.example/red-lion-clapham")).toBe(
+      true,
+    );
+
+    const byName = await retrieveHeritage({ venueName: "The Red Lion" });
+    expect(byName.some((f) => f.source === "web")).toBe(false);
   });
 });
 

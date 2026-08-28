@@ -8,6 +8,8 @@ import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
 import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
+import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -279,8 +281,10 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    cachedDetails.set(id, enriched);
-    return { status: "found", venue: enriched };
+    const overlay = await harvestOverlayStore().getByVenueId(enriched.id);
+    const withHarvest = applyHarvestWebsiteMenu(enriched, overlay);
+    cachedDetails.set(id, withHarvest);
+    return { status: "found", venue: withHarvest };
   } catch {
     return { status: "unavailable" };
   }

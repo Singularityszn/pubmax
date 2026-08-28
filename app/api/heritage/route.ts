@@ -89,9 +89,9 @@ export async function POST(request: Request): Promise<Response> {
 //
 // Read-only cited heritage facts for passive display on the venue sheet.
 // Same trust boundary as POST: facts are reconstructed SERVER-SIDE only
-// (heritage_cache.json + Supabase `pub_heritage`), keyed by normalised venue
-// name. No client-supplied fact is ever accepted — the response carries only
-// what's on record, and an empty array when there is nothing (never invented).
+// (heritage_cache.json + Supabase `pub_heritage` + harvest overlay lore keyed
+// by OSM id). No client-supplied fact is ever accepted — the response carries
+// only what's on record, and an empty array when there is nothing (never invented).
 //
 // No rate limit here (unlike POST, which fronts paid OpenRouter spend): this is
 // a light internal read of local/Supabase data, and the short public/CDN cache

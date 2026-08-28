@@ -83,6 +83,8 @@ export function heritageSourceLabel(source: string): string {
       return "OpenStreetMap";
     case "nhle":
       return "Historic England";
+    case "web":
+      return "Web";
     case "seed":
     default:
       return "On record";

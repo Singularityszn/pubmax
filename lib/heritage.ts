@@ -6,11 +6,12 @@
 // do the same and falls back to the honest structured answer on any failure.
 //
 // Trust boundary: ALL venue context is reconstructed server-side. Facts come
-// ONLY from server-owned stores keyed by normalised venue name — the shipped
-// heritage_cache.json and the Supabase `pub_heritage` table. The route no
-// longer accepts a client `context` object at all, so a client cannot forge
-// pub history — not even as a labelled contributor note. If server facts are
-// missing, the honest fallback stands.
+// ONLY from server-owned stores: the shipped heritage_cache.json and the
+// Supabase `pub_heritage` table (keyed by normalised venue name), plus cited
+// harvest overlay lore keyed by OSM id. The route no longer accepts a client
+// `context` object at all, so a client cannot forge pub history — not even as
+// a labelled contributor note. If server facts are missing, the honest
+// fallback stands.
 
 import "server-only";
 
@@ -20,6 +21,8 @@ import path from "node:path";
 
 import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
+import { heritageFactFromOverlay } from "@/lib/harvestFold";
+import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { venueKindNoun } from "@/lib/venueKindFilters";
@@ -28,20 +31,22 @@ import type { VenueKind } from "@/lib/venues";
 // Every source is a server-side (sourced) store. There is no client-supplied
 // source anymore — the route reconstructs context from server data only.
 export type HeritageFact = {
-  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle";
+  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
   sourceRef?: string;
 };
 
 // Sources that count as trusted/sourced facts (server-retrieved). Every source
 // now qualifies; the set stays as the one place that names them. "nhle" is
-// Historic England's official National Heritage List for England.
+// Historic England's official National Heritage List for England. "web" is
+// cited harvest lore, keyed by OSM id (never by pub name).
 const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "osm",
   "wikidata",
   "wikipedia",
   "seed",
   "nhle",
+  "web",
 ]);
 
 export type HeritageResponse = {
@@ -141,8 +146,17 @@ export async function retrieveHeritage(input: {
   // (2) Server rows — Supabase pub_heritage, same venue_key.
   facts.push(...(await retrieveFromSupabase(venueKey)));
 
-  // No client context is accepted — the route derives everything from the two
-  // server-owned stores above.
+  // (3) Harvest overlay lore — OSM id only. Name is never a key. Uncited
+  // lore cannot be stored, and heritageFactFromOverlay drops a row that
+  // somehow lost its https citation.
+  if (input.venueId) {
+    const overlay = await harvestOverlayStore().getByVenueId(input.venueId);
+    const lore = overlay ? heritageFactFromOverlay(overlay) : null;
+    if (lore) facts.push(lore);
+  }
+
+  // No client context is accepted — the route derives everything from
+  // server-owned stores.
   return facts;
 }
 

@@ -119,3 +119,27 @@ node scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs
 Bars shards go to `data-harvest/bars-enriched/` with their own progress
 file, so they cannot overwrite the pub harvest. Same citation law. Same
 resume design.
+
+## Fold
+
+Fold the completed overlay into the product store. Identity is OSM id,
+never the pub name. Website and menu URLs must be https. Lore folds only
+with a name+town match and https citations, as HeritageFact source
+`web`. Social observations are refused. Counts must match
+`data/uk-pub-harvest/fold-stats.md` or the command fails.
+
+```bash
+npm run harvest:fold -- --dry-run --overlay data-harvest/fold-ready/overlay.jsonl --stats data/uk-pub-harvest/fold-stats.md
+npm run harvest:fold -- --overlay data-harvest/fold-ready/overlay.jsonl --stats data/uk-pub-harvest/fold-stats.md
+```
+
+Copy `overlay.jsonl` out of the harvest worktree first. Never write back
+into it. Upserts are idempotent on `osm_id`. Malformed rows fail the
+process.
+
+Serving: GET `/api/harvest-overlay?venueId=` is the lazy sheet overlay.
+Cited lore also rides GET `/api/heritage` when the venue id maps to an
+OSM object. Neither payload is in pins or `venues_slim.json`.
+
+Migration `0123` (`harvest_venue_overlays`) is shipped, not applied.
+Captain applies.

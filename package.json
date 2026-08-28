@@ -72,6 +72,7 @@
     "harvest:run": "tsx scripts/harvest/run.mjs",
     "harvest:uk-pubs": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs",
     "harvest:uk-bars": "node --max-old-space-size=2048 scripts/harvest/uk-pubs/run.mjs --bars",
+    "harvest:fold": "node --conditions=react-server --import tsx scripts/harvest/uk-pubs/fold.mjs",
     "editorial:poll": "node scripts/editorial/poll.mjs"
   },
   "dependencies": {

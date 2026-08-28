@@ -85,3 +85,44 @@
   color: inherit;
   text-decoration: underline;
 }
+
+.unverifiedPubOverlay {
+  margin: 14px 0 0;
+}
+
+.unverifiedPubActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.unverifiedPubActions a,
+.unverifiedPubLoreMeta a {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--brass);
+  font-size: 0.86rem;
+  font-weight: 600;
+  text-decoration: underline;
+}
+
+.unverifiedPubLore {
+  margin: 12px 0 0;
+}
+
+.unverifiedPubLore p {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.94rem;
+  line-height: 1.45;
+}
+
+.unverifiedPubLoreMeta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0 0;
+  color: var(--muted);
+  font-size: 0.72rem;
+}

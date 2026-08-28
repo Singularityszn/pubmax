@@ -8,6 +8,7 @@ describe("heritageSourceLabel", () => {
     expect(heritageSourceLabel("wikipedia")).toBe("Wikipedia");
     expect(heritageSourceLabel("wikidata")).toBe("Wikidata");
     expect(heritageSourceLabel("osm")).toBe("OpenStreetMap");
+    expect(heritageSourceLabel("web")).toBe("Web");
   });
 
   it("labels our own seed curation as the generic 'On record'", () => {
@@ -77,5 +78,28 @@ describe("sanitizeHeritageFacts", () => {
     ]);
     expect(fact).toEqual({ source: "osm", fact: "Has a beer garden." });
     expect("sourceRef" in fact).toBe(false);
+  });
+
+  it("keeps cited harvest web lore and drops uncited or http web lore", () => {
+    const facts = sanitizeHeritageFacts([
+      {
+        source: "web",
+        fact: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+        sourceRef: "https://history.example/red-lion-clapham",
+      },
+      { source: "web", fact: "Uncited harvest sentence." },
+      {
+        source: "web",
+        fact: "Http citation is not enough.",
+        sourceRef: "http://history.example/red-lion",
+      },
+    ]);
+    expect(facts).toEqual([
+      {
+        source: "web",
+        fact: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+        sourceRef: "https://history.example/red-lion-clapham",
+      },
+    ]);
   });
 });
