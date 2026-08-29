@@ -434,6 +434,15 @@ export default function SocialPageClient({
 
   useEffect(() => {
     if (initialState.tab === "discover") return;
+    if (!friendsLaunchEnabled) {
+      void Promise.resolve().then(() => {
+        setAccess("preview");
+        setAdultPrompt(false);
+        setDraftScope(null);
+        setViewerHandle(null);
+      });
+      return;
+    }
     if (!identityResolved) {
       void Promise.resolve().then(() => setAccess("checking"));
       return;
@@ -479,7 +488,7 @@ export default function SocialPageClient({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, identityResolved, initialState.tab, user]);
+  }, [accessAttempt, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
@@ -689,7 +698,12 @@ export default function SocialPageClient({
             {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
-          {initialState.tab === "discover" ? (
+          {!friendsLaunchEnabled ? (
+            <SocialAccessBoundary
+              state="preview"
+              friendsLaunchEnabled={false}
+            />
+          ) : initialState.tab === "discover" ? (
             <div className="socialDiscoverBody">
               <CreatorListsLane />
               <DiscoverBody

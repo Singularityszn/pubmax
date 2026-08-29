@@ -18,12 +18,15 @@ begin
   return query select v_staff.display_name,post.id,post.photo_media_id,job.moderation_claim,post.created_at
   from public.social_posts post
   join public.social_post_moderation_jobs job on job.post_id = post.id
+    and job.revision = post.revision
+    and job.media_id is not distinct from post.photo_media_id
+    and job.state = 'done'
   where post.status = 'visible'
     and (post.moderation_state = 'needs_review'
-      or exists (
+      or (post.moderation_state = 'approved' and exists (
         select 1 from public.social_post_media media
         where media.id = post.photo_media_id and media.moderation_state = 'needs_review'
-      ))
+      )))
   order by post.created_at, post.id
   limit p_limit;
 end;
@@ -46,7 +49,7 @@ begin
   if v_post.id is null or v_post.photo_media_id is distinct from p_media_id
     or v_post.status <> 'visible' or not (
       v_post.moderation_state = 'needs_review'
-      or (p_media_id is not null and exists (
+      or (v_post.moderation_state = 'approved' and p_media_id is not null and exists (
         select 1 from public.social_post_media media
         where media.id = p_media_id and media.moderation_state = 'needs_review'
       ))
@@ -54,6 +57,9 @@ begin
     or not exists (
       select 1 from public.social_post_moderation_jobs job
       where job.post_id = p_post_id
+        and job.revision = v_post.revision
+        and job.media_id is not distinct from p_media_id
+        and job.state = 'done'
     )
     then return false; end if;
   update public.social_posts set
