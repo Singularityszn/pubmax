@@ -6,6 +6,7 @@ import {
   type TrustedHandoffFlagKey,
   type TrustedHandoffFlagsDTO,
 } from "@/lib/trustedHandoffFlags";
+import { isSocialFriendsLaunchEnabled } from "@/lib/socialLaunch";
 
 export type TrustedHandoffFlagDefinition = Readonly<{
   env: string;
@@ -42,8 +43,8 @@ export const TRUSTED_HANDOFF_FLAG_DEFINITIONS = Object.freeze({
   socialFriendsLaunch: {
     env: "PUBMAX_SOCIAL_FRIENDS_LAUNCH",
     ownerLane: "L21",
-    removalCondition: "Remove after friends-only Social is the stable default and the registry flag is no longer needed to dark-launch.",
-    offBehavior: "Social surfaces stay in preview; landing and we-are-out CTAs keep pointing to Memories instead of Open Social.",
+    removalCondition: "Remove after Social has a stable default and the emergency rollback window closes.",
+    offBehavior: "Explicit 0 keeps Social in preview while the launch is rolled back.",
   },
 } satisfies Record<TrustedHandoffFlagKey, TrustedHandoffFlagDefinition>);
 
@@ -59,7 +60,7 @@ export function readTrustedHandoffFlags(
     tonightGrouping: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.tonightGrouping.env]),
     palHandoff: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.palHandoff.env]),
     friendMemberRehydrationV2: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.friendMemberRehydrationV2.env]),
-    socialFriendsLaunch: parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
+    socialFriendsLaunch: isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS.socialFriendsLaunch.env]),
   });
 }
 
@@ -68,5 +69,8 @@ export function readTrustedHandoffFlag(
   env: Record<string, string | undefined> = process.env,
 ): boolean {
   if (!isTrustedHandoffFlagKey(key)) return false;
+  if (key === "socialFriendsLaunch") {
+    return isSocialFriendsLaunchEnabled(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS[key].env]);
+  }
   return parseTrustedHandoffFlag(env[TRUSTED_HANDOFF_FLAG_DEFINITIONS[key].env]);
 }

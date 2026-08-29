@@ -32,11 +32,10 @@ export function SocialFriendsLaunchProvider({
 
 /**
  * The body dataset read is the fallback for a tree rendered outside the
- * provider; the server snapshot is `false` there because nothing has answered
- * yet, and React uses it for the hydration render too.
+ * provider. Social is live by default, including during hydration.
  */
 function serverSnapshot(): boolean {
-  return false;
+  return true;
 }
 
 export function useSocialFriendsLaunch(): boolean {

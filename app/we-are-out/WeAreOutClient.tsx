@@ -25,7 +25,7 @@ type Props = {
   socialFriendsLaunchEnabled?: boolean;
 };
 
-export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: Props) {
+export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Props) {
   const areas = useMemo(() => getNightAreasForCity("london"), []);
   const [handle, setHandle] = useState("");
   const [areaSlug, setAreaSlug] = useState<string>("");

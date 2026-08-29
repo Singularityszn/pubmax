@@ -98,6 +98,45 @@ describe("Social post consent and private read store", () => {
     });
   });
 
+  it("uses the admin-only moderation RPCs without requiring a Social session", async () => {
+    state.rows.set("read_social_post_moderation_queue_admin", [{
+      staff_display_name: "Captain",
+      post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      media_id: null,
+      moderation_claim: "A queued post",
+      created_at: "2026-08-29T12:00:00.000Z",
+    }]);
+    state.rows.set("moderate_social_post_admin", true);
+
+    const store = createSocialPostConsentStore();
+    await expect(store.heldQueueForAdmin(50)).resolves.toEqual([{
+      staffDisplayName: "Captain",
+      postId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      mediaId: null,
+      moderationClaim: "A queued post",
+      createdAt: "2026-08-29T12:00:00.000Z",
+    }]);
+    await store.moderateHeldForAdmin(
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      null,
+      "approve",
+    );
+    expect(state.calls).toEqual([
+      {
+        name: "read_social_post_moderation_queue_admin",
+        input: { p_limit: 50 },
+      },
+      {
+        name: "moderate_social_post_admin",
+        input: {
+          p_post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+          p_media_id: null,
+          p_action: "approve",
+        },
+      },
+    ]);
+  });
+
   it("binds consent cursors to stable viewer and lane", async () => {
     const proposal = (id: string, createdAt: string) => ({
       proposal_id: id,

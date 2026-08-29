@@ -10,6 +10,9 @@ vi.mock("@/lib/socialAccessServer", () => ({
     actor: { accountId: "account-a", profileId: "profile-a", handle: "alice" },
   }),
 }));
+vi.mock("@/lib/adminAuth", () => ({
+  isModerator: (request: Request) => request.headers.get("x-admin-token") === "admin-token",
+}));
 vi.mock("@/lib/socialPostConsentStore", () => {
   class SocialPostConsentStoreError extends Error {}
   return {
@@ -35,6 +38,10 @@ vi.mock("@/lib/socialPostConsentStore", () => {
       heldQueue: async () => [],
       moderateHeld: async (...args: unknown[]) => {
         state.calls.push({ name: "moderateHeld", args });
+      },
+      heldQueueForAdmin: async () => [],
+      moderateHeldForAdmin: async (...args: unknown[]) => {
+        state.calls.push({ name: "moderateHeldForAdmin", args });
       },
     },
   };
@@ -89,18 +96,43 @@ describe("Social consent API contracts", () => {
   it("rejects unknown moderator fields before the store", async () => {
     const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
       body: JSON.stringify({ postId, mediaId: null, action: "hide", role: "forged" }),
     }));
     expect(response.status).toBe(400);
     expect(state.calls).toEqual([]);
     const malformed = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
       body: JSON.stringify({ postId: "-".repeat(36), mediaId: null, action: "hide" }),
     }));
     expect(malformed.status).toBe(400);
     expect(state.calls).toEqual([]);
+  });
+
+  it("protects the held-post queue with moderator access, not Social actor access", async () => {
+    const anonymous = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+    }));
+    expect(anonymous.status).toBe(403);
+
+    const moderator = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-admin-token": "admin-token",
+      },
+      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+    }));
+    expect(moderator.status).toBe(200);
+    expect(state.calls).toEqual([
+      {
+        name: "moderateHeldForAdmin",
+        args: [postId, null, "hide"],
+      },
+    ]);
   });
 
   it("rejects UUID-shaped punctuation before tag storage", async () => {

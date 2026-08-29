@@ -95,6 +95,21 @@ async function rpc(name: string, input: Record<string, unknown>): Promise<unknow
   return data;
 }
 
+function heldItemFromRow(item: Record<string, unknown>): SocialPostHeldItem {
+  if (
+    typeof item.staff_display_name !== "string" || typeof item.post_id !== "string" ||
+    (item.media_id !== null && typeof item.media_id !== "string") ||
+    typeof item.moderation_claim !== "string" || typeof item.created_at !== "string"
+  ) throw new SocialPostConsentStoreError("Social moderation queue is unavailable.");
+  return {
+    staffDisplayName: item.staff_display_name,
+    postId: item.post_id,
+    mediaId: item.media_id as string | null,
+    moderationClaim: item.moderation_claim,
+    createdAt: item.created_at,
+  };
+}
+
 function rows(value: unknown): Record<string, unknown>[] {
   if (!Array.isArray(value)) throw new SocialPostConsentStoreError("Social consent data is unavailable.");
   return value.map(row);
@@ -113,6 +128,8 @@ export type SocialPostConsentStore = {
   outbox(viewer: SocialPostActor, input: PageInput): Promise<SocialPostOutboxPage>;
   heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
   moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
+  heldQueueForAdmin(limit: number): Promise<SocialPostHeldItem[]>;
+  moderateHeldForAdmin(postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
 };
 
 export function createSocialPostConsentStore(): SocialPostConsentStore {
@@ -232,24 +249,24 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       return rows(await rpc("read_social_post_moderation_queue", {
         p_actor: viewer.profileId,
         p_limit: limit,
-      })).map((item) => {
-        if (
-          typeof item.staff_display_name !== "string" || typeof item.post_id !== "string" ||
-          (item.media_id !== null && typeof item.media_id !== "string") ||
-          typeof item.moderation_claim !== "string" || typeof item.created_at !== "string"
-        ) throw new SocialPostConsentStoreError("Social moderation queue is unavailable.");
-        return {
-          staffDisplayName: item.staff_display_name,
-          postId: item.post_id,
-          mediaId: item.media_id as string | null,
-          moderationClaim: item.moderation_claim,
-          createdAt: item.created_at,
-        };
-      });
+      })).map(heldItemFromRow);
     },
     async moderateHeld(viewer, postId, mediaId, action) {
       const result = await rpc("moderate_social_post", {
         p_actor: viewer.profileId,
+        p_post_id: postId,
+        p_media_id: mediaId,
+        p_action: action,
+      });
+      if (result !== true) throw new SocialPostConsentStoreError("Social moderation choice was not saved.");
+    },
+    async heldQueueForAdmin(limit) {
+      return rows(await rpc("read_social_post_moderation_queue_admin", {
+        p_limit: limit,
+      })).map(heldItemFromRow);
+    },
+    async moderateHeldForAdmin(postId, mediaId, action) {
+      const result = await rpc("moderate_social_post_admin", {
         p_post_id: postId,
         p_media_id: mediaId,
         p_action: action,

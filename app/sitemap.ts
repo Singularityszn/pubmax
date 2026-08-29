@@ -23,7 +23,7 @@ import {
 //
 //  Included:
 //   - static hubs: /, /map, /borough, /historic, /pubs, /tonight,
-//     /choose-city, /crawls. /social only while PUBMAX_SOCIAL_FRIENDS_LAUNCH=1.
+//     /choose-city, /crawls, /social while Social is live by default.
 //   - /map/{city} for every enabled non-London city (London is /map)
 //   - /borough/{slug} for every borough present in the price dataset
 //   - /drink/{slug} and /area/{slug}/drink/{brand} for every governed drink

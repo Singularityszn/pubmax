@@ -175,7 +175,7 @@ export function SocialAccessBoundary({
   onAssertAdult,
   assertBusy = false,
   assertError = null,
-  friendsLaunchEnabled = false,
+  friendsLaunchEnabled = true,
 }: {
   state: SocialBoundaryState;
   onRetry?: () => void;
@@ -403,7 +403,7 @@ export default function SocialPageClient({
   initialState,
   rivalry,
   heritageCrawls,
-  friendsLaunchEnabled = false,
+  friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
   const { identityResolved, user } = useAuth();

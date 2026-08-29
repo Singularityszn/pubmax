@@ -27,10 +27,7 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// U2 — Landing Memory honesty while friends-launch is off.
-// Soft launch keeps PUBMAX_SOCIAL_FRIENDS_LAUNCH unset/off. The Memory beat
-// must not promise "Open Social" as if the product is open; primary path
-// stays Plan, and the secondary CTA goes to private Memories on You.
+// Landing keeps both Plan and Social entry points honest after Social launch.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -58,8 +55,8 @@ describe("landing Memory social honesty (U2)", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
   });
 
-  it("defaults the Memory secondary CTA away from Open Social when launch is off", () => {
-    expect(landingTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*false/);
+  it("defaults the Memory secondary CTA to the live Social surface", () => {
+    expect(landingTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*true/);
     const memoryBlock = landingTsx.match(
       /lpMemoryActions[\s\S]*?<\/div>\s*<\/div>\s*<ol className="lpMemorySteps"/,
     )?.[0];

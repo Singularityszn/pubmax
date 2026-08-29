@@ -342,9 +342,7 @@ export default function PublicCrewRouteClient({
   if (
     publicState === "loading" ||
     (!publicPreview && publicState === "idle") ||
-    privateReadPending ||
-    (privateStateScope === scope &&
-      (currentPrivateState === "loading" || currentPrivateState === "idle"))
+    privateReadPending
   ) {
     return (
       <Shell>

@@ -133,11 +133,12 @@ describe("friends-launch Social access policy", () => {
 });
 
 describe("friends-launch flag parser", () => {
-  it("enables only the exact value 1", () => {
+  it("keeps Social live unless an explicit zero rolls it back", () => {
     expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
-    for (const value of [undefined, "", "0", "true"]) {
-      expect(isSocialFriendsLaunchEnabled(value)).toBe(false);
-    }
+    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(true);
+    expect(isSocialFriendsLaunchEnabled("")).toBe(true);
+    expect(isSocialFriendsLaunchEnabled("true")).toBe(true);
+    expect(isSocialFriendsLaunchEnabled("0")).toBe(false);
   });
 });
 
@@ -201,7 +202,7 @@ describe("the one adult gate", () => {
   });
 });
 
-describe("gated Social stays out of the index", () => {
+describe("Social indexing", () => {
   it("noindexes Social while the friends launch flag is off", () => {
     expect(socialDocumentRobots(false)).toEqual({ index: false, follow: true });
     expect(socialListedInSitemap(false)).toBe(false);
@@ -213,9 +214,9 @@ describe("gated Social stays out of the index", () => {
   });
 
   it("reads the same env the nav already uses", () => {
-    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(false);
+    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(true);
     expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
-    expect(socialListedInSitemap(isSocialFriendsLaunchEnabled(undefined))).toBe(false);
+    expect(socialListedInSitemap(isSocialFriendsLaunchEnabled(undefined))).toBe(true);
     expect(socialListedInSitemap(isSocialFriendsLaunchEnabled("1"))).toBe(true);
   });
 });

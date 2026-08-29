@@ -117,9 +117,9 @@ test("/feed redirects to Social and renders its reachable boundary state (issue 
   // Default Chromium has no signed-in account. The exact launch copy can move,
   // but the reachable boundary must remain honest and actionable.
   await expect(
-    page.getByRole("heading", { name: "Social preview", exact: true }),
+    page.getByRole("heading", { name: "Social", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Sign in to use Social preview.")).toBeVisible();
+  await expect(page.getByText("Sign in to use Social.")).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -154,7 +154,7 @@ test("/pubs lists scraped pubs with drink card art", async ({ page }) => {
   await expect(page.getByRole("heading", { level: 1, name: /Chains/i })).toBeVisible();
   await expect(page.locator(".pubsCard").first()).toBeVisible();
   await expect(
-    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Social preview" }),
+    page.getByRole("navigation", { name: "Site navigation" }).getByRole("link", { name: "Social" }),
   ).toBeVisible();
 
   await page.setViewportSize({ width: 390, height: 844 });

@@ -28,8 +28,8 @@ describe("we-are-out Social honesty (crew tonight slice 4)", () => {
     expect(clientTsx).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
   });
 
-  it("defaults the done-state CTA away from Open Social when launch is off", () => {
-    expect(clientTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*false/);
+  it("defaults the done-state CTA to the live Social surface", () => {
+    expect(clientTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*true/);
     const doneBlock = clientTsx.match(
       /weAreOutDone[\s\S]*?<\/section>/,
     )?.[0];

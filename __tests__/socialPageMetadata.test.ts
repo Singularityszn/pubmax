@@ -9,10 +9,10 @@ describe("/social generateMetadata indexing", () => {
     vi.unstubAllEnvs();
   });
 
-  it("noindexes the gated Social preview", async () => {
+  it("keeps Social indexed by default", async () => {
     vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "");
     const metadata = await generateMetadata();
-    expect(metadata.robots).toEqual({ index: false, follow: true });
+    expect(metadata.robots).toEqual({ index: true, follow: true });
   });
 
   it("indexes Social when the friends launch flag is on", async () => {
