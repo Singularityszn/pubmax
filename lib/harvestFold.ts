@@ -214,10 +214,12 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       /^[\s]*[.!?]\s+/.test(after) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
     const laterLocality = after.match(
-      /\b(?:is|was|were|lies|located|situated|based)\s+(?:in|near|from|at|within)\s+([a-z][a-z' -]*)/i,
+      /\b(?:is|was|were|lies|located|situated|based)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
     );
     const hasUnknownLaterLocality = Boolean(
-      laterLocality && !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim()),
+      laterLocality &&
+        laterLocality[1].trim().toLowerCase() !== locality &&
+        !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim()),
     );
     if (
       LOCALITY_QUALIFIER_RE.test(after) &&

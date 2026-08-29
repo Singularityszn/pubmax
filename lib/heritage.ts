@@ -51,12 +51,11 @@ const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "web",
 ]);
 
-function storedFactSource(value: unknown): HeritageFact["source"] | null {
+export function storedFactSource(value: unknown): HeritageFact["source"] | null {
   const source = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (source === "web") return null;
-  return SOURCED.has(source as HeritageFact["source"])
-    ? (source as HeritageFact["source"])
-    : "seed";
+  if (!SOURCED.has(source as HeritageFact["source"])) return null;
+  return source as HeritageFact["source"];
 }
 
 export type HeritageResponse = {

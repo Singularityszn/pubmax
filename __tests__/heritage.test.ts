@@ -12,6 +12,7 @@ import { POST } from "@/app/api/heritage/route";
 import {
   answerHeritage,
   retrieveHeritage,
+  storedFactSource,
   __resetHeritageCache,
   __heritageCacheSizeForTests,
   __HERITAGE_CACHE_MAX_FOR_TESTS,
@@ -56,6 +57,12 @@ function post(body: unknown): Promise<Response> {
 const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 
 describe("retrieveHeritage — trust boundary", () => {
+  it("rejects unknown stored source labels instead of relabelling them", () => {
+    expect(storedFactSource("webbing")).toBeNull();
+    expect(storedFactSource("web ")).toBeNull();
+    expect(storedFactSource("seed")).toBe("seed");
+  });
+
   it("ignores a forged client context entirely (context is no longer accepted)", async () => {
     const facts = await retrieveHeritage({
       // "Nowhere Tavern" has no server facts, so with context ignored there are none.
