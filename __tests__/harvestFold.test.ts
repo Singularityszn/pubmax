@@ -168,6 +168,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a foreign locality after an operating-from phrase", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York has been operating from Pennsylvania since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(
@@ -418,6 +428,12 @@ describe("canonicalOsmId / overlayLookupKeys", () => {
     expect(canonicalOsmId("venue-uk-n123")).toBe("node/123");
     expect(canonicalOsmId("venue-osm-w99")).toBe("way/99");
     expect(canonicalOsmId("venue-7l4pei")).toBeNull();
+  });
+
+  it("normalizes leading zeroes so equivalent OSM ids share lookup keys", () => {
+    expect(canonicalOsmId("node/000123")).toBe("node/123");
+    expect(canonicalOsmId("n000123")).toBe("node/123");
+    expect(overlayLookupKeys("node/000123")).toEqual(overlayLookupKeys("node/123"));
   });
 
   it("never uses the pub name as a lookup key", () => {

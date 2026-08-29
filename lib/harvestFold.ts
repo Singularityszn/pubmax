@@ -214,7 +214,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       /^[\s]*[.!?]\s+/.test(after) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
     const laterLocality = after.match(
-      /\b(?:is|was|were|lies|located|situated|based)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
+      /\b(?:is|was|were|has been|had been|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
     );
     const hasUnknownLaterLocality = Boolean(
       laterLocality &&
@@ -353,11 +353,14 @@ export function canonicalOsmId(value: string): string | null {
   const raw = value.trim();
   if (!raw) return null;
   const typed = raw.match(/^(node|way|relation)\/(\d+)$/i);
-  if (typed) return `${typed[1].toLowerCase()}/${typed[2]}`;
+  if (typed) {
+    const id = typed[2].replace(/^0+(?=\d)/, "");
+    return `${typed[1].toLowerCase()}/${id}`;
+  }
   const venue = raw.match(/^(?:venue-uk-|venue-osm-)?([nwr])(\d+)$/i);
   if (venue) {
     const kind = venue[1].toLowerCase();
-    const id = venue[2];
+    const id = venue[2].replace(/^0+(?=\d)/, "");
     if (kind === "n") return `node/${id}`;
     if (kind === "w") return `way/${id}`;
     return `relation/${id}`;
