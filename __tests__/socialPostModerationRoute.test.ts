@@ -105,6 +105,21 @@ describe("Social post moderation worker", () => {
     expect(state.calls).toBe(0);
   });
 
+  it("skips every Social worker action during emergency rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+
+    const response = await GET(request("cron-secret"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      ok: true,
+      skipped: "social_rollback",
+    });
+    expect(state.calls).toBe(0);
+    expect(state.inspectCalls).toBe(0);
+    expect(state.purgeCalls).toBe(0);
+  });
+
   it("drains the durable queue behind cron authentication", async () => {
     state.drainResult = {
       processed: 2,

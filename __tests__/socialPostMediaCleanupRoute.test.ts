@@ -30,6 +30,18 @@ describe("Social photo cleanup worker", () => {
     expect(state).toEqual({ detached: 1, orphaned: 1 });
   });
 
+  it("skips cleanup during emergency rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+
+    const response = await GET(new Request("http://localhost/api/cron/purge-social-media", {
+      headers: { Authorization: "Bearer cron-secret" },
+    }));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, skipped: "social_rollback" });
+    expect(state).toEqual({ detached: 0, orphaned: 0 });
+  });
+
   it("has an independent production schedule", () => {
     const config = JSON.parse(readFileSync(join(process.cwd(), "vercel.json"), "utf8")) as {
       crons?: Array<{ path?: string }>;
