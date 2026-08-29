@@ -148,6 +148,12 @@ seed metadata. It derives the overlay in memory, so no converter file is
 required. A prebuilt overlay may still be supplied with `--overlay`. Upserts
 are idempotent on `osm_id`. Malformed rows fail the process.
 
+The fold preserves comma-separated namesake HTTPS observations so the harvest
+observation and fold counts stay aligned. Serving accepts only one HTTPS URL,
+so a concatenated value is omitted from website and menu CTAs. Harvest `web`
+lore is available only in the lazy venue sheet and heritage response; it never
+headlines Today or quiet pint.
+
 Serving: GET `/api/harvest-overlay?venueId=` is the lazy sheet overlay.
 Cited lore also rides GET `/api/heritage` when the venue id maps to an
 OSM object. Neither payload is in pins or `venues_slim.json`.

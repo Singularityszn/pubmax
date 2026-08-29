@@ -43,3 +43,6 @@ is the final overlay row unit used for reconciliation.
 | Social | 0 | 0.0% |
 
 `sources[]` holds the https URLs that back the kept website, menu, and lore fields.
+Seven website observations contain comma-separated namesake HTTPS URLs. The
+fold keeps those observations for reconciliation, but serving omits them from
+CTAs because they are not single valid URLs.
