@@ -47,7 +47,8 @@ async function attachCityOsmIds(
               ? outerLondonOwnerForPub(pub, londonVenues)
               : ""
           : cityVenueIdForPub(cityId, pub);
-      const osmId = canonicalOsmId(pub?.osmId);
+      if (typeof pub?.osmId !== "string") continue;
+      const osmId = canonicalOsmId(pub.osmId);
       if (!venueId || !osmId) continue;
       const entry = index.get(venueId);
       if (entry) {

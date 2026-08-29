@@ -15,6 +15,7 @@ import {
   lookupCanonicalVenueWithOsm,
   resetVenueOsmIndexForTests,
 } from "@/lib/venueIndexOsm";
+import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
@@ -201,6 +202,45 @@ describe("getVenueIndex", () => {
     expect(await lookupCanonicalVenueWithOsm("venue-oxf-16404bl")).toMatchObject({
       status: "found",
       venue: { osmId: "way/97822057" },
+    });
+  });
+
+  it("skips malformed OSM rows without aborting city enrichment", async () => {
+    const pub = {
+      name: "Fixture Arms",
+      address: "1 Test Street",
+      lat: 53.48,
+      lng: -2.24,
+    };
+    const venueId = cityVenueIdForPub("manchester", pub);
+    const realRead = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      const filename = String(file);
+      if (filename.endsWith("cities/manchester/venues_slim.json")) {
+        return JSON.stringify([
+          {
+            id: venueId,
+            name: pub.name,
+            borough: "Manchester",
+            lat: pub.lat,
+            lng: pub.lng,
+          },
+        ]);
+      }
+      if (filename.endsWith("cities/manchester/osm_pubs.json")) {
+        return JSON.stringify({
+          pubs: [
+            { ...pub, osmId: { malformed: true } },
+            { ...pub, osmId: "way/123456" },
+          ],
+        });
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    expect(await lookupCanonicalVenueWithOsm(venueId)).toMatchObject({
+      status: "found",
+      venue: { osmId: "way/123456", osmIds: ["way/123456"] },
     });
   });
 });

@@ -387,7 +387,7 @@ function containsVenueLocationClaim(
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
-    /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises))\b/i;
+    /^\s*(?:it|its|(?:this|that)\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises))\b/i;
   const adjectivalBranchReference =
     /^\s*(?:an?|the|another|second|third|new|additional)\s+(?:[a-z][a-z'-]*\s+){1,2}(?:branch|branches|site|sites|location|locations|premises)\b(?:\s+of\s+(?:the\s+)?(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))?\s+(?:is|was|were|has been|opened|opens|opening|operates?|operating|stood|stands?)\b/i;
   const branchOfVenueReference =

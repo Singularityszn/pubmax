@@ -379,6 +379,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign locality in a demonstrative venue reference", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. That pub is in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign adjectival branch locality", () => {
     expect(
       loreNameTownGate(
