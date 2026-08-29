@@ -59,7 +59,6 @@ export default function SavedListDetail({
   venues,
   initialCounts,
   initialFollowing = false,
-  viewerHandle = "",
 }: SavedListDetailProps) {
   const owner = normalizeHandle(ownerHandle);
   const { user } = useAuth();

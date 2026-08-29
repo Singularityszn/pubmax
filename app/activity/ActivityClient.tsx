@@ -78,7 +78,10 @@ export default function ActivityClient(): React.JSX.Element {
   const requestControllerRef = useRef<AbortController | null>(null);
   const accountRevisionRef = useRef(accountRevision);
   const [itemsRevision, setItemsRevision] = useState(accountRevision);
-  accountRevisionRef.current = accountRevision;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
 
   useEffect(() => {
     requestControllerRef.current?.abort();

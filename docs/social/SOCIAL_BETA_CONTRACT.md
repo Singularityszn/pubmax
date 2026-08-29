@@ -1,6 +1,10 @@
-# Social invite-beta contract
+# Historical Social invite-beta contract
 
-Status: target pre-implementation release policy for Verified Social Night Loop. This document states what implementation must enforce. It does not claim that Social behaviour has shipped.
+Status: Retired pre-implementation policy. This document is historical context
+for the Clerk and Yoti invite-beta design and does not describe the shipped
+Social access path. Current launch, rollback, and deployment policy lives in
+[`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md). Current route
+authority lives in `lib/socialAccessServer.ts` and its tests.
 
 This contract owns policy decisions that cross Social routes and domains. Implementation details belong in their task code and tests. The threat analysis lives in [SOCIAL_THREAT_MODEL.md](./SOCIAL_THREAT_MODEL.md).
 

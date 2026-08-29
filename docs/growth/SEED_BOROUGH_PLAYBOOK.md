@@ -32,7 +32,7 @@ That is a coverage floor, not a leaderboard.
 - Never seed fake corroboration or invent figures.
 - Demo / curated prices may colour a band; they must not be described as people-logged.
 - A failed community-price read may never be worded as “zero prices in this borough.”
-- Keep Social beta off while densifying.
+- Keep Social live by default while densifying. Use `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for an emergency rollback.
 
 ## Weekly operator loop
 

@@ -1,6 +1,8 @@
 # Social Crew specification
 
-Status: Slice 1 complete, Slice 2 next. Last updated: 5 August 2026.
+Status: Historical slice handoff. The implementation now runs Social live by
+default; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the emergency rollback. Last
+updated: 5 August 2026.
 
 ## Next Agent Prompt
 
@@ -21,7 +23,8 @@ verification evidence, open findings, and the exact next pickup point.
 - [ ] Slice 8: mobile closeout
 
 Active warning: migration 0075 follows 0074. Captain applies it only after all
-eight slices pass final review. Social beta stays off.
+eight slices pass final review. Use current migration and rollout state from
+[`docs/SOFT_LAUNCH_RUNBOOK.md`](../../docs/SOFT_LAUNCH_RUNBOOK.md).
 
 [Slice 1 handoff and verification evidence](../../.superpowers/sdd/2026-08-05-verified-social-night-loop/task-7-slice-1-report.md).
 

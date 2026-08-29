@@ -79,11 +79,14 @@ export default function PeopleDirectory({
   const [relationStateKey, setRelationStateKey] = useState("");
   const accountRevisionRef = useRef(accountRevision);
   const viewerRef = useRef("");
-  accountRevisionRef.current = accountRevision;
   const handleRead = identityResolved;
   const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
-  viewerRef.current = viewer;
   const relationKey = `${accountRevision}:${viewer}`;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+    viewerRef.current = viewer;
+  }, [accountRevision, viewer]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {

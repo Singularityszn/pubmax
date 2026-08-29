@@ -375,7 +375,11 @@ export default function PubmaxxAccountHub() {
   const [referralNotice, setReferralNotice] = useState("");
   const [referralStateRevision, setReferralStateRevision] = useState(accountRevision);
   const accountRevisionRef = useRef(accountRevision);
-  accountRevisionRef.current = accountRevision;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
   const shareSupported = useSyncExternalStore(
     subscribeToNothing,
     () => typeof navigator.share === "function",

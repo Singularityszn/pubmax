@@ -58,10 +58,13 @@ export default function FindYourLot({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountRevisionRef = useRef(accountRevision);
   const viewerRef = useRef("");
-  accountRevisionRef.current = accountRevision;
   const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
   const viewerKey = `${accountRevision}:${viewer}`;
-  viewerRef.current = viewer;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+    viewerRef.current = viewer;
+  }, [accountRevision, viewer]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {

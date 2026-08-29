@@ -401,7 +401,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const [followsViewer, setFollowsViewer] = useState(false);
   const [followStateKey, setFollowStateKey] = useState(followKey);
   const accountRevisionRef = useRef(accountRevision);
-  accountRevisionRef.current = accountRevision;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
   // Post-save confirmation shown back in view mode; clears itself shortly.
@@ -542,9 +546,14 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
   // matching the API contract, because followed lists are additive context.
   useEffect(() => {
+    let active = true;
     if (!socialFriendsLaunchEnabled) {
-      setFollowedLists([]);
-      return;
+      void Promise.resolve().then(() => {
+        if (active) setFollowedLists([]);
+      });
+      return () => {
+        active = false;
+      };
     }
     const controller = new AbortController();
     async function loadFollowedLists() {
@@ -554,7 +563,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (!controller.signal.aborted) setFollowedLists(lists);
     }
     void loadFollowedLists();
-    return () => controller.abort();
+    return () => {
+      active = false;
+      controller.abort();
+    };
   }, [routeHandle, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one

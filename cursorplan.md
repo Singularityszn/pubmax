@@ -97,7 +97,7 @@ From `data/vision.md` (first mate home) and `AGENTS.md` in this repo:
 - Honest empty beats a dressed empty. Dated source or it does not ship.
 - Coral doubled-stroke X is frozen. Do not restyle the mark.
 - Five tabs: Now / Map / Out / Social / You. Moment is the floating +. Pal and Home light a tab after #1112.
-- Social stays labelled preview until 31 Aug unless the captain changes that date.
+- Social is live by default; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the emergency rollback.
 - Photo safety scan is advisory. A missing scanner must not refuse an upload.
 - 18+ is a one-tap self-assertion, not a DOB gate.
 - Website stays the product until 100 accounts. Apps are built for hype and readiness, not a second public front door.
@@ -418,9 +418,10 @@ Preserve the coral X. Do not add a third avatar system.
 
 Revise `/add` copy that says "No follower counts, no public list" when this ships. That copy becomes a lie the moment counts exist.
 
-### Task 3.4: Social 31 Aug preview sunset (date-gated)
+### Task 3.4: Social launch state
 
-**Objective:** On/after 31 Aug 2026, drop or keep the preview badge only if the captain still wants it. Do not silently remove the badge before that date.
+**Status:** Superseded by the live-by-default Social launch. Use
+`docs/SOFT_LAUNCH_RUNBOOK.md` for the current rollback procedure.
 
 ---
 
@@ -644,7 +645,6 @@ Answer these in chat. A worker that invents an answer is a defect.
 16. **GitHub Actions re-enable.** Standing no. D1 stays held unless the captain changes it.
 17. **Pint Drop legacy `report_count`.** Leave (recommended) / zero / migrate. Blocks L4.
 18. **Pub Pal mastery ladder.** Wire triggers or drop (recommended drop).
-19. **`SOCIAL_INVITE_BETA_ENABLED`.** Delete (recommended) or keep paper trail.
 20. **Close stale tracker issues** `#252 #282 #287 #384 #385 #392 #437 #443 #727`.
 21. **Skiddle logo + API key.**
 22. **Arize tracing.** Paused, decide post-launch.

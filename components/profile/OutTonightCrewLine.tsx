@@ -38,7 +38,10 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
   const [stateScope, setStateScope] = useState("");
   const scope = `${accountRevision}:${normalizeHandle(ownerHandle)}:${normalizeHandle(viewerHandle)}`;
   const scopeRef = useRef(scope);
-  scopeRef.current = scope;
+
+  useEffect(() => {
+    scopeRef.current = scope;
+  }, [scope]);
 
   useEffect(() => {
     const requestScope = scope;

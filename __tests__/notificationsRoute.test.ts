@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level coverage for app/api/notifications/route.ts. The route selects
 // the in-memory notifications store, pinned deterministically at the
@@ -16,6 +16,7 @@ import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
 
 const URL_BASE = "http://localhost/api/notifications";
+const originalSocialLaunch = process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -32,6 +33,14 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryNotifications();
+});
+
+afterEach(() => {
+  if (originalSocialLaunch === undefined) {
+    delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
+  } else {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = originalSocialLaunch;
+  }
 });
 
 describe("GET /api/notifications", () => {

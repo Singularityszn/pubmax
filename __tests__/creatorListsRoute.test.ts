@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const discovery = vi.hoisted(() => ({
   handle: vi.fn(async () => new Response(JSON.stringify({ status: "ready" }))),

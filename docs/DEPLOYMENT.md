@@ -97,6 +97,13 @@ Production migration history already contains
 earlier timestamps, so Captain must apply them with
 `supabase db push --include-all`; a normal push can skip them as out of order.
 
+This change adds an unapplied Social moderation migration:
+`supabase/migrations/20260829120000_0123_social_admin_moderation.sql`.
+Captain applies it separately after checking the live ledger. Its matching
+rollback is
+`supabase/migrations/rollback/20260829120000_0123_social_admin_moderation_rollback.sql`.
+Agents do not apply either file.
+
 Supabase installs the pgcrypto extension in the `extensions` schema, not
 `public`. Local test Postgres installs it in `public`, which hides the
 difference until a live apply. Write any `digest()`/pgcrypto call as

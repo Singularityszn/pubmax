@@ -55,6 +55,14 @@ async function completeCheckIn(socialFriendsLaunchEnabled?: boolean): Promise<vo
   });
 }
 
+async function renderRollback(): Promise<void> {
+  await act(async () => {
+    root.render(createElement(WeAreOutClient, { socialFriendsLaunchEnabled: false }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   window.localStorage.clear();
@@ -76,7 +84,7 @@ describe("we-are-out Social honesty", () => {
   });
 
   it("uses Memories for completed check-ins during rollback", async () => {
-    await completeCheckIn(false);
+    await renderRollback();
     expect(host.querySelector('a[href="/u/you#night-memories"]')?.textContent).toContain("Open Memories");
   });
 });

@@ -70,7 +70,7 @@ PubMaxxing already owns the honesty monopoly (corroborated prices on a map → s
 
 - No Guinness pour-quality ratings (CreamFinder’s lane; we do not invent ritual scores)
 - No CityMCP bulk “open now” scraping
-- No Social beta / lot densification
+- No Social launch-state change or lot densification in this wave
 - No seeded coffee prices
 
 ## Execution rules

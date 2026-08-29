@@ -67,8 +67,8 @@ account see nothing personal.
 
 ### Earlier same-day locked context
 
-- Social launches friends-only for all signed-in users; dark behind a NEW
-  registry flag (`PUBMAX_SOCIAL_FRIENDS_LAUNCH`) until the captain's demo.
+- Social launches friends-only for all signed-in users and is live by default;
+  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the explicit emergency rollback.
 - Profile pictures: user-uploaded, public on profile.
 - Moderation: OpenAI omni-moderation pre-publish scan on OWNED storage
   bytes (upload pipeline, never hotlinked URLs), fail-closed, plus a
@@ -82,8 +82,8 @@ Builder sizing: S/M/L. Sequencing is in its own section below.
 ### WP1 - Open the gate: friends-only social for all signed-in users (L)
 
 **Goal:** every signed-in Supabase account with a claimed handle and an 18+
-date of birth reaches `verified` social access; the whole surface stays dark
-behind `PUBMAX_SOCIAL_FRIENDS_LAUNCH`.
+answer reaches `verified` Social access; the whole surface returns to preview
+only when `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`.
 
 **Files to touch:**
 - `lib/socialAccess.ts` - replace the beta+Yoti decision branch
@@ -117,11 +117,11 @@ call-time env read now stubbable); retarget
 `__tests__/legalPages.test.ts` (age copy); new unit tests for
 auto-provision.
 
-**Demo gate:** flag off - `/social` shows "Social is not open yet." and
-every CTA says Open Memories. Flag on in a dev env - a fresh Supabase
-sign-in + handle claim + adult DOB lands in `verified` and sees the
-friends-only feed; an under-18 DOB is refused honestly; mutual-follow
-visibility spot-checked with two accounts.
+**Demo gate:** with `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, `/social` shows the
+preview state and every CTA says Open Memories. With the live default, a fresh
+Supabase sign-in + handle claim + 18+ answer lands in `verified` and sees the
+friends-only feed; an under-18 answer is refused honestly; mutual-follow
+visibility is spot-checked with two accounts.
 
 ### WP2 - Avatar upload pipeline (server) with inline pre-publish moderation (L)
 
@@ -390,12 +390,10 @@ empty; search finds a handle and follow works from it.
   start time to any link holder (`app/invite/[token]/page.tsx`, migration
   0081); adding a face turns that into face + route + start time. Night
   stories' `public` tier likewise stays face-free.
-- **`SOCIAL_INVITE_BETA_ENABLED` stays untouched.** It is pinned "stays
-  unset" by four docs and the honest-path anti-goals; the launch switch is
-  the new registry flag, and the beta flag's paper trail stays intact.
-- **The launch flag stays OFF until the captain's demo.** Flipping
-  `PUBMAX_SOCIAL_FRIENDS_LAUNCH` in production is the captain's act, after
-  the WP5 rehearsal.
+- **`SOCIAL_INVITE_BETA_ENABLED` is retired.** It is not a supported
+  configuration value or access path. The launch switch is live by default,
+  and `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the captain-controlled emergency
+  rollback.
 - Standing honest-path anti-goals (root `CLAUDE.md`) apply unchanged: no
   growth engine, no referral feature grants ever, no payments theatre, no AI
   that fabricates.
@@ -414,15 +412,15 @@ empty; search finds a handle and follow works from it.
    no usable decision is stored and served, because a broken provider had
    blocked every upload on the site. A real negative verdict still refuses.
    See `lib/uploadedImageScan.server.ts` and the AGENTS.md bullet.
-3. **Honest copy and honest fallbacks:** While the launch flag is off, no
+3. **Honest copy and honest fallbacks:** During the explicit rollback, no
    surface may say "Open Social" (the `__tests__/*SocialHonesty.test.ts`
    fences must keep passing), and a missing, hidden, or unscanned avatar
    always renders the initials fallback - never a broken image, never a
    placeholder that implies the user chose it.
-4. **Age gate:** Social requires an 18+ self-asserted date of birth, and
-   the terms/privacy Yoti promise is replaced honestly in the same PR that
-   opens the gate - the legal pages describe what the code does, never what
-   it might do later.
+4. **Age gate:** Social requires a signed-in account, claimed handle, and 18+
+   answer. An existing date of birth decides when present; otherwise one
+   recorded self-assertion can answer the question. The legal pages describe
+   this current policy and do not promise a hosted Yoti check.
 
 ## Sequencing
 
@@ -449,8 +447,8 @@ empty; search finds a handle and follow works from it.
 - **`OPENAI_API_KEY`:** already listed in `.env.example`; the captain adds
   it to Vercel env when WP2 ships. Until then every avatar upload is
   refused honestly (fail-closed), which is the correct dark behaviour.
-- **`PUBMAX_SOCIAL_FRIENDS_LAUNCH`:** the new launch switch, registered in
+- **`PUBMAX_SOCIAL_FRIENDS_LAUNCH`:** the launch switch, registered in
   `lib/trustedHandoffFlags.server.ts` with `ownerLane`, `removalCondition`
-  and `offBehavior`. Off = today's site. Flip = env change + redeploy, per
-  the WP5 runbook entry. `PUBMAX_SOCIAL_FREEZE` remains the separate ops
+  and `offBehavior`. Unset, empty, `1`, or `true` keeps Social live; `0`
+  returns it to preview. `PUBMAX_SOCIAL_FREEZE` remains the separate ops
   brake and is not a launch control.
