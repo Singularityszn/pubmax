@@ -278,6 +278,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later contradictory locality after contextual venue lore", () => {
+    expect(
+      loreNameTownGate(
+        "York's famous pub The Red Lion is in York. The Red Lion was in Clapham.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a possessive venue address in a later foreign locality statement", () => {
     expect(
       loreNameTownGate(
