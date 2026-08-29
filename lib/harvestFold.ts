@@ -414,7 +414,7 @@ export function loreNameTownGate(
     .filter(Boolean);
   const relatedSentences = sentences.filter(
     (sentence) =>
-      containsVenueLocationClaim(sentence, name) ||
+      containsVenueName(sentence, name) ||
       containsVenueReferenceLocalityRelation(sentence),
   );
   const relatedSentence =

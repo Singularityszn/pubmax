@@ -329,6 +329,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a reverse foreign branch locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. Pennsylvania is home to a branch of The Red Lion.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign branch locality in a venue reference", () => {
     expect(
       loreNameTownGate(
