@@ -1,7 +1,8 @@
 "use client";
 
-import Link from "next/link";
+import dynamic from "next/dynamic";
 import Image from "next/image";
+import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, Upload, X } from "lucide-react";
 import {
@@ -28,6 +29,11 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { captureNativePhoto } from "@/lib/nativeCamera";
 import { isNativeApp } from "@/lib/nativePlatform";
 import {
+  MOMENT_MAX_PHOTO_BYTES,
+  MOMENT_PHOTO_TYPES,
+  replaceMomentMediaWithEditedBlob,
+} from "@/lib/momentPhotoEditor";
+import {
   createMomentDraft,
   deleteMomentDraft,
   loadMomentDraft,
@@ -41,8 +47,11 @@ import {
 import "./moment.css";
 
 const GUEST_OWNER = "guest";
-const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+
+const MomentImageEditor = dynamic(() => import("./MomentImageEditor"), {
+  ssr: false,
+  loading: () => <div className="momentEditorLoading" role="status">Opening editor...</div>,
+});
 
 /** Phone shell (≤640): camera-first. Wider: upload / drag-drop primacy. */
 function subscribeMobileViewport(onStoreChange: () => void): () => void {
@@ -107,6 +116,7 @@ export default function MomentCapture(): React.JSX.Element {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [savedMemoryId, setSavedMemoryId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
+  const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
   const previewUrls = useRef<Set<string>>(new Set());
   // Arm the identity nudge once per composer visit, the first time a signed-out
   // guest has a Moment draft worth keeping. The server save path requires auth,
@@ -235,7 +245,7 @@ export default function MomentCapture(): React.JSX.Element {
 
   function addFiles(files: File[]) {
     if (!files.length) return;
-    const invalid = files.find((file) => !PHOTO_TYPES.has(file.type) || file.size > MAX_PHOTO_BYTES);
+    const invalid = files.find((file) => !MOMENT_PHOTO_TYPES.has(file.type) || file.size > MOMENT_MAX_PHOTO_BYTES);
     if (invalid) {
       setMessage("Choose JPEG, PNG, or WebP photos up to 10 MB each.");
       return;
@@ -277,6 +287,31 @@ export default function MomentCapture(): React.JSX.Element {
     }
     update({ media: draft.media.filter((item) => item.id !== id) });
   }
+
+  function finishPhotoEdit(result: { blob: Blob }) {
+    const current = draft.media.find((item) => item.id === editingMediaId);
+    if (!current) {
+      setEditingMediaId(null);
+      return;
+    }
+    const replacement = replaceMomentMediaWithEditedBlob(current, result);
+    if (replacement.error) {
+      setMessage(replacement.error);
+      return;
+    }
+    if (current.objectUrl) {
+      URL.revokeObjectURL(current.objectUrl);
+      previewUrls.current.delete(current.objectUrl);
+    }
+    if (replacement.media.objectUrl) previewUrls.current.add(replacement.media.objectUrl);
+    update({ media: draft.media.map((item) => (item.id === current.id ? replacement.media : item)) });
+    setEditingMediaId(null);
+    setMessage("Edited photo ready.");
+  }
+
+  const editingMedia = editingMediaId
+    ? draft.media.find((item) => item.id === editingMediaId)
+    : null;
 
   async function saveMoment(event: FormEvent) {
     event.preventDefault();
@@ -415,9 +450,14 @@ export default function MomentCapture(): React.JSX.Element {
                     unoptimized
                   />
                 ) : null}
-                <button type="button" onClick={() => removeMedia(item.id)} aria-label={`Remove ${item.name}`}>
-                  <X size={17} aria-hidden="true" />
-                </button>
+                <div className="momentMediaActions">
+                  <button type="button" onClick={() => setEditingMediaId(item.id)} aria-label={`Edit ${item.name}`}>
+                    Edit
+                  </button>
+                  <button type="button" onClick={() => removeMedia(item.id)} aria-label={`Remove ${item.name}`}>
+                    <X size={17} aria-hidden="true" />
+                  </button>
+                </div>
               </figure>
             ))}
             {draft.media.length < 4 ? (
@@ -515,6 +555,21 @@ export default function MomentCapture(): React.JSX.Element {
             </div>
           )}
         </form>
+
+        {editingMedia?.objectUrl ? (
+          <MomentImageEditor
+            image={editingMedia.objectUrl}
+            onSave={finishPhotoEdit}
+            onCancel={() => {
+              setEditingMediaId(null);
+              setMessage("Original photo kept.");
+            }}
+            onError={() => {
+              setEditingMediaId(null);
+              setMessage("Editor could not open. Original photo kept.");
+            }}
+          />
+        ) : null}
 
         {savedMemoryId ? (
           <section className="momentSaved" aria-labelledby="moment-saved-title">
