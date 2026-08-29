@@ -159,7 +159,7 @@ describe("finding 2.15 — the banners dock under the bar and step off the map",
     const canvas = read("components/PubMapCanvas.tsx");
     // A gesture carries an originalEvent; a programmatic fly does not.
     expect(canvas).toMatch(
-      /if \(event\.originalEvent\) onUserCameraMoveRef\.current\?\.\(\)/,
+      /if \(!event\.originalEvent\) return;/,
     );
     expect(canvas).toMatch(/map\.on\("dragstart", emitUserCameraMove\)/);
     expect(canvas).toMatch(/map\.on\("zoomstart", emitUserCameraMove\)/);

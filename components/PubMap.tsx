@@ -291,7 +291,7 @@ import {
   type CityId,
 } from "@/lib/cities";
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
-import { slimVenuesToPins } from "@/lib/slimPins";
+import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
@@ -327,7 +327,22 @@ import {
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
-import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
+import {
+  isCurrentMapResumeRefresh,
+  isPersistableMapResumeViewport,
+  type MapResumeLiveLoadStatus,
+  readMapResume,
+  readMapResumeSync,
+  writeMapResume,
+} from "@/lib/mapResume";
+import {
+  readOpeningMapLocation,
+  readMapOpeningLocation,
+  resolveMapOpeningLocation,
+  writeMapOpeningLocation,
+} from "@/lib/mapOpeningLocation";
+import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
 import { mapLoadingHeld, mapLoadingProgressPercent } from "@/lib/mapLoadingCopy";
 import { pickMapSurfaceToast } from "@/lib/mapSurfaceChrome";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
@@ -641,6 +656,41 @@ type UserLocation = {
   lng: number;
 };
 
+type PendingNearMeRequest =
+  | {
+      kind: "map";
+      location: UserLocation;
+      mode: "tap" | "arrival" | "resume";
+    }
+  | {
+      kind: "crawl";
+      location: UserLocation;
+      stopCount: number;
+    };
+
+const LOCATION_FIRST_ZOOM = 15;
+const OPENING_LOCATION_HOLD_VIEW: MapViewportSnapshot = {
+  center: [0, 0],
+  zoom: 0,
+  pitch: 0,
+  bearing: 0,
+};
+
+function boundsForOpeningView(viewport: MapViewportSnapshot): MapBounds {
+  const width = typeof window === "undefined" ? 390 : Math.max(window.innerWidth, 1);
+  const height = typeof window === "undefined" ? 844 : Math.max(window.innerHeight, 1);
+  const scale = 512 * 2 ** viewport.zoom;
+  const longitudeDelta = (width * 180) / scale;
+  const latitudeDelta = (height * 180 * 1.4) / scale;
+  const [lng, lat] = viewport.center;
+  return {
+    west: lng - longitudeDelta,
+    south: Math.max(-85, lat - latitudeDelta),
+    east: lng + longitudeDelta,
+    north: Math.min(85, lat + latitudeDelta),
+  };
+}
+
 function readOnboardingDismissed(): boolean {
   if (typeof window === "undefined") return true; // SSR: never render the overlay server-side
   try {
@@ -720,6 +770,11 @@ export default function PubMap({
     ukPlacesPromiseRef.current = pending;
     return pending;
   }, []);
+  const [lastKnownLocation] = useState(() =>
+    currentSearch() ? null : readMapOpeningLocation(),
+  );
+  const mapOpeningNeedsResolution =
+    !currentSearch() && !ukPlaceArrival && !ukNationalBrowse;
   const [initialMapView] = useState<MapViewportSnapshot>(() => {
     if (ukPlaceArrival) return ukPlaceMapView(ukPlaceArrival, city.mapView);
     if (ukNationalBrowse) {
@@ -729,7 +784,23 @@ export default function PubMap({
         bearing: city.mapView.bearing ?? 0,
       };
     }
-    return city.mapView;
+    if (mapOpeningNeedsResolution) return OPENING_LOCATION_HOLD_VIEW;
+    const cityDefault = {
+      lat: city.mapView.center[1],
+      lng: city.mapView.center[0],
+    };
+    const location = resolveMapOpeningLocation(
+      lastKnownLocation &&
+        pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
+        ? lastKnownLocation
+        : null,
+      cityDefault,
+    );
+    return {
+      ...city.mapView,
+      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
+      center: [location.lng, location.lat],
+    };
   });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -751,7 +822,19 @@ export default function PubMap({
    * stores, because ignoring an offer is not rejecting it.
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
-  const dismissAmbientBanners = useCallback(() => setMapCameraTouched(true), []);
+  const mapCameraTouchedRef = useRef(false);
+  const [openingLocationFocus, setOpeningLocationFocus] = useState<{
+    center: [number, number];
+    zoom: number;
+    token: number;
+  } | null>(null);
+  const openingLocationCancelledRef = useRef(false);
+  const dismissAmbientBanners = useCallback(() => {
+    mapCameraTouchedRef.current = true;
+    openingLocationCancelledRef.current = true;
+    setOpeningLocationFocus(null);
+    setMapCameraTouched(true);
+  }, []);
   const ambientBannerLane = !mobileViewport && !mapCameraTouched;
   const railViewport = useSyncExternalStore(
     subscribeDesktopRailViewport,
@@ -818,9 +901,49 @@ export default function PubMap({
       restoredMobileSession,
     }),
   );
+  const [mapResumeSeed] = useState(() =>
+    currentSearch() ? null : readMapResumeSync(cityId),
+  );
+  const shouldResolveOpeningLocation =
+    !currentSearch() &&
+    !ukPlaceArrival &&
+    !ukNationalBrowse &&
+    !mapResumeSeed &&
+    !restoredMobileSession?.viewport;
+  const [grantedOpeningLocation, setGrantedOpeningLocation] =
+    useState<MapOpeningLocation | null>(null);
+  const [openingLocationPromptActive, setOpeningLocationPromptActive] = useState(false);
+  const [openingLocationResolved, setOpeningLocationResolved] = useState(
+    !shouldResolveOpeningLocation,
+  );
+  useEffect(() => {
+    if (!shouldResolveOpeningLocation) return;
+    let cancelled = false;
+    void readOpeningMapLocation(undefined, {
+      onPermissionPrompt: () => {
+        if (!cancelled) setOpeningLocationPromptActive(true);
+      },
+    }).then((location) => {
+      if (cancelled) return;
+      if (
+        location &&
+        !openingLocationCancelledRef.current &&
+        pointInCityBounds(location.lat, location.lng, city)
+      ) {
+        setGrantedOpeningLocation(location);
+        writeMapOpeningLocation(location);
+      }
+      setOpeningLocationPromptActive(false);
+      setOpeningLocationResolved(true);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [city, shouldResolveOpeningLocation]);
+  const mapResumeSeedConsumedRef = useRef(false);
   // `loaded` means the slim map index has settled. Source datasets are not
   // fetched on /map mount; full details arrive lazily per selected venue.
-  const [loaded, setLoaded] = useState(false);
+  const [loaded, setLoaded] = useState(Boolean(mapResumeSeed));
   // Story catalogs are secondary to the slim index and pin-price path. A
   // shared story URL still loads them immediately so its claim is ready on
   // arrival; a clean map waits until the map has settled before fetching the
@@ -844,7 +967,9 @@ export default function PubMap({
   // Pair settlement with its city. On a client-side city switch there is one
   // render before the loading effect clears old pins; this prevents that prior
   // city's index from producing a transient, dishonest search result.
-  const [loadedCityId, setLoadedCityId] = useState<CityId | null>(null);
+  const [loadedCityId, setLoadedCityId] = useState<CityId | null>(
+    mapResumeSeed ? cityId : null,
+  );
   // Bumped by the canvas's pin Retry when the readiness ceiling named the pub
   // list. The index load is the owner's, so the way to try again is to re-run
   // the effect that owns it.
@@ -893,7 +1018,58 @@ export default function PubMap({
   // compact index (or its IndexedDB mirror) before any detail request. They
   // carry kind, anchor provenance, and fast filter signals; detail-only fields
   // keep inert defaults until a selected venue hydrates (see lib/slimPins).
-  const [slimPins, setSlimPins] = useState<Venue[]>([]);
+  const [slimPins, setSlimPins] = useState<Venue[]>(() =>
+    mapResumeSeed ? slimVenuesToPins(mapResumeSeed.rows) : [],
+  );
+  const [mapResumeUpdating, setMapResumeUpdating] = useState(Boolean(mapResumeSeed));
+  const [mapResumeViewport, setMapResumeViewport] =
+    useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
+  const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
+  const fallbackOpeningMapView = useMemo(() => {
+    const cityDefault = {
+      lat: city.mapView.center[1],
+      lng: city.mapView.center[0],
+    };
+    const location = resolveMapOpeningLocation(
+      lastKnownLocation &&
+        pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
+        ? lastKnownLocation
+        : null,
+      cityDefault,
+    );
+    return {
+      ...city.mapView,
+      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
+      center: [location.lng, location.lat] as [number, number],
+    };
+  }, [city, lastKnownLocation]);
+  const locationFirstMapView = useMemo(() => {
+    if (!mapOpeningNeedsResolution) return initialMapView;
+    if (!openingLocationResolved) return OPENING_LOCATION_HOLD_VIEW;
+    if (!grantedOpeningLocation) return fallbackOpeningMapView;
+    return {
+      ...fallbackOpeningMapView,
+      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
+        number,
+        number,
+      ],
+    };
+  }, [
+    fallbackOpeningMapView,
+    grantedOpeningLocation,
+    initialMapView,
+    mapOpeningNeedsResolution,
+    openingLocationResolved,
+  ]);
+  const openingLoadViewport = useMemo(
+    () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
+    [locationFirstMapView, mapResumeSeed, restoredMobileSession],
+  );
+  useEffect(() => {
+    if (!mapResumeSeed) return;
+    markPubmaxTiming("pubmax:first-pins");
+    markPubmaxTiming("pubmax:slim-venues-ready");
+  }, [mapResumeSeed]);
   const [detailById, setDetailById] = useState<Map<string, Venue>>(() => new Map());
   const [detailStatusById, setDetailStatusById] = useState<Map<string, VenueDetailStatus>>(
     () => new Map(),
@@ -988,9 +1164,9 @@ export default function PubMap({
   const openChooseAreaRef = useRef<(locationNote?: string | null) => void>(() => {});
   const restoredChosenAreaRef = useRef(false);
   const [mapViewport, setMapViewport] = useState<MapViewportSnapshot>(() =>
-    restoredMobileSession?.viewport
-      ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
-      : initialMapView,
+    openingViewport
+      ? withCityCameraAttitude(openingViewport, city.mapView)
+      : locationFirstMapView,
   );
   // The settled view's own edges, published by the canvas on every moveend. The
   // centre alone cannot answer what the view is OVER, which is what a place
@@ -1008,6 +1184,9 @@ export default function PubMap({
   const [mobileLayersTab, setMobileLayersTab] = useState<"key" | "layers" | "prices" | "events" | "transit">("key");
   const tflStatus = useMobileTflStatus();
   const [nearbyMapResult, setNearbyMapResult] = useState<NearbyMapResult | null>(null);
+  const [pendingNearMeRequest, setPendingNearMeRequest] =
+    useState<PendingNearMeRequest | null>(null);
+  const [nearbyLoadVersion, setNearbyLoadVersion] = useState(0);
   const {
     mode,
     setMode,
@@ -1539,18 +1718,28 @@ export default function PubMap({
     else openPlanning();
   }, [closePlanning, openPlanning, planningOpen]);
 
-  // Issue #35 + Cycle-5 sharding — stage 1: paint pins from the slim index's
-  // CORE shard (inner-London priced index, ~515 KB, or instantly from
-  // IndexedDB). This is the ONLY eager first-paint venue payload; the hollow
-  // Outer-London boroughs (#315) stream in lazily as the viewport intersects
-  // them or near-me geolocates into them (see the two effects below). Full venue
-  // detail is still fetched lazily via /api/venue/[id] when inspected.
+  // Issue #35 + location-first sharding: paint pins from the slim index cells
+  // that intersect the opening viewport (or instantly from the resume
+  // snapshot), then stream a neighbouring ring as the camera settles. Full
+  // venue detail is still fetched lazily via /api/venue/[id] when inspected.
   //
   // One code path: the shard loader (lib/slimShards.ts) hides fetching, dedup,
   // offline mirroring, and the single-file fallback for cities that ship no
   // manifest (non-London packs behave exactly as before). City switches reset
   // pins asynchronously so we never setState in the effect body.
   const slimLoaderRef = useRef<SlimShardLoader | null>(null);
+  const slimLoaderGenerationRef = useRef(0);
+  const initialShardLoadStartedRef = useRef(false);
+  const initialShardLoadSettledRef = useRef(false);
+  const liveShardLoadStatusRef = useRef<MapResumeLiveLoadStatus>("pending");
+  const liveShardRowsCommittedRef = useRef(false);
+  const latestMapBoundsRef = useRef<MapBounds | null>(null);
+  const latestMapBoundsCityRef = useRef<CityId | null>(null);
+  const activeMapCityIdRef = useRef(cityId);
+  useEffect(() => {
+    activeMapCityIdRef.current = cityId;
+  }, [cityId]);
+  const ringLoadPendingKeyRef = useRef<string | null>(null);
   // Which night areas the loader can vouch a complete pub count for. A shard
   // can land carrying no pin this map had not already seen, so this is refreshed
   // off the LOADER settling rather than off the pins changing.
@@ -1572,16 +1761,80 @@ export default function PubMap({
     if (rows.length === 0) return;
     setSlimPins((prev) => {
       const byId = new Map(prev.map((pin) => [pin.id, pin]));
-      let added = false;
+      let changed = false;
       for (const pin of slimVenuesToPins(rows)) {
-        if (!byId.has(pin.id)) {
+        const current = byId.get(pin.id);
+        if (!current || JSON.stringify(current) !== JSON.stringify(pin)) {
           byId.set(pin.id, pin);
-          added = true;
+          changed = true;
         }
       }
-      return added ? Array.from(byId.values()) : prev;
+      return changed ? Array.from(byId.values()) : prev;
     });
   }, []);
+
+  useEffect(() => {
+    if (
+      !shouldResolveOpeningLocation ||
+      !openingLocationResolved ||
+      openingLocationCancelledRef.current ||
+      mapCameraTouchedRef.current
+    ) return;
+    const viewport = locationFirstMapView;
+    setOpeningLocationFocus((current) => {
+      if (
+        current?.center[0] === viewport.center[0] &&
+        current.center[1] === viewport.center[1] &&
+        current.zoom === viewport.zoom
+      ) {
+        return current;
+      }
+      return {
+        center: viewport.center,
+        zoom: viewport.zoom,
+        token: (current?.token ?? 0) + 1,
+      };
+    });
+  }, [locationFirstMapView, openingLocationResolved, shouldResolveOpeningLocation]);
+
+  const scheduleRingLoad = useCallback(
+    (loader: SlimShardLoader, bounds: MapBounds) => {
+      const key = JSON.stringify([
+        bounds.west,
+        bounds.south,
+        bounds.east,
+        bounds.north,
+      ]);
+      if (ringLoadPendingKeyRef.current === key) return;
+      ringLoadPendingKeyRef.current = key;
+      const loaderGeneration = slimLoaderGenerationRef.current;
+      const isCurrentLoader = () =>
+        slimLoaderRef.current === loader &&
+        slimLoaderGenerationRef.current === loaderGeneration;
+      const load = () => {
+        if (!isCurrentLoader()) return;
+        void loader
+          .inBounds(bounds, 1)
+          .then((rows) => {
+            if (!isCurrentLoader()) return;
+            mergeSlimVenues(rows);
+            refreshCountCoverage();
+          })
+          .catch(() => undefined)
+          .finally(() => {
+            if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
+              ringLoadPendingKeyRef.current = null;
+            }
+          });
+      };
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(load, { timeout: 3_000 });
+      } else {
+        window.setTimeout(load, 1_000);
+      }
+    },
+    [mergeSlimVenues, refreshCountCoverage],
+  );
 
   // A canvas that reports itself no longer ready has been torn down and is
   // re-initialising (Retry, soft retry, context loss). Its painted pins are
@@ -1607,47 +1860,196 @@ export default function PubMap({
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
 
   useEffect(() => {
+    const deferSpatial = (() => {
+      try {
+        return window.localStorage.getItem(FIRST_PINS_SEEN_KEY) !== "1";
+      } catch {
+        return true;
+      }
+    })();
+    if (
+      !openingLocationResolved &&
+      !arrivalSearch &&
+      !ukPlaceArrival &&
+      !ukNationalBrowse &&
+      !deferSpatial
+    ) {
+      return;
+    }
     let cancelled = false;
+    const loaderGeneration = ++slimLoaderGenerationRef.current;
     const loader = createSlimShardLoader(cityId, {
       bypassInFlight: venueIndexAttempt > 0,
+      deferSpatial,
     });
+    const isCurrentLoader = () =>
+      !cancelled &&
+      slimLoaderRef.current === loader &&
+      slimLoaderGenerationRef.current === loaderGeneration;
     slimLoaderRef.current = loader;
+    initialShardLoadStartedRef.current = false;
+    initialShardLoadSettledRef.current = false;
+    liveShardLoadStatusRef.current = "pending";
+    liveShardRowsCommittedRef.current = false;
+    ringLoadPendingKeyRef.current = null;
+    const preserveSyncResume =
+      !mapResumeSeedConsumedRef.current && Boolean(mapResumeSeed);
+    mapResumeSeedConsumedRef.current = true;
+    let resumeRefreshVersion = 0;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      setLoaded(false);
-      setLoadedCityId(null);
       setVenueIndexFailed(false);
-      setSlimPins([]);
       setCompleteCountSlugs(null);
+      if (!preserveSyncResume) {
+        setLoaded(false);
+        setLoadedCityId(null);
+        setSlimPins([]);
+        setMapResumeViewport(null);
+        setMapResumeUpdating(false);
+      }
     });
-    loader
-      .core()
-      .then((slim) => {
-        if (cancelled) return;
-        setVenueIndexFailed(false);
-        if (slim.length === 0) return;
-        setSlimPins(slimVenuesToPins(slim));
-        markPubmaxTiming("pubmax:first-pins");
-        markPubmaxTiming("pubmax:slim-venues-ready");
-      })
-      .catch(() => {
-        // Core fetch failed with no offline mirror — render the honest empty
-        // state instead of falling back to the full 6 MB client payload. The
-        // refusal is recorded so a pin-ceiling Retry can say so.
-        if (!cancelled) setVenueIndexFailed(true);
-      })
-      .finally(() => {
-        if (!cancelled) {
-          setLoadedCityId(cityId);
-          setLoaded(true);
-          refreshCountCoverage();
-        }
-      });
+    if (
+      !arrivalSearch &&
+      !ukPlaceArrival &&
+      !ukNationalBrowse &&
+      (openingLocationResolved || deferSpatial)
+    ) {
+      const settledOpeningBounds =
+        latestMapBoundsCityRef.current === cityId &&
+        (mapCameraTouchedRef.current || openingLocationCancelledRef.current)
+          ? latestMapBoundsRef.current
+          : null;
+      const openingBounds =
+        settledOpeningBounds ??
+        boundsForOpeningView(deferSpatial ? initialMapView : openingLoadViewport);
+      const startInitialLoad = (bounds: MapBounds) => {
+        if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
+        initialShardLoadStartedRef.current = true;
+        void loader.initialResult(bounds)
+          .then((result) => {
+            if (!isCurrentLoader()) return;
+            const rows = result.rows;
+            liveShardLoadStatusRef.current = result.status;
+            if (rows.length > 0) liveShardRowsCommittedRef.current = true;
+            setVenueIndexFailed(result.status !== "ready");
+            mergeSlimVenues(rows);
+            if (rows.length > 0) {
+              markPubmaxTiming("pubmax:first-pins");
+              markPubmaxTiming("pubmax:slim-venues-ready");
+            }
+            initialShardLoadSettledRef.current = true;
+            resumeRefreshVersion += 1;
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            setMapResumeUpdating(false);
+            initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status === "ready") {
+              const ringBounds = latestMapBoundsRef.current ?? bounds;
+              if (isCurrentLoader()) scheduleRingLoad(loader, ringBounds);
+            }
+            refreshCountCoverage();
+          })
+          .catch(() => {
+            if (!isCurrentLoader()) return;
+            liveShardLoadStatusRef.current = "unavailable";
+            initialShardLoadSettledRef.current = true;
+            setVenueIndexFailed(true);
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            setMapResumeUpdating(false);
+            initialShardLoadStartedRef.current = false;
+          });
+      };
+
+      if (mapResumeSeed) {
+        void readMapResume(cityId).then((snapshot) => {
+          if (
+            !isCurrentLoader() ||
+            !snapshot ||
+            mapCameraTouchedRef.current ||
+            snapshot.savedAt <= mapResumeSeed.savedAt ||
+            liveShardRowsCommittedRef.current
+          ) return;
+          const refreshVersion = ++resumeRefreshVersion;
+          setMapResumeViewport(snapshot.viewport);
+          setMapResumeUpdating(true);
+          const resumeBounds = boundsForOpeningView(snapshot.viewport);
+          void loader.initial(resumeBounds)
+            .then((rows) => {
+              if (
+                !isCurrentLoader() ||
+                !isCurrentMapResumeRefresh(
+                  liveShardLoadStatusRef.current,
+                  liveShardRowsCommittedRef.current,
+                  resumeRefreshVersion,
+                  refreshVersion,
+                )
+              ) return;
+              mergeSlimVenues(rows);
+              refreshCountCoverage();
+              if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
+            })
+            .catch(() => {
+              if (isCurrentLoader() && resumeRefreshVersion === refreshVersion) {
+                setMapResumeUpdating(false);
+              }
+            });
+        });
+        startInitialLoad(openingBounds);
+      } else {
+        startInitialLoad(openingBounds);
+        void readMapResume(cityId)
+          .then((snapshot) => {
+            if (
+              !isCurrentLoader() ||
+              !snapshot ||
+              mapCameraTouchedRef.current ||
+              liveShardRowsCommittedRef.current
+            ) return;
+            setSlimPins(slimVenuesToPins(snapshot.rows));
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            markPubmaxTiming("pubmax:first-pins");
+            markPubmaxTiming("pubmax:slim-venues-ready");
+            setMapResumeViewport(snapshot.viewport);
+            const refreshVersion = ++resumeRefreshVersion;
+            setMapResumeUpdating(true);
+            void loader.initial(boundsForOpeningView(snapshot.viewport))
+              .then((rows) => {
+                if (
+                  !isCurrentLoader() ||
+                  !isCurrentMapResumeRefresh(
+                    liveShardLoadStatusRef.current,
+                    liveShardRowsCommittedRef.current,
+                    resumeRefreshVersion,
+                    refreshVersion,
+                  )
+                ) return;
+                mergeSlimVenues(rows);
+                refreshCountCoverage();
+                if (resumeRefreshVersion === refreshVersion) setMapResumeUpdating(false);
+              })
+              .catch(() => {
+                if (isCurrentLoader() && resumeRefreshVersion === refreshVersion) {
+                  setMapResumeUpdating(false);
+                }
+              });
+          });
+      }
+    }
     return () => {
       cancelled = true;
+      if (slimLoaderGenerationRef.current === loaderGeneration) {
+        slimLoaderGenerationRef.current += 1;
+      }
       if (slimLoaderRef.current === loader) slimLoaderRef.current = null;
+      initialShardLoadStartedRef.current = false;
+      initialShardLoadSettledRef.current = false;
+      liveShardLoadStatusRef.current = "pending";
+      liveShardRowsCommittedRef.current = false;
+      ringLoadPendingKeyRef.current = null;
     };
-  }, [cityId, refreshCountCoverage, venueIndexAttempt]);
+  }, [arrivalSearch, cityId, initialMapView, mapResumeSeed, mergeSlimVenues, openingLoadViewport, openingLocationResolved, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -1655,6 +2057,10 @@ export default function PubMap({
   // it — the map keeps working with whatever loaded.
   const handleMapBoundsChange = useCallback(
     (bounds: MapBounds) => {
+      if (activeMapCityIdRef.current !== cityId) return;
+      latestMapBoundsRef.current = bounds;
+      latestMapBoundsCityRef.current = cityId;
+      if (shouldResolveOpeningLocation && !openingLocationResolved) return;
       // Same settled camera the place claim is measured against, so the name in
       // the bar can never describe a view the reader has already left.
       setMapBounds((current) =>
@@ -1668,17 +2074,64 @@ export default function PubMap({
       );
       const loader = slimLoaderRef.current;
       if (!loader) return;
-      void loader
-        .inBounds(bounds)
-        .then((rows) => {
+      const loaderGeneration = slimLoaderGenerationRef.current;
+      const isCurrentLoader = () =>
+        slimLoaderRef.current === loader &&
+        slimLoaderGenerationRef.current === loaderGeneration;
+      if (!isCurrentLoader()) return;
+      const firstLoad = !initialShardLoadStartedRef.current;
+      if (!firstLoad && !initialShardLoadSettledRef.current) return;
+      if (!firstLoad) {
+        scheduleRingLoad(loader, bounds);
+        return;
+      }
+      initialShardLoadStartedRef.current = true;
+      void loader.initialResult(bounds)
+        .then((result) => {
+          if (!isCurrentLoader()) return;
+          const rows = result.rows;
+          liveShardLoadStatusRef.current = result.status;
+          if (rows.length > 0) liveShardRowsCommittedRef.current = true;
+          setVenueIndexFailed(result.status !== "ready");
           mergeSlimVenues(rows);
+          if (firstLoad && rows.length > 0) {
+            markPubmaxTiming("pubmax:first-pins");
+            markPubmaxTiming("pubmax:slim-venues-ready");
+          }
+          if (firstLoad) {
+            initialShardLoadSettledRef.current = true;
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            setMapResumeUpdating(false);
+            initialShardLoadStartedRef.current = result.status === "ready";
+            if (result.status === "ready" && isCurrentLoader()) {
+              scheduleRingLoad(loader, bounds);
+            }
+          }
           refreshCountCoverage();
         })
         .catch(() => {
+          if (!isCurrentLoader()) return;
+          liveShardLoadStatusRef.current = "unavailable";
+          if (firstLoad) {
+            initialShardLoadSettledRef.current = true;
+            setVenueIndexFailed(true);
+            setLoadedCityId(cityId);
+            setLoaded(true);
+            setMapResumeUpdating(false);
+          }
           // Keep loaded shards; a later moveend retries this one.
+          if (firstLoad) initialShardLoadStartedRef.current = false;
         });
     },
-    [mergeSlimVenues, refreshCountCoverage],
+    [
+      cityId,
+      mergeSlimVenues,
+      openingLocationResolved,
+      refreshCountCoverage,
+      scheduleRingLoad,
+      shouldResolveOpeningLocation,
+    ],
   );
   const handleVisibleVenueIdsChange = useCallback(
     (membership: {
@@ -1689,30 +2142,6 @@ export default function PubMap({
     },
     [cityId],
   );
-
-  // Near-me: geolocating into a hollow outer borough loads that borough's shard
-  // (with one retry inside the loader) so the nearby pins exist. Until it lands
-  // the near-me flows fall back honestly to the already-loaded pins.
-  useEffect(() => {
-    const loc = userLocation ?? venueJourneyLocation;
-    if (!loc) return;
-    const loader = slimLoaderRef.current;
-    if (!loader) return;
-    let cancelled = false;
-    void loader
-      .nearPoint(loc.lat, loc.lng)
-      .then((rows) => {
-        if (cancelled) return;
-        mergeSlimVenues(rows);
-        refreshCountCoverage();
-      })
-      .catch(() => {
-        // Honest fallback: keep whatever pins already loaded.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [userLocation, venueJourneyLocation, mergeSlimVenues, refreshCountCoverage]);
 
   // Sourced price-refresh layer (issue #23): London-only JSON; community drops
   // always outrank it inside mergePriceUpdates. Skip the fetch for other cities
@@ -1821,11 +2250,25 @@ export default function PubMap({
     [filteredVenues],
   );
 
+  const nearbyMapResultForView = useMemo(() => {
+    if (!nearbyMapResult) return null;
+    const { location } = nearbyMapResult;
+    const nextVenues = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+    const nextIds = nextVenues.map((venue) => venue.id);
+    const nextStrategy = withinNearMeRing(location, filteredVenues) >= NEAR_ME_MAP_MIN_VENUES
+      ? "within-radius"
+      : "nearest-20";
+    const sameIds = nearbyMapResult.venueIds.length === nextIds.length &&
+      nearbyMapResult.venueIds.every((id, index) => id === nextIds[index]);
+    if (sameIds && nearbyMapResult.strategy === nextStrategy) return nearbyMapResult;
+    return { ...nearbyMapResult, venueIds: nextIds, strategy: nextStrategy };
+  }, [filteredVenues, nearbyMapResult]);
+
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
   const mapMembershipVenues = useMemo(
-    () => venuesInNearbyMembership(filteredVenues, nearbyMapResult),
-    [filteredVenues, nearbyMapResult],
+    () => venuesInNearbyMembership(filteredVenues, nearbyMapResultForView),
+    [filteredVenues, nearbyMapResultForView],
   );
   const experienceVisibleMapVenues = useMemo(
     () =>
@@ -2342,6 +2785,107 @@ export default function PubMap({
     },
     [openPlanning, selectVenue],
   );
+
+  useEffect(() => {
+    const request = pendingNearMeRequest;
+    const location = request?.location ?? userLocation ?? venueJourneyLocation;
+    if (!location) return;
+    const loader = slimLoaderRef.current;
+    const finish = () => {
+      if (
+        !request ||
+        slimLoaderRef.current !== loader ||
+        pendingNearMeRequest !== request
+      ) return;
+      if (request.kind === "map") {
+        const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
+        const withinRing = withinNearMeRing(location, filteredVenues);
+        setNearbyMapResult({
+          location,
+          venueIds: nearby.map((venue) => venue.id),
+          radiusKm: NEAR_ME_MAP_RADIUS_KM,
+          strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
+        });
+        setNearbyLoading(false);
+        setPendingNearMeRequest(null);
+        if (request.mode !== "resume") setMapOverlay("near-me");
+        return;
+      }
+      const ids = nearestVenueIds(
+        location.lat,
+        location.lng,
+        filteredPubVenues,
+        request.stopCount,
+      );
+      setNearbyLoading(false);
+      setPendingNearMeRequest(null);
+      if (ids.length === 0) {
+        setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
+        return;
+      }
+      setMode("build");
+      setBuiltIds(ids);
+      setRouteMapped(true);
+      setActiveCrawl(null);
+      showLoadedRoute(ids[0]);
+    };
+    if (!loader) {
+      return;
+    }
+    const loaderGeneration = slimLoaderGenerationRef.current;
+    let cancelled = false;
+    const failNearbyLoad = () => {
+      if (
+        cancelled ||
+        !request ||
+        slimLoaderRef.current !== loader ||
+        pendingNearMeRequest !== request
+      ) return;
+      setNearbyError("Nearby venues are unavailable right now.");
+      setNearbyLoading(false);
+      setPendingNearMeRequest(null);
+    };
+    void loader.nearPoint(location.lat, location.lng)
+      .then((result) => {
+        if (
+          cancelled ||
+          slimLoaderRef.current !== loader ||
+          slimLoaderGenerationRef.current !== loaderGeneration
+        ) return;
+        mergeSlimVenues(result.rows);
+        refreshCountCoverage();
+        if (request) setNearbyLoadVersion((version) => version + 1);
+        if (result.status === "unavailable") {
+          failNearbyLoad();
+          return;
+        }
+        if (result.rows.length === 0) finish();
+      })
+      .catch(() => {
+        failNearbyLoad();
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    cityId,
+    filteredPubVenues,
+    filteredVenues,
+    loaded,
+    mergeSlimVenues,
+    nearbyLoadVersion,
+    openingLocationResolved,
+    pendingNearMeRequest,
+    refreshCountCoverage,
+    setActiveCrawl,
+    setBuiltIds,
+    setMode,
+    setRouteMapped,
+    showLoadedRoute,
+    userLocation,
+    venueJourneyLocation,
+    venueIndexAttempt,
+  ]);
 
   // Persist the favorite-pint choice as the user picks it (null = clear).
   const changeFavoritePint = useCallback((beerId: string | null) => {
@@ -2965,6 +3509,10 @@ export default function PubMap({
           lat: position.coords.latitude,
           lng: position.coords.longitude,
         });
+        writeMapOpeningLocation({
+          lat: position.coords.latitude,
+          lng: position.coords.longitude,
+        });
         setLocationRequestStatus("idle");
       },
       () => {
@@ -2988,23 +3536,14 @@ export default function PubMap({
     setNearbyLoading(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        setNearbyLoading(false);
-        setUserLocation({ lat: position.coords.latitude, lng: position.coords.longitude });
-        const ids = nearestVenueIds(
-          position.coords.latitude,
-          position.coords.longitude,
-          filteredPubVenues,
-          filters.stopCount,
-        );
-        if (ids.length === 0) {
-          setNearbyError("Nothing within reach matches those filters. Loosen one and the map fills back up.");
-          return;
-        }
-        setMode("build");
-        setBuiltIds(ids);
-        setRouteMapped(true);
-        setActiveCrawl(null); // a near-me crawl isn't a curated one
-        showLoadedRoute(ids[0]);
+        const location = { lat: position.coords.latitude, lng: position.coords.longitude };
+        setUserLocation(location);
+        writeMapOpeningLocation(location);
+        setPendingNearMeRequest({
+          kind: "crawl",
+          location,
+          stopCount: filters.stopCount,
+        });
       },
       (error) => {
         setNearbyLoading(false);
@@ -3013,16 +3552,10 @@ export default function PubMap({
       NEAR_ME_LOCATION_OPTIONS,
     );
   }, [
-    filteredPubVenues,
     filters.stopCount,
-    setActiveCrawl,
-    setBuiltIds,
-    setMode,
-    setNearbyError,
     setNearbyLoading,
-    setRouteMapped,
+    setPendingNearMeRequest,
     setUserLocation,
-    showLoadedRoute,
   ]);
 
   // Three ways in, one flow, and they differ ONLY in what a refusal owes.
@@ -3063,18 +3596,9 @@ export default function PubMap({
             lat: position.coords.latitude,
             lng: position.coords.longitude,
           };
-          // The map answers the same ring the sheet names — about a 12-minute
-          // walk. The chip counts THIS set, so its number and the sheet's
-          // sentence stay one claim.
-          const nearby = nearMeMapVenues(location.lat, location.lng, filteredVenues);
-          const withinRing = withinNearMeRing(location, filteredVenues);
           setUserLocation(location);
-          setNearbyMapResult({
-            location,
-            venueIds: nearby.map((venue) => venue.id),
-            radiusKm: NEAR_ME_MAP_RADIUS_KM,
-            strategy: withinRing >= NEAR_ME_MAP_MIN_VENUES ? "within-radius" : "nearest-20",
-          });
+          writeMapOpeningLocation(location);
+          setPendingNearMeRequest({ kind: "map", location, mode });
           // A mode marker, never a point: lib/mapChosenArea.ts owns that rule.
           writeMapChosenArea({
             cityId,
@@ -3082,11 +3606,6 @@ export default function PubMap({
             slug: "near-me",
             kind: "near-me",
           });
-          setNearbyLoading(false);
-          if (mode === "resume") return;
-          // Highlight nearby pins AND present the instant-answer cards (Lane 1):
-          // the chip now yields an ANSWER, not just a recentre.
-          setMapOverlay("near-me");
         },
         (error) => {
           setNearbyLoading(false);
@@ -3095,7 +3614,7 @@ export default function PubMap({
         NEAR_ME_LOCATION_OPTIONS,
       );
     },
-    [cityId, filteredVenues],
+    [cityId, setPendingNearMeRequest],
   );
 
   const showNearbyMap = useCallback(() => runNearMe("tap"), [runNearMe]);
@@ -3180,6 +3699,8 @@ export default function PubMap({
   const moveMapCameraTo = useCallback(
     (camera: { center: [number, number]; zoom: number }) => {
       setNearbyMapResult(null);
+      openingLocationCancelledRef.current = true;
+      setOpeningLocationFocus(null);
       setAreaFocus((prev) => ({
         center: camera.center,
         zoom: camera.zoom,
@@ -3706,6 +4227,28 @@ export default function PubMap({
     });
   }, [activeNightArea?.slug, cityId, detailOpen, filters, mapOverlay, mapViewport, planningOpen, poiHidden, selectedVenueId, ukPlaceArrival]);
 
+  useEffect(() => {
+    if (
+      ukPlaceArrival ||
+      !isPersistableMapResumeViewport(
+        mapViewport,
+        !mapOpeningNeedsResolution || openingLocationResolved,
+        mapBounds !== null,
+      ) ||
+      slimPins.length === 0 ||
+      liveShardLoadStatusRef.current !== "ready" ||
+      venueIndexFailed
+    ) return;
+    const timer = window.setTimeout(() => {
+      writeMapResume({
+        cityId,
+        viewport: mapViewport,
+        rows: pinsToSlimVenues(slimPins),
+      });
+    }, 250);
+    return () => window.clearTimeout(timer);
+  }, [cityId, mapBounds, mapOpeningNeedsResolution, mapViewport, openingLocationResolved, slimPins, ukPlaceArrival, venueIndexFailed]);
+
   // #215 a11y — the sheet's close button is the natural first stop for a
   // keyboard/AT user landing in a freshly-opened panel; on close (button,
   // Esc, or a fresh ?sel= navigating away) we hand focus back to whatever
@@ -4180,7 +4723,13 @@ export default function PubMap({
           <MapLoadingFrame
             mapDisplayName={mapDisplayName}
             progress={mapLoadingProgress}
+            openingLocationPromptActive={openingLocationPromptActive}
           />
+        ) : null}
+        {mapResumeUpdating ? (
+          <span className="mapResumeUpdating" role="status" aria-live="polite">
+            Updating map
+          </span>
         ) : null}
         <PubMapCanvas
           venues={canvasVenues}
@@ -4216,11 +4765,10 @@ export default function PubMap({
           onLandmarkSelect={(landmark) => setActiveLandmarkId(landmark?.id ?? "")}
           onMapReady={handleMapCanvasReady}
           onMapErrored={setMapCanvasErrored}
-          mapView={
-            restoredMobileSession?.viewport
-              ? withCityCameraAttitude(restoredMobileSession.viewport, city.mapView)
-              : initialMapView
-          }
+          mapView={openingViewport
+            ? withCityCameraAttitude(openingViewport, city.mapView)
+            : locationFirstMapView}
+          resumeViewport={mapResumeViewport}
           maxBounds={UK_BOUNDS}
           fitQueryOnArrival={shouldFitQueryVenuesOnArrival(arrivalSearch)}
           searchFitToken={searchFitToken}
@@ -4244,7 +4792,7 @@ export default function PubMap({
           onListOpenChange={setMapListOpen}
           listCount={mapVenueListModel.total + ukBasePubListModel.total}
           onSoftRetryChange={setMapSoftRetryActive}
-          focusPoint={areaFocus}
+          focusPoint={openingLocationFocus ?? areaFocus}
           onViewportChange={setMapViewport}
           onUserCameraMove={dismissAmbientBanners}
           onBoundsChange={handleMapBoundsChange}
@@ -4425,10 +4973,10 @@ export default function PubMap({
           activeQuery={trimmedMapQuery}
           onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
-          nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResultForView ? "ready" : nearbyError ? "error" : "idle"}
           nearMeError={nearbyError}
           onDismissNearMeError={() => setNearbyError(null)}
-          nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
+          nearbyCount={nearbyMapResultForView?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
           tonightNearReader={userLocation != null}
           tflCount={tflStatus.issueCount}

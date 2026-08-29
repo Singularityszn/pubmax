@@ -7,6 +7,8 @@ type Listener = (event: unknown) => void;
 type FakeResponse = {
   ok: boolean;
   type: "cors" | "opaque";
+  headers?: { get: (name: string) => string | null };
+  json?: ReturnType<typeof vi.fn>;
   clone: ReturnType<typeof vi.fn>;
 };
 
@@ -19,6 +21,7 @@ function workerHarness(input: {
   activeWorker?: string;
   cacheNames?: string[];
   workerPolicy?: string;
+  workerVersion?: string;
 }) {
   const listeners = new Map<string, Listener>();
   const put = vi.fn(async () => {
@@ -36,7 +39,7 @@ function workerHarness(input: {
   const fakeSelf = {
     location: {
       href:
-        `https://pubmaxxing.com/sw.js?v=test&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
+        `https://pubmaxxing.com/sw.js?v=${input.workerVersion ?? "test"}&cache-policy=${input.workerPolicy ?? "write-safe-v1"}`,
       origin: "https://pubmaxxing.com",
     },
     registration: {
@@ -242,9 +245,15 @@ function dispatchLifecycle(listener: Listener): Promise<unknown>[] {
   return lifetime;
 }
 
-function fakeResponse(type: FakeResponse["type"], ok = true): FakeResponse {
+function fakeResponse(type: FakeResponse["type"], ok = true, cacheControl?: string): FakeResponse {
   const clone = vi.fn();
-  const response: FakeResponse = { ok, type, clone };
+  const response: FakeResponse = {
+    ok,
+    type,
+    ...(cacheControl ? { headers: { get: () => cacheControl } } : {}),
+    json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    clone,
+  };
   clone.mockReturnValue(response);
   return response;
 }
@@ -286,6 +295,145 @@ describe("service worker map cache", () => {
     await expect(Promise.all(lifetime)).resolves.toBeDefined();
 
     expect(fakeSelf.skipWaiting).not.toHaveBeenCalled();
+  });
+
+  it("does not serve a cached manifest requested for another deployment revision", async () => {
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, shards: [] })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners } = workerHarness({ cached: manifest, fetchError: new Error("offline") });
+    const request = new Request(
+      "https://pubmaxxing.com/data/venues_slim.manifest.json?v=other-deploy",
+    );
+    const dispatched = dispatchFetch(listeners.get("fetch")!, request);
+
+    const response = await dispatched.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("returns a fresh manifest when deployment revisions differ", async () => {
+    const manifest = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ version: 2, revision: "other-deploy", shards: [] })),
+    };
+    manifest.clone.mockReturnValue(manifest);
+    const { listeners } = workerHarness({ response: manifest });
+    const request = new Request(
+      "https://pubmaxxing.com/data/venues_slim.manifest.json?v=other-deploy",
+    );
+    const dispatched = dispatchFetch(listeners.get("fetch")!, request);
+
+    const response = await dispatched.response;
+    expect(response).toBe(manifest);
+  });
+
+  it("rejects and does not cache a network shard from another revision", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "stale-deploy", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners, put } = workerHarness({ response: shard });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=other-deploy"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("does not serve an unversioned cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("serves a current-revision cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "test", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(shard);
+  });
+
+  it("serves an unversioned cached venue shard for local builds", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "local", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      workerVersion: "local",
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
+    );
+
+    await expect(event.response).resolves.toBe(shard);
+  });
+
+  it("does not serve a prior-revision cached venue shard", async () => {
+    const shard = {
+      ok: true,
+      type: "cors" as const,
+      clone: vi.fn(),
+      json: vi.fn(async () => ({ revision: "previous", rows: [] })),
+    };
+    shard.clone.mockReturnValue(shard);
+    const { listeners } = workerHarness({
+      cached: shard,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.core.json?v=test"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
   it("does not force takeover for future write-safe policy changes", async () => {
@@ -415,7 +563,7 @@ describe("service worker map cache", () => {
     expect(fakeSelf.clients.claim).toHaveBeenCalledOnce();
   });
 
-  it("uses old stable data only after current cache and network miss", async () => {
+  it("does not use old stable data after current cache and network miss", async () => {
     const oldData = new Response("legacy data");
     const { listeners, records } = rolloutWorkerHarness({
       entries: {
@@ -437,12 +585,40 @@ describe("service worker map cache", () => {
       listeners.get("fetch")!,
       new Request("https://pubmaxxing.com/data/venues_slim.core.json"),
     );
-    await expect(data.response).resolves.toBe(oldData);
+    const response = (await data.response) as Response;
+    expect(response.type).toBe("error");
+    expect(response).not.toBe(oldData);
+  });
+
+  it("does not serve an incompatible venue manifest from an old cache", async () => {
+    const legacyManifest = new Response(
+      JSON.stringify({
+        version: 1,
+        shards: [{ url: "/data/venues_slim.borough.json" }],
+      }),
+      { headers: { "Content-Type": "application/json" } },
+    );
+    const { listeners } = rolloutWorkerHarness({
+      entries: {
+        "pubmax-sw-data-legacy-active": [
+          ["/data/venues_slim.manifest.json", legacyManifest],
+        ],
+      },
+    });
+
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.manifest.json"),
+    );
+    const response = (await event.response) as Response;
+
+    expect(response.type).toBe("error");
+    expect(response.status).toBe(0);
   });
 
   it("prefers fresh network data over an old stable-data fallback", async () => {
-    const oldData = new Response("legacy data");
-    const freshData = new Response("fresh data");
+    const oldData = new Response(JSON.stringify({ revision: "legacy", rows: [] }));
+    const freshData = new Response(JSON.stringify({ revision: "target", rows: [] }));
     Object.defineProperty(freshData, "type", { value: "basic" });
     const { listeners, records } = rolloutWorkerHarness({
       response: freshData,
@@ -466,7 +642,7 @@ describe("service worker map cache", () => {
       .get("pubmax-sw-data-target")
       ?.get("https://pubmaxxing.com/data/venues_slim.core.json")
       ?.response;
-    expect(await stored?.text()).toBe("fresh data");
+    expect(await stored?.text()).toBe(JSON.stringify({ revision: "target", rows: [] }));
     expect(records.has("pubmax-sw-data-legacy-active")).toBe(false);
   });
 
@@ -509,6 +685,19 @@ describe("service worker map cache", () => {
     expect(event.response).not.toBeNull();
     await expect(event.response).resolves.toBe(networkResponse);
     expect(put).toHaveBeenCalledOnce();
+  });
+
+  it("does not cache a tile when its host forbids storage", async () => {
+    const networkResponse = fakeResponse("cors", true, "no-store");
+    const { listeners, put } = workerHarness({ response: networkResponse });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request(TILE_URL, { mode: "cors" }),
+    );
+
+    await expect(event.response).resolves.toBe(networkResponse);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
   });
 
   it("returns successful static data when Cache Storage rejects the write", async () => {

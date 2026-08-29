@@ -4,6 +4,15 @@ import { planVenueOptions } from "@/lib/planVenueOptions";
 import { VENUE_KINDS } from "@/lib/venues";
 
 describe("planVenueOptions", () => {
+  it("reads revisioned slim payloads", () => {
+    expect(
+      planVenueOptions({
+        revision: "deploy-1",
+        rows: [{ id: "pub", name: "Wrapped Arms", kind: "pub" }],
+      }),
+    ).toEqual([{ id: "pub", name: "Wrapped Arms" }]);
+  });
+
   it("keeps legacy and explicit pubs while excluding other venue kinds", () => {
     expect(
       planVenueOptions([

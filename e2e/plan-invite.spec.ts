@@ -11,11 +11,11 @@ const PLAN_TITLE = "Karan invite spec crawl";
 const HOST_NAME = "Karan";
 
 test("public invite page renders a Plan and accepts a handle-free RSVP", async ({ request, page }) => {
-  const venues = (await (await request.get("/data/venues_slim.json")).json() as Array<{
+  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{
     id: string;
     name: string;
     cheapestPrice: number | null;
-  }>).slice(0, 3);
+  }> }).rows).slice(0, 3);
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {

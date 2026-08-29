@@ -93,7 +93,7 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   // this whole file as well as arming the ceiling, so the enforced run really
   // is the machine's own renderer.
   if (PIN_SLA_ENFORCED) {
-    expect(pinReadyMs).toBeLessThanOrEqual(5_000);
+    expect(pinReadyMs).toBeLessThanOrEqual(4_000);
   }
 });
 

@@ -61,16 +61,22 @@ Useful scripts:
 | `npm run shots:extended` | Runs the same gate with the 430/1280 breakpoint audit |
 | `npm run setup` | Enables the pre-push git hook (`core.hooksPath=.githooks`) — run once |
 | `npm run build:slim` | Slim map index + **venue detail artifacts** (`data/generated/`) — also runs on `prebuild` |
-| `npm run build:city-slim` | Regenerates enabled city slim packs, eager cores, and manifests |
+| `npm run build:city-slim` | Regenerates enabled city slim packs, compatibility cores, and manifests |
 
 ### Venue detail index
 
 `npm run build:slim` (`scripts/build_slim_index.mjs`) writes:
 
-- `public/data/venues_slim.json` — map pins (committed / shipped to the browser)
+- `public/data/venues_slim.manifest.json` plus `venues_slim.core.json` and `venues_slim.cell.*.json` — location-aware map shards loaded for the current viewport
+- `public/data/venues_slim.json` — complete compatibility index for server and whole-index readers
 - `data/generated/venue_detail_index.json` + `venue_details.jsonl` — server-side lazy detail for `/api/venue/[id]`
 
-Those generated detail files are gitignored (large). Local/dev falls back to the raw pint dataset and curated venue packs when they are missing; production should run `prebuild` / `build:slim` so the index exists. See `docs/DEPLOYMENT.md`.
+For London, the map loads the manifest and only the cells around its opening
+viewport, then loads neighbouring cells as the camera settles. Other city packs
+use one compatibility core. The generated detail files are gitignored (large).
+Local/dev falls back to the raw pint dataset and curated venue packs when they
+are missing; production should run `prebuild` / `build:slim` so the index exists.
+See [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) and the [map speed evidence](docs/perf/map-speed-caching-2026-08-28.md).
 
 ### Map data attribution
 

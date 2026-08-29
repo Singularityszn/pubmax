@@ -282,6 +282,8 @@ type PubMapCanvasProps = {
     pitch: number;
     bearing: number;
   };
+  /** IndexedDB last-view camera, applied after its async read completes. */
+  resumeViewport?: MapViewportSnapshot | null;
   /**
    * MapLibre maxBounds [[west, south], [east, north]]. Defaults to the UK pack
    * boundary while mapView continues to own the city-specific opening frame.
@@ -478,6 +480,7 @@ export default function PubMapCanvas({
   onMapReady,
   onMapErrored,
   mapView = LONDON_VIEW,
+  resumeViewport = null,
   maxBounds = UK_BOUNDS,
   poisPath = LONDON_POIS_PATH,
   transitLinesPath = "/data/tfl_lines.json",
@@ -564,6 +567,7 @@ export default function PubMapCanvas({
   }, [mapView, maxBounds, cityBounds, landmarksGeoJSON, showLandmarks]);
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const userCameraInteractionRef = useRef(false);
   const [mapReady, setMapReady] = useState(false);
   const [mapBearing, setMapBearing] = useState(() => mapView.bearing ?? 0);
   const orbitRef = useRef<IdleOrbit | null>(null);
@@ -729,6 +733,7 @@ export default function PubMapCanvas({
   // Construct-scoped flags reset on every effect re-run and would loop forever
   // if the new canvas is also dead. User Retry (soft toast / full card) resets.
   const contextAutoReinitSpentRef = useRef(false);
+  const appliedResumeViewportKeyRef = useRef<string | null>(null);
   const [activeLandmark, setActiveLandmark] = useState<Landmark | null>(() =>
     initialLandmarkId ? landmarkById(initialLandmarkId) ?? null : null,
   );
@@ -837,6 +842,34 @@ export default function PubMapCanvas({
     onBoundsChange,
     cityLandmarks,
   ]);
+
+  useEffect(() => {
+    if (!resumeViewport) {
+      appliedResumeViewportKeyRef.current = null;
+      return;
+    }
+    const resumeKey = `${resumeViewport.center[0]},${resumeViewport.center[1]},${resumeViewport.zoom},${resumeViewport.pitch},${resumeViewport.bearing}`;
+    if (
+      appliedResumeViewportKeyRef.current === resumeKey ||
+      !mapReady ||
+      !mapRef.current
+    ) return;
+    const map = mapRef.current;
+    if (userCameraInteractionRef.current || map.isMoving()) return;
+    try {
+      map.jumpTo({
+        center: resumeViewport.center,
+        zoom: resumeViewport.zoom,
+        pitch: resumeViewport.pitch,
+        bearing: resumeViewport.bearing,
+      });
+      appliedResumeViewportKeyRef.current = resumeKey;
+      publishCurrentViewportRef.current?.();
+      map.triggerRepaint();
+    } catch {
+      // A resume is an optimisation. A map that is still constructing can ignore it.
+    }
+  }, [mapReady, resumeViewport]);
 
   // Latest data lives in refs so buildScene can reseed sources after a
   // theme-driven setStyle wipes them.
@@ -1391,15 +1424,22 @@ export default function PubMapCanvas({
       emitBounds();
     };
     publishCurrentViewportRef.current = publishCurrentViewport;
+    // Start the location-scoped venue read as soon as MapLibre knows its
+    // opening frame. Waiting for style or tile idle made the data request pay
+    // for the basemap, which is the slower and independent lane.
+    queueMicrotask(publishCurrentViewport);
     // A gesture carries an originalEvent; a programmatic fly does not. That is
     // the whole test: a banner steps off the map when the READER moves it, and
     // never when the app flies the camera for them.
     const emitUserCameraMove = (event: { originalEvent?: unknown }) => {
-      if (event.originalEvent) onUserCameraMoveRef.current?.();
+      if (!event.originalEvent) return;
+      userCameraInteractionRef.current = true;
+      onUserCameraMoveRef.current?.();
     };
     map.on("dragstart", emitUserCameraMove);
     map.on("zoomstart", emitUserCameraMove);
     map.on("rotatestart", emitUserCameraMove);
+    map.on("pitchstart", emitUserCameraMove);
     map.on("moveend", () => {
       // Audit F5: every camera move (programmatic flys included) ends on a
       // fresh present. A repaint moves no camera, so this cannot re-fire

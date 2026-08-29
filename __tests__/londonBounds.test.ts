@@ -46,9 +46,10 @@ describe("London bounds filter", () => {
   });
 
   it("the shipped slim index has no out-of-bounds rows", () => {
-    const rows = JSON.parse(
+    const payload = JSON.parse(
       readFileSync(join(ROOT, "public", "data", "venues_slim.json"), "utf8"),
-    ) as Array<{ lat: number; lng: number }>;
+    ) as { rows?: Array<{ lat: number; lng: number }> };
+    const rows = payload.rows ?? [];
     const oob = rows.filter((r) => !inLondon(r.lng, r.lat));
     expect(oob).toEqual([]);
   });

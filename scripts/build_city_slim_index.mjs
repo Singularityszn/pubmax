@@ -26,6 +26,8 @@ import { CITIES } from "./fetch_city_osm_pubs.mjs";
 import {
   computeBbox,
   CORE_FILE,
+  buildShardPayload,
+  DATA_REVISION,
   MANIFEST_FILE,
   SHARD_VERSION,
 } from "./lib/slimShards.mjs";
@@ -174,13 +176,14 @@ async function buildCity(city) {
   const { slim, droppedOob, droppedDup } = buildCitySlim(city, pack);
 
   await mkdir(outDir, { recursive: true });
-  const text = JSON.stringify(slim);
+  const text = JSON.stringify(buildShardPayload(slim));
   await writeFile(outPath, text);
-  await writeFile(path.join(outDir, CORE_FILE), text);
+  await writeFile(path.join(outDir, CORE_FILE), JSON.stringify(buildShardPayload(slim)));
   await writeFile(
     path.join(outDir, MANIFEST_FILE),
     JSON.stringify({
       version: SHARD_VERSION,
+      revision: DATA_REVISION,
       shards: [
         {
           id: "core",

@@ -157,13 +157,18 @@ function publicDataPath(publicPath: string): string {
 async function readSlimIndex(
   publicPath: string,
 ): Promise<Map<string, IndexedVenue>> {
-  const rows = JSON.parse(
+  const payload = JSON.parse(
     await fs.readFile(
       /* turbopackIgnore: true */ publicDataPath(publicPath),
       "utf8",
     ),
-  ) as SlimRow[];
-  return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
+  ) as unknown;
+  const rows = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown }).rows)
+      ? (payload as { rows: unknown[] }).rows
+      : [];
+  return buildVenueIndexFromSlim(rows as SlimRow[]);
 }
 
 async function getCityVenueIndex(

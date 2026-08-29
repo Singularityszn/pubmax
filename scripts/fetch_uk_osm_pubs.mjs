@@ -151,7 +151,8 @@ async function loadCuratedEntries() {
   // Curated London (the 900+ priced venues plus their canonical siblings). No
   // OSM ids at all, so these can only ever match on name + distance.
   if (await fileExists(CURATED_LONDON_SLIM)) {
-    const rows = JSON.parse(await readFile(CURATED_LONDON_SLIM, "utf8"));
+    const payload = JSON.parse(await readFile(CURATED_LONDON_SLIM, "utf8"));
+    const rows = Array.isArray(payload) ? payload : payload?.rows;
     for (const row of Array.isArray(rows) ? rows : []) {
       if (typeof row?.name !== "string") continue;
       entries.push({

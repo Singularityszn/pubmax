@@ -12,6 +12,7 @@ import path from "path";
 import { CITIES, listEnabledCities, type CityId } from "@/lib/cities";
 import { curatedCrawlsForCity } from "@/lib/cityCuratedCrawls";
 import { demoPintDropsForCity } from "@/lib/pintDropSeeds";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 export type CityRivalryEntry = {
   cityId: CityId;
@@ -101,8 +102,7 @@ export function countSlimVenues(
       /* turbopackIgnore: true */ file,
       "utf8",
     );
-    const rows = JSON.parse(raw) as unknown;
-    return Array.isArray(rows) ? rows.length : 0;
+    return rowsFromSlimPayload(JSON.parse(raw))?.length ?? 0;
   } catch {
     return 0;
   }

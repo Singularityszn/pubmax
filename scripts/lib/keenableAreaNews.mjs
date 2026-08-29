@@ -258,7 +258,11 @@ function markdownKind(text) {
   return null;
 }
 
-const KNOWN_VENUES = venueIndex
+// The map index is revisioned for cache invalidation, while older data packs
+// used a top-level array. Area-news matching needs rows only and must support
+// both persisted shapes at this boundary.
+const venueRows = Array.isArray(venueIndex) ? venueIndex : venueIndex?.rows;
+const KNOWN_VENUES = (venueRows ?? [])
   .map((venue) => ({
     id: typeof venue?.id === "string" ? venue.id : "",
     name: typeof venue?.name === "string" ? venue.name.trim() : "",

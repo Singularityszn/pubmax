@@ -1,1 +1,1 @@
-{"version":1,"shards":[{"id":"core","core":true,"url":"/data/cities/durham/venues_slim.core.json","count":30,"bbox":[-1.5927043,54.7603201,-1.5467709,54.7958825]}]}
+{"version":1,"revision":"433f1da2a1cd54001959e120f893c1df27cd1c20","shards":[{"id":"core","core":true,"url":"/data/cities/durham/venues_slim.core.json","count":30,"bbox":[-1.5927043,54.7603201,-1.5467709,54.7958825]}]}

@@ -1,1 +1,1 @@
-{"version":1,"shards":[{"id":"core","core":true,"url":"/data/cities/manchester/venues_slim.core.json","count":544,"bbox":[-2.3496884,53.3808068,-2.1004058,53.5497582]}]}
+{"version":1,"revision":"433f1da2a1cd54001959e120f893c1df27cd1c20","shards":[{"id":"core","core":true,"url":"/data/cities/manchester/venues_slim.core.json","count":544,"bbox":[-2.3496884,53.3808068,-2.1004058,53.5497582]}]}

@@ -12,7 +12,6 @@ function routeFiles(directory: string): string[] {
 }
 
 const ALL_ROUTES = routeFiles(join(ROOT, "app/api"));
-
 // ---------------------------------------------------------------------------
 // Static call scanner: find JSON-emitting calls that carry an `error:` payload
 // field and a 4xx/5xx status, without executing the route.

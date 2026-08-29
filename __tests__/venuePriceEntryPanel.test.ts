@@ -6,6 +6,8 @@ import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPane
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 
+const NOW = Date.now();
+
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
@@ -24,7 +26,7 @@ const communityPrices = {
           venueId: "venue-fixture",
           signalKey: "character",
           signalValue: "rough",
-          submittedAt: Date.parse("2026-07-29T20:00:00Z"),
+          submittedAt: NOW,
           source: "community",
           corroborations: 1,
         },
@@ -83,7 +85,7 @@ describe("price contribution auth destination", () => {
     expect(html).toContain("Email me a link");
     expect(html).not.toContain("venuePriceSubmit");
     expect(html).toContain("What drinkers noticed");
-    expect(html).toContain("Older drinker reports called it rough.");
+    expect(html).toContain("One drinker called it rough.");
     expect(html).toContain("Sign in to add what you noticed.");
     expect(html).not.toContain("Add what you noticed");
   });
@@ -122,7 +124,7 @@ describe("price contribution auth destination", () => {
     });
 
     expect(html).toContain("What drinkers noticed");
-    expect(html).toContain("Older drinker reports called it rough.");
+    expect(html).toContain("One drinker called it rough.");
     expect(html).not.toContain("venuePriceSubmit");
     expect(html).not.toContain("Sign in to add a price");
     expect(html).not.toContain("Add what you noticed");

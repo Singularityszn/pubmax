@@ -26,8 +26,13 @@ async function loadZonesById(): Promise<Map<string, number>> {
   const byId = new Map<string, number>();
   try {
     const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
-    const rows = JSON.parse(await readFile(file, "utf8")) as unknown;
-    if (Array.isArray(rows)) {
+    const payload = JSON.parse(await readFile(file, "utf8")) as unknown;
+    const rows = Array.isArray(payload)
+      ? payload
+      : payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown }).rows)
+        ? (payload as { rows: unknown[] }).rows
+        : [];
+    if (rows.length > 0) {
       for (const row of rows as { id?: unknown; zone?: unknown }[]) {
         if (typeof row.id === "string" && typeof row.zone === "number" && Number.isInteger(row.zone)) {
           byId.set(row.id, row.zone);

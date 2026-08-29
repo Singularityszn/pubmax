@@ -1,5 +1,6 @@
 import type { VenueKind } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 export type CityPubCoverage = {
   count: number;
@@ -8,13 +9,14 @@ export type CityPubCoverage = {
 };
 
 export function summarizeCityPubCoverage(rows: unknown): CityPubCoverage {
-  if (!Array.isArray(rows)) return { count: 0, min: null, max: null };
+  const payloadRows = rowsFromSlimPayload(rows);
+  if (!payloadRows) return { count: 0, min: null, max: null };
 
   let count = 0;
   let min: number | null = null;
   let max: number | null = null;
 
-  for (const value of rows) {
+  for (const value of payloadRows) {
     if (typeof value !== "object" || value === null) continue;
     const row = value as {
       kind?: VenueKind;

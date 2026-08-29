@@ -10,10 +10,15 @@ data/cities/{city}/
   osm_pubs.json       # normalized seed pack (ODbL)
 
 public/data/cities/{city}/
-  venues_slim.json    # slim map index (id, name, lat, lng, cheapestPrice: null, …)
+  venues_slim.json             # complete slim index
+  venues_slim.core.json        # compatibility first-read shard
+  venues_slim.manifest.json    # shard manifest
 ```
 
-Which packs ship, and therefore which cities browse, is `lib/cityVenuePacks.mjs`. Every shipped pack is validated on each build by `npm run validate-data`.
+Which packs ship, and therefore which cities browse, is
+`lib/cityVenuePacks.mjs`. Every shipped pack is validated on each build by
+`npm run validate-data`. City packs currently use one compatibility core shard;
+London uses spatial cells for location-first loading.
 
 ## Two ways a pack is made
 

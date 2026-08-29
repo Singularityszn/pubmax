@@ -1,5 +1,6 @@
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 export type PlanVenueOption = {
   id: string;
@@ -8,8 +9,9 @@ export type PlanVenueOption = {
 };
 
 export function planVenueOptions(value: unknown): PlanVenueOption[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((item) => {
+  const rows = rowsFromSlimPayload(value);
+  if (!rows) return [];
+  return rows.flatMap((item) => {
     if (!item || typeof item !== "object") return [];
     const row = item as Record<string, unknown>;
     const id = typeof row.id === "string" ? row.id.trim() : "";

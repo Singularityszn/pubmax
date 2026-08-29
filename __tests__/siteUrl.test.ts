@@ -14,6 +14,7 @@ function loadConfig(siteUrl: string | undefined, vercelEnv?: string) {
   const environment: NodeJS.ProcessEnv = {
     ...process.env,
     NODE_ENV: "production",
+    DEPLOYMENT_VERSION: "site-url-test",
   };
   if (siteUrl === undefined) delete environment.NEXT_PUBLIC_SITE_URL;
   else environment.NEXT_PUBLIC_SITE_URL = siteUrl;

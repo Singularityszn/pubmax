@@ -115,7 +115,11 @@ async function loadCuratedVenueOwners() {
   /** OSM id → curated venue id, for city packs cut out of this base layer. */
   const ownersByOsmId = new Map();
   const londonSlim = JSON.parse(await readFile(LONDON_SLIM_PATH, "utf8"));
-  const londonVenues = Array.isArray(londonSlim) ? londonSlim : [];
+  const londonVenues = Array.isArray(londonSlim)
+    ? londonSlim
+    : Array.isArray(londonSlim?.rows)
+      ? londonSlim.rows
+      : [];
   const londonIds = new Set(londonVenues.map((venue) => venue.id));
 
   for (const venue of londonVenues) {
@@ -171,9 +175,12 @@ async function loadCuratedVenueOwners() {
       readFile(cityPackPath, "utf8").then(JSON.parse),
       readFile(citySlimPath, "utf8").then(JSON.parse),
     ]);
-    const cityVenueIds = new Set(
-      (Array.isArray(citySlim) ? citySlim : []).map((venue) => venue.id),
-    );
+    const cityRows = Array.isArray(citySlim)
+      ? citySlim
+      : Array.isArray(citySlim?.rows)
+        ? citySlim.rows
+        : [];
+    const cityVenueIds = new Set(cityRows.map((venue) => venue.id));
     for (const pub of Array.isArray(cityPack?.pubs) ? cityPack.pubs : []) {
       const venueId = cityVenueIdForPub(city, pub);
       if (cityVenueIds.has(venueId)) {

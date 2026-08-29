@@ -30,10 +30,8 @@ export type MapCanvasWarmDeps = {
 };
 
 export const MAP_INTENT_WARM_PATHS = [
-  // Cycle-5 sharding: the map's first paint fetches the manifest + core shard,
-  // NOT the monolithic venues_slim.json — warm exactly what it will request so
-  // slow connections prime the right bytes (and never the 824 KB monolith the
-  // map no longer reads).
+  // Intent warmup can prepare the core before navigation. The document's own
+  // first-paint warmup uses only the manifest and opening cells.
   "/data/venues_slim.manifest.json",
   "/data/venues_slim.core.json",
   "/data/london_pois.json",
@@ -76,6 +74,10 @@ export function warmPathsForMapHref(href: string): readonly string[] {
 
 /** Only the venue index: what the map's FIRST frame reads. */
 export function mapFirstPaintWarmPaths(href: string): readonly string[] {
+  const path = href.split("?")[0] || href;
+  if (path === "/map" || path === "/map/") {
+    return ["/data/venues_slim.manifest.json"];
+  }
   return mapWarmPathsFor(href).venueIndex;
 }
 
@@ -251,18 +253,14 @@ export function warmMapRoute(
 }
 
 /**
- * Arriving ON the map: start the first frame's two dependencies immediately.
+ * Arriving ON the map: warm only the MapLibre canvas module.
  *
- * Cold, they are discovered one after another — the page shell hydrates, its
- * dynamic PubMap chunk resolves, PubMap mounts, and only THEN is the MapLibre
- * canvas chunk requested and the venue shard fetched. Both are certain to be
- * needed, so nothing is speculative about asking for them at the top of the
- * arrival instead; it just removes a serial hop each. The deferred overlays
- * (POIs, transit) are deliberately left out: the canvas holds them back past
- * first paint, and warming them here would put them straight back in front of
- * the pins.
+ * The map loader owns its foreground manifest and shard requests. Data and
+ * service-worker warmup wait until first pins are visible, so cold navigation
+ * keeps the same request path as main. The deferred overlays (POIs, transit)
+ * stay out of this foreground path.
  */
-export function warmMapFirstPaint(href = "/map"): void {
+export function warmMapFirstPaint(): void {
   if (typeof window === "undefined") return;
   scheduleMapCanvasWarmup({
     navigator: typeof navigator !== "undefined" ? navigator : undefined,
@@ -271,20 +269,12 @@ export function warmMapFirstPaint(href = "/map"): void {
     load: () => import("@/components/PubMapCanvas"),
     state: mapCanvasWarmState,
   });
-  warmMapIntentData({
-    fetch: (url, init) =>
-      typeof fetch === "function"
-        ? fetch(url, init)
-        : Promise.reject(new Error("fetch unavailable")),
-    navigator: typeof navigator !== "undefined" ? navigator : undefined,
-    paths: mapFirstPaintWarmPaths(href),
-    seen: sessionSeen,
-  });
 }
 
 /** Convenience: first-paint warm for a known city id. */
 export function warmCityMapFirstPaint(cityId: string): void {
-  warmMapFirstPaint(cityMapShareUrl(cityId));
+  void cityId;
+  warmMapFirstPaint();
 }
 
 /** Convenience: warm the share URL for a known city id. */
