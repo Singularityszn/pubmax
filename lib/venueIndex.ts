@@ -290,13 +290,8 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
   if (!id) return null;
-  const index = await getVenueIndex();
-  const direct = index.get(id);
-  if (direct) return direct;
-  // Fall back to the D1 alias map so a reference to a merged duplicate id still
-  // resolves to the surviving canonical venue.
-  const canonical = await resolveCanonicalVenueId(id);
-  return canonical === id ? null : index.get(canonical) ?? null;
+  const lookup = await lookupCanonicalVenue(id);
+  return lookup.status === "found" ? lookup.venue : null;
 }
 
 /**

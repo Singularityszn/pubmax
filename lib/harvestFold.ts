@@ -96,6 +96,8 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "lower",
   "central",
 ]);
+const FOREIGN_LOCALITY_QUALIFIER_RE =
+  /^\s*(?:(?:,|\()\s*)?(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|alberta|british columbia|manitoba|new brunswick|newfoundland and labrador|nova scotia|ontario|prince edward island|quebec|saskatchewan|northwest territories|nunavut|yukon|usa|united states|canada|australia|new zealand)(?:$|[^a-z0-9])/i;
 
 export function isHttpsUrl(value: string): boolean {
   const trimmed = value.trim();
@@ -141,6 +143,8 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     "gi",
   );
   for (const match of haystack.matchAll(localityRe)) {
+    const after = haystack.slice((match.index ?? 0) + match[0].length);
+    if (FOREIGN_LOCALITY_QUALIFIER_RE.test(after)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();
