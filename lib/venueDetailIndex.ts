@@ -6,7 +6,11 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue, lookupCanonicalVenueWithOsm } from "@/lib/venueIndex";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import {
+  lookupCanonicalVenueWithOsm,
+  resetVenueOsmIndexForTests,
+} from "@/lib/venueIndexOsm";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
@@ -328,6 +332,7 @@ export function resetVenueDetailCachesForTests(): void {
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
   manifestReadAttemptsForTests = 0;
+  resetVenueOsmIndexForTests();
 }
 
 /** Clear venue entries only — leaves manifest cache as-is (for sticky-failure tests). */

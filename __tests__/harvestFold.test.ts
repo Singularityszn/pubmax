@@ -147,6 +147,26 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not combine venue and town from separate sentences", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion is a pub. Clapham has many pubs.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
+  it("does not combine venue and town from separate clauses", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion is a pub, and Clapham has many pubs.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {

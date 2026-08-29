@@ -228,6 +228,32 @@ function containsVenueName(haystack: string, name: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${phrase}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
+function containsVenueLocalityRelation(
+  sentence: string,
+  name: string,
+  locality: string,
+): boolean {
+  const nameTokens = name
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  const localityTokens = locality
+    .toLowerCase()
+    .split(/[^a-z0-9]+/)
+    .filter(Boolean);
+  if (nameTokens.length === 0 || localityTokens.length === 0) return false;
+  const namePattern = nameTokens
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[^a-z0-9]+");
+  const localityPattern = localityTokens
+    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
+    .join("[^a-z0-9]+");
+  return new RegExp(
+    `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])[^.!?]{0,120}(?:\\b(?:in|of|from|near|at|within)\\b|[,;:/()\\-–])\\s*(?:the\\s+)?${localityPattern}(?=$|[^a-z0-9])`,
+    "i",
+  ).test(sentence);
+}
+
 export function nameTokens(name: string): string[] {
   const tokens = name
     .toLowerCase()
@@ -249,7 +275,17 @@ export function loreNameTownGate(
   }
   const place = typeof town === "string" ? town.trim() : "";
   if (!place) return "town-missing";
-  if (!containsExactLocality(hay, place.toLowerCase())) return "town-mismatch";
+  const locality = place.toLowerCase();
+  const relatedSentence = hay
+    .split(/[.!?]+/)
+    .map((sentence) => sentence.trim())
+    .filter(Boolean)
+    .some(
+      (sentence) =>
+        containsVenueLocalityRelation(sentence, name, locality) &&
+        containsExactLocality(sentence, locality),
+    );
+  if (!relatedSentence) return "town-mismatch";
   return "pass";
 }
 

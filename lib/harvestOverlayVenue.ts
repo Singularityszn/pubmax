@@ -1,7 +1,8 @@
 import "server-only";
 
 import { canonicalOsmId } from "@/lib/harvestFold";
-import { lookupCanonicalVenueWithOsm, type VenueRef } from "@/lib/venueIndex";
+import { type VenueRef } from "@/lib/venueIndex";
+import { lookupCanonicalVenueWithOsm } from "@/lib/venueIndexOsm";
 
 export type HarvestOverlayVenueResolution =
   | { status: "resolved"; venueId: string; venue?: VenueRef }

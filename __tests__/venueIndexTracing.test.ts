@@ -117,7 +117,11 @@ describe("runtime data-pack tracing", () => {
   it("declares every pack owned by each reader module", () => {
     temporaryRoots.push(mkdtempSync(join(tmpdir(), "venue-index-tracing-")));
 
-    const [venueIndexPack, venueDetailPack] = RUNTIME_DATA_PACKS;
+    const venueIndexPack = RUNTIME_DATA_PACKS.find((pack) => pack.id === "venue-index");
+    const venueDetailPack = RUNTIME_DATA_PACKS.find(
+      (pack) => pack.id === "venue-detail-index",
+    );
+    if (!venueIndexPack || !venueDetailPack) throw new Error("venue tracing packs missing");
     const venueIndexModule = venueIndexPack.modules[0];
     const venueDetailModule = venueDetailPack.modules[0];
     writeFixture(venueIndexModule, "export async function getVenueIndex() {}");
@@ -159,6 +163,17 @@ describe("runtime data-pack tracing", () => {
           }
         }
       }
+    }
+  });
+
+  it("keeps OSM packs off base-only venue routes", () => {
+    const includes = tracingIncludes();
+    const osmPack = RUNTIME_DATA_PACKS.find((pack) => pack.id === "venue-osm-index");
+
+    expect(osmPack).toBeDefined();
+    for (const file of osmPack?.files ?? []) {
+      expect(includes["/api/wanted"]).not.toContain(file);
+      expect(includes["/api/harvest-overlay"]).toContain(file);
     }
   });
 

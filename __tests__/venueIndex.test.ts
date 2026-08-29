@@ -6,11 +6,14 @@ import {
   buildVenueIndex,
   getVenueIndex,
   lookupCanonicalVenue,
-  lookupCanonicalVenueWithOsm,
   resetVenueIndexForTests,
   venueMapUrl,
   type VenueRef,
 } from "@/lib/venueIndex";
+import {
+  lookupCanonicalVenueWithOsm,
+  resetVenueOsmIndexForTests,
+} from "@/lib/venueIndexOsm";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
@@ -30,11 +33,13 @@ function v(over: Partial<Venue> & { id: string; name: string }): Venue {
 
 beforeEach(() => {
   resetVenueIndexForTests();
+  resetVenueOsmIndexForTests();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   resetVenueIndexForTests();
+  resetVenueOsmIndexForTests();
 });
 
 describe("buildVenueIndex", () => {
