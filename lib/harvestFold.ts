@@ -286,11 +286,17 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       hasIncompatibleUkQualifier
     ) continue;
     if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
+    const localityStart = (match.index ?? 0) + match[0].length - match[1].length;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();
     const localitySeparator = match[0].slice(0, -match[1].length).trim();
-    const hasExplicitLocalitySeparator = /^[,()\-–—]+$/.test(localitySeparator);
+    const hasExplicitLocalitySeparator =
+      /^[,()\-–—]+$/.test(localitySeparator) ||
+      /[,()\-–—]\s*$/.test(haystack.slice(Math.max(0, localityStart - 32), localityStart)) ||
+      /(?:^|\s)(?:in|near|at|within|from)\s*$/i.test(
+        haystack.slice(Math.max(0, localityStart - 32), localityStart),
+      );
     if (
       !before ||
       hasExplicitLocalitySeparator ||
@@ -384,11 +390,14 @@ function containsVenueReferenceLocalityRelation(sentence: string): boolean {
     /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises))\b/i;
   const adjectivalBranchReference =
     /^\s*(?:an?|the|another|second|third|new|additional)\s+(?:[a-z][a-z'-]*\s+){1,2}(?:branch|branches|site|sites|location|locations|premises)\b(?:\s+of\s+(?:the\s+)?(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))?\s+(?:is|was|were|has been|opened|opens|opening|operates?|operating|stood|stands?)\b/i;
+  const branchOfVenueReference =
+    /^\s*(?:an?|the|another|second|third|new|additional)\s+(?:branch|branches|site|sites|location|locations|premises)\s+of\s+(?:the\s+)?(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\b\s+(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
   const localityRelation =
     /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b|\b(?:has|have|had)\b\s+(?:an?\s+)?branch\s+(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:(?:an?|the|its|another|second|third|new|additional)\s+){0,3}(?:branch|branches|site|sites|location|locations|premises)\s+(?:(?:is|was|were|has been|located|situated|based|opened|opens|opening|operates?|operating|stood|stands?)\s+)?(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
   return (
     (venueReference.test(sentence) && localityRelation.test(sentence)) ||
-    adjectivalBranchReference.test(sentence)
+    adjectivalBranchReference.test(sentence) ||
+    branchOfVenueReference.test(sentence)
   );
 }
 
