@@ -76,7 +76,7 @@ Social ships behind one server-checked launch switch:
 
 | Flag | Read in | Emergency rollback (`=0`) | Live default |
 |---|---|---|---|
-| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts`, `app/layout.tsx`, `app/api/out/route.ts`, and public Crew route | Set only to `0` during an incident. Every Social surface returns to **preview**. Landing and `/we-are-out` point at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, command palette, and Social pages; the phone tab keeps `Social` with a preview dot and spoken name `Social preview`. | Unset, empty, `1`, or `true` keeps Social **live**. Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Friends-only reads use mutual follows (WP6). |
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts`, `app/layout.tsx`, `app/api/out/route.ts`, and public Crew route | Set only to `0` during an incident. Every Social surface returns to **preview**. Landing and `/we-are-out` point at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, command palette, and Social pages; the phone tab keeps `Social` with a preview dot and spoken name `Social preview`. | Unset, empty, `1`, or `true` keeps Social **live**. Signed-in Supabase accounts with a claimed handle and an 18+ answer reach **verified** access. When a date of birth exists, it decides the answer; otherwise, one recorded self-assertion can answer it. Friends-only reads use mutual follows (WP6). |
 
 **Live default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset or empty in Production and Preview. `1` and `true` are also live values. `0` is the only emergency rollback value and returns Social to preview.
 
@@ -108,7 +108,7 @@ Run after a fresh deployment with `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, empty, `
 **Live default check (full loop):**
 
 1. **Sign in** at `/login` with a fresh Supabase test account (magic link).
-2. **Claim a handle** and enter a date of birth that passes the 18+ gate (self-asserted, D2).
+2. **Claim a handle** and provide an 18+ answer. When a date of birth exists, it decides the answer; otherwise, record one self-assertion (D2).
 3. Confirm `/social` lands in **verified** state (compose + Posts lane visible).
 4. **Upload a profile photo** on `/u/<handle>` → Edit profile. A normal photo should appear on the public profile after one request.
 5. **Join a plan crew** with a second account and confirm the mutual follow edge forms (WP7); search handles from Social if needed.

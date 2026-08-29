@@ -57,7 +57,7 @@ export default async function SocialPage({
   const friendsLaunchEnabled = readTrustedHandoffFlag("socialFriendsLaunch");
 
   const [rivalry, heritageCrawls] =
-    state.tab === "discover"
+    friendsLaunchEnabled && state.tab === "discover"
       ? await Promise.all([buildCityRivalrySnapshot(), loadHeritageCrawls()])
       : [[], []];
 
