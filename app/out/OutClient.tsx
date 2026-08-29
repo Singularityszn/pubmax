@@ -60,8 +60,10 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       unmatchedSources: body?.unmatchedSources,
     },
   );
+  const openPlansPreview = body?.openPlansStatus === "preview";
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
-  const showOpenPlans = outOpenPlansSectionVisible(body?.openPlans ?? []);
+  const showOpenPlans =
+    !openPlansPreview && outOpenPlansSectionVisible(body?.openPlans ?? []);
 
   return (
     <main id="main" className="outPage" data-testid="out-screen">
@@ -152,7 +154,14 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
 
       <EditorialRail />
 
-      {showOpenPlans ? (
+      {openPlansPreview ? (
+        <section className="outPlans" aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+            Open plans
+          </h2>
+          <p className="outStatus" role="status">Open plans are in preview.</p>
+        </section>
+      ) : showOpenPlans ? (
         <section className="outPlans" aria-labelledby="out-plans-heading">
           <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
             Open plans

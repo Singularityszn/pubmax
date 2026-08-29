@@ -1,10 +1,12 @@
 import { createElement, type ReactNode } from "react";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const profileRead = vi.hoisted(() => ({
   getByHandle: vi.fn(),
 }));
 const durableStore = vi.hoisted(() => ({ configured: false }));
+const originalSocialLaunch = process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
 
 vi.mock("next/navigation", () => ({
   notFound: () => {
@@ -13,6 +15,9 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/components/nav/SiteNav", () => ({ default: () => null }));
 vi.mock("@/components/social/ConfirmFollow", () => ({ default: () => null }));
+vi.mock("@/app/social/SocialPageClient", () => ({
+  SocialAccessBoundary: () => createElement("p", null, "Social preview"),
+}));
 vi.mock("@/lib/profileStore", () => ({
   profileStore: () => ({ getByHandle: profileRead.getByHandle }),
   publicOwnedImageUrl: () => null,
@@ -39,6 +44,24 @@ describe("add-link target read", () => {
   beforeEach(() => {
     profileRead.getByHandle.mockReset();
     durableStore.configured = false;
+    delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
+  });
+
+  afterEach(() => {
+    if (originalSocialLaunch === undefined) {
+      delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
+    } else {
+      process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = originalSocialLaunch;
+    }
+  });
+
+  it("renders rollback preview before reading the target profile", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const page = await loadPage();
+
+    expect(profileRead.getByHandle).not.toHaveBeenCalled();
+    expect(renderToStaticMarkup(page)).toContain("Social preview");
   });
 
   it("404s a deleted account even without a durable store", async () => {

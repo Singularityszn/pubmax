@@ -48,29 +48,44 @@ async function getHandler(request: Request): Promise<Response> {
   const socialEnabled = isSocialFriendsLaunchEnabled(
     process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
   );
-  let openPlans = socialEnabled ? body.openPlans : [];
-
-  if (socialEnabled) {
-    const window = outPlansWindow(query.day, now);
-    try {
-      const listed = await store.listOpen({
-        from: window.from,
-        until: window.until,
-        city: query.city,
-        limit: OUT_OPEN_PLAN_LIMIT,
-      });
-      const attached = await attachOpenPlanMeetingPoints(listed);
-      if (attached.status === "degraded" && status !== "degraded") {
-        status = "degraded";
-      }
-      openPlans = boundOutOpenPlans(attached.plans);
-    } catch {
-      if (status === "ready") status = "degraded";
-      openPlans = [];
-    }
+  if (!socialEnabled) {
+    return Response.json(
+      {
+        ...body,
+        openPlans: null,
+        openPlansStatus: "preview",
+      },
+      { headers: { "cache-control": "no-store" } },
+    );
   }
 
-  return Response.json({ ...body, status, openPlans }, {
-    headers: { "cache-control": outCacheControl(status, body.venueMatch) },
-  });
+  let openPlans = body.openPlans;
+  let openPlansStatus: "ready" | "degraded" = "ready";
+
+  const window = outPlansWindow(query.day, now);
+  try {
+    const listed = await store.listOpen({
+      from: window.from,
+      until: window.until,
+      city: query.city,
+      limit: OUT_OPEN_PLAN_LIMIT,
+    });
+    const attached = await attachOpenPlanMeetingPoints(listed);
+    if (attached.status === "degraded") {
+      openPlansStatus = "degraded";
+      if (status !== "degraded") status = "degraded";
+    }
+    openPlans = boundOutOpenPlans(attached.plans);
+  } catch {
+    openPlansStatus = "degraded";
+    if (status === "ready") status = "degraded";
+    openPlans = [];
+  }
+
+  return Response.json(
+    { ...body, status, openPlans, openPlansStatus },
+    {
+      headers: { "cache-control": outCacheControl(status, body.venueMatch) },
+    },
+  );
 }

@@ -264,7 +264,7 @@ Important merged slices:
 Production state:
 
 - `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is unset, so Social is live by default.
-- `/social` still exists, but it is not in primary navigation.
+- `/social` is in primary navigation when live and remains visible as static Social preview during `=0` rollback.
 - `private_social_accounts`: 5 rows.
 - `social_posts`: 1 row.
 - `social_post_moderation_jobs`: 1 row.
@@ -273,7 +273,7 @@ Production state:
 - `social_crew_join_requests`: 0 rows.
 - External Social provider credentials are not configured.
 
-Conclusion: do not launch Social to primary navigation until host, join, moderation, abuse, and first-cohort evidence pass.
+Conclusion: keep Social live by default; set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for a full emergency rollback while host, join, moderation, abuse, and first-cohort evidence are reviewed.
 
 ### 3.7 Pub Pal and AI
 

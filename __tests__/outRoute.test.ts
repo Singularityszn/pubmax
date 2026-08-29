@@ -729,7 +729,9 @@ describe("GET /api/out openPlans", () => {
     const body = await response.json();
 
     expect(response.status).toBe(200);
-    expect(body.openPlans).toEqual([]);
+    expect(body.openPlans).toBeNull();
+    expect(body.openPlansStatus).toBe("preview");
+    expect(response.headers.get("cache-control")).toBe("no-store");
     expect(store.listOpen).not.toHaveBeenCalled();
   });
 

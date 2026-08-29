@@ -28,7 +28,12 @@ import {
   profileStore,
   publicOwnedImageUrl,
 } from "@/lib/profileStore";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import { isSupabaseConfigured } from "@/lib/supabase";
+import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 
 import AddPageShell from "./AddPageShell";
 import "./add.css";
@@ -55,6 +60,19 @@ export default async function AddHandlePage({
 }) {
   const handle = normalizeHandle((await params).handle);
   if (!handle) notFound();
+  const socialEnabled = isSocialFriendsLaunchEnabled(
+    process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
+  );
+  if (!socialEnabled) {
+    return (
+      <main id="main" className="addShell">
+        <SiteNav active="feed" />
+        <AddPageShell>
+          <SocialAccessBoundary state="preview" friendsLaunchEnabled={false} />
+        </AddPageShell>
+      </main>
+    );
+  }
   // A store failure is not an answer. Only a durable store that came back with
   // nothing proves the handle belongs to nobody.
   const profile = await profileStore()
