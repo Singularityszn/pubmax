@@ -178,6 +178,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a foreign branch locality after a has phrase", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York has a branch in Pennsylvania.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(

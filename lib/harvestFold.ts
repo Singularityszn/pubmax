@@ -214,7 +214,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       /^[\s]*[.!?]\s+/.test(after) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
     const laterLocality = after.match(
-      /\b(?:is|was|were|has been|had been|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
+      /\b(?:is|was|were|has|have|had|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
     );
     const hasUnknownLaterLocality = Boolean(
       laterLocality &&
