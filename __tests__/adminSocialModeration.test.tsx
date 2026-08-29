@@ -129,6 +129,10 @@ describe("Admin Social post moderation queue", () => {
     await loadAdmin();
     expect(host.textContent).toContain("A post with a photo");
     expect(host.querySelector('img[src="/api/admin/social-posts/media/22222222-2222-4222-8222-222222222222"]')).toBeTruthy();
-    expect(host.querySelector("button")?.textContent).toContain("Load reported drops");
+    expect(
+      [...host.querySelectorAll("button")].find((button) =>
+        button.textContent?.includes("Load reported drops"),
+      ),
+    ).toBeTruthy();
   });
 });

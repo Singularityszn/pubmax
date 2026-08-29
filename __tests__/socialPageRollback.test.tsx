@@ -39,6 +39,6 @@ describe("Social server rollback boundary", () => {
 
     expect(reads.rivalry).not.toHaveBeenCalled();
     expect(reads.heritage).not.toHaveBeenCalled();
-    expect(html).toContain('{"rivalry":[],"heritageCrawls":[]}');
+    expect(html).toContain("{&quot;rivalry&quot;:[],&quot;heritageCrawls&quot;:[]}");
   });
 });

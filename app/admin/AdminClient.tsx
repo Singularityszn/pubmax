@@ -1506,7 +1506,7 @@ export default function AdminClient() {
                 </article>
               ))}
             </div>
-          )}
+          ) : null}
 
           {/* ── Community observation moderation queue ─────────────────────── */}
           <h2 className="admin-section">Community Price moderation</h2>

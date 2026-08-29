@@ -719,13 +719,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
           });
           if (body.status === "gone") {
             setStored(null);
-            setSocialLinks(socialData.socialLinks);
+            setSocialLinks([...socialData.socialLinks]);
             setState("gone");
             setCounts(socialData.counts);
             return;
           }
           setStored(body.profile ?? null);
-          setSocialLinks(socialData.socialLinks);
+          setSocialLinks([...socialData.socialLinks]);
           setCounts(socialData.counts);
           setFollowing(socialData.following);
           setFollowsViewer(socialData.followsViewer);

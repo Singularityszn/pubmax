@@ -58,7 +58,7 @@ export function SocialConnectionActions({
  * remove in one tap, so this editor writes straight through to the public card
  * on /u/[handle] with nothing in between.
  */
-export default function SocialLinksEditor(): React.JSX.Element {
+export default function SocialLinksEditor(): React.JSX.Element | null {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [connections, setConnections] = useState<PublicSocialConnection[]>([]);
   const [providers, setProviders] = useState<Record<SocialProvider, SocialProviderCapabilities>>(
