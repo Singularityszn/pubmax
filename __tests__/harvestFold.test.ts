@@ -328,6 +328,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a foreign locality in a named venue second site", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. The Red Lion has a second site in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a possessive venue address in a later foreign locality statement", () => {
     expect(
       loreNameTownGate(
@@ -858,6 +868,26 @@ describe("heritageFactFromOverlay / public overlay", () => {
               value: "https://redlion.example/",
               sourceUrl: "https://redlion.example/",
               fetchedAt: "not-a-timestamp",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud on non-string observation kinds", () => {
+    expect(() =>
+      overlayRowsFromHarvestRecords([
+        {
+          osmId: "node/123",
+          name: "The Red Lion",
+          town: "Clapham",
+          observations: [
+            {
+              kind: ["website"] as unknown as "website",
+              value: "https://redlion.example/",
+              sourceUrl: "https://redlion.example/",
+              fetchedAt: "2026-08-28T00:00:00.000Z",
             },
           ],
         },

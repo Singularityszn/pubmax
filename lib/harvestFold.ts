@@ -337,13 +337,19 @@ function containsVenueLocationClaim(sentence: string, name: string): boolean {
   const branchLocation =
     `\\b(?:has|have|had)\\b\\s+(?:an?\\s+)?branch\\s+` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
+  const secondaryLocation =
+    `\\b(?:has|have|had)\\b\\s+` +
+    `(?:(?:an?|the|its|another|second|third|new|additional)\\s+){0,3}` +
+    `(?:branch|branches|site|sites|location|locations|premises|address)\\s+` +
+    `(?:(?:is|was|were|has been|had been|located|situated|based)\\s+)?` +
+    `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   const possessiveBranchLocation =
     `['’]s\\s+(?:[a-z-]+\\s+){0,2}branch\\s+` +
     `(?:is|was|were|has been|had been)\\s+` +
     `(?:(?:located|situated|based)\\s+)?` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   return new RegExp(
-    `${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation}|${possessiveBranchLocation})`,
+    `${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation}|${secondaryLocation}|${possessiveBranchLocation})`,
     "i",
   ).test(sentence);
 }
@@ -668,7 +674,10 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       }
       const observation = rawObservation as Record<string, unknown>;
       const kind = observation.kind;
-      if (!["website", "history", "social", "menu", "coverage"].includes(String(kind))) {
+      if (
+        typeof kind !== "string" ||
+        !["website", "history", "social", "menu", "coverage"].includes(kind)
+      ) {
         fail("MALFORMED_ROW", "harvest observation kind is invalid", line);
       }
       const value = observationValue(observation, "value", line);
