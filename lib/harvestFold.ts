@@ -97,9 +97,9 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "central",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:(?:,|\(|:|;|-|–|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|–|—|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
 const LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:,|\(|:|;|-|–|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
+  /^\s*(?:(?:,|\(|:|;|-|–|—|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
 const UK_LOCALITY_DESTINATION_RE =
   /^(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london|somerset|kent|surrey|sussex|essex|middlesex|hertfordshire|berkshire|buckinghamshire|cambridgeshire|derbyshire|devon|dorset|durham|gloucestershire|hampshire|herefordshire|isle of wight|lancashire|leicestershire|lincolnshire|norfolk|northamptonshire|northumberland|nottinghamshire|shropshire|staffordshire|suffolk|warwickshire|wiltshire|worcestershire|cheshire|cumbria|cornwall)(?:$|[^a-z0-9])/i;
 const LOCALITY_CONTINUATION_WORDS = new Set([
@@ -194,7 +194,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       ? after.slice(knownUkQualifier[0].length)
       : "";
     const additionalQualifierWord = afterKnownUkQualifier.match(
-      /^\s*(?:[,;:/()\-–]\s*)?([a-z][a-z'-]*)\b/i,
+      /^\s*(?:[,;:/()\-–—]\s*)?([a-z][a-z'-]*)\b/i,
     )?.[1]?.toLowerCase();
     const hasAdditionalLocalityQualifier = Boolean(
       hasKnownUkQualifier &&
@@ -203,7 +203,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     );
     const nextWord = after.match(/^\s*(?:[.!?]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
     const compoundWord = after.match(
-      /^\s*(?:[,;:/()\-–]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
+      /^\s*(?:[,;:/()\-–—]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
     )?.[1]?.toLowerCase();
     const hasUnknownCompoundLocality = Boolean(
       compoundWord &&
@@ -289,7 +289,7 @@ function containsVenueLocalityRelation(
     .join("[^a-z0-9]+");
   const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])`;
   const localityBoundary = `${localityPattern}(?=$|[^a-z0-9])`;
-  const direct = `(?:\\b(?:in|near|at|within)\\b\\s+|[,\\-–()]\\s*)${localityBoundary}`;
+  const direct = `(?:\\b(?:in|near|at|within)\\b\\s+|[,\\-–—()]\\s*)${localityBoundary}`;
   const copula =
     `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
     `(?:\\b(?:located|situated|based|standing|stood|sits|lies)\\b\\s+` +
@@ -300,6 +300,14 @@ function containsVenueLocalityRelation(
     `(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\\s+` +
     `\\b(?:in|near|at|within)\\b\\s+${localityBoundary}`;
   return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${venueType})`, "i").test(sentence);
+}
+
+function containsVenueReferenceLocalityRelation(sentence: string): boolean {
+  const venueReference =
+    /^\s*(?:it|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
+  const localityRelation =
+    /\b(?:is|was|were|has been|had been|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
+  return venueReference.test(sentence) && localityRelation.test(sentence);
 }
 
 export function nameTokens(name: string): string[] {
@@ -324,13 +332,15 @@ export function loreNameTownGate(
   const place = typeof town === "string" ? town.trim() : "";
   if (!place) return "town-missing";
   const locality = place.toLowerCase();
-  const relatedSentences = hay
+  const sentences = hay
     .split(/[.!?]+/)
     .map((sentence) => sentence.trim())
-    .filter(Boolean)
-    .filter((sentence) =>
-      containsVenueLocalityRelation(sentence, name, locality),
-    );
+    .filter(Boolean);
+  const relatedSentences = sentences.filter(
+    (sentence) =>
+      containsVenueLocalityRelation(sentence, name, locality) ||
+      containsVenueReferenceLocalityRelation(sentence),
+  );
   const relatedSentence =
     relatedSentences.length > 0 &&
     relatedSentences.every(
