@@ -139,7 +139,7 @@ async function main() {
   }
 
   const { harvestOverlayStore } = await import("../../../lib/harvestOverlayStore.ts");
-  const outcome = await harvestOverlayStore().upsertMany(rows);
+  const outcome = await harvestOverlayStore({ requireDurable: true }).upsertMany(rows);
   if (outcome.failed) {
     console.error(`harvest:fold write failed: ${outcome.failure ?? "unknown error"}`);
     process.exitCode = 1;

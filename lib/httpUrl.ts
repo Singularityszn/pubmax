@@ -22,13 +22,9 @@ export function firstHttp(...candidates: Array<string | undefined | null>): stri
 export function firstHttps(...candidates: Array<string | undefined | null>): string {
   for (const candidate of candidates) {
     const trimmed = typeof candidate === "string" ? candidate.trim() : "";
-    if (!/^https:\/\//i.test(trimmed)) continue;
-    try {
-      const url = new URL(trimmed);
-      if (!/[\s,]/.test(trimmed) && url.protocol === "https:" && url.hostname) return trimmed;
-    } catch {
-      // Try next candidate.
-    }
+    if (!trimmed || !isHttpUrl(trimmed)) continue;
+    const url = new URL(trimmed);
+    if (url.protocol === "https:") return trimmed;
   }
   return "";
 }

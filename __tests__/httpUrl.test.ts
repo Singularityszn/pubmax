@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { firstHttp, isHttpUrl } from "@/lib/httpUrl";
+import { firstHttp, firstHttps, isHttpUrl } from "@/lib/httpUrl";
 
 describe("httpUrl", () => {
   it("preserves valid comma query values for general http links", () => {
@@ -8,5 +8,6 @@ describe("httpUrl", () => {
 
     expect(isHttpUrl(url)).toBe(true);
     expect(firstHttp(url)).toBe(url);
+    expect(firstHttps(url)).toBe(url);
   });
 });

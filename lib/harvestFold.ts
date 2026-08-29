@@ -97,9 +97,49 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "central",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:(?:,|\(|:|;|-|\/)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
 const LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:,|\(|:|;|-|\/)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
+  /^\s*(?:(?:,|\(|:|;|-|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
+const LOCALITY_CONTINUATION_WORDS = new Set([
+  "and",
+  "also",
+  "an",
+  "are",
+  "became",
+  "been",
+  "built",
+  "called",
+  "can",
+  "closed",
+  "contains",
+  "dates",
+  "dated",
+  "features",
+  "has",
+  "hosts",
+  "includes",
+  "is",
+  "it",
+  "lies",
+  "located",
+  "now",
+  "offers",
+  "once",
+  "opened",
+  "remains",
+  "served",
+  "sits",
+  "stands",
+  "stood",
+  "the",
+  "this",
+  "was",
+  "were",
+  "where",
+  "which",
+  "with",
+  "would",
+]);
 
 export function isHttpsUrl(value: string): boolean {
   const trimmed = value.trim();
@@ -146,9 +186,19 @@ function containsExactLocality(haystack: string, locality: string): boolean {
   );
   for (const match of haystack.matchAll(localityRe)) {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
-    if (LOCALITY_QUALIFIER_RE.test(after) && !UK_LOCALITY_QUALIFIER_RE.test(after)) {
+    const hasKnownUkQualifier = UK_LOCALITY_QUALIFIER_RE.test(after);
+    const nextWord = after.match(/^\s*(?:[.!?]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
+    const sentenceContinuation =
+      /^[\s]*[.!?]\s+/.test(after) &&
+      Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
+    if (
+      LOCALITY_QUALIFIER_RE.test(after) &&
+      !hasKnownUkQualifier &&
+      !sentenceContinuation
+    ) {
       continue;
     }
+    if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();

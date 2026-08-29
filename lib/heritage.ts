@@ -50,6 +50,14 @@ const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "web",
 ]);
 
+function storedFactSource(value: unknown): HeritageFact["source"] | null {
+  const source = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (source === "web") return null;
+  return SOURCED.has(source as HeritageFact["source"])
+    ? (source as HeritageFact["source"])
+    : "seed";
+}
+
 export type HeritageResponse = {
   answer: string;
   citations: { source: string; ref?: string }[];
@@ -93,22 +101,18 @@ async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
       .select("source, fact, source_ref")
       .eq("venue_key", venueKey);
     if (error || !Array.isArray(data)) return [];
-    return data
-      .filter(
-        (row) =>
-          row &&
-          typeof row.fact === "string" &&
-          String(row.source ?? "").toLowerCase() !== "web",
-      )
-      // A "contributor" row in the DB would still be untrusted; coerce any
-      // unknown/contributor source to "seed" so DB rows are always sourced.
-      .map((row) => ({
-        source: SOURCED.has(row.source as HeritageFact["source"])
-          ? (row.source as HeritageFact["source"])
-          : "seed",
-        fact: row.fact as string,
+    const facts: HeritageFact[] = [];
+    for (const row of data) {
+      if (!row || typeof row.fact !== "string" || !row.fact.trim()) continue;
+      const source = storedFactSource(row.source);
+      if (!source) continue;
+      facts.push({
+        source,
+        fact: row.fact,
         sourceRef: (row.source_ref as string | null) ?? undefined,
-      }));
+      });
+    }
+    return facts;
   } catch {
     // Best-effort only — the demo must never fall over on a DB hiccup.
     return [];
@@ -127,7 +131,13 @@ export async function retrieveHeritageWithStatus(input: {
 }): Promise<HeritageReadResult> {
   const facts: HeritageFact[] = [];
   let status: HeritageReadResult["status"] = "ready";
-  const venueKey = normaliseVenueName(input.venueName);
+  const overlayResolution = input.venueId
+    ? input.overlayVenueResolution ?? (await resolveHarvestOverlayVenue(input.venueId))
+    : undefined;
+  const serverVenueName = overlayResolution?.status === "resolved"
+    ? overlayResolution.venue?.name
+    : undefined;
+  const venueKey = normaliseVenueName(input.venueId ? serverVenueName ?? "" : input.venueName);
 
   // (0) Listed-building fact first — the official register (Historic England
   // NHLE), keyed by the exact venue id so it can never attach to the wrong
@@ -137,27 +147,20 @@ export async function retrieveHeritageWithStatus(input: {
     facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
   }
 
-  if (!input.venueId) {
+  if (!input.venueId || serverVenueName) {
     // (1) Server facts first — the shipped cache keyed by normalised name.
     const cache = await readHeritageCache();
     const cached = cache[venueKey];
     if (Array.isArray(cached)) {
       for (const entry of cached) {
-        if (
-          entry &&
-          String(entry.source ?? "").toLowerCase() !== "web" &&
-          typeof entry.fact === "string" &&
-          entry.fact.trim()
-        ) {
-          const source = entry.source ?? "seed";
-          // Cache is server-owned, but never let a cache entry masquerade as
-          // trusted if it somehow carries a non-sourced label.
-          facts.push({
-            source: SOURCED.has(source) ? source : "seed",
-            fact: entry.fact,
-            sourceRef: entry.sourceRef,
-          });
-        }
+        if (!entry || typeof entry.fact !== "string" || !entry.fact.trim()) continue;
+        const source = storedFactSource(entry.source);
+        if (!source) continue;
+        facts.push({
+          source,
+          fact: entry.fact,
+          sourceRef: entry.sourceRef,
+        });
       }
     }
 
@@ -168,9 +171,8 @@ export async function retrieveHeritageWithStatus(input: {
   // (3) Harvest overlay lore — OSM id only. Name is never a key. Uncited
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
   // somehow lost its https citation.
-  if (input.venueId) {
-    const resolution =
-      input.overlayVenueResolution ?? (await resolveHarvestOverlayVenue(input.venueId));
+  if (input.venueId && overlayResolution) {
+    const resolution = overlayResolution;
     if (resolution.status === "unavailable") {
       status = "degraded";
     } else if (resolution.status === "resolved") {

@@ -10,6 +10,7 @@ import {
   createFailSoftGuard,
   isMissingTableSchema,
 } from "@/lib/storeBackend";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   canonicalOsmId,
   parseOverlayRow,
@@ -161,7 +162,14 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
   },
 };
 
-export const harvestOverlayStore = createDualBackendStore(
+const getHarvestOverlayStore = createDualBackendStore(
   memoryHarvestOverlayStore,
   supabaseHarvestOverlayStore,
 );
+
+export function harvestOverlayStore(options?: { requireDurable?: boolean }): HarvestOverlayStore {
+  if (options?.requireDurable && !isSupabaseConfigured()) {
+    throw new Error(`${MIGRATION_HINT}: Supabase is required for non-dry harvest folds.`);
+  }
+  return getHarvestOverlayStore();
+}

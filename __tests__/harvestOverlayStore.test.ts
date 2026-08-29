@@ -24,6 +24,23 @@ afterEach(() => {
 });
 
 describe("harvestOverlayStore", () => {
+  it("requires durable configuration when explicitly requested", () => {
+    const originalUrl = process.env.SUPABASE_URL;
+    const originalKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    delete process.env.SUPABASE_URL;
+    delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+    try {
+      expect(() => harvestOverlayStore({ requireDurable: true })).toThrow(
+        "Supabase is required",
+      );
+    } finally {
+      if (originalUrl === undefined) delete process.env.SUPABASE_URL;
+      else process.env.SUPABASE_URL = originalUrl;
+      if (originalKey === undefined) delete process.env.SUPABASE_SERVICE_ROLE_KEY;
+      else process.env.SUPABASE_SERVICE_ROLE_KEY = originalKey;
+    }
+  });
+
   it("upserts by OSM id and reads back through every salted venue id", async () => {
     const outcome = await harvestOverlayStore().upsertMany([row]);
     expect(outcome.written).toBe(1);

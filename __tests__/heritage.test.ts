@@ -92,6 +92,15 @@ describe("retrieveHeritage — trust boundary", () => {
     expect(facts.some((fact) => fact.fact.includes("1520"))).toBe(false);
   });
 
+  it("uses the resolved venue name for legacy facts", async () => {
+    const facts = await retrieveHeritage({
+      venueId: "venue-16pnwmm",
+      venueName: "Nowhere Tavern",
+    });
+
+    expect(facts.some((fact) => fact.fact.includes("1520"))).toBe(true);
+  });
+
   it("attaches cited harvest lore by OSM venue id, never by pub name", async () => {
     await harvestOverlayStore().upsertMany([
       parseOverlayRow({
