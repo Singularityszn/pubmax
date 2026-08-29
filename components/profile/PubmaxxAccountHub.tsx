@@ -346,7 +346,7 @@ function AccountHandleEditor({
 }
 
 export default function PubmaxxAccountHub() {
-  const { user, loading, session, identityResolved } = useAuth();
+  const { accountRevision, user, loading, session, identityResolved } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const accountAuth = useMemo(
     () => captureAccountAuth(user?.id ?? null, session),
@@ -373,6 +373,9 @@ export default function PubmaxxAccountHub() {
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
   const [referralNotice, setReferralNotice] = useState("");
+  const [referralStateRevision, setReferralStateRevision] = useState(accountRevision);
+  const accountRevisionRef = useRef(accountRevision);
+  accountRevisionRef.current = accountRevision;
   const shareSupported = useSyncExternalStore(
     subscribeToNothing,
     () => typeof navigator.share === "function",
@@ -398,6 +401,16 @@ export default function PubmaxxAccountHub() {
     setAnalyticsConsent(granted);
     setAnalyticsConsentState(granted ? "granted" : "denied");
   }
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setReferralStateRevision(accountRevision);
+      setReferralStatus(null);
+      setReferralLink(null);
+      setReferralBusy(false);
+      setReferralNotice("");
+    });
+  }, [accountRevision]);
 
   // Undecided: the full choice card. Decided: the card collapses to a
   // one-line status with a small affordance to reverse it (defect 6).
@@ -438,6 +451,7 @@ export default function PubmaxxAccountHub() {
       nightProfileAutoRetried.current = false;
     }
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
         setNightProfileLoaded(false);
@@ -456,7 +470,7 @@ export default function PubmaxxAccountHub() {
         : Promise.resolve(null),
       authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
     ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       const nightProfile = nightProfileResult.status === "fulfilled"
         ? nightProfileResult.value
         : null;
@@ -470,6 +484,7 @@ export default function PubmaxxAccountHub() {
         const body = await nightProfile.json().catch(() => null) as
           | { profile?: NightProfile | null }
           | null;
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
         const profile = body?.profile ?? null;
         setAccountNightProfile(profile);
         setNightProfileDraft(profile ? nightProfileInput(profile) : DEFAULT_NIGHT_PROFILE_INPUT);
@@ -482,7 +497,9 @@ export default function PubmaxxAccountHub() {
         // before showing anything. A dead error card here was defect 2.
         nightProfileAutoRetried.current = true;
         window.setTimeout(() => {
-          if (!controller.signal.aborted) setAccountLoadNonce((n) => n + 1);
+          if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
+            setAccountLoadNonce((n) => n + 1);
+          }
         }, 1_200);
       } else {
         setNightProfileError(true);
@@ -491,15 +508,17 @@ export default function PubmaxxAccountHub() {
         const status = await referrals.json().catch(() => null) as
           | ReferralPrivateStatus
           | null;
-        if (status) setReferralStatus(status);
+        if (status && accountRevisionRef.current === requestRevision) setReferralStatus(status);
       }
       if (pendingRecaps?.ok) {
         const body = await pendingRecaps.json().catch(() => null) as {
           memoryCompletionIds?: string[];
         } | null;
-        setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
+        if (accountRevisionRef.current === requestRevision) {
+          setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
+        }
       }
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
         // A failed Night Profile read never counts as loaded: loaded gates the
         // merge prompt and account save, which need the real account row.
         if (nightProfile?.ok) setNightProfileLoaded(true);
@@ -507,7 +526,7 @@ export default function PubmaxxAccountHub() {
       }
     });
     return () => controller.abort();
-  }, [accountLoadNonce, socialFriendsLaunchEnabled, user]);
+  }, [accountLoadNonce, accountRevision, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     const refresh = () => setDeviceNightProfile(readDeviceNightProfile());
@@ -671,6 +690,7 @@ export default function PubmaxxAccountHub() {
     if (referralBusy) return;
     setReferralBusy(true);
     setReferralNotice("");
+    const requestRevision = accountRevision;
     try {
       const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
@@ -683,18 +703,25 @@ export default function PubmaxxAccountHub() {
         setReferralNotice(errorMessageFrom(body, "Your invite link could not be made. Try again."));
         return;
       }
+      if (accountRevisionRef.current !== requestRevision) return;
       setReferralLink(body.url);
       setReferralNotice("Your invite link is ready. Copy it or share it.");
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision) return;
       setReferralNotice(
         error instanceof AuthActionSessionError
           ? error.message
           : "Your invite link could not be made. Try again.",
       );
     } finally {
-      setReferralBusy(false);
+      if (accountRevisionRef.current === requestRevision) setReferralBusy(false);
     }
   }
+
+  const visibleReferralLink = referralStateRevision === accountRevision ? referralLink : null;
+  const visibleReferralStatus = referralStateRevision === accountRevision ? referralStatus : null;
+  const visibleReferralBusy = referralStateRevision === accountRevision && referralBusy;
+  const visibleReferralNotice = referralStateRevision === accountRevision ? referralNotice : "";
 
   async function copyInviteLink() {
     if (!referralLink) return;
@@ -842,10 +869,10 @@ export default function PubmaxxAccountHub() {
         <FoundingMemberCard />
         {socialFriendsLaunchEnabled ? (
           <ReferralInviteCard
-            status={referralStatus}
-            busy={referralBusy}
-            link={referralLink}
-            notice={referralNotice}
+            status={visibleReferralStatus}
+            busy={visibleReferralBusy}
+            link={visibleReferralLink}
+            notice={visibleReferralNotice}
             shareSupported={shareSupported}
             onInvite={() => void inviteMate()}
             onCopy={() => void copyInviteLink()}

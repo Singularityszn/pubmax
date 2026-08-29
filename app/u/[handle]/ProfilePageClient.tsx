@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState, useSyncExternalStore } from "react";
+import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
 import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
@@ -356,8 +356,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
-  const { user, identityResolved, signOut } = useAuth();
+  const { accountRevision, user, identityResolved, signOut } = useAuth();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const followKey = `${accountRevision}:${routeHandle}`;
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -398,10 +399,22 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // The mirror edge. Without it the header cannot tell "Mates" from
   // "Following", which is the only fact that says a lot formed.
   const [followsViewer, setFollowsViewer] = useState(false);
+  const [followStateKey, setFollowStateKey] = useState(followKey);
+  const accountRevisionRef = useRef(accountRevision);
+  accountRevisionRef.current = accountRevision;
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    if (followStateKey === followKey) return;
+    void Promise.resolve().then(() => {
+      setFollowStateKey(followKey);
+      setFollowing(false);
+      setFollowsViewer(false);
+    });
+  }, [followKey, followStateKey]);
   // PUBLIC crawl count for this handle, from /api/crawls?author= (the
   // crawl-story store is server-only, so a client route carries the number).
   // TRI-STATE: null is "the read could not answer", never a confident zero, and
@@ -678,6 +691,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     if (!routeHandle) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     async function loadProfile() {
       const qs = viewerHandle
         ? `?viewer=${encodeURIComponent(viewerHandle)}`
@@ -696,6 +710,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
         { signal: controller.signal },
         (body) => {
+          if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
           const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
             socialLinks: body.socialLinks ?? [],
             counts: body.counts ?? null,
@@ -718,24 +733,25 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       );
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
         setPublicRead(outcome === "failed" ? "failed" : "answered");
       }
     }
     void loadProfile();
     return () => controller.abort();
-  }, [routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
+  }, [accountRevision, routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
     deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]),
     stored,
   );
+  const followStateReady = followStateKey === followKey;
   const visibleSocialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
     socialLinks,
     counts,
-    following,
-    followsViewer,
+    following: followStateReady && following,
+    followsViewer: followStateReady && followsViewer,
   });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;

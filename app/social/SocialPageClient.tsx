@@ -406,7 +406,7 @@ export default function SocialPageClient({
   friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { identityResolved, user } = useAuth();
+  const { accountRevision, identityResolved, user } = useAuth();
   const viewerPhase: SocialViewerPhase =
     !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [access, setAccess] = useState<AccessLoadState>("checking");
@@ -425,6 +425,8 @@ export default function SocialPageClient({
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [activityRevision, setActivityRevision] = useState(accountRevision);
+  const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
   const feedHref = useMemo(
@@ -488,7 +490,7 @@ export default function SocialPageClient({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
+  }, [accessAttempt, accountRevision, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
@@ -571,8 +573,14 @@ export default function SocialPageClient({
   }, [access, feedAttempt, feedHref]);
 
   useEffect(() => {
+    const requestId = ++activityRequestId.current;
+    void Promise.resolve().then(() => {
+      if (activityRequestId.current !== requestId) return;
+      setActivityRevision(accountRevision);
+    });
     if (access !== "verified" || initialState.tab !== "posts") {
       void Promise.resolve().then(() => {
+        if (activityRequestId.current !== requestId) return;
         setActivityStatus("idle");
         setActivityItems([]);
       });
@@ -593,17 +601,20 @@ export default function SocialPageClient({
         return items;
       })
       .then((items) => {
+        if (activityRequestId.current !== requestId) return;
         setActivityItems(items);
         setActivityStatus("ready");
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
-        setActivityItems([]);
-        setActivityStatus("unavailable");
+        if (activityRequestId.current === requestId) {
+          setActivityItems([]);
+          setActivityStatus("unavailable");
+        }
       });
     return () => controller.abort();
-  }, [access, initialState.tab]);
+  }, [accountRevision, access, initialState.tab]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore) return;
@@ -646,6 +657,8 @@ export default function SocialPageClient({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
+  const visibleActivityStatus = activityRevision === accountRevision ? activityStatus : "idle";
+  const visibleActivityItems = activityRevision === accountRevision ? activityItems : [];
   const showPostsControls =
     friendsLaunchEnabled &&
     isPosts &&
@@ -832,7 +845,7 @@ export default function SocialPageClient({
           )}
 
           {showPostsControls ? (
-            <SocialContextRail status={activityStatus} items={activityItems} />
+            <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
           ) : null}
         </div>
       </main>

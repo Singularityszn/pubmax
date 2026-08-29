@@ -9,13 +9,14 @@
 // store read. No toggle here - a viewer can only ever see someone else's
 // check-in, never switch it.
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { discardBody } from "@/lib/responseBody";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 type Props = {
   /** The profile being viewed (the potential check-in owner). */
@@ -32,12 +33,26 @@ type CheckInDto = { handle?: string; areaSlug?: string | null };
 
 export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { accountRevision } = useAuth();
   const [state, setState] = useState<State>({ kind: "hidden" });
+  const [stateScope, setStateScope] = useState("");
+  const scope = `${accountRevision}:${normalizeHandle(ownerHandle)}:${normalizeHandle(viewerHandle)}`;
+  const scopeRef = useRef(scope);
+  scopeRef.current = scope;
 
   useEffect(() => {
-    // No owner or no viewer: nothing to check. The initial state is already
-    // "hidden", so there is nothing to set here.
-    if (!socialFriendsLaunchEnabled || !ownerHandle || !viewerHandle) return;
+    const requestScope = scope;
+    let active = true;
+    if (!socialFriendsLaunchEnabled || !ownerHandle || !viewerHandle) {
+      void Promise.resolve().then(() => {
+        if (!active) return;
+        setState({ kind: "hidden" });
+        setStateScope(requestScope);
+      });
+      return () => {
+        active = false;
+      };
+    }
     const controller = new AbortController();
     (async () => {
       try {
@@ -50,6 +65,8 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
         const body = (await res.json()) as { checkIns?: CheckInDto[] };
         const owner = normalizeHandle(ownerHandle);
         const mine = (body.checkIns ?? []).find((c) => normalizeHandle(c.handle ?? "") === owner);
+        if (!active || scopeRef.current !== requestScope) return;
+        setStateScope(requestScope);
         if (mine) {
           setState({ kind: "visible", areaSlug: (mine.areaSlug as NightAreaSlug) ?? null });
         } else {
@@ -57,13 +74,16 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
         }
       } catch {
         // Fail quiet: a check-in that can't be confirmed simply doesn't show.
-        setState({ kind: "hidden" });
+        if (active && scopeRef.current === requestScope) setState({ kind: "hidden" });
       }
     })();
-    return () => controller.abort();
-  }, [ownerHandle, socialFriendsLaunchEnabled, viewerHandle]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [accountRevision, ownerHandle, scope, socialFriendsLaunchEnabled, viewerHandle]);
 
-  if (!socialFriendsLaunchEnabled || state.kind === "hidden") return null;
+  if (!socialFriendsLaunchEnabled || stateScope !== scope || state.kind === "hidden") return null;
 
   const areaName = tryGetNightArea(state.areaSlug)?.name ?? null;
   return (

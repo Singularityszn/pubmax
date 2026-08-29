@@ -16,6 +16,7 @@ import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
   __resetMemorySavedPubs,
+  savedListFollowsStore,
   savedPubsStore,
 } from "@/lib/savedPubsStore";
 import { getVenueIndex } from "@/lib/venueIndex";
@@ -112,6 +113,23 @@ describe("GET /api/saved-pubs/list-follows", () => {
       following: true,
       counts: { followers: 1, savedPubs: 1 },
     });
+  });
+
+  it("marks list counts unavailable when the follow store cannot answer", async () => {
+    const counts = vi
+      .spyOn(savedListFollowsStore(), "counts")
+      .mockRejectedValueOnce(new Error("database unavailable"));
+
+    const res = await get("follower=ken&owner=sam&listType=Date%20Night");
+
+    expect(res.status).toBe(200);
+    expectNoStore(res);
+    expect(await res.json()).toEqual({
+      status: "unavailable",
+      following: null,
+      counts: { followers: null, savedPubs: null },
+    });
+    counts.mockRestore();
   });
 });
 

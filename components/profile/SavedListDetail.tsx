@@ -35,7 +35,7 @@ function formatCount(count: number, singular: string, plural: string): string {
   return `${count} ${count === 1 ? singular : plural}`;
 }
 
-function readCounts(value: unknown): SavedListCounts | null {
+function readCounts(value: unknown): { followers: number | null; savedPubs: number | null } | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as { followers?: unknown; savedPubs?: unknown };
   const followers =
@@ -43,9 +43,9 @@ function readCounts(value: unknown): SavedListCounts | null {
       ? raw.followers
       : null;
   const savedPubs =
-    typeof raw.savedPubs === "number" && Number.isFinite(raw.savedPubs) && raw.savedPubs > 0
+    typeof raw.savedPubs === "number" && Number.isFinite(raw.savedPubs) && raw.savedPubs >= 0
       ? raw.savedPubs
-      : 0;
+      : null;
   return { followers, savedPubs };
 }
 
@@ -65,9 +65,7 @@ export default function SavedListDetail({
   const { user } = useAuth();
   const liveViewerHandle = useViewerHandle();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const viewer = user
-    ? normalizeHandle(viewerHandle) || normalizeHandle(liveViewerHandle ?? "")
-    : "";
+  const viewer = user ? normalizeHandle(liveViewerHandle ?? "") : "";
   const [following, setFollowing] = useState(initialFollowing);
   const [counts, setCounts] = useState(initialCounts);
   const [busy, setBusy] = useState(false);
@@ -102,7 +100,12 @@ export default function SavedListDetail({
         if (!controller.signal.aborted) {
           if (typeof body.following === "boolean") setFollowing(body.following);
           const nextCounts = readCounts(body.counts);
-          if (nextCounts) setCounts(nextCounts);
+          if (nextCounts) {
+            setCounts((current) => ({
+              followers: nextCounts.followers,
+              savedPubs: nextCounts.savedPubs ?? current.savedPubs,
+            }));
+          }
         }
       } catch {
         // Follow state is additive UI; the static page remains useful if it fails.
@@ -123,7 +126,10 @@ export default function SavedListDetail({
     setFollowing(next);
     setCounts({
       ...counts,
-      followers: Math.max(0, counts.followers + (next ? 1 : -1)),
+      followers:
+        counts.followers === null
+          ? null
+          : Math.max(0, counts.followers + (next ? 1 : -1)),
     });
 
     try {
@@ -151,7 +157,12 @@ export default function SavedListDetail({
         const b = body as { following?: unknown; counts?: unknown };
         if (typeof b.following === "boolean") setFollowing(b.following);
         const nextCounts = readCounts(b.counts);
-        if (nextCounts) setCounts(nextCounts);
+        if (nextCounts) {
+          setCounts((current) => ({
+            followers: nextCounts.followers,
+            savedPubs: nextCounts.savedPubs ?? current.savedPubs,
+          }));
+        }
       }
     } catch {
       setFollowing(!next);

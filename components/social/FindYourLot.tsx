@@ -38,14 +38,13 @@ function avatarInitial(handle: string): string {
 }
 
 export default function FindYourLot({
-  myHandle,
   compact = false,
 }: {
   myHandle?: string | null;
   compact?: boolean;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const { user } = useAuth();
+  const { accountRevision, user } = useAuth();
   const identityViewerHandle = useViewerHandle();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SearchMatch[]>([]);
@@ -55,10 +54,25 @@ export default function FindYourLot({
   const [inviteUrl, setInviteUrl] = useState<string | null>(null);
   const [inviteBusy, setInviteBusy] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [viewerStateKey, setViewerStateKey] = useState("");
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const viewer = user
-    ? normalizeHandle(myHandle ?? identityViewerHandle ?? "")
-    : "";
+  const accountRevisionRef = useRef(accountRevision);
+  const viewerRef = useRef("");
+  accountRevisionRef.current = accountRevision;
+  const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
+  const viewerKey = `${accountRevision}:${viewer}`;
+  viewerRef.current = viewer;
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setViewerStateKey(viewerKey);
+      setInviteUrl(null);
+      setFollowByHandle({});
+      setInviteBusy(false);
+      setCopied(false);
+      setNotice("");
+    });
+  }, [accountRevision, viewerKey]);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
@@ -108,6 +122,8 @@ export default function FindYourLot({
       return;
     }
     if (normalizeHandle(handle) === viewer) return;
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     setFollowByHandle((current) => ({ ...current, [handle]: "working" }));
     setNotice("");
     try {
@@ -123,8 +139,10 @@ export default function FindYourLot({
         const body = (await response.json().catch(() => null)) as unknown;
         throw new Error(errorMessageFrom(body, "Could not follow them."));
       }
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setFollowByHandle((current) => ({ ...current, [handle]: "done" }));
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setFollowByHandle((current) => ({ ...current, [handle]: "error" }));
       setNotice(error instanceof Error ? error.message : "Could not follow them.");
     }
@@ -134,6 +152,8 @@ export default function FindYourLot({
     if (inviteBusy || !socialFriendsLaunchEnabled) return;
     setInviteBusy(true);
     setNotice("");
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     try {
       const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
@@ -151,8 +171,10 @@ export default function FindYourLot({
           ),
         );
       }
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setInviteUrl(body.url);
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setNotice(
         offlineOrMessage(
           error instanceof Error
@@ -161,7 +183,9 @@ export default function FindYourLot({
         ),
       );
     } finally {
-      setInviteBusy(false);
+      if (accountRevisionRef.current === requestRevision && viewerRef.current === requestViewer) {
+        setInviteBusy(false);
+      }
     }
   }
 
@@ -177,6 +201,10 @@ export default function FindYourLot({
   }
 
   if (!socialFriendsLaunchEnabled) return null;
+
+  const viewerStateReady = viewerStateKey === viewerKey;
+  const visibleInviteUrl = viewerStateReady ? inviteUrl : null;
+  const visibleFollowByHandle = viewerStateReady ? followByHandle : {};
 
   const shareSelf =
     viewer && typeof window !== "undefined"
@@ -232,7 +260,7 @@ export default function FindYourLot({
       {matches.length > 0 ? (
         <ul className="findLot__list">
           {matches.map((match) => {
-            const followState = followByHandle[match.handle] ?? "idle";
+            const followState = visibleFollowByHandle[match.handle] ?? "idle";
             const isSelf = viewer && match.handle === viewer;
             return (
               <li key={match.id} className="findLot__row">
@@ -284,9 +312,9 @@ export default function FindYourLot({
       ) : null}
 
       <div className="findLot__invite">
-        {inviteUrl ? (
+        {visibleInviteUrl ? (
           <>
-            <code className="findLot__inviteUrl">{inviteUrl}</code>
+            <code className="findLot__inviteUrl">{visibleInviteUrl}</code>
             <button type="button" className="findLot__follow" onClick={() => void copyInvite()}>
               {copied ? "Copied" : "Copy invite link"}
             </button>

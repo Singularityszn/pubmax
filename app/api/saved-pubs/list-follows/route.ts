@@ -60,8 +60,11 @@ export async function GET(request: Request): Promise<Response> {
     // Fail-soft read: followed lists are additive social context, not a reason to
     // break the saved view/profile.
     return owner && listType
-      ? jsonNoStore({ following: false, counts: { followers: 0, savedPubs: 0 } }, { status: 200 })
-      : jsonNoStore({ followedLists: [] }, { status: 200 });
+      ? jsonNoStore(
+          { status: "unavailable", following: null, counts: { followers: null, savedPubs: null } },
+          { status: 200 },
+        )
+      : jsonNoStore({ status: "unavailable", followedLists: null }, { status: 200 });
   }
 }
 
