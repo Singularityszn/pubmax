@@ -10,7 +10,7 @@ import { cache } from "react";
 
 import { loadVenueMenuEnrichmentIndex } from "@/lib/venueMenuEnrichment";
 import { proxiedVenueImageUrl } from "@/lib/venueImages";
-import { firstHttp } from "@/lib/httpUrl";
+import { firstHttp, firstHttps } from "@/lib/httpUrl";
 import { getPricedVenues } from "@/lib/venuePriceIndex";
 import {
   drinkAccentForVenue,
@@ -77,11 +77,7 @@ async function readScrapedPubs(): Promise<ScrapedPubsRead> {
       borough: venue?.primaryBorough ?? "",
       source,
       sourceLabel: SCRAPED_SOURCE_LABELS[source],
-      // Scheme-guard before the value reaches PubsGallery as an href — a
-      // javascript:/data: menuUrl would otherwise be an XSS vector. firstHttp
-      // returns "" for anything that isn't an absolute http(s) URL, so drop
-      // the field entirely in that case.
-      menuUrl: firstHttp(record.menuUrl) || undefined,
+      menuUrl: firstHttps(record.menuUrl) || undefined,
       bookingUrl: firstHttp(record.bookingUrl) || undefined,
       photoUrl,
       drinkAccent,

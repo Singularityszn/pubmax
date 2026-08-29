@@ -6,11 +6,12 @@
 // do the same and falls back to the honest structured answer on any failure.
 //
 // Trust boundary: ALL venue context is reconstructed server-side. Facts come
-// ONLY from server-owned stores keyed by normalised venue name — the shipped
-// heritage_cache.json and the Supabase `pub_heritage` table. The route no
-// longer accepts a client `context` object at all, so a client cannot forge
-// pub history — not even as a labelled contributor note. If server facts are
-// missing, the honest fallback stands.
+// ONLY from server-owned stores: the shipped heritage_cache.json and the
+// Supabase `pub_heritage` table (keyed by normalised venue name), plus cited
+// harvest overlay lore keyed by OSM id. The route no longer accepts a client
+// `context` object at all, so a client cannot forge pub history — not even as
+// a labelled contributor note. If server facts are missing, the honest
+// fallback stands.
 
 import "server-only";
 
@@ -20,29 +21,42 @@ import path from "node:path";
 
 import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
+import { heritageFactFromOverlay } from "@/lib/harvestFold";
+import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
+import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import type { HarvestOverlayVenueResolution } from "@/lib/harvestOverlayVenue";
 
 // Every source is a server-side (sourced) store. There is no client-supplied
 // source anymore — the route reconstructs context from server data only.
 export type HeritageFact = {
-  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle";
+  source: "osm" | "wikidata" | "wikipedia" | "seed" | "nhle" | "web";
   fact: string;
   sourceRef?: string;
 };
 
-// Sources that count as trusted/sourced facts (server-retrieved). Every source
-// now qualifies; the set stays as the one place that names them. "nhle" is
-// Historic England's official National Heritage List for England.
+// Sources that count as trusted/sourced facts (server-retrieved). "nhle" is
+// Historic England's official National Heritage List for England. "web" is
+// cited harvest lore, keyed by OSM id (never by pub name).
 const SOURCED: ReadonlySet<HeritageFact["source"]> = new Set([
   "osm",
   "wikidata",
   "wikipedia",
   "seed",
   "nhle",
+  "web",
 ]);
+
+export function storedFactSource(value: unknown): HeritageFact["source"] | null {
+  const source = typeof value === "string" ? value.trim().toLowerCase() : "";
+  if (source === "web") return null;
+  if (!SOURCED.has(source as HeritageFact["source"])) return null;
+  return source as HeritageFact["source"];
+}
 
 export type HeritageResponse = {
   answer: string;
@@ -75,9 +89,8 @@ async function readHeritageCache(): Promise<Record<string, HeritageFact[]>> {
   }
 }
 
-// Keyed by venue_key (= normaliseVenueName) — the SAME key the enrichment
-// script writes and the migration indexes. There is no server `pubs` table, so
-// venues are matched by normalised name everywhere, not by an opaque id.
+// Keyed by venue_key (= normaliseVenueName), the same key the enrichment
+// script writes and the migration indexes.
 async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
   if (!venueKey || !isSupabaseConfigured()) return [];
   try {
@@ -88,29 +101,49 @@ async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
       .select("source, fact, source_ref")
       .eq("venue_key", venueKey);
     if (error || !Array.isArray(data)) return [];
-    return data
-      .filter((row) => row && typeof row.fact === "string")
-      // A "contributor" row in the DB would still be untrusted; coerce any
-      // unknown/contributor source to "seed" so DB rows are always sourced.
-      .map((row) => ({
-        source: SOURCED.has(row.source as HeritageFact["source"])
-          ? (row.source as HeritageFact["source"])
-          : "seed",
-        fact: row.fact as string,
+    const facts: HeritageFact[] = [];
+    for (const row of data) {
+      if (!row || typeof row.fact !== "string" || !row.fact.trim()) continue;
+      const source = storedFactSource(row.source);
+      if (!source) continue;
+      facts.push({
+        source,
+        fact: row.fact,
         sourceRef: (row.source_ref as string | null) ?? undefined,
-      }));
+      });
+    }
+    return facts;
   } catch {
     // Best-effort only — the demo must never fall over on a DB hiccup.
     return [];
   }
 }
 
-export async function retrieveHeritage(input: {
+export type HeritageReadResult = {
+  status: "ready" | "degraded";
+  facts: HeritageFact[];
+};
+
+export async function retrieveHeritageWithStatus(input: {
   venueId?: string;
   venueName: string;
-}): Promise<HeritageFact[]> {
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
+}): Promise<HeritageReadResult> {
   const facts: HeritageFact[] = [];
-  const venueKey = normaliseVenueName(input.venueName);
+  let status: HeritageReadResult["status"] = "ready";
+  const overlayResolution = input.venueId
+    ? input.overlayVenueResolution ?? (await resolveHarvestOverlayVenue(input.venueId))
+    : undefined;
+  const baseVenueLookup = input.venueId
+    ? await lookupCanonicalVenue(input.venueId)
+    : undefined;
+  const serverVenueName = overlayResolution?.status === "resolved"
+    ? overlayResolution.venue?.name ??
+      (baseVenueLookup?.status === "found" ? baseVenueLookup.venue.name : undefined)
+    : baseVenueLookup?.status === "found"
+      ? baseVenueLookup.venue.name
+      : undefined;
+  const venueKey = normaliseVenueName(input.venueId ? serverVenueName ?? "" : input.venueName);
 
   // (0) Listed-building fact first — the official register (Historic England
   // NHLE), keyed by the exact venue id so it can never attach to the wrong
@@ -120,30 +153,62 @@ export async function retrieveHeritage(input: {
     facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
   }
 
-  // (1) Server facts first — the shipped cache keyed by normalised name.
-  const cache = await readHeritageCache();
-  const cached = cache[venueKey];
-  if (Array.isArray(cached)) {
-    for (const entry of cached) {
-      if (entry && typeof entry.fact === "string" && entry.fact.trim()) {
-        const source = entry.source ?? "seed";
-        // Cache is server-owned, but never let a cache entry masquerade as
-        // trusted if it somehow carries a non-sourced label.
+  if (!input.venueId || serverVenueName) {
+    // (1) Server facts first — the shipped cache keyed by normalised name.
+    const cache = await readHeritageCache();
+    const cached = cache[venueKey];
+    if (Array.isArray(cached)) {
+      for (const entry of cached) {
+        if (!entry || typeof entry.fact !== "string" || !entry.fact.trim()) continue;
+        const source = storedFactSource(entry.source);
+        if (!source) continue;
         facts.push({
-          source: SOURCED.has(source) ? source : "seed",
+          source,
           fact: entry.fact,
           sourceRef: entry.sourceRef,
         });
       }
     }
+
+    // (2) Server rows — Supabase pub_heritage, same venue_key.
+    facts.push(...(await retrieveFromSupabase(venueKey)));
   }
 
-  // (2) Server rows — Supabase pub_heritage, same venue_key.
-  facts.push(...(await retrieveFromSupabase(venueKey)));
+  // (3) Harvest overlay lore — OSM id only. Name is never a key. Uncited
+  // lore cannot be stored, and heritageFactFromOverlay drops a row that
+  // somehow lost its https citation.
+  if (input.venueId && overlayResolution) {
+    const resolution = overlayResolution;
+    if (resolution.status === "unavailable") {
+      status = "degraded";
+    } else if (resolution.status === "resolved") {
+      const reads = await Promise.all(
+        resolution.venueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+      );
+      if (reads.some((read) => read.status === "degraded")) {
+        status = "degraded";
+      } else {
+        for (const read of reads) {
+          const lore = read.status === "ready" && read.overlay
+            ? heritageFactFromOverlay(read.overlay)
+            : null;
+          if (lore) facts.push(lore);
+        }
+      }
+    }
+  }
 
-  // No client context is accepted — the route derives everything from the two
-  // server-owned stores above.
-  return facts;
+  // No client context is accepted — the route derives everything from
+  // server-owned stores.
+  return { status, facts };
+}
+
+export async function retrieveHeritage(input: {
+  venueId?: string;
+  venueName: string;
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
+}): Promise<HeritageFact[]> {
+  return (await retrieveHeritageWithStatus(input)).facts;
 }
 
 function dedupeCitations(
@@ -245,9 +310,10 @@ async function answerWithModel(
   }
 }
 
-// P2 — 5-minute in-memory cache for LLM answers. Keyed by normalised venue key
-// + a hash of the question, so it can never leak an answer across venues. Only
-// the paid LLM path is cached (the deterministic fallback is already cheap), and
+// P2 — 5-minute in-memory cache for LLM answers. Keyed by canonical venue
+// identity plus a hash of the question, so it cannot leak answers across OSM
+// venues. Only the paid LLM path is cached (the deterministic fallback is
+// already cheap), and
 // hidden/moderated content never flows through here — facts come from the
 // server stores, and a bounded TTL means a moderation change is reflected within
 // five minutes. Bounded to ANSWER_CACHE_MAX entries with insertion-order eviction
@@ -268,11 +334,16 @@ function setAnswerCache(key: string, entry: { at: number; response: HeritageResp
   }
 }
 
-function cacheKey(venueName: string, question: string, venueNoun: string): string {
+function cacheKey(
+  venueName: string,
+  question: string,
+  venueNoun: string,
+  venueIdentity: string,
+): string {
   const qHash = createHash("sha256")
-    .update(`${venueNoun}\0${question}`)
+    .update(`${venueIdentity}\0${venueNoun}\0${question}`)
     .digest("hex");
-  return `${normaliseVenueName(venueName)}::${qHash}`;
+  return `${venueIdentity || normaliseVenueName(venueName)}::${qHash}`;
 }
 
 export async function answerHeritage(input: {
@@ -280,11 +351,18 @@ export async function answerHeritage(input: {
   venueName: string;
   venueKind?: VenueKind;
   question: string;
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
   const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
-  const key = useLlm
-    ? cacheKey(input.venueName, input.question, venueNoun)
+  const venueResolution = input.overlayVenueResolution ?? (input.venueId
+    ? await resolveHarvestOverlayVenue(input.venueId)
+    : null);
+  const venueIdentity = venueResolution?.status === "resolved"
+    ? venueResolution.venueIds.join(",")
+    : input.venueId ?? "";
+  const key = useLlm && venueResolution?.status !== "unavailable"
+    ? cacheKey(input.venueName, input.question, venueNoun, venueIdentity)
     : null;
 
   if (key) {
@@ -293,14 +371,20 @@ export async function answerHeritage(input: {
     if (hit) answerCache.delete(key); // expired — prune on read
   }
 
-  const facts = await retrieveHeritage(input);
+  const heritageRead = await retrieveHeritageWithStatus({
+    ...input,
+    overlayVenueResolution: venueResolution ?? undefined,
+  });
+  const facts = heritageRead.facts;
   const citations = dedupeCitations(facts);
 
   if (useLlm && key) {
     const modelAnswer = await answerWithModel(input.question, facts, venueNoun);
     if (modelAnswer) {
       const response: HeritageResponse = { answer: modelAnswer, citations };
-      setAnswerCache(key, { at: Date.now(), response });
+      if (heritageRead.status === "ready") {
+        setAnswerCache(key, { at: Date.now(), response });
+      }
       return response;
     }
     // else: fall through to the honest structured answer (not cached — cheap).

@@ -1,4 +1,4 @@
-import { firstHttp } from "@/lib/httpUrl";
+import { firstHttp, firstHttps } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 
 /**
@@ -86,8 +86,8 @@ export function resolveBookingAction(input: BookingCandidateInput): BookingResol
   }
 
   const site =
-    firstHttp(input.websiteUrl) ||
-    originOf(firstHttp(input.menuUrl)) ||
+    firstHttps(input.websiteUrl) ||
+    originOf(firstHttps(input.menuUrl)) ||
     originOf(firstHttp(input.bookingUrl));
   if (site) {
     return { href: site, label: BOOKING_LABELS.site, tier: "site" };
@@ -137,7 +137,7 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
   // Curated menuUrl always wins as "Look at the menu". Otherwise, when the
   // venue serves food, the homepage is an honest menu/site link-out; without
   // food, label the website for its venue kind.
-  const curatedMenu = firstHttp(venue.menuUrl);
+  const curatedMenu = firstHttps(venue.menuUrl);
   if (curatedMenu) {
     actions.push({
       kind: "menu",
@@ -145,7 +145,7 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
       href: curatedMenu,
     });
   } else if (venue.amenities.food) {
-    const menuHref = firstHttp(venue.website);
+    const menuHref = firstHttps(venue.website);
     if (menuHref) {
       actions.push({
         kind: "menu",
@@ -154,7 +154,7 @@ export function venueExternalActions(venue: Venue): VenueExternalAction[] {
       });
     }
   } else {
-    const website = firstHttp(venue.website);
+    const website = firstHttps(venue.website);
     if (website) {
       actions.push({
         kind: "website",

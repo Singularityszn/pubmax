@@ -6,8 +6,14 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, venueOsmIds } from "@/lib/venueIndex";
+import {
+  lookupCanonicalVenueWithOsm,
+  resetVenueOsmIndexForTests,
+} from "@/lib/venueIndexOsm";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
+import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { enrichVenueForDetail } from "@/lib/venueMenuEnrichment";
 import { groupVenuePrices, type Venue, type VenuePrice } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -71,7 +77,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
-const cachedDetails = new Map<string, Venue>();
+const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
 const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
@@ -256,7 +262,33 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   if (aliasResult.status === "unavailable") return aliasResult;
   const id = aliasResult.venueId;
   const cached = cachedDetails.get(id);
-  if (cached) return { status: "found", venue: cached };
+  if (cached) {
+    try {
+      let overlayVenueIds = cached.overlayVenueIds;
+      if (!overlayVenueIds) {
+        const osmLookup = await lookupCanonicalVenueWithOsm(id);
+        if (osmLookup.status === "found") {
+          overlayVenueIds = venueOsmIds(osmLookup.venue);
+          cached.overlayVenueIds = overlayVenueIds;
+        }
+      }
+      if (!overlayVenueIds?.length) return { status: "found", venue: cached.venue };
+      const reads = await Promise.all(
+        overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+      );
+      if (reads.some((read) => read.status === "degraded")) {
+        return { status: "found", venue: cached.venue };
+      }
+      const venue = reads.reduce(
+        (current, read) =>
+          read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
+        cached.venue,
+      );
+      return { status: "found", venue };
+    } catch {
+      return { status: "found", venue: cached.venue };
+    }
+  }
 
   const venueLookup = await lookupCanonicalVenue(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
@@ -279,10 +311,29 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    cachedDetails.set(id, enriched);
-    return { status: "found", venue: enriched };
+    let overlayVenueIds: string[] | undefined;
+    try {
+      const osmLookup = await lookupCanonicalVenueWithOsm(id);
+      if (osmLookup.status === "found") {
+        overlayVenueIds = venueOsmIds(osmLookup.venue);
+      }
+    } catch {
+      overlayVenueIds = undefined;
+    }
+    cachedDetails.set(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
+    if (!overlayVenueIds?.length) return { status: "found", venue: enriched };
+    const reads = await Promise.all(
+      overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+    );
+    if (reads.some((read) => read.status === "degraded")) return { status: "found", venue: enriched };
+    const venue = reads.reduce(
+      (current, read) =>
+        read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
+      enriched,
+    );
+    return { status: "found", venue };
   } catch {
-    return { status: "unavailable" };
+    return { status: "found", venue };
   }
 }
 
@@ -299,6 +350,7 @@ export function resetVenueDetailCachesForTests(): void {
   detailRowsFile = DEFAULT_DETAIL_ROWS_FILE;
   fallbackIndex = null;
   manifestReadAttemptsForTests = 0;
+  resetVenueOsmIndexForTests();
 }
 
 /** Clear venue entries only — leaves manifest cache as-is (for sticky-failure tests). */

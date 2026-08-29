@@ -6,10 +6,16 @@ import {
   buildVenueIndex,
   getVenueIndex,
   lookupCanonicalVenue,
+  readCityVenueIndex,
   resetVenueIndexForTests,
   venueMapUrl,
   type VenueRef,
 } from "@/lib/venueIndex";
+import {
+  lookupCanonicalVenueWithOsm,
+  resetVenueOsmIndexForTests,
+} from "@/lib/venueIndexOsm";
+import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
 import type { Venue } from "@/lib/venues";
 
 // buildVenueIndex only reads id/name/primaryBorough/latitude/longitude, so a
@@ -29,11 +35,13 @@ function v(over: Partial<Venue> & { id: string; name: string }): Venue {
 
 beforeEach(() => {
   resetVenueIndexForTests();
+  resetVenueOsmIndexForTests();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
   resetVenueIndexForTests();
+  resetVenueOsmIndexForTests();
 });
 
 describe("buildVenueIndex", () => {
@@ -54,11 +62,39 @@ describe("buildVenueIndex", () => {
 });
 
 describe("getVenueIndex", () => {
+  it("does not cache a malformed top-level slim index as empty", async () => {
+    const readFile = vi.spyOn(fs, "readFile");
+    let malformed = true;
+    readFile.mockImplementation(async () =>
+      malformed
+        ? JSON.stringify({ venues: [] })
+        : JSON.stringify([
+            {
+              id: "venue-retry",
+              name: "The Retry Arms",
+              borough: "Camden",
+              lat: 51.52,
+              lng: -0.14,
+            },
+          ]),
+    );
+
+    const city = { id: "test", slimVenuesPath: "/data/test/venues_slim.json" };
+    expect(await readCityVenueIndex(city)).toBeNull();
+
+    malformed = false;
+    expect(await readCityVenueIndex(city)).toEqual(expect.any(Map));
+    expect((await readCityVenueIndex(city))?.get("venue-retry")).toMatchObject({
+      venue: { name: "The Retry Arms", borough: "Camden" },
+    });
+  });
+
   it("does not cache an empty index when every city pack fails", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     let failAll = true;
-    readFile.mockImplementation(async () => {
+    readFile.mockImplementation(async (file) => {
       if (failAll) throw new Error("missing index");
+      if (String(file).endsWith("osm_pubs.json")) return JSON.stringify({ pubs: [] });
       return JSON.stringify([
         {
           id: "venue-retry",
@@ -81,11 +117,11 @@ describe("getVenueIndex", () => {
     expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("keeps other cities when one city pack is missing and retries only that city", async () => {
+  it("keeps other cities when one slim pack is missing and retries only that city", async () => {
     const realRead = fs.readFile.bind(fs);
     let failManchester = true;
     const readFile = vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
-      if (failManchester && String(file).includes("cities/manchester/")) {
+      if (failManchester && String(file).endsWith("cities/manchester/venues_slim.json")) {
         throw new Error("missing manchester pack");
       }
       return realRead(file, ...(args as [BufferEncoding]));
@@ -126,32 +162,112 @@ describe("getVenueIndex", () => {
       name: "Turf Tavern",
       borough: "Oxford",
     });
-    expect(index.get("venue-mcr-1lwo5lo")).toMatchObject({
-      name: "Peveril of the Peak",
-      borough: "Manchester",
-    });
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
   });
-});
 
-describe("lookupCanonicalVenue", () => {
-  it("distinguishes an unavailable city pack from an unknown venue", async () => {
+  it("resolves outer London OSM ownership to its curated venue", async () => {
+    expect(await lookupCanonicalVenueWithOsm("venue-1fgvf4p")).toMatchObject({
+      status: "found",
+      canonicalId: "venue-1fgvf4p",
+      venue: { osmId: "way/270582394" },
+    });
+  });
+
+  it("retains every OSM identity owned by one curated venue", async () => {
+    expect(await lookupCanonicalVenueWithOsm("venue-1ha28jc")).toMatchObject({
+      status: "found",
+      venue: {
+        osmId: "node/13235500301",
+        osmIds: ["node/13235500301", "way/556177108"],
+      },
+    });
+  });
+
+  it("retries a city when its OSM identity pack has a transient failure", async () => {
     const realRead = fs.readFile.bind(fs);
-    let failManchester = true;
+    let failOxfordOsm = true;
     vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
-      if (failManchester && String(file).includes("cities/manchester/")) {
-        throw new Error("missing manchester pack");
+      if (failOxfordOsm && String(file).endsWith("cities/oxford/osm_pubs.json")) {
+        throw new Error("missing Oxford OSM pack");
       }
       return realRead(file, ...(args as [BufferEncoding]));
     });
 
-    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toEqual({
+    expect(await lookupCanonicalVenueWithOsm("venue-oxf-16404bl")).toEqual({
+      status: "unavailable",
+      canonicalId: "venue-oxf-16404bl",
+    });
+
+    failOxfordOsm = false;
+    expect(await lookupCanonicalVenueWithOsm("venue-oxf-16404bl")).toMatchObject({
+      status: "found",
+      venue: { osmId: "way/97822057" },
+    });
+  });
+
+  it("skips malformed OSM rows without aborting city enrichment", async () => {
+    const pub = {
+      name: "Fixture Arms",
+      address: "1 Test Street",
+      lat: 53.48,
+      lng: -2.24,
+    };
+    const venueId = cityVenueIdForPub("manchester", pub);
+    const realRead = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      const filename = String(file);
+      if (filename.endsWith("cities/manchester/venues_slim.json")) {
+        return JSON.stringify([
+          {
+            id: venueId,
+            name: pub.name,
+            borough: "Manchester",
+            lat: pub.lat,
+            lng: pub.lng,
+          },
+        ]);
+      }
+      if (filename.endsWith("cities/manchester/osm_pubs.json")) {
+        return JSON.stringify({
+          pubs: [
+            { ...pub, osmId: { malformed: true } },
+            { ...pub, osmId: "way/123456" },
+          ],
+        });
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    expect(await lookupCanonicalVenueWithOsm(venueId)).toMatchObject({
+      status: "found",
+      venue: { osmId: "way/123456", osmIds: ["way/123456"] },
+    });
+  });
+});
+
+describe("lookupCanonicalVenue", () => {
+  it("keeps base lookup available when OSM enrichment is unavailable", async () => {
+    const realRead = fs.readFile.bind(fs);
+    let failManchesterOsm = true;
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (failManchesterOsm && String(file).endsWith("cities/manchester/osm_pubs.json")) {
+        throw new Error("missing manchester OSM pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toMatchObject({
+      status: "found",
+      canonicalId: "venue-mcr-1lwo5lo",
+      venue: { name: "Peveril of the Peak", borough: "Manchester" },
+    });
+    expect(await lookupCanonicalVenueWithOsm("venue-mcr-1lwo5lo")).toEqual({
       status: "unavailable",
       canonicalId: "venue-mcr-1lwo5lo",
     });
 
-    failManchester = false;
-    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toMatchObject({
+    failManchesterOsm = false;
+    expect(await lookupCanonicalVenueWithOsm("venue-mcr-1lwo5lo")).toMatchObject({
       status: "found",
       canonicalId: "venue-mcr-1lwo5lo",
       venue: { name: "Peveril of the Peak", borough: "Manchester" },

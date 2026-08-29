@@ -40,14 +40,8 @@ import {
 } from "./lib/ukBaseGrid.mjs";
 import { publishStagedDirectory } from "./lib/atomicDirectoryPublish.mjs";
 import { cityVenueIdForPub } from "./build_city_slim_index.mjs";
+import { outerLondonOwnerForPub } from "../lib/outerLondonOwnership.mjs";
 import { CITIES } from "./fetch_city_osm_pubs.mjs";
-import {
-  haversineMeters,
-  namesLikelySamePub,
-  normalizeVenueIdentityName,
-  stableVenueIdFromKey,
-  venueGroupingKey,
-} from "./lib/venueCanonicalization.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -55,7 +49,6 @@ const PACK_PATH = path.join(ROOT, "data", "osm", "uk", "uk_osm_pubs.json");
 const OUT_DIR = path.join(ROOT, "public", "data", SHARD_DIR_NAME);
 const LONDON_SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 const OUTER_LONDON_PATH = path.join(ROOT, "data", "osm", "outer_london_osm_pubs.json");
-const CURATED_MATCH_RADIUS_M = 150;
 
 // Per-shard ceiling. A cell is one viewport-triggered fetch, so a fat cell is
 // felt directly as a stall while panning. The densest cell today (central
@@ -120,7 +113,6 @@ async function loadCuratedVenueOwners() {
     : Array.isArray(londonSlim?.rows)
       ? londonSlim.rows
       : [];
-  const londonIds = new Set(londonVenues.map((venue) => venue.id));
 
   for (const venue of londonVenues) {
     owners.set(ownerKey("curated-london-slim", venue.id), venue.id);
@@ -128,33 +120,7 @@ async function loadCuratedVenueOwners() {
 
   const outerPack = JSON.parse(await readFile(OUTER_LONDON_PATH, "utf8"));
   for (const pub of Array.isArray(outerPack?.pubs) ? outerPack.pubs : []) {
-    const exactId = stableVenueIdFromKey(
-      venueGroupingKey({
-        pub_name: pub.name,
-        address: pub.address ?? "",
-        latitude: pub.lat,
-        longitude: pub.lng,
-      }),
-    );
-    let venueId = londonIds.has(exactId) ? exactId : "";
-    if (!venueId) {
-      const normalizedName = normalizeVenueIdentityName(pub.name);
-      let bestDistance = Infinity;
-      for (const venue of londonVenues) {
-        const distance = haversineMeters(pub.lat, pub.lng, venue.lat, venue.lng);
-        if (distance > CURATED_MATCH_RADIUS_M || distance >= bestDistance) continue;
-        if (
-          !namesLikelySamePub(
-            normalizedName,
-            normalizeVenueIdentityName(venue.name),
-          )
-        ) {
-          continue;
-        }
-        venueId = venue.id;
-        bestDistance = distance;
-      }
-    }
+    const venueId = outerLondonOwnerForPub(pub, londonVenues) ?? "";
     if (venueId) {
       owners.set(ownerKey("outer-london-osm-seed", pub.osmId), venueId);
     }

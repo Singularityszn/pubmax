@@ -12,10 +12,16 @@ import { POST } from "@/app/api/heritage/route";
 import {
   answerHeritage,
   retrieveHeritage,
+  storedFactSource,
   __resetHeritageCache,
   __heritageCacheSizeForTests,
   __HERITAGE_CACHE_MAX_FOR_TESTS,
 } from "@/lib/heritage";
+import { parseOverlayRow } from "@/lib/harvestFold";
+import {
+  __resetHarvestOverlayStore,
+  harvestOverlayStore,
+} from "@/lib/harvestOverlayStore";
 
 // These tests run fully offline: no OPENROUTER key, no Supabase, no network.
 // They pin two guarantees:
@@ -29,6 +35,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetHeritageCache();
+  __resetHarvestOverlayStore();
 });
 
 // A malicious client trying to forge "sourced" pub history via a context object
@@ -50,6 +57,12 @@ function post(body: unknown): Promise<Response> {
 const SOURCED_SOURCES = new Set(["osm", "wikidata", "wikipedia", "seed"]);
 
 describe("retrieveHeritage — trust boundary", () => {
+  it("rejects unknown stored source labels instead of relabelling them", () => {
+    expect(storedFactSource("webbing")).toBeNull();
+    expect(storedFactSource("web ")).toBeNull();
+    expect(storedFactSource("seed")).toBe("seed");
+  });
+
   it("ignores a forged client context entirely (context is no longer accepted)", async () => {
     const facts = await retrieveHeritage({
       // "Nowhere Tavern" has no server facts, so with context ignored there are none.
@@ -74,6 +87,106 @@ describe("retrieveHeritage — trust boundary", () => {
     // The shipped seed/wikipedia cache facts are present and trusted.
     expect(sourced.some((f) => f.source === "seed")).toBe(true);
     expect(facts.some((f) => f.fact.includes("Grade II* listed"))).toBe(true);
+  });
+
+  it("does not combine caller name facts with an OSM-specific request", async () => {
+    const facts = await retrieveHeritage({
+      venueId: "node/123",
+      venueName: "Prospect of Whitby",
+    });
+
+    expect(facts.some((fact) => fact.fact.includes("Grade II* listed"))).toBe(false);
+    expect(facts.some((fact) => fact.fact.includes("1520"))).toBe(false);
+  });
+
+  it("uses the resolved venue name for legacy facts", async () => {
+    const facts = await retrieveHeritage({
+      venueId: "venue-16pnwmm",
+      venueName: "Nowhere Tavern",
+    });
+
+    expect(facts.some((fact) => fact.fact.includes("1520"))).toBe(true);
+  });
+
+  it("attaches cited harvest lore by OSM venue id, never by pub name", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        website: "https://redlion.example/",
+        matchedLore: {
+          text: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+          citations: ["https://history.example/red-lion-clapham"],
+        },
+        sources: ["https://redlion.example/"],
+      }),
+    ]);
+    const byId = await retrieveHeritage({
+      venueId: "venue-uk-n123",
+      venueName: "Nowhere Tavern",
+    });
+    expect(byId.some((f) => f.source === "web")).toBe(true);
+    expect(byId.some((f) => f.sourceRef === "https://history.example/red-lion-clapham")).toBe(
+      true,
+    );
+
+    const byName = await retrieveHeritage({ venueName: "The Red Lion" });
+    expect(byName.some((f) => f.source === "web")).toBe(false);
+  });
+
+  it("resolves salted city venue ids before reading harvest lore", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "way/100646638",
+        name: "Peveril of the Peak",
+        town: "Manchester",
+        matchedLore: {
+          text: "Peveril of the Peak in Manchester has a long history.",
+          citations: ["https://history.example/peveril"],
+        },
+        sources: ["https://history.example/peveril"],
+      }),
+    ]);
+    const facts = await retrieveHeritage({
+      venueId: "venue-mcr-1lwo5lo",
+      venueName: "Peveril of the Peak",
+    });
+    expect(facts.some((fact) => fact.source === "web")).toBe(true);
+  });
+
+  it("reads lore from every OSM object owned by one curated venue", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/13235500301",
+        name: "The Grenadier",
+        town: "London",
+        matchedLore: {
+          text: "The Grenadier in London has a story about its first mapped object.",
+          citations: ["https://history.example/grenadier-node"],
+        },
+        sources: ["https://history.example/grenadier-node"],
+      }),
+      parseOverlayRow({
+        osmId: "way/556177108",
+        name: "The Grenadier",
+        town: "London",
+        matchedLore: {
+          text: "The Grenadier in London has a story about its second mapped object.",
+          citations: ["https://history.example/grenadier-way"],
+        },
+        sources: ["https://history.example/grenadier-way"],
+      }),
+    ]);
+
+    const facts = await retrieveHeritage({
+      venueId: "venue-1ha28jc",
+      venueName: "The Grenadier",
+    });
+    expect(facts.filter((fact) => fact.source === "web").map((fact) => fact.sourceRef)).toEqual([
+      "https://history.example/grenadier-node",
+      "https://history.example/grenadier-way",
+    ]);
   });
 });
 
@@ -320,6 +433,46 @@ describe("The Landlord LLM bounds (mocked OpenRouter)", () => {
 
     expect(a.answer).toBe("Whitby answer.");
     expect(b.answer).not.toBe(a.answer); // distinct key → distinct answer
+  });
+
+  it("separates cached answers by canonical OSM venue identity", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        matchedLore: {
+          text: "The Red Lion in Clapham has stood here for centuries.",
+          citations: ["https://history.example/red-lion-a"],
+        },
+        sources: ["https://history.example/red-lion-a"],
+      }),
+      parseOverlayRow({
+        osmId: "node/456",
+        name: "The Red Lion",
+        town: "Clapham",
+        matchedLore: {
+          text: "The Red Lion in Clapham was rebuilt after a fire.",
+          citations: ["https://history.example/red-lion-b"],
+        },
+        sources: ["https://history.example/red-lion-b"],
+      }),
+    ]);
+    const fetchMock = vi.fn(async () => okResponse("Distinct answer."));
+    global.fetch = fetchMock as unknown as typeof fetch;
+
+    await answerHeritage({
+      venueId: "node/123",
+      venueName: "The Red Lion",
+      question: "What is its story?",
+    });
+    await answerHeritage({
+      venueId: "node/456",
+      venueName: "The Red Lion",
+      question: "What is its story?",
+    });
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });
 

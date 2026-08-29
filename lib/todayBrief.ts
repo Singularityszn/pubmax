@@ -24,7 +24,11 @@ import {
 } from "@/lib/drinkWeather";
 import { DAY_MS } from "@/lib/dayMs";
 import { haversineKm } from "@/lib/haversine";
-import { sanitizeHeritageFacts, type HeritageFact } from "@/lib/heritageFacts";
+import {
+  isFeaturedHeritageSource,
+  sanitizeHeritageFacts,
+  type HeritageFact,
+} from "@/lib/heritageFacts";
 import { firstHttp } from "@/lib/httpUrl";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import { PROVENANCE_LABEL } from "@/lib/provenanceLabels";
@@ -360,7 +364,9 @@ export function pickPubOfTheDayFact(cache: unknown, now: Date): TodayFact | null
   const entries: { name: string; fact: HeritageFact }[] = [];
   for (const [name, rawFacts] of Object.entries(cache as Record<string, unknown>)) {
     if (typeof name !== "string" || name.trim().length === 0) continue;
-    const sourced = sanitizeHeritageFacts(rawFacts).filter((fact) => fact.source !== "seed");
+    const sourced = sanitizeHeritageFacts(rawFacts).filter((fact) =>
+      isFeaturedHeritageSource(fact.source),
+    );
     if (sourced.length === 0) continue;
     // Closed/former pubs are ineligible — check the name and every sourced fact,
     // not just the surfaced one, so a pub known to be gone never headlines.

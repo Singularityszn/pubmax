@@ -243,6 +243,13 @@ describe("venueExternalActions", () => {
     ).toEqual(["book"]);
   });
 
+  it("rejects http website and menu CTAs", () => {
+    const actions = venueExternalActions(
+      venue({ website: "http://pub.example/", menuUrl: "http://pub.example/menu" }),
+    );
+    expect(actions.map((action) => action.kind)).toEqual(["book"]);
+  });
+
   it("does not invent a menu action when food is flagged but website is empty", () => {
     expect(
       venueExternalActions(

@@ -99,6 +99,27 @@ describe("buildQuietPint", () => {
     expect(mod!.rows).toHaveLength(4);
   });
 
+  it("skips candidates whose only fact is harvest web lore", () => {
+    const webOnly = candidate({
+      venueId: "venue-web",
+      slug: "web",
+      listed: "I",
+      facts: [
+        {
+          source: "web",
+          fact: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+          sourceRef: "https://history.example/red-lion-clapham",
+        },
+      ],
+    });
+    const mod = buildQuietPint({
+      candidates: [webOnly, ...CANDIDATES],
+      priceById: PRICES,
+      now: QUIET_TUESDAY,
+    });
+    expect(mod!.rows.map((r) => r.id)).not.toContain("venue-web");
+  });
+
   it("surfaces the cited heritage line, the Sourced chip, the source, and the map link", () => {
     const mod = buildQuietPint({ candidates: CANDIDATES, priceById: PRICES, now: QUIET_TUESDAY });
     const top = mod!.rows[0];

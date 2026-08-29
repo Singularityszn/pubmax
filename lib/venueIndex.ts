@@ -31,7 +31,13 @@ export type VenueRef = {
   lat: number;
   lng: number;
   kind?: VenueKind;
+  osmId?: string;
+  osmIds?: string[];
 };
+
+export function venueOsmIds(venue: VenueRef): string[] {
+  return [...new Set(venue.osmIds?.length ? venue.osmIds : venue.osmId ? [venue.osmId] : [])];
+}
 
 export type CanonicalVenueLookup =
   | {
@@ -54,7 +60,7 @@ type SlimRow = {
   [key: string]: unknown;
 };
 
-type IndexedVenue = {
+export type IndexedVenue = {
   venue: VenueRef;
   slimVenue: SlimVenue;
 };
@@ -157,23 +163,25 @@ function publicDataPath(publicPath: string): string {
 async function readSlimIndex(
   publicPath: string,
 ): Promise<Map<string, IndexedVenue>> {
-  const payload = JSON.parse(
+  const payload: unknown = JSON.parse(
     await fs.readFile(
       /* turbopackIgnore: true */ publicDataPath(publicPath),
       "utf8",
     ),
-  ) as unknown;
+  );
   const rows = Array.isArray(payload)
     ? payload
     : payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown }).rows)
       ? (payload as { rows: unknown[] }).rows
-      : [];
+      : null;
+  if (!rows) throw new Error("Slim venue index must be an array or rows object.");
   return buildVenueIndexFromSlim(rows as SlimRow[]);
 }
 
-async function getCityVenueIndex(
-  publicPath: string,
+export async function readCityVenueIndex(
+  city: { id: string; slimVenuesPath: string },
 ): Promise<Map<string, IndexedVenue> | null> {
+  const publicPath = city.slimVenuesPath;
   const existing = cityCache.get(publicPath);
   if (existing) return existing;
   try {
@@ -211,7 +219,7 @@ export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   let allLoaded = true;
   const loadedCities = new Set<CityId>();
   for (const city of cities) {
-    if (await getCityVenueIndex(city.slimVenuesPath)) loadedCities.add(city.id);
+    if (await readCityVenueIndex(city)) loadedCities.add(city.id);
     else allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
@@ -226,7 +234,12 @@ export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   return { index, loadedCities, complete: allLoaded };
 }
 
-export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+export async function lookupCanonicalVenueFromIndex(
+  id: string,
+  loadIndex: (
+    city: { id: string; slimVenuesPath: string },
+  ) => Promise<Map<string, IndexedVenue> | null>,
+): Promise<CanonicalVenueLookup> {
   const canonicalId = await resolveCanonicalVenueId(id);
   const cityPrefix = venueCityPrefix(canonicalId);
   const cityId = cityIdFromVenueId(canonicalId);
@@ -237,7 +250,7 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   if (!city.enabled) {
     return { status: "unknown", canonicalId };
   }
-  const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+  const cityIndex = await loadIndex(city);
   if (!cityIndex) {
     return { status: "unavailable", canonicalId };
   }
@@ -247,15 +260,14 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
     : { status: "unknown", canonicalId };
 }
 
+export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+  return lookupCanonicalVenueFromIndex(id, readCityVenueIndex);
+}
+
 export async function resolveVenue(id: string): Promise<VenueRef | null> {
   if (!id) return null;
-  const index = await getVenueIndex();
-  const direct = index.get(id);
-  if (direct) return direct;
-  // Fall back to the D1 alias map so a reference to a merged duplicate id still
-  // resolves to the surviving canonical venue.
-  const canonical = await resolveCanonicalVenueId(id);
-  return canonical === id ? null : index.get(canonical) ?? null;
+  const lookup = await lookupCanonicalVenue(id);
+  return lookup.status === "found" ? lookup.venue : null;
 }
 
 /**
@@ -281,7 +293,7 @@ export async function resolveVenuePermalinkSlug(
   }[] = [];
   const candidateById = new Map<string, (typeof candidates)[number]>();
   for (const city of cities) {
-    const cityIndex = await getCityVenueIndex(city.slimVenuesPath);
+    const cityIndex = await readCityVenueIndex(city);
     if (!cityIndex) continue;
     for (const { slimVenue } of cityIndex.values()) {
       const row = {

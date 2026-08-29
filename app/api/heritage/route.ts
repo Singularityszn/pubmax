@@ -4,11 +4,15 @@
 
 import { apiError, publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { answerHeritage, NO_STORY_LINE, retrieveHeritage } from "@/lib/heritage";
+import {
+  answerHeritage,
+  NO_STORY_LINE,
+  retrieveHeritageWithStatus,
+} from "@/lib/heritage";
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { resolveVenue } from "@/lib/venueIndex";
+import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 
 // Heritage does not require Supabase durability, but production still needs
 // ADMIN_TOKEN / RATE_LIMIT_SALT so the durable limiter salt is real.
@@ -70,13 +74,20 @@ export async function POST(request: Request): Promise<Response> {
     // reconstructed server-side (heritage cache + pub_heritage) so a client
     // cannot forge pub history.
     const venueId = typeof record.venueId === "string" ? record.venueId : undefined;
-    const resolvedVenue = venueId ? await resolveVenue(venueId) : null;
+    const overlayVenueResolution = venueId
+      ? await resolveHarvestOverlayVenue(venueId)
+      : undefined;
+    const resolvedVenue =
+      overlayVenueResolution?.status === "resolved"
+        ? overlayVenueResolution.venue
+        : null;
 
     const response = await answerHeritage({
       venueId: resolvedVenue?.id ?? venueId,
       venueName: resolvedVenue?.name ?? venueName,
       venueKind: resolvedVenue?.kind,
       question,
+      overlayVenueResolution,
     });
     return jsonNoStore(response, { status: 200 });
   } catch {
@@ -89,13 +100,13 @@ export async function POST(request: Request): Promise<Response> {
 //
 // Read-only cited heritage facts for passive display on the venue sheet.
 // Same trust boundary as POST: facts are reconstructed SERVER-SIDE only
-// (heritage_cache.json + Supabase `pub_heritage`), keyed by normalised venue
-// name. No client-supplied fact is ever accepted — the response carries only
-// what's on record, and an empty array when there is nothing (never invented).
+// (heritage_cache.json + Supabase `pub_heritage` + harvest overlay lore keyed
+// by OSM id). No client-supplied fact is ever accepted — a ready response
+// carries only what's on record, and an empty array when there is nothing.
 //
 // No rate limit here (unlike POST, which fronts paid OpenRouter spend): this is
 // a light internal read of local/Supabase data, and the short public/CDN cache
-// above already absorbs repeat traffic.
+// above absorbs repeat traffic for ready reads.
 export async function GET(request: Request): Promise<Response> {
   try {
     const params = new URL(request.url).searchParams;
@@ -108,9 +119,12 @@ export async function GET(request: Request): Promise<Response> {
     const venueName = rawVenueName.slice(0, MAX_VENUE_NAME_LEN);
     const venueId = params.get("venueId")?.trim() || undefined;
 
-    const facts = await retrieveHeritage({ venueId, venueName });
+    const result = await retrieveHeritageWithStatus({ venueId, venueName });
+    if (result.status === "degraded") {
+      return jsonNoStore({ facts: result.facts }, { status: 200 });
+    }
     return Response.json(
-      { facts },
+      { facts: result.facts },
       { headers: { "Cache-Control": HERITAGE_FACTS_CACHE_CONTROL } },
     );
   } catch {

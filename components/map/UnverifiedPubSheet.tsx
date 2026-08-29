@@ -1,6 +1,7 @@
 "use client";
 
-import { MapPin, Sparkles } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
@@ -18,6 +19,8 @@ import {
 } from "@/lib/communityPrice";
 import { DEFAULT_DRINK_LANE } from "@/lib/drinkLanes";
 import type { DrinkCategory } from "@/lib/drinks";
+import { parsePublicOverlay, type PublicHarvestOverlay } from "@/lib/harvestFold";
+import { discardBody } from "@/lib/responseBody";
 import type { UkBasePub } from "@/lib/ukBasePubs";
 import { COMMUNITY_PRICE_NOTE, formatPrice } from "@/lib/venues";
 import {
@@ -46,6 +49,43 @@ type UnverifiedPubSheetProps = {
   drinkLensCategory?: DrinkCategory | null;
 };
 
+export function HarvestOverlayFields({ overlay }: { overlay: PublicHarvestOverlay }) {
+  const hasLinks = Boolean(overlay.website || overlay.menuUrl);
+  if (!hasLinks && !overlay.lore) return null;
+  return (
+    <div className="unverifiedPubOverlay">
+      {hasLinks ? (
+        <div className="unverifiedPubActions">
+          {overlay.website ? (
+            <a href={overlay.website} target="_blank" rel="noopener noreferrer">
+              Pub website
+              <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          ) : null}
+          {overlay.menuUrl ? (
+            <a href={overlay.menuUrl} target="_blank" rel="noopener noreferrer">
+              Look at the menu
+              <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          ) : null}
+        </div>
+      ) : null}
+      {overlay.lore ? (
+        <div className="unverifiedPubLore">
+          <p>{overlay.lore.fact}</p>
+          <div className="unverifiedPubLoreMeta">
+            <span>Web</span>
+            <a href={overlay.lore.sourceRef} target="_blank" rel="noopener noreferrer">
+              Source
+              <ExternalLink size={13} aria-hidden="true" />
+            </a>
+          </div>
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 export default function UnverifiedPubSheet({
   pub,
   communityPrices,
@@ -53,6 +93,7 @@ export default function UnverifiedPubSheet({
   drinkLensCategory = null,
 }: UnverifiedPubSheetProps) {
   const { user, loading: authLoading, configured: authConfigured } = useAuth();
+  const [overlay, setOverlay] = useState<PublicHarvestOverlay | null>(null);
   const readStatus = communityPrices.venuePriceStatus.get(pub.id) ?? "idle";
   const pricesKnown = readStatus === "ready";
   const readFailed = readStatus === "degraded";
@@ -76,6 +117,34 @@ export default function UnverifiedPubSheet({
   const drinkLensNoun = drinkLensCategory
     ? drinkLensPriceNoun(drinkLensCategory)
     : null;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    void Promise.resolve().then(() => {
+      if (!controller.signal.aborted) setOverlay(null);
+    });
+    (async () => {
+      try {
+        const res = await fetch(
+          `/api/harvest-overlay?venueId=${encodeURIComponent(pub.id)}`,
+          { signal: controller.signal, headers: { accept: "application/json" } },
+        );
+        if (!res.ok) {
+          discardBody(res);
+          return;
+        }
+        const body = (await res.json()) as { overlay?: unknown };
+        const parsed = parsePublicOverlay(body.overlay);
+        if (!parsed) return;
+        void Promise.resolve().then(() => {
+          if (!controller.signal.aborted) setOverlay(parsed);
+        });
+      } catch {
+        /* fail-soft: overlay unknown */
+      }
+    })();
+    return () => controller.abort();
+  }, [pub.id]);
 
   return (
     <div className="unverifiedPub">
@@ -150,6 +219,8 @@ export default function UnverifiedPubSheet({
           tonight&rsquo;s price below.
         </p>
       ) : null}
+
+      {overlay ? <HarvestOverlayFields overlay={overlay} /> : null}
 
       <VenuePriceEntryPanel
         key={pub.id}

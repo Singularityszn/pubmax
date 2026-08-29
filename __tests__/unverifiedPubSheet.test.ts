@@ -2,7 +2,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import UnverifiedPubSheet from "@/components/map/UnverifiedPubSheet";
+import UnverifiedPubSheet, { HarvestOverlayFields } from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { CommunityPrice } from "@/lib/communityPrice";
 import type {
@@ -274,5 +274,34 @@ describe("UnverifiedPubSheet", () => {
 
     expect(html).toContain("No price yet");
     expect(html).toContain("Nobody has logged");
+  });
+
+  it("does not claim overlay absence on first paint", () => {
+    const html = renderSheet([]);
+    expect(html).not.toContain("Pub website");
+    expect(html).not.toContain("Look at the menu");
+    expect(html).not.toContain("no history");
+  });
+
+  it("prints https website, menu, and cited lore only", () => {
+    const html = renderToStaticMarkup(
+      createElement(HarvestOverlayFields, {
+        overlay: {
+          website: "https://redlion.example/",
+          menuUrl: "https://redlion.example/menu",
+          lore: {
+            source: "web",
+            fact: "The Red Lion in Clapham has stood on the common since the eighteenth century.",
+            sourceRef: "https://history.example/red-lion-clapham",
+          },
+        },
+      }),
+    );
+    expect(html).toContain("https://redlion.example/");
+    expect(html).toContain("Pub website");
+    expect(html).toContain("Look at the menu");
+    expect(html).toContain("The Red Lion in Clapham");
+    expect(html).toContain("https://history.example/red-lion-clapham");
+    expect(html).not.toMatch(/href="http:\/\//);
   });
 });

@@ -4,7 +4,7 @@ import {
   type Drink,
   type DrinkCategory,
 } from "@/lib/drinks";
-import { firstHttp } from "@/lib/httpUrl";
+import { firstHttps } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import { venueExternalActions } from "@/lib/venueExternalActions";
@@ -63,7 +63,7 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
 
   const external = venueExternalActions(venue);
   const menuOrSite = external.find((a) => a.kind === "menu" || a.kind === "website");
-  const defaultFoodHref = firstHttp(venue.menuUrl, menuOrSite?.href);
+  const defaultFoodHref = firstHttps(venue.menuUrl, menuOrSite?.href);
 
   if (
     venue.categoryTiles &&
@@ -71,7 +71,7 @@ export function menuHubTiles(venue: Venue, drinks: Drink[]): MenuHubTile[] {
     (venue.amenities.food || venue.menuUrl)
   ) {
     for (const tile of venue.categoryTiles) {
-      const href = firstHttp(tile.href, venue.menuUrl, menuOrSite?.href);
+      const href = firstHttps(tile.href, venue.menuUrl, menuOrSite?.href);
       if (!href) continue;
       tiles.push({
         id: tile.id,

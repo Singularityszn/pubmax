@@ -119,3 +119,44 @@ node scripts/harvest/uk-pubs/start-bars-when-pubs-done.mjs
 Bars shards go to `data-harvest/bars-enriched/` with their own progress
 file, so they cannot overwrite the pub harvest. Same citation law. Same
 resume design.
+
+## Fold
+
+Fold the completed overlay into the product store. Identity is OSM id,
+never the pub name. Website and menu URLs must be https. Lore folds only
+with a name+town match and https citations, as HeritageFact source
+`web`. Social observations are excluded. Counts must match
+`data/uk-pub-harvest/fold-stats.md` or the command fails.
+
+```bash
+npm run harvest:fold -- --dry-run \
+  --enriched-dir data-harvest/enriched \
+  --bars-enriched-dir data-harvest/bars-enriched \
+  --seed data-harvest/uk_pubs_seed.enriching.jsonl \
+  --bars-seed data-harvest/uk_bars_seed.enriching.jsonl \
+  --stats data/uk-pub-harvest/fold-stats.md
+npm run harvest:fold -- \
+  --enriched-dir data-harvest/enriched \
+  --bars-enriched-dir data-harvest/bars-enriched \
+  --seed data-harvest/uk_pubs_seed.enriching.jsonl \
+  --bars-seed data-harvest/uk_bars_seed.enriching.jsonl \
+  --stats data/uk-pub-harvest/fold-stats.md
+```
+
+The fold reads completed pub and bar `shard_*.jsonl` output plus their frozen
+seed metadata. It derives the overlay in memory, so no converter file is
+required. A prebuilt overlay may still be supplied with `--overlay`. Upserts
+are idempotent on `osm_id`. Malformed rows fail the process.
+
+The fold preserves comma-separated namesake HTTPS observations so the harvest
+observation and fold counts stay aligned. Serving accepts only one HTTPS URL,
+so a concatenated value is omitted from website and menu CTAs. Harvest `web`
+lore is available only in the lazy venue sheet and heritage response; it never
+headlines Today or quiet pint.
+
+Serving: GET `/api/harvest-overlay?venueId=` is the lazy sheet overlay.
+Cited lore also rides GET `/api/heritage` when the venue id maps to an
+OSM object. Neither payload is in pins or `venues_slim.json`.
+
+Migration `0123` (`harvest_venue_overlays`) is shipped, not applied.
+Captain applies.

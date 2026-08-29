@@ -86,6 +86,15 @@ const SOCIAL_HOSTS = new Set([
   "tiktok.com",
   "youtube.com",
   "youtu.be",
+  "linkedin.com",
+  "uk.linkedin.com",
+  "threads.net",
+  "letterboxd.com",
+  "spotify.com",
+  "open.spotify.com",
+  "snapchat.com",
+  "strava.com",
+  "mobile.twitter.com",
 ]);
 
 const SOCIAL_OSM_KEYS = [

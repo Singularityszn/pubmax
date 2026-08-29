@@ -7,7 +7,7 @@ import "server-only";
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 
-import { firstHttp } from "@/lib/httpUrl";
+import { firstHttp, firstHttps } from "@/lib/httpUrl";
 import type { Venue } from "@/lib/venues";
 import { VENUE_MENU_ENRICHMENT_FILE } from "@/lib/venueMenuEnrichmentFile.mjs";
 
@@ -59,7 +59,7 @@ function sanitizeCategoryTiles(
     const id = typeof tile.id === "string" ? tile.id.trim() : "";
     const label = typeof tile.label === "string" ? tile.label.trim() : "";
     if (!id || !label) continue;
-    const href = firstHttp(tile.href) || undefined;
+    const href = firstHttps(tile.href) || undefined;
     const imageUrl = firstHttp(tile.imageUrl) || undefined;
     const hint =
       typeof tile.hint === "string" && tile.hint.trim() ? tile.hint.trim() : undefined;
@@ -121,13 +121,15 @@ export function applyVenueMenuEnrichment(
   if (!record) return venue;
 
   const bookingLink = firstHttp(record.bookingUrl, venue.bookingLink);
-  const menuUrl = firstHttp(record.menuUrl) || undefined;
+  const menuUrl = firstHttps(record.menuUrl, venue.menuUrl) || undefined;
   const orderUrl = firstHttp(record.orderUrl) || undefined;
   const allergyInfoUrl = firstHttp(record.allergyInfoUrl) || undefined;
   const categoryTiles = sanitizeCategoryTiles(record.categoryTiles);
 
+  const next = { ...venue };
+  delete next.menuUrl;
   return {
-    ...venue,
+    ...next,
     bookingLink,
     ...(menuUrl ? { menuUrl } : {}),
     ...(orderUrl ? { orderUrl } : {}),

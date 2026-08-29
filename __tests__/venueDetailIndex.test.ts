@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, promises as fs, readFileSync } from "node:fs";
 import path from "node:path";
 
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
@@ -201,6 +201,21 @@ describe("venueDetailIndex", () => {
         curation: { hasStory: true },
       },
       prices: [],
+    });
+  });
+
+  it("keeps venue detail readable when OSM enrichment is unavailable", async () => {
+    const realRead = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (String(file).endsWith("cities/manchester/osm_pubs.json")) {
+        throw new Error("missing Manchester OSM pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    await expect(getVenueDetail("venue-mcr-1lwo5lo")).resolves.toMatchObject({
+      id: "venue-mcr-1lwo5lo",
+      name: "Peveril of the Peak",
     });
   });
 });
