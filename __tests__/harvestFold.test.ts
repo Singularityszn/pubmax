@@ -167,6 +167,16 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not treat an unrelated biographical locality as venue location", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion is a pub whose founder was born in Clapham.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {
@@ -567,6 +577,26 @@ describe("heritageFactFromOverlay / public overlay", () => {
               kind: "social",
               value: "@redlion",
               sourceUrl: "not-a-url",
+              fetchedAt: "2026-08-28T00:00:00.000Z",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud before excluding social observations with non-https URLs", () => {
+    expect(() =>
+      overlayRowsFromHarvestRecords([
+        {
+          osmId: "node/123",
+          name: "The Red Lion",
+          town: "Clapham",
+          observations: [
+            {
+              kind: "social",
+              value: "http://instagram.com/redlion",
+              sourceUrl: "http://instagram.com/redlion",
               fetchedAt: "2026-08-28T00:00:00.000Z",
             },
           ],

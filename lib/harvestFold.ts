@@ -248,10 +248,19 @@ function containsVenueLocalityRelation(
   const localityPattern = localityTokens
     .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("[^a-z0-9]+");
-  return new RegExp(
-    `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])[^.!?]{0,120}(?:\\b(?:in|of|from|near|at|within)\\b|[,;:/()\\-–])\\s*(?:the\\s+)?${localityPattern}(?=$|[^a-z0-9])`,
-    "i",
-  ).test(sentence);
+  const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])`;
+  const localityBoundary = `${localityPattern}(?=$|[^a-z0-9])`;
+  const direct = `(?:\\b(?:in|near|at|within)\\b\\s+|[,\\-–()]\\s*)${localityBoundary}`;
+  const copula =
+    `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
+    `(?:\\b(?:located|situated|based|standing|stood|sits|lies)\\b\\s+` +
+    `\\b(?:in|near|at|within)\\b\\s+)${localityBoundary}`;
+  const venueType =
+    `\\b(?:is|was|were|has been|had been)\\b\\s+` +
+    `(?:an?\\s+)?(?:[a-z-]+\\s+){0,4}` +
+    `(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\\s+` +
+    `\\b(?:in|near|at|within)\\b\\s+${localityBoundary}`;
+  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${venueType})`, "i").test(sentence);
 }
 
 export function nameTokens(name: string): string[] {
@@ -561,12 +570,12 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       const value = observationValue(observation, "value", line);
       const sourceUrl = observationValue(observation, "sourceUrl", line);
       observationValue(observation, "fetchedAt", line);
+      if (!isHttpsUrl(sourceUrl)) {
+        fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
+      }
       if (isSocialUrl(sourceUrl)) {
         if (kind === "social") continue;
         fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
-      }
-      if (!isHttpsUrl(sourceUrl)) {
-        fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
       }
       if (kind === "social") continue;
       if (kind === "website") {
