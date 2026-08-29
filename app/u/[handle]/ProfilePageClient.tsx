@@ -49,6 +49,7 @@ import { buildPassport } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { discardBody } from "@/lib/responseBody";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import {
   deriveProfileFromDrops,
   handleIsAdoptable,
@@ -249,6 +250,22 @@ export function ProfileClaimOffer({ onClaim }: { onClaim: () => void }) {
   );
 }
 
+type ProfileSocialData = {
+  socialLinks: readonly PublicSocialLink[];
+  counts: FollowCounts | null;
+  following: boolean;
+  followsViewer: boolean;
+};
+
+export function profileSocialDataForLaunch(
+  friendsLaunchEnabled: boolean,
+  data: ProfileSocialData,
+): ProfileSocialData {
+  return friendsLaunchEnabled
+    ? data
+    : { socialLinks: [], counts: null, following: false, followsViewer: false };
+}
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -293,6 +310,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
   const { user, identityResolved, signOut } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -626,18 +644,24 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
         { signal: controller.signal },
         (body) => {
+          const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
+            socialLinks: body.socialLinks ?? [],
+            counts: body.counts ?? null,
+            following: Boolean(body.viewerFollowing),
+            followsViewer: Boolean(body.followsViewer),
+          });
           if (body.status === "gone") {
             setStored(null);
-            setSocialLinks([]);
+            setSocialLinks(socialData.socialLinks);
             setState("gone");
-            setCounts(body.counts ?? null);
+            setCounts(socialData.counts);
             return;
           }
           setStored(body.profile ?? null);
-          setSocialLinks(body.socialLinks ?? []);
-          setCounts(body.counts ?? null);
-          setFollowing(Boolean(body.viewerFollowing));
-          setFollowsViewer(Boolean(body.followsViewer));
+          setSocialLinks(socialData.socialLinks);
+          setCounts(socialData.counts);
+          setFollowing(socialData.following);
+          setFollowsViewer(socialData.followsViewer);
         },
       );
       // What the PUBLIC read managed to say about this handle, kept apart from
@@ -648,13 +672,19 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadProfile();
     return () => controller.abort();
-  }, [routeHandle, viewerHandle]);
+  }, [routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
     deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]),
     stored,
   );
+  const visibleSocialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
+    socialLinks,
+    counts,
+    following,
+    followsViewer,
+  });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
   const isAnonymous = identityResolved && !user && viewerHandle === "";
@@ -825,9 +855,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       {/* The crew-invite loop's entry point: your own add link. Opening it shows
           the share surface (ConfirmFollow's self branch), so a friend can add
           you at the table and you become each other's lot. */}
-      <Link className="profileInviteLink" href={`/add/${encodeURIComponent(routeHandle)}`}>
-        Invite your lot
-      </Link>
+      {socialFriendsLaunchEnabled ? (
+        <Link className="profileInviteLink" href={`/add/${encodeURIComponent(routeHandle)}`}>
+          Invite your lot
+        </Link>
+      ) : null}
       <button
         type="button"
         className="profileEditToggle"
@@ -849,11 +881,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   ) : isYouRoute ? null : (
     <>
       <FollowButton
-        key={`${routeHandle}:${following}:${followsViewer}`}
+        key={`${routeHandle}:${visibleSocialData.following}:${visibleSocialData.followsViewer}`}
         targetHandle={routeHandle}
         followerHandle={viewerHandle}
-        initialFollowing={following}
-        followsViewer={followsViewer}
+        initialFollowing={visibleSocialData.following}
+        followsViewer={visibleSocialData.followsViewer}
         onCountsChange={setCounts}
       />
       {/* E4: additive 1:1 messaging control. Only renders when the viewer has a
@@ -943,12 +975,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             <ProfileHeader
               profile={profile}
               stats={stats}
-              socialLinks={socialLinks}
+              socialLinks={visibleSocialData.socialLinks}
               crawls={storyCount}
               memories={stats.memoriesPosted}
               drops={drops}
-              followers={counts?.followers}
-              following={counts?.following}
+              followers={visibleSocialData.counts?.followers}
+              following={visibleSocialData.counts?.following}
               actions={headerActions}
             />
             <p className="profileEmpty">
@@ -977,12 +1009,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     <ProfileHeader
                       profile={profile}
                       stats={stats}
-                      socialLinks={socialLinks}
+                      socialLinks={visibleSocialData.socialLinks}
                       crawls={storyCount}
                       memories={stats.memoriesPosted}
                       drops={drops}
-                      followers={counts?.followers}
-                      following={counts?.following}
+                      followers={visibleSocialData.counts?.followers}
+                      following={visibleSocialData.counts?.following}
                       actions={headerActions}
                     />
                   </div>

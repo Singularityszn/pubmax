@@ -100,7 +100,11 @@ begin
   from public.social_post_media media
   join public.social_posts post on post.photo_media_id = media.id
   join public.social_post_moderation_jobs job on job.post_id = post.id
+    and job.revision = post.revision
+    and job.media_id is not distinct from post.photo_media_id
+    and job.state = 'done'
   where media.id = p_media_id
+    and media.attachment_state = 'active'
     and post.status = 'visible'
     and (post.moderation_state = 'needs_review' or media.moderation_state = 'needs_review');
 end;
