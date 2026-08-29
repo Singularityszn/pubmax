@@ -12,7 +12,7 @@ import {
 import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
-import { resolveVenue } from "@/lib/venueIndex";
+import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 
 // Heritage does not require Supabase durability, but production still needs
 // ADMIN_TOKEN / RATE_LIMIT_SALT so the durable limiter salt is real.
@@ -74,13 +74,20 @@ export async function POST(request: Request): Promise<Response> {
     // reconstructed server-side (heritage cache + pub_heritage) so a client
     // cannot forge pub history.
     const venueId = typeof record.venueId === "string" ? record.venueId : undefined;
-    const resolvedVenue = venueId ? await resolveVenue(venueId) : null;
+    const overlayVenueResolution = venueId
+      ? await resolveHarvestOverlayVenue(venueId)
+      : undefined;
+    const resolvedVenue =
+      overlayVenueResolution?.status === "resolved"
+        ? overlayVenueResolution.venue
+        : null;
 
     const response = await answerHeritage({
       venueId: resolvedVenue?.id ?? venueId,
       venueName: resolvedVenue?.name ?? venueName,
       venueKind: resolvedVenue?.kind,
       question,
+      overlayVenueResolution,
     });
     return jsonNoStore(response, { status: 200 });
   } catch {

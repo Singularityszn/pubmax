@@ -74,6 +74,27 @@ const SOCIAL_HOSTS = new Set([
   "tiktok.com",
   "youtube.com",
   "youtu.be",
+  "linkedin.com",
+  "uk.linkedin.com",
+  "threads.net",
+  "letterboxd.com",
+  "spotify.com",
+  "open.spotify.com",
+  "snapchat.com",
+  "strava.com",
+  "mobile.twitter.com",
+]);
+const LOCALITY_NAME_PREFIXES = new Set([
+  "new",
+  "old",
+  "north",
+  "south",
+  "east",
+  "west",
+  "greater",
+  "upper",
+  "lower",
+  "central",
 ]);
 
 export function isHttpsUrl(value: string): boolean {
@@ -113,6 +134,21 @@ function containsWord(haystack: string, word: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
+function containsExactLocality(haystack: string, locality: string): boolean {
+  const escaped = locality.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const localityRe = new RegExp(
+    `(?:^|[^a-z0-9])${escaped}(?:$|[^a-z0-9])`,
+    "gi",
+  );
+  for (const match of haystack.matchAll(localityRe)) {
+    const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
+      ?.trim()
+      .toLowerCase();
+    if (!before || !LOCALITY_NAME_PREFIXES.has(before)) return true;
+  }
+  return false;
+}
+
 function containsVenueName(haystack: string, name: string): boolean {
   const tokens = name
     .toLowerCase()
@@ -146,7 +182,7 @@ export function loreNameTownGate(
   }
   const place = typeof town === "string" ? town.trim() : "";
   if (!place) return "town-missing";
-  if (!containsWord(hay, place.toLowerCase())) return "town-mismatch";
+  if (!containsExactLocality(hay, place.toLowerCase())) return "town-mismatch";
   return "pass";
 }
 

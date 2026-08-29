@@ -28,6 +28,7 @@ import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
+import type { HarvestOverlayVenueResolution } from "@/lib/harvestOverlayVenue";
 
 // Every source is a server-side (sourced) store. There is no client-supplied
 // source anymore — the route reconstructs context from server data only.
@@ -122,6 +123,7 @@ export type HeritageReadResult = {
 export async function retrieveHeritageWithStatus(input: {
   venueId?: string;
   venueName: string;
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
 }): Promise<HeritageReadResult> {
   const facts: HeritageFact[] = [];
   let status: HeritageReadResult["status"] = "ready";
@@ -165,7 +167,8 @@ export async function retrieveHeritageWithStatus(input: {
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
   // somehow lost its https citation.
   if (input.venueId) {
-    const resolution = await resolveHarvestOverlayVenue(input.venueId);
+    const resolution =
+      input.overlayVenueResolution ?? (await resolveHarvestOverlayVenue(input.venueId));
     if (resolution.status === "unavailable") {
       status = "degraded";
     } else if (resolution.status === "resolved") {
@@ -187,6 +190,7 @@ export async function retrieveHeritageWithStatus(input: {
 export async function retrieveHeritage(input: {
   venueId?: string;
   venueName: string;
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
 }): Promise<HeritageFact[]> {
   return (await retrieveHeritageWithStatus(input)).facts;
 }
@@ -331,12 +335,13 @@ export async function answerHeritage(input: {
   venueName: string;
   venueKind?: VenueKind;
   question: string;
+  overlayVenueResolution?: HarvestOverlayVenueResolution;
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
   const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
-  const venueResolution = input.venueId
+  const venueResolution = input.overlayVenueResolution ?? (input.venueId
     ? await resolveHarvestOverlayVenue(input.venueId)
-    : null;
+    : null);
   const venueIdentity = venueResolution?.status === "resolved"
     ? venueResolution.venueId
     : input.venueId ?? "";

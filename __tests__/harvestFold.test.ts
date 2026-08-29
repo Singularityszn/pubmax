@@ -67,6 +67,16 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("name-mismatch");
   });
+
+  it("does not match a town inside a longer locality name", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in New York has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {
@@ -192,6 +202,16 @@ describe("parseOverlayRow", () => {
     ).toThrow(HarvestFoldError);
     expect(() =>
       parseOverlayRow(row({ menuUrl: "https://www.facebook.com/redlion", matchedLore: null })),
+    ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(
+        row({ website: "https://www.linkedin.com/company/redlion", matchedLore: null }),
+      ),
+    ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(
+        row({ website: "https://www.threads.net/@redlion", matchedLore: null }),
+      ),
     ).toThrow(HarvestFoldError);
   });
 
