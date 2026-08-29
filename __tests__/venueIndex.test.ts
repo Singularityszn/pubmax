@@ -6,6 +6,7 @@ import {
   buildVenueIndex,
   getVenueIndex,
   lookupCanonicalVenue,
+  lookupCanonicalVenueWithOsm,
   resetVenueIndexForTests,
   venueMapUrl,
   type VenueRef,
@@ -140,13 +141,13 @@ describe("getVenueIndex", () => {
       return realRead(file, ...(args as [BufferEncoding]));
     });
 
-    expect(await lookupCanonicalVenue("venue-oxf-16404bl")).toEqual({
+    expect(await lookupCanonicalVenueWithOsm("venue-oxf-16404bl")).toEqual({
       status: "unavailable",
       canonicalId: "venue-oxf-16404bl",
     });
 
     failOxfordOsm = false;
-    expect(await lookupCanonicalVenue("venue-oxf-16404bl")).toMatchObject({
+    expect(await lookupCanonicalVenueWithOsm("venue-oxf-16404bl")).toMatchObject({
       status: "found",
       venue: { osmId: "way/97822057" },
     });
@@ -154,23 +155,28 @@ describe("getVenueIndex", () => {
 });
 
 describe("lookupCanonicalVenue", () => {
-  it("distinguishes an unavailable city pack from an unknown venue", async () => {
+  it("keeps base lookup available when OSM enrichment is unavailable", async () => {
     const realRead = fs.readFile.bind(fs);
-    let failManchester = true;
+    let failManchesterOsm = true;
     vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
-      if (failManchester && String(file).includes("cities/manchester/")) {
-        throw new Error("missing manchester pack");
+      if (failManchesterOsm && String(file).endsWith("cities/manchester/osm_pubs.json")) {
+        throw new Error("missing manchester OSM pack");
       }
       return realRead(file, ...(args as [BufferEncoding]));
     });
 
-    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toEqual({
+    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toMatchObject({
+      status: "found",
+      canonicalId: "venue-mcr-1lwo5lo",
+      venue: { name: "Peveril of the Peak", borough: "Manchester" },
+    });
+    expect(await lookupCanonicalVenueWithOsm("venue-mcr-1lwo5lo")).toEqual({
       status: "unavailable",
       canonicalId: "venue-mcr-1lwo5lo",
     });
 
-    failManchester = false;
-    expect(await lookupCanonicalVenue("venue-mcr-1lwo5lo")).toMatchObject({
+    failManchesterOsm = false;
+    expect(await lookupCanonicalVenueWithOsm("venue-mcr-1lwo5lo")).toMatchObject({
       status: "found",
       canonicalId: "venue-mcr-1lwo5lo",
       venue: { name: "Peveril of the Peak", borough: "Manchester" },

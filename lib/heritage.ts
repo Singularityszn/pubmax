@@ -137,31 +137,33 @@ export async function retrieveHeritageWithStatus(input: {
     facts.push({ source: "nhle", fact: listed.fact, sourceRef: listed.url });
   }
 
-  // (1) Server facts first — the shipped cache keyed by normalised name.
-  const cache = await readHeritageCache();
-  const cached = cache[venueKey];
-  if (Array.isArray(cached)) {
-    for (const entry of cached) {
-      if (
-        entry &&
-        String(entry.source ?? "").toLowerCase() !== "web" &&
-        typeof entry.fact === "string" &&
-        entry.fact.trim()
-      ) {
-        const source = entry.source ?? "seed";
-        // Cache is server-owned, but never let a cache entry masquerade as
-        // trusted if it somehow carries a non-sourced label.
-        facts.push({
-          source: SOURCED.has(source) ? source : "seed",
-          fact: entry.fact,
-          sourceRef: entry.sourceRef,
-        });
+  if (!input.venueId) {
+    // (1) Server facts first — the shipped cache keyed by normalised name.
+    const cache = await readHeritageCache();
+    const cached = cache[venueKey];
+    if (Array.isArray(cached)) {
+      for (const entry of cached) {
+        if (
+          entry &&
+          String(entry.source ?? "").toLowerCase() !== "web" &&
+          typeof entry.fact === "string" &&
+          entry.fact.trim()
+        ) {
+          const source = entry.source ?? "seed";
+          // Cache is server-owned, but never let a cache entry masquerade as
+          // trusted if it somehow carries a non-sourced label.
+          facts.push({
+            source: SOURCED.has(source) ? source : "seed",
+            fact: entry.fact,
+            sourceRef: entry.sourceRef,
+          });
+        }
       }
     }
-  }
 
-  // (2) Server rows — Supabase pub_heritage, same venue_key.
-  facts.push(...(await retrieveFromSupabase(venueKey)));
+    // (2) Server rows — Supabase pub_heritage, same venue_key.
+    facts.push(...(await retrieveFromSupabase(venueKey)));
+  }
 
   // (3) Harvest overlay lore — OSM id only. Name is never a key. Uncited
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
@@ -355,7 +357,10 @@ export async function answerHeritage(input: {
     if (hit) answerCache.delete(key); // expired — prune on read
   }
 
-  const heritageRead = await retrieveHeritageWithStatus(input);
+  const heritageRead = await retrieveHeritageWithStatus({
+    ...input,
+    overlayVenueResolution: venueResolution ?? undefined,
+  });
   const facts = heritageRead.facts;
   const citations = dedupeCitations(facts);
 

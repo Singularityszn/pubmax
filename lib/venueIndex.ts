@@ -284,7 +284,12 @@ export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   return { index, loadedCities, complete: allLoaded };
 }
 
-export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+async function lookupCanonicalVenueFromIndex(
+  id: string,
+  loadIndex: (
+    city: { id: string; slimVenuesPath: string },
+  ) => Promise<Map<string, IndexedVenue> | null>,
+): Promise<CanonicalVenueLookup> {
   const canonicalId = await resolveCanonicalVenueId(id);
   const cityPrefix = venueCityPrefix(canonicalId);
   const cityId = cityIdFromVenueId(canonicalId);
@@ -295,7 +300,7 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   if (!city.enabled) {
     return { status: "unknown", canonicalId };
   }
-  const cityIndex = await getCityVenueIndex(city);
+  const cityIndex = await loadIndex(city);
   if (!cityIndex) {
     return { status: "unavailable", canonicalId };
   }
@@ -303,6 +308,16 @@ export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLo
   return entry
     ? { status: "found", canonicalId, ...entry }
     : { status: "unknown", canonicalId };
+}
+
+export async function lookupCanonicalVenue(id: string): Promise<CanonicalVenueLookup> {
+  return lookupCanonicalVenueFromIndex(id, readCityVenueIndex);
+}
+
+export async function lookupCanonicalVenueWithOsm(
+  id: string,
+): Promise<CanonicalVenueLookup> {
+  return lookupCanonicalVenueFromIndex(id, getCityVenueIndex);
 }
 
 export async function resolveVenue(id: string): Promise<VenueRef | null> {

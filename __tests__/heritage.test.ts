@@ -82,6 +82,16 @@ describe("retrieveHeritage — trust boundary", () => {
     expect(facts.some((f) => f.fact.includes("Grade II* listed"))).toBe(true);
   });
 
+  it("does not combine caller name facts with an OSM-specific request", async () => {
+    const facts = await retrieveHeritage({
+      venueId: "node/123",
+      venueName: "Prospect of Whitby",
+    });
+
+    expect(facts.some((fact) => fact.fact.includes("Grade II* listed"))).toBe(false);
+    expect(facts.some((fact) => fact.fact.includes("1520"))).toBe(false);
+  });
+
   it("attaches cited harvest lore by OSM venue id, never by pub name", async () => {
     await harvestOverlayStore().upsertMany([
       parseOverlayRow({

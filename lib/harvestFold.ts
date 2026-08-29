@@ -96,13 +96,9 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "lower",
   "central",
 ]);
-const FOREIGN_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:,|\()\s*)?(?:alabama|alaska|arizona|arkansas|california|colorado|connecticut|delaware|florida|georgia|hawaii|idaho|illinois|indiana|iowa|kansas|kentucky|louisiana|maine|maryland|massachusetts|michigan|minnesota|mississippi|missouri|montana|nebraska|nevada|new hampshire|new jersey|new mexico|new york|north carolina|north dakota|ohio|oklahoma|oregon|pennsylvania|rhode island|south carolina|south dakota|tennessee|texas|utah|vermont|virginia|washington|west virginia|wisconsin|wyoming|alberta|british columbia|manitoba|new brunswick|newfoundland and labrador|nova scotia|ontario|prince edward island|quebec|saskatchewan|northwest territories|nunavut|yukon|al|ak|az|ar|ca|co|ct|de|fl|ga|hi|id|il|in|ia|ks|ky|la|me|md|ma|mi|mn|ms|mo|mt|ne|nv|nh|nj|nm|ny|nc|nd|oh|ok|or|pa|ri|sc|sd|tn|tx|ut|vt|va|wa|wv|wi|wy|ab|bc|mb|nb|nl|ns|nt|nu|on|pe|qc|sk|yt|usa|u\.s\.|united states|canada|australia|new zealand)(?:$|[^a-z0-9])/i;
-
-const AMBIGUOUS_LOCALITY_ABBREVIATION_RE =
-  /^\s*(?:(?:,|\(|:|;|-|\/)\s*)[a-z]{2}\.?\s*(?:$|[^a-z0-9])/i;
-const FOREIGN_LOCALITY_SHORT_NAME_RE =
-  /^\s*(?:(?:,|\(|:|;|-|\/)\s*)penn\.?\s*(?:$|[^a-z0-9])/i;
+const UK_LOCALITY_QUALIFIER_RE =
+  /^\s*(?:(?:,|\(|:|;|-|\/)\s*)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
+const LOCALITY_QUALIFIER_RE = /^\s*(?:,|\(|:|;|-|\/)\s*[a-z]/i;
 
 export function isHttpsUrl(value: string): boolean {
   const trimmed = value.trim();
@@ -149,12 +145,9 @@ function containsExactLocality(haystack: string, locality: string): boolean {
   );
   for (const match of haystack.matchAll(localityRe)) {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
-    const localitySuffix = after.replace(/^\s*[,(:;\/-]\s*/, " ");
-    if (
-      FOREIGN_LOCALITY_QUALIFIER_RE.test(localitySuffix) ||
-      AMBIGUOUS_LOCALITY_ABBREVIATION_RE.test(after) ||
-      FOREIGN_LOCALITY_SHORT_NAME_RE.test(localitySuffix)
-    ) continue;
+    if (LOCALITY_QUALIFIER_RE.test(after) && !UK_LOCALITY_QUALIFIER_RE.test(after)) {
+      continue;
+    }
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();

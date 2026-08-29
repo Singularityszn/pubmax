@@ -1,6 +1,6 @@
 /** True when `value` parses as an absolute http(s) URL (no trim — callers trim first). */
 export function isHttpUrl(value: string): boolean {
-  if (!value || /[\s,]/.test(value)) return false;
+  if (!value || /\s/.test(value)) return false;
   try {
     const url = new URL(value);
     return Boolean(url.hostname) && (url.protocol === "http:" || url.protocol === "https:");

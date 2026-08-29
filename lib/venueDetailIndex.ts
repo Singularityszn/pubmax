@@ -6,7 +6,7 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenueWithOsm } from "@/lib/venueIndex";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
@@ -269,7 +269,7 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
     }
   }
 
-  const venueLookup = await lookupCanonicalVenue(id);
+  const venueLookup = await lookupCanonicalVenueWithOsm(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
   if (venueLookup.status === "unknown") return { status: "missing" };
 
