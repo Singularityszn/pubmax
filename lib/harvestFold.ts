@@ -96,13 +96,28 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "upper",
   "lower",
   "central",
+  "in",
+  "near",
+  "at",
+  "within",
+  "from",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:(?:,|\(|:|;|-|–|—|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|–|—|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
+const UK_COUNTRY_QUALIFIERS = new Set([
+  "uk",
+  "u.k.",
+  "u.k",
+  "united kingdom",
+  "great britain",
+  "britain",
+  "england",
+  "scotland",
+  "wales",
+  "northern ireland",
+]);
 const LOCALITY_QUALIFIER_RE =
   /^\s*(?:(?:,|\(|:|;|-|–|—|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
-const UK_LOCALITY_DESTINATION_RE =
-  /^(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london|somerset|kent|surrey|sussex|essex|middlesex|hertfordshire|berkshire|buckinghamshire|cambridgeshire|derbyshire|devon|dorset|durham|gloucestershire|hampshire|herefordshire|isle of wight|lancashire|leicestershire|lincolnshire|norfolk|northamptonshire|northumberland|nottinghamshire|shropshire|staffordshire|suffolk|warwickshire|wiltshire|worcestershire|cheshire|cumbria|cornwall)(?:$|[^a-z0-9])/i;
 const LOCALITY_CONTINUATION_WORDS = new Set([
   "and",
   "also",
@@ -200,6 +215,12 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
     const knownUkQualifier = after.match(UK_LOCALITY_QUALIFIER_RE);
     const hasKnownUkQualifier = Boolean(knownUkQualifier);
+    const knownUkQualifierText = knownUkQualifier?.[1]?.trim().toLowerCase();
+    const hasIncompatibleUkQualifier = Boolean(
+      knownUkQualifierText &&
+        knownUkQualifierText !== locality &&
+        !UK_COUNTRY_QUALIFIERS.has(knownUkQualifierText),
+    );
     const afterKnownUkQualifier = knownUkQualifier
       ? after.slice(knownUkQualifier[0].length)
       : "";
@@ -218,7 +239,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const hasUnknownCompoundLocality = Boolean(
       compoundWord &&
         !LOCALITY_CONTINUATION_WORDS.has(compoundWord) &&
-        !UK_LOCALITY_DESTINATION_RE.test(compoundWord),
+        !UK_COUNTRY_QUALIFIERS.has(compoundWord),
     );
     const sentenceContinuation =
       /^[\s]*[.!?]\s+/.test(after) &&
@@ -230,6 +251,12 @@ function containsExactLocality(haystack: string, locality: string): boolean {
       ? after.slice((laterLocality.index ?? 0) + laterLocality[0].length)
       : "";
     const laterKnownUkQualifier = laterLocalitySuffix.match(UK_LOCALITY_QUALIFIER_RE);
+    const laterKnownUkQualifierText = laterKnownUkQualifier?.[1]?.trim().toLowerCase();
+    const hasIncompatibleLaterUkQualifier = Boolean(
+      laterKnownUkQualifierText &&
+        laterKnownUkQualifierText !== locality &&
+        !UK_COUNTRY_QUALIFIERS.has(laterKnownUkQualifierText),
+    );
     const hasLaterLocalityQualifier = LOCALITY_QUALIFIER_RE.test(laterLocalitySuffix);
     const hasAdditionalLaterLocalityQualifier = Boolean(
       laterKnownUkQualifier &&
@@ -239,8 +266,8 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     );
     const hasUnknownLaterLocality = Boolean(
       laterLocality &&
-        ((laterLocality[1].trim().toLowerCase() !== locality &&
-          !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim())) ||
+        (laterLocality[1].trim().toLowerCase() !== locality ||
+          hasIncompatibleLaterUkQualifier ||
           (hasLaterLocalityQualifier && !laterKnownUkQualifier) ||
           hasAdditionalLaterLocalityQualifier),
     );
@@ -254,7 +281,8 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     if (
       hasUnknownLaterLocality ||
       hasUnknownCompoundLocality ||
-      hasAdditionalLocalityQualifier
+      hasAdditionalLocalityQualifier ||
+      hasIncompatibleUkQualifier
     ) continue;
     if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
@@ -309,7 +337,15 @@ function containsVenueLocationClaim(sentence: string, name: string): boolean {
   const branchLocation =
     `\\b(?:has|have|had)\\b\\s+(?:an?\\s+)?branch\\s+` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
-  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation})`, "i").test(sentence);
+  const possessiveBranchLocation =
+    `['’]s\\s+(?:[a-z-]+\\s+){0,2}branch\\s+` +
+    `(?:is|was|were|has been|had been)\\s+` +
+    `(?:(?:located|situated|based)\\s+)?` +
+    `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
+  return new RegExp(
+    `${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation}|${possessiveBranchLocation})`,
+    "i",
+  ).test(sentence);
 }
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {

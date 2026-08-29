@@ -168,6 +168,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a different UK locality qualifier", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, London has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign locality qualifier", () => {
     expect(
       loreNameTownGate(
@@ -302,6 +312,16 @@ describe("loreNameTownGate", () => {
     expect(
       loreNameTownGate(
         "The Red Lion in Clapham has stood since 1700. It has a branch in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
+  it("does not accept a foreign locality in a possessive venue branch", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. The Red Lion's branch is in Pennsylvania.",
         "The Red Lion",
         "Clapham",
       ),
