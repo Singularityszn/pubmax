@@ -98,9 +98,10 @@ function fromSql(row: OverlaySqlRow): HarvestOverlayRow | null {
       osmId: row.osm_id,
       website: row.website,
       menuUrl: row.menu_url,
-      matchedLore: row.lore_text
-        ? { text: row.lore_text, citations: row.lore_citations }
-        : null,
+      matchedLore:
+        row.lore_text !== null
+          ? { text: row.lore_text, citations: row.lore_citations }
+          : null,
       name: row.lore_match_name,
       town: row.lore_match_town,
       sources: row.sources,
