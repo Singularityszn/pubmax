@@ -353,7 +353,7 @@ function containsVenueLocationClaim(
     `\\b(?:is|was|were|has been|had been)\\b\\s+` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   const branchLocation =
-    `\\b(?:has|have|had)\\b\\s+(?:an?\\s+)?branch\\s+` +
+    `\\b(?:has|have|had|opened|opens|opening)\\b\\s+(?:an?\\s+)?branch\\s+` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   const secondaryLocation =
     `\\b(?:has|have|had)\\b\\s+` +

@@ -18,6 +18,7 @@ import {
 } from "@/lib/harvestFold";
 import { parseUkBaseShard } from "@/lib/ukBasePubs";
 import { slimVenueToPin } from "@/lib/slimPins";
+import { buildSeedMetadata } from "../scripts/harvest/uk-pubs/foldInput.mjs";
 
 const LORE_TEXT =
   "The Red Lion in Clapham has stood on the common since the eighteenth century.";
@@ -318,6 +319,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign opened-branch locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. The Red Lion opened a branch in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign branch locality in a venue reference", () => {
     expect(
       loreNameTownGate(
@@ -426,6 +437,20 @@ describe("loreNameTownGate", () => {
         "York",
       ),
     ).toBe("town-mismatch");
+  });
+});
+
+describe("harvest fold seed metadata", () => {
+  it("fails loud on duplicate canonical OSM ids", () => {
+    expect(() =>
+      buildSeedMetadata(
+        [
+          { osmId: "node/123", name: "The Red Lion", addressTags: {} },
+          { osmId: "venue-uk-n123", name: "The Blue Lion", addressTags: {} },
+        ],
+        "seed.jsonl",
+      ),
+    ).toThrow(/duplicate harvest seed OSM id: node\/123/);
   });
 });
 

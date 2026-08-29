@@ -20,6 +20,7 @@ nextEnv.loadEnvConfig(ROOT);
 
 const {
   HarvestFoldError,
+  canonicalOsmId,
   overlayRowsFromHarvestRecords,
   parseFoldStatsMarkdown,
   parseOverlayJsonl,
@@ -27,6 +28,7 @@ const {
   summariseOverlay,
 } = await import("../../../lib/harvestFold.ts");
 const { readJsonl } = await import("../../lib/ukPubHarvest.mjs");
+const { loadSeedMetadata } = await import("./foldInput.mjs");
 
 function arg(flag, fallback = "") {
   const index = process.argv.indexOf(flag);
@@ -47,11 +49,6 @@ function usage() {
 Fails loud on a malformed row or a count that does not match fold-stats.md.`;
 }
 
-function requiredFile(filePath, label) {
-  if (!existsSync(filePath)) throw new Error(`missing ${label}: ${filePath}`);
-  return filePath;
-}
-
 async function loadShardRecords(directory) {
   if (!existsSync(directory)) throw new Error(`missing enriched harvest directory: ${directory}`);
   const files = readdirSync(directory)
@@ -61,35 +58,20 @@ async function loadShardRecords(directory) {
   return (await Promise.all(files.map((name) => readJsonl(join(directory, name))))).flat();
 }
 
-async function loadSeedMetadata(filePath) {
-  const metadata = new Map();
-  for (const raw of await readJsonl(requiredFile(filePath, "harvest seed"))) {
-    if (!raw || typeof raw !== "object" || typeof raw.osmId !== "string" || typeof raw.name !== "string") {
-      throw new Error(`malformed harvest seed row in ${filePath}`);
-    }
-    const tags = raw.addressTags;
-    if (!tags || typeof tags !== "object" || Array.isArray(tags)) {
-      throw new Error(`harvest seed row has no addressTags: ${raw.osmId}`);
-    }
-    const town = [tags["addr:town"], tags["addr:city"], tags["addr:village"], tags["addr:place"]]
-      .find((value) => typeof value === "string" && value.trim()) ?? null;
-    metadata.set(raw.osmId, { name: raw.name.trim(), town: town ? town.trim() : null });
-  }
-  return metadata;
-}
-
 async function loadCompletedHarvestRecords({ enrichedDir, barsEnrichedDir, seed, barsSeed }) {
   const records = [];
   for (const [directory, seedPath] of [[enrichedDir, seed], [barsEnrichedDir, barsSeed]]) {
-    const metadata = await loadSeedMetadata(seedPath);
+    const metadata = await loadSeedMetadata(seedPath, readJsonl);
     for (const raw of await loadShardRecords(directory)) {
       if (!raw || typeof raw !== "object" || typeof raw.osmId !== "string") {
         throw new Error(`malformed enriched harvest row in ${directory}`);
       }
-      const meta = metadata.get(raw.osmId);
+      const osmId = canonicalOsmId(raw.osmId);
+      if (!osmId) throw new Error(`malformed enriched harvest OSM id: ${raw.osmId}`);
+      const meta = metadata.get(osmId);
       if (!meta) throw new Error(`enriched row has no matching seed metadata: ${raw.osmId}`);
       if (raw.name !== meta.name) throw new Error(`enriched row name disagrees with seed: ${raw.osmId}`);
-      records.push({ osmId: raw.osmId, name: meta.name, town: meta.town, observations: raw.observations });
+      records.push({ osmId, name: meta.name, town: meta.town, observations: raw.observations });
     }
   }
   return records;
