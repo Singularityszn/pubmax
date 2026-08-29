@@ -97,8 +97,9 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "central",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:,|\(|:|;|-|\/)\s*)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
-const LOCALITY_QUALIFIER_RE = /^\s*(?:,|\(|:|;|-|\/)\s*[a-z]/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|\/)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
+const LOCALITY_QUALIFIER_RE =
+  /^\s*(?:(?:,|\(|:|;|-|\/)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
 
 export function isHttpsUrl(value: string): boolean {
   const trimmed = value.trim();

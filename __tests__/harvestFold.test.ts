@@ -117,6 +117,16 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not match an unrecognised locality after a preposition", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York in Germany has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {

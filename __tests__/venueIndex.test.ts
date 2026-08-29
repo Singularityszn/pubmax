@@ -131,6 +131,14 @@ describe("getVenueIndex", () => {
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
   });
 
+  it("resolves outer London OSM ownership to its curated venue", async () => {
+    expect(await lookupCanonicalVenueWithOsm("venue-1fgvf4p")).toMatchObject({
+      status: "found",
+      canonicalId: "venue-1fgvf4p",
+      venue: { osmId: "way/270582394" },
+    });
+  });
+
   it("retries a city when its OSM identity pack has a transient failure", async () => {
     const realRead = fs.readFile.bind(fs);
     let failOxfordOsm = true;
