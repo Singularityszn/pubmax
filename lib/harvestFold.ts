@@ -380,7 +380,7 @@ function containsVenueLocationClaim(
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
-    /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
+    /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises))\b/i;
   const localityRelation =
     /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b|\b(?:has|have|had)\b\s+(?:an?\s+)?branch\s+(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:(?:an?|the|its|another|second|third|new|additional)\s+){0,3}(?:branch|branches|site|sites|location|locations|premises)\s+(?:(?:is|was|were|has been|located|situated|based|opened|opens|opening|operates?|operating|stood|stands?)\s+)?(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
   return venueReference.test(sentence) && localityRelation.test(sentence);
@@ -648,6 +648,10 @@ function observationValue(
   return value.trim();
 }
 
+function foldedObservationUrl(values: readonly string[]): string | null {
+  return values.find((value) => httpsObservationParts(value).length === 1) ?? values[0] ?? null;
+}
+
 /** Convert completed enriched harvest records into one OSM-keyed overlay row. */
 export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOverlayRow[] {
   if (!Array.isArray(rawRecords)) {
@@ -754,8 +758,8 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
         osmId,
         name: value.name,
         town: value.town,
-        website: value.websites.length > 0 ? value.websites.join(", ") : null,
-        menuUrl: value.menus.length > 0 ? value.menus.join(", ") : null,
+        website: foldedObservationUrl(value.websites),
+        menuUrl: foldedObservationUrl(value.menus),
         matchedLore: value.lore,
         sources: value.sources,
       }),

@@ -369,6 +369,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign opened-branch locality in a definite reference", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. The branch opened in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a foreign locality in a possessive venue branch", () => {
     expect(
       loreNameTownGate(
@@ -869,7 +879,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
             fetchedAt: "2026-08-28T00:00:00.000Z",
           },
           {
-            kind: "website",
+            kind: "menu",
             value: "https://redlion.example/menu",
             sourceUrl: "https://redlion.example/menu",
             fetchedAt: "2026-08-28T00:00:00.000Z",
@@ -892,12 +902,63 @@ describe("heritageFactFromOverlay / public overlay", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({
       osmId: "node/123",
-      website: "https://redlion.example/, https://redlion.example/menu",
+      website: "https://redlion.example/",
+      menuUrl: "https://redlion.example/menu",
       matchedLore: { text: LORE_TEXT },
     });
     expect(rows[0].matchedLore?.citations).toEqual([
       "https://history.example/red-lion-clapham",
     ]);
+  });
+
+  it("keeps one ordinary CTA from multiple website observations", () => {
+    const rows = overlayRowsFromHarvestRecords([
+      {
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        observations: [
+          {
+            kind: "website",
+            value: "https://redlion.example/",
+            sourceUrl: "https://redlion.example/",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            kind: "website",
+            value: "https://redlion.example/about",
+            sourceUrl: "https://redlion.example/about",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+
+    expect(rows[0].website).toBe("https://redlion.example/");
+    expect(parsePublicOverlay(rows[0])?.website).toBe("https://redlion.example/");
+  });
+
+  it("preserves an explicit concatenated harvest field for serving to drop", () => {
+    const rows = overlayRowsFromHarvestRecords([
+      {
+        osmId: "node/456",
+        name: "The Red Lion",
+        town: "Clapham",
+        observations: [
+          {
+            kind: "website",
+            value: "https://theimperialpub.com, https://imperialarmschislehurst.co.uk",
+            sourceUrl: "https://theimperialpub.com",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+
+    expect(rows[0].website).toBe(
+      "https://theimperialpub.com, https://imperialarmschislehurst.co.uk",
+    );
+    expect(parsePublicOverlay(rows[0])?.website).toBeNull();
   });
 
   it("excludes social-host website observations", () => {
