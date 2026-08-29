@@ -322,7 +322,10 @@ function containsVenueLocalityRelation(
   const nameLocation =
     `\\b(?:is|was|were|has been|had been)\\b\\s+` +
     `\\b(?:in|near|from|at|within)\\b\\s+${localityBoundary}`;
-  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation})`, "i").test(sentence);
+  const branchLocation =
+    `\\b(?:has|have|had)\\b\\s+(?:an?\\s+)?branch\\s+` +
+    `\\b(?:in|near|from|at|within)\\b\\s+${localityBoundary}`;
+  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation})`, "i").test(sentence);
 }
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {

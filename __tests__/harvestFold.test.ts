@@ -288,6 +288,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign branch locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York. The Red Lion has a branch in Pennsylvania.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a possessive venue address in a later foreign locality statement", () => {
     expect(
       loreNameTownGate(
