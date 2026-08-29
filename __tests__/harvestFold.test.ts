@@ -359,6 +359,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign opened-branch locality in a possessive reference", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. Its new branch opened in Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a foreign locality in a possessive venue branch", () => {
     expect(
       loreNameTownGate(
