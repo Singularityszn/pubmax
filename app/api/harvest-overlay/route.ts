@@ -43,13 +43,13 @@ export async function GET(request: Request): Promise<Response> {
     const publicOverlays = reads.flatMap((read) =>
       read.status === "ready" && read.overlay ? [toPublicOverlay(read.overlay)] : [],
     );
-    if (publicOverlays.length === 0) {
+    const overlay = mergePublicHarvestOverlays(publicOverlays);
+    if (!overlay.website && !overlay.menuUrl && !overlay.lore) {
       return Response.json(
         { status: "ready", overlay: null },
         { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
       );
     }
-    const overlay = mergePublicHarvestOverlays(publicOverlays);
     return Response.json(
       {
         status: "ready",

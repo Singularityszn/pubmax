@@ -138,6 +138,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a conflicting qualifier after a UK qualifier", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, UK, Germany has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign locality qualifier", () => {
     expect(
       loreNameTownGate(

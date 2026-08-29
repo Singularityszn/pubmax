@@ -115,4 +115,22 @@ describe("GET /api/harvest-overlay", () => {
       menuUrl: "https://grenadier.example/menu",
     });
   });
+
+  it("returns unknown when stored overlay fields have no public value", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        website: "https://redlion.example/, https://redlion.example/alt",
+        menuUrl: null,
+        matchedLore: null,
+        sources: ["https://redlion.example/"],
+      }),
+    ]);
+
+    const res = await get("venueId=venue-uk-n123");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: "ready", overlay: null });
+  });
 });

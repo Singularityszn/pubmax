@@ -97,7 +97,7 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "central",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:(?:,|\(|:|;|-|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
 const LOCALITY_QUALIFIER_RE =
   /^\s*(?:(?:,|\(|:|;|-|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
 const UK_LOCALITY_DESTINATION_RE =
@@ -188,7 +188,19 @@ function containsExactLocality(haystack: string, locality: string): boolean {
   );
   for (const match of haystack.matchAll(localityRe)) {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
-    const hasKnownUkQualifier = UK_LOCALITY_QUALIFIER_RE.test(after);
+    const knownUkQualifier = after.match(UK_LOCALITY_QUALIFIER_RE);
+    const hasKnownUkQualifier = Boolean(knownUkQualifier);
+    const afterKnownUkQualifier = knownUkQualifier
+      ? after.slice(knownUkQualifier[0].length)
+      : "";
+    const additionalQualifierWord = afterKnownUkQualifier.match(
+      /^\s*(?:[,;:/()\-–]\s*)?([a-z][a-z'-]*)\b/i,
+    )?.[1]?.toLowerCase();
+    const hasAdditionalLocalityQualifier = Boolean(
+      hasKnownUkQualifier &&
+        additionalQualifierWord &&
+        !LOCALITY_CONTINUATION_WORDS.has(additionalQualifierWord),
+    );
     const nextWord = after.match(/^\s*(?:[.!?]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
     const compoundWord = after.match(
       /^\s*(?:[,;:/()\-–]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
@@ -214,7 +226,11 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     ) {
       continue;
     }
-    if (hasUnknownLaterLocality || hasUnknownCompoundLocality) continue;
+    if (
+      hasUnknownLaterLocality ||
+      hasUnknownCompoundLocality ||
+      hasAdditionalLocalityQualifier
+    ) continue;
     if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
