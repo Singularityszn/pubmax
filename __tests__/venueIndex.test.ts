@@ -57,8 +57,9 @@ describe("getVenueIndex", () => {
   it("does not cache an empty index when every city pack fails", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     let failAll = true;
-    readFile.mockImplementation(async () => {
+    readFile.mockImplementation(async (file) => {
       if (failAll) throw new Error("missing index");
+      if (String(file).endsWith("osm_pubs.json")) return JSON.stringify({ pubs: [] });
       return JSON.stringify([
         {
           id: "venue-retry",
@@ -137,6 +138,24 @@ describe("getVenueIndex", () => {
       osmId: "way/100646638",
     });
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
+  });
+
+  it("retries a city when its OSM identity pack has a transient failure", async () => {
+    const realRead = fs.readFile.bind(fs);
+    let failOxfordOsm = true;
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (failOxfordOsm && String(file).endsWith("cities/oxford/osm_pubs.json")) {
+        throw new Error("missing Oxford OSM pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    expect((await getVenueIndex()).get("venue-oxf-16404bl")).toBeUndefined();
+
+    failOxfordOsm = false;
+    expect((await getVenueIndex()).get("venue-oxf-16404bl")).toMatchObject({
+      osmId: "way/97822057",
+    });
   });
 });
 

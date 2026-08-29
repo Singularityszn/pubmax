@@ -77,8 +77,11 @@ const SOCIAL_HOSTS = new Set([
 ]);
 
 export function isHttpsUrl(value: string): boolean {
+  const trimmed = value.trim();
+  if (!trimmed || /[\s,]/.test(trimmed)) return false;
   try {
-    return new URL(value).protocol === "https:";
+    const url = new URL(trimmed);
+    return url.protocol === "https:" && Boolean(url.hostname);
   } catch {
     return false;
   }
@@ -86,8 +89,12 @@ export function isHttpsUrl(value: string): boolean {
 
 /** Harvest observations may contain several comma-separated https URLs. */
 export function isHttpsObservation(value: string): boolean {
-  const parts = value.trim().split(/,\s*(?=https:\/\/)/i).map((part) => part.trim());
+  const parts = value.split(",").map((part) => part.trim());
   return parts.length > 0 && parts.every((part) => part.length > 0 && isHttpsUrl(part));
+}
+
+function httpsObservationParts(value: string): string[] {
+  return value.split(",").map((part) => part.trim());
 }
 
 function isSocialUrl(value: string): boolean {
@@ -222,7 +229,7 @@ function httpsOrNull(value: unknown, field: string, line?: number): string | nul
   if (!isHttpsObservation(trimmed)) {
     fail("MALFORMED_ROW", `${field} must be https`, line);
   }
-  if (trimmed.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+  if (httpsObservationParts(trimmed).some((part) => isSocialUrl(part))) {
     fail("SOCIAL_PRESENT", `${field} points to a social host`, line);
   }
   return trimmed;
@@ -423,14 +430,14 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
         fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
       }
       if (kind === "website") {
-        if (value.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+        if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
           fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
         }
         if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest website must be https", line);
         if (!current.websites.includes(value)) current.websites.push(value);
         if (!current.sources.includes(sourceUrl)) current.sources.push(sourceUrl);
       } else if (kind === "menu") {
-        if (value.split(/,\s*(?=https:\/\/)/i).some((part) => isSocialUrl(part.trim()))) {
+        if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
           fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
         }
         if (!isHttpsObservation(value)) fail("MALFORMED_ROW", "harvest menu must be https", line);

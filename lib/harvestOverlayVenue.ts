@@ -1,8 +1,21 @@
 import "server-only";
 
 import { canonicalOsmId } from "@/lib/harvestFold";
-import { resolveVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 
-export async function resolveHarvestOverlayVenueId(venueId: string): Promise<string> {
-  return canonicalOsmId(venueId) ?? (await resolveVenue(venueId))?.osmId ?? venueId;
+export type HarvestOverlayVenueResolution =
+  | { status: "resolved"; venueId: string }
+  | { status: "unknown" }
+  | { status: "unavailable" };
+
+export async function resolveHarvestOverlayVenue(
+  venueId: string,
+): Promise<HarvestOverlayVenueResolution> {
+  const osmId = canonicalOsmId(venueId);
+  if (osmId) return { status: "resolved", venueId: osmId };
+
+  const lookup = await lookupCanonicalVenue(venueId);
+  if (lookup.status === "unavailable") return { status: "unavailable" };
+  if (lookup.status === "unknown" || !lookup.venue.osmId) return { status: "unknown" };
+  return { status: "resolved", venueId: lookup.venue.osmId };
 }

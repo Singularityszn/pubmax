@@ -1,8 +1,9 @@
 /** True when `value` parses as an absolute http(s) URL (no trim — callers trim first). */
 export function isHttpUrl(value: string): boolean {
+  if (!value || /[\s,]/.test(value)) return false;
   try {
     const url = new URL(value);
-    return url.protocol === "http:" || url.protocol === "https:";
+    return Boolean(url.hostname) && (url.protocol === "http:" || url.protocol === "https:");
   } catch {
     return false;
   }
@@ -23,7 +24,8 @@ export function firstHttps(...candidates: Array<string | undefined | null>): str
     const trimmed = typeof candidate === "string" ? candidate.trim() : "";
     if (!/^https:\/\//i.test(trimmed)) continue;
     try {
-      if (new URL(trimmed).protocol === "https:") return trimmed;
+      const url = new URL(trimmed);
+      if (!/[\s,]/.test(trimmed) && url.protocol === "https:" && url.hostname) return trimmed;
     } catch {
       // Try next candidate.
     }

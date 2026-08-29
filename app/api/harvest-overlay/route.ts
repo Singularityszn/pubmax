@@ -6,7 +6,7 @@ import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
 import { toPublicOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
-import { resolveHarvestOverlayVenueId } from "@/lib/harvestOverlayVenue";
+import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 
@@ -25,8 +25,14 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   try {
-    const overlayVenueId = await resolveHarvestOverlayVenueId(venueId);
-    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    const resolution = await resolveHarvestOverlayVenue(venueId);
+    if (resolution.status === "unavailable") {
+      return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
+    }
+    const read =
+      resolution.status === "resolved"
+        ? await harvestOverlayStore().getByVenueId(resolution.venueId)
+        : { status: "ready" as const, overlay: null };
     if (read.status === "degraded") {
       return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
     }

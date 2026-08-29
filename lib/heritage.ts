@@ -23,7 +23,7 @@ import { discardBody } from "@/lib/responseBody";
 import { normaliseVenueName } from "@/lib/curation";
 import { heritageFactFromOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
-import { resolveHarvestOverlayVenueId } from "@/lib/harvestOverlayVenue";
+import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
 import { venueKindNoun } from "@/lib/venueKindFilters";
@@ -114,11 +114,17 @@ async function retrieveFromSupabase(venueKey: string): Promise<HeritageFact[]> {
   }
 }
 
-export async function retrieveHeritage(input: {
+export type HeritageReadResult = {
+  status: "ready" | "degraded";
+  facts: HeritageFact[];
+};
+
+export async function retrieveHeritageWithStatus(input: {
   venueId?: string;
   venueName: string;
-}): Promise<HeritageFact[]> {
+}): Promise<HeritageReadResult> {
   const facts: HeritageFact[] = [];
+  let status: HeritageReadResult["status"] = "ready";
   const venueKey = normaliseVenueName(input.venueName);
 
   // (0) Listed-building fact first — the official register (Historic England
@@ -159,16 +165,30 @@ export async function retrieveHeritage(input: {
   // lore cannot be stored, and heritageFactFromOverlay drops a row that
   // somehow lost its https citation.
   if (input.venueId) {
-    const overlayVenueId = await resolveHarvestOverlayVenueId(input.venueId);
-    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
-    const overlay = read.status === "ready" ? read.overlay : null;
-    const lore = overlay ? heritageFactFromOverlay(overlay) : null;
-    if (lore) facts.push(lore);
+    const resolution = await resolveHarvestOverlayVenue(input.venueId);
+    if (resolution.status === "unavailable") {
+      status = "degraded";
+    } else if (resolution.status === "resolved") {
+      const read = await harvestOverlayStore().getByVenueId(resolution.venueId);
+      if (read.status === "degraded") {
+        status = "degraded";
+      } else {
+        const lore = read.overlay ? heritageFactFromOverlay(read.overlay) : null;
+        if (lore) facts.push(lore);
+      }
+    }
   }
 
   // No client context is accepted — the route derives everything from
   // server-owned stores.
-  return facts;
+  return { status, facts };
+}
+
+export async function retrieveHeritage(input: {
+  venueId?: string;
+  venueName: string;
+}): Promise<HeritageFact[]> {
+  return (await retrieveHeritageWithStatus(input)).facts;
 }
 
 function dedupeCitations(
@@ -314,10 +334,13 @@ export async function answerHeritage(input: {
 }): Promise<HeritageResponse> {
   const venueNoun = venueKindNoun(input.venueKind);
   const useLlm = Boolean(process.env.OPENROUTER_API_KEY);
-  const venueIdentity = useLlm && input.venueId
-    ? await resolveHarvestOverlayVenueId(input.venueId)
+  const venueResolution = input.venueId
+    ? await resolveHarvestOverlayVenue(input.venueId)
+    : null;
+  const venueIdentity = venueResolution?.status === "resolved"
+    ? venueResolution.venueId
     : input.venueId ?? "";
-  const key = useLlm
+  const key = useLlm && venueResolution?.status !== "unavailable"
     ? cacheKey(input.venueName, input.question, venueNoun, venueIdentity)
     : null;
 
@@ -327,14 +350,17 @@ export async function answerHeritage(input: {
     if (hit) answerCache.delete(key); // expired — prune on read
   }
 
-  const facts = await retrieveHeritage(input);
+  const heritageRead = await retrieveHeritageWithStatus(input);
+  const facts = heritageRead.facts;
   const citations = dedupeCitations(facts);
 
   if (useLlm && key) {
     const modelAnswer = await answerWithModel(input.question, facts, venueNoun);
     if (modelAnswer) {
       const response: HeritageResponse = { answer: modelAnswer, citations };
-      setAnswerCache(key, { at: Date.now(), response });
+      if (heritageRead.status === "ready") {
+        setAnswerCache(key, { at: Date.now(), response });
+      }
       return response;
     }
     // else: fall through to the honest structured answer (not cached — cheap).

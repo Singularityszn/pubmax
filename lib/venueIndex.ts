@@ -15,6 +15,7 @@ import { isVenueKind, type Venue, type VenueKind } from "@/lib/venues";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import { canonicalOsmId } from "@/lib/harvestFold";
 import { cityVenueIdForPub } from "@/lib/cityVenueId.mjs";
+import { UK_OSM_PUBS_FILE } from "@/lib/ukOsmPubsFile.mjs";
 
 // Server-only venue-name resolution (PRD §9). Social content stores raw venue
 // ids (content-hashed, e.g. "venue-1ufn31x"); no public feed/profile/permalink
@@ -172,11 +173,11 @@ async function readSlimIndex(
 async function attachCityOsmIds(
   cityId: string,
   index: Map<string, IndexedVenue>,
-): Promise<void> {
+): Promise<boolean> {
   try {
     const sourcePath =
       cityId === "london"
-        ? path.join(process.cwd(), "data", "osm", "uk", "uk_osm_pubs.json")
+        ? path.join(process.cwd(), UK_OSM_PUBS_FILE)
         : path.join(
             process.cwd(),
             "data",
@@ -189,7 +190,7 @@ async function attachCityOsmIds(
       "utf8",
     );
     const pubs = JSON.parse(raw)?.pubs;
-    if (!Array.isArray(pubs)) return;
+    if (!Array.isArray(pubs)) return false;
     for (const pub of pubs) {
       const venueId =
         cityId === "london"
@@ -203,8 +204,9 @@ async function attachCityOsmIds(
       const entry = index.get(venueId);
       if (entry) entry.venue.osmId = osmId;
     }
+    return true;
   } catch {
-    // OSM identity enrichment is optional when a source pack is unavailable.
+    return false;
   }
 }
 
@@ -216,7 +218,7 @@ async function getCityVenueIndex(
   if (existing) return existing;
   try {
     const index = await readSlimIndex(publicPath);
-    await attachCityOsmIds(city.id, index);
+    if (!(await attachCityOsmIds(city.id, index))) return null;
     cityCache.set(publicPath, index);
     return index;
   } catch {
