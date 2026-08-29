@@ -305,7 +305,11 @@ function containsVenueName(haystack: string, name: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${phrase}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
-function containsVenueLocationClaim(sentence: string, name: string): boolean {
+function containsVenueLocationClaim(
+  sentence: string,
+  name: string,
+  expectedLocality?: string,
+): boolean {
   const nameTokens = name
     .toLowerCase()
     .split(/[^a-z0-9]+/)
@@ -315,7 +319,13 @@ function containsVenueLocationClaim(sentence: string, name: string): boolean {
     .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("[^a-z0-9]+");
   const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])`;
-  const locality = `[a-z][a-z'-]*`;
+  const locality = expectedLocality
+    ? expectedLocality
+        .trim()
+        .toLowerCase()
+        .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+        .replace(/\s+/g, "\\s+")
+    : `[a-z][a-z'-]*`;
   const direct = `(?:\\b(?:in|near|at|within|from)\\b\\s+|[,\\-–—()]\\s*)${locality}\\b`;
   const copula =
     `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
@@ -397,7 +407,11 @@ export function loreNameTownGate(
     relatedSentences.length > 0 &&
     relatedSentences.every(
       (sentence) =>
-        containsExactLocality(sentence, locality),
+        (containsVenueLocationClaim(sentence, name) &&
+          containsVenueLocationClaim(sentence, name, locality) &&
+          containsExactLocality(sentence, locality)) ||
+        (containsVenueReferenceLocalityRelation(sentence) &&
+          containsExactLocality(sentence, locality)),
     );
   if (!relatedSentence) return "town-mismatch";
   return "pass";

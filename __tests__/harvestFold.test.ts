@@ -178,6 +178,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not bind an unrelated town mention to the venue", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in London was founded by a brewer in Clapham.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a later foreign locality qualifier", () => {
     expect(
       loreNameTownGate(
