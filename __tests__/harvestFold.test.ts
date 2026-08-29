@@ -268,6 +268,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not treat a mentioned locality as venue location", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion is a pub. It was mentioned in Clapham.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a compound foreign locality", () => {
     expect(
       loreNameTownGate(
@@ -413,6 +423,11 @@ describe("parseOverlayRow", () => {
         row({ website: "https://www.threads.net/@redlion", matchedLore: null }),
       ),
     ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(
+        row({ website: "https://instagram.com./redlion", matchedLore: null }),
+      ),
+    ).toThrow(HarvestFoldError);
   });
 
   it("fails loud when cited lore has no confirmed name and town match", () => {
@@ -470,6 +485,11 @@ describe("parseOverlayRow", () => {
     expect(() =>
       parseOverlayRow(row({ matchedLore: null, sources: ["https://facebook.com/redlion"] })),
     ).toThrow(HarvestFoldError);
+    expect(() =>
+      parseOverlayRow(
+        row({ matchedLore: null, sources: ["https://instagram.com./redlion"] }),
+      ),
+    ).toThrow(HarvestFoldError);
   });
 
   it("accepts a website-only row with social absent or null", () => {
@@ -494,6 +514,11 @@ describe("canonicalOsmId / overlayLookupKeys", () => {
     expect(canonicalOsmId("node/000123")).toBe("node/123");
     expect(canonicalOsmId("n000123")).toBe("node/123");
     expect(overlayLookupKeys("node/000123")).toEqual(overlayLookupKeys("node/123"));
+  });
+
+  it("rejects zero OSM ids after normalization", () => {
+    expect(canonicalOsmId("node/0")).toBeNull();
+    expect(canonicalOsmId("venue-uk-n000")).toBeNull();
   });
 
   it("never uses the pub name as a lookup key", () => {

@@ -166,7 +166,7 @@ function httpsObservationParts(value: string): string[] {
 
 function isSocialUrl(value: string): boolean {
   try {
-    const host = new URL(value).hostname.toLowerCase().replace(/^www\./, "");
+    const host = new URL(value).hostname.toLowerCase().replace(/\.+$/, "").replace(/^www\./, "");
     return [...SOCIAL_HOSTS].some(
       (socialHost) => host === socialHost || host.endsWith(`.${socialHost}`),
     );
@@ -306,7 +306,7 @@ function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
     /^\s*(?:it|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
   const localityRelation =
-    /\b(?:is|was|were|has been|had been|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
+    /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
   return venueReference.test(sentence) && localityRelation.test(sentence);
 }
 
@@ -382,12 +382,14 @@ export function canonicalOsmId(value: string): string | null {
   const typed = raw.match(/^(node|way|relation)\/(\d+)$/i);
   if (typed) {
     const id = typed[2].replace(/^0+(?=\d)/, "");
+    if (id === "0") return null;
     return `${typed[1].toLowerCase()}/${id}`;
   }
   const venue = raw.match(/^(?:venue-uk-|venue-osm-)?([nwr])(\d+)$/i);
   if (venue) {
     const kind = venue[1].toLowerCase();
     const id = venue[2].replace(/^0+(?=\d)/, "");
+    if (id === "0") return null;
     if (kind === "n") return `node/${id}`;
     if (kind === "w") return `way/${id}`;
     return `relation/${id}`;
