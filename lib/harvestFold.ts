@@ -232,7 +232,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
         additionalQualifierWord &&
         !LOCALITY_CONTINUATION_WORDS.has(additionalQualifierWord),
     );
-    const nextWord = after.match(/^\s*(?:[.!?]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
+    const nextWord = after.match(/^\s*(?:[.!?,()]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
     const compoundWord = after.match(
       /^\s*(?:[,;:/()\-–—]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
     )?.[1]?.toLowerCase();
@@ -242,7 +242,8 @@ function containsExactLocality(haystack: string, locality: string): boolean {
         !UK_COUNTRY_QUALIFIERS.has(compoundWord),
     );
     const sentenceContinuation =
-      /^[\s]*[.!?]\s+/.test(after) &&
+      (/^[\s]*[.!?]\s+/.test(after) ||
+        /^[\s]*[,()]\s+(?:which|who|that)\b/i.test(after)) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
     const laterLocality = after.match(
       /\b(?:is|was|were|has|have|had|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
@@ -381,9 +382,14 @@ function containsVenueLocationClaim(
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
     /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery|branch|branches|site|sites|location|locations|premises))\b/i;
+  const adjectivalBranchReference =
+    /^\s*(?:an?|the|another|second|third|new|additional)\s+(?:[a-z][a-z'-]*\s+){1,2}(?:branch|branches|site|sites|location|locations|premises)\b(?:\s+of\s+(?:the\s+)?(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))?\s+(?:is|was|were|has been|opened|opens|opening|operates?|operating|stood|stands?)\b/i;
   const localityRelation =
     /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b|\b(?:has|have|had)\b\s+(?:an?\s+)?branch\s+(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:(?:an?|the|its|another|second|third|new|additional)\s+){0,3}(?:branch|branches|site|sites|location|locations|premises)\s+(?:(?:is|was|were|has been|located|situated|based|opened|opens|opening|operates?|operating|stood|stands?)\s+)?(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
-  return venueReference.test(sentence) && localityRelation.test(sentence);
+  return (
+    (venueReference.test(sentence) && localityRelation.test(sentence)) ||
+    adjectivalBranchReference.test(sentence)
+  );
 }
 
 export function nameTokens(name: string): string[] {

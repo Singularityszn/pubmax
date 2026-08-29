@@ -379,6 +379,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a later foreign adjectival branch locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. A Pennsylvania branch of the pub opened in 2010.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a foreign locality in a possessive venue branch", () => {
     expect(
       loreNameTownGate(
@@ -413,6 +423,16 @@ describe("loreNameTownGate", () => {
     expect(
       loreNameTownGate(
         "The Red Lion, Clapham has stood since 1700.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("pass");
+  });
+
+  it("accepts a confirmed locality before a comma-separated relative clause", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham, which dates from 1700, has stood on the common.",
         "The Red Lion",
         "Clapham",
       ),
