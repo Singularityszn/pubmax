@@ -1,7 +1,8 @@
 # V1 invite scoreboard
 
-Operator scoreboard for the soft-launch London cohort. Not a Social launch:
-`SOCIAL_INVITE_BETA_ENABLED` stays unset. Product stance lives in
+Operator scoreboard for the soft-launch London cohort. Social is live by
+default when `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is unset; `=0` is a full emergency
+rollback to static preview. Product stance lives in
 [`docs/plans/PLG_STRATEGY.md`](../plans/PLG_STRATEGY.md); the operator checklist
 is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 [`docs/growth/HORIZON0_OPS_CHECKLIST.md`](HORIZON0_OPS_CHECKLIST.md).
@@ -26,7 +27,8 @@ crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2)
 ```
 
 Do not substitute `invite_rsvp_submitted` — RSVP is intent on the public invite
-page, not a confirmed join. Do not track Social DAU while Social stays in preview.
+page, not a confirmed join. Track Social only for an explicit, consented
+product question; do not use it as a vanity launch metric during rollback.
 
 ## Weekly PostHog reads
 
@@ -44,7 +46,7 @@ Project: `https://eu.posthog.com/project/219466`.
 | Meaningful plan actions | `plan_saved`, crew joins, invite share; also `meaningful_core_action` |
 | Return pulse | `activity_pulse` |
 | Seed borough coverage | Pint Index seed strip + corroborated beer counts (playbook) |
-| Social DAU | Do not track while Social stays in preview |
+| Social DAU | Track only for an explicit, consented product question; unavailable during `=0` rollback |
 
 ## Week-1 pass bar
 
@@ -54,7 +56,7 @@ Project: `https://eu.posthog.com/project/219466`.
 - Invite share on most successful locked plans
 - Seed boroughs not empty grey on first open
 - No paid ads
-- Social surfaces remain preview-only
+- Social is live by default; `=0` must show static preview only
 
 ## Physical posters
 

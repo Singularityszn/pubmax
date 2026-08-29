@@ -204,7 +204,7 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 
 ### 5.2 Social moderation rota
 
-`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before Social goes live. Check its moderation table for current status before launch.
+`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before relying on live Social content. Check its moderation table for current status during each launch review. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, use static preview only.
 
 ---
 
@@ -226,7 +226,7 @@ Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will
 
 ### 6.3 Weekly scoreboard (PostHog)
 
-Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Do not track Social DAU while the beta flag is off.
+Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Track Social only for an explicit, consented product question; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` provides static preview only.
 
 ### 6.4 Done when
 

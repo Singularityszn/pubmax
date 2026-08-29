@@ -39,6 +39,7 @@ import {
   type StarterPackFollowOutcome,
   type StarterPackMember,
 } from "@/lib/starterPacks";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./starterPacks.css";
 
@@ -75,6 +76,7 @@ export function starterPackOutcomeChip(outcome: StarterPackFollowOutcome): {
 }
 
 export default function StarterPacks({ compact = false }: { compact?: boolean }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const viewer = useViewerHandle();
   const [packs, setPacks] = useState<PackView[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<number | null>(null);
@@ -82,7 +84,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
   const [packState, setPackState] = useState<Record<string, PackState>>({});
 
   useEffect(() => {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     let live = true;
     void (async () => {
       try {
@@ -112,10 +114,10 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     return () => {
       live = false;
     };
-  }, [viewer]);
+  }, [socialFriendsLaunchEnabled, viewer]);
 
   async function followAll(pack: PackView) {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     setPackState((current) => ({ ...current, [pack.slug]: { status: "working" } }));
     try {
         const response = await authedActionFetch(
@@ -168,7 +170,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     viewerFollowing,
     followedAny: Object.values(packState).some((state) => state.status === "done"),
   });
-  if (!visible) return null;
+  if (!socialFriendsLaunchEnabled || !visible) return null;
 
   return (
     <section

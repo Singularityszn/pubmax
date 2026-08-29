@@ -17,6 +17,7 @@ import {
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./findYourLot.css";
 
@@ -41,6 +42,7 @@ export default function FindYourLot({
   myHandle?: string | null;
   compact?: boolean;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -66,6 +68,7 @@ export default function FindYourLot({
   const viewer = normalizeHandle(myHandle ?? "") || storedHandle;
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = normalizeHandle(query);
     // Defer setState out of the effect body (react-hooks/set-state-in-effect).
@@ -104,10 +107,10 @@ export default function FindYourLot({
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query]);
+  }, [query, socialFriendsLaunchEnabled]);
 
   async function follow(handle: string) {
-    if (!viewer) {
+    if (!socialFriendsLaunchEnabled || !viewer) {
       setNotice("Sign in and claim a handle first.");
       return;
     }
@@ -135,7 +138,7 @@ export default function FindYourLot({
   }
 
   async function mintInviteLink() {
-    if (inviteBusy) return;
+    if (inviteBusy || !socialFriendsLaunchEnabled) return;
     setInviteBusy(true);
     setNotice("");
     try {
@@ -179,6 +182,8 @@ export default function FindYourLot({
       setNotice("Could not copy the link.");
     }
   }
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   const shareSelf =
     viewer && typeof window !== "undefined"

@@ -11,6 +11,7 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { followStore } from "@/lib/followStore";
 import { normalizeHandle } from "@/lib/profiles";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
 assertServerEnv();
 
@@ -18,6 +19,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return jsonNoStore({ lot: [] }, { status: 200 });
+  }
   const handle = normalizeHandle((await params).handle);
   if (!handle) return jsonNoStore({ lot: [] }, { status: 200 });
 

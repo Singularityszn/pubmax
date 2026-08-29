@@ -12,6 +12,7 @@ import {
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import type { FollowCounts } from "@/lib/followStore";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 // Follow / unfollow control for a public profile. The follower handle is passed
 // in by the page so this button stays dumb about where identity comes from, and
@@ -46,6 +47,7 @@ export default function FollowButton({
   followsViewer = false,
   onCountsChange,
 }: FollowButtonProps) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [following, setFollowing] = useState(initialFollowing);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +97,8 @@ export default function FollowButton({
       setBusy(false);
     }
   }
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   return (
     <div className="profileFollow">

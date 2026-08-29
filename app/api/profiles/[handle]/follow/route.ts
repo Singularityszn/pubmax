@@ -12,6 +12,12 @@ import { followOnce } from "@/lib/followWrite.server";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore, isSelfFollow } from "@/lib/followStore";
 import { gateHandleAction } from "@/lib/profileOwnership";
@@ -28,6 +34,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   // Solo-operator emergency freeze (U15): changing the follow graph is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;

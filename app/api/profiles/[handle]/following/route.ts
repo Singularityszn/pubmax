@@ -16,6 +16,7 @@ import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
 assertServerEnv();
 
@@ -23,6 +24,9 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return jsonNoStore({ following: [] }, { status: 200 });
+  }
   const handle = normalizeHandle((await params).handle);
   // An empty handle has no follow graph — return the empty list, not a 400, so
   // the feed's fetch has one uniform shape to read.

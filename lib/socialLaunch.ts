@@ -3,6 +3,8 @@ import type { SocialAccessState } from "@/lib/socialAccess";
 
 /** Registry env for the friends-only Social launch switch. */
 export const SOCIAL_FRIENDS_LAUNCH_ENV = "PUBMAX_SOCIAL_FRIENDS_LAUNCH";
+export const SOCIAL_ROLLBACK_ERROR = "Social is in preview right now.";
+export const SOCIAL_ROLLBACK_CODE = "SOCIAL_PREVIEW";
 
 export function isSocialFriendsLaunchEnabled(
   value: string | undefined,

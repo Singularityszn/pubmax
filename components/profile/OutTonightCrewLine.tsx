@@ -15,6 +15,7 @@ import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import { discardBody } from "@/lib/responseBody";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type Props = {
   /** The profile being viewed (the potential check-in owner). */
@@ -30,12 +31,13 @@ type State =
 type CheckInDto = { handle?: string; areaSlug?: string | null };
 
 export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [state, setState] = useState<State>({ kind: "hidden" });
 
   useEffect(() => {
     // No owner or no viewer: nothing to check. The initial state is already
     // "hidden", so there is nothing to set here.
-    if (!ownerHandle || !viewerHandle) return;
+    if (!socialFriendsLaunchEnabled || !ownerHandle || !viewerHandle) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -59,9 +61,9 @@ export default function OutTonightCrewLine({ ownerHandle, viewerHandle }: Props)
       }
     })();
     return () => controller.abort();
-  }, [ownerHandle, viewerHandle]);
+  }, [ownerHandle, socialFriendsLaunchEnabled, viewerHandle]);
 
-  if (state.kind === "hidden") return null;
+  if (!socialFriendsLaunchEnabled || state.kind === "hidden") return null;
 
   const areaName = tryGetNightArea(state.areaSlug)?.name ?? null;
   return (

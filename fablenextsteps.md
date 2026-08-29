@@ -20,7 +20,7 @@
 - Estimates can never become verified prices, Pint Index observations, history, or publisher claims.
 - No account is required to browse, view the Map, inspect a draft Plan, or view a public Open Crew preview.
 - A verified account and adult assertion are required for Social host and join actions.
-- Social stays hidden from primary navigation while `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is absent.
+- Social is live by default. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for a full emergency rollback; Social then stays in static preview and its reads and writes are unavailable.
 - Do not add LangChain, LangGraph, Langfuse, Sentry, or Depot without evidence that PostHog, Vercel, Supabase, and the existing trace adapter leave a measured gap.
 - Do not add a database table unless a named task requires it and an existing table or event cannot carry the contract safely.
 - Keep production deployments clean, pinned to fetched `origin/main`, and traceable by deployment ID.
@@ -44,7 +44,7 @@ Snapshot time: 24 August 2026, Europe/London.
 | Production state | Ready | Vercel inspection |
 | Supabase project | `iankajxliutqogqkmvdg` | Production Store |
 | Latest applied migrations | `0117_pint_drop_authority`, `0118_pint_drop_table_separation` | Supabase migration ledger |
-| Social launch flag | Removed from Production | Vercel environment inventory |
+| Social launch flag | Unset, so Social is live by default; `0` is full emergency rollback | Vercel environment inventory and `lib/socialLaunch.ts` |
 | Open GitHub issues | 8 | #727, #443, #437, #392, #390, #287, #282, #252 |
 
 ### Production smoke at this snapshot
@@ -53,7 +53,7 @@ Snapshot time: 24 August 2026, Europe/London.
 - Signed-out `POST /api/pint-drops` returned HTTP 401 with `UNAUTHENTICATED`.
 - The mobile Map reached a useful pin state at 390x844.
 - Blank Plan arrival showed an enabled `Guide me` action.
-- Gated Social links were absent from desktop and mobile primary navigation.
+- Social links follow live-by-default launch state; rollback keeps a visible preview destination.
 - Vercel build completed TypeScript and generated 519 static pages.
 - No new runtime error group was attributed to the current production deployment during release smoke.
 - Two moderation alert groups returned by Vercel belonged to the prior deployment and its one pending Social post.
@@ -263,7 +263,7 @@ Important merged slices:
 
 Production state:
 
-- `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is absent.
+- `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is unset, so Social is live by default.
 - `/social` still exists, but it is not in primary navigation.
 - `private_social_accounts`: 5 rows.
 - `social_posts`: 1 row.
@@ -549,7 +549,7 @@ Value presence was checked without reading secret values.
 
 | Key or access | Needed for | Decision |
 | --- | --- | --- |
-| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | Primary Social navigation and open launch | Keep absent until Social launch gate passes |
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | Primary Social navigation and open launch | Leave unset for live Social; set to `0` only for a full emergency rollback |
 | `POSTHOG_PROJECT_API_KEY` | PostHog management and dashboard automation | Add scoped project access, not a personal all-project key |
 | Search Console owner access | Index certification and query data | Owner action |
 | Bing Webmaster owner access | Bing sitemap and index certification | Owner action |
@@ -727,7 +727,7 @@ Outcome: launch Social because evidence supports it, or keep it gated without lo
 - [ ] Configure `SOCIAL_CONNECTION_ENCRYPTION_KEY` before external provider tokens.
 - [ ] Complete provider approval before enabling X, Instagram, or TikTok connections.
 - [ ] Run a controlled cohort and measure useful crew activation, not Social page views.
-- [ ] Add `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` only after the gate passes, then redeploy and capture both viewport proofs.
+- [ ] Leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset for live Social; set it to `0` only for a full emergency rollback, then redeploy and capture both viewport proofs.
 
 Done when: Social creates committed group nights, moderation remains within service level, and no private data appears in public reads.
 
@@ -848,4 +848,4 @@ The next milestone is not another large feature set. It is this measured result:
 - GitHub protected checks run and pass normally.
 - No new critical error appears during a 24-hour canary.
 
-Once this result holds, start Social launch evaluation and native store evidence. Until then, improve activation, trust, data supply, and reliability before adding product breadth.
+Once this result holds, continue Social launch evaluation and native store evidence. Until then, improve activation, trust, data supply, and reliability before adding product breadth.

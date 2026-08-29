@@ -37,6 +37,7 @@ import { directoryEmptyLine } from "@/lib/peopleDirectory";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./peopleDirectory.css";
 
@@ -61,6 +62,7 @@ export default function PeopleDirectory({
   myHandle?: string | null;
   limit?: number;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<Person[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -75,6 +77,7 @@ export default function PeopleDirectory({
   const [alreadyFollowing, setAlreadyFollowing] = useState(0);
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     void Promise.resolve().then(() => {
       try {
         setStoredHandle(
@@ -128,11 +131,11 @@ export default function PeopleDirectory({
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, handleRead, limit, viewer]);
+  }, [attempt, handleRead, limit, socialFriendsLaunchEnabled, viewer]);
 
   // Who already follows you back, so a row can say "Mates" instead of guessing.
   useEffect(() => {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -159,7 +162,7 @@ export default function PeopleDirectory({
       }
     })();
     return () => controller.abort();
-  }, [viewer]);
+  }, [socialFriendsLaunchEnabled, viewer]);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
@@ -203,6 +206,8 @@ export default function PeopleDirectory({
       followsViewer: lot.has(clean) || false,
     });
   };
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   async function follow(handle: string) {
     const clean = normalizeHandle(handle);

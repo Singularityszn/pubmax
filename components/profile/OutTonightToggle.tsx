@@ -20,6 +20,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
 import "./outTonightBeacon.css";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type Props = {
   /** The signed-in owner's handle (already known - this only renders on your own profile). */
@@ -37,13 +38,14 @@ const AREA_OPTIONS = NIGHT_AREA_SLUGS.map((slug) => ({ slug, name: getNightArea(
 type CheckInDto = { handle?: string; areaSlug?: string | null };
 
 export default function OutTonightToggle({ handle }: Props) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [state, setState] = useState<State>({ kind: "loading" });
   const [areaChoice, setAreaChoice] = useState("");
   const [busy, setBusy] = useState(false);
   const [writeError, setWriteError] = useState("");
 
   useEffect(() => {
-    if (!handle) return;
+    if (!socialFriendsLaunchEnabled || !handle) return;
     const controller = new AbortController();
     (async () => {
       try {
@@ -68,7 +70,7 @@ export default function OutTonightToggle({ handle }: Props) {
       }
     })();
     return () => controller.abort();
-  }, [handle]);
+  }, [handle, socialFriendsLaunchEnabled]);
 
   async function turnOn() {
     setBusy(true);
@@ -112,6 +114,8 @@ export default function OutTonightToggle({ handle }: Props) {
       setBusy(false);
     }
   }
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   if (state.kind === "loading") {
     return (

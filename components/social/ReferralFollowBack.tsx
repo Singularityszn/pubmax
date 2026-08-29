@@ -12,6 +12,7 @@ import {
   readReferralFollowHandle,
 } from "@/lib/referralFollowBack";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./referralFollowBack.css";
 
@@ -20,6 +21,7 @@ export default function ReferralFollowBack({
 }: {
   myHandle?: string | null;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [inviterHandle, setInviterHandle] = useState<string | null>(null);
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function ReferralFollowBack({
     });
   }, [myHandle]);
 
-  if (!inviterHandle) return null;
+  if (!socialFriendsLaunchEnabled || !inviterHandle) return null;
 
   return (
     <section className="referralFollowBack" aria-label="Follow your inviter">

@@ -10,14 +10,14 @@ ship the product and keep this checklist current. Strategy:
 
 ```sh
 curl -sSIL https://pubmaxxing.com/map          # HTTP/2 200
-curl -sSIL https://pubmaxxing.com/social       # HTTP/2 200 (preview; flag unset)
+curl -sSIL https://pubmaxxing.com/social       # HTTP/2 200 (live by default; use =0 only for rollback)
 ```
 
 Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohort. Agents keep product + this checklist current.
 
 ## Do not do in this wave
 
-- Enable `SOCIAL_INVITE_BETA_ENABLED`
+- Keep `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset for live Social; set it to `0` only for a full emergency rollback.
 - Rebuild referral feature grants in any form (a milestone is a mark of honour: [`docs/REFERRALS.md`](../REFERRALS.md))
 - Charge a drinker for anything, or gate the annual Year in Pints wrap
 - Add Stripe Checkout
@@ -35,7 +35,7 @@ Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohor
 ```sh
 curl -sSIL https://pubmaxxing.com/map | head -n 1
 curl -sSIL https://pubmaxxing.com/social | head -n 1
-# Social must stay preview; flag unset on the production project.
+# Social is live when the flag is unset; verify static Social preview after setting =0 for rollback.
 ```
 
 ## Cohort invite (15–40 drinkers)
@@ -52,4 +52,4 @@ curl -sSIL https://pubmaxxing.com/social | head -n 1
 - ≥5 RSVPs or price logs
 - Invite share on most successful locked plans
 - Seed boroughs not empty grey on first open
-- Social remains preview-only
+- Social remains live by default and returns to static preview only with `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`.

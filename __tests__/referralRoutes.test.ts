@@ -37,6 +37,7 @@ function request(
 }
 
 beforeEach(() => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   authState.id = null;
@@ -46,6 +47,22 @@ beforeEach(() => {
 });
 
 describe("referral routes", () => {
+  it("blocks invite-link minting during the full Social rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+    authState.id = "inviter-private";
+
+    const response = await inviteLink(
+      request("/api/referrals/invite-link", { method: "POST" }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Social is in preview right now.",
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("rejects account APIs without verified auth", async () => {
     expect((await inviteLink(request("/api/referrals/invite-link", { method: "POST" }))).status).toBe(401);
     expect((await referralStatus(request("/api/referrals/status"))).status).toBe(401);

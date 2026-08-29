@@ -72,6 +72,7 @@ import {
 } from "@/lib/planSessionCapability";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 // Web Share support never changes within a page lifetime, so no updates arrive.
 const subscribeToNothing = () => () => {};
@@ -346,6 +347,7 @@ function AccountHandleEditor({
 
 export default function PubmaxxAccountHub() {
   const { user, loading, session, identityResolved } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const accountAuth = useMemo(
     () => captureAccountAuth(user?.id ?? null, session),
     [session, user?.id],
@@ -449,7 +451,9 @@ export default function PubmaxxAccountHub() {
     });
     void Promise.allSettled([
       authedActionFetch("/api/me/night-profile", { signal: controller.signal }),
-      authedActionFetch("/api/referrals/status", { signal: controller.signal }),
+      socialFriendsLaunchEnabled
+        ? authedActionFetch("/api/referrals/status", { signal: controller.signal })
+        : Promise.resolve(null),
       authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
     ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
       if (controller.signal.aborted) return;
@@ -503,7 +507,7 @@ export default function PubmaxxAccountHub() {
       }
     });
     return () => controller.abort();
-  }, [user, accountLoadNonce]);
+  }, [accountLoadNonce, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     const refresh = () => setDeviceNightProfile(readDeviceNightProfile());
@@ -749,13 +753,13 @@ export default function PubmaxxAccountHub() {
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
       <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
-      <ReferralFollowBack />
+      {socialFriendsLaunchEnabled ? <ReferralFollowBack /> : null}
       {/* The account hub is where a freshly onboarded drinker lands, and the
           packs gate themselves on following fewer than three accounts, so this
           is the "after onboarding" beat without putting a form in front of
           arrival. */}
-      <StarterPacks />
-      <FindYourLot />
+      {socialFriendsLaunchEnabled ? <StarterPacks /> : null}
+      {socialFriendsLaunchEnabled ? <FindYourLot /> : null}
       {mergeState.kind !== "none" ? (
         <div className="accountHubMerge" role="group" aria-labelledby="night-profile-merge-title">
           <h3 id="night-profile-merge-title">Bring your Night Profile?</h3>
@@ -836,16 +840,18 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <FoundingMemberCard />
-        <ReferralInviteCard
-          status={referralStatus}
-          busy={referralBusy}
-          link={referralLink}
-          notice={referralNotice}
-          shareSupported={shareSupported}
-          onInvite={() => void inviteMate()}
-          onCopy={() => void copyInviteLink()}
-          onShare={shareInviteLink}
-        />
+        {socialFriendsLaunchEnabled ? (
+          <ReferralInviteCard
+            status={referralStatus}
+            busy={referralBusy}
+            link={referralLink}
+            notice={referralNotice}
+            shareSupported={shareSupported}
+            onInvite={() => void inviteMate()}
+            onCopy={() => void copyInviteLink()}
+            onShare={shareInviteLink}
+          />
+        ) : null}
       </div>
       <section className="accountHubSettings" aria-labelledby="account-settings-title">
         <h3 id="account-settings-title">Account settings</h3>
