@@ -472,7 +472,8 @@ describe("legal content pages", () => {
     expect(terms).toMatch(
       /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
-    expect(terms).toMatch(/date of birth you gave at onboarding for the 18\+ gate/i);
+    expect(termsText).toMatch(/Social is live by default/i);
+    expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

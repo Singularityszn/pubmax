@@ -94,6 +94,9 @@ describe("Social emergency rollback rendering", () => {
       expect(html).not.toContain("Sign in to use Social.");
       expect(html).not.toContain("Discover body");
       expect(html).not.toContain("socialDiscoverBody");
+      expect(html).not.toContain("Starter packs");
+      expect(html).not.toContain("Find your lot");
+      expect(html).not.toContain("Crews panel");
     },
   );
 });

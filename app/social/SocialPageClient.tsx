@@ -647,9 +647,15 @@ export default function SocialPageClient({
 
   const isPosts = initialState.tab === "posts";
   const showPostsControls =
-    isPosts && viewerPhase === "resolved" && access === "verified";
+    friendsLaunchEnabled &&
+    isPosts &&
+    viewerPhase === "resolved" &&
+    access === "verified";
   const showViewerCards =
-    isPosts && viewerPhase === "resolved" && access === "verified";
+    friendsLaunchEnabled &&
+    isPosts &&
+    viewerPhase === "resolved" &&
+    access === "verified";
   return (
     <>
       <SiteNav active="social" />
@@ -684,18 +690,17 @@ export default function SocialPageClient({
             {showViewerCards ? (
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
-            {/* Friend-graph formation stays available while posts stay gated. */}
             {/* ONE live copy of the packs on this page. A second would keep its
                 own follow results, so the two would disagree about what a tap
                 just did. */}
-            {isPosts ? <StarterPacks compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
             {/* And ONE live copy of the search-and-invite surface, for the same
                 reason: the body used to mount a second one beside it, so an
                 unverified viewer met the same heading, the same field and the
                 same invite button twice at 1440 and stacked at 390 - and both
                 copies carried `id="find-lot-title"`, which left every
                 `aria-labelledby` on the page pointing at the first. */}
-            {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
           {!friendsLaunchEnabled ? (

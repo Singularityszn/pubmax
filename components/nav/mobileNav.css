@@ -234,7 +234,7 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 4;
+    --tab-count: 5;
     --tab-inset: 2px;
     max-width: 420px;
     margin: 0 auto;
@@ -339,6 +339,14 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .mobileTabPreviewDot {
+    flex: 0 0 auto;
+    width: 0.35rem;
+    height: 0.35rem;
+    border-radius: 50%;
+    background: var(--brass, currentcolor);
   }
 
   /* Idle tabs share one quiet ink — no rainbow per-slot hues that fight dark mode. */

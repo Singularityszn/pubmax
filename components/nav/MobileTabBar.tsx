@@ -32,7 +32,7 @@ import "./mobileNav.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Four durable destinations while Social is gated, then five after launch.
+// Five durable destinations. Gated Social stays visible with preview metadata.
 // Compose lives on the floating + action, never in this row.
 //
 // Path active-state is pure (usePathname). Route warming starts only from
@@ -43,6 +43,8 @@ type Tab = {
   href: string;
   label: string;
   Icon: typeof Map;
+  preview?: boolean;
+  ariaLabel?: string;
   /** Path prefixes that should mark this tab active (defaults to href). */
   match?: string[];
 };
@@ -58,9 +60,10 @@ export function buildTabs(
 ): Tab[] {
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS
-    .filter((item) => socialFriendsLaunchEnabled || item.key !== "social")
     .map((item) => ({
       ...item,
+      preview: item.key === "social" && !socialFriendsLaunchEnabled,
+      ariaLabel: item.key === "social" && !socialFriendsLaunchEnabled ? "Social preview" : undefined,
       href:
         item.key === "now"
           ? nowHref
@@ -193,6 +196,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 // useful.
                 prefetch={false}
                 className={"mobileTab pressable" + (active ? " isActive" : "")}
+                aria-label={tab.ariaLabel}
                 aria-current={active ? "page" : undefined}
                 onPointerDown={() => warmTab(tab.href)}
                 onClick={onPrimaryTabNavigate}
@@ -209,6 +213,7 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
                 </span>
                 <span className="mobileTabLabel">
                   <span className="mobileTabLabelText">{tab.label}</span>
+                  {tab.preview ? <span className="mobileTabPreviewDot" aria-hidden="true" /> : null}
                 </span>
               </Link>
             </li>

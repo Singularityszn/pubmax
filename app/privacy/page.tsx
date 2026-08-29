@@ -126,7 +126,7 @@ export default function PrivacyPage() {
           too. Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
-          Social adult access does not use them. They are never shown on prices,
+          Social adult access does not use full name, gender or sex. They are never shown on prices,
           reports, signals, Recommendations, leaderboards or the public
           contributor record.
         </p>
@@ -141,17 +141,16 @@ export default function PrivacyPage() {
         </p>
         <p className="legalBody">
           Social uses a private product account tied to your Supabase sign-in
-          session and stable profile. A legacy Clerk session can still be bound to
-          that account when the invite beta path is enabled; that move needs both
-          signed-in sessions in the same request. We don&rsquo;t match accounts by
-          email, public handle or anything typed into a form.
+          session and stable profile. We don&rsquo;t match accounts by email, public
+          handle or anything typed into a form.
         </p>
         <p className="legalBody">
-          Full Social access is for signed-in accounts aged 18 or older. We read
-          the date of birth you gave at onboarding and refuse Social when it is
-          missing, invalid or shows you are under 18. We do not run a separate
-          hosted age check in this release. None of that private data appears on
-          your profile as an age or verification badge.
+          Full Social access is for signed-in accounts with a claimed handle and
+          an 18+ answer. The date of birth you gave at onboarding decides when it
+          is present; otherwise, one recorded self-assertion can answer the access
+          question. Social is live by default and may return to preview during an
+          emergency rollback. We do not run a separate hosted age check. None of
+          that private data appears on your profile as an age or verification badge.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, home city and
@@ -883,10 +882,11 @@ export default function PrivacyPage() {
         <h2 id="age" className="legalH2">Age and access</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social stays in preview until the friends launch switch is on.
-          When Social is open, full access needs a signed-in account, a claimed
-          handle and a date of birth you gave at onboarding that shows you are
-          18 or older. We do not run a separate hosted age check in this release.
+          account. Social is live by default and may return to preview during an
+          emergency rollback. Full access needs a signed-in account, a claimed
+          handle and an 18+ answer. The date of birth you gave at onboarding
+          decides when it is present; otherwise, one recorded self-assertion can
+          answer the access question. We do not run a separate hosted age check.
           Pubs remain responsible for deciding who they serve.
         </p>
       </section>

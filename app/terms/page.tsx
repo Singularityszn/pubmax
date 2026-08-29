@@ -74,10 +74,11 @@ export default function TermsPage() {
         <h2 id="age" className="legalH2">Age and alcohol</h2>
         <p className="legalBody">
           The map and existing contribution tools don&rsquo;t use age to block an
-          account. Social stays in preview until the friends launch switch is on.
-          When Social is open, full access needs a signed-in account, a claimed
-          handle and a date of birth you gave at onboarding for the 18+ gate (aged
-          18 or older). We do not run a separate hosted age check in this release.
+          account. Social is live by default and may return to preview during an
+          emergency rollback. Full access needs a signed-in account, a claimed
+          handle and an 18+ answer. The date of birth you gave at onboarding
+          decides when it is present; otherwise, one recorded self-assertion can
+          answer the access question. We do not run a separate hosted age check.
           Pubs decide who they serve. Nothing in the app is designed to encourage
           you to drink more. Know your limits, and know the facts at{" "}
           <a
@@ -108,21 +109,21 @@ export default function TermsPage() {
           too. Full name, gender and sex are optional. We collect and store date
           of birth, full name, gender and sex as private details for existing
           account tools.
-          Social adult access does not use them.
+          Social adult access does not use full name, gender or sex.
           Date of birth stays until you delete your profile.
           Full name, gender and sex stay until you edit or clear them, or
           delete your profile. Deleting your profile removes these private identity fields and clears
           its editable public details, while keeping your
           authentication account, public handle and handle-keyed contribution
           history. Only your handle is public.
-          Social also uses a private product account tied to your Supabase sign-in
-          and stable profile. Moving a legacy Clerk session into that account still
-          needs both signed-in sessions in the same request when that beta path is
-          enabled. PUBMAXX doesn&rsquo;t use your email or handle to join them.
-          Full Social content stays closed while the launch switch is off. When
-          Social is open, access also needs a claimed handle and a date of birth
-          you gave at onboarding for the 18+ gate (aged 18 or older). We do not run a
-          separate hosted age check in this release. Your date of birth,
+          Social uses a private product account tied to your Supabase sign-in
+          and stable profile. PUBMAXX doesn&rsquo;t use your email or handle to join
+          accounts.
+          Social content returns to preview during an emergency rollback. Full
+          access also needs a claimed handle and an 18+ answer. The date of birth
+          you gave at onboarding decides when it is present; otherwise, one
+          recorded self-assertion can answer the access question. We do not run a
+          separate hosted age check. Your date of birth,
           documents and verification status aren&rsquo;t public profile fields or
           badges.
           Keep your sign-in to yourself, use a handle that isn&rsquo;t someone
