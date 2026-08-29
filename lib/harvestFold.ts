@@ -294,12 +294,17 @@ function containsVenueLocalityRelation(
     `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
     `(?:\\b(?:located|situated|based|standing|stood|sits|lies)\\b\\s+` +
     `\\b(?:in|near|at|within)\\b\\s+)${localityBoundary}`;
+  const movement =
+    `(?:\\b(?:is|are|was|were|has|have|had)\\b\\s+)?` +
+    `(?:(?:later|formerly|previously|then|eventually)\\s+)?` +
+    `\\b(?:moved|relocated|transferred|shifted|migrated)\\b\\s+` +
+    `\\b(?:to|from|in|near|at|within)\\b\\s+${localityBoundary}`;
   const venueType =
     `\\b(?:is|was|were|has been|had been)\\b\\s+` +
     `(?:an?\\s+)?(?:[a-z-]+\\s+){0,4}` +
     `(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\\s+` +
     `\\b(?:in|near|at|within)\\b\\s+${localityBoundary}`;
-  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${venueType})`, "i").test(sentence);
+  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType})`, "i").test(sentence);
 }
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {
@@ -627,7 +632,10 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       }
       const value = observationValue(observation, "value", line);
       const sourceUrl = observationValue(observation, "sourceUrl", line);
-      observationValue(observation, "fetchedAt", line);
+      const fetchedAt = observationValue(observation, "fetchedAt", line);
+      if (!Number.isFinite(Date.parse(fetchedAt))) {
+        fail("MALFORMED_ROW", "harvest observation fetchedAt must be a timestamp", line);
+      }
       if (!isHttpsUrl(sourceUrl)) {
         fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
       }
