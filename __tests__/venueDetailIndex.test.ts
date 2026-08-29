@@ -203,4 +203,19 @@ describe("venueDetailIndex", () => {
       prices: [],
     });
   });
+
+  it("keeps venue detail readable when OSM enrichment is unavailable", async () => {
+    const realRead = fs.readFile.bind(fs);
+    vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
+      if (String(file).endsWith("cities/manchester/osm_pubs.json")) {
+        throw new Error("missing Manchester OSM pack");
+      }
+      return realRead(file, ...(args as [BufferEncoding]));
+    });
+
+    await expect(getVenueDetail("venue-mcr-1lwo5lo")).resolves.toMatchObject({
+      id: "venue-mcr-1lwo5lo",
+      name: "Peveril of the Peak",
+    });
+  });
 });

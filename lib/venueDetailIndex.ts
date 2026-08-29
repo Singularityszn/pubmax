@@ -6,7 +6,7 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenueWithOsm } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, lookupCanonicalVenueWithOsm } from "@/lib/venueIndex";
 import { slimVenueToPin } from "@/lib/slimPins";
 import { applyHarvestWebsiteMenu } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
@@ -73,7 +73,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
-const cachedDetails = new Map<string, { venue: Venue; overlayVenueId: string }>();
+const cachedDetails = new Map<string, { venue: Venue; overlayVenueId?: string }>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
 const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
@@ -260,16 +260,24 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const cached = cachedDetails.get(id);
   if (cached) {
     try {
-      const read = await harvestOverlayStore().getByVenueId(cached.overlayVenueId);
-      if (read.status === "degraded") return { status: "unavailable" };
-      const overlay = read.overlay;
-      return { status: "found", venue: applyHarvestWebsiteMenu(cached.venue, overlay) };
+      let overlayVenueId = cached.overlayVenueId;
+      if (!overlayVenueId) {
+        const osmLookup = await lookupCanonicalVenueWithOsm(id);
+        if (osmLookup.status === "found") {
+          overlayVenueId = osmLookup.venue.osmId;
+          if (overlayVenueId) cached.overlayVenueId = overlayVenueId;
+        }
+      }
+      if (!overlayVenueId) return { status: "found", venue: cached.venue };
+      const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
+      if (read.status === "degraded") return { status: "found", venue: cached.venue };
+      return { status: "found", venue: applyHarvestWebsiteMenu(cached.venue, read.overlay) };
     } catch {
-      return { status: "unavailable" };
+      return { status: "found", venue: cached.venue };
     }
   }
 
-  const venueLookup = await lookupCanonicalVenueWithOsm(id);
+  const venueLookup = await lookupCanonicalVenue(id);
   if (venueLookup.status === "unavailable") return { status: "unavailable" };
   if (venueLookup.status === "unknown") return { status: "missing" };
 
@@ -290,15 +298,20 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    const overlayVenueId = venueLookup.venue.osmId ?? enriched.id;
-    cachedDetails.set(id, { venue: enriched, overlayVenueId });
+    let overlayVenueId: string | undefined;
+    try {
+      const osmLookup = await lookupCanonicalVenueWithOsm(id);
+      if (osmLookup.status === "found") overlayVenueId = osmLookup.venue.osmId;
+    } catch {
+      overlayVenueId = undefined;
+    }
+    cachedDetails.set(id, { venue: enriched, ...(overlayVenueId ? { overlayVenueId } : {}) });
+    if (!overlayVenueId) return { status: "found", venue: enriched };
     const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
-    if (read.status === "degraded") return { status: "unavailable" };
-    const overlay = read.overlay;
-    const withHarvest = applyHarvestWebsiteMenu(enriched, overlay);
-    return { status: "found", venue: withHarvest };
+    if (read.status === "degraded") return { status: "found", venue: enriched };
+    return { status: "found", venue: applyHarvestWebsiteMenu(enriched, read.overlay) };
   } catch {
-    return { status: "unavailable" };
+    return { status: "found", venue };
   }
 }
 

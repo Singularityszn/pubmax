@@ -151,9 +151,11 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
           .eq("osm_id", osmId)
           .maybeSingle();
         if (error) throw error;
+        if (!data) return { status: "ready" as const, overlay: null };
+        const overlay = fromSql(data as OverlaySqlRow);
         return {
-          status: "ready" as const,
-          overlay: data ? fromSql(data as OverlaySqlRow) : null,
+          status: overlay ? ("ready" as const) : ("degraded" as const),
+          overlay,
         };
       },
       onSchemaMiss: async () => ({ status: "degraded" as const, overlay: null }),

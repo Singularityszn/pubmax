@@ -26,6 +26,7 @@ import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { getListedBuilding } from "@/lib/heritageListings";
 import { getSupabaseAdmin, isSupabaseConfigured } from "@/lib/supabase";
+import { lookupCanonicalVenue } from "@/lib/venueIndex";
 import { venueKindNoun } from "@/lib/venueKindFilters";
 import type { VenueKind } from "@/lib/venues";
 import type { HarvestOverlayVenueResolution } from "@/lib/harvestOverlayVenue";
@@ -134,9 +135,15 @@ export async function retrieveHeritageWithStatus(input: {
   const overlayResolution = input.venueId
     ? input.overlayVenueResolution ?? (await resolveHarvestOverlayVenue(input.venueId))
     : undefined;
-  const serverVenueName = overlayResolution?.status === "resolved"
-    ? overlayResolution.venue?.name
+  const baseVenueLookup = input.venueId
+    ? await lookupCanonicalVenue(input.venueId)
     : undefined;
+  const serverVenueName = overlayResolution?.status === "resolved"
+    ? overlayResolution.venue?.name ??
+      (baseVenueLookup?.status === "found" ? baseVenueLookup.venue.name : undefined)
+    : baseVenueLookup?.status === "found"
+      ? baseVenueLookup.venue.name
+      : undefined;
   const venueKey = normaliseVenueName(input.venueId ? serverVenueName ?? "" : input.venueName);
 
   // (0) Listed-building fact first — the official register (Historic England

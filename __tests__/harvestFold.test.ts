@@ -137,6 +137,16 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not accept a later foreign locality qualifier", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York is in Germany.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {
@@ -517,6 +527,26 @@ describe("heritageFactFromOverlay / public overlay", () => {
               kind: "website",
               value: "https://www.instagram.com/redlion",
               sourceUrl: "https://www.instagram.com/redlion",
+              fetchedAt: "2026-08-28T00:00:00.000Z",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud on malformed social observation source URLs", () => {
+    expect(() =>
+      overlayRowsFromHarvestRecords([
+        {
+          osmId: "node/123",
+          name: "The Red Lion",
+          town: "Clapham",
+          observations: [
+            {
+              kind: "social",
+              value: "@redlion",
+              sourceUrl: "not-a-url",
               fetchedAt: "2026-08-28T00:00:00.000Z",
             },
           ],

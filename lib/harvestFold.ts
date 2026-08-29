@@ -100,6 +100,8 @@ const UK_LOCALITY_QUALIFIER_RE =
   /^\s*(?:(?:(?:,|\(|:|;|-|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?:$|[^a-z0-9])/i;
 const LOCALITY_QUALIFIER_RE =
   /^\s*(?:(?:,|\(|:|;|-|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
+const UK_LOCALITY_DESTINATION_RE =
+  /^(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london|somerset|kent|surrey|sussex|essex|middlesex|hertfordshire|berkshire|buckinghamshire|cambridgeshire|derbyshire|devon|dorset|durham|gloucestershire|hampshire|herefordshire|isle of wight|lancashire|leicestershire|lincolnshire|norfolk|northamptonshire|northumberland|nottinghamshire|shropshire|staffordshire|suffolk|warwickshire|wiltshire|worcestershire|cheshire|cumbria|cornwall)(?:$|[^a-z0-9])/i;
 const LOCALITY_CONTINUATION_WORDS = new Set([
   "and",
   "also",
@@ -191,6 +193,12 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const sentenceContinuation =
       /^[\s]*[.!?]\s+/.test(after) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
+    const laterLocality = after.match(
+      /\b(?:is|was|were|lies|located|situated|based)\s+(?:in|near|from|at|within)\s+([a-z][a-z' -]*)/i,
+    );
+    const hasUnknownLaterLocality = Boolean(
+      laterLocality && !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim()),
+    );
     if (
       LOCALITY_QUALIFIER_RE.test(after) &&
       !hasKnownUkQualifier &&
@@ -198,6 +206,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     ) {
       continue;
     }
+    if (hasUnknownLaterLocality) continue;
     if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
@@ -516,13 +525,14 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       const value = observationValue(observation, "value", line);
       const sourceUrl = observationValue(observation, "sourceUrl", line);
       observationValue(observation, "fetchedAt", line);
-      if (kind === "social") continue;
       if (isSocialUrl(sourceUrl)) {
+        if (kind === "social") continue;
         fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
       }
       if (!isHttpsUrl(sourceUrl)) {
         fail("MALFORMED_ROW", "harvest observation sourceUrl must be https", line);
       }
+      if (kind === "social") continue;
       if (kind === "website") {
         if (httpsObservationParts(value).some((part) => isSocialUrl(part))) {
           fail("SOCIAL_PRESENT", "social-host harvest observations are out of scope", line);
