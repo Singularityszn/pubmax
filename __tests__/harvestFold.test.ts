@@ -188,6 +188,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a foreign qualifier after a later expected locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York has been operating in York, Pennsylvania since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(

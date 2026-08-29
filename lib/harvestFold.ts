@@ -216,10 +216,23 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const laterLocality = after.match(
       /\b(?:is|was|were|has|have|had|lies|located|situated|based|operates?|operating|stands?|stood|sits?)\b[^.!?]{0,120}?\b(?:in|near|from|at|within)\s+([a-z][a-z'-]*)\b/i,
     );
+    const laterLocalitySuffix = laterLocality
+      ? after.slice((laterLocality.index ?? 0) + laterLocality[0].length)
+      : "";
+    const laterKnownUkQualifier = laterLocalitySuffix.match(UK_LOCALITY_QUALIFIER_RE);
+    const hasLaterLocalityQualifier = LOCALITY_QUALIFIER_RE.test(laterLocalitySuffix);
+    const hasAdditionalLaterLocalityQualifier = Boolean(
+      laterKnownUkQualifier &&
+        LOCALITY_QUALIFIER_RE.test(
+          laterLocalitySuffix.slice(laterKnownUkQualifier[0].length),
+        ),
+    );
     const hasUnknownLaterLocality = Boolean(
       laterLocality &&
-        laterLocality[1].trim().toLowerCase() !== locality &&
-        !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim()),
+        ((laterLocality[1].trim().toLowerCase() !== locality &&
+          !UK_LOCALITY_DESTINATION_RE.test(laterLocality[1].trim())) ||
+          (hasLaterLocalityQualifier && !laterKnownUkQualifier) ||
+          hasAdditionalLaterLocalityQualifier),
     );
     if (
       LOCALITY_QUALIFIER_RE.test(after) &&
