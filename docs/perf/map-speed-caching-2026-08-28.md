@@ -28,9 +28,9 @@ body sizes. Cache-served entries report zero transfer bytes.
 | Warm | 2,554 ms | 3,756 ms | 109,793 bytes, 0 transfer | 247,359 bytes |
 
 The repository's exact pin-SLA test also passed on the rebuilt production
-server: `e2e/mobile-map-chrome-fit.spec.ts` reported 4.1 s with its 5 s
+server: `e2e/mobile-map-chrome-fit.spec.ts` reported 3.3 s with its 4 s
 enforcement ceiling. The stricter network-shaped probe remains host-sensitive
-and is recorded above rather than hidden.
+and is recorded above as diagnostic evidence rather than release-gate evidence.
 
 ## Post-fix diagnostic
 
