@@ -344,15 +344,22 @@ moderation state, revision or timestamp is accepted from the request body.
 
 ### `app/api/admin/social-posts` - named staff Social moderation (route 82)
 
-- **Route / method:** `POST app/api/admin/social-posts/route.ts`.
-- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
-  The durable moderation transaction also requires an active named moderator
-  role. Client data cannot assert staff identity or role.
-- **Moderation:** approval binds post, revision and private media. Hide keeps
-  provenance and appends the named staff action. Neither action deletes the
-  post, media audit, or tag consent history.
-- **Failure:** missing named staff authority and held-row mismatches use a
-  private denied response. No partial moderation result is returned.
+- **Route / method:** `GET` and `POST app/api/admin/social-posts/route.ts`, plus
+  `GET app/api/admin/social-posts/media/[mediaId]/route.ts` for protected photo
+  previews.
+- **Authority:** `isModerator` accepts the existing admin header or httpOnly
+  admin session cookie. Each admin-only RPC also requires an active named
+  moderator role. Client data cannot assert staff identity or role.
+- **Moderation:** the queue reads only visible held posts and exposes no
+  post-author identity. Approval or hide binds the current post and private media, keeps
+  provenance, and appends the named staff action. The preview RPC returns an
+  object key only for media attached to a held post; the route exchanges it for
+  a short-lived signed URL. Neither action deletes the post, media audit, or tag
+  consent history.
+- **Failure:** malformed requests return 400, stale held rows return 409, and
+  missing migration, named staff authority, or storage failures return 503.
+  Responses are private and no-store. No partial moderation result is
+  returned.
 
 ### Social Crew authority routes (routes 81-88)
 

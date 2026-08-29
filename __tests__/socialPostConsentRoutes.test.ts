@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
   adminQueueThrows: false,
+  adminModerationKind: null as "conflict" | "unavailable" | null,
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
@@ -15,7 +16,14 @@ vi.mock("@/lib/adminAuth", () => ({
   isModerator: (request: Request) => request.headers.get("x-admin-token") === "admin-token",
 }));
 vi.mock("@/lib/socialPostConsentStore", () => {
-  class SocialPostConsentStoreError extends Error {}
+  class SocialPostConsentStoreError extends Error {
+    constructor(
+      message: string,
+      readonly kind: "invalid" | "conflict" | "unavailable" = "unavailable",
+    ) {
+      super(message);
+    }
+  }
   return {
     SocialPostConsentStoreError,
     socialPostConsentStore: {
@@ -50,6 +58,12 @@ vi.mock("@/lib/socialPostConsentStore", () => {
       },
       moderateHeldForAdmin: async (...args: unknown[]) => {
         state.calls.push({ name: "moderateHeldForAdmin", args });
+        if (state.adminModerationKind) {
+          throw new SocialPostConsentStoreError(
+            "moderation failed",
+            state.adminModerationKind,
+          );
+        }
       },
     },
   };
@@ -68,6 +82,7 @@ const postId = "22222222-2222-4222-8222-222222222222";
 beforeEach(() => {
   state.calls = [];
   state.adminQueueThrows = false;
+  state.adminModerationKind = null;
 });
 
 describe("Social consent API contracts", () => {
@@ -155,6 +170,24 @@ describe("Social consent API contracts", () => {
     );
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
+  });
+
+  it("preserves conflict and operational moderation failures", async () => {
+    state.adminModerationKind = "conflict";
+    const stale = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+    }));
+    expect(stale.status).toBe(409);
+
+    state.adminModerationKind = "unavailable";
+    const unavailable = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+    }));
+    expect(unavailable.status).toBe(503);
   });
 
   it("rejects UUID-shaped punctuation before tag storage", async () => {

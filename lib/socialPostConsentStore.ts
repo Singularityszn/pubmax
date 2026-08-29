@@ -34,7 +34,17 @@ export type SocialPostHeldItem = {
   createdAt: string;
 };
 
-export class SocialPostConsentStoreError extends Error {}
+export type SocialPostConsentStoreErrorKind = "invalid" | "conflict" | "unavailable";
+
+export class SocialPostConsentStoreError extends Error {
+  constructor(
+    message: string,
+    readonly kind: SocialPostConsentStoreErrorKind = "unavailable",
+  ) {
+    super(message);
+    this.name = "SocialPostConsentStoreError";
+  }
+}
 
 type PageInput = { cursor?: string | null; limit: number };
 type TagPageInput = PageInput & { lane: "proposed" | "approved" };
@@ -91,7 +101,12 @@ function row(value: unknown): Record<string, unknown> {
 
 async function rpc(name: string, input: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await requireSupabaseAdmin().rpc(name, input);
-  if (error) throw new SocialPostConsentStoreError(error.message);
+  if (error) {
+    throw new SocialPostConsentStoreError(
+      error.message,
+      error.message === "held post not found" ? "conflict" : "unavailable",
+    );
+  }
   return data;
 }
 
@@ -259,7 +274,12 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
         p_media_id: mediaId,
         p_action: action,
       });
-      if (result !== true) throw new SocialPostConsentStoreError("Social moderation choice was not saved.");
+      if (result !== true) {
+        throw new SocialPostConsentStoreError(
+          "Social moderation choice was not saved.",
+          "conflict",
+        );
+      }
     },
     async heldQueueForAdmin(limit) {
       return rows(await rpc("read_social_post_moderation_queue_admin", {
@@ -279,7 +299,12 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
         p_media_id: mediaId,
         p_action: action,
       });
-      if (result !== true) throw new SocialPostConsentStoreError("Social moderation choice was not saved.");
+      if (result !== true) {
+        throw new SocialPostConsentStoreError(
+          "Social moderation choice was not saved.",
+          "conflict",
+        );
+      }
     },
   };
 }

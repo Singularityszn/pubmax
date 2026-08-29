@@ -55,7 +55,7 @@ begin
       select 1 from public.social_post_moderation_jobs job
       where job.post_id = p_post_id
     )
-    then raise exception 'held post not found'; end if;
+    then return false; end if;
   update public.social_posts set
     moderation_state = case
       when p_action = 'approve' and moderation_state = 'needs_review' then 'approved'
