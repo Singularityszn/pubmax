@@ -340,11 +340,7 @@ export default function FindYourLot({
           <Link className="findLot__ghost" href={`/add/${encodeURIComponent(viewer)}`}>
             Share your add link
           </Link>
-        ) : (
-          <Link className="findLot__ghost" href="/login">
-            Sign in to invite
-          </Link>
-        )}
+        ) : null}
       </div>
 
       {notice ? (
