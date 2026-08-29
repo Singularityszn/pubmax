@@ -24,11 +24,11 @@ Identity is OSM id. Name is not a key.
 
 ## Match gate (lore)
 
-History observations present: 10472.
+Final accepted history rows: 5472.
 
 The fold applies current contiguous venue-name and town matching, then keeps at
-most one passing history observation per OSM id. The reconciled lore count is
-the `Matched lore` count in final overlay rows below.
+most one passing history observation per OSM id. The `Matched lore` count below
+is the final overlay row unit used for reconciliation.
 
 ## Fold-ready overlay (`overlay.jsonl`)
 

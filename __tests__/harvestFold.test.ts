@@ -248,6 +248,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a venue moved in a later foreign locality statement", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, England. This venue is now in Pennsylvania.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(
@@ -589,6 +599,35 @@ describe("fold-stats reconciliation", () => {
         parseFoldStatsMarkdown(markdown),
       ),
     ).toThrow(HarvestFoldError);
+  });
+
+  it("counts one accepted lore row per OSM id", () => {
+    const rows = overlayRowsFromHarvestRecords([
+      {
+        osmId: "node/123",
+        name: "The Red Lion",
+        town: "Clapham",
+        observations: [
+          {
+            kind: "history",
+            value: LORE_TEXT,
+            sourceUrl: "https://history.example/red-lion-clapham",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+          {
+            kind: "history",
+            value: "The Red Lion in Clapham was rebuilt in 1900.",
+            sourceUrl: "https://history.example/red-lion-rebuilt",
+            fetchedAt: "2026-08-28T00:00:00.000Z",
+          },
+        ],
+      },
+    ]);
+
+    expect(summariseOverlay(rows)).toMatchObject({
+      overlayRows: 1,
+      matchedLore: 1,
+    });
   });
 });
 
