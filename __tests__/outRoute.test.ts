@@ -677,6 +677,7 @@ describe("GET /api/out openPlans", () => {
     expect(response.headers.get("cache-control")).toBe(OUT_UNSETTLED_CACHE_CONTROL);
     const body = await response.json();
     expect(body.status).toBe("degraded");
+    expect(body.openPlansStatus).toBe("degraded");
     expect(body.openPlans).toEqual([]);
     // The plans failure widens the WHOLE answer's status and leaves the
     // listings lane exactly as its own read left it, so a surface showing only

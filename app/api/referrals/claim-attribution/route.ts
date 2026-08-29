@@ -9,6 +9,12 @@ import { isProfileTombstoned, profileStore } from "@/lib/profileStore";
 import { verifyReferralSignupProof } from "@/lib/referralSignupProof.server";
 import { isReferralCode } from "@/lib/referrals";
 import { referralStore } from "@/lib/referralStore";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 function reply(body: unknown, status = 200): Response {
   return NextResponse.json(body, {
@@ -18,6 +24,9 @@ function reply(body: unknown, status = 200): Response {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const limiterKey = `referral-claim:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });

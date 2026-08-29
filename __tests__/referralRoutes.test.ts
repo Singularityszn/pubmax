@@ -63,6 +63,22 @@ describe("referral routes", () => {
     });
   });
 
+  it("blocks signup attribution during the full Social rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+    authState.id = "new-account";
+
+    const response = await claimAttribution(
+      request("/api/referrals/claim-attribution", { method: "POST" }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toEqual({
+      error: "Social is in preview right now.",
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("rejects account APIs without verified auth", async () => {
     expect((await inviteLink(request("/api/referrals/invite-link", { method: "POST" }))).status).toBe(401);
     expect((await referralStatus(request("/api/referrals/status"))).status).toBe(401);

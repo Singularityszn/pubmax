@@ -35,6 +35,24 @@ beforeEach(() => {
 });
 
 describe("GET /api/notifications", () => {
+  it("blocks Social notification reads and marks during emergency rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const read = await get("handle=ken");
+    const mark = await post({ handle: "ken" });
+
+    expect(read.status).toBe(503);
+    expect(mark.status).toBe(503);
+    expect(await read.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+    expect(await mark.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("returns an empty inbox for a missing handle (never 500)", async () => {
     const res = await get();
     expect(res.status).toBe(200);

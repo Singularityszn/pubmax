@@ -61,9 +61,12 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
     },
   );
   const openPlansPreview = body?.openPlansStatus === "preview";
+  const openPlansDegraded = body?.openPlansStatus === "degraded";
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
   const showOpenPlans =
-    !openPlansPreview && outOpenPlansSectionVisible(body?.openPlans ?? []);
+    !openPlansPreview &&
+    !openPlansDegraded &&
+    outOpenPlansSectionVisible(body?.openPlans ?? []);
 
   return (
     <main id="main" className="outPage" data-testid="out-screen">
@@ -160,6 +163,13 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             Open plans
           </h2>
           <p className="outStatus" role="status">Open plans are in preview.</p>
+        </section>
+      ) : openPlansDegraded ? (
+        <section className="outPlans" aria-labelledby="out-plans-heading">
+          <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
+            Open plans
+          </h2>
+          <p className="outStatus" role="status">Open plans could not be checked.</p>
         </section>
       ) : showOpenPlans ? (
         <section className="outPlans" aria-labelledby="out-plans-heading">
