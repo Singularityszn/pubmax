@@ -8,20 +8,18 @@
 // so they dominate payload while contributing almost no priced density — the
 // map's first paint pays ~290 KB for boroughs a given session rarely looks at.
 //
-// This module partitions the slim rows into:
-//   • a CORE shard — every borough with real priced density (the pre-#315
-//     inner-London index) — shipped eagerly on first paint;
-//   • one LAZY shard per hollow outer borough — fetched on demand when the map
-//     viewport intersects its bbox, near-me geolocates into it, or a consumer
-//     asks for the whole index;
-//   • one LAZY shard per curated non-pint wave.
-// A tiny manifest (shard -> bbox + url) ships eagerly alongside core.
+// London now partitions the slim rows into geographic cells. A tiny manifest
+// names each cell's bbox and URL; the map fetches cells around its opening
+// viewport and a neighbouring ring as the camera settles. The central cell is
+// also written as the compatibility core. The legacy borough/kind partition
+// remains for version-1 city packs and older fixtures.
 //
 // The classification is OBJECTIVE and data-driven (priced-venue ratio), not a
 // hard-coded borough list, so a borough that gains real price coverage in a
-// future refresh graduates into core automatically. The build script enforces
-// that core still fits the eager budget, so a data drift that would blow the
-// budget fails CI rather than silently regressing first paint.
+// future refresh graduates into core automatically. The legacy build path
+// enforces its core budget, while the spatial build path enforces cell, core,
+// and total budgets. Data drift that blows a budget fails CI rather than
+// silently regressing first paint.
 
 // A borough is a LAZY outer shard when it is dominated by unpriced presence
 // pins (low priced ratio) AND carries enough of them to be worth deferring.

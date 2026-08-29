@@ -94,10 +94,10 @@ export function publishablePricedRows(
 /**
  * The venue ids a `?sel=` arrival can resolve, or null when nobody could tell.
  *
- * The map loads the eager slim shard first and a borough shard only when it is
- * asked for, so a `sel` outside that shard opens no pub. `null` is a read that
- * could not answer, and it may never read as "nothing is selectable": both lead
- * to the same safe link, but only one of them is a fact about the map.
+ * The map loads only the opening viewport cells first, while the server-side
+ * selection gate reads every published cell. `null` is a read that could not
+ * answer, and it may never read as "nothing is selectable": both lead to the
+ * same safe link, but only one of them is a fact about the map.
  * `lib/mapEagerVenueIndex.server.ts` is the one reader behind it.
  */
 export type MapSelectableVenueIds = ReadonlySet<string> | null;

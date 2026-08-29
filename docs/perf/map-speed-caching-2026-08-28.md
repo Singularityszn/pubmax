@@ -29,8 +29,9 @@ body sizes. Cache-served entries report zero transfer bytes.
 
 The repository's exact pin-SLA test also passed on the rebuilt production
 server: `e2e/mobile-map-chrome-fit.spec.ts` reported 3.3 s with its 4 s
-enforcement ceiling. The stricter network-shaped probe remains host-sensitive
-and is recorded above as diagnostic evidence rather than release-gate evidence.
+enforcement ceiling. The stricter network-shaped cold probe measured 5,058 ms,
+so it misses the 4,000 ms cold target and remains diagnostic evidence rather
+than release-gate evidence.
 
 ## Post-fix diagnostic
 
@@ -59,7 +60,7 @@ only and do not replace the network-shaped SLA evidence above.
 - `npm run typecheck` passed with 4 GB Node heap.
 - `npm run lint -- --quiet` passed.
 - Production `next build` passed with 2 GB Node heap and 520 static pages.
-- Exact cold map pin-SLA Playwright test passed at 4.1 s.
+- Exact map pin-SLA Playwright test passed at 3.3 s with its 4 s ceiling.
 
 GitHub Actions is environment-blocked by repository billing state, so local
 verification is the release bar for this lane.

@@ -917,10 +917,7 @@ export default function PubMap({
     !shouldResolveOpeningLocation,
   );
   useEffect(() => {
-    if (!shouldResolveOpeningLocation) {
-      setOpeningLocationResolved(true);
-      return;
-    }
+    if (!shouldResolveOpeningLocation) return;
     let cancelled = false;
     void readOpeningMapLocation(undefined, {
       onPermissionPrompt: () => {
@@ -1721,12 +1718,10 @@ export default function PubMap({
     else openPlanning();
   }, [closePlanning, openPlanning, planningOpen]);
 
-  // Issue #35 + Cycle-5 sharding — stage 1: paint pins from the slim index's
-  // CORE shard (inner-London priced index, ~515 KB, or instantly from
-  // IndexedDB). This is the ONLY eager first-paint venue payload; the hollow
-  // Outer-London boroughs (#315) stream in lazily as the viewport intersects
-  // them or near-me geolocates into them (see the two effects below). Full venue
-  // detail is still fetched lazily via /api/venue/[id] when inspected.
+  // Issue #35 + location-first sharding: paint pins from the slim index cells
+  // that intersect the opening viewport (or instantly from the resume
+  // snapshot), then stream a neighbouring ring as the camera settles. Full
+  // venue detail is still fetched lazily via /api/venue/[id] when inspected.
   //
   // One code path: the shard loader (lib/slimShards.ts) hides fetching, dedup,
   // offline mirroring, and the single-file fallback for cities that ship no
@@ -1741,7 +1736,9 @@ export default function PubMap({
   const latestMapBoundsRef = useRef<MapBounds | null>(null);
   const latestMapBoundsCityRef = useRef<CityId | null>(null);
   const activeMapCityIdRef = useRef(cityId);
-  activeMapCityIdRef.current = cityId;
+  useEffect(() => {
+    activeMapCityIdRef.current = cityId;
+  }, [cityId]);
   const ringLoadPendingKeyRef = useRef<string | null>(null);
   // Which night areas the loader can vouch a complete pub count for. A shard
   // can land carrying no pin this map had not already seen, so this is refreshed
@@ -2243,30 +2240,25 @@ export default function PubMap({
     [filteredVenues],
   );
 
-  useEffect(() => {
-    if (!nearbyMapResult) return;
+  const nearbyMapResultForView = useMemo(() => {
+    if (!nearbyMapResult) return null;
     const { location } = nearbyMapResult;
     const nextVenues = nearMeMapVenues(location.lat, location.lng, filteredVenues);
     const nextIds = nextVenues.map((venue) => venue.id);
     const nextStrategy = withinNearMeRing(location, filteredVenues) >= NEAR_ME_MAP_MIN_VENUES
       ? "within-radius"
       : "nearest-20";
-    setNearbyMapResult((current) => {
-      if (!current || current.location.lat !== location.lat || current.location.lng !== location.lng) {
-        return current;
-      }
-      const sameIds = current.venueIds.length === nextIds.length &&
-        current.venueIds.every((id, index) => id === nextIds[index]);
-      if (sameIds && current.strategy === nextStrategy) return current;
-      return { ...current, venueIds: nextIds, strategy: nextStrategy };
-    });
+    const sameIds = nearbyMapResult.venueIds.length === nextIds.length &&
+      nearbyMapResult.venueIds.every((id, index) => id === nextIds[index]);
+    if (sameIds && nearbyMapResult.strategy === nextStrategy) return nearbyMapResult;
+    return { ...nearbyMapResult, venueIds: nextIds, strategy: nextStrategy };
   }, [filteredVenues, nearbyMapResult]);
 
   // Deep-links from /pubs (?sel=) must still paint the pin even if a filter
   // would otherwise hide a scraped gazetteer pub.
   const mapMembershipVenues = useMemo(
-    () => venuesInNearbyMembership(filteredVenues, nearbyMapResult),
-    [filteredVenues, nearbyMapResult],
+    () => venuesInNearbyMembership(filteredVenues, nearbyMapResultForView),
+    [filteredVenues, nearbyMapResultForView],
   );
   const experienceVisibleMapVenues = useMemo(
     () =>
@@ -4971,10 +4963,10 @@ export default function PubMap({
           activeQuery={trimmedMapQuery}
           onClearQuery={clearMapQuery}
           onNearMe={showNearbyMap}
-          nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResult ? "ready" : nearbyError ? "error" : "idle"}
+          nearMeStatus={nearbyLoading ? "requesting" : nearbyMapResultForView ? "ready" : nearbyError ? "error" : "idle"}
           nearMeError={nearbyError}
           onDismissNearMeError={() => setNearbyError(null)}
-          nearbyCount={nearbyMapResult?.venueIds.length ?? 0}
+          nearbyCount={nearbyMapResultForView?.venueIds.length ?? 0}
           tonightCount={whatsOnTonight.rows.length}
           tonightNearReader={userLocation != null}
           tflCount={tflStatus.issueCount}

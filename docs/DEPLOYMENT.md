@@ -270,7 +270,10 @@ detail pack:
 
 | Output | Role |
 |---|---|
-| `public/data/venues_slim.json` | Map pins + filter hints (shipped to clients). |
+| `public/data/venues_slim.manifest.json` | London map shard manifest for viewport loading. |
+| `public/data/venues_slim.core.json` and `public/data/venues_slim.cell.*.json` | London map rows loaded for the opening viewport and later camera bounds. |
+| `public/data/venues_slim.json` | Complete compatibility index for server and whole-index readers. |
+| `public/data/cities/*/venues_slim*.json` | City slim indexes, compatibility cores, and manifests. |
 | `public/data/uk_base/` | Deferred, viewport-streamed unverified UK pub layer. See its README for the delivery contract. |
 | `data/generated/venue_detail_index.json` | Byte-offset manifest for lazy detail reads. |
 | `data/generated/venue_details.jsonl` | Per-venue detail payloads: pub price rows or curated venue facts (not committed). |

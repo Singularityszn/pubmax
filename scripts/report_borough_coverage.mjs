@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // Borough coverage report (Cycle 3 — Lane 2 "every single area in London").
 //
-// Measures, for each of the 33 Greater London boroughs, how many venues the
-// live map surfaces (the SLIM index the map actually reads) and how many of
-// those carry a usable price the persona can act on. The map groups pins by the
-// slim `borough` field, so that is the number the persona in Croydon or Barnet
-// actually experiences — this report counts exactly that, then cross-checks
-// every venue's stored borough against the point-in-polygon classifier so a
-// mislabelled pin can't inflate a borough's number.
+// Measures, for each of the 33 Greater London boroughs, how many venues are in
+// the complete slim index behind the map's spatial shards and how many carry a
+// usable price the persona can act on. The map groups pins by the slim
+// `borough` field, so that is the number the persona in Croydon or Barnet
+// experiences when its cells load. The report counts exactly that, then
+// cross-checks every venue's stored borough against the point-in-polygon
+// classifier so a mislabelled pin cannot inflate a borough's number.
 //
 // Provenance note: the bundled price dataset (public/data/pint_prices_app_dataset.json)
 // carries NO per-row observation date, so a per-borough "freshest observation"

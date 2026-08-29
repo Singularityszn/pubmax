@@ -22,7 +22,7 @@
 // RESIDENCY. Shards are held in a small LRU (MAX_RESIDENT_SHARDS) rather than
 // accumulated, so panning the length of the country cannot grow the tab without
 // bound. An evicted cell is simply refetched (and the service worker's
-// cache-first `/data/*.json` rule usually answers it from disk).
+// stale-while-revalidate `/data/*.json` rule usually answers it from disk).
 
 import {
   bboxContainsPoint,
@@ -322,7 +322,7 @@ const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
  *
  * Offline: the MANIFEST is mirrored to IndexedDB because without it no cell can
  * be addressed at all. Cell bodies are not mirrored - public/sw.js already
- * serves `/data/*.json` cache-first, and duplicating the whole shard pack into
+ * serves `/data/*.json` stale-while-revalidate, and duplicating the whole shard pack into
  * IndexedDB to re-paint a layer that carries no prices is not worth the quota.
  */
 export function createUkBaseLoader(): UkBaseLoader {

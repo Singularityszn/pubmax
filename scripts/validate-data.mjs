@@ -360,8 +360,9 @@ const PINT_ROW_FLOOR = 2500;
 // (truncation) would blow well past it.
 const SLIM_VENUE_FLOOR = 900;
 const DETAIL_VENUE_FLOOR = 900;
-// Cycle-5 sharding budgets. Eager = manifest + core shard (the map's first
-// paint); total = every shard. Kept in lockstep with scripts/build_slim_index.mjs.
+// Map sharding budgets. The manifest and central compatibility core have an
+// eager budget; total covers every geographic cell. Kept in lockstep with
+// scripts/build_slim_index.mjs.
 const SLIM_EAGER_BUDGET_BYTES = 600 * 1024;
 const SLIM_TOTAL_BUDGET_BYTES = 1200 * 1024;
 // london_localities.json (OSM/ODbL gazetteer, scripts/gen_london_localities.mjs)
@@ -1156,11 +1157,12 @@ function validatePintPrices() {
   return { ok, count };
 }
 
-// venues_slim.json - the map's first-paint artifact. Legacy pub ids must stay
-// aligned with the full pint dataset grouping seam, while curated venue ids and
-// anchors must stay aligned with their seed packs. Otherwise pins can render
-// fast but fail when opened for lazy detail. This validator rebuilds both lanes
-// using the same plain-JS rules as scripts/build_slim_index.mjs.
+// venues_slim.json - the complete compatibility artifact behind the map cells
+// and whole-index readers. Legacy pub ids must stay aligned with the full pint
+// dataset grouping seam, while curated venue ids and anchors must stay aligned
+// with their seed packs. Otherwise pins can render fast but fail when opened
+// for lazy detail. This validator rebuilds both lanes using the same plain-JS
+// rules as scripts/build_slim_index.mjs.
 function validateSlimVenues() {
   const name = "public/data/venues_slim.json";
   const errs = makeCollector();
@@ -1535,12 +1537,12 @@ function validateCityVenuePacks() {
   return { ok, count: venues };
 }
 
-// venues_slim shards — the map's first-paint payload is split into an eager
-// CORE shard + a lazy per-borough shard for each hollow Outer-London borough
-// (Cycle-5). This validator recomputes the expected split from the canonical
+// venues_slim shards - the map's first-paint payload is split into a manifest
+// plus geographic cells, with the central cell also exposed as the compatibility
+// core. This validator recomputes the expected split from the canonical
 // venues_slim.json using the same shared module the build script uses, so the
-// shipped manifest + shard files can never silently drift from the monolith. It
-// also enforces the eager (manifest + core) and total-across-shards budgets.
+// shipped manifest and cell files can never silently drift from the complete
+// index. It also enforces eager and total-across-shard budgets.
 function validateSlimShards() {
   const name = "public/data/venues_slim shards";
   const errs = makeCollector();
