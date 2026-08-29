@@ -4,6 +4,7 @@ import {
   isWithinMaxAge,
 } from "@/lib/communityPrice";
 import { getVenueCuration, type Provenance, type VenueCuration } from "@/lib/curation";
+import { formatGbp } from "@/lib/formatGbp";
 import { haversineKm } from "@/lib/haversine";
 import { firstHttp } from "@/lib/httpUrl";
 import {
@@ -353,10 +354,10 @@ export function splitList(value: string | null | undefined): string[] {
 }
 
 export function formatPrice(value: number | null): string {
-  return typeof value === "number" ? `£${value.toFixed(2)}` : "No price";
+  return typeof value === "number" ? formatGbp(value) : "No price";
 }
 
-export { formatGbp } from "@/lib/formatGbp";
+export { formatGbp };
 
 function normaliseVenueKeyPart(value: string): string {
   return value.trim().toLowerCase().replace(/\s+/g, " ");

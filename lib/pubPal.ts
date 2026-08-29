@@ -1,3 +1,4 @@
+import { clamp as clampRange } from "@/lib/mathClamp";
 import { cleanText } from "@/lib/textClean";
 
 /**
@@ -348,7 +349,7 @@ export function cleanPalDraft(value: unknown): PubPalDraft | null {
   if (!species) return null;
   if (!SIGNAL_FAMILIES.includes(appearance.signalAffinity as SignalFamily)) return null;
   if (!PAL_VOICES.includes(voice.id as PubPalVoiceId)) return null;
-  const clamp = (input: unknown) => Math.max(0, Math.min(100, Number(input) || 0));
+  const clamp = (input: unknown) => clampRange(Number(input) || 0, 0, 100);
   const relationship = ["guide", "sidekick", "confidant"].includes(String(personality.relationship))
     ? personality.relationship as PubPalPersonality["relationship"] : "sidekick";
   return {
