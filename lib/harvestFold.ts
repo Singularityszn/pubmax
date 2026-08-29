@@ -156,7 +156,12 @@ export function isHttpsUrl(value: string): boolean {
 }
 
 function isHarvestTimestamp(value: string): boolean {
-  return HARVEST_TIMESTAMP_RE.test(value) && Number.isFinite(Date.parse(value));
+  if (!HARVEST_TIMESTAMP_RE.test(value)) return false;
+  try {
+    return new Date(value).toISOString() === value;
+  } catch {
+    return false;
+  }
 }
 
 /** Harvest observations may contain several comma-separated https URLs. */
@@ -309,7 +314,10 @@ function containsVenueLocalityRelation(
     `(?:an?\\s+)?(?:[a-z-]+\\s+){0,4}` +
     `(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\\s+` +
     `\\b(?:in|near|at|within)\\b\\s+${localityBoundary}`;
-  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType})`, "i").test(sentence);
+  const nameLocation =
+    `\\b(?:is|was|were|has been|had been)\\b\\s+` +
+    `\\b(?:in|near|from|at|within)\\b\\s+${localityBoundary}`;
+  return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation})`, "i").test(sentence);
 }
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {

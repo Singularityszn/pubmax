@@ -268,6 +268,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a named venue in a later foreign locality statement", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York. The Red Lion was in Clapham.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not accept a possessive venue address in a later foreign locality statement", () => {
     expect(
       loreNameTownGate(
@@ -818,6 +828,26 @@ describe("heritageFactFromOverlay / public overlay", () => {
               value: "https://redlion.example/",
               sourceUrl: "https://redlion.example/",
               fetchedAt: "2026",
+            },
+          ],
+        },
+      ]),
+    ).toThrow(HarvestFoldError);
+  });
+
+  it("fails loud on timestamps with invalid calendar dates", () => {
+    expect(() =>
+      overlayRowsFromHarvestRecords([
+        {
+          osmId: "node/123",
+          name: "The Red Lion",
+          town: "Clapham",
+          observations: [
+            {
+              kind: "website",
+              value: "https://redlion.example/",
+              sourceUrl: "https://redlion.example/",
+              fetchedAt: "2026-02-30T00:00:00.000Z",
             },
           ],
         },
