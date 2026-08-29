@@ -97,9 +97,9 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "central",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:(?:,|\(|:|;|-|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
+  /^\s*(?:(?:(?:,|\(|:|;|-|–|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;
 const LOCALITY_QUALIFIER_RE =
-  /^\s*(?:(?:,|\(|:|;|-|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
+  /^\s*(?:(?:,|\(|:|;|-|–|\/|\.|!)\s*|(?:in|of|from|near|at|within)\s+)[a-z]/i;
 const UK_LOCALITY_DESTINATION_RE =
   /^(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east yorkshire|east riding|london|somerset|kent|surrey|sussex|essex|middlesex|hertfordshire|berkshire|buckinghamshire|cambridgeshire|derbyshire|devon|dorset|durham|gloucestershire|hampshire|herefordshire|isle of wight|lancashire|leicestershire|lincolnshire|norfolk|northamptonshire|northumberland|nottinghamshire|shropshire|staffordshire|suffolk|warwickshire|wiltshire|worcestershire|cheshire|cumbria|cornwall)(?:$|[^a-z0-9])/i;
 const LOCALITY_CONTINUATION_WORDS = new Set([
@@ -324,13 +324,17 @@ export function loreNameTownGate(
   const place = typeof town === "string" ? town.trim() : "";
   if (!place) return "town-missing";
   const locality = place.toLowerCase();
-  const relatedSentence = hay
+  const relatedSentences = hay
     .split(/[.!?]+/)
     .map((sentence) => sentence.trim())
     .filter(Boolean)
-    .some(
+    .filter((sentence) =>
+      containsVenueLocalityRelation(sentence, name, locality),
+    );
+  const relatedSentence =
+    relatedSentences.length > 0 &&
+    relatedSentences.every(
       (sentence) =>
-        containsVenueLocalityRelation(sentence, name, locality) &&
         containsExactLocality(sentence, locality),
     );
   if (!relatedSentence) return "town-mismatch";

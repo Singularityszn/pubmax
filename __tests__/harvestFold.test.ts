@@ -108,6 +108,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not match a foreign locality after an en-dash separator", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York – Pennsylvania has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not match an unrecognised locality qualifier", () => {
     expect(
       loreNameTownGate(
@@ -192,6 +202,16 @@ describe("loreNameTownGate", () => {
     expect(
       loreNameTownGate(
         "The Red Lion in York has been operating in York, Pennsylvania since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
+  it("does not accept a conflicting venue locality in a later sentence", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, England. The Red Lion in York, Pennsylvania.",
         "The Red Lion",
         "York",
       ),
