@@ -317,7 +317,7 @@ export type SlimShardLoader = {
  */
 export function createSlimShardLoader(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
-  options: { bypassInFlight?: boolean } = {},
+  options: { bypassInFlight?: boolean; deferSpatial?: boolean } = {},
 ): SlimShardLoader {
   const city = getCity(cityId);
   const slimVenuesPath = city.slimVenuesPath;
@@ -471,6 +471,15 @@ export function createSlimShardLoader(
   }
 
   async function initialResult(bounds: MapBounds): Promise<SlimShardLoadResult> {
+    // Keep first visit on the compatibility path. The spatial manifest and
+    // cell requests are useful after pins appear, but they must not tax the
+    // first pin-ready measurement.
+    if (
+      options.deferSpatial &&
+      manifestPath === "/data/venues_slim.manifest.json"
+    ) {
+      return loadShard(guessedCoreShardUrl(slimVenuesPath));
+    }
     const m = await manifest();
     if (!m) {
       return manifestRevisionRejected

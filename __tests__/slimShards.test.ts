@@ -342,6 +342,21 @@ describe("createSlimShardLoader (London)", () => {
     });
   });
 
+  it("defers spatial manifest work until after first pins on first visit", async () => {
+    const loader = createSlimShardLoader("london", { deferSpatial: true });
+    const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+
+    await expect(loader.initialResult(bounds)).resolves.toEqual({
+      rows: [slimRow("c1", 51.5, -0.1), slimRow("c2", 51.51, -0.12)],
+      status: "ready",
+    });
+    expect(fetched).toContain("/data/venues_slim.core.json");
+    expect(fetched).not.toContain("/data/venues_slim.manifest.json");
+
+    await loader.inBounds(bounds);
+    expect(fetched).toContain("/data/venues_slim.manifest.json");
+  });
+
   it("does not restore a legacy manifest from the offline boundary", async () => {
     installFetch({ "/data/venues_slim.manifest.json": "fail" });
     const getSpy = vi.spyOn(offlineCache, "get").mockResolvedValue({

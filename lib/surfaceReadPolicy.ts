@@ -98,7 +98,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "lib/webPush.ts", fetchCount: 2, reason: "push subscription transport is an account action" },
   { path: "lib/planSessionCapability.ts", fetchCount: 1, reason: "plan capability exchange is an auth-gated session read" },
   { path: "lib/planMutationOutbox.ts", fetchCount: 1, reason: "offline plan outbox replays mutations" },
-  { path: "lib/mapWarmup.ts", fetchCount: 3, reason: "map warmup prefetch is owned by map startup and never paints directly" },
+  { path: "lib/mapWarmup.ts", fetchCount: 2, reason: "map warmup prefetch is owned by map startup and never paints directly" },
   { path: "lib/planRouteTotalsClient.ts", fetchCount: 1, reason: "plan route totals are interactive route state" },
   { path: "lib/nativePush.ts", fetchCount: 1, reason: "native push subscription transport is an account action" },
   { path: "lib/nativeCamera.ts", fetchCount: 1, reason: "native camera bridge reads a local photo blob, not app data" },

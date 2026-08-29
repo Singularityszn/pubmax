@@ -48,11 +48,19 @@ describe("mapEarlyWarm", () => {
     const getCurrentPosition = vi.fn((success: PositionCallback) => {
       success({ coords: { latitude: 51.74, longitude: 0.25 } } as GeolocationPosition);
     });
+    let firstPinsListener: (() => void) | undefined;
     const window = {
       innerWidth: 390,
       innerHeight: 844,
       location: { href: "https://pubmaxxing.com/map" },
       localStorage: { getItem: vi.fn(() => null) },
+      addEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === "pubmax:first-pins") firstPinsListener = listener;
+      }),
+      dispatchEvent: vi.fn((event: { type: string }) => {
+        if (event.type === "pubmax:first-pins") firstPinsListener?.();
+        return true;
+      }),
     };
 
     const script = readFileSync(
@@ -86,6 +94,8 @@ describe("mapEarlyWarm", () => {
       setTimeout,
       URL,
     );
+    expect(fetchSpy).not.toHaveBeenCalled();
+    window.dispatchEvent({ type: "pubmax:first-pins" });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -112,11 +122,19 @@ describe("mapEarlyWarm", () => {
       json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
     const getCurrentPosition = vi.fn();
+    let firstPinsListener: (() => void) | undefined;
     const window = {
       innerWidth: 390,
       innerHeight: 844,
       location: { href: "https://pubmaxxing.com/map" },
       localStorage: { getItem: vi.fn(() => null) },
+      addEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === "pubmax:first-pins") firstPinsListener = listener;
+      }),
+      dispatchEvent: vi.fn((event: { type: string }) => {
+        if (event.type === "pubmax:first-pins") firstPinsListener?.();
+        return true;
+      }),
     };
     const script = readFileSync(
       new URL("../public/map-first-paint-init.js", import.meta.url),
@@ -148,6 +166,7 @@ describe("mapEarlyWarm", () => {
       setTimeout,
       URL,
     );
+    window.dispatchEvent({ type: "pubmax:first-pins" });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -170,11 +189,19 @@ describe("mapEarlyWarm", () => {
       json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
     const getCurrentPosition = vi.fn();
+    let firstPinsListener: (() => void) | undefined;
     const window = {
       innerWidth: 390,
       innerHeight: 844,
       location: { href: "https://pubmaxxing.com/map" },
       localStorage: { getItem: vi.fn(() => null) },
+      addEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === "pubmax:first-pins") firstPinsListener = listener;
+      }),
+      dispatchEvent: vi.fn((event: { type: string }) => {
+        if (event.type === "pubmax:first-pins") firstPinsListener?.();
+        return true;
+      }),
     };
     const script = readFileSync(
       new URL("../public/map-first-paint-init.js", import.meta.url),
@@ -207,6 +234,7 @@ describe("mapEarlyWarm", () => {
       setTimeout,
       URL,
     );
+    window.dispatchEvent({ type: "pubmax:first-pins" });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -228,11 +256,19 @@ describe("mapEarlyWarm", () => {
       ok: true,
       json: async () => (input === "/data/venues_slim.manifest.json?v=deploy-42" ? manifest : []),
     }));
+    let firstPinsListener: (() => void) | undefined;
     const window = {
       innerWidth: 390,
       innerHeight: 844,
       location: { href: "https://pubmaxxing.com/map" },
       localStorage: { getItem: vi.fn(() => null) },
+      addEventListener: vi.fn((type: string, listener: () => void) => {
+        if (type === "pubmax:first-pins") firstPinsListener = listener;
+      }),
+      dispatchEvent: vi.fn((event: { type: string }) => {
+        if (event.type === "pubmax:first-pins") firstPinsListener?.();
+        return true;
+      }),
     };
     const script = readFileSync(
       new URL("../public/map-first-paint-init.js", import.meta.url),
@@ -253,6 +289,7 @@ describe("mapEarlyWarm", () => {
       setTimeout,
       URL,
     );
+    window.dispatchEvent({ type: "pubmax:first-pins" });
 
     await new Promise((resolve) => setTimeout(resolve, 0));
     await new Promise((resolve) => setTimeout(resolve, 0));

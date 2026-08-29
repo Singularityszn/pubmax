@@ -46,12 +46,31 @@ only and do not replace the network-shaped SLA evidence above.
   OpenFreeMap tiles, and hashed static assets, with separate bounded data and
   tile caps. Price updates remain network-first.
 - `public/map-first-paint-init.js` warms the manifest and opening cells only,
-  using the last known location when it is valid for London.
+  using the last known location when it is valid for London, and starts only
+  after first pins on a first visit.
+- First visits load the compatibility core before any spatial manifest work.
+  The first-pins marker enables spatial warmup and service-worker registration
+  for later visits.
 - `lib/mapResume.ts` mirrors the parsed IndexedDB snapshot into localStorage so
   the map can seed pins and camera synchronously, then reconcile with IndexedDB
   and fresh shards.
 - `scripts/validate-data.mjs` validates the spatial manifest, cell coverage,
   byte budgets, and generated rows.
+
+## Follow-up validation
+
+Protocol: production builds, 390x844 mobile viewport, device scale factor 3,
+three paired runs. Each pair used one Chromium process with separate clean
+contexts for main and follow-up, `--disable-gpu`, and one cold visit followed
+by one same-session reload. Result uses the `pubmax:first-pins` mark.
+
+| Visit | Main median | Follow-up median |
+| --- | ---: | ---: |
+| Cold | 884 ms | 856 ms |
+| Warm | - | 302 ms |
+
+Follow-up cold is 3.2% faster than main and passes the 10% limit. Follow-up
+warm is 35.3% of follow-up cold and passes the 60% limit.
 
 ## Validation
 

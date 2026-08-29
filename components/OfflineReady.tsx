@@ -16,7 +16,20 @@ export default function OfflineReady() {
     if (process.env.NODE_ENV !== "production") return;
     if (!("serviceWorker" in navigator)) return;
 
+    let registered = false;
+    let pageLoaded = document.readyState === "complete";
+    let firstPinsReady = Boolean(window.__pubmaxFirstPinsReady);
+    try {
+      firstPinsReady =
+        firstPinsReady ||
+        window.localStorage.getItem("pubmax:first-pins-seen:v1") === "1";
+    } catch {
+      // A blocked storage area leaves the in-memory signal as the fallback.
+    }
+
     const register = () => {
+      if (registered) return;
+      registered = true;
       const version = process.env.NEXT_PUBLIC_SW_VERSION?.trim();
       if (!version) return;
       navigator.serviceWorker
@@ -36,13 +49,33 @@ export default function OfflineReady() {
         });
     };
 
-    // Register after load so the SW never competes with first-paint requests.
-    if (document.readyState === "complete") {
-      register();
-      return;
-    }
-    window.addEventListener("load", register, { once: true });
-    return () => window.removeEventListener("load", register);
+    const scheduleRegister = () => {
+      if (!pageLoaded || !firstPinsReady || registered) return;
+      const run = () => register();
+      if (typeof window.requestIdleCallback === "function") {
+        window.requestIdleCallback(run, { timeout: 2_000 });
+      } else {
+        window.setTimeout(run, 0);
+      }
+    };
+    const onLoad = () => {
+      pageLoaded = true;
+      scheduleRegister();
+    };
+    const onFirstPins = () => {
+      firstPinsReady = true;
+      scheduleRegister();
+    };
+
+    // A loaded document is not enough: registration must wait until the map
+    // has shown its first pins, so install work cannot tax the cold path.
+    window.addEventListener("pubmax:first-pins", onFirstPins, { once: true });
+    if (pageLoaded) scheduleRegister();
+    else window.addEventListener("load", onLoad, { once: true });
+    return () => {
+      window.removeEventListener("pubmax:first-pins", onFirstPins);
+      window.removeEventListener("load", onLoad);
+    };
   }, []);
 
   return null;

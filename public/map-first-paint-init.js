@@ -1,4 +1,16 @@
 (function () {
+  var firstPinsSeen = false;
+  try {
+    firstPinsSeen = window.localStorage.getItem("pubmax:first-pins-seen:v1") === "1";
+  } catch {}
+  var manifestRevision = "local";
+  try {
+    var scriptUrl = document.currentScript && new URL(document.currentScript.src, window.location.href);
+    if (scriptUrl && scriptUrl.searchParams.get("v")) {
+      manifestRevision = scriptUrl.searchParams.get("v");
+    }
+  } catch {}
+  var startWarm = function () {
   var nav = navigator;
   var conn = nav && nav.connection;
   if (
@@ -13,13 +25,6 @@
   // the opening camera. This preserves location-first loading while allowing
   // the cell response to overlap React and MapLibre startup.
   var manifestPath = "/data/venues_slim.manifest.json";
-  var manifestRevision = "local";
-  try {
-    var scriptUrl = document.currentScript && new URL(document.currentScript.src, window.location.href);
-    if (scriptUrl && scriptUrl.searchParams.get("v")) {
-      manifestRevision = scriptUrl.searchParams.get("v");
-    }
-  } catch {}
   var manifestRequestPath = manifestPath + "?v=" + encodeURIComponent(manifestRevision);
   var json = new Map();
   window.__pubmaxMapWarm = { json: json };
@@ -144,4 +149,7 @@
   }).catch(function () {
     if (json.get(manifestPath) === manifestWarm) json.delete(manifestPath);
   });
+  };
+  if (firstPinsSeen || window.__pubmaxFirstPinsReady) startWarm();
+  else window.addEventListener("pubmax:first-pins", startWarm, { once: true });
 })();

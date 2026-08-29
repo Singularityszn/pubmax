@@ -327,7 +327,7 @@ import {
 } from "@/lib/mapLogIntent";
 import prefetchVenue from "@/lib/prefetchVenue";
 import { warmVenueDetail } from "@/lib/warmVenueDetail";
-import { markPubmaxTiming } from "@/lib/performanceMarks";
+import { FIRST_PINS_SEEN_KEY, markPubmaxTiming } from "@/lib/performanceMarks";
 import {
   isCurrentMapResumeRefresh,
   isPersistableMapResumeViewport,
@@ -1860,11 +1860,19 @@ export default function PubMap({
   const mapLoadingProgress = mapLoadingProgressPercent(mapLoadingStage);
 
   useEffect(() => {
+    const deferSpatial = (() => {
+      try {
+        return window.localStorage.getItem(FIRST_PINS_SEEN_KEY) !== "1";
+      } catch {
+        return true;
+      }
+    })();
     if (
       !openingLocationResolved &&
       !arrivalSearch &&
       !ukPlaceArrival &&
-      !ukNationalBrowse
+      !ukNationalBrowse &&
+      !deferSpatial
     ) {
       return;
     }
@@ -1872,6 +1880,7 @@ export default function PubMap({
     const loaderGeneration = ++slimLoaderGenerationRef.current;
     const loader = createSlimShardLoader(cityId, {
       bypassInFlight: venueIndexAttempt > 0,
+      deferSpatial,
     });
     const isCurrentLoader = () =>
       !cancelled &&
@@ -1903,7 +1912,7 @@ export default function PubMap({
       !arrivalSearch &&
       !ukPlaceArrival &&
       !ukNationalBrowse &&
-      openingLocationResolved
+      (openingLocationResolved || deferSpatial)
     ) {
       const settledOpeningBounds =
         latestMapBoundsCityRef.current === cityId &&
@@ -1911,7 +1920,8 @@ export default function PubMap({
           ? latestMapBoundsRef.current
           : null;
       const openingBounds =
-        settledOpeningBounds ?? boundsForOpeningView(openingLoadViewport);
+        settledOpeningBounds ??
+        boundsForOpeningView(deferSpatial ? initialMapView : openingLoadViewport);
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
