@@ -282,49 +282,38 @@ function containsVenueName(haystack: string, name: string): boolean {
   return new RegExp(`(?:^|[^a-z0-9])${phrase}(?:$|[^a-z0-9])`, "i").test(haystack);
 }
 
-function containsVenueLocalityRelation(
-  sentence: string,
-  name: string,
-  locality: string,
-): boolean {
+function containsVenueLocationClaim(sentence: string, name: string): boolean {
   const nameTokens = name
     .toLowerCase()
     .split(/[^a-z0-9]+/)
     .filter(Boolean);
-  const localityTokens = locality
-    .toLowerCase()
-    .split(/[^a-z0-9]+/)
-    .filter(Boolean);
-  if (nameTokens.length === 0 || localityTokens.length === 0) return false;
+  if (nameTokens.length === 0) return false;
   const namePattern = nameTokens
     .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("[^a-z0-9]+");
-  const localityPattern = localityTokens
-    .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
-    .join("[^a-z0-9]+");
   const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])`;
-  const localityBoundary = `${localityPattern}(?=$|[^a-z0-9])`;
-  const direct = `(?:\\b(?:in|near|at|within)\\b\\s+|[,\\-–—()]\\s*)${localityBoundary}`;
+  const locality = `[a-z][a-z'-]*`;
+  const direct = `(?:\\b(?:in|near|at|within|from)\\b\\s+|[,\\-–—()]\\s*)${locality}\\b`;
   const copula =
     `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
     `(?:\\b(?:located|situated|based|standing|stood|sits|lies)\\b\\s+` +
-    `\\b(?:in|near|at|within)\\b\\s+)${localityBoundary}`;
+    `\\b(?:in|near|at|within|from)\\b\\s+)${locality}\\b`;
   const movement =
     `(?:\\b(?:is|are|was|were|has|have|had)\\b\\s+)?` +
     `(?:(?:later|formerly|previously|then|eventually)\\s+)?` +
     `\\b(?:moved|relocated|transferred|shifted|migrated)\\b\\s+` +
-    `\\b(?:to|from|in|near|at|within)\\b\\s+${localityBoundary}`;
+    `\\b(?:to|from|in|near|at|within)\\b\\s+${locality}\\b`;
   const venueType =
     `\\b(?:is|was|were|has been|had been)\\b\\s+` +
     `(?:an?\\s+)?(?:[a-z-]+\\s+){0,4}` +
     `(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)\\s+` +
-    `\\b(?:in|near|at|within)\\b\\s+${localityBoundary}`;
+    `\\b(?:in|near|at|within|from)\\b\\s+${locality}\\b`;
   const nameLocation =
     `\\b(?:is|was|were|has been|had been)\\b\\s+` +
-    `\\b(?:in|near|from|at|within)\\b\\s+${localityBoundary}`;
+    `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   const branchLocation =
     `\\b(?:has|have|had)\\b\\s+(?:an?\\s+)?branch\\s+` +
-    `\\b(?:in|near|from|at|within)\\b\\s+${localityBoundary}`;
+    `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
   return new RegExp(`${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation})`, "i").test(sentence);
 }
 
@@ -364,7 +353,7 @@ export function loreNameTownGate(
     .filter(Boolean);
   const relatedSentences = sentences.filter(
     (sentence) =>
-      containsVenueLocalityRelation(sentence, name, locality) ||
+      containsVenueLocationClaim(sentence, name) ||
       containsVenueReferenceLocalityRelation(sentence),
   );
   const relatedSentence =
