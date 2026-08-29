@@ -316,7 +316,7 @@ function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
     /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
   const localityRelation =
-    /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b/i;
+    /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b|\b(?:has|have|had)\b\s+(?:an?\s+)?branch\s+(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b/i;
   return venueReference.test(sentence) && localityRelation.test(sentence);
 }
 
