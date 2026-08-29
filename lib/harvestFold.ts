@@ -84,6 +84,7 @@ const SOCIAL_HOSTS = new Set([
   "strava.com",
   "mobile.twitter.com",
 ]);
+const HARVEST_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const LOCALITY_NAME_PREFIXES = new Set([
   "new",
   "old",
@@ -152,6 +153,10 @@ export function isHttpsUrl(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+function isHarvestTimestamp(value: string): boolean {
+  return HARVEST_TIMESTAMP_RE.test(value) && Number.isFinite(Date.parse(value));
 }
 
 /** Harvest observations may contain several comma-separated https URLs. */
@@ -309,9 +314,9 @@ function containsVenueLocalityRelation(
 
 function containsVenueReferenceLocalityRelation(sentence: string): boolean {
   const venueReference =
-    /^\s*(?:it|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
+    /^\s*(?:it|its|this\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery)|the\s+(?:pub|bar|inn|tavern|venue|restaurant|hotel|brewery))\b/i;
   const localityRelation =
-    /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b/i;
+    /\b(?:is|was|were|has been|had been)\b\s+(?:(?:now|currently|still)\s+)?(?:located|situated|based|standing|stood|sits|lies|operates?|operating)\s+\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:is|was|were|has been|had been|lies|sits|stands?|operates?|operating)\b\s+(?:(?:now|currently|still)\s+)?\b(?:in|near|from|at|within)\s+[a-z][a-z'-]*\b|\b(?:current|present|former|new|old)?\s*address\b\s+(?:is|was|lies|sits|located|situated)\s+(?:(?:now|currently|still)\s+)?(?:(?:in|near|from|at|within)\s+)?[a-z][a-z'-]*\b|\b(?:moved|relocated|transferred|shifted|migrated)\b\s+(?:to|from|in|near|at|within)\s+[a-z][a-z'-]*\b/i;
   return venueReference.test(sentence) && localityRelation.test(sentence);
 }
 
@@ -633,7 +638,7 @@ export function overlayRowsFromHarvestRecords(rawRecords: unknown[]): HarvestOve
       const value = observationValue(observation, "value", line);
       const sourceUrl = observationValue(observation, "sourceUrl", line);
       const fetchedAt = observationValue(observation, "fetchedAt", line);
-      if (!Number.isFinite(Date.parse(fetchedAt))) {
+      if (!isHarvestTimestamp(fetchedAt)) {
         fail("MALFORMED_ROW", "harvest observation fetchedAt must be a timestamp", line);
       }
       if (!isHttpsUrl(sourceUrl)) {
