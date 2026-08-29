@@ -182,20 +182,20 @@ account ID in its body, and neither returns either side of an invite edge.
 Following the public invite route writes nothing. Auth callback code claims are
 accepted only for newly created accounts in the same sign-in journey.
 
-Social account migration is account-bound twice. `POST /api/social/access`
-derives the legacy Supabase identity with `verifyCallerAuth(request)` and the
-protected server seam derives the Clerk identity from middleware-backed session
-context. It accepts no account ID, handle, or email from the body. The beta
-policy denies the write with `SOCIAL_BETA_DISABLED` while Social remains in
-preview, before the Supabase verifier, Clerk check, or migration RPC runs. A
-successful call passes only those two independently verified IDs to the
-service-only transactional RPC.
+Social access is Supabase-only. `GET /api/social/access` calls
+`resolveSocialAccess`, which accepts the caller's verified Supabase bearer or
+resume cookie and reads the server-owned product account, profile, date of
+birth, and adult assertion. It accepts no account ID, handle, or email from a
+request body. When `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, it returns preview before
+session or account work. There is no Social access POST, Clerk session check,
+Yoti migration, or account migration RPC in this path.
 
-Social post writes use one account boundary. Both routes call
+Social post and Crew writes use one account boundary. Their routes call
 `requireVerifiedSocialActor`, which returns the server-held product account ID,
-stable profile ID and current handle only after the Clerk session, product
-ownership and adult decision pass. No account ID, profile ID, handle,
-moderation state, revision or timestamp is accepted from the request body.
+stable profile ID, and current handle only after Supabase session verification,
+product ownership, and the adult decision pass. No account ID, profile ID,
+handle, moderation state, revision, or timestamp is accepted from request
+bodies.
 
 ## Failure posture
 

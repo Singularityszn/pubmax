@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
@@ -32,6 +32,7 @@ function context(crewId = CREW_ID): { params: Promise<{ crewId: string }> } {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
   store.readPublicPreview.mockResolvedValue(sourcePreview);
   resolveMeeting.resolveOpenMeetingPoint.mockResolvedValue({
     ok: true,
@@ -46,6 +47,19 @@ beforeEach(() => {
 });
 
 describe("GET /api/social/crews/:crewId/public", () => {
+  it("hides public crew data during emergency rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+
+    const response = await GET(
+      new Request(`https://pubmaxxing.com/api/social/crews/${CREW_ID}/public`),
+      context(),
+    );
+
+    expect(response.status).toBe(503);
+    expect(store.readPublicPreview).not.toHaveBeenCalled();
+    expect(resolveMeeting.resolveOpenMeetingPoint).not.toHaveBeenCalled();
+  });
+
   it("returns account-free public data through the listed Stop 1 resolver", async () => {
     const response = await GET(
       new Request(`https://pubmaxxing.com/api/social/crews/${CREW_ID}/public`),
@@ -109,4 +123,8 @@ describe("GET /api/social/crews/:crewId/public", () => {
     expect(response.status).toBe(404);
     expect(store.readPublicPreview).not.toHaveBeenCalled();
   });
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });

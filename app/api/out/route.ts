@@ -16,6 +16,10 @@ import { buildOutResponse, parseOutQuery } from "@/lib/out/loadOut";
 import { outCacheControl } from "@/lib/out/outStatus";
 import { isOutLimited } from "@/lib/outRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
 export const runtime = "nodejs";
@@ -41,24 +45,29 @@ async function getHandler(request: Request): Promise<Response> {
   const now = Date.now();
   const body = await buildOutResponse(query, { now });
   let status = body.status;
-  let openPlans = body.openPlans;
+  const socialEnabled = isSocialFriendsLaunchEnabled(
+    process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
+  );
+  let openPlans = socialEnabled ? body.openPlans : [];
 
-  const window = outPlansWindow(query.day, now);
-  try {
-    const listed = await store.listOpen({
-      from: window.from,
-      until: window.until,
-      city: query.city,
-      limit: OUT_OPEN_PLAN_LIMIT,
-    });
-    const attached = await attachOpenPlanMeetingPoints(listed);
-    if (attached.status === "degraded" && status !== "degraded") {
-      status = "degraded";
+  if (socialEnabled) {
+    const window = outPlansWindow(query.day, now);
+    try {
+      const listed = await store.listOpen({
+        from: window.from,
+        until: window.until,
+        city: query.city,
+        limit: OUT_OPEN_PLAN_LIMIT,
+      });
+      const attached = await attachOpenPlanMeetingPoints(listed);
+      if (attached.status === "degraded" && status !== "degraded") {
+        status = "degraded";
+      }
+      openPlans = boundOutOpenPlans(attached.plans);
+    } catch {
+      if (status === "ready") status = "degraded";
+      openPlans = [];
     }
-    openPlans = boundOutOpenPlans(attached.plans);
-  } catch {
-    if (status === "ready") status = "degraded";
-    openPlans = [];
   }
 
   return Response.json({ ...body, status, openPlans }, {

@@ -72,12 +72,11 @@ If a later agent finds the live ledger behind the tree again, re-run `supabase m
 
 ### 1.4 Feature flags
 
-Social ships behind two independent server-checked switches:
+Social ships behind one server-checked launch switch:
 
 | Flag | Read in | Emergency rollback (`=0`) | Live default |
 |---|---|---|---|
-| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts` (access) and `app/layout.tsx` (surface name) | Set only to `0` during an incident. Every Social surface returns to **preview**. Landing and `/we-are-out` point at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, command palette, and Social pages; the phone tab keeps `Social` with a preview dot and spoken name `Social preview`. | Unset, empty, `1`, or `true` keeps Social **live**. Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Friends-only reads use mutual follows (WP6). |
-| `SOCIAL_INVITE_BETA_ENABLED` | `lib/socialAccessServer.ts` (legacy Clerk beta path) | Clerk invite beta stays dormant beside the Supabase path. | **Do not enable** for the friends launch; it is the retired Clerk+Yoti stack. |
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts`, `app/layout.tsx`, `app/api/out/route.ts`, and public Crew route | Set only to `0` during an incident. Every Social surface returns to **preview**. Landing and `/we-are-out` point at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, command palette, and Social pages; the phone tab keeps `Social` with a preview dot and spoken name `Social preview`. | Unset, empty, `1`, or `true` keeps Social **live**. Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Friends-only reads use mutual follows (WP6). |
 
 **Live default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset or empty in Production and Preview. `1` and `true` are also live values. `0` is the only emergency rollback value and returns Social to preview.
 
@@ -94,8 +93,6 @@ Social ships behind two independent server-checked switches:
 1. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel **Production** environment variables.
 2. Promote a fresh production deployment and run the rollback check below.
 3. Restore the live default by removing the variable or setting it to `1` or `true`, then promote again.
-
-Do not enable `SOCIAL_INVITE_BETA_ENABLED` for this wave. It is a retained audit trail for the retired Clerk beta path. `docs/social/SOCIAL_BETA_CONTRACT.md` lists both moderation roles as **Unassigned, Blocking** for that path.
 
 ### 1.5 Captain demo script (Social + avatars dress rehearsal)
 
@@ -207,9 +204,7 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 
 ### 5.2 Social moderation rota
 
-`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before any invite-beta flag goes live. As of this runbook, both are listed **Unassigned, Blocking** in that document.
-
-Do not enable `SOCIAL_INVITE_BETA_ENABLED` until both roles are named and the handover between them has been exercised at least once. Check `docs/social/SOCIAL_BETA_CONTRACT.md`'s moderation table for current status before launch.
+`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before Social goes live. Check its moderation table for current status before launch.
 
 ---
 

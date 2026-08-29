@@ -117,6 +117,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.TICKETMASTER_API_KEY;
   delete process.env.SKIDDLE_API_KEY;
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
 });
 
 afterEach(() => {
@@ -719,6 +720,17 @@ describe("GET /api/out openPlans", () => {
     const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
     const body = await response.json();
     expect(body.openPlans).toEqual([]);
+  });
+
+  it("hides open crew discovery during emergency rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.openPlans).toEqual([]);
+    expect(store.listOpen).not.toHaveBeenCalled();
   });
 
   it("refuses an unauthenticated flood", async () => {
