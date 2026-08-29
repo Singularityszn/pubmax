@@ -190,6 +190,14 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const after = haystack.slice((match.index ?? 0) + match[0].length);
     const hasKnownUkQualifier = UK_LOCALITY_QUALIFIER_RE.test(after);
     const nextWord = after.match(/^\s*(?:[.!?]\s+)?([a-z][a-z'-]*)\b/i)?.[1]?.toLowerCase();
+    const compoundWord = after.match(
+      /^\s*(?:[,;:/()\-–]\s*)?(?:and|&)\s+([a-z][a-z'-]*)\b/i,
+    )?.[1]?.toLowerCase();
+    const hasUnknownCompoundLocality = Boolean(
+      compoundWord &&
+        !LOCALITY_CONTINUATION_WORDS.has(compoundWord) &&
+        !UK_LOCALITY_DESTINATION_RE.test(compoundWord),
+    );
     const sentenceContinuation =
       /^[\s]*[.!?]\s+/.test(after) &&
       Boolean(nextWord && LOCALITY_CONTINUATION_WORDS.has(nextWord));
@@ -206,7 +214,7 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     ) {
       continue;
     }
-    if (hasUnknownLaterLocality) continue;
+    if (hasUnknownLaterLocality || hasUnknownCompoundLocality) continue;
     if (!hasKnownUkQualifier && nextWord && !LOCALITY_CONTINUATION_WORDS.has(nextWord)) continue;
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
@@ -706,6 +714,16 @@ export type PublicHarvestOverlay = {
     sourceRef: string;
   } | null;
 };
+
+export function mergePublicHarvestOverlays(
+  overlays: readonly PublicHarvestOverlay[],
+): PublicHarvestOverlay {
+  return {
+    website: overlays.find((overlay) => overlay.website)?.website ?? null,
+    menuUrl: overlays.find((overlay) => overlay.menuUrl)?.menuUrl ?? null,
+    lore: overlays.find((overlay) => overlay.lore)?.lore ?? null,
+  };
+}
 
 export function toPublicOverlay(row: HarvestOverlayRow): PublicHarvestOverlay {
   return {

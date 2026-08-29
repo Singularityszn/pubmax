@@ -50,7 +50,12 @@ async function attachCityOsmIds(
       const osmId = canonicalOsmId(pub?.osmId);
       if (!venueId || !osmId) continue;
       const entry = index.get(venueId);
-      if (entry) entry.venue.osmId = osmId;
+      if (entry) {
+        const osmIds = entry.venue.osmIds ?? [];
+        if (!osmIds.includes(osmId)) osmIds.push(osmId);
+        entry.venue.osmIds = osmIds;
+        if (!entry.venue.osmId) entry.venue.osmId = osmId;
+      }
     }
     return true;
   } catch {

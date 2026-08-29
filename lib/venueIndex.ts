@@ -32,7 +32,12 @@ export type VenueRef = {
   lng: number;
   kind?: VenueKind;
   osmId?: string;
+  osmIds?: string[];
 };
+
+export function venueOsmIds(venue: VenueRef): string[] {
+  return [...new Set(venue.osmIds?.length ? venue.osmIds : venue.osmId ? [venue.osmId] : [])];
+}
 
 export type CanonicalVenueLookup =
   | {

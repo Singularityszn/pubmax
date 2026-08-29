@@ -144,6 +144,16 @@ describe("getVenueIndex", () => {
     });
   });
 
+  it("retains every OSM identity owned by one curated venue", async () => {
+    expect(await lookupCanonicalVenueWithOsm("venue-1ha28jc")).toMatchObject({
+      status: "found",
+      venue: {
+        osmId: "node/13235500301",
+        osmIds: ["node/13235500301", "way/556177108"],
+      },
+    });
+  });
+
   it("retries a city when its OSM identity pack has a transient failure", async () => {
     const realRead = fs.readFile.bind(fs);
     let failOxfordOsm = true;

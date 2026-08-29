@@ -4,7 +4,7 @@
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
-import { toPublicOverlay } from "@/lib/harvestFold";
+import { mergePublicHarvestOverlays, toPublicOverlay } from "@/lib/harvestFold";
 import { harvestOverlayStore } from "@/lib/harvestOverlayStore";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
 import { isLimited } from "@/lib/pintDrops";
@@ -29,24 +29,31 @@ export async function GET(request: Request): Promise<Response> {
     if (resolution.status === "unavailable") {
       return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
     }
-    const read =
+    const reads =
       resolution.status === "resolved"
-        ? await harvestOverlayStore().getByVenueId(resolution.venueId)
-        : { status: "ready" as const, overlay: null };
-    if (read.status === "degraded") {
+        ? await Promise.all(
+            resolution.venueIds.map((osmId) =>
+              harvestOverlayStore().getByVenueId(osmId),
+            ),
+          )
+        : [{ status: "ready" as const, overlay: null }];
+    if (reads.some((read) => read.status === "degraded")) {
       return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
     }
-    const row = read.overlay;
-    if (!row) {
+    const publicOverlays = reads.flatMap((read) =>
+      read.status === "ready" && read.overlay ? [toPublicOverlay(read.overlay)] : [],
+    );
+    if (publicOverlays.length === 0) {
       return Response.json(
         { status: "ready", overlay: null },
         { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
       );
     }
+    const overlay = mergePublicHarvestOverlays(publicOverlays);
     return Response.json(
       {
         status: "ready",
-        overlay: toPublicOverlay(row),
+        overlay,
       },
       { headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" } },
     );

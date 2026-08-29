@@ -183,12 +183,18 @@ export async function retrieveHeritageWithStatus(input: {
     if (resolution.status === "unavailable") {
       status = "degraded";
     } else if (resolution.status === "resolved") {
-      const read = await harvestOverlayStore().getByVenueId(resolution.venueId);
-      if (read.status === "degraded") {
+      const reads = await Promise.all(
+        resolution.venueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+      );
+      if (reads.some((read) => read.status === "degraded")) {
         status = "degraded";
       } else {
-        const lore = read.overlay ? heritageFactFromOverlay(read.overlay) : null;
-        if (lore) facts.push(lore);
+        for (const read of reads) {
+          const lore = read.status === "ready" && read.overlay
+            ? heritageFactFromOverlay(read.overlay)
+            : null;
+          if (lore) facts.push(lore);
+        }
       }
     }
   }
@@ -354,7 +360,7 @@ export async function answerHeritage(input: {
     ? await resolveHarvestOverlayVenue(input.venueId)
     : null);
   const venueIdentity = venueResolution?.status === "resolved"
-    ? venueResolution.venueId
+    ? venueResolution.venueIds.join(",")
     : input.venueId ?? "";
   const key = useLlm && venueResolution?.status !== "unavailable"
     ? cacheKey(input.venueName, input.question, venueNoun, venueIdentity)

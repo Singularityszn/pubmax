@@ -85,4 +85,34 @@ describe("GET /api/harvest-overlay", () => {
     expect(res.status).toBe(200);
     expect((await res.json()).overlay.lore.source).toBe("web");
   });
+
+  it("merges overlays from every OSM object owned by one curated venue", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/13235500301",
+        name: "The Grenadier",
+        town: "London",
+        website: "https://grenadier.example/",
+        menuUrl: null,
+        matchedLore: null,
+        sources: ["https://grenadier.example/"],
+      }),
+      parseOverlayRow({
+        osmId: "way/556177108",
+        name: "The Grenadier",
+        town: "London",
+        website: null,
+        menuUrl: "https://grenadier.example/menu",
+        matchedLore: null,
+        sources: ["https://grenadier.example/menu"],
+      }),
+    ]);
+
+    const res = await get("venueId=venue-1ha28jc");
+    expect(res.status).toBe(200);
+    expect((await res.json()).overlay).toMatchObject({
+      website: "https://grenadier.example/",
+      menuUrl: "https://grenadier.example/menu",
+    });
+  });
 });

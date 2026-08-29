@@ -147,6 +147,40 @@ describe("retrieveHeritage — trust boundary", () => {
     });
     expect(facts.some((fact) => fact.source === "web")).toBe(true);
   });
+
+  it("reads lore from every OSM object owned by one curated venue", async () => {
+    await harvestOverlayStore().upsertMany([
+      parseOverlayRow({
+        osmId: "node/13235500301",
+        name: "The Grenadier",
+        town: "London",
+        matchedLore: {
+          text: "The Grenadier in London has a story about its first mapped object.",
+          citations: ["https://history.example/grenadier-node"],
+        },
+        sources: ["https://history.example/grenadier-node"],
+      }),
+      parseOverlayRow({
+        osmId: "way/556177108",
+        name: "The Grenadier",
+        town: "London",
+        matchedLore: {
+          text: "The Grenadier in London has a story about its second mapped object.",
+          citations: ["https://history.example/grenadier-way"],
+        },
+        sources: ["https://history.example/grenadier-way"],
+      }),
+    ]);
+
+    const facts = await retrieveHeritage({
+      venueId: "venue-1ha28jc",
+      venueName: "The Grenadier",
+    });
+    expect(facts.filter((fact) => fact.source === "web").map((fact) => fact.sourceRef)).toEqual([
+      "https://history.example/grenadier-node",
+      "https://history.example/grenadier-way",
+    ]);
+  });
 });
 
 describe("answerHeritage (no key — grounded only)", () => {

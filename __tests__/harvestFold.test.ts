@@ -177,6 +177,16 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not accept a compound foreign locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York and Pennsylvania has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {

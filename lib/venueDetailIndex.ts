@@ -6,7 +6,7 @@ import path from "path";
 import { cityIdFromVenueId } from "@/lib/cityVenueIds";
 import type { FoodCategory } from "@/lib/food";
 import { lookupCanonicalVenueId } from "@/lib/venueAliases";
-import { lookupCanonicalVenue } from "@/lib/venueIndex";
+import { lookupCanonicalVenue, venueOsmIds } from "@/lib/venueIndex";
 import {
   lookupCanonicalVenueWithOsm,
   resetVenueOsmIndexForTests,
@@ -77,7 +77,7 @@ const RAW_DATASET_FILE = path.join(process.cwd(), "public", "data", "pint_prices
 const VENUE_ID_RE =
   /^(?:venue-(?:[a-z]{3}-)?[a-z0-9]{1,24}|(?:bar|food|restaurant)-[a-z0-9-]{1,100})$/;
 
-const cachedDetails = new Map<string, { venue: Venue; overlayVenueId?: string }>();
+const cachedDetails = new Map<string, { venue: Venue; overlayVenueIds?: string[] }>();
 /** Successful manifests only — I/O failures stay unset so the next call can retry.
  * Schema-invalid manifests are cached as INVALID_MANIFEST (warn once). */
 const INVALID_MANIFEST = Symbol("invalid-venue-detail-manifest");
@@ -264,18 +264,27 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const cached = cachedDetails.get(id);
   if (cached) {
     try {
-      let overlayVenueId = cached.overlayVenueId;
-      if (!overlayVenueId) {
+      let overlayVenueIds = cached.overlayVenueIds;
+      if (!overlayVenueIds) {
         const osmLookup = await lookupCanonicalVenueWithOsm(id);
         if (osmLookup.status === "found") {
-          overlayVenueId = osmLookup.venue.osmId;
-          if (overlayVenueId) cached.overlayVenueId = overlayVenueId;
+          overlayVenueIds = venueOsmIds(osmLookup.venue);
+          cached.overlayVenueIds = overlayVenueIds;
         }
       }
-      if (!overlayVenueId) return { status: "found", venue: cached.venue };
-      const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
-      if (read.status === "degraded") return { status: "found", venue: cached.venue };
-      return { status: "found", venue: applyHarvestWebsiteMenu(cached.venue, read.overlay) };
+      if (!overlayVenueIds?.length) return { status: "found", venue: cached.venue };
+      const reads = await Promise.all(
+        overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+      );
+      if (reads.some((read) => read.status === "degraded")) {
+        return { status: "found", venue: cached.venue };
+      }
+      const venue = reads.reduce(
+        (current, read) =>
+          read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
+        cached.venue,
+      );
+      return { status: "found", venue };
     } catch {
       return { status: "found", venue: cached.venue };
     }
@@ -302,18 +311,27 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
 
   try {
     const enriched = await enrichVenueForDetail(venue);
-    let overlayVenueId: string | undefined;
+    let overlayVenueIds: string[] | undefined;
     try {
       const osmLookup = await lookupCanonicalVenueWithOsm(id);
-      if (osmLookup.status === "found") overlayVenueId = osmLookup.venue.osmId;
+      if (osmLookup.status === "found") {
+        overlayVenueIds = venueOsmIds(osmLookup.venue);
+      }
     } catch {
-      overlayVenueId = undefined;
+      overlayVenueIds = undefined;
     }
-    cachedDetails.set(id, { venue: enriched, ...(overlayVenueId ? { overlayVenueId } : {}) });
-    if (!overlayVenueId) return { status: "found", venue: enriched };
-    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
-    if (read.status === "degraded") return { status: "found", venue: enriched };
-    return { status: "found", venue: applyHarvestWebsiteMenu(enriched, read.overlay) };
+    cachedDetails.set(id, { venue: enriched, ...(overlayVenueIds ? { overlayVenueIds } : {}) });
+    if (!overlayVenueIds?.length) return { status: "found", venue: enriched };
+    const reads = await Promise.all(
+      overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
+    );
+    if (reads.some((read) => read.status === "degraded")) return { status: "found", venue: enriched };
+    const venue = reads.reduce(
+      (current, read) =>
+        read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
+      enriched,
+    );
+    return { status: "found", venue };
   } catch {
     return { status: "found", venue };
   }
