@@ -7,15 +7,27 @@ import {
   socialPostConsentStore,
 } from "@/lib/socialPostConsentStore";
 import { boundedJson } from "@/lib/boundedRequest.server";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 function json(body: unknown, status = 200): Response { return Response.json(body, { status, headers: { "Cache-Control": "private, no-store" } }); }
 export async function GET(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   if (!isModerator(request)) return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } });
   try { return json({ posts: await socialPostConsentStore.heldQueueForAdmin(50) }); }
   catch { return publicApiError("Social post moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } }); }
 }
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const limiterKey = `admin-social-posts:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, 30)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });

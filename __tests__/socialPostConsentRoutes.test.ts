@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
@@ -80,12 +80,36 @@ const proposalId = "11111111-1111-4111-8111-111111111111";
 const postId = "22222222-2222-4222-8222-222222222222";
 
 beforeEach(() => {
+  vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
   state.calls = [];
   state.adminQueueThrows = false;
   state.adminModerationKind = null;
 });
 
+afterEach(() => vi.unstubAllEnvs());
+
 describe("Social consent API contracts", () => {
+  it("blocks admin Social reads and moderation during rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+
+    const queue = await readAdminQueue(
+      new Request("http://localhost/api/admin/social-posts", {
+        headers: { "x-admin-token": "admin-token" },
+      }),
+    );
+    const moderation = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+    }));
+
+    expect(queue.status).toBe(503);
+    expect(moderation.status).toBe(503);
+    expect(await queue.json()).toMatchObject({ code: "SOCIAL_PREVIEW" });
+    expect(await moderation.json()).toMatchObject({ code: "SOCIAL_PREVIEW" });
+    expect(state.calls).toEqual([]);
+  });
+
   it("passes bounded lane pages and owner pages to stable actor stores", async () => {
     expect((await tags(new Request("http://localhost/api/social/tags?lane=approved&limit=12&cursor=opaque"))).status).toBe(200);
     expect((await outbox(new Request("http://localhost/api/social/outbox?limit=8"))).status).toBe(200);

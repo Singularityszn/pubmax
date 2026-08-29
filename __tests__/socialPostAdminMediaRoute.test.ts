@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   objectKey: "social/media-id/generation/image.jpg" as string | null,
@@ -33,7 +33,23 @@ function request(headers?: HeadersInit): Request {
   return new Request(`http://localhost/api/admin/social-posts/media/${mediaId}`, { headers });
 }
 
+beforeEach(() => vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1"));
+afterEach(() => vi.unstubAllEnvs());
+
 describe("admin Social photo preview", () => {
+  it("blocks photo reads during rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+    state.reads = 0;
+
+    const response = await GET(request({ "x-admin-token": "admin-token" }), {
+      params: Promise.resolve({ mediaId }),
+    });
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "SOCIAL_PREVIEW" });
+    expect(state.reads).toBe(0);
+  });
+
   it("requires moderator access before reading media", async () => {
     state.reads = 0;
     const response = await GET(request(), { params: Promise.resolve({ mediaId }) });

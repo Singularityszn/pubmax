@@ -10,12 +10,29 @@ vi.mock("@/components/wanted/WantedList", () => ({
 }));
 
 import {
+  ProfileFollowBoundary,
   profileSocialDataForLaunch,
   profileSurfaceFor,
   YouSignedOutSurface,
 } from "@/app/u/[handle]/ProfilePageClient";
 
 describe("signed-out /u/you surface", () => {
+  it("shows a sign-in boundary instead of an unusable Follow button", () => {
+    const html = renderToStaticMarkup(createElement(ProfileFollowBoundary, {
+      friendsLaunchEnabled: true,
+      isAnonymous: true,
+      routeHandle: "alice",
+      viewerHandle: "",
+      following: false,
+      followsViewer: false,
+      onCountsChange: () => undefined,
+    }));
+
+    expect(html).toContain("Sign in to follow");
+    expect(html).toContain("/login?mode=signin&amp;from=%2Fu%2Falice");
+    expect(html).not.toContain("followBtn");
+  });
+
   it("removes cached Social state during rollback", () => {
     const data = {
       socialLinks: [{

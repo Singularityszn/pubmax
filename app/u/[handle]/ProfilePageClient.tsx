@@ -250,6 +250,53 @@ export function ProfileClaimOffer({ onClaim }: { onClaim: () => void }) {
   );
 }
 
+export function ProfileFollowBoundary({
+  friendsLaunchEnabled,
+  isAnonymous,
+  routeHandle,
+  viewerHandle,
+  following,
+  followsViewer,
+  onCountsChange,
+}: {
+  friendsLaunchEnabled: boolean;
+  isAnonymous: boolean;
+  routeHandle: string;
+  viewerHandle: string;
+  following: boolean;
+  followsViewer: boolean;
+  onCountsChange: (counts: FollowCounts) => void;
+}): React.JSX.Element | null {
+  if (!friendsLaunchEnabled) return null;
+  if (isAnonymous) {
+    return (
+      <Link
+        className="profileFollowSignIn"
+        href={`/login?mode=signin&from=${encodeURIComponent(`/u/${routeHandle}`)}`}
+      >
+        Sign in to follow
+      </Link>
+    );
+  }
+  if (!viewerHandle) {
+    return (
+      <Link className="profileFollowSignIn" href="/u/you#account-settings">
+        Claim a handle to follow
+      </Link>
+    );
+  }
+  return (
+    <FollowButton
+      key={`${routeHandle}:${following}:${followsViewer}`}
+      targetHandle={routeHandle}
+      followerHandle={viewerHandle}
+      initialFollowing={following}
+      followsViewer={followsViewer}
+      onCountsChange={onCountsChange}
+    />
+  );
+}
+
 type ProfileSocialData = {
   socialLinks: readonly PublicSocialLink[];
   counts: FollowCounts | null;
@@ -880,11 +927,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <ProfileClaimOffer onClaim={claimHandle} />
   ) : isYouRoute ? null : (
     <>
-      <FollowButton
-        key={`${routeHandle}:${visibleSocialData.following}:${visibleSocialData.followsViewer}`}
-        targetHandle={routeHandle}
-        followerHandle={viewerHandle}
-        initialFollowing={visibleSocialData.following}
+      <ProfileFollowBoundary
+        friendsLaunchEnabled={socialFriendsLaunchEnabled}
+        isAnonymous={isAnonymous}
+        routeHandle={routeHandle}
+        viewerHandle={viewerHandle}
+        following={visibleSocialData.following}
         followsViewer={visibleSocialData.followsViewer}
         onCountsChange={setCounts}
       />
