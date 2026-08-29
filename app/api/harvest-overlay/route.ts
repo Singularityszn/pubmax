@@ -26,7 +26,11 @@ export async function GET(request: Request): Promise<Response> {
 
   try {
     const overlayVenueId = await resolveHarvestOverlayVenueId(venueId);
-    const row = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    if (read.status === "degraded") {
+      return jsonNoStore({ status: "degraded", overlay: null }, { status: 200 });
+    }
+    const row = read.overlay;
     if (!row) {
       return Response.json(
         { status: "ready", overlay: null },

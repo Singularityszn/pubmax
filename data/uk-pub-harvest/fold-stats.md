@@ -26,12 +26,9 @@ Identity is OSM id. Name is not a key.
 
 History observations present: 10472.
 
-| Gate result | Count |
-|---|---:|
-| Pass: name token and town both in the history text | 5472 |
-| Fail: OSM town tag missing | 3089 |
-| Fail: town tag present but not in the text | 1039 |
-| Fail: name tokens not in the text | 872 |
+The fold applies current contiguous venue-name and town matching, then keeps at
+most one passing history observation per OSM id. The reconciled lore count is
+the `Matched lore` count in final overlay rows below.
 
 ## Fold-ready overlay (`overlay.jsonl`)
 

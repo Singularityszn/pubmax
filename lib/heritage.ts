@@ -160,7 +160,8 @@ export async function retrieveHeritage(input: {
   // somehow lost its https citation.
   if (input.venueId) {
     const overlayVenueId = await resolveHarvestOverlayVenueId(input.venueId);
-    const overlay = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    const overlay = read.status === "ready" ? read.overlay : null;
     const lore = overlay ? heritageFactFromOverlay(overlay) : null;
     if (lore) facts.push(lore);
   }

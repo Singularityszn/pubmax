@@ -31,9 +31,11 @@ describe("harvestOverlayStore", () => {
 
     for (const id of ["node/123", "n123", "venue-uk-n123", "venue-osm-n123"]) {
       const found = await harvestOverlayStore().getByVenueId(id);
-      expect(found?.osmId).toBe("node/123");
-      expect(found?.website).toBe("https://redlion.example/");
-      expect(found?.matchedLore?.citations[0]).toBe(
+      expect(found.status).toBe("ready");
+      if (found.status !== "ready") return;
+      expect(found.overlay?.osmId).toBe("node/123");
+      expect(found.overlay?.website).toBe("https://redlion.example/");
+      expect(found.overlay?.matchedLore?.citations[0]).toBe(
         "https://history.example/red-lion-clapham",
       );
     }
@@ -41,8 +43,14 @@ describe("harvestOverlayStore", () => {
 
   it("treats a miss as unknown, never no-history, and ignores a name", async () => {
     await harvestOverlayStore().upsertMany([row]);
-    expect(await harvestOverlayStore().getByVenueId("venue-7l4pei")).toBeNull();
-    expect(await harvestOverlayStore().getByVenueId("The Red Lion")).toBeNull();
+    expect(await harvestOverlayStore().getByVenueId("venue-7l4pei")).toEqual({
+      status: "ready",
+      overlay: null,
+    });
+    expect(await harvestOverlayStore().getByVenueId("The Red Lion")).toEqual({
+      status: "ready",
+      overlay: null,
+    });
   });
 
   it("is idempotent: a second upsert of the same OSM id replaces the row", async () => {
@@ -58,7 +66,9 @@ describe("harvestOverlayStore", () => {
     });
     await harvestOverlayStore().upsertMany([updated]);
     const found = await harvestOverlayStore().getByVenueId("venue-uk-n123");
-    expect(found?.website).toBe("https://redlion.example/new");
-    expect(found?.matchedLore).toBeNull();
+    expect(found.status).toBe("ready");
+    if (found.status !== "ready") return;
+    expect(found.overlay?.website).toBe("https://redlion.example/new");
+    expect(found.overlay?.matchedLore).toBeNull();
   });
 });

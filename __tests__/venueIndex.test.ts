@@ -122,6 +122,11 @@ describe("getVenueIndex", () => {
   it("includes enabled city slim packs, not just London", async () => {
     const index = await getVenueIndex();
 
+    expect(index.get("venue-kjzhhd")).toMatchObject({
+      name: "The Royal Oak",
+      borough: "Southwark",
+      osmId: "way/100614943",
+    });
     expect(index.get("venue-oxf-16404bl")).toMatchObject({
       name: "Turf Tavern",
       borough: "Oxford",

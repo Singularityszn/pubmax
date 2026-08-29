@@ -1,8 +1,8 @@
 import "server-only";
 
 // Dual-backend store for folded UK harvest overlay rows. Identity is OSM id.
-// Writes are idempotent upserts. Reads fail soft to null — absence is unknown,
-// never "no history". The fold CLI is fail-loud; this store does not invent.
+// Writes are idempotent upserts. Reads distinguish unknown from unavailable.
+// The fold CLI is fail-loud; this store does not invent.
 
 import {
   admin,
@@ -28,9 +28,13 @@ export type HarvestOverlayWriteOutcome = {
   failure?: string;
 };
 
+export type HarvestOverlayRead =
+  | { status: "ready"; overlay: HarvestOverlayRow | null }
+  | { status: "degraded"; overlay: null };
+
 export type HarvestOverlayStore = {
   upsertMany(rows: HarvestOverlayRow[]): Promise<HarvestOverlayWriteOutcome>;
-  getByVenueId(venueId: string): Promise<HarvestOverlayRow | null>;
+  getByVenueId(venueId: string): Promise<HarvestOverlayRead>;
 };
 
 const memoryRows = new Map<string, HarvestOverlayRow>();
@@ -50,8 +54,8 @@ export const memoryHarvestOverlayStore: HarvestOverlayStore = {
   },
   async getByVenueId(venueId) {
     const osmId = canonicalOsmId(venueId);
-    if (!osmId) return null;
-    return memoryRows.get(osmId) ?? null;
+    if (!osmId) return { status: "ready", overlay: null };
+    return { status: "ready", overlay: memoryRows.get(osmId) ?? null };
   },
 };
 
@@ -138,7 +142,7 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
   },
   async getByVenueId(venueId) {
     const osmId = canonicalOsmId(venueId);
-    if (!osmId) return null;
+    if (!osmId) return { status: "ready", overlay: null };
     return guard({
       context: "read",
       run: async () => {
@@ -148,11 +152,13 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
           .eq("osm_id", osmId)
           .maybeSingle();
         if (error) throw error;
-        if (!data) return null;
-        return fromSql(data as OverlaySqlRow);
+        return {
+          status: "ready" as const,
+          overlay: data ? fromSql(data as OverlaySqlRow) : null,
+        };
       },
-      onSchemaMiss: async () => null,
-      onError: () => null,
+      onSchemaMiss: async () => ({ status: "degraded" as const, overlay: null }),
+      onError: () => ({ status: "degraded" as const, overlay: null }),
     });
   },
 };

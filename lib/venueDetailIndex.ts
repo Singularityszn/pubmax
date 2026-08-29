@@ -260,7 +260,9 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
   const cached = cachedDetails.get(id);
   if (cached) {
     try {
-      const overlay = await harvestOverlayStore().getByVenueId(cached.overlayVenueId);
+      const read = await harvestOverlayStore().getByVenueId(cached.overlayVenueId);
+      if (read.status === "degraded") return { status: "unavailable" };
+      const overlay = read.overlay;
       return { status: "found", venue: applyHarvestWebsiteMenu(cached.venue, overlay) };
     } catch {
       return { status: "unavailable" };
@@ -290,7 +292,9 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
     const enriched = await enrichVenueForDetail(venue);
     const overlayVenueId = venueLookup.venue.osmId ?? enriched.id;
     cachedDetails.set(id, { venue: enriched, overlayVenueId });
-    const overlay = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    const read = await harvestOverlayStore().getByVenueId(overlayVenueId);
+    if (read.status === "degraded") return { status: "unavailable" };
+    const overlay = read.overlay;
     const withHarvest = applyHarvestWebsiteMenu(enriched, overlay);
     return { status: "found", venue: withHarvest };
   } catch {

@@ -174,20 +174,30 @@ async function attachCityOsmIds(
   index: Map<string, IndexedVenue>,
 ): Promise<void> {
   try {
+    const sourcePath =
+      cityId === "london"
+        ? path.join(process.cwd(), "data", "osm", "uk", "uk_osm_pubs.json")
+        : path.join(
+            process.cwd(),
+            "data",
+            "cities",
+            cityId,
+            "osm_pubs.json",
+          );
     const raw = await fs.readFile(
-      /* turbopackIgnore: true */ path.join(
-        process.cwd(),
-        "data",
-        "cities",
-        cityId,
-        "osm_pubs.json",
-      ),
+      /* turbopackIgnore: true */ sourcePath,
       "utf8",
     );
     const pubs = JSON.parse(raw)?.pubs;
     if (!Array.isArray(pubs)) return;
     for (const pub of pubs) {
-      const venueId = cityVenueIdForPub(cityId, pub);
+      const venueId =
+        cityId === "london"
+          ? pub?.curatedRef?.source === "curated-london-slim" &&
+            typeof pub.curatedRef.id === "string"
+            ? pub.curatedRef.id
+            : ""
+          : cityVenueIdForPub(cityId, pub);
       const osmId = canonicalOsmId(pub?.osmId);
       if (!venueId || !osmId) continue;
       const entry = index.get(venueId);
