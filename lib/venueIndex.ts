@@ -149,6 +149,7 @@ function buildVenueIndexFromSlim(rows: SlimRow[]): Map<string, IndexedVenue> {
 
 let cached: Map<string, VenueRef> | null = null;
 const cityCache = new Map<string, Map<string, IndexedVenue>>();
+const cityOsmCache = new Map<string, Map<string, IndexedVenue>>();
 
 function publicDataPath(publicPath: string): string {
   return path.join(
@@ -210,7 +211,7 @@ async function attachCityOsmIds(
   }
 }
 
-async function getCityVenueIndex(
+async function readCityVenueIndex(
   city: { id: string; slimVenuesPath: string },
 ): Promise<Map<string, IndexedVenue> | null> {
   const publicPath = city.slimVenuesPath;
@@ -218,12 +219,28 @@ async function getCityVenueIndex(
   if (existing) return existing;
   try {
     const index = await readSlimIndex(publicPath);
-    if (!(await attachCityOsmIds(city.id, index))) return null;
     cityCache.set(publicPath, index);
     return index;
   } catch {
     return null;
   }
+}
+
+async function getCityVenueIndex(
+  city: { id: string; slimVenuesPath: string },
+): Promise<Map<string, IndexedVenue> | null> {
+  const publicPath = city.slimVenuesPath;
+  const existing = cityOsmCache.get(publicPath);
+  if (existing) return existing;
+  const baseIndex = await readCityVenueIndex(city);
+  if (!baseIndex) return null;
+  const index = new Map<string, IndexedVenue>();
+  for (const [id, entry] of baseIndex) {
+    index.set(id, { venue: { ...entry.venue }, slimVenue: entry.slimVenue });
+  }
+  if (!(await attachCityOsmIds(city.id, index))) return null;
+  cityOsmCache.set(publicPath, index);
+  return index;
 }
 
 // Read the slim index once and memoize. Never throws: a read/parse failure
@@ -252,7 +269,7 @@ export async function getVenueIndexSnapshot(): Promise<VenueIndexSnapshot> {
   let allLoaded = true;
   const loadedCities = new Set<CityId>();
   for (const city of cities) {
-    if (await getCityVenueIndex(city)) loadedCities.add(city.id);
+    if (await readCityVenueIndex(city)) loadedCities.add(city.id);
     else allLoaded = false;
   }
   const index = new Map<string, VenueRef>();
@@ -317,7 +334,7 @@ export async function resolveVenuePermalinkSlug(
   }[] = [];
   const candidateById = new Map<string, (typeof candidates)[number]>();
   for (const city of cities) {
-    const cityIndex = await getCityVenueIndex(city);
+    const cityIndex = await readCityVenueIndex(city);
     if (!cityIndex) continue;
     for (const { slimVenue } of cityIndex.values()) {
       const row = {
@@ -350,6 +367,7 @@ export function resetVenueIndexForTests(): void {
   ) {
     cached = null;
     cityCache.clear();
+    cityOsmCache.clear();
   }
 }
 

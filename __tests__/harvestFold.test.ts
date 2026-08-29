@@ -87,6 +87,26 @@ describe("loreNameTownGate", () => {
       ),
     ).toBe("town-mismatch");
   });
+
+  it("does not match a foreign locality short name with the same town name", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, Penn. has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
+  it("does not match a foreign locality after a non-comma separator", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York - Pennsylvania has stood since 1750.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
 });
 
 describe("loreMayFold", () => {

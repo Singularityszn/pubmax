@@ -9,7 +9,6 @@ import {
   createDualBackendStore,
   createFailSoftGuard,
   isMissingTableSchema,
-  onMissingDurableWrite,
 } from "@/lib/storeBackend";
 import {
   canonicalOsmId,
@@ -126,12 +125,11 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
       return { written };
     } catch (error) {
       if (isMissingTableSchema(error)) {
-        return onMissingDurableWrite({
-          storeTag: STORE_TAG,
-          migrationHint: MIGRATION_HINT,
-          fallback: () => memoryHarvestOverlayStore.upsertMany(rows),
-          onProduction: async (err) => ({ written: 0, failed: true, failure: err.message }),
-        });
+        return {
+          written: 0,
+          failed: true,
+          failure: `${MIGRATION_HINT}: ${error instanceof Error ? error.message : String(error)}`,
+        };
       }
       return {
         written: 0,

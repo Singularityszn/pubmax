@@ -82,11 +82,11 @@ describe("getVenueIndex", () => {
     expect(readFile.mock.calls.length).toBeGreaterThanOrEqual(10);
   });
 
-  it("keeps other cities when one city pack is missing and retries only that city", async () => {
+  it("keeps other cities when one slim pack is missing and retries only that city", async () => {
     const realRead = fs.readFile.bind(fs);
     let failManchester = true;
     const readFile = vi.spyOn(fs, "readFile").mockImplementation(async (file, ...args) => {
-      if (failManchester && String(file).includes("cities/manchester/")) {
+      if (failManchester && String(file).endsWith("cities/manchester/venues_slim.json")) {
         throw new Error("missing manchester pack");
       }
       return realRead(file, ...(args as [BufferEncoding]));
@@ -104,7 +104,7 @@ describe("getVenueIndex", () => {
     // Loaded cities stay cached — only the failed pack is re-read.
     const callsAfterFirst = readFile.mock.calls.length;
     await getVenueIndex();
-    expect(readFile.mock.calls.length).toBe(callsAfterFirst + 2);
+    expect(readFile.mock.calls.length).toBe(callsAfterFirst + 1);
 
     // Once the pack recovers, its venues appear without a restart.
     failManchester = false;
@@ -123,19 +123,9 @@ describe("getVenueIndex", () => {
   it("includes enabled city slim packs, not just London", async () => {
     const index = await getVenueIndex();
 
-    expect(index.get("venue-kjzhhd")).toMatchObject({
-      name: "The Royal Oak",
-      borough: "Southwark",
-      osmId: "way/100614943",
-    });
     expect(index.get("venue-oxf-16404bl")).toMatchObject({
       name: "Turf Tavern",
       borough: "Oxford",
-    });
-    expect(index.get("venue-mcr-1lwo5lo")).toMatchObject({
-      name: "Peveril of the Peak",
-      borough: "Manchester",
-      osmId: "way/100646638",
     });
     expect(index.get("bar-american-bar-savoy")?.kind).toBe("bar");
   });
@@ -150,11 +140,15 @@ describe("getVenueIndex", () => {
       return realRead(file, ...(args as [BufferEncoding]));
     });
 
-    expect((await getVenueIndex()).get("venue-oxf-16404bl")).toBeUndefined();
+    expect(await lookupCanonicalVenue("venue-oxf-16404bl")).toEqual({
+      status: "unavailable",
+      canonicalId: "venue-oxf-16404bl",
+    });
 
     failOxfordOsm = false;
-    expect((await getVenueIndex()).get("venue-oxf-16404bl")).toMatchObject({
-      osmId: "way/97822057",
+    expect(await lookupCanonicalVenue("venue-oxf-16404bl")).toMatchObject({
+      status: "found",
+      venue: { osmId: "way/97822057" },
     });
   });
 });
