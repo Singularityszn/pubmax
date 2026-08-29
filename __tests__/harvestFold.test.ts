@@ -78,10 +78,10 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
-  it("does not match a foreign locality with the same town name", () => {
+  it("does not match a foreign locality abbreviation with the same town name", () => {
     expect(
       loreNameTownGate(
-        "The Red Lion in York, Pennsylvania has stood since 1750.",
+        "The Red Lion in York, PA has stood since 1750.",
         "The Red Lion",
         "York",
       ),
