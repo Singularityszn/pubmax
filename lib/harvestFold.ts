@@ -86,10 +86,6 @@ const SOCIAL_HOSTS = new Set([
 ]);
 const HARVEST_TIMESTAMP_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
 const LOCALITY_NAME_PREFIXES = new Set([
-  "at",
-  "from",
-  "in",
-  "near",
   "new",
   "old",
   "north",
@@ -100,7 +96,6 @@ const LOCALITY_NAME_PREFIXES = new Set([
   "upper",
   "lower",
   "central",
-  "within",
 ]);
 const UK_LOCALITY_QUALIFIER_RE =
   /^\s*(?:(?:(?:,|\(|:|;|-|–|—|\/|\.|!|\?)\s*)|(?:(?:in|of|from|near|at|within)\s+))(?:the\s+)?(?:uk|u\.k\.?|united kingdom|great britain|britain|england|scotland|wales|northern ireland|yorkshire|north yorkshire|south yorkshire|west yorkshire|east riding|london)(?=$|[^a-z0-9])/i;

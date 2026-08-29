@@ -163,13 +163,14 @@ function publicDataPath(publicPath: string): string {
 async function readSlimIndex(
   publicPath: string,
 ): Promise<Map<string, IndexedVenue>> {
-  const rows = JSON.parse(
+  const parsed: unknown = JSON.parse(
     await fs.readFile(
       /* turbopackIgnore: true */ publicDataPath(publicPath),
       "utf8",
     ),
-  ) as SlimRow[];
-  return buildVenueIndexFromSlim(Array.isArray(rows) ? rows : []);
+  );
+  if (!Array.isArray(parsed)) throw new Error("Slim venue index must be an array.");
+  return buildVenueIndexFromSlim(parsed as SlimRow[]);
 }
 
 export async function readCityVenueIndex(

@@ -6,6 +6,7 @@ import {
   buildVenueIndex,
   getVenueIndex,
   lookupCanonicalVenue,
+  readCityVenueIndex,
   resetVenueIndexForTests,
   venueMapUrl,
   type VenueRef,
@@ -60,6 +61,33 @@ describe("buildVenueIndex", () => {
 });
 
 describe("getVenueIndex", () => {
+  it("does not cache a malformed top-level slim index as empty", async () => {
+    const readFile = vi.spyOn(fs, "readFile");
+    let malformed = true;
+    readFile.mockImplementation(async () =>
+      malformed
+        ? JSON.stringify({ venues: [] })
+        : JSON.stringify([
+            {
+              id: "venue-retry",
+              name: "The Retry Arms",
+              borough: "Camden",
+              lat: 51.52,
+              lng: -0.14,
+            },
+          ]),
+    );
+
+    const city = { id: "test", slimVenuesPath: "/data/test/venues_slim.json" };
+    expect(await readCityVenueIndex(city)).toBeNull();
+
+    malformed = false;
+    expect(await readCityVenueIndex(city)).toEqual(expect.any(Map));
+    expect((await readCityVenueIndex(city))?.get("venue-retry")).toMatchObject({
+      venue: { name: "The Retry Arms", borough: "Camden" },
+    });
+  });
+
   it("does not cache an empty index when every city pack fails", async () => {
     const readFile = vi.spyOn(fs, "readFile");
     let failAll = true;
