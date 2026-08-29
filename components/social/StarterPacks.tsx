@@ -22,6 +22,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -77,7 +78,9 @@ export function starterPackOutcomeChip(outcome: StarterPackFollowOutcome): {
 
 export default function StarterPacks({ compact = false }: { compact?: boolean }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const viewer = useViewerHandle();
+  const { user } = useAuth();
+  const viewerHandle = useViewerHandle();
+  const viewer = user ? viewerHandle : null;
   const [packs, setPacks] = useState<PackView[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);

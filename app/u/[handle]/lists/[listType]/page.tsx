@@ -5,11 +5,11 @@ import SavedListDetail from "@/components/profile/SavedListDetail";
 import { normalizeHandle } from "@/lib/profiles";
 import { formatSavedVenueCount } from "@/lib/savedListPresentation";
 import { savedListPath } from "@/lib/savedListUrl";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 import {
   cleanListType,
   savedListFollowsStore,
   savedPubsStore,
-  type SavedListFollowCounts,
   type SavedPubDTO,
 } from "@/lib/savedPubsStore";
 
@@ -34,12 +34,17 @@ function decodeParam(value: string): string {
   }
 }
 
-function listCardHref(ownerHandle: string, listType: string, counts: SavedListFollowCounts): string {
+type SavedListDisplayCounts = {
+  followers: number | null;
+  savedPubs: number;
+};
+
+function listCardHref(ownerHandle: string, listType: string, counts: SavedListDisplayCounts): string {
   const params = new URLSearchParams();
   params.set("owner", ownerHandle);
   params.set("list", listType);
   params.set("venues", String(counts.savedPubs));
-  params.set("followers", String(counts.followers));
+  params.set("followers", counts.followers === null ? "unavailable" : String(counts.followers));
   return `/api/list-card?${params.toString()}`;
 }
 
@@ -61,12 +66,17 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 
   const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
   const venues = saved.filter((venue) => venue.listType === listType);
-  const listCounts = await savedListFollowsStore().counts(ownerHandle, listType);
-  const counts = { ...listCounts, savedPubs: venues.length };
+  const listCounts = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])
+    ? await savedListFollowsStore().counts(ownerHandle, listType)
+    : null;
+  const counts: SavedListDisplayCounts = {
+    followers: listCounts?.followers ?? null,
+    savedPubs: venues.length,
+  };
   const title = `@${ownerHandle}'s ${listType}`;
   const description = `@${ownerHandle}'s ${listType} saved list on PUBMAXXING. ${formatSavedVenueCount(
     counts.savedPubs,
-  )}, ${plural(counts.followers, "follower")}.`;
+  )}${counts.followers === null ? "." : `, ${plural(counts.followers, "follower")}.`}`;
   const cardUrl = listCardHref(ownerHandle, listType, counts);
 
   return {
@@ -100,16 +110,23 @@ export default async function SavedListPage({ params }: PageProps) {
   const ownerHandle = normalizeHandle(handle);
   const listType = cleanListType(decodeParam(rawListType));
 
-  let counts: SavedListFollowCounts = { followers: 0, savedPubs: 0 };
+  const socialFriendsLaunchEnabled = isSocialFriendsLaunchEnabled(
+    process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
+  );
+  let counts: SavedListDisplayCounts = { followers: null, savedPubs: 0 };
   let venues: SavedPubDTO[] = [];
 
   if (ownerHandle && listType) {
-    const [saved, listCounts] = await Promise.all([
-      savedPubsStore().listSaved({ handle: ownerHandle }),
-      savedListFollowsStore().counts(ownerHandle, listType),
-    ]);
+    const saved = await savedPubsStore().listSaved({ handle: ownerHandle });
     venues = saved.filter((venue) => venue.listType === listType);
-    counts = { ...listCounts, savedPubs: venues.length };
+    if (socialFriendsLaunchEnabled) {
+      counts = {
+        ...(await savedListFollowsStore().counts(ownerHandle, listType)),
+        savedPubs: venues.length,
+      };
+    } else {
+      counts = { followers: null, savedPubs: venues.length };
+    }
   }
 
   return (

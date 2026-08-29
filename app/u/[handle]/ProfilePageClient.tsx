@@ -382,7 +382,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
-  const viewerHandle = useViewerHandle() ?? "";
+  const viewerHandleFromIdentity = useViewerHandle() ?? "";
+  const viewerHandle = user ? viewerHandleFromIdentity : "";
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -528,6 +529,10 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
   // matching the API contract, because followed lists are additive context.
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) {
+      setFollowedLists([]);
+      return;
+    }
     const controller = new AbortController();
     async function loadFollowedLists() {
       const lists = routeHandle
@@ -537,7 +542,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     }
     void loadFollowedLists();
     return () => controller.abort();
-  }, [routeHandle]);
+  }, [routeHandle, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one
   // read so the tile and the listing agree. Best-effort: a failure leaves an
@@ -734,7 +739,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
-  const isAnonymous = identityResolved && !user && viewerHandle === "";
+  const isAnonymous = identityResolved && !user;
   // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
   // a founding member's face, bio and number - and taking it wrote their handle

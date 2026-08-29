@@ -24,6 +24,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { followListHandleSet } from "@/lib/followList";
 import {
@@ -38,6 +39,7 @@ import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 
 import "./peopleDirectory.css";
 
@@ -63,6 +65,8 @@ export default function PeopleDirectory({
   limit?: number;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { user, identityResolved } = useAuth();
+  const identityViewerHandle = useViewerHandle();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<Person[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -72,25 +76,11 @@ export default function PeopleDirectory({
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [working, setWorking] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
-  const [storedHandle, setStoredHandle] = useState("");
-  const [handleRead, setHandleRead] = useState(false);
   const [alreadyFollowing, setAlreadyFollowing] = useState(0);
-
-  useEffect(() => {
-    if (!socialFriendsLaunchEnabled) return;
-    void Promise.resolve().then(() => {
-      try {
-        setStoredHandle(
-          normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? ""),
-        );
-      } catch {
-        setStoredHandle("");
-      } finally {
-        setHandleRead(true);
-      }
-    });
-  }, []);
-  const viewer = normalizeHandle(myHandle ?? "") || storedHandle;
+  const handleRead = identityResolved;
+  const viewer = user
+    ? normalizeHandle(myHandle ?? identityViewerHandle ?? "")
+    : "";
 
   useEffect(() => {
     // Ask once the viewer is known. A read fired before then comes back with
@@ -326,6 +316,10 @@ export default function PeopleDirectory({
                 </Link>
                 {isSelf ? (
                   <span className="peopleDir__self">You</span>
+                ) : !viewer ? (
+                  <Link className="peopleDir__button" href={user ? "/u/you" : "/login"}>
+                    {user ? "Claim a handle to follow" : "Sign in to follow"}
+                  </Link>
                 ) : (
                   <button
                     type="button"

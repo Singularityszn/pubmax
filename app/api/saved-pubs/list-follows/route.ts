@@ -16,6 +16,12 @@ import {
 } from "@/lib/savedPubsStore";
 import { clientIp, hashIp, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
 import { readString } from "@/lib/textClean";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 assertServerEnv();
 
@@ -30,6 +36,9 @@ function isSelfListFollow(followerHandle: string, ownerHandle: string): boolean 
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const params = new URL(request.url).searchParams;
   const follower = normalizeHandle(params.get("follower") ?? "");
   const owner = normalizeHandle(params.get("owner") ?? "");
@@ -57,6 +66,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

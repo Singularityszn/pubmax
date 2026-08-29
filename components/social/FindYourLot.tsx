@@ -8,6 +8,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useAuth } from "@/components/auth/AuthProvider";
 import {
   errorMessageFrom,
   findYourLotInviteFailureMessage,
@@ -18,6 +19,7 @@ import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 
 import "./findYourLot.css";
 
@@ -43,6 +45,8 @@ export default function FindYourLot({
   compact?: boolean;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { user } = useAuth();
+  const identityViewerHandle = useViewerHandle();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SearchMatch[]>([]);
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
@@ -52,20 +56,9 @@ export default function FindYourLot({
   const [inviteBusy, setInviteBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const [storedHandle, setStoredHandle] = useState("");
-  useEffect(() => {
-    // Defer setState out of the effect body (react-hooks/set-state-in-effect).
-    void Promise.resolve().then(() => {
-      try {
-        setStoredHandle(
-          normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? ""),
-        );
-      } catch {
-        setStoredHandle("");
-      }
-    });
-  }, []);
-  const viewer = normalizeHandle(myHandle ?? "") || storedHandle;
+  const viewer = user
+    ? normalizeHandle(myHandle ?? identityViewerHandle ?? "")
+    : "";
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled) return;
@@ -266,11 +259,15 @@ export default function FindYourLot({
                 </Link>
                 {isSelf ? (
                   <span className="findLot__self">You</span>
+                ) : !viewer ? (
+                  <Link className="findLot__ghost" href={user ? "/u/you" : "/login"}>
+                    {user ? "Claim a handle to follow" : "Sign in to follow"}
+                  </Link>
                 ) : (
                   <button
                     type="button"
                     className="findLot__follow"
-                    disabled={followState === "working" || followState === "done" || !viewer}
+                    disabled={followState === "working" || followState === "done"}
                     onClick={() => void follow(match.handle)}
                   >
                     {followState === "done"
@@ -294,7 +291,7 @@ export default function FindYourLot({
               {copied ? "Copied" : "Copy invite link"}
             </button>
           </>
-        ) : (
+        ) : viewer ? (
           <button
             type="button"
             className="findLot__follow"
@@ -303,6 +300,10 @@ export default function FindYourLot({
           >
             {inviteBusy ? "Minting…" : "Get invite link"}
           </button>
+        ) : (
+          <Link className="findLot__follow" href={user ? "/u/you" : "/login"}>
+            {user ? "Claim a handle to invite" : "Sign in to invite"}
+          </Link>
         )}
         {shareSelf ? (
           <Link className="findLot__ghost" href={`/add/${encodeURIComponent(viewer)}`}>

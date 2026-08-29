@@ -13,6 +13,8 @@ import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
+import { socialBoundaryCopy } from "@/lib/socialLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./activity.css";
 
@@ -70,6 +72,7 @@ function subjectHref(n: NotificationDTO): string | null {
 
 export default function ActivityClient(): React.JSX.Element {
   const { handle: authHandle } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [handleReady, setHandleReady] = useState(false);
   const [items, setItems] = useState<NotificationDTO[]>([]);
@@ -81,6 +84,16 @@ export default function ActivityClient(): React.JSX.Element {
   const [kindFilter, setKindFilter] = useState<NotificationKind | "all">("all");
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) {
+      void Promise.resolve().then(() => {
+        setHandle("");
+        setHandleReady(true);
+        setItems([]);
+        setFailed(false);
+        setLoading(false);
+      });
+      return;
+    }
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
@@ -91,9 +104,13 @@ export default function ActivityClient(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [authHandle]);
+  }, [authHandle, socialFriendsLaunchEnabled]);
 
   const load = useCallback(async () => {
+    if (!socialFriendsLaunchEnabled) {
+      setLoading(false);
+      return;
+    }
     if (!handleReady) return;
     const h = normalizeHandle(authHandle ?? "") || handle.trim();
     if (!h) {
@@ -121,7 +138,7 @@ export default function ActivityClient(): React.JSX.Element {
     } finally {
       setLoading(false);
     }
-  }, [handle, handleReady, authHandle]);
+  }, [handle, handleReady, authHandle, socialFriendsLaunchEnabled]);
 
   useEffect(() => {
     // Defer through a promise callback so setState (inside load) never runs
@@ -157,7 +174,13 @@ export default function ActivityClient(): React.JSX.Element {
           {handleReady && handle.trim() ? <NextBadgeChips handle={handle} /> : null}
         </header>
 
-        {!handleReady || loading ? (
+        {!socialFriendsLaunchEnabled ? (
+          <EmptyState
+            eyebrow="Activity"
+            title="Social preview"
+            body={socialBoundaryCopy("preview", false)}
+          />
+        ) : !handleReady || loading ? (
           // Skeleton mirrors the ready-state grid so first paint already carries
           // the page's shape — a plain list on phones, rail + two-up timeline at
           // ≥1024 — instead of a jump from one line of text. Same block idiom as

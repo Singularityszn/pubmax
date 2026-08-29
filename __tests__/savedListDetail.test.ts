@@ -1,8 +1,24 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+
+const socialState = vi.hoisted(() => ({ enabled: true }));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({ user: { id: "viewer" } }),
+}));
+vi.mock("@/components/auth/useViewerHandle", () => ({
+  useViewerHandle: () => null,
+}));
+vi.mock("@/lib/useSocialFriendsLaunch", () => ({
+  useSocialFriendsLaunch: () => socialState.enabled,
+}));
 
 import SavedListDetail from "@/components/profile/SavedListDetail";
+
+afterEach(() => {
+  socialState.enabled = true;
+});
 
 describe("SavedListDetail", () => {
   it("renders an authored custom list with neutral venue copy", () => {
@@ -99,5 +115,22 @@ describe("SavedListDetail", () => {
     expect(html).toContain(
       'href="/map?mode=build&amp;pubs=venue-alpha%2Cvenue-beta&amp;sel=venue-alpha"',
     );
+  });
+
+  it("hides Social relation controls and counts during rollback", () => {
+    socialState.enabled = false;
+    const html = renderToStaticMarkup(
+      createElement(SavedListDetail, {
+        ownerHandle: "sam",
+        viewerHandle: "ken",
+        listType: "Date Night",
+        venues: [],
+        initialCounts: { followers: 4, savedPubs: 0 },
+      }),
+    );
+
+    expect(html).not.toContain("Follow list");
+    expect(html).not.toContain("4 followers");
+    socialState.enabled = true;
   });
 });

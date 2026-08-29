@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
+import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
@@ -13,9 +15,10 @@ import { buildSavedListShareText } from "@/lib/shareArtifacts";
 import type { ListType, SavedPubDTO } from "@/lib/savedPubs";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { creatorListMapHref } from "@/lib/creatorListMap";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type SavedListCounts = {
-  followers: number;
+  followers: number | null;
   savedPubs: number;
 };
 
@@ -36,9 +39,9 @@ function readCounts(value: unknown): SavedListCounts | null {
   if (!value || typeof value !== "object") return null;
   const raw = value as { followers?: unknown; savedPubs?: unknown };
   const followers =
-    typeof raw.followers === "number" && Number.isFinite(raw.followers) && raw.followers > 0
+    typeof raw.followers === "number" && Number.isFinite(raw.followers) && raw.followers >= 0
       ? raw.followers
-      : 0;
+      : null;
   const savedPubs =
     typeof raw.savedPubs === "number" && Number.isFinite(raw.savedPubs) && raw.savedPubs > 0
       ? raw.savedPubs
@@ -59,13 +62,18 @@ export default function SavedListDetail({
   viewerHandle = "",
 }: SavedListDetailProps) {
   const owner = normalizeHandle(ownerHandle);
-  const [viewer, setViewer] = useState(normalizeHandle(viewerHandle));
+  const { user } = useAuth();
+  const liveViewerHandle = useViewerHandle();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const viewer = user
+    ? normalizeHandle(viewerHandle) || normalizeHandle(liveViewerHandle ?? "")
+    : "";
   const [following, setFollowing] = useState(initialFollowing);
   const [counts, setCounts] = useState(initialCounts);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canFollow = viewer !== "" && viewer !== owner;
+  const canFollow = socialFriendsLaunchEnabled && viewer !== "" && viewer !== owner;
   const shareUrl = savedListPath(owner, listType);
   const mapHref = creatorListMapHref(venues);
   const shareText = buildSavedListShareText({
@@ -75,26 +83,7 @@ export default function SavedListDetail({
   });
 
   useEffect(() => {
-    if (viewerHandle) return;
-    let active = true;
-
-    async function loadViewerHandle() {
-      try {
-        const handle = normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? "");
-        if (active) setViewer(handle);
-      } catch {
-        if (active) setViewer("");
-      }
-    }
-
-    void loadViewerHandle();
-    return () => {
-      active = false;
-    };
-  }, [viewerHandle]);
-
-  useEffect(() => {
-    if (!canFollow) return;
+    if (!socialFriendsLaunchEnabled || !canFollow) return;
     const controller = new AbortController();
 
     async function loadState() {
@@ -122,10 +111,10 @@ export default function SavedListDetail({
 
     void loadState();
     return () => controller.abort();
-  }, [canFollow, listType, owner, viewer]);
+  }, [canFollow, listType, owner, socialFriendsLaunchEnabled, viewer]);
 
   async function toggleFollow() {
-    if (busy || !canFollow) return;
+    if (busy || !canFollow || !socialFriendsLaunchEnabled) return;
     setBusy(true);
     setError(null);
 
@@ -189,7 +178,9 @@ export default function SavedListDetail({
         </div>
         <div className="listDetailMeta" aria-label="List counts">
           <span>{formatSavedVenueCount(counts.savedPubs)}</span>
-          <span>{formatCount(counts.followers, "follower", "followers")}</span>
+          {socialFriendsLaunchEnabled && counts.followers !== null ? (
+            <span>{formatCount(counts.followers, "follower", "followers")}</span>
+          ) : null}
         </div>
         {canFollow ? (
           <div className="listFollowControl">

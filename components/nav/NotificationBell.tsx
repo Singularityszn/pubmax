@@ -9,6 +9,7 @@ import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const HANDLE_KEY = "pubmax_handle";
 const POLL_MS = 60_000;
@@ -21,11 +22,13 @@ function readHandle(): string {
 export default function NotificationBell(): React.JSX.Element {
   const router = useRouter();
   const { handle: authHandle } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [unread, setUnread] = useState(0);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
@@ -35,9 +38,10 @@ export default function NotificationBell(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [authHandle]);
+  }, [authHandle, socialFriendsLaunchEnabled]);
 
   const refresh = useCallback(async () => {
+    if (!socialFriendsLaunchEnabled) return;
     const h = normalizeHandle(authHandle ?? "") || handle.trim();
     if (!h) return;
     abortRef.current?.abort();
@@ -56,9 +60,10 @@ export default function NotificationBell(): React.JSX.Element {
     } catch {
       // Aborted / offline — leave the badge as-is; the nav never breaks on this.
     }
-  }, [handle, authHandle]);
+  }, [handle, authHandle, socialFriendsLaunchEnabled]);
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     if (!handle.trim() && !authHandle) return;
     void Promise.resolve().then(() => refresh());
     const onFocus = () => void refresh();
@@ -69,9 +74,13 @@ export default function NotificationBell(): React.JSX.Element {
       window.clearInterval(interval);
       abortRef.current?.abort();
     };
-  }, [handle, refresh, authHandle]);
+  }, [handle, refresh, authHandle, socialFriendsLaunchEnabled]);
 
-  const label = unread > 0 ? `Activity: ${unread} unread` : "Activity";
+  const label = !socialFriendsLaunchEnabled
+    ? "Social preview"
+    : unread > 0
+      ? `Activity: ${unread} unread`
+      : "Activity";
 
   return (
     <Link
@@ -88,7 +97,7 @@ export default function NotificationBell(): React.JSX.Element {
       }}
     >
       <Bell size={18} aria-hidden="true" />
-      {unread > 0 ? (
+      {socialFriendsLaunchEnabled && unread > 0 ? (
         // key={unread} remounts the badge whenever the count changes, so the
         // CSS pop-in (siteNav.css .siteNavBellBadge) replays as a bump —
         // no separate "did it change" animation state to track.
