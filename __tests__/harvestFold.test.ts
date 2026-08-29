@@ -238,6 +238,16 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("does not accept a moved venue in a later foreign locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in York, England. It moved to Pennsylvania.",
+        "The Red Lion",
+        "York",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(
