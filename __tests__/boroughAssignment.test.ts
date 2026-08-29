@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import type { SlimVenue } from "@/lib/venuesSlim";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 // Regression guard for the venue→borough join (PRD next-wave F7). The old join
 // mislabelled riverside east-London pubs — Prospect of Whitby (Wapping) landed
@@ -18,7 +19,7 @@ import type { SlimVenue } from "@/lib/venuesSlim";
 const ROOT = path.resolve(__dirname, "..");
 const SLIM_PATH = path.join(ROOT, "public", "data", "venues_slim.json");
 
-const venues = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as SlimVenue[];
+const venues = (rowsFromSlimPayload(JSON.parse(readFileSync(SLIM_PATH, "utf8"))) ?? []) as SlimVenue[];
 
 // Content-hashed stable ids pinned the same way __tests__/pintDropSeeds.test.ts
 // pins its venue ids — the name assertion alongside catches an id/name drift.

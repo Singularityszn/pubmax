@@ -144,12 +144,6 @@ export function parseShardManifest(
     });
   }
   if (obj.grid !== undefined && !isGrid(obj.grid)) return null;
-  if (
-    (obj.version === SPATIAL_SHARD_MANIFEST_VERSION) !==
-    (obj.grid !== undefined)
-  ) {
-    return null;
-  }
   return {
     version: obj.version,
     ...(typeof obj.revision === "string" ? { revision: obj.revision } : {}),

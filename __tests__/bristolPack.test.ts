@@ -9,6 +9,7 @@ import { validateAllStoryBands } from "@/lib/storyBands";
 import { CITIES } from "@/lib/cities";
 import type { SlimVenue } from "@/lib/venuesSlim";
 import type { Poi } from "@/lib/pois";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 const ROOT = path.join(__dirname, "..");
 const SLIM_PATH = path.join(
@@ -21,7 +22,7 @@ const SLIM_PATH = path.join(
 );
 const POIS_PATH = path.join(ROOT, "public", "data", "cities", "bristol", "pois.json");
 
-const slim = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as SlimVenue[];
+const slim = (rowsFromSlimPayload(JSON.parse(readFileSync(SLIM_PATH, "utf8"))) ?? []) as SlimVenue[];
 const slimIds = new Set(slim.map((v) => v.id));
 
 describe("Bristol harbour editorial pack", () => {

@@ -35,6 +35,7 @@ import {
   venuePriceArc,
   type PriceHistoryObservation,
 } from "@/lib/priceHistory";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 const ROOT = resolve(__dirname, "..");
 const HISTORY_FILE = join(ROOT, "public/data/price_history/london.json");
@@ -53,8 +54,8 @@ function slimVenueIds(): Set<string> {
   for (const file of readdirSync(dir)) {
     if (!/^venues_slim\.(?!manifest)/.test(file) && file !== "venues_slim.json") continue;
     const parsed = JSON.parse(readFileSync(join(dir, file), "utf8")) as unknown;
-    if (!Array.isArray(parsed)) continue;
-    for (const venue of parsed as Array<{ id?: unknown }>) {
+    const rows = rowsFromSlimPayload(parsed) ?? [];
+    for (const venue of rows as Array<{ id?: unknown }>) {
       if (typeof venue.id === "string") ids.add(venue.id);
     }
   }
@@ -67,8 +68,8 @@ function slimVenuesWithCurrentPrice(): Set<string> {
   for (const file of readdirSync(dir)) {
     if (!/^venues_slim\.(?!manifest)/.test(file) && file !== "venues_slim.json") continue;
     const parsed = JSON.parse(readFileSync(join(dir, file), "utf8")) as unknown;
-    if (!Array.isArray(parsed)) continue;
-    for (const venue of parsed as Array<{ id?: unknown; cheapestPrice?: unknown }>) {
+    const rows = rowsFromSlimPayload(parsed) ?? [];
+    for (const venue of rows as Array<{ id?: unknown; cheapestPrice?: unknown }>) {
       if (typeof venue.id === "string" && typeof venue.cheapestPrice === "number") ids.add(venue.id);
     }
   }

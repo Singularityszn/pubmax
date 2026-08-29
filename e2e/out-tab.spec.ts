@@ -16,7 +16,7 @@ function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
 }
 
-// Playwright globs match the full URL, so `**/api/out**` also matches /api/outage.
+/** Playwright globs match the full URL, so an /api/out pattern also matches /api/outage. */
 function isOutListingsRequest(url: URL): boolean {
   return url.pathname === "/api/out";
 }
