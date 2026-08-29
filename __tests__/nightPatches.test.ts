@@ -72,7 +72,8 @@ describe("nearest night patch", () => {
 // (or a data rebuild that hollows an area out) fails here before it ships.
 describe("night patches — every patch answers from shipped data", () => {
   const SLIM_PATH = path.join(path.resolve(__dirname, ".."), "public", "data", "venues_slim.json");
-  const venues = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as PricedPoint[];
+  const payload = JSON.parse(readFileSync(SLIM_PATH, "utf8")) as { rows?: PricedPoint[] };
+  const venues = payload.rows ?? [];
 
   for (const patch of [...NIGHT_PATCHES, CENTRAL_PATCH]) {
     it(`${patch.label} has priced pubs within the walkable ring`, () => {

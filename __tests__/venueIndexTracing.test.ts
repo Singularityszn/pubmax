@@ -40,6 +40,7 @@ import { PINT_INDEX_SNAPSHOT_TRACING_INCLUDE } from "@/lib/pintIndexSnapshotFile
 import { CITY_VENUE_PACKS } from "@/lib/cityVenuePacks.mjs";
 import { MAP_EAGER_VENUE_INDEX_TRACING_INCLUDE } from "@/lib/mapEagerVenueIndexFile.mjs";
 import { VENUE_IMAGE_HOST_TRACING_INCLUDES } from "@/lib/venueImageHostFiles.mjs";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 const root = join(__dirname, "..");
 const temporaryRoots: string[] = [];
@@ -239,9 +240,9 @@ describe("runtime data-pack tracing", () => {
 
   it("ships non-London slim packs to every venue-detail reader", () => {
     const oxfordPack = "./public/data/cities/oxford/venues_slim.json";
-    const oxfordVenues = JSON.parse(
-      readFileSync(join(root, oxfordPack.slice(2)), "utf8"),
-    ) as Array<{ id: string }>;
+    const oxfordVenues = (rowsFromSlimPayload(
+      JSON.parse(readFileSync(join(root, oxfordPack.slice(2)), "utf8")),
+    ) ?? []) as Array<{ id: string }>;
     expect(oxfordVenues.some((venue) => venue.id === "venue-oxf-16404bl")).toBe(true);
 
     const includes = tracingIncludes();

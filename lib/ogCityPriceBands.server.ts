@@ -17,6 +17,7 @@ import { readFile } from "node:fs/promises";
 
 import { getCity, type CityId } from "@/lib/cities";
 import { slimVenuesDiskPath } from "@/lib/cityRivalry";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import {
   drivesMap,
   mapCandidateOf,
@@ -88,8 +89,8 @@ export async function readOgCityPriceBandCounts(
   try {
     const file = slimVenuesDiskPath(city.slimVenuesPath);
     const raw = await readFile(/* turbopackIgnore: true */ file, "utf8");
-    const rows = JSON.parse(raw) as unknown;
-    if (Array.isArray(rows)) {
+    const rows = rowsFromSlimPayload(JSON.parse(raw));
+    if (rows) {
       venues = rows.filter(isOgCityPriceBandVenue);
     }
   } catch {

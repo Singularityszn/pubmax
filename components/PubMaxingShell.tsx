@@ -5,7 +5,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 import MapLoadingSkeleton from "@/components/map/MapLoadingSkeleton";
 import { warmCityMapFirstPaint, warmMapFirstPaint } from "@/lib/mapWarmup";
-import { cityMapShareUrl } from "@/lib/cityShare";
 import { resolveMapDisplayName } from "@/lib/mapDisplayName";
 import type { CityId } from "@/lib/cities";
 import { DEFAULT_CITY_ID, getCity } from "@/lib/cities";
@@ -34,7 +33,7 @@ const PubMap = dynamic(() => import("./PubMap"), {
 if (typeof window !== "undefined") {
   const path = window.location.pathname;
   if (path === "/map" || path === "/map/") {
-    warmMapFirstPaint(cityMapShareUrl(DEFAULT_CITY_ID));
+    warmMapFirstPaint();
   }
 }
 

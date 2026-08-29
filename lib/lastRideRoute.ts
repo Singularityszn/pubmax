@@ -6,6 +6,7 @@ import path from "path";
 
 import { haversineKm } from "@/lib/haversine";
 import { isLastRideLimited } from "@/lib/lastRideRateLimit";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import type { NearestPub } from "@/lib/tfl";
 
 const NEAREST_PUB_COUNT = 3;
@@ -51,10 +52,10 @@ async function citySlimVenues(cityPackSegment: string): Promise<SlimVenueRow[]> 
       cityPackSegment,
       "venues_slim.json",
     );
-    const rows = JSON.parse(
+    const payload = JSON.parse(
       await fs.readFile(/* turbopackIgnore: true */ file, "utf8"),
-    ) as SlimVenueRow[];
-    const next = Array.isArray(rows) ? rows : [];
+    ) as unknown;
+    const next = (rowsFromSlimPayload(payload) ?? []) as SlimVenueRow[];
     slimCache.set(cityPackSegment, next);
     return next;
   } catch {

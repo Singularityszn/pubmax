@@ -9,6 +9,7 @@ import {
   manchesterDemoPintDrops as reexported,
 } from "@/lib/pintDropSeeds";
 import { listAllVisiblePintDrops, listVisiblePintDrops } from "@/lib/pintDrops";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 type SlimRow = { id: string; name: string; cheapestPrice: number | null };
 
@@ -20,7 +21,7 @@ const slimPath = path.join(
   "manchester",
   "venues_slim.json",
 );
-const slim = JSON.parse(readFileSync(slimPath, "utf8")) as SlimRow[];
+const slim = (rowsFromSlimPayload(JSON.parse(readFileSync(slimPath, "utf8"))) ?? []) as SlimRow[];
 const slimById = new Map(slim.map((row) => [row.id, row]));
 
 const NORTHERN_MIN = 3.8;

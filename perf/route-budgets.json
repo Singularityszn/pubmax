@@ -28,11 +28,11 @@
       "requests": 122,
       "pinReady": {
         "path": "/map/london",
-        "targetMs": 5000,
-        "measuredMs": 3999,
+        "targetMs": 4000,
+        "measuredMs": 3336,
         "signal": "window.__pubmaxPaintedMapTapPoints().length > 0",
         "viewport": { "width": 390, "height": 844 },
-        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. Final run: 3999 ms. Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane."
+        "note": "Cold first visit on phone; pinReadyMs from e2e/mobile-map-chrome-fit.spec.ts on a production build with one Chromium worker and the pin SLA enforced. Final run: 3336 ms. Local pub pins reveal from their painted source without waiting for remote basemap tiles; the basemap retains its independent recovery lane."
       }
     },
     {

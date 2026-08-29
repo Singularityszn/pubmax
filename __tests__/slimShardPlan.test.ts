@@ -5,8 +5,13 @@ import {
   OUTER_MAX_PRICED_RATIO,
   OUTER_MIN_VENUES,
   buildShardManifest,
+  buildSpatialShardManifest,
   classifySlimShards,
+  classifySpatialShards,
   computeBbox,
+  SPATIAL_GRID,
+  spatialCellId,
+  spatialCellIndex,
   slugifyBorough,
 } from "@/scripts/lib/slimShards.mjs";
 
@@ -144,5 +149,31 @@ describe("computeBbox + buildShardManifest", () => {
     expect(grn?.url).toBe("/data/venues_slim.greenwich.json");
     expect(grn?.count).toBe(30);
     expect(grn?.bbox).toHaveLength(4);
+  });
+});
+
+describe("location-first spatial shards", () => {
+  it("keeps every row in exactly one cell and emits bounded bboxes", () => {
+    const rows = [
+      { id: "a", lat: 51.5074, lng: -0.1278 },
+      { id: "b", lat: 51.5301, lng: -0.1022 },
+    ];
+    const cells = classifySpatialShards(rows, SPATIAL_GRID);
+    const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID);
+    expect(manifest.version).toBe(2);
+    expect(manifest.shards).toHaveLength(2);
+    expect(new Set(manifest.shards.map((shard) => shard.count))).toEqual(new Set([1]));
+    expect(manifest.shards.every((shard) => shard.partition === "grid")).toBe(true);
+  });
+
+  it("names central compatibility core without changing cell membership", () => {
+    const cell = spatialCellIndex(51.5074, -0.1278, SPATIAL_GRID);
+    const coreId = spatialCellId(cell.lat, cell.lon, SPATIAL_GRID);
+    const cells = classifySpatialShards([
+      { id: "a", lat: 51.5074, lng: -0.1278 },
+    ], SPATIAL_GRID);
+    const manifest = buildSpatialShardManifest(cells, SPATIAL_GRID, coreId);
+    expect(manifest.shards[0]).toMatchObject({ id: coreId, core: true });
+    expect(manifest.shards[0]?.url).toBe("/data/venues_slim.core.json");
   });
 });

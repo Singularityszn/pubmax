@@ -35,8 +35,12 @@ function toSlimKind(value: unknown): VenueKind | undefined {
 export async function loadZonePintIndex(): Promise<ZonePintIndex> {
   try {
     const file = path.join(process.cwd(), "public", "data", "venues_slim.json");
-    const rows = JSON.parse(await readFile(file, "utf8")) as unknown;
-    const list: SlimRow[] = Array.isArray(rows) ? (rows as SlimRow[]) : [];
+    const payload = JSON.parse(await readFile(file, "utf8")) as unknown;
+    const list: SlimRow[] = Array.isArray(payload)
+      ? (payload as SlimRow[])
+      : payload && typeof payload === "object" && Array.isArray((payload as { rows?: unknown }).rows)
+        ? (payload as { rows: SlimRow[] }).rows
+        : [];
     return computeZonePintIndex(
       list.map((row) => ({
         zone: toFinite(row.zone),

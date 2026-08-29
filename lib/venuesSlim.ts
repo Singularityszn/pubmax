@@ -25,6 +25,7 @@ import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { isFoodCategory, type FoodCategory } from "@/lib/food";
 import { offlineCache } from "@/lib/offlineCache";
 import { isVenueKind, type VenueFilterHints, type VenueKind } from "@/lib/venues";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
@@ -208,6 +209,7 @@ function normalizeRows(data: unknown): SlimVenue[] {
  */
 export type SlimVenueLoadOptions = {
   bypassInFlight?: boolean;
+  expectedRevision?: string;
 };
 
 export type SlimVenueLoadResult = {
@@ -219,20 +221,35 @@ async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
 ): Promise<unknown> {
+  let earlyPayloadRejected = false;
   const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
     } catch {
-      // Fall through to a live fetch.
+      earlyPayloadRejected = true;
     }
   }
-  const response = await fetch(path);
+  const response = earlyPayloadRejected
+    ? await fetch(path, { cache: "no-store" })
+    : await fetch(path);
   if (!response.ok) {
     discardBody(response);
     throw new Error(`HTTP ${response.status}`);
   }
   return response.json();
+}
+
+function rowsFromPayload(
+  value: unknown,
+  expectedRevision?: string,
+): unknown[] | null {
+  const rows = rowsFromSlimPayload(value);
+  if (!rows) return null;
+  if (expectedRevision === undefined) return rows;
+  if (Array.isArray(value) || typeof value !== "object" || value === null) return null;
+  const revision = (value as { revision?: unknown }).revision;
+  return revision === expectedRevision ? rows : null;
 }
 
 export function loadSlimVenuesFromPathResult(
@@ -268,19 +285,25 @@ async function loadSlimVenuesFromPathUnshared(
   const offlineKey = offlineKeyForPath(path);
   try {
     const data: unknown = await readSlimPayload(path, options);
-    if (!Array.isArray(data)) {
+    const payloadRows = rowsFromPayload(data, options.expectedRevision);
+    if (!payloadRows) {
       return { rows: [], status: "unavailable" };
     }
-    const rows = normalizeRows(data);
-    const complete = rows.length === data.length;
-    if (complete && rows.length > 0) void offlineCache.set(offlineKey, rows);
+    const rows = normalizeRows(payloadRows);
+    const complete = rows.length === payloadRows.length;
+    if (complete && rows.length > 0) {
+      const stored = options.expectedRevision
+        ? { revision: options.expectedRevision, rows }
+        : rows;
+      void offlineCache.set(offlineKey, stored);
+    }
     return {
       rows,
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
     const stored = await offlineCache.get<unknown>(offlineKey);
-    const fallback = normalizeRows(stored);
+    const fallback = normalizeRows(rowsFromPayload(stored, options.expectedRevision) ?? []);
     if (fallback.length > 0) return { rows: fallback, status: "ready" };
     throw error;
   }

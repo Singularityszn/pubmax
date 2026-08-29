@@ -61,6 +61,13 @@ function setupScratch(files: Record<string, unknown>): string {
       POSTCODE_CONSISTENCY_MODULE,
       join(scratchScripts, "lib", "postcodeCoordinateConsistency.mjs"),
     );
+    // postcodeCoordinateConsistency imports the shared geo primitives. Keep
+    // the scratch copy executable when that dependency is present in the real
+    // validator tree.
+    cpSync(
+      join(ROOT, "scripts", "lib", "geo.mjs"),
+      join(scratchScripts, "lib", "geo.mjs"),
+    );
   }
   cpSync(
     join(ROOT, "lib", "nightOutPlaceSourceUrl.mjs"),
@@ -76,6 +83,10 @@ function setupScratch(files: Record<string, unknown>): string {
   cpSync(
     join(ROOT, "lib", "pintIndexCanonical.mjs"),
     join(scratchLib, "pintIndexCanonical.mjs"),
+  );
+  cpSync(
+    join(ROOT, "lib", "editorialRss.mjs"),
+    join(scratchLib, "editorialRss.mjs"),
   );
   // What's-On files share one row-shape predicate with the app. The validator
   // imports it, so scratch runs must carry the same module.
@@ -96,6 +107,7 @@ function setupScratch(files: Record<string, unknown>): string {
     join(scratchLib, "cityVenuePacks.mjs"),
   );
   cpSync(join(ROOT, "lib", "cityBounds.mjs"), join(scratchLib, "cityBounds.mjs"));
+  cpSync(join(ROOT, "lib", "editorialRss.mjs"), join(scratchLib, "editorialRss.mjs"));
   for (const f of [
     "london_pois.json",
     "london_localities.json",
@@ -486,24 +498,91 @@ describe("validate-data.mjs slim venue index validation", () => {
 
   it("FAILS when the slim index does not match the full dataset ids", () => {
     const scriptsDir = setupScratch({});
+    const slimPath = join(scriptsDir, "..", "public", "data", "venues_slim.json");
+    const payload = JSON.parse(readFileSync(slimPath, "utf8")) as {
+      revision: string;
+      rows: Array<Record<string, unknown>>;
+    };
+    payload.rows[0] = { ...payload.rows[0], id: "venue-not-real" };
     writeFileSync(
-      join(scriptsDir, "..", "public", "data", "venues_slim.json"),
-      JSON.stringify([
-        {
-          id: "venue-not-real",
-          name: "Imaginary Arms",
-          lat: 51.5,
-          lng: -0.1,
-          cheapestPrice: 5,
-          borough: "Camden",
-        },
-      ]),
+      slimPath,
+      JSON.stringify(payload),
       "utf8",
     );
     const { code, stdout } = runValidate(scriptsDir);
     expect(code).toBe(1);
     expect(stdout).toContain("FAIL public/data/venues_slim.json");
     expect(stdout).toContain("id is not present in rebuilt full-dataset index");
+  });
+
+  it("collects missing spatial shard errors without aborting during budget checks", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; url: string }>;
+    };
+    const missing = manifest.shards.find((shard) => !shard.core);
+    if (!missing) throw new Error("fixture has no spatial shard");
+    rmSync(
+      join(scriptsDir, "..", "public", "data", missing.url.replace(/^\/data\//, "")),
+      { force: true },
+    );
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("could not read body");
+    expect(stdout).toContain("DATA VALIDATION FAILED");
+  });
+
+  it("FAILS when same-count spatial shard bodies are swapped", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; count: number; url: string }>;
+    };
+    const groups = new Map<number, typeof manifest.shards>();
+    for (const shard of manifest.shards) {
+      if (shard.core) continue;
+      const group = groups.get(shard.count) ?? [];
+      group.push(shard);
+      groups.set(shard.count, group);
+    }
+    const pair = [...groups.values()].find((group) => group.length >= 2);
+    if (!pair) throw new Error("fixture has no same-count spatial shard pair");
+    const firstPath = join(scriptsDir, "..", "public", "data", pair[0].url.replace(/^\/data\//, ""));
+    const secondPath = join(scriptsDir, "..", "public", "data", pair[1].url.replace(/^\/data\//, ""));
+    const first = readFileSync(firstPath, "utf8");
+    const second = readFileSync(secondPath, "utf8");
+    writeFileSync(firstPath, second, "utf8");
+    writeFileSync(secondPath, first, "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("belongs to another cell");
+  });
+
+  it("FAILS when a shard row keeps its id but changes content", () => {
+    const scriptsDir = setupScratch({});
+    const manifestPath = join(scriptsDir, "..", "public", "data", "venues_slim.manifest.json");
+    const manifest = JSON.parse(readFileSync(manifestPath, "utf8")) as {
+      shards: Array<{ core: boolean; url: string }>;
+    };
+    const shard = manifest.shards.find((entry) => !entry.core);
+    if (!shard) throw new Error("fixture has no spatial shard");
+    const shardPath = join(scriptsDir, "..", "public", "data", shard.url.replace(/^\/data\//, ""));
+    const payload = JSON.parse(readFileSync(shardPath, "utf8")) as {
+      revision: string;
+      rows: Array<Record<string, unknown>>;
+    };
+    payload.rows[0] = { ...payload.rows[0], name: "Wrong Arms" };
+    writeFileSync(shardPath, JSON.stringify(payload), "utf8");
+
+    const { code, stdout } = runValidate(scriptsDir);
+
+    expect(code).toBe(1);
+    expect(stdout).toContain("differs from monolith");
   });
 });
 

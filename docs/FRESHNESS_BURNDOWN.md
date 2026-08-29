@@ -16,6 +16,14 @@
 > [`data/freshness_registry.json`](../data/freshness_registry.json), and
 > [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md).
 
+> **Update 2026-08-28 (does not rewrite the inventory below).** Area news now
+> has a repeatable manual Keenable refresh and a 504-hour registry budget. The
+> current command, 21-day serving rule, and serverless publication limit are
+> owned by [`docs/CRON_PLANE_RUNBOOK.md`](./CRON_PLANE_RUNBOOK.md),
+> [`data/freshness_registry.json`](../data/freshness_registry.json), and
+> [`docs/WAYFINDER_LIVE_DATA.md`](./WAYFINDER_LIVE_DATA.md). The area-news row
+> below remains the 2026-08-07 historical inventory.
+
 This is a scoping pass. It lists every feed in the freshness spine, its
 2026-08-07 verdict, and its fix class. It proposes no code change. Class (c)
 rows carry a follow-up diff sketch only. A later task must decide and apply

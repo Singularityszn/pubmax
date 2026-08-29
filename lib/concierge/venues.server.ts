@@ -5,6 +5,7 @@ import path from "node:path";
 
 import { getCity, type CityId } from "@/lib/cities";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 
 type SlimRow = Record<string, unknown>;
 
@@ -85,9 +86,8 @@ export async function loadConciergeVenues(cityId: CityId): Promise<ConciergeVenu
         "utf8",
       );
       const parsed: unknown = JSON.parse(raw);
-      const venues = Array.isArray(parsed)
-        ? parsed.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null)
-        : [];
+      const rows = rowsFromSlimPayload(parsed) ?? [];
+      const venues = rows.map(toVenue).filter((venue): venue is ConciergeVenue => venue !== null);
       cache.set(cityId, venues);
       return venues;
     } catch {

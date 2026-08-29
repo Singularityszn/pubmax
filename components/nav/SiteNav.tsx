@@ -20,7 +20,7 @@ import {
   serverNowTabHref,
   subscribeNowTabHref,
 } from "@/components/nav/navigationModel";
-import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useSocialSurfaceName } from "@/lib/useSocialFriendsLaunch";
 
 import "./siteNav.css";
 import "./siteNavMoment.css";
@@ -106,10 +106,10 @@ export default function SiteNav({
     nowTabHref,
     serverNowTabHref,
   );
-  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const socialSurfaceLabel = useSocialSurfaceName();
   const links = LINKS
-    .filter((link) => socialFriendsLaunchEnabled || link.key !== "social")
     .map((link) => {
+      if (link.key === "social") return { ...link, label: socialSurfaceLabel };
       if (link.key === "now") return { ...link, href: nowHref };
       return link;
     });

@@ -10,6 +10,7 @@
 
 import { createHash } from "node:crypto";
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
+import { isDeepStrictEqual } from "node:util";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
 import { validateLateFoodEvidence } from "./lib/validateLateFoodEvidence.mjs";
@@ -22,8 +23,13 @@ import {
 import {
   CORE_FILE,
   MANIFEST_FILE,
+  SPATIAL_SHARD_VERSION,
   buildShardManifest,
+  buildSpatialShardManifest,
   classifySlimShards,
+  classifySpatialShards,
+  spatialCellId,
+  spatialCellIndex,
 } from "./lib/slimShards.mjs";
 import {
   POSTCODE_COORDINATE_MAX_DISTANCE_KM,
@@ -354,8 +360,9 @@ const PINT_ROW_FLOOR = 2500;
 // (truncation) would blow well past it.
 const SLIM_VENUE_FLOOR = 900;
 const DETAIL_VENUE_FLOOR = 900;
-// Cycle-5 sharding budgets. Eager = manifest + core shard (the map's first
-// paint); total = every shard. Kept in lockstep with scripts/build_slim_index.mjs.
+// Map sharding budgets. The manifest and central compatibility core have an
+// eager budget; total covers every geographic cell. Kept in lockstep with
+// scripts/build_slim_index.mjs.
 const SLIM_EAGER_BUDGET_BYTES = 600 * 1024;
 const SLIM_TOTAL_BUDGET_BYTES = 1200 * 1024;
 // london_localities.json (OSM/ODbL gazetteer, scripts/gen_london_localities.mjs)
@@ -1150,11 +1157,12 @@ function validatePintPrices() {
   return { ok, count };
 }
 
-// venues_slim.json - the map's first-paint artifact. Legacy pub ids must stay
-// aligned with the full pint dataset grouping seam, while curated venue ids and
-// anchors must stay aligned with their seed packs. Otherwise pins can render
-// fast but fail when opened for lazy detail. This validator rebuilds both lanes
-// using the same plain-JS rules as scripts/build_slim_index.mjs.
+// venues_slim.json - the complete compatibility artifact behind the map cells
+// and whole-index readers. Legacy pub ids must stay aligned with the full pint
+// dataset grouping seam, while curated venue ids and anchors must stay aligned
+// with their seed packs. Otherwise pins can render fast but fail when opened
+// for lazy detail. This validator rebuilds both lanes using the same plain-JS
+// rules as scripts/build_slim_index.mjs.
 function validateSlimVenues() {
   const name = "public/data/venues_slim.json";
   const errs = makeCollector();
@@ -1184,10 +1192,17 @@ function validateSlimVenues() {
     return { ok: false, count: 0 };
   }
 
-  if (!Array.isArray(slim)) {
-    console.log(`FAIL ${name}: expected a top-level array`);
+  if (
+    !slim ||
+    Array.isArray(slim) ||
+    typeof slim.revision !== "string" ||
+    slim.revision.trim().length === 0 ||
+    !Array.isArray(slim.rows)
+  ) {
+    console.log(`FAIL ${name}: expected a revisioned rows payload`);
     return { ok: false, count: 0 };
   }
+  slim = slim.rows;
   if (!Array.isArray(rows)) {
     console.log(
       `FAIL ${name}: expected full pint dataset to be a top-level array`,
@@ -1487,10 +1502,18 @@ function validateCityVenuePacks() {
       errs.add(`${cityId}: could not read/parse ${pack.slimVenuesPath} (${e.message})`);
       continue;
     }
-    if (!Array.isArray(rows) || rows.length === 0) {
-      errs.add(`${cityId}: ${pack.slimVenuesPath} is not a non-empty array`);
+    if (
+      !rows ||
+      Array.isArray(rows) ||
+      typeof rows.revision !== "string" ||
+      rows.revision.trim().length === 0 ||
+      !Array.isArray(rows.rows) ||
+      rows.rows.length === 0
+    ) {
+      errs.add(`${cityId}: ${pack.slimVenuesPath} is not a revisioned non-empty payload`);
       continue;
     }
+    rows = rows.rows;
     const bytes = Buffer.byteLength(raw);
     if (bytes >= CITY_PACK_BUDGET_BYTES) {
       errs.add(
@@ -1514,12 +1537,12 @@ function validateCityVenuePacks() {
   return { ok, count: venues };
 }
 
-// venues_slim shards — the map's first-paint payload is split into an eager
-// CORE shard + a lazy per-borough shard for each hollow Outer-London borough
-// (Cycle-5). This validator recomputes the expected split from the canonical
+// venues_slim shards - the map's first-paint payload is split into a manifest
+// plus geographic cells, with the central cell also exposed as the compatibility
+// core. This validator recomputes the expected split from the canonical
 // venues_slim.json using the same shared module the build script uses, so the
-// shipped manifest + shard files can never silently drift from the monolith. It
-// also enforces the eager (manifest + core) and total-across-shards budgets.
+// shipped manifest and cell files can never silently drift from the complete
+// index. It also enforces eager and total-across-shard budgets.
 function validateSlimShards() {
   const name = "public/data/venues_slim shards";
   const errs = makeCollector();
@@ -1532,10 +1555,18 @@ function validateSlimShards() {
     );
     return { ok: false, count: 0 };
   }
-  if (!Array.isArray(full)) {
-    console.log(`FAIL ${name}: venues_slim.json is not a top-level array`);
+  if (
+    !full ||
+    Array.isArray(full) ||
+    typeof full.revision !== "string" ||
+    full.revision.trim().length === 0 ||
+    !Array.isArray(full.rows)
+  ) {
+    console.log(`FAIL ${name}: venues_slim.json is not a revisioned rows payload`);
     return { ok: false, count: 0 };
   }
+  const fullRevision = full.revision;
+  full = full.rows;
 
   const readRaw = (fileName) => readFileSync(join(DATA_DIR, fileName), "utf8");
   const fileFromUrl = (url) => url.replace(/^\/data\//, "");
@@ -1544,7 +1575,9 @@ function validateSlimShards() {
   let coreRows;
   try {
     manifest = JSON.parse(readRaw(MANIFEST_FILE));
-    coreRows = JSON.parse(readRaw(CORE_FILE));
+    const corePayload = JSON.parse(readRaw(CORE_FILE));
+    coreRows = Array.isArray(corePayload) ? corePayload : corePayload?.rows;
+    if (!Array.isArray(coreRows)) coreRows = [];
   } catch (e) {
     console.log(
       `FAIL ${name}: missing/broken manifest or core shard (${e.message})`,
@@ -1553,11 +1586,37 @@ function validateSlimShards() {
   }
 
   // Rebuild the expected plan from the monolith and compare structurally.
-  const { core: expectedCore, outer: expectedOuter } = classifySlimShards(full);
-  const expectedManifest = buildShardManifest({
-    core: expectedCore,
-    outer: expectedOuter,
-  });
+  // Version 2 is location-first: every row is in a geographic cell, with one
+  // central compatibility core file. Version 1 remains accepted for city and
+  // older fixtures that still use borough shards.
+  let expectedCore;
+  let expectedManifest;
+  const expectedRowsByShard = new Map();
+  if (manifest?.grid) {
+    const grid = manifest.grid;
+    const cells = classifySpatialShards(full, grid);
+    const londonCentre = spatialCellIndex(51.5074, -0.1278, grid);
+    const coreId = spatialCellId(londonCentre.lat, londonCentre.lon, grid);
+    expectedCore = cells.get(coreId)?.venues ?? [];
+    expectedManifest = buildSpatialShardManifest(cells, grid, coreId);
+    for (const [id, cell] of cells) expectedRowsByShard.set(id, cell.venues);
+  } else {
+    const { core, outer } = classifySlimShards(full);
+    expectedCore = core;
+    expectedManifest = buildShardManifest({ core, outer });
+    expectedRowsByShard.set("core", core);
+    for (const [id, shard] of outer) expectedRowsByShard.set(id, shard.venues);
+  }
+
+  if (!manifest?.grid || manifest.version !== SPATIAL_SHARD_VERSION) {
+    errs.add("manifest must use the spatial shard schema");
+  }
+  if (typeof manifest?.revision !== "string" || manifest.revision.trim().length === 0) {
+    errs.add("manifest must carry a non-empty revision");
+  }
+  if (manifest?.revision !== fullRevision) {
+    errs.add(`manifest revision ${manifest?.revision} !== monolith revision ${fullRevision}`);
+  }
 
   if (manifest.version !== expectedManifest.version) {
     errs.add(
@@ -1572,6 +1631,7 @@ function validateSlimShards() {
   }
   const shipById = new Map(shipShards.map((s) => [s.id, s]));
   const allIds = new Set();
+  const shardRawById = new Map();
   let eagerBytes = Buffer.byteLength(readRaw(MANIFEST_FILE));
   let totalBytes = eagerBytes;
 
@@ -1604,7 +1664,20 @@ function validateSlimShards() {
     let rows;
     try {
       const raw = exp.core ? readRaw(CORE_FILE) : readRaw(fileFromUrl(exp.url));
-      rows = JSON.parse(raw);
+      shardRawById.set(exp.id, raw);
+      const payload = JSON.parse(raw);
+      if (
+        !payload ||
+        Array.isArray(payload) ||
+        typeof payload.revision !== "string" ||
+        payload.revision !== manifest.revision ||
+        !Array.isArray(payload.rows)
+      ) {
+        errs.add(`shard "${exp.id}": body has invalid spatial payload revision`);
+        rows = [];
+      } else {
+        rows = payload.rows;
+      }
       const bytes = Buffer.byteLength(raw);
       totalBytes += bytes;
       if (exp.core) eagerBytes += bytes;
@@ -1618,14 +1691,56 @@ function validateSlimShards() {
       );
       continue;
     }
+    const expectedRows = expectedRowsByShard.get(exp.id) ?? [];
+    const expectedIds = new Set(expectedRows.map((row) => row?.id));
+    const expectedById = new Map(expectedRows.map((row) => [row?.id, row]));
+    const shardIds = new Set();
     for (const r of rows) {
-      if (!r || typeof r.id !== "string") {
+      if (!r || typeof r !== "object") {
+        errs.add(`shard "${exp.id}": a row is not an object`);
+        continue;
+      }
+      if (typeof r.id !== "string" || r.id.length === 0) {
         errs.add(`shard "${exp.id}": a row is missing an id`);
         continue;
       }
+      if (typeof r.name !== "string" || r.name.length === 0) {
+        errs.add(`shard "${exp.id}": row "${r.id}" is missing a name`);
+      }
+      if (!isFiniteNumber(r.lat) || !isFiniteNumber(r.lng)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid coordinates`);
+      }
+      if (typeof r.borough !== "string") {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid borough`);
+      }
+      if (
+        r.cheapestPrice !== null &&
+        (!isFiniteNumber(r.cheapestPrice) || r.cheapestPrice < 0)
+      ) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid cheapestPrice`);
+      }
+      if (
+        r.zone !== undefined &&
+        (!Number.isInteger(r.zone) || r.zone < 1 || r.zone > 9)
+      ) {
+        errs.add(`shard "${exp.id}": row "${r.id}" has invalid zone`);
+      }
+      if (!expectedIds.has(r.id)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" belongs to another cell`);
+      }
+      const expectedRow = expectedById.get(r.id);
+      if (expectedRow && !isDeepStrictEqual(r, expectedRow)) {
+        errs.add(`shard "${exp.id}": row "${r.id}" differs from monolith`);
+      }
+      shardIds.add(r.id);
       if (allIds.has(r.id))
         errs.add(`shard "${exp.id}": duplicate id "${r.id}" across shards`);
       allIds.add(r.id);
+    }
+    for (const id of expectedIds) {
+      if (!shardIds.has(id)) {
+        errs.add(`shard "${exp.id}": expected row "${id}" is missing`);
+      }
     }
   }
 
@@ -1654,6 +1769,13 @@ function validateSlimShards() {
     errs.add(
       `eager first-paint ${(eagerBytes / 1024).toFixed(1)} KB exceeds ${(SLIM_EAGER_BUDGET_BYTES / 1024).toFixed(0)} KB budget`,
     );
+  }
+  for (const exp of expectedManifest.shards) {
+    const raw = shardRawById.get(exp.id);
+    if (raw === undefined) continue;
+    if (Buffer.byteLength(raw) >= 150 * 1024) {
+      errs.add(`shard "${exp.id}" exceeds 150.0 KB spatial shard budget`);
+    }
   }
   if (totalBytes >= SLIM_TOTAL_BUDGET_BYTES) {
     errs.add(
@@ -1817,7 +1939,8 @@ function loadUkBaseCuratedVenueIds() {
   const curatedVenueIds = new Set();
   try {
     const londonSlim = loadJson("venues_slim.json");
-    for (const venue of Array.isArray(londonSlim) ? londonSlim : []) {
+    const londonRows = Array.isArray(londonSlim) ? londonSlim : londonSlim?.rows;
+    for (const venue of Array.isArray(londonRows) ? londonRows : []) {
       if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
     }
     const citiesDir = join(DATA_DIR, "cities");
@@ -1826,7 +1949,8 @@ function loadUkBaseCuratedVenueIds() {
       const citySlimPath = join(citiesDir, entry.name, "venues_slim.json");
       if (!existsSync(citySlimPath)) continue;
       const citySlim = JSON.parse(readFileSync(citySlimPath, "utf8"));
-      for (const venue of Array.isArray(citySlim) ? citySlim : []) {
+      const cityRows = Array.isArray(citySlim) ? citySlim : citySlim?.rows;
+      for (const venue of Array.isArray(cityRows) ? cityRows : []) {
         if (typeof venue?.id === "string") curatedVenueIds.add(venue.id);
       }
     }
@@ -1958,8 +2082,9 @@ function validateUkBaseCuratedIdCollisions(ids) {
   // both would double-pin that pub.
   try {
     const slim = loadJson("venues_slim.json");
-    if (Array.isArray(slim)) {
-      for (const venue of slim) {
+    const slimRows = Array.isArray(slim) ? slim : slim?.rows;
+    if (Array.isArray(slimRows)) {
+      for (const venue of slimRows) {
         if (venue && ids.has(venue.id)) {
           errors.push(`base id "${venue.id}" also exists in venues_slim`);
         }

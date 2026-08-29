@@ -317,9 +317,11 @@ describe("the shipped historic index (generated artifact)", () => {
     ) as HistoricPub[];
     const listed = new Set(
       (
-        JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as {
-          id: string;
-        }[]
+        (
+          JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as {
+            rows?: { id: string }[];
+          }
+        ).rows ?? []
       ).map((row) => row.id),
     );
     const dangling = historic
@@ -386,9 +388,11 @@ describe("the shipped historic index (generated artifact)", () => {
     ) as HistoricPub[];
     const listed = new Set(
       (
-        JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as {
-          id: string;
-        }[]
+        (
+          JSON.parse(readFileSync("public/data/venues_slim.json", "utf8")) as {
+            rows?: { id: string }[];
+          }
+        ).rows ?? []
       ).map((row) => row.id),
     );
     const curatedKeys = Object.keys(

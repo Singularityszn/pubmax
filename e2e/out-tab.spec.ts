@@ -16,6 +16,11 @@ function primaryNav(page: Page) {
   return page.getByRole("navigation", { name: "Primary" });
 }
 
+/** Playwright globs match the full URL, so an /api/out pattern also matches /api/outage. */
+function isOutListingsRequest(url: URL): boolean {
+  return url.pathname === "/api/out";
+}
+
 // Three ordinary links behind a disclosure, so they are found as links. Scoped
 // to the sheet itself: /out prints its own "Start a plan" way out under Open
 // plans, and a page-wide role query matches both.
@@ -122,7 +127,7 @@ const PLAYHOUSE_EVENT = {
 test(
   "shows matched event cards and drops unmatched rows when GET /api/out is ready",
   async ({ page }) => {
-    await page.route("**/api/out?**", (route) =>
+    await page.route(isOutListingsRequest, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -196,7 +201,7 @@ test.describe("out supply honesty @390", () => {
   test("counts and names the unlisted places, credits the provider, and offers a way out", async ({
     page,
   }) => {
-    await page.route("**/api/out?**", (route) =>
+    await page.route(isOutListingsRequest, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -229,7 +234,7 @@ test.describe("out supply honesty @390", () => {
   });
 
   test("says the check could not run rather than calling the places unlisted", async ({ page }) => {
-    await page.route("**/api/out?**", (route) =>
+    await page.route(isOutListingsRequest, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -247,7 +252,7 @@ test.describe("out supply honesty @390", () => {
   });
 
   test("keeps the honest empty state when the providers return nothing", async ({ page }) => {
-    await page.route("**/api/out?**", (route) =>
+    await page.route(isOutListingsRequest, (route) =>
       route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -292,7 +297,7 @@ function sendableOpenPlan(id: string, title: string) {
 const PUBLIC_CREW_ID = "50000000-0000-4000-8000-000000000001";
 
 test("shows Open plans when one sendable plan exists", async ({ page }) => {
-  await page.route("**/api/out?**", (route) =>
+  await page.route(isOutListingsRequest, (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -343,7 +348,7 @@ test("shows Open plans when one sendable plan exists", async ({ page }) => {
 
 test("groups desktop listings and pairs a pub beside each gig", async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 900 });
-  await page.route("**/api/out?**", (route) =>
+  await page.route(isOutListingsRequest, (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -375,7 +380,7 @@ test("groups desktop listings and pairs a pub beside each gig", async ({ page })
 
 test("starts each desktop listing group at the top of its grid row", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
-  await page.route("**/api/out?**", (route) =>
+  await page.route(isOutListingsRequest, (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",

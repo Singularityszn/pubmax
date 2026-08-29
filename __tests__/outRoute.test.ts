@@ -191,8 +191,9 @@ describe("buildOutResponse", () => {
     expect(outStatusLines({ body, failed: false })).toEqual([]);
   });
 
-  it("says quiet when ready bundled rows are all at unlisted places", async () => {
-    // Unmatched rows never become cards, so /out must agree with /tonight's quiet.
+  it("leaves unmatched wording to the desktop grouping notice", async () => {
+    // Populated unmatched rows are not an empty market. The grouping layer
+    // names them after it drops them from cards.
     const body = await buildOutResponse(
       { city: "london", day: "today" },
       { now: FIXTURE_NOW.getTime(), loadBaseline: () => [eventRow()], liveProviders: noLiveLane() },
@@ -200,9 +201,7 @@ describe("buildOutResponse", () => {
     expect(body.status).toBe("ready");
     expect(body.events).toHaveLength(1);
     expect(body.venueMatch).toBe("ready");
-    expect(outStatusLines({ body, failed: false })).toEqual([
-      "No listings for this day yet.",
-    ]);
+    expect(outStatusLines({ body, failed: false })).toEqual([]);
   });
 
   it("keeps ready when a lane really was asked and answered", async () => {
@@ -989,7 +988,7 @@ describe("the live lane is venue-matched at request time", () => {
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
-  it("stays quiet when only unmatched rows survive the serve cap", async () => {
+  it("names unmatched rows when only unmatched rows survive the serve cap", async () => {
     const unmatchedRows = Array.from({ length: MAX_OUT_EVENTS }, (_, index) =>
       eventRow({
         id: `unmatched-${index}`,
@@ -1021,7 +1020,7 @@ describe("the live lane is venue-matched at request time", () => {
       unmatchedPlaceCount: body.unmatchedPlaceCount,
       unmatchedSources: body.unmatchedSources,
     });
-    expect(notice).toBeNull();
+    expect(notice?.line).toBe("100 listings tonight are at places we don't list yet.");
   });
 
   it("never serves a live row whose start has already passed", async () => {

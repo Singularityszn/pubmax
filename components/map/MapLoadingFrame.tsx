@@ -14,9 +14,11 @@ import {
 export default function MapLoadingFrame({
   mapDisplayName,
   progress,
+  openingLocationPromptActive = false,
 }: {
   mapDisplayName: string;
   progress: number;
+  openingLocationPromptActive?: boolean;
 }) {
   const [slow, setSlow] = useState(false);
 
@@ -47,7 +49,11 @@ export default function MapLoadingFrame({
       <div className="mapLoadingCopy">
         <div className="mapLoadingLines">
           <span className="mapLoadingEyebrow">{mapDisplayName} pub map</span>
-          <span>{mapLoadingPrimaryLine(mapDisplayName)}</span>
+          <span>
+            {openingLocationPromptActive
+              ? "Using your location to find nearby pints."
+              : mapLoadingPrimaryLine(mapDisplayName)}
+          </span>
           {slow ? <span className="mapLoadingSlow">{MAP_LOADING_SLOW_LINE}</span> : null}
         </div>
       </div>

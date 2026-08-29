@@ -43,7 +43,12 @@ const MATCH_TARGETS = {
 
 function main() {
   const dataset = JSON.parse(readFileSync(DATASET, "utf8"));
-  const venues = JSON.parse(readFileSync(SLIM, "utf8"));
+  const payload = JSON.parse(readFileSync(SLIM, "utf8"));
+  const venues = Array.isArray(payload)
+    ? payload
+    : Array.isArray(payload?.rows)
+      ? payload.rows
+      : [];
   const byId = new Map(dataset.entries.map((e) => [e.id, e]));
 
   let matched = 0;

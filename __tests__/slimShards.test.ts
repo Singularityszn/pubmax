@@ -5,16 +5,18 @@ import {
   bboxIntersects,
   createSlimShardLoader,
   parseShardManifest,
-  shardForPoint,
   shardsForBounds,
+  shardForPoint,
   type MapBounds,
   type ShardManifest,
 } from "@/lib/slimShards";
+import { offlineCache } from "@/lib/offlineCache";
 
 // A small synthetic London-ish manifest: one core + two outer shards whose
 // bboxes are deliberately non-overlapping so viewport/point mapping is exact.
 const MANIFEST: ShardManifest = {
-  version: 1,
+  version: 2,
+  grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
   shards: [
     { id: "core", core: true, url: "/data/venues_slim.core.json", count: 2, bbox: [-0.2, 51.45, 0.0, 51.55] },
     { id: "greenwich", core: false, borough: "Greenwich", url: "/data/venues_slim.greenwich.json", count: 1, bbox: [0.0, 51.46, 0.1, 51.52] },
@@ -51,10 +53,10 @@ describe("slimShards pure geometry", () => {
     expect(ids).toEqual(["greenwich"]);
   });
 
-  it("shardForPoint picks the containing outer shard, or null in core territory", () => {
+  it("shardForPoint picks the containing shard", () => {
     expect(shardForPoint(MANIFEST, 51.48, 0.05)?.id).toBe("greenwich");
     expect(shardForPoint(MANIFEST, 51.65, -0.08)?.id).toBe("enfield");
-    expect(shardForPoint(MANIFEST, 51.5, -0.1)).toBeNull(); // central: core covers it
+    expect(shardForPoint(MANIFEST, 51.5, -0.1)?.id).toBe("core");
   });
 
   it("excludes kind shards from point partitioning", () => {
@@ -72,13 +74,28 @@ describe("slimShards pure geometry", () => {
         },
       ],
     };
-    expect(shardForPoint(withRestaurants, 51.5, -0.1)).toBeNull();
+    expect(shardForPoint(withRestaurants, 51.5, -0.1)?.id).toBe("core");
     expect(shardsForBounds(withRestaurants, {
       west: -0.2,
       south: 51.45,
       east: 0.1,
       north: 51.55,
     }).map((shard) => shard.id)).toContain("restaurants");
+  });
+
+  it("includes one grid ring only when requested", () => {
+    const gridManifest: ShardManifest = {
+      version: 2,
+      grid: { originLat: 0, originLon: 0, latStep: 1, lonStep: 1 },
+      shards: [
+        { id: "centre", core: false, partition: "grid", url: "/centre", count: 1, bbox: [1, 1, 2, 2] },
+        { id: "north", core: false, partition: "grid", url: "/north", count: 1, bbox: [1, 2, 2, 3] },
+        { id: "far", core: false, partition: "grid", url: "/far", count: 1, bbox: [4, 4, 5, 5] },
+      ],
+    };
+    const bounds = { west: 1.1, south: 1.1, east: 1.9, north: 1.9 };
+    expect(shardsForBounds(gridManifest, bounds).map((shard) => shard.id)).toEqual(["centre"]);
+    expect(shardsForBounds(gridManifest, bounds, 1).map((shard) => shard.id)).toEqual(["centre", "north"]);
   });
 });
 
@@ -104,6 +121,28 @@ describe("parseShardManifest", () => {
         }],
       }),
     ).toBeNull();
+  });
+
+  it("rejects a legacy schema when spatial version is required", () => {
+    expect(
+      parseShardManifest(
+        { ...MANIFEST, version: 1, grid: undefined },
+        2,
+      ),
+    ).toBeNull();
+    expect(
+      parseShardManifest(
+        { ...MANIFEST, version: 1, grid: undefined },
+        1,
+      )?.version,
+    ).toBe(1);
+  });
+
+  it("requires matching deployment revision when one is supplied", () => {
+    const current = { ...MANIFEST, revision: "deploy-42" };
+    expect(parseShardManifest(current, 2, "deploy-42")?.revision).toBe("deploy-42");
+    expect(parseShardManifest(current, 2, "other-deploy")).toBeNull();
+    expect(parseShardManifest(MANIFEST, 2, "deploy-42")).toBeNull();
   });
 });
 
@@ -157,13 +196,48 @@ describe("createSlimShardLoader (London)", () => {
     expect(fetched).not.toContain("/data/venues_slim.greenwich.json");
   });
 
+  it("inBounds() loads core when a later viewport reaches central London", async () => {
+    const loader = createSlimShardLoader("london");
+
+    await loader.inBounds({
+      west: -0.15,
+      south: 51.62,
+      east: -0.02,
+      north: 51.68,
+    });
+    const rows = await loader.inBounds({
+      west: -0.16,
+      south: 51.48,
+      east: -0.08,
+      north: 51.53,
+    });
+
+    expect(rows.map((venue) => venue.id)).toEqual(["c1", "c2"]);
+    expect(fetched).toContain("/data/venues_slim.core.json");
+  });
+
   it("nearPoint() loads the shard the user geolocated into", async () => {
     const loader = createSlimShardLoader("london");
-    await loader.core();
-    const rows = await loader.nearPoint(51.65, -0.08);
-    expect(rows.map((v) => v.id)).toEqual(["e1"]);
-    // A central point needs no outer shard.
-    expect(await loader.nearPoint(51.5, -0.1)).toEqual([]);
+    const result = await loader.nearPoint(51.65, -0.08);
+    expect(result.rows.map((v) => v.id)).toEqual(["e1"]);
+    expect(result.status).toBe("ready");
+    expect((await loader.nearPoint(51.5, -0.1)).rows.map((v) => v.id)).toEqual(["c1", "c2"]);
+  });
+
+  it("nearPoint() loads every location shard intersecting its walk radius", async () => {
+    const loader = createSlimShardLoader("london");
+    const rows = (await loader.nearPoint(51.5, 0.001)).rows;
+
+    expect(rows.map((venue) => venue.id).sort()).toEqual(["c1", "c2", "g1"]);
+  });
+
+  it("nearPoint() reports unavailable when a radius shard cannot load", async () => {
+    installFetch({ "/data/venues_slim.enfield.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const result = await loader.nearPoint(51.65, -0.08);
+
+    expect(result.rows).toEqual([]);
+    expect(result.status).toBe("unavailable");
   });
 
   it("all() loads core plus every outer shard", async () => {
@@ -257,6 +331,51 @@ describe("createSlimShardLoader (London)", () => {
     expect(rows.map((v) => v.id)).toEqual(["g1"]);
   });
 
+  it("preserves initial shard failure status for the map readiness gate", async () => {
+    installFetch({ "/data/venues_slim.core.json": "fail" });
+    const loader = createSlimShardLoader("london");
+    const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+
+    await expect(loader.initialResult(bounds)).resolves.toEqual({
+      rows: [],
+      status: "unavailable",
+    });
+  });
+
+  it("defers spatial manifest work until after first pins on first visit", async () => {
+    const loader = createSlimShardLoader("london", { deferSpatial: true });
+    const bounds = { west: -0.16, south: 51.48, east: -0.08, north: 51.53 };
+
+    await expect(loader.initialResult(bounds)).resolves.toEqual({
+      rows: [slimRow("c1", 51.5, -0.1), slimRow("c2", 51.51, -0.12)],
+      status: "ready",
+    });
+    expect(fetched).toContain("/data/venues_slim.core.json");
+    expect(fetched).not.toContain("/data/venues_slim.manifest.json");
+
+    await loader.inBounds(bounds);
+    expect(fetched).toContain("/data/venues_slim.manifest.json");
+  });
+
+  it("does not restore a legacy manifest from the offline boundary", async () => {
+    installFetch({ "/data/venues_slim.manifest.json": "fail" });
+    const getSpy = vi.spyOn(offlineCache, "get").mockResolvedValue({
+      ...MANIFEST,
+      version: 1,
+      grid: undefined,
+    });
+    const loader = createSlimShardLoader("london");
+
+    await expect(
+      loader.initialResult({ west: -0.2, south: 51.45, east: 0, north: 51.55 }),
+    ).resolves.toEqual({ rows: [], status: "unavailable" });
+    expect(getSpy).toHaveBeenCalledWith(
+      "venues_slim_manifest:v2:/data/venues_slim.manifest.json",
+    );
+    expect(fetched).not.toContain("/data/venues_slim.json");
+    expect(fetched).not.toContain("/data/venues_slim.core.json");
+  });
+
   it("bypasses a shared in-flight read when a new loader retries", async () => {
     let coreFetches = 0;
     globalThis.fetch = ((input: RequestInfo | URL) => {
@@ -317,7 +436,8 @@ describe("createSlimShardLoader (London)", () => {
 
   it("does not wait for the speculative shard when the manifest names another core", async () => {
     const renamedCore: ShardManifest = {
-      version: 1,
+      version: 2,
+      grid: MANIFEST.grid,
       shards: [
         { ...MANIFEST.shards[0]!, url: "/data/venues_slim.central.json" },
         ...MANIFEST.shards.slice(1),
@@ -366,7 +486,10 @@ describe("createSlimShardLoader (London)", () => {
         return Promise.resolve({ ok: false, status: 404 } as Response);
       }
       if (url === "/data/cities/manchester/venues_slim.json") {
-        return Promise.resolve({ ok: true, json: () => Promise.resolve([slimRow("m1", 53.4, -2.2)]) } as Response);
+        return Promise.resolve({
+          ok: true,
+          json: () => Promise.resolve({ revision: "local", rows: [slimRow("m1", 53.4, -2.2)] }),
+        } as Response);
       }
       return Promise.resolve({ ok: false, status: 404 } as Response);
     }) as typeof fetch;
@@ -376,6 +499,6 @@ describe("createSlimShardLoader (London)", () => {
     expect(core.map((v) => v.id)).toEqual(["m1"]);
     // No manifest → nothing lazy to resolve.
     expect(await loader.inBounds({ west: -3, south: 53, east: -2, north: 54 })).toEqual([]);
-    expect(await loader.nearPoint(53.4, -2.2)).toEqual([]);
+    expect(await loader.nearPoint(53.4, -2.2)).toEqual({ rows: [], status: "ready" });
   });
 });

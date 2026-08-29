@@ -59,6 +59,9 @@ export type AreaNewsDataset = {
 // not a feed.
 export const NEW_ROUND_HERE_CAP = 3;
 
+/** A dated fact may only support the "New round here" claim for 21 days. */
+export const AREA_NEWS_MAX_AGE_DAYS = 21;
+
 // Short, dry labels for each kind. No exclamation, no hype — the fact carries
 // the weight.
 export const KIND_LABEL: Record<AreaNewsKind, string> = {
@@ -234,6 +237,25 @@ function byRecency(a: AreaNewsEntry, b: AreaNewsEntry): number {
   return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 }
 
+/** Keep only dated facts that are current enough to support a fresh-facts claim. */
+export function freshAreaNews(
+  entries: AreaNewsEntry[],
+  opts: { now?: number; maxAgeDays?: number } = {},
+): AreaNewsEntry[] {
+  const now = opts.now ?? Date.now();
+  const maxAgeDays = Math.min(opts.maxAgeDays ?? AREA_NEWS_MAX_AGE_DAYS, AREA_NEWS_MAX_AGE_DAYS);
+  const nowDay = new Date(now);
+  nowDay.setUTCHours(0, 0, 0, 0);
+  const oldestAllowed = nowDay.getTime() - maxAgeDays * 24 * 60 * 60 * 1000;
+  return entries
+    .filter((entry) => {
+      if (validateAreaNewsEntry(entry).length > 0) return false;
+      const observedAt = Date.parse(`${entry.observedAt}T00:00:00Z`);
+      return Number.isFinite(observedAt) && observedAt >= oldestAllowed && observedAt <= nowDay.getTime();
+    })
+    .sort(byRecency);
+}
+
 /** All entries that belong to a borough (via each entry's area → borough),
  *  newest first. Pure. */
 export function entriesForBorough(
@@ -279,10 +301,29 @@ export function awardForVenue(
 const ISO_DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 const EM_DASH_RE = /[—–]/; // em dash and en dash both banned from titles
 
+function isValidIsoDate(value: unknown): value is string {
+  if (typeof value !== "string" || !ISO_DATE_RE.test(value)) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return Number.isFinite(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+function isValidHttpsUrl(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  try {
+    const parsed = new URL(value);
+    return parsed.protocol === "https:" && Boolean(parsed.hostname) && !parsed.username && !parsed.password;
+  } catch {
+    return false;
+  }
+}
+
 /** Validate one entry against the schema + house rules. Returns a list of
  *  human-readable problems (empty means valid). Shared by the dataset shape
  *  test so the rules live in one place. */
 export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
+  if (!entry || typeof entry !== "object" || Array.isArray(entry)) {
+    return ["(invalid row): entry must be an object"];
+  }
   const problems: string[] = [];
   const id = entry?.id ?? "(no id)";
   if (typeof entry.id !== "string" || !entry.id.trim()) problems.push(`${id}: missing id`);
@@ -297,10 +338,10 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   if (typeof entry.sourceName !== "string" || !entry.sourceName.trim()) {
     problems.push(`${id}: missing sourceName`);
   }
-  if (typeof entry.sourceUrl !== "string" || !/^https:\/\//.test(entry.sourceUrl)) {
+  if (!isValidHttpsUrl(entry.sourceUrl)) {
     problems.push(`${id}: sourceUrl must be an https URL`);
   }
-  if (typeof entry.observedAt !== "string" || !ISO_DATE_RE.test(entry.observedAt)) {
+  if (!isValidIsoDate(entry.observedAt)) {
     problems.push(`${id}: observedAt must be an ISO date`);
   }
   if (entry.confidence !== undefined && entry.confidence !== "social") {
@@ -308,11 +349,15 @@ export function validateAreaNewsEntry(entry: AreaNewsEntry): string[] {
   }
   if (entry.venueMatch !== undefined) {
     const vm = entry.venueMatch;
-    if (typeof vm.venueId !== "string" || !/^venue-/.test(vm.venueId)) {
-      problems.push(`${id}: venueMatch.venueId must be a venue- id`);
-    }
-    if (vm.confidence !== "high" && vm.confidence !== "medium") {
-      problems.push(`${id}: venueMatch.confidence must be high|medium`);
+    if (!vm || typeof vm !== "object" || Array.isArray(vm)) {
+      problems.push(`${id}: venueMatch must be an object`);
+    } else {
+      if (typeof vm.venueId !== "string" || !/^venue-/.test(vm.venueId)) {
+        problems.push(`${id}: venueMatch.venueId must be a venue- id`);
+      }
+      if (vm.confidence !== "high" && vm.confidence !== "medium") {
+        problems.push(`${id}: venueMatch.confidence must be high|medium`);
+      }
     }
   }
   return problems;

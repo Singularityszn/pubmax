@@ -3,28 +3,28 @@
 // #315 grew venues_slim.json to ~805 KB by adding Outer-London presence pins.
 // scripts/build_slim_index.mjs now emits, alongside the monolithic file:
 //   • venues_slim.manifest.json — shard -> { url, bbox, count } (tiny, eager)
-//   • venues_slim.core.json     — the priced inner-London index (eager)
-//   • venues_slim.{shard}.json - lazy borough and curated-kind shards
+//   • venues_slim.core.json     — the central compatibility cell
+//   • venues_slim.cell.*.json   - lazy location cells
 //
-// The MAP is the only true first-paint surface, so it loads CORE eagerly and
-// pulls a lazy shard only when it actually needs it:
-//   (a) the viewport intersects that borough's bbox,
-//   (b) near-me geolocates into it.
+// The MAP is the only true first-paint surface, so it loads the viewport first,
+// starts one neighbouring grid ring after pins settle, and pulls another cell
+// only when needed.
 // Everything is one code path: consumers hold a loader from
-// createSlimShardLoader() and call core()/inBounds()/nearPoint()/all(); the
+// createSlimShardLoader() and call initial()/inBounds()/nearPoint()/all(); the
 // loader hides fetching, dedup, offline mirroring, and the non-sharded
 // fallback for cities that ship a single file (no manifest).
 //
 // Degradation: a shard fetch that fails with no offline mirror yields [] and is
 // NOT marked loaded, so the next moveend / near-me retries it. The map keeps
-// working with whatever shards did load. Cache-first `/data/*.json` handling in
-// public/sw.js already covers every shard URL (see its strategy table).
+// working with whatever shards did load. Stale-while-revalidate `/data/*.json`
+// handling in public/sw.js covers every shard URL (see its strategy table).
 
 import { discardBody } from "@/lib/responseBody";
 import { takeEarlyWarmJson } from "@/lib/mapEarlyWarm";
 import { getCity, type CityId, DEFAULT_CITY_ID } from "@/lib/cities";
 import { offlineCache } from "@/lib/offlineCache";
 import { loadSlimVenuesFromPathResult, type SlimVenue } from "@/lib/venuesSlim";
+import { WALKABLE_RADIUS_KM } from "@/lib/nearMeAnswer";
 
 /** [minLng, minLat, maxLng, maxLat] — GeoJSON bbox order (matches the build). */
 export type ShardBbox = [number, number, number, number];
@@ -35,12 +35,14 @@ export type ShardEntry = {
   url: string;
   count: number;
   bbox: ShardBbox;
-  partition?: "borough" | "kind";
+  partition?: "borough" | "kind" | "grid";
   borough?: string;
 };
 
 export type ShardManifest = {
   version: number;
+  revision?: string;
+  grid?: { originLat: number; originLon: number; latStep: number; lonStep: number };
   shards: ShardEntry[];
 };
 
@@ -52,6 +54,20 @@ export type MapBounds = {
   north: number;
 };
 
+export type SlimShardLoadResult = {
+  rows: SlimVenue[];
+  status: "ready" | "unavailable";
+};
+
+const LEGACY_SHARD_MANIFEST_VERSION = 1;
+const SPATIAL_SHARD_MANIFEST_VERSION = 2;
+const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("A deploy revision is required for production map data");
+      })()
+    : "local");
+
 // --- pure geometry + manifest validation (unit-tested) -----------------------
 
 function isBbox(value: unknown): value is ShardBbox {
@@ -62,11 +78,38 @@ function isBbox(value: unknown): value is ShardBbox {
   );
 }
 
+function isGrid(value: unknown): value is ShardManifest["grid"] {
+  if (typeof value !== "object" || value === null) return false;
+  const grid = value as Record<string, unknown>;
+  return ["originLat", "originLon", "latStep", "lonStep"].every(
+    (key) => typeof grid[key] === "number" && Number.isFinite(grid[key]),
+  );
+}
+
 /** Parse an unknown payload into a ShardManifest, or null if malformed. */
-export function parseShardManifest(value: unknown): ShardManifest | null {
+export function parseShardManifest(
+  value: unknown,
+  expectedVersion?: number,
+  expectedRevision?: string,
+): ShardManifest | null {
   if (typeof value !== "object" || value === null) return null;
   const obj = value as Record<string, unknown>;
-  if (typeof obj.version !== "number") return null;
+  if (
+    typeof obj.version !== "number" ||
+    !Number.isInteger(obj.version) ||
+    (obj.version !== LEGACY_SHARD_MANIFEST_VERSION &&
+      obj.version !== SPATIAL_SHARD_MANIFEST_VERSION) ||
+    (expectedVersion !== undefined && obj.version !== expectedVersion)
+  ) {
+    return null;
+  }
+  if (
+    (obj.revision !== undefined &&
+      (typeof obj.revision !== "string" || obj.revision.length === 0)) ||
+    (expectedRevision !== undefined && obj.revision !== expectedRevision)
+  ) {
+    return null;
+  }
   if (!Array.isArray(obj.shards)) return null;
   const shards: ShardEntry[] = [];
   for (const raw of obj.shards) {
@@ -80,12 +123,14 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
     if (
       s.partition !== undefined &&
       s.partition !== "borough" &&
-      s.partition !== "kind"
+      s.partition !== "kind" &&
+      s.partition !== "grid"
     ) {
       return null;
     }
     if (s.partition === "borough" && typeof s.borough !== "string") return null;
     if (s.partition === "kind" && s.borough !== undefined) return null;
+    if (s.partition === "grid" && s.borough !== undefined) return null;
     shards.push({
       id: s.id,
       core: s.core,
@@ -98,7 +143,13 @@ export function parseShardManifest(value: unknown): ShardManifest | null {
       ...(typeof s.borough === "string" ? { borough: s.borough } : {}),
     });
   }
-  return { version: obj.version, shards };
+  if (obj.grid !== undefined && !isGrid(obj.grid)) return null;
+  return {
+    version: obj.version,
+    ...(typeof obj.revision === "string" ? { revision: obj.revision } : {}),
+    ...(obj.grid ? { grid: obj.grid } : {}),
+    shards,
+  };
 }
 
 /** Does a shard bbox overlap the viewport bounds? (inclusive edges) */
@@ -118,9 +169,41 @@ export function bboxContainsPoint(bbox: ShardBbox, lat: number, lng: number): bo
   return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
 }
 
+const METRES_PER_DEGREE_LAT = 111_320;
+
+function boundsForRadius(lat: number, lng: number, radiusKm: number): MapBounds {
+  const radiusMetres = Math.max(0, radiusKm) * 1_000;
+  const latitudeDelta = radiusMetres / METRES_PER_DEGREE_LAT;
+  const longitudeDelta = radiusMetres / (
+    METRES_PER_DEGREE_LAT * Math.max(Math.cos((lat * Math.PI) / 180), 0.01)
+  );
+  return {
+    west: lng - longitudeDelta,
+    south: Math.max(-90, lat - latitudeDelta),
+    east: lng + longitudeDelta,
+    north: Math.min(90, lat + latitudeDelta),
+  };
+}
+
 /** Non-core shards whose bbox intersects the viewport. */
-export function shardsForBounds(manifest: ShardManifest, bounds: MapBounds): ShardEntry[] {
-  return manifest.shards.filter((s) => !s.core && bboxIntersects(s.bbox, bounds));
+export function shardsForBounds(
+  manifest: ShardManifest,
+  bounds: MapBounds,
+  ring = 0,
+  includeCore = false,
+): ShardEntry[] {
+  const grid = manifest.grid;
+  const padLat = grid && Number.isFinite(ring) ? Math.max(0, ring) * grid.latStep : 0;
+  const padLng = grid && Number.isFinite(ring) ? Math.max(0, ring) * grid.lonStep : 0;
+  const padded = {
+    west: bounds.west - padLng,
+    south: bounds.south - padLat,
+    east: bounds.east + padLng,
+    north: bounds.north + padLat,
+  };
+  return manifest.shards.filter(
+    (s) => (includeCore || !s.core) && bboxIntersects(s.bbox, padded),
+  );
 }
 
 /**
@@ -142,16 +225,19 @@ export function boundsCoveredByLoadedShards(
 }
 
 /**
- * The outer shard a point falls in. Prefers a bbox that CONTAINS the point;
- * when several do (bboxes can overlap) or none does but one is close, picks the
- * shard whose bbox centre is nearest. Returns null when there is no plausible
- * outer shard (the point is squarely in core territory).
+ * The shard a point falls in. Prefers core when its bbox contains the point;
+ * otherwise picks the containing outer shard when one exists.
  */
 export function shardForPoint(
   manifest: ShardManifest,
   lat: number,
   lng: number,
 ): ShardEntry | null {
+  const core = manifest.shards.find(
+    (s) => s.core && bboxContainsPoint(s.bbox, lat, lng),
+  );
+  if (core) return core;
+
   const outer = manifest.shards.filter(
     (s) => !s.core && s.partition !== "kind",
   );
@@ -175,10 +261,20 @@ export function shardForPoint(
 
 // --- stateful per-city loader ------------------------------------------------
 
-const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v1";
+const MANIFEST_OFFLINE_PREFIX = "venues_slim_manifest:v2";
 
 function manifestPathFor(slimVenuesPath: string): string {
   return slimVenuesPath.replace(/\.json$/, ".manifest.json");
+}
+
+function manifestRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local") return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
+}
+
+function shardRequestPath(path: string): string {
+  if (MAP_DATA_REVISION === "local") return path;
+  return `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`;
 }
 
 /** Guessed core shard URL for a city's slim index (London: venues_slim.core.json). */
@@ -187,19 +283,22 @@ export function guessedCoreShardUrl(slimVenuesPath: string): string {
 }
 
 export type SlimShardLoader = {
-  /** Eager first-paint payload: the core shard. */
+  /** Compatibility read for consumers that need the central shard. */
   core(): Promise<SlimVenue[]>;
   /**
-   * Venues from outer shards intersecting `bounds` that are not already
+   * Venues from location shards intersecting `bounds` that are not already
    * loaded. Returns [] when nothing new is needed. Never throws.
    */
-  inBounds(bounds: MapBounds): Promise<SlimVenue[]>;
+  inBounds(bounds: MapBounds, ring?: number): Promise<SlimVenue[]>;
+  /** First map read: viewport cells, or the legacy core. */
+  initial(bounds: MapBounds): Promise<SlimVenue[]>;
+  initialResult(bounds: MapBounds): Promise<SlimShardLoadResult>;
   /**
-   * Venues from the outer shard containing `point`, loaded (with one retry) if
-   * needed. [] when the point is in core territory or the shard can't load.
+   * Venues from location shards intersecting the walk radius, loaded (with one
+   * retry) if needed. Status reports whether all required shards loaded.
    */
-  nearPoint(lat: number, lng: number): Promise<SlimVenue[]>;
-  /** Core + every outer shard (for by-id / whole-index consumers). */
+  nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult>;
+  /** Every shard (for by-id / whole-index consumers). */
   all(): Promise<SlimVenue[]>;
   /**
    * Whether every shard that could hold a venue inside `bounds` has loaded, so
@@ -218,27 +317,33 @@ export type SlimShardLoader = {
  */
 export function createSlimShardLoader(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
-  options: { bypassInFlight?: boolean } = {},
+  options: { bypassInFlight?: boolean; deferSpatial?: boolean } = {},
 ): SlimShardLoader {
   const city = getCity(cityId);
   const slimVenuesPath = city.slimVenuesPath;
   const manifestPath = manifestPathFor(slimVenuesPath);
   const manifestOfflineKey = `${MANIFEST_OFFLINE_PREFIX}:${manifestPath}`;
+  const expectedManifestVersion =
+    manifestPath === "/data/venues_slim.manifest.json"
+      ? SPATIAL_SHARD_MANIFEST_VERSION
+      : LEGACY_SHARD_MANIFEST_VERSION;
 
   let manifestPromise: Promise<ShardManifest | null> | null = null;
   // Settled manifest snapshot, so coverage can be answered without awaiting.
   let manifestAnswered = false;
   let settledManifest: ShardManifest | null = null;
+  let manifestRevisionRejected = false;
   // A city with no manifest ships one file, so loading it covers everything.
   let wholeIndexLoaded = false;
   // url -> in-flight/settled fetch of that shard's venues.
-  const shardPromises = new Map<string, Promise<SlimVenue[]>>();
+  const shardPromises = new Map<string, Promise<SlimShardLoadResult>>();
   // shard urls that have successfully contributed venues (so inBounds skips them).
   const loadedUrls = new Set<string>();
 
   async function fetchManifest(): Promise<ShardManifest | null> {
     try {
       let payload: unknown;
+      let earlyPayloadRejected = false;
       const early = options.bypassInFlight
         ? undefined
         : takeEarlyWarmJson(manifestPath);
@@ -247,22 +352,64 @@ export function createSlimShardLoader(
           payload = await early;
         } catch {
           payload = undefined;
+          earlyPayloadRejected = true;
         }
       }
       if (payload === undefined) {
-        const response = await fetch(manifestPath);
+        const response = earlyPayloadRejected
+          ? await fetch(manifestRequestPath(manifestPath), { cache: "no-store" })
+          : await fetch(manifestRequestPath(manifestPath));
         if (!response.ok) {
           discardBody(response);
           throw new Error(`HTTP ${response.status}`);
         }
         payload = await response.json();
       }
-      const parsed = parseShardManifest(payload);
+      let parsed = parseShardManifest(
+        payload,
+        expectedManifestVersion,
+        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+      );
+      if (!parsed && expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION) {
+        manifestRevisionRejected = true;
+        if (!earlyPayloadRejected) {
+          try {
+            const response = await fetch(manifestRequestPath(manifestPath), {
+              cache: "no-store",
+            });
+            if (response.ok) {
+              parsed = parseShardManifest(
+                await response.json(),
+                expectedManifestVersion,
+                MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+              );
+            } else {
+              discardBody(response);
+            }
+          } catch {
+            parsed = null;
+          }
+        }
+      }
       if (parsed) void offlineCache.set(manifestOfflineKey, parsed);
+      if (parsed) manifestRevisionRejected = false;
       return parsed;
     } catch {
       const stored = await offlineCache.get<unknown>(manifestOfflineKey);
-      return parseShardManifest(stored);
+      const parsed = parseShardManifest(
+        stored,
+        expectedManifestVersion,
+        MAP_DATA_REVISION === "local" ? undefined : MAP_DATA_REVISION,
+      );
+      if (
+        stored !== null &&
+        stored !== undefined &&
+        !parsed &&
+        expectedManifestVersion === SPATIAL_SHARD_MANIFEST_VERSION
+      ) {
+        manifestRevisionRejected = true;
+      }
+      return parsed;
     }
   }
 
@@ -277,30 +424,43 @@ export function createSlimShardLoader(
     return manifestPromise;
   }
 
-  function loadWholeIndex(): Promise<SlimVenue[]> {
-    return loadSlimVenuesFromPathResult(slimVenuesPath, options).then((result) => {
+  function loadWholeIndexResult(): Promise<SlimShardLoadResult> {
+    const wholeIndexPath = shardRequestPath(slimVenuesPath);
+    const wholeIndexOptions =
+      MAP_DATA_REVISION === "local"
+        ? options
+        : { ...options, expectedRevision: MAP_DATA_REVISION };
+    return loadSlimVenuesFromPathResult(wholeIndexPath, wholeIndexOptions).then((result) => {
       if (result.status === "ready") wholeIndexLoaded = true;
-      return result.rows;
+      return result;
     });
   }
 
-  // Fetch one shard body once; a failure (no offline mirror) resolves to [] and
-  // is NOT memoized as loaded, so a later call retries it.
-  function loadShard(url: string): Promise<SlimVenue[]> {
+  function loadWholeIndex(): Promise<SlimVenue[]> {
+    return loadWholeIndexResult().then((result) => result.rows);
+  }
+
+  // Fetch one shard body once; a failure (no offline mirror) is NOT memoized as
+  // loaded, so a later call retries it.
+  function loadShard(url: string): Promise<SlimShardLoadResult> {
     const existing = shardPromises.get(url);
     if (existing) return existing;
-    const p = loadSlimVenuesFromPathResult(url, options)
+    const shardOptions =
+      MAP_DATA_REVISION === "local"
+        ? options
+        : { ...options, expectedRevision: MAP_DATA_REVISION };
+    const p = loadSlimVenuesFromPathResult(shardRequestPath(url), shardOptions)
       .then((result) => {
         if (result.status === "ready") {
           loadedUrls.add(url);
         } else {
           shardPromises.delete(url);
         }
-        return result.rows;
+        return result;
       })
       .catch(() => {
         shardPromises.delete(url); // allow retry
-        return [] as SlimVenue[];
+        return { rows: [], status: "unavailable" as const };
       });
     shardPromises.set(url, p);
     return p;
@@ -308,6 +468,33 @@ export function createSlimShardLoader(
 
   function coreEntry(m: ShardManifest): ShardEntry | undefined {
     return m.shards.find((s) => s.core);
+  }
+
+  async function initialResult(bounds: MapBounds): Promise<SlimShardLoadResult> {
+    // Keep first visit on the compatibility path. The spatial manifest and
+    // cell requests are useful after pins appear, but they must not tax the
+    // first pin-ready measurement.
+    if (
+      options.deferSpatial &&
+      manifestPath === "/data/venues_slim.manifest.json"
+    ) {
+      return loadShard(guessedCoreShardUrl(slimVenuesPath));
+    }
+    const m = await manifest();
+    if (!m) {
+      return manifestRevisionRejected
+        ? { rows: [], status: "unavailable" }
+        : loadWholeIndexResult();
+    }
+    const needed = shardsForBounds(m, bounds, 0, true).filter(
+      (s) => !loadedUrls.has(s.url),
+    );
+    if (needed.length === 0) return { rows: [], status: "ready" };
+    const results = await Promise.all(needed.map((s) => loadShard(s.url)));
+    return {
+      rows: results.flatMap((result) => result.rows),
+      status: results.every((result) => result.status === "ready") ? "ready" : "unavailable",
+    };
   }
 
   return {
@@ -320,44 +507,66 @@ export function createSlimShardLoader(
       // request its answer discards. loadShard never rejects.
       const guessedRows = loadShard(guessedCoreUrl);
       const m = await manifest();
-      if (!m) return loadWholeIndex();
+      if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const core = coreEntry(m);
-      if (!core) return loadWholeIndex();
+      if (!core) return manifestRevisionRejected ? [] : loadWholeIndex();
       if (core.url === guessedCoreUrl) {
-        const rows = await guessedRows;
-        if (rows.length > 0) return rows;
+        const result = await guessedRows;
+        if (result.rows.length > 0) return result.rows;
       }
-      return loadShard(core.url);
+      return (await loadShard(core.url)).rows;
     },
 
-    async inBounds(bounds: MapBounds): Promise<SlimVenue[]> {
+    async inBounds(bounds: MapBounds, ring = 0): Promise<SlimVenue[]> {
       const m = await manifest();
       if (!m) return [];
-      const needed = shardsForBounds(m, bounds).filter((s) => !loadedUrls.has(s.url));
+      const needed = shardsForBounds(m, bounds, ring, true).filter((s) => !loadedUrls.has(s.url));
       if (needed.length === 0) return [];
       const results = await Promise.all(needed.map((s) => loadShard(s.url)));
-      return results.flat();
+      return results.flatMap((result) => result.rows);
     },
 
-    async nearPoint(lat: number, lng: number): Promise<SlimVenue[]> {
+    async initial(bounds: MapBounds): Promise<SlimVenue[]> {
+      return (await initialResult(bounds)).rows;
+    },
+
+    initialResult,
+
+    async nearPoint(lat: number, lng: number): Promise<SlimShardLoadResult> {
       const m = await manifest();
-      if (!m) return [];
-      const shard = shardForPoint(m, lat, lng);
-      if (!shard) return [];
-      if (loadedUrls.has(shard.url)) return [];
-      let rows = await loadShard(shard.url);
-      if (rows.length === 0 && !loadedUrls.has(shard.url)) {
-        // One honest retry before giving up (transient cellar signal).
-        rows = await loadShard(shard.url);
+      if (!m) {
+        return {
+          rows: [],
+          status: wholeIndexLoaded && !manifestRevisionRejected ? "ready" : "unavailable",
+        };
       }
-      return rows;
+      const needed = shardsForBounds(
+        m,
+        boundsForRadius(lat, lng, WALKABLE_RADIUS_KM),
+        0,
+        true,
+      ).filter((s) => s.partition !== "kind" && !loadedUrls.has(s.url));
+      if (needed.length === 0) return { rows: [], status: "ready" };
+      let results = await Promise.all(needed.map((s) => loadShard(s.url)));
+      const unavailable = needed.filter((s, index) => results[index].status === "unavailable");
+      if (unavailable.length > 0) {
+        const retries = await Promise.all(unavailable.map((s) => loadShard(s.url)));
+        const retryByUrl = new Map(unavailable.map((s, index) => [s.url, retries[index]]));
+        results = results.map((result, index) => retryByUrl.get(needed[index].url) ?? result);
+      }
+      return {
+        rows: results.flatMap((result) => result.rows),
+        status: results.every((result) => result.status === "ready")
+          ? "ready"
+          : "unavailable",
+      };
     },
 
     async all(): Promise<SlimVenue[]> {
       const m = await manifest();
-      if (!m) return loadWholeIndex();
+      if (!m) return manifestRevisionRejected ? [] : loadWholeIndex();
       const results = await Promise.all(m.shards.map((s) => loadShard(s.url)));
-      return results.flat();
+      return results.flatMap((result) => result.rows);
     },
 
     coverageComplete(bounds: MapBounds): boolean | null {

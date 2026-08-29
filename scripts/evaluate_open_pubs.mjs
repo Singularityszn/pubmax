@@ -153,9 +153,14 @@ function loadIdentityCandidates(args) {
       console.error(`Curated slim not found: ${args.slim}`);
       process.exit(1);
     }
-    const slim = JSON.parse(readFileSync(args.slim, "utf8"));
-    if (!Array.isArray(slim)) {
-      console.error(`Expected venues_slim array at ${args.slim}`);
+    const payload = JSON.parse(readFileSync(args.slim, "utf8"));
+    const slim = Array.isArray(payload)
+      ? payload
+      : Array.isArray(payload?.rows)
+        ? payload.rows
+        : [];
+    if (slim.length === 0) {
+      console.error(`Expected non-empty venues_slim payload at ${args.slim}`);
       process.exit(1);
     }
     for (const venue of slim) {

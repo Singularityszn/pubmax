@@ -104,3 +104,31 @@ export function slimVenueToPin(slim: SlimVenue): Venue {
 export function slimVenuesToPins(slim: SlimVenue[]): Venue[] {
   return slim.map(slimVenueToPin);
 }
+
+/** Re-compact resident pins for the optional last-view resume snapshot. */
+export function pinToSlimVenue(pin: Venue): SlimVenue {
+  return {
+    id: pin.id,
+    name: pin.name,
+    lat: pin.latitude,
+    lng: pin.longitude,
+    cheapestPrice: pin.cheapestPrice,
+    borough: pin.primaryBorough,
+    ...(pin.zone !== undefined ? { zone: pin.zone } : {}),
+    ...(pin.filterHints ? { filterHints: pin.filterHints } : {}),
+    ...(pin.kind !== undefined ? { kind: pin.kind } : {}),
+    ...(pin.priceBand !== undefined ? { priceBand: pin.priceBand } : {}),
+    ...(pin.anchorLabel !== undefined ? { anchorLabel: pin.anchorLabel } : {}),
+    ...(pin.anchorCourse !== undefined ? { anchorCourse: pin.anchorCourse } : {}),
+    ...(pin.anchorObservedAt !== undefined
+      ? { anchorObservedAt: pin.anchorObservedAt }
+      : {}),
+    ...(pin.anchorSourceUrl !== undefined
+      ? { anchorSourceUrl: pin.anchorSourceUrl }
+      : {}),
+  };
+}
+
+export function pinsToSlimVenues(pins: Venue[]): SlimVenue[] {
+  return pins.map(pinToSlimVenue);
+}

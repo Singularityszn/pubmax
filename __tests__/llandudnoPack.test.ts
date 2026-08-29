@@ -14,6 +14,7 @@ import {
   venueIdMatchesCity,
 } from "@/lib/cityVenueIds";
 import { parseUkPlaceIndex } from "@/lib/ukPlaceSearch";
+import { rowsFromSlimPayload } from "@/lib/slimPayload";
 import { CITIES as CITY_OSM_DEFINITIONS } from "../scripts/fetch_city_osm_pubs.mjs";
 
 const ROOT = process.cwd();
@@ -36,12 +37,14 @@ type SeedPub = {
   locality: string | null;
 };
 
-const SLIM: SlimRow[] = JSON.parse(
-  readFileSync(
-    join(ROOT, "public", "data", "cities", "llandudno", "venues_slim.json"),
-    "utf8",
+const SLIM = (rowsFromSlimPayload(
+  JSON.parse(
+    readFileSync(
+      join(ROOT, "public", "data", "cities", "llandudno", "venues_slim.json"),
+      "utf8",
+    ),
   ),
-);
+) ?? []) as SlimRow[];
 
 const SEED: { pubs: SeedPub[]; promotedFrom?: string; fetchedAt?: string } =
   JSON.parse(

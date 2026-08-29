@@ -98,9 +98,9 @@ describe("landing Social label follows the friends launch", () => {
     );
   }
 
-  it("keeps Social out of nav and footer while the launch is gated", () => {
+  it("names the gated destination Social preview in nav and footer", () => {
     const labels = socialLinkLabels(false);
-    expect(labels).toHaveLength(0);
+    expect(labels).toEqual(["Social preview", "Social preview"]);
   });
 
   it("names Social in nav and footer once the launch is on", () => {

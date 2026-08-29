@@ -11,7 +11,7 @@ import { randomUUID } from "node:crypto";
 // plan-privacy-boundary.spec.ts, which runs in the default flag-off suite.
 
 test("a host with a valid capability sees the full route when the flag is on", async ({ request }) => {
-  const venues = (await (await request.get("/data/venues_slim.json")).json() as Array<{ id: string; name: string }>).slice(0, 3);
+  const venues = ((await (await request.get("/data/venues_slim.json")).json() as { rows: Array<{ id: string; name: string }> }).rows).slice(0, 3);
   expect(venues.length).toBe(3);
 
   const created = await request.post("/api/plans", {

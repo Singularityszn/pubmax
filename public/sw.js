@@ -14,8 +14,8 @@
  *     Non-GET requests are never intercepted at all.
  *
  * Strategy table:
- *   /data/*.json (slim index, pint dataset, price updates, POIs, heritage)
- *       → cache-first + background revalidate (bounded set, ~static per deploy)
+ *   /data/*.json (slim index, POIs, heritage)
+ *       → stale-while-revalidate (versioned, bounded)
  *   tiles.openfreemap.org + /_next/static/*
  *       → stale-while-revalidate, trimmed FIFO/LRU-ish at MAX_SWR_ENTRIES
  *   navigations
@@ -26,7 +26,7 @@
  */
 
 const WORKER_URL = new URL(self.location.href);
-const VERSION = WORKER_URL.searchParams.get("v") || "dev";
+const VERSION = WORKER_URL.searchParams.get("v")?.trim() || "local";
 const CACHE_POLICY = WORKER_URL.searchParams.get("cache-policy");
 const PRE_FIX_CACHE_POLICIES = new Set(["cache-write-coupled-v1"]);
 
@@ -63,6 +63,8 @@ try {
 // session pulls hundreds of tiles). Cache.keys() returns entries oldest-first,
 // so trimming from the front is a cheap LRU-ish FIFO cap.
 const MAX_SWR_ENTRIES = 200;
+const MAX_TILE_ENTRIES = 150;
+const MAX_DATA_ENTRIES = 350;
 
 const TILE_HOST = "tiles.openfreemap.org";
 const OFFLINE_URL = "/offline.html";
@@ -284,31 +286,119 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Static data JSON: cache-first for most assets, but price_updates must be
-  // network-first so a sourced price refresh is not stuck behind a stale SW cache.
+  // Static data JSON: stale-while-revalidate for versioned-ish indices. Price
+  // updates retain network-first behaviour because their observed-at claim has
+  // a shorter honest window than the map index.
   if (sameOrigin && url.pathname.startsWith("/data/") && url.pathname.endsWith(".json")) {
     if (
       url.pathname.includes("/price_updates/") ||
-      url.pathname.includes("/drink_price_updates/")
+      url.pathname.includes("/drink_price_updates/") ||
+      url.pathname.includes("/food_price_updates/")
     ) {
       event.respondWith(networkFirstWithCache(event, request));
       return;
     }
-    event.respondWith(cacheFirstWithRevalidate(event, request));
+    event.respondWith(
+      staleWhileRevalidate(
+        event,
+        request,
+        DATA_CACHE,
+        MAX_DATA_ENTRIES,
+        () => true,
+        false,
+        () => migrateCacheFamily(DATA_CACHE_FAMILY),
+      ),
+    );
     return;
   }
 
   // Map tiles / glyphs / sprites + Next's hashed static assets:
   // stale-while-revalidate with a capped cache.
   if (url.hostname === TILE_HOST || (sameOrigin && url.pathname.startsWith("/_next/static/"))) {
-    event.respondWith(staleWhileRevalidate(event, request));
+    const isTile = url.hostname === TILE_HOST;
+    event.respondWith(
+      staleWhileRevalidate(
+        event,
+        request,
+        SWR_CACHE,
+        isTile ? MAX_TILE_ENTRIES : MAX_SWR_ENTRIES,
+        isTile ? (candidate) => new URL(candidate.url).hostname === TILE_HOST :
+          (candidate) => new URL(candidate.url).pathname.startsWith("/_next/static/"),
+      ),
+    );
     return;
   }
   // Everything else: untouched.
 });
 
 function isCacheable(response) {
-  return Boolean(response && response.ok && (response.type === "basic" || response.type === "cors"));
+  if (!response || !response.ok || (response.type !== "basic" && response.type !== "cors")) {
+    return false;
+  }
+  const cacheControl = response.headers?.get?.("cache-control")?.toLowerCase() || "";
+  return !cacheControl.split(",").some((directive) => {
+    const [name, value] = directive.trim().split("=", 2);
+    return (
+      ["no-store", "no-cache", "private", "must-revalidate", "proxy-revalidate"].includes(name) ||
+      (["max-age", "s-maxage"].includes(name) && value?.trim() === "0")
+    );
+  });
+}
+
+function requestedVenueRevision(request) {
+  const revision = new URL(request.url).searchParams.get("v")?.trim();
+  return revision || (VERSION === "local" ? null : VERSION);
+}
+
+function expectedVenueManifestVersion(pathname) {
+  if (pathname === "/data/venues_slim.manifest.json") return 2;
+  if (/^\/data\/cities\/[^/]+\/venues_slim\.manifest\.json$/.test(pathname)) return 1;
+  return null;
+}
+
+function isVenueShardPath(pathname) {
+  return (
+    pathname === "/data/venues_slim.core.json" ||
+    /^\/data\/venues_slim\.cell\..+\.json$/.test(pathname) ||
+    /^\/data\/venues_slim\.(?!manifest|core|cell\.).+\.json$/.test(pathname) ||
+    /^\/data\/cities\/[^/]+\/venues_slim\.core\.json$/.test(pathname)
+  );
+}
+
+async function isCompatibleVenueManifest(request, response, options = {}) {
+  const expectedVersion = expectedVenueManifestVersion(new URL(request.url).pathname);
+  if (expectedVersion === null || !response) return true;
+  const requestRevision = new URL(request.url).searchParams.get("v");
+  if (!options.network && requestRevision && requestRevision !== VERSION) return false;
+  try {
+    const manifest = await response.clone().json();
+    const expectedRevision = requestedVenueRevision(request);
+    return (
+      manifest?.version === expectedVersion &&
+      Array.isArray(manifest.shards) &&
+      (expectedRevision === null || manifest.revision === expectedRevision)
+    );
+  } catch {
+    return false;
+  }
+}
+
+async function isCompatibleVenueShard(request, response, options = {}) {
+  const requestUrl = new URL(request.url);
+  if (!isVenueShardPath(requestUrl.pathname) || !response) return true;
+  const requestRevision = requestUrl.searchParams.get("v");
+  if (!options.network && requestRevision && requestRevision !== VERSION) return false;
+  if (!options.network && !requestRevision && VERSION !== "local") return false;
+  try {
+    const payload = await response.clone().json();
+    const expectedRevision = requestedVenueRevision(request);
+    return (
+      (expectedRevision === null || payload?.revision === expectedRevision) &&
+      Array.isArray(payload.rows)
+    );
+  } catch {
+    return false;
+  }
 }
 
 // Cache Storage is progressive enhancement. Safari may reject writes under
@@ -316,6 +406,7 @@ function isCacheable(response) {
 // versioned cache sets). A valid network response must still reach its caller:
 // cache.put() failure is never a network failure.
 async function cachePutBestEffort(cache, request, response) {
+  if (!isCacheable(response)) return false;
   try {
     await cache.put(request, response.clone());
     return true;
@@ -366,36 +457,6 @@ async function handleNavigation(event, request, url) {
   }
 }
 
-async function cacheFirstWithRevalidate(event, request) {
-  const cache = await caches.open(DATA_CACHE);
-  const cached = await cache.match(request, {
-    ignoreSearch: true,
-  });
-  const network = fetch(request).catch(() => undefined);
-  const update = network.then(async (response) => {
-    if (isCacheable(response)) {
-      const stored = await cachePutBestEffort(cache, request, response);
-      if (stored) await migrateCacheFamily(DATA_CACHE_FAMILY);
-    }
-  });
-
-  if (cached) {
-    event.waitUntil(update);
-    return cached;
-  }
-  const fresh = await network;
-  event.waitUntil(update);
-  if (fresh) return fresh;
-  const fallback = await matchCacheFamily(DATA_CACHE, request, {
-    ignoreSearch: true,
-  });
-  if (fallback) return fallback;
-  return new Response("[]", {
-    status: 503,
-    headers: { "Content-Type": "application/json" },
-  });
-}
-
 /** Prefer network for freshness-sensitive JSON; fall back to cache when offline. */
 async function networkFirstWithCache(event, request) {
   const cache = await caches.open(DATA_CACHE);
@@ -421,36 +482,63 @@ async function networkFirstWithCache(event, request) {
   }
 }
 
-async function staleWhileRevalidate(event, request) {
-  const cache = await caches.open(SWR_CACHE);
-  const cached = await matchCacheFamily(SWR_CACHE, request);
-  const network = fetch(request).catch(() => undefined);
+async function staleWhileRevalidate(
+  event,
+  request,
+  cacheName = SWR_CACHE,
+  maxEntries = MAX_SWR_ENTRIES,
+  belongsToCache = () => true,
+  preferNetworkForLegacy = false,
+  afterStore = async () => undefined,
+) {
+  const cache = await caches.open(cacheName);
+  const current = await cache.match(request);
+  const cachedCandidate = current ?? await matchCacheFamily(cacheName, request);
+  const cachedManifest = await isCompatibleVenueManifest(request, cachedCandidate);
+  const cachedShard = await isCompatibleVenueShard(request, cachedCandidate);
+  const cached = cachedManifest && cachedShard ? cachedCandidate : undefined;
+  const network = fetch(request)
+    .then(async (response) =>
+      (await isCompatibleVenueManifest(request, response, { network: true })) &&
+      (await isCompatibleVenueShard(request, response, { network: true }))
+        ? response
+        : undefined,
+    )
+    .catch(() => undefined);
   const update = network.then(async (response) => {
     if (!isCacheable(response)) return;
     const stored = await cachePutBestEffort(cache, request, response);
     if (!stored) return;
+    await afterStore();
     try {
-      await trimCache(SWR_CACHE, MAX_SWR_ENTRIES);
+      await trimCache(cacheName, maxEntries, belongsToCache);
     } catch {
       // Trimming is best-effort for the same reason as the write.
     }
   });
 
-  if (cached) {
+  if (cached && (!preferNetworkForLegacy || current)) {
     event.waitUntil(update);
     return cached;
   }
   const fresh = await network;
   event.waitUntil(update);
   if (fresh) return fresh;
+  if (cached) return cached;
   return Response.error();
 }
 
 // FIFO trim: Cache.keys() yields insertion order, so deleting from the front
 // drops the oldest-written entries first.
-async function trimCache(cacheName, maxEntries) {
+async function trimCache(cacheName, maxEntries, belongsToCache = () => true) {
   const cache = await caches.open(cacheName);
-  const keys = await cache.keys();
+  const keys = (await cache.keys()).filter((key) => {
+    try {
+      return belongsToCache(key);
+    } catch {
+      return false;
+    }
+  });
   if (keys.length <= maxEntries) return;
   await Promise.all(keys.slice(0, keys.length - maxEntries).map((key) => cache.delete(key)));
 }

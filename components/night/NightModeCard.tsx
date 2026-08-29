@@ -102,6 +102,7 @@ import {
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
+import { loadSlimVenues } from "@/lib/venuesSlim";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 import type { VenueKind } from "@/lib/venues";
 import "./nightMode.css";
@@ -611,10 +612,9 @@ function NightModeSheet({
   // ships and caches (same file the plan composer reads).
   useEffect(() => {
     let active = true;
-    fetch("/data/venues_slim.json")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((rows: VenueCoord[] | null) => {
-        if (active && Array.isArray(rows)) setCoords(rows);
+    loadSlimVenues()
+      .then((rows) => {
+        if (active) setCoords(rows);
       })
       .catch(() => undefined);
     return () => {

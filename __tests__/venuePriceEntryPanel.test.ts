@@ -6,6 +6,8 @@ import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPane
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { SUBMITTABLE_DRINK_CATEGORIES } from "@/lib/communityPrice";
 
+const NOW = Date.now();
+
 const authState = vi.hoisted(() => ({
   current: {} as Record<string, unknown>,
 }));
@@ -24,7 +26,7 @@ const communityPrices = {
           venueId: "venue-fixture",
           signalKey: "character",
           signalValue: "rough",
-          submittedAt: Date.parse("2026-07-29T20:00:00Z"),
+          submittedAt: NOW,
           source: "community",
           corroborations: 1,
         },
