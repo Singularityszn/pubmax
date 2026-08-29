@@ -1,13 +1,23 @@
+import { publicApiError } from "@/lib/apiError";
 import { socialConnectionStore } from "@/lib/socialConnectionStore";
 import { isSocialOAuthProvider } from "@/lib/socialConnections";
 import { completeSocialOAuth } from "@/lib/socialOAuth";
 import { providerCapability } from "@/lib/socialProviderCapabilities";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { siteOrigin } from "@/lib/siteUrl";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 assertServerEnv();
 
 export async function GET(request: Request, { params }: { params: Promise<{ provider: string }> }): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const provider = (await params).provider;
   const requestUrl = new URL(request.url);
   const redirectOrigin = siteOrigin(request.url);

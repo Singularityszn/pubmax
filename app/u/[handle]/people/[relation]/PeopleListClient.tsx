@@ -23,6 +23,7 @@ import { normalizeHandle } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 
 import "@/components/social/peopleDirectory.css";
 
@@ -120,7 +121,9 @@ export default function PeopleListClient({
 
   const offline = typeof window !== "undefined" && window.navigator?.onLine === false;
 
-  if (!socialFriendsLaunchEnabled) return null;
+  if (!socialFriendsLaunchEnabled) {
+    return <SocialAccessBoundary state="preview" friendsLaunchEnabled={false} />;
+  }
 
   return (
     <section className="peopleDir" aria-labelledby="people-list-title">

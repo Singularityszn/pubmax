@@ -14,6 +14,7 @@ import {
   type SocialProvider,
 } from "@/lib/socialConnections";
 import { type SocialProviderCapabilities } from "@/lib/socialProviderCapabilities";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 type LoadState = "loading" | "ready" | "unavailable";
 
@@ -58,6 +59,7 @@ export function SocialConnectionActions({
  * on /u/[handle] with nothing in between.
  */
 export default function SocialLinksEditor(): React.JSX.Element {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [connections, setConnections] = useState<PublicSocialConnection[]>([]);
   const [providers, setProviders] = useState<Record<SocialProvider, SocialProviderCapabilities>>(
     NO_SOCIAL_PROVIDERS,
@@ -72,6 +74,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
   const [loadNonce, setLoadNonce] = useState(0);
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     const controller = new AbortController();
     async function load() {
       const response = await authedActionFetch("/api/social-connections", {
@@ -93,11 +96,11 @@ export default function SocialLinksEditor(): React.JSX.Element {
     }
     void load();
     return () => controller.abort();
-  }, [loadNonce]);
+  }, [loadNonce, socialFriendsLaunchEnabled]);
 
   async function addLink(event: FormEvent) {
     event.preventDefault();
-    if (busy || !value.trim() || !providers[provider].manual_link) return;
+    if (!socialFriendsLaunchEnabled || busy || !value.trim() || !providers[provider].manual_link) return;
     setBusy(true);
     setNotice("");
     const response = await authedActionFetch(`/api/social-connections/${provider}`, {
@@ -117,7 +120,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
   }
 
   async function connectOAuth(target: SocialProvider) {
-    if (busy) return;
+    if (!socialFriendsLaunchEnabled || busy) return;
     setBusy(true);
     setNotice("");
     const response = await authedActionFetch(`/api/social-connections/${target}`, {
@@ -138,7 +141,7 @@ export default function SocialLinksEditor(): React.JSX.Element {
   }
 
   async function removeLink(target: SocialProvider) {
-    if (busy) return;
+    if (!socialFriendsLaunchEnabled || busy) return;
     setBusy(true);
     setNotice("");
     const response = await authedActionFetch(`/api/social-connections/${target}`, {
@@ -152,6 +155,8 @@ export default function SocialLinksEditor(): React.JSX.Element {
     }
     setBusy(false);
   }
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   const linked = connections.filter((connection) => connection.profileUrl);
   const linkedProviders = new Set(linked.map((connection) => connection.provider));

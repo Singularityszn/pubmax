@@ -13,12 +13,21 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { siteOrigin } from "@/lib/siteUrl";
 import { clientIp, hashIp } from "@/lib/supabase";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 assertServerEnv();
 
 type Context = { params: Promise<{ provider: string }> };
 
 export async function POST(request: Request, context: Context): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to connect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;
@@ -71,6 +80,9 @@ export async function POST(request: Request, context: Context): Promise<Response
 }
 
 export async function DELETE(request: Request, context: Context): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const ownerId = await callerUserId(request);
   if (!ownerId) return publicApiError("Sign in to disconnect an account.", "AUTH_REQUIRED", 401);
   const provider = (await context.params).provider;

@@ -327,7 +327,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "nobody owns this handle" and "we could not find out" are two answers and
   // only the first one may offer a stranger the claim (`handleIsAdoptable`).
   const [publicRead, setPublicRead] = useState<PublicProfileReadState>("asking");
-  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [counts, setCounts] = useState<FollowCounts | null>(null);
   const [following, setFollowing] = useState(false);
   // The mirror edge. Without it the header cannot tell "Mates" from
   // "Following", which is the only fact that says a lot formed.
@@ -619,7 +619,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         profile?: PublicProfile | null;
         status?: string;
         socialLinks?: PublicSocialLink[];
-        counts?: FollowCounts;
+        counts?: FollowCounts | null;
         viewerFollowing?: boolean;
         followsViewer?: boolean;
       }>(
@@ -630,12 +630,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             setStored(null);
             setSocialLinks([]);
             setState("gone");
-            if (body.counts) setCounts(body.counts);
+            setCounts(body.counts ?? null);
             return;
           }
           setStored(body.profile ?? null);
           setSocialLinks(body.socialLinks ?? []);
-          if (body.counts) setCounts(body.counts);
+          setCounts(body.counts ?? null);
           setFollowing(Boolean(body.viewerFollowing));
           setFollowsViewer(Boolean(body.followsViewer));
         },
@@ -947,8 +947,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
               crawls={storyCount}
               memories={stats.memoriesPosted}
               drops={drops}
-              followers={counts.followers}
-              following={counts.following}
+              followers={counts?.followers}
+              following={counts?.following}
               actions={headerActions}
             />
             <p className="profileEmpty">
@@ -981,8 +981,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       crawls={storyCount}
                       memories={stats.memoriesPosted}
                       drops={drops}
-                      followers={counts.followers}
-                      following={counts.following}
+                      followers={counts?.followers}
+                      following={counts?.following}
                       actions={headerActions}
                     />
                   </div>

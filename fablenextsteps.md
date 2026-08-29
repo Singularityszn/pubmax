@@ -240,7 +240,7 @@ Production evidence:
 
 ### 3.6 Social and Open Crews
 
-Status: **BUILT AND GATED**
+Status: **LIVE BY DEFAULT, ROLLBACK-GATED**
 
 - Verified Social access boundary and adult assertion.
 - Social Posts, media, privacy, moderation, interactions, reports, and audit tables.
@@ -303,7 +303,7 @@ Status: **WEB FOUNDATION SHIPPED**
 - Readable literal `PUBMAXX` wordmark at 390px and desktop.
 - One primary landing CTA: Plan tonight together.
 - Secondary Map and Find my pint actions.
-- Mobile tab bar with Now, Map, Out, and You while Social is gated.
+- Mobile tab bar keeps Social visible and names it Social preview during `=0` rollback.
 - Consent notice cleared above phone tab bar.
 - Sitemap, robots, canonical host, OG cards, structured metadata, venue routes, borough routes, drink routes, and Pint Index routes.
 - Published Pint Index archive contract with immutable monthly editions and corrections.
@@ -716,7 +716,7 @@ Done when: first cohort creates measurable Plans, a second participant joins, an
 
 ### Phase 6: Social launch decision
 
-Outcome: launch Social because evidence supports it, or keep it gated without losing core product value.
+Outcome: Social is live by default; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the full emergency rollback.
 
 **Primary files:** `lib/socialLaunch.ts`, `lib/trustedHandoffFlags.server.ts`, `components/nav/MobileTabBar.tsx`, `components/nav/SiteNav.tsx`, `components/social/*`, Social API routes.
 
@@ -848,4 +848,4 @@ The next milestone is not another large feature set. It is this measured result:
 - GitHub protected checks run and pass normally.
 - No new critical error appears during a 24-hour canary.
 
-Once this result holds, continue Social launch evaluation and native store evidence. Until then, improve activation, trust, data supply, and reliability before adding product breadth.
+Once this result holds, continue Social canary evaluation and native store evidence. Until then, improve activation, trust, data supply, and reliability before adding product breadth.

@@ -58,6 +58,7 @@ async function readCard(handle: string): Promise<{
 }
 
 beforeEach(async () => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   authState.userId = "user-1";
   __resetMemoryProfiles();
   __resetMemoryIdentityHandles();
@@ -75,6 +76,18 @@ beforeEach(async () => {
 });
 
 describe("linking a social", () => {
+  it("does not report Social counts or links during rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const card = await readCard("night_person");
+
+    expect(card.socialLinks).toEqual([]);
+    expect(JSON.parse(card.raw)).toMatchObject({
+      counts: null,
+      socialLinks: [],
+    });
+  });
+
   it("adds, publishes on the card, and removes again", async () => {
     expect((await readCard("night_person")).socialLinks).toEqual([]);
 

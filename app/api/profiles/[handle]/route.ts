@@ -135,7 +135,7 @@ export async function GET(
   try {
     const [profile, counts] = await Promise.all([
       profiles.getByHandle(handle),
-      socialEnabled ? follows.counts(handle) : Promise.resolve({ followers: 0, following: 0 }),
+      socialEnabled ? follows.counts(handle) : Promise.resolve(null),
     ]);
     // Only compute follow status for a *different* viewer — a handle never
     // "follows itself", and asking short-circuits to false.
@@ -188,7 +188,7 @@ export async function GET(
       {
         profile: null,
         socialLinks: [],
-        counts: { followers: 0, following: 0 },
+        counts: null,
         viewerFollowing: false,
         followsViewer: false,
       },

@@ -628,18 +628,18 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>Clerk</dt>
             <dd>
-              Product sign-in for Social. Clerk keeps its own session and user
-              ID. PUBMAXX joins that ID to a private product account on our
-              server. It doesn&rsquo;t turn a Clerk session into a Supabase account.
+              Optional sign-in for Clerk controls. Clerk keeps its own session
+              and user ID. PUBMAXX joins that ID to a private product account
+              on our server. It does not provide Social access, and it does not
+              turn a Clerk session into a Supabase account.
             </dd>
           </div>
           <div className="legalRow">
             <dt>Yoti</dt>
             <dd>
-              Optional hosted 18+ age-check provider for a future stronger
-              assurance tier. PUBMAXX does not currently send data to Yoti or
-              receive a result from it. Social access today uses the date of
-              birth you gave at onboarding.
+              No current PUBMAXX access flow. A future stronger assurance tier
+              would need a separate provider review. PUBMAXX does not currently
+              send data to Yoti or receive a result from it.
             </dd>
           </div>
           <div className="legalRow">

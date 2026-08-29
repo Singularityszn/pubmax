@@ -66,8 +66,12 @@ describe("GET /api/profiles/[handle]/following", () => {
 
     const res = await following("ken");
 
-    expect(res.status).toBe(200);
-    expect(await res.json()).toEqual({ following: [] });
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Social is in preview right now.",
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
   });
 
   it("returns enriched rows for handles a profile follows", async () => {

@@ -15,7 +15,13 @@ import { followListEntries } from "@/lib/followListProjection.server";
 import { normalizeHandle } from "@/lib/profiles";
 import { followStore } from "@/lib/followStore";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
+import { publicApiError } from "@/lib/apiError";
 
 assertServerEnv();
 
@@ -24,7 +30,7 @@ export async function GET(
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
-    return jsonNoStore({ followers: [] }, { status: 200 });
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
   }
   const handle = normalizeHandle((await params).handle);
   if (!handle) return jsonNoStore({ followers: [] }, { status: 200 });

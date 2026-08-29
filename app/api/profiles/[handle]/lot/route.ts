@@ -8,10 +8,16 @@
 // otherwise) and the same fail-soft posture: a pure read that MUST never 500.
 
 import { jsonNoStore } from "@/lib/apiResponses";
+import { publicApiError } from "@/lib/apiError";
 import { followStore } from "@/lib/followStore";
 import { normalizeHandle } from "@/lib/profiles";
 import { assertServerEnv } from "@/lib/serverEnv";
-import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 assertServerEnv();
 
@@ -20,7 +26,7 @@ export async function GET(
   { params }: { params: Promise<{ handle: string }> },
 ): Promise<Response> {
   if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
-    return jsonNoStore({ lot: [] }, { status: 200 });
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
   }
   const handle = normalizeHandle((await params).handle);
   if (!handle) return jsonNoStore({ lot: [] }, { status: 200 });
