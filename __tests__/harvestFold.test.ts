@@ -358,6 +358,26 @@ describe("loreNameTownGate", () => {
     ).toBe("town-mismatch");
   });
 
+  it("accepts a comma-separated venue locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion, Clapham has stood since 1700.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("pass");
+  });
+
+  it("does not accept a foreign possessive venue address after a valid locality", () => {
+    expect(
+      loreNameTownGate(
+        "The Red Lion in Clapham has stood since 1700. The Red Lion's current address is Pennsylvania.",
+        "The Red Lion",
+        "Clapham",
+      ),
+    ).toBe("town-mismatch");
+  });
+
   it("does not combine venue and town from separate sentences", () => {
     expect(
       loreNameTownGate(

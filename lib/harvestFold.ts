@@ -288,7 +288,15 @@ function containsExactLocality(haystack: string, locality: string): boolean {
     const before = haystack.slice(0, match.index ?? 0).match(/[a-z0-9]+\s*$/i)?.[0]
       ?.trim()
       .toLowerCase();
-    if (!before || !LOCALITY_NAME_PREFIXES.has(before)) return true;
+    const localitySeparator = match[0].slice(0, -match[1].length).trim();
+    const hasExplicitLocalitySeparator = /^[,()\-–—]+$/.test(localitySeparator);
+    if (
+      !before ||
+      hasExplicitLocalitySeparator ||
+      LOCALITY_NAME_PREFIXES.has(before)
+    ) {
+      return true;
+    }
   }
   return false;
 }
@@ -358,8 +366,14 @@ function containsVenueLocationClaim(
     `(?:is|was|were|has been|had been)\\s+` +
     `(?:(?:located|situated|based)\\s+)?` +
     `\\b(?:in|near|from|at|within)\\b\\s+${locality}\\b`;
+  const possessiveAddressLocation =
+    `['’]s\\s+` +
+    `(?:(?:current|present|former|new|old)\\s+)?address\\s+` +
+    `(?:is|was|lies|sits|located|situated)\\s+` +
+    `(?:(?:now|currently|still)\\s+)?` +
+    `(?:(?:in|near|from|at|within)\\s+)?${locality}\\b`;
   return new RegExp(
-    `${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation}|${secondaryLocation}|${possessiveBranchLocation})`,
+    `${nameBoundary}(?:${direct}|${copula}|${movement}|${venueType}|${nameLocation}|${branchLocation}|${secondaryLocation}|${possessiveBranchLocation}|${possessiveAddressLocation})`,
     "i",
   ).test(sentence);
 }
