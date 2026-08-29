@@ -213,6 +213,8 @@ type ModeratorSocialPost = {
   createdAt: string;
 };
 
+type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
+
 const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
 
@@ -320,6 +322,7 @@ export default function AdminClient() {
   const [reportedCovers, setReportedCovers] = useState<ModeratorProfileCover[]>([]);
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [socialPosts, setSocialPosts] = useState<ModeratorSocialPost[]>([]);
+  const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -454,6 +457,37 @@ export default function AdminClient() {
     [ensureAdminSession, retryWithFreshSession],
   );
 
+  const loadSocialPosts = useCallback(
+    async (authenticatedSession: AdminSessionSubmitOutcome) => {
+      setSocialPostsState("loading");
+      setSocialPosts([]);
+      if (authenticatedSession.status !== "open") {
+        setSocialPostsState("unavailable");
+        return;
+      }
+      try {
+        const response = await retryWithFreshSession(() =>
+          fetch("/api/admin/social-posts", SESSION_FETCH),
+        );
+        if (!response.ok) {
+          discardBody(response);
+          setSocialPostsState("unavailable");
+          return;
+        }
+        const body = (await response.json()) as { posts?: unknown };
+        if (!Array.isArray(body.posts)) {
+          setSocialPostsState("unavailable");
+          return;
+        }
+        setSocialPosts(body.posts as ModeratorSocialPost[]);
+        setSocialPostsState("ready");
+      } catch {
+        setSocialPostsState("unavailable");
+      }
+    },
+    [retryWithFreshSession],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
@@ -464,9 +498,12 @@ export default function AdminClient() {
         setDrops([]);
         setComments([]);
         setSocialPosts([]);
+        setSocialPostsState("unavailable");
         setMessage(adminAlert(session.message));
         return;
       }
+
+      void loadSocialPosts(session);
 
       // Community observations have their own reversible queues. Load them in
       // this pass, but keep their failures isolated from Pint Drops and the
@@ -527,19 +564,6 @@ export default function AdminClient() {
         }
       } catch {
         setComments([]);
-      }
-      // Social posts use the same admin session as every other moderation lane.
-      // Keep this queue best-effort so an unapplied Social migration cannot
-      // hide the other queues from staff.
-      try {
-        const socialRes = await fetch("/api/admin/social-posts", SESSION_FETCH);
-        setSocialPosts(
-          socialRes.ok
-            ? ((await socialRes.json()) as { posts?: ModeratorSocialPost[] }).posts ?? []
-            : [],
-        );
-      } catch {
-        setSocialPosts([]);
       }
       // Load both Visit Report lanes in the same pass: the reported queue and
       // the already-hidden rows (a hide has to stay reversible from here).
@@ -609,12 +633,11 @@ export default function AdminClient() {
     } catch {
       setReportedDrops([]);
       setDrops([]);
-      setSocialPosts([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
       setLoading(false);
     }
-  }, [ensureAdminSession, loadCommunityPriceQueues, venueNames.size]);
+  }, [ensureAdminSession, loadCommunityPriceQueues, loadSocialPosts, venueNames.size]);
 
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
@@ -1429,11 +1452,19 @@ export default function AdminClient() {
           ) : null}
 
           <h2 className="admin-section">Social post moderation</h2>
-          {socialPosts.length === 0 ? (
+          {socialPostsState === "loading" ? (
+            <div className="admin-empty" role="status">
+              Loading Social posts awaiting review…
+            </div>
+          ) : socialPostsState === "unavailable" ? (
+            <div className="admin-empty" role="alert">
+              Social post moderation is unavailable.
+            </div>
+          ) : socialPosts.length === 0 && socialPostsState === "ready" ? (
             <div className="admin-empty">
               <strong>No Social posts awaiting review</strong>
             </div>
-          ) : (
+          ) : socialPostsState === "ready" ? (
             <div className="admin-list">
               {socialPosts.map((post) => (
                 <article className="admin-card" key={post.postId}>
@@ -1442,6 +1473,17 @@ export default function AdminClient() {
                     <span className="admin-report">{post.staffDisplayName}</span>
                   </div>
                   <p className="admin-note">{post.moderationClaim}</p>
+                  {post.mediaId ? (
+                    <div className="admin-photos">
+                      <Image
+                        src={`/api/admin/social-posts/media/${post.mediaId}`}
+                        alt={`Photo attached to Social post from ${post.staffDisplayName}`}
+                        width={160}
+                        height={160}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
                   <div className="admin-meta">
                     <span>Queued: {new Date(post.createdAt).toLocaleString()}</span>
                   </div>

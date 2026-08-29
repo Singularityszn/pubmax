@@ -129,6 +129,7 @@ export type SocialPostConsentStore = {
   heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
   moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
   heldQueueForAdmin(limit: number): Promise<SocialPostHeldItem[]>;
+  adminMediaObjectKey(mediaId: string): Promise<string | null>;
   moderateHeldForAdmin(postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
 };
 
@@ -264,6 +265,13 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       return rows(await rpc("read_social_post_moderation_queue_admin", {
         p_limit: limit,
       })).map(heldItemFromRow);
+    },
+    async adminMediaObjectKey(mediaId) {
+      const result = rows(await rpc("read_social_post_media_admin", {
+        p_media_id: mediaId,
+      }));
+      if (result.length === 0) return null;
+      return typeof result[0]?.object_key === "string" ? result[0].object_key : null;
     },
     async moderateHeldForAdmin(postId, mediaId, action) {
       const result = await rpc("moderate_social_post_admin", {

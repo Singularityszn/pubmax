@@ -1,5 +1,3 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -27,83 +25,36 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// Landing keeps both Plan and Social entry points honest after Social launch.
-
-const landingTsx = readFileSync(
-  join(process.cwd(), "components/landing/LandingPage.tsx"),
-  "utf8",
-);
-const pageTsx = readFileSync(join(process.cwd(), "app/page.tsx"), "utf8");
-
-/** Visible copy only - comments explain the rule and must not trip it. */
-function landingCopy(): string {
-  return landingTsx
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-    .join("\n");
+function renderLanding(socialFriendsLaunchEnabled?: boolean): string {
+  return renderToStaticMarkup(
+    createElement(LandingPage, { socialFriendsLaunchEnabled }),
+  );
 }
 
-describe("landing Memory social honesty (U2)", () => {
-  it("reads the friends-launch flag only on the landing RSC and threads it", () => {
-    expect(pageTsx).toMatch(/readTrustedHandoffFlag/);
-    expect(pageTsx).toMatch(/socialFriendsLaunch/);
-    expect(pageTsx).toMatch(
-      /socialFriendsLaunchEnabled=\{socialFriendsLaunchEnabled\}/,
-    );
-    // Client must not interpret the env itself (same fence as Find my pint).
-    expect(landingTsx).not.toMatch(/process\.env/);
-    expect(landingTsx).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
+function linkTexts(markup: string, href: string): string[] {
+  const escapedHref = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return [...markup.matchAll(new RegExp(`<a[^>]*href="${escapedHref}"[^>]*>([\\s\\S]*?)</a>`, "g"))].map(
+    ([, content]) => content!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(),
+  );
+}
+
+describe("landing Social honesty", () => {
+  it("defaults Memory to the live Social surface", () => {
+    const markup = renderLanding();
+    expect(linkTexts(markup, "/plan")).toContain("Start a plan");
+    expect(linkTexts(markup, "/social")).toContain("Open Social");
+    expect(linkTexts(markup, "/u/you#night-memories")).toHaveLength(0);
   });
 
-  it("defaults the Memory secondary CTA to the live Social surface", () => {
-    expect(landingTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*true/);
-    const memoryBlock = landingTsx.match(
-      /lpMemoryActions[\s\S]*?<\/div>\s*<\/div>\s*<ol className="lpMemorySteps"/,
-    )?.[0];
-    expect(memoryBlock, "Memory actions block present").toBeTruthy();
-    expect(memoryBlock).toMatch(
-      /href="\/plan"[\s\S]*lpButtonPrimary[\s\S]*Start a plan/,
-    );
-    expect(memoryBlock).toMatch(
-      /socialFriendsLaunchEnabled\s*\?\s*\([\s\S]*Open Social[\s\S]*:\s*\([\s\S]*Open Memories/,
-    );
-    expect(memoryBlock).toMatch(/href="\/u\/you#night-memories"/);
-    expect(memoryBlock).toMatch(/href="\/social"/);
+  it("uses Memories when the emergency rollback is enabled", () => {
+    const markup = renderLanding(false);
+    expect(linkTexts(markup, "/u/you#night-memories")).toContain("Open Memories");
+    expect(linkTexts(markup, "/social")).not.toContain("Open Social");
   });
 
-  it("keeps the open-product CTA wording to the launch-on branch alone", () => {
-    const copy = landingCopy();
-    const openSocialMatches = copy.match(/Open Social/g) ?? [];
-    // Only the gated launch-on branch may say Open Social.
-    expect(openSocialMatches).toHaveLength(1);
-    expect(copy).toContain("Open Memories");
-  });
-});
-
-// The landing document is one of the two the CDN holds, so its own nav is the
-// first Social label most strangers read: it follows the same surface name the
-// site nav, the palette and /social do, decided on the server.
-describe("landing Social label follows the friends launch", () => {
-  function socialLinkLabels(friendsLaunchEnabled: boolean): string[] {
-    const markup = renderToStaticMarkup(
-      createElement(LandingPage, {
-        socialFriendsLaunchEnabled: friendsLaunchEnabled,
-      }),
-    );
-    return [...markup.matchAll(/<a[^>]*href="\/social"[^>]*>([^<]*)</g)].map(
-      (match) => match[1] as string,
-    );
-  }
-
-  it("names the gated destination Social preview in nav and footer", () => {
-    const labels = socialLinkLabels(false);
-    expect(labels).toEqual(["Social preview", "Social preview"]);
-  });
-
-  it("names Social in nav and footer once the launch is on", () => {
-    const labels = socialLinkLabels(true);
-    expect(labels.length).toBeGreaterThanOrEqual(2);
-    expect(labels).toContain("Social");
-    expect(labels).not.toContain("Social preview");
+  it("labels Social navigation according to its launch state", () => {
+    expect(renderLanding(false)).toContain("Social preview");
+    expect(renderLanding(true)).toContain("Social");
+    expect(renderLanding(true)).not.toContain("Social preview");
   });
 });

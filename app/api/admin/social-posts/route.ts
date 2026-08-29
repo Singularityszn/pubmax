@@ -10,7 +10,7 @@ function json(body: unknown, status = 200): Response { return Response.json(body
 export async function GET(request: Request): Promise<Response> {
   if (!isModerator(request)) return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } });
   try { return json({ posts: await socialPostConsentStore.heldQueueForAdmin(50) }); }
-  catch { return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } }); }
+  catch { return publicApiError("Social post moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } }); }
 }
 export async function POST(request: Request): Promise<Response> {
   const limiterKey = `admin-social-posts:${hashIp(clientIp(request))}`;

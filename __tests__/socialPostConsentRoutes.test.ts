@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
+  adminQueueThrows: false,
 }));
 
 vi.mock("@/lib/socialAccessServer", () => ({
@@ -39,7 +40,14 @@ vi.mock("@/lib/socialPostConsentStore", () => {
       moderateHeld: async (...args: unknown[]) => {
         state.calls.push({ name: "moderateHeld", args });
       },
-      heldQueueForAdmin: async () => [],
+      heldQueueForAdmin: async () => {
+        if (state.adminQueueThrows) throw new Error("migration missing");
+        return [];
+      },
+      adminMediaObjectKey: async (...args: unknown[]) => {
+        state.calls.push({ name: "adminMediaObjectKey", args });
+        return null;
+      },
       moderateHeldForAdmin: async (...args: unknown[]) => {
         state.calls.push({ name: "moderateHeldForAdmin", args });
       },
@@ -52,12 +60,15 @@ vi.mock("@/lib/socialPostVenue.server", () => ({
 
 import { GET as tags, POST as act } from "@/app/api/social/tags/route";
 import { GET as outbox } from "@/app/api/social/outbox/route";
-import { POST as moderate } from "@/app/api/admin/social-posts/route";
+import { GET as readAdminQueue, POST as moderate } from "@/app/api/admin/social-posts/route";
 
 const proposalId = "11111111-1111-4111-8111-111111111111";
 const postId = "22222222-2222-4222-8222-222222222222";
 
-beforeEach(() => { state.calls = []; });
+beforeEach(() => {
+  state.calls = [];
+  state.adminQueueThrows = false;
+});
 
 describe("Social consent API contracts", () => {
   it("passes bounded lane pages and owner pages to stable actor stores", async () => {
@@ -133,6 +144,17 @@ describe("Social consent API contracts", () => {
         args: [postId, null, "hide"],
       },
     ]);
+  });
+
+  it("reports an unavailable admin queue instead of an empty queue", async () => {
+    state.adminQueueThrows = true;
+    const response = await readAdminQueue(
+      new Request("http://localhost/api/admin/social-posts", {
+        headers: { "x-admin-token": "admin-token" },
+      }),
+    );
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
   });
 
   it("rejects UUID-shaped punctuation before tag storage", async () => {
