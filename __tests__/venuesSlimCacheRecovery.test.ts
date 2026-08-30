@@ -21,6 +21,17 @@ const ROW = {
   borough: "Camden",
 };
 
+const FALLBACK_ROW = {
+  ...ROW,
+  id: "venue-cache-fallback",
+  name: "Fallback Arms",
+};
+
+const INVALID_ROW = {
+  ...ROW,
+  id: "",
+};
+
 afterEach(() => {
   vi.unstubAllGlobals();
 });
@@ -33,6 +44,84 @@ beforeEach(() => {
 });
 
 describe("slim venue cache recovery", () => {
+  it("retries a current-revision payload when normalization drops a row", async () => {
+    const path = "/data/cache-recovery-incomplete.json";
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ revision: "target", rows: [ROW, INVALID_ROW] }),
+      })
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ revision: "target", rows: [ROW] }),
+      });
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
+    ).resolves.toEqual({ rows: [ROW], status: "ready" });
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path);
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(offlineSet).toHaveBeenCalledWith(
+      `venues_slim:v2:${path}`,
+      { revision: "target", rows: [ROW] },
+    );
+  });
+
+  it("uses a complete current-revision fallback when both network reads are incomplete", async () => {
+    const path = "/data/cache-recovery-incomplete-with-fallback.json";
+    offlineGet.mockResolvedValueOnce({
+      revision: "target",
+      rows: [FALLBACK_ROW],
+    });
+    const incompleteResponse = {
+      ok: true,
+      json: async () => ({ revision: "target", rows: [ROW, INVALID_ROW] }),
+    };
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(incompleteResponse)
+      .mockResolvedValueOnce(incompleteResponse);
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
+    ).resolves.toEqual({ rows: [FALLBACK_ROW], status: "ready" });
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
+    expect(offlineSet).not.toHaveBeenCalled();
+  });
+
+  it("returns no partial rows when every current-revision source is incomplete", async () => {
+    const path = "/data/cache-recovery-all-incomplete.json";
+    offlineGet.mockResolvedValueOnce({
+      revision: "target",
+      rows: [FALLBACK_ROW, INVALID_ROW],
+    });
+    const incompleteResponse = {
+      ok: true,
+      json: async () => ({ revision: "target", rows: [ROW, INVALID_ROW] }),
+    };
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(incompleteResponse)
+      .mockResolvedValueOnce(incompleteResponse);
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
+    ).resolves.toEqual({ rows: [], status: "unavailable" });
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
+    expect(fetchSpy).toHaveBeenCalledTimes(2);
+    expect(offlineSet).not.toHaveBeenCalled();
+  });
+
   it("retries one cache-bypassed read after an expected revision mismatch", async () => {
     const path = "/data/cache-recovery-current.json";
     const fetchSpy = vi

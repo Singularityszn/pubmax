@@ -256,15 +256,23 @@ function rowsFromPayload(
   return revision === expectedRevision ? rows : null;
 }
 
+function normalizedRowsFromPayload(
+  value: unknown,
+  expectedRevision?: string,
+): { rows: SlimVenue[]; complete: boolean } | null {
+  const payloadRows = rowsFromPayload(value, expectedRevision);
+  if (!payloadRows) return null;
+  const rows = normalizeRows(payloadRows);
+  return { rows, complete: rows.length === payloadRows.length };
+}
+
 async function readOfflineFallback(
   offlineKey: string,
   expectedRevision?: string,
 ): Promise<SlimVenue[] | null> {
   const stored = await offlineCache.get<unknown>(offlineKey);
-  const payloadRows = rowsFromPayload(stored, expectedRevision);
-  if (!payloadRows) return null;
-  const rows = normalizeRows(payloadRows);
-  return rows.length > 0 && rows.length === payloadRows.length ? rows : null;
+  const payload = normalizedRowsFromPayload(stored, expectedRevision);
+  return payload?.complete && payload.rows.length > 0 ? payload.rows : null;
 }
 
 export function loadSlimVenuesFromPathResult(
@@ -300,12 +308,18 @@ async function loadSlimVenuesFromPathUnshared(
   const offlineKey = offlineKeyForPath(path);
   try {
     let data: unknown = await readSlimPayload(path, options);
-    let payloadRows = rowsFromPayload(data, options.expectedRevision);
-    if (!payloadRows && options.expectedRevision !== undefined) {
+    let payload = normalizedRowsFromPayload(data, options.expectedRevision);
+    if (
+      options.expectedRevision !== undefined &&
+      (!payload || !payload.complete)
+    ) {
       data = await readSlimPayload(path, options, "no-store");
-      payloadRows = rowsFromPayload(data, options.expectedRevision);
+      payload = normalizedRowsFromPayload(data, options.expectedRevision);
     }
-    if (!payloadRows) {
+    if (
+      !payload ||
+      (options.expectedRevision !== undefined && !payload.complete)
+    ) {
       const fallback = await readOfflineFallback(
         offlineKey,
         options.expectedRevision,
@@ -313,8 +327,7 @@ async function loadSlimVenuesFromPathUnshared(
       if (fallback) return { rows: fallback, status: "ready" };
       return { rows: [], status: "unavailable" };
     }
-    const rows = normalizeRows(payloadRows);
-    const complete = rows.length === payloadRows.length;
+    const { rows, complete } = payload;
     if (complete && rows.length > 0) {
       const stored = options.expectedRevision
         ? { revision: options.expectedRevision, rows }
