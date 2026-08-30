@@ -85,7 +85,7 @@ Follow `docs/VOICE.md`. No em dashes, no exclamation marks, British spelling. Jo
 ## 6. Definition of done for S1
 
 - [x] Plan doc on `main` (PR #918)
-- [x] North-star metric documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
+- [x] Per-night and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
 - [x] Invite artifact can show an honest spend band (or silence) (PR #924: `planInviteSpendBandFromListedPrices`, invite page, OG card; silent when any stop price is missing)
 - [x] Soft occasion path visible without changing Social launch state (PR #921: `SOFT_PLAN_OCCASION_IDS` in `lib/planOccasion.ts`)
 - [x] Friends-only crew tonight surface + We-are-out honesty (PR #922; hardened for live-default Social by PR #1247)
