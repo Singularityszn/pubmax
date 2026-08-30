@@ -57,11 +57,60 @@ const unknownVenueId = row({
 
 describe("/tonight pub surface", () => {
   it("names only listing kinds that the current night carries", () => {
-    expect(tonightListingLede("empty", ["quiz", "sport", "deal"])).toBeNull();
-    expect(tonightListingLede("error", ["music"])).toBeNull();
+    const quiz = row({
+      id: "quiz-lede",
+      title: "Quiz",
+      kind: "quiz",
+      venueId: "venue-the-dove",
+    });
+    const deal = row({
+      id: "deal-lede",
+      title: "Deal",
+      kind: "deal",
+      venueId: "venue-the-dove",
+    });
+
+    expect(tonightListingLede("empty", [quiz, deal], SELECTABLE)).toBeNull();
+    expect(tonightListingLede("error", [quiz], SELECTABLE)).toBeNull();
     expect(tonightListingLede("ready", [])).toBeNull();
-    expect(tonightListingLede("ready", ["deal", "quiz", "deal"])).toBe(
+    expect(tonightListingLede("ready", [deal, quiz, deal], SELECTABLE)).toBe(
       "Pub quizzes and deals from sourced listings. Open a listed venue on the map.",
+    );
+  });
+
+  it("does not claim a derived fixture category as a sourced listing", () => {
+    const derivedSport = row({
+      id: "derived-sport",
+      title: "Live fixture",
+      kind: "sport",
+      confidence: "derived",
+      venueId: "venue-the-dove",
+    });
+    const listedQuiz = row({
+      id: "listed-quiz",
+      title: "Quiz",
+      kind: "quiz",
+      confidence: "listed",
+      venueId: "venue-the-dove",
+    });
+
+    expect(tonightListingLede("ready", [derivedSport], SELECTABLE)).toBeNull();
+    expect(
+      tonightListingLede("ready", [derivedSport, listedQuiz], SELECTABLE),
+    ).toBe("Pub quizzes from sourced listings. Open a listed venue on the map.");
+  });
+
+  it("does not offer the map when no rendered listing has a usable map link", () => {
+    const listedQuiz = row({
+      id: "listed-quiz-without-map-link",
+      title: "Quiz",
+      kind: "quiz",
+      confidence: "listed",
+      venueId: "venue-not-on-map",
+    });
+
+    expect(tonightListingLede("ready", [listedQuiz], SELECTABLE)).toBe(
+      "Pub quizzes from sourced listings.",
     );
   });
 

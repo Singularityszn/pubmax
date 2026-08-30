@@ -31,19 +31,32 @@ const TONIGHT_KIND_LEDE_LABEL: Record<WhatsOnKind, string> = {
   event: "events",
 };
 
-/** Visible category claim for the confirmed rows on this Tonight answer. */
+/** Visible category claim for directly confirmed or listed rows on this answer. */
 export function tonightListingLede(
   status: TonightListingsStatus,
-  kinds: readonly WhatsOnKind[],
+  rows: readonly WhatsOnRow[],
+  selectable: TonightSelectableVenueIds = undefined,
 ): string | null {
   if (status !== "ready") return null;
-  const available = new Set(kinds);
+  const available = new Set(
+    rows
+      .filter(
+        (row) => row.confidence === "confirmed" || row.confidence === "listed",
+      )
+      .map((row) => row.kind),
+  );
   const labels = WHATS_ON_KINDS.filter((kind) => available.has(kind)).map(
     (kind) => TONIGHT_KIND_LEDE_LABEL[kind],
   );
   if (labels.length === 0) return null;
   const categories = joinLabels(labels);
-  return `${categories.charAt(0).toUpperCase()}${categories.slice(1)} from sourced listings. Open a listed venue on the map.`;
+  const mapPrompt = rows.some((row) => {
+    const venueId = canonicalOutVenueId(row.venueId);
+    return venueId !== null && tonightMapHrefAllowed(venueId, selectable);
+  })
+    ? " Open a listed venue on the map."
+    : "";
+  return `${categories.charAt(0).toUpperCase()}${categories.slice(1)} from sourced listings.${mapPrompt}`;
 }
 
 export type TonightOutAnswer = {

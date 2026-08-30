@@ -368,8 +368,8 @@ export default function TonightClient({
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
   const listingLede = useMemo(
-    () => tonightListingLede(listingsStatus, facets.map((facet) => facet.kind)),
-    [facets, listingsStatus],
+    () => tonightListingLede(listingsStatus, listingRows, selectableVenueIds),
+    [listingRows, listingsStatus, selectableVenueIds],
   );
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),

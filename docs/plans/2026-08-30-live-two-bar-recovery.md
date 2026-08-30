@@ -13,6 +13,8 @@ Close only the two failed production bars from the 30 August live review:
 
 - Keep the existing signed-in Pint Drop write path. Do not add sample rows, seed data, a second authentication system, or a new table.
 - Make Tonight category copy depend on the categories in the current rendered listing inventory.
+- Keep cross-referenced `derived` rows out of confirmed category copy.
+- Offer the map only when a rendered row has a usable map link.
 - Keep an empty or failed Tonight read free of category claims.
 - Keep quiet-pint recommendations separate from confirmed Tonight listings.
 - Use focused unit tests and targeted lint only while the machine resource hold is active.
