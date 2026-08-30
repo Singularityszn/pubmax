@@ -29,6 +29,25 @@ const venueListCss = read("components/map/mapVenueList.css");
 const venuePriceSubmitCss = read("components/map/venuePriceSubmit.css");
 const globalCss = read("app/globals.css");
 
+function declarationsFor(selector: string): Map<string, string> {
+  const escaped = selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const rule = (
+    mobileMapCss.match(
+      new RegExp(`(?:^|\\n)\\s*${escaped}\\s*{([^{}]*)}`),
+    )?.[1] ?? ""
+  ).replace(/\/\*[\s\S]*?\*\//g, "");
+  const declarations = new Map<string, string>();
+  for (const declaration of rule.split(";")) {
+    const separator = declaration.indexOf(":");
+    if (separator < 0) continue;
+    declarations.set(
+      declaration.slice(0, separator).trim(),
+      declaration.slice(separator + 1).trim(),
+    );
+  }
+  return declarations;
+}
+
 describe("mobile chrome fit at 390px", () => {
   it("keeps first-visit analytics choices equal and clear of map activation", () => {
     const buttons = globalCss.match(/\.analyticsConsentPromptActions button\s*{([^}]*)}/)?.[1] ?? "";
@@ -160,6 +179,62 @@ describe("mobile chrome fit at 390px", () => {
     // And the shell still publishes the balanced stack the chip sits inside.
     expect(mobileMapCss).toMatch(/--mobile-map-stack-left:\s*\d+px/);
     expect(mobileMapCss).toMatch(/--mobile-map-stack-right:\s*\d+px/);
+  });
+
+  it("bounds named map controls before their labels are laid out", () => {
+    // This is a shipped-CSS behaviour check, not a selector-presence check.
+    // A grid item with an automatic minimum can widen its one-column parent,
+    // while a flex item with an automatic minimum can widen the chip row. Both
+    // leave document.scrollWidth unchanged because the chrome is fixed, but
+    // cut the visible area name, Tonight label, and trailing controls at the
+    // viewport edge (the supplied 390px proof). The declarations below are the
+    // box-sizing and shrink contracts that make the rendered geometry bounded.
+    const topbar = declarationsFor(".mobileMapTopbar");
+    const limitedTopbar = declarationsFor(".mobileMapTopbar.mobileMapTopbarLimited");
+    const chipRow = declarationsFor(".mobileMapChipRow");
+    const areaRoot = declarationsFor(".citySwitcher--mobile");
+    const areaTrigger = declarationsFor(".citySwitcher--mobile .citySwitcherTrigger");
+    const areaLabel = declarationsFor(".citySwitcher--mobile .citySwitcherLabelFull");
+    const tonightLabel = declarationsFor(".mobileMapTonightChipLabel");
+
+    expect(topbar.get("width"), "topbar fills its bounded shell").toBe("100%");
+    expect(topbar.get("min-width"), "topbar may shrink below label min-content").toBe("0");
+    expect(topbar.get("box-sizing"), "topbar width includes its frame").toBe("border-box");
+    expect(
+      limitedTopbar.get("grid-template-columns"),
+      "limited first-visit bar keeps brand, area, and Search in explicit tracks",
+    ).toBe("minmax(64px, 1fr) minmax(0, 1fr) 44px");
+    expect(chipRow.get("width"), "chip row fills its bounded shell").toBe("100%");
+    expect(chipRow.get("box-sizing"), "chip row padding stays inside its frame").toBe("border-box");
+    expect(areaRoot.get("width"), "area switcher owns its grid track").toBe("100%");
+    expect(areaTrigger.get("display"), "area trigger exposes a shrinkable flex row").toBe("flex");
+    expect(areaTrigger.get("width"), "area trigger stays inside its track").toBe("100%");
+    expect(areaTrigger.get("min-width"), "area trigger may shrink").toBe("0");
+    expect(areaLabel.get("min-width"), "area label may shrink before its caret").toBe("0");
+    expect(tonightLabel.get("min-width"), "Tonight label may shrink before its chip").toBe("0");
+
+    // Resolve the actual phone shell arithmetic from the declarations. This
+    // proves the bounded boxes have positive usable space at 390px and leave
+    // the published map-edge lane untouched.
+    const viewport = 390;
+    const stackLeft = Number(mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1]);
+    const stackRight = Number(mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1]);
+    const cornerInset = Number(mobileMapCss.match(/--mobile-map-corner-inset:\s*max\((\d+)px/)?.[1]);
+    const cornerButton = Number(mobileMapCss.match(/--mobile-map-corner-btn:\s*(\d+)px/)?.[1]);
+    const cornerGap = Number(mobileMapCss.match(/--mobile-map-corner-lane:\s*calc\([\s\S]*?\+\s*(\d+)px/)?.[1]);
+    const shellWidth = viewport - stackLeft - stackRight;
+    const cornerLane = cornerInset + cornerButton + cornerGap;
+    const chipContentWidth = shellWidth - (cornerLane - stackRight);
+    const resolveWidth = (value: string | undefined, containingWidth: number): number =>
+      value === "100%" ? containingWidth : Number.NaN;
+    const topbarWidth = resolveWidth(topbar.get("width"), shellWidth);
+    const chipRowWidth = resolveWidth(chipRow.get("width"), shellWidth);
+    expect(shellWidth, "390px shell width is positive").toBeGreaterThan(0);
+    expect(chipContentWidth, "chip labels retain usable width before the edge lane").toBeGreaterThan(0);
+    expect(topbarWidth, "topbar resolves to its shell width").toBe(shellWidth);
+    expect(chipRowWidth, "chip row resolves to its shell width").toBe(shellWidth);
+    expect(stackLeft + topbarWidth, "bounded topbar right edge").toBe(viewport - stackRight);
+    expect(stackLeft + chipRowWidth, "bounded chip row right edge").toBe(viewport - stackRight);
   });
 
   it("never truncates the venue price caption", () => {

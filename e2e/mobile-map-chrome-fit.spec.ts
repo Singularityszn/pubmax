@@ -24,14 +24,30 @@ type Rect = {
   height: number;
 };
 
+type MeasuredRect = Rect & {
+  clientWidth: number;
+  scrollWidth: number;
+};
+
 type ShellLayout = {
   topbar: Rect;
   utility: Rect;
   locate: Rect;
   plan: Rect;
   barControls: Array<Rect & { label: string }>;
+  chipRow: Rect;
+  chipControls: Array<Rect & { label: string }>;
+  areaLabel: MeasuredRect;
+  areaCaret: Rect;
+  tonightChip: Rect | null;
+  tonightLabel: MeasuredRect | null;
+  tonightCount: Rect | null;
   barClientWidth: number;
   barScrollWidth: number;
+  chipClientWidth: number;
+  chipScrollWidth: number;
+  documentClientWidth: number;
+  documentScrollWidth: number;
 };
 
 const PIN_SLA_ENFORCED = process.env.PUBMAX_PIN_SLA_ENFORCE === "1";
@@ -127,6 +143,7 @@ async function openPhoneMap(
       },
     });
   });
+  await installPositiveTonightResponse(page);
 
   const response = await page.goto(path);
   expect(response?.status()).toBe(200);
@@ -145,11 +162,38 @@ async function openPhoneMap(
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
 
+async function installPositiveTonightResponse(page: Page): Promise<void> {
+  const observedAt = new Date().toISOString();
+  const startsAt = new Date(Date.now() + 60 * 60 * 1_000).toISOString();
+  await page.route("**/api/whats-on**", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        rows: [
+          {
+            id: "mobile-map-chrome-tonight",
+            venueId: "venue-xjf3n0",
+            placeName: "The Arnos Arms",
+            kind: "quiz",
+            startsAt,
+            title: "Pub quiz",
+            source: { label: "Question One", url: "https://questionone.com/" },
+            observedAt,
+            confidence: "listed",
+          },
+        ],
+        asOf: observedAt,
+        sourceObservedAt: observedAt,
+        sourceFreshnessKind: "dataset-generated",
+      }),
+    });
+  });
+}
+
 async function shellLayout(page: Page): Promise<ShellLayout> {
   return page.evaluate(() => {
-    const rect = (selector: string) => {
-      const element = document.querySelector<HTMLElement>(selector);
-      if (!element) throw new Error(`Missing ${selector}`);
+    const rectFor = (element: HTMLElement) => {
       const box = element.getBoundingClientRect();
       return {
         top: box.top,
@@ -160,33 +204,64 @@ async function shellLayout(page: Page): Promise<ShellLayout> {
         height: box.height,
       };
     };
+    const rect = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      return rectFor(element);
+    };
+    const measuredRect = (selector: string) => {
+      const element = document.querySelector<HTMLElement>(selector);
+      if (!element) throw new Error(`Missing ${selector}`);
+      return {
+        ...rectFor(element),
+        clientWidth: element.clientWidth,
+        scrollWidth: element.scrollWidth,
+      };
+    };
+    const controls = (root: HTMLElement) =>
+      [...root.querySelectorAll<HTMLElement>("a, button")].map((control) => ({
+        ...rectFor(control),
+        label:
+          control.getAttribute("aria-label") ??
+          control.textContent?.replace(/\s+/g, " ").trim() ??
+          "",
+      }));
     const bar = document.querySelector<HTMLElement>(".mobileMapTopbar");
     if (!bar) throw new Error("Missing the phone map bar");
+    const chipRow = document.querySelector<HTMLElement>(".mobileMapChipRow");
+    if (!chipRow) throw new Error("Missing the phone map chip row");
 
     return {
       topbar: rect(".mobileMapTopbar"),
       utility: rect(".mobileMapTflButton"),
       locate: rect(".mobileMapLocateFab"),
       plan: rect(".mobilePlanActivation"),
-      barControls: [...bar.querySelectorAll<HTMLElement>("a, button")].map(
-        (control) => {
-          const box = control.getBoundingClientRect();
-          return {
-            label:
-              control.getAttribute("aria-label") ??
-              control.textContent?.replace(/\s+/g, " ").trim() ??
-              "",
-            top: box.top,
-            right: box.right,
-            bottom: box.bottom,
-            left: box.left,
-            width: box.width,
-            height: box.height,
-          };
-        },
+      barControls: controls(bar),
+      chipRow: rectFor(chipRow),
+      chipControls: controls(chipRow),
+      areaLabel: measuredRect(
+        ".citySwitcher--mobile .citySwitcherLabelFull",
       ),
+      areaCaret: rect(".citySwitcher--mobile .citySwitcherCaret"),
+      tonightChip: document.querySelector<HTMLElement>(".mobileMapTonightChip")
+        ? rect(".mobileMapTonightChip")
+        : null,
+      tonightLabel: document.querySelector<HTMLElement>(
+        ".mobileMapTonightChipLabel",
+      )
+        ? measuredRect(".mobileMapTonightChipLabel")
+        : null,
+      tonightCount: document.querySelector<HTMLElement>(
+        ".mobileMapTonightChipCount",
+      )
+        ? rect(".mobileMapTonightChipCount")
+        : null,
       barClientWidth: bar.clientWidth,
       barScrollWidth: bar.scrollWidth,
+      chipClientWidth: chipRow.clientWidth,
+      chipScrollWidth: chipRow.scrollWidth,
+      documentClientWidth: document.documentElement.clientWidth,
+      documentScrollWidth: document.documentElement.scrollWidth,
     };
   });
 }
@@ -273,6 +348,26 @@ for (const viewport of VIEWPORTS) {
       );
     }
 
+    expect(
+      layout.documentScrollWidth,
+      "phone page does not gain horizontal scroll",
+    ).toBeLessThanOrEqual(layout.documentClientWidth);
+    expect(
+      layout.barScrollWidth,
+      "topbar does not scroll its controls horizontally",
+    ).toBeLessThanOrEqual(layout.barClientWidth);
+    expect(
+      layout.chipScrollWidth,
+      "chip row does not scroll its controls horizontally",
+    ).toBeLessThanOrEqual(layout.chipClientWidth);
+    expect(layout.chipRow.left, "chip row left is inside viewport").toBeGreaterThanOrEqual(
+      0,
+    );
+    expect(
+      layout.chipRow.right,
+      "chip row right is inside viewport",
+    ).toBeLessThanOrEqual(viewport.width);
+
     const shared = [layout.topbar, layout.plan];
     expect(
       new Set(shared.map(({ left }) => Math.round(left))).size,
@@ -337,8 +432,13 @@ for (const viewport of VIEWPORTS) {
     }
 
     // The bar never scrolls: every control it renders is whole, none is cut.
-    expect(layout.barScrollWidth).toBeLessThanOrEqual(layout.barClientWidth);
     for (const control of layout.barControls.filter((one) => one.width > 0)) {
+      expect(control.left, `${control.label} left is inside viewport`).toBeGreaterThanOrEqual(
+        0,
+      );
+      expect(control.right, `${control.label} right is inside viewport`).toBeLessThanOrEqual(
+        viewport.width,
+      );
       expect(control.left, `${control.label} left is visible`).toBeGreaterThanOrEqual(
         layout.topbar.left,
       );
@@ -348,6 +448,100 @@ for (const viewport of VIEWPORTS) {
       expect(control.height, `${control.label} tap height`).toBeGreaterThanOrEqual(
         44,
       );
+    }
+
+    // The area label and caret are both part of the map's location claim. A
+    // zero box or an overflowing label would leave the claim visually broken
+    // even when the bar's own scroll width stayed within its track.
+    expect(layout.areaLabel.width, "map area label has a rendered box").toBeGreaterThan(0);
+    expect(layout.areaLabel.height, "map area label has a rendered height").toBeGreaterThan(0);
+    expect(
+      layout.areaLabel.scrollWidth,
+      "map area label is not clipped inside its track",
+    ).toBeLessThanOrEqual(layout.areaLabel.clientWidth);
+    expect(layout.areaLabel.left, "map area label left is inside topbar").toBeGreaterThanOrEqual(
+      layout.topbar.left,
+    );
+    expect(layout.areaLabel.right, "map area label right is inside topbar").toBeLessThanOrEqual(
+      layout.topbar.right,
+    );
+    expect(layout.areaCaret.width, "map area caret has a rendered box").toBeGreaterThan(0);
+    expect(layout.areaCaret.height, "map area caret has a rendered height").toBeGreaterThan(0);
+    expect(layout.areaCaret.left, "map area caret left is inside topbar").toBeGreaterThanOrEqual(
+      layout.topbar.left,
+    );
+    expect(layout.areaCaret.right, "map area caret right is inside topbar").toBeLessThanOrEqual(
+      layout.topbar.right,
+    );
+
+    for (const control of layout.chipControls.filter((one) => one.width > 0)) {
+      expect(control.left, `${control.label} left is inside viewport`).toBeGreaterThanOrEqual(
+        0,
+      );
+      expect(control.right, `${control.label} right is inside viewport`).toBeLessThanOrEqual(
+        viewport.width,
+      );
+      expect(control.left, `${control.label} left is inside chip row`).toBeGreaterThanOrEqual(
+        layout.chipRow.left,
+      );
+      expect(control.right, `${control.label} right is inside chip row`).toBeLessThanOrEqual(
+        layout.chipRow.right,
+      );
+      expect(control.width, `${control.label} tap width`).toBeGreaterThanOrEqual(44);
+      expect(control.height, `${control.label} tap height`).toBeGreaterThanOrEqual(44);
+    }
+
+    expect(
+      layout.tonightChip,
+      `${viewport.width}px map exposes its Tonight chip`,
+    ).not.toBeNull();
+    if (layout.tonightChip) {
+      expect(
+        layout.tonightChip.left,
+        "Tonight chip left is inside chip row",
+      ).toBeGreaterThanOrEqual(layout.chipRow.left);
+      expect(
+        layout.tonightChip.right,
+        "Tonight chip right is inside chip row",
+      ).toBeLessThanOrEqual(layout.chipRow.right);
+      expect(
+        layout.tonightChip.left,
+        "Tonight chip left is inside viewport",
+      ).toBeGreaterThanOrEqual(0);
+      expect(
+        layout.tonightChip.right,
+        "Tonight chip right is inside viewport",
+      ).toBeLessThanOrEqual(viewport.width);
+      expect(layout.tonightChip.width, "Tonight chip tap width").toBeGreaterThanOrEqual(44);
+      expect(layout.tonightChip.height, "Tonight chip tap height").toBeGreaterThanOrEqual(44);
+      expect(layout.tonightLabel, "Tonight label is rendered").not.toBeNull();
+      expect(layout.tonightCount, "Tonight count is rendered").not.toBeNull();
+      if (layout.tonightLabel) {
+        expect(layout.tonightLabel.width, "Tonight label has a rendered box").toBeGreaterThan(0);
+        expect(layout.tonightLabel.height, "Tonight label has a rendered height").toBeGreaterThan(0);
+        if (viewport.width === 390) {
+          expect(
+            layout.tonightLabel.scrollWidth,
+            "Tonight label is not clipped inside its 390px chip",
+          ).toBeLessThanOrEqual(layout.tonightLabel.clientWidth);
+        }
+        expect(layout.tonightLabel.left, "Tonight label left is inside chip").toBeGreaterThanOrEqual(
+          layout.tonightChip.left,
+        );
+        expect(layout.tonightLabel.right, "Tonight label right is inside chip").toBeLessThanOrEqual(
+          layout.tonightChip.right,
+        );
+      }
+      if (layout.tonightCount) {
+        expect(layout.tonightCount.width, "Tonight count has a rendered box").toBeGreaterThan(0);
+        expect(layout.tonightCount.height, "Tonight count has a rendered height").toBeGreaterThan(0);
+        expect(layout.tonightCount.left, "Tonight count left is inside chip").toBeGreaterThanOrEqual(
+          layout.tonightChip.left,
+        );
+        expect(layout.tonightCount.right, "Tonight count right is inside chip").toBeLessThanOrEqual(
+          layout.tonightChip.right,
+        );
+      }
     }
   });
 
