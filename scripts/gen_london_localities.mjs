@@ -40,7 +40,9 @@
 
 import { writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
+import { dirname, join, resolve } from "node:path";
+
+import { haversineKmLngLat } from "./lib/geo.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT_DIR = join(__dirname, "..");
@@ -68,6 +70,10 @@ const GREATER_LONDON_REL = 175342;
 // Place tiers we treat as "a locality a Londoner would name", most-locality-like
 // first. The tier order breaks same-name ties when collapsing duplicates.
 const PLACE_TIERS = ["suburb", "quarter", "neighbourhood", "town", "village"];
+
+export function localityDistanceKm(aLng, aLat, bLng, bLat) {
+  return haversineKmLngLat(aLng, aLat, bLng, bLat);
+}
 
 // The 20 modelled Night Areas (lib/nightAreas.ts) — names + aliases, normalised.
 // A locality matching any of these is dropped so search never double-lists a
@@ -218,18 +224,7 @@ function boroughDisplayName(osmName) {
     .trim();
 }
 
-function haversineKm(aLon, aLat, bLon, bLat) {
-  const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(bLat - aLat);
-  const dLon = toRad(bLon - aLon);
-  const s =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos(toRad(aLat)) * Math.cos(toRad(bLat)) * Math.sin(dLon / 2) ** 2;
-  return 2 * R * Math.asin(Math.sqrt(s));
-}
-
-async function main() {
+export async function main() {
   console.log("Building Greater London locality gazetteer from OpenStreetMap…\n");
 
   // 1) Borough boundaries with geometry.
@@ -341,7 +336,8 @@ async function main() {
     bucket.sort((a, b) => {
       if (a.tier !== b.tier) return a.tier - b.tier;
       return (
-        haversineKm(cLon, cLat, a.lng, a.lat) - haversineKm(cLon, cLat, b.lng, b.lat)
+        localityDistanceKm(cLon, cLat, a.lng, a.lat)
+        - localityDistanceKm(cLon, cLat, b.lng, b.lat)
       );
     });
     const { tier, ...row } = bucket[0];
@@ -374,7 +370,13 @@ async function main() {
   console.log("Per borough:", perBorough);
 }
 
-main().catch((err) => {
-  console.error("FAILED:", err.message);
-  process.exit(1);
-});
+const isDirectRun =
+  typeof process.argv[1] === "string" &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+
+if (isDirectRun) {
+  main().catch((err) => {
+    console.error("FAILED:", err.message);
+    process.exit(1);
+  });
+}
