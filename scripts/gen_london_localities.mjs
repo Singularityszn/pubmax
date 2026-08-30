@@ -38,9 +38,9 @@
 // Run: node scripts/gen_london_localities.mjs
 // Plain Node ESM — no deps, no build step.
 
-import { writeFileSync } from "node:fs";
+import { realpathSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join } from "node:path";
 
 import { haversineKmLngLat } from "./lib/geo.mjs";
 
@@ -372,7 +372,7 @@ export async function main() {
 
 const isDirectRun =
   typeof process.argv[1] === "string" &&
-  resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
 
 if (isDirectRun) {
   main().catch((err) => {

@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { readFileSync, readdirSync } from "node:fs";
+import { mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
@@ -201,5 +201,33 @@ describe("London locality generator module ownership", () => {
     expect(result.status).toBe(1);
     expect(result.stdout).toContain("Building Greater London locality gazetteer");
     expect(result.stderr).toMatch(/FAILED: .*controlled mocked Overpass failure/u);
+  });
+
+  it("enters main when the generator is invoked through a symlink", () => {
+    const tempDirectory = mkdtempSync(join(REPO_ROOT, "scripts", ".locality-symlink-"));
+    const symlinkPath = join(tempDirectory, "gen_london_localities.mjs");
+    symlinkSync(LOCALITY_GENERATOR, symlinkPath);
+
+    try {
+      const preload = [
+        'globalThis.fetch = async () => { throw new Error("controlled symlink failure"); };',
+        "globalThis.setTimeout = (callback) => { callback(); return 0; };",
+      ].join("\n");
+      const result = spawnSync(
+        process.execPath,
+        ["--import", `data:text/javascript,${encodeURIComponent(preload)}`, symlinkPath],
+        {
+          cwd: REPO_ROOT,
+          encoding: "utf8",
+        },
+      );
+
+      expect(result.error).toBeUndefined();
+      expect(result.status).toBe(1);
+      expect(result.stdout).toContain("Building Greater London locality gazetteer");
+      expect(result.stderr).toMatch(/FAILED: .*controlled symlink failure/u);
+    } finally {
+      rmSync(tempDirectory, { recursive: true, force: true });
+    }
   });
 });
