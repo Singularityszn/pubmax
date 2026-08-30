@@ -180,6 +180,22 @@ describe("out desktop grouping", () => {
     expect(html).not.toContain(OUT_LISTING_PUB_ABSENT_LINE);
   });
 
+  it("labels a matched event place as a PUBMAXX venue", () => {
+    const html = renderToStaticMarkup(
+      createElement(OutListingPubPair, {
+        row: row({
+          id: "arena-render",
+          kind: "event",
+          title: "ABBA Voyage",
+          placeName: "ABBA Arena",
+          venueId: "venue-abba-arena",
+        }),
+      }),
+    );
+
+    expect(html).toContain(">PUBMAXX venue<");
+  });
+
   it("keeps desktop listing columns balanced inside a centred surface", () => {
     const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
     const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
