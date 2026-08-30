@@ -29,6 +29,17 @@ const RATE_LIMIT = 120;
 const RATE_WINDOW_MS = 60_000;
 const FETCH_TIMEOUT_MS = 8_000;
 const MAX_REDIRECTS = 1;
+const CACHE_CONTROL = "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400";
+
+function cacheableImageMiss(): Response {
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "cache-control": CACHE_CONTROL,
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
 
 function isForbiddenHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
@@ -97,21 +108,20 @@ export async function GET(request: Request): Promise<Response> {
       break;
     }
     if (!upstream || !upstream.ok) {
-      return new Response("Image source unavailable.", { status: 502 });
+      return cacheableImageMiss();
     }
     const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
     // Raster images only. SVG is executable content — served same-origin it
     // would be a stored-XSS vector (cursor bot, PR #171) — so it is refused
     // outright rather than sandboxed.
-    if (!type.startsWith("image/") || type.includes("svg")) {
-      return new Response("Not an image.", { status: 502 });
-    }
+    if (type.includes("svg")) return new Response("Not an image.", { status: 502 });
+    if (!type.startsWith("image/")) return cacheableImageMiss();
     const declared = Number(upstream.headers.get("content-length") ?? "0");
     if (declared > MAX_BYTES) return new Response("Image too large.", { status: 502 });
     // Stream with a hard byte cap (cursor bot, PR #171): a chunked/mislabelled
     // response is aborted the moment it crosses the cap, never fully buffered.
     const reader = upstream.body?.getReader();
-    if (!reader) return new Response("Image source unavailable.", { status: 502 });
+    if (!reader) return cacheableImageMiss();
     const chunks: Uint8Array[] = [];
     let received = 0;
     for (;;) {
@@ -129,7 +139,7 @@ export async function GET(request: Request): Promise<Response> {
       status: 200,
       headers: {
         "content-type": type,
-        "cache-control": "public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400",
+        "cache-control": CACHE_CONTROL,
         "x-content-type-options": "nosniff",
       },
     });
