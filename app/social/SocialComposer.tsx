@@ -4,7 +4,7 @@ import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
-import { authedActionFetch } from "@/lib/authedFetch";
+import { authedActionJson } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -412,25 +412,30 @@ export default function SocialComposer({
 
   async function loadLatest() {
     if (!post) return;
-    const response = await authedActionFetch(`/api/social/posts/${post.id}`, {
-      cache: "no-store",
-    });
-    const value = (await response.json()) as { post?: SocialPostDTO };
-    if (response.ok && value.post) {
-      initialPostRef.current = value.post;
-      setBasePost(value.post);
-      setDraft(initialDraft(value.post));
-      setPhoto(null);
-      setRemovePhoto(false);
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      setMutationVersion(value.post.mutationVersion);
-      setConflict(false);
-      setFeedbackIsStatus(true);
-      setFeedback("Latest post loaded. Review it before saving.");
-      return;
+    try {
+      const { response, body: value } = await authedActionJson<{
+        post?: SocialPostDTO;
+      }>(`/api/social/posts/${post.id}`, { cache: "no-store" });
+      if (response.ok && value.post) {
+        initialPostRef.current = value.post;
+        setBasePost(value.post);
+        setDraft(initialDraft(value.post));
+        setPhoto(null);
+        setRemovePhoto(false);
+        if (fileInputRef.current) fileInputRef.current.value = "";
+        setMutationVersion(value.post.mutationVersion);
+        setConflict(false);
+        setFeedbackIsStatus(true);
+        setFeedback("Latest post loaded. Review it before saving.");
+        return;
+      }
+      setFeedbackIsStatus(false);
+      setFeedback("Latest post could not be loaded.");
+    } catch (cause) {
+      if (cause instanceof Error && cause.name === "AbortError") return;
+      setFeedbackIsStatus(false);
+      setFeedback("Latest post could not be loaded.");
     }
-    setFeedbackIsStatus(false);
-    setFeedback("Latest post could not be loaded.");
   }
 
   async function submit() {
@@ -468,7 +473,11 @@ export default function SocialComposer({
         })()
       : JSON.stringify(payload);
     try {
-      const response = await authedActionFetch(
+      const { response, body: result } = await authedActionJson<{
+        code?: string;
+        error?: string;
+        post?: SocialPostDTO;
+      }>(
         editing ? `/api/social/posts/${post!.id}` : "/api/social/posts",
         {
           method: editing ? "PATCH" : "POST",
@@ -482,11 +491,6 @@ export default function SocialComposer({
           body: requestBody,
         },
       );
-      const result = (await response.json()) as {
-        code?: string;
-        error?: string;
-        post?: SocialPostDTO;
-      };
       if (!response.ok) {
         if (editing && response.status === 409 && result.code === "EDIT_CONFLICT") {
           setConflict(true);
