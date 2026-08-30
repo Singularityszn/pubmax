@@ -52,7 +52,6 @@ import type {
   PlanState,
   PlanStopDTO,
 } from "@/lib/plan";
-import type { CrewMemberDTO } from "@/lib/crew";
 import { lastRideFetchUrl } from "@/lib/lastRide";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import {
@@ -63,13 +62,11 @@ import {
   type LateFoodTerminal,
 } from "@/lib/lateFood";
 import { anchorMonthLabel } from "@/lib/venueAnchorPresentation";
-import { haversineKm } from "@/lib/haversine";
 import {
   getHomeEndingDescription,
   keepGoingDistanceDescription,
   nextStopWalkDescription,
 } from "@/lib/nightPresentation";
-import { legMinutes } from "@/lib/routeLegs";
 import RouteEndingCard, {
   GetHomeHandoffRow,
   type RouteEndingId,
@@ -101,36 +98,19 @@ import {
   readPlanCapabilitySnapshot,
   restorePlanCapability,
 } from "@/lib/planSessionCapability";
-import { isPubVenueKind } from "@/lib/venueKindFilters";
 import { loadSlimVenues } from "@/lib/venuesSlim";
 import type { LastPintDecisionKind } from "@/lib/tfl";
-import type { VenueKind } from "@/lib/venues";
+import {
+  deriveNightModeSheetRouteModel,
+  type KeepGoingExtension,
+  type LastTrainSlim,
+  type VenueCoord,
+} from "@/components/night/nightModeSheetModel";
 import "./nightMode.css";
 
-type VenueCoord = {
-  id: string;
-  name: string;
-  lat: number;
-  lng: number;
-  cheapestPrice: number | null;
-  kind?: VenueKind;
-};
-type KeepGoingExtension = VenueCoord & { distanceKm: number };
-
-// Minimal shape we read off /api/last-train (LastRideResult) — narrowed so we
-// don't drag the whole tfl type surface into the client for one countdown.
-type LastTrainSlim = {
-  station?: { name?: string } | null;
-  decision?: { leaveByIso?: string | null; decision?: string } | null;
-};
-
-// Crew statuses that mean "physically arriving/arrived" — the honest read of the
-// presence enum for a during-the-night "who's here" line.
-const ARRIVED: ReadonlySet<CrewMemberDTO["status"]> = new Set([
-  "here",
-  "on_the_way",
-]);
 const SWIPE_DISMISS_PX = 72;
+
+export { rankKeepGoingExtensions } from "@/components/night/nightModeSheetModel";
 
 function readMemberToken(planId: string): string {
   return parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot(planId)).token;
@@ -360,27 +340,6 @@ export function confirmedEndingForPlan(
   // canonical /complete response returns a persisted ending.
   void _confirmedChoice;
   return plan?.ending ?? null;
-}
-
-export function rankKeepGoingExtensions(
-  coords: readonly VenueCoord[],
-  currentCoord: VenueCoord,
-  routeVenueIds: ReadonlySet<string>,
-): KeepGoingExtension[] {
-  return coords
-    .filter(
-      (venue) => isPubVenueKind(venue.kind) && !routeVenueIds.has(venue.id),
-    )
-    .map((venue) => ({
-      ...venue,
-      distanceKm: haversineKm(
-        [currentCoord.lng, currentCoord.lat],
-        [venue.lng, venue.lat],
-      ),
-    }))
-    .filter((venue) => venue.distanceKm <= 2.5)
-    .sort((left, right) => left.distanceKm - right.distanceKm)
-    .slice(0, 2);
 }
 
 export default function NightModeCard() {
@@ -622,40 +581,28 @@ function NightModeSheet({
     };
   }, []);
 
-  const stops = plan?.stops ?? [];
-  const cursor = clampStopIndex(stopIndex, stops.length);
-  const currentStop = stops[cursor] ?? null;
-  const nextStop = stops[cursor + 1] ?? null;
-  const signals = useMemo(
-    () => new Map((report?.stops ?? []).map((s) => [s.venueId, s])),
-    [report],
+  const {
+    stops,
+    cursor,
+    currentStop,
+    nextStop,
+    currentSignal,
+    currentCoord,
+    nextStopWalkMinutes,
+    keepGoingExtensions,
+    currentTrain,
+    arrived,
+  } = useMemo(
+    () =>
+      deriveNightModeSheetRouteModel({
+        plan,
+        report,
+        stopIndex,
+        coords,
+        lastTrain,
+      }),
+    [coords, lastTrain, plan, report, stopIndex],
   );
-  const currentSignal = currentStop
-    ? (signals.get(currentStop.venueId) ?? null)
-    : null;
-
-  const currentCoord = useMemo(() => {
-    if (!currentStop || !coords) return null;
-    return coords.find((v) => v.id === currentStop.venueId) ?? null;
-  }, [currentStop, coords]);
-
-  // Pavement glance: next-stop walk time, straight-line from the current
-  // venue. Mirrors rankKeepGoingExtensions' haversineKm-from-coords pattern
-  // below rather than fetching a routed estimate - a giant single-line
-  // button label needs one number, not a full route disclosure.
-  const nextCoord = useMemo(() => {
-    if (!nextStop || !coords) return null;
-    return coords.find((v) => v.id === nextStop.venueId) ?? null;
-  }, [nextStop, coords]);
-
-  const nextStopWalkMinutes = useMemo(() => {
-    if (!currentCoord || !nextCoord) return null;
-    const km = haversineKm(
-      [currentCoord.lng, currentCoord.lat],
-      [nextCoord.lng, nextCoord.lat],
-    );
-    return legMinutes(km, "walk");
-  }, [currentCoord, nextCoord]);
 
   useEffect(() => {
     const area = plan?.context?.nightArea;
@@ -692,12 +639,6 @@ function NightModeSheet({
     };
   }, [currentCoord, plan?.context?.nightArea]);
 
-  const keepGoingExtensions = useMemo<KeepGoingExtension[]>(() => {
-    if (!currentCoord || !coords) return [];
-    const routeIds = new Set(stops.map((stop) => stop.venueId));
-    return rankKeepGoingExtensions(coords, currentCoord, routeIds);
-  }, [coords, currentCoord, stops]);
-
   // Last-train for the current venue (London last-ride feed) — omitted entirely
   // when we have no coords or the feed can't produce a station.
   useEffect(() => {
@@ -730,8 +671,6 @@ function NightModeSheet({
       crew: plan.crew.length,
     });
   }, [plan, id, stops.length]);
-
-  const arrived = (plan?.crew ?? []).filter((m) => ARRIVED.has(m.status));
 
   const advance = useCallback(() => {
     setActivePlanStopIndex(clampStopIndex(cursor + 1, stops.length));
@@ -937,13 +876,6 @@ function NightModeSheet({
   };
   const onPointerCancel = () => resetDrag();
 
-  // Only honour a result that belongs to the CURRENT venue — a reading tagged
-  // with a previous stop (or held while we advance to a venue we couldn't
-  // locate) is ignored, so nothing stale lingers between venue changes.
-  const currentTrain =
-    currentCoord && lastTrain?.venueId === currentCoord.id
-      ? lastTrain.data
-      : null;
   const lastTrainLeaveBy = currentTrain?.decision?.leaveByIso ?? null;
   const activeEnding = confirmedEndingForPlan(plan, chosenEnding);
   const recommendedEnding = recommendedEndingForPlan(plan, lateFood.length);
