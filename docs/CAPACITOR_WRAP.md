@@ -74,7 +74,7 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
    nearby-pub and walk-time actions. iOS carries
    `NSLocationWhenInUseUsageDescription`; Android carries coarse and fine
    location together. Neither platform requests background location.
-3. **Push (APNs)**
+3. **iOS push (APNs)**
    - Add the *Push Notifications* capability to the App target.
    - ~~AppDelegate forwarding~~ — **done in repo**: `ios/App/App/AppDelegate.swift`
      forwards `didRegisterForRemoteNotificationsWithDeviceToken` /
@@ -88,18 +88,33 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
      (`lib/pushProvider.ts` + `lib/pushSender.ts`); it runs the `noopPushProvider`
      (logs + reports every token `skipped`) until the APNs env keys exist. To go
      live, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (bundle id is
-     `com.pubmaxx.app`) — `selectPushProvider()` then flips to
+     `com.pubmaxx.app`) - platform selection then flips to
      `apnsPushProvider` with no caller change. Live delivery still requires the
      entitlement, credentials, signed build, and a real device-token smoke.
+4. **Android push (Firebase Cloud Messaging)**
+   - Create the Android app `com.pubmaxx.app` in Firebase. Download its owner
+     configuration to `android/app/google-services.json`. Do not invent this
+     file or copy one from another package.
+   - Create a server service account with only Firebase Cloud Messaging API
+     Admin access. Set `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`,
+     `FCM_PRIVATE_KEY_ID`, and `FCM_PRIVATE_KEY` together. Never commit the
+     service-account JSON or private key.
+   - `lib/fcmPushProvider.ts` mints short-lived OAuth tokens and sends through
+     FCM HTTP v1. `lib/pushSender.ts` routes by the stored registration platform,
+     so Android tokens never reach APNs. Missing credentials skip truthfully;
+     a partial credential set fails loudly.
+   - Source support does not prove delivery. A configured debug build must
+     register, persist an Android token, receive one push, and open its safe
+     internal route before release readiness can be claimed.
 
 ### Push sending: what fires today vs. what's dormant
 
-`lib/pushSender.ts` drives the fan-out. **Tokens are registered pre-auth**
-(`lib/nativePush.ts` posts on shell boot), so a token row carries **no
+`lib/pushSender.ts` drives the fan-out. **Tokens can register pre-auth**
+after contextual permission approval, so a token row carries **no
 user/plan identity**. Consequences, enforced in code:
 
-- **Night-signal "went live" broadcast — ACTIVE for registered iOS and web
-  devices.** `GET /api/night-signals`
+- **Night-signal "went live" broadcast - ACTIVE in source for registered iOS,
+  Android, and web devices.** `GET /api/night-signals`
   fires `maybeBroadcastNightSignalLive()` (fire-and-forget). Dedup is **durable**,
   not per-instance: it claims a budget-of-1 rate-limit bucket keyed
   `night-signal-broadcast:${generatedAt}` via `lib/pintDrops.isLimited` (the
@@ -118,7 +133,7 @@ user/plan identity**. Consequences, enforced in code:
   server write moment — its notification rides the plan mutation instead.
   **To activate:** once a token row can be linked to a member/plan, wire
    `resolvePlanTokens()` to that lookup; the rest of the pipeline is unchanged.
-4. **Universal links**
+5. **Universal links**
    - Add the *Associated Domains* capability with
      `applinks:pubmaxxing.com`.
    - Replace the `TEAMID` placeholder in
@@ -136,17 +151,18 @@ user/plan identity**. Consequences, enforced in code:
      path is ready, but it is not release proof until the Team ID or Android
      signing fingerprint is published and a physical-device sign-in returns to
      the signed-in WebView on each platform.
-5. **Supabase migration** — apply
+6. **Supabase migration** - apply
    `supabase/migrations/20260717120000_0039_push_tokens.sql` to production
    (`supabase db push` per the usual ledger flow); until then the API route
    falls back to the process-memory store.
-6. **Contextual prompt** — done in repo. `components/native/NativePushPrompt.tsx`
+7. **Contextual prompt** - done in repo. `components/native/NativePushPrompt.tsx`
    calls `registerNativePush()` only after the user taps Turn on in an explainer
    armed by a qualifying plan action. It never requests permission at boot.
    The explainer promises only the active public night-signal broadcast. Native
    tokens do not yet carry account or Plan identity, so crew-scoped copy is not
    allowed. `activateNativePushNavigation()` attaches at shell boot and routes a
    validated `/tonight` or `/plan/*` notification target when the user taps it.
-   Android does not show this prompt or register an FCM token. The sender routes
-   native tokens through APNs today. Add a real FCM provider and platform-aware
-   dispatch tests before enabling Android registration.
+   iOS and Android show this prompt. Capacitor reports each platform token to
+   the same API, and server fan-out keeps APNs, FCM, and VAPID separate. After
+   opt-in, native boot refreshes the current token without requesting permission
+   again, so APNs or FCM token rotation can recover on the next app launch.

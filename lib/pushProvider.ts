@@ -1,7 +1,6 @@
-// Push delivery seam. ONE interface routes native device tokens to APNs and
-// installed-web subscriptions to VAPID Web Push. Each transport has a truthful
-// no-op until its owner credentials exist, so callers and local development do
-// not branch on provider setup.
+// Push delivery seam. Stored platform routes iOS tokens to APNs, Android tokens
+// to FCM, and installed-web subscriptions to VAPID Web Push. Each transport has
+// a truthful no-op until its owner credentials exist.
 //
 // No APNs SDK is a dependency. apnsPushProvider speaks HTTP/2 (node:http2) to
 // api.push.apple.com with an ES256 provider JWT (node:crypto) signed from
@@ -20,8 +19,13 @@ import webpush from "web-push";
 
 import type { DeliveryStatus } from "@/lib/deliveryStatus";
 import {
+  fcmPushProvider,
+  isFcmConfigurationPresent,
+  noopFcmPushProvider,
+} from "@/lib/fcmPushProvider";
+import type { PushPlatform } from "@/lib/pushTokenStore";
+import {
   decodeWebPushSubscription,
-  isWebPushToken,
   type WebPushSubscription,
 } from "@/lib/webPushSubscription";
 
@@ -485,55 +489,14 @@ export function createWebPushProvider(deps: WebPushProviderDeps = {}): PushProvi
 
 export const webPushProvider: PushProvider = createWebPushProvider();
 
-/** Route one mixed registry batch by token kind while preserving the original
- * input order. Native and web providers keep independent configuration/no-op
- * behaviour behind the single PushProvider interface. */
-export function createRoutingPushProvider(
-  nativeProvider: PushProvider,
-  browserProvider: PushProvider,
-): PushProvider {
-  return {
-    async send(tokens, payload) {
-      const native: Array<{ token: string; index: number }> = [];
-      const web: Array<{ token: string; index: number }> = [];
-      tokens.forEach((token, index) => {
-        (isWebPushToken(token) ? web : native).push({ token, index });
-      });
-      const sendGroup = async (
-        kind: "native" | "web",
-        provider: PushProvider,
-        group: Array<{ token: string; index: number }>,
-      ): Promise<PerTokenResult[]> => {
-        try {
-          return await provider.send(group.map((entry) => entry.token), payload);
-        } catch {
-          console.error(
-            `[pushProvider:routing] ${kind} provider failed for ${group.length} token(s); check ${kind} provider credentials.`,
-          );
-          return group.map(({ token }) => ({
-            token,
-            status: "error",
-            reason: `${kind}_provider_threw`,
-          }));
-        }
-      };
-      const [nativeResults, webResults] = await Promise.all([
-        sendGroup("native", nativeProvider, native),
-        sendGroup("web", browserProvider, web),
-      ]);
-      const results = new Array<PerTokenResult>(tokens.length);
-      native.forEach((entry, index) => { results[entry.index] = nativeResults[index]; });
-      web.forEach((entry, index) => { results[entry.index] = webResults[index]; });
-      return results;
-    },
-  };
-}
-
-/** Single selection point for both transports. Missing credentials select a
- * truthful per-transport no-op; mixed native/web batches remain supported. */
-export function selectPushProvider(): PushProvider {
-  return createRoutingPushProvider(
-    isApnsConfigured() ? apnsPushProvider : noopPushProvider,
-    isVapidConfigured() ? webPushProvider : noopWebPushProvider,
-  );
+/** Select one transport from stored registration platform. This is the routing
+ * authority for current fan-out and prevents Android tokens reaching APNs. */
+export function selectPushProvider(platform: PushPlatform): PushProvider {
+  if (platform === "ios") {
+    return isApnsConfigured() ? apnsPushProvider : noopPushProvider;
+  }
+  if (platform === "android") {
+    return isFcmConfigurationPresent() ? fcmPushProvider : noopFcmPushProvider;
+  }
+  return isVapidConfigured() ? webPushProvider : noopWebPushProvider;
 }

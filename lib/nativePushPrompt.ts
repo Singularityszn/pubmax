@@ -25,9 +25,9 @@
 // Storage mirrors the lib/firstRunTour.ts / lib/cityPreference.ts idiom:
 // localStorage-backed, SSR-safe, same-tab CHANGE_EVENT for
 // useSyncExternalStore, no-ops when storage is unavailable. Never shows on
-// web or Android — every write/read path that can trigger the UI is gated on
-// nativePushRegistrationSupported() (lib/nativePush.ts). Android registration
-// stays off until server dispatch can route FCM tokens separately from APNs.
+// web - every write/read path that can trigger the UI is gated on
+// nativePushRegistrationSupported() (lib/nativePush.ts). Stored platform keeps
+// Android FCM delivery separate from iOS APNs delivery.
 
 import { nativePushRegistrationSupported } from "@/lib/nativePush";
 import { recordWebPushHighIntentAction } from "@/lib/webPushPrompt";

@@ -3,9 +3,13 @@
 import { useEffect } from "react";
 
 import { activateNativeDeepLinks } from "@/lib/nativeDeepLinks";
-import { activateNativePushNavigation } from "@/lib/nativePush";
+import {
+  activateNativePushNavigation,
+  refreshNativePushRegistration,
+} from "@/lib/nativePush";
+import { hasEnabledNativePush } from "@/lib/nativePushPrompt";
 
-/** Renderless listeners for native app links and notification taps. */
+/** Renderless native app-link, notification-tap, and push-refresh lifecycle. */
 export default function NativeDeepLinks(): null {
   useEffect(() => {
     let disposed = false;
@@ -17,6 +21,7 @@ export default function NativeDeepLinks(): null {
         else deactivators.push(cleanup);
       });
     }
+    if (hasEnabledNativePush()) void refreshNativePushRegistration();
 
     return () => {
       disposed = true;
