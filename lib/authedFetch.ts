@@ -72,6 +72,21 @@ const fallbackAbortFollowers = new WeakMap<
   AbortSignal,
   Set<WeakRef<AbortSignal>>
 >();
+// A live native Response reaches its action signal. The weak key never keeps
+// a finished Response or its signal alive by itself.
+const retainedActionSignals = new WeakMap<Response, AbortSignal>();
+
+/** Test-only observer for the response-keyed signal lifetime contract. */
+export function readRetainedActionSignalForTest(
+  response: Response,
+): AbortSignal | undefined {
+  return retainedActionSignals.get(response);
+}
+
+/** Test-only observer for deterministic fallback cleanup checks. */
+export function readFallbackFollowerCountForTest(source: AbortSignal): number {
+  return fallbackAbortFollowers.get(source)?.size ?? 0;
+}
 
 function sourceAbortFollowers(source: AbortSignal): Set<WeakRef<AbortSignal>> {
   const existing = fallbackAbortFollowers.get(source);
@@ -107,16 +122,22 @@ function fallbackCompositeActionSignal(
     return signal;
   }
 
-  // One listener per source holds only weak dependent signals. Native fetch
-  // keeps a dependent signal live through its body; later registrations prune
-  // collected or already-aborted dependants without Response wrappers.
+  // One listener per source holds only weak dependent signals. The returned
+  // Response keeps its signal live; first abort removes the same weak reference
+  // from every source without wrapping the Response.
+  const reference = new WeakRef(signal);
+  const followerSets: Set<WeakRef<AbortSignal>>[] = [];
+  signal.addEventListener("abort", () => {
+    for (const followers of followerSets) followers.delete(reference);
+  }, { once: true });
   for (const source of signals) {
     const followers = sourceAbortFollowers(source);
     for (const reference of followers) {
       const follower = reference.deref();
       if (!follower || follower.aborted) followers.delete(reference);
     }
-    followers.add(new WeakRef(signal));
+    followers.add(reference);
+    followerSets.push(followers);
   }
   return signal;
 }
@@ -265,6 +286,7 @@ async function activeAuthActionFetch(
   if (token) {
     headers.set("authorization", `Bearer ${token}`);
     const response = await fetch(input, { ...init, headers, signal: action.signal });
+    retainedActionSignals.set(response, action.signal);
     return { ...action, response };
   }
 
@@ -272,6 +294,7 @@ async function activeAuthActionFetch(
     throw new AuthActionSessionError();
   }
   const response = await fetch(input, { ...init, headers, signal: action.signal });
+  retainedActionSignals.set(response, action.signal);
   return { ...action, response };
 }
 
@@ -281,7 +304,7 @@ async function activeAuthActionFetch(
  * retries the browser session read within one bounded two-second window.
  * Once auth is usable, token lookup and the active fetch bind to that provider
  * identity revision. Both Request and init abort signals remain authoritative.
- * Native fetch owns the composite signal through its response body lifecycle.
+ * The returned native Response retains the signal through its body lifecycle.
  */
 export async function authedActionFetch(
   input: RequestInfo | URL,

@@ -11,6 +11,8 @@ import {
   authedActionJson,
   authedFetch,
   publishAuthActionState,
+  readFallbackFollowerCountForTest,
+  readRetainedActionSignalForTest,
 } from "@/lib/authedFetch";
 import {
   readProviderIdentitySignal,
@@ -226,6 +228,68 @@ describe("authedFetch (Wave I2)", () => {
         .toHaveLength(1);
       await expect(firstBody).rejects.toBe(callerReason);
       await expect(secondBody).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
+  });
+
+  it("retains the fallback composite through the returned native Response", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const owner = new AbortController();
+      const source = new Response("ok");
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(source);
+
+      const response = await authedActionFetch("/api/social/posts", {
+        signal: owner.signal,
+      });
+      const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+
+      expect(response).toBe(source);
+      expect(readRetainedActionSignalForTest(response)).toBe(actionSignal);
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
+  });
+
+  it("removes a fallback dependent from every source after its first abort", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const providerSignal = readProviderIdentitySignal();
+      const owner = new AbortController();
+      vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+      await authedActionFetch("/api/social/posts", {
+        signal: owner.signal,
+      });
+
+      expect(readFallbackFollowerCountForTest(providerSignal)).toBe(1);
+      expect(readFallbackFollowerCountForTest(owner.signal)).toBe(1);
+
+      owner.abort(new Error("owner left"));
+
+      expect(readFallbackFollowerCountForTest(providerSignal)).toBe(0);
+      expect(readFallbackFollowerCountForTest(owner.signal)).toBe(0);
     } finally {
       if (anyDescriptor) {
         Object.defineProperty(AbortSignal, "any", anyDescriptor);
