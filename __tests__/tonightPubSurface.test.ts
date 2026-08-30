@@ -6,6 +6,7 @@ import {
   TONIGHT_VENUE_INDEX_FAILED_LINE,
   tonightListingsStatus,
   tonightListingsNoteLine,
+  tonightListingLede,
   tonightRetryLanes,
   tonightProvenanceCredits,
   tonightAcceptedVenueId,
@@ -55,6 +56,15 @@ const unknownVenueId = row({
 });
 
 describe("/tonight pub surface", () => {
+  it("names only listing kinds that the current night carries", () => {
+    expect(tonightListingLede("empty", ["quiz", "sport", "deal"])).toBeNull();
+    expect(tonightListingLede("error", ["music"])).toBeNull();
+    expect(tonightListingLede("ready", [])).toBeNull();
+    expect(tonightListingLede("ready", ["deal", "quiz", "deal"])).toBe(
+      "Pub quizzes and deals from sourced listings. Open a listed venue on the map.",
+    );
+  });
+
   it("drops unmatched Ticketmaster theatre rows and keeps only pub-matched Out events", () => {
     const merged = mergeTonightListingRows(
       [],
