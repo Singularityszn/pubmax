@@ -10,6 +10,11 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import {
+  createPubPalVoiceStartController,
+  PAL_VOICE_START_ERROR,
+  PubPalVoiceStartError,
+} from "@/lib/pubPalVoiceSession";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
@@ -17,6 +22,8 @@ type VoiceTokenResponse = {
   maxSessionSeconds?: number;
   error?: string;
 };
+
+type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
   try {
@@ -36,10 +43,16 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
   const [error, setError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
   const [text, setText] = useState("");
   const connectedAtRef = useRef<number | null>(null);
   const releasedRef = useRef(false);
   const capTimerRef = useRef<number | null>(null);
+  const startControllerRef = useRef<ReturnType<typeof createPubPalVoiceStartController> | null>(null);
+  if (startControllerRef.current == null) {
+    startControllerRef.current = createPubPalVoiceStartController();
+  }
+  const startController = startControllerRef.current;
 
   const finalizeSession = useCallback(async (connected: boolean) => {
     if (releasedRef.current) return;
@@ -63,61 +76,87 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
 
   const stop = useCallback(async () => {
     const connected = status === "connected";
+    startController.settle();
+    setIsStarting(false);
     endSession();
     await finalizeSession(connected);
     onStateChange?.("idle");
-  }, [endSession, finalizeSession, onStateChange, status]);
+  }, [endSession, finalizeSession, onStateChange, startController, status]);
 
   const start = async () => {
+    if (startController.isStarting()) return;
+    let grantIssued = false;
     setError(null);
+    setIsStarting(true);
     releasedRef.current = false;
     connectedAtRef.current = null;
     onStateChange?.("noticing");
-    try {
-      const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
-      const body = await response.json() as VoiceTokenResponse;
-      if (!response.ok || !body.signedUrl) {
-        setError(errorMessageFrom(body, "Voice is unavailable. Use text instead."));
+    const started = await startController.start<VoiceGrant>({
+      requestMicrophone: async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new PubPalVoiceStartError("Microphone is unavailable. Use text instead.");
+        }
+        return navigator.mediaDevices.getUserMedia({ audio: true });
+      },
+      issueGrant: async () => {
+        const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
+        const body = await response.json() as VoiceTokenResponse;
+        if (!response.ok || !body.signedUrl) {
+          throw new PubPalVoiceStartError(
+            errorMessageFrom(body, "Voice is unavailable. Use text instead."),
+          );
+        }
+        grantIssued = true;
+        return { ...body, signedUrl: body.signedUrl };
+      },
+      connect: (grant) => {
+        const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
+        const overrides = grant.overrides;
+        startSession({
+          signedUrl: grant.signedUrl,
+          connectionType: "websocket",
+          overrides: overrides
+            ? {
+                agent: {
+                  prompt: { prompt: overrides.systemPrompt },
+                  firstMessage: overrides.firstMessage,
+                },
+                ...(overrides.voiceId
+                  ? { tts: { voiceId: overrides.voiceId } }
+                  : {}),
+              }
+            : undefined,
+          onConnect: () => {
+            startController.settle();
+            setIsStarting(false);
+            connectedAtRef.current = Date.now();
+            capTimerRef.current = window.setTimeout(() => {
+              void stop();
+            }, maxSessionSeconds * 1000);
+          },
+          onDisconnect: () => {
+            startController.settle();
+            setIsStarting(false);
+            void finalizeSession(connectedAtRef.current !== null);
+          },
+          onError: () => {
+            startController.settle();
+            setIsStarting(false);
+            setError(PAL_VOICE_START_ERROR);
+            onStateChange?.("error");
+            void finalizeSession(connectedAtRef.current !== null);
+          },
+        });
+      },
+      onFailure: (message) => {
+        setIsStarting(false);
+        setError(message);
         onStateChange?.("error");
-        return;
-      }
-
-      const maxSessionSeconds = body.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
-      const overrides = body.overrides;
-
-      startSession({
-        signedUrl: body.signedUrl,
-        connectionType: "websocket",
-        overrides: overrides
-          ? {
-              agent: {
-                prompt: { prompt: overrides.systemPrompt },
-                firstMessage: overrides.firstMessage,
-              },
-              ...(overrides.voiceId
-                ? { tts: { voiceId: overrides.voiceId } }
-                : {}),
-            }
-          : undefined,
-        onConnect: () => {
-          connectedAtRef.current = Date.now();
-          capTimerRef.current = window.setTimeout(() => {
-            void stop();
-          }, maxSessionSeconds * 1000);
-        },
-        onDisconnect: () => {
-          void finalizeSession(connectedAtRef.current !== null);
-        },
-        onError: (message) => {
-          setError(String(message));
-          onStateChange?.("error");
-          void finalizeSession(connectedAtRef.current !== null);
-        },
-      });
-    } catch {
-      setError("Voice is unavailable. Use text instead.");
-      onStateChange?.("error");
-      await releaseVoiceSession(0);
+        if (grantIssued) void releaseVoiceSession(0);
+      },
+    });
+    if (!started && !startController.isStarting()) {
+      setIsStarting(false);
     }
   };
 
@@ -133,7 +172,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     <div className="palVoice">
       <div className="palVoiceStatus" role="status">
         <i className={status === "connected" ? "isLive" : ""} />
-        {status === "connected" ? "Pal is listening" : "Voice ready when you are"}
+        {isStarting
+          ? "Starting voice"
+          : status === "connected"
+            ? "Pal is listening"
+            : "Voice ready when you are"}
       </div>
       <div className="palVoiceActions">
         {status === "connected" ? (
@@ -141,8 +184,13 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             <MicOff size={18} /> End
           </button>
         ) : (
-          <button type="button" onClick={() => { void start(); }}>
-            <Mic size={18} /> Start voice chat
+          <button
+            type="button"
+            disabled={isStarting}
+            aria-busy={isStarting}
+            onClick={() => { void start(); }}
+          >
+            <Mic size={18} /> {isStarting ? "Starting" : "Start voice chat"}
           </button>
         )}
         <label>
