@@ -99,6 +99,7 @@ describe("Capacitor wrapped-build contract", () => {
       "/plan/*",
       "/rounds/*",
       "/p/*",
+      "/auth/callback",
     ]);
 
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
@@ -107,7 +108,7 @@ describe("Capacitor wrapped-build contract", () => {
         /<intent-filter android:autoVerify="true">([\s\S]*?)<\/intent-filter>/g,
       ),
     ].map((match) => match[1] ?? "");
-    expect(verifiedFilters).toHaveLength(3);
+    expect(verifiedFilters).toHaveLength(4);
     for (const path of ["/plan/", "/rounds/", "/p/"]) {
       expect(manifest).toContain(`android:pathPrefix="${path}"`);
       expect(
@@ -122,7 +123,20 @@ describe("Capacitor wrapped-build contract", () => {
       expect(filter).toContain('android:scheme="https"');
       expect(filter).toContain('android:host="pubmaxxing.com"');
     }
+    expect(manifest).toContain('android:path="/auth/callback"');
     expect(manifest).toContain('android:host="pubmaxxing.com"');
     expect(manifest).toContain('android:launchMode="singleTask"');
+  });
+
+  it("keeps store identity, Android toolchain, and location answers truthful", () => {
+    const readiness = rootFile("docs/STORE_READINESS.md");
+    expect(readiness).toContain("Create the app record in App Store Connect: name PUBMAXXING");
+    expect(readiness).toContain("Create the app in the Play Console: name PUBMAXXING");
+    expect(readiness).toContain("JDK 21");
+    expect(readiness).toContain("Precise location");
+    expect(readiness).toContain("ephemeral");
+    expect(readiness).not.toContain("Location is never transmitted to the server");
+    expect(readiness).not.toContain("Coordinates are never sent to our servers");
+    expect(readiness).not.toContain("Location: Not collected (processed on-device only)");
   });
 });

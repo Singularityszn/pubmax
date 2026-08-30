@@ -98,7 +98,8 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
 (`lib/nativePush.ts` posts on shell boot), so a token row carries **no
 user/plan identity**. Consequences, enforced in code:
 
-- **Night-signal "went live" broadcast — ACTIVE.** `GET /api/night-signals`
+- **Night-signal "went live" broadcast — ACTIVE for registered iOS and web
+  devices.** `GET /api/night-signals`
   fires `maybeBroadcastNightSignalLive()` (fire-and-forget). Dedup is **durable**,
   not per-instance: it claims a budget-of-1 rate-limit bucket keyed
   `night-signal-broadcast:${generatedAt}` via `lib/pintDrops.isLimited` (the
@@ -123,18 +124,29 @@ user/plan identity**. Consequences, enforced in code:
    - Replace the `TEAMID` placeholder in
      `public/.well-known/apple-app-site-association` with the real Apple Team
      ID (final appID string: `TEAMID.com.pubmaxx.app`). Covered paths:
-     `/plan/*`, `/rounds/*`, `/p/*`.
+     `/plan/*`, `/rounds/*`, `/p/*`, and the exact `/auth/callback` path.
    - Deploy, then verify `https://pubmaxxing.com/.well-known/apple-app-site-association`
      returns `Content-Type: application/json` (header rule in `next.config.mjs`).
-   - Android already declares unverified HTTPS filters for the same three paths.
+   - Android already declares unverified HTTPS filters for the same four paths.
      `@capacitor/app` forwards cold and warm opens through the allow-listed
      `lib/nativeDeepLinks.ts` route seam.
      Publish `/.well-known/assetlinks.json` with the release signing fingerprint
      before claiming verified Android App Links.
+   - Email, Google, and Apple sign-in return through `/auth/callback`. The code
+     path is ready, but it is not release proof until the Team ID or Android
+     signing fingerprint is published and a physical-device sign-in returns to
+     the signed-in WebView on each platform.
 5. **Supabase migration** — apply
    `supabase/migrations/20260717120000_0039_push_tokens.sql` to production
    (`supabase db push` per the usual ledger flow); until then the API route
    falls back to the process-memory store.
 6. **Contextual prompt** — done in repo. `components/native/NativePushPrompt.tsx`
-   calls `registerNativePush()` only after the user taps Enable on an explainer
+   calls `registerNativePush()` only after the user taps Turn on in an explainer
    armed by a qualifying plan action. It never requests permission at boot.
+   The explainer promises only the active public night-signal broadcast. Native
+   tokens do not yet carry account or Plan identity, so crew-scoped copy is not
+   allowed. `activateNativePushNavigation()` attaches at shell boot and routes a
+   validated `/tonight` or `/plan/*` notification target when the user taps it.
+   Android does not show this prompt or register an FCM token. The sender routes
+   native tokens through APNs today. Add a real FCM provider and platform-aware
+   dispatch tests before enabling Android registration.
