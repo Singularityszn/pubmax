@@ -27,7 +27,7 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// One primary action is permanent; Map and location stay visible as text links.
+// One primary action is permanent; Plan, Map and location stay visible as text links.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -43,7 +43,7 @@ const pintDropStrip = readFileSync(
   "utf8",
 );
 
-describe("landing Plan tonight together hierarchy", () => {
+describe("landing Pub Pal hierarchy", () => {
   it("keeps the hierarchy permanent without a landing flag", () => {
     expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
     expect(pageTsx).not.toMatch(/landingFindMyPint/);
@@ -54,10 +54,14 @@ describe("landing Plan tonight together hierarchy", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("uses Plan tonight together as the only primary action", () => {
-    expect(landingTsx).toMatch(
-      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/plan"[\s\S]*?Plan tonight together/,
+  it("uses Meet your Pub Pal as the only primary action", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const hero = rendered.match(/<section class="lpHero"[\s\S]*?<\/section>/)?.[0];
+    expect(hero, "landing hero present").toBeTruthy();
+    expect(hero).toMatch(
+      /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
     );
+    expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
     expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
   });
@@ -73,7 +77,7 @@ describe("landing Plan tonight together hierarchy", () => {
     expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
   });
 
-  it("keeps Map and Find my pint visible as lower-weight text links", () => {
+  it("keeps Plan, Map and Find my pint visible as lower-weight text links", () => {
     expect(landingTsx).toMatch(/className="lpHeroActions"/);
     expect(landingTsx).toMatch(/lpHeroSecondaryRow/);
     const secondaryBlock = landingTsx.match(
@@ -81,6 +85,7 @@ describe("landing Plan tonight together hierarchy", () => {
     )?.[0];
     expect(secondaryBlock, "secondary action row present").toBeTruthy();
     expect(secondaryBlock).toMatch(/lpTextLink/);
+    expect(secondaryBlock).toMatch(/Plan tonight together/);
     expect(secondaryBlock).toMatch(/Open the map/);
     expect(secondaryBlock).toMatch(/Find my pint/);
     expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
@@ -97,7 +102,7 @@ describe("landing Plan tonight together hierarchy", () => {
     expect(landingCss).toMatch(
       /\.lpButtonPrimary\s*\{[\s\S]*?color:\s*var\(--color-on-accent\)/,
     );
-    // Mobile: no equal-weight Map/Plan button pair.
+    // Mobile: no equal-weight Pal/Plan/Map button group.
     expect(landingCss).toMatch(
       /\.lpHeroActions\s*\{[^}]*grid-template-columns:\s*1fr/,
     );

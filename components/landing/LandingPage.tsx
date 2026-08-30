@@ -230,16 +230,19 @@ export default function LandingPage({
   const heroPrimary = (
     <Link prefetch={false}
       className="lpButton lpButtonPrimary"
-      href="/plan"
-      onClick={() => trackLandingCta("plan")}
+      href="/pal"
+      onClick={() => trackLandingCta("pal")}
     >
-      <UsersRound size={18} aria-hidden="true" /> Plan tonight together
+      <PubPalMascot size={18} circular decorative /> Meet your Pub Pal
     </Link>
   );
   const heroActions = (
     <div className="lpHeroActions">
       {heroPrimary}
       <div className="lpHeroSecondaryRow">
+        <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
+          <UsersRound size={17} aria-hidden="true" /> Plan tonight together
+        </Link>
         <Link prefetch={false}
           className="lpTextLink"
           href={primaryCtaHref}
@@ -256,8 +259,8 @@ export default function LandingPage({
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Open the map, pick a drink, and see which nearby pubs pour it cheapest.
-      We name the source when there is one, and say when there is not.
+      Choose its form and voice in five steps. Then talk or type while it shapes
+      a night from PUBMAXX prices, venues, and events.
     </p>
   );
 
@@ -441,7 +444,7 @@ export default function LandingPage({
           <div className="lpPalCallout" id="landlord">
             <span className="lpPalIcon"><PubPalMascot size={48} circular lazy /></span>
             <div><h3>Ask your Pub Pal</h3><p>Tell it a mood, a budget, or half an idea, and it hands back a real plan. You confirm every change, always.</p></div>
-            <Link prefetch={false} href="/pal/chat" className="lpTextLink">Ask your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
+            <Link prefetch={false} href="/pal" className="lpTextLink">Meet your Pub Pal <ArrowRight size={16} aria-hidden="true" /></Link>
           </div>
         </section>
 
