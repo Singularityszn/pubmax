@@ -232,13 +232,15 @@ describe("sanitizeEvent", () => {
     // MorningReentryCard wraps its call across lines, so the emitter is matched
     // whitespace-tolerantly rather than as one flat substring.
     const emitsNextNightCommitted = (source: string): boolean =>
-      /trackEvent\(\s*"next_night_committed"/.test(source);
+      /trackEvent\(\s*(['"`])next_night_committed\1\s*,/.test(source);
+    const emitsNextNightCommittedThroughPropsSeam = (source: string): boolean =>
+      /trackEvent\(\s*(['"`])next_night_committed\1\s*,\s*nextNightCommittedProps\(/.test(source);
 
     it("is emitted by every usual-lot reinvite surface through the one props seam", () => {
       for (const path of REINVITE_SURFACES) {
         const source = readFileSync(join(process.cwd(), path), "utf8");
         expect(emitsNextNightCommitted(source)).toBe(true);
-        expect(source).toContain("nextNightCommittedProps(");
+        expect(emitsNextNightCommittedThroughPropsSeam(source)).toBe(true);
       }
     });
 
