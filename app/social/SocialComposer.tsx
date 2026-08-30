@@ -4,6 +4,7 @@ import { type RefObject, useEffect, useId, useRef, useState } from "react";
 
 import { NIGHT_AREAS } from "@/lib/nightAreas";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { authedActionFetch } from "@/lib/authedFetch";
 import { readSocialDraftPhoto, saveSocialDraftPhoto } from "@/lib/socialComposerDrafts";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -411,7 +412,7 @@ export default function SocialComposer({
 
   async function loadLatest() {
     if (!post) return;
-    const response = await fetch(`/api/social/posts/${post.id}`, {
+    const response = await authedActionFetch(`/api/social/posts/${post.id}`, {
       cache: "no-store",
     });
     const value = (await response.json()) as { post?: SocialPostDTO };
@@ -467,7 +468,7 @@ export default function SocialComposer({
         })()
       : JSON.stringify(payload);
     try {
-      const response = await fetch(
+      const response = await authedActionFetch(
         editing ? `/api/social/posts/${post!.id}` : "/api/social/posts",
         {
           method: editing ? "PATCH" : "POST",

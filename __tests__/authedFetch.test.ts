@@ -11,10 +11,12 @@ import {
   authedFetch,
   publishAuthActionState,
 } from "@/lib/authedFetch";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 beforeEach(() => {
   vi.mocked(getAccessToken).mockReset().mockResolvedValue("test-jwt-token");
   publishAuthActionState({ status: "signed-out", identityResolved: true });
+  setProviderIdentity("supabase", null);
 });
 
 afterEach(() => {
@@ -62,6 +64,60 @@ describe("authedFetch (Wave I2)", () => {
     expect(fetchSpy).toHaveBeenCalledOnce();
   });
 
+  it("does not let an account A action use account B auth after switch unmounts its owner", async () => {
+    let resolveToken!: (token: string | null) => void;
+    const token = new Promise<string | null>((resolve) => {
+      resolveToken = resolve;
+    });
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockReturnValueOnce(token);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const owner = new AbortController();
+
+    const request = authedActionFetch("/api/identity/adult-assertion", {
+      method: "POST",
+      signal: owner.signal,
+    });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
+    owner.abort();
+    resolveToken("account-b-token");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("aborts an account A action already in flight when the account changes", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    let actionSignal: AbortSignal | null = null;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      (_input, init) => new Promise<Response>((_resolve, reject) => {
+        actionSignal = init?.signal ?? null;
+        actionSignal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("The operation was aborted.", "AbortError")),
+          { once: true },
+        );
+      }),
+    );
+
+    const request = authedActionFetch("/api/social/tags", { method: "POST" });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer account-a-token");
+    setProviderIdentity("supabase", "account-b");
+
+    await rejection;
+    expect(actionSignal?.aborted).toBe(true);
+  });
+
   it("waits for identity resolution before reading a signed-in action token", async () => {
     publishAuthActionState({ status: "signed-in", identityResolved: false });
     vi.mocked(getAccessToken)
@@ -84,6 +140,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockResolvedValue("hydrated-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     setTimeout(() => {
+      setProviderIdentity("supabase", "hydrated-account");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
 
