@@ -194,6 +194,7 @@ describe("out desktop grouping", () => {
     );
 
     expect(html).toContain(">PUBMAXX venue<");
+    expect(html).not.toContain(">PUBMAXX pub<");
   });
 
   it("keeps desktop listing columns balanced inside a centred surface", () => {
