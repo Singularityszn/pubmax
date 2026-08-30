@@ -45,6 +45,7 @@ Protection in a sibling method cannot certify another method.
 - `PATCH app/api/night-stories/[id]`
 - `PATCH app/api/night-stories/[id]/contributors`
 - `PATCH app/api/plans/[id]`
+- `PATCH app/api/plans/[id]/session`
 - `PATCH app/api/profiles/[handle]`
 - `PATCH app/api/pub-pal`
 - `PATCH app/api/pub-pal/memories/[memoryId]`
@@ -155,6 +156,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/weather-recommendations`
 - `PUT app/api/me/night-profile`
 - `PUT app/api/me/pending-plan-recaps`
+- `PUT app/api/plans/[id]/session`
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
 <!-- mutation-handler-inventory:end -->
@@ -1245,6 +1247,28 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Read honesty:** the read carries its own state (`fresh`, `stale`, `none`,
   `degraded`), so a failed lookup is never worded as a pub nobody has reported.
   A write that landed still thanks the tap when the read-back degrades.
+
+### `app/api/plans/[id]/session` PUT and PATCH - Plan account claim and recovery (route 92)
+
+- **Route / method:** `PUT app/api/plans/[id]/session/route.ts` binds a
+  guest-created Plan membership to the signed-in account. `PATCH` restores a
+  lost member capability from the account's stamped seat. The existing `POST`
+  capability exchange is unchanged, and `GET` stays read-only and uncounted.
+- **Identity (boundary):** both handlers require `verifyCallerAuth` to answer
+  `verified`; an unavailable verifier is a retryable 503, never a quiet 401.
+  The claim additionally requires the path-scoped HttpOnly member cookie
+  (`planMemberCookieCapability`), so a bearer alone cannot claim a seat it
+  never held, and a cookie alone cannot bind a seat to nobody.
+- **Rate limit (boundary):** the claim spends a per-IP `isLimited` budget; the
+  recovery spends a per-IP-and-account budget and requires an idempotency key,
+  which also derives the rotated member token so a replay answers the same
+  capability.
+- **Write:** one RPC each (`claim_plan_membership`,
+  `recover_plan_account_membership_atomic`), so a partial claim can never leave
+  a Plan attached to two accounts and a recovery can never mint a second seat.
+  A membership held by a different account is an honest 409, and a database
+  without migrations 0124/0127 falls back per the 0106 precedent
+  (`lib/planCrewIdentity.ts`) instead of refusing every claim.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

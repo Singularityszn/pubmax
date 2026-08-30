@@ -23,6 +23,10 @@ let authActionState: AuthActionState = {
 };
 const authActionStateListeners = new Set<() => void>();
 
+function currentAuthActionStatus(): AuthActionState["status"] {
+  return authActionState.status;
+}
+
 /** Publishes the existing AuthProvider state to non-React request callers. */
 export function publishAuthActionState(next: AuthActionState): void {
   authActionState = next;
@@ -143,8 +147,22 @@ export async function authedActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
+  const response = await signedInActionFetch(input, init);
+  if (response) return response;
+  return fetch(input, init);
+}
+
+/**
+ * Send an account action only when the resolved browser session is signed in.
+ * Signed-out callers receive null without spending a server request budget.
+ */
+export async function signedInActionFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response | null> {
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
   await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
+  if (currentAuthActionStatus() === "signed-out") return null;
 
   let token: string | null = null;
   for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
@@ -164,8 +182,8 @@ export async function authedActionFetch(
     return fetch(input, { ...init, headers });
   }
 
-  if (authActionState.status !== "signed-out") {
+  if (currentAuthActionStatus() !== "signed-out") {
     throw new AuthActionSessionError();
   }
-  return fetch(input, { ...init, headers });
+  return null;
 }
