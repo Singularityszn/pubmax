@@ -153,7 +153,7 @@ export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
 export type OutUnmatchedNotice = {
   /** The count, and which night it is about. */
   line: string;
-  /** The places, as the provider names them, ending in a full stop. */
+  /** Provider place names, or empty beside useful matched Venue cards. */
   places: string;
   /** Who listed the hidden rows. Credit is owed whether or not a card shows. */
   credits: OutSourceCredit[];
