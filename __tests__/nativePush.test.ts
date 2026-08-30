@@ -6,6 +6,7 @@ const {
   isNativeApp,
   nativePlatform,
   register,
+  removeListener,
   requestPermissions,
 } = vi.hoisted(() => ({
   addListener: vi.fn(),
@@ -13,6 +14,7 @@ const {
   isNativeApp: vi.fn(),
   nativePlatform: vi.fn(),
   register: vi.fn(),
+  removeListener: vi.fn(),
   requestPermissions: vi.fn(),
 }));
 
@@ -29,15 +31,29 @@ vi.mock("@capacitor/push-notifications", () => ({
 import {
   activateNativePushNavigation,
   nativePushNavigationPath,
+  refreshNativePushRegistration,
   registerNativePush,
 } from "@/lib/nativePush";
 
+let onRegistration: ((token: { value: string }) => void) | undefined;
+let onRegistrationError: (() => void) | undefined;
+
 beforeEach(() => {
+  onRegistration = undefined;
+  onRegistrationError = undefined;
   isNativeApp.mockReturnValue(true);
   nativePlatform.mockReturnValue("ios");
   checkPermissions.mockResolvedValue({ receive: "granted" });
-  addListener.mockResolvedValue({ remove: vi.fn() });
-  register.mockResolvedValue(undefined);
+  vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(null, { status: 204 })));
+  removeListener.mockResolvedValue(undefined);
+  addListener.mockImplementation(async (event, callback) => {
+    if (event === "registration") onRegistration = callback;
+    if (event === "registrationError") onRegistrationError = callback;
+    return { remove: removeListener };
+  });
+  register.mockImplementation(async () => {
+    onRegistration?.({ value: "device-token" });
+  });
 });
 
 afterEach(() => {
@@ -55,14 +71,15 @@ describe("registerNativePush", () => {
     expect(register).not.toHaveBeenCalled();
   });
 
-  it("does not register Android until a real FCM sender exists", async () => {
+  it("registers Android through the Capacitor FCM bridge", async () => {
     nativePlatform.mockReturnValue("android");
 
-    await expect(registerNativePush()).resolves.toBe(false);
+    await expect(registerNativePush()).resolves.toBe(true);
 
-    expect(checkPermissions).not.toHaveBeenCalled();
-    expect(addListener).not.toHaveBeenCalled();
-    expect(register).not.toHaveBeenCalled();
+    expect(checkPermissions).toHaveBeenCalledOnce();
+    expect(addListener).toHaveBeenCalledWith("registration", expect.any(Function));
+    expect(register).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledTimes(2);
   });
 
   it("requests prompted permission and stops when it is denied", async () => {
@@ -92,8 +109,6 @@ describe("registerNativePush", () => {
     vi.stubGlobal("fetch", fetch);
 
     await expect(registerNativePush()).resolves.toBe(true);
-    const onRegistration = addListener.mock.calls[0]?.[1];
-    onRegistration({ value: "device-token" });
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
     expect(fetch).toHaveBeenCalledWith("/api/push-tokens", {
@@ -101,6 +116,50 @@ describe("registerNativePush", () => {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ token: "device-token", platform: "ios" }),
     });
+  });
+
+  it("posts Android registrations as Android targets", async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
+    vi.stubGlobal("fetch", fetch);
+    nativePlatform.mockReturnValue("android");
+
+    await expect(registerNativePush()).resolves.toBe(true);
+
+    await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
+    expect(fetch).toHaveBeenCalledWith("/api/push-tokens", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ token: "device-token", platform: "android" }),
+    });
+  });
+
+  it("returns false when Capacitor reports a registration error", async () => {
+    register.mockImplementation(async () => {
+      onRegistrationError?.();
+    });
+
+    await expect(registerNativePush()).resolves.toBe(false);
+
+    expect(addListener).toHaveBeenCalledWith("registrationError", expect.any(Function));
+    expect(removeListener).toHaveBeenCalledTimes(2);
+  });
+
+  it("refreshes an enabled device token without requesting permission", async () => {
+    await expect(refreshNativePushRegistration()).resolves.toBe(true);
+
+    expect(requestPermissions).not.toHaveBeenCalled();
+    expect(register).toHaveBeenCalledOnce();
+    expect(removeListener).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not open the permission dialog during a boot refresh", async () => {
+    checkPermissions.mockResolvedValue({ receive: "prompt" });
+
+    await expect(refreshNativePushRegistration()).resolves.toBe(false);
+
+    expect(requestPermissions).not.toHaveBeenCalled();
+    expect(addListener).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
   });
 
   it("does not register when the native platform is unavailable", async () => {
@@ -115,13 +174,11 @@ describe("registerNativePush", () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it("keeps registration successful when token delivery cannot be persisted", async () => {
+  it("does not report success when token delivery cannot be persisted", async () => {
     const fetch = vi.fn().mockRejectedValue(new Error("offline"));
     vi.stubGlobal("fetch", fetch);
 
-    await expect(registerNativePush()).resolves.toBe(true);
-    const onRegistration = addListener.mock.calls[0]?.[1];
-    onRegistration({ value: "device-token" });
+    await expect(registerNativePush()).resolves.toBe(false);
 
     await vi.waitFor(() => expect(fetch).toHaveBeenCalledOnce());
   });

@@ -8,7 +8,7 @@
 // in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
 // presentation + the two button actions.
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { registerNativePush } from "@/lib/nativePush";
 import { trackEvent } from "@/lib/analytics";
@@ -26,6 +26,7 @@ const PUSH_SURFACE = "native-push";
 import "./nativePushPrompt.css";
 
 export default function NativePushPrompt(): React.JSX.Element | null {
+  const [enabling, setEnabling] = useState(false);
   const visible = useSyncExternalStore(
     subscribePushPrompt,
     getPushPromptVisibleSnapshot,
@@ -42,13 +43,14 @@ export default function NativePushPrompt(): React.JSX.Element | null {
 
   if (!canShow) return null;
 
-  function handleEnable() {
-    // Persist immediately so the sheet can't double-fire on a slow
-    // registration response; the OS permission dialog appears inside
-    // registerNativePush() itself.
-    markPushPromptEnabled();
+  async function handleEnable() {
+    if (enabling) return;
+    setEnabling(true);
     trackEvent("native_push_prompt_enable");
-    void registerNativePush();
+    const registered = await registerNativePush();
+    if (registered) markPushPromptEnabled();
+    else markPushPromptDismissed();
+    setEnabling(false);
   }
 
   function handleLater() {
@@ -75,7 +77,13 @@ export default function NativePushPrompt(): React.JSX.Element | null {
           <button type="button" className="nativePushPrompt__later pressable" onClick={handleLater}>
             {NATIVE_PUSH_PROMPT_COPY.later}
           </button>
-          <button type="button" className="nativePushPrompt__enable pressable" onClick={handleEnable}>
+          <button
+            type="button"
+            className="nativePushPrompt__enable pressable"
+            onClick={() => void handleEnable()}
+            disabled={enabling}
+            aria-busy={enabling}
+          >
             {NATIVE_PUSH_PROMPT_COPY.enable}
           </button>
         </div>

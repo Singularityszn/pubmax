@@ -141,7 +141,7 @@ Per `docs/MERGE_ORDER_2026-07-18.md`, the native stack lands **last** in the que
 | Real camera capture | ✅ works on device (Simulator falls back to library) | Only needs the Info.plist strings from step 4. |
 | Home-screen icon + first-run→map | ✅ works | Local logic + assets; `lib/nativeFirstRun.ts`. |
 | A2HS behaviour inside shell | ⚠️ needs the fix in §5/F1 | Not gated on `isNativeApp()` today. |
-| **Push delivery** | ❌ won't deliver | APNs requires a **paid** account for the entitlement + an APNs key; `selectPushProvider()` stays on the `noopPushProvider` with no keys. Registration UI can be exercised but no notification arrives. |
+| **Push delivery** | ❌ won't deliver | APNs requires a **paid** account for the entitlement + an APNs key; `selectPushProvider("ios")` stays on the `noopPushProvider` with no keys. Registration UI can be exercised but no notification arrives. |
 | **Universal links** (`/plan/*`, `/rounds/*`, `/p/*`) | ❌ won't verify | AASA carries a `TEAMID` placeholder and Associated Domains needs a real Team ID; personal teams can't validate the entitlement. |
 
 ---
@@ -152,8 +152,8 @@ When the owner enrolls (the longest pole, per `fable-implement-prd.md` owner que
 
 1. **Enroll** in the Apple Developer Program ($99/yr). Obtain the **Team ID**.
 2. **APNs Auth Key** — create an APNs key in the developer portal; note `APNS_KEY_ID` and the `.p8` private key.
-3. **Server env vars** — set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. The moment all three exist, `selectPushProvider()` (`lib/pushProvider.ts`) flips from `noopPushProvider` to `apnsPushProvider` with no caller change (mirrors the `storeBackend.selectStore` seam).
-4. **Implement `apnsPushProvider.send()`** — ⚠️ it is currently a **throwing stub**, not a working sender. The HTTP/2-to-`api.push.apple.com` + per-request ES256 JWT (signed from `APNS_PRIVATE_KEY`, `apns-topic: com.pubmaxx.app`) is a *spec'd-but-unwritten* drop-in (`lib/pushProvider.ts` comment). Env keys alone do not deliver push — this transport must be built. (Interface, payload shape, invalid-token pruning, and the night-signal fan-out in `lib/pushSender.ts` are all done and waiting for it.)
+3. **Server env vars** - set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`. The moment all three exist, `selectPushProvider("ios")` (`lib/pushProvider.ts`) flips from `noopPushProvider` to `apnsPushProvider` with no caller change (mirrors the `storeBackend.selectStore` seam).
+4. **Verify `apnsPushProvider.send()`** - the HTTP/2 transport, ES256 provider JWT, payload mapping, invalid-token pruning, and night-signal fan-out are implemented. Live delivery still needs the owner APNs key, entitlement, signed build, and physical-device receipt proof.
 5. **AASA Team ID** — replace `TEAMID` in `public/.well-known/apple-app-site-association` with the real Team ID (final appID `TEAMID.com.pubmaxx.app`), deploy, and verify `https://pubmaxxing.com/.well-known/apple-app-site-association` returns `Content-Type: application/json` (header rule in `next.config.mjs`).
 6. **Xcode capabilities** — add **Push Notifications** and **Associated Domains** (`applinks:pubmaxxing.com`) to the App target.
 7. **AppDelegate APNs forwarding** — ⚠️ add the `didRegisterForRemoteNotificationsWithDeviceToken` / `didFailToRegisterForRemoteNotificationsWithError` forwarding to Capacitor. The committed `ios/App/App/AppDelegate.swift` is the **stock template and does NOT include it** (see §5/F2); without it the `registration` listener in `lib/nativePush.ts` never receives a token, so no device ever registers even with APNs configured.
@@ -169,7 +169,7 @@ When the owner enrolls (the longest pole, per `fable-implement-prd.md` owner que
 - **Remote-URL shell = app breaks if prod breaks.** A WKWebView over `pubmaxxing.com` has no offline copy. Mitigations to decide: ship an `offline.html` and a minimal service worker (the site already has `public/sw.js` for tiles) so a failed load shows a branded retry rather than a WKWebView error; consider a native launch-screen timeout → retry.
 - **iOS WKWebView quirks worth a dedicated QA pass:** safe-area insets on notch devices, momentum/rubber-band scroll vs. the map's own gestures, the one-shot geolocation permission prompt (near-me), file-input vs. native-camera handoff, `100vh` keyboard behaviour, and pull-to-refresh. None are blockers; all deserve a device pass.
 - **Version skew between shell and site.** The shell is a fixed binary; the site deploys continuously. A site change that assumes `window.Capacitor` semantics, or that breaks the `isNativeApp()` branches, ships to shell users instantly with no app update. Keep the seam contract (§2.2) as a review gate.
-- **Push transport is not built** (§4 step 4) — "APNs key = push works" is false; the sender is a throwing stub.
+- **Push delivery still needs owner proof** (§4 step 4) - source transport exists, but APNs credentials, entitlement, signed build, and physical receipt remain required.
 
 **Open decisions**
 

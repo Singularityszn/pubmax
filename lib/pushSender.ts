@@ -4,8 +4,8 @@
 // the provider reports invalid (APNs 410 / BadDeviceToken).
 //
 // ── IDENTITY LIMITATION (read before adding a plan-scoped send) ──────────────
-// Push tokens are registered PRE-AUTH (lib/nativePush.ts posts on shell boot),
-// so a token row carries NO user/plan identity. Plan-scoped targeting — "notify
+// Push tokens can register PRE-AUTH after contextual permission approval, so a
+// token row carries NO user/plan identity. Plan-scoped targeting - "notify
 // only this Plan's crew" — is therefore impossible today. Two consequences:
 //   • Broadcast (night-signal "went live") CAN send: every token is a valid
 //     target, so broadcastNightSignalLive() fans out to store.list() wholesale.
@@ -23,7 +23,11 @@ import {
   PushPayload,
   selectPushProvider,
 } from "@/lib/pushProvider";
-import { pushTokenStore } from "@/lib/pushTokenStore";
+import {
+  pushTokenStore,
+  type PushPlatform,
+  type PushTokenInput,
+} from "@/lib/pushTokenStore";
 import {
   CHEAP_PINT_PING_THREAD_ID,
   type CheapPintPingPayload,
@@ -84,29 +88,45 @@ const EMPTY_SUMMARY: PushDispatchSummary = {
  * an all-error summary so callers (fire-and-forget) never see a rejection.
  */
 async function dispatch(
-  tokens: readonly string[],
+  targets: readonly PushTokenInput[],
   payload: PushPayload,
 ): Promise<PushDispatchSummary> {
-  if (tokens.length === 0) return { ...EMPTY_SUMMARY };
-  const provider = selectPushProvider();
+  if (targets.length === 0) return { ...EMPTY_SUMMARY };
+  const platforms: readonly PushPlatform[] = ["ios", "android", "web"];
+  const groups = new Map<PushPlatform, Array<{ target: PushTokenInput; index: number }>>();
+  targets.forEach((target, index) => {
+    const group = groups.get(target.platform) ?? [];
+    group.push({ target, index });
+    groups.set(target.platform, group);
+  });
+  const results = new Array<PerTokenResult>(targets.length);
 
-  let results: PerTokenResult[];
-  try {
-    results = await provider.send(tokens, payload);
-  } catch (err) {
-    console.error(
-      `[pushSender] provider send failed for ${tokens.length} token(s):`,
-      err instanceof Error ? err.message : String(err),
-    );
-    return {
-      targeted: tokens.length,
-      sent: 0,
-      skipped: 0,
-      pruned: 0,
-      errors: tokens.length,
-      results: tokens.map((token) => ({ token, status: "error", reason: "provider_threw" })),
-    };
-  }
+  await Promise.all(platforms.map(async (platform) => {
+    const group = groups.get(platform);
+    if (!group) return;
+    const provider = selectPushProvider(platform);
+    let platformResults: PerTokenResult[];
+    try {
+      platformResults = await provider.send(group.map(({ target }) => target.token), payload);
+    } catch (err) {
+      console.error(
+        `[pushSender] ${platform} provider send failed for ${group.length} token(s):`,
+        err instanceof Error ? err.message : String(err),
+      );
+      platformResults = group.map(({ target }) => ({
+        token: target.token,
+        status: "error",
+        reason: `${platform}_provider_threw`,
+      }));
+    }
+    group.forEach(({ target, index }, groupIndex) => {
+      results[index] = platformResults[groupIndex] ?? {
+        token: target.token,
+        status: "error",
+        reason: `${platform}_provider_missing_result`,
+      };
+    });
+  }));
 
   const invalid = results.filter((r) => r.status === "invalid");
   if (invalid.length > 0) {
@@ -115,7 +135,7 @@ async function dispatch(
   }
 
   return {
-    targeted: tokens.length,
+    targeted: targets.length,
     sent: results.filter((r) => r.status === "sent").length,
     skipped: results.filter((r) => r.status === "skipped").length,
     pruned: invalid.length,
@@ -133,7 +153,7 @@ export async function broadcastNightSignalLive(
   highlights: readonly NightSignalHighlight[],
 ): Promise<PushDispatchSummary> {
   if (highlights.length === 0) return { ...EMPTY_SUMMARY };
-  const tokens = (await pushTokenStore().list()).map((t) => t.token);
+  const targets = await pushTokenStore().list();
   const lead = highlights[0];
   const extra = highlights.length - 1;
   const payload: PushPayload = {
@@ -148,7 +168,7 @@ export async function broadcastNightSignalLive(
       count: String(highlights.length),
     },
   };
-  return dispatch(tokens, payload);
+  return dispatch(targets, payload);
 }
 
 export type DailyBriefHighlight = {
@@ -166,10 +186,8 @@ export async function broadcastDailyBrief(
   highlight: DailyBriefHighlight,
 ): Promise<PushDispatchSummary> {
   const registrations = await pushTokenStore().list();
-  const tokens = registrations
-    .filter((registration) => registration.platform === "web")
-    .map((registration) => registration.token);
-  return dispatch(tokens, {
+  const targets = registrations.filter((registration) => registration.platform === "web");
+  return dispatch(targets, {
     title: "Today in London",
     body: `${highlight.weatherLine} Tonight: ${highlight.topPickTitle} at ${highlight.topPickPlace}.`,
     threadId: "daily-brief",
@@ -183,7 +201,7 @@ export async function sendStepOutNudge(
   payload: StepOutNudgePayload,
 ): Promise<PushDispatchSummary> {
   if (!subscriptionToken) return { ...EMPTY_SUMMARY };
-  return dispatch([subscriptionToken], {
+  return dispatch([{ token: subscriptionToken, platform: "web" }], {
     title: payload.title,
     body: payload.body,
     threadId: STEP_OUT_NUDGE_THREAD_ID,
@@ -201,7 +219,7 @@ export async function sendCheapPintPing(
   payload: CheapPintPingPayload,
 ): Promise<PushDispatchSummary> {
   if (!subscriptionToken) return { ...EMPTY_SUMMARY };
-  return dispatch([subscriptionToken], {
+  return dispatch([{ token: subscriptionToken, platform: "web" }], {
     title: payload.title,
     body: payload.body,
     threadId: CHEAP_PINT_PING_THREAD_ID,
@@ -280,7 +298,7 @@ export function __resetNightSignalBroadcasts(): void {
  * change. Do NOT fall back to store.list() — that would leak Plan A's updates
  * to Plan B's devices.
  */
-async function resolvePlanTokens(planId: string): Promise<string[]> {
+async function resolvePlanTokens(planId: string): Promise<PushTokenInput[]> {
   void planId; // Dormant: no token→plan link exists yet (see IDENTITY LIMITATION).
   return [];
 }
@@ -294,9 +312,9 @@ async function resolvePlanTokens(planId: string): Promise<string[]> {
 export async function notifyPlanUpdate(
   payload: PlanUpdatePayload,
 ): Promise<PushDispatchSummary> {
-  const tokens = await resolvePlanTokens(payload.planId);
-  if (tokens.length === 0) return { ...EMPTY_SUMMARY };
-  return dispatch(tokens, {
+  const targets = await resolvePlanTokens(payload.planId);
+  if (targets.length === 0) return { ...EMPTY_SUMMARY };
+  return dispatch(targets, {
     title: payload.title,
     body: payload.body,
     threadId: `plan:${payload.planId}`,
