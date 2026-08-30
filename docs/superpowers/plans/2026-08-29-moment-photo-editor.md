@@ -78,7 +78,6 @@
 
 **Files:**
 - Create: `e2e/moment-photo-editor.spec.ts`
-- Create: `docs/proof/moment-photo-editor/` screenshot output during validation
 
 **Interfaces:**
 - The Playwright flow runs at 390x844, attaches a valid PNG, opens Edit, confirms the editor sheet, and captures evidence.
@@ -92,7 +91,7 @@
 
   Run: `PW_SKIP_WEBSERVER=1 PW_MOMENT_BASE_URL=http://127.0.0.1:3100 npx playwright test e2e/moment-photo-editor.spec.ts --headed --project=chromium`
 
-  Expected: PASS and a screenshot at `docs/proof/moment-photo-editor/moment-editor-390.png`.
+  Expected: PASS; recapture headed editor proof before merge.
 
 - [x] **Step 3: Check route bundle boundaries**
 
@@ -113,7 +112,7 @@
 
 - [x] **Step 3: Commit the feature**
 
-  Run: `git add package.json package-lock.json components/moment proxy.ts __tests__/momentPhotoEditor.test.ts e2e/moment-photo-editor.spec.ts docs/superpowers/plans/2026-08-29-moment-photo-editor.md docs/proof/moment-photo-editor/moment-editor-390.png && git commit -m "feat: add optional Moment photo editing"`
+  Run: `git add package.json package-lock.json components/moment proxy.ts __tests__/momentPhotoEditor.test.ts e2e/moment-photo-editor.spec.ts docs/superpowers/plans/2026-08-29-moment-photo-editor.md && git commit -m "feat: add optional Moment photo editing"`
 
 ## PR draft
 
@@ -124,19 +123,19 @@
 ## What changed
 
 - Added optional Unlayer editing after Moment photo attach.
-- Supports crop, filters, draw, text, shapes, stickers, and frames through the editor.
+- Offers crop, resize, filters, draw, text, and shapes through the editor.
+- Frame and Stickers are not offered because `img-src` excludes `https://cdn.unlayer.com` and the image policy must not widen; see https://github.com/Singularityszn/pubmax/issues/1248.
 - Keeps edited output on the existing JPEG, PNG, WebP, and 5MB upload path.
 - Lazy-loads the editor wrapper and CDN runtime only after Edit.
 
 ## Evidence
 
-- Mobile headed proof at 390x844: `docs/proof/moment-photo-editor/moment-editor-390.png`.
 - Browser contract confirms no CDN runtime request before Edit and a request after Edit.
 - Route manifest inspection confirms map and landing manifests do not include the editor runtime chunk.
 
 ## Validation
 
-- Focused Vitest contracts pass: 65 tests.
+- Contract owners: `__tests__/momentPhotoEditor.test.ts` and `e2e/moment-photo-editor.spec.ts`.
 - Changed-file ESLint passes with one expected ignored CSS-file warning.
 - Full typecheck and build remain blocked by existing harvest and venue-index errors.
 
