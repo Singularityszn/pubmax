@@ -17,9 +17,17 @@ test.describe("Moment photo editor", () => {
   });
 
   test("loads editor only after Edit and keeps original on cancel", async ({ page }) => {
-    const cdnRequests: string[] = [];
+    // Two buckets, not one. A single list would let a request that arrived
+    // BEFORE the click satisfy the "the editor was fetched" assertion below,
+    // and that assertion is the whole proof that the third-party CDN is not
+    // contacted until somebody asks for the editor. The flag flips immediately
+    // before click(), so only what the click caused lands in the second bucket.
+    const cdnBeforeEdit: string[] = [];
+    const cdnAfterEdit: string[] = [];
+    let editRequested = false;
     page.on("request", (request) => {
-      if (new URL(request.url()).hostname === "cdn.unlayer.com") cdnRequests.push(request.url());
+      if (new URL(request.url()).hostname !== "cdn.unlayer.com") return;
+      (editRequested ? cdnAfterEdit : cdnBeforeEdit).push(request.url());
     });
 
     const momentUrl = process.env.PW_MOMENT_BASE_URL
@@ -32,13 +40,18 @@ test.describe("Moment photo editor", () => {
       buffer: PHOTO,
     });
     await expect(page.getByRole("button", { name: "Edit night.png" })).toBeVisible();
-    expect(cdnRequests).toEqual([]);
+    expect(cdnBeforeEdit).toEqual([]);
 
+    editRequested = true;
     await page.getByRole("button", { name: "Edit night.png" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit photo" });
     await expect(dialog).toBeVisible();
     await expect(page.getByRole("button", { name: "Close editor" })).toBeVisible();
-    await expect.poll(() => cdnRequests.length, { timeout: 30_000 }).toBeGreaterThan(0);
+    // Re-assert after the action settles: Playwright runs actionability checks
+    // between the flag flip and the real dispatch, so this is what proves
+    // nothing was fetched while the click was still being prepared.
+    expect(cdnBeforeEdit).toEqual([]);
+    await expect.poll(() => cdnAfterEdit.length, { timeout: 30_000 }).toBeGreaterThan(0);
     await page.screenshot({ path: PROOF_PATH, fullPage: false });
 
     await page.getByRole("button", { name: "Close editor" }).click();

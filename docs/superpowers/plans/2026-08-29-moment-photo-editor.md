@@ -91,7 +91,9 @@
 
   Run: `PW_SKIP_WEBSERVER=1 PW_MOMENT_BASE_URL=http://127.0.0.1:3100 npx playwright test e2e/moment-photo-editor.spec.ts --headed --project=chromium`
 
-  Expected: PASS; recapture headed editor proof before merge.
+  Expected: PASS. This step has NOT run, so
+  `docs/proof/moment-photo-editor/moment-editor-390.png` is absent from the branch.
+  The spec writes that file, so running it restores the proof. Tracked in issue #1250.
 
 - [x] **Step 3: Check route bundle boundaries**
 
@@ -104,7 +106,9 @@
 
 - [x] **Step 1: Run local checks**
 
-  Run: `npm run lint`, `npm run typecheck`, focused Vitest tests, and the headed Moment Playwright test.
+  Run: `npm run lint`, `npm run typecheck`, `npm test`, and `npm run validate-data`.
+
+  The headed Moment Playwright proof did NOT run. See Task 3 Step 2.
 
 - [x] **Step 2: Inspect the diff and status**
 
@@ -137,9 +141,16 @@
 
 - Contract owners: `__tests__/momentPhotoEditor.test.ts` and `e2e/moment-photo-editor.spec.ts`.
 - Changed-file ESLint passes with one expected ignored CSS-file warning.
-- Full typecheck and build remain blocked by existing harvest and venue-index errors.
+- Measured on the rebased head, after this branch moved onto the green `main` (#1249):
+  `npm run typecheck` passes, `npm run lint` reports 0 errors (69 pre-existing warnings),
+  `npm test` passes 12730 tests, and `npm run validate-data` passes all 18 datasets.
+- The earlier note that typecheck and build were blocked by harvest and venue-index
+  errors is out of date. Those errors belonged to the older base, not to this change.
+- Remote GitHub CI reports every job as failed. That is the Actions billing outage in
+  issue #1245, not a result about this branch.
 
 ## Follow-ups
 
-- Run `no-mistakes axi run` when Firstmate frees the validation slot.
+- Capture and commit the 390x844 headed proof screenshot (issue #1250).
+- Narrow or remove the site-wide CSP widening to `cdn.unlayer.com` (issue #1248).
 - No storage, moderation, or upload pipeline changes are included.
