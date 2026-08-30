@@ -331,6 +331,18 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.way.href).toBe("/tonight");
   });
 
+  it("keeps place names when matching is unavailable even beside a resolved venue", () => {
+    const notice = outUnmatchedListingsNotice(
+      [matched, unmatched("a", "The O2")],
+      "tonight",
+      "unavailable",
+    );
+    expect(notice?.line).toBe(
+      "We couldn't check which of tonight's 1 listing is at a pub we list.",
+    );
+    expect(notice?.places).toBe("The O2.");
+  });
+
   it("treats a body from before the match field as unavailable", () => {
     expect(outUnmatchedListingsNotice([unmatched("a", "The O2")], "tonight", undefined)?.line).toBe(
       "We couldn't check which of tonight's 1 listing is at a pub we list.",
