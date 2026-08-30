@@ -55,6 +55,7 @@ type ProfileImageCropperProps = {
   busy?: boolean;
   onCancel: () => void;
   onCropped: (file: File) => void;
+  onBusyChange?: (busy: boolean) => void;
 };
 
 const KEYBOARD_NUDGE_PX = 16;
@@ -70,6 +71,7 @@ export default function ProfileImageCropper({
   busy = false,
   onCancel,
   onCropped,
+  onBusyChange,
 }: ProfileImageCropperProps) {
   const frameElementRef = useRef<HTMLDivElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
@@ -305,7 +307,9 @@ export default function ProfileImageCropper({
   async function handleConfirm() {
     const image = imageRef.current;
     if (!image || !ready || rendering || busy) return;
+    let croppedFile: File | null = null;
     setRendering(true);
+    onBusyChange?.(true);
     try {
       const box = target.outputBox;
       const rect = cropSourceRect(
@@ -335,17 +339,17 @@ export default function ProfileImageCropper({
         canvas.toBlob(resolve, CROP_OUTPUT_TYPE, CROP_OUTPUT_QUALITY);
       });
       if (!blob) throw new Error("no blob");
-      onCropped(
-        new File([blob], target.fileName, {
-          type: CROP_OUTPUT_TYPE,
-          lastModified: file.lastModified,
-        }),
-      );
+      croppedFile = new File([blob], target.fileName, {
+        type: CROP_OUTPUT_TYPE,
+        lastModified: file.lastModified,
+      });
     } catch {
       setError(cropFailedMessageFor(target.nounLower));
     } finally {
       setRendering(false);
+      onBusyChange?.(false);
     }
+    if (croppedFile) onCropped(croppedFile);
   }
 
   const confirmLabel = rendering || busy ? "Uploading…" : CROP_CONFIRM_LABEL;

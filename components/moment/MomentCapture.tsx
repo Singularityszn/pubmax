@@ -97,6 +97,7 @@ function getMobileViewportSnapshot(): boolean {
 }
 
 type SaveState = "idle" | "saving" | "saved";
+type EditorSession = { mediaId: string; file: File };
 
 function newDraft(ownerKey: string): MomentDraftV1 {
   return createMomentDraft(ownerKey);
@@ -147,7 +148,8 @@ export default function MomentCapture(): React.JSX.Element {
   const [savedMemoryId, setSavedMemoryId] = useState<string | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
-  const editorSessionRef = useRef<{ mediaId: string } | null>(null);
+  const [editorSession, setEditorSession] = useState<EditorSession | null>(null);
+  const editorSessionRef = useRef<EditorSession | null>(null);
   const editorOpenerRef = useRef<HTMLElement | null>(null);
   const previewUrls = useRef<Set<string>>(new Set());
   // Arm the identity nudge once per composer visit, the first time a signed-out
@@ -313,7 +315,10 @@ export default function MomentCapture(): React.JSX.Element {
 
   function removeMedia(id: string) {
     const target = draft.media.find((item) => item.id === id);
-    if (editingMediaId === id) editorSessionRef.current = null;
+    if (editingMediaId === id) {
+      editorSessionRef.current = null;
+      setEditorSession(null);
+    }
     if (target?.objectUrl) {
       URL.revokeObjectURL(target.objectUrl);
       previewUrls.current.delete(target.objectUrl);
@@ -322,17 +327,28 @@ export default function MomentCapture(): React.JSX.Element {
   }
 
   function openPhotoEditor(mediaId: string, opener: HTMLElement) {
-    editorSessionRef.current = { mediaId };
+    const media = draft.media.find((item) => item.id === mediaId);
+    if (!media?.blob) return;
+    const file = media.blob instanceof File
+      ? media.blob
+      : new File([media.blob], media.name, {
+        type: media.mimeType,
+        lastModified: 0,
+      });
+    const session = { mediaId, file };
+    editorSessionRef.current = session;
+    setEditorSession(session);
     editorOpenerRef.current = opener;
     setEditingMediaId(mediaId);
   }
 
   function closePhotoEditor() {
     editorSessionRef.current = null;
+    setEditorSession(null);
     setEditingMediaId(null);
   }
 
-  function finishPhotoEdit(session: { mediaId: string } | null, result: { blob: Blob }) {
+  function finishPhotoEdit(session: EditorSession | null, result: { blob: Blob }) {
     if (!session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
     const current = draft.media.find((item) => item.id === session.mediaId);
     if (!current) {
@@ -355,16 +371,25 @@ export default function MomentCapture(): React.JSX.Element {
     setMessage("Edited photo ready.");
   }
 
-  function handlePhotoEditorError(session: { mediaId: string } | null) {
+  function handlePhotoEditorError(
+    session: EditorSession | null,
+    reason: "open" | "save" = "open",
+  ) {
     if (!session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
     closePhotoEditor();
-    setMessage("Editor could not open. Original photo kept.");
+    setMessage(
+      reason === "save"
+        ? "Edited photo could not be saved. Original photo kept."
+        : "Editor could not open. Original photo kept.",
+    );
   }
 
   const editingMedia = editingMediaId
     ? draft.media.find((item) => item.id === editingMediaId)
     : null;
-  const editorSession = editorSessionRef.current;
+  const editingFile = editingMedia && editorSession?.mediaId === editingMedia.id
+    ? editorSession.file
+    : null;
 
   async function saveMoment(event: FormEvent) {
     event.preventDefault();
@@ -609,10 +634,10 @@ export default function MomentCapture(): React.JSX.Element {
           )}
         </form>
 
-        {editingMedia?.objectUrl ? (
+        {editingFile ? (
           <MomentImageEditorBoundary onError={() => handlePhotoEditorError(editorSession)}>
             <MomentImageEditor
-              image={editingMedia.objectUrl}
+              file={editingFile}
               openerRef={editorOpenerRef}
               onSave={(result) => finishPhotoEdit(editorSession, result)}
               onCancel={() => {
@@ -620,7 +645,7 @@ export default function MomentCapture(): React.JSX.Element {
                 closePhotoEditor();
                 setMessage("Original photo kept.");
               }}
-              onError={() => handlePhotoEditorError(editorSession)}
+              onError={(reason) => handlePhotoEditorError(editorSession, reason)}
             />
           </MomentImageEditorBoundary>
         ) : null}

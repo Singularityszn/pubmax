@@ -5,6 +5,7 @@ import {
   replaceMomentMediaWithEditedBlob,
   type EditedMomentPhotoResult,
 } from "@/lib/momentPhotoEditor";
+import * as momentPhotoEditor from "@/lib/momentPhotoEditor";
 import type { MomentMediaDraft } from "@/lib/momentDraft";
 import { validatePhoto } from "@/lib/pintDropsStore";
 
@@ -76,5 +77,85 @@ describe("Moment photo editor output", () => {
     expect(rejectedResult.error).toMatch(/10MB/i);
     expect(validatePhoto(accepted.type, accepted.size, MOMENT_MAX_PHOTO_BYTES)).toBeNull();
     expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(/10MB/i);
+  });
+});
+
+describe("first-party Moment decoration", () => {
+  it("offers a closed filter set with an honest original option", () => {
+    const filters = (momentPhotoEditor as typeof momentPhotoEditor & {
+      MOMENT_PHOTO_FILTERS?: ReadonlyArray<{ id: string; label: string; canvas: string }>;
+    }).MOMENT_PHOTO_FILTERS;
+
+    expect(filters).toEqual([
+      { id: "original", label: "Original", canvas: "none" },
+      { id: "warm", label: "Warm", canvas: "saturate(1.12) contrast(1.04) sepia(0.12)" },
+      { id: "mono", label: "Mono", canvas: "grayscale(1) contrast(1.08)" },
+      { id: "night", label: "Night", canvas: "contrast(1.08) saturate(0.9) brightness(0.86)" },
+    ]);
+  });
+
+  it("normalises drawing points inside the visible canvas", () => {
+    const normalise = (momentPhotoEditor as typeof momentPhotoEditor & {
+      normaliseMomentDrawPoint?: (
+        point: { clientX: number; clientY: number },
+        frame: { left: number; top: number; width: number; height: number },
+      ) => { x: number; y: number };
+    }).normaliseMomentDrawPoint;
+
+    expect(typeof normalise).toBe("function");
+    expect(normalise?.(
+      { clientX: -20, clientY: 150 },
+      { left: 0, top: 0, width: 100, height: 100 },
+    )).toEqual({ x: 0, y: 1 });
+  });
+
+  it("keeps one drawing pointer authoritative until it ends", () => {
+    const claim = (momentPhotoEditor as typeof momentPhotoEditor & {
+      claimMomentDrawPointer?: (active: number | null, candidate: number) => number;
+    }).claimMomentDrawPointer;
+    const release = (momentPhotoEditor as typeof momentPhotoEditor & {
+      releaseMomentDrawPointer?: (active: number | null, candidate: number) => number | null;
+    }).releaseMomentDrawPointer;
+    const mayAppend = (momentPhotoEditor as typeof momentPhotoEditor & {
+      mayAppendMomentDrawPreview?: (active: number | null, candidate: number) => boolean;
+    }).mayAppendMomentDrawPreview;
+
+    expect(typeof claim).toBe("function");
+    expect(typeof release).toBe("function");
+    expect(typeof mayAppend).toBe("function");
+    expect(claim?.(null, 7)).toBe(7);
+    expect(claim?.(7, 8)).toBe(7);
+    expect(release?.(7, 8)).toBe(7);
+    expect(release?.(7, 7)).toBeNull();
+    expect(mayAppend?.(null, 7)).toBe(true);
+    expect(mayAppend?.(7, 8)).toBe(false);
+  });
+
+  it("rejects a failed canvas export instead of hanging", async () => {
+    const encode = (momentPhotoEditor as typeof momentPhotoEditor & {
+      encodeMomentPhoto?: (
+        canvas: { toBlob: (callback: (blob: Blob | null) => void) => void },
+      ) => Promise<Blob>;
+    }).encodeMomentPhoto;
+
+    expect(typeof encode).toBe("function");
+    await expect(encode?.({ toBlob: (callback) => callback(null) })).rejects.toThrow(
+      "Photo could not be saved.",
+    );
+  });
+
+  it("rejects a synchronous canvas export failure", async () => {
+    const encode = (momentPhotoEditor as typeof momentPhotoEditor & {
+      encodeMomentPhoto?: (
+        canvas: { toBlob: (callback: (blob: Blob | null) => void) => void },
+      ) => Promise<Blob>;
+    }).encodeMomentPhoto;
+
+    expect(typeof encode).toBe("function");
+    await expect(encode?.({
+      toBlob: () => {
+        throw new Error("canvas unavailable");
+      },
+    })).rejects.toThrow("Photo could not be saved.");
   });
 });
