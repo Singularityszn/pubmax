@@ -1,4 +1,4 @@
--- 0124: Make the two-person crew threshold an atomic, replayable join result.
+-- 0125: Make the two-person crew threshold an atomic, replayable join result.
 -- The receipt stays on the member whose join crossed the threshold. Later
 -- joins get no receipt, while an idempotent replay of that member gets the
 -- original timestamp and Route-readiness decision.
