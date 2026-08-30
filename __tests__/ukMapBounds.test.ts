@@ -32,7 +32,7 @@ describe("UK map camera bounds", () => {
     });
     expect(CITIES.london.mapView).toEqual({
       center: [-0.12, 51.52],
-      zoom: 11.5,
+      zoom: 12,
       pitch: 38,
       bearing: -8,
     });

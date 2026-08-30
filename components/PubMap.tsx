@@ -293,7 +293,11 @@ import {
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
-import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
+import {
+  isUkBaseId,
+  type UkBasePub,
+  type UkBaseStreamStatus,
+} from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
@@ -2390,6 +2394,8 @@ export default function PubMap({
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  const [ukBaseStatus, setUkBaseStatus] =
+    useState<UkBaseStreamStatus>("loading");
   /** Resident streamed base pubs (padded viewport), for map-search name match. */
   const [residentUkBasePubs, setResidentUkBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
@@ -4742,6 +4748,7 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onUkBaseStatusChange={setUkBaseStatus}
           onUkBaseResidentPubsChange={setResidentUkBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
           onRenderedStateChange={handleRenderedMapStateChange}
@@ -4940,6 +4947,7 @@ export default function PubMap({
         <MapVenueList
           model={mapVenueListModel}
           ukBaseModel={ukBasePubListModel}
+          ukBaseStatus={ukBaseStatus}
           cityName={mapContextName}
           open={mapListOpen}
           onOpenChange={setMapListOpen}

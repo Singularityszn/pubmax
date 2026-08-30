@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type * as maplibregl from "maplibre-gl";
 
 import { UK_BASE_MIN_ZOOM } from "@/components/map/canvas/buildScene";
@@ -11,6 +11,7 @@ import {
   ukBasePubsToGeoJSON,
   type UkBaseLoader,
   type UkBasePub,
+  type UkBaseStreamStatus,
 } from "@/lib/ukBasePubs";
 import { discardBody } from "@/lib/responseBody";
 
@@ -18,10 +19,10 @@ import { discardBody } from "@/lib/responseBody";
 // source, one viewport at a time.
 //
 // The gate is the whole payload story: below UK_BASE_MIN_ZOOM this hook fetches
-// NOTHING - not the shards, not even the manifest - so the London overview that
-// most sessions never zoom past costs exactly what it cost before the layer
-// existed. Crossing the gate fetches the manifest once and then only the cells
-// the (padded) camera actually covers.
+// NOTHING - not the shards, not even the manifest. London's normal Map entry
+// starts at the gate so base pubs are useful at once. A wider restored camera
+// stays fetch-free until it crosses the gate. Above it, only cells covered by
+// the padded camera load.
 //
 // Zooming back out empties the source rather than leaving thousands of hidden
 // features parked in it: the layer's own `minzoom` would stop drawing them, but
@@ -72,17 +73,21 @@ type Options = {
   onRestoreFailed?: (reason: UkBaseRestoreFailure) => void;
 };
 
-/**
- * How many base pubs the current padded map source is carrying. Published so
- * the canvas can expose it as a data attribute the same way it exposes the
- * venue count. PubMapCanvas projects these source rows for exact visible-list
- * membership; keeping padding here lets that list update during a pan without
- * waiting for the next debounced shard fetch.
- */
-export type UkBaseStreamState = { count: number; pubs: UkBasePub[] };
+/** Current UK base read state and pubs held by the padded map source. */
+export type UkBaseStreamState = {
+  status: UkBaseStreamStatus;
+  count: number;
+  pubs: UkBasePub[];
+};
 type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
 
-const EMPTY_UK_BASE_STREAM_STATE: UkBaseStreamState = {
+const LOADING_UK_BASE_STREAM_STATE: UkBaseStreamState = {
+  status: "loading",
+  count: 0,
+  pubs: [],
+};
+const SUSPENDED_UK_BASE_STREAM_STATE: UkBaseStreamState = {
+  status: "suspended",
   count: 0,
   pubs: [],
 };
@@ -92,10 +97,13 @@ export function visibleUkBaseStreamState(
   scopeKey: string,
   suspended: boolean,
 ): UkBaseStreamState {
-  if (suspended || published.scopeKey !== scopeKey) {
-    return EMPTY_UK_BASE_STREAM_STATE;
-  }
-  return { count: published.count, pubs: published.pubs };
+  if (suspended) return SUSPENDED_UK_BASE_STREAM_STATE;
+  if (published.scopeKey !== scopeKey) return LOADING_UK_BASE_STREAM_STATE;
+  return {
+    status: published.status,
+    count: published.count,
+    pubs: published.pubs,
+  };
 }
 
 export function nextUkBaseStreamToken(
@@ -208,11 +216,12 @@ export function useUkBaseStreaming({
     restoreHintRef.current = restoreHint;
   }, [restoreHint]);
   const [published, setPublished] = useState<PublishedUkBaseStreamState>(
-    () => ({ scopeKey, count: 0, pubs: [] }),
+    () => ({ scopeKey, status: "loading", count: 0, pubs: [] }),
   );
+  const publishedModeRef = useRef({ scopeKey, suspended });
 
   const publish = useCallback(
-    (nextPubs: UkBasePub[]) => {
+    (nextPubs: UkBasePub[], status: UkBaseStreamStatus) => {
       const drawablePubs = ukBasePubsForDrawableVenues(
         nextPubs,
         drawableVenueIds,
@@ -224,6 +233,7 @@ export function useUkBaseStreaming({
       ukBaseDataRef.current = data;
       setPublished({
         scopeKey,
+        status,
         count: drawablePubs.length,
         // Keep the padded source rows available for immediate reprojection as
         // the camera moves. PubMapCanvas publishes only rows actually on the
@@ -244,6 +254,18 @@ export function useUkBaseStreaming({
       ukBaseDataRef,
     ],
   );
+
+  // Scope and lens ownership can change without a camera event. Clear the old
+  // source before paint so status, list rows and MapLibre pixels never disagree
+  // for one frame or survive the 180 ms settle debounce.
+  useLayoutEffect(() => {
+    const previous = publishedModeRef.current;
+    if (previous.scopeKey === scopeKey && previous.suspended === suspended) {
+      return;
+    }
+    publishedModeRef.current = { scopeKey, suspended };
+    publish([], suspended ? "suspended" : "loading");
+  }, [publish, scopeKey, suspended]);
 
   // Cold restore: resolve the shared link before (and without) the viewport
   // stream. One-shot per restoreId; stream-path restore below is the fallback
@@ -294,9 +316,14 @@ export function useUkBaseStreaming({
         UK_BASE_MIN_ZOOM,
       );
       if (token === null || suspended) {
-        if (ukBaseDataRef.current.features.length > 0) publish([]);
+        publish([], suspended ? "suspended" : "zoom_required");
         return;
       }
+      setPublished((current) => ({
+        ...current,
+        scopeKey,
+        status: "loading",
+      }));
       if (!loaderRef.current) loaderRef.current = createUkBaseLoader();
       const bounds = current.getBounds();
       const viewportBounds = {
@@ -307,9 +334,9 @@ export function useUkBaseStreaming({
       };
       void loaderRef.current
         .pubsForBounds(viewportBounds)
-        .then((pubs) => {
+        .then((read) => {
           if (cancelled || token !== generation.current) return;
-          const drawablePubs = publish(pubs);
+          const drawablePubs = publish(read.pubs, read.status);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
           const hit = drawablePubs.find((pub) => pub.id === wanted);
@@ -335,7 +362,7 @@ export function useUkBaseStreaming({
       map.off("moveend", schedule);
       map.off("zoomend", schedule);
     };
-  }, [mapReady, mapRef, publish, suspended, ukBaseDataRef]);
+  }, [mapReady, mapRef, publish, scopeKey, suspended, ukBaseDataRef]);
 
   // Suspension answers zero the moment it is set, ahead of the debounce that
   // empties the source, so the list beside the map never outlives the pins.

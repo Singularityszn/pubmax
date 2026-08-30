@@ -18,14 +18,27 @@ describe("nextUkBaseStreamToken", () => {
 });
 
 describe("visibleUkBaseStreamState", () => {
-  it("returns one stable empty state while a drink lens suspends base pubs", () => {
-    const published = { scopeKey: "london", count: 2, pubs: [] };
+  const published = {
+    scopeKey: "london",
+    status: "ready" as const,
+    count: 2,
+    pubs: [],
+  };
 
+  it("reports loading with no old rows while a new city scope takes over", () => {
+    expect(visibleUkBaseStreamState(published, "manchester", false)).toEqual({
+      status: "loading",
+      count: 0,
+      pubs: [],
+    });
+  });
+
+  it("returns one stable empty state while a drink lens suspends base pubs", () => {
     const first = visibleUkBaseStreamState(published, "london", true);
     const second = visibleUkBaseStreamState(published, "london", true);
 
     expect(first).toBe(second);
-    expect(first).toEqual({ count: 0, pubs: [] });
+    expect(first).toEqual({ status: "suspended", count: 0, pubs: [] });
   });
 });
 

@@ -294,12 +294,13 @@ export type UkBaseLoader = {
   /**
    * Every base pub from the cells covering `bounds`, fetching the ones that are
    * not resident. Returns the WHOLE viewport's set (not just the new cells), so
-   * a caller can hand the result straight to a map source. Never throws: a cell
-   * that fails to load is simply absent and is retried on the next call.
+   * a caller can hand the result straight to a map source. Never throws. A read
+   * that cannot load every drawn cell is unavailable, never ready-empty, and
+   * failed cells are retried on the next call.
    * On a sustained pan, neighbour cells along the pan direction are warmed into
    * residency (up to MAX_PAN_PREFETCH_SHARDS) but not returned here.
    */
-  pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]>;
+  pubsForBounds(bounds: MapBounds): Promise<UkBaseViewportRead>;
   /** A resident pub by id, for the sheet a tap opens. Null when not resident. */
   find(id: string): UkBasePub | null;
   /**
@@ -313,6 +314,20 @@ export type UkBaseLoader = {
     hint?: { lat: number; lng: number } | null,
   ): Promise<UkBasePub | null>;
 };
+
+export type UkBaseViewportRead = {
+  status: "ready" | "unavailable";
+  pubs: UkBasePub[];
+};
+
+export type UkBaseStreamStatus =
+  | "zoom_required"
+  | "loading"
+  | "ready"
+  | "unavailable"
+  | "suspended";
+
+type UkBaseShardRead = UkBaseViewportRead;
 
 const MANIFEST_OFFLINE_KEY = "uk_base_manifest:v1";
 
@@ -330,7 +345,7 @@ export function createUkBaseLoader(): UkBaseLoader {
   // Insertion-ordered LRU: re-reading a shard moves it to the back.
   const resident = new Map<string, UkBasePub[]>();
   // In-flight fetches, so a burst of moveends cannot stack duplicate requests.
-  const inFlight = new Map<string, Promise<UkBasePub[]>>();
+  const inFlight = new Map<string, Promise<UkBaseShardRead>>();
   // Previous settle, for pan-direction prefetch. Null until the first call.
   let lastBounds: MapBounds | null = null;
 
@@ -384,11 +399,11 @@ export function createUkBaseLoader(): UkBaseLoader {
     }
   }
 
-  function loadShard(entry: ShardEntry): Promise<UkBasePub[]> {
+  function loadShard(entry: ShardEntry): Promise<UkBaseShardRead> {
     const cached = resident.get(entry.url);
     if (cached) {
       touch(entry.url, cached);
-      return Promise.resolve(cached);
+      return Promise.resolve({ status: "ready", pubs: cached });
     }
     const pending = inFlight.get(entry.url);
     if (pending) return pending;
@@ -398,9 +413,9 @@ export function createUkBaseLoader(): UkBaseLoader {
         const pubs = parseUkBaseShardForEntry(await response.json(), entry);
         if (!pubs) throw new Error("Invalid UK base shard");
         touch(entry.url, pubs);
-        return pubs;
+        return { status: "ready" as const, pubs };
       })
-      .catch(() => [] as UkBasePub[])
+      .catch(() => ({ status: "unavailable" as const, pubs: [] }))
       .finally(() => {
         inFlight.delete(entry.url);
       });
@@ -418,16 +433,16 @@ export function createUkBaseLoader(): UkBaseLoader {
   }
 
   return {
-    async pubsForBounds(bounds: MapBounds): Promise<UkBasePub[]> {
+    async pubsForBounds(bounds: MapBounds): Promise<UkBaseViewportRead> {
       const loaded = await manifest();
-      if (!loaded) return [];
+      if (!loaded) return { status: "unavailable", pubs: [] };
       const pan = panDeltaBetween(lastBounds, bounds);
       lastBounds = bounds;
       const drawPad = padBounds(bounds);
       const drawEntries = loaded.shards.filter((shard) =>
         bboxIntersects(shard.bbox, drawPad),
       );
-      if (drawEntries.length === 0) return [];
+      if (drawEntries.length === 0) return { status: "ready", pubs: [] };
       const drawUrls = new Set(drawEntries.map((entry) => entry.url));
       const prefetchEntries = selectPanPrefetchShards(
         loaded.shards,
@@ -444,7 +459,13 @@ export function createUkBaseLoader(): UkBaseLoader {
           ...prefetchEntries.map((entry) => entry.url),
         ]),
       );
-      return results.slice(0, drawEntries.length).flat();
+      const drawn = results.slice(0, drawEntries.length);
+      return {
+        status: drawn.some((result) => result.status === "unavailable")
+          ? "unavailable"
+          : "ready",
+        pubs: drawn.flatMap((result) => result.pubs),
+      };
     },
 
     find(id: string): UkBasePub | null {
@@ -473,7 +494,7 @@ export function createUkBaseLoader(): UkBaseLoader {
         bboxContainsPoint(shard.bbox, hint.lat, hint.lng),
       );
       if (!entry) return null;
-      const pubs = await loadShard(entry);
+      const { pubs } = await loadShard(entry);
       prune(new Set([entry.url]));
       return pubs.find((pub) => pub.id === id) ?? null;
     },
