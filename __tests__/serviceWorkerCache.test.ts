@@ -315,6 +315,71 @@ describe("service worker map cache", () => {
     expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
+  it("does not serve a stale cached London monolith", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });
+    const { listeners } = workerHarness({
+      cached: monolith,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request(
+        "https://pubmaxxing.com/data/venues_slim.json?v=test",
+      ),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("does not serve a stale cached city monolith", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });
+    const { listeners } = workerHarness({
+      cached: monolith,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request(
+        "https://pubmaxxing.com/data/cities/manchester/venues_slim.json?v=test",
+      ),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+  });
+
+  it("does not cache a stale network London monolith", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });
+    const { listeners, put } = workerHarness({ response: monolith });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.json?v=test"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("returns and caches a current network London monolith", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "test", rows: [] });
+    const { listeners, put } = workerHarness({ response: monolith });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(monolith);
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).toHaveBeenCalledOnce();
+  });
+
   it("returns a fresh manifest when deployment revisions differ", async () => {
     const manifest = {
       ok: true,

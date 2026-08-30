@@ -220,9 +220,13 @@ export type SlimVenueLoadResult = {
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
+  cache: RequestCache = "default",
 ): Promise<unknown> {
   let earlyPayloadRejected = false;
-  const early = options.bypassInFlight ? undefined : takeEarlyWarmJson(path);
+  const early =
+    cache === "no-store" || options.bypassInFlight
+      ? undefined
+      : takeEarlyWarmJson(path);
   if (early) {
     try {
       return await early;
@@ -230,7 +234,7 @@ async function readSlimPayload(
       earlyPayloadRejected = true;
     }
   }
-  const response = earlyPayloadRejected
+  const response = earlyPayloadRejected || cache === "no-store"
     ? await fetch(path, { cache: "no-store" })
     : await fetch(path);
   if (!response.ok) {
@@ -284,8 +288,12 @@ async function loadSlimVenuesFromPathUnshared(
 ): Promise<SlimVenueLoadResult> {
   const offlineKey = offlineKeyForPath(path);
   try {
-    const data: unknown = await readSlimPayload(path, options);
-    const payloadRows = rowsFromPayload(data, options.expectedRevision);
+    let data: unknown = await readSlimPayload(path, options);
+    let payloadRows = rowsFromPayload(data, options.expectedRevision);
+    if (!payloadRows && options.expectedRevision !== undefined) {
+      data = await readSlimPayload(path, options, "no-store");
+      payloadRows = rowsFromPayload(data, options.expectedRevision);
+    }
     if (!payloadRows) {
       return { rows: [], status: "unavailable" };
     }
