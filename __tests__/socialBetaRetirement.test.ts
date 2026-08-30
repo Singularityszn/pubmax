@@ -33,7 +33,12 @@ const RETIREMENT_SCAN_PATHS = [
   "proxy.ts",
   "tsconfig.json",
   "vitest.config.ts",
+  "vercel.json",
+  ".github/workflows",
 ];
+
+const ACTIVE_DEPLOYMENT_SCAN_PATHS = ["vercel.json", ".github/workflows"] as const;
+const ACTIVE_APPLICATION_SCAN_PATHS = ["app", "components", "lib", "convex"] as const;
 
 const SOCIAL_ACCESS_CODE_PATHS = [
   "app/api/social",
@@ -141,7 +146,6 @@ function dependencies(
     readFriendsLaunchAccess: async () => ({
       account: {
         id: "account-1",
-        clerkUserId: `supabase:${USER_ID}`,
         ownershipState: "active" as const,
       },
       profile: { id: "profile-1", handle: "alice" },
@@ -152,6 +156,45 @@ function dependencies(
 }
 
 describe("retired Social beta access boundary", () => {
+  it("scans active deployment configuration roots", () => {
+    expect(RETIREMENT_SCAN_PATHS).toEqual(
+      expect.arrayContaining(ACTIVE_DEPLOYMENT_SCAN_PATHS),
+    );
+
+    const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);
+    expect(activeSources.has("vercel.json")).toBe(true);
+    expect(
+      Array.from(activeSources.keys()).some((relativePath) =>
+        relativePath.startsWith(".github/workflows/"),
+      ),
+    ).toBe(true);
+    for (const [relativePath, source] of activeSources) {
+      for (const marker of RETIRED_MARKERS) {
+        expect(source, `${relativePath} still contains ${marker}`).not.toContain(
+          marker,
+        );
+      }
+    }
+  });
+
+  it("retires camel-case Clerk identity from active application sources", () => {
+    const activeSources = sourceFiles([...ACTIVE_APPLICATION_SCAN_PATHS]);
+    const offenders = Array.from(activeSources.entries())
+      .filter(([, source]) => /\bclerkUserId\b/.test(source))
+      .map(([relativePath]) => relativePath);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it("keeps snake-case database identity compatibility outside active scans", () => {
+    const migrationPath =
+      "supabase/migrations/20260806145754_0071_social_identity_assurance.sql";
+    expect(filesAt(migrationPath)).toEqual([]);
+    expect(readFileSync(join(ROOT, migrationPath), "utf8")).toContain(
+      "clerk_user_id",
+    );
+  });
+
   it("keeps retired flags and legacy provider branches out of active surfaces", () => {
     const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);
     expect(activeSources.has(".env.example")).toBe(true);
@@ -199,7 +242,6 @@ describe("retired Social beta access boundary", () => {
     const read = vi.fn(async () => ({
       account: {
         id: "account-1",
-        clerkUserId: `supabase:${USER_ID}`,
         ownershipState: "active" as const,
       },
       profile: { id: "profile-1", handle: "alice" },
