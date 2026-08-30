@@ -35,16 +35,29 @@ vi.mock("@/lib/supabase", () => ({
     },
     from: (table: string) => ({
       select() {
+        if (table === "whats_on_listings") {
+          return {
+            eq(field: string, value: string) {
+              if (db.schemaMiss) {
+                return Promise.resolve({
+                  data: null,
+                  error: { message: "Could not find the table 'public.whats_on_listings'" },
+                });
+              }
+              return Promise.resolve({
+                data: db.rows.filter((row) => row[field] === value),
+                error: null,
+              });
+            },
+          };
+        }
         if (db.schemaMiss) {
           return Promise.resolve({
             data: null,
             error: { message: "Could not find the table 'public.whats_on_listings'" },
           });
         }
-        return Promise.resolve({
-          data: table === "whats_on_listing_generations" ? db.generations : db.rows,
-          error: null,
-        });
+        return Promise.resolve({ data: db.generations, error: null });
       },
     }),
   }),
@@ -146,6 +159,22 @@ describe("supabaseWhatsOnListingStore", () => {
       "2026-08-24T06:00:00.000Z",
     );
     expect((await supabaseWhatsOnListingStore.readAll()).generatedAt).toBe("2026-08-24T05:00:00.000Z");
+  });
+
+  it("reads only London rows from the durable table", async () => {
+    await supabaseWhatsOnListingStore.replaceKind("event", [eventRow("london")], GENERATED);
+    db.rows.push({
+      id: "manchester",
+      kind: "event",
+      city: "manchester",
+      payload: eventRow("manchester", { placeName: "Manchester Arena" }),
+      observed_at: "2026-08-24T10:00:00.000Z",
+      generated_at: GENERATED,
+    });
+
+    expect((await supabaseWhatsOnListingStore.readAll()).rows.map((row) => row.id)).toEqual([
+      "london",
+    ]);
   });
 
   it("flags a hard write failure", async () => {
