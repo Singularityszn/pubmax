@@ -154,7 +154,7 @@ test.describe("mobile landing entry", () => {
 
     await expect(
       page.getByRole("heading", {
-        name: "London pints can cost eight quid.",
+        name: "What a pint costs, pub by pub.",
         exact: true,
       }),
     ).toBeVisible();

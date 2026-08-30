@@ -74,7 +74,7 @@ test.describe("near desk mode", () => {
     const response = await page.goto("/near?mode=desk&patch=soho");
     expect(response?.status()).toBe(200);
     await expect(page.getByRole("radio", { name: "Desk" })).toHaveAttribute("aria-checked", "true");
-    await expect(page.getByText("No desks logged near here yet - add a spot")).toBeVisible();
+    await expect(page.getByText("No desks logged near here yet. Add a spot.")).toBeVisible();
     expect(errors).toEqual([]);
   });
 

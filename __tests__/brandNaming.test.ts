@@ -126,3 +126,48 @@ describe("page metadata names the brand, never the app", () => {
     expect((social.openGraph as { title?: string }).title).toContain(APP_NAME);
   });
 });
+
+// GrokBot live audit, 30 Aug 2026: PUBMAXX on most pages, PUBMAXXING on the
+// /login header, the analytics banner and /you. The captain's split governs
+// TITLES and METADATA, and it always did; what drifted is CHROME, the words
+// painted beside the wordmark, which spells the brand. So the rule that was
+// missing gets a fence: a product-UI surface names the BRAND, and it does it by
+// reading `BRAND_NAME` rather than typing six letters that can rot apart from
+// the wordmark next to them. Page titles keep `appPageTitle`, above.
+const PRODUCT_UI_BRAND_SURFACES = [
+  "components/auth/LoginPage.tsx",
+  "components/AnalyticsConsentPrompt.tsx",
+  "components/profile/PintPassport.tsx",
+] as const;
+
+describe("product chrome names the brand, never the app", () => {
+  it.each(PRODUCT_UI_BRAND_SURFACES)("%s reads BRAND_NAME", async (file) => {
+    const { readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const source = readFileSync(join(process.cwd(), file), "utf8");
+    expect(source).toContain('from "@/lib/brandNaming"');
+    expect(source).toContain("BRAND_NAME");
+
+    // Only PAINTED text is judged. A quoted string in one of these files may
+    // still be a share title or an install invitation, which the captain's
+    // split above hands to the app name; what may not happen again is the app
+    // name rendered as chrome beside a wordmark that spells the brand. So the
+    // quoted strings, the template literals and the comments come out, and
+    // whatever is left is what a reader's eye lands on.
+    const painted = source
+      .replace(/\/\*[\s\S]*?\*\//gu, " ")
+      .replace(/\/\/[^\n]*/gu, " ")
+      .replace(/`(?:\\.|[^`\\])*`/gu, " ")
+      .replace(/"(?:\\.|[^"\\])*"/gu, " ")
+      .replace(/'(?:\\.|[^'\\])*'/gu, " ");
+    expect(painted).not.toContain(APP_NAME);
+  });
+
+  it("the painted-text filter catches the shape that shipped", () => {
+    const shipped = '<p className="loginPageEyebrow">PUBMAXXING</p>';
+    expect(shipped.replace(/"(?:\\.|[^"\\])*"/gu, " ")).toContain(APP_NAME);
+    // A share title is a quoted string and is left to the split above.
+    const share = 'const shareTitle = `A Pint Passport. ${APP_NAME}`;';
+    expect(share.replace(/`(?:\\.|[^`\\])*`/gu, " ")).not.toContain("Passport");
+  });
+});

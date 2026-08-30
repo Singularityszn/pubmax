@@ -18,7 +18,7 @@ async function openLanding(page: Page, viewport: { width: number; height: number
   expect(response?.status()).toBe(200);
   await expect(
     page.getByRole("heading", {
-      name: "London pints can cost eight quid.",
+      name: "What a pint costs, pub by pub.",
       exact: true,
     }),
   ).toBeVisible();

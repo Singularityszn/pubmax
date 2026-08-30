@@ -75,7 +75,7 @@ test.describe("aperture splash - eligible session (navigator.webdriver overridde
     await expect(overlay).toHaveCSS("pointer-events", "none");
     await expect(
       page.getByRole("heading", {
-        name: "London pints can cost eight quid.",
+        name: "What a pint costs, pub by pub.",
         exact: true,
       }),
     ).toBeVisible();

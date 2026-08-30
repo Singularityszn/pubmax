@@ -114,8 +114,8 @@ describe("home card copy", () => {
     // promising something the page it opens does not say.
     const landing = readSource("components/landing/LandingPage.tsx");
     const hero = `${HOME_CARD_HERO_LEAD} ${HOME_CARD_HERO_TAIL} ${HOME_CARD_HERO_ACCENT}`;
-    expect(hero).toBe("London pints can cost eight quid.");
-    expect(landing).toContain("London pints can cost eight quid.");
+    expect(hero).toBe("What a pint costs, pub by pub.");
+    expect(landing).toContain("What a pint costs, pub by pub.");
 
     const ledeWords = HOME_CARD_SUPPORT.split(". ")[0];
     expect(landing.replace(/\s+/g, " ")).toContain(ledeWords);

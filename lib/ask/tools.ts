@@ -737,7 +737,7 @@ async function toolProposePlan(
       provenance: [{ label: "On record", kind: "plan" }],
       cards,
       proposals: [proposal, ...openProposals],
-      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to carry this ask over - nothing is saved until you do.`,
+      answerHint: `Proposed draft: ${stopNames.join(" → ")}. Open in Plan to carry this ask over. Nothing is saved until you do.`,
     };
   } catch {
     return {
