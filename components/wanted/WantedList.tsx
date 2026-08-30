@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   isWantedPromotable,
@@ -24,6 +25,16 @@ function mapUrlFor(wanted: WantedDTO): string | null {
 }
 
 export default function WantedList(): React.JSX.Element {
+  // Wanted is owner-only, so asking for it without a session is a question we
+  // already know the answer to. A cold /you fired GET /api/wanted anyway and
+  // took a 401 to learn what the browser could have told it, which is console
+  // noise on the first page a stranger opens.
+  //
+  // `supabaseAuthState` is the auth readiness contract, and it is three-way for
+  // the reason every identity read here is: `loading` can go false while a
+  // durable resume is still restoring an account, so "not signed in" and "not
+  // asked yet" are different answers and only one of them may say Sign in.
+  const { supabaseAuthState } = useAuth();
   const [wanteds, setWanteds] = useState<WantedDTO[]>([]);
   const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "sign_in" | "error">(
     "loading",
@@ -55,8 +66,16 @@ export default function WantedList(): React.JSX.Element {
   }, []);
 
   useEffect(() => {
+    // Unresolved is not signed out: hold the loading shape rather than claim
+    // either answer.
+    if (supabaseAuthState === "unresolved") return;
+    if (supabaseAuthState === "signed-out") {
+      setLoadStatus("sign_in");
+      setWanteds([]);
+      return;
+    }
     void Promise.resolve().then(() => refresh());
-  }, [refresh]);
+  }, [refresh, supabaseAuthState]);
 
   const open = wanteds.filter((row) => row.status === "open");
   const fulfilled = wanteds.filter((row) => row.status === "fulfilled");

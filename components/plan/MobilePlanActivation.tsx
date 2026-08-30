@@ -215,7 +215,7 @@ export function MobilePlanActivation({
       <div className="mobilePlannerIntentInput">
         <label htmlFor="mobile-plan-query">Describe the outing</label>
         <div>
-          <input id="mobile-plan-query" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
+          <input id="mobile-plan-query" type="text" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Quiet in Soho, four of us, under £25" maxLength={500} />
           {speech.supported ? <Button type="button" variant="ghost" size="icon" aria-label={speech.listening ? "Stop describing the outing" : "Describe the outing by voice"} aria-pressed={speech.listening} onClick={speech.toggle}>{speech.listening ? <MicOff size={18} /> : <Mic size={18} />}</Button> : null}
         </div>
         {speech.listening ? <small role="status">Listening. The transcript stays in this field only.</small> : null}
