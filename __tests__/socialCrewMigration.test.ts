@@ -2116,6 +2116,37 @@ describe("Social Crew migration foundation", () => {
     expect(db.sql(`select count(*) from public.plan_crew_members where plan_id='${plan}' and crew_committed_at is not null`)).toBe("1");
   });
 
+  it("does not issue a crew commitment receipt for an abandoned Plan", () => {
+    const db = database!;
+    const plan = "34343434-3434-4343-8343-343434343434";
+    const host = "35353535-3535-4353-8353-353535353535";
+    db.sql(`
+      insert into public.plans(
+        id,title,start_time,status,plan_outcome,route_ready_at
+      ) values(
+        '${plan}','Abandoned commitment',now()+interval '1 day','abandoned','route',now()
+      );
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+        ('${plan}','abandoned-one','Abandoned One',0),
+        ('${plan}','abandoned-two','Abandoned Two',1),
+        ('${plan}','abandoned-three','Abandoned Three',2);
+      insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate
+      ) values(
+        '${host}','${plan}','Host','${commitmentDigest("abandoned-host-token")}','in',now()-interval '1 minute',now(),true
+      )
+    `);
+
+    expect(json(db.sql(`select public.join_plan_idempotent_atomic_with_commitment(
+      '${plan}','36363636-3636-4363-8363-363636363636','Guest','${commitmentDigest("abandoned-guest-token")}',now(),false,
+      '${commitmentDigest("abandoned-guest-key")}','${commitmentDigest("abandoned-guest-request")}'
+    )`))).toMatchObject({
+      crewCommittedAt: null,
+      crewCommittedRouteReady: null,
+    });
+    expect(db.sql(`select count(*) from public.plan_crew_members where plan_id='${plan}' and crew_committed_at is not null`)).toBe("0");
+  });
+
   it("replays the one-use invite commitment receipt after a later join", () => {
     const db = database!;
     const plan = "29292929-2929-4292-8292-292929292929";

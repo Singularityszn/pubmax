@@ -232,11 +232,20 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
-      const routeReady = typeof body.crewCommittedRouteReady === "boolean"
-        ? body.crewCommittedRouteReady
-        : body.plan ? planRouteReady(body.plan) : false;
       const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
       if (deliveryToken) {
+        const responsePlan = body.plan;
+        const routeReady = typeof body.crewCommittedRouteReady === "boolean"
+          ? body.crewCommittedRouteReady
+          : responsePlan
+            && typeof responsePlan === "object"
+            && !Array.isArray(responsePlan)
+            && responsePlan.plan
+            && typeof responsePlan.plan === "object"
+            && !Array.isArray(responsePlan.plan)
+            && Array.isArray(responsePlan.stops)
+            ? planRouteReady(responsePlan)
+            : false;
         trackEvent("crew_committed", {
           source: "shared-plan",
           participants: 2,

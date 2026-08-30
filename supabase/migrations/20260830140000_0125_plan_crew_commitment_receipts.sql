@@ -62,12 +62,16 @@ begin
     )
     into v_route_ready
     from public.plans plan
-    where plan.id = p_plan_id;
+    where plan.id = p_plan_id
+      and plan.status <> 'abandoned'
+    for share;
 
-    update public.plan_crew_members
-    set crew_committed_at = p_joined_at,
-        crew_committed_route_ready = v_route_ready
-    where plan_id = p_plan_id and id = p_member_id;
+    if found then
+      update public.plan_crew_members
+      set crew_committed_at = p_joined_at,
+          crew_committed_route_ready = v_route_ready
+      where plan_id = p_plan_id and id = p_member_id;
+    end if;
   end if;
 
   if p_status in ('joined', 'replayed') then

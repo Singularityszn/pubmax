@@ -23,7 +23,6 @@ vi.mock("@/lib/planMutationKey", () => ({
   clearPersistentPlanMutationKey: vi.fn(),
   persistentPlanMutationKey: async () => "join-operation-key",
 }));
-vi.mock("@/lib/planPrivacy", () => ({ planRouteReady: () => true }));
 vi.mock("@/lib/planSessionCapability", () => ({
   parsePlanCapabilitySnapshot: () => ({
     token: "",
@@ -47,6 +46,23 @@ const crew = ["Host", "Guest", "Sam", "Alex"].map((name, index) => ({
   joinedAt: `2026-07-24T12:0${index}:00.000Z`,
   updatedAt: `2026-07-24T12:0${index}:00.000Z`,
 }));
+const routeReadyPlan = {
+  plan: {
+    id: PLAN_ID,
+    title: "Crew night",
+    startTime: "2026-07-24T19:00:00.000Z",
+    createdAt: "2026-07-24T12:00:00.000Z",
+    status: "ready",
+    outcome: "route",
+    routeReadyAt: "2026-07-24T12:00:00.000Z",
+  },
+  stops: [
+    { venueId: "venue-one", venueName: "Venue One", position: 0 },
+    { venueId: "venue-two", venueName: "Venue Two", position: 1 },
+    { venueId: "venue-three", venueName: "Venue Three", position: 2 },
+  ],
+  crew,
+};
 
 let container: HTMLDivElement;
 let root: Root;
@@ -98,7 +114,7 @@ afterEach(async () => {
 });
 
 describe("Plan crew threshold analytics", () => {
-  it("does not track crew_committed without a verified threshold token", async () => {
+  it("does not inspect route readiness without a verified threshold token", async () => {
     await join({
       memberToken: "member-token",
       collaborationAuthorized: false,
@@ -109,15 +125,16 @@ describe("Plan crew threshold analytics", () => {
     expect(
       mocks.trackEvent.mock.calls.some(([name]) => name === "crew_committed"),
     ).toBe(false);
+    expect(container.querySelector('[role="alert"]')).toBeNull();
   });
 
-  it("tracks the fixed threshold count when the server returns a token", async () => {
+  it("derives current route readiness from the complete join envelope when the frozen value is absent", async () => {
     await join({
       memberToken: "member-token",
       collaborationAuthorized: false,
       crewCommitted: "verified-threshold-token",
       friendEdgesFormed: 0,
-      plan: { plan: { id: PLAN_ID }, crew },
+      plan: routeReadyPlan,
     });
 
     expect(mocks.trackEvent).toHaveBeenCalledWith(
