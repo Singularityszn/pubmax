@@ -8,6 +8,8 @@ import {
   toZoneId,
   venueMatchesZone,
   zoneLabel,
+  zoneOrderSurpriseLine,
+  type ZonePintIndex,
   type ZonePricedVenue,
 } from "@/lib/zones";
 
@@ -140,5 +142,53 @@ describe("computeZonePintIndex", () => {
     const index = computeZonePintIndex([]);
     expect(index.rows.map((r) => r.zone)).toEqual([1, 2, 3, 4, 5, 6]);
     expect(index.rows.every((r) => r.pricedCount === 0 && !r.enough)).toBe(true);
+  });
+});
+
+describe("zoneOrderSurpriseLine", () => {
+  // The figures read off https://pubmaxxing.com/pint-index on 30 August 2026.
+  // Zone 6 sits 10p above Zone 5 on the two thinnest samples in the index, and
+  // the page said nothing about it, which the audit filed as slop.
+  const liveRows = [
+    { zone: 1, pricedCount: 357, enough: true, medianGbp: 6.2 },
+    { zone: 2, pricedCount: 298, enough: true, medianGbp: 5.7 },
+    { zone: 3, pricedCount: 131, enough: true, medianGbp: 5.3 },
+    { zone: 4, pricedCount: 65, enough: true, medianGbp: 4.9 },
+    { zone: 5, pricedCount: 51, enough: true, medianGbp: 4.6 },
+    { zone: 6, pricedCount: 45, enough: true, medianGbp: 4.7 },
+  ];
+
+  const index = (rows: typeof liveRows): ZonePintIndex =>
+    ({ rows, ranked: [], dearest: null, cheapest: null, taxGbp: null }) as unknown as ZonePintIndex;
+
+  it("explains the live inversion with the two counts behind it", () => {
+    expect(zoneOrderSurpriseLine(index(liveRows))).toBe(
+      "Zone 6 reads dearer than Zone 5. They are the thinnest samples here: 45 and 51 priced pubs.",
+    );
+  });
+
+  it("says nothing when the ladder falls outwards as expected", () => {
+    const ordered = liveRows.map((row) =>
+      row.zone === 6 ? { ...row, medianGbp: 4.4 } : row,
+    );
+    expect(zoneOrderSurpriseLine(index(ordered))).toBeNull();
+  });
+
+  it("says nothing when the inversion is not on the thin end", () => {
+    // Zone 2 dearer than Zone 1, both very well sampled. "Small sample" would
+    // be an excuse rather than a reading, so we owe the reader silence.
+    const wellSampled = liveRows.map((row) =>
+      row.zone === 2 ? { ...row, medianGbp: 6.5 } : row,
+    );
+    expect(zoneOrderSurpriseLine(index(wellSampled))).toBeNull();
+  });
+
+  it("claims no confidence, no interval and no probability", () => {
+    const line = zoneOrderSurpriseLine(index(liveRows)) ?? "";
+    expect(line).not.toMatch(/probab|confidence|margin|significan|likely/i);
+  });
+
+  it("says nothing when too few zones are publishable to see an order at all", () => {
+    expect(zoneOrderSurpriseLine(index(liveRows.slice(4)))).toBeNull();
   });
 });

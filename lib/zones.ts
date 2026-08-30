@@ -142,6 +142,46 @@ export function computeZonePintIndex(venues: readonly ZonePricedVenue[]): ZonePi
   return { rows, ranked, dearest, cheapest, taxGbp };
 }
 
+/**
+ * One line for a zone that reads dearer than the zone inside it, when the
+ * reason is on the page already.
+ *
+ * The ladder falls outwards, so Zone 6 at £4.70 over Zone 5 at £4.60 reads as
+ * a mistake. It is not: those two carry the fewest priced pubs in the index
+ * (45 and 51, against Zone 1's 357), and a 10p step between the two thinnest
+ * samples is not an ordering anybody should trust. The audit called the silence
+ * slop, and it was right - a figure that surprises a reader owes them the one
+ * fact that explains it.
+ *
+ * What this may say is bounded hard. It states the two counts and nothing else:
+ * no confidence, no interval, no "probably". And it speaks ONLY when the pair
+ * really is the thin end of the index, because "small sample" would otherwise
+ * be an excuse rather than a reading. An inversion between two well-sampled
+ * zones gets nothing from us, which is the honest answer when we cannot explain
+ * our own figure.
+ */
+export function zoneOrderSurpriseLine(index: ZonePintIndex): string | null {
+  const publishable = index.rows
+    .filter((row): row is ZonePintIndexRow & { medianGbp: number } => row.medianGbp !== null)
+    .sort((a, b) => a.zone - b.zone);
+  if (publishable.length < 3) return null;
+
+  for (let i = 1; i < publishable.length; i += 1) {
+    const inner = publishable[i - 1];
+    const outer = publishable[i];
+    if (outer.medianGbp <= inner.medianGbp) continue;
+    // The pair must BE the thin end, or the sample is not the explanation.
+    const thinnest = publishable
+      .map((row) => row.pricedCount)
+      .sort((a, b) => a - b)
+      .slice(0, 2);
+    const pair = [inner.pricedCount, outer.pricedCount].sort((a, b) => a - b);
+    if (pair[0] !== thinnest[0] || pair[1] !== thinnest[1]) return null;
+    return `Zone ${outer.zone} reads dearer than Zone ${inner.zone}. They are the thinnest samples here: ${outer.pricedCount} and ${inner.pricedCount} priced pubs.`;
+  }
+  return null;
+}
+
 /** "£6.40" style GBP for the index; null → en dash placeholder. */
 export function formatZoneGbp(value: number | null): string {
   return typeof value === "number" ? `£${value.toFixed(2)}` : "–";

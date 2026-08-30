@@ -11,6 +11,7 @@
 import {
   MIN_PRICED_VENUES,
   formatZoneGbp,
+  zoneOrderSurpriseLine,
   type ZonePintIndex,
 } from "@/lib/zones";
 
@@ -44,6 +45,7 @@ export default function ZonePintIndexStrip({
   compact = false,
 }: ZonePintIndexStripProps) {
   const hasAny = index.ranked.length > 0;
+  const orderSurprise = zoneOrderSurpriseLine(index);
   const className = compact ? "zonePintIndex isCompact" : "zonePintIndex";
 
   return (
@@ -102,6 +104,13 @@ export default function ZonePintIndexStrip({
           <>Not enough pints logged in any zone yet. Fix that.</>
         )}
       </p>
+
+      {/* A figure that surprises a reader owes them the one fact that explains
+          it. lib/zones.ts decides whether there is one, and stays silent when
+          there is not. */}
+      {orderSurprise ? (
+        <p className="zonePintIndexOrderNote">{orderSurprise}</p>
+      ) : null}
 
       <p className="zonePintIndexMethod">
         Each zone figure is the median of the cheapest recorded pint price for
