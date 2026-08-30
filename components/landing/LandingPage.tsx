@@ -145,16 +145,32 @@ export default function LandingPage({
     () => null,
   );
   const mapHref = preferredCityMapHref();
+  // BROWSING and ARRIVING are two acts, and they take two destinations.
+  //
+  // Browsing is the header nav's "Map" and the footer directory's "The map" -
+  // the desktop twins of the mobile tab bar's Map tab, which goes straight to
+  // /map at every width and for every viewer. lib/cityPreference already
+  // answers /map for a viewer with no stored city ("when unset, Map links stay
+  // on /map"), so `mapBrowseHref` IS that same destination and the two navs
+  // stop disagreeing about where Map is. The footer's own comment below draws
+  // this same browsing line for /near.
+  //
+  // Arriving is the three "Open the map" calls to action. Those stay city-first:
+  // a cold visitor picks a city once rather than being silently placed in one,
+  // and e2e/smoke.spec.ts records that law. "Pick your city" keeps its own
+  // footer link either way, so the chooser is never unreachable.
+  const mapBrowseHref = mapHref;
   const primaryCtaHref = preferredCity ? mapHref : "/choose-city";
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
-  const warmProps = preferredCity
-    ? {
-        onPointerDown: warmMap,
-        onPointerEnter: warmMap,
-        onTouchStart: warmMap,
-        onFocus: warmMap,
-      }
-    : {};
+  const browseWarmProps = {
+    onPointerDown: warmMap,
+    onPointerEnter: warmMap,
+    onTouchStart: warmMap,
+    onFocus: warmMap,
+  };
+  // An arrival CTA still pointing at the chooser must not warm a map it is not
+  // about to open.
+  const warmProps = preferredCity ? browseWarmProps : {};
 
   const readout = heroReadout(stats);
   const socialLabel = socialSurfaceName(socialFriendsLaunchEnabled);
@@ -276,7 +292,7 @@ export default function LandingPage({
         </Link>
 
         <nav className="lpPrimaryNav" aria-label="Landing navigation">
-          <Link prefetch={false} href={primaryCtaHref} {...warmProps}>Map</Link>
+          <Link prefetch={false} href={mapBrowseHref} {...browseWarmProps}>Map</Link>
           <Link prefetch={false} href="/plan">Plan</Link>
           <Link prefetch={false} href="/tonight">Tonight</Link>
           <Link prefetch={false} href="/moment">Moment</Link>
@@ -505,7 +521,7 @@ export default function LandingPage({
           <nav className="lpFooterNav" aria-label="Footer">
             <div className="lpFooterCol">
               <h2>Get out tonight</h2>
-              <Link prefetch={false} href={primaryCtaHref} {...warmProps}>The map</Link>
+              <Link prefetch={false} href={mapBrowseHref} {...browseWarmProps}>The map</Link>
               {/* Bare /near: a footer directory tap is browsing, so it must not
                   fire the geolocation prompt. Only the two deliberate one-tap
                   CTAs above ask for a location on arrival. */}
