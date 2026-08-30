@@ -706,6 +706,12 @@ export default function SocialPageClient({
             {showViewerCards ? (
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
+            {/* Friend-graph formation rides the posts tab, and an EMERGENCY
+                ROLLBACK (PUBMAX_SOCIAL_FRIENDS_LAUNCH=0) takes it with the rest
+                of the surface: the body beside these becomes the preview
+                boundary, so leaving them mounted would offer follows on a page
+                that says it is not open yet. Pinned by
+                __tests__/socialRollbackRender.test.tsx. */}
             {/* ONE live copy of the packs on this page. A second would keep its
                 own follow results, so the two would disagree about what a tap
                 just did. */}

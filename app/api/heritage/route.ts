@@ -13,6 +13,7 @@ import { isLimited } from "@/lib/pintDrops";
 import { assertProductionSecrets } from "@/lib/serverEnv";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { resolveHarvestOverlayVenue } from "@/lib/harvestOverlayVenue";
+import { resolveVenue } from "@/lib/venueIndex";
 
 // Heritage does not require Supabase durability, but production still needs
 // ADMIN_TOKEN / RATE_LIMIT_SALT so the durable limiter salt is real.
@@ -77,10 +78,15 @@ export async function POST(request: Request): Promise<Response> {
     const overlayVenueResolution = venueId
       ? await resolveHarvestOverlayVenue(venueId)
       : undefined;
+    // The overlay resolution answers a NARROWER question: which OSM overlay
+    // rows apply. A curated venue with no OSM id answers `unknown` there, which
+    // says nothing about the venue itself, so name and kind fall back to the
+    // canonical index. Without this the client-supplied venueName wins for
+    // every OSM-less venue, which is exactly the forgery this route refuses.
     const resolvedVenue =
-      overlayVenueResolution?.status === "resolved"
+      (overlayVenueResolution?.status === "resolved"
         ? overlayVenueResolution.venue
-        : null;
+        : null) ?? (venueId ? await resolveVenue(venueId) : null);
 
     const response = await answerHeritage({
       venueId: resolvedVenue?.id ?? venueId,

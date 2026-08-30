@@ -52,6 +52,7 @@ silently stale.
 | crawlStoryStore | legacy-exception | Multiple inline Supabase configuration checks. |
 | feedFreshnessStore | factory-ready | Pilot store; durable or memory freshness stamp. |
 | followStore | factory-ready | Directed follow graph with shared backend selection. |
+| harvestOverlayStore | factory-ready | Fold-written UK harvest overlays; one shared selector, with a `requireDurable` guard for the non-dry fold CLI. |
 | identityHandleStore | factory-eligible, policy-heavy | Handle ownership, rename, reservation, and tombstone policy. |
 | importNotesStore | not dual-backend | JSON-file store with memory fallback when the filesystem is unavailable. |
 | messagesStore | factory-eligible, policy-heavy | Conversation identity, membership, and message policy. |
@@ -162,6 +163,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/followWrite.server.ts",
     "lib/freshnessStoreOverlay.ts",
     "lib/handlePasswordSignIn.ts",
+    "lib/harvestOverlayStore.ts",
     "lib/heritage.ts",
     "lib/identityHandleStore.ts",
     "lib/mapSearchEvents.server.ts",
