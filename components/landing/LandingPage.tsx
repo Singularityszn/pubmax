@@ -259,8 +259,8 @@ export default function LandingPage({
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Choose its form and voice in five steps. Then talk or type while it shapes
-      a night from PUBMAXX prices, venues, and events.
+      Choose its form and voice in five steps. Sign in to keep it, then talk or
+      type while it shapes a night from PUBMAXX prices, venues, and events.
     </p>
   );
 

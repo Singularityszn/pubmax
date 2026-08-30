@@ -62,6 +62,7 @@ describe("landing Pub Pal hierarchy", () => {
       /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
     );
     expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
+    expect(hero).toContain("Sign in to keep it");
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
     expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
   });

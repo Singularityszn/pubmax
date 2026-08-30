@@ -299,7 +299,6 @@ export default function PalExperience() {
       controlSavingRef.current = null;
       setControlSaving(false);
       setReady(!user);
-      if (!user) setMode("meeting");
     });
     if (!user) return () => controller.abort();
 
