@@ -53,6 +53,7 @@ import type {
   PlanStopDTO,
 } from "@/lib/plan";
 import { lastRideFetchUrl } from "@/lib/lastRide";
+import { useNightModeEndingOwner } from "@/lib/nightModeHandoff";
 import type { NightAreaSlug } from "@/lib/nightAreas";
 import {
   LATE_FOOD_OPERATOR_MENU_LINK_LABEL,
@@ -365,21 +366,21 @@ export default function NightModeCard() {
 }
 
 function NightModeSurface({ entry }: { entry: ActivePlanRef }) {
-  const [expanded, setExpanded] = useState(false);
+  const { expanded, open, collapse } = useNightModeEndingOwner(entry.id);
   const [restoreFocus, setRestoreFocus] = useState(false);
-  const open = () => {
+  const openSurface = () => {
     setRestoreFocus(false);
-    setExpanded(true);
+    open();
   };
-  const collapse = () => {
+  const collapseSurface = () => {
     setRestoreFocus(true);
-    setExpanded(false);
+    collapse();
   };
   if (!expanded)
-    return <NightModePill onOpen={open} restoreFocus={restoreFocus} />;
+    return <NightModePill onOpen={openSurface} restoreFocus={restoreFocus} />;
   // Key by plan id so a plan switch remounts the sheet fresh — React otherwise
   // preserves the prior plan's route/crew/last-train state until refetch lands.
-  return <NightModeSheet entry={entry} onCollapse={collapse} />;
+  return <NightModeSheet entry={entry} onCollapse={collapseSurface} />;
 }
 
 function NightModePill({
