@@ -41,9 +41,6 @@ const AUTH_BASE_URL = `http://localhost:${AUTH_PORT}`;
 const AUTH_NEXT_DIST_DIR =
   process.env.PW_AUTH_NEXT_DIST_DIR ?? `${NEXT_DIST_DIR}-auth`;
 const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096";
-// Isolated E2E builds must match committed local data artifacts. CI exposes
-// GITHUB_SHA, which would otherwise make each prebuild rewrite their revision.
-const E2E_DEPLOYMENT_VERSION = "local";
 // Production-style browser tests retain the keyless in-memory stores, but
 // trusted Plan claims never use that storage escape hatch. Give each Playwright
 // invocation a fresh process-only signing key shared by its build/start shell.
@@ -332,7 +329,6 @@ export default defineConfig({
         env: {
           NODE_OPTIONS: E2E_NODE_OPTIONS,
           NEXT_DIST_DIR,
-          DEPLOYMENT_VERSION: E2E_DEPLOYMENT_VERSION,
           NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
           NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
@@ -398,7 +394,6 @@ export default defineConfig({
             env: {
               NODE_OPTIONS: E2E_NODE_OPTIONS,
               NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
-              DEPLOYMENT_VERSION: E2E_DEPLOYMENT_VERSION,
               NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
               NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
               NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:
@@ -424,7 +419,6 @@ export default defineConfig({
             env: {
               NODE_OPTIONS: E2E_NODE_OPTIONS,
               NEXT_DIST_DIR: AUTH_NEXT_DIST_DIR,
-              DEPLOYMENT_VERSION: E2E_DEPLOYMENT_VERSION,
               NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
                 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "",

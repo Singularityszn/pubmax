@@ -172,7 +172,9 @@ describe("About outings story (Wave S1)", () => {
     // The three beats: the why, the honesty rule, the mission.
     expect(note).toContain("Nothing worked for the person paying");
     expect(note).toContain("I would rather ship a gap than a guess");
-    expect(note).toContain("nobody has logged it");
+    expect(note).toContain("source status");
+    expect(note).toContain("publisher is not recorded");
+    expect(note).toContain("nobody has logged a figure");
     expect(note).toContain("best way in the world to decide which pub");
     expect(note).toContain("Karan Manoharan, founder of PUBMAXX");
     // Provenance rule: the note claims no personal facts the site cannot

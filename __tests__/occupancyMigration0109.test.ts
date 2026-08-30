@@ -67,9 +67,6 @@ function missingPostgresReason(): string | null {
   if (process.env.PUBMAX_OCCUPANCY_MIGRATION_NO_PG === "1") {
     return "PostgreSQL binaries were deliberately hidden by PUBMAX_OCCUPANCY_MIGRATION_NO_PG=1.";
   }
-  if (process.env.PUBMAX_RLS_NO_PG === "1") {
-    return "PostgreSQL was deliberately hidden by PUBMAX_RLS_NO_PG=1.";
-  }
   const missing = (["initdb", "postgres", "psql"] as const).filter(
     (name) => findPostgresBinary(name) === null,
   );

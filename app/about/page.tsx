@@ -308,11 +308,12 @@ export default async function AboutPage() {
             </p>
             <p className="aboutBody">
               So the rule I build by is short. If PUBMAXXING shows you a
-              figure, it can say where the figure came from: a named publisher,
-              a drinker who logged it on a stated day, or a plain admission
-              that nobody has logged it. I would rather ship a gap than a guess. That
-              goes for this page too. No invented users, no invented
-              biography, no number we cannot count.
+              figure, it tells you its source status: a named publisher where
+              one is recorded, an honest note when a publisher is not recorded,
+              or a drinker who logged it on a stated day. If nobody has logged a
+              figure, it says so. I would rather ship a gap than a guess. That
+              goes for this page too. No invented users, no invented biography,
+              no number we cannot count.
             </p>
             <p className="aboutBody">
               The mission is not modest. I want this to be the best way in the
