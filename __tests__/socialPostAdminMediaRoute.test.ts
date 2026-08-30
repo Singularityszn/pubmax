@@ -7,6 +7,10 @@ const state = vi.hoisted(() => ({
 
 vi.mock("@/lib/adminAuth", () => ({
   isModerator: (request: Request) => request.headers.get("x-admin-token") === "admin-token",
+  moderatorStaffRoleId: (request: Request) =>
+    request.headers.get("x-admin-token") === "admin-token"
+      ? "99999999-9999-4999-8999-999999999999"
+      : null,
 }));
 vi.mock("@/lib/pintDrops", () => ({ isLimited: async () => false }));
 vi.mock("@/lib/supabase", () => ({

@@ -6,6 +6,10 @@ Social access path. Current launch, rollback, and deployment policy lives in
 [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md). Current route
 authority lives in `lib/socialAccessServer.ts` and its tests.
 
+> Historical only. Do not use this document for implementation or rollout
+> decisions. Requirements below are retained as design history; the current
+> authorities are the runbook and `lib/socialAccessServer.ts`.
+
 This contract owns policy decisions that cross Social routes and domains. Implementation details belong in their task code and tests. The threat analysis lives in [SOCIAL_THREAT_MODEL.md](./SOCIAL_THREAT_MODEL.md).
 
 ## Product boundary

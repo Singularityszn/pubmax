@@ -121,7 +121,7 @@ export default async function SavedListPage({ params }: PageProps) {
     venues = saved.filter((venue) => venue.listType === listType);
     if (socialFriendsLaunchEnabled) {
       counts = {
-        ...(await savedListFollowsStore().counts(ownerHandle, listType)),
+        followers: (await savedListFollowsStore().counts(ownerHandle, listType)).followers,
         savedPubs: venues.length,
       };
     } else {

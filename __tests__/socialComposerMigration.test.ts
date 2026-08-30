@@ -546,10 +546,10 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
       update public.social_post_moderation_jobs set state='done' where post_id='${stalePostId}';
       update public.social_posts set body='Edited after photo review',revision=revision+1,moderation_state='pending',updated_at=now()
       where id='${stalePostId}'`);
-    expect(db.sql(`select count(*) from public.read_social_post_moderation_queue_admin(20) where post_id='${stalePostId}'`))
+    expect(db.sql(`select count(*) from public.read_social_post_moderation_queue_admin('55555555-5555-4555-8555-555555555555',20) where post_id='${stalePostId}'`))
       .toBe("0");
-    expect(db.sql(`select count(*) from public.read_social_post_media_admin('${MEDIA_STALE}')`)).toBe("0");
-    expect(db.sql(`select public.moderate_social_post_admin('${stalePostId}','${MEDIA_STALE}','approve')`)).toBe("f");
+    expect(db.sql(`select count(*) from public.read_social_post_media_admin('55555555-5555-4555-8555-555555555555','${MEDIA_STALE}')`)).toBe("0");
+    expect(db.sql(`select public.moderate_social_post_admin('55555555-5555-4555-8555-555555555555','${stalePostId}','${MEDIA_STALE}','approve')`)).toBe("f");
     expect(db.sql(`select moderation_state || ':' || (select moderation_state from public.social_post_media where id='${MEDIA_STALE}')
       from public.social_posts where id='${stalePostId}'`)).toBe("pending:needs_review");
   });

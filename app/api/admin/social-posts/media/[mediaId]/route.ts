@@ -1,4 +1,4 @@
-import { isModerator } from "@/lib/adminAuth";
+import { isModerator, moderatorStaffRoleId } from "@/lib/adminAuth";
 import { publicApiError } from "@/lib/apiError";
 import { isLimited } from "@/lib/pintDrops";
 import { socialPostConsentStore } from "@/lib/socialPostConsentStore";
@@ -29,12 +29,19 @@ export async function GET(request: Request, context: Context): Promise<Response>
       headers: { "Cache-Control": "private, no-store" },
     });
   }
+  const staffRoleId = moderatorStaffRoleId(request);
+  if (!staffRoleId) {
+    return publicApiError("Social moderation is unavailable.", "UNAVAILABLE", 503, {
+      retryable: true,
+      headers: { "Cache-Control": "private, no-store" },
+    });
+  }
   const limitKey = `admin-social-media:${hashIp(clientIp(request))}`;
   if (await isLimited(limitKey, limitKey, 120, 60_000)) return missing();
   const { mediaId } = await context.params;
   if (!UUID.test(mediaId)) return missing();
   try {
-    const objectKey = await socialPostConsentStore.adminMediaObjectKey(mediaId);
+    const objectKey = await socialPostConsentStore.adminMediaObjectKey(staffRoleId, mediaId);
     if (!objectKey) return missing();
     const signedUrl = await signSocialPhotoObject(objectKey);
     if (!signedUrl) return missing();

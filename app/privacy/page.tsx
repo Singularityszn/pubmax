@@ -147,10 +147,12 @@ export default function PrivacyPage() {
         <p className="legalBody">
           Full Social access is for signed-in accounts with a claimed handle and
           an 18+ answer. The date of birth you gave at onboarding decides when it
-          is present; otherwise, one recorded self-assertion can answer the access
-          question. Social is live by default and may return to preview during an
-          emergency rollback. We do not run a separate hosted age check. None of
-          that private data appears on your profile as an age or verification badge.
+          it is present. New accounts must provide date of birth at onboarding;
+          for an existing account where it was not recorded, one self-assertion
+          can answer the access question. Social is live by default and may return
+          to preview during an emergency rollback. We do not run a separate hosted
+          age check. None of that private data appears on your profile as an age or
+          verification badge.
         </p>
         <p className="legalBody">
           Your public profile may also contain a display name, home city and
@@ -885,8 +887,10 @@ export default function PrivacyPage() {
           account. Social is live by default and may return to preview during an
           emergency rollback. Full access needs a signed-in account, a claimed
           handle and an 18+ answer. The date of birth you gave at onboarding
-          decides when it is present; otherwise, one recorded self-assertion can
-          answer the access question. We do not run a separate hosted age check.
+          decides when it is present. For an existing account where it was not
+          recorded, one self-assertion can answer the access question. New accounts
+          must provide date of birth at onboarding. We do not run a separate hosted
+          age check.
           Pubs remain responsible for deciding who they serve.
         </p>
       </section>

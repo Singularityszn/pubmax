@@ -14,6 +14,10 @@ vi.mock("@/lib/socialAccessServer", () => ({
 }));
 vi.mock("@/lib/adminAuth", () => ({
   isModerator: (request: Request) => request.headers.get("x-admin-token") === "admin-token",
+  moderatorStaffRoleId: (request: Request) =>
+    request.headers.get("x-admin-token") === "admin-token"
+      ? "99999999-9999-4999-8999-999999999999"
+      : null,
 }));
 vi.mock("@/lib/socialPostConsentStore", () => {
   class SocialPostConsentStoreError extends Error {
@@ -180,7 +184,7 @@ describe("Social consent API contracts", () => {
     expect(state.calls).toEqual([
       {
         name: "moderateHeldForAdmin",
-        args: [postId, null, "hide"],
+        args: ["99999999-9999-4999-8999-999999999999", postId, null, "hide"],
       },
     ]);
   });

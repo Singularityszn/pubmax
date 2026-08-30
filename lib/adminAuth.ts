@@ -12,6 +12,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 // wide open.
 
 export const ADMIN_SESSION_COOKIE = "pubmax_admin_session";
+export const SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV = "SOCIAL_MODERATOR_STAFF_ROLE_ID";
 
 // 24h — long enough for a moderation shift, short enough to limit stolen-cookie
 // exposure. Refreshed on each successful POST /api/admin/session.
@@ -57,6 +58,20 @@ export function canOpenAdminDocument(headerList: ModeratorHeaders): boolean {
 
 export function isModerator(request: Request): boolean {
   return hasModeratorCredential(request.headers);
+}
+
+/**
+ * Resolve the named Social moderator bound to the existing admin credential.
+ * The role id is deployment configuration, never client input. The migration
+ * checks that this role is still active and has moderator role before any
+ * queue read or moderation write.
+ */
+export function moderatorStaffRoleId(request: Request): string | null {
+  if (!isModerator(request)) return null;
+  const roleId = process.env[SOCIAL_MODERATOR_STAFF_ROLE_ID_ENV]?.trim() ?? "";
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(roleId)
+    ? roleId
+    : null;
 }
 
 function hasModeratorCredential(headerList: ModeratorHeaders): boolean {

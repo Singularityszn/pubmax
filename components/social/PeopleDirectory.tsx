@@ -102,7 +102,7 @@ export default function PeopleDirectory({
     // Ask once the viewer is known. A read fired before then comes back with
     // the people this reader already follows in it, and swapping that list out
     // a moment later is worse than the skeleton it replaced.
-    if (!handleRead) return;
+    if (!socialFriendsLaunchEnabled || !handleRead) return;
     const controller = new AbortController();
     const requestRevision = accountRevision;
     const requestViewer = viewer;

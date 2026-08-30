@@ -143,9 +143,14 @@ export type SocialPostConsentStore = {
   outbox(viewer: SocialPostActor, input: PageInput): Promise<SocialPostOutboxPage>;
   heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
   moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
-  heldQueueForAdmin(limit: number): Promise<SocialPostHeldItem[]>;
-  adminMediaObjectKey(mediaId: string): Promise<string | null>;
-  moderateHeldForAdmin(postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
+  heldQueueForAdmin(staffRoleId: string, limit: number): Promise<SocialPostHeldItem[]>;
+  adminMediaObjectKey(staffRoleId: string, mediaId: string): Promise<string | null>;
+  moderateHeldForAdmin(
+    staffRoleId: string,
+    postId: string,
+    mediaId: string | null,
+    action: "approve" | "hide",
+  ): Promise<void>;
 };
 
 export function createSocialPostConsentStore(): SocialPostConsentStore {
@@ -281,20 +286,23 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
         );
       }
     },
-    async heldQueueForAdmin(limit) {
+    async heldQueueForAdmin(staffRoleId, limit) {
       return rows(await rpc("read_social_post_moderation_queue_admin", {
+        p_staff_role_id: staffRoleId,
         p_limit: limit,
       })).map(heldItemFromRow);
     },
-    async adminMediaObjectKey(mediaId) {
+    async adminMediaObjectKey(staffRoleId, mediaId) {
       const result = rows(await rpc("read_social_post_media_admin", {
+        p_staff_role_id: staffRoleId,
         p_media_id: mediaId,
       }));
       if (result.length === 0) return null;
       return typeof result[0]?.object_key === "string" ? result[0].object_key : null;
     },
-    async moderateHeldForAdmin(postId, mediaId, action) {
+    async moderateHeldForAdmin(staffRoleId, postId, mediaId, action) {
       const result = await rpc("moderate_social_post_admin", {
+        p_staff_role_id: staffRoleId,
         p_post_id: postId,
         p_media_id: mediaId,
         p_action: action,

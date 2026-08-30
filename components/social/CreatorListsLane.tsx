@@ -233,7 +233,7 @@ export default function CreatorListsLane(): React.JSX.Element {
   const resolvedViewerHandle = useViewerHandle();
   const viewerHandle = identityResolved
     ? user
-      ? resolvedViewerHandle ?? ""
+      ? resolvedViewerHandle
       : ""
     : null;
 

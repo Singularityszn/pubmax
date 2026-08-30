@@ -17,6 +17,7 @@ vi.mock("@/lib/supabase", () => ({
 import { createSocialPostConsentStore } from "@/lib/socialPostConsentStore";
 
 const viewer = { accountId: "account-a", profileId: "profile-a", handle: "alice" };
+const staffRoleId = "99999999-9999-4999-8999-999999999999";
 
 beforeEach(() => {
   state.rows = new Map();
@@ -109,7 +110,7 @@ describe("Social post consent and private read store", () => {
     state.rows.set("moderate_social_post_admin", true);
 
     const store = createSocialPostConsentStore();
-    await expect(store.heldQueueForAdmin(50)).resolves.toEqual([{
+    await expect(store.heldQueueForAdmin(staffRoleId, 50)).resolves.toEqual([{
       staffDisplayName: "Captain",
       postId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       mediaId: null,
@@ -117,6 +118,7 @@ describe("Social post consent and private read store", () => {
       createdAt: "2026-08-29T12:00:00.000Z",
     }]);
     await store.moderateHeldForAdmin(
+      staffRoleId,
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       null,
       "approve",
@@ -124,11 +126,12 @@ describe("Social post consent and private read store", () => {
     expect(state.calls).toEqual([
       {
         name: "read_social_post_moderation_queue_admin",
-        input: { p_limit: 50 },
+        input: { p_staff_role_id: staffRoleId, p_limit: 50 },
       },
       {
         name: "moderate_social_post_admin",
         input: {
+          p_staff_role_id: staffRoleId,
           p_post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
           p_media_id: null,
           p_action: "approve",

@@ -67,7 +67,8 @@ account see nothing personal.
 
 ### Earlier same-day locked context
 
-- Social launches friends-only for all signed-in users and is live by default;
+- Social launches friends-only for eligible signed-in users: a Supabase session,
+  claimed handle, and 18+ answer are required. It is live by default;
   `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the explicit emergency rollback.
 - Profile pictures: user-uploaded, public on profile.
 - Moderation: OpenAI omni-moderation pre-publish scan on OWNED storage

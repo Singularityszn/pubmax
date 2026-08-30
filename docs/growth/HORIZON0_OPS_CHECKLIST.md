@@ -9,8 +9,12 @@ ship the product and keep this checklist current. Strategy:
 ## Smoke (re-verified 2026-08-07)
 
 ```sh
-curl -sSIL https://pubmaxxing.com/map          # HTTP/2 200
-curl -sSIL https://pubmaxxing.com/social       # HTTP/2 200 (live by default; use =0 only for rollback)
+curl --fail --silent --show-error --location https://pubmaxxing.com/map \
+  | grep -F '<title>Map · PUBMAXXING</title>'
+curl --fail --silent --show-error --location https://pubmaxxing.com/social \
+  | grep -F '<title>Social · PUBMAXXING</title>'
+# On a rollback deployment, replace the Social marker with:
+# <title>Social preview · PUBMAXXING</title>
 ```
 
 Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohort. Agents keep product + this checklist current.
@@ -33,9 +37,11 @@ Captain still owns merge of #747, `vercel promote`, and the human WhatsApp cohor
 5. Smoke:
 
 ```sh
-curl -sSIL https://pubmaxxing.com/map | head -n 1
-curl -sSIL https://pubmaxxing.com/social | head -n 1
-# Social is live when the flag is unset; verify static Social preview after setting =0 for rollback.
+curl --fail --silent --show-error --location https://pubmaxxing.com/map \
+  | grep -F '<title>Map · PUBMAXXING</title>'
+curl --fail --silent --show-error --location https://pubmaxxing.com/social \
+  | grep -F '<title>Social · PUBMAXXING</title>'
+# A rollback deployment must return <title>Social preview · PUBMAXXING</title>.
 ```
 
 ## Cohort invite (15–40 drinkers)

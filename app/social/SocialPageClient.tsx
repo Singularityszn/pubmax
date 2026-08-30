@@ -460,6 +460,7 @@ export default function SocialPageClient({
     }
 
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     void Promise.resolve().then(() => setAccess("checking"));
     authedActionFetch("/api/social/access", {
       cache: "no-store",
@@ -479,6 +480,7 @@ export default function SocialPageClient({
         };
       })
       .then((result) => {
+        if (requestRevision !== accountRevision) return;
         setAccess(result.state);
         setAdultPrompt(result.adultPrompt);
         setDraftScope(result.draftScope);
@@ -487,6 +489,7 @@ export default function SocialPageClient({
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
+        if (requestRevision !== accountRevision) return;
         setAccess("unavailable");
       });
     return () => controller.abort();

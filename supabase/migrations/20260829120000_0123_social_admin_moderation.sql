@@ -1,7 +1,7 @@
 -- Let the existing admin console consume Social's held-post queue.
 -- Service-role execute is safe only behind the application admin gate.
 
-create function public.read_social_post_moderation_queue_admin(p_limit integer default 20)
+create function public.read_social_post_moderation_queue_admin(p_staff_role_id uuid,p_limit integer default 20)
 returns table(staff_display_name text,post_id uuid,media_id uuid,moderation_claim text,created_at timestamptz)
 language plpgsql
 stable
@@ -12,8 +12,7 @@ declare v_staff public.private_social_staff_roles;
 begin
   if p_limit < 1 or p_limit > 50 then raise exception 'invalid moderation queue size'; end if;
   select * into v_staff from public.private_social_staff_roles
-  where active and revoked_at is null and role = 'moderator'
-  order by created_at, id limit 1;
+  where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
   if v_staff.id is null then raise exception 'staff required'; end if;
   return query select v_staff.display_name,post.id,post.photo_media_id,job.moderation_claim,post.created_at
   from public.social_posts post
@@ -32,7 +31,7 @@ begin
 end;
 $$;
 
-create function public.moderate_social_post_admin(p_post_id uuid,p_media_id uuid,p_action text)
+create function public.moderate_social_post_admin(p_staff_role_id uuid,p_post_id uuid,p_media_id uuid,p_action text)
 returns boolean
 language plpgsql
 security definer
@@ -41,8 +40,7 @@ as $$
 declare v_staff public.private_social_staff_roles; v_post public.social_posts;
 begin
   select * into v_staff from public.private_social_staff_roles
-  where active and revoked_at is null and role = 'moderator'
-  order by created_at, id limit 1;
+  where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
   if v_staff.id is null then raise exception 'staff required'; end if;
   if p_action not in ('approve','hide') then raise exception 'invalid moderation action'; end if;
   select * into v_post from public.social_posts where id = p_post_id for update;
@@ -83,7 +81,7 @@ begin
 end;
 $$;
 
-create function public.read_social_post_media_admin(p_media_id uuid)
+create function public.read_social_post_media_admin(p_staff_role_id uuid,p_media_id uuid)
 returns table(object_key text)
 language plpgsql
 stable
@@ -93,8 +91,7 @@ as $$
 declare v_staff public.private_social_staff_roles;
 begin
   select * into v_staff from public.private_social_staff_roles
-  where active and revoked_at is null and role = 'moderator'
-  order by created_at, id limit 1;
+  where id = p_staff_role_id and active and revoked_at is null and role = 'moderator';
   if v_staff.id is null then raise exception 'staff required'; end if;
   return query select media.object_key
   from public.social_post_media media
@@ -110,9 +107,9 @@ begin
 end;
 $$;
 
-revoke all on function public.read_social_post_moderation_queue_admin(integer) from public, anon, authenticated;
-revoke all on function public.moderate_social_post_admin(uuid,uuid,text) from public, anon, authenticated;
-revoke all on function public.read_social_post_media_admin(uuid) from public, anon, authenticated;
-grant execute on function public.read_social_post_moderation_queue_admin(integer) to service_role;
-grant execute on function public.moderate_social_post_admin(uuid,uuid,text) to service_role;
-grant execute on function public.read_social_post_media_admin(uuid) to service_role;
+revoke all on function public.read_social_post_moderation_queue_admin(uuid,integer) from public, anon, authenticated;
+revoke all on function public.moderate_social_post_admin(uuid,uuid,uuid,text) from public, anon, authenticated;
+revoke all on function public.read_social_post_media_admin(uuid,uuid) from public, anon, authenticated;
+grant execute on function public.read_social_post_moderation_queue_admin(uuid,integer) to service_role;
+grant execute on function public.moderate_social_post_admin(uuid,uuid,uuid,text) to service_role;
+grant execute on function public.read_social_post_media_admin(uuid,uuid) to service_role;

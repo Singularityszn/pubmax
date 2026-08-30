@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import ShareBar from "@/components/share/ShareBar";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -61,16 +61,20 @@ export default function SavedListDetail({
   initialFollowing = false,
 }: SavedListDetailProps) {
   const owner = normalizeHandle(ownerHandle);
-  const { user } = useAuth();
+  const { accountRevision, user } = useAuth();
   const liveViewerHandle = useViewerHandle();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const viewer = user ? normalizeHandle(liveViewerHandle ?? "") : "";
+  const viewerKey = `${accountRevision}:${viewer}`;
   const [following, setFollowing] = useState(initialFollowing);
+  const [followStateKey, setFollowStateKey] = useState(viewerKey);
+  const viewerKeyRef = useRef(viewerKey);
   const [counts, setCounts] = useState(initialCounts);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const canFollow = socialFriendsLaunchEnabled && viewer !== "" && viewer !== owner;
+  const viewerStateReady = followStateKey === viewerKey;
+  const canFollow = socialFriendsLaunchEnabled && viewerStateReady && viewer !== "" && viewer !== owner;
   const shareUrl = savedListPath(owner, listType);
   const mapHref = creatorListMapHref(venues);
   const shareText = buildSavedListShareText({
@@ -78,6 +82,16 @@ export default function SavedListDetail({
     listType,
     venueCount: counts.savedPubs,
   });
+
+  useEffect(() => {
+    viewerKeyRef.current = viewerKey;
+    void Promise.resolve().then(() => {
+      setFollowStateKey(viewerKey);
+      setFollowing(false);
+      setBusy(false);
+      setError(null);
+    });
+  }, [viewerKey]);
 
   useEffect(() => {
     if (!socialFriendsLaunchEnabled || !canFollow) return;
@@ -96,7 +110,7 @@ export default function SavedListDetail({
           return;
         }
         const body = (await res.json()) as { following?: unknown; counts?: unknown };
-        if (!controller.signal.aborted) {
+        if (!controller.signal.aborted && viewerKeyRef.current === viewerKey) {
           if (typeof body.following === "boolean") setFollowing(body.following);
           const nextCounts = readCounts(body.counts);
           if (nextCounts) {
@@ -113,7 +127,7 @@ export default function SavedListDetail({
 
     void loadState();
     return () => controller.abort();
-  }, [canFollow, listType, owner, socialFriendsLaunchEnabled, viewer]);
+  }, [canFollow, listType, owner, socialFriendsLaunchEnabled, viewer, viewerKey]);
 
   async function toggleFollow() {
     if (busy || !canFollow || !socialFriendsLaunchEnabled) return;

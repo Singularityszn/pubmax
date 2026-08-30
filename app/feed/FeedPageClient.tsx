@@ -351,6 +351,7 @@ export default function FeedPageClient({
     const controller = new AbortController();
     async function loadSocial() {
       if (!socialFriendsLaunchEnabled) {
+        if (tab !== "london") setTab("london");
         setLotHandles(null);
         setCheckInItems([]);
         return;

@@ -87,8 +87,11 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
   const [packState, setPackState] = useState<Record<string, PackState>>({});
   const [viewerStateKey, setViewerStateKey] = useState("");
   const accountRevisionRef = useRef(accountRevision);
-  accountRevisionRef.current = accountRevision;
   const viewerKey = `${accountRevision}:${viewer ?? ""}`;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {

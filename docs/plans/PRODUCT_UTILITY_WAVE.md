@@ -25,7 +25,7 @@ Open PRs already own coffee taxonomy, Spoons prefer/filter, lens analytics, boro
 
 ### U2 — Landing memory / Social honesty
 **Branch:** `cursor/landing-memory-honesty-dd0b`  
-**Job:** During the explicit `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` emergency rollback, Memory beat CTAs must not promise live Social. Point to `/plan`, private recap, or You memories.
+**Job:** During the explicit `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` emergency rollback, Memory beat CTAs must not promise live Social. Point to `/plan`, private recap, or your memories.
 **Done when:** landing honesty tests pin the gated links.
 
 ### U3 — FSA hygiene above the Disclosure fold

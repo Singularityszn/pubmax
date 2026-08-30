@@ -1,5 +1,5 @@
 import { publicApiError } from "@/lib/apiError";
-import { isModerator } from "@/lib/adminAuth";
+import { isModerator, moderatorStaffRoleId } from "@/lib/adminAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
 import {
@@ -21,7 +21,9 @@ export async function GET(request: Request): Promise<Response> {
     return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
   }
   if (!isModerator(request)) return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } });
-  try { return json({ posts: await socialPostConsentStore.heldQueueForAdmin(50) }); }
+  const staffRoleId = moderatorStaffRoleId(request);
+  if (!staffRoleId) return publicApiError("Social moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
+  try { return json({ posts: await socialPostConsentStore.heldQueueForAdmin(staffRoleId, 50) }); }
   catch { return publicApiError("Social post moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } }); }
 }
 export async function POST(request: Request): Promise<Response> {
@@ -33,6 +35,8 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
   if (!isModerator(request)) return publicApiError("Moderator access required.", "FORBIDDEN", 403, { headers: { "Cache-Control": "private, no-store" } });
+  const staffRoleId = moderatorStaffRoleId(request);
+  if (!staffRoleId) return publicApiError("Social moderation is unavailable.", "UNAVAILABLE", 503, { retryable: true, headers: { "Cache-Control": "private, no-store" } });
   let input: unknown;
   try { input = await boundedJson(request); } catch { return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } }); }
   const value = input && typeof input === "object" && !Array.isArray(input) ? input as Record<string, unknown> : null;
@@ -42,6 +46,7 @@ export async function POST(request: Request): Promise<Response> {
     (value.action !== "approve" && value.action !== "hide")) return publicApiError("Moderation request is not valid.", "MALFORMED_REQUEST", 400, { headers: { "Cache-Control": "private, no-store" } });
   try {
     await socialPostConsentStore.moderateHeldForAdmin(
+      staffRoleId,
       value.postId,
       value.mediaId as string | null,
       value.action,
