@@ -315,7 +315,10 @@ const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), 
   ssr: false,
 });
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
-import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
+import {
+  LOCALITY_FLY_ZOOM,
+  type PlaceSuggestion,
+} from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -391,6 +394,8 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
+  mapChosenAreaFlyTarget,
+  mapChosenAreaPickerKind,
   readMapChosenArea,
   rememberMapChosenAreaSelection,
   resolveMapChosenAreaRestore,
@@ -3946,21 +3951,27 @@ export default function PubMap({
         return;
       }
       const { row } = pick;
-      writeMapChosenArea({
+      const kind = mapChosenAreaPickerKind(row.slug);
+      const rememberedArea = {
         cityId,
         label: row.name,
         slug: row.slug,
         center: row.center,
-        kind: "night-area",
-      });
+        kind,
+      } as const;
+      rememberMapChosenAreaSelection(rememberedArea);
       restoredChosenAreaRef.current = true;
+      const camera = mapChosenAreaFlyTarget(
+        rememberedArea,
+        LOCALITY_FLY_ZOOM,
+      );
       flyToArea({
         slug: row.slug,
         name: row.name,
         center: row.center,
         coverage: null,
-        kind: row.slug.startsWith("locality:") ? "locality" : "area",
-        zoom: row.slug.startsWith("locality:") ? 15 : undefined,
+        kind: camera.kind,
+        zoom: camera.zoom,
       });
     },
     [changeMapOverlay, cityId, flyToArea, showNearbyMap],
@@ -4009,14 +4020,15 @@ export default function PubMap({
       return;
     }
     const stored = decision.area;
+    const camera = mapChosenAreaFlyTarget(stored, LOCALITY_FLY_ZOOM);
     queueMicrotask(() => {
       flyToArea({
         slug: stored.slug,
         name: stored.label,
         center: stored.center,
         coverage: null,
-        kind: stored.kind === "night-area" ? "area" : stored.kind,
-        zoom: stored.kind === "locality" ? 15 : undefined,
+        kind: camera.kind,
+        zoom: camera.zoom,
       });
     });
   }, [

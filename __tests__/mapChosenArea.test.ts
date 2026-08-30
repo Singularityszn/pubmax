@@ -3,12 +3,15 @@ import { describe, expect, it } from "vitest";
 import {
   MAP_CHOSEN_AREA_KEY,
   clearMapChosenArea,
+  mapChosenAreaFlyTarget,
+  mapChosenAreaPickerKind,
   rememberMapChosenAreaSelection,
   readMapChosenArea,
   resolveMapChosenAreaRestore,
   writeMapChosenArea,
   type MapChosenArea,
 } from "@/lib/mapChosenArea";
+import { LOCALITY_FLY_ZOOM } from "@/lib/mapSearchSuggest";
 
 function makeMemoryStorage(): Storage {
   const map = new Map<string, string>();
@@ -130,6 +133,23 @@ describe("mapChosenArea", () => {
     expect(readMapChosenArea(storage)).toBeNull();
   });
 
+  it.each([
+    ["non-finite longitude", "1e400", "51.5"],
+    ["longitude above 180", "180.01", "51.5"],
+    ["longitude below -180", "-180.01", "51.5"],
+    ["latitude above 90", "-0.1", "90.01"],
+    ["latitude below -90", "-0.1", "-90.01"],
+  ])("removes a stored row with %s", (_case, longitude, latitude) => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      `{"cityId":"london","label":"Bad","slug":"bad","kind":"locality","center":[${longitude},${latitude}]}`,
+    );
+
+    expect(readMapChosenArea(storage)).toBeNull();
+    expect(storage.getItem(MAP_CHOSEN_AREA_KEY)).toBeNull();
+  });
+
   it("returns a stable snapshot for useSyncExternalStore", () => {
     const storage = makeMemoryStorage();
     writeMapChosenArea(
@@ -145,6 +165,55 @@ describe("mapChosenArea", () => {
     const first = readMapChosenArea(storage);
     const second = readMapChosenArea(storage);
     expect(first).toBe(second);
+  });
+});
+
+describe("remembered named-place camera", () => {
+  it("classifies Choose Area locality rows before they reach storage", () => {
+    expect(mapChosenAreaPickerKind("locality:willesden")).toBe("locality");
+    expect(mapChosenAreaPickerKind("camden")).toBe("night-area");
+  });
+
+  it("restores a locality with the same zoom used by search selection", () => {
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Willesden",
+          slug: "locality:willesden",
+          kind: "locality",
+          center: [-0.23, 51.55],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "locality", zoom: LOCALITY_FLY_ZOOM });
+  });
+
+  it("keeps Night Areas and boroughs on their default camera zoom", () => {
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Camden",
+          slug: "camden",
+          kind: "night-area",
+          center: [-0.143, 51.539],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "area", zoom: undefined });
+    expect(
+      mapChosenAreaFlyTarget(
+        {
+          cityId: "london",
+          label: "Hackney",
+          slug: "borough:hackney",
+          kind: "borough",
+          center: [-0.06, 51.545],
+        },
+        LOCALITY_FLY_ZOOM,
+      ),
+    ).toEqual({ kind: "borough", zoom: undefined });
   });
 });
 

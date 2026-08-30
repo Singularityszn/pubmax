@@ -49,6 +49,31 @@ export type MapChosenAreaSelection = Pick<
   "cityId" | "kind" | "label" | "slug" | "center"
 >;
 
+/** The two named-place kinds produced by Choose Area rows. */
+export function mapChosenAreaPickerKind(
+  slug: string,
+): "night-area" | "locality" {
+  return slug.startsWith("locality:") ? "locality" : "night-area";
+}
+
+/**
+ * Translate a remembered place into the camera contract used on first select
+ * and later restore. The caller supplies the search module's locality zoom so
+ * both journeys have one value without storing presentation state.
+ */
+export function mapChosenAreaFlyTarget(
+  area: { kind: MapChosenNamedPlaceKind },
+  localityZoom: number,
+): {
+  kind: "area" | "locality" | "borough";
+  zoom: number | undefined;
+} {
+  return {
+    kind: area.kind === "night-area" ? "area" : area.kind,
+    zoom: area.kind === "locality" ? localityZoom : undefined,
+  };
+}
+
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
   return safeLocalStorage();
@@ -94,7 +119,18 @@ function parseMapChosenArea(value: unknown): MapChosenArea | null {
   const center = row.center;
   if (!Array.isArray(center) || center.length !== 2) return null;
   const [lng, lat] = center;
-  if (typeof lng !== "number" || typeof lat !== "number") return null;
+  if (
+    typeof lng !== "number" ||
+    typeof lat !== "number" ||
+    !Number.isFinite(lng) ||
+    !Number.isFinite(lat) ||
+    lng < -180 ||
+    lng > 180 ||
+    lat < -90 ||
+    lat > 90
+  ) {
+    return null;
+  }
   return { ...base, kind: row.kind, center: [lng, lat] };
 }
 
