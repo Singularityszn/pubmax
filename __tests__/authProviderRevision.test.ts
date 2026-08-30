@@ -35,6 +35,23 @@ describe("provider identity revision", () => {
     expect(revisions).toEqual([1, 2]);
   });
 
+  it("aborts the old provider revision signal and rotates to a live signal", () => {
+    const store = createProviderIdentityRevisionStore();
+    const before = store.signal();
+    expect(before.aborted).toBe(false);
+
+    store.set("supabase", "supabase-actor-a");
+
+    const after = store.signal();
+    expect(before.aborted).toBe(true);
+    expect(before.reason).toMatchObject({ name: "AbortError" });
+    expect(after).not.toBe(before);
+    expect(after.aborted).toBe(false);
+
+    store.set("supabase", "supabase-actor-a");
+    expect(store.signal()).toBe(after);
+  });
+
   it("publishes provider authentication readiness without exposing provider identity", () => {
     const store = createProviderIdentityRevisionStore();
 

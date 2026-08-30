@@ -7,7 +7,7 @@
 import { getAccessToken } from "@/lib/authClient";
 import {
   readProviderIdentityRevision,
-  subscribeProviderIdentityRevision,
+  readProviderIdentitySignal,
 } from "@/lib/authProviderRevision";
 
 export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session - try again.";
@@ -52,58 +52,34 @@ function abortReason(signal: AbortSignal): unknown {
 
 type AccountBoundAction = Readonly<{
   signal: AbortSignal;
-  bind: () => number;
-  dispose: () => void;
+  accountRevision: number;
 }>;
 
-function accountBoundActionSignal(
+function callerActionSignals(
   input: RequestInfo | URL,
   initSignal?: AbortSignal,
-): AccountBoundAction {
-  const controller = new AbortController();
-  let accountRevision = authActionState.status === "unknown"
-    ? null
-    : readProviderIdentityRevision();
-  let disposed = false;
-  const abortForAccountChange = (): void => {
-    if (
-      accountRevision !== null &&
-      readProviderIdentityRevision() !== accountRevision
-    ) {
-      controller.abort(abortError());
-    }
-  };
-  const unsubscribeAccountRevision = subscribeProviderIdentityRevision(
-    abortForAccountChange,
-  );
+): AbortSignal[] {
   const requestSignal = typeof Request !== "undefined" && input instanceof Request
     ? input.signal
     : undefined;
-  const callerSignals = [...new Set(
+  return [...new Set(
     [requestSignal, initSignal].filter((signal): signal is AbortSignal => Boolean(signal)),
   )];
-  const callerListeners = callerSignals.map((signal) => {
-    const listener = (): void => controller.abort(abortReason(signal));
-    signal.addEventListener("abort", listener, { once: true });
-    if (signal.aborted) listener();
-    return { signal, listener };
-  });
-  abortForAccountChange();
+}
+
+function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
+  const distinctSignals = [...new Set(signals)];
+  return distinctSignals.length === 1
+    ? distinctSignals[0] as AbortSignal
+    : AbortSignal.any(distinctSignals);
+}
+
+function bindAccountAction(callerSignals: readonly AbortSignal[]): AccountBoundAction {
+  const accountRevision = readProviderIdentityRevision();
+  const providerSignal = readProviderIdentitySignal();
   return {
-    signal: controller.signal,
-    bind: () => {
-      accountRevision ??= readProviderIdentityRevision();
-      abortForAccountChange();
-      return accountRevision;
-    },
-    dispose: () => {
-      if (disposed) return;
-      disposed = true;
-      unsubscribeAccountRevision();
-      for (const { signal, listener } of callerListeners) {
-        signal.removeEventListener("abort", listener);
-      }
-    },
+    accountRevision,
+    signal: compositeActionSignal([providerSignal, ...callerSignals]),
   };
 }
 
@@ -197,7 +173,7 @@ export async function authedFetch(
 }
 
 type ActiveAuthActionResponse = Readonly<{
-  action: AccountBoundAction;
+  signal: AbortSignal;
   accountRevision: number;
   response: Response;
 }>;
@@ -206,40 +182,41 @@ async function activeAuthActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<ActiveAuthActionResponse> {
-  const action = accountBoundActionSignal(input, init.signal ?? undefined);
-  try {
-    const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-    await waitForAuthActionReadiness(deadline, action.signal);
-    const accountRevision = action.bind();
+  const callerSignals = callerActionSignals(input, init.signal ?? undefined);
+  const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
+  let action = authActionState.status === "unknown"
+    ? null
+    : bindAccountAction(callerSignals);
+  await waitForAuthActionReadiness(
+    deadline,
+    action?.signal ?? compositeActionSignal(callerSignals),
+  );
+  action ??= bindAccountAction(callerSignals);
 
-    let token: string | null = null;
-    for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
-      const remaining = deadline - Date.now();
-      if (remaining <= 0) break;
-      if (delayMs > 0) {
-        await waitForTokenRetry(Math.min(delayMs, remaining), action.signal);
-      }
-      if (Date.now() >= deadline) break;
-      token = await readTokenBefore(deadline, action.signal);
-      if (token || Date.now() >= deadline) break;
+  let token: string | null = null;
+  for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
+    const remaining = deadline - Date.now();
+    if (remaining <= 0) break;
+    if (delayMs > 0) {
+      await waitForTokenRetry(Math.min(delayMs, remaining), action.signal);
     }
-
-    const headers = new Headers(init.headers);
-    if (token) {
-      headers.set("authorization", `Bearer ${token}`);
-      const response = await fetch(input, { ...init, headers, signal: action.signal });
-      return { action, accountRevision, response };
-    }
-
-    if (authActionState.status !== "signed-out") {
-      throw new AuthActionSessionError();
-    }
-    const response = await fetch(input, { ...init, headers, signal: action.signal });
-    return { action, accountRevision, response };
-  } catch (error) {
-    action.dispose();
-    throw error;
+    if (Date.now() >= deadline) break;
+    token = await readTokenBefore(deadline, action.signal);
+    if (token || Date.now() >= deadline) break;
   }
+
+  const headers = new Headers(init.headers);
+  if (token) {
+    headers.set("authorization", `Bearer ${token}`);
+    const response = await fetch(input, { ...init, headers, signal: action.signal });
+    return { ...action, response };
+  }
+
+  if (authActionState.status !== "signed-out") {
+    throw new AuthActionSessionError();
+  }
+  const response = await fetch(input, { ...init, headers, signal: action.signal });
+  return { ...action, response };
 }
 
 /**
@@ -248,15 +225,13 @@ async function activeAuthActionFetch(
  * retries the browser session read within one bounded two-second window.
  * Once auth is usable, token lookup and the active fetch bind to that provider
  * identity revision. Both Request and init abort signals remain authoritative.
- * The returned value is the native Response and owns no retained listeners.
+ * Native fetch owns the composite signal through its response body lifecycle.
  */
 export async function authedActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
-  const { action, response } = await activeAuthActionFetch(input, init);
-  action.dispose();
-  return response;
+  return (await activeAuthActionFetch(input, init)).response;
 }
 
 export type AuthedActionJson<T> = Readonly<{
@@ -269,13 +244,9 @@ export async function authedActionJson<T = unknown>(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<AuthedActionJson<T>> {
-  const { action, accountRevision, response } = await activeAuthActionFetch(input, init);
-  try {
-    const body = (await response.json()) as T;
-    if (action.signal.aborted) throw abortReason(action.signal);
-    if (readProviderIdentityRevision() !== accountRevision) throw abortError();
-    return { response, body };
-  } finally {
-    action.dispose();
-  }
+  const { signal, accountRevision, response } = await activeAuthActionFetch(input, init);
+  const body = (await response.json()) as T;
+  if (signal.aborted) throw abortReason(signal);
+  if (readProviderIdentityRevision() !== accountRevision) throw abortError();
+  return { response, body };
 }
