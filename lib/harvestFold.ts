@@ -341,7 +341,7 @@ function containsVenueLocationClaim(
         .replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
         .replace(/\s+/g, "\\s+")
     : `[a-z][a-z'-]*`;
-  const direct = `(?:\\b(?:in|near|at|within|from)\\b\\s+|[,\\-–—()]\\s*)${locality}\\b`;
+  const direct = `(?:\\b(?:in|near|at|within|from)\\b\\s+|[,\\-\\u2013\\u2014()]\\s*)${locality}\\b`;
   const copula =
     `(?:\\b(?:is|was|were|has been|had been)\\b\\s+)?` +
     `(?:\\b(?:located|situated|based|standing|stood|sits|lies)\\b\\s+` +

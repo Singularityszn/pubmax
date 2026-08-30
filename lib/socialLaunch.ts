@@ -76,8 +76,12 @@ export function adultSelfAssertionLine(friendsLaunchEnabled = true): string {
 
 /** Body dataset written by root layout (`data-social-friends-launch`). */
 export function readSocialFriendsLaunchFromDocument(): boolean {
+  // A read that cannot answer fails OPEN, the same way an absent document
+  // does: the body is not guaranteed to exist when a client component first
+  // renders, and throwing here takes the whole surface down over an optional
+  // flag.
   if (typeof document === "undefined") return true;
-  return document.body.dataset.socialFriendsLaunch !== "0";
+  return document.body?.dataset?.socialFriendsLaunch !== "0";
 }
 
 export function subscribeSocialFriendsLaunchFromDocument(): () => void {

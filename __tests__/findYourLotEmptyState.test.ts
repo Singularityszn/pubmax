@@ -41,7 +41,7 @@ describe("WP7 find-your-lot empty-state pins", () => {
 
   it("Social page mounts FindYourLot even when posts stay gated", () => {
     expect(social).toMatch(/isPosts \? <FindYourLot/);
-    expect(social).toMatch(/Friend-graph formation stays available/);
+    expect(social).toMatch(/Friend-graph formation rides the posts tab/);
     expect(findLot).toMatch(/\/api\/profiles\/search/);
     expect(findLot).toMatch(/Find your lot/);
     expect(findLot).not.toMatch(/Open Social/);

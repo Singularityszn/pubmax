@@ -124,13 +124,13 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/private product account/);
     expect(terms).toMatch(/private product account tied to your Supabase sign-in/);
     expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+accounts/);
-    expect(terms).toMatch(/do not run a separate hosted age check/i);
+    expect(terms).toMatch(/do not run a\s+separate\s+hosted\s+age\s+check/i);
   });
 
   it("describes self-asserted 18+ honestly and keeps Yoti optional", () => {
     expect(privacy).toMatch(/date of birth you gave at onboarding/i);
-    expect(privacy).toMatch(/do not run a separate hosted age check/i);
-    expect(terms).toMatch(/do not run a separate hosted age check/i);
+    expect(privacy).toMatch(/do not run a\s+separate\s+hosted\s+age\s+check/i);
+    expect(terms).toMatch(/do not run a\s+separate\s+hosted\s+age\s+check/i);
     expect(privacy).toMatch(/does not currently\s+send data to Yoti/i);
     expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
     expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);

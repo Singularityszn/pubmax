@@ -37,6 +37,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/map/CityStatusBanner.tsx", fetchCount: 1, reason: "map status is an optional provider status lane" },
   { path: "components/map/CitySuggestBanner.tsx", fetchCount: 1, reason: "map search suggestion is an interactive pack read" },
   { path: "components/map/NearbyBusDepartures.tsx", fetchCount: 1, reason: "nearby transport is live and location-scoped" },
+  { path: "components/map/UnverifiedPubSheet.tsx", fetchCount: 1, reason: "harvest overlay is an additive lazy read for one unverified pub sheet and never paints a reload surface" },
   { path: "components/map/VenueBuzz.tsx", fetchCount: 2, reason: "venue search and buzz are interactive detail reads" },
   { path: "components/map/VenueHygiene.tsx", fetchCount: 1, reason: "venue hygiene lookup is an additive detail read" },
   { path: "components/map/VenuePriceStory.tsx", fetchCount: 2, reason: "price story reads and confirmation action use the price lane" },
