@@ -3,9 +3,14 @@ export type SupabaseConfig = Readonly<{
   key: string;
 }>;
 
+export type SupabaseConfigOptions = Readonly<{
+  requireHttps?: boolean;
+}>;
+
 export function resolveSupabaseConfig(
   url: string | undefined,
   key: string | undefined,
+  options: SupabaseConfigOptions = {},
 ): SupabaseConfig | null {
   const cleanUrl = url?.trim();
   const cleanKey = key?.trim();
@@ -15,6 +20,7 @@ export function resolveSupabaseConfig(
   try {
     const parsed = new URL(cleanUrl);
     if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return null;
+    if (options.requireHttps && parsed.protocol !== "https:") return null;
   } catch {
     return null;
   }

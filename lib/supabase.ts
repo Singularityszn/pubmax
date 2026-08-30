@@ -11,15 +11,19 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 // No client-side client — all writes route through server handlers.
 let cached: SupabaseClient | null | undefined;
 
-export function getSupabaseAdmin(): SupabaseClient | null {
-  if (cached !== undefined) return cached;
-  const config = resolveSupabaseConfig(
+function resolveServerSupabaseConfig() {
+  return resolveSupabaseConfig(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
+    { requireHttps: isDeployedProduction() },
   );
-  cached = config
-    ? createClient(config.url, config.key, { auth: { persistSession: false } })
-    : null;
+}
+
+export function getSupabaseAdmin(): SupabaseClient | null {
+  if (cached) return cached;
+  const config = resolveServerSupabaseConfig();
+  if (!config) return null;
+  cached = createClient(config.url, config.key, { auth: { persistSession: false } });
   return cached;
 }
 
@@ -35,10 +39,7 @@ export function requireSupabaseAdmin(): SupabaseClient {
 }
 
 export function isSupabaseConfigured(): boolean {
-  return resolveSupabaseConfig(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY,
-  ) !== null;
+  return resolveServerSupabaseConfig() !== null;
 }
 
 export function requiresSupabaseStore(): boolean {

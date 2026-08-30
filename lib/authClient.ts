@@ -33,10 +33,7 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
     );
-    if (!config) {
-      cached = null;
-      return cached;
-    }
+    if (!config) return null;
 
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
     cached = createClient(config.url, config.key, {
@@ -67,11 +64,22 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
  */
 export function ensureSupabaseBrowser(): Promise<SupabaseClient | null> {
   // No window → server render. Never import the chunk on the server.
-  if (typeof window === "undefined") {
-    cached = null;
-    return Promise.resolve(null);
-  }
-  return clientPromise ??= buildBrowserClient();
+  if (typeof window === "undefined") return Promise.resolve(null);
+  if (clientPromise) return clientPromise;
+
+  const pending = buildBrowserClient();
+  clientPromise = pending.then(
+    (client) => {
+      if (client === null) clientPromise = undefined;
+      return client;
+    },
+    (error: unknown) => {
+      clientPromise = undefined;
+      modulePromise = undefined;
+      throw error;
+    },
+  );
+  return clientPromise;
 }
 
 /**

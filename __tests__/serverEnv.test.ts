@@ -22,6 +22,18 @@ describe("resolveSupabaseConfig", () => {
       expect(resolveSupabaseConfig(url, "service-role-key")).toBeNull();
     },
   );
+
+  it("allows local HTTP only when HTTPS is not required", () => {
+    expect(resolveSupabaseConfig("http://127.0.0.1:54321", "service-role-key")).toEqual({
+      url: "http://127.0.0.1:54321",
+      key: "service-role-key",
+    });
+    expect(
+      resolveSupabaseConfig("http://127.0.0.1:54321", "service-role-key", {
+        requireHttps: true,
+      }),
+    ).toBeNull();
+  });
 });
 
 describe("isSupabaseConfigured", () => {
@@ -42,6 +54,31 @@ describe("isSupabaseConfigured", () => {
 
     expect(() => getSupabaseAdmin()).not.toThrow();
     expect(getSupabaseAdmin()).toBeNull();
+  });
+
+  it("retries construction after malformed server configuration is repaired", async () => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.getSupabaseAdmin()).toBeNull();
+
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+
+    expect(supabase.getSupabaseAdmin()).not.toBeNull();
+  });
+
+  it("rejects a cleartext service-role URL in deployed Production", async () => {
+    vi.resetModules();
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("SUPABASE_URL", "http://example.supabase.co");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+    const supabase = await import("@/lib/supabase");
+
+    expect(supabase.isSupabaseConfigured()).toBe(false);
+    expect(supabase.getSupabaseAdmin()).toBeNull();
   });
 });
 
