@@ -333,6 +333,40 @@ describe("service worker map cache", () => {
     expect(response).toMatchObject({ status: 0, type: "error" });
   });
 
+  it("does not let a previous worker serve its London monolith to a new deployment", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });
+    const { listeners, put } = workerHarness({
+      workerVersion: "previous",
+      cached: monolith,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.json?v=target"),
+    );
+
+    const response = await event.response;
+    expect(response).toMatchObject({ status: 0, type: "error" });
+    await expect(Promise.all(event.lifetime)).resolves.toBeDefined();
+    expect(put).not.toHaveBeenCalled();
+  });
+
+  it("serves a matching cached London monolith while offline", async () => {
+    const monolith = fakeResponse("cors");
+    monolith.json?.mockResolvedValue({ revision: "test", rows: [] });
+    const { listeners } = workerHarness({
+      cached: monolith,
+      fetchError: new Error("offline"),
+    });
+    const event = dispatchFetch(
+      listeners.get("fetch")!,
+      new Request("https://pubmaxxing.com/data/venues_slim.json?v=test"),
+    );
+
+    await expect(event.response).resolves.toBe(monolith);
+  });
+
   it("does not serve a stale cached city monolith", async () => {
     const monolith = fakeResponse("cors");
     monolith.json?.mockResolvedValue({ revision: "previous", rows: [] });

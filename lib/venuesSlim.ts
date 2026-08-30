@@ -30,6 +30,12 @@ import { rowsFromSlimPayload } from "@/lib/slimPayload";
 const OFFLINE_KEY_PREFIX = "venues_slim:v2";
 /** London legacy path — kept for back-compat with existing caches and tests. */
 export const SLIM_VENUES_PATH = "/data/venues_slim.json";
+const MAP_DATA_REVISION = process.env.NEXT_PUBLIC_SW_VERSION?.trim() ||
+  (process.env.NODE_ENV === "production"
+    ? (() => {
+        throw new Error("A deploy revision is required for production map data");
+      })()
+    : "local");
 const slimLoadPromises = new Map<string, Promise<SlimVenueLoadResult>>();
 
 function offlineKeyForPath(path: string): string {
@@ -217,6 +223,17 @@ export type SlimVenueLoadResult = {
   status: "ready" | "unavailable";
 };
 
+function directMonolithRequest(path: string): {
+  path: string;
+  options: SlimVenueLoadOptions;
+} {
+  if (MAP_DATA_REVISION === "local") return { path, options: {} };
+  return {
+    path: `${path}?v=${encodeURIComponent(MAP_DATA_REVISION)}`,
+    options: { expectedRevision: MAP_DATA_REVISION },
+  };
+}
+
 async function readSlimPayload(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -352,7 +369,8 @@ async function loadSlimVenuesFromPathUnshared(
  * London default loader — same contract as before multi-city routing.
  */
 export async function loadSlimVenues(): Promise<SlimVenue[]> {
-  return loadSlimVenuesFromPath(SLIM_VENUES_PATH);
+  const request = directMonolithRequest(SLIM_VENUES_PATH);
+  return loadSlimVenuesFromPath(request.path, request.options);
 }
 
 /**
@@ -363,12 +381,14 @@ export async function loadSlimVenuesForCity(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
 ): Promise<SlimVenue[]> {
   const city = getCity(cityId);
-  return loadSlimVenuesFromPath(city.slimVenuesPath);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return loadSlimVenuesFromPath(request.path, request.options);
 }
 
 export function loadSlimVenuesForCityResult(
   cityId: CityId | string | null | undefined = DEFAULT_CITY_ID,
 ): Promise<SlimVenueLoadResult> {
   const city = getCity(cityId);
-  return loadSlimVenuesFromPathResult(city.slimVenuesPath);
+  const request = directMonolithRequest(city.slimVenuesPath);
+  return loadSlimVenuesFromPathResult(request.path, request.options);
 }

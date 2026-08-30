@@ -34,6 +34,8 @@ const INVALID_ROW = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  vi.unstubAllEnvs();
+  vi.resetModules();
 });
 
 beforeEach(() => {
@@ -44,6 +46,75 @@ beforeEach(() => {
 });
 
 describe("slim venue cache recovery", () => {
+  it("rejects stale old-worker bytes from the revisioned London monolith without mirroring them", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
+    vi.resetModules();
+    const staleResponse = {
+      ok: true,
+      json: async () => ({ revision: "previous", rows: [ROW] }),
+    };
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(staleResponse)
+      .mockResolvedValueOnce(staleResponse);
+    vi.stubGlobal("fetch", fetchSpy);
+    const { loadSlimVenues } = await import("@/lib/venuesSlim");
+
+    await expect(loadSlimVenues()).resolves.toEqual([]);
+
+    const path = "/data/venues_slim.json?v=target";
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path);
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
+    expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
+    expect(offlineSet).not.toHaveBeenCalled();
+  });
+
+  it("accepts and mirrors a matching revision from a direct city monolith", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
+    vi.resetModules();
+    const fetchSpy = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ revision: "target", rows: [ROW] }),
+    });
+    vi.stubGlobal("fetch", fetchSpy);
+    const { loadSlimVenuesForCityResult } = await import("@/lib/venuesSlim");
+
+    await expect(loadSlimVenuesForCityResult("manchester")).resolves.toEqual({
+      rows: [ROW],
+      status: "ready",
+    });
+
+    const path = "/data/cities/manchester/venues_slim.json?v=target";
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(fetchSpy).toHaveBeenCalledWith(path);
+    expect(offlineSet).toHaveBeenCalledWith(`venues_slim:v2:${path}`, {
+      revision: "target",
+      rows: [ROW],
+    });
+  });
+
+  it("restores a complete matching revision for a direct city monolith while offline", async () => {
+    vi.stubEnv("NEXT_PUBLIC_SW_VERSION", "target");
+    vi.resetModules();
+    offlineGet.mockResolvedValueOnce({
+      revision: "target",
+      rows: [FALLBACK_ROW],
+    });
+    const fetchSpy = vi.fn().mockRejectedValue(new Error("offline"));
+    vi.stubGlobal("fetch", fetchSpy);
+    const { loadSlimVenuesForCityResult } = await import("@/lib/venuesSlim");
+
+    await expect(loadSlimVenuesForCityResult("manchester")).resolves.toEqual({
+      rows: [FALLBACK_ROW],
+      status: "ready",
+    });
+
+    const path = "/data/cities/manchester/venues_slim.json?v=target";
+    expect(fetchSpy).toHaveBeenCalledWith(path);
+    expect(offlineGet).toHaveBeenCalledWith(`venues_slim:v2:${path}`);
+    expect(offlineSet).not.toHaveBeenCalled();
+  });
+
   it("retries a current-revision payload when normalization drops a row", async () => {
     const path = "/data/cache-recovery-incomplete.json";
     const fetchSpy = vi
