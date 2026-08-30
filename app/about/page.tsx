@@ -310,7 +310,7 @@ export default async function AboutPage() {
               So the rule I build by is short. If PUBMAXXING shows you a
               figure, it can say where the figure came from: a named publisher,
               a drinker who logged it on a stated day, or a plain admission
-              that nobody has. I would rather ship a gap than a guess. That
+              that nobody has logged it. I would rather ship a gap than a guess. That
               goes for this page too. No invented users, no invented
               biography, no number we cannot count.
             </p>
