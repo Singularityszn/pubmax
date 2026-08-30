@@ -247,6 +247,7 @@
      nobody can read, and the reader is already inside the app. */
   @media (max-width: 360px) {
     .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
+    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) 44px; }
     .mobileMapBrand { display: none; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }

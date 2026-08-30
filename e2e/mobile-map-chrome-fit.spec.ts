@@ -713,6 +713,46 @@ test("320px keeps the whole place name and the map-edge lane tappable", async ({
   ).toBe(viewport.width - safeAreaRight);
 });
 
+test("320px limited map keeps its topbar and city menu inside the viewport", async ({
+  page,
+}) => {
+  const viewport = VIEWPORTS[2];
+  await openPhoneMap(
+    page,
+    viewport,
+    "reduce",
+    "/map?place=Sheffield&lat=53.3800941&lng=-1.4789213",
+  );
+
+  const topbar = page.locator(".mobileMapTopbarLimited");
+  await expect(topbar).toBeVisible();
+  await expect(topbar.locator(".mobileMapBrand")).toBeHidden();
+
+  const topbarFit = await topbar.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return {
+      left: box.left,
+      right: box.right,
+      clientWidth: element.clientWidth,
+      scrollWidth: element.scrollWidth,
+    };
+  });
+  expect(topbarFit.left).toBeGreaterThanOrEqual(0);
+  expect(topbarFit.right).toBeLessThanOrEqual(viewport.width);
+  expect(topbarFit.scrollWidth).toBeLessThanOrEqual(topbarFit.clientWidth);
+
+  const area = topbar.getByRole("button", { name: /^Map area:/ });
+  await tapRenderedCentre(page, area, viewport.width, "Limited map area");
+  const cityMenu = page.getByRole("listbox", { name: "Choose city map" });
+  await expect(cityMenu).toBeVisible();
+  const menuBox = await cityMenu.evaluate((element) => {
+    const box = element.getBoundingClientRect();
+    return { left: box.left, right: box.right };
+  });
+  expect(menuBox.left).toBeGreaterThanOrEqual(0);
+  expect(menuBox.right).toBeLessThanOrEqual(viewport.width);
+});
+
 test("390px recorded map journey reaches Filters and a painted pin", async ({
   page,
 }) => {

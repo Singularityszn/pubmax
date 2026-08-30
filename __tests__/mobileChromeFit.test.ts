@@ -103,6 +103,18 @@ describe("mobile chrome fit at 390px", () => {
       expect(width, "every control column keeps the 44px tap floor").toBeGreaterThanOrEqual(44);
     }
 
+    const narrowLimited =
+      mobileMapCss
+        .match(
+          /@media \(max-width: 360px\)\s*{[\s\S]*?\.mobileMapTopbar\.mobileMapTopbarLimited\s*{([^}]*)}/,
+        )?.[1]
+        ?.match(/grid-template-columns:\s*([^;]+);/)?.[1]
+        ?.trim() ?? "";
+    expect(
+      narrowLimited,
+      "the limited bar drops the hidden wordmark track at 320px",
+    ).toBe("minmax(0, 1fr) 44px");
+
     const stackLeft = Number(mobileMapCss.match(/--mobile-map-stack-left:\s*(\d+)px/)?.[1]);
     const stackRight = Number(mobileMapCss.match(/--mobile-map-stack-right:\s*(\d+)px/)?.[1]);
     const padding = bar.match(/padding:\s*(\d+)px\s+(\d+)px\s+(\d+)px\s+(\d+)px/);
