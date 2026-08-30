@@ -43,7 +43,7 @@ const MIGRATION_PATH = /^supabase\/migrations(?:\/|$)/;
 const TEST_PATH = /^(?:__tests__|e2e|tests)(?:\/|$)|(?:^|\/)(?:test|spec)\.[^/]+$/;
 const CONFIG_PATH = /^(?:\.github|\.githooks|\.husky)(?:\/|$)|^(?:package\.json|package-lock\.json|tsconfig(?:\.[^/]+)?\.json|next\.config\.[^/]+|vitest\.config\.[^/]+|playwright\.config\.[^/]+|eslint\.config\.[^/]+)$/;
 const SOURCE_ROOTS = new Set(["app", "components", "lib", "scripts", "supabase"]);
-const RUNTIME_DOMAIN_ROOTS = new Set(["app", "components", "lib", "supabase"]);
+const NON_RUNTIME_SOURCE_PATHS = new Set(["scripts/check_review_scope.mjs"]);
 
 /** Convert Git's path spelling into the one used by the report. */
 export function normalizeReviewPath(value) {
@@ -60,8 +60,9 @@ function isGeneratedPath(path) {
 
 function runtimeDomain(path, category) {
   if (category !== "source") return null;
+  if (NON_RUNTIME_SOURCE_PATHS.has(path)) return null;
   const root = path.split("/", 1)[0];
-  return RUNTIME_DOMAIN_ROOTS.has(root) ? root : null;
+  return SOURCE_ROOTS.has(root) ? root : null;
 }
 
 /**

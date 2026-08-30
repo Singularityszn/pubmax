@@ -55,6 +55,19 @@ describe("review scope guard", () => {
     });
   });
 
+  it("still counts script modules imported by Production code", () => {
+    const report = summarizeReviewScope([
+      "app/api/out/route.ts",
+      "lib/out/venueMatch.ts",
+      "scripts/whatson/resolveVenueId.mjs",
+    ]);
+
+    expect(report.domains).toEqual(["app", "lib", "scripts"]);
+    expect(report.warnings).toEqual([
+      `review spans ${MAX_RUNTIME_DOMAINS + 1} runtime domains (limit ${MAX_RUNTIME_DOMAINS})`,
+    ]);
+  });
+
   it("warns only after the runtime-domain and file-count thresholds", () => {
     const twoDomains = summarizeReviewScope([
       "app/api/example/route.ts",
