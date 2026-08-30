@@ -16,6 +16,7 @@ type VoiceStartAttempt<TGrant> = {
 
 type ActiveVoiceStart = {
   cancelled: boolean;
+  grantIssued: boolean;
   cancellationNotified: boolean;
   onCancelled?: () => void;
 };
@@ -50,6 +51,7 @@ export function createPubPalVoiceStartController() {
 
   const notifyCancellation = (start: ActiveVoiceStart): void => {
     if (start.cancellationNotified) return;
+    if (!start.grantIssued) return;
     start.cancellationNotified = true;
     start.onCancelled?.();
   };
@@ -72,6 +74,7 @@ export function createPubPalVoiceStartController() {
 
       const currentStart: ActiveVoiceStart = {
         cancelled: false,
+        grantIssued: false,
         cancellationNotified: false,
         onCancelled: attempt.onCancelled,
       };
@@ -87,6 +90,7 @@ export function createPubPalVoiceStartController() {
             }
             stopProbe(stream);
             const grant = await attempt.issueGrant();
+            currentStart.grantIssued = true;
             if (currentStart.cancelled) {
               notifyCancellation(currentStart);
               return false;

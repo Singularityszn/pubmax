@@ -25,6 +25,15 @@ type VoiceTokenResponse = {
 
 type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
 
+type VoiceSessionAttempt = {
+  cancelled: boolean;
+  grantIssued: boolean;
+  released: boolean;
+  sdkSessionStarted: boolean;
+  connectedAt: number | null;
+  capTimer: number | null;
+};
+
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
   try {
     const response = await authedActionFetch("/api/pub-pal/voice-token", {
@@ -46,42 +55,50 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const [isStarting, setIsStarting] = useState(false);
   const [text, setText] = useState("");
   const disposedRef = useRef(false);
-  const connectedAtRef = useRef<number | null>(null);
-  const grantIssuedRef = useRef(false);
-  const releasedRef = useRef(false);
-  const sdkSessionStartedRef = useRef(false);
-  const capTimerRef = useRef<number | null>(null);
+  const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
   const [startController] = useState(createPubPalVoiceStartController);
 
-  const finalizeSession = useCallback(async (connected: boolean) => {
-    if (releasedRef.current) return;
-    if (capTimerRef.current !== null) {
-      window.clearTimeout(capTimerRef.current);
-      capTimerRef.current = null;
+  const ownsAttempt = useCallback((attempt: VoiceSessionAttempt): boolean => (
+    activeAttemptRef.current === attempt &&
+    !attempt.cancelled &&
+    !disposedRef.current
+  ), []);
+
+  const clearCapTimer = useCallback((attempt: VoiceSessionAttempt): void => {
+    if (attempt.capTimer !== null) {
+      window.clearTimeout(attempt.capTimer);
+      attempt.capTimer = null;
     }
-    const durationSeconds = connected && connectedAtRef.current
-      ? Math.round((Date.now() - connectedAtRef.current) / 1000)
-      : 0;
-    connectedAtRef.current = null;
-    if (!grantIssuedRef.current) return;
-    releasedRef.current = true;
-    await releaseVoiceSession(durationSeconds);
   }, []);
+
+  const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (attempt.released) return;
+    clearCapTimer(attempt);
+    const durationSeconds = attempt.connectedAt === null
+      ? 0
+      : Math.max(0, Math.round((Date.now() - attempt.connectedAt) / 1000));
+    attempt.connectedAt = null;
+    if (!attempt.grantIssued) return;
+    attempt.released = true;
+    await releaseVoiceSession(durationSeconds);
+  }, [clearCapTimer]);
 
   useEffect(() => {
     disposedRef.current = false;
     return () => {
       disposedRef.current = true;
-      startController.cancel();
-      if (capTimerRef.current !== null) {
-        window.clearTimeout(capTimerRef.current);
-        capTimerRef.current = null;
+      const attempt = activeAttemptRef.current;
+      if (!attempt) {
+        startController.cancel();
+        return;
       }
-      if (sdkSessionStartedRef.current) {
-        sdkSessionStartedRef.current = false;
+      attempt.cancelled = true;
+      if (attempt.sdkSessionStarted) {
+        attempt.sdkSessionStarted = false;
         endSession();
       }
-      void finalizeSession(connectedAtRef.current !== null);
+      startController.cancel();
+      void finalizeSession(attempt);
     };
   }, [endSession, finalizeSession, startController]);
 
@@ -91,25 +108,36 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     else if (isListening) onStateChange?.("listening");
   }, [isListening, isSpeaking, onStateChange, status]);
 
-  const stop = useCallback(async () => {
-    if (disposedRef.current) return;
-    const connected = status === "connected";
+  const stop = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (!ownsAttempt(attempt)) return;
+    const wasCurrent = activeAttemptRef.current === attempt;
+    attempt.cancelled = true;
     startController.settle();
     setIsStarting(false);
-    endSession();
-    sdkSessionStartedRef.current = false;
-    await finalizeSession(connected);
-    if (!disposedRef.current) onStateChange?.("idle");
-  }, [endSession, finalizeSession, onStateChange, startController, status]);
+    if (attempt.sdkSessionStarted) {
+      attempt.sdkSessionStarted = false;
+      endSession();
+    }
+    await finalizeSession(attempt);
+    if (wasCurrent && activeAttemptRef.current === attempt && !disposedRef.current) {
+      onStateChange?.("idle");
+    }
+  }, [endSession, finalizeSession, onStateChange, ownsAttempt, startController]);
 
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
+    const attempt: VoiceSessionAttempt = {
+      cancelled: false,
+      grantIssued: false,
+      released: false,
+      sdkSessionStarted: false,
+      connectedAt: null,
+      capTimer: null,
+    };
+    activeAttemptRef.current = attempt;
     setError(null);
     setIsStarting(true);
-    grantIssuedRef.current = false;
-    releasedRef.current = false;
-    connectedAtRef.current = null;
     onStateChange?.("noticing");
     const started = await startController.start<VoiceGrant>({
       requestMicrophone: async () => {
@@ -126,16 +154,17 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             errorMessageFrom(body, "Voice is unavailable. Use text instead."),
           );
         }
-        grantIssuedRef.current = true;
+        attempt.grantIssued = true;
         return { ...body, signedUrl: body.signedUrl };
       },
       connect: (grant) => {
-        if (disposedRef.current) {
-          void finalizeSession(false);
+        if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
           return;
         }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
+        attempt.sdkSessionStarted = true;
         startSession({
           signedUrl: grant.signedUrl,
           connectionType: "websocket",
@@ -151,42 +180,45 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
               }
             : undefined,
           onConnect: () => {
-            if (disposedRef.current) return;
+            if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
-            sdkSessionStartedRef.current = true;
-            connectedAtRef.current = Date.now();
-            capTimerRef.current = window.setTimeout(() => {
-              void stop();
+            attempt.connectedAt = Date.now();
+            clearCapTimer(attempt);
+            attempt.capTimer = window.setTimeout(() => {
+              void stop(attempt);
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
-            if (disposedRef.current) return;
+            if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
-            sdkSessionStartedRef.current = false;
-            void finalizeSession(connectedAtRef.current !== null);
+            attempt.cancelled = true;
+            attempt.sdkSessionStarted = false;
+            void finalizeSession(attempt);
           },
           onError: () => {
-            if (disposedRef.current) return;
+            if (!ownsAttempt(attempt)) return;
             startController.settle();
             setIsStarting(false);
+            attempt.cancelled = true;
+            attempt.sdkSessionStarted = false;
             setError(PAL_VOICE_START_ERROR);
             onStateChange?.("error");
-            void finalizeSession(connectedAtRef.current !== null);
+            void finalizeSession(attempt);
           },
         });
-        sdkSessionStartedRef.current = true;
       },
       onFailure: (message) => {
-        if (grantIssuedRef.current) void finalizeSession(false);
-        if (disposedRef.current) return;
+        void finalizeSession(attempt);
+        if (!ownsAttempt(attempt)) return;
+        attempt.cancelled = true;
         setIsStarting(false);
         setError(message);
         onStateChange?.("error");
       },
       onCancelled: () => {
-        if (grantIssuedRef.current) void finalizeSession(false);
+        void finalizeSession(attempt);
       },
     });
     if (!started && !startController.isStarting() && !disposedRef.current) {

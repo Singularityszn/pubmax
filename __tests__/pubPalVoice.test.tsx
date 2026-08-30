@@ -172,6 +172,186 @@ describe("Pub Pal voice controls", () => {
     expect(voice.startSession).not.toHaveBeenCalled();
   });
 
+  it("releases a late grant exactly once after unmount during grant request", async () => {
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    const grant = deferred<Response>();
+    requests.authedActionFetch
+      .mockReturnValueOnce(grant.promise)
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
+    expect(voice.startSession).not.toHaveBeenCalled();
+
+    unmount();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(1);
+
+    grant.resolve(new Response(JSON.stringify({
+      signedUrl: "wss://voice.example/session",
+    }), {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+    }));
+    await settle();
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.authedActionFetch.mock.calls[1]).toEqual([
+      "/api/pub-pal/voice-token",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ action: "release", durationSeconds: 0 }),
+      }),
+    ]);
+
+    await settle();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses connected duration when the cap timer stops a session", async () => {
+    vi.useFakeTimers();
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    requests.authedActionFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        signedUrl: "wss://voice.example/session",
+        maxSessionSeconds: 1,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const session = voice.startSession.mock.calls[0][0] as {
+      onConnect?: () => void;
+    };
+    await act(async () => {
+      session.onConnect?.();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    const releaseBody = JSON.parse(String(releaseRequest.body)) as {
+      action: string;
+      durationSeconds: number;
+    };
+    expect(releaseBody).toEqual({
+      action: "release",
+      durationSeconds: 1,
+    });
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
+  it("ignores stale callbacks from attempt A while attempt B owns its grant", async () => {
+    vi.useFakeTimers();
+    const stopTrackA = vi.fn();
+    const stopTrackB = vi.fn();
+    getUserMedia
+      .mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrackA }] })
+      .mockResolvedValueOnce({ getTracks: () => [{ stop: stopTrackB }] });
+    requests.authedActionFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        signedUrl: "wss://voice.example/session-a",
+        maxSessionSeconds: 10,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        signedUrl: "wss://voice.example/session-b",
+        maxSessionSeconds: 1,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const sessionA = voice.startSession.mock.calls[0][0] as {
+      onConnect?: () => void;
+      onError?: (error: unknown) => void;
+      onDisconnect?: () => void;
+    };
+    await act(async () => {
+      sessionA.onConnect?.();
+      sessionA.onError?.(new Error("attempt A failed"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const sessionB = voice.startSession.mock.calls[1][0] as {
+      onConnect?: () => void;
+    };
+    await act(async () => {
+      sessionB.onConnect?.();
+      await Promise.resolve();
+    });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      sessionA.onDisconnect?.();
+      sessionA.onError?.(new Error("late attempt A callback"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(3);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(4);
+    const releaseRequest = requests.authedActionFetch.mock.calls[3][1] as RequestInit;
+    expect(JSON.parse(String(releaseRequest.body))).toEqual({
+      action: "release",
+      durationSeconds: 1,
+    });
+    expect(stopTrackA).toHaveBeenCalledOnce();
+    expect(stopTrackB).toHaveBeenCalledOnce();
+  });
+
   it("releases one granted session when the SDK reports an error", async () => {
     const stopTrack = vi.fn();
     getUserMedia.mockResolvedValueOnce({
