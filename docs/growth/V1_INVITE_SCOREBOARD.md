@@ -25,7 +25,7 @@ threshold crossings deduplicate without sending a Plan id. Full formula and
 rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0. The loop north
 star is `next_night_committed`; its emitter and privacy contract live there.
 
-```
+```text
 crew_nights_with_two_or_more = count(crew_committed)
 ```
 

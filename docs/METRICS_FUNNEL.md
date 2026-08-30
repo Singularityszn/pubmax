@@ -30,7 +30,7 @@ Plan held a grounded Crawl Route when the threshold join completed.
 
 **Formula:**
 
-```
+```text
 crew_nights_with_two_or_more = count(crew_committed, window=7d)
 crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
 ```
@@ -76,7 +76,7 @@ These events measure different roles. `plan_created` belongs to the host.
 guests do not emit it. This is a per-person planning participation pulse, not a
 unique Plan count:
 
-```
+```text
 planning_participation_pulse = count(plan_created, window=7d)
                             + count(crew_committed, window=7d)
 ```
