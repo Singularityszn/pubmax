@@ -90,6 +90,7 @@ const { guard, resetWarnings: resetSchemaMissWarnings } = createFailSoftGuard({
 type ListingRow = {
   id: string;
   kind: string;
+  city: string;
   payload: unknown;
   observed_at: string;
   generated_at: string;
@@ -162,7 +163,10 @@ export const supabaseWhatsOnListingStore: WhatsOnListingStore = {
         const admin = requireSupabaseAdmin();
         const [{ data, error }, { data: generationData, error: generationError }] =
           await Promise.all([
-            admin.from(TABLE).select("*"),
+            // The refresh pipeline writes only London rows today, but the
+            // filter is the contract: a durable answer is a London answer, so
+            // a future second city cannot leak into every city's read.
+            admin.from(TABLE).select("*").eq("city", "london"),
             admin.from(GENERATIONS_TABLE).select("kind, generated_at"),
           ]);
         if (error) throw new Error(error.message);

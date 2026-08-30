@@ -27,6 +27,7 @@ export type LoadServedWhatsOnListingsOpts = {
 export type ServedWhatsOnListings = {
   rows: WhatsOnRow[];
   providerObservedAt: string | null;
+  readStatus: "ready" | "degraded";
 };
 
 function freshestObservedAt(rows: WhatsOnRow[]): string | null {
@@ -60,6 +61,7 @@ export async function loadServedWhatsOnListingsWithFreshness(
   return {
     rows: preferDurableWhatsOn(durable, bundled, opts.now),
     providerObservedAt: freshestObservedAt(observedDurable),
+    readStatus: snap.failed ? "degraded" : "ready",
   };
 }
 

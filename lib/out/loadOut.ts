@@ -98,17 +98,38 @@ export function loadBundledOutEvents(city: OutCity): WhatsOnRow[] {
   return parseWhatsOnRows(raw, bundledGeneratedAt(raw));
 }
 
-async function loadServedOutEvents(city: OutCity, now: number): Promise<WhatsOnRow[]> {
+export type ServedOutEvents = {
+  rows: WhatsOnRow[];
+  readStatus: "ready" | "degraded";
+};
+
+// The durable store holds only the bounded London refresh's rows, so only a
+// London answer may read it: London listings under a Bristol query is worse
+// than saying nothing. Another city's bundled events stand alone, and a
+// durable read that failed is reported rather than served as a quiet fallback
+// that reads "ready".
+export async function loadServedOutEvents(
+  city: OutCity,
+  now: number,
+): Promise<ServedOutEvents> {
   const bundled = loadBundledOutEvents(city);
+  if (city !== "london") return { rows: bundled, readStatus: "ready" };
   try {
-    const { loadServedWhatsOnListings } = await import("@/lib/whatsOnListings.server");
-    return loadServedWhatsOnListings({ bundled, now, kind: "event" });
+    const { loadServedWhatsOnListingsWithFreshness } = await import(
+      "@/lib/whatsOnListings.server"
+    );
+    const served = await loadServedWhatsOnListingsWithFreshness({
+      bundled,
+      now,
+      kind: "event",
+    });
+    return { rows: served.rows, readStatus: served.readStatus };
   } catch (error) {
     log("warn", "out.whats_on_store_fallback", {
       city,
       detail: error instanceof Error ? error.message : String(error),
     });
-    return bundled;
+    return { rows: bundled, readStatus: "degraded" };
   }
 }
 
@@ -295,9 +316,16 @@ export async function buildOutResponse(
   let reason: string | undefined;
   let baseline: WhatsOnRow[] = [];
   try {
-    baseline = opts.loadBaseline
-      ? opts.loadBaseline(city)
-      : await loadServedOutEvents(city, now);
+    if (opts.loadBaseline) {
+      baseline = opts.loadBaseline(city);
+    } else {
+      const served = await loadServedOutEvents(city, now);
+      baseline = served.rows;
+      if (served.readStatus === "degraded") {
+        status = "degraded";
+        reason = "Some listings could not be checked.";
+      }
+    }
   } catch {
     status = "degraded";
     reason = "Some listings could not be checked.";
