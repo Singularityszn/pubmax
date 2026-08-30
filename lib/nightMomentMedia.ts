@@ -2,6 +2,7 @@ import "server-only";
 
 import { randomUUID } from "node:crypto";
 
+import { MOMENT_MAX_PHOTO_BYTES } from "@/lib/momentPhotoEditor";
 import { deletePhotos, uploadPhoto } from "@/lib/pintDropsStore";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 
@@ -18,6 +19,7 @@ export async function uploadNightMomentPhoto(
     `night-moments/${ownerId}/${memoryId}`,
     randomUUID(),
     file,
+    MOMENT_MAX_PHOTO_BYTES,
   );
 }
 
