@@ -38,11 +38,24 @@ describe("provider identity revision", () => {
   it("aborts the old provider revision signal and rotates to a live signal", () => {
     const store = createProviderIdentityRevisionStore();
     const before = store.signal();
+    const callbackOrder: string[] = [];
+    const signalsAtNotification: AbortSignal[] = [];
+    before.addEventListener("abort", () => callbackOrder.push("abort"), {
+      once: true,
+    });
+    store.subscribe(() => {
+      callbackOrder.push("notify");
+      signalsAtNotification.push(store.signal());
+      expect(before.aborted).toBe(true);
+      expect(store.signal().aborted).toBe(false);
+    });
     expect(before.aborted).toBe(false);
 
     store.set("supabase", "supabase-actor-a");
 
     const after = store.signal();
+    expect(callbackOrder).toEqual(["abort", "notify"]);
+    expect(signalsAtNotification).toEqual([after]);
     expect(before.aborted).toBe(true);
     expect(before.reason).toMatchObject({ name: "AbortError" });
     expect(after).not.toBe(before);

@@ -8,7 +8,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 
 const transport = vi.hoisted(() => ({
-  authedActionFetch: vi.fn(),
   authedActionJson: vi.fn(),
 }));
 
@@ -70,7 +69,6 @@ beforeEach(() => {
     configurable: true,
     value: vi.fn(),
   });
-  transport.authedActionFetch.mockReset();
   transport.authedActionJson.mockReset();
   localStorage.clear();
   host = document.createElement("div");
@@ -92,10 +90,6 @@ describe("Social composer latest-post reload", () => {
     const conflictResponse = json(conflictBody, 409);
     const abort = new DOMException("The operation was aborted.", "AbortError");
     const networkFailure = new TypeError("network failed");
-    transport.authedActionFetch
-      .mockResolvedValueOnce(conflictResponse)
-      .mockRejectedValueOnce(abort)
-      .mockRejectedValueOnce(networkFailure);
     transport.authedActionJson
       .mockResolvedValueOnce({ response: conflictResponse, body: conflictBody })
       .mockRejectedValueOnce(abort)
@@ -139,5 +133,43 @@ describe("Social composer latest-post reload", () => {
     } finally {
       process.off("unhandledRejection", onUnhandled);
     }
+  });
+
+  it("keeps an expected submit abort silent and reports a later network failure", async () => {
+    const abort = new DOMException("The operation was aborted.", "AbortError");
+    transport.authedActionJson
+      .mockRejectedValueOnce(abort)
+      .mockRejectedValueOnce(new TypeError("network failed"));
+
+    await act(async () => {
+      root?.render(createElement(SocialComposer, {
+        post: POST,
+        draftScope: "account-a",
+        onSaved: vi.fn(),
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      button(host, "Edit post").click();
+    });
+    await act(async () => {
+      button(host, "Save").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).not.toContain("The operation was aborted.");
+    expect(host.querySelector('[role="alert"]')).toBeNull();
+
+    await act(async () => {
+      button(host, "Save").click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).toContain("network failed");
+    expect(host.querySelector('[role="alert"]')).not.toBeNull();
   });
 });

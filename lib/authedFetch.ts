@@ -67,11 +67,67 @@ function callerActionSignals(
   )];
 }
 
+const fallbackAbortControllers = new WeakMap<AbortSignal, AbortController>();
+const fallbackAbortFollowers = new WeakMap<
+  AbortSignal,
+  Set<WeakRef<AbortSignal>>
+>();
+
+function sourceAbortFollowers(source: AbortSignal): Set<WeakRef<AbortSignal>> {
+  const existing = fallbackAbortFollowers.get(source);
+  if (existing) return existing;
+
+  const followers = new Set<WeakRef<AbortSignal>>();
+  source.addEventListener("abort", () => {
+    for (const reference of followers) {
+      const signal = reference.deref();
+      const controller = signal
+        ? fallbackAbortControllers.get(signal)
+        : undefined;
+      if (controller && !signal?.aborted) {
+        controller.abort(abortReason(source));
+      }
+    }
+    followers.clear();
+  }, { once: true });
+  fallbackAbortFollowers.set(source, followers);
+  return followers;
+}
+
+function fallbackCompositeActionSignal(
+  signals: readonly AbortSignal[],
+): AbortSignal {
+  const controller = new AbortController();
+  const signal = controller.signal;
+  fallbackAbortControllers.set(signal, controller);
+
+  const alreadyAborted = signals.find((source) => source.aborted);
+  if (alreadyAborted) {
+    controller.abort(abortReason(alreadyAborted));
+    return signal;
+  }
+
+  // One listener per source holds only weak dependent signals. Native fetch
+  // keeps a dependent signal live through its body; later registrations prune
+  // collected or already-aborted dependants without Response wrappers.
+  for (const source of signals) {
+    const followers = sourceAbortFollowers(source);
+    for (const reference of followers) {
+      const follower = reference.deref();
+      if (!follower || follower.aborted) followers.delete(reference);
+    }
+    followers.add(new WeakRef(signal));
+  }
+  return signal;
+}
+
 function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
   const distinctSignals = [...new Set(signals)];
-  return distinctSignals.length === 1
-    ? distinctSignals[0] as AbortSignal
-    : AbortSignal.any(distinctSignals);
+  if (distinctSignals.length === 1) return distinctSignals[0] as AbortSignal;
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any(distinctSignals);
+  }
+  return fallbackCompositeActionSignal(distinctSignals);
 }
 
 function bindAccountAction(callerSignals: readonly AbortSignal[]): AccountBoundAction {

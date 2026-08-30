@@ -28,6 +28,13 @@ type DraftChannelMessage = {
   type?: "hello" | "present";
 };
 
+function isAbortError(cause: unknown): boolean {
+  return typeof cause === "object" &&
+    cause !== null &&
+    "name" in cause &&
+    cause.name === "AbortError";
+}
+
 function initialDraft(post?: SocialPostDTO): Draft {
   return {
     requestKey:
@@ -432,7 +439,7 @@ export default function SocialComposer({
       setFeedbackIsStatus(false);
       setFeedback("Latest post could not be loaded.");
     } catch (cause) {
-      if (cause instanceof Error && cause.name === "AbortError") return;
+      if (isAbortError(cause)) return;
       setFeedbackIsStatus(false);
       setFeedback("Latest post could not be loaded.");
     }
@@ -517,6 +524,7 @@ export default function SocialComposer({
       closeComposer();
       onSaved(result.post);
     } catch (cause) {
+      if (isAbortError(cause)) return;
       setFeedback(
         offlineOrMessage(cause instanceof Error
             ? cause.message

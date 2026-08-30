@@ -12,7 +12,10 @@ import {
   authedFetch,
   publishAuthActionState,
 } from "@/lib/authedFetch";
-import { setProviderIdentity } from "@/lib/authProviderRevision";
+import {
+  readProviderIdentitySignal,
+  setProviderIdentity,
+} from "@/lib/authProviderRevision";
 
 function deferredResponseBoundTo(signal: AbortSignal): Response {
   return new Response(new ReadableStream<Uint8Array>({
@@ -121,11 +124,11 @@ describe("authedFetch (Wave I2)", () => {
     setProviderIdentity("supabase", "account-a");
     publishAuthActionState({ status: "signed-in", identityResolved: true });
     vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
-    let actionSignal: AbortSignal | null = null;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
       (_input, init) => new Promise<Response>((_resolve, reject) => {
-        actionSignal = init?.signal ?? null;
-        actionSignal?.addEventListener(
+        const signal = init?.signal;
+        if (!signal) throw new Error("Account-bound fetch signal missing.");
+        signal.addEventListener(
           "abort",
           () => reject(new DOMException("The operation was aborted.", "AbortError")),
           { once: true },
@@ -142,6 +145,7 @@ describe("authedFetch (Wave I2)", () => {
     setProviderIdentity("supabase", "account-b");
 
     await rejection;
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
     expect(actionSignal?.aborted).toBe(true);
   });
 
@@ -149,11 +153,11 @@ describe("authedFetch (Wave I2)", () => {
     setProviderIdentity("supabase", "account-a");
     publishAuthActionState({ status: "signed-in", identityResolved: true });
     vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
-    let actionSignal: AbortSignal | null = null;
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
       (_input, init) => new Promise<Response>((_resolve, reject) => {
-        actionSignal = init?.signal ?? null;
-        actionSignal?.addEventListener("abort", () => reject(actionSignal?.reason), {
+        const signal = init?.signal;
+        if (!signal) throw new Error("Account-bound fetch signal missing.");
+        signal.addEventListener("abort", () => reject(signal.reason), {
           once: true,
         });
       }),
@@ -172,9 +176,63 @@ describe("authedFetch (Wave I2)", () => {
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
     owner.abort(reason);
 
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
     expect(actionSignal?.aborted).toBe(true);
     expect(actionSignal?.reason).toBe(reason);
     await rejection;
+  });
+
+  it("keeps caller and provider aborts active without AbortSignal.any", async () => {
+    const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
+    Object.defineProperty(AbortSignal, "any", {
+      configurable: true,
+      value: undefined,
+    });
+    try {
+      setProviderIdentity("supabase", "account-a");
+      publishAuthActionState({ status: "signed-in", identityResolved: true });
+      const providerSignal = readProviderIdentitySignal();
+      const providerListenerSpy = vi.spyOn(providerSignal, "addEventListener");
+      const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+        async (_input, init) => {
+          const signal = init?.signal;
+          if (!signal) throw new Error("Account-bound fetch signal missing.");
+          return deferredResponseBoundTo(signal);
+        },
+      );
+      const firstOwner = new AbortController();
+      const secondOwner = new AbortController();
+
+      const firstResponse = await authedActionFetch("/api/social/posts/first", {
+        signal: firstOwner.signal,
+      });
+      const secondResponse = await authedActionFetch("/api/social/posts/second", {
+        signal: secondOwner.signal,
+      });
+      const firstBody = firstResponse.text();
+      const secondBody = secondResponse.text();
+      const firstSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+      const secondSignal = fetchSpy.mock.calls[1]?.[1]?.signal;
+      const callerReason = new Error("first owner left");
+
+      firstOwner.abort(callerReason);
+      setProviderIdentity("supabase", "account-b");
+
+      expect(firstSignal?.aborted).toBe(true);
+      expect(firstSignal?.reason).toBe(callerReason);
+      expect(secondSignal?.aborted).toBe(true);
+      expect(secondSignal?.reason).toMatchObject({ name: "AbortError" });
+      expect(providerListenerSpy.mock.calls.filter(([type]) => type === "abort"))
+        .toHaveLength(1);
+      await expect(firstBody).rejects.toBe(callerReason);
+      await expect(secondBody).rejects.toMatchObject({ name: "AbortError" });
+    } finally {
+      if (anyDescriptor) {
+        Object.defineProperty(AbortSignal, "any", anyDescriptor);
+      } else {
+        Reflect.deleteProperty(AbortSignal, "any");
+      }
+    }
   });
 
   it("preserves a custom init abort reason during token lookup", async () => {

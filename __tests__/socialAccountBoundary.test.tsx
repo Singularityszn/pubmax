@@ -296,12 +296,11 @@ describe("Social account boundary", () => {
   it("discards late account A replies and aborts its active load-more request", async () => {
     const lateAOutbox = deferred<Response>();
     const lateAMore = deferred<Response>();
-    let aLoadMoreSignal: AbortSignal | null = null;
     let aFeedReads = 0;
 
     transport.authedActionFetch.mockReset();
     transport.authedActionFetch.mockImplementation(
-      (input: RequestInfo | URL, init?: RequestInit) => {
+      (input: RequestInfo | URL) => {
         const href = String(input);
         const accountId = authState.user?.id;
         if (accountId === "account-a") {
@@ -321,7 +320,6 @@ describe("Social account boundary", () => {
             if (aFeedReads === 1) {
               return Promise.resolve(json({ posts: [A_FEED_POST], nextCursor: "a-next" }));
             }
-            aLoadMoreSignal = init?.signal ?? null;
             return lateAMore.promise;
           }
         }
@@ -362,7 +360,11 @@ describe("Social account boundary", () => {
     const loadMore = [...host.querySelectorAll("button")]
       .find((button) => button.textContent === "Load more");
     await act(async () => loadMore?.click());
-    expect(aLoadMoreSignal).not.toBeNull();
+    const loadMoreCall = transport.authedActionFetch.mock.calls.find(
+      ([input]) => String(input).includes("cursor=a-next"),
+    );
+    const aLoadMoreSignal = loadMoreCall?.[1]?.signal;
+    expect(aLoadMoreSignal).toBeDefined();
     expect(aLoadMoreSignal?.aborted).toBe(false);
 
     authState.user = { id: "account-b" };
