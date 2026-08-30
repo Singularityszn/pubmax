@@ -19,11 +19,13 @@ const state = vi.hoisted(() => ({
   provider: "clerk" as "clerk" | "supabase" | "signed-out",
   providerUserId: "clerk-actor-a" as string | null,
   providerAuthState: "authenticated" as "authenticated" | "signed-out" | "unresolved",
+  socialLaunchEnabled: true,
   accountRevision: 1,
   privateState: "none" as "none" | "pending" | "member",
   privateStatus: 200,
   privateResponses: "ready" as "ready" | "deferred",
   publicStatus: 200,
+  publicCalls: [] as string[],
   publicResponses: new Map<string, "ready" | "deferred">(),
   deferredPublic: new Map<string, Array<(response: Response) => void>>(),
   deferredJoin: [] as Array<(response: Response) => void>,
@@ -122,6 +124,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 
 vi.mock("@/lib/responseBody", () => responseBody);
 
+vi.mock("@/lib/useSocialFriendsLaunch", () => ({
+  useSocialFriendsLaunch: () => state.socialLaunchEnabled,
+}));
+
 vi.mock("@/components/nav/SiteNav", () => ({
   default: () => createElement("nav", null, "Navigation"),
 }));
@@ -169,6 +175,8 @@ beforeEach(() => {
   state.privateStatus = 200;
   state.privateResponses = "ready";
   state.publicStatus = 200;
+  state.socialLaunchEnabled = true;
+  state.publicCalls = [];
   state.publicResponses = new Map([
     [CREW_A, "ready"],
     [CREW_B, "ready"],
@@ -182,6 +190,7 @@ beforeEach(() => {
     "fetch",
     vi.fn((input: RequestInfo | URL) => {
       const url = String(input);
+      state.publicCalls.push(url);
       const crewId = url.includes(CREW_B) ? CREW_B : CREW_A;
       if (state.publicResponses.get(crewId) === "deferred") {
         return new Promise<Response>((resolve) => {
@@ -205,6 +214,22 @@ afterEach(async () => {
 });
 
 describe("PublicCrewRouteClient identity and crew boundaries", () => {
+  it("renders static Social preview and skips crew reads during rollback", async () => {
+    state.socialLaunchEnabled = false;
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.publicCalls).toEqual([]);
+    expect(state.actionCalls).toEqual([]);
+    expect(container.textContent).toContain(
+      "Social preview is invite-only for now. It opens more widely soon.",
+    );
+    expect(container.textContent).not.toContain("Could not load this crew.");
+    expect(container.textContent).not.toContain("Ask to join");
+  });
+
   it("loads protected Social state when identity is resolved without a Supabase session", async () => {
     state.privateState = "member";
     await act(async () => {

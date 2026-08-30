@@ -59,6 +59,17 @@ describe("Social interaction moderation worker", () => {
     expect(processModerationQueue).toHaveBeenCalledWith(expect.anything(), 20);
   });
 
+  it("skips the Social queue during emergency rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+    const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");
+
+    const response = await GET(new Request("http://localhost/api/cron/moderate-social-interactions"));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ ok: true, skipped: "social_rollback" });
+    expect(processModerationQueue).not.toHaveBeenCalled();
+  });
+
   it("skips before claiming jobs when OpenAI moderation is not configured", async () => {
     vi.stubEnv("OPENAI_API_KEY", "");
     const { GET } = await import("@/app/api/cron/moderate-social-interactions/route");

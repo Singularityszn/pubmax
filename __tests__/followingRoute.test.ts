@@ -52,6 +52,7 @@ function following(handle: string): Promise<Response> {
 }
 
 beforeEach(() => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryFollows();
@@ -59,6 +60,20 @@ beforeEach(() => {
 });
 
 describe("GET /api/profiles/[handle]/following", () => {
+  it("returns no follow graph during the full Social rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+    await memoryFollowStore.follow("ken", "sam");
+
+    const res = await following("ken");
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Social is in preview right now.",
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("returns enriched rows for handles a profile follows", async () => {
     await memoryFollowStore.follow("ken", "sam");
     await memoryFollowStore.follow("ken", "lee");

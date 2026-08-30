@@ -43,6 +43,7 @@ import { cleanText } from "@/lib/textClean";
 import { assertServerEnv } from "@/lib/serverEnv";
 import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";
+import { isSocialFriendsLaunchEnabled, SOCIAL_FRIENDS_LAUNCH_ENV } from "@/lib/socialLaunch";
 
 assertServerEnv();
 
@@ -128,12 +129,13 @@ export async function GET(
   }
 
   const { profiles, follows } = stores();
+  const socialEnabled = isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV]);
   const viewer = normalizeHandle(new URL(request.url).searchParams.get("viewer") ?? "");
 
   try {
     const [profile, counts] = await Promise.all([
       profiles.getByHandle(handle),
-      follows.counts(handle),
+      socialEnabled ? follows.counts(handle) : Promise.resolve(null),
     ]);
     // Only compute follow status for a *different* viewer — a handle never
     // "follows itself", and asking short-circuits to false.
@@ -142,7 +144,7 @@ export async function GET(
     // edge is already public through /following and /lot, so this adds a round
     // trip's worth of convenience, never a new disclosure.
     const [viewerFollowing, followsViewer] =
-      viewer && viewer !== handle
+      socialEnabled && viewer && viewer !== handle
         ? await Promise.all([
             follows.isFollowing(viewer, handle),
             follows.isFollowing(handle, viewer),
@@ -172,7 +174,7 @@ export async function GET(
     return jsonNoStore(
       {
         profile: publicProfileFromRecord(profile, coverUrls ? { coverUrls } : {}),
-        socialLinks: await publicLinksFor(profile),
+        socialLinks: socialEnabled ? await publicLinksFor(profile) : [],
         counts,
         viewerFollowing,
         followsViewer,
@@ -186,7 +188,7 @@ export async function GET(
       {
         profile: null,
         socialLinks: [],
-        counts: { followers: 0, following: 0 },
+        counts: null,
         viewerFollowing: false,
         followsViewer: false,
       },

@@ -37,6 +37,12 @@ import {
 } from "@/lib/profileStore";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
+import {
   clientIp,
   hashIp,
   isSupabaseConfigured,
@@ -66,6 +72,9 @@ function toDirectoryEntry(profile: ProfileRecord): DirectoryEntry {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const limiterKey = `profile-directory:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {

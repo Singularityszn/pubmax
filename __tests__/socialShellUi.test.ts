@@ -55,7 +55,7 @@ describe("Social access boundary", () => {
     const viewerCards =
       socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
     expect(viewerCards).toMatch(
-      /isPosts && viewerPhase === "resolved" && access === "verified"/,
+      /isPosts\s*&&\s*viewerPhase === "resolved"\s*&&\s*access === "verified"/,
     );
   });
 

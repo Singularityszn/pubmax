@@ -122,8 +122,8 @@ describe("legal content pages", () => {
     }
     expect(privacy).toMatch(/Supabase sign-in/);
     expect(privacy).toMatch(/private product account/);
-    expect(terms).toMatch(/both signed-in sessions/);
-    expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+them/);
+    expect(terms).toMatch(/private product account tied to your Supabase sign-in/);
+    expect(terms).toMatch(/doesn&rsquo;t use your email or handle to join\s+accounts/);
     expect(terms).toMatch(/do not run a separate hosted age check/i);
   });
 
@@ -131,7 +131,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/date of birth you gave at onboarding/i);
     expect(privacy).toMatch(/do not run a separate hosted age check/i);
     expect(terms).toMatch(/do not run a separate hosted age check/i);
-    expect(privacy).toMatch(/does not currently send data to Yoti/i);
+    expect(privacy).toMatch(/does not currently\s+send data to Yoti/i);
     expect(privacy).not.toMatch(/Yoti runs the\s+adult check/i);
     expect(privacy).not.toMatch(/Hosted 18\+ age checking/i);
     expect(privacy).not.toMatch(/returns the authoritative result/i);
@@ -413,7 +413,7 @@ describe("legal content pages", () => {
     expect(privacy).toMatch(/Full name, gender and sex are optional/);
     expect(privacy).toMatch(/only identity shown with contributions/);
     expect(privacy).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use full name, gender or sex/i,
     );
     expect(privacy).toMatch(
       /date of birth[\s\S]*until you delete your profile/i,
@@ -431,7 +431,7 @@ describe("legal content pages", () => {
       /date of birth is needed to finish signup/i,
     );
     expect(terms).toMatch(
-      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use them/i,
+      /date of birth[\s\S]*full name[\s\S]*sex[\s\S]*existing\s+account tools[\s\S]*Social adult access does not use full name, gender or sex/i,
     );
     expect(terms).toMatch(/date of birth[\s\S]*until you delete your profile/i);
     expect(terms).toMatch(
@@ -472,7 +472,8 @@ describe("legal content pages", () => {
     expect(terms).toMatch(
       /map and existing contribution tools don&rsquo;t use age to block an\s+account/i,
     );
-    expect(terms).toMatch(/date of birth you gave at onboarding for the 18\+ gate/i);
+    expect(termsText).toMatch(/Social is live by default/i);
+    expect(termsText).toMatch(/one recorded self-assertion can answer the access question/i);
     expect(terms).toMatch(/Pubs\s+decide who they serve/i);
     expect(terms).toMatch(/drinkaware\.co\.uk/);
   });

@@ -111,10 +111,11 @@ async function startDatabase(): Promise<Database> {
         ],
         { encoding: "utf8", stdio: ["pipe", "pipe", "pipe"] },
       ).trim();
-    const apply = (file: string): void =>
-      execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", "-f", file], {
+    const apply = (file: string): void => {
+      void execFileSync(psql, [...connection, "-v", "ON_ERROR_STOP=1", "-f", file], {
         stdio: "pipe",
       });
+    };
     sql(
       "create role anon nologin; create role authenticated nologin; create role service_role nologin bypassrls;",
     );

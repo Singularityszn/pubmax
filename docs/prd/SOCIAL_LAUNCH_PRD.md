@@ -52,12 +52,12 @@ is ported to serve the Supabase-identity stack; the Clerk+Yoti beta
 machinery is not enabled. This closes both panel hold keys
 (`social-launch-identity-authority`, `social-stack-choice`).
 
-### D2 - Age assurance: self-asserted 18+ date of birth
+### D2 - Age assurance: recorded 18+ answer
 
-Social requires 18+, checked against the date of birth already collected at
-onboarding (`lib/privateIdentityStore.ts:204`). The unwired Yoti promise on
-`/terms` and `/privacy` is removed honestly in the same PR that opens the
-gate. Yoti may return later as a stronger assurance tier.
+Social requires an 18+ answer. An existing date of birth decides the answer;
+when it is absent, one recorded self-assertion can answer it. The unwired Yoti
+promise on `/terms` and `/privacy` is removed honestly in the same PR that
+opens the gate. Yoti may return later as a stronger assurance tier.
 
 ### D3 - Friends definition: unify on mutuals
 
@@ -67,8 +67,9 @@ account see nothing personal.
 
 ### Earlier same-day locked context
 
-- Social launches friends-only for all signed-in users; dark behind a NEW
-  registry flag (`PUBMAX_SOCIAL_FRIENDS_LAUNCH`) until the captain's demo.
+- Social launches friends-only for eligible signed-in users: a Supabase session,
+  claimed handle, and 18+ answer are required. It is live by default;
+  `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the explicit emergency rollback.
 - Profile pictures: user-uploaded, public on profile.
 - Moderation: OpenAI omni-moderation pre-publish scan on OWNED storage
   bytes (upload pipeline, never hotlinked URLs), fail-closed, plus a
@@ -82,14 +83,14 @@ Builder sizing: S/M/L. Sequencing is in its own section below.
 ### WP1 - Open the gate: friends-only social for all signed-in users (L)
 
 **Goal:** every signed-in Supabase account with a claimed handle and an 18+
-date of birth reaches `verified` social access; the whole surface stays dark
-behind `PUBMAX_SOCIAL_FRIENDS_LAUNCH`.
+answer reaches `verified` Social access; the whole surface returns to preview
+only when `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`.
 
 **Files to touch:**
 - `lib/socialAccess.ts` - replace the beta+Yoti decision branch
   (`lib/socialAccess.ts:47-75`) with: flag off -> `preview`; no Supabase
   session -> `sign_in_required`; suspended -> `suspended`; no claimed
-  handle or DOB under 18 -> the honest blocking state; else `verified`.
+  handle or no adult answer -> the honest blocking state; else `verified`.
 - `lib/socialAccessServer.ts` - fix the module-scope env read at
   `lib/socialAccessServer.ts:205-208` to a call-time read per the
   `lib/opsFreeze.ts:10-12` doctrine (pre-existing defect; fix it
@@ -117,11 +118,11 @@ call-time env read now stubbable); retarget
 `__tests__/legalPages.test.ts` (age copy); new unit tests for
 auto-provision.
 
-**Demo gate:** flag off - `/social` shows "Social is not open yet." and
-every CTA says Open Memories. Flag on in a dev env - a fresh Supabase
-sign-in + handle claim + adult DOB lands in `verified` and sees the
-friends-only feed; an under-18 DOB is refused honestly; mutual-follow
-visibility spot-checked with two accounts.
+**Demo gate:** with `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, `/social` shows the
+preview state and every CTA says Open Memories. With the live default, a fresh
+Supabase sign-in + handle claim + 18+ answer lands in `verified` and sees the
+friends-only feed; an under-18 answer is refused honestly; mutual-follow
+visibility is spot-checked with two accounts.
 
 ### WP2 - Avatar upload pipeline (server) with inline pre-publish moderation (L)
 
@@ -173,7 +174,7 @@ account's face may not persist in storage or cache. Test asserts object
 deletion is invoked on tombstone.
 
 **Tests:** new `__tests__/profileAvatarRoute.test.ts` (refusal on flagged,
-refusal on outage, EXIF strip asserted via `lib/imageSafety` fixtures,
+advisory skip on outage, EXIF strip asserted via `lib/imageSafety` fixtures,
 ownership, rate limit, tombstone deletion); new
 `__tests__/profileAvatarModeration.test.ts` mirroring
 `__tests__/socialPostModeration.test.ts` including the no-identifier
@@ -182,9 +183,9 @@ new substring leaks. The error-contract sweep enrols the route
 automatically.
 
 **Demo gate:** upload a normal photo - it appears on `/u/[handle]` after
-one request. Upload a test-flagged image - instant honest refusal. Kill the
-API key - upload refused, profile unchanged. EXIF GPS fixture - stored
-object carries no GPS. Tombstone the account - storage object gone.
+one request. Upload a test-flagged image - instant honest refusal. Remove the
+moderation keys - upload proceeds with one logged scan skip. EXIF GPS fixture -
+stored object carries no GPS. Tombstone the account - storage object gone.
 
 ### WP3 - Serving + rendering: the avatar everywhere the handle shows (M-L)
 
@@ -266,13 +267,13 @@ same branch train.
   (`lib/adminAuth.ts:43-56`); GET reported/hidden lanes; POST hide/restore;
   hide flips serving to 404.
 
-**Moderation-outage operator alert (skeptic ADD, in this package):** the
-avatar path fails closed at the route, so an OpenAI outage surfaces to the
-uploader immediately - but the ported social-post queue can silently strand
-posts `pending` on outage. Add an operator lane: the freshness/notify
-pattern (`lib/freshnessNotify.ts`) or a cron check that reports a growing
-`pending` backlog and repeated moderation failures as their own named
-finding. An outage must never read as "nothing to review".
+**Moderation-outage operator alert (skeptic ADD, in this package):** owned-image
+scans are advisory, so a provider outage is recorded as a scan skip and the
+report/hide lane remains the safety net. The Social-post queue can still strand
+posts `pending` on outage. Add an operator lane: the freshness/notify pattern
+(`lib/freshnessNotify.ts`) or a cron check that reports a growing `pending`
+backlog and repeated moderation failures as their own named finding. An outage
+must never read as "nothing to review".
 
 **Tests:** new moderation-route test copying
 `__tests__/communityPriceModeration.test.ts` shape (flag queues; only a
@@ -286,10 +287,10 @@ hides - initials within a cache window, row survives with provenance.
 Restore works from the hidden lane. Simulated moderation outage - operator
 lane reports it.
 
-### WP5 - Dark-launch verification + demo dress rehearsal (S-M)
+### WP5 - Launch-state verification + demo dress rehearsal (S-M)
 
-**Goal:** prove flag-off is byte-identical to today on social surfaces and
-rehearse the captain demo end to end. Blocked on WP1-WP4, WP6, WP7.
+**Goal:** prove the explicit rollback is byte-identical to the safe preview and
+rehearse the live captain demo end to end. Blocked on WP1-WP4, WP6, WP7.
 
 **Files to touch:** `e2e/smoke.spec.ts` (preview-state assertion moves to
 the new flag), `.env.example` (document `PUBMAX_SOCIAL_FRIENDS_LAUNCH` +
@@ -302,13 +303,14 @@ hide loop against the production build; keyless webServer env pattern from
 `playwright.config.ts`); optionally `e2e/social-open.spec.ts` behind an env
 opt-in.
 
-**Tests:** the e2e specs are the deliverable; `npm run ci` green with the
-flag unset proves dark.
+**Tests:** the e2e specs are the deliverable; `npm run ci` with the live
+default proves the launch path, and `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` proves
+the rollback preview.
 
-**Demo gate (the captain demo script):** flag off = today's site on social
-surfaces. Flag on in the demo env = sign in, claim handle, upload avatar,
+**Demo gate (the captain demo script):** rollback state equals the safe preview.
+Live default = sign in, claim handle, answer the adult check, upload avatar,
 join a plan crew and gain a mutual, friends-only post visible to the mutual
-and invisible to a third account, flagged upload refused live.
+and invisible to a third account, with a flagged upload refused live.
 
 ### WP6 - One friends definition: unify on mutuals (D3) (M) - EARLY
 
@@ -390,12 +392,10 @@ empty; search finds a handle and follow works from it.
   start time to any link holder (`app/invite/[token]/page.tsx`, migration
   0081); adding a face turns that into face + route + start time. Night
   stories' `public` tier likewise stays face-free.
-- **`SOCIAL_INVITE_BETA_ENABLED` stays untouched.** It is pinned "stays
-  unset" by four docs and the honest-path anti-goals; the launch switch is
-  the new registry flag, and the beta flag's paper trail stays intact.
-- **The launch flag stays OFF until the captain's demo.** Flipping
-  `PUBMAX_SOCIAL_FRIENDS_LAUNCH` in production is the captain's act, after
-  the WP5 rehearsal.
+- **`SOCIAL_INVITE_BETA_ENABLED` is retired.** It is not a supported
+  configuration value or access path. The launch switch is live by default,
+  and `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the captain-controlled emergency
+  rollback.
 - Standing honest-path anti-goals (root `CLAUDE.md`) apply unchanged: no
   growth engine, no referral feature grants ever, no payments theatre, no AI
   that fabricates.
@@ -414,21 +414,21 @@ empty; search finds a handle and follow works from it.
    no usable decision is stored and served, because a broken provider had
    blocked every upload on the site. A real negative verdict still refuses.
    See `lib/uploadedImageScan.server.ts` and the AGENTS.md bullet.
-3. **Honest copy and honest fallbacks:** While the launch flag is off, no
+3. **Honest copy and honest fallbacks:** During the explicit rollback, no
    surface may say "Open Social" (the `__tests__/*SocialHonesty.test.ts`
    fences must keep passing), and a missing, hidden, or unscanned avatar
    always renders the initials fallback - never a broken image, never a
    placeholder that implies the user chose it.
-4. **Age gate:** Social requires an 18+ self-asserted date of birth, and
-   the terms/privacy Yoti promise is replaced honestly in the same PR that
-   opens the gate - the legal pages describe what the code does, never what
-   it might do later.
+4. **Age gate:** Social requires a signed-in account, claimed handle, and 18+
+   answer. An existing date of birth decides when present; otherwise one
+   recorded self-assertion can answer the question. The legal pages describe
+   this current policy and do not promise a hosted Yoti check.
 
 ## Sequencing
 
 **Cursor can start today (no decision or package blocks them):**
 - WP2 - avatar upload pipeline + inline moderation + tombstone deletion.
-  Works keyless-refused until `OPENAI_API_KEY` arrives.
+  Works keyless with advisory scan skips; a real negative verdict still refuses.
 - WP4 - report/takedown lane + operator alert + legal pages (develops
   against the WP2 schema in the same branch train).
 - WP6 - unify friends on mutuals (independent; must land before WP3).
@@ -447,10 +447,11 @@ empty; search finds a handle and follow works from it.
   firstmate applies them. Never run a migration against production from a
   work branch.
 - **`OPENAI_API_KEY`:** already listed in `.env.example`; the captain adds
-  it to Vercel env when WP2 ships. Until then every avatar upload is
-  refused honestly (fail-closed), which is the correct dark behaviour.
-- **`PUBMAX_SOCIAL_FRIENDS_LAUNCH`:** the new launch switch, registered in
+  it to Vercel env for Social post moderation. Owned-image uploads remain
+  available without a scanner, with one logged scan skip; a real negative
+  verdict still refuses.
+- **`PUBMAX_SOCIAL_FRIENDS_LAUNCH`:** the launch switch, registered in
   `lib/trustedHandoffFlags.server.ts` with `ownerLane`, `removalCondition`
-  and `offBehavior`. Off = today's site. Flip = env change + redeploy, per
-  the WP5 runbook entry. `PUBMAX_SOCIAL_FREEZE` remains the separate ops
+  and `offBehavior`. Unset, empty, `1`, or `true` keeps Social live; `0`
+  returns it to preview. `PUBMAX_SOCIAL_FREEZE` remains the separate ops
   brake and is not a launch control.

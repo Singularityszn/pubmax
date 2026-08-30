@@ -35,6 +35,7 @@ export type OutProviderReport = {
  * own, weaker than degraded (which means we looked and could not see).
  */
 export type OutStatus = "ready" | "degraded" | "not-configured";
+export type OutOpenPlansStatus = "ready" | "degraded" | "preview";
 
 export type OutResponse = {
   /**
@@ -55,7 +56,8 @@ export type OutResponse = {
   /** Why the LISTINGS lane is degraded, in words a reader can act on. */
   listingsReason?: string;
   events: WhatsOnRow[];
-  openPlans: OutOpenPlan[];
+  openPlans: OutOpenPlan[] | null;
+  openPlansStatus?: OutOpenPlansStatus;
   attribution: OutSourceCredit[];
   observedAt: Record<string, string>;
   providers: OutProviderReport[];

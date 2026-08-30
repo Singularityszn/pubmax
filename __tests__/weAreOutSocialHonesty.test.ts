@@ -1,50 +1,90 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+// @vitest-environment jsdom
 
-import { describe, expect, it } from "vitest";
+import { createElement } from "react";
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const pageTsx = readFileSync(join(process.cwd(), "app/we-are-out/page.tsx"), "utf8");
-const clientTsx = readFileSync(
-  join(process.cwd(), "app/we-are-out/WeAreOutClient.tsx"),
-  "utf8",
-);
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children: React.ReactNode }) =>
+    createElement("a", { href, ...props }, children),
+}));
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => createElement("nav", null, "site nav"),
+}));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: vi.fn(),
+}));
 
-/** Visible copy only — comments explain the rule and must not trip it. */
-function clientCopy(): string {
-  return clientTsx
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-    .join("\n");
+import WeAreOutClient from "@/app/we-are-out/WeAreOutClient";
+import { authedActionFetch } from "@/lib/authedFetch";
+
+let host: HTMLDivElement;
+let root: Root;
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
 }
 
-describe("we-are-out Social honesty (crew tonight slice 4)", () => {
-  it("reads the friends-launch flag only on the RSC and threads it", () => {
-    expect(pageTsx).toMatch(/readTrustedHandoffFlag/);
-    expect(pageTsx).toMatch(/socialFriendsLaunch/);
-    expect(pageTsx).toMatch(
-      /socialFriendsLaunchEnabled=\{socialFriendsLaunchEnabled\}/,
-    );
-    expect(clientTsx).not.toMatch(/process\.env/);
-    expect(clientTsx).not.toMatch(/PUBMAX_SOCIAL_FRIENDS_LAUNCH/);
+async function completeCheckIn(socialFriendsLaunchEnabled?: boolean): Promise<void> {
+  window.localStorage.setItem("pubmax_handle", "alice");
+  vi.mocked(authedActionFetch).mockResolvedValue(jsonResponse({ ok: true }));
+  await act(async () => {
+    root.render(createElement(WeAreOutClient, { socialFriendsLaunchEnabled }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+  const select = host.querySelector<HTMLSelectElement>("select");
+  expect(select).toBeTruthy();
+  select!.value = select!.options[1]!.value;
+  await act(async () => {
+    select!.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  const submit = [...host.querySelectorAll("button")].find((button) =>
+    button.textContent?.includes("I'm here"),
+  );
+  expect(submit).toBeTruthy();
+  await act(async () => {
+    submit!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+async function renderRollback(): Promise<void> {
+  await act(async () => {
+    root.render(createElement(WeAreOutClient, { socialFriendsLaunchEnabled: false }));
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.localStorage.clear();
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+  vi.clearAllMocks();
+});
+
+describe("we-are-out Social honesty", () => {
+  it("defaults completed check-ins to Social", async () => {
+    await completeCheckIn();
+    expect(host.querySelector('a[href="/social"]')?.textContent).toContain("Open Social");
   });
 
-  it("defaults the done-state CTA away from Open Social when launch is off", () => {
-    expect(clientTsx).toMatch(/socialFriendsLaunchEnabled\s*=\s*false/);
-    const doneBlock = clientTsx.match(
-      /weAreOutDone[\s\S]*?<\/section>/,
-    )?.[0];
-    expect(doneBlock, "done-state block present").toBeTruthy();
-    expect(doneBlock).toMatch(
-      /socialFriendsLaunchEnabled\s*\?\s*\([\s\S]*Open Social[\s\S]*:\s*\([\s\S]*Open Memories/,
-    );
-    expect(doneBlock).toMatch(/href="\/u\/you#night-memories"/);
-    expect(doneBlock).toMatch(/href="\/social"/);
-  });
-
-  it("keeps only the launch-on branch saying Open Social in visible copy", () => {
-    const copy = clientCopy();
-    const openSocialMatches = copy.match(/Open Social/g) ?? [];
-    expect(openSocialMatches).toHaveLength(1);
-    expect(copy).toContain("Open Memories");
+  it("uses Memories for completed check-ins during rollback", async () => {
+    await renderRollback();
+    expect(host.querySelector('a[href="/u/you#night-memories"]')?.textContent).toContain("Open Memories");
   });
 });

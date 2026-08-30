@@ -326,12 +326,12 @@ export async function lookupVenueDetail(requestedId: string): Promise<VenueDetai
       overlayVenueIds.map((osmId) => harvestOverlayStore().getByVenueId(osmId)),
     );
     if (reads.some((read) => read.status === "degraded")) return { status: "found", venue: enriched };
-    const venue = reads.reduce(
+    const mergedVenue = reads.reduce(
       (current, read) =>
         read.status === "ready" ? applyHarvestWebsiteMenu(current, read.overlay) : current,
       enriched,
     );
-    return { status: "found", venue };
+    return { status: "found", venue: mergedVenue };
   } catch {
     return { status: "found", venue };
   }

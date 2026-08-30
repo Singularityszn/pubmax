@@ -229,9 +229,13 @@ export default function CreatorListsLane(): React.JSX.Element {
   const [status, setStatus] = useState<CreatorListsLoadStatus>("loading");
   const [lists, setLists] = useState<CreatorListDiscoveryItem[]>([]);
   const [attempt, setAttempt] = useState(0);
-  const { identityResolved } = useAuth();
+  const { identityResolved, user } = useAuth();
   const resolvedViewerHandle = useViewerHandle();
-  const viewerHandle = identityResolved ? (resolvedViewerHandle ?? "") : null;
+  const viewerHandle = identityResolved
+    ? user
+      ? resolvedViewerHandle
+      : ""
+    : null;
 
   useEffect(() => {
     const controller = new AbortController();

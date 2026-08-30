@@ -2,6 +2,10 @@
 
 Snapshot: 27 August 2026, Europe/London.
 
+This snapshot predates the Social revival change. For current Social launch,
+rollback, and moderation deployment policy, use
+[`docs/SOFT_LAUNCH_RUNBOOK.md`](SOFT_LAUNCH_RUNBOOK.md).
+
 This document records current operational truth after the 23-27 August merge wave. `CONTEXT.md` remains the domain-language authority. `FableNextSteps.md` remains the detailed product specification. `CodexSolPlan.md` remains a historical handoff and does not prove that unfinished work is complete.
 
 ## 1. Source, local, and production truth

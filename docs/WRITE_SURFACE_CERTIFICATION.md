@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 140 mutating handlers across 114 route files.** Each exported
+> **Inventory: 139 mutating handlers across 113 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -138,7 +138,6 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/saved-pubs`
 - `POST app/api/saved-pubs/list-follows`
 - `POST app/api/social-connections/[provider]`
-- `POST app/api/social/access`
 - `POST app/api/social/crews`
 - `POST app/api/social/crews/[crewId]/invitations`
 - `POST app/api/social/crews/[crewId]/join-requests`
@@ -183,20 +182,20 @@ account ID in its body, and neither returns either side of an invite edge.
 Following the public invite route writes nothing. Auth callback code claims are
 accepted only for newly created accounts in the same sign-in journey.
 
-Social account migration is account-bound twice. `POST /api/social/access`
-derives the legacy Supabase identity with `verifyCallerAuth(request)` and the
-protected server seam derives the Clerk identity from middleware-backed session
-context. It accepts no account ID, handle, or email from the body. The beta
-policy denies the write with `SOCIAL_BETA_DISABLED` while Social remains in
-preview, before the Supabase verifier, Clerk check, or migration RPC runs. A
-successful call passes only those two independently verified IDs to the
-service-only transactional RPC.
+Social access is Supabase-only. `GET /api/social/access` calls
+`resolveSocialAccess`, which accepts the caller's verified Supabase bearer or
+resume cookie and reads the server-owned product account, profile, date of
+birth, and adult assertion. It accepts no account ID, handle, or email from a
+request body. When `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, it returns preview before
+session or account work. There is no Social access POST, Clerk session check,
+Yoti migration, or account migration RPC in this path.
 
-Social post writes use one account boundary. Both routes call
+Social post and Crew writes use one account boundary. Their routes call
 `requireVerifiedSocialActor`, which returns the server-held product account ID,
-stable profile ID and current handle only after the Clerk session, product
-ownership and adult decision pass. No account ID, profile ID, handle,
-moderation state, revision or timestamp is accepted from the request body.
+stable profile ID, and current handle only after Supabase session verification,
+product ownership, and the adult decision pass. No account ID, profile ID,
+handle, moderation state, revision, or timestamp is accepted from request
+bodies.
 
 ## Failure posture
 
@@ -345,15 +344,22 @@ moderation state, revision or timestamp is accepted from the request body.
 
 ### `app/api/admin/social-posts` - named staff Social moderation (route 82)
 
-- **Route / method:** `POST app/api/admin/social-posts/route.ts`.
-- **Authority:** `requireVerifiedSocialActor` derives stable profile authority.
-  The durable moderation transaction also requires an active named moderator
-  role. Client data cannot assert staff identity or role.
-- **Moderation:** approval binds post, revision and private media. Hide keeps
-  provenance and appends the named staff action. Neither action deletes the
-  post, media audit, or tag consent history.
-- **Failure:** missing named staff authority and held-row mismatches use a
-  private denied response. No partial moderation result is returned.
+- **Route / method:** `GET` and `POST app/api/admin/social-posts/route.ts`, plus
+  `GET app/api/admin/social-posts/media/[mediaId]/route.ts` for protected photo
+  previews.
+- **Authority:** `isModerator` accepts the existing admin header or httpOnly
+  admin session cookie. Each admin-only RPC also requires an active named
+  moderator role. Client data cannot assert staff identity or role.
+- **Moderation:** the queue reads only visible held posts and exposes no
+  post-author identity. Approval or hide binds the current post and private media, keeps
+  provenance, and appends the named staff action. The preview RPC returns an
+  object key only for media attached to a held post; the route exchanges it for
+  a short-lived signed URL. Neither action deletes the post, media audit, or tag
+  consent history.
+- **Failure:** malformed requests return 400, stale held rows return 409, and
+  missing migration, named staff authority, or storage failures return 503.
+  Responses are private and no-store. No partial moderation result is
+  returned.
 
 ### Social Crew authority routes (routes 81-88)
 

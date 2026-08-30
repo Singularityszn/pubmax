@@ -10,6 +10,8 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 const POSTS = join(process.cwd(), "supabase/migrations/20260806145914_0072_social_posts.sql");
 const INTERACTIONS = join(process.cwd(), "supabase/migrations/20260806150000_0073_social_interactions.sql");
 const FORWARD = join(process.cwd(), "supabase/migrations/20260806151000_0074_social_composer.sql");
+const ADMIN_MODERATION = join(process.cwd(), "supabase/migrations/20260829120000_0123_social_admin_moderation.sql");
+const ADMIN_MODERATION_ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260829120000_0123_social_admin_moderation_rollback.sql");
 const ROLLBACK = join(process.cwd(), "supabase/migrations/rollback/20260806151000_0074_social_composer_rollback.sql");
 
 function binary(name: "initdb" | "postgres" | "psql"): string | null {
@@ -105,6 +107,7 @@ const MEDIA_REPLAY = "55555555-5555-4555-8555-555555555555";
 const MEDIA_TWO = "66666666-6666-4666-8666-666666666666";
 const MEDIA_REPLACED = "77777777-7777-4777-8777-777777777777";
 const MEDIA_CLEANUP = "99999999-9999-4999-8999-999999999999";
+const MEDIA_STALE = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 let postId = "";
 let retryPostId = "";
 let mediaObjectKey = "";
@@ -141,6 +144,7 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     expect(() => db.applyTransactional(FORWARD)).toThrow(/requires Task 3 photo_media_id rows to be null/i);
     db.sql(`delete from public.social_posts where id='${legacy}'`);
     db.apply(FORWARD);
+    db.apply(ADMIN_MODERATION);
     mediaObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
       '${ALICE}','${MEDIA}','${"a".repeat(64)}',1200,800,12345
     )`);
@@ -520,7 +524,8 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     const db = database!;
     db.sql(`insert into public.private_social_staff_roles(id,profile_id,display_name,role,active)
       values ('55555555-5555-4555-8555-555555555555','${CAROL}','Carol Smith','moderator',true)`);
-    db.sql(`update public.social_posts set moderation_state='needs_review' where id='${postId}'`);
+    db.sql(`update public.social_post_moderation_jobs set state='done' where post_id='${postId}';
+      update public.social_posts set moderation_state='needs_review' where id='${postId}'`);
     db.sql(`update public.social_post_media set moderation_state='needs_review' where id='${MEDIA}'`);
     expect(db.sql(`select staff_display_name || ':' || post_id || ':' || media_id from public.read_social_post_moderation_queue('${CAROL}',20)`))
       .toBe(`Carol Smith:${postId}:${MEDIA}`);
@@ -528,6 +533,25 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
     expect(db.sql(`select moderation_state from public.social_posts where id='${postId}'`)).toBe("approved");
     expect(db.sql(`select staff_role_id from public.social_post_moderation_actions where post_id='${postId}'`))
       .toBe("55555555-5555-4555-8555-555555555555");
+
+    const staleObjectKey = db.sql(`select object_key from public.reserve_social_post_media_upload(
+      '${ALICE}','${MEDIA_STALE}','${"a".repeat(64)}',400,300,800
+    )`);
+    const stalePostId = db.sql(`select id from public.create_social_post(
+      '${ALICE}','alice','standard','private','Needs another review',null,null,array[]::text[],'locked',
+      '${MEDIA_STALE}','${staleObjectKey}','${"a".repeat(64)}',400,300,800,'Stale photo',array[]::text[]
+    )`);
+    db.sql(`update public.social_posts set moderation_state='approved' where id='${stalePostId}';
+      update public.social_post_media set moderation_state='needs_review' where id='${MEDIA_STALE}';
+      update public.social_post_moderation_jobs set state='done' where post_id='${stalePostId}';
+      update public.social_posts set body='Edited after photo review',revision=revision+1,moderation_state='pending',updated_at=now()
+      where id='${stalePostId}'`);
+    expect(db.sql(`select count(*) from public.read_social_post_moderation_queue_admin('55555555-5555-4555-8555-555555555555',20) where post_id='${stalePostId}'`))
+      .toBe("0");
+    expect(db.sql(`select count(*) from public.read_social_post_media_admin('55555555-5555-4555-8555-555555555555','${MEDIA_STALE}')`)).toBe("0");
+    expect(db.sql(`select public.moderate_social_post_admin('55555555-5555-4555-8555-555555555555','${stalePostId}','${MEDIA_STALE}','approve')`)).toBe("f");
+    expect(db.sql(`select moderation_state || ':' || (select moderation_state from public.social_post_media where id='${MEDIA_STALE}')
+      from public.social_posts where id='${stalePostId}'`)).toBe("pending:needs_review");
   });
 
   it("records cancellation and proposal events and notifications on photo replacement", () => {
@@ -564,6 +588,7 @@ describe("Social composer migration forward, concurrency, and rollback", () => {
 
   it("rolls back Task 6 state and restores Task 3 public-Venue and edit rules", () => {
     const db = database!;
+    db.apply(ADMIN_MODERATION_ROLLBACK);
     db.apply(ROLLBACK);
     expect(db.sql("select to_regclass('public.social_post_media') is null")).toBe("t");
     expect(db.sql("select to_regclass('public.social_post_media_lifecycle_events') is null")).toBe("t");

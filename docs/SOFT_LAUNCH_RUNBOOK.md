@@ -72,40 +72,43 @@ If a later agent finds the live ledger behind the tree again, re-run `supabase m
 
 ### 1.4 Feature flags
 
-Social ships behind two independent server-checked switches:
+Social ships behind one server-checked launch switch:
 
-| Flag | Read in | When off (default) | When on |
+| Flag | Read in | Emergency rollback (`=0`) | Live default |
 |---|---|---|---|
-| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts` (access) and `app/layout.tsx` (surface name) | Every Social surface stays in **preview** (today's behaviour). Landing and `/we-are-out` keep pointing at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, the command palette and every Social page; the phone tab keeps the word `Social` with a small preview dot and the spoken name `Social preview`. | Signed-in Supabase accounts with a claimed handle and self-asserted 18+ date of birth reach **verified** access. Every surface goes back to the plain name **Social**. Friends-only reads use mutual follows (WP6). |
-| `SOCIAL_INVITE_BETA_ENABLED` | `lib/socialAccessServer.ts` (legacy Clerk beta path) | Clerk invite beta stays dormant beside the Supabase path. | **Do not enable** for the friends launch; it is the retired Clerk+Yoti stack. |
+| `PUBMAX_SOCIAL_FRIENDS_LAUNCH` | `lib/socialAccessServer.ts`, `app/layout.tsx`, `app/api/out/route.ts`, and public Crew route | Set only to `0` during an incident. Every Social surface returns to **preview**. Landing and `/we-are-out` point at Memories, not Open Social. The surface names itself **Social preview** in the desktop nav, command palette, and Social pages; the phone tab keeps `Social` with a preview dot and spoken name `Social preview`. | Unset, empty, `1`, or `true` keeps Social **live**. Signed-in Supabase accounts with a claimed handle and an 18+ answer reach **verified** access. When a date of birth exists, it decides the answer; otherwise, one recorded self-assertion can answer it. Friends-only reads use mutual follows (WP6). |
 
-**Dark launch default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset in Production and Preview. `npm run ci` green with the flag unset proves the dark state.
+**Live default:** leave `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset or empty in Production and Preview. `1` and `true` are also live values. `0` is the only emergency rollback value and returns Social to preview.
 
-**Friends launch flip (captain act, after WP5 rehearsal):**
+**Live-state verification (captain act):**
 
-1. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` in Vercel **Production** environment variables.
+1. Confirm `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is unset, empty, `1`, or `true` in Vercel **Production** environment variables.
 2. Confirm `OPENAI_API_KEY`, `SUPABASE_*`, `ADMIN_TOKEN`, and `RATE_LIMIT_SALT` are already set (avatar scan + moderation queue).
 3. Promote a fresh production deployment (`vercel --prod` or dashboard promote). The flag is read at request time, but a redeploy is the audited change record.
 4. Run the captain demo script below on the production host (or a staging env with the same flag and secrets).
 5. Keep `PUBMAX_SOCIAL_FREEZE` unset unless ops needs to pause writes without hiding the surface.
 
-Do not enable `SOCIAL_INVITE_BETA_ENABLED` for this wave. It is a retained audit trail for the retired Clerk beta path. `docs/social/SOCIAL_BETA_CONTRACT.md` lists both moderation roles as **Unassigned, Blocking** for that path.
+**Emergency rollback (captain act):**
+
+1. Set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` in Vercel **Production** environment variables.
+2. Promote a fresh production deployment and run the rollback check below.
+3. Restore the live default by removing the variable or setting it to `1` or `true`, then promote again.
 
 ### 1.5 Captain demo script (Social + avatars dress rehearsal)
 
-Run after `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` is live in the demo environment. Flag **off** must match today's site on Social surfaces (preview boundary only, no feed content).
+Run after a fresh deployment with `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, empty, `1`, or `true` in the demo environment. `0` is rollback state and must pass the rollback check below.
 
-**Flag off check (byte-identical social surfaces):**
+**Emergency rollback check (`=0`):**
 
 1. Open `https://pubmaxxing.com/social` signed out.
 2. Confirm the preview heading: "Social preview is invite-only for now. It opens more widely soon."
 3. Confirm no post lanes, compose button, or protected feed content appears.
 4. Confirm the desktop nav and the command palette both read `Social preview`, and the phone tab reads `Social` with the preview dot.
 
-**Flag on check (full loop):**
+**Live default check (full loop):**
 
 1. **Sign in** at `/login` with a fresh Supabase test account (magic link).
-2. **Claim a handle** and enter a date of birth that passes the 18+ gate (self-asserted, D2).
+2. **Claim a handle** and provide an 18+ answer. When a date of birth exists, it decides the answer; otherwise, record one self-assertion (D2).
 3. Confirm `/social` lands in **verified** state (compose + Posts lane visible).
 4. **Upload a profile photo** on `/u/<handle>` → Edit profile. A normal photo should appear on the public profile after one request.
 5. **Join a plan crew** with a second account and confirm the mutual follow edge forms (WP7); search handles from Social if needed.
@@ -118,10 +121,10 @@ Run after `PUBMAX_SOCIAL_FRIENDS_LAUNCH=1` is live in the demo environment. Flag
 **Automated rehearsal (Playwright):**
 
 ```sh
-# Dark default (flag off) — included in npm run ci via verify + build; e2e smoke pins preview.
+# Live smoke coverage - explicit `=1` is equivalent to live default.
 npm run test:e2e -- e2e/smoke.spec.ts e2e/profile-avatar.spec.ts
 
-# Opt-in flag-on social dress rehearsal (exports must match the webServer build):
+# Social live-loop dress rehearsal (`=1`):
 PW_SOCIAL_OPEN=1 PUBMAX_SOCIAL_FRIENDS_LAUNCH=1 npm run test:e2e -- e2e/social-open.spec.ts
 ```
 
@@ -141,7 +144,7 @@ Run each check on the production host after every promoted deploy.
 | Plan invite share | After locking in a plan on `/plan/[id]` | "Send on WhatsApp" is the primary next action; "Copy invite link" works for the host session and never for an anonymous visitor to the same URL. |
 | Public invite RSVP | `/invite/[token]` from the host copy | Guest can RSVP with a name only; "Open these stops on the map" is present before and after the RSVP, and opens `/map?mode=build&pubs=<ordered stops>` (one stop opens `/map?sel=<id>`). |
 | Host Remove (cookie path) | Host revisits `/invite/[token]` after a guest RSVP | Remove appears for the host; after Remove the guest row is gone and stays gone on reload. Guest browsers never see Remove. |
-| Social tab | `https://pubmaxxing.com/social` | While `PUBMAX_SOCIAL_FRIENDS_LAUNCH` is off: the surface is named `Social preview`, safe preview copy only, no post content, no sign-in-required content leak. Once the friends launch flag is on: verified adults see the feed; everyone else sees the correct `sign_in_required` or `age_verification_required` state. Keep the launch flag unset until after the WP5 rehearsal. |
+| Social tab | `https://pubmaxxing.com/social` | With `PUBMAX_SOCIAL_FRIENDS_LAUNCH` unset, empty, `1`, or `true`: verified adults see the feed; everyone else sees the correct `sign_in_required` or `SOCIAL_ADULT_VERIFICATION_REQUIRED` state with `Adult verification is needed for Social.`. With `=0`: the surface is named `Social preview`, safe preview copy only, no post content, and no sign-in-required content leak. |
 
 ---
 
@@ -201,9 +204,11 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 
 ### 5.2 Social moderation rota
 
-`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before any invite-beta flag goes live. As of this runbook, both are listed **Unassigned, Blocking** in that document.
-
-Do not enable `SOCIAL_INVITE_BETA_ENABLED` until both roles are named and the handover between them has been exercised at least once. Check `docs/social/SOCIAL_BETA_CONTRACT.md`'s moderation table for current status before launch.
+Live Social uses the existing admin session and named moderator role for queue
+decisions. Check queue access and moderator ownership during each launch
+review. The historical
+[`SOCIAL_BETA_CONTRACT.md`](social/SOCIAL_BETA_CONTRACT.md) is not a current
+launch gate. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, use static preview only.
 
 ---
 
@@ -225,7 +230,7 @@ Captain + early cohort pre-log corroborated prices in 1–2 boroughs guests will
 
 ### 6.3 Weekly scoreboard (PostHog)
 
-Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Do not track Social DAU while the beta flag is off.
+Instrument already lives in [docs/METRICS_FUNNEL.md](METRICS_FUNNEL.md). Track invite k-factor / RSVP rate, corroborated coverage in seed boroughs, meaningful plan actions (`plan_saved`, `plan_invite_sent`, `plan_invite_link_copied`), return `activity_pulse`, and landing CTA mix (`landing_cta_clicked`). Track Social only for an explicit, consented product question; `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` provides static preview only.
 
 ### 6.4 Done when
 

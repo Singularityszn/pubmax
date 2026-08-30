@@ -72,6 +72,7 @@ import {
 } from "@/lib/planSessionCapability";
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { getNightAreasForCity } from "@/lib/nightAreas";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 // Web Share support never changes within a page lifetime, so no updates arrive.
 const subscribeToNothing = () => () => {};
@@ -345,7 +346,8 @@ function AccountHandleEditor({
 }
 
 export default function PubmaxxAccountHub() {
-  const { user, loading, session, identityResolved } = useAuth();
+  const { accountRevision, user, loading, session, identityResolved } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const accountAuth = useMemo(
     () => captureAccountAuth(user?.id ?? null, session),
     [session, user?.id],
@@ -371,6 +373,13 @@ export default function PubmaxxAccountHub() {
   const [referralLink, setReferralLink] = useState<string | null>(null);
   const [referralBusy, setReferralBusy] = useState(false);
   const [referralNotice, setReferralNotice] = useState("");
+  const [referralStateRevision, setReferralStateRevision] = useState(accountRevision);
+  const accountRevisionRef = useRef(accountRevision);
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
   const shareSupported = useSyncExternalStore(
     subscribeToNothing,
     () => typeof navigator.share === "function",
@@ -396,6 +405,16 @@ export default function PubmaxxAccountHub() {
     setAnalyticsConsent(granted);
     setAnalyticsConsentState(granted ? "granted" : "denied");
   }
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setReferralStateRevision(accountRevision);
+      setReferralStatus(null);
+      setReferralLink(null);
+      setReferralBusy(false);
+      setReferralNotice("");
+    });
+  }, [accountRevision]);
 
   // Undecided: the full choice card. Decided: the card collapses to a
   // one-line status with a small affordance to reverse it (defect 6).
@@ -436,6 +455,7 @@ export default function PubmaxxAccountHub() {
       nightProfileAutoRetried.current = false;
     }
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     queueMicrotask(() => {
       if (!controller.signal.aborted) {
         setNightProfileLoaded(false);
@@ -449,10 +469,12 @@ export default function PubmaxxAccountHub() {
     });
     void Promise.allSettled([
       authedActionFetch("/api/me/night-profile", { signal: controller.signal }),
-      authedActionFetch("/api/referrals/status", { signal: controller.signal }),
+      socialFriendsLaunchEnabled
+        ? authedActionFetch("/api/referrals/status", { signal: controller.signal })
+        : Promise.resolve(null),
       authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
     ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
-      if (controller.signal.aborted) return;
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       const nightProfile = nightProfileResult.status === "fulfilled"
         ? nightProfileResult.value
         : null;
@@ -466,6 +488,7 @@ export default function PubmaxxAccountHub() {
         const body = await nightProfile.json().catch(() => null) as
           | { profile?: NightProfile | null }
           | null;
+        if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
         const profile = body?.profile ?? null;
         setAccountNightProfile(profile);
         setNightProfileDraft(profile ? nightProfileInput(profile) : DEFAULT_NIGHT_PROFILE_INPUT);
@@ -478,7 +501,9 @@ export default function PubmaxxAccountHub() {
         // before showing anything. A dead error card here was defect 2.
         nightProfileAutoRetried.current = true;
         window.setTimeout(() => {
-          if (!controller.signal.aborted) setAccountLoadNonce((n) => n + 1);
+          if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
+            setAccountLoadNonce((n) => n + 1);
+          }
         }, 1_200);
       } else {
         setNightProfileError(true);
@@ -487,15 +512,17 @@ export default function PubmaxxAccountHub() {
         const status = await referrals.json().catch(() => null) as
           | ReferralPrivateStatus
           | null;
-        if (status) setReferralStatus(status);
+        if (status && accountRevisionRef.current === requestRevision) setReferralStatus(status);
       }
       if (pendingRecaps?.ok) {
         const body = await pendingRecaps.json().catch(() => null) as {
           memoryCompletionIds?: string[];
         } | null;
-        setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
+        if (accountRevisionRef.current === requestRevision) {
+          setMemoryCompletionIds(body?.memoryCompletionIds ?? []);
+        }
       }
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
         // A failed Night Profile read never counts as loaded: loaded gates the
         // merge prompt and account save, which need the real account row.
         if (nightProfile?.ok) setNightProfileLoaded(true);
@@ -503,7 +530,7 @@ export default function PubmaxxAccountHub() {
       }
     });
     return () => controller.abort();
-  }, [user, accountLoadNonce]);
+  }, [accountLoadNonce, accountRevision, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     const refresh = () => setDeviceNightProfile(readDeviceNightProfile());
@@ -667,6 +694,7 @@ export default function PubmaxxAccountHub() {
     if (referralBusy) return;
     setReferralBusy(true);
     setReferralNotice("");
+    const requestRevision = accountRevision;
     try {
       const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
@@ -679,18 +707,25 @@ export default function PubmaxxAccountHub() {
         setReferralNotice(errorMessageFrom(body, "Your invite link could not be made. Try again."));
         return;
       }
+      if (accountRevisionRef.current !== requestRevision) return;
       setReferralLink(body.url);
       setReferralNotice("Your invite link is ready. Copy it or share it.");
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision) return;
       setReferralNotice(
         error instanceof AuthActionSessionError
           ? error.message
           : "Your invite link could not be made. Try again.",
       );
     } finally {
-      setReferralBusy(false);
+      if (accountRevisionRef.current === requestRevision) setReferralBusy(false);
     }
   }
+
+  const visibleReferralLink = referralStateRevision === accountRevision ? referralLink : null;
+  const visibleReferralStatus = referralStateRevision === accountRevision ? referralStatus : null;
+  const visibleReferralBusy = referralStateRevision === accountRevision && referralBusy;
+  const visibleReferralNotice = referralStateRevision === accountRevision ? referralNotice : "";
 
   async function copyInviteLink() {
     if (!referralLink) return;
@@ -749,13 +784,13 @@ export default function PubmaxxAccountHub() {
   return (
     <section className="accountHub" aria-labelledby="account-hub-title">
       <p className="profileSectionKicker">Your PUBMAXX</p><h2 id="account-hub-title">Identity, connections and memories.</h2>
-      <ReferralFollowBack />
+      {socialFriendsLaunchEnabled ? <ReferralFollowBack /> : null}
       {/* The account hub is where a freshly onboarded drinker lands, and the
           packs gate themselves on following fewer than three accounts, so this
           is the "after onboarding" beat without putting a form in front of
           arrival. */}
-      <StarterPacks />
-      <FindYourLot />
+      {socialFriendsLaunchEnabled ? <StarterPacks /> : null}
+      {socialFriendsLaunchEnabled ? <FindYourLot /> : null}
       {mergeState.kind !== "none" ? (
         <div className="accountHubMerge" role="group" aria-labelledby="night-profile-merge-title">
           <h3 id="night-profile-merge-title">Bring your Night Profile?</h3>
@@ -836,16 +871,18 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <FoundingMemberCard />
-        <ReferralInviteCard
-          status={referralStatus}
-          busy={referralBusy}
-          link={referralLink}
-          notice={referralNotice}
-          shareSupported={shareSupported}
-          onInvite={() => void inviteMate()}
-          onCopy={() => void copyInviteLink()}
-          onShare={shareInviteLink}
-        />
+        {socialFriendsLaunchEnabled ? (
+          <ReferralInviteCard
+            status={visibleReferralStatus}
+            busy={visibleReferralBusy}
+            link={visibleReferralLink}
+            notice={visibleReferralNotice}
+            shareSupported={shareSupported}
+            onInvite={() => void inviteMate()}
+            onCopy={() => void copyInviteLink()}
+            onShare={shareInviteLink}
+          />
+        ) : null}
       </div>
       <section className="accountHubSettings" aria-labelledby="account-settings-title">
         <h3 id="account-settings-title">Account settings</h3>

@@ -75,10 +75,12 @@ function socialTab(host: HTMLElement): HTMLAnchorElement {
 }
 
 describe("the phone Social tab", () => {
-  it("keeps Social out of primary phone chrome while launch is gated", () => {
-    expect(
-      serverRender(MobileTabBar, false).querySelector('a[href="/social"]'),
-    ).toBeNull();
+  it("keeps Social visible as a preview destination while launch is gated", () => {
+    const tab = socialTab(serverRender(MobileTabBar, false));
+
+    expect(tab.textContent).toBe("Social");
+    expect(tab.getAttribute("aria-label")).toBe("Social preview");
+    expect(tab.querySelector(".mobileTabPreviewDot")).not.toBeNull();
   });
 
   it("renders Social on the first paint when launch is on", () => {

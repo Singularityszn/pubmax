@@ -13,6 +13,7 @@ import HandleAvatar from "@/components/profile/HandleAvatar";
 import { tryGetNightArea, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import "./outTonightBeacon.css";
 
 type Props = {
@@ -65,11 +66,12 @@ function toBoardRows(checkIns: CheckInDto[]): BoardRow[] {
 }
 
 export default function OutTonightBoard({ viewerHandle }: Props) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const viewer = normalizeHandle(viewerHandle);
   const [state, setState] = useState<State>({ kind: "loading" });
 
   useEffect(() => {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
 
     const controller = new AbortController();
     let cancelled = false;
@@ -98,9 +100,9 @@ export default function OutTonightBoard({ viewerHandle }: Props) {
       cancelled = true;
       controller.abort();
     };
-  }, [viewer]);
+  }, [socialFriendsLaunchEnabled, viewer]);
 
-  if (!viewer || state.kind === "hidden") return null;
+  if (!socialFriendsLaunchEnabled || !viewer || state.kind === "hidden") return null;
 
   if (state.kind === "loading") {
     return (

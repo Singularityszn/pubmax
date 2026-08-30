@@ -120,9 +120,10 @@ describe("the friends-launch flag", () => {
     expect(CODE).not.toMatch(/process\.env/);
   });
 
-  it("keeps the flag off by default, because the flip is a deploy decision", () => {
-    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(false);
-    expect(isSocialFriendsLaunchEnabled("")).toBe(false);
+  it("keeps Social live by default and supports explicit rollback", () => {
+    expect(isSocialFriendsLaunchEnabled(undefined)).toBe(true);
+    expect(isSocialFriendsLaunchEnabled("")).toBe(true);
+    expect(isSocialFriendsLaunchEnabled("0")).toBe(false);
     expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
     const example = readFileSync(join(process.cwd(), ".env.example"), "utf8");
     expect(example).toMatch(/^PUBMAX_SOCIAL_FRIENDS_LAUNCH=\s*$/m);

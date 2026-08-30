@@ -51,13 +51,19 @@ describe("trusted handoff flag registry", () => {
     }
   });
 
-  it("keeps every flag off when environment values are missing or malformed", () => {
-    expect(readTrustedHandoffFlags({})).toEqual(TRUSTED_HANDOFF_FLAGS_OFF);
+  it("keeps ordinary flags off while Social stays live by default", () => {
+    expect(readTrustedHandoffFlags({})).toEqual({
+      ...TRUSTED_HANDOFF_FLAGS_OFF,
+      socialFriendsLaunch: true,
+    });
 
     const malformed = Object.fromEntries(
       Object.values(TRUSTED_HANDOFF_FLAG_DEFINITIONS).map(({ env }) => [env, "true"]),
     );
-    expect(readTrustedHandoffFlags(malformed)).toEqual(TRUSTED_HANDOFF_FLAGS_OFF);
+    expect(readTrustedHandoffFlags(malformed)).toEqual({
+      ...TRUSTED_HANDOFF_FLAGS_OFF,
+      socialFriendsLaunch: true,
+    });
   });
 
   it("reads a complete all-on snapshot", () => {
@@ -76,7 +82,8 @@ describe("trusted handoff flag registry", () => {
       const flags = readTrustedHandoffFlags({ [envName]: "1" });
 
       for (const candidate of TRUSTED_HANDOFF_FLAG_KEYS) {
-        expect(flags[candidate], `${candidate} while ${key} is enabled`).toBe(candidate === key);
+        const expected = candidate === key || (candidate === "socialFriendsLaunch" && key !== "socialFriendsLaunch");
+        expect(flags[candidate], `${candidate} while ${key} is enabled`).toBe(expected);
       }
     }
   });

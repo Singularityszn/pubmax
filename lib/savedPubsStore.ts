@@ -576,7 +576,7 @@ export function __resetMemorySavedLists(): void {
 const LIST_FOLLOWS_TABLE = "saved_list_follows";
 
 export type SavedListFollowCounts = {
-  followers: number;
+  followers: number | null;
   savedPubs: number;
 };
 
@@ -730,7 +730,7 @@ export const supabaseSavedListFollowsStore: SavedListFollowsStore = {
       ]);
       return { followers, savedPubs };
     } catch {
-      return { followers: 0, savedPubs: 0 };
+      return { followers: null, savedPubs: 0 };
     }
   },
 

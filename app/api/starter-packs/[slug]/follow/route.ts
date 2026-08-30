@@ -30,6 +30,12 @@ import { isLimited } from "@/lib/pintDrops";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { assertServerEnv } from "@/lib/serverEnv";
 import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
+import {
   starterPackBySlug,
   starterPackFollowSummary,
   type StarterPackFollowResult,
@@ -60,6 +66,9 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ slug: string }> },
 ): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   // Following a dozen accounts is a social write like any other.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;

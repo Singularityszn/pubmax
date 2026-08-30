@@ -62,6 +62,7 @@ function asUser(userId: string): void {
 }
 
 beforeEach(async () => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   storeState.durable = false;
@@ -113,6 +114,21 @@ describe("shared follow write target guard", () => {
 });
 
 describe("POST /api/profiles/[handle]/follow", () => {
+  it("blocks follow writes during the full Social rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+    asUser("user-ken");
+
+    const res = await follow("sam", { follower: "ken" });
+
+    expect(res.status).toBe(503);
+    expect(await res.json()).toEqual({
+      error: "Social is in preview right now.",
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+    expect(await followStore().isFollowing("ken", "sam")).toBe(false);
+  });
+
   it("refuses an anonymous follow even under an unlinked handle", async () => {
     const res = await follow("sam", { follower: "anythingunclaimed" });
     expect(res.status).toBe(401);

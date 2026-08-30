@@ -2,7 +2,7 @@
 
 > Status: **SHIPPING** (2026-08-07). Distinct from outings/coffee/taste stacks (#817–#856) and night-OS (#829/#832).
 > Base: `main` (post #816 invite-ready + #846 post-claim profile).
-> Does **not** reopen WhatsApp CTAs, UK national map (#840), Social beta, or taste CSS.
+> Does **not** own Social launch state, WhatsApp CTAs, UK national map (#840), or taste CSS. Current Social rollout lives in [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md).
 
 ---
 
@@ -25,7 +25,7 @@ Open PRs already own coffee taxonomy, Spoons prefer/filter, lens analytics, boro
 
 ### U2 — Landing memory / Social honesty
 **Branch:** `cursor/landing-memory-honesty-dd0b`  
-**Job:** While `SOCIAL_INVITE_BETA_ENABLED` is off, Memory beat CTAs must not promise Open Social. Point to `/plan`, private recap, or You memories.  
+**Job:** During the explicit `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` emergency rollback, Memory beat CTAs must not promise live Social. Point to `/plan`, private recap, or your memories.
 **Done when:** landing honesty tests pin the gated links.
 
 ### U3 — FSA hygiene above the Disclosure fold
@@ -68,7 +68,7 @@ Open PRs already own coffee taxonomy, Spoons prefer/filter, lens analytics, boro
 
 ## Anti-goals
 
-- No Social beta unlock
+- No Social launch-state change in this wave
 - No lot / presence densification (PLG Wave 3 wait)
 - No coffee taxonomy / taste CSS rework
 - No Wetherspoons Order & Pay reverse

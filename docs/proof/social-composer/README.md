@@ -2,7 +2,8 @@
 
 Checked 5 August 2026.
 
-Browser fixtures pass the same verified actor boundary without enabling Social beta.
+Browser fixtures pass the same verified actor boundary without changing Social's
+launch state.
 
 ```sh
 PW_SCREENSHOTS=1 PW_SOCIAL_COMPOSER_PROOF=1 PW_NEXT_DIST_DIR=.next-task6 npx playwright test e2e/social-composer.spec.ts --project=chromium

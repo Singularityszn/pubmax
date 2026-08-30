@@ -175,7 +175,7 @@ export function SocialAccessBoundary({
   onAssertAdult,
   assertBusy = false,
   assertError = null,
-  friendsLaunchEnabled = false,
+  friendsLaunchEnabled = true,
 }: {
   state: SocialBoundaryState;
   onRetry?: () => void;
@@ -403,10 +403,10 @@ export default function SocialPageClient({
   initialState,
   rivalry,
   heritageCrawls,
-  friendsLaunchEnabled = false,
+  friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { identityResolved, user } = useAuth();
+  const { accountRevision, identityResolved, user } = useAuth();
   const viewerPhase: SocialViewerPhase =
     !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
   const [access, setAccess] = useState<AccessLoadState>("checking");
@@ -425,6 +425,8 @@ export default function SocialPageClient({
   const [posts, setPosts] = useState<SocialPostDTO[]>([]);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [activityRevision, setActivityRevision] = useState(accountRevision);
+  const activityRequestId = useRef(0);
   const feedRequestId = useRef(0);
   const moreController = useRef<AbortController | null>(null);
   const feedHref = useMemo(
@@ -434,6 +436,15 @@ export default function SocialPageClient({
 
   useEffect(() => {
     if (initialState.tab === "discover") return;
+    if (!friendsLaunchEnabled) {
+      void Promise.resolve().then(() => {
+        setAccess("preview");
+        setAdultPrompt(false);
+        setDraftScope(null);
+        setViewerHandle(null);
+      });
+      return;
+    }
     if (!identityResolved) {
       void Promise.resolve().then(() => setAccess("checking"));
       return;
@@ -449,6 +460,7 @@ export default function SocialPageClient({
     }
 
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     void Promise.resolve().then(() => setAccess("checking"));
     authedActionFetch("/api/social/access", {
       cache: "no-store",
@@ -468,6 +480,7 @@ export default function SocialPageClient({
         };
       })
       .then((result) => {
+        if (requestRevision !== accountRevision) return;
         setAccess(result.state);
         setAdultPrompt(result.adultPrompt);
         setDraftScope(result.draftScope);
@@ -476,10 +489,11 @@ export default function SocialPageClient({
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
+        if (requestRevision !== accountRevision) return;
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, identityResolved, initialState.tab, user]);
+  }, [accessAttempt, accountRevision, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
@@ -562,8 +576,14 @@ export default function SocialPageClient({
   }, [access, feedAttempt, feedHref]);
 
   useEffect(() => {
+    const requestId = ++activityRequestId.current;
+    void Promise.resolve().then(() => {
+      if (activityRequestId.current !== requestId) return;
+      setActivityRevision(accountRevision);
+    });
     if (access !== "verified" || initialState.tab !== "posts") {
       void Promise.resolve().then(() => {
+        if (activityRequestId.current !== requestId) return;
         setActivityStatus("idle");
         setActivityItems([]);
       });
@@ -584,17 +604,20 @@ export default function SocialPageClient({
         return items;
       })
       .then((items) => {
+        if (activityRequestId.current !== requestId) return;
         setActivityItems(items);
         setActivityStatus("ready");
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError")
           return;
-        setActivityItems([]);
-        setActivityStatus("unavailable");
+        if (activityRequestId.current === requestId) {
+          setActivityItems([]);
+          setActivityStatus("unavailable");
+        }
       });
     return () => controller.abort();
-  }, [access, initialState.tab]);
+  }, [accountRevision, access, initialState.tab]);
 
   const loadMore = useCallback(async () => {
     if (access !== "verified" || !nextCursor || loadingMore) return;
@@ -637,10 +660,18 @@ export default function SocialPageClient({
   }, [access, initialState, loadingMore, nextCursor]);
 
   const isPosts = initialState.tab === "posts";
+  const visibleActivityStatus = activityRevision === accountRevision ? activityStatus : "idle";
+  const visibleActivityItems = activityRevision === accountRevision ? activityItems : [];
   const showPostsControls =
-    isPosts && viewerPhase === "resolved" && access === "verified";
+    friendsLaunchEnabled &&
+    isPosts &&
+    viewerPhase === "resolved" &&
+    access === "verified";
   const showViewerCards =
-    isPosts && viewerPhase === "resolved" && access === "verified";
+    friendsLaunchEnabled &&
+    isPosts &&
+    viewerPhase === "resolved" &&
+    access === "verified";
   return (
     <>
       <SiteNav active="social" />
@@ -675,21 +706,25 @@ export default function SocialPageClient({
             {showViewerCards ? (
               <CrewsPanel viewerHandle={viewerHandle} compact />
             ) : null}
-            {/* Friend-graph formation stays available while posts stay gated. */}
             {/* ONE live copy of the packs on this page. A second would keep its
                 own follow results, so the two would disagree about what a tap
                 just did. */}
-            {isPosts ? <StarterPacks compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
             {/* And ONE live copy of the search-and-invite surface, for the same
                 reason: the body used to mount a second one beside it, so an
                 unverified viewer met the same heading, the same field and the
                 same invite button twice at 1440 and stacked at 390 - and both
                 copies carried `id="find-lot-title"`, which left every
                 `aria-labelledby` on the page pointing at the first. */}
-            {isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
+            {friendsLaunchEnabled && isPosts ? <FindYourLot myHandle={viewerHandle} compact /> : null}
           </aside>
 
-          {initialState.tab === "discover" ? (
+          {!friendsLaunchEnabled ? (
+            <SocialAccessBoundary
+              state="preview"
+              friendsLaunchEnabled={false}
+            />
+          ) : initialState.tab === "discover" ? (
             <div className="socialDiscoverBody">
               <CreatorListsLane />
               <DiscoverBody
@@ -813,7 +848,7 @@ export default function SocialPageClient({
           )}
 
           {showPostsControls ? (
-            <SocialContextRail status={activityStatus} items={activityItems} />
+            <SocialContextRail status={visibleActivityStatus} items={visibleActivityItems} />
           ) : null}
         </div>
       </main>

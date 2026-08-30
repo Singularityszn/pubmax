@@ -16,6 +16,10 @@ import { buildOutResponse, parseOutQuery } from "@/lib/out/loadOut";
 import { outCacheControl } from "@/lib/out/outStatus";
 import { isOutLimited } from "@/lib/outRateLimit";
 import { withRouteTiming } from "@/lib/routeObservability";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
 export const runtime = "nodejs";
@@ -41,7 +45,22 @@ async function getHandler(request: Request): Promise<Response> {
   const now = Date.now();
   const body = await buildOutResponse(query, { now });
   let status = body.status;
+  const socialEnabled = isSocialFriendsLaunchEnabled(
+    process.env[SOCIAL_FRIENDS_LAUNCH_ENV],
+  );
+  if (!socialEnabled) {
+    return Response.json(
+      {
+        ...body,
+        openPlans: null,
+        openPlansStatus: "preview",
+      },
+      { headers: { "cache-control": "no-store" } },
+    );
+  }
+
   let openPlans = body.openPlans;
+  let openPlansStatus: "ready" | "degraded" = "ready";
 
   const window = outPlansWindow(query.day, now);
   try {
@@ -52,16 +71,21 @@ async function getHandler(request: Request): Promise<Response> {
       limit: OUT_OPEN_PLAN_LIMIT,
     });
     const attached = await attachOpenPlanMeetingPoints(listed);
-    if (attached.status === "degraded" && status !== "degraded") {
-      status = "degraded";
+    if (attached.status === "degraded") {
+      openPlansStatus = "degraded";
+      if (status !== "degraded") status = "degraded";
     }
     openPlans = boundOutOpenPlans(attached.plans);
   } catch {
+    openPlansStatus = "degraded";
     if (status === "ready") status = "degraded";
     openPlans = [];
   }
 
-  return Response.json({ ...body, status, openPlans }, {
-    headers: { "cache-control": outCacheControl(status, body.venueMatch) },
-  });
+  return Response.json(
+    { ...body, status, openPlans, openPlansStatus },
+    {
+      headers: { "cache-control": outCacheControl(status, body.venueMatch) },
+    },
+  );
 }

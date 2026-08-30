@@ -2,18 +2,16 @@ import { expect, test } from "@playwright/test";
 
 // The gate, from the browser's side.
 //
-// With PUBMAX_SOCIAL_FRIENDS_LAUNCH off, /api/social/access answers `preview`,
-// so nothing about a crew may be reachable on /social: no heading, no control,
-// no link. Handle search stays in the control rail. The public directory is
-// behind the same signed-out boundary as posts and crews.
+// Signed-out Social still hides protected crew and directory data. Handle
+// search and invite-link actions remain available in the control rail.
 
 const PHONE = { width: 390, height: 844 };
 
-test.describe("Social with the friends launch off", () => {
+test.describe("Signed-out Social", () => {
   test("offers no crew surface anywhere on the page", async ({ page }) => {
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Social preview", exact: true }),
+      page.getByRole("heading", { name: "Social", exact: true }),
     ).toBeVisible();
 
     await expect(page.getByRole("heading", { name: "Your crews" })).toHaveCount(0);
@@ -65,7 +63,7 @@ test.describe("Social with the friends launch off", () => {
     });
     await page.goto("/social");
     await expect(
-      page.getByRole("heading", { name: "Social preview", exact: true }),
+      page.getByRole("heading", { name: "Social", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("heading", { name: "Find your lot" }).first(),

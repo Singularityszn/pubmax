@@ -7,6 +7,10 @@ import {
   OpenAISocialPostModerationAdapter,
 } from "@/lib/socialPostModeration";
 import { socialPostStore } from "@/lib/socialPostStore";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import { thrownMessage } from "@/lib/thrownMessage";
 import { purgeDetachedSocialPhotos } from "@/lib/socialPostMedia.server";
 
@@ -17,6 +21,9 @@ export const maxDuration = 30;
 export async function GET(request: Request): Promise<Response> {
   const denied = assertCronRequest(request);
   if (denied) return denied;
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return jsonNoStore({ ok: true, skipped: "social_rollback" });
+  }
   try {
     const action = new URL(request.url).searchParams.get("action");
     if (action === "requeue-terminal") {

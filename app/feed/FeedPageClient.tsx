@@ -52,6 +52,7 @@ import { type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import "./feed.css";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 const PAGE_SIZE = 12;
 
@@ -145,6 +146,7 @@ export default function FeedPageClient({
   // Wave I1: prefer the signed-in auth handle when present so Friends/For You
   // match the signed-in identity instead of a stale localStorage claim.
   const { handle: authHandle } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [myHandle, setMyHandle] = useState("");
   const [followingHandles, setFollowingHandles] = useState<Set<string> | null>(null);
 
@@ -304,6 +306,10 @@ export default function FeedPageClient({
   useEffect(() => {
     const controller = new AbortController();
     async function loadFollowing() {
+      if (!socialFriendsLaunchEnabled) {
+        setFollowingHandles(new Set());
+        return;
+      }
       // No handle (viewer anonymous): settle to a known-empty set so the Friends
       // lane renders its prompt rather than waiting on a fetch that never fires.
       // Done in this async step (not the sync effect body) per react-hooks rules.
@@ -331,7 +337,7 @@ export default function FeedPageClient({
     }
     void loadFollowing();
     return () => controller.abort();
-  }, [myHandle]);
+  }, [myHandle, socialFriendsLaunchEnabled]);
 
   // Social Loop data source (Cycle 15 Lane C). Fetch the tab's extra signal:
   //  • "lot"    → the viewer's mutual-follow handles (/lot) AND their friends-only
@@ -344,6 +350,12 @@ export default function FeedPageClient({
   useEffect(() => {
     const controller = new AbortController();
     async function loadSocial() {
+      if (!socialFriendsLaunchEnabled) {
+        if (tab !== "london") setTab("london");
+        setLotHandles(null);
+        setCheckInItems([]);
+        return;
+      }
       if (tab === "london") {
         setLotHandles(null);
         setCheckInItems([]);
@@ -393,7 +405,7 @@ export default function FeedPageClient({
     }
     void loadSocial();
     return () => controller.abort();
-  }, [tab, myHandle]);
+  }, [myHandle, socialFriendsLaunchEnabled, tab]);
 
   // Seed the initial lane by view mode. Both modes start on Latest so a
   // signed-out reader sees the complete public destination on first arrival.
@@ -784,7 +796,9 @@ export default function FeedPageClient({
 
           <PresenceStrip spillingNow={spillingNow} />
 
-          <SocialTabs active={tab} onChange={onTabChange} />
+          {socialFriendsLaunchEnabled ? (
+            <SocialTabs active={tab} onChange={onTabChange} />
+          ) : null}
 
           {/* The chip filters refine the city-wide feed; on Your lot / Nearby the
               tab itself is the lane, so the chips stand down. */}

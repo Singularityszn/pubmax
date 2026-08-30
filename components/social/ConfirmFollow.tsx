@@ -48,6 +48,8 @@ import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
+import { socialBoundaryCopy } from "@/lib/socialLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 // `gone` is a REFUSAL and `error` is a fault: the target is not there any more,
 // so the add button leaves with it rather than inviting a retry that cannot land.
@@ -121,6 +123,7 @@ export default function ConfirmFollow({
   const target = normalizeHandle(targetHandle);
   const { user, identityResolved } = useAuth();
   const viewerHandle = useViewerHandle();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const accountId = user?.id ?? null;
   const [followResults, setFollowResults] = useState<AccountFollowResults>({});
   const [copied, setCopied] = useState(false);
@@ -170,6 +173,7 @@ export default function ConfirmFollow({
     const storage = typeof window === "undefined" ? null : window.localStorage;
     const now = Date.now();
     if (
+      !socialFriendsLaunchEnabled ||
       !viewerHandle ||
       !accountId ||
       !shouldAutoAdd({
@@ -187,7 +191,7 @@ export default function ConfirmFollow({
     consumeAddLinkDoorTaken(storage, now, target);
     attemptedAccountIds.current.add(accountId);
     void performAdd(target, viewerHandle, accountId, setFollowResults);
-  }, [accountId, auto, identityResolved, target, viewerHandle]);
+  }, [accountId, auto, identityResolved, socialFriendsLaunchEnabled, target, viewerHandle]);
 
   async function share() {
     setShareError("");
@@ -215,6 +219,18 @@ export default function ConfirmFollow({
     return (
       <section className="confirmFollow">
         <p className="confirmFollowError">That link is missing a handle.</p>
+        <Link className="confirmFollowGhost" href="/social">
+          Back to Social
+        </Link>
+      </section>
+    );
+  }
+
+  if (!socialFriendsLaunchEnabled) {
+    return (
+      <section className="confirmFollow" role="status">
+        <p className="confirmFollowEyebrow">Social</p>
+        <h1 className="confirmFollowTitle">{socialBoundaryCopy("preview", false)}</h1>
         <Link className="confirmFollowGhost" href="/social">
           Back to Social
         </Link>

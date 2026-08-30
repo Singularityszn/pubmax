@@ -56,6 +56,7 @@ function deleteBody(body: unknown): Request {
 }
 
 beforeEach(() => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   delete process.env.SUPABASE_URL;
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   __resetMemoryCheckIns();
@@ -64,6 +65,25 @@ beforeEach(() => {
   vi.mocked(resolveViewerFromRequest).mockResolvedValue({
     handle: null,
     authenticated: false,
+  });
+});
+
+describe("Social rollback", () => {
+  it("blocks check-in reads and writes before touching the store", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const read = await GET(new Request("http://localhost/api/check-ins?scope=area"));
+    const write = await POST(postBody({ handle: "reader", areaSlug: "shoreditch" }));
+    const remove = await DELETE(deleteBody({ handle: "reader" }));
+
+    for (const response of [read, write, remove]) {
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Social is in preview right now.",
+        code: "SOCIAL_PREVIEW",
+        retryable: false,
+      });
+    }
   });
 });
 

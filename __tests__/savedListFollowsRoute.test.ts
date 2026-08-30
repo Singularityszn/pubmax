@@ -1,4 +1,4 @@
-import { afterAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/supabase", async (importOriginal) => {
@@ -16,6 +16,7 @@ import { __resetMemoryProfiles, memoryProfileStore } from "@/lib/profileStore";
 import {
   __resetMemorySavedListFollows,
   __resetMemorySavedPubs,
+  savedListFollowsStore,
   savedPubsStore,
 } from "@/lib/savedPubsStore";
 import { getVenueIndex } from "@/lib/venueIndex";
@@ -41,7 +42,7 @@ beforeEach(async () => {
   REAL_VENUE_ID = [...index.keys()][0] ?? "";
 });
 
-afterAll(() => {
+afterEach(() => {
   vi.unstubAllEnvs();
 });
 
@@ -56,6 +57,24 @@ function post(body: unknown, headers?: Record<string, string>): Promise<Response
 }
 
 describe("GET /api/saved-pubs/list-follows", () => {
+  it("returns explicit Social preview during emergency rollback", async () => {
+    vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "0");
+
+    const read = await get("follower=ken");
+    const write = await post({ follower: "ken", owner: "sam", listType: "Date Night" });
+
+    expect(read.status).toBe(503);
+    expect(write.status).toBe(503);
+    expect(await read.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+    expect(await write.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("returns a follower's followed lists with author attribution and counts", async () => {
     await savedPubsStore().toggleSaved({
       handle: "Sam",
@@ -94,6 +113,23 @@ describe("GET /api/saved-pubs/list-follows", () => {
       following: true,
       counts: { followers: 1, savedPubs: 1 },
     });
+  });
+
+  it("marks list counts unavailable when the follow store cannot answer", async () => {
+    const counts = vi
+      .spyOn(savedListFollowsStore(), "counts")
+      .mockRejectedValueOnce(new Error("database unavailable"));
+
+    const res = await get("follower=ken&owner=sam&listType=Date%20Night");
+
+    expect(res.status).toBe(200);
+    expectNoStore(res);
+    expect(await res.json()).toEqual({
+      status: "unavailable",
+      following: null,
+      counts: { followers: null, savedPubs: null },
+    });
+    counts.mockRestore();
   });
 });
 

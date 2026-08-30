@@ -13,7 +13,7 @@
 
 **Will people naturally sign up?** Not at scale yet. The map and plan work keyless. Signup is mostly a tax for logging prices, claiming a handle, or Social. X works the opposite way: the product *is* the identity graph. PubMaxxing’s aha moment today is “I found a cheaper pint / I sent the night to my mates,” not “I created an account.”
 
-**Will they share and pull friends in?** Sometimes, when the artifact is the night (plan invite, crawl link, RSVP page). Rarely, when the ask is “join another social app.” UK nights already live on WhatsApp. In-app Social is still invite-beta-off ([docs/social/SOCIAL_BETA_CONTRACT.md](docs/social/SOCIAL_BETA_CONTRACT.md)). Your strongest built viral path is Calendly/Partiful-shaped (share a link that works without login), not X-shaped (post into a feed strangers scroll).
+**Will they share and pull friends in?** Sometimes, when the artifact is the night (plan invite, crawl link, RSVP page). Rarely, when the ask is “join another social app.” UK nights already live on WhatsApp. In-app Social is live by default and returns to preview only at `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`. Your strongest built viral path is Calendly/Partiful-shaped (share a link that works without login), not X-shaped (post into a feed strangers scroll).
 
 **Thiel, applied correctly:** “Competition is for losers” does not mean ignore Google Maps / Untappd / Tripadvisor. It means do not compete as “another pub finder.” Own a category so specific it has no close substitute: **listed London pint prices with honest provenance, on a map that turns into a shareable night for a crew.** Start small (London drinkers who plan nights and hate guessing prices), dominate that, expand in concentric circles (more boroughs → more cities → more night types). Moats to stack: proprietary price graph + corroboration rules, brand (“Pubmaxxing”), WhatsApp distribution of night artifacts, denser local data than anyone else.
 
@@ -54,14 +54,14 @@ flowchart LR
 | Pint Index + OG cards | Press / content virality | Must convert to map with intent (`components/pintindex/PintIndexArrival.tsx`) |
 | Community prices (2-person corroboration) | Data network effect | Cold-start: uncorroborated prices do not paint pins |
 | ShareBar / WhatsApp builders | Distribution | Sharing is available; not forced at the moment of value |
-| Social / crews / presence / referrals | Identity network | Beta off; referral marks confer nothing; densifies *after* loops A/B work |
+| Social / crews / presence / referrals | Identity network | Live by default; `=0` is emergency rollback; referral marks confer nothing; densifies *after* loops A/B work |
 | PostHog funnels ([docs/METRICS_FUNNEL.md](docs/METRICS_FUNNEL.md)) | Measurement | Instrument invite k-factor and price flywheel as weekly operating metrics |
 
 **Unknown factors you must treat as risks, not vibes**
 
 1. **Chicken-egg on map paint** — corroboration is correct trust; it slows the visible flywheel.
 2. **WhatsApp is the real social OS** — winning means winning inside WhatsApp threads, not replacing them.
-3. **Ops readiness** — soft launch: Social beta off, CI Actions historically broken (#747), migrations owner-applied, moderators unassigned ([docs/SOFT_LAUNCH_RUNBOOK.md](docs/SOFT_LAUNCH_RUNBOOK.md)).
+3. **Ops readiness** — soft launch: Social live by default with an explicit `=0` rollback, CI Actions historically broken (#747), migrations owner-applied, and moderators tracked in the runbook ([docs/SOFT_LAUNCH_RUNBOOK.md](docs/SOFT_LAUNCH_RUNBOOK.md)).
 4. **Trust decay** — stale or thin prices kill share-worthiness faster than missing Social features.
 5. **Seasonality / weather** — nights out are weekend- and weather-skewed; weekly metrics need daypart awareness.
 6. **Safety / presence** — “who’s out” can feel stalky; keep it lot-scoped and deliberate.
@@ -85,7 +85,7 @@ flowchart LR
 4. Pint Index → map reach rate
 5. Return: `activity_pulse` second-session rate (press target >2% is a floor, not a goal)
 
-Ignore vanity: follower counts, Social DAU while beta is off, referral milestone counts (a mark buys nothing, so it measures nothing).
+Ignore vanity: follower counts, Social DAU during an emergency rollback, referral milestone counts (a mark buys nothing, so it measures nothing).
 
 ---
 
@@ -125,7 +125,7 @@ Only after Waves 1–2 show k-factor and coverage moving:
 
 - **We’re out / presence** scoped to Mutuals / crew on a plan — never city-wide stranger radar
 - Reuse plan invite → optional “add to lot” (`/add/[handle]`) after the night, not before value
-- Keep Social invite-beta off until moderators + age gate + spam floors are staffed
+- Keep Social live by default; use `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only while an emergency control is being restored.
 - A referral milestone stays a mark of honour: recognition only, never a feature ([docs/REFERRALS.md](../REFERRALS.md))
 
 **Done when:** crews who planned once plan again within 14 days with ≥2 returning handles.
@@ -152,8 +152,8 @@ Expand city packs only when London’s price graph and invite loop are obviously
 - Do not charge a drinker for anything, and do not gate Year in Pints
 - Do not expand to 10 cities to look big
 - Do not require accounts to see prices or open a plan invite
-- Do not measure success by Social DAU while the beta flag is off
-- Do not enable Social invite beta until moderators + age gate + spam floors are staffed
+- Do not measure success by Social DAU during the explicit Social rollback
+- Keep Social live by default; use `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only while an emergency control is being restored.
 - Do not add Stripe Checkout / Connect / membership paywalls before London density and venue trust prove out (ADR 0012)
 - Do not ship AI that fabricates prices, hours, heritage, or “who’s out” city radar; fail closed to grounded / scarcity answers
 - Do not claim “we beat Stripe” in marketing or investor copy before Connect-scale hospitality checkout exists

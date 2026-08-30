@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -13,10 +13,10 @@ import type { NotificationDTO, NotificationKind } from "@/lib/notifications";
 import { discardBody } from "@/lib/responseBody";
 import { normalizeHandle } from "@/lib/profiles";
 import { relativeTime } from "@/lib/relativeTime";
+import { socialBoundaryCopy } from "@/lib/socialLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./activity.css";
-
-const HANDLE_KEY = "pubmax_handle";
 
 // The kind filters offered in the desktop rail, in a stable order. Labels are
 // nouns for the event class (the list rows carry the verb copy). Kept in lockstep
@@ -27,11 +27,6 @@ const KIND_FILTERS: ReadonlyArray<{ kind: NotificationKind; label: string }> = [
   { kind: "comment", label: "Comments" },
   { kind: "crawl_save", label: "Saves" },
 ];
-
-function readHandle(): string {
-  if (typeof window === "undefined") return "";
-  return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
-}
 
 // A grounded one-liner per kind. Keeps the vocabulary in lockstep with the four
 // notification kinds; an unknown kind (shouldn't happen — the store validates)
@@ -69,7 +64,8 @@ function subjectHref(n: NotificationDTO): string | null {
 }
 
 export default function ActivityClient(): React.JSX.Element {
-  const { handle: authHandle } = useAuth();
+  const { accountRevision, handle: authHandle, identityResolved, user } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [handleReady, setHandleReady] = useState(false);
   const [items, setItems] = useState<NotificationDTO[]>([]);
@@ -79,49 +75,84 @@ export default function ActivityClient(): React.JSX.Element {
   // is CSS-hidden below 1024px, so the mobile render is always the full list —
   // unchanged from before this rail existed.
   const [kindFilter, setKindFilter] = useState<NotificationKind | "all">("all");
+  const requestControllerRef = useRef<AbortController | null>(null);
+  const accountRevisionRef = useRef(accountRevision);
+  const [itemsRevision, setItemsRevision] = useState(accountRevision);
 
   useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
+  useEffect(() => {
+    requestControllerRef.current?.abort();
+    if (!socialFriendsLaunchEnabled) {
+      void Promise.resolve().then(() => {
+        setHandle("");
+        setHandleReady(true);
+        setItemsRevision(accountRevision);
+        setItems([]);
+        setFailed(false);
+        setLoading(false);
+      });
+      return;
+    }
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
-      const fromAuth = normalizeHandle(authHandle ?? "");
-      setHandle(fromAuth || readHandle());
-      setHandleReady(true);
+      setHandle(identityResolved && user ? normalizeHandle(authHandle ?? "") : "");
+      setHandleReady(identityResolved);
+      setItemsRevision(accountRevision);
+      setItems([]);
+      setFailed(false);
     });
     return () => {
       active = false;
     };
-  }, [authHandle]);
+  }, [accountRevision, authHandle, identityResolved, socialFriendsLaunchEnabled, user]);
 
   const load = useCallback(async () => {
+    if (!socialFriendsLaunchEnabled) {
+      setLoading(false);
+      return;
+    }
     if (!handleReady) return;
-    const h = normalizeHandle(authHandle ?? "") || handle.trim();
+    const h = identityResolved && user ? normalizeHandle(authHandle ?? "") : "";
     if (!h) {
       setLoading(false);
       return;
     }
     setLoading(true);
     setFailed(false);
+    const requestRevision = accountRevision;
+    const controller = new AbortController();
+    requestControllerRef.current?.abort();
+    requestControllerRef.current = controller;
     try {
-      const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`);
+      const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
+        signal: controller.signal,
+      });
+      if (accountRevisionRef.current !== requestRevision) return;
       if (!res.ok) {
         discardBody(res);
         setFailed(true);
         return;
       }
       const body = (await res.json()) as { notifications?: NotificationDTO[] };
+      if (accountRevisionRef.current !== requestRevision) return;
       setItems(Array.isArray(body.notifications) ? body.notifications : []);
       void authedActionFetch("/api/notifications", {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: h }),
+        signal: controller.signal,
       }).catch(() => {});
     } catch {
+      if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setFailed(true);
     } finally {
-      setLoading(false);
+      if (accountRevisionRef.current === requestRevision) setLoading(false);
     }
-  }, [handle, handleReady, authHandle]);
+  }, [accountRevision, handleReady, authHandle, identityResolved, socialFriendsLaunchEnabled, user]);
 
   useEffect(() => {
     // Defer through a promise callback so setState (inside load) never runs
@@ -132,13 +163,15 @@ export default function ActivityClient(): React.JSX.Element {
   // Per-kind tallies drive which filters render and the rail summary; both are
   // derived from the already-loaded feed (no extra fetch). The visible list is
   // the full feed unless a desktop filter narrows it.
-  const kindCounts = items.reduce<Record<string, number>>((acc, n) => {
+  const accountItems = itemsRevision === accountRevision ? items : [];
+  const kindCounts = accountItems.reduce<Record<string, number>>((acc, n) => {
     acc[n.kind] = (acc[n.kind] ?? 0) + 1;
     return acc;
   }, {});
-  const unreadCount = items.reduce((n, item) => (item.read ? n : n + 1), 0);
+  const unreadCount = accountItems.reduce((n, item) => (item.read ? n : n + 1), 0);
   const visibleItems =
-    kindFilter === "all" ? items : items.filter((n) => n.kind === kindFilter);
+    kindFilter === "all" ? accountItems : accountItems.filter((n) => n.kind === kindFilter);
+  const visibleHandle = itemsRevision === accountRevision ? handle : "";
 
   return (
     // The nav lives OUTSIDE the 640px-capped <main id="main"> (same shape as the other
@@ -154,10 +187,16 @@ export default function ActivityClient(): React.JSX.Element {
           {/* Quest chips (IDEAS B2-lite): "next badge" progress for the claimed
               handle. Renders nothing without a handle, so the signed-out empty
               state below stays exactly as it is. */}
-          {handleReady && handle.trim() ? <NextBadgeChips handle={handle} /> : null}
+          {handleReady && visibleHandle.trim() ? <NextBadgeChips handle={visibleHandle} /> : null}
         </header>
 
-        {!handleReady || loading ? (
+        {!socialFriendsLaunchEnabled ? (
+          <EmptyState
+            eyebrow="Activity"
+            title="Social preview"
+            body={socialBoundaryCopy("preview", false)}
+          />
+        ) : !handleReady || loading ? (
           // Skeleton mirrors the ready-state grid so first paint already carries
           // the page's shape — a plain list on phones, rail + two-up timeline at
           // ≥1024 — instead of a jump from one line of text. Same block idiom as
@@ -184,7 +223,7 @@ export default function ActivityClient(): React.JSX.Element {
               ))}
             </ul>
           </div>
-        ) : !handle.trim() ? (
+        ) : !visibleHandle.trim() ? (
           <EmptyState
             eyebrow="Activity"
             title="This corner is yours. Claim it."

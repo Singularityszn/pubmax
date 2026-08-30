@@ -18,6 +18,12 @@ import { validateCheckInInput, type CheckInInputRaw } from "@/lib/checkIn";
 import { isCheckInLimited } from "@/lib/checkInRateLimit";
 import { checkInStore } from "@/lib/checkInStore";
 import { socialFreezeResponse } from "@/lib/opsFreeze";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { resolveViewerFromRequest } from "@/lib/pintDropViewer";
@@ -58,6 +64,9 @@ async function resolveCheckInViewer(request: Request, queryViewer?: string): Pro
 // GET /api/check-ins?scope=area       → the area-public check-ins (visibility 'area').
 // Read-only; the privacy choke (lib/socialFeed.ts) decides what is returned.
 export async function GET(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const url = new URL(request.url);
   const queryViewer = readString(url.searchParams.get("viewer") ?? undefined);
   const scope = readString(url.searchParams.get("scope") ?? undefined);
@@ -80,6 +89,9 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   // Solo-operator emergency freeze (U15): posting a check-in is a social write.
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
@@ -170,6 +182,9 @@ export async function POST(request: Request): Promise<Response> {
 // "we're out" state per handle) and short-lived by design (12h TTL), so
 // deleteForHandle needs no extra scoping to stay correct.
 export async function DELETE(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   let body: Record<string, unknown>;
   try {
     body = (await request.json()) as Record<string, unknown>;

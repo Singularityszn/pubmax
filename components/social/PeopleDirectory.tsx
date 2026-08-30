@@ -21,9 +21,10 @@
 // bundle, so seeing where you already stand in one is the point.
 
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { followListHandleSet } from "@/lib/followList";
 import {
@@ -37,6 +38,8 @@ import { directoryEmptyLine } from "@/lib/peopleDirectory";
 import { discardBody } from "@/lib/responseBody";
 import { displayHandle } from "@/lib/handleDisplay";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useViewerHandle } from "@/components/auth/useViewerHandle";
 
 import "./peopleDirectory.css";
 
@@ -55,12 +58,14 @@ function initial(handle: string): string {
 }
 
 export default function PeopleDirectory({
-  myHandle,
   limit = 12,
 }: {
   myHandle?: string | null;
   limit?: number;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { accountRevision, user, identityResolved } = useAuth();
+  const identityViewerHandle = useViewerHandle();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<Person[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -70,31 +75,37 @@ export default function PeopleDirectory({
   const [followed, setFollowed] = useState<Set<string>>(new Set());
   const [working, setWorking] = useState<string | null>(null);
   const [problem, setProblem] = useState("");
-  const [storedHandle, setStoredHandle] = useState("");
-  const [handleRead, setHandleRead] = useState(false);
   const [alreadyFollowing, setAlreadyFollowing] = useState(0);
+  const [relationStateKey, setRelationStateKey] = useState("");
+  const accountRevisionRef = useRef(accountRevision);
+  const viewerRef = useRef("");
+  const handleRead = identityResolved;
+  const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
+  const relationKey = `${accountRevision}:${viewer}`;
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+    viewerRef.current = viewer;
+  }, [accountRevision, viewer]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
-      try {
-        setStoredHandle(
-          normalizeHandle(window.localStorage.getItem("pubmax_handle") ?? ""),
-        );
-      } catch {
-        setStoredHandle("");
-      } finally {
-        setHandleRead(true);
-      }
+      setRelationStateKey(relationKey);
+      setLot(new Set());
+      setFollowed(new Set());
+      setAlreadyFollowing(0);
+      setWorking(null);
     });
-  }, []);
-  const viewer = normalizeHandle(myHandle ?? "") || storedHandle;
+  }, [relationKey]);
 
   useEffect(() => {
     // Ask once the viewer is known. A read fired before then comes back with
     // the people this reader already follows in it, and swapping that list out
     // a moment later is worse than the skeleton it replaced.
-    if (!handleRead) return;
+    if (!socialFriendsLaunchEnabled || !handleRead) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     void Promise.resolve().then(() => setStatus("loading"));
     const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
     fetch(`/api/profiles/directory?limit=${limit}${viewerParam}`, {
@@ -115,6 +126,11 @@ export default function PeopleDirectory({
         return body;
       })
       .then((body) => {
+        if (
+          controller.signal.aborted ||
+          accountRevisionRef.current !== requestRevision ||
+          viewerRef.current !== requestViewer
+        ) return;
         setPeople(body.people ?? []);
         setCursor(body.nextCursor ?? null);
         setAlreadyFollowing(
@@ -124,16 +140,19 @@ export default function PeopleDirectory({
       })
       .catch((error: unknown) => {
         if (error instanceof DOMException && error.name === "AbortError") return;
+        if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
         setPeople([]);
         setStatus("error");
       });
     return () => controller.abort();
-  }, [attempt, handleRead, limit, viewer]);
+  }, [accountRevision, attempt, handleRead, limit, socialFriendsLaunchEnabled, viewer]);
 
   // Who already follows you back, so a row can say "Mates" instead of guessing.
   useEffect(() => {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     void (async () => {
       try {
         const [lotResponse, followingResponse] = await Promise.all([
@@ -146,6 +165,11 @@ export default function PeopleDirectory({
             signal: controller.signal,
           }),
         ]);
+        if (
+          controller.signal.aborted ||
+          accountRevisionRef.current !== requestRevision ||
+          viewerRef.current !== requestViewer
+        ) return;
         if (lotResponse.ok) {
           const body = (await lotResponse.json()) as { lot?: unknown };
           setLot(new Set(Array.isArray(body.lot) ? (body.lot as string[]) : []));
@@ -159,10 +183,12 @@ export default function PeopleDirectory({
       }
     })();
     return () => controller.abort();
-  }, [viewer]);
+  }, [accountRevision, socialFriendsLaunchEnabled, viewer]);
 
   const loadMore = useCallback(async () => {
     if (!cursor || loadingMore) return;
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     setLoadingMore(true);
     try {
       const viewerParam = viewer ? `&viewer=${encodeURIComponent(viewer)}` : "";
@@ -179,6 +205,7 @@ export default function PeopleDirectory({
         nextCursor?: string | null;
         alreadyFollowing?: number;
       };
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setPeople((current) => {
         const byId = new Map(current.map((person) => [person.id, person]));
         for (const person of body.people ?? []) byId.set(person.id, person);
@@ -190,19 +217,24 @@ export default function PeopleDirectory({
         setAlreadyFollowing((current) => current + dropped);
       }
     } catch {
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setProblem("Could not load more people.");
     } finally {
-      setLoadingMore(false);
+      if (accountRevisionRef.current === requestRevision && viewerRef.current === requestViewer) {
+        setLoadingMore(false);
+      }
     }
-  }, [cursor, limit, loadingMore, viewer]);
+  }, [accountRevision, cursor, limit, loadingMore, viewer]);
 
   const relationFor = (handle: string): FollowRelation => {
     const clean = normalizeHandle(handle);
     return resolveFollowRelation({
-      viewerFollowing: followed.has(clean),
-      followsViewer: lot.has(clean) || false,
+      viewerFollowing: visibleFollowed.has(clean),
+      followsViewer: visibleLot.has(clean) || false,
     });
   };
+
+  if (!socialFriendsLaunchEnabled) return null;
 
   async function follow(handle: string) {
     const clean = normalizeHandle(handle);
@@ -211,6 +243,8 @@ export default function PeopleDirectory({
       return;
     }
     if (clean === viewer || working) return;
+    const requestRevision = accountRevision;
+    const requestViewer = viewer;
     setWorking(clean);
     setProblem("");
     try {
@@ -227,6 +261,7 @@ export default function PeopleDirectory({
         error?: string;
       };
       if (!response.ok) throw new Error(errorMessageFrom(body, "Could not follow them."));
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       const nowFollowing = body.following !== false;
       setFollowed((current) => {
         const next = new Set(current);
@@ -243,16 +278,24 @@ export default function PeopleDirectory({
         setAlreadyFollowing((current) => current + 1);
       }
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision || viewerRef.current !== requestViewer) return;
       setProblem(error instanceof Error ? error.message : "Could not follow them.");
     } finally {
-      setWorking(null);
+      if (accountRevisionRef.current === requestRevision && viewerRef.current === requestViewer) {
+        setWorking(null);
+      }
     }
   }
+
+  const relationStateReady = relationStateKey === relationKey;
+  const visibleLot = relationStateReady ? lot : new Set<string>();
+  const visibleFollowed = relationStateReady ? followed : new Set<string>();
+  const visibleAlreadyFollowing = relationStateReady ? alreadyFollowing : 0;
 
   // Nobody left to offer, and the reason is that this reader has followed them
   // all. The invitation below the heading is spent too, so it goes with them.
   const allFollowed =
-    status === "ready" && people.length === 0 && alreadyFollowing > 0;
+    status === "ready" && people.length === 0 && visibleAlreadyFollowing > 0;
 
   return (
     <section className="peopleDir" aria-labelledby="people-dir-title">
@@ -286,7 +329,7 @@ export default function PeopleDirectory({
       ) : people.length === 0 ? (
         <p className="peopleDir__body" role="status">
           {directoryEmptyLine({
-            alreadyFollowing,
+            alreadyFollowing: visibleAlreadyFollowing,
             moreToLoad: cursor !== null,
           })}
         </p>
@@ -321,6 +364,10 @@ export default function PeopleDirectory({
                 </Link>
                 {isSelf ? (
                   <span className="peopleDir__self">You</span>
+                ) : !viewer ? (
+                  <Link className="peopleDir__button" href={user ? "/u/you" : "/login"}>
+                    {user ? "Claim a handle to follow" : "Sign in to follow"}
+                  </Link>
                 ) : (
                   <button
                     type="button"

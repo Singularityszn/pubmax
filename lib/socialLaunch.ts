@@ -3,15 +3,19 @@ import type { SocialAccessState } from "@/lib/socialAccess";
 
 /** Registry env for the friends-only Social launch switch. */
 export const SOCIAL_FRIENDS_LAUNCH_ENV = "PUBMAX_SOCIAL_FRIENDS_LAUNCH";
+export const SOCIAL_ROLLBACK_ERROR = "Social is in preview right now.";
+export const SOCIAL_ROLLBACK_CODE = "SOCIAL_PREVIEW";
 
 export function isSocialFriendsLaunchEnabled(
   value: string | undefined,
 ): boolean {
-  return value === "1";
+  // Social is live by default. Keep an explicit 0 as an emergency rollback
+  // while the first production window settles.
+  return value !== "0";
 }
 
 /** Search indexing follows the same launch flag the nav already reads. */
-export function socialDocumentRobots(friendsLaunchEnabled: boolean): {
+export function socialDocumentRobots(friendsLaunchEnabled = true): {
   index: boolean;
   follow: boolean;
 } {
@@ -20,7 +24,7 @@ export function socialDocumentRobots(friendsLaunchEnabled: boolean): {
     : { index: false, follow: true };
 }
 
-export function socialListedInSitemap(friendsLaunchEnabled: boolean): boolean {
+export function socialListedInSitemap(friendsLaunchEnabled = true): boolean {
   return friendsLaunchEnabled;
 }
 
@@ -28,13 +32,13 @@ export const SOCIAL_LAUNCH_NAV_LABEL = "Social";
 export const SOCIAL_PREVIEW_NAV_LABEL = "Social preview";
 
 /** In-page headings, desktop nav and loading lines use the surface name. */
-export function socialSurfaceName(friendsLaunchEnabled: boolean): string {
+export function socialSurfaceName(friendsLaunchEnabled = true): string {
   return friendsLaunchEnabled
     ? SOCIAL_LAUNCH_NAV_LABEL
     : SOCIAL_PREVIEW_NAV_LABEL;
 }
 
-export function socialLoadingLabel(friendsLaunchEnabled: boolean): string {
+export function socialLoadingLabel(friendsLaunchEnabled = true): string {
   return `Loading ${socialSurfaceName(friendsLaunchEnabled)}`;
 }
 
@@ -45,7 +49,7 @@ export type SocialBoundaryCopyState =
 /** Empty-state lines for SocialAccessBoundary — surface name follows the launch flag. */
 export function socialBoundaryCopy(
   state: SocialBoundaryCopyState,
-  friendsLaunchEnabled: boolean,
+  friendsLaunchEnabled = true,
 ): string {
   const surface = socialSurfaceName(friendsLaunchEnabled);
   switch (state) {
@@ -62,18 +66,18 @@ export function socialBoundaryCopy(
   }
 }
 
-export function socialInviteMessage(friendsLaunchEnabled: boolean): string {
+export function socialInviteMessage(friendsLaunchEnabled = true): string {
   return `Use ${socialSurfaceName(friendsLaunchEnabled)}.`;
 }
 
-export function adultSelfAssertionLine(friendsLaunchEnabled: boolean): string {
+export function adultSelfAssertionLine(friendsLaunchEnabled = true): string {
   return `${socialSurfaceName(friendsLaunchEnabled)} is for over-18s.`;
 }
 
 /** Body dataset written by root layout (`data-social-friends-launch`). */
 export function readSocialFriendsLaunchFromDocument(): boolean {
-  if (typeof document === "undefined") return false;
-  return document.body.dataset.socialFriendsLaunch === "1";
+  if (typeof document === "undefined") return true;
+  return document.body.dataset.socialFriendsLaunch !== "0";
 }
 
 export function subscribeSocialFriendsLaunchFromDocument(): () => void {

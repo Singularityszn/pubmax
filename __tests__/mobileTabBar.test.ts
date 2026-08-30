@@ -33,9 +33,12 @@ describe("mobile tab bar contract", () => {
     ]);
   });
 
-  it("keeps gated Social out of the primary phone journey", () => {
+  it("keeps gated Social visible as a preview destination", () => {
     const tabs = buildTabs("/u/you", "/today", false);
-    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Map", "Out", "You"]);
+    const social = tabs.find((tab) => tab.label === "Social");
+    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Map", "Out", "Social", "You"]);
+    expect(social?.preview).toBe(true);
+    expect(social?.ariaLabel).toBe("Social preview");
   });
 
   it("routes every tab to its owned destination", () => {

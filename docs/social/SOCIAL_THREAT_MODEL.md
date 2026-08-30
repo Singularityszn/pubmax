@@ -1,6 +1,10 @@
-# Social threat model
+# Historical Social threat model
 
-Status: pre-implementation security model for Verified Social Night Loop.
+Status: Retired pre-implementation security model for the Clerk and Yoti
+Verified Social Night Loop. It is retained as historical context. The shipped
+Social access path uses Supabase identity and the adult-answer policy in
+`lib/socialAccessServer.ts` and `lib/socialLaunch.ts`; rollout policy lives in
+[`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md).
 
 This model identifies what Social must protect, where trust changes, and which controls must be proved before invite-beta rollout. Cross-product policy lives in [SOCIAL_BETA_CONTRACT.md](./SOCIAL_BETA_CONTRACT.md). Route and type details belong in implementation tasks and tests.
 

@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level coverage for app/api/notifications/route.ts. The route selects
 // the in-memory notifications store, pinned deterministically at the
@@ -16,6 +16,7 @@ import { GET, POST } from "@/app/api/notifications/route";
 import { __resetMemoryNotifications, notificationsStore } from "@/lib/notificationsStore";
 
 const URL_BASE = "http://localhost/api/notifications";
+const originalSocialLaunch = process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
 
 function expectNoStore(res: Response): void {
   expect(res.headers.get("Cache-Control")).toBe("no-store");
@@ -34,7 +35,33 @@ beforeEach(() => {
   __resetMemoryNotifications();
 });
 
+afterEach(() => {
+  if (originalSocialLaunch === undefined) {
+    delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
+  } else {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = originalSocialLaunch;
+  }
+});
+
 describe("GET /api/notifications", () => {
+  it("blocks Social notification reads and marks during emergency rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const read = await get("handle=ken");
+    const mark = await post({ handle: "ken" });
+
+    expect(read.status).toBe(503);
+    expect(mark.status).toBe(503);
+    expect(await read.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+    expect(await mark.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      retryable: false,
+    });
+  });
+
   it("returns an empty inbox for a missing handle (never 500)", async () => {
     const res = await get();
     expect(res.status).toBe(200);

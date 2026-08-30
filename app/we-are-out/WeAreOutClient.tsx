@@ -17,6 +17,7 @@ import "../feed/feed.css";
 import "./we-are-out.css";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { socialBoundaryCopy } from "@/lib/socialLaunch";
 
 type PostState = "idle" | "posting" | "done" | "error";
 
@@ -25,7 +26,7 @@ type Props = {
   socialFriendsLaunchEnabled?: boolean;
 };
 
-export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: Props) {
+export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Props) {
   const areas = useMemo(() => getNightAreasForCity("london"), []);
   const [handle, setHandle] = useState("");
   const [areaSlug, setAreaSlug] = useState<string>("");
@@ -46,6 +47,20 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = false }: P
       }
     });
   }, []);
+
+  if (!socialFriendsLaunchEnabled) {
+    return (
+      <main id="main" className="feedShell weAreOut">
+        <SiteNav active="feed" />
+        <section className="weAreOutDone" role="status">
+          <p className="weAreOutDoneTitle">{socialBoundaryCopy("preview", false)}</p>
+          <Link className="feedDropCta" href="/u/you#night-memories">
+            Open Memories
+          </Link>
+        </section>
+      </main>
+    );
+  }
 
   async function post() {
     if (!handle) {

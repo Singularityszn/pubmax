@@ -6,6 +6,10 @@ import {
   socialCrewPublicUnavailableResponse,
 } from "@/lib/socialCrewHttp";
 import { resolveOpenMeetingPoint } from "@/lib/openSocialCrew.server";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 import { createSocialCrewStore } from "@/lib/socialCrewStore";
 
 export const runtime = "nodejs";
@@ -21,6 +25,9 @@ const store = createSocialCrewStore();
  * authority. Joining remains on the verified Social route.
  */
 export async function GET(_request: Request, context: Context): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return socialCrewPublicUnavailableResponse();
+  }
   const { crewId } = await context.params;
   if (!isSocialCrewId(crewId)) return socialCrewPublicNotFoundResponse();
 

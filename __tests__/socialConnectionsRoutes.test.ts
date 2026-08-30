@@ -30,6 +30,7 @@ function request(path: string, method = "GET", body?: unknown): Request {
 const instagramParams = { params: Promise.resolve({ provider: "instagram" }) };
 
 beforeEach(() => {
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   authState.userId = null;
   __resetMemorySocialConnections();
 });
@@ -40,6 +41,32 @@ afterEach(() => {
 });
 
 describe("social connection APIs", () => {
+  it("blocks connected-account reads, writes, and callbacks during rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+    authState.userId = "owner-1";
+
+    const responses = [
+      await listConnections(request("/api/social-connections")),
+      await connect(
+        request("/api/social-connections/instagram", "POST", { mode: "manual", value: "nightowl" }),
+        instagramParams,
+      ),
+      await oauthCallback(
+        request("/api/social-connections/x/callback?code=abc&state=state"),
+        { params: Promise.resolve({ provider: "x" }) },
+      ),
+    ];
+
+    for (const response of responses) {
+      expect(response.status).toBe(503);
+      expect(await response.json()).toEqual({
+        error: "Social is in preview right now.",
+        code: "SOCIAL_PREVIEW",
+        retryable: false,
+      });
+    }
+  });
+
   it("requires an authenticated account", async () => {
     const response = await listConnections(request("/api/social-connections"));
     expect(response.status).toBe(401);

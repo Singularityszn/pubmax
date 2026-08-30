@@ -131,9 +131,9 @@ function footerFacts(
 
 export default function LandingPage({
   stats,
-  // Server-threaded friends-launch flag (default off = soft-launch preview).
-  // Memory CTAs must not promise "Open Social" while the product is closed.
-  socialFriendsLaunchEnabled = false,
+  // Server-threaded friends-launch flag. Explicit 0 is the rollback state.
+  // Memory CTAs must stay honest while the product is closed.
+  socialFriendsLaunchEnabled = true,
 }: {
   stats?: AboutStats;
   socialFriendsLaunchEnabled?: boolean;

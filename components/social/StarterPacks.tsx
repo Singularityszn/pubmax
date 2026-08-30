@@ -19,9 +19,10 @@
 // once, so somebody using a screen reader knows what they are agreeing to.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { displayHandle } from "@/lib/handleDisplay";
@@ -39,6 +40,7 @@ import {
   type StarterPackFollowOutcome,
   type StarterPackMember,
 } from "@/lib/starterPacks";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 
 import "./starterPacks.css";
 
@@ -75,15 +77,36 @@ export function starterPackOutcomeChip(outcome: StarterPackFollowOutcome): {
 }
 
 export default function StarterPacks({ compact = false }: { compact?: boolean }) {
-  const viewer = useViewerHandle();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { accountRevision, user } = useAuth();
+  const viewerHandle = useViewerHandle();
+  const viewer = user ? viewerHandle : null;
   const [packs, setPacks] = useState<PackView[]>([]);
   const [viewerFollowing, setViewerFollowing] = useState<number | null>(null);
   const [loaded, setLoaded] = useState(false);
   const [packState, setPackState] = useState<Record<string, PackState>>({});
+  const [viewerStateKey, setViewerStateKey] = useState("");
+  const accountRevisionRef = useRef(accountRevision);
+  const viewerKey = `${accountRevision}:${viewer ?? ""}`;
 
   useEffect(() => {
-    if (!viewer) return;
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
+  useEffect(() => {
+    void Promise.resolve().then(() => {
+      setViewerStateKey(viewerKey);
+      setPacks([]);
+      setViewerFollowing(null);
+      setLoaded(false);
+      setPackState({});
+    });
+  }, [viewerKey]);
+
+  useEffect(() => {
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     let live = true;
+    const requestRevision = accountRevision;
     void (async () => {
       try {
         const response = await authedActionFetch(
@@ -99,7 +122,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
           packs?: PackView[];
           viewerFollowing?: number | null;
         };
-        if (!live) return;
+        if (!live || accountRevisionRef.current !== requestRevision) return;
         setPacks(Array.isArray(body.packs) ? body.packs : []);
         setViewerFollowing(
           typeof body.viewerFollowing === "number" ? body.viewerFollowing : null,
@@ -112,11 +135,12 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     return () => {
       live = false;
     };
-  }, [viewer]);
+  }, [accountRevision, socialFriendsLaunchEnabled, viewer]);
 
   async function followAll(pack: PackView) {
-    if (!viewer) return;
+    if (!socialFriendsLaunchEnabled || !viewer) return;
     setPackState((current) => ({ ...current, [pack.slug]: { status: "working" } }));
+    const requestRevision = accountRevision;
     try {
         const response = await authedActionFetch(
         `/api/starter-packs/${encodeURIComponent(pack.slug)}/follow`,
@@ -136,6 +160,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
       if (!response.ok || !Array.isArray(body?.results)) {
         throw new Error(errorMessageFrom(body, "That didn't go through. Try again."));
       }
+      if (accountRevisionRef.current !== requestRevision) return;
       setPackState((current) => ({
         ...current,
         [pack.slug]: {
@@ -145,6 +170,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
         },
       }));
     } catch (error) {
+      if (accountRevisionRef.current !== requestRevision) return;
       setPackState((current) => ({
         ...current,
         [pack.slug]: {
@@ -163,12 +189,14 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
   // starts offering packs to somebody who already has a lot.
   const visible = starterPacksSurfaceVisible({
     viewer,
-    loaded,
-    packCount: packs.length,
-    viewerFollowing,
-    followedAny: Object.values(packState).some((state) => state.status === "done"),
+    loaded: viewerStateKey === viewerKey && loaded,
+    packCount: viewerStateKey === viewerKey ? packs.length : 0,
+    viewerFollowing: viewerStateKey === viewerKey ? viewerFollowing : null,
+    followedAny:
+      viewerStateKey === viewerKey &&
+      Object.values(packState).some((state) => state.status === "done"),
   });
-  if (!visible) return null;
+  if (!socialFriendsLaunchEnabled || !visible) return null;
 
   return (
     <section

@@ -34,7 +34,17 @@ export type SocialPostHeldItem = {
   createdAt: string;
 };
 
-export class SocialPostConsentStoreError extends Error {}
+export type SocialPostConsentStoreErrorKind = "invalid" | "conflict" | "unavailable";
+
+export class SocialPostConsentStoreError extends Error {
+  constructor(
+    message: string,
+    readonly kind: SocialPostConsentStoreErrorKind = "unavailable",
+  ) {
+    super(message);
+    this.name = "SocialPostConsentStoreError";
+  }
+}
 
 type PageInput = { cursor?: string | null; limit: number };
 type TagPageInput = PageInput & { lane: "proposed" | "approved" };
@@ -91,8 +101,28 @@ function row(value: unknown): Record<string, unknown> {
 
 async function rpc(name: string, input: Record<string, unknown>): Promise<unknown> {
   const { data, error } = await requireSupabaseAdmin().rpc(name, input);
-  if (error) throw new SocialPostConsentStoreError(error.message);
+  if (error) {
+    throw new SocialPostConsentStoreError(
+      error.message,
+      error.message === "held post not found" ? "conflict" : "unavailable",
+    );
+  }
   return data;
+}
+
+function heldItemFromRow(item: Record<string, unknown>): SocialPostHeldItem {
+  if (
+    typeof item.staff_display_name !== "string" || typeof item.post_id !== "string" ||
+    (item.media_id !== null && typeof item.media_id !== "string") ||
+    typeof item.moderation_claim !== "string" || typeof item.created_at !== "string"
+  ) throw new SocialPostConsentStoreError("Social moderation queue is unavailable.");
+  return {
+    staffDisplayName: item.staff_display_name,
+    postId: item.post_id,
+    mediaId: item.media_id as string | null,
+    moderationClaim: item.moderation_claim,
+    createdAt: item.created_at,
+  };
 }
 
 function rows(value: unknown): Record<string, unknown>[] {
@@ -113,6 +143,14 @@ export type SocialPostConsentStore = {
   outbox(viewer: SocialPostActor, input: PageInput): Promise<SocialPostOutboxPage>;
   heldQueue(viewer: SocialPostActor, limit: number): Promise<SocialPostHeldItem[]>;
   moderateHeld(viewer: SocialPostActor, postId: string, mediaId: string | null, action: "approve" | "hide"): Promise<void>;
+  heldQueueForAdmin(staffRoleId: string, limit: number): Promise<SocialPostHeldItem[]>;
+  adminMediaObjectKey(staffRoleId: string, mediaId: string): Promise<string | null>;
+  moderateHeldForAdmin(
+    staffRoleId: string,
+    postId: string,
+    mediaId: string | null,
+    action: "approve" | "hide",
+  ): Promise<void>;
 };
 
 export function createSocialPostConsentStore(): SocialPostConsentStore {
@@ -232,20 +270,7 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
       return rows(await rpc("read_social_post_moderation_queue", {
         p_actor: viewer.profileId,
         p_limit: limit,
-      })).map((item) => {
-        if (
-          typeof item.staff_display_name !== "string" || typeof item.post_id !== "string" ||
-          (item.media_id !== null && typeof item.media_id !== "string") ||
-          typeof item.moderation_claim !== "string" || typeof item.created_at !== "string"
-        ) throw new SocialPostConsentStoreError("Social moderation queue is unavailable.");
-        return {
-          staffDisplayName: item.staff_display_name,
-          postId: item.post_id,
-          mediaId: item.media_id as string | null,
-          moderationClaim: item.moderation_claim,
-          createdAt: item.created_at,
-        };
-      });
+      })).map(heldItemFromRow);
     },
     async moderateHeld(viewer, postId, mediaId, action) {
       const result = await rpc("moderate_social_post", {
@@ -254,7 +279,40 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
         p_media_id: mediaId,
         p_action: action,
       });
-      if (result !== true) throw new SocialPostConsentStoreError("Social moderation choice was not saved.");
+      if (result !== true) {
+        throw new SocialPostConsentStoreError(
+          "Social moderation choice was not saved.",
+          "conflict",
+        );
+      }
+    },
+    async heldQueueForAdmin(staffRoleId, limit) {
+      return rows(await rpc("read_social_post_moderation_queue_admin", {
+        p_staff_role_id: staffRoleId,
+        p_limit: limit,
+      })).map(heldItemFromRow);
+    },
+    async adminMediaObjectKey(staffRoleId, mediaId) {
+      const result = rows(await rpc("read_social_post_media_admin", {
+        p_staff_role_id: staffRoleId,
+        p_media_id: mediaId,
+      }));
+      if (result.length === 0) return null;
+      return typeof result[0]?.object_key === "string" ? result[0].object_key : null;
+    },
+    async moderateHeldForAdmin(staffRoleId, postId, mediaId, action) {
+      const result = await rpc("moderate_social_post_admin", {
+        p_staff_role_id: staffRoleId,
+        p_post_id: postId,
+        p_media_id: mediaId,
+        p_action: action,
+      });
+      if (result !== true) {
+        throw new SocialPostConsentStoreError(
+          "Social moderation choice was not saved.",
+          "conflict",
+        );
+      }
     },
   };
 }

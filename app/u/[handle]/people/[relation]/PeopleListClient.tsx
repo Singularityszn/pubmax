@@ -22,6 +22,8 @@ import { type FollowListEntry, parseFollowListEntry } from "@/lib/followList";
 import { normalizeHandle } from "@/lib/profiles";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 
 import "@/components/social/peopleDirectory.css";
 
@@ -57,12 +59,14 @@ export default function PeopleListClient({
   handle: string;
   relation: PeopleRelation;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<FollowListEntry[]>([]);
   const [mutuals, setMutuals] = useState<Set<string>>(new Set());
   const [attempt, setAttempt] = useState(0);
 
   useEffect(() => {
+    if (!socialFriendsLaunchEnabled) return;
     const controller = new AbortController();
     void Promise.resolve().then(() => setStatus("loading"));
     void (async () => {
@@ -105,16 +109,21 @@ export default function PeopleListClient({
       }
     })();
     return () => controller.abort();
-  }, [attempt, handle, relation]);
+  }, [attempt, handle, relation, socialFriendsLaunchEnabled]);
 
   const retry = useCallback(() => {
+    if (!socialFriendsLaunchEnabled) return;
     setStatus("loading");
     setAttempt((value) => value + 1);
-  }, []);
+  }, [socialFriendsLaunchEnabled]);
 
   useReconnectRecovery(status === "error", retry);
 
   const offline = typeof window !== "undefined" && window.navigator?.onLine === false;
+
+  if (!socialFriendsLaunchEnabled) {
+    return <SocialAccessBoundary state="preview" friendsLaunchEnabled={false} />;
+  }
 
   return (
     <section className="peopleDir" aria-labelledby="people-list-title">

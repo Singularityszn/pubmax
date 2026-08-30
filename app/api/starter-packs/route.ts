@@ -22,6 +22,12 @@ import { followStore } from "@/lib/followStore";
 import { resolveMessageHandle } from "@/lib/messageAuth";
 import { isLimited } from "@/lib/pintDrops";
 import { assertServerEnv } from "@/lib/serverEnv";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 import { loadStarterPacks } from "@/lib/starterPacks.server";
 import {
   clientIp,
@@ -44,6 +50,9 @@ async function viewerFollowingCount(handle: string): Promise<number | null> {
 }
 
 export async function GET(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const limiterKey = `starter-packs:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, {

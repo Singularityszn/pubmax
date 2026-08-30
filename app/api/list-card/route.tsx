@@ -44,10 +44,15 @@ export async function GET(request: Request) {
     999,
     0,
   );
-  const followers = clampOgInt(searchParams.get("followers"), 0, 999, 0);
+  const followerParam = searchParams.get("followers");
+  const followers = followerParam === "unavailable"
+    ? null
+    : clampOgInt(followerParam, 0, 999, 0);
 
   const venueLabel = formatSavedVenueCount(venueCount);
-  const followerLabel = `${followers} follower${followers === 1 ? "" : "s"}`;
+  const followerLabel = followers === null
+    ? "Followers unavailable"
+    : `${followers} follower${followers === 1 ? "" : "s"}`;
   const title = `@${owner}'s ${list}`;
 
   return new ImageResponse(

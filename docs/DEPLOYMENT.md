@@ -31,6 +31,7 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Public browser key for Supabase Auth/Realtime. Safe to expose; do **not** use the service-role key. |
 | `OPENAI_API_KEY` | **Server-only** key for Social post, comment, and quote moderation. If unset, both moderation crons answer `200 { skipped: "openai_not_configured" }` before claiming queued work, so pending work stays available after configuration is restored; the posts cron still reports its moderation backlog findings on that skip. Keyless local app behavior remains available. |
 | `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Prefer the httpOnly session cookie from `POST /api/admin/session` (the admin console never needs to keep sending the raw token). The `x-admin-token` header remains accepted for scripts/back-compat. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
+| `SOCIAL_MODERATOR_STAFF_ROLE_ID` | Server-only UUID of the active `private_social_staff_roles` moderator bound to the existing admin token/session. Social moderation SQL validates that the role is active and not revoked before reads or writes. |
 | `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
 
 ### Optional — The Landlord (heritage Q&A)
@@ -96,6 +97,13 @@ Production migration history already contains
 `20260806035204_0070_v1_release_security.sql`. Migrations `0071` and `0072` have
 earlier timestamps, so Captain must apply them with
 `supabase db push --include-all`; a normal push can skip them as out of order.
+
+This change adds an unapplied Social moderation migration:
+`supabase/migrations/20260829120000_0123_social_admin_moderation.sql`.
+Captain applies it separately after checking the live ledger. Its matching
+rollback is
+`supabase/migrations/rollback/20260829120000_0123_social_admin_moderation_rollback.sql`.
+Agents do not apply either file.
 
 Supabase installs the pgcrypto extension in the `extensions` schema, not
 `public`. Local test Postgres installs it in `public`, which hides the

@@ -8,8 +8,17 @@ import {
   referralStore,
 } from "@/lib/referralStore";
 import { siteOrigin } from "@/lib/siteUrl";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+  SOCIAL_ROLLBACK_CODE,
+  SOCIAL_ROLLBACK_ERROR,
+} from "@/lib/socialLaunch";
 
 export async function POST(request: Request): Promise<Response> {
+  if (!isSocialFriendsLaunchEnabled(process.env[SOCIAL_FRIENDS_LAUNCH_ENV])) {
+    return publicApiError(SOCIAL_ROLLBACK_ERROR, SOCIAL_ROLLBACK_CODE, 503);
+  }
   const limiterKey = `referral-invite-link:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey)) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });

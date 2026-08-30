@@ -4,7 +4,7 @@
 // Session-scoped only. Dismiss or follow clears the prompt.
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { displayHandle } from "@/lib/handleDisplay";
 import {
@@ -12,6 +12,8 @@ import {
   readReferralFollowHandle,
 } from "@/lib/referralFollowBack";
 import { normalizeHandle } from "@/lib/profiles";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
+import { useAuth } from "@/components/auth/AuthProvider";
 
 import "./referralFollowBack.css";
 
@@ -20,10 +22,19 @@ export default function ReferralFollowBack({
 }: {
   myHandle?: string | null;
 }) {
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const { accountRevision } = useAuth();
   const [inviterHandle, setInviterHandle] = useState<string | null>(null);
+  const previousRevision = useRef(accountRevision);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
+      if (previousRevision.current !== accountRevision) {
+        previousRevision.current = accountRevision;
+        clearReferralFollowHandle();
+        setInviterHandle(null);
+        return;
+      }
       let viewer = normalizeHandle(myHandle ?? "");
       if (!viewer) {
         try {
@@ -41,9 +52,9 @@ export default function ReferralFollowBack({
       }
       setInviterHandle(handle);
     });
-  }, [myHandle]);
+  }, [accountRevision, myHandle]);
 
-  if (!inviterHandle) return null;
+  if (!socialFriendsLaunchEnabled || !inviterHandle) return null;
 
   return (
     <section className="referralFollowBack" aria-label="Follow your inviter">

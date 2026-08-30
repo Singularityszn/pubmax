@@ -117,6 +117,7 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   delete process.env.TICKETMASTER_API_KEY;
   delete process.env.SKIDDLE_API_KEY;
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
 });
 
 afterEach(() => {
@@ -676,6 +677,7 @@ describe("GET /api/out openPlans", () => {
     expect(response.headers.get("cache-control")).toBe(OUT_UNSETTLED_CACHE_CONTROL);
     const body = await response.json();
     expect(body.status).toBe("degraded");
+    expect(body.openPlansStatus).toBe("degraded");
     expect(body.openPlans).toEqual([]);
     // The plans failure widens the WHOLE answer's status and leaves the
     // listings lane exactly as its own read left it, so a surface showing only
@@ -719,6 +721,19 @@ describe("GET /api/out openPlans", () => {
     const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
     const body = await response.json();
     expect(body.openPlans).toEqual([]);
+  });
+
+  it("hides open crew discovery during emergency rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const response = await GET(new Request("http://localhost/api/out?city=london&day=today"));
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.openPlans).toBeNull();
+    expect(body.openPlansStatus).toBe("preview");
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(store.listOpen).not.toHaveBeenCalled();
   });
 
   it("refuses an unauthenticated flood", async () => {

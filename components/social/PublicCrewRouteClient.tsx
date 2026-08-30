@@ -14,6 +14,8 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { discardBody } from "@/lib/responseBody";
 import { parseCrewRead, parsePublicCrewPreview, crewIdempotencyKey } from "@/lib/socialCrewsUi";
+import { socialBoundaryCopy } from "@/lib/socialLaunch";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import type {
   SocialCrewPublicPreviewDTO,
   SocialCrewReadDTO,
@@ -45,6 +47,16 @@ function Shell({ children }: { children: ReactNode }) {
   );
 }
 
+function RollbackPreview() {
+  return (
+    <Shell>
+      <section className="crews__notice" role="status">
+        <h1>{socialBoundaryCopy("preview", false)}</h1>
+      </section>
+    </Shell>
+  );
+}
+
 export default function PublicCrewRouteClient({
   crewId,
   invitationId,
@@ -53,6 +65,7 @@ export default function PublicCrewRouteClient({
   invitationId: string | null;
 }) {
   const { accountRevision, identityResolved, providerAuthState } = useAuth();
+  const friendsLaunchEnabled = useSocialFriendsLaunch();
   const scope = crewAuthScope(crewId, String(accountRevision), identityResolved);
   const [publicState, setPublicState] = useState<LoadState>("idle");
   const [publicPreview, setPublicPreview] = useState<SocialCrewPublicPreviewDTO | null>(null);
@@ -95,6 +108,7 @@ export default function PublicCrewRouteClient({
   }, [scope]);
 
   useEffect(() => {
+    if (!friendsLaunchEnabled) return;
     const generation = crewGeneration.current + 1;
     crewGeneration.current = generation;
     const controller = new AbortController();
@@ -148,9 +162,10 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId]);
+  }, [crewId, friendsLaunchEnabled]);
 
   useEffect(() => {
+    if (!friendsLaunchEnabled) return;
     const generation = scopeGeneration.current;
     if (providerAuthState !== "authenticated") {
       void Promise.resolve().then(() => {
@@ -230,9 +245,10 @@ export default function PublicCrewRouteClient({
       active = false;
       controller.abort();
     };
-  }, [crewId, accountRevision, identityResolved, providerAuthState, scope]);
+  }, [accountRevision, crewId, friendsLaunchEnabled, identityResolved, providerAuthState, scope]);
 
   async function askToJoin(): Promise<void> {
+    if (!friendsLaunchEnabled) return;
     const operationScope = scopeRef.current;
     const operationGeneration = scopeGeneration.current;
     const currentPreview = publicPreview?.crewId === crewId ? publicPreview : null;
@@ -303,6 +319,7 @@ export default function PublicCrewRouteClient({
   const currentJoinState = joinScope === scope ? joinState : "none";
   const currentBusy = busyScope === scope && busy;
   const currentProblem = problemScope === scope ? problem : "";
+  if (!friendsLaunchEnabled) return <RollbackPreview />;
   const privateReadPending =
     providerAuthState === "unresolved" ||
     (providerAuthState === "authenticated" &&
@@ -342,9 +359,7 @@ export default function PublicCrewRouteClient({
   if (
     publicState === "loading" ||
     (!publicPreview && publicState === "idle") ||
-    privateReadPending ||
-    (privateStateScope === scope &&
-      (currentPrivateState === "loading" || currentPrivateState === "idle"))
+    privateReadPending
   ) {
     return (
       <Shell>

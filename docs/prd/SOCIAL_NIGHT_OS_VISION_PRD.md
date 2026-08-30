@@ -130,7 +130,7 @@ night, and durable stories after, all on the priced London (then UK) map.**
 Social Launch (`SOCIAL_LAUNCH_PRD.md`) ships the trust floor: Supabase
 identity, 18+, mutual friends, owned moderated avatars. This vision sits
 on top of that floor. Do not open Wanted import, snaps, or public Stories
-before WP1-WP7 of Social Launch are dark-demo ready.
+before Social Launch verification and captain approval.
 
 ## Personality and taste (the "who is this drinker" graph)
 
@@ -167,7 +167,7 @@ of units may not.
 ## Feature waves (after Social Launch)
 
 Builder sizing: S/M/L. Sequencing assumes Social Launch WP1-WP7 are at least
-dark-demoable. Captain may re-order after demo evidence.
+launch-verified. Captain may re-order after live evidence.
 
 ### Wave A - Wanted places + Reel/TikTok paste import (L)
 
@@ -302,9 +302,8 @@ Do not rebuild these; compose them.
 4. No alcohol-volume gamification, streaks-as-guilt, or unit leaderboards.
 5. No merging UK base pubs into `venues_slim*` or inventing prices on Wanted
    base marks.
-6. No enabling `SOCIAL_INVITE_BETA` or flipping
-   `PUBMAX_SOCIAL_FRIENDS_LAUNCH` from this PRD; launch flags stay with
-   Social Launch WP5 and the captain.
+6. No changing `PUBMAX_SOCIAL_FRIENDS_LAUNCH` from this PRD; launch state stays
+   with Social Launch WP5 and the captain.
 7. No debt, IOUs, or settlement products dressed as social.
 8. No Cards-as-hero redesign of marketing pages in this workstream; social
    surfaces follow existing product chrome.
@@ -328,7 +327,7 @@ Do not rebuild these; compose them.
 
 ```
 Social Launch WP2/WP4/WP6 (media + mutuals) ──┐
-Social Launch WP1 (gate) ─────────────────────┼─► dark demo (WP5)
+Social Launch WP1 (gate) ─────────────────────┼─► launch verification (WP5)
 Social Launch WP3/WP7 (render + graph) ───────┘
                                                │
                                                ▼
@@ -342,8 +341,8 @@ Social Launch WP3/WP7 (render + graph) ───────┘
 ```
 
 Cursor may spike Wave A resolvers behind a dead UI flag after WP2 media
-patterns exist, but no user-reachable Wanted import ships before Social
-Launch dark-demo and captain approval of this PRD.
+patterns exist, but no user-reachable Wanted import ships before captain
+approval of this PRD.
 
 ## Open questions for the captain (not for executors to invent)
 

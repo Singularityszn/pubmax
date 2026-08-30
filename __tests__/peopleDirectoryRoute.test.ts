@@ -79,6 +79,7 @@ function profile(handle: string, overrides: Partial<ProfileRecord> = {}): Profil
 
 beforeEach(() => {
   vi.clearAllMocks();
+  delete process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH;
   state.limited = false;
   state.fail = false;
   state.rows = [profile("alice"), profile("bob")];
@@ -89,6 +90,19 @@ beforeEach(() => {
 });
 
 describe("people directory", () => {
+  it("does not read or expose directory data during Social rollback", async () => {
+    process.env.PUBMAX_SOCIAL_FRIENDS_LAUNCH = "0";
+
+    const response = await directory(new Request("https://x.test/api/profiles/directory"));
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "SOCIAL_PREVIEW",
+      error: "Social is in preview right now.",
+    });
+    expect(state.lastInput).toBeNull();
+  });
+
   it("lists claimed handles with the public projection and nothing else", async () => {
     const response = await directory(new Request("https://x.test/api/profiles/directory"));
     expect(response.status).toBe(200);

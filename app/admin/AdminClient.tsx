@@ -205,6 +205,16 @@ type ImportNoteRow = {
   dismissedAt?: string;
 };
 
+type ModeratorSocialPost = {
+  staffDisplayName: string;
+  postId: string;
+  mediaId: string | null;
+  moderationClaim: string;
+  createdAt: string;
+};
+
+type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
+
 const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
 
@@ -311,6 +321,8 @@ export default function AdminClient() {
   const [hiddenAvatars, setHiddenAvatars] = useState<ModeratorProfileAvatar[]>([]);
   const [reportedCovers, setReportedCovers] = useState<ModeratorProfileCover[]>([]);
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
+  const [socialPosts, setSocialPosts] = useState<ModeratorSocialPost[]>([]);
+  const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -445,6 +457,37 @@ export default function AdminClient() {
     [ensureAdminSession, retryWithFreshSession],
   );
 
+  const loadSocialPosts = useCallback(
+    async (authenticatedSession: AdminSessionSubmitOutcome) => {
+      setSocialPostsState("loading");
+      setSocialPosts([]);
+      if (authenticatedSession.status !== "open") {
+        setSocialPostsState("unavailable");
+        return;
+      }
+      try {
+        const response = await retryWithFreshSession(() =>
+          fetch("/api/admin/social-posts", SESSION_FETCH),
+        );
+        if (!response.ok) {
+          discardBody(response);
+          setSocialPostsState("unavailable");
+          return;
+        }
+        const body = (await response.json()) as { posts?: unknown };
+        if (!Array.isArray(body.posts)) {
+          setSocialPostsState("unavailable");
+          return;
+        }
+        setSocialPosts(body.posts as ModeratorSocialPost[]);
+        setSocialPostsState("ready");
+      } catch {
+        setSocialPostsState("unavailable");
+      }
+    },
+    [retryWithFreshSession],
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     setMessage(null);
@@ -454,9 +497,13 @@ export default function AdminClient() {
         setReportedDrops([]);
         setDrops([]);
         setComments([]);
+        setSocialPosts([]);
+        setSocialPostsState("unavailable");
         setMessage(adminAlert(session.message));
         return;
       }
+
+      void loadSocialPosts(session);
 
       // Community observations have their own reversible queues. Load them in
       // this pass, but keep their failures isolated from Pint Drops and the
@@ -590,7 +637,41 @@ export default function AdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [ensureAdminSession, loadCommunityPriceQueues, venueNames.size]);
+  }, [ensureAdminSession, loadCommunityPriceQueues, loadSocialPosts, venueNames.size]);
+
+  const decideSocialPost = useCallback(
+    async (post: ModeratorSocialPost, action: "approve" | "hide") => {
+      setPendingId(post.postId);
+      setMessage(null);
+      try {
+        const res = await retryWithFreshSession(() =>
+          fetch("/api/admin/social-posts", {
+            ...SESSION_FETCH,
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ postId: post.postId, mediaId: post.mediaId, action }),
+          }),
+        );
+        if (res.status === 403) {
+          discardBody(res);
+          setMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        if (!res.ok) {
+          discardBody(res);
+          setMessage(adminAlert("Social post action failed. Try again."));
+          return;
+        }
+        setSocialPosts((current) => current.filter((item) => item.postId !== post.postId));
+        setMessage(adminStatus(action === "approve" ? "Social post approved." : "Social post hidden."));
+      } catch {
+        setMessage(adminAlert("Could not reach the server."));
+      } finally {
+        setPendingId(null);
+      }
+    },
+    [retryWithFreshSession],
+  );
 
   const decideComment = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
     setPendingId(id);
@@ -1368,6 +1449,63 @@ export default function AdminClient() {
               ))}
             </div>
             </>
+          ) : null}
+
+          <h2 className="admin-section">Social post moderation</h2>
+          {socialPostsState === "loading" ? (
+            <div className="admin-empty" role="status">
+              Loading Social posts awaiting review…
+            </div>
+          ) : socialPostsState === "unavailable" ? (
+            <div className="admin-empty" role="alert">
+              Social post moderation is unavailable.
+            </div>
+          ) : socialPosts.length === 0 && socialPostsState === "ready" ? (
+            <div className="admin-empty">
+              <strong>No Social posts awaiting review</strong>
+            </div>
+          ) : socialPostsState === "ready" ? (
+            <div className="admin-list">
+              {socialPosts.map((post) => (
+                <article className="admin-card" key={post.postId}>
+                  <div className="admin-card-head">
+                    <span className="admin-handle">Social post</span>
+                    <span className="admin-report">{post.staffDisplayName}</span>
+                  </div>
+                  <p className="admin-note">{post.moderationClaim}</p>
+                  {post.mediaId ? (
+                    <div className="admin-photos">
+                      <Image
+                        src={`/api/admin/social-posts/media/${post.mediaId}`}
+                        alt={`Photo attached to Social post from ${post.staffDisplayName}`}
+                        width={160}
+                        height={160}
+                        unoptimized
+                      />
+                    </div>
+                  ) : null}
+                  <div className="admin-meta">
+                    <span>Queued: {new Date(post.createdAt).toLocaleString()}</span>
+                  </div>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-btn admin-restore"
+                      onClick={() => void decideSocialPost(post, "approve")}
+                      disabled={pendingId === post.postId}
+                    >
+                      {pendingId === post.postId ? "Working…" : "Approve"}
+                    </button>
+                    <button
+                      className="admin-btn admin-keep"
+                      onClick={() => void decideSocialPost(post, "hide")}
+                      disabled={pendingId === post.postId}
+                    >
+                      {pendingId === post.postId ? "Working…" : "Hide"}
+                    </button>
+                  </div>
+                </article>
+              ))}
+            </div>
           ) : null}
 
           {/* ── Community observation moderation queue ─────────────────────── */}

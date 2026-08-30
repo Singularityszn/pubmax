@@ -1,1 +1,1 @@
-{"version":1,"revision":"433f1da2a1cd54001959e120f893c1df27cd1c20","shards":[{"id":"core","core":true,"url":"/data/cities/liverpool/venues_slim.core.json","count":406,"bbox":[-3.0486635,53.3501943,-2.8513046,53.4792601]}]}
+{"version":1,"revision":"local","shards":[{"id":"core","core":true,"url":"/data/cities/liverpool/venues_slim.core.json","count":406,"bbox":[-3.0486635,53.3501943,-2.8513046,53.4792601]}]}

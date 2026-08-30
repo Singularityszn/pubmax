@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { use, useEffect, useState, useSyncExternalStore } from "react";
+import { use, useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import ClaimMomentWelcome from "@/components/profile/ClaimMomentWelcome";
 import ContributionLanesCard from "@/components/profile/ContributionLanesCard";
@@ -49,6 +49,7 @@ import { buildPassport } from "@/lib/passport";
 import { buildProfileBadgeEventOptions } from "@/lib/profileBadgeEventGate";
 import { discardBody } from "@/lib/responseBody";
 import { loadSurfaceJson } from "@/lib/surfaceDataCache";
+import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import {
   deriveProfileFromDrops,
   handleIsAdoptable,
@@ -249,6 +250,69 @@ export function ProfileClaimOffer({ onClaim }: { onClaim: () => void }) {
   );
 }
 
+export function ProfileFollowBoundary({
+  friendsLaunchEnabled,
+  isAnonymous,
+  routeHandle,
+  viewerHandle,
+  following,
+  followsViewer,
+  onCountsChange,
+}: {
+  friendsLaunchEnabled: boolean;
+  isAnonymous: boolean;
+  routeHandle: string;
+  viewerHandle: string;
+  following: boolean;
+  followsViewer: boolean;
+  onCountsChange: (counts: FollowCounts) => void;
+}): React.JSX.Element | null {
+  if (!friendsLaunchEnabled) return null;
+  if (isAnonymous) {
+    return (
+      <Link
+        className="profileFollowSignIn"
+        href={`/login?mode=signin&from=${encodeURIComponent(`/u/${routeHandle}`)}`}
+      >
+        Sign in to follow
+      </Link>
+    );
+  }
+  if (!viewerHandle) {
+    return (
+      <Link className="profileFollowSignIn" href="/u/you#account-settings">
+        Claim a handle to follow
+      </Link>
+    );
+  }
+  return (
+    <FollowButton
+      key={`${routeHandle}:${following}:${followsViewer}`}
+      targetHandle={routeHandle}
+      followerHandle={viewerHandle}
+      initialFollowing={following}
+      followsViewer={followsViewer}
+      onCountsChange={onCountsChange}
+    />
+  );
+}
+
+type ProfileSocialData = {
+  socialLinks: readonly PublicSocialLink[];
+  counts: FollowCounts | null;
+  following: boolean;
+  followsViewer: boolean;
+};
+
+export function profileSocialDataForLaunch(
+  friendsLaunchEnabled: boolean,
+  data: ProfileSocialData,
+): ProfileSocialData {
+  return friendsLaunchEnabled
+    ? data
+    : { socialLinks: [], counts: null, following: false, followsViewer: false };
+}
+
 export function YouSignedOutSurface({
   nightMemoriesInvite,
 }: {
@@ -292,7 +356,9 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const routeHandle = normalizeHandle(use(params)?.handle);
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
-  const { user, identityResolved, signOut } = useAuth();
+  const { accountRevision, user, identityResolved, signOut } = useAuth();
+  const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
+  const followKey = `${accountRevision}:${routeHandle}`;
   const storedBadgeEventOptInRaw = useSyncExternalStore(
     subscribeBadgeEventOptIns,
     currentBadgeEventOptInRaw,
@@ -317,7 +383,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // The shared reader is the only place this surface may learn who is holding
   // the device. It returns null while identity is unresolved, so a cached
   // handle cannot name the previous account during session restore.
-  const viewerHandle = useViewerHandle() ?? "";
+  const viewerHandleFromIdentity = useViewerHandle() ?? "";
+  const viewerHandle = user ? viewerHandleFromIdentity : "";
   // The owner's own linked socials, public on their card by their own choice.
   const [socialLinks, setSocialLinks] = useState<PublicSocialLink[]>([]);
   // Durable profile row + follow graph, fetched from /api/profiles/[handle].
@@ -327,15 +394,31 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "nobody owns this handle" and "we could not find out" are two answers and
   // only the first one may offer a stranger the claim (`handleIsAdoptable`).
   const [publicRead, setPublicRead] = useState<PublicProfileReadState>("asking");
-  const [counts, setCounts] = useState<FollowCounts>({ followers: 0, following: 0 });
+  const [counts, setCounts] = useState<FollowCounts | null>(null);
   const [following, setFollowing] = useState(false);
   // The mirror edge. Without it the header cannot tell "Mates" from
   // "Following", which is the only fact that says a lot formed.
   const [followsViewer, setFollowsViewer] = useState(false);
+  const [followStateKey, setFollowStateKey] = useState(followKey);
+  const accountRevisionRef = useRef(accountRevision);
+
+  useEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
+
   // Owner-only "edit my profile" panel; opened from the header's Edit button.
   const [editing, setEditing] = useState(false);
   // Post-save confirmation shown back in view mode; clears itself shortly.
   const [savedNotice, setSavedNotice] = useState(false);
+
+  useEffect(() => {
+    if (followStateKey === followKey) return;
+    void Promise.resolve().then(() => {
+      setFollowStateKey(followKey);
+      setFollowing(false);
+      setFollowsViewer(false);
+    });
+  }, [followKey, followStateKey]);
   // PUBLIC crawl count for this handle, from /api/crawls?author= (the
   // crawl-story store is server-only, so a client route carries the number).
   // TRI-STATE: null is "the read could not answer", never a confident zero, and
@@ -463,6 +546,15 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // "Ken follows Sam's Date Night list" appears on /u/ken. Reads are fail-soft,
   // matching the API contract, because followed lists are additive context.
   useEffect(() => {
+    let active = true;
+    if (!socialFriendsLaunchEnabled) {
+      void Promise.resolve().then(() => {
+        if (active) setFollowedLists([]);
+      });
+      return () => {
+        active = false;
+      };
+    }
     const controller = new AbortController();
     async function loadFollowedLists() {
       const lists = routeHandle
@@ -471,8 +563,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       if (!controller.signal.aborted) setFollowedLists(lists);
     }
     void loadFollowedLists();
-    return () => controller.abort();
-  }, [routeHandle]);
+    return () => {
+      active = false;
+      controller.abort();
+    };
+  }, [routeHandle, socialFriendsLaunchEnabled]);
 
   // This handle's public crawls and their total (story 35 authorship), from one
   // read so the tile and the listing agree. Best-effort: a failure leaves an
@@ -608,6 +703,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     if (!routeHandle) return;
     const controller = new AbortController();
+    const requestRevision = accountRevision;
     async function loadProfile() {
       const qs = viewerHandle
         ? `?viewer=${encodeURIComponent(viewerHandle)}`
@@ -619,45 +715,59 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
         profile?: PublicProfile | null;
         status?: string;
         socialLinks?: PublicSocialLink[];
-        counts?: FollowCounts;
+        counts?: FollowCounts | null;
         viewerFollowing?: boolean;
         followsViewer?: boolean;
       }>(
         `/api/profiles/${encodeURIComponent(routeHandle)}${qs}`,
         { signal: controller.signal },
         (body) => {
+          if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
+          const socialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
+            socialLinks: body.socialLinks ?? [],
+            counts: body.counts ?? null,
+            following: Boolean(body.viewerFollowing),
+            followsViewer: Boolean(body.followsViewer),
+          });
           if (body.status === "gone") {
             setStored(null);
-            setSocialLinks([]);
+            setSocialLinks([...socialData.socialLinks]);
             setState("gone");
-            if (body.counts) setCounts(body.counts);
+            setCounts(socialData.counts);
             return;
           }
           setStored(body.profile ?? null);
-          setSocialLinks(body.socialLinks ?? []);
-          if (body.counts) setCounts(body.counts);
-          setFollowing(Boolean(body.viewerFollowing));
-          setFollowsViewer(Boolean(body.followsViewer));
+          setSocialLinks([...socialData.socialLinks]);
+          setCounts(socialData.counts);
+          setFollowing(socialData.following);
+          setFollowsViewer(socialData.followsViewer);
         },
       );
       // What the PUBLIC read managed to say about this handle, kept apart from
       // what it said. `handleIsAdoptable` may only ever act on an answer.
-      if (!controller.signal.aborted) {
+      if (!controller.signal.aborted && accountRevisionRef.current === requestRevision) {
         setPublicRead(outcome === "failed" ? "failed" : "answered");
       }
     }
     void loadProfile();
     return () => controller.abort();
-  }, [routeHandle, viewerHandle]);
+  }, [accountRevision, routeHandle, socialFriendsLaunchEnabled, viewerHandle]);
 
   // Overlay any durable, user-owned fields on top of the synthesized identity.
   const profile: Profile = withStoredProfile(
     deriveProfileFromDrops(routeHandle, drops as ProfileDrop[]),
     stored,
   );
+  const followStateReady = followStateKey === followKey;
+  const visibleSocialData = profileSocialDataForLaunch(socialFriendsLaunchEnabled, {
+    socialLinks,
+    counts,
+    following: followStateReady && following,
+    followsViewer: followStateReady && followsViewer,
+  });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
-  const isAnonymous = identityResolved && !user && viewerHandle === "";
+  const isAnonymous = identityResolved && !user;
   // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
   // a founding member's face, bio and number - and taking it wrote their handle
@@ -825,9 +935,11 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       {/* The crew-invite loop's entry point: your own add link. Opening it shows
           the share surface (ConfirmFollow's self branch), so a friend can add
           you at the table and you become each other's lot. */}
-      <Link className="profileInviteLink" href={`/add/${encodeURIComponent(routeHandle)}`}>
-        Invite your lot
-      </Link>
+      {socialFriendsLaunchEnabled ? (
+        <Link className="profileInviteLink" href={`/add/${encodeURIComponent(routeHandle)}`}>
+          Invite your lot
+        </Link>
+      ) : null}
       <button
         type="button"
         className="profileEditToggle"
@@ -848,12 +960,13 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
     <ProfileClaimOffer onClaim={claimHandle} />
   ) : isYouRoute ? null : (
     <>
-      <FollowButton
-        key={`${routeHandle}:${following}:${followsViewer}`}
-        targetHandle={routeHandle}
-        followerHandle={viewerHandle}
-        initialFollowing={following}
-        followsViewer={followsViewer}
+      <ProfileFollowBoundary
+        friendsLaunchEnabled={socialFriendsLaunchEnabled}
+        isAnonymous={isAnonymous}
+        routeHandle={routeHandle}
+        viewerHandle={viewerHandle}
+        following={visibleSocialData.following}
+        followsViewer={visibleSocialData.followsViewer}
         onCountsChange={setCounts}
       />
       {/* E4: additive 1:1 messaging control. Only renders when the viewer has a
@@ -943,12 +1056,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
             <ProfileHeader
               profile={profile}
               stats={stats}
-              socialLinks={socialLinks}
+              socialLinks={visibleSocialData.socialLinks}
               crawls={storyCount}
               memories={stats.memoriesPosted}
               drops={drops}
-              followers={counts.followers}
-              following={counts.following}
+              followers={visibleSocialData.counts?.followers}
+              following={visibleSocialData.counts?.following}
               actions={headerActions}
             />
             <p className="profileEmpty">
@@ -977,12 +1090,12 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                     <ProfileHeader
                       profile={profile}
                       stats={stats}
-                      socialLinks={socialLinks}
+                      socialLinks={visibleSocialData.socialLinks}
                       crawls={storyCount}
                       memories={stats.memoriesPosted}
                       drops={drops}
-                      followers={counts.followers}
-                      following={counts.following}
+                      followers={visibleSocialData.counts?.followers}
+                      following={visibleSocialData.counts?.following}
                       actions={headerActions}
                     />
                   </div>
