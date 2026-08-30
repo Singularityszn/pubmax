@@ -415,7 +415,7 @@ export default function ProfileImageCropper({
           max={ZOOM_STEPS}
           step={1}
           value={Math.round(zoom * ZOOM_STEPS)}
-          disabled={!ready || busy}
+          disabled={!ready || busy || rendering}
           onChange={handleZoom}
         />
       </div>

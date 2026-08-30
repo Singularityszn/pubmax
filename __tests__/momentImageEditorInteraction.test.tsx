@@ -5,6 +5,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import MomentImageEditor from "@/components/moment/MomentImageEditor";
+import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
+import { profileImageCropTarget } from "@/lib/profileImagePicker";
 
 let container: HTMLDivElement;
 let root: Root | null = null;
@@ -20,36 +22,38 @@ function pointerEvent(type: string, pointerId: number, clientX: number, clientY:
   return event;
 }
 
+function wheelEvent(deltaY: number, clientX: number, clientY: number): Event {
+  const event = new Event("wheel", { bubbles: true, cancelable: true });
+  Object.defineProperties(event, {
+    deltaY: { value: deltaY },
+    clientX: { value: clientX },
+    clientY: { value: clientY },
+  });
+  return event;
+}
+
 async function settle(): Promise<void> {
   await act(async () => {
     await Promise.resolve();
   });
 }
 
-async function mountEditor(): Promise<{
+async function finishMount(): Promise<{
   frame: HTMLDivElement;
   image: HTMLImageElement;
   confirm: HTMLButtonElement;
+  range: HTMLInputElement;
 }> {
-  await act(async () => {
-    root?.render(
-      createElement(MomentImageEditor, {
-        file: new File(["photo"], "night.jpg", { type: "image/jpeg" }),
-        openerRef: { current: null },
-        onSave: vi.fn(),
-        onCancel: vi.fn(),
-        onError: vi.fn(),
-      }),
-    );
-  });
   await settle();
 
   const frame = container.querySelector<HTMLDivElement>(".profileCropFrame");
   const image = container.querySelector<HTMLImageElement>(".profileCropImage");
   const confirm = container.querySelector<HTMLButtonElement>(".profileCropConfirm");
+  const range = container.querySelector<HTMLInputElement>('input[type="range"]');
   expect(frame).not.toBeNull();
   expect(image).not.toBeNull();
   expect(confirm).not.toBeNull();
+  expect(range).not.toBeNull();
 
   Object.defineProperty(frame!, "getBoundingClientRect", {
     configurable: true,
@@ -78,7 +82,40 @@ async function mountEditor(): Promise<{
   });
 
   expect(confirm!.disabled).toBe(false);
-  return { frame: frame!, image: image!, confirm: confirm! };
+  return { frame: frame!, image: image!, confirm: confirm!, range: range! };
+}
+
+async function mountEditor(): ReturnType<typeof finishMount> {
+  await act(async () => {
+    root?.render(
+      createElement(MomentImageEditor, {
+        file: new File(["photo"], "night.jpg", { type: "image/jpeg" }),
+        openerRef: { current: null },
+        onSave: vi.fn(),
+        onCancel: vi.fn(),
+        onError: vi.fn(),
+      }),
+    );
+  });
+  return finishMount();
+}
+
+async function mountSharedCropper(
+  onCropped: (file: File) => void,
+  onBusyChange: (busy: boolean) => void,
+): ReturnType<typeof finishMount> {
+  await act(async () => {
+    root?.render(
+      createElement(ProfileImageCropper, {
+        target: profileImageCropTarget("avatar"),
+        file: new File(["photo"], "avatar.jpg", { type: "image/jpeg" }),
+        onCancel: vi.fn(),
+        onCropped,
+        onBusyChange,
+      }),
+    );
+  });
+  return finishMount();
 }
 
 beforeEach(() => {
@@ -163,5 +200,58 @@ describe("MomentImageEditor crop export", () => {
     });
 
     expect(confirm.textContent).toBe("Preparing…");
+  });
+
+  it("locks shared crop interactions until an unresolved export finishes", async () => {
+    const busyChanges: boolean[] = [];
+    const onCropped = vi.fn();
+
+    const { frame, image, confirm, range } = await mountSharedCropper(
+      onCropped,
+      (busy: boolean) => busyChanges.push(busy),
+    );
+    const beforeTransform = image.style.transform;
+    const beforeZoom = range.value;
+
+    await act(async () => {
+      confirm.click();
+      await Promise.resolve();
+    });
+
+    expect(busyChanges).toEqual([true]);
+    expect(confirm.disabled).toBe(true);
+    expect(confirm.textContent).toBe("Uploading…");
+    expect(range.disabled).toBe(true);
+
+    await act(async () => {
+      frame.dispatchEvent(pointerEvent("pointerdown", 1, 80, 100));
+      frame.dispatchEvent(pointerEvent("pointermove", 1, 140, 160));
+      frame.dispatchEvent(wheelEvent(-120, 100, 120));
+      frame.dispatchEvent(new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+      }));
+      range.focus();
+      range.value = "50";
+      range.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+
+    expect(image.style.transform).toBe(beforeTransform);
+
+    const resolve = resolveExport;
+    expect(resolve).not.toBeNull();
+    resolveExport = null;
+    await act(async () => {
+      resolve!(new Blob(["cropped"], { type: "image/jpeg" }));
+      await Promise.resolve();
+    });
+
+    expect(busyChanges).toEqual([true, false]);
+    expect(confirm.disabled).toBe(false);
+    expect(confirm.textContent).toBe("Use photo");
+    expect(range.disabled).toBe(false);
+    expect(range.value).toBe(beforeZoom);
+    expect(onCropped).toHaveBeenCalledOnce();
   });
 });
