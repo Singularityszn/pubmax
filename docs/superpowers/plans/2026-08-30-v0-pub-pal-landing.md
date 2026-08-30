@@ -99,6 +99,6 @@ Run both focused test files, targeted ESLint on changed TypeScript files, and `g
 
 Confirm no voice-token, memory, moderation, recommendation, or account-ownership contract changed.
 
-- [ ] **Step 3: Commit and push**
+- [x] **Step 3: Commit and push**
 
 Commit with `feat(pal): make Pub Pal the front door`, push `codex/v0-pub-pal-landing`, open a PR, and confirm its remote head.
