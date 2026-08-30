@@ -99,6 +99,7 @@ export default function TonightAgentPanel() {
         </label>
         <input
           id="tonightAgentQuery"
+          type="text"
           className="tonightAgentInput"
           value={query}
           onChange={(event) => setQuery(event.target.value)}

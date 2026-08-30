@@ -1941,7 +1941,7 @@ function PlanComposerForm({
         </div>
         <div className="planComposer__conciergeInput">
           <label className="planComposer__srOnly" htmlFor="plan-concierge-query">Describe the outing</label>
-          <input id="plan-concierge-query" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
+          <input id="plan-concierge-query" type="text" aria-describedby="plan-concierge-status" value={conciergeQuery} onChange={(event) => setConciergeQuery(event.target.value)} placeholder="Add a mood, occasion or anything we missed" maxLength={500} />
           <button type="button" onClick={() => sortWithConcierge()} disabled={sorting || !canSortWithCurrentGenerator} aria-busy={sorting}>{sorting ? "Planning…" : "Make a plan"}</button>
         </div>
         <p id="plan-concierge-status" className="planComposer__conciergeStatus" role="status" aria-live="polite">
@@ -2110,11 +2110,11 @@ function PlanComposerForm({
       </section>
       <div className="planComposer__field planComposer__field--wide">
         <label htmlFor="plan-title">Name the night</label>
-        <input id="plan-title" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
+        <input id="plan-title" type="text" maxLength={80} value={title} onChange={(event) => setTitle(event.target.value)} />
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-name">Your name</label>
-        <input id="plan-name" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
+        <input id="plan-name" type="text" ref={nameInputRef} autoComplete="name" maxLength={CREW_NAME_MAX} required value={creatorName} onChange={(event) => setCreatorName(event.target.value)} placeholder="Karan" />
       </div>
       <div className="planComposer__field">
         <label htmlFor="plan-time">First pint</label>
@@ -2132,7 +2132,7 @@ function PlanComposerForm({
             <span className="planComposer__number" aria-hidden="true">{index + 1}</span>
             <div>
               <label htmlFor={`venue-name-${stop.key}`}>Venue name</label>
-              <input id={`venue-name-${stop.key}`} list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
+              <input id={`venue-name-${stop.key}`} type="text" list="plan-venue-options" value={stop.venueName} onChange={(event) => chooseVenue(stop.key, event.target.value)} placeholder="Start typing a pub" />
               {stop.reason ? <small className="planComposer__stopReason">{stop.reason}</small> : null}
             </div>
             <div className="planComposer__stopActions">

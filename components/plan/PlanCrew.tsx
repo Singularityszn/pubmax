@@ -317,7 +317,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
             If you&rsquo;re signed in with a claimed handle, joining connects you
             with the host in your lot.
           </p>
-          <div><input id="join-name" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
+          <div><input id="join-name" type="text" autoComplete="name" maxLength={CREW_NAME_MAX} value={name} onChange={(event) => setName(event.target.value)} placeholder="Your name" required /><button type="submit" disabled={pending}>I&rsquo;m in</button></div>
         </form>
       ) : (
         <div className="planCrew__presence" role="group" aria-label="Update your status">
