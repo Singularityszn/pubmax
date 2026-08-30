@@ -269,6 +269,79 @@ describe("Pub Pal voice controls", () => {
     expect(stopTrack).toHaveBeenCalledOnce();
   });
 
+  it("ends the current session from the visible End control and releases it once", async () => {
+    vi.useFakeTimers();
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    requests.authedActionFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        signedUrl: "wss://voice.example/session",
+        maxSessionSeconds: 10,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const session = voice.startSession.mock.calls[0][0] as {
+      onConnect?: () => void;
+      onError?: (error: unknown) => void;
+      onDisconnect?: () => void;
+    };
+    await act(async () => {
+      session.onConnect?.();
+      await Promise.resolve();
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+    });
+
+    voice.status = "connected";
+    await act(async () => {
+      root?.render(createElement(PubPalVoice));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const endButton = container.querySelector<HTMLButtonElement>("button");
+    expect(endButton?.textContent).toContain("End");
+
+    await act(async () => {
+      endButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    const releaseRequest = requests.authedActionFetch.mock.calls[1][1] as RequestInit;
+    const releaseBody = JSON.parse(String(releaseRequest.body)) as {
+      action: string;
+      durationSeconds: number;
+    };
+    expect(releaseBody.action).toBe("release");
+    expect(releaseBody.durationSeconds).toBeGreaterThan(0);
+
+    await act(async () => {
+      session.onError?.(new Error("late socket failure"));
+      session.onDisconnect?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(stopTrack).toHaveBeenCalledOnce();
+  });
+
   it("ignores stale callbacks from attempt A while attempt B owns its grant", async () => {
     vi.useFakeTimers();
     const stopTrackA = vi.fn();

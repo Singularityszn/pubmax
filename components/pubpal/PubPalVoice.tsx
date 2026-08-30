@@ -124,6 +124,11 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     }
   }, [endSession, finalizeSession, onStateChange, ownsAttempt, startController]);
 
+  const stopCurrentAttempt = useCallback((): void => {
+    const attempt = activeAttemptRef.current;
+    if (attempt) void stop(attempt);
+  }, [stop]);
+
   const start = async () => {
     if (disposedRef.current) return;
     if (startController.isStarting()) return;
@@ -246,7 +251,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       </div>
       <div className="palVoiceActions">
         {status === "connected" ? (
-          <button type="button" onClick={() => { void stop(); }}>
+          <button type="button" onClick={stopCurrentAttempt}>
             <MicOff size={18} /> End
           </button>
         ) : (
