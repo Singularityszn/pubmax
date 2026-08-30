@@ -43,9 +43,7 @@ that caught real bugs this week:
   in `.github/workflows/ci.yml`. Do not reopen without a captain decision.
 - Known follow-ups: `buildMapSearchSuggestions` complexity (45/35);
   `lib/ukBasePubSearch.ts` duplicates `lib/mapSearchSuggest.ts` ranking;
-  `sanitizeEvent`'s `target` special case lives in three places;
-  `lib/tonightAgent.ts` guesses field spellings and its £ figures carry no
-  dated-lane status.
+  `sanitizeEvent`'s `target` special case lives in three places.
 
 ## History
 
