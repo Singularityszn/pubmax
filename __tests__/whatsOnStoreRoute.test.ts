@@ -766,6 +766,77 @@ describe("the freshest confirmation available at request time", () => {
   });
 });
 
+describe("GET /api/whats-on serves the current service day and no other", () => {
+  // A bare GET used to answer with every future row the bundled files held. On
+  // Sunday 30 August 2026 that was 384 Wetherspoon weekday food clubs and
+  // 244 KB, served as what is on tonight, on a night this same read had nothing
+  // for. The scope is no longer a parameter a caller has to think to send.
+  const TUESDAY_ROW = makeRow({
+    id: "jdw-burgers-tuesday",
+    kind: "deal",
+    title: "Gourmet Burgers Club - every Tuesday",
+    // Well past NOW's service day (Saturday 11 July 2026, London).
+    startsAt: "2026-07-14T11:30:00+01:00",
+    endsAt: "2026-07-14T23:00:00+01:00",
+  });
+
+  it("drops a row belonging to another day from a bare request", async () => {
+    const res = await handleWhatsOnRequest(req(), {
+      now: NOW,
+      loadBaseline: () => [TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    const body = await res.json();
+    expect(res.status).toBe(200);
+    expect(body.rows).toEqual([]);
+    // An empty night is an honest empty, never an error.
+    expect(body.error).toBeUndefined();
+  });
+
+  it("keeps a row that is on tonight", async () => {
+    const res = await handleWhatsOnRequest(req(), {
+      now: NOW,
+      loadBaseline: () => [makeRow(), TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    const body = await res.json();
+    expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["r1"]);
+  });
+
+  it("answers a kind with no rows tonight with nothing, rather than advertising it", async () => {
+    const res = await handleWhatsOnRequest(req("?kind=deal"), {
+      now: NOW,
+      loadBaseline: () => [makeRow(), TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    const body = await res.json();
+    expect(body.rows).toEqual([]);
+  });
+
+  it("gives an unrecognised window the same service day, not the whole horizon", async () => {
+    const res = await handleWhatsOnRequest(req("?window=everything"), {
+      now: NOW,
+      loadBaseline: () => [TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    expect((await res.json()).rows).toEqual([]);
+  });
+
+  it("still means the same thing when a caller asks for tonight explicitly", async () => {
+    const bare = await handleWhatsOnRequest(req(), {
+      now: NOW,
+      loadBaseline: () => [makeRow(), TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    const explicit = await handleWhatsOnRequest(req("?window=tonight"), {
+      now: NOW,
+      loadBaseline: () => [makeRow(), TUESDAY_ROW],
+      fetchLive: async () => [],
+    });
+    expect((await bare.json()).rows).toEqual((await explicit.json()).rows);
+  });
+});
+
 describe("GET /api/whats-on (handleWhatsOnRequest)", () => {
   it("returns honest freshness fields and no-store caching", async () => {
     const res = await handleWhatsOnRequest(req(), {
