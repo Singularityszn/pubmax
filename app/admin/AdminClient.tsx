@@ -210,7 +210,6 @@ type ModeratorSocialPost = {
   postId: string;
   mediaId: string | null;
   revision: number;
-  authorProfileId: string;
   authorHandle: string;
   body: string;
   photoAltText: string | null;
@@ -276,9 +275,6 @@ function SocialPostModerationQueue({
               <div className="admin-card-head">
                 <span className="admin-handle">@{post.authorHandle}</span>
                 <span className="admin-report">Revision {post.revision}</span>
-              </div>
-              <div className="admin-meta">
-                <span>Profile: {post.authorProfileId}</span>
               </div>
               <p className="admin-note">{post.body}</p>
               {post.mediaId ? (

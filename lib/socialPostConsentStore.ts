@@ -40,7 +40,6 @@ export type SocialPostHeldItem = {
 };
 export type SocialPostAdminHeldItem = SocialPostHeldItem & {
   revision: number;
-  authorProfileId: string;
   authorHandle: string;
   body: string;
   photoAltText: string | null;
@@ -167,7 +166,6 @@ function adminHeldItemFromRow(
   return {
     ...held,
     revision: post.revision,
-    authorProfileId: post.authorProfileId,
     authorHandle: post.authorHandle,
     body: post.body,
     photoAltText: post.photo?.altText ?? null,
@@ -359,7 +357,6 @@ export function createSocialPostConsentStore(): SocialPostConsentStore {
           state,
           social_posts!inner(
             id,
-            author_profile_id,
             author_handle,
             visibility,
             status,

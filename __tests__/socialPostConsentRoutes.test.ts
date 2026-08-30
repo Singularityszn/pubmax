@@ -247,13 +247,12 @@ describe("Social consent API contracts", () => {
     expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
   });
 
-  it("returns held revision context only through the moderator queue", async () => {
-    state.adminQueueRows = [{
+  it("returns moderator-safe held revision context without the stable author ID", async () => {
+    const heldPost = {
       staffDisplayName: "Captain",
       postId,
       mediaId: null,
       revision: 4,
-      authorProfileId: "profile-alice",
       authorHandle: "alice",
       body: "Friday at the Pineapple.",
       photoAltText: null,
@@ -265,7 +264,8 @@ describe("Social consent API contracts", () => {
       moderationState: "needs_review",
       createdAt: "2026-08-29T11:55:00.000Z",
       updatedAt: "2026-08-29T12:00:00.000Z",
-    }];
+    };
+    state.adminQueueRows = [heldPost];
 
     const anonymous = await readAdminQueue(
       new Request("http://localhost/api/admin/social-posts"),
@@ -278,7 +278,15 @@ describe("Social consent API contracts", () => {
 
     expect(anonymous.status).toBe(403);
     expect(moderator.status).toBe(200);
-    expect(await moderator.json()).toEqual({ posts: state.adminQueueRows });
+    const payload = await moderator.json() as { posts: Array<Record<string, unknown>> };
+    expect(payload).toEqual({ posts: [heldPost] });
+    expect(payload.posts[0]).not.toHaveProperty("authorProfileId");
+    expect(payload.posts[0]).toMatchObject({
+      authorHandle: "alice",
+      revision: 4,
+      mediaId: null,
+      moderationState: "needs_review",
+    });
   });
 
   it("preserves conflict and operational moderation failures", async () => {

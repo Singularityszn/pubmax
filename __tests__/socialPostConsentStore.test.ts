@@ -136,7 +136,6 @@ describe("Social post consent and private read store", () => {
       created_at: "2026-08-29T12:01:00.000Z",
       social_posts: {
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-        author_profile_id: "profile-alice",
         author_handle: "alice",
         visibility: "friends",
         status: "visible",
@@ -159,7 +158,6 @@ describe("Social post consent and private read store", () => {
       postId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
       mediaId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       revision: 4,
-      authorProfileId: "profile-alice",
       authorHandle: "alice",
       body: "Friday at the Pineapple.",
       photoAltText: "Two pints beside the window",
@@ -200,6 +198,9 @@ describe("Social post consent and private read store", () => {
       postIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
       state: "done",
     })]);
+    expect(state.tableCalls[0]?.columns).toContain("author_handle");
+    expect(state.tableCalls[0]?.columns).toContain("moderation_state");
+    expect(state.tableCalls[0]?.columns).not.toContain("author_profile_id");
   });
 
   it("does not combine an authorised queue row with a different post revision", async () => {
@@ -219,7 +220,6 @@ describe("Social post consent and private read store", () => {
       created_at: "2026-08-29T12:05:00.000Z",
       social_posts: {
         id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-        author_profile_id: "profile-alice",
         author_handle: "alice",
         visibility: "public",
         status: "visible",

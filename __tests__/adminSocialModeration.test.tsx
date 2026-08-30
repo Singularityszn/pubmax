@@ -28,7 +28,6 @@ const state = vi.hoisted(() => ({
     postId: string;
     mediaId: string | null;
     revision: number;
-    authorProfileId: string;
     authorHandle: string;
     body: string;
     photoAltText: string | null;
@@ -133,7 +132,6 @@ describe("Admin Social post moderation queue", () => {
     postId: "11111111-1111-4111-8111-111111111111",
     mediaId: "22222222-2222-4222-8222-222222222222",
     revision: 4,
-    authorProfileId: "profile-alice",
     authorHandle: "alice",
     body: "Friday at the Pineapple.",
     photoAltText: "Two pints beside the window",
@@ -165,7 +163,8 @@ describe("Admin Social post moderation queue", () => {
     state.socialPosts = [heldPost];
     await loadAdmin();
     expect(host.textContent).toContain("@alice");
-    expect(host.textContent).toContain("Profile: profile-alice");
+    expect(host.textContent).not.toContain("Profile:");
+    expect(host.textContent).not.toContain("profile-alice");
     expect(host.textContent).toContain("Revision 4");
     expect(host.textContent).toContain("Friday at the Pineapple.");
     expect(host.textContent).toContain("Area: camden");
