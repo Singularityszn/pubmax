@@ -130,35 +130,6 @@
   font-weight: 600;
 }
 
-/* ── Founder note ───────────────────────────────────────────── */
-/* First-person block inside "Who builds it". Same panel + brass-edge idiom as
-   the ethos list, sized up to read as one settled note rather than a bullet. */
-.aboutFounderNote {
-  margin: 18px 0 0;
-  padding: 18px 18px 16px;
-  border: 1px solid var(--line);
-  border-left: 3px solid var(--brass);
-  border-radius: var(--radius-lg, 18px);
-  background: var(--panel);
-}
-
-.aboutFounderQuote {
-  margin: 0;
-}
-
-.aboutFounderQuote .aboutBody:last-child {
-  margin-bottom: 0;
-}
-
-.aboutFounderSig {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--line-soft, var(--line));
-  font-size: 0.85rem;
-  font-weight: 600;
-  color: var(--muted);
-}
-
 /* ── Traction band ──────────────────────────────────────────── */
 .aboutTraction {
   padding: 22px 18px;

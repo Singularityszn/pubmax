@@ -4,7 +4,7 @@ Strategy and sequencing docs. Prefer one plan per concern; do not implement from
 
 | Plan | Status | Owns |
 |--|--|--|
-| [`CREW_NIGHT_LOOP.md`](./CREW_NIGHT_LOOP.md) | S1 COMPLETE | Invite-first Social Wave S1: spend band, soft occasions, crew tonight, reinvite; Social is live by default with `=0` emergency rollback |
+| [`CREW_NIGHT_LOOP.md`](./CREW_NIGHT_LOOP.md) | EXECUTING | Invite-first Social Wave S1: spend band, soft occasions, crew tonight, reinvite; Social is live by default with `=0` emergency rollback |
 | [`FIRST_PRINCIPLES_OUTINGS.md`](./FIRST_PRINCIPLES_OUTINGS.md) | WAVES S1–S4 LANDED | Story / anti-slop voice, occasion expansion beyond pints, legal data densification |
 | [`OUTINGS_WAVE_REVIEW.md`](./OUTINGS_WAVE_REVIEW.md) | REVIEW + FIXES | Code review of S1–S4 and follow-up taxonomy/outing-copy patches |
 | [`FABLE_REVIEW_ITERATION.md`](./FABLE_REVIEW_ITERATION.md) | EXECUTING | Multi-PR overnight queue for Fable; avoids duplicating #816 |

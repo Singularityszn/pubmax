@@ -16,12 +16,11 @@ is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 | Seed boroughs | 1–2 (e.g. Soho + Camden) with corroborated people-logged prices before the blast |
 | Ads | None for week 1 |
 
-## Per-night metric (Crew Night S1)
+## North star (Crew Night S1)
 
 Plans with **at least two committed humans** on the crew roster. No new event:
 reuse `crew_committed` and filter `participants >= 2`. Full formula and
-rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0. The loop north
-star is `next_night_committed`; its emitter and privacy contract live there.
+rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0.
 
 ```
 crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2)
@@ -38,7 +37,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
-| **Crew nights (per-night metric)** | `crew_committed` where `participants >= 2`; rate over `plan_saved` |
+| **Crew nights (north star)** | `crew_committed` where `participants >= 2`; rate over `plan_saved` |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |

@@ -159,37 +159,6 @@ describe("About outings story (Wave S1)", () => {
     expect(html).not.toContain("!");
   });
 
-  it("carries a first-person founder note with no invented biography", async () => {
-    const html = await renderAbout();
-
-    // The note lives inside the "Who builds it" section, after the intro line.
-    const teamAt = html.indexOf('aria-labelledby="team"');
-    const noteAt = html.indexOf('class="aboutFounderNote"');
-    expect(teamAt).toBeGreaterThan(-1);
-    expect(noteAt).toBeGreaterThan(teamAt);
-
-    const note = html.slice(noteAt, html.indexOf("</figure>", noteAt));
-    // The three beats: the why, the honesty rule, the mission.
-    expect(note).toContain("Nothing worked for the person paying");
-    expect(note).toContain("I would rather ship a gap than a guess");
-    expect(note).toContain("best way in the world to decide which pub");
-    expect(note).toContain("Karan Manoharan, founder of PUBMAXX");
-    // Provenance rule: the note claims no personal facts the site cannot
-    // stand behind - no dates, no CV, no schools, no prior employers.
-    expect(note).not.toMatch(/\b(19|20)\d\d\b/u);
-    expect(note).not.toMatch(/university|school|degree|ex-|previously (at|worked)/iu);
-    // House voice fences hold inside the note too.
-    expect(note).not.toContain("—");
-    expect(note).not.toContain("!");
-    expect(note).not.toMatch(/\b(journey|unlock|seamless|curated|discover|elevate|experience)\b/iu);
-  });
-
-  it("names the founder on the Organization JSON-LD", async () => {
-    const html = await renderAbout();
-
-    expect(html).toContain('"founder":{"@type":"Person","name":"Karan Manoharan"');
-  });
-
   it("leads the first viewport with PUBMAXX brand + one lede composition", async () => {
     const html = await renderAbout();
 

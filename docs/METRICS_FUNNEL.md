@@ -12,9 +12,9 @@ without explicit analytics consent, and `POST /api/events` re-validates
 consent + the pseudonymous anon id server-side before forwarding anything to
 PostHog. Nothing in this wave weakens that gate.
 
-## 0. Crew Night metrics (S1)
+## 0. Crew Night north star (S1)
 
-**Per-night metric:** share of nights where a plan reaches **at least two committed
+**North star:** share of nights where a plan reaches **at least two committed
 humans** on the crew roster, not scroll DAU on `/social`.
 
 **Event:** `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx`
@@ -34,7 +34,7 @@ crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, 
 
 Group by pseudonymous `distinct_id` when you need a per-planner rate. A single
 plan may emit several `crew_committed` events as guests join; each carries the
-then-current `participants` count, so the per-night filter is `participants >= 2`
+then-current `participants` count, so the north-star filter is `participants >= 2`
 on the event, not a dedupe by plan id (no plan id rides on this event).
 
 **Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
@@ -48,17 +48,6 @@ page conversion (§7); they do not substitute for committed humans on the roster
 invite events (`plan_invite_link_copied`, `invite_page_viewed`,
 `invite_rsvp_submitted`, and the rest of §7) follow the same rule: no `planId`
 on those link or guest-side events. See §7 for the id-hygiene rationale.
-
-**Loop closure:** `next_night_committed` is the Crew Night loop's north star
-(`docs/plans/CREW_NIGHT_LOOP.md` §0): a finished night turning into the next
-one. Three usual-lot reinvite surfaces emit it, and they are the whole list:
-`components/plan/LastCrewInvite.tsx` (source `crew-reinvite`),
-`components/plan/CompletedPlanUsualLot.tsx` and
-`components/night/MorningReentryCard.tsx` (both source `completed_plan`).
-All three build their props through the one seam `nextNightCommittedProps`
-(`lib/lastCrew.ts`): a closed `source` plus coarse `windowDays`, never a name,
-a venue id or a coordinate. `crew_committed >= 2` measures one night;
-`next_night_committed` measures the loop.
 
 ## 1. Nights planned / week
 
