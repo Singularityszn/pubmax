@@ -17,6 +17,7 @@ import {
   getPushPromptVisibleSnapshot,
   markPushPromptDismissed,
   markPushPromptEnabled,
+  NATIVE_PUSH_PROMPT_COPY,
   subscribePushPrompt,
 } from "@/lib/nativePushPrompt";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
@@ -65,17 +66,17 @@ export default function NativePushPrompt(): React.JSX.Element | null {
         aria-describedby="native-push-prompt-body"
       >
         <p id="native-push-prompt-title" className="nativePushPrompt__title">
-          Stay in the loop
+          {NATIVE_PUSH_PROMPT_COPY.title}
         </p>
         <p id="native-push-prompt-body" className="nativePushPrompt__body">
-          Get pinged when your crew votes or the get-in closes.
+          {NATIVE_PUSH_PROMPT_COPY.body}
         </p>
         <div className="nativePushPrompt__actions">
           <button type="button" className="nativePushPrompt__later pressable" onClick={handleLater}>
-            Later
+            {NATIVE_PUSH_PROMPT_COPY.later}
           </button>
           <button type="button" className="nativePushPrompt__enable pressable" onClick={handleEnable}>
-            Enable
+            {NATIVE_PUSH_PROMPT_COPY.enable}
           </button>
         </div>
       </div>

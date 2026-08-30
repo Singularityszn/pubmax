@@ -26,7 +26,11 @@ vi.mock("@capacitor/push-notifications", () => ({
   },
 }));
 
-import { registerNativePush } from "@/lib/nativePush";
+import {
+  activateNativePushNavigation,
+  nativePushNavigationPath,
+  registerNativePush,
+} from "@/lib/nativePush";
 
 beforeEach(() => {
   isNativeApp.mockReturnValue(true);
@@ -48,6 +52,16 @@ describe("registerNativePush", () => {
     await expect(registerNativePush()).resolves.toBe(false);
 
     expect(checkPermissions).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+  });
+
+  it("does not register Android until a real FCM sender exists", async () => {
+    nativePlatform.mockReturnValue("android");
+
+    await expect(registerNativePush()).resolves.toBe(false);
+
+    expect(checkPermissions).not.toHaveBeenCalled();
+    expect(addListener).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
   });
 
@@ -89,16 +103,15 @@ describe("registerNativePush", () => {
     });
   });
 
-  it("does not post a token when the native platform is unavailable", async () => {
+  it("does not register when the native platform is unavailable", async () => {
     const fetch = vi.fn();
     vi.stubGlobal("fetch", fetch);
     nativePlatform.mockReturnValue(null);
 
-    await registerNativePush();
-    const onRegistration = addListener.mock.calls[0]?.[1];
-    onRegistration({ value: "device-token" });
-    await Promise.resolve();
+    await expect(registerNativePush()).resolves.toBe(false);
 
+    expect(addListener).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
     expect(fetch).not.toHaveBeenCalled();
   });
 
@@ -120,5 +133,63 @@ describe("registerNativePush", () => {
 
     expect(addListener).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
+  });
+});
+
+describe("nativePushNavigationPath", () => {
+  it.each([
+    [{ data: { url: "/tonight" } }, "/tonight"],
+    [{ data: { url: "/plan/abc?from=push#crew" } }, "/plan/abc?from=push#crew"],
+  ])("accepts a safe internal notification target", (notification, expected) => {
+    expect(nativePushNavigationPath(notification)).toBe(expected);
+  });
+
+  it.each([
+    {},
+    { data: {} },
+    { data: { url: "https://evil.example/tonight" } },
+    { data: { url: "//evil.example/tonight" } },
+    { data: { url: "/admin" } },
+    { data: { url: "/auth/callback#access_token=secret" } },
+  ])("rejects a missing, external, or unsupported notification target", (notification) => {
+    expect(nativePushNavigationPath(notification)).toBeNull();
+  });
+});
+
+describe("activateNativePushNavigation", () => {
+  it("is a plugin-free no-op outside the native shell", async () => {
+    isNativeApp.mockReturnValue(false);
+
+    const cleanup = await activateNativePushNavigation(vi.fn());
+    cleanup();
+
+    expect(addListener).not.toHaveBeenCalled();
+  });
+
+  it("routes notification taps and removes its listener", async () => {
+    const remove = vi.fn().mockResolvedValue(undefined);
+    let onAction: ((event: { notification: { data?: Record<string, unknown> } }) => void) | undefined;
+    addListener.mockImplementation(async (event, callback) => {
+      if (event === "pushNotificationActionPerformed") onAction = callback;
+      return { remove };
+    });
+    const navigate = vi.fn();
+
+    const cleanup = await activateNativePushNavigation(navigate);
+    onAction?.({ notification: { data: { url: "/tonight" } } });
+    onAction?.({ notification: { data: { url: "https://evil.example/tonight" } } });
+
+    expect(navigate).toHaveBeenCalledOnce();
+    expect(navigate).toHaveBeenCalledWith("/tonight");
+    cleanup();
+    expect(remove).toHaveBeenCalledOnce();
+  });
+
+  it("fails soft when the push plugin cannot attach", async () => {
+    addListener.mockRejectedValue(new Error("plugin unavailable"));
+
+    await expect(activateNativePushNavigation(vi.fn())).resolves.toEqual(
+      expect.any(Function),
+    );
   });
 });

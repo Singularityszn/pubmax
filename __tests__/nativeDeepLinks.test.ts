@@ -31,6 +31,10 @@ describe("nativeDeepLinkPath", () => {
     ["https://pubmaxxing.com/plan/abc", "/plan/abc"],
     ["https://pubmaxxing.com/rounds/invite?from=push", "/rounds/invite?from=push"],
     ["https://pubmaxxing.com/p/pub-1#prices", "/p/pub-1#prices"],
+    [
+      "https://pubmaxxing.com/auth/callback?next=%2Fmap#access_token=token",
+      "/auth/callback?next=%2Fmap#access_token=token",
+    ],
   ])("accepts an allow-listed production link", (url, expected) => {
     expect(nativeDeepLinkPath(url)).toBe(expected);
   });
@@ -40,6 +44,7 @@ describe("nativeDeepLinkPath", () => {
     "http://pubmaxxing.com/plan/abc",
     "https://www.pubmaxxing.com/plan/abc",
     "https://pubmaxxing.com/admin",
+    "https://pubmaxxing.com/auth/callback/anything",
     "not a url",
   ])("rejects links outside the exact origin and route allow-list", (url) => {
     expect(nativeDeepLinkPath(url)).toBeNull();

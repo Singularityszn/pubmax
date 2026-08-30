@@ -3,21 +3,24 @@
 import { useEffect } from "react";
 
 import { activateNativeDeepLinks } from "@/lib/nativeDeepLinks";
+import { activateNativePushNavigation } from "@/lib/nativePush";
 
-/** Renderless Capacitor App listener for cold and warm universal/app links. */
+/** Renderless listeners for native app links and notification taps. */
 export default function NativeDeepLinks(): null {
   useEffect(() => {
     let disposed = false;
-    let deactivate: (() => void) | undefined;
+    const deactivators: Array<() => void> = [];
 
-    void activateNativeDeepLinks().then((cleanup) => {
-      if (disposed) cleanup();
-      else deactivate = cleanup;
-    });
+    for (const activate of [activateNativeDeepLinks, activateNativePushNavigation]) {
+      void activate().then((cleanup) => {
+        if (disposed) cleanup();
+        else deactivators.push(cleanup);
+      });
+    }
 
     return () => {
       disposed = true;
-      deactivate?.();
+      for (const deactivate of deactivators) deactivate();
     };
   }, []);
 

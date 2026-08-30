@@ -5,7 +5,22 @@ import { describe, expect, it } from "vitest";
 // must never fire on the web, must never re-fire once enabled, and after a
 // "Later" dismissal must wait for a strictly later qualifying plan action
 // before offering again.
-import { shouldOfferPushPrompt } from "@/lib/nativePushPrompt";
+import {
+  NATIVE_PUSH_PROMPT_COPY,
+  shouldOfferPushPrompt,
+} from "@/lib/nativePushPrompt";
+
+describe("native push prompt copy", () => {
+  it("only promises the public night update that native tokens can receive", () => {
+    expect(NATIVE_PUSH_PROMPT_COPY).toEqual({
+      title: "Know when tonight changes",
+      body: "Get a ping when a fresh London night signal goes live.",
+      later: "Not now",
+      enable: "Turn on",
+    });
+    expect(NATIVE_PUSH_PROMPT_COPY.body).not.toMatch(/crew|vote|get-in/i);
+  });
+});
 
 describe("shouldOfferPushPrompt", () => {
   it("never offers on the web, regardless of other state", () => {

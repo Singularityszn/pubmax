@@ -2,27 +2,37 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `executing-plans` to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship existing PUBMAXXING Capacitor shells as tested iOS and Android store candidates that render same London v0 mobile UI as browser.
+**Goal:** Ship existing PUBMAXXING Capacitor shells as tested iOS and Android store candidates that render the accepted mobile product from one current-main commit.
 
 **Architecture:** Keep one server-rendered Next.js product and two checked-in Capacitor 8 native projects at `ios/` and `android/`. Both shells load `https://pubmaxxing.com` through remote-URL mode. Native behaviour stays behind `lib/native*.ts` and `components/native/**`; no React Native, SwiftUI, duplicate map, or duplicate product UI is added.
 
-**Tech Stack:** Next.js 16, React 19, Capacitor 8.5, Swift Package Manager, Xcode, Android Gradle Plugin, Java 17, Vitest, Playwright, iOS Simulator, Android Emulator.
+**Tech Stack:** Next.js 16, React 19, Capacitor 8.5, Swift Package Manager, Xcode, Android Gradle Plugin, Java 21, Vitest, iOS Simulator, Android Emulator.
 
 **Spec:** `docs/CAPACITOR_WRAP.md`
 
 ## Global Constraints
 
-- Work only in clean worktree `/Users/karanmanoharan/Documents/pubmax-mobile-release` on branch `codex/mobile-release-readiness`.
+- Work only in clean worktree `/Users/karanmanoharan/Documents/pubmax-mobile-release` on branch `codex/mobile-release-current-main`.
 - Preserve dirty primary checkout `/Users/karanmanoharan/Documents/pubmax`.
 - Native task owns `capacitor.config.ts`, `ios/**`, `android/**`, `native/**`, `lib/native*.ts`, `components/native/**`, native-only tests, native assets, and native release documentation.
-- Do not edit `components/PubMap.tsx`, `components/map/pubmap/useMapSurfaceNavigation.ts`, or current London v0 web/data paths.
+- Do not edit shared web, map, data, dependency, or deployment paths unless a confirmed native blocker requires an exact-file change.
 - Do not edit shared `package.json`, `package-lock.json`, `next.config.mjs`, `app/layout.tsx`, `.gitignore`, `AGENTS.md`, or shared browser/E2E configuration without explicit coordination.
-- Treat PR `#1237` as unmerged. Rebase native work only after London v0 task reports merge SHA.
+- PR `#1237` closed without merge. It is not a release-base dependency. Base native work on a fetched, recorded `origin/main` SHA and do not import unmerged feature branches.
 - Do not run final Vercel production build/deploy, App Store archive, Play release bundle, or store submission before shared release checkpoint.
 - Keep remote URL HTTPS-only and `native/web-stub/offline.html` as truthful first-load failure surface.
 - Keep all direct Capacitor imports inside `lib/native*.ts`.
 - Use app name `PUBMAXXING`, app ID `com.pubmaxx.app`, iOS minimum 15, Android minimum API 24, Android target API 36.
 - Use one native UI source: current web mobile surface at 320, 390, and 430 CSS-pixel widths.
+
+## Current checkpoint - 2026-08-30
+
+- Current-main source base: `65995519e62f341d232c451bcb250c19739ce1f2`.
+- Current native branch was created from that exact SHA. Seven preserved native commits were replayed without native-path conflicts.
+- Old `origin/codex/mobile-release-readiness` remains an untouched recovery branch.
+- Full Xcode is not installed. Command Line Tools alone cannot compile iOS.
+- Java 11 is installed. Android generated Gradle requires Java 21. Android SDK tools are not installed.
+- Browser-proxy images are product-shape evidence only. They are not iOS WebView, Android WebView, simulator, emulator, signing, push, or store evidence.
+- Heavy toolchain installation and runtime builds require more disk and memory headroom. Keep source checks serial until that resource gate is open.
 
 ---
 
@@ -36,9 +46,13 @@
 - Consumes: `@capacitor/ios` version from clean `package-lock.json` and `npx cap sync`.
 - Produces: Swift Package Manager dependency on `capacitor-swift-pm` version `8.5.0`.
 
-- [ ] **Step 1: Reproduce generated drift**
+- [x] **Step 1: Align the generated package version**
 
-Run:
+Commit `8537eed7d` replayed the iOS package alignment from Capacitor 8.4.2 to 8.5.0.
+
+- [ ] **Step 2: Prove sync creates zero drift**
+
+After local dependencies and native toolchains are available, run:
 
 ```sh
 npm ci
@@ -46,9 +60,9 @@ npx cap sync
 git diff -- ios/App/CapApp-SPM/Package.swift
 ```
 
-Expected: sync changes `capacitor-swift-pm` from `8.4.2` to `8.5.0` and no other tracked native file changes.
+Expected: no tracked native file changes. Any generated drift is a blocker.
 
-- [ ] **Step 2: Verify sync preserved intentional native files**
+- [ ] **Step 3: Verify sync preserved intentional native files**
 
 Run:
 
@@ -62,12 +76,12 @@ Expected hashes after sync:
 
 ```text
 f4e88cf27f60c90d1be01dc67fc48a288b8d20e0df29d993d407cfc8a33698e0  ios/App/App/AppDelegate.swift
-b56f860f7546e42e342e7d4b46b2fd44cf1ee1d8376ad207e1fecd2d561f3686  ios/App/App/Info.plist
-0433786b949b47baa4b21018b54f34076742d53b255609c5b26ea864d2cb1dda  android/app/src/main/AndroidManifest.xml
+246c17d43eb0939804af2ff62b8f42a0db82acab9c3e333396a7e18a387a8234  ios/App/App/Info.plist
+a9fa8f1e6783f547ae10afe9d23a04147c3099d5acc7c94db3d724d37bb58ce0  android/app/src/main/AndroidManifest.xml
 5676fbe911fb0791bb4a1b3a272767fc6b19b2fcae474b4913a4d9d4b1b51d4b  android/app/src/main/java/com/pubmaxx/app/MainActivity.java
 ```
 
-- [ ] **Step 3: Verify Capacitor projects**
+- [ ] **Step 4: Verify Capacitor projects**
 
 Run:
 
@@ -78,7 +92,7 @@ npx cap ls
 
 Expected: iOS and Android both report success; app, camera, and push plugins appear on both platforms.
 
-- [ ] **Step 4: Run focused native tests**
+- [x] **Step 5: Run focused native tests**
 
 Run:
 
@@ -94,9 +108,9 @@ npm test -- \
   __tests__/storeAssets.test.ts
 ```
 
-Expected: 8 files and 54 tests pass.
+Result on 2026-08-30: 8 files and 73 tests passed. Targeted ESLint passed. Tests used the identical dependency tree from the Pub Pal worktree because this worktree has no local install.
 
-- [ ] **Step 5: Commit generated alignment**
+- [x] **Step 6: Commit generated alignment**
 
 ```sh
 git add ios/App/CapApp-SPM/Package.swift
@@ -126,21 +140,12 @@ https://pubmaxxing.com/map
 
 Expected: mobile map surface renders without horizontal overflow and with 44px primary controls.
 
-- [ ] **Step 2: Inject native bridge before page scripts**
+- [ ] **Step 2: Keep browser proof product-only**
 
-Use browser CDP `Page.addScriptToEvaluateOnNewDocument` with:
-
-```js
-Object.defineProperty(window, "Capacitor", {
-  configurable: true,
-  value: {
-    isNativePlatform: () => true,
-    getPlatform: () => "ios",
-  },
-});
-```
-
-Reload. Expected: `isNativeApp()` resolves true and native-only web branches activate.
+Do not inject a fake Capacitor bridge. Codex in-app browser cannot install a
+pre-document script, and a post-load bridge cannot prove native branches.
+Capture only shared mobile product shape. Native-only behavior belongs in Task
+3 simulator and emulator proof.
 
 - [ ] **Step 3: Capture light and dark map evidence**
 
@@ -165,7 +170,7 @@ In `docs/proof/native-v0-browser/README.md`, record URL, commit SHA, viewport, t
 - Create: `docs/proof/native-v0-build/README.md`
 
 **Interfaces:**
-- Consumes: full Xcode, iOS Simulator runtime, Java 17, Android SDK, and one Android virtual device.
+- Consumes: full Xcode, iOS Simulator runtime, Java 21, Android SDK, and one Android virtual device.
 - Produces: unsigned iOS Simulator app, Android debug APK, compiler logs, and launch screenshots.
 
 - [ ] **Step 1: Install owner toolchains**
@@ -180,7 +185,7 @@ adb version
 emulator -list-avds
 ```
 
-Expected: Xcode path under `/Applications/Xcode.app`, Java major 17 or newer, Android SDK tools available, and at least one AVD.
+Expected: Xcode path under `/Applications/Xcode.app`, Java major 21, Android SDK tools available, and at least one AVD.
 
 - [ ] **Step 2: Sync native projects from clean source**
 
@@ -220,20 +225,20 @@ Use iOS Simulator and Android Emulator. Verify HTTPS remote boot, native cold-st
 
 Record tool versions, commit SHA, build commands, artefact paths, launch screenshots, and known owner-only exclusions in `docs/proof/native-v0-build/README.md`.
 
-### Task 4: Rebase after London v0 integration
+### Task 4: Refresh from accepted current main
 
 **Files:**
 - Modify: native-owned files only if rebase or sync creates native drift.
 
 **Interfaces:**
-- Consumes: merged PR `#1237` SHA and later London v0 merge SHAs.
-- Produces: native branch based on same web commit accepted for London v0.
+- Consumes: exact fetched `origin/main` SHA selected for the release candidate.
+- Produces: native branch based on the same current-main commit used for browser and wrapped-build acceptance.
 
-- [ ] **Step 1: Receive merged SHA from London v0 task**
+- [x] **Step 1: Record current main**
 
-Do not infer merge from local worktree. Confirm PR `#1237` is merged and record exact `origin/main` SHA.
+Fetched `origin/main` and recorded `65995519e62f341d232c451bcb250c19739ce1f2`. PR `#1237` is closed without merge and is retired as a base dependency.
 
-- [ ] **Step 2: Fetch and inspect overlap**
+- [x] **Step 2: Fetch and inspect overlap**
 
 ```sh
 git fetch origin --prune
@@ -241,15 +246,17 @@ git diff --name-only HEAD..origin/main
 git diff --name-only origin/main...HEAD
 ```
 
-Expected: no overlap with native-owned files. If overlap exists, stop and coordinate exact files.
+Result: no current-main changes overlapped the preserved native paths.
 
-- [ ] **Step 3: Rebase native branch**
+- [x] **Step 3: Create a current-main native branch**
 
 ```sh
-git rebase origin/main
+git switch -c codex/mobile-release-current-main origin/main
+git cherry-pick 130d332d5 9e4f4df45 f4af5606a 95ce143bd \
+  eb25c04cf 1e2a24c15 c56ad7b46
 ```
 
-Expected: clean rebase. Do not resolve conflicts by copying whole shared files.
+Result: seven commits replayed cleanly. Recovery branch was not force-pushed.
 
 - [ ] **Step 4: Repeat sync and focused verification**
 
@@ -269,7 +276,7 @@ Expected: no generated drift and all focused tests pass.
 
 **Files:**
 - Create: `docs/proof/native-v0-release/README.md`
-- Modify only after owner supplies real identifiers: `public/.well-known/apple-app-site-association`, `public/.well-known/assetlinks.json`, iOS entitlement files, Android signing configuration.
+- Route declarations may change before enrolment. Replace real identifiers or signing material only after the owner supplies them: AASA Team ID, `assetlinks.json` fingerprint, iOS entitlements, and Android signing configuration.
 
 **Interfaces:**
 - Consumes: production-ready GitHub `main`, Apple Team ID, Apple signing identity, APNs credentials, Android upload keystore fingerprint, App Store Connect account, and Play Console account.
@@ -277,7 +284,7 @@ Expected: no generated drift and all focused tests pass.
 
 - [ ] **Step 1: Confirm shared acceptance**
 
-London v0 task and native task exchange exact commit SHAs, changed-file lists, focused verification results, build results, browser proof, unresolved blockers, and explicit deferrals.
+Record exact current-main and native commit SHAs, changed-file lists, focused verification results, build results, browser proof, unresolved blockers, and explicit deferrals.
 
 - [ ] **Step 2: Apply owner identifiers**
 

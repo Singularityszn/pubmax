@@ -4,8 +4,11 @@ Captured 27 August 2026 in the Codex in-app browser at a `390 x 844` CSS-pixel v
 
 ## Scope
 
-- Native candidate branch: `codex/mobile-release-readiness`
-- Native candidate commit: `eb25c04cf`
+- Original capture branch: `codex/mobile-release-readiness`
+- Original capture commit: `eb25c04cf`
+- Current source-integration branch: `codex/mobile-release-current-main`
+- Current source base: `65995519e62f341d232c451bcb250c19739ce1f2`
+- Release-current status: stale. Recapture after wrapped builds run from one accepted commit.
 - Shared web surface: `https://pubmaxxing.com`
 - Deployed web commit: not exposed by the public surface, so these screenshots do not certify an exact deployed Git SHA
 - Platform proxy target: iOS
@@ -37,7 +40,7 @@ The light and dark Map captures use the product's visible theme control. The off
 ## Remaining native proof
 
 - iOS simulator debug launch with full Xcode
-- Android emulator debug launch with JDK 17 and Android SDK tools
+- Android emulator debug launch with JDK 21 and Android SDK tools
 - Signed iOS device archive and App Store Connect validation
 - Signed Android App Bundle and Play Console validation
 - Push and deep-link checks on real enrolled devices
