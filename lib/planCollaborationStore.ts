@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, parsePlanCrewJoinRpcResult, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, parsePlanCrewJoinRpcResult, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -539,6 +539,21 @@ const CONSTRAINTS = "plan_constraints";
 const PROPOSALS = "plan_route_proposals";
 const VOTES = "plan_votes";
 const VIBE_VOTES = "plan_vibe_votes";
+const MEMBERS = "plan_crew_members";
+
+function isMissingCrewCommitmentColumn(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+  const value = error as { code?: unknown; message?: unknown; details?: unknown; hint?: unknown };
+  if (value.code !== "PGRST204" && value.code !== "42703") return false;
+  const text = [value.message, value.details, value.hint]
+    .filter((part): part is string => typeof part === "string")
+    .join(" ");
+  if (!/(?:crew_committed_at|crew_committed_event_id)/i.test(text)) return false;
+  if (value.code === "PGRST204") {
+    return /could not find/i.test(text) && /column/i.test(text) && /schema cache/i.test(text);
+  }
+  return /column/i.test(text) && /does not exist/i.test(text);
+}
 
 const supabaseStore: PlanCollaborationStore = {
   async createInvite(planId, token, input) {
@@ -608,24 +623,72 @@ const supabaseStore: PlanCollaborationStore = {
 
   async redeemInviteAndJoin(planId, rawToken, name, now = new Date(), options = {}) {
     if (!isPlanId(planId) || typeof rawToken !== "string" || !rawToken.trim() || !name) return { ok: false, error: "invalid" };
-    const ended = await rejectIfPlanEnded(planId, now);
-    if (ended) return ended;
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const inviteTokenHash = inviteHash(rawToken.trim());
     const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
     const memberId = planIdempotentUuid(`plan-invite-join-member:${planId}`, key);
+    const joinKeyHash = planIdempotencyDigest(`plan-invite-join-key:${planId}`, key);
+    const requestHash = planRequestDigest({ name, inviteHash: inviteTokenHash });
     const joinedAt = now.toISOString();
     const admin = requireSupabaseAdmin();
-    const { data, error } = await admin.rpc("redeem_plan_invite_idempotent_with_crew_commitment_atomic", {
+    const boundary = await planStateResult(planId);
+    if (!boundary.ok) return { ok: false, error: "error" };
+    if (!boundary.plan) return { ok: false, error: "not_found" };
+    const recovered = await admin.from(MEMBERS)
+      .select("id,token_hash,join_key_hash,join_request_hash,membership_revoked_at,crew_committed_at,crew_committed_event_id")
+      .eq("plan_id", planId)
+      .eq("id", memberId)
+      .eq("join_key_hash", joinKeyHash)
+      .eq("join_request_hash", requestHash)
+      .is("membership_revoked_at", null)
+      .maybeSingle();
+    if (recovered.error && !isMissingCrewCommitmentColumn(recovered.error)) {
+      return { ok: false, error: "error" };
+    }
+    if (recovered.data) {
+      const replay = parsePlanCrewJoinRpcResult({
+        outcome: "replayed",
+        member_id: recovered.data.id,
+        crew_committed_at: recovered.data.crew_committed_at ?? null,
+        crew_committed_event_id: recovered.data.crew_committed_event_id ?? null,
+      }, memberId);
+      if (!replay || recovered.data.token_hash !== hashPlanMemberToken(memberToken)) {
+        return { ok: false, error: "conflict" };
+      }
+      return {
+        ok: true,
+        plan: boundary.plan,
+        memberId,
+        memberToken,
+        role: "guest",
+        collaborationAuthorized: true,
+        crewCommittedAt: replay.crewCommittedAt,
+        crewCommittedEventId: replay.crewCommittedEventId,
+      };
+    }
+    const ended = await rejectIfPlanEnded(planId, now);
+    if (ended) return ended;
+    const args = {
       p_plan_id: planId,
       p_invite_token_hash: inviteTokenHash,
       p_member_id: memberId,
       p_member_name: name,
       p_member_token_hash: hashPlanMemberToken(memberToken),
       p_joined_at: joinedAt,
-      p_idempotency_key_hash: planIdempotencyDigest(`plan-invite-join-key:${planId}`, key),
-      p_request_hash: planRequestDigest({ name, inviteHash: inviteTokenHash }),
-    });
+      p_idempotency_key_hash: joinKeyHash,
+      p_request_hash: requestHash,
+    };
+    let { data, error } = await admin.rpc("redeem_plan_invite_idempotent_with_crew_commitment_atomic", args);
+    if (error && isMissingDatabaseFunction(error, "redeem_plan_invite_idempotent_with_crew_commitment_atomic")) {
+      const fallback = await admin.rpc("redeem_plan_invite_idempotent_atomic", args);
+      data = fallback.error ? fallback.data : {
+        outcome: fallback.data,
+        member_id: memberId,
+        crew_committed_at: null,
+        crew_committed_event_id: null,
+      };
+      error = fallback.error;
+    }
     if (error) return { ok: false, error: "error" };
     const result = parsePlanCrewJoinRpcResult(data, memberId);
     if (!result) return { ok: false, error: "error" };

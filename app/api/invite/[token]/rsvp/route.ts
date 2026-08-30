@@ -10,13 +10,17 @@ import { isLimited } from "@/lib/pintDrops";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus } from "@/lib/planInvite";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
+import { planCrewCommitmentPreflightResponse } from "@/lib/planSigningHttp.server";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { hashActor } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 const RSVP_LIMIT = 8;
 const RSVP_WINDOW_MS = 60_000;
+
+assertServerEnv();
 
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
   const frozen = socialFreezeResponse();
@@ -40,6 +44,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
 
   const submitterId = readString(body.submitterId);
   if (!submitterId) return publicApiError("Couldn't save that RSVP.", "INVALID_REQUEST", 400);
+  const signingUnavailable = planCrewCommitmentPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const submitterHash = hashActor(submitterId);
   const tokenHash = hashActor(token);
   // Per-device and per-invite budgets: rotating submitterId alone must not flood one guest list.

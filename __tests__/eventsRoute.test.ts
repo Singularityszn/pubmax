@@ -29,6 +29,8 @@ beforeEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
+  delete process.env.CREW_DELIVERY_SIGNING_SECRET;
+  delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
   delete process.env.POSTHOG_PROJECT_API_KEY;
   delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
   __resetPintDrops();
@@ -41,6 +43,8 @@ afterEach(() => {
   delete process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (VITEST_PLAN_SIGNING_SECRET) process.env.PLAN_IDEMPOTENCY_SECRET = VITEST_PLAN_SIGNING_SECRET;
   delete process.env.RATE_LIMIT_SALT;
+  delete process.env.CREW_DELIVERY_SIGNING_SECRET;
+  delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
   delete process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 });
 
@@ -333,6 +337,30 @@ describe("POST /api/events", () => {
     expect(response.headers.get("x-analytics-delivery")).toBe("retry");
   });
 
+  it("retains a V2 crew event when the crew delivery key is unavailable", async () => {
+    const event = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 as const },
+    };
+    process.env.CREW_DELIVERY_SIGNING_SECRET = "configured-crew-delivery-key-0123456789abcdef";
+    const deliveryToken = crewCommittedEventToken({
+      crewCommittedEventId: "11111111-1111-4111-8111-111111111111",
+      crewCommittedAt: new Date().toISOString(),
+    });
+    process.env.SUPABASE_URL = "https://example.supabase.co";
+    process.env.SUPABASE_SERVICE_ROLE_KEY = "service-role-key";
+    delete process.env.CREW_DELIVERY_SIGNING_SECRET;
+
+    const response = await POST(post(JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    })));
+
+    expect(response.headers.get("x-analytics-delivery")).toBe("retry");
+  });
+
   it("delivers server-verified draft and join outcomes", async () => {
     process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
     const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
@@ -410,7 +438,9 @@ describe("POST /api/events", () => {
       properties?: { $insert_id?: string };
     };
     expect(forwarded.timestamp).toBe(crewCommittedAt);
-    expect(forwarded.properties?.$insert_id).toBe(eventId);
+    expect(forwarded.properties?.$insert_id).toMatch(/^[0-9a-f]{64}$/);
+    expect(forwarded.properties?.$insert_id).not.toBe(eventId);
+    expect(JSON.stringify(forwarded)).not.toContain(eventId);
   });
 
   it.each([

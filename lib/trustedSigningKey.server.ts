@@ -11,6 +11,7 @@ export const MIN_TRUSTED_SIGNING_SECRET_BYTES = 32;
 // proofs minted with it intentionally stop verifying after a restart, matching
 // the semantics of the in-memory stores they accompany.
 const ephemeralKeylessSigningKey = randomBytes(MIN_TRUSTED_SIGNING_SECRET_BYTES);
+const ephemeralKeylessCrewDeliveryKey = randomBytes(MIN_TRUSTED_SIGNING_SECRET_BYTES);
 
 export class TrustedSigningKeyUnavailableError extends Error {
   constructor(message: string) {
@@ -19,7 +20,13 @@ export class TrustedSigningKeyUnavailableError extends Error {
   }
 }
 
-function configuredSecret(name: "PLAN_IDEMPOTENCY_SECRET" | "RATE_LIMIT_SALT"): Buffer | null {
+type TrustedSecretName =
+  | "PLAN_IDEMPOTENCY_SECRET"
+  | "RATE_LIMIT_SALT"
+  | "CREW_DELIVERY_SIGNING_SECRET"
+  | "CREW_DELIVERY_PREVIOUS_SIGNING_SECRET";
+
+function configuredSecret(name: TrustedSecretName): Buffer | null {
   const value = process.env[name]?.trim();
   if (!value) return null;
   if (Buffer.byteLength(value, "utf8") < MIN_TRUSTED_SIGNING_SECRET_BYTES) {
@@ -53,6 +60,67 @@ export function trustedSigningKey(): Buffer {
     );
   }
   return ephemeralKeylessSigningKey;
+}
+
+/** Stable HMAC root for Plan mutation identities and retry derivations. */
+export function planMutationSigningKey(): Buffer {
+  return trustedSigningKey();
+}
+
+/**
+ * Resolve the independent HMAC root for V2 crew delivery tokens.
+ *
+ * This key may rotate without changing Plan mutation identity. One previous
+ * key can remain available while queued deliveries drain.
+ */
+export function crewDeliverySigningKey(): Buffer {
+  const configured = configuredSecret("CREW_DELIVERY_SIGNING_SECRET");
+  if (configured) {
+    const previous = configuredSecret("CREW_DELIVERY_PREVIOUS_SIGNING_SECRET");
+    assertCrewDeliveryKeyIsolation(configured, previous ?? undefined);
+    return configured;
+  }
+  if (process.env.NODE_ENV === "production" || isDeployedProduction() || isSupabaseConfigured()) {
+    throw new TrustedSigningKeyUnavailableError(
+      "Crew delivery signing secret is unavailable. Configure CREW_DELIVERY_SIGNING_SECRET with at least 32 bytes and retry.",
+    );
+  }
+  return ephemeralKeylessCrewDeliveryKey;
+}
+
+function assertCrewDeliveryKeyIsolation(current: Buffer, previous?: Buffer): void {
+  const rateLimit = configuredSecret("RATE_LIMIT_SALT");
+  const plan = configuredSecret("PLAN_IDEMPOTENCY_SECRET");
+  const conflicts: Array<[Buffer | undefined | null, string]> = [
+    [rateLimit, "RATE_LIMIT_SALT"],
+    [plan, "PLAN_IDEMPOTENCY_SECRET"],
+  ];
+  for (const [candidate, name] of conflicts) {
+    if (candidate?.equals(current)) {
+      throw new TrustedSigningKeyUnavailableError(
+        `CREW_DELIVERY_SIGNING_SECRET must differ from ${name}.`,
+      );
+    }
+    if (previous && candidate?.equals(previous)) {
+      throw new TrustedSigningKeyUnavailableError(
+        `CREW_DELIVERY_PREVIOUS_SIGNING_SECRET must differ from ${name}.`,
+      );
+    }
+  }
+  if (previous?.equals(current)) {
+    throw new TrustedSigningKeyUnavailableError(
+      "CREW_DELIVERY_PREVIOUS_SIGNING_SECRET must differ from CREW_DELIVERY_SIGNING_SECRET.",
+    );
+  }
+}
+
+/** Current key first, followed by one retained rotation key when configured. */
+export function crewDeliveryVerificationKeys(): readonly Buffer[] {
+  const current = crewDeliverySigningKey();
+  const previous = configuredSecret("CREW_DELIVERY_PREVIOUS_SIGNING_SECRET");
+  if (!previous) return [current];
+  assertCrewDeliveryKeyIsolation(current, previous);
+  return [current, previous];
 }
 
 export function isTrustedSigningKeyUnavailableError(error: unknown): error is TrustedSigningKeyUnavailableError {

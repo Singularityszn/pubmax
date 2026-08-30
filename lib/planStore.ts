@@ -8,6 +8,7 @@ import { CLASSIC_PLAN_INVITE_TOKEN_PATTERN } from "@/lib/planCrewInviteUrl";
 import type { NightContext } from "@/lib/nightPlanning";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 import { isPlanStopCount } from "@/lib/planStopCount";
+import { planMutationSigningKey } from "@/lib/trustedSigningKey.server";
 
 const PLANS = "plans";
 const STOPS = "plan_stops";
@@ -22,12 +23,15 @@ const PLAN_COMPLETION_SELECT = "id,plan_id,ending,terminal_venue_id,ending_selec
  * answers 42883 when the call itself finds no candidate. Either says the
  * migration behind the call has not been applied on this database yet.
  */
-export function isMissingDatabaseFunction(error: unknown): boolean {
+export function isMissingDatabaseFunction(error: unknown, expectedRpcName: string): boolean {
   if (!error || typeof error !== "object") return false;
   const code = (error as { code?: unknown }).code;
-  if (code === "PGRST202" || code === "42883") return true;
-  const message = (error as { message?: unknown }).message;
-  return typeof message === "string" && /could not find the function/i.test(message);
+  if (code !== "PGRST202" && code !== "42883") return false;
+  const escaped = expectedRpcName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const target = new RegExp(`(?:public\\.)?${escaped}(?:\\s*\\(|\\b)`, "i");
+  const value = error as { message?: unknown; details?: unknown; hint?: unknown };
+  return [value.message, value.details, value.hint]
+    .some((part) => typeof part === "string" && target.test(part));
 }
 
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
@@ -68,8 +72,7 @@ export function isPlanIdempotencyKey(value: unknown): value is string {
 }
 
 export function planIdempotencyDigest(scope: string, key: string): string {
-  const salt = process.env.PLAN_IDEMPOTENCY_SECRET ?? process.env.RATE_LIMIT_SALT ?? process.env.PLAN_MEMBER_TOKEN_SALT ?? "pubmax-plan-idempotency";
-  return createHmac("sha256", salt).update(`${scope}:${key.trim()}`).digest("hex");
+  return createHmac("sha256", planMutationSigningKey()).update(`${scope}:${key.trim()}`).digest("hex");
 }
 
 export function planIdempotentUuid(scope: string, key: string): string {
@@ -302,7 +305,7 @@ export const supabasePlanStore: PlanStore = {
         ...createArgs,
         p_context: clean.context,
       });
-      if (error && isMissingDatabaseFunction(error)) {
+      if (error && isMissingDatabaseFunction(error, "create_plan_with_context_idempotent_atomic")) {
         // Migration 0106 has not been applied yet. Creating the Plan without
         // its Night Context beats refusing every Plan creation on the site,
         // and the composer writes the context it holds straight afterwards
@@ -347,7 +350,8 @@ export const supabasePlanStore: PlanStore = {
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_idempotent_with_crew_commitment_atomic", {
+      const admin = requireSupabaseAdmin();
+      const args = {
         p_plan_id: id,
         p_member_id: memberId,
         p_member_name: name,
@@ -356,7 +360,18 @@ export const supabasePlanStore: PlanStore = {
         p_can_collaborate: options.collaborationAuthorized === true,
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
-      });
+      };
+      let { data, error } = await admin.rpc("join_plan_idempotent_with_crew_commitment_atomic", args);
+      if (error && isMissingDatabaseFunction(error, "join_plan_idempotent_with_crew_commitment_atomic")) {
+        const fallback = await admin.rpc("join_plan_idempotent_atomic", args);
+        data = fallback.error ? fallback.data : {
+          outcome: fallback.data,
+          member_id: memberId,
+          crew_committed_at: null,
+          crew_committed_event_id: null,
+        };
+        error = fallback.error;
+      }
       if (error) throw new Error(error.message);
       const result = parsePlanCrewJoinRpcResult(data, memberId);
       if (!result) return { ok: false, error: "error" };
@@ -696,7 +711,9 @@ export const memoryPlanStore: PlanStore = {
     const collaborationAuthorized = options.collaborationAuthorized === true;
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
-    if (!plan.crewCommittedAt && plan.crew.length === 2) {
+    if (!["completed", "abandoned"].includes(plan.plan.status)
+      && !plan.crewCommittedAt
+      && plan.crew.length === 2) {
       plan.crewCommittedAt = at;
       plan.crewCommittedMemberId = memberId;
       plan.crewCommittedEventId = randomUUID();

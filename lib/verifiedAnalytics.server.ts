@@ -8,11 +8,17 @@ import {
   type AnalyticsEvent,
   type PlanningSource,
 } from "@/lib/analyticsEvents";
-import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import {
+  crewDeliverySigningKey,
+  crewDeliveryVerificationKeys,
+  planMutationSigningKey,
+  trustedSigningKey,
+} from "@/lib/trustedSigningKey.server";
 
 const TOKEN_VERSION_V1 = 1;
 const TOKEN_VERSION_V2 = 2;
-const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
+const TOKEN_V1_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
+const TOKEN_V2_TTL_MS = 365 * 24 * 60 * 60 * 1_000;
 const TOKEN_MAX_LENGTH = 2_000;
 
 type VerifiedAnalyticsClaims = {
@@ -79,7 +85,7 @@ export function mintVerifiedAnalyticsToken(
     name: canonical.name,
     props: canonical.props,
     issuedAt,
-    expiresAt: issuedAt + TOKEN_TTL_MS,
+    expiresAt: issuedAt + TOKEN_V1_TTL_MS,
   };
   const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
   return `${encoded}.${signature(encoded, key, TOKEN_VERSION_V1).toString("base64url")}`;
@@ -106,9 +112,9 @@ function mintVerifiedAnalyticsTokenV2(
     props: canonical.props,
     occurredAt: occurredAtMs,
     issuedAt,
-    expiresAt: issuedAt + TOKEN_TTL_MS,
+    expiresAt: issuedAt + TOKEN_V2_TTL_MS,
   };
-  const key = trustedSigningKey();
+  const key = crewDeliverySigningKey();
   const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
   return `${encoded}.${signature(encoded, key, TOKEN_VERSION_V2).toString("base64url")}`;
 }
@@ -124,16 +130,24 @@ export function verifyAnalyticsDeliveryToken(
   try {
     const parsed = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<VerifiedAnalyticsClaims>;
     if (parsed.v !== TOKEN_VERSION_V1 && parsed.v !== TOKEN_VERSION_V2) return null;
-    const key = trustedSigningKey();
+    if (parsed.name === "crew_committed" && parsed.v !== TOKEN_VERSION_V2) return null;
+    if (parsed.v === TOKEN_VERSION_V2 && parsed.name !== "crew_committed") return null;
     const supplied = Buffer.from(parts[1], "base64url");
-    const expected = signature(parts[0], key, parsed.v);
-    if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
+    const keys = parsed.v === TOKEN_VERSION_V2
+      ? crewDeliveryVerificationKeys()
+      : [trustedSigningKey()];
+    const signatureValid = keys.reduce((valid, key) => {
+      const expected = signature(parts[0]!, key, parsed.v as 1 | 2);
+      return (supplied.length === expected.length && timingSafeEqual(supplied, expected)) || valid;
+    }, false);
+    if (!signatureValid) return null;
     const canonical = canonicalEvent(event);
     if (!canonical || typeof parsed.eventId !== "string") return null;
     if (parsed.name !== canonical.name || JSON.stringify(parsed.props) !== JSON.stringify(canonical.props)) return null;
     if (typeof parsed.issuedAt !== "number" || !Number.isSafeInteger(parsed.issuedAt)
       || typeof parsed.expiresAt !== "number" || !Number.isSafeInteger(parsed.expiresAt)) return null;
-    if (parsed.expiresAt !== parsed.issuedAt + TOKEN_TTL_MS || now >= parsed.expiresAt) return null;
+    const ttl = parsed.v === TOKEN_VERSION_V1 ? TOKEN_V1_TTL_MS : TOKEN_V2_TTL_MS;
+    if (parsed.expiresAt !== parsed.issuedAt + ttl || now >= parsed.expiresAt) return null;
     if (parsed.issuedAt > now + 30_000) return null;
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.eventId)) return null;
     const occurredAt = parsed.v === TOKEN_VERSION_V1 ? parsed.issuedAt : parsed.occurredAt;
@@ -146,6 +160,13 @@ export function verifyAnalyticsDeliveryToken(
 
 export function analyticsDeliveryTokenDigest(token: string): string {
   return createHash("sha256").update(token).digest("hex");
+}
+
+/** Provider dedupe key that cannot be joined to the durable receipt UUID. */
+export function crewCommittedProviderInsertId(eventId: string): string {
+  return createHmac("sha256", planMutationSigningKey())
+    .update(`analytics-provider-insert-id:crew_committed:${eventId}`)
+    .digest("hex");
 }
 
 export function planLoopEventTokens(input: {

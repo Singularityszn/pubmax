@@ -210,6 +210,13 @@ describe("Plan mutation idempotency", () => {
 
     const secondPerson = await readJoin(await joinWithInvite("Guest one", 1, planBody.inviteToken));
     const thirdPerson = await readJoin(await joinWithInvite("Guest two", 2, planBody.inviteToken));
+    expect(await memoryPlanStore.addAction(id, host.body.memberToken, {
+      type: "arrived",
+      stopPosition: 0,
+      idempotencyKey: "completed-commitment-replay-arrival",
+    })).toMatchObject({ ok: true });
+    expect(await memoryPlanStore.update(id, host.body.memberToken, { status: "completed" }))
+      .toMatchObject({ ok: true });
     const lostResponseRetry = await readJoin(await joinWithInvite("Guest one", 1, planBody.inviteToken));
 
     expect(secondPerson.response.status).toBe(200);
@@ -228,6 +235,72 @@ describe("Plan mutation idempotency", () => {
       name: "crew_committed",
       props: { source: "shared-plan", participants: 2 },
     })?.eventId);
+  });
+
+  it("does not create memory commitments when classic or private joins reach two on abandoned Plans", async () => {
+    const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const classicHost = await create("abandoned-classic-host", { ...payload, startTime });
+    const classicId = classicHost.body.plan.plan.id;
+    const classicProjection = await GET_PLAN(new Request(`${URL}/${classicId}`, {
+      headers: { authorization: `Bearer ${classicHost.body.memberToken}` },
+    }), ctx(classicId));
+    const classicToken = (await classicProjection.json() as { inviteToken: string }).inviteToken;
+    expect(await memoryPlanStore.update(classicId, classicHost.body.memberToken, { status: "abandoned" }))
+      .toMatchObject({ ok: true });
+
+    const classicJoin = await JOIN(new Request(`${URL}/${classicId}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "abandoned-classic-join" },
+      body: JSON.stringify({ name: "Classic guest", inviteToken: classicToken }),
+    }), ctx(classicId));
+    expect(await classicJoin.json()).not.toHaveProperty("crewCommitted");
+
+    const privateHost = await create("abandoned-private-host", { ...payload, startTime });
+    const privateId = privateHost.body.plan.plan.id;
+    const inviteResponse = await CREATE_INVITE(new Request(`${URL}/${privateId}/invites`, {
+      method: "POST",
+      headers: {
+        authorization: `Bearer ${privateHost.body.memberToken}`,
+        "idempotency-key": "abandoned-private-invite",
+      },
+      body: JSON.stringify({ expiresInMinutes: 30 }),
+    }), ctx(privateId));
+    const privateToken = (await inviteResponse.json() as { token: string }).token;
+    expect(await memoryPlanStore.update(privateId, privateHost.body.memberToken, { status: "abandoned" }))
+      .toMatchObject({ ok: true });
+
+    const privateJoin = await JOIN(new Request(`${URL}/${privateId}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "abandoned-private-join" },
+      body: JSON.stringify({ name: "Private guest", inviteToken: privateToken }),
+    }), ctx(privateId));
+    expect(await privateJoin.json()).not.toHaveProperty("crewCommitted");
+  });
+
+  it("does not create a memory commitment when a classic join reaches two on a completed Plan", async () => {
+    const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const host = await create("completed-classic-host", { ...payload, startTime });
+    const id = host.body.plan.plan.id;
+    const projection = await GET_PLAN(new Request(`${URL}/${id}`, {
+      headers: { authorization: `Bearer ${host.body.memberToken}` },
+    }), ctx(id));
+    const inviteToken = (await projection.json() as { inviteToken: string }).inviteToken;
+    expect(await memoryPlanStore.addAction(id, host.body.memberToken, {
+      type: "arrived",
+      stopPosition: 0,
+      idempotencyKey: "completed-classic-arrival",
+    })).toMatchObject({ ok: true });
+    expect(await memoryPlanStore.update(id, host.body.memberToken, { status: "completed" }))
+      .toMatchObject({ ok: true });
+
+    const response = await JOIN(new Request(`${URL}/${id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "completed-classic-join" },
+      body: JSON.stringify({ name: "Classic guest", inviteToken }),
+    }), ctx(id));
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).not.toHaveProperty("crewCommitted");
   });
 
   it("records one atomic live action for repeated delivery", async () => {

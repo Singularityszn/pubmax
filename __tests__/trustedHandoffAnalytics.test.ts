@@ -1,7 +1,10 @@
 import { describe, expect, it } from "vitest";
 
+import { __resetMemoryAnalyticsReceipts, memoryAnalyticsReceiptStore } from "@/lib/analyticsReceiptStore";
 import { sanitizeEvent } from "@/lib/analyticsEvents";
+import { planIdempotencyDigest, planIdempotentUuid } from "@/lib/planStore";
 import {
+  analyticsDeliveryTokenDigest,
   crewCommittedEventToken,
   planAcceptedEventTokens,
   planDraftSavedEventToken,
@@ -233,11 +236,20 @@ describe("trusted handoff verified outcome tokens", () => {
     });
   });
 
-  it("keeps the database event id across signing-key rotation", () => {
-    const original = process.env.PLAN_IDEMPOTENCY_SECRET;
+  it("keeps Plan identity and one receipt across crew signing-key rotation", async () => {
+    const originalPlan = process.env.PLAN_IDEMPOTENCY_SECRET;
+    const originalRate = process.env.RATE_LIMIT_SALT;
+    const originalCrew = process.env.CREW_DELIVERY_SIGNING_SECRET;
+    const originalPrevious = process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
     const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
     try {
-      process.env.PLAN_IDEMPOTENCY_SECRET = "crew-signing-key-before-rotation-0123456789";
+      __resetMemoryAnalyticsReceipts();
+      process.env.PLAN_IDEMPOTENCY_SECRET = "stable-plan-identity-secret-0123456789abcdef";
+      process.env.RATE_LIMIT_SALT = "stable-rate-limit-secret-0123456789abcdef";
+      process.env.CREW_DELIVERY_SIGNING_SECRET = "crew-signing-key-before-rotation-0123456789";
+      delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
+      const beforeDigest = planIdempotencyDigest("plan-join-key:plan-one", "same-mutation");
+      const beforeMemberId = planIdempotentUuid("plan-join-member:plan-one", "same-mutation");
       const before = crewCommittedEventToken({
         crewCommittedEventId: crewEventId,
         crewCommittedAt: occurredAt,
@@ -245,7 +257,8 @@ describe("trusted handoff verified outcome tokens", () => {
       });
       const beforeClaims = verifyAnalyticsDeliveryToken(before, event, now + 1_000);
 
-      process.env.PLAN_IDEMPOTENCY_SECRET = "crew-signing-key-after-rotation-01234567890";
+      process.env.CREW_DELIVERY_SIGNING_SECRET = "crew-signing-key-after-rotation-01234567890";
+      process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET = "crew-signing-key-before-rotation-0123456789";
       const after = crewCommittedEventToken({
         crewCommittedEventId: crewEventId,
         crewCommittedAt: occurredAt,
@@ -254,11 +267,30 @@ describe("trusted handoff verified outcome tokens", () => {
       const afterClaims = verifyAnalyticsDeliveryToken(after, event, now + 3_000);
 
       expect(after).not.toBe(before);
+      expect(planIdempotencyDigest("plan-join-key:plan-one", "same-mutation")).toBe(beforeDigest);
+      expect(planIdempotentUuid("plan-join-member:plan-one", "same-mutation")).toBe(beforeMemberId);
       expect(beforeClaims?.eventId).toBe(crewEventId);
       expect(afterClaims?.eventId).toBe(crewEventId);
+      expect(await memoryAnalyticsReceiptStore.claim({
+        eventId: crewEventId,
+        tokenDigest: analyticsDeliveryTokenDigest(before),
+        eventName: event.name,
+      })).toBe("claimed");
+      expect(await memoryAnalyticsReceiptStore.complete(crewEventId)).toBe(true);
+      expect(await memoryAnalyticsReceiptStore.claim({
+        eventId: crewEventId,
+        tokenDigest: analyticsDeliveryTokenDigest(after),
+        eventName: event.name,
+      })).toBe("delivered");
     } finally {
-      if (original === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
-      else process.env.PLAN_IDEMPOTENCY_SECRET = original;
+      if (originalPlan === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = originalPlan;
+      if (originalRate === undefined) delete process.env.RATE_LIMIT_SALT;
+      else process.env.RATE_LIMIT_SALT = originalRate;
+      if (originalCrew === undefined) delete process.env.CREW_DELIVERY_SIGNING_SECRET;
+      else process.env.CREW_DELIVERY_SIGNING_SECRET = originalCrew;
+      if (originalPrevious === undefined) delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
+      else process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET = originalPrevious;
     }
   });
 

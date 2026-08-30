@@ -1,9 +1,11 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 // F9 (token rotate/revoke) + F10 (guest-list caps) — invite hardening bundle.
 // Mirrors __tests__/planInviteRsvpModerationRoute.test.ts's harness shape.
 
 vi.mock("server-only", () => ({}));
+
+const rateLimitHarness = vi.hoisted(() => ({ isLimited: vi.fn() }));
 
 vi.mock("@/lib/supabase", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/supabase")>();
@@ -12,7 +14,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
+  return { ...actual, isLimited: rateLimitHarness.isLimited };
 });
 
 import { POST as CREATE } from "@/app/api/plans/route";
@@ -27,6 +29,7 @@ import { __resetMemoryPlans, planMemberIdentity, planStore } from "@/lib/planSto
 import { __resetMemoryRsvps } from "@/lib/planInviteRsvpStore";
 import { GUEST_LIST_DISPLAY_CAP, RSVP_PLAN_CEILING } from "@/lib/planInvite";
 import { rsvpStore } from "@/lib/planInviteRsvpStore";
+import { hashActor } from "@/lib/supabase";
 import { verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 
 const PLANS_URL = "http://localhost/api/plans";
@@ -35,9 +38,15 @@ const tokenCtx = (token: string) => ({ params: Promise.resolve({ token }) });
 const route = [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venueId: "venue-3h52h" }];
 
 beforeEach(() => {
+  rateLimitHarness.isLimited.mockReset();
+  rateLimitHarness.isLimited.mockResolvedValue(false);
   __resetMemoryPlans();
   __resetMemoryRsvps();
   __resetPlanCollaboration();
+});
+
+afterEach(() => {
+  delete process.env.RATE_LIMIT_SALT;
 });
 
 async function createPlan() {
@@ -154,6 +163,102 @@ describe("POST /api/plans/[id]/invite-rotate", () => {
 });
 
 describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
+  it("updates a public RSVP row created with the legacy actor hash", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const submitterId = "legacy-rsvp-device";
+    await rsvpStore().upsert(planId, hashActor(submitterId), "Priya", "maybe");
+
+    const replay = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status: "maybe", submitterId }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    expect(replay.status).toBe(200);
+    expect(await replay.json()).toMatchObject({
+      isUpdate: true,
+      summary: { counts: { going: 0, maybe: 1 } },
+    });
+  });
+
+  it("updates a member-bound RSVP row created with the legacy actor hash", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const submitterId = "legacy-member-device";
+    const seeded = await rsvpStore().upsert(planId, hashActor(submitterId), "Priya", "going");
+    const memberToken = seeded.membership!.memberToken;
+
+    const updated = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        body: JSON.stringify({
+          inviteToken,
+          displayName: "Priya",
+          status: "maybe",
+          submitterId,
+          memberToken,
+        }),
+      }),
+      ctx(planId),
+    );
+
+    expect(updated.status).toBe(200);
+    expect(await updated.json()).toMatchObject({
+      isUpdate: true,
+      summary: { counts: { going: 0, maybe: 1 } },
+    });
+  });
+
+  it("does not create a memory commitment when Going joins an abandoned Plan", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    expect(await planStore().update(planId, host.memberToken, { status: "abandoned" }))
+      .toMatchObject({ ok: true });
+
+    const response = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status: "going", submitterId: "abandoned-rsvp-device" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).not.toHaveProperty("crewCommitted");
+  });
+
+  it("does not create a memory commitment when Going joins a completed Plan", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    expect(await planStore().addAction(planId, host.memberToken, {
+      type: "arrived",
+      stopPosition: 0,
+      idempotencyKey: "completed-rsvp-arrival",
+    })).toMatchObject({ ok: true });
+    expect(await planStore().update(planId, host.memberToken, { status: "completed" }))
+      .toMatchObject({ ok: true });
+
+    const response = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status: "going", submitterId: "completed-rsvp-device" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    const body = await response.json() as Record<string, unknown>;
+
+    expect(response.status).toBe(200);
+    expect(body).not.toHaveProperty("crewCommitted");
+  });
+
   it("turns a Going RSVP into one replay-safe canonical guest membership", async () => {
     const host = await createPlan();
     const planId = host.plan.plan.id;

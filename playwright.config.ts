@@ -46,6 +46,7 @@ const E2E_NODE_OPTIONS = process.env.NODE_OPTIONS ?? "--max-old-space-size=4096"
 // invocation a fresh process-only signing key shared by its build/start shell.
 // webServer.env keeps both values out of the command string and process argv.
 const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
+const E2E_CREW_DELIVERY_SIGNING_SECRET = randomBytes(32).toString("base64url");
 // Public-only deterministic test key. The private half is neither needed nor
 // present: E2E stubs the browser subscription while exercising the real UI and
 // registration POST. NEXT_PUBLIC_* must be present at Next build time.
@@ -59,8 +60,7 @@ const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-toke
 // deliberately fake: the specs assert the door RENDERS and where it points, and
 // a real invite committed here would be a live door into a private room.
 const E2E_DISCORD_INVITE_URL = "https://discord.gg/pubmaxx-e2e-invite";
-const E2E_RATE_LIMIT_SALT =
-  process.env.RATE_LIMIT_SALT ?? "pubmax-e2e-rate-limit-salt-32-chars-min";
+const E2E_RATE_LIMIT_SALT = randomBytes(32).toString("base64url");
 const REAL_AUTH_CONFIGURED = Boolean(
   !E2E_LOGIN &&
     process.env.NEXT_PUBLIC_SUPABASE_URL &&
@@ -340,6 +340,7 @@ export default defineConfig({
             E2E_SUPABASE_PUBLISHABLE_KEY,
           NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+          CREW_DELIVERY_SIGNING_SECRET: E2E_CREW_DELIVERY_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
           PUBMAX_E2E_LOGIN: "0",
@@ -402,6 +403,8 @@ export default defineConfig({
               NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "",
               NEXT_PUBLIC_DISCORD_INVITE_URL: E2E_DISCORD_INVITE_URL,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              CREW_DELIVERY_SIGNING_SECRET: E2E_CREW_DELIVERY_SIGNING_SECRET,
+              RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
               PUBMAX_E2E_LOGIN: "0",
               PUBMAX_E2E_KEYLESS: "1",
             },
@@ -433,6 +436,7 @@ export default defineConfig({
               NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
               NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
               PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
+              CREW_DELIVERY_SIGNING_SECRET: E2E_CREW_DELIVERY_SIGNING_SECRET,
               ADMIN_TOKEN: E2E_ADMIN_TOKEN,
               RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
             },

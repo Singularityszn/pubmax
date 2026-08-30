@@ -32,8 +32,17 @@ import { isEventsRateLimited } from "@/lib/eventsRateLimit";
 import { capturePosthogEvent, isPosthogConfigured } from "@/lib/posthogServer";
 import { clientIp } from "@/lib/supabase";
 import { analyticsReceiptStore } from "@/lib/analyticsReceiptStore";
-import { analyticsDeliveryTokenDigest, verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
-import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import {
+  analyticsDeliveryTokenDigest,
+  crewCommittedProviderInsertId,
+  verifyAnalyticsDeliveryToken,
+} from "@/lib/verifiedAnalytics.server";
+import {
+  crewDeliveryVerificationKeys,
+  isTrustedSigningKeyUnavailableError,
+  planMutationSigningKey,
+  trustedSigningKey,
+} from "@/lib/trustedSigningKey.server";
 
 export const runtime = "nodejs";
 
@@ -140,7 +149,11 @@ export async function POST(req: Request): Promise<Response> {
     const verified = requiresVerifiedDelivery(event.name, event.props);
     if (verified) {
       try {
-        trustedSigningKey();
+        if (event.name === "crew_committed") {
+          crewDeliveryVerificationKeys();
+          planMutationSigningKey();
+        }
+        else trustedSigningKey();
       } catch (error) {
         // Configuration loss is retryable: do not tell the browser to discard
         // a token that may be valid again once the same secret is restored.
@@ -185,7 +198,11 @@ export async function POST(req: Request): Promise<Response> {
       screenHeight: safeDimension(browserContext.screenHeight),
       viewportWidth: safeDimension(browserContext.viewportWidth),
       viewportHeight: safeDimension(browserContext.viewportHeight),
-      ...(delivery ? { insertId: delivery.eventId } : {}),
+      ...(delivery ? {
+        insertId: event.name === "crew_committed"
+          ? crewCommittedProviderInsertId(delivery.eventId)
+          : delivery.eventId,
+      } : {}),
       ...(delivery ? { occurredAt: new Date(delivery.occurredAt).toISOString() } : {}),
     });
 

@@ -86,8 +86,31 @@ export function assertProductionSecrets(): void {
   if (planSigningSecret && Buffer.byteLength(planSigningSecret, "utf8") < MIN_PRODUCTION_SECRET_BYTES) {
     throw new Error(
       `FATAL: PLAN_IDEMPOTENCY_SECRET must contain at least ${MIN_PRODUCTION_SECRET_BYTES} bytes in production. ` +
-        "Set a high-entropy secret or remove it to use RATE_LIMIT_SALT, then redeploy.",
+        "Set a stable high-entropy Plan mutation secret, then redeploy.",
     );
+  }
+  const crewDeliverySecret = process.env.CREW_DELIVERY_SIGNING_SECRET?.trim();
+  if (!crewDeliverySecret || Buffer.byteLength(crewDeliverySecret, "utf8") < MIN_PRODUCTION_SECRET_BYTES) {
+    throw new Error(
+      `FATAL: CREW_DELIVERY_SIGNING_SECRET must contain at least ${MIN_PRODUCTION_SECRET_BYTES} bytes in production.`,
+    );
+  }
+  const previousCrewDeliverySecret = process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET?.trim();
+  if (previousCrewDeliverySecret
+    && Buffer.byteLength(previousCrewDeliverySecret, "utf8") < MIN_PRODUCTION_SECRET_BYTES) {
+    throw new Error(
+      `FATAL: CREW_DELIVERY_PREVIOUS_SIGNING_SECRET must contain at least ${MIN_PRODUCTION_SECRET_BYTES} bytes in production.`,
+    );
+  }
+  const conflicts: Array<[string | undefined, string, string]> = [
+    [crewDeliverySecret === rateLimitSalt ? rateLimitSalt : undefined, "CREW_DELIVERY_SIGNING_SECRET", "RATE_LIMIT_SALT"],
+    [crewDeliverySecret === planSigningSecret ? planSigningSecret : undefined, "CREW_DELIVERY_SIGNING_SECRET", "PLAN_IDEMPOTENCY_SECRET"],
+    [previousCrewDeliverySecret === crewDeliverySecret ? crewDeliverySecret : undefined, "CREW_DELIVERY_PREVIOUS_SIGNING_SECRET", "CREW_DELIVERY_SIGNING_SECRET"],
+    [previousCrewDeliverySecret === rateLimitSalt ? rateLimitSalt : undefined, "CREW_DELIVERY_PREVIOUS_SIGNING_SECRET", "RATE_LIMIT_SALT"],
+    [previousCrewDeliverySecret === planSigningSecret ? planSigningSecret : undefined, "CREW_DELIVERY_PREVIOUS_SIGNING_SECRET", "PLAN_IDEMPOTENCY_SECRET"],
+  ];
+  for (const [conflict, left, right] of conflicts) {
+    if (conflict) throw new Error(`FATAL: ${left} must differ from ${right}.`);
   }
 }
 

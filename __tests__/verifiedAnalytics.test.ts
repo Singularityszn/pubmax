@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -10,6 +10,10 @@ import {
   verifyAnalyticsDeliveryToken,
 } from "@/lib/verifiedAnalytics.server";
 
+const originalRateLimitSalt = process.env.RATE_LIMIT_SALT;
+const originalCrewDeliverySecret = process.env.CREW_DELIVERY_SIGNING_SECRET;
+const originalPreviousCrewDeliverySecret = process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
+
 describe("verified analytics delivery", () => {
   const occurredAt = "2026-07-20T12:00:00.000Z";
   const event = {
@@ -18,6 +22,55 @@ describe("verified analytics delivery", () => {
   };
 
   beforeEach(() => __resetMemoryAnalyticsReceipts());
+  afterEach(() => {
+    if (originalRateLimitSalt === undefined) delete process.env.RATE_LIMIT_SALT;
+    else process.env.RATE_LIMIT_SALT = originalRateLimitSalt;
+    if (originalCrewDeliverySecret === undefined) delete process.env.CREW_DELIVERY_SIGNING_SECRET;
+    else process.env.CREW_DELIVERY_SIGNING_SECRET = originalCrewDeliverySecret;
+    if (originalPreviousCrewDeliverySecret === undefined) delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
+    else process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET = originalPreviousCrewDeliverySecret;
+  });
+
+  it("keeps a day-31 crew token through one signing rotation and one receipt", async () => {
+    const eventId = "11111111-1111-4111-8111-111111111111";
+    const crewEvent = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 as const },
+    };
+    const issuedAt = Date.parse(occurredAt);
+    process.env.CREW_DELIVERY_SIGNING_SECRET = "old-crew-delivery-secret-0123456789abcdef";
+    delete process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET;
+    const queued = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt: occurredAt,
+      issuedAt,
+    });
+
+    process.env.CREW_DELIVERY_SIGNING_SECRET = "new-crew-delivery-secret-0123456789abcdef";
+    process.env.CREW_DELIVERY_PREVIOUS_SIGNING_SECRET = "old-crew-delivery-secret-0123456789abcdef";
+    const day31 = issuedAt + 31 * 24 * 60 * 60 * 1_000;
+    const queuedClaims = verifyAnalyticsDeliveryToken(queued, crewEvent, day31);
+    const refreshed = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt: occurredAt,
+      issuedAt: day31,
+    });
+    const refreshedClaims = verifyAnalyticsDeliveryToken(refreshed, crewEvent, day31 + 1_000);
+
+    expect(queuedClaims?.eventId).toBe(eventId);
+    expect(refreshedClaims?.eventId).toBe(eventId);
+    expect(await memoryAnalyticsReceiptStore.claim({
+      eventId,
+      tokenDigest: analyticsDeliveryTokenDigest(queued),
+      eventName: crewEvent.name,
+    })).toBe("claimed");
+    expect(await memoryAnalyticsReceiptStore.complete(eventId)).toBe(true);
+    expect(await memoryAnalyticsReceiptStore.claim({
+      eventId,
+      tokenDigest: analyticsDeliveryTokenDigest(refreshed),
+      eventName: crewEvent.name,
+    })).toBe("delivered");
+  });
 
   it("mints a stable token bound to the exact sanitized event", () => {
     const first = mintVerifiedAnalyticsToken(event, "plan:one", occurredAt);

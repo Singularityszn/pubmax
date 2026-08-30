@@ -22,6 +22,7 @@ const RLS_SUITES = [
   "__tests__/rlsWave2Session.test.ts",
   "__tests__/socialCrewMigration.test.ts",
   "__tests__/socialCrewLegacyRoutesRls.test.ts",
+  "__tests__/planCrewCommitmentPostgres.test.ts",
   "__tests__/pintDropVerifiedReportsMigrationEffective.test.ts",
   "__tests__/wantedPromotionMigrationEffective.test.ts",
 ];
@@ -46,6 +47,7 @@ function printLoudSkip(reason) {
     "║  Suites: __tests__/rlsWave2Session.test.ts                          ║",
     "║          __tests__/socialCrewMigration.test.ts  (npm run test:rls)  ║",
     "║          __tests__/socialCrewLegacyRoutesRls.test.ts                ║",
+    "║          __tests__/planCrewCommitmentPostgres.test.ts              ║",
     "║          __tests__/pintDropVerifiedReportsMigrationEffective.test.ts║",
     "║          __tests__/wantedPromotionMigrationEffective.test.ts       ║",
     "╠══════════════════════════════════════════════════════════════════════╣",

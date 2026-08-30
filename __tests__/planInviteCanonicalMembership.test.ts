@@ -137,6 +137,25 @@ describe("canonical invite RSVP membership store", () => {
     });
   });
 
+  it("falls back before migration 0125 without inventing commitment evidence", async () => {
+    storeHarness.rpc.mockImplementation(async (name: string, args: { p_member_id: string }) => (
+      name === "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic"
+        ? { data: null, error: { code: "PGRST202", message: "Could not find the function public.upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic" } }
+        : {
+            data: { outcome: "saved", is_update: false, member_id: args.p_member_id },
+            error: null,
+          }
+    ));
+
+    const result = await supabaseRsvpStore.upsert(PLAN_ID, SUBMITTER_HASH, "Priya", "going");
+
+    expect(result).toMatchObject({ crewCommittedAt: null, crewCommittedEventId: null });
+    expect(storeHarness.rpc.mock.calls.map(([name]) => name)).toEqual([
+      "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
+      "upsert_plan_invite_rsvp_membership_atomic",
+    ]);
+  });
+
   it("maps an atomic crew-full result without writing a split RSVP", async () => {
     storeHarness.rpc.mockResolvedValue({
       data: { outcome: "crew_full", is_update: false, member_id: null },

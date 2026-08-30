@@ -16,6 +16,7 @@ import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 import { assertServerEnv } from "@/lib/serverEnv";
+import { planCrewCommitmentPreflightResponse } from "@/lib/planSigningHttp.server";
 import { clientIp, hashIp } from "@/lib/supabase";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
@@ -98,6 +99,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     if (resolved.planId !== id) {
       return publicApiError("That invite link isn't valid for this Plan.", "PLAN_INVITE_INVALID", 403);
     }
+    const signingUnavailable = planCrewCommitmentPreflightResponse();
+    if (signingUnavailable) return signingUnavailable;
     const result = await planStore().join(id, name, {
       collaborationAuthorized: false,
       idempotencyKey,
@@ -146,6 +149,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     );
   }
 
+  const signingUnavailable = planCrewCommitmentPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const joined = await planCollaborationStore().redeemInviteAndJoin(
     id,
     inviteToken,

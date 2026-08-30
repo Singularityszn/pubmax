@@ -34,8 +34,17 @@ set search_path = ''
 as $$
 declare
   v_member public.plan_crew_members%rowtype;
+  v_plan_status text;
 begin
+  if p_allow_create then
+    select plan.status into v_plan_status
+    from public.plans plan
+    where plan.id = p_plan_id
+    for share;
+  end if;
+
   if p_allow_create
+     and v_plan_status not in ('completed', 'abandoned')
      and not exists (
        select 1
        from public.plan_crew_members existing_commitment

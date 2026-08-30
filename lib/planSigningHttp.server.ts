@@ -1,7 +1,11 @@
 import "server-only";
 
 import { publicApiError } from "@/lib/apiError";
-import { isTrustedSigningKeyUnavailableError, trustedSigningKey } from "@/lib/trustedSigningKey.server";
+import {
+  crewDeliverySigningKey,
+  isTrustedSigningKeyUnavailableError,
+  planMutationSigningKey,
+} from "@/lib/trustedSigningKey.server";
 
 export function planSigningUnavailableResponse(error: unknown): Response | null {
   if (!isTrustedSigningKeyUnavailableError(error)) return null;
@@ -16,7 +20,20 @@ export function planSigningUnavailableResponse(error: unknown): Response | null 
 /** Fail before a durable mutation if its required verified response cannot be signed. */
 export function planSigningPreflightResponse(): Response | null {
   try {
-    trustedSigningKey();
+    planMutationSigningKey();
+    return null;
+  } catch (error) {
+    const unavailable = planSigningUnavailableResponse(error);
+    if (unavailable) return unavailable;
+    throw error;
+  }
+}
+
+/** Fail before a crew-threshold mutation unless both durable outputs can be signed. */
+export function planCrewCommitmentPreflightResponse(): Response | null {
+  try {
+    planMutationSigningKey();
+    crewDeliverySigningKey();
     return null;
   } catch (error) {
     const unavailable = planSigningUnavailableResponse(error);

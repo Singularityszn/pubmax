@@ -11,7 +11,7 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import type { PlanState } from "@/lib/plan";
-import { supabasePlanStore } from "@/lib/planStore";
+import { isMissingDatabaseFunction, supabasePlanStore } from "@/lib/planStore";
 
 const CONTEXT = {
   nightArea: "piccadilly-soho" as const,
@@ -137,6 +137,17 @@ describe("Supabase Plan creation context", () => {
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
   });
+
+  it("does not treat a missing inner function as the target RPC being absent", () => {
+    expect(isMissingDatabaseFunction({
+      code: "42883",
+      message: "function public.inner_plan_helper(uuid) does not exist",
+    }, "create_plan_with_context_idempotent_atomic")).toBe(false);
+    expect(isMissingDatabaseFunction({
+      code: "PGRST202",
+      message: "Could not find the function public.create_plan_with_context_idempotent_atomic in the schema cache",
+    }, "create_plan_with_context_idempotent_atomic")).toBe(true);
+  });
 });
 
 describe("Supabase Plan join identity", () => {
@@ -190,6 +201,25 @@ describe("Supabase Plan join identity", () => {
       "join_plan_idempotent_with_crew_commitment_atomic",
       expect.objectContaining({ p_member_id: result.ok ? result.memberId : undefined }),
     );
+  });
+
+  it("falls back before migration 0125 without inventing commitment evidence", async () => {
+    vi.spyOn(supabasePlanStore, "get").mockResolvedValue(HOST_STATE);
+    supabase.rpc.mockImplementation(async (name: string, args: { p_member_id?: string }) => (
+      name === "join_plan_idempotent_with_crew_commitment_atomic"
+        ? { data: null, error: { code: "PGRST202", message: "Could not find the function public.join_plan_idempotent_with_crew_commitment_atomic" } }
+        : { data: "joined", error: null, memberId: args.p_member_id }
+    ));
+
+    const result = await supabasePlanStore.join(HOST_STATE.plan.id, "Guest", {
+      idempotencyKey: "pre-0125-ordinary-join",
+    });
+
+    expect(result).toMatchObject({ ok: true, crewCommittedAt: null, crewCommittedEventId: null });
+    expect(supabase.rpc.mock.calls.map(([name]) => name)).toEqual([
+      "join_plan_idempotent_with_crew_commitment_atomic",
+      "join_plan_idempotent_atomic",
+    ]);
   });
 
   it("does not derive threshold authority from client timestamp ordering", async () => {

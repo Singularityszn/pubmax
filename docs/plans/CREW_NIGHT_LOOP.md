@@ -12,7 +12,7 @@
 
 > Make the next soft, affordable, low-pressure IRL plan with your lot so obvious that staying in is the harder choice.
 
-**Per-night metric:** share of nights where a Plan reaches **at least two committed humans** (`crew_committed` with `participants = 2`). Migration `0125` records one database occurrence and one random event ID when an atomic ordinary join, private invite redemption, or public Going RSVP first takes the active crew from one to two. Replays and refreshed tokens keep that event ID. Concurrent later joins return none. Plan and member IDs never enter analytics. There is no backfill for Plans already at two or more active members. Cohort starts when `0125` is applied, and compatible old RPC names record later crossings made by old app code. Not scroll DAU on `/social`.
+**Crew Night flow metric:** `crew_nights_with_two_or_more` counts `crew_committed` with `participants = 2` exactly once. `crew_night_flow_ratio` divides that event flow by `plan_saved` flow in same window. It is an operational flow ratio, not a share, conversion, or cohort rate, and may exceed 1 when saved Plans commit later. Migration `0125` records one database occurrence and one random event ID when an atomic ordinary join, private invite redemption, or public Going RSVP first takes active crew from one to two. Replays and refreshed tokens keep that event ID. Concurrent later joins return none. Plan and member IDs never enter analytics. There is no backfill for Plans already at two or more active members. Deploy fallback-capable app code first, drain old servers, then apply `0125`; cohort starts at migration application. Compatible old RPC names are rollback safety. Not scroll DAU on `/social`.
 
 **Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed` at the exact two-person threshold measures one night, and this measures the loop.
 
@@ -85,7 +85,7 @@ Follow `docs/VOICE.md`. No em dashes, no exclamation marks, British spelling. Jo
 ## 6. Definition of done for S1
 
 - [x] Plan doc on `main` (PR #918)
-- [x] Per-night and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
+- [x] Crew Night flow and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
 - [x] Invite artifact can show an honest spend band (or silence) (PR #924: `planInviteSpendBandFromListedPrices`, invite page, OG card; silent when any stop price is missing)
 - [x] Soft occasion path visible without changing Social launch state (PR #921: `SOFT_PLAN_OCCASION_IDS` in `lib/planOccasion.ts`)
 - [x] Friends-only crew tonight surface + We-are-out honesty (PR #922; hardened for live-default Social by PR #1247)

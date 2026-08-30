@@ -14,8 +14,9 @@ PostHog. Nothing in this wave weakens that gate.
 
 ## 0. Crew Night metrics (S1)
 
-**Per-night metric:** share of nights where a plan reaches **at least two committed
-humans** on the crew roster, not scroll DAU on `/social`.
+**Crew Night flow metric:** count Plans that reach **at least two committed
+humans** on the crew roster, then compare that event flow with saved Plan flow.
+It is not scroll DAU on `/social`.
 
 **Event:** `crew_committed` - fires client-side only when a confirmed membership
 write returns a server-minted threshold token. `components/plan/PlanCrew.tsx`
@@ -32,12 +33,15 @@ registry rejects every other value.
 
 ```
 crew_nights_with_two_or_more = count(crew_committed WHERE participants = 2, window=7d)
-crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
+crew_night_flow_ratio        = crew_nights_with_two_or_more / count(plan_saved, window=7d)
 ```
 
-Read this as a market-level ratio, not a per-planner ratio. The Plan save and
-second-person join can belong to different pseudonymous identities, and no Plan
-ID leaves the server to join those identities. Migration `0125` records one
+This is an operational flow ratio, not a share, conversion, or cohort rate.
+Numerator and denominator are independent event-time flows. The ratio may
+exceed 1 when Plans saved before the window reach two people inside the window.
+The Plan save and second-person join can belong to different pseudonymous
+identities, and no Plan ID leaves the server to join those identities. Migration
+`0125` records one
 `crew_committed_at` occurrence and one random `crew_committed_event_id` on the
 member whose atomic write first takes the active crew from one to two. Ordinary
 joins, private invite redemption, and public Going RSVPs use the same Plan
@@ -50,14 +54,22 @@ decide the threshold.
 The database event ID is the durable dedupe identity. It is not derived from a
 signing key. Token claims include neither Plan ID nor member ID. A refreshed v2
 token keeps the stored occurrence time but receives a fresh issue and expiry
-time, so delivery can retry after 30 days or a signing-key rotation. A leave
+time. V1 tokens expire after 30 days. V2 crew tokens expire after 365 days, so
+delivery can retry after day 30 or one signing-key rotation. A leave
 and rejoin of the threshold member returns the same evidence. The durable
 analytics receipt accepts that opaque event ID once, including across token
-refreshes. Later joins return no token. Existing v1 tokens remain verifiable.
+refreshes. Later joins return no token. Legacy v1 `crew_committed` tokens are
+discarded because their derived event IDs cannot dedupe against the durable V2
+event IDs. Legacy v1 tokens for other verified events remain verifiable.
 
 Migration `0125` does not backfill Plans that already had two or more active
-members. This metric cohort begins when the migration is applied. Thresholds
-crossed by old app code after that point are recorded by the compatible RPCs.
+members. Deploy app code with missing-function fallback before applying `0125`,
+then drain every old server version. Apply `0125` only after that app-first
+step. The fallback writes membership but returns no commitment evidence, so the
+metric cohort has not begun. Cohort starts when `0125` is applied and only the
+new app version is serving requests. This order prevents old app code from
+creating a public Going threshold that no client can deliver. Compatible old
+RPC names remain a rollback safety net, not the rollout order.
 
 **Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
 Going or Maybe tap on the public invite card. Maybe is intent only. Going creates
@@ -578,14 +590,22 @@ ordinary events continue to use server receipt time and ignore client-supplied
 timestamps. This delivery rail is funnel telemetry only and
 does not change the PNC ledger authority below.
 
-The signing root is operator-configured (at least 32 random bytes) for every
-Supabase-backed or production process. A non-production keyless demo instead
-gets one random process-local key, matching its in-memory lifetime; there is no
-public development signing constant. The storage-only `PUBMAX_E2E_KEYLESS`
-escape never changes this signing policy. If trusted signing is misconfigured, Plan
+Plan identity and V2 crew delivery use distinct operator-configured signing
+roots of at least 32 random bytes in every Supabase-backed or production
+process. A non-production keyless demo instead gets separate random
+process-local keys, matching its in-memory lifetime; there is no public
+development signing constant. The storage-only `PUBMAX_E2E_KEYLESS` escape
+never changes this signing policy. If trusted signing is misconfigured, Plan
 generation, creation, and completion fail before mutation with a retryable 503,
 while verified event ingestion retains pending delivery for retry. Once a
 configured key is present, tokens with invalid signatures are discarded.
+During a crew delivery rotation, deploy old `CREW_DELIVERY_SIGNING_SECRET` as
+`CREW_DELIVERY_PREVIOUS_SIGNING_SECRET` and a new current crew key in same
+release. Keep selected Plan mutation root unchanged and retain previous crew
+key for at least 365 days. Only one previous key is supported, so remove it
+after retention window before later rotation. Plan mutation root is configured
+`PLAN_IDEMPOTENCY_SECRET`, or existing `RATE_LIMIT_SALT` fallback when Plan key
+is absent. Never change that selection without a data migration.
 
 Weekly Meaningful Pubmaxxers is the number of distinct pseudonymous identities
 with at least one `meaningful_core_action` in a seven-day window. Its `action`

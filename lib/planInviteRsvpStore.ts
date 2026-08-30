@@ -28,6 +28,7 @@ import {
   planIdempotencyDigest,
   planIdempotentUuid,
   planRequestDigest,
+  isMissingDatabaseFunction,
   removeMemoryPlanInviteRsvpMember,
   type MemoryPlanInviteMembershipResult,
   type PlanMemberIdentity,
@@ -126,29 +127,64 @@ export type PlanInviteRsvpStore = {
   remove(planId: string, rsvpId: string): Promise<void>;
 };
 
+type RsvpMembershipRpcArgs = {
+  p_plan_id: string;
+  p_submitter_hash: string;
+  p_display_name: string;
+  p_status: RsvpStatus;
+  p_member_id: string;
+  p_existing_member_id: string | null;
+  p_member_name: string;
+  p_member_token_hash: string;
+  p_member_join_key_hash: string;
+  p_member_request_hash: string;
+  p_joined_at: string;
+  p_rsvp_ceiling: number;
+};
+
+async function upsertRsvpMembershipAtomic(args: RsvpMembershipRpcArgs) {
+  const client = admin();
+  const result = await client.rpc(
+    "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
+    args,
+  );
+  if (!result.error || !isMissingDatabaseFunction(
+    result.error,
+    "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
+  )) return result;
+  const fallback = await client.rpc("upsert_plan_invite_rsvp_membership_atomic", args);
+  if (fallback.error || !fallback.data || typeof fallback.data !== "object") return fallback;
+  return {
+    ...fallback,
+    data: {
+      ...fallback.data as Record<string, unknown>,
+      crew_committed_at: null,
+      crew_committed_event_id: null,
+    },
+  };
+}
+
 export const supabaseRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status, existingMembership) {
     if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
     const membershipKey = `invite-rsvp:${submitterHash}`;
     const memberToken = planIdempotencyDigest(`plan-join-token:${planId}`, membershipKey);
     const memberId = planIdempotentUuid(`plan-join-member:${planId}`, membershipKey);
-    const { data, error } = await admin().rpc(
-      "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
-      {
-        p_plan_id: planId,
-        p_submitter_hash: submitterHash,
-        p_display_name: displayName,
-        p_status: status,
-        p_member_id: memberId,
-        p_existing_member_id: existingMembership?.identity.memberId ?? null,
-        p_member_name: cleanCrewName(displayName),
-        p_member_token_hash: hashPlanMemberToken(memberToken),
-        p_member_join_key_hash: planIdempotencyDigest(`plan-join-key:${planId}`, membershipKey),
-        p_member_request_hash: planRequestDigest({ inviteRsvpSubmitterHash: submitterHash }),
-        p_joined_at: new Date().toISOString(),
-        p_rsvp_ceiling: RSVP_PLAN_CEILING,
-      },
-    );
+    const args = {
+      p_plan_id: planId,
+      p_submitter_hash: submitterHash,
+      p_display_name: displayName,
+      p_status: status,
+      p_member_id: memberId,
+      p_existing_member_id: existingMembership?.identity.memberId ?? null,
+      p_member_name: cleanCrewName(displayName),
+      p_member_token_hash: hashPlanMemberToken(memberToken),
+      p_member_join_key_hash: planIdempotencyDigest(`plan-join-key:${planId}`, membershipKey),
+      p_member_request_hash: planRequestDigest({ inviteRsvpSubmitterHash: submitterHash }),
+      p_joined_at: new Date().toISOString(),
+      p_rsvp_ceiling: RSVP_PLAN_CEILING,
+    };
+    const { data, error } = await upsertRsvpMembershipAtomic(args);
     if (error) {
       if (isForeignKeyViolation(error)) throw new UnknownPlanError(planId);
       throw new Error(error.message);

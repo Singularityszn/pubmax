@@ -15,6 +15,8 @@ import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { attachPlanMemberSession, planMemberCapability } from "@/lib/planMemberCapability";
 import { planMemberIdentity, planMemberIdentityResult, planStateResult } from "@/lib/planStore";
 import { PlanCrewFullError, PlanInviteMembershipMismatchError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
+import { planCrewCommitmentPreflightResponse } from "@/lib/planSigningHttp.server";
+import { assertServerEnv } from "@/lib/serverEnv";
 import { cleanText, readString } from "@/lib/textClean";
 import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
@@ -22,6 +24,8 @@ type Context = { params: Promise<{ id: string }> };
 
 const RSVP_LIMIT = 8;
 const RSVP_WINDOW_MS = 60_000;
+
+assertServerEnv();
 
 export async function POST(request: Request, context: Context): Promise<Response> {
   const frozen = socialFreezeResponse();
@@ -65,6 +69,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     return publicApiError("Host is already in this Plan.", "PLAN_HOST_CANNOT_RSVP", 409);
   }
 
+  const signingUnavailable = planCrewCommitmentPreflightResponse();
+  if (signingUnavailable) return signingUnavailable;
   const submitterHash = hashActor(submitterId);
   const tokenHash = hashActor(inviteToken);
   if (

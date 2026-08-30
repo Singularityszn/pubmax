@@ -16,7 +16,7 @@ is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 | Seed boroughs | 1–2 (e.g. Soho + Camden) with corroborated people-logged prices before the blast |
 | Ads | None for week 1 |
 
-## Per-night metric (Crew Night S1)
+## Crew Night flow ratio (S1)
 
 Plans with **at least two committed humans** on the crew roster. No new event:
 reuse the exactly-once `crew_committed` threshold event and filter
@@ -26,6 +26,7 @@ star is `next_night_committed`; its emitter and privacy contract live there.
 
 ```
 crew_nights_with_two_or_more = count(crew_committed WHERE participants = 2)
+crew_night_flow_ratio        = crew_nights_with_two_or_more / count(plan_saved)
 ```
 
 Count the database-minted opaque event identity once. Migration `0125` records
@@ -35,9 +36,17 @@ Going RSVPs return that evidence only to its member. Join retries, concurrent
 third joins, signing-key rotation, and leave-rejoin cycles do not add Crew
 Nights.
 
+`crew_night_flow_ratio` is an operational flow ratio, not a share, conversion,
+or cohort rate. Its independent event-time flows mean it may exceed 1 when a
+Plan saved before the read window reaches two people inside the window. No Plan
+ID enters analytics to join numerator and denominator into a cohort.
+
 There is no backfill for Plans that already had two or more active members when
-`0125` is applied. Scoreboard cohort starts at migration application. Compatible
-old RPC names record crossings made by old app code after that point.
+`0125` is applied. Deploy app code with missing-function fallback first, drain
+old server versions, then apply `0125`. Scoreboard cohort starts at migration
+application. This app-first order prevents an old public Going response from
+creating an undelivered threshold. Compatible old RPC names are rollback safety,
+not permission to reverse the order.
 
 Do not substitute `invite_rsvp_submitted`. Maybe is intent only. Going counts
 only when its server-confirmed canonical membership returns the threshold token.
@@ -51,7 +60,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
-| **Crew nights (per-night metric)** | `crew_committed` where `participants = 2`; rate over `plan_saved` |
+| **Crew Night flow ratio** | `crew_committed` where `participants = 2` divided by `plan_saved`; operational flow ratio may exceed 1 |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |

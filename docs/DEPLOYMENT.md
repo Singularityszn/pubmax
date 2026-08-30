@@ -32,7 +32,8 @@ Set these in the Vercel project (Settings → Environment Variables).
 | `OPENAI_API_KEY` | **Server-only** key for Social post, comment, and quote moderation. If unset, both moderation crons answer `200 { skipped: "openai_not_configured" }` before claiming queued work, so pending work stays available after configuration is restored; the posts cron still reports its moderation backlog findings on that skip. Keyless local app behavior remains available. |
 | `ADMIN_TOKEN` | Moderator auth for `/admin` and moderation APIs. Prefer the httpOnly session cookie from `POST /api/admin/session` (the admin console never needs to keep sending the raw token). The `x-admin-token` header remains accepted for scripts/back-compat. If unset, moderation is open **only** in dev/test (`NODE_ENV`) — always set it anywhere reachable, including preview deployments. **Required in production:** `assertServerEnv()` refuses to start if this is unset (FATAL at route import). |
 | `SOCIAL_MODERATOR_STAFF_ROLE_ID` | Server-only UUID of the active `private_social_staff_roles` moderator bound to the existing admin token/session. Social moderation SQL validates that the role is active and not revoked before reads or writes. |
-| `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs) and the fallback trusted Plan-signing key. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. |
+| `RATE_LIMIT_SALT` | At least 32 random bytes for `sha256(salt:ip)` IP hashing (raw IPs never reach the DB or logs). When `PLAN_IDEMPOTENCY_SECRET` is omitted, it remains the existing Plan mutation root. Defaults are allowed only for non-trusted local helpers. **Required in production:** `assertServerEnv()` refuses to start if this is unset, short, or still the dev default. Never rotate it while it is the selected Plan mutation root unless a data migration changes existing derived identities. |
+| `CREW_DELIVERY_SIGNING_SECRET` | Dedicated current V2 crew delivery key of at least 32 random bytes. It must differ from `RATE_LIMIT_SALT` and any configured `PLAN_IDEMPOTENCY_SECRET`. **Required in production:** startup fails if it is missing, short, or shared. |
 
 ### Optional — The Landlord (heritage Q&A)
 
@@ -45,7 +46,8 @@ Set these in the Vercel project (Settings → Environment Variables).
 
 | Var | Purpose |
 |---|---|
-| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and verified loop analytics. When omitted, the required `RATE_LIMIT_SALT` is used. A configured short value fails startup/signing rather than silently falling back. |
+| `PLAN_IDEMPOTENCY_SECRET` | Optional dedicated HMAC secret of at least 32 random bytes for retry-safe Plan writes, grounding proofs, referral signup proofs, and legacy verified loop analytics. When omitted, `RATE_LIMIT_SALT` remains the selected root. Never add, remove, or rotate the selected Plan mutation root without a data migration for existing derived identities. A configured short value fails startup/signing. |
+| `CREW_DELIVERY_PREVIOUS_SIGNING_SECRET` | Optional previous V2 crew delivery key for one rotation. It must contain at least 32 random bytes and differ from current crew key, `RATE_LIMIT_SALT`, and any configured Plan key. Retain it for at least 365 days after rotation so queued V2 tokens remain verifiable. |
 | `EXA_API_KEY` | Powers the scheduled signals-ingestion job (sol.md TL-6). If unset, that job is skipped; the interactive app path does not depend on it. |
 | `SEARCH_PROVIDER` | **Server-only** `exa` (default) or `tavily` selector for `/api/cron/enrich-city-pubs`. `exa` may fall back to a configured Tavily key. `tavily` uses only Tavily, so one environment change can switch providers without a code change. |
 | `AI_GATEWAY_API_KEY` | Optional **server-only** explicit Vercel AI Gateway credential for Exa search in `/api/cron/enrich-city-pubs`. Vercel request-context OIDC is also accepted automatically. No separate Exa key is used by this path. |
@@ -56,18 +58,47 @@ Set these in the Vercel project (Settings → Environment Variables).
 
 ### Keyless signing boundary
 
-Non-production local demos with no Supabase and no signing secret use a
-cryptographically random process-local HMAC key. This keeps Plan grounding and
-verified analytics usable in the same in-memory process without creating a
-public forgeable key; tokens intentionally stop verifying after restart. Any
-`NODE_ENV=production`, deployed, or Supabase-backed process must configure one
-of the trusted secrets above. `PUBMAX_E2E_KEYLESS=1` selects only the in-memory
-storage backend; it never relaxes signing. `playwright.config.ts` injects a fresh
-32-byte `PLAN_IDEMPOTENCY_SECRET` through `webServer.env` for each
-production-style browser-test run, keeping it out of the command and argv.
+Non-production local demos with no Supabase and no signing secret use separate
+cryptographically random process-local HMAC keys for Plan identity and V2 crew
+delivery. This keeps Plan grounding and verified analytics usable in the same
+in-memory process without creating a public forgeable key; tokens intentionally
+stop verifying after restart. Any `NODE_ENV=production`, deployed, or
+Supabase-backed process must configure the required trusted secrets above.
+`PUBMAX_E2E_KEYLESS=1` selects only the in-memory storage backend; it never
+relaxes signing. `playwright.config.ts` injects fresh distinct 32-byte
+Plan, crew delivery, and rate-limit values through `webServer.env` for each
+production-style browser-test run, keeping them out of command and argv.
 Plan generation, creation, and completion return retryable
 `PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
 misconfigured.
+
+### V2 crew delivery key rotation
+
+V2 crew tokens remain valid for 365 days. Rotate crew delivery in one
+deployment: set `CREW_DELIVERY_PREVIOUS_SIGNING_SECRET` to old
+`CREW_DELIVERY_SIGNING_SECRET` and set a new current key together. Keep the
+selected Plan mutation root unchanged. Retain previous crew key for at least
+365 days, then remove it. Do not start another rotation while previous key is
+retained; only one previous generation is accepted. This order lets queued
+tokens verify with old key while refreshed tokens use new key and same database
+event ID.
+
+### Migration 0125 app-first rollout
+
+Use this exact order:
+
+1. Configure `CREW_DELIVERY_SIGNING_SECRET` with a dedicated strong key.
+2. Deploy fallback-capable app code that can call pre-0125 RPC names.
+3. Drain old server versions so no old response contract remains active.
+4. Apply migration `0125` only after drain completes.
+5. Start the metric cohort when migration succeeds and only new app serves.
+
+Migration-first loses crew commitment delivery from old app responses. Database
+can record occurrence, but old client cannot receive its V2 delivery token.
+Migration rollback refuses after first occurrence so recorded evidence cannot
+be erased. App rollback after migration causes metric loss because old app can
+create thresholds without returning delivery evidence. Roll app forward or
+hold migration. Do not reverse this order.
 
 ### Vercel-injected (do not set by hand)
 
