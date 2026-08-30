@@ -113,7 +113,7 @@ test("cold /map/london paints tappable pins within the pin-ready SLA", async ({
   }
 });
 
-async function openPhoneMap(
+async function preparePhoneMap(
   page: Page,
   viewport: (typeof VIEWPORTS)[number],
   reducedMotion: "reduce" | "no-preference" = "reduce",
@@ -150,6 +150,15 @@ async function openPhoneMap(
   await expect(page.locator(".mobileMapTopbar")).toBeVisible({
     timeout: 45_000,
   });
+}
+
+async function openPhoneMap(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  reducedMotion: "reduce" | "no-preference" = "reduce",
+  path = "/map",
+): Promise<void> {
+  await preparePhoneMap(page, viewport, reducedMotion, path);
   // One bar: neither the old rail nor the map-floating category band.
   await expect(page.locator(".mobileMapRail")).toHaveCount(0);
   await expect(
@@ -159,6 +168,17 @@ async function openPhoneMap(
   await expect(
     page.getByRole("button", { name: "Describe the outing" }),
   ).toBeVisible();
+  await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
+}
+
+async function openLimitedPhoneMap(
+  page: Page,
+  viewport: (typeof VIEWPORTS)[number],
+  reducedMotion: "reduce" | "no-preference" = "reduce",
+  path: string,
+): Promise<void> {
+  await preparePhoneMap(page, viewport, reducedMotion, path);
+  await expect(page.locator(".mobileMapTopbarLimited")).toBeVisible();
   await expect(page.locator(".mapLoading")).toBeHidden({ timeout: 45_000 });
 }
 
@@ -717,7 +737,7 @@ test("320px limited map keeps its topbar and city menu inside the viewport", asy
   page,
 }) => {
   const viewport = VIEWPORTS[2];
-  await openPhoneMap(
+  await openLimitedPhoneMap(
     page,
     viewport,
     "reduce",

@@ -18,6 +18,7 @@ import { describe, expect, it } from "vitest";
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
+const mobileMapChromeSpec = read("e2e/mobile-map-chrome-fit.spec.ts");
 const arcChipsCss = read("components/map/tonightArcChips.css");
 const arcChipsTsx = read("components/map/TonightArcChips.tsx");
 const landingCss = read("components/landing/landing.css");
@@ -49,6 +50,21 @@ function declarationsFor(selector: string): Map<string, string> {
 }
 
 describe("mobile chrome fit at 390px", () => {
+  it("uses limited setup for the limited map journey", () => {
+    const limitedTestStart = mobileMapChromeSpec.indexOf(
+      'test("320px limited map keeps its topbar and city menu inside the viewport"',
+    );
+    const nextTestStart = mobileMapChromeSpec.indexOf("\ntest(", limitedTestStart + 1);
+    const limitedTest = mobileMapChromeSpec.slice(
+      limitedTestStart,
+      nextTestStart < 0 ? undefined : nextTestStart,
+    );
+
+    expect(limitedTestStart, "limited map journey is present").toBeGreaterThanOrEqual(0);
+    expect(limitedTest).toContain("await openLimitedPhoneMap(");
+    expect(limitedTest).not.toContain("await openPhoneMap(");
+  });
+
   it("keeps first-visit analytics choices equal and clear of map activation", () => {
     const buttons = globalCss.match(/\.analyticsConsentPromptActions button\s*{([^}]*)}/)?.[1] ?? "";
     expect(buttons).toMatch(/min-height:\s*44px/);
