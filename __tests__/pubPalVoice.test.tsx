@@ -41,7 +41,10 @@ vi.mock("@/lib/authedFetch", () => ({
 }));
 
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
-import { PAL_MICROPHONE_PERMISSION_ERROR } from "@/lib/pubPalVoiceSession";
+import {
+  PAL_MICROPHONE_PERMISSION_ERROR,
+  PAL_VOICE_START_ERROR,
+} from "@/lib/pubPalVoiceSession";
 
 let container: HTMLDivElement;
 let root: Root | null;
@@ -148,6 +151,49 @@ describe("Pub Pal voice controls", () => {
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(PAL_MICROPHONE_PERMISSION_ERROR);
+  });
+
+  it("releases an uncertain grant request after malformed grant JSON", async () => {
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    requests.authedActionFetch
+      .mockResolvedValueOnce(new Response("{", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    const startButton = container.querySelector<HTMLButtonElement>("button");
+    await act(async () => {
+      startButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(startButton?.disabled).toBe(false);
+    expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
+    expect(container.textContent).toContain(PAL_VOICE_START_ERROR);
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(requests.authedActionFetch.mock.calls[1]).toEqual([
+      "/api/pub-pal/voice-token",
+      expect.objectContaining({
+        method: "POST",
+        body: JSON.stringify({ action: "release", durationSeconds: 0 }),
+      }),
+    ]);
+
+    unmount();
+    await settle();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(voice.endSession).not.toHaveBeenCalled();
   });
 
   it("cancels pending permission on unmount and stops a late probe without grant or connect", async () => {
