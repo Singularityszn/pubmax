@@ -256,6 +256,17 @@ function rowsFromPayload(
   return revision === expectedRevision ? rows : null;
 }
 
+async function readOfflineFallback(
+  offlineKey: string,
+  expectedRevision?: string,
+): Promise<SlimVenue[] | null> {
+  const stored = await offlineCache.get<unknown>(offlineKey);
+  const payloadRows = rowsFromPayload(stored, expectedRevision);
+  if (!payloadRows) return null;
+  const rows = normalizeRows(payloadRows);
+  return rows.length > 0 && rows.length === payloadRows.length ? rows : null;
+}
+
 export function loadSlimVenuesFromPathResult(
   path: string,
   options: SlimVenueLoadOptions = {},
@@ -295,6 +306,11 @@ async function loadSlimVenuesFromPathUnshared(
       payloadRows = rowsFromPayload(data, options.expectedRevision);
     }
     if (!payloadRows) {
+      const fallback = await readOfflineFallback(
+        offlineKey,
+        options.expectedRevision,
+      );
+      if (fallback) return { rows: fallback, status: "ready" };
       return { rows: [], status: "unavailable" };
     }
     const rows = normalizeRows(payloadRows);
@@ -310,9 +326,11 @@ async function loadSlimVenuesFromPathUnshared(
       status: complete ? "ready" : "unavailable",
     };
   } catch (error) {
-    const stored = await offlineCache.get<unknown>(offlineKey);
-    const fallback = normalizeRows(rowsFromPayload(stored, options.expectedRevision) ?? []);
-    if (fallback.length > 0) return { rows: fallback, status: "ready" };
+    const fallback = await readOfflineFallback(
+      offlineKey,
+      options.expectedRevision,
+    );
+    if (fallback) return { rows: fallback, status: "ready" };
     throw error;
   }
 }

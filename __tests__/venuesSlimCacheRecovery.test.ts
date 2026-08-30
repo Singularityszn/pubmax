@@ -1,4 +1,14 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const offlineGet = vi.hoisted(() => vi.fn(async () => null as unknown));
+const offlineSet = vi.hoisted(() => vi.fn(async () => true));
+
+vi.mock("@/lib/offlineCache", () => ({
+  offlineCache: {
+    get: offlineGet,
+    set: offlineSet,
+  },
+}));
 
 import { loadSlimVenuesFromPathResult } from "@/lib/venuesSlim";
 
@@ -13,6 +23,13 @@ const ROW = {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+});
+
+beforeEach(() => {
+  offlineGet.mockReset();
+  offlineSet.mockReset();
+  offlineGet.mockResolvedValue(null);
+  offlineSet.mockResolvedValue(true);
 });
 
 describe("slim venue cache recovery", () => {
@@ -58,6 +75,31 @@ describe("slim venue cache recovery", () => {
     expect(fetchSpy).toHaveBeenNthCalledWith(1, path);
     expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
     expect(fetchSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it("uses a current-revision cache after both network reads remain stale", async () => {
+    const path = "/data/cache-recovery-stale-with-fallback.json";
+    offlineGet.mockResolvedValueOnce({ revision: "target", rows: [ROW] });
+    const staleResponse = {
+      ok: true,
+      json: async () => ({ revision: "previous", rows: [ROW] }),
+    };
+    const fetchSpy = vi
+      .fn()
+      .mockResolvedValueOnce(staleResponse)
+      .mockResolvedValueOnce(staleResponse);
+    vi.stubGlobal("fetch", fetchSpy);
+
+    await expect(
+      loadSlimVenuesFromPathResult(path, { expectedRevision: "target" }),
+    ).resolves.toEqual({ rows: [ROW], status: "ready" });
+
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, path);
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, path, { cache: "no-store" });
+    expect(offlineGet).toHaveBeenCalledWith(
+      `venues_slim:v2:${path}`,
+    );
+    expect(offlineSet).not.toHaveBeenCalled();
   });
 
   it("does not retry a request abort as cache recovery", async () => {
