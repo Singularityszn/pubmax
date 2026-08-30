@@ -33,7 +33,7 @@ export const OUT_LISTING_PUB_ABSENT_LINE =
  * really asks (lib/out/venueMatch.server.ts matches pub kinds alone), and
  * naming what we do NOT have costs nobody a wrong noun.
  */
-export const OUT_LISTING_VENUE_BADGE_LABEL = "PUBMAXX venue";
+export const OUT_LISTING_VENUE_BADGE_LABEL = "On PUBMAXX";
 
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
