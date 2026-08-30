@@ -10,6 +10,7 @@ export function resolveSupabaseConfig(
   const cleanUrl = url?.trim();
   const cleanKey = key?.trim();
   if (!cleanUrl || !cleanKey) return null;
+  if (!/^https?:\/\//i.test(cleanUrl)) return null;
 
   try {
     const parsed = new URL(cleanUrl);

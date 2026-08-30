@@ -16,7 +16,7 @@ describe("resolveSupabaseConfig", () => {
     });
   });
 
-  it.each(["not-a-valid-url", "ftp://example.supabase.co"]) (
+  it.each(["not-a-valid-url", "ftp://example.supabase.co", "https:example.supabase.co"]) (
     "rejects %s as a Supabase URL",
     (url) => {
       expect(resolveSupabaseConfig(url, "service-role-key")).toBeNull();
