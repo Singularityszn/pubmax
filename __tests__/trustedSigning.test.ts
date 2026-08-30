@@ -71,6 +71,7 @@ describe("externally trusted signing keys", () => {
       expect(encodedSecret).toBeTruthy();
       expect(Buffer.from(encodedSecret!, "base64url")).toHaveLength(32);
       expect(webServer.env?.PUBMAX_E2E_KEYLESS).toBe("1");
+      expect(webServer.env?.DEPLOYMENT_VERSION).toBe("local");
       expect(command).not.toContain("PLAN_IDEMPOTENCY_SECRET");
       expect(command).not.toContain("PUBMAX_E2E_KEYLESS");
       expect(command).not.toContain(encodedSecret!);
