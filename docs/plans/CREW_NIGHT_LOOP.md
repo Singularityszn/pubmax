@@ -12,9 +12,9 @@
 
 > Make the next soft, affordable, low-pressure IRL plan with your lot so obvious that staying in is the harder choice.
 
-**Per-night metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`.
+**Per-night metric:** share of nights where a Plan reaches **at least two committed humans**. One verified `crew_committed` threshold event represents one Plan. It carries fixed `participants: 2`; a server-side plan-level HMAC event id deduplicates retries without sending a Plan id. Not scroll DAU on `/social`.
 
-**Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed >= 2` measures one night, and this measures the loop.
+**Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. One `crew_committed` threshold event measures one night, and this measures the loop.
 
 Three usual-lot reinvite surfaces emit it, and they are the whole list: `components/plan/LastCrewInvite.tsx` (source `crew-reinvite`), `components/plan/CompletedPlanUsualLot.tsx` and `components/night/MorningReentryCard.tsx` (both source `completed_plan`). Every one of them builds its props through the single seam `nextNightCommittedProps` (`lib/lastCrew.ts`), so what the event may carry cannot drift between surfaces: a closed `source` plus coarse `windowDays`, and never a name, a venue id or a coordinate. The rail itself is consent-gated (`lib/analyticsEvents.ts`), where `source` is additionally held to a closed value set, so a free-text source is dropped rather than recorded. `__tests__/analyticsEvents.test.ts` pins the prop shape, all three emitters, and this section.
 
@@ -59,7 +59,7 @@ Ordered for parallel work; later slices must not block earlier merges.
 | # | Branch | PR job | Key seams | Avoid |
 |---|---|---|---|---|
 | 0 | `cursor/crew-night-loop-plan-dd0b` | This plan + README index | `docs/plans/` | No product code |
-| 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard + funnel docs for `crew_committed` `participants >= 2`; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
+| 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard and funnel docs for verified `crew_committed` threshold events; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
 | 2 | `cursor/invite-spend-band-dd0b` | Honest £X–Y pp on invite share text, `/invite/[token]` copy, OG when stop prices complete; omit when incomplete | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page + OG | Do not redesign `PlanInviteNextStep` |
 | 3 | `cursor/soft-occasion-defaults-dd0b` | Soft defaults: describe-first / Tonight → plan handoff / landing Why → `/plan` for AF, coffee, chill | `PlanDescribeFirst`, Tonight vibe chips, landing links | No ShareBar; no launch-flag change; no taste CSS churn |
 | 4 | `cursor/crew-tonight-board-dd0b` | Friends-only “who’s out” board over `visibleCheckInsForViewer`; keep `/we-are-out` honest under live or rollback state | check-in feed, You/lot surface, `WeAreOutClient` | No area-public densify |
@@ -85,7 +85,7 @@ Follow `docs/VOICE.md`. No em dashes, no exclamation marks, British spelling. Jo
 ## 6. Definition of done for S1
 
 - [x] Plan doc on `main` (PR #918)
-- [x] Per-night and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
+- [x] Per-night and loop metrics documented and test-pinned (`crew_committed` threshold contract; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
 - [x] Invite artifact can show an honest spend band (or silence) (PR #924: `planInviteSpendBandFromListedPrices`, invite page, OG card; silent when any stop price is missing)
 - [x] Soft occasion path visible without changing Social launch state (PR #921: `SOFT_PLAN_OCCASION_IDS` in `lib/planOccasion.ts`)
 - [x] Friends-only crew tonight surface + We-are-out honesty (PR #922; hardened for live-default Social by PR #1247)

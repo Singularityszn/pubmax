@@ -234,15 +234,13 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       setCrew(nextCrew);
       const routeReady = body.plan ? planRouteReady(body.plan) : false;
       const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
-      trackEvent(
-        "crew_committed",
-        {
+      if (deliveryToken) {
+        trackEvent("crew_committed", {
           source: "shared-plan",
-          participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
+          participants: 2,
           routeReady,
-        },
-        deliveryToken ? { deliveryToken } : undefined,
-      );
+        }, { deliveryToken });
+      }
       if (typeof body.friendEdgesFormed === "number" && body.friendEdgesFormed > 0) {
         trackEvent("friend_edge_via_crew", { source: "plan-crew" });
       }

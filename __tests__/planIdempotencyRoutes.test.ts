@@ -163,12 +163,14 @@ describe("Plan mutation idempotency", () => {
       body: JSON.stringify({ name, inviteToken: invite.token }),
     }), ctx(id));
     const first = await request("Guest");
-    const firstBody = await first.json() as { memberToken: string; plan: PlanState };
+    const firstBody = await first.json() as { crewCommitted?: string; memberToken: string; plan: PlanState };
     const replay = await request("Guest");
-    const replayBody = await replay.json() as { memberToken: string; plan: PlanState };
+    const replayBody = await replay.json() as { crewCommitted?: string; memberToken: string; plan: PlanState };
     expect(replay.status).toBe(200);
     expect(replayBody.memberToken).toBe(firstBody.memberToken);
     expect(replayBody.plan.crew).toHaveLength(2);
+    expect(firstBody.crewCommitted).toEqual(expect.any(String));
+    expect(replayBody.crewCommitted).toEqual(expect.any(String));
     const conflict = await request("Another guest");
     expect(conflict.status).toBe(409);
     expect(await conflict.json()).toMatchObject({ code: "PLAN_COLLAB_CONFLICT" });

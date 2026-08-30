@@ -351,7 +351,7 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
   };
   crew_committed: {
     source: "shared-plan";
-    participants: number;
+    participants: 2;
     routeReady: boolean;
   };
 };
@@ -588,9 +588,7 @@ function isAllowedVerifiedOutcomeProp(
     return key === "source" && includesValue(PLANNING_SOURCES, value);
   }
   if (key === "source") return value === "shared-plan";
-  if (key === "participants") {
-    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100;
-  }
+  if (key === "participants") return value === 2;
   return key === "routeReady" && typeof value === "boolean";
 }
 

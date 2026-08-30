@@ -19,15 +19,17 @@ is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 ## Per-night metric (Crew Night S1)
 
 Plans with **at least two committed humans** on the crew roster. No new event:
-reuse `crew_committed` and filter `participants >= 2`. Full formula and
+count the verified `crew_committed` threshold event. It carries fixed
+`participants: 2`, and its opaque plan-level event id makes retries and later
+threshold crossings deduplicate without sending a Plan id. Full formula and
 rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0. The loop north
 star is `next_night_committed`; its emitter and privacy contract live there.
 
 ```
-crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2)
+crew_nights_with_two_or_more = count(crew_committed)
 ```
 
-Do not substitute `invite_rsvp_submitted` — RSVP is intent on the public invite
+Do not substitute `invite_rsvp_submitted` - RSVP is intent on the public invite
 page, not a confirmed join. Track Social only for an explicit, consented
 product question; do not use it as a vanity launch metric during rollback.
 
@@ -38,7 +40,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
-| **Crew nights (per-night metric)** | `crew_committed` where `participants >= 2`; rate over `plan_saved` |
+| **Crew nights (per-night metric)** | Count verified `crew_committed`; rate over `plan_saved` |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |
@@ -51,7 +53,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 ## Week-1 pass bar
 
-- At least one plan reaches `crew_committed` with `participants >= 2`
+- At least one Plan emits a verified `crew_committed` threshold event
 - ≥10 distinct humans opened the map
 - ≥5 RSVPs or price logs
 - Invite share on most successful locked plans

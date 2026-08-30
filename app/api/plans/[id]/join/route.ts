@@ -46,17 +46,16 @@ async function maybeFormCrewFriendEdges(
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
-// §4.10: a successful join returns a verified crew_committed delivery token so
-// the client can report the north-star Friend proof. The joinId is the new
-// member's non-secret crew id — never the member capability. Absent when the
-// store returned no plan/crew (nothing to commit).
-function crewCommittedToken(plan: PlanState | null): string | undefined {
-  const joinId = plan?.crew.at(-1)?.id;
-  if (!plan || !joinId) return undefined;
+// A Planned Night emits one verified crew threshold event, when its second
+// committed human joins. The Plan id stays inside the server-side HMAC subject
+// and never becomes an analytics property. The second member's durable join
+// time keeps an idempotent route replay byte-stable.
+function crewCommittedToken(planId: string, plan: PlanState | null): string | undefined {
+  const thresholdMember = plan?.crew[1];
+  if (!plan || plan.crew.length !== 2 || !thresholdMember) return undefined;
   return crewCommittedEventToken({
-    joinId,
-    joinedAt: new Date().toISOString(),
-    participants: plan.crew.length,
+    planId,
+    committedAt: thresholdMember.joinedAt,
     routeReady: planRouteReady(plan),
   });
 }
@@ -141,7 +140,7 @@ export async function POST(request: Request, context: Context): Promise<Response
           memberToken: result.memberToken,
           role: result.role,
           collaborationAuthorized: result.collaborationAuthorized,
-          crewCommitted: crewCommittedToken(result.plan),
+          crewCommitted: crewCommittedToken(id, result.plan),
           friendEdgesFormed,
         },
         { status: 200 },
@@ -174,7 +173,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     jsonNoStore(
       {
         ...joined,
-        crewCommitted: crewCommittedToken(joined.plan),
+        crewCommitted: crewCommittedToken(id, joined.plan),
         friendEdgesFormed,
       },
       { status: 200 },

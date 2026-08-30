@@ -50,8 +50,14 @@ function signature(encoded: string, key: Buffer): Buffer {
 }
 
 function eventId(subject: string, event: AnalyticsEvent, key: Buffer): string {
+  // Crew commitment is one plan-level threshold, even if a later replay sees
+  // different Route readiness. The signed token still binds exact props; only
+  // its dedupe identity omits them.
+  const eventIdentity = event.name === "crew_committed"
+    ? `${subject}:${event.name}`
+    : `${subject}:${event.name}:${JSON.stringify(event.props)}`;
   const hex = createHmac("sha256", key)
-    .update(`verified-analytics-event:${subject}:${event.name}:${JSON.stringify(event.props)}`)
+    .update(`verified-analytics-event:${eventIdentity}`)
     .digest("hex")
     .slice(0, 32)
     .split("");
@@ -184,9 +190,8 @@ export function planAcceptedEventTokens(input: {
 }
 
 export function crewCommittedEventToken(input: {
-  joinId: string;
-  joinedAt: string;
-  participants: number;
+  planId: string;
+  committedAt: string;
   routeReady: boolean;
 }): string {
   return mintVerifiedAnalyticsToken(
@@ -194,12 +199,12 @@ export function crewCommittedEventToken(input: {
       name: "crew_committed",
       props: {
         source: "shared-plan",
-        participants: input.participants,
+        participants: 2,
         routeReady: input.routeReady,
       },
     },
-    `join:${input.joinId}:crew-committed`,
-    input.joinedAt,
+    `plan:${input.planId}:crew-committed`,
+    input.committedAt,
   );
 }
 

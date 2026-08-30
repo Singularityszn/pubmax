@@ -345,7 +345,7 @@ describe("POST /api/events", () => {
     };
     const crew = {
       name: "crew_committed" as const,
-      props: { source: "shared-plan", participants: 3, routeReady: true },
+      props: { source: "shared-plan", participants: 2, routeReady: true },
     };
 
     const draftResponse = await POST(post(JSON.stringify({
@@ -357,9 +357,8 @@ describe("POST /api/events", () => {
     const crewResponse = await POST(post(JSON.stringify({
       ...crew,
       deliveryToken: crewCommittedEventToken({
-        joinId: "join-one",
-        joinedAt: occurredAt,
-        participants: 3,
+        planId: "plan-crew-threshold",
+        committedAt: occurredAt,
         routeReady: true,
       }),
       anonymousId: "anon_0123456789abcdef",

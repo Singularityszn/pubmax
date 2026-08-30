@@ -45,7 +45,7 @@ const validEvents = {
   },
   crew_committed: {
     source: "shared-plan",
-    participants: 3,
+    participants: 2,
     routeReady: true,
   },
 } as const;
@@ -69,7 +69,7 @@ describe("trusted handoff analytics schemas", () => {
     expect(sanitizeEvent("plan_accepted", { ...validEvents.plan_accepted, grounded: false })).toBeNull();
     expect(sanitizeEvent("plan_accepted", { ...validEvents.plan_accepted, routeReady: false })).toBeNull();
     expect(sanitizeEvent("plan_accepted", { ...validEvents.plan_accepted, source: "plan-link" })).toBeNull();
-    expect(sanitizeEvent("crew_committed", { ...validEvents.crew_committed, participants: 0 })).toBeNull();
+    expect(sanitizeEvent("crew_committed", { ...validEvents.crew_committed, participants: 3 })).toBeNull();
     expect(sanitizeEvent("crew_committed", { ...validEvents.crew_committed, source: "plan-link" })).toBeNull();
   });
 
@@ -152,21 +152,51 @@ describe("trusted handoff verified outcome tokens", () => {
     }, now)).toMatchObject({ name: "meaningful_core_action" });
   });
 
-  it("binds crew commitment to server-derived count and Route readiness", () => {
-    const token = crewCommittedEventToken({
-      joinId: "join-one",
-      joinedAt: occurredAt,
-      participants: 3,
+  it("binds crew commitment to one opaque plan-level threshold", () => {
+    const first = crewCommittedEventToken({
+      planId: "private-plan-one",
+      committedAt: occurredAt,
       routeReady: true,
     });
+    const replay = crewCommittedEventToken({
+      planId: "private-plan-one",
+      committedAt: "2026-07-24T12:01:00.000Z",
+      routeReady: true,
+    });
+    const otherPlan = crewCommittedEventToken({
+      planId: "private-plan-two",
+      committedAt: occurredAt,
+      routeReady: true,
+    });
+    const replayAfterRouteChange = crewCommittedEventToken({
+      planId: "private-plan-one",
+      committedAt: "2026-07-24T12:02:00.000Z",
+      routeReady: false,
+    });
     const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
+    const firstClaims = verifyAnalyticsDeliveryToken(first, event, now);
+    const replayClaims = verifyAnalyticsDeliveryToken(
+      replay,
+      event,
+      Date.parse("2026-07-24T12:01:01.000Z"),
+    );
+    const otherClaims = verifyAnalyticsDeliveryToken(otherPlan, event, now);
+    const changedRouteClaims = verifyAnalyticsDeliveryToken(
+      replayAfterRouteChange,
+      { ...event, props: { ...event.props, routeReady: false } },
+      Date.parse("2026-07-24T12:02:01.000Z"),
+    );
 
-    expect(verifyAnalyticsDeliveryToken(token, event, now)).toMatchObject(event);
-    expect(verifyAnalyticsDeliveryToken(token, {
+    expect(firstClaims).toMatchObject(event);
+    expect(replayClaims?.eventId).toBe(firstClaims?.eventId);
+    expect(changedRouteClaims?.eventId).toBe(firstClaims?.eventId);
+    expect(otherClaims?.eventId).not.toBe(firstClaims?.eventId);
+    expect(JSON.stringify(firstClaims)).not.toContain("private-plan-one");
+    expect(verifyAnalyticsDeliveryToken(first, {
       ...event,
-      props: { ...event.props, participants: 4 },
+      props: { ...event.props, participants: 3 },
     }, now)).toBeNull();
-    expect(verifyAnalyticsDeliveryToken(token, {
+    expect(verifyAnalyticsDeliveryToken(first, {
       ...event,
       props: { ...event.props, routeReady: false },
     }, now)).toBeNull();

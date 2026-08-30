@@ -14,10 +14,6 @@ const METRICS_FUNNEL_DOC = readFileSync(
   join(process.cwd(), "docs/METRICS_FUNNEL.md"),
   "utf8",
 );
-const INVITE_SCOREBOARD_DOC = readFileSync(
-  join(process.cwd(), "docs/growth/V1_INVITE_SCOREBOARD.md"),
-  "utf8",
-);
 const CREW_NIGHT_LOOP_DOC = readFileSync(
   join(process.cwd(), "docs/plans/CREW_NIGHT_LOOP.md"),
   "utf8",
@@ -144,7 +140,7 @@ describe("sanitizeEvent", () => {
     })?.props).toEqual({ metric: "INP", value: 143, rating: "good", route: "/near" });
   });
 
-  describe("crew north star metric (crew_committed participants)", () => {
+  describe("crew north star metric (crew_committed threshold)", () => {
     it("registers participants on crew_committed", () => {
       expect(ANALYTICS_EVENTS.crew_committed).toEqual([
         "source",
@@ -153,50 +149,42 @@ describe("sanitizeEvent", () => {
       ]);
     });
 
-    it("accepts integer participants from 1 through 100 inclusive", () => {
-      for (const participants of [1, 2, 50, 100]) {
+    it("accepts only the two-person threshold", () => {
+      expect(
+        sanitizeEvent("crew_committed", {
+          source: "shared-plan",
+          participants: 2,
+          routeReady: true,
+        }),
+      ).toEqual({
+        name: "crew_committed",
+        props: { source: "shared-plan", participants: 2, routeReady: true },
+      });
+    });
+
+    it.each([0, 1, 2.5, 3, 100, 101])(
+      "rejects participant count %s because it is not the threshold",
+      (participants) => {
         expect(
           sanitizeEvent("crew_committed", {
             source: "shared-plan",
             participants,
             routeReady: true,
           }),
-        ).toEqual({
-          name: "crew_committed",
-          props: { source: "shared-plan", participants, routeReady: true },
-        });
-      }
-    });
+        ).toBeNull();
+      },
+    );
 
-    it("rejects participants outside 1–100 or non-integers", () => {
-      expect(
-        sanitizeEvent("crew_committed", {
-          source: "shared-plan",
-          participants: 0,
-          routeReady: true,
-        }),
-      ).toBeNull();
-      expect(
-        sanitizeEvent("crew_committed", {
-          source: "shared-plan",
-          participants: 101,
-          routeReady: true,
-        }),
-      ).toBeNull();
-      expect(
-        sanitizeEvent("crew_committed", {
-          source: "shared-plan",
-          participants: 2.5,
-          routeReady: true,
-        }),
-      ).toBeNull();
-    });
-
-    it("documents the north-star filter participants >= 2 in funnel and scoreboard docs", () => {
-      expect(METRICS_FUNNEL_DOC).toMatch(/participants\s*>=\s*2/);
-      expect(METRICS_FUNNEL_DOC).toMatch(/crew_committed/);
-      expect(INVITE_SCOREBOARD_DOC).toMatch(/participants\s*>=\s*2/);
-      expect(INVITE_SCOREBOARD_DOC).toMatch(/crew_committed/);
+    it("keeps plan identity out of the threshold event", () => {
+      expect(sanitizeEvent("crew_committed", {
+        source: "shared-plan",
+        participants: 2,
+        routeReady: false,
+        planId: "private-plan-id",
+      })).toEqual({
+        name: "crew_committed",
+        props: { source: "shared-plan", participants: 2, routeReady: false },
+      });
     });
   });
 
@@ -278,13 +266,13 @@ describe("sanitizeEvent", () => {
   it("keeps the activation and retention funnel free of identity and free text", () => {
     expect(sanitizeEvent("crew_committed", {
       source: "shared-plan",
-      participants: 3,
+      participants: 2,
       routeReady: true,
       handle: "night_owl",
       note: "meet us by the bar",
     })).toEqual({
       name: "crew_committed",
-      props: { source: "shared-plan", participants: 3, routeReady: true },
+      props: { source: "shared-plan", participants: 2, routeReady: true },
     });
 
     expect(sanitizeEvent("next_night_committed", {

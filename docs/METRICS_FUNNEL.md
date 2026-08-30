@@ -17,25 +17,28 @@ PostHog. Nothing in this wave weakens that gate.
 **Per-night metric:** share of nights where a plan reaches **at least two committed
 humans** on the crew roster, not scroll DAU on `/social`.
 
-**Event:** `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx`
-after a confirmed `POST /api/plans/[id]/join` success. The host never emits
-this event for their own plan (they are already a member at creation).
+**Event:** `crew_committed` fires client-side in
+`components/plan/PlanCrew.tsx` only when a confirmed
+`POST /api/plans/[id]/join` response carries the server-minted threshold
+token. The server returns that token when the roster reaches exactly two
+people. The host never emits this event for their own plan because they are
+already a member at creation.
 
-**Property:** `participants` — integer headcount on the plan crew after the
-join succeeds (`nextCrew.length` in `PlanCrew.tsx`). The registry allows
-integers from 1 through 100 inclusive (`lib/analyticsEvents.ts`).
+**Property:** `participants` is the fixed literal `2`. The registry rejects
+every other value (`lib/analyticsEvents.ts`). `routeReady` records whether the
+Plan held a grounded Crawl Route when the threshold join completed.
 
 **Formula:**
 
 ```
-crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2, window=7d)
+crew_nights_with_two_or_more = count(crew_committed, window=7d)
 crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
 ```
 
-Group by pseudonymous `distinct_id` when you need a per-planner rate. A single
-plan may emit several `crew_committed` events as guests join; each carries the
-then-current `participants` count, so the per-night filter is `participants >= 2`
-on the event, not a dedupe by plan id (no plan id rides on this event).
+Each Plan has one opaque event id derived from a server-side HMAC subject. A
+retried join, or a leave and later rejoin, resolves to the same event id even
+when Route readiness changed. The ingest rail deduplicates that id. The Plan
+id never appears in the token claims, PostHog properties, or browser payload.
 
 **Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
 Going or Maybe tap on the public invite card. That is intent, not membership.
@@ -44,7 +47,7 @@ plan join path that emits `crew_committed`. RSVP counts stay useful for invite
 page conversion (§7); they do not substitute for committed humans on the roster.
 
 **Privacy:** `crew_committed` carries `source`, `participants`, and
-`routeReady` only — no `planId`, no guest display name, no invite token. Public
+`routeReady` only - no `planId`, no guest display name, no invite token. Public
 invite events (`plan_invite_link_copied`, `invite_page_viewed`,
 `invite_rsvp_submitted`, and the rest of §7) follow the same rule: no `planId`
 on those link or guest-side events. See §7 for the id-hygiene rationale.
@@ -57,7 +60,7 @@ one. Three usual-lot reinvite surfaces emit it, and they are the whole list:
 `components/night/MorningReentryCard.tsx` (both source `completed_plan`).
 All three build their props through the one seam `nextNightCommittedProps`
 (`lib/lastCrew.ts`): a closed `source` plus coarse `windowDays`, never a name,
-a venue id or a coordinate. `crew_committed >= 2` measures one night;
+a venue id or a coordinate. One `crew_committed` event measures one night;
 `next_night_committed` measures the loop.
 
 ## 1. Nights planned / week
@@ -65,20 +68,22 @@ a venue id or a coordinate. `crew_committed >= 2` measures one night;
 **Events (both pre-existing, reused as-is):**
 - `plan_created` — fires client-side in `components/plan/PlanComposer.tsx` on
   a confirmed `POST /api/plans` success (the host's own plan).
-- `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx` on a
-  confirmed `POST /api/plans/[id]/join` success, with `source: "shared-plan"`.
+- `crew_committed` fires client-side in `components/plan/PlanCrew.tsx` only for
+  the confirmed join that reaches the two-person threshold.
 
-**Dedupe:** the two events are structurally exclusive — a host's own plan
-never re-fires `crew_committed` for itself (the host is a member at
-creation, not a joiner), and a guest join never fires `plan_created`. So:
+These events measure different roles. `plan_created` belongs to the host.
+`crew_committed` belongs to the guest whose join reaches the threshold. Later
+guests do not emit it. This is a per-person planning participation pulse, not a
+unique Plan count:
 
 ```
-nights_planned_per_week = count(plan_created, window=7d)
-                        + count(crew_committed WHERE source = "shared-plan", window=7d)
+planning_participation_pulse = count(plan_created, window=7d)
+                            + count(crew_committed, window=7d)
 ```
 
 grouped by the anonymous id (the `distinct_id` PostHog receives) to
-get a per-planner rate.
+get a per-person rate. Use `plan_created` alone for Plans created, and
+`crew_committed` alone for Plans that reached two people.
 
 ## 2. Invites per planner (k-factor)
 

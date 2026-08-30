@@ -190,11 +190,23 @@ describe("Plan public HTTP contract", () => {
       memberToken: string;
       role: string;
       collaborationAuthorized: boolean;
+      crewCommitted?: string;
     };
     expect(guest.plan.crew.map((member) => member.name)).toEqual(["Karan", "Priya"]);
     expect(guest.memberToken).toMatch(/^[a-f0-9]{64}$/);
     expect(guest.role).toBe("guest");
     expect(guest.collaborationAuthorized).toBe(false);
+    expect(guest.crewCommitted).toEqual(expect.any(String));
+
+    const laterJoin = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "plan-routes-classic-later-join" },
+      body: JSON.stringify({ name: "Sam", inviteToken: classicToken }),
+    }), ctx(body.plan.plan.id));
+    expect(laterJoin.status).toBe(200);
+    const laterGuest = await laterJoin.json() as { crewCommitted?: string; plan: PlanState };
+    expect(laterGuest.plan.crew).toHaveLength(3);
+    expect(laterGuest.crewCommitted).toBeUndefined();
 
     const wrongPlan = await createPlan();
     const cross = await JOIN(new Request(`${URL}/${wrongPlan.body.plan.plan.id}/join`, {
