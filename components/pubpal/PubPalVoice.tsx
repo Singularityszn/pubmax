@@ -207,7 +207,10 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             startController.settle();
             setIsStarting(false);
             attempt.cancelled = true;
-            attempt.sdkSessionStarted = false;
+            if (attempt.sdkSessionStarted) {
+              attempt.sdkSessionStarted = false;
+              endSession();
+            }
             setError(PAL_VOICE_START_ERROR);
             onStateChange?.("error");
             void finalizeSession(attempt);

@@ -426,6 +426,7 @@ describe("Pub Pal voice controls", () => {
   });
 
   it("releases one granted session when the SDK reports an error", async () => {
+    vi.useFakeTimers();
     const stopTrack = vi.fn();
     getUserMedia.mockResolvedValueOnce({
       getTracks: () => [{ stop: stopTrack }],
@@ -433,6 +434,7 @@ describe("Pub Pal voice controls", () => {
     requests.authedActionFetch
       .mockResolvedValueOnce(new Response(JSON.stringify({
         signedUrl: "wss://voice.example/session",
+        maxSessionSeconds: 1,
       }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
@@ -453,17 +455,25 @@ describe("Pub Pal voice controls", () => {
     expect(voice.startSession).toHaveBeenCalledOnce();
 
     const session = voice.startSession.mock.calls[0][0] as {
+      onConnect?: () => void;
       onError?: (error: unknown) => void;
       onDisconnect?: () => void;
     };
     await act(async () => {
+      session.onConnect?.();
+      await Promise.resolve();
+    });
+    expect(vi.getTimerCount()).toBe(1);
+
+    await act(async () => {
       session.onError?.(new Error("socket failed"));
-      session.onDisconnect?.();
       await Promise.resolve();
       await Promise.resolve();
     });
 
+    expect(voice.endSession).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(vi.getTimerCount()).toBe(0);
     expect(requests.authedActionFetch.mock.calls[1]).toEqual([
       "/api/pub-pal/voice-token",
       expect.objectContaining({
@@ -471,6 +481,16 @@ describe("Pub Pal voice controls", () => {
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
     ]);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_000);
+      session.onDisconnect?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
   });
 
   it("cleans up an issued grant on unmount and ignores late SDK callbacks", async () => {
