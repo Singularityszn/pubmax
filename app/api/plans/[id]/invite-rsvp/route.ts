@@ -16,6 +16,7 @@ import { attachPlanMemberSession, planMemberCapability } from "@/lib/planMemberC
 import { planMemberIdentity, planMemberIdentityResult, planStateResult } from "@/lib/planStore";
 import { PlanCrewFullError, PlanInviteMembershipMismatchError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { cleanText, readString } from "@/lib/textClean";
+import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 type Context = { params: Promise<{ id: string }> };
 
@@ -74,14 +75,21 @@ export async function POST(request: Request, context: Context): Promise<Response
   }
 
   try {
-    const { summary, isUpdate, membership } = await rsvpStore().upsert(
+    const { summary, isUpdate, membership, crewCommittedAt, crewCommittedEventId } = await rsvpStore().upsert(
       planId,
       submitterHash,
       displayName,
       status,
       { memberToken: memberToken!, identity },
     );
-    const response = jsonNoStore({ summary, isUpdate, ...(membership ?? {}) }, { status: 200 });
+    const response = jsonNoStore({
+      summary,
+      isUpdate,
+      ...(crewCommittedAt && crewCommittedEventId
+        ? { crewCommitted: crewCommittedEventToken({ crewCommittedAt, crewCommittedEventId }) }
+        : {}),
+      ...(membership ?? {}),
+    }, { status: 200 });
     return membership
       ? attachPlanMemberSession(response, request, planId, membership.memberToken)
       : response;

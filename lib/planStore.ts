@@ -32,10 +32,8 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
 
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
-export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
-export type MemoryPlanInviteMembershipResult =
-  | ({ ok: true; memberId: string } & Extract<PlanJoinResult, { ok: true }>)
-  | Extract<PlanJoinResult, { ok: false }>;
+export type PlanJoinResult = { ok: true; plan: PlanState; memberId: string; memberToken: string; role: "guest"; collaborationAuthorized: boolean; crewCommittedAt: string | null; crewCommittedEventId: string | null } | { ok: false; error: PlanWriteError };
+export type MemoryPlanInviteMembershipResult = PlanJoinResult;
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
 export type PlanCompletionResult =
@@ -84,6 +82,31 @@ export function planIdempotentUuid(scope: string, key: string): string {
 
 export function planRequestDigest(value: unknown): string {
   return createHash("sha256").update(JSON.stringify(value)).digest("hex");
+}
+
+export function parsePlanCrewJoinRpcResult(
+  data: unknown,
+  expectedMemberId: string,
+): { outcome: string; crewCommittedAt: string | null; crewCommittedEventId: string | null } | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const result = data as Record<string, unknown>;
+  if (typeof result.outcome !== "string") return null;
+  if (["joined", "replayed"].includes(result.outcome) && result.member_id !== expectedMemberId) return null;
+  const crewCommittedAt = result.crew_committed_at;
+  const crewCommittedEventId = result.crew_committed_event_id;
+  if (crewCommittedAt !== null && crewCommittedAt !== undefined) {
+    if (typeof crewCommittedAt !== "string" || !Number.isFinite(Date.parse(crewCommittedAt))) return null;
+  }
+  if (crewCommittedEventId !== null && crewCommittedEventId !== undefined) {
+    if (typeof crewCommittedEventId !== "string"
+      || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(crewCommittedEventId)) return null;
+  }
+  if ((typeof crewCommittedAt === "string") !== (typeof crewCommittedEventId === "string")) return null;
+  return {
+    outcome: result.outcome,
+    crewCommittedAt: typeof crewCommittedAt === "string" ? crewCommittedAt : null,
+    crewCommittedEventId: typeof crewCommittedEventId === "string" ? crewCommittedEventId : null,
+  };
 }
 
 /**
@@ -324,7 +347,7 @@ export const supabasePlanStore: PlanStore = {
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_idempotent_atomic", {
+      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_idempotent_with_crew_commitment_atomic", {
         p_plan_id: id,
         p_member_id: memberId,
         p_member_name: name,
@@ -335,12 +358,23 @@ export const supabasePlanStore: PlanStore = {
         p_request_hash: requestHash,
       });
       if (error) throw new Error(error.message);
-      if (data === "full") return { ok: false, error: "full" };
-      if (data === "conflict") return { ok: false, error: "conflict" };
-      if (data === "not_found") return { ok: false, error: "not_found" };
-      if (data !== "joined" && data !== "replayed") return { ok: false, error: "error" };
+      const result = parsePlanCrewJoinRpcResult(data, memberId);
+      if (!result) return { ok: false, error: "error" };
+      if (result.outcome === "full") return { ok: false, error: "full" };
+      if (result.outcome === "conflict") return { ok: false, error: "conflict" };
+      if (result.outcome === "not_found") return { ok: false, error: "not_found" };
+      if (result.outcome !== "joined" && result.outcome !== "replayed") return { ok: false, error: "error" };
       const plan = await this.get(id);
-      return plan ? { ok: true, plan, memberToken, role: "guest", collaborationAuthorized: options.collaborationAuthorized === true } : { ok: false, error: "error" };
+      return plan ? {
+        ok: true,
+        plan,
+        memberId,
+        memberToken,
+        role: "guest",
+        collaborationAuthorized: options.collaborationAuthorized === true,
+        crewCommittedAt: result.crewCommittedAt,
+        crewCommittedEventId: result.crewCommittedEventId,
+      } : { ok: false, error: "error" };
     } catch (error) {
       console.error("[plans] join failed:", error instanceof Error ? error.message : error);
       return { ok: false, error: "error" };
@@ -523,6 +557,9 @@ type MemoryPlan = {
   ending: CrawlEnding | null;
   completion: StoredCompletion | null;
   inviteToken: string;
+  crewCommittedAt: string | null;
+  crewCommittedMemberId: string | null;
+  crewCommittedEventId: string | null;
   /** Host auth user when create stamped a signed-in account (WP7). */
   ownerUserId?: string;
 };
@@ -620,6 +657,9 @@ export const memoryPlanStore: PlanStore = {
       ending: null,
       completion: null,
       inviteToken: mintInviteToken(),
+      crewCommittedAt: null,
+      crewCommittedMemberId: null,
+      crewCommittedEventId: null,
     };
     memoryPlans.set(id, plan);
     planMemory.inviteTokens.set(plan.inviteToken, id);
@@ -644,8 +684,10 @@ export const memoryPlanStore: PlanStore = {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
       if (!plan.crew.some((member) => member.id === replay.memberId)) return { ok: false, error: "error" };
       return {
-        ok: true, plan: publicState(plan), memberToken: planIdempotencyDigest(`plan-join-token:${id}`, key),
+        ok: true, plan: publicState(plan), memberId: replay.memberId, memberToken: planIdempotencyDigest(`plan-join-token:${id}`, key),
         role: "guest", collaborationAuthorized: options.collaborationAuthorized === true,
+        crewCommittedAt: plan.crewCommittedMemberId === replay.memberId ? plan.crewCommittedAt : null,
+        crewCommittedEventId: plan.crewCommittedMemberId === replay.memberId ? plan.crewCommittedEventId : null,
       };
     }
     if (plan.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
@@ -654,8 +696,22 @@ export const memoryPlanStore: PlanStore = {
     const collaborationAuthorized = options.collaborationAuthorized === true;
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
+    if (!plan.crewCommittedAt && plan.crew.length === 2) {
+      plan.crewCommittedAt = at;
+      plan.crewCommittedMemberId = memberId;
+      plan.crewCommittedEventId = randomUUID();
+    }
     planMemory.joinRequests.set(`${id}:${keyHash}`, { requestHash, memberId });
-    return { ok: true, plan: publicState(plan), memberToken, role: "guest", collaborationAuthorized };
+    return {
+      ok: true,
+      plan: publicState(plan),
+      memberId,
+      memberToken,
+      role: "guest",
+      collaborationAuthorized,
+      crewCommittedAt: plan.crewCommittedMemberId === memberId ? plan.crewCommittedAt : null,
+      crewCommittedEventId: plan.crewCommittedMemberId === memberId ? plan.crewCommittedEventId : null,
+    };
   },
   async updatePresence(id, rawToken, rawStatus) {
     if (!isPlanId(id) || typeof rawToken !== "string" || !isCrewPresenceStatus(rawStatus)) {
@@ -868,6 +924,20 @@ export async function joinMemoryPlanInviteRsvpMember(
     member.updatedAt = stamp();
   }
   return { ...joined, memberId };
+}
+
+/** Return the durable keyless threshold occurrence only to its canonical member. */
+export function memoryPlanCrewCommitment(
+  id: string,
+  memberId: string,
+): { crewCommittedAt: string; crewCommittedEventId: string } | null {
+  if (isSupabaseConfigured()) return null;
+  const plan = memoryPlans.get(id);
+  if (plan?.crewCommittedMemberId !== memberId || !plan.crewCommittedAt || !plan.crewCommittedEventId) return null;
+  return {
+    crewCommittedAt: plan.crewCommittedAt,
+    crewCommittedEventId: plan.crewCommittedEventId,
+  };
 }
 
 /**

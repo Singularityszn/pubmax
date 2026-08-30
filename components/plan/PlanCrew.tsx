@@ -3,11 +3,11 @@
 import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { crewCommittedEventProps } from "@/lib/analyticsEvents";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
 import { subscribeToPlanCrew } from "@/lib/crewRealtime";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
-import { planRouteReady } from "@/lib/planPrivacy";
 import { NIGHT_CRAWL_ENGAGE_EVENT } from "@/lib/nightCrawlEngage";
 import { isIdentityNudgePending, recordPlanNudgeTrigger } from "@/lib/identityNudge";
 import { rememberLastCrew } from "@/lib/lastCrew";
@@ -232,17 +232,14 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
-      const routeReady = body.plan ? planRouteReady(body.plan) : false;
       const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
-      trackEvent(
-        "crew_committed",
-        {
-          source: "shared-plan",
-          participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
-          routeReady,
-        },
-        deliveryToken ? { deliveryToken } : undefined,
-      );
+      if (deliveryToken) {
+        trackEvent(
+          "crew_committed",
+          crewCommittedEventProps(),
+          { deliveryToken },
+        );
+      }
       if (typeof body.friendEdgesFormed === "number" && body.friendEdgesFormed > 0) {
         trackEvent("friend_edge_via_crew", { source: "plan-crew" });
       }

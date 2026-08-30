@@ -27,6 +27,7 @@ import { __resetMemoryPlans, planMemberIdentity, planStore } from "@/lib/planSto
 import { __resetMemoryRsvps } from "@/lib/planInviteRsvpStore";
 import { GUEST_LIST_DISPLAY_CAP, RSVP_PLAN_CEILING } from "@/lib/planInvite";
 import { rsvpStore } from "@/lib/planInviteRsvpStore";
+import { verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 
 const PLANS_URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -165,6 +166,7 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
     const first = await RSVP(request(), tokenCtx(inviteToken));
     expect(first.status).toBe(200);
     const firstBody = await first.json() as {
+      crewCommitted?: string;
       memberToken?: string;
       role?: string;
       collaborationAuthorized?: boolean;
@@ -176,16 +178,34 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
       isUpdate: false,
     });
     expect(firstBody.memberToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(firstBody.crewCommitted).toEqual(expect.any(String));
     expect(first.headers.get("set-cookie")).toContain("HttpOnly");
     expect(first.headers.get("set-cookie")).toContain(`Path=/api/plans/${planId}`);
 
     const replay = await RSVP(request(), tokenCtx(inviteToken));
     expect(replay.status).toBe(200);
-    const replayBody = await replay.json() as { memberToken?: string; isUpdate?: boolean };
+    const replayBody = await replay.json() as { crewCommitted?: string; memberToken?: string; isUpdate?: boolean };
     expect(replayBody).toMatchObject({ memberToken: firstBody.memberToken, isUpdate: true });
+    const event = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 },
+    };
+    expect(verifyAnalyticsDeliveryToken(firstBody.crewCommitted, event)?.eventId).toBe(
+      verifyAnalyticsDeliveryToken(replayBody.crewCommitted, event)?.eventId,
+    );
+
+    const later = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Mo", status: "going", submitterId: "device-later-going" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    expect(later.status).toBe(200);
+    expect(await later.json()).not.toHaveProperty("crewCommitted");
 
     const memberState = await planStore().get(planId);
-    expect(memberState?.crew.map((member) => member.name)).toEqual(["Host", "Priya"]);
+    expect(memberState?.crew.map((member) => member.name)).toEqual(["Host", "Priya", "Mo"]);
   });
 
   it("refuses a host RSVP without creating a duplicate membership", async () => {

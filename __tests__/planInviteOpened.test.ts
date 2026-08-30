@@ -16,11 +16,19 @@ describe("plan invite open + crew committed wiring", () => {
     expect(source).toContain("shared-plan");
   });
 
-  it("sends crew_committed with routeReady and deliveryToken", () => {
+  it("sends crew_committed only with a deliveryToken", () => {
     const crew = readFileSync(join(process.cwd(), "components/plan/PlanCrew.tsx"), "utf8");
-    expect(crew).toContain("routeReady");
     expect(crew).toContain("deliveryToken");
     expect(crew).toContain("crewCommitted");
+    expect(crew).toContain("if (deliveryToken)");
     expect(crew).toContain("NIGHT_CRAWL_ENGAGE_EVENT");
+  });
+
+  it("sends the RSVP crew threshold only with its verified delivery token", () => {
+    const rsvp = readFileSync(join(process.cwd(), "components/plan/PlanInviteRsvp.tsx"), "utf8");
+
+    expect(rsvp).toContain('trackEvent("crew_committed"');
+    expect(rsvp).toContain("crewCommittedEventProps()");
+    expect(rsvp).toMatch(/deliveryToken:\s*data\.crewCommitted/);
   });
 });

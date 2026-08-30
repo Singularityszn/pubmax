@@ -71,7 +71,7 @@ export const ANALYTICS_EVENTS = {
   map_area_switched: [],
   map_search_jump: [],
   tonight_result_opened: ["kind", "localityBasis"],
-  crew_committed: ["source", "participants", "routeReady"],
+  crew_committed: ["source", "participants"],
   account_claimed: ["source"],
   social_account_connected: ["provider", "connectionType"],
   // PostHog wizard adoption. Auth state and successful writes carry no account,
@@ -351,8 +351,7 @@ export type TrustedHandoffAnalyticsPropsByEvent = {
   };
   crew_committed: {
     source: "shared-plan";
-    participants: number;
-    routeReady: boolean;
+    participants: 2;
   };
 };
 
@@ -533,7 +532,7 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   tonight_result_opened: ["kind", "localityBasis"],
   plan_draft_saved: ["stops", "grounded", "anchored", "routeReady", "source"],
   plan_accepted: ["stops", "grounded", "anchored", "routeReady", "source"],
-  crew_committed: ["source", "participants", "routeReady"],
+  crew_committed: ["source", "participants"],
   message_attach_selected: ["kind"],
   open_plan_posted: ["placeKind"],
   open_plan_join_decided: ["decision"],
@@ -588,10 +587,14 @@ function isAllowedVerifiedOutcomeProp(
     return key === "source" && includesValue(PLANNING_SOURCES, value);
   }
   if (key === "source") return value === "shared-plan";
-  if (key === "participants") {
-    return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 100;
-  }
-  return key === "routeReady" && typeof value === "boolean";
+  return key === "participants" && value === 2;
+}
+
+export function crewCommittedEventProps(): TrustedHandoffAnalyticsPropsByEvent["crew_committed"] {
+  return {
+    source: "shared-plan",
+    participants: 2,
+  };
 }
 
 function isAllowedTrustedHandoffEventProp(

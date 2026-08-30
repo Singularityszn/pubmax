@@ -4,11 +4,9 @@ import { callerUserId } from "@/lib/authServer";
 import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
 import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
-import { isPlanId, type PlanState } from "@/lib/plan";
+import { isPlanId } from "@/lib/plan";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
-import { planRouteReady } from "@/lib/planPrivacy";
 import {
-  planMemberIdentity,
   planStateResult,
   planStore,
   resolvePlanIdByInviteToken,
@@ -25,17 +23,15 @@ import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 async function maybeFormCrewFriendEdges(
   request: Request,
   planId: string,
-  memberToken: string,
+  joinerMemberId: string | null,
 ): Promise<number> {
   try {
     const userId = await callerUserId(request);
-    if (!userId) return 0;
-    const identity = await planMemberIdentity(planId, memberToken);
-    if (!identity?.memberId) return 0;
+    if (!userId || !joinerMemberId) return 0;
     const result = await formFriendEdgesForPlanJoin({
       planId,
       joinerUserId: userId,
-      joinerMemberId: identity.memberId,
+      joinerMemberId,
     });
     return result.formed;
   } catch {
@@ -47,18 +43,16 @@ assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
 // §4.10: a successful join returns a verified crew_committed delivery token so
-// the client can report the north-star Friend proof. The joinId is the new
-// member's non-secret crew id — never the member capability. Absent when the
-// store returned no plan/crew (nothing to commit).
-function crewCommittedToken(plan: PlanState | null): string | undefined {
-  const joinId = plan?.crew.at(-1)?.id;
-  if (!plan || !joinId) return undefined;
-  return crewCommittedEventToken({
-    joinId,
-    joinedAt: new Date().toISOString(),
-    participants: plan.crew.length,
-    routeReady: planRouteReady(plan),
-  });
+// the client can report the per-night threshold. The server mints only when
+// this Plan reaches exactly two active members. The HMAC subject is Plan-scoped
+// but never leaves the token claims. Postgres stores and replays the occurrence
+// created under the same Plan join lock as the canonical membership.
+function crewCommittedToken(
+  crewCommittedAt: string | null,
+  crewCommittedEventId: string | null,
+): string | undefined {
+  if (!crewCommittedAt || !crewCommittedEventId) return undefined;
+  return crewCommittedEventToken({ crewCommittedAt, crewCommittedEventId });
 }
 
 export async function POST(request: Request, context: Context): Promise<Response> {
@@ -132,7 +126,7 @@ export async function POST(request: Request, context: Context): Promise<Response
     const friendEdgesFormed = await maybeFormCrewFriendEdges(
       request,
       id,
-      result.memberToken,
+      result.memberId,
     );
     return attachPlanMemberSession(
       jsonNoStore(
@@ -141,7 +135,7 @@ export async function POST(request: Request, context: Context): Promise<Response
           memberToken: result.memberToken,
           role: result.role,
           collaborationAuthorized: result.collaborationAuthorized,
-          crewCommitted: crewCommittedToken(result.plan),
+          crewCommitted: crewCommittedToken(result.crewCommittedAt, result.crewCommittedEventId),
           friendEdgesFormed,
         },
         { status: 200 },
@@ -168,13 +162,17 @@ export async function POST(request: Request, context: Context): Promise<Response
   const friendEdgesFormed = await maybeFormCrewFriendEdges(
     request,
     id,
-    joined.memberToken,
+    joined.memberId,
   );
   return attachPlanMemberSession(
     jsonNoStore(
       {
-        ...joined,
-        crewCommitted: crewCommittedToken(joined.plan),
+        ok: true,
+        plan: joined.plan,
+        memberToken: joined.memberToken,
+        role: joined.role,
+        collaborationAuthorized: joined.collaborationAuthorized,
+        crewCommitted: crewCommittedToken(joined.crewCommittedAt, joined.crewCommittedEventId),
         friendEdgesFormed,
       },
       { status: 200 },

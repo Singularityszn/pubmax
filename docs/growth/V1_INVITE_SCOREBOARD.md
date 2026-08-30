@@ -19,17 +19,30 @@ is [`docs/SOFT_LAUNCH_RUNBOOK.md`](../SOFT_LAUNCH_RUNBOOK.md) §6 and
 ## Per-night metric (Crew Night S1)
 
 Plans with **at least two committed humans** on the crew roster. No new event:
-reuse `crew_committed` and filter `participants >= 2`. Full formula and
-rationale: [`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0. The loop north
+reuse the exactly-once `crew_committed` threshold event and filter
+`participants = 2`. Full formula and rationale:
+[`docs/METRICS_FUNNEL.md`](../METRICS_FUNNEL.md) §0. The loop north
 star is `next_night_committed`; its emitter and privacy contract live there.
 
 ```
-crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2)
+crew_nights_with_two_or_more = count(crew_committed WHERE participants = 2)
 ```
 
-Do not substitute `invite_rsvp_submitted` — RSVP is intent on the public invite
-page, not a confirmed join. Track Social only for an explicit, consented
-product question; do not use it as a vanity launch metric during rollback.
+Count the database-minted opaque event identity once. Migration `0125` records
+one threshold occurrence and one random event ID inside the canonical
+membership transaction. Ordinary joins, private invite redemption, and public
+Going RSVPs return that evidence only to its member. Join retries, concurrent
+third joins, signing-key rotation, and leave-rejoin cycles do not add Crew
+Nights.
+
+There is no backfill for Plans that already had two or more active members when
+`0125` is applied. Scoreboard cohort starts at migration application. Compatible
+old RPC names record crossings made by old app code after that point.
+
+Do not substitute `invite_rsvp_submitted`. Maybe is intent only. Going counts
+only when its server-confirmed canonical membership returns the threshold token.
+Track Social only for an explicit, consented product question; do not use it as
+a vanity launch metric during rollback.
 
 ## Weekly PostHog reads
 
@@ -38,7 +51,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 | Metric | How to read it |
 |---|---|
-| **Crew nights (per-night metric)** | `crew_committed` where `participants >= 2`; rate over `plan_saved` |
+| **Crew nights (per-night metric)** | `crew_committed` where `participants = 2`; rate over `plan_saved` |
 | Invite share after `plan_saved` | `plan_invite_sent` + `plan_invite_link_copied` |
 | Invite k-factor (public page) | `invite_rsvp_submitted` / `invite_page_viewed`; also `invite_map_opened` / `invite_page_viewed` |
 | Classic invite redeem (if used) | `invite_redeemed` / `invite_created` |
@@ -51,7 +64,7 @@ Project: `https://eu.posthog.com/project/219466`.
 
 ## Week-1 pass bar
 
-- At least one plan reaches `crew_committed` with `participants >= 2`
+- At least one plan reaches `crew_committed` with `participants = 2`
 - ≥10 distinct humans opened the map
 - ≥5 RSVPs or price logs
 - Invite share on most successful locked plans

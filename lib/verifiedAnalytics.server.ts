@@ -3,21 +3,24 @@ import "server-only";
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 import {
+  crewCommittedEventProps,
   sanitizeEvent,
   type AnalyticsEvent,
   type PlanningSource,
 } from "@/lib/analyticsEvents";
 import { trustedSigningKey } from "@/lib/trustedSigningKey.server";
 
-const TOKEN_VERSION = 1;
+const TOKEN_VERSION_V1 = 1;
+const TOKEN_VERSION_V2 = 2;
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1_000;
 const TOKEN_MAX_LENGTH = 2_000;
 
 type VerifiedAnalyticsClaims = {
-  v: typeof TOKEN_VERSION;
+  v: typeof TOKEN_VERSION_V1 | typeof TOKEN_VERSION_V2;
   eventId: string;
   name: AnalyticsEvent["name"];
   props: AnalyticsEvent["props"];
+  occurredAt: number;
   issuedAt: number;
   expiresAt: number;
 };
@@ -45,8 +48,8 @@ function canonicalEvent(event: AnalyticsEvent): AnalyticsEvent | null {
   return null;
 }
 
-function signature(encoded: string, key: Buffer): Buffer {
-  return createHmac("sha256", key).update(`verified-analytics:v${TOKEN_VERSION}:${encoded}`).digest();
+function signature(encoded: string, key: Buffer, version: 1 | 2): Buffer {
+  return createHmac("sha256", key).update(`verified-analytics:v${version}:${encoded}`).digest();
 }
 
 function eventId(subject: string, event: AnalyticsEvent, key: Buffer): string {
@@ -70,8 +73,8 @@ export function mintVerifiedAnalyticsToken(
   const issuedAt = Date.parse(occurredAt);
   if (!canonical || !subject || !Number.isFinite(issuedAt)) throw new Error("Verified analytics needs a canonical event and occurrence.");
   const key = trustedSigningKey();
-  const claims: VerifiedAnalyticsClaims = {
-    v: TOKEN_VERSION,
+  const claims = {
+    v: TOKEN_VERSION_V1,
     eventId: eventId(subject, canonical, key),
     name: canonical.name,
     props: canonical.props,
@@ -79,7 +82,35 @@ export function mintVerifiedAnalyticsToken(
     expiresAt: issuedAt + TOKEN_TTL_MS,
   };
   const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
-  return `${encoded}.${signature(encoded, key).toString("base64url")}`;
+  return `${encoded}.${signature(encoded, key, TOKEN_VERSION_V1).toString("base64url")}`;
+}
+
+function mintVerifiedAnalyticsTokenV2(
+  event: AnalyticsEvent,
+  stableEventId: string,
+  occurredAt: string,
+  issuedAt = Date.now(),
+): string {
+  const canonical = canonicalEvent(event);
+  const occurredAtMs = Date.parse(occurredAt);
+  if (!canonical
+    || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(stableEventId)
+    || !Number.isFinite(occurredAtMs)
+    || !Number.isSafeInteger(issuedAt)) {
+    throw new Error("Verified analytics needs a canonical event and occurrence.");
+  }
+  const claims: VerifiedAnalyticsClaims = {
+    v: TOKEN_VERSION_V2,
+    eventId: stableEventId,
+    name: canonical.name,
+    props: canonical.props,
+    occurredAt: occurredAtMs,
+    issuedAt,
+    expiresAt: issuedAt + TOKEN_TTL_MS,
+  };
+  const key = trustedSigningKey();
+  const encoded = Buffer.from(JSON.stringify(claims), "utf8").toString("base64url");
+  return `${encoded}.${signature(encoded, key, TOKEN_VERSION_V2).toString("base64url")}`;
 }
 
 export function verifyAnalyticsDeliveryToken(
@@ -91,20 +122,23 @@ export function verifyAnalyticsDeliveryToken(
   const parts = token.split(".");
   if (parts.length !== 2 || !parts[0] || !parts[1]) return null;
   try {
+    const parsed = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<VerifiedAnalyticsClaims>;
+    if (parsed.v !== TOKEN_VERSION_V1 && parsed.v !== TOKEN_VERSION_V2) return null;
     const key = trustedSigningKey();
     const supplied = Buffer.from(parts[1], "base64url");
-    const expected = signature(parts[0], key);
+    const expected = signature(parts[0], key, parsed.v);
     if (supplied.length !== expected.length || !timingSafeEqual(supplied, expected)) return null;
-    const claims = JSON.parse(Buffer.from(parts[0], "base64url").toString("utf8")) as Partial<VerifiedAnalyticsClaims>;
     const canonical = canonicalEvent(event);
-    if (!canonical || claims.v !== TOKEN_VERSION || typeof claims.eventId !== "string") return null;
-    if (claims.name !== canonical.name || JSON.stringify(claims.props) !== JSON.stringify(canonical.props)) return null;
-    if (typeof claims.issuedAt !== "number" || !Number.isSafeInteger(claims.issuedAt)
-      || typeof claims.expiresAt !== "number" || !Number.isSafeInteger(claims.expiresAt)) return null;
-    if (claims.expiresAt !== claims.issuedAt + TOKEN_TTL_MS || now >= claims.expiresAt) return null;
-    if (claims.issuedAt > now + 30_000) return null;
-    if (!/^[0-9a-f-]{36}$/i.test(claims.eventId)) return null;
-    return claims as VerifiedAnalyticsClaims;
+    if (!canonical || typeof parsed.eventId !== "string") return null;
+    if (parsed.name !== canonical.name || JSON.stringify(parsed.props) !== JSON.stringify(canonical.props)) return null;
+    if (typeof parsed.issuedAt !== "number" || !Number.isSafeInteger(parsed.issuedAt)
+      || typeof parsed.expiresAt !== "number" || !Number.isSafeInteger(parsed.expiresAt)) return null;
+    if (parsed.expiresAt !== parsed.issuedAt + TOKEN_TTL_MS || now >= parsed.expiresAt) return null;
+    if (parsed.issuedAt > now + 30_000) return null;
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.eventId)) return null;
+    const occurredAt = parsed.v === TOKEN_VERSION_V1 ? parsed.issuedAt : parsed.occurredAt;
+    if (typeof occurredAt !== "number" || !Number.isSafeInteger(occurredAt) || occurredAt > now + 30_000) return null;
+    return { ...parsed, occurredAt } as VerifiedAnalyticsClaims;
   } catch {
     return null;
   }
@@ -184,22 +218,18 @@ export function planAcceptedEventTokens(input: {
 }
 
 export function crewCommittedEventToken(input: {
-  joinId: string;
-  joinedAt: string;
-  participants: number;
-  routeReady: boolean;
+  crewCommittedEventId: string;
+  crewCommittedAt: string;
+  issuedAt?: number;
 }): string {
-  return mintVerifiedAnalyticsToken(
+  return mintVerifiedAnalyticsTokenV2(
     {
       name: "crew_committed",
-      props: {
-        source: "shared-plan",
-        participants: input.participants,
-        routeReady: input.routeReady,
-      },
+      props: crewCommittedEventProps(),
     },
-    `join:${input.joinId}:crew-committed`,
-    input.joinedAt,
+    input.crewCommittedEventId,
+    input.crewCommittedAt,
+    input.issuedAt,
   );
 }
 

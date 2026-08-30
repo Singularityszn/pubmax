@@ -5,6 +5,7 @@ import { join } from "node:path";
 import { __resetMemoryAnalyticsReceipts, memoryAnalyticsReceiptStore } from "@/lib/analyticsReceiptStore";
 import {
   analyticsDeliveryTokenDigest,
+  crewCommittedEventToken,
   mintVerifiedAnalyticsToken,
   verifyAnalyticsDeliveryToken,
 } from "@/lib/verifiedAnalytics.server";
@@ -52,6 +53,52 @@ describe("verified analytics delivery", () => {
     expect(await memoryAnalyticsReceiptStore.claim(input)).toBe("claimed");
     expect(await memoryAnalyticsReceiptStore.complete(claims.eventId)).toBe(true);
     expect(await memoryAnalyticsReceiptStore.claim(input)).toBe("delivered");
+  });
+
+  it("accepts a refreshed crew token once but rejects digest rotation for other events", async () => {
+    const crewEvent = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 as const },
+    };
+    const eventId = "11111111-1111-4111-8111-111111111111";
+    const first = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt: occurredAt,
+      issuedAt: Date.parse(occurredAt),
+    });
+    const refreshed = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt: occurredAt,
+      issuedAt: Date.parse(occurredAt) + 31 * 24 * 60 * 60 * 1_000,
+    });
+    const firstClaims = verifyAnalyticsDeliveryToken(first, crewEvent, Date.parse(occurredAt) + 1_000)!;
+    const refreshedClaims = verifyAnalyticsDeliveryToken(
+      refreshed,
+      crewEvent,
+      Date.parse(occurredAt) + 31 * 24 * 60 * 60 * 1_000 + 1_000,
+    )!;
+
+    expect(firstClaims.eventId).toBe(eventId);
+    expect(refreshedClaims.eventId).toBe(eventId);
+    expect(await memoryAnalyticsReceiptStore.claim({
+      eventId,
+      tokenDigest: analyticsDeliveryTokenDigest(first),
+      eventName: crewEvent.name,
+      now: new Date("2026-07-20T12:00:01.000Z"),
+    })).toBe("claimed");
+    expect(await memoryAnalyticsReceiptStore.complete(eventId)).toBe(true);
+    expect(await memoryAnalyticsReceiptStore.claim({
+      eventId,
+      tokenDigest: analyticsDeliveryTokenDigest(refreshed),
+      eventName: crewEvent.name,
+      now: new Date("2026-08-20T12:00:01.000Z"),
+    })).toBe("delivered");
+    expect(await memoryAnalyticsReceiptStore.claim({
+      eventId,
+      tokenDigest: analyticsDeliveryTokenDigest(refreshed),
+      eventName: event.name,
+      now: new Date("2026-08-20T12:00:02.000Z"),
+    })).toBe("conflict");
   });
 
   it("keeps durable claim and completion atomic and service-role only", () => {

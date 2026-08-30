@@ -15,6 +15,7 @@ vi.mock("@/lib/pintDrops", async (importOriginal) => {
 });
 
 import { POST as CREATE } from "@/app/api/plans/route";
+import { GET as GET_PLAN } from "@/app/api/plans/[id]/route";
 import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as ACTION } from "@/app/api/plans/[id]/actions/route";
@@ -22,6 +23,7 @@ import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans, memoryPlanStore } from "@/lib/planStore";
 import { mintPlanGroundingProof } from "@/lib/planGrounding.server";
 import type { PlanState } from "@/lib/plan";
+import { verifyAnalyticsDeliveryToken } from "@/lib/verifiedAnalytics.server";
 
 const URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -163,15 +165,69 @@ describe("Plan mutation idempotency", () => {
       body: JSON.stringify({ name, inviteToken: invite.token }),
     }), ctx(id));
     const first = await request("Guest");
-    const firstBody = await first.json() as { memberToken: string; plan: PlanState };
+    const firstBody = await first.json() as { crewCommitted: string; memberToken: string; plan: PlanState };
     const replay = await request("Guest");
-    const replayBody = await replay.json() as { memberToken: string; plan: PlanState };
+    const replayBody = await replay.json() as { crewCommitted: string; memberToken: string; plan: PlanState };
     expect(replay.status).toBe(200);
     expect(replayBody.memberToken).toBe(firstBody.memberToken);
     expect(replayBody.plan.crew).toHaveLength(2);
+    expect(firstBody).not.toHaveProperty("memberId");
+    expect(replayBody).not.toHaveProperty("memberId");
+    const crewEvent = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 },
+    };
+    expect(verifyAnalyticsDeliveryToken(firstBody.crewCommitted, crewEvent)?.eventId).toBe(
+      verifyAnalyticsDeliveryToken(replayBody.crewCommitted, crewEvent)?.eventId,
+    );
     const conflict = await request("Another guest");
     expect(conflict.status).toBe(409);
     expect(await conflict.json()).toMatchObject({ code: "PLAN_COLLAB_CONFLICT" });
+  });
+
+  it("returns a crew commitment only when the Plan first reaches two people", async () => {
+    const startTime = new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString();
+    const host = await create("create-for-crew-threshold", { ...payload, startTime });
+    const id = host.body.plan.plan.id;
+
+    const planResponse = await GET_PLAN(new Request(`${URL}/${id}`, {
+      headers: { authorization: `Bearer ${host.body.memberToken}` },
+    }), ctx(id));
+    const planBody = await planResponse.json() as { inviteToken: string };
+    expect(planBody.inviteToken).toEqual(expect.any(String));
+
+    function joinWithInvite(name: string, sequence: number, inviteToken: string) {
+      return JOIN(new Request(`${URL}/${id}/join`, {
+        method: "POST",
+        headers: { "idempotency-key": `crew-threshold-join-${sequence}` },
+        body: JSON.stringify({ name, inviteToken }),
+      }), ctx(id));
+    }
+
+    async function readJoin(response: Response) {
+      return { response, body: await response.json() as { crewCommitted?: string; plan: PlanState } };
+    }
+
+    const secondPerson = await readJoin(await joinWithInvite("Guest one", 1, planBody.inviteToken));
+    const thirdPerson = await readJoin(await joinWithInvite("Guest two", 2, planBody.inviteToken));
+    const lostResponseRetry = await readJoin(await joinWithInvite("Guest one", 1, planBody.inviteToken));
+
+    expect(secondPerson.response.status).toBe(200);
+    expect(secondPerson.body.plan.crew).toHaveLength(2);
+    expect(secondPerson.body.crewCommitted).toEqual(expect.any(String));
+    expect(secondPerson.body).not.toHaveProperty("memberId");
+    expect(thirdPerson.response.status).toBe(200);
+    expect(thirdPerson.body.plan.crew).toHaveLength(3);
+    expect(thirdPerson.body).not.toHaveProperty("crewCommitted");
+    expect(lostResponseRetry.response.status).toBe(200);
+    expect(lostResponseRetry.body.plan.crew).toHaveLength(3);
+    expect(verifyAnalyticsDeliveryToken(lostResponseRetry.body.crewCommitted, {
+      name: "crew_committed",
+      props: { source: "shared-plan", participants: 2 },
+    })?.eventId).toBe(verifyAnalyticsDeliveryToken(secondPerson.body.crewCommitted, {
+      name: "crew_committed",
+      props: { source: "shared-plan", participants: 2 },
+    })?.eventId);
   });
 
   it("records one atomic live action for repeated delivery", async () => {
@@ -203,6 +259,29 @@ describe("Plan mutation idempotency", () => {
     const state = await memoryPlanStore.get(id);
     expect(state?.actions).toHaveLength(2);
     expect(new Set((state?.actions ?? []).map((action) => action.id)).size).toBe(2);
+  });
+
+  it("returns the deterministic member id from a join and its replay", async () => {
+    const host = await create("create-for-member-result");
+    const id = host.body.plan.plan.id;
+    const options = {
+      collaborationAuthorized: true,
+      idempotencyKey: "member-result-join",
+    };
+
+    const first = await memoryPlanStore.join(id, "Crew", options);
+    const replay = await memoryPlanStore.join(id, "Crew", options);
+
+    expect(first).toMatchObject({ ok: true, memberId: expect.any(String) });
+    expect(replay).toMatchObject({ ok: true, memberId: expect.any(String) });
+    if (!first.ok || !replay.ok) return;
+    expect(replay.memberId).toBe(first.memberId);
+  });
+
+  it("uses the join result identity without a second member lookup", () => {
+    const source = readFileSync(join(process.cwd(), "app/api/plans/[id]/join/route.ts"), "utf8");
+
+    expect(source).not.toContain("planMemberIdentity");
   });
 });
 

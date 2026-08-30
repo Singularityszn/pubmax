@@ -186,7 +186,7 @@ export async function POST(req: Request): Promise<Response> {
       viewportWidth: safeDimension(browserContext.viewportWidth),
       viewportHeight: safeDimension(browserContext.viewportHeight),
       ...(delivery ? { insertId: delivery.eventId } : {}),
-      ...(delivery ? { occurredAt: new Date(delivery.issuedAt).toISOString() } : {}),
+      ...(delivery ? { occurredAt: new Date(delivery.occurredAt).toISOString() } : {}),
     });
 
     if (delivery) {

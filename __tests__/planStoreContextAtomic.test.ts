@@ -2,11 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabase = vi.hoisted(() => ({
   rpc: vi.fn(),
+  from: vi.fn(),
 }));
 
 vi.mock("@/lib/supabase", () => ({
   isSupabaseConfigured: () => true,
-  requireSupabaseAdmin: () => ({ rpc: supabase.rpc }),
+  requireSupabaseAdmin: () => ({ rpc: supabase.rpc, from: supabase.from }),
 }));
 
 import type { PlanState } from "@/lib/plan";
@@ -43,6 +44,20 @@ const STATE: PlanState = {
   ],
   crew: [],
   context: CONTEXT,
+};
+
+const HOST_JOINED_AT = "2026-08-15T12:00:00.000Z";
+const CREW_COMMITTED_AT = "2026-08-15T12:05:00.000Z";
+const CREW_COMMITTED_EVENT_ID = "cccccccc-cccc-4ccc-8ccc-cccccccccccc";
+const HOST_STATE: PlanState = {
+  ...STATE,
+  crew: [{
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    name: "Host",
+    status: "in",
+    joinedAt: HOST_JOINED_AT,
+    updatedAt: HOST_JOINED_AT,
+  }],
 };
 
 describe("Supabase Plan creation context", () => {
@@ -121,5 +136,74 @@ describe("Supabase Plan creation context", () => {
 
     expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
+  });
+});
+
+describe("Supabase Plan join identity", () => {
+  beforeEach(() => {
+    supabase.rpc.mockReset();
+    supabase.rpc.mockImplementation(async (_name: string, args: { p_member_id?: string }) => ({
+      data: {
+        outcome: "joined",
+        member_id: args.p_member_id,
+        crew_committed_at: CREW_COMMITTED_AT,
+        crew_committed_event_id: CREW_COMMITTED_EVENT_ID,
+      },
+      error: null,
+    }));
+    supabase.from.mockReset();
+    supabase.from.mockImplementation(() => {
+      const query = {
+        select: vi.fn(),
+        eq: vi.fn(),
+        is: vi.fn(),
+        maybeSingle: vi.fn(async () => ({ data: { id: HOST_STATE.plan.id }, error: null })),
+      };
+      query.select.mockReturnValue(query);
+      query.eq.mockReturnValue(query);
+      query.is.mockReturnValue(query);
+      return query;
+    });
+    vi.useFakeTimers();
+    vi.setSystemTime(HOST_JOINED_AT);
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.restoreAllMocks();
+  });
+
+  it("returns the atomic member and crew commitment evidence", async () => {
+    vi.spyOn(supabasePlanStore, "get").mockResolvedValue(HOST_STATE);
+
+    const result = await supabasePlanStore.join(HOST_STATE.plan.id, "Guest", {
+      idempotencyKey: "atomic-member-result",
+    });
+
+    expect(result).toMatchObject({
+      ok: true,
+      memberId: expect.any(String),
+      crewCommittedAt: CREW_COMMITTED_AT,
+      crewCommittedEventId: CREW_COMMITTED_EVENT_ID,
+    });
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "join_plan_idempotent_with_crew_commitment_atomic",
+      expect.objectContaining({ p_member_id: result.ok ? result.memberId : undefined }),
+    );
+  });
+
+  it("does not derive threshold authority from client timestamp ordering", async () => {
+    vi.spyOn(supabasePlanStore, "get").mockResolvedValue(HOST_STATE);
+
+    await supabasePlanStore.join(HOST_STATE.plan.id, "Guest", {
+      idempotencyKey: "atomic-joined-at-order",
+    });
+
+    expect(supabase.rpc).toHaveBeenCalledWith(
+      "join_plan_idempotent_with_crew_commitment_atomic",
+      expect.objectContaining({
+        p_joined_at: HOST_JOINED_AT,
+      }),
+    );
   });
 });

@@ -57,10 +57,16 @@ describe("canonical invite RSVP membership store", () => {
   });
 
   it("uses one atomic RPC and returns the guest capability for Going", async () => {
-    storeHarness.rpc.mockResolvedValue({
-      data: { outcome: "saved", is_update: false, member_id: MEMBER_ID },
+    storeHarness.rpc.mockImplementation(async (_name: string, args: { p_member_id: string }) => ({
+      data: {
+        outcome: "saved",
+        is_update: false,
+        member_id: args.p_member_id,
+        crew_committed_at: "2026-08-30T12:00:01.000Z",
+        crew_committed_event_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      },
       error: null,
-    });
+    }));
 
     const result = await supabaseRsvpStore.upsert(
       PLAN_ID,
@@ -71,7 +77,7 @@ describe("canonical invite RSVP membership store", () => {
 
     expect(storeHarness.rpc).toHaveBeenCalledTimes(1);
     expect(storeHarness.rpc).toHaveBeenCalledWith(
-      "upsert_plan_invite_rsvp_membership_atomic",
+      "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
       expect.objectContaining({
         p_plan_id: PLAN_ID,
         p_submitter_hash: SUBMITTER_HASH,
@@ -89,11 +95,19 @@ describe("canonical invite RSVP membership store", () => {
       },
     });
     expect(result.membership?.memberToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(result.crewCommittedAt).toBe("2026-08-30T12:00:01.000Z");
+    expect(result.crewCommittedEventId).toBe("cccccccc-cccc-4ccc-8ccc-cccccccccccc");
   });
 
   it("passes an existing canonical guest membership through the atomic write", async () => {
     storeHarness.rpc.mockResolvedValue({
-      data: { outcome: "saved", is_update: false, member_id: MEMBER_ID },
+      data: {
+        outcome: "saved",
+        is_update: false,
+        member_id: MEMBER_ID,
+        crew_committed_at: "2026-08-30T12:00:01.000Z",
+        crew_committed_event_id: "cccccccc-cccc-4ccc-8ccc-cccccccccccc",
+      },
       error: null,
     });
 
@@ -113,7 +127,7 @@ describe("canonical invite RSVP membership store", () => {
     );
 
     expect(storeHarness.rpc).toHaveBeenCalledWith(
-      "upsert_plan_invite_rsvp_membership_atomic",
+      "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
       expect.objectContaining({ p_existing_member_id: MEMBER_ID }),
     );
     expect(result.membership).toEqual({

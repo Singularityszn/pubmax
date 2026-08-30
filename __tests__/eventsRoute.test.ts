@@ -345,7 +345,7 @@ describe("POST /api/events", () => {
     };
     const crew = {
       name: "crew_committed" as const,
-      props: { source: "shared-plan", participants: 3, routeReady: true },
+      props: { source: "shared-plan", participants: 2 },
     };
 
     const draftResponse = await POST(post(JSON.stringify({
@@ -357,10 +357,8 @@ describe("POST /api/events", () => {
     const crewResponse = await POST(post(JSON.stringify({
       ...crew,
       deliveryToken: crewCommittedEventToken({
-        joinId: "join-one",
-        joinedAt: occurredAt,
-        participants: 3,
-        routeReady: true,
+        crewCommittedEventId: "11111111-1111-4111-8111-111111111111",
+        crewCommittedAt: occurredAt,
       }),
       anonymousId: "anon_0123456789abcdef",
       analyticsConsent: true,
@@ -371,6 +369,50 @@ describe("POST /api/events", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("delivers one crew event across a refreshed token and keeps its threshold time", async () => {
+    process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";
+    const fetchMock = vi.fn().mockResolvedValue(new Response(null, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    vi.spyOn(console, "log").mockImplementation(() => {});
+    const crewCommittedAt = "2026-07-01T12:00:00.000Z";
+    const issuedAt = Date.now();
+    const eventId = "33333333-3333-4333-8333-333333333333";
+    const event = {
+      name: "crew_committed" as const,
+      props: { source: "shared-plan" as const, participants: 2 as const },
+    };
+    const body = (deliveryToken: string) => JSON.stringify({
+      ...event,
+      deliveryToken,
+      anonymousId: "anon_0123456789abcdef",
+      analyticsConsent: true,
+    });
+    const firstToken = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt,
+      issuedAt,
+    });
+    const refreshedToken = crewCommittedEventToken({
+      crewCommittedEventId: eventId,
+      crewCommittedAt,
+      issuedAt: issuedAt + 1,
+    });
+
+    const first = await POST(post(body(firstToken)));
+    const replay = await POST(post(body(refreshedToken)));
+
+    expect(first.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(replay.headers.get("x-analytics-delivery")).toBe("delivered");
+    expect(firstToken).not.toBe(refreshedToken);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const forwarded = JSON.parse(String(fetchMock.mock.calls[0]?.[1]?.body)) as {
+      timestamp?: string;
+      properties?: { $insert_id?: string };
+    };
+    expect(forwarded.timestamp).toBe(crewCommittedAt);
+    expect(forwarded.properties?.$insert_id).toBe(eventId);
+  });
+
   it.each([
     {
       name: "plan_draft_saved",
@@ -378,7 +420,7 @@ describe("POST /api/events", () => {
     },
     {
       name: "crew_committed",
-      props: { source: "shared-plan", participants: 2, routeReady: true },
+      props: { source: "shared-plan", participants: 2 },
     },
   ])("rejects spoofed verified outcome $name without a server token", async (event) => {
     process.env.POSTHOG_PROJECT_API_KEY = "phc_test_project";

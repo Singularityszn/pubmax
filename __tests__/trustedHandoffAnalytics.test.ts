@@ -10,6 +10,8 @@ import {
 
 const occurredAt = "2026-07-24T12:00:00.000Z";
 const now = Date.parse(occurredAt) + 1_000;
+const crewEventId = "11111111-1111-4111-8111-111111111111";
+const otherCrewEventId = "22222222-2222-4222-8222-222222222222";
 
 const validEvents = {
   near_answer_ready: { source: "location", resultBand: "1-3" },
@@ -45,8 +47,7 @@ const validEvents = {
   },
   crew_committed: {
     source: "shared-plan",
-    participants: 3,
-    routeReady: true,
+    participants: 2,
   },
 } as const;
 
@@ -152,24 +153,113 @@ describe("trusted handoff verified outcome tokens", () => {
     }, now)).toMatchObject({ name: "meaningful_core_action" });
   });
 
-  it("binds crew commitment to server-derived count and Route readiness", () => {
+  it("binds one crew commitment to a Planned Night threshold without exposing its id", () => {
     const token = crewCommittedEventToken({
-      joinId: "join-one",
-      joinedAt: occurredAt,
-      participants: 3,
-      routeReady: true,
+      crewCommittedEventId: crewEventId,
+      crewCommittedAt: occurredAt,
+      issuedAt: now - 1_000,
+    });
+    expect(token).toEqual(expect.any(String));
+    const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
+    const thresholdNow = Date.parse(occurredAt) + 61_000;
+
+    const verified = verifyAnalyticsDeliveryToken(token, event, thresholdNow);
+    expect(verified).toMatchObject({
+      ...event,
+      eventId: crewEventId,
+      occurredAt: Date.parse(occurredAt),
+    });
+    expect(JSON.stringify(verified)).not.toContain("plan-one");
+  });
+
+  it("keeps one durable event identity across refreshed delivery tokens", () => {
+    const first = crewCommittedEventToken({ crewCommittedEventId: crewEventId, crewCommittedAt: occurredAt, issuedAt: now });
+    const rejoin = crewCommittedEventToken({ crewCommittedEventId: crewEventId, crewCommittedAt: occurredAt, issuedAt: now + 1_000 });
+    const otherPlan = crewCommittedEventToken({ crewCommittedEventId: otherCrewEventId, crewCommittedAt: occurredAt, issuedAt: now + 1_000 });
+    const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
+    const thresholdNow = now + 2_000;
+
+    expect(rejoin).not.toBe(first);
+    expect(otherPlan).not.toBe(rejoin);
+    expect(verifyAnalyticsDeliveryToken(first, event, thresholdNow)?.eventId).toBe(
+      verifyAnalyticsDeliveryToken(rejoin, event, thresholdNow)?.eventId,
+    );
+    expect(verifyAnalyticsDeliveryToken(otherPlan, event, thresholdNow)?.eventId).not.toBe(
+      verifyAnalyticsDeliveryToken(rejoin, event, thresholdNow)?.eventId,
+    );
+  });
+
+  it("refuses a crew commitment without durable atomic occurrence evidence", () => {
+    expect(() => crewCommittedEventToken({
+      crewCommittedEventId: crewEventId,
+      crewCommittedAt: "",
+    })).toThrow("Verified analytics needs a canonical event and occurrence.");
+  });
+
+  it("keeps one event id when a lost response is retried", () => {
+    const atomicOccurrence = "2026-08-30T18:00:00.123Z";
+    const firstResponse = crewCommittedEventToken({
+      crewCommittedEventId: crewEventId,
+      crewCommittedAt: atomicOccurrence,
+      issuedAt: Date.parse(atomicOccurrence),
+    });
+    const lostResponseRetry = crewCommittedEventToken({
+      crewCommittedEventId: crewEventId,
+      crewCommittedAt: atomicOccurrence,
+      issuedAt: Date.parse(atomicOccurrence) + 60_000,
     });
     const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
 
-    expect(verifyAnalyticsDeliveryToken(token, event, now)).toMatchObject(event);
-    expect(verifyAnalyticsDeliveryToken(token, {
-      ...event,
-      props: { ...event.props, participants: 4 },
-    }, now)).toBeNull();
-    expect(verifyAnalyticsDeliveryToken(token, {
-      ...event,
-      props: { ...event.props, routeReady: false },
-    }, now)).toBeNull();
+    expect(lostResponseRetry).not.toBe(firstResponse);
+    expect(verifyAnalyticsDeliveryToken(firstResponse, event, Date.parse(atomicOccurrence) + 1_000)?.eventId).toBe(
+      verifyAnalyticsDeliveryToken(lostResponseRetry, event, Date.parse(atomicOccurrence) + 61_000)?.eventId,
+    );
+  });
+
+  it("uses a fresh issue time when an old threshold retries after 30 days", () => {
+    const crewCommittedAt = "2026-07-01T12:00:00.000Z";
+    const retryAt = Date.parse(crewCommittedAt) + 31 * 24 * 60 * 60 * 1_000;
+    const token = crewCommittedEventToken({
+      crewCommittedEventId: crewEventId,
+      crewCommittedAt,
+      issuedAt: retryAt,
+    });
+    const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
+
+    expect(verifyAnalyticsDeliveryToken(token, event, retryAt + 1_000)).toMatchObject({
+      eventId: crewEventId,
+      occurredAt: Date.parse(crewCommittedAt),
+      issuedAt: retryAt,
+    });
+  });
+
+  it("keeps the database event id across signing-key rotation", () => {
+    const original = process.env.PLAN_IDEMPOTENCY_SECRET;
+    const event = { name: "crew_committed" as const, props: validEvents.crew_committed };
+    try {
+      process.env.PLAN_IDEMPOTENCY_SECRET = "crew-signing-key-before-rotation-0123456789";
+      const before = crewCommittedEventToken({
+        crewCommittedEventId: crewEventId,
+        crewCommittedAt: occurredAt,
+        issuedAt: now,
+      });
+      const beforeClaims = verifyAnalyticsDeliveryToken(before, event, now + 1_000);
+
+      process.env.PLAN_IDEMPOTENCY_SECRET = "crew-signing-key-after-rotation-01234567890";
+      const after = crewCommittedEventToken({
+        crewCommittedEventId: crewEventId,
+        crewCommittedAt: occurredAt,
+        issuedAt: now + 2_000,
+      });
+      const afterClaims = verifyAnalyticsDeliveryToken(after, event, now + 3_000);
+
+      expect(after).not.toBe(before);
+      expect(beforeClaims?.eventId).toBe(crewEventId);
+      expect(afterClaims?.eventId).toBe(crewEventId);
+    } finally {
+      if (original === undefined) delete process.env.PLAN_IDEMPOTENCY_SECRET;
+      else process.env.PLAN_IDEMPOTENCY_SECRET = original;
+    }
   });
 
   it("expires at the exact signed boundary", () => {

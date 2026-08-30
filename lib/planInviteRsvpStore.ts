@@ -24,10 +24,12 @@ import { GUEST_LIST_DISPLAY_CAP, isRsvpStatus, RSVP_PLAN_CEILING, type PlanInvit
 import {
   hashPlanMemberToken,
   joinMemoryPlanInviteRsvpMember,
+  memoryPlanCrewCommitment,
   planIdempotencyDigest,
   planIdempotentUuid,
   planRequestDigest,
   removeMemoryPlanInviteRsvpMember,
+  type MemoryPlanInviteMembershipResult,
   type PlanMemberIdentity,
 } from "@/lib/planStore";
 import { isReactionKey, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
@@ -106,6 +108,8 @@ export type PlanInviteRsvpUpsertResult = {
   summary: PlanInviteRsvpSummary;
   isUpdate: boolean;
   membership: PlanInviteMembershipCapability | null;
+  crewCommittedAt: string | null;
+  crewCommittedEventId: string | null;
 };
 
 export type PlanInviteRsvpStore = {
@@ -129,7 +133,7 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
     const memberToken = planIdempotencyDigest(`plan-join-token:${planId}`, membershipKey);
     const memberId = planIdempotentUuid(`plan-join-member:${planId}`, membershipKey);
     const { data, error } = await admin().rpc(
-      "upsert_plan_invite_rsvp_membership_atomic",
+      "upsert_plan_invite_rsvp_membership_with_crew_commitment_atomic",
       {
         p_plan_id: planId,
         p_submitter_hash: submitterHash,
@@ -156,10 +160,30 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
     if (outcome === "crew_full") throw new PlanCrewFullError(planId);
     if (outcome === "forbidden") throw new PlanInviteMembershipMismatchError(planId);
     if (outcome !== "saved") throw new Error("Invite RSVP membership write failed");
+    const expectedMemberId = existingMembership?.identity.memberId ?? memberId;
+    if (status === "going" && result.member_id !== expectedMemberId) {
+      throw new Error("Invite RSVP membership write returned the wrong member");
+    }
+    const rawCrewCommittedAt = result.crew_committed_at;
+    const rawCrewCommittedEventId = result.crew_committed_event_id;
+    if (rawCrewCommittedAt !== null && rawCrewCommittedAt !== undefined
+      && (typeof rawCrewCommittedAt !== "string" || !Number.isFinite(Date.parse(rawCrewCommittedAt)))) {
+      throw new Error("Invite RSVP membership write returned an invalid commitment time");
+    }
+    if (rawCrewCommittedEventId !== null && rawCrewCommittedEventId !== undefined
+      && (typeof rawCrewCommittedEventId !== "string"
+        || !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(rawCrewCommittedEventId))) {
+      throw new Error("Invite RSVP membership write returned an invalid commitment event");
+    }
+    if ((typeof rawCrewCommittedAt === "string") !== (typeof rawCrewCommittedEventId === "string")) {
+      throw new Error("Invite RSVP membership write returned incomplete commitment evidence");
+    }
     const summary = await supabaseRsvpStore.summarize(planId);
     return {
       summary,
       isUpdate: result.is_update === true,
+      crewCommittedAt: typeof rawCrewCommittedAt === "string" ? rawCrewCommittedAt : null,
+      crewCommittedEventId: typeof rawCrewCommittedEventId === "string" ? rawCrewCommittedEventId : null,
       membership: status === "going"
         ? existingMembership
           ? {
@@ -206,6 +230,23 @@ const inviteRsvpMemory = inviteRsvpMemoryGlobal.__pubmaxPlanInviteRsvpMemory ??=
 inviteRsvpMemory.rsvps ??= new Map();
 const memoryRsvps = inviteRsvpMemory.rsvps;
 
+function memoryRsvpCrewCommitment(
+  planId: string,
+  status: RsvpStatus,
+  existingMembership: ExistingPlanInviteMembership | undefined,
+  joinedMembership: MemoryPlanInviteMembershipResult | null,
+): { crewCommittedAt: string; crewCommittedEventId: string } | null {
+  if (status !== "going") return null;
+  if (joinedMembership?.ok && joinedMembership.crewCommittedAt && joinedMembership.crewCommittedEventId) {
+    return {
+      crewCommittedAt: joinedMembership.crewCommittedAt,
+      crewCommittedEventId: joinedMembership.crewCommittedEventId,
+    };
+  }
+  const memberId = existingMembership?.identity.memberId;
+  return memberId ? memoryPlanCrewCommitment(planId, memberId) : null;
+}
+
 export const memoryRsvpStore: PlanInviteRsvpStore = {
   async upsert(planId, submitterHash, displayName, status, existingMembership) {
     if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
@@ -238,9 +279,17 @@ export const memoryRsvpStore: PlanInviteRsvpStore = {
     });
     memoryRsvps.set(planId, byPlan);
     const summary = await memoryRsvpStore.summarize(planId);
+    const commitment = memoryRsvpCrewCommitment(
+      planId,
+      status,
+      existingMembership,
+      joinedMembership,
+    );
     return {
       summary,
       isUpdate: Boolean(existing),
+      crewCommittedAt: commitment?.crewCommittedAt ?? null,
+      crewCommittedEventId: commitment?.crewCommittedEventId ?? null,
       membership: status === "going"
         ? existingMembership
           ? {

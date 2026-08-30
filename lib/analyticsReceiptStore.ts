@@ -27,9 +27,11 @@ export const memoryAnalyticsReceiptStore: AnalyticsReceiptStore = {
     const now = (input.now ?? new Date()).getTime();
     const existing = memoryReceipts.get(input.eventId);
     if (existing) {
-      if (existing.tokenDigest !== input.tokenDigest || existing.eventName !== input.eventName) return "conflict";
+      if (existing.eventName !== input.eventName) return "conflict";
+      if (existing.tokenDigest !== input.tokenDigest && input.eventName !== "crew_committed") return "conflict";
       if (existing.status === "delivered") return "delivered";
       if (existing.leaseUntil > now) return "busy";
+      existing.tokenDigest = input.tokenDigest;
       existing.leaseUntil = now + LEASE_MS;
       return "claimed";
     }

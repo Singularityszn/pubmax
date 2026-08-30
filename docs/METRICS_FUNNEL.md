@@ -17,35 +17,59 @@ PostHog. Nothing in this wave weakens that gate.
 **Per-night metric:** share of nights where a plan reaches **at least two committed
 humans** on the crew roster, not scroll DAU on `/social`.
 
-**Event:** `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx`
-after a confirmed `POST /api/plans/[id]/join` success. The host never emits
-this event for their own plan (they are already a member at creation).
+**Event:** `crew_committed` - fires client-side only when a confirmed membership
+write returns a server-minted threshold token. `components/plan/PlanCrew.tsx`
+owns ordinary and private-invite joins. `components/plan/PlanInviteRsvp.tsx`
+owns public Going RSVPs. A Maybe RSVP never joins the crew and never gets a
+token. The host never emits this event for their own Plan because they are
+already the first member at creation.
 
-**Property:** `participants` — integer headcount on the plan crew after the
-join succeeds (`nextCrew.length` in `PlanCrew.tsx`). The registry allows
-integers from 1 through 100 inclusive (`lib/analyticsEvents.ts`).
+**Property:** `participants` - always `2`. The server derives the active crew
+headcount and mints no event token before or after that exact threshold. The
+registry rejects every other value.
 
 **Formula:**
 
 ```
-crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2, window=7d)
+crew_nights_with_two_or_more = count(crew_committed WHERE participants = 2, window=7d)
 crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
 ```
 
-Group by pseudonymous `distinct_id` when you need a per-planner rate. A single
-plan may emit several `crew_committed` events as guests join; each carries the
-then-current `participants` count, so the per-night filter is `participants >= 2`
-on the event, not a dedupe by plan id (no plan id rides on this event).
+Read this as a market-level ratio, not a per-planner ratio. The Plan save and
+second-person join can belong to different pseudonymous identities, and no Plan
+ID leaves the server to join those identities. Migration `0125` records one
+`crew_committed_at` occurrence and one random `crew_committed_event_id` on the
+member whose atomic write first takes the active crew from one to two. Ordinary
+joins, private invite redemption, and public Going RSVPs use the same Plan
+advisory lock and return that stored evidence in their write result. Existing
+RPC names also stamp it, so old app code against the new schema does not lose a
+threshold crossing. A lost-response retry gets the same evidence. A concurrent
+third join gets none. Client clocks, join order, and a later Plan read do not
+decide the threshold.
+
+The database event ID is the durable dedupe identity. It is not derived from a
+signing key. Token claims include neither Plan ID nor member ID. A refreshed v2
+token keeps the stored occurrence time but receives a fresh issue and expiry
+time, so delivery can retry after 30 days or a signing-key rotation. A leave
+and rejoin of the threshold member returns the same evidence. The durable
+analytics receipt accepts that opaque event ID once, including across token
+refreshes. Later joins return no token. Existing v1 tokens remain verifiable.
+
+Migration `0125` does not backfill Plans that already had two or more active
+members. This metric cohort begins when the migration is applied. Thresholds
+crossed by old app code after that point are recorded by the compatible RPCs.
 
 **Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
-Going or Maybe tap on the public invite card. That is intent, not membership.
-Guests can RSVP without joining the durable crew, and joining requires the
-plan join path that emits `crew_committed`. RSVP counts stay useful for invite
-page conversion (§7); they do not substitute for committed humans on the roster.
+Going or Maybe tap on the public invite card. Maybe is intent only. Going creates
+or restores the same canonical Plan crew membership as other invite paths. Only
+that server-confirmed Going membership can carry `crew_committed`. RSVP counts
+stay useful for invite page conversion (§7); they do not substitute for the
+threshold event.
 
-**Privacy:** `crew_committed` carries `source`, `participants`, and
-`routeReady` only — no `planId`, no guest display name, no invite token. Public
-invite events (`plan_invite_link_copied`, `invite_page_viewed`,
+**Privacy:** `crew_committed` carries `source` and `participants` only - no
+`planId`, no guest display name, no invite token. Route readiness stays on the
+separate Plan acceptance funnel and cannot split one Crew Night into two event
+identities. Public invite events (`plan_invite_link_copied`, `invite_page_viewed`,
 `invite_rsvp_submitted`, and the rest of §7) follow the same rule: no `planId`
 on those link or guest-side events. See §7 for the id-hygiene rationale.
 
@@ -57,7 +81,7 @@ one. Three usual-lot reinvite surfaces emit it, and they are the whole list:
 `components/night/MorningReentryCard.tsx` (both source `completed_plan`).
 All three build their props through the one seam `nextNightCommittedProps`
 (`lib/lastCrew.ts`): a closed `source` plus coarse `windowDays`, never a name,
-a venue id or a coordinate. `crew_committed >= 2` measures one night;
+a venue id or a coordinate. `crew_committed` with `participants = 2` measures one night;
 `next_night_committed` measures the loop.
 
 ## 1. Nights planned / week
@@ -65,10 +89,12 @@ a venue id or a coordinate. `crew_committed >= 2` measures one night;
 **Events (both pre-existing, reused as-is):**
 - `plan_created` — fires client-side in `components/plan/PlanComposer.tsx` on
   a confirmed `POST /api/plans` success (the host's own plan).
-- `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx` on a
-  confirmed `POST /api/plans/[id]/join` success, with `source: "shared-plan"`.
+- `crew_committed` - fires client-side in `components/plan/PlanCrew.tsx` or
+  `components/plan/PlanInviteRsvp.tsx` only when a confirmed canonical
+  membership write returns the threshold token, with `source: "shared-plan"`
+  and `participants: 2`.
 
-**Dedupe:** the two events are structurally exclusive — a host's own plan
+**Dedupe:** the two events are structurally exclusive - a host's own plan
 never re-fires `crew_committed` for itself (the host is a member at
 creation, not a joiner), and a guest join never fires `plan_created`. So:
 

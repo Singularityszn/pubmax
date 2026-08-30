@@ -117,6 +117,37 @@ describe("plan collaboration capabilities", () => {
     expect(results.filter((result) => !result.ok)).toEqual([expect.objectContaining({ error: "replayed" })]);
   });
 
+  it("returns the same deterministic member id when an invite join is replayed", async () => {
+    const created = await memoryPlanStore.create({
+      title: "Crew test",
+      startTime: new Date(Date.now() + 2 * 60 * 60 * 1000).toISOString(),
+      creatorName: "Host",
+      stops,
+    });
+    if (!created.ok) throw new Error("plan setup failed");
+    const id = created.plan.plan.id;
+    const host = created.memberToken;
+    const store = planCollaborationStore();
+    const invite = await store.createInvite(id, host, {
+      expiresInMinutes: 30,
+      idempotencyKey: "member-result-invite",
+    });
+    if (!invite.ok) throw new Error("invite setup failed");
+    const options = { idempotencyKey: "member-result-redeem" };
+
+    const first = await store.redeemInviteAndJoin(id, invite.token, "First", new Date(), options);
+    const replay = await store.redeemInviteAndJoin(id, invite.token, "First", new Date(), options);
+
+    expect(first).toMatchObject({ ok: true, memberId: expect.any(String) });
+    expect(replay).toMatchObject({ ok: true, memberId: expect.any(String) });
+    if (!first.ok || !replay.ok) return;
+    expect(replay.memberId).toBe(first.memberId);
+    expect(first.crewCommittedAt).toEqual(expect.any(String));
+    expect(replay.crewCommittedAt).toBe(first.crewCommittedAt);
+    expect(first.crewCommittedEventId).toMatch(/^[0-9a-f-]{36}$/);
+    expect(replay.crewCommittedEventId).toBe(first.crewCommittedEventId);
+  });
+
   it("lets guests propose and vote but keeps unresolved required constraints above host preference", async () => {
     const { id, host, guest } = await members();
     const store = planCollaborationStore();

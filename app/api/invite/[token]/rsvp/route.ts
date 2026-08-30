@@ -13,6 +13,7 @@ import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } 
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { hashActor } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
+import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 const RSVP_LIMIT = 8;
 const RSVP_WINDOW_MS = 60_000;
@@ -50,7 +51,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   }
 
   try {
-    const { summary, isUpdate, membership } = await rsvpStore().upsert(
+    const { summary, isUpdate, membership, crewCommittedAt, crewCommittedEventId } = await rsvpStore().upsert(
       resolved.planId,
       submitterHash,
       displayName,
@@ -60,6 +61,9 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
       {
         summary,
         isUpdate,
+        ...(crewCommittedAt && crewCommittedEventId
+          ? { crewCommitted: crewCommittedEventToken({ crewCommittedAt, crewCommittedEventId }) }
+          : {}),
         ...(membership ?? {}),
       },
       { status: 200 },

@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import InviteMapLink from "@/components/plan/InviteMapLink";
 import { discardBody } from "@/lib/responseBody";
 import { trackEvent } from "@/lib/analytics";
+import { crewCommittedEventProps } from "@/lib/analyticsEvents";
 import { getAnonId } from "@/lib/anonId";
 import {
   GUEST_DISPLAY_NAME_MAX,
@@ -361,6 +362,7 @@ export default function PlanInviteRsvp({
           memberToken?: unknown;
           role?: unknown;
           collaborationAuthorized?: unknown;
+          crewCommitted?: unknown;
         };
         if (isPlanInviteRsvpSummary(data.summary)) {
           if (!applyInviteRsvpCapability(planId, chosen, submitted.capability?.role ?? null, data)) {
@@ -371,6 +373,12 @@ export default function PlanInviteRsvp({
           setRsvpCommitted(true);
           markDeviceRsvpCommitted(planId, deviceStorage());
           trackEvent("invite_rsvp_submitted", { status: chosen, isUpdate: data.isUpdate === true });
+          if (typeof data.crewCommitted === "string") {
+            trackEvent("crew_committed",
+              crewCommittedEventProps(),
+              { deliveryToken: data.crewCommitted },
+            );
+          }
         } else {
           setRsvpError("Couldn't save that RSVP.");
         }

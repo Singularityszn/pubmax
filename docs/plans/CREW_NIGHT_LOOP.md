@@ -12,9 +12,9 @@
 
 > Make the next soft, affordable, low-pressure IRL plan with your lot so obvious that staying in is the harder choice.
 
-**Per-night metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`.
+**Per-night metric:** share of nights where a Plan reaches **at least two committed humans** (`crew_committed` with `participants = 2`). Migration `0125` records one database occurrence and one random event ID when an atomic ordinary join, private invite redemption, or public Going RSVP first takes the active crew from one to two. Replays and refreshed tokens keep that event ID. Concurrent later joins return none. Plan and member IDs never enter analytics. There is no backfill for Plans already at two or more active members. Cohort starts when `0125` is applied, and compatible old RPC names record later crossings made by old app code. Not scroll DAU on `/social`.
 
-**Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed >= 2` measures one night, and this measures the loop.
+**Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed` at the exact two-person threshold measures one night, and this measures the loop.
 
 Three usual-lot reinvite surfaces emit it, and they are the whole list: `components/plan/LastCrewInvite.tsx` (source `crew-reinvite`), `components/plan/CompletedPlanUsualLot.tsx` and `components/night/MorningReentryCard.tsx` (both source `completed_plan`). Every one of them builds its props through the single seam `nextNightCommittedProps` (`lib/lastCrew.ts`), so what the event may carry cannot drift between surfaces: a closed `source` plus coarse `windowDays`, and never a name, a venue id or a coordinate. The rail itself is consent-gated (`lib/analyticsEvents.ts`), where `source` is additionally held to a closed value set, so a free-text source is dropped rather than recorded. `__tests__/analyticsEvents.test.ts` pins the prop shape, all three emitters, and this section.
 
@@ -59,7 +59,7 @@ Ordered for parallel work; later slices must not block earlier merges.
 | # | Branch | PR job | Key seams | Avoid |
 |---|---|---|---|---|
 | 0 | `cursor/crew-night-loop-plan-dd0b` | This plan + README index | `docs/plans/` | No product code |
-| 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard + funnel docs for `crew_committed` `participants >= 2`; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
+| 1 | `cursor/crew-northstar-metric-dd0b` | Scoreboard + funnel docs for exactly-once `crew_committed` at `participants = 2`; pin tests | `docs/METRICS_FUNNEL.md`, `docs/growth/V1_INVITE_SCOREBOARD.md` (create if missing), analytics tests | No UI / WhatsApp CTA |
 | 2 | `cursor/invite-spend-band-dd0b` | Honest £X–Y pp on invite share text, `/invite/[token]` copy, OG when stop prices complete; omit when incomplete | `lib/shareArtifacts.ts`, `planPresentation.ts`, invite page + OG | Do not redesign `PlanInviteNextStep` |
 | 3 | `cursor/soft-occasion-defaults-dd0b` | Soft defaults: describe-first / Tonight → plan handoff / landing Why → `/plan` for AF, coffee, chill | `PlanDescribeFirst`, Tonight vibe chips, landing links | No ShareBar; no launch-flag change; no taste CSS churn |
 | 4 | `cursor/crew-tonight-board-dd0b` | Friends-only “who’s out” board over `visibleCheckInsForViewer`; keep `/we-are-out` honest under live or rollback state | check-in feed, You/lot surface, `WeAreOutClient` | No area-public densify |

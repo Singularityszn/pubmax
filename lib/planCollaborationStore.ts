@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, parsePlanCrewJoinRpcResult, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -243,7 +243,7 @@ export type PlanCollaborationStore = {
   createInvite(planId: string, token: unknown, input: { expiresInMinutes: number; idempotencyKey: string; now?: Date }): Promise<{ ok: true; invite: PlanInvite; token: string } | Failure>;
   revokeInvite(planId: string, token: unknown, inviteId: string, key: string, now?: Date): Promise<{ ok: true; invite: PlanInvite } | Failure>;
   consumeInvite(planId: string, token: unknown, now?: Date): Promise<{ ok: true; inviteId: string; role: "guest" } | Failure>;
-  redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date, options?: { idempotencyKey?: string }): Promise<{ ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } | Failure | { ok: false; error: "full" }>;
+  redeemInviteAndJoin(planId: string, token: unknown, name: string, now?: Date, options?: { idempotencyKey?: string }): Promise<{ ok: true; plan: PlanState | null; memberId: string; memberToken: string; role: "guest"; collaborationAuthorized: true; crewCommittedAt: string | null; crewCommittedEventId: string | null } | Failure | { ok: false; error: "full" }>;
   // inviteId is the invite's own (non-secret) row id, surfaced only so the
   // caller can emit a metrics event linking invite_created -> invite_redeemed
   // for k-factor; null when the redemption is a replay of an already-
@@ -344,7 +344,7 @@ const memoryStore: PlanCollaborationStore = {
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const requestHash = planRequestDigest({ name, inviteHash: hash });
     const requestKey = `${planId}:invite:join:${key}`;
-    const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } } | undefined;
+    const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberId: string; memberToken: string; role: "guest"; collaborationAuthorized: true; crewCommittedAt: string | null; crewCommittedEventId: string | null } } | undefined;
     if (replay) return replay.requestHash === requestHash ? structuredClone(replay.result) : { ok: false, error: "conflict" };
     const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === hash);
     if (!invite) return { ok: false, error: "not_found" };
@@ -613,21 +613,25 @@ const supabaseStore: PlanCollaborationStore = {
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const inviteTokenHash = inviteHash(rawToken.trim());
     const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
+    const memberId = planIdempotentUuid(`plan-invite-join-member:${planId}`, key);
+    const joinedAt = now.toISOString();
     const admin = requireSupabaseAdmin();
-    const { data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", {
+    const { data, error } = await admin.rpc("redeem_plan_invite_idempotent_with_crew_commitment_atomic", {
       p_plan_id: planId,
       p_invite_token_hash: inviteTokenHash,
-      p_member_id: planIdempotentUuid(`plan-invite-join-member:${planId}`, key),
+      p_member_id: memberId,
       p_member_name: name,
       p_member_token_hash: hashPlanMemberToken(memberToken),
-      p_joined_at: now.toISOString(),
+      p_joined_at: joinedAt,
       p_idempotency_key_hash: planIdempotencyDigest(`plan-invite-join-key:${planId}`, key),
       p_request_hash: planRequestDigest({ name, inviteHash: inviteTokenHash }),
     });
     if (error) return { ok: false, error: "error" };
-    if (data !== "joined" && data !== "replayed") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "capability_replayed" ? "replayed" : data === "conflict" ? "conflict" : data === "not_found" ? "not_found" : "error" };
+    const result = parsePlanCrewJoinRpcResult(data, memberId);
+    if (!result) return { ok: false, error: "error" };
+    if (result.outcome !== "joined" && result.outcome !== "replayed") return { ok: false, error: result.outcome === "full" ? "full" : result.outcome === "expired" ? "expired" : result.outcome === "revoked" ? "revoked" : result.outcome === "capability_replayed" ? "replayed" : result.outcome === "conflict" ? "conflict" : result.outcome === "not_found" ? "not_found" : "error" };
     const plan = await planStore().get(planId);
-    return { ok: true, plan, memberToken, role: "guest", collaborationAuthorized: true };
+    return { ok: true, plan, memberId, memberToken, role: "guest", collaborationAuthorized: true, crewCommittedAt: result.crewCommittedAt, crewCommittedEventId: result.crewCommittedEventId };
   },
 
   async upgradeMemberInvite(planId, rawMemberToken, rawInviteToken, now = new Date()) {
