@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   calls: [] as Array<{ name: string; args: unknown[] }>,
   adminQueueThrows: false,
+  adminQueueRows: [] as unknown[],
   adminModerationKind: null as "conflict" | "unavailable" | null,
 }));
 
@@ -54,7 +55,7 @@ vi.mock("@/lib/socialPostConsentStore", () => {
       },
       heldQueueForAdmin: async () => {
         if (state.adminQueueThrows) throw new Error("migration missing");
-        return [];
+        return state.adminQueueRows;
       },
       adminMediaObjectKey: async (...args: unknown[]) => {
         state.calls.push({ name: "adminMediaObjectKey", args });
@@ -87,6 +88,7 @@ beforeEach(() => {
   vi.stubEnv("PUBMAX_SOCIAL_FRIENDS_LAUNCH", "1");
   state.calls = [];
   state.adminQueueThrows = false;
+  state.adminQueueRows = [];
   state.adminModerationKind = null;
 });
 
@@ -104,7 +106,7 @@ describe("Social consent API contracts", () => {
     const moderation = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 0, action: "hide" }),
     }));
 
     expect(queue.status).toBe(503);
@@ -151,24 +153,69 @@ describe("Social consent API contracts", () => {
     const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide", role: "forged" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 4, action: "hide", role: "forged" }),
     }));
     expect(response.status).toBe(400);
     expect(state.calls).toEqual([]);
     const malformed = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
-      body: JSON.stringify({ postId: "-".repeat(36), mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId: "-".repeat(36), mediaId: null, expectedRevision: 4, action: "hide" }),
     }));
     expect(malformed.status).toBe(400);
     expect(state.calls).toEqual([]);
+  });
+
+  it("requires a PostgreSQL-safe non-negative integer held revision", async () => {
+    const invalidRevisions: unknown[] = [
+      -1,
+      1.5,
+      "0",
+      null,
+      undefined,
+      2_147_483_648,
+      Number.MAX_SAFE_INTEGER + 1,
+    ];
+    for (const expectedRevision of invalidRevisions) {
+      const input: Record<string, unknown> = { postId, mediaId: null, action: "hide" };
+      if (expectedRevision !== undefined) input.expectedRevision = expectedRevision;
+      const response = await moderate(new Request("http://localhost/api/admin/social-posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+        body: JSON.stringify(input),
+      }));
+      expect(response.status, `revision ${String(expectedRevision)}`).toBe(400);
+    }
+    expect(state.calls).toEqual([]);
+
+    const maximum = await moderate(new Request("http://localhost/api/admin/social-posts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
+      body: JSON.stringify({
+        postId,
+        mediaId: null,
+        expectedRevision: 2_147_483_647,
+        action: "hide",
+      }),
+    }));
+    expect(maximum.status).toBe(200);
+    expect(state.calls).toEqual([{
+      name: "moderateHeldForAdmin",
+      args: [
+        "99999999-9999-4999-8999-999999999999",
+        postId,
+        null,
+        2_147_483_647,
+        "hide",
+      ],
+    }]);
   });
 
   it("protects the held-post queue with moderator access, not Social actor access", async () => {
     const anonymous = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 0, action: "hide" }),
     }));
     expect(anonymous.status).toBe(403);
 
@@ -178,13 +225,13 @@ describe("Social consent API contracts", () => {
         "Content-Type": "application/json",
         "x-admin-token": "admin-token",
       },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 0, action: "hide" }),
     }));
     expect(moderator.status).toBe(200);
     expect(state.calls).toEqual([
       {
         name: "moderateHeldForAdmin",
-        args: ["99999999-9999-4999-8999-999999999999", postId, null, "hide"],
+        args: ["99999999-9999-4999-8999-999999999999", postId, null, 0, "hide"],
       },
     ]);
   });
@@ -200,20 +247,58 @@ describe("Social consent API contracts", () => {
     expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
   });
 
+  it("returns held revision context only through the moderator queue", async () => {
+    state.adminQueueRows = [{
+      staffDisplayName: "Captain",
+      postId,
+      mediaId: null,
+      revision: 4,
+      authorProfileId: "profile-alice",
+      authorHandle: "alice",
+      body: "Friday at the Pineapple.",
+      photoAltText: null,
+      area: "camden",
+      venueId: "venue-pineapple",
+      visibility: "friends",
+      commentPolicy: "friends",
+      moderationClaim: "Provider requested a review.",
+      moderationState: "needs_review",
+      createdAt: "2026-08-29T11:55:00.000Z",
+      updatedAt: "2026-08-29T12:00:00.000Z",
+    }];
+
+    const anonymous = await readAdminQueue(
+      new Request("http://localhost/api/admin/social-posts"),
+    );
+    const moderator = await readAdminQueue(
+      new Request("http://localhost/api/admin/social-posts", {
+        headers: { "x-admin-token": "admin-token" },
+      }),
+    );
+
+    expect(anonymous.status).toBe(403);
+    expect(moderator.status).toBe(200);
+    expect(await moderator.json()).toEqual({ posts: state.adminQueueRows });
+  });
+
   it("preserves conflict and operational moderation failures", async () => {
     state.adminModerationKind = "conflict";
     const stale = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 4, action: "hide" }),
     }));
     expect(stale.status).toBe(409);
+    expect(state.calls[0]).toEqual({
+      name: "moderateHeldForAdmin",
+      args: ["99999999-9999-4999-8999-999999999999", postId, null, 4, "hide"],
+    });
 
     state.adminModerationKind = "unavailable";
     const unavailable = await moderate(new Request("http://localhost/api/admin/social-posts", {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-admin-token": "admin-token" },
-      body: JSON.stringify({ postId, mediaId: null, action: "hide" }),
+      body: JSON.stringify({ postId, mediaId: null, expectedRevision: 4, action: "hide" }),
     }));
     expect(unavailable.status).toBe(503);
   });

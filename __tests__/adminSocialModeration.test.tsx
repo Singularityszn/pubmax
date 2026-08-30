@@ -27,10 +27,24 @@ const state = vi.hoisted(() => ({
     staffDisplayName: string;
     postId: string;
     mediaId: string | null;
+    revision: number;
+    authorProfileId: string;
+    authorHandle: string;
+    body: string;
+    photoAltText: string | null;
+    area: string | null;
+    venueId: string | null;
+    visibility: "public" | "friends" | "private";
+    commentPolicy: "open" | "friends" | "locked";
     moderationClaim: string;
+    moderationState: "needs_review" | "approved";
     createdAt: string;
+    updatedAt: string;
   }>,
   socialUnavailable: false,
+  socialActionStatus: 200,
+  socialActionGate: null as Promise<void> | null,
+  socialActionBodies: [] as unknown[],
 }));
 
 let host: HTMLDivElement;
@@ -43,13 +57,20 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function responseFor(input: string, init?: RequestInit): Response {
+function responseFor(input: string, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(input, "http://localhost");
   const method = init?.method ?? "GET";
   if (url.pathname === "/api/admin/session") {
     return method === "POST" ? jsonResponse({ ok: true }) : jsonResponse({ authenticated: true });
   }
   if (url.pathname === "/api/admin/social-posts") {
+    if (method === "POST") {
+      state.socialActionBodies.push(JSON.parse(String(init?.body)));
+      const response = () => state.socialActionStatus === 200
+        ? jsonResponse({ ok: true })
+        : jsonResponse({ error: "unavailable" }, state.socialActionStatus);
+      return state.socialActionGate ? state.socialActionGate.then(response) : response();
+    }
     return state.socialUnavailable
       ? jsonResponse({ error: "unavailable" }, 503)
       : jsonResponse({ posts: state.socialPosts });
@@ -91,6 +112,9 @@ beforeEach(() => {
   state.pintDropsFail = false;
   state.socialPosts = [];
   state.socialUnavailable = false;
+  state.socialActionStatus = 200;
+  state.socialActionGate = null;
+  state.socialActionBodies = [];
   vi.stubGlobal("fetch", vi.fn(responseFor));
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -104,6 +128,25 @@ afterEach(() => {
 });
 
 describe("Admin Social post moderation queue", () => {
+  const heldPost = {
+    staffDisplayName: "Captain",
+    postId: "11111111-1111-4111-8111-111111111111",
+    mediaId: "22222222-2222-4222-8222-222222222222",
+    revision: 4,
+    authorProfileId: "profile-alice",
+    authorHandle: "alice",
+    body: "Friday at the Pineapple.",
+    photoAltText: "Two pints beside the window",
+    area: "camden",
+    venueId: "venue-pineapple",
+    visibility: "friends" as const,
+    commentPolicy: "friends" as const,
+    moderationClaim: "Provider requested a review.",
+    moderationState: "needs_review" as const,
+    createdAt: "2026-08-29T12:00:00.000Z",
+    updatedAt: "2026-08-29T12:05:00.000Z",
+  };
+
   it("shows empty only after a successful empty response", async () => {
     await loadAdmin();
     expect(host.textContent).toContain("No Social posts awaiting review");
@@ -117,22 +160,103 @@ describe("Admin Social post moderation queue", () => {
     expect(host.textContent).not.toContain("No Social posts awaiting review");
   });
 
-  it("loads Social even when Pint Drop requests fail", async () => {
+  it("shows the exact held revision and its review context even when Pint Drop requests fail", async () => {
     state.pintDropsFail = true;
-    state.socialPosts = [{
-      staffDisplayName: "Captain",
-      postId: "11111111-1111-4111-8111-111111111111",
-      mediaId: "22222222-2222-4222-8222-222222222222",
-      moderationClaim: "A post with a photo",
-      createdAt: "2026-08-29T12:00:00.000Z",
-    }];
+    state.socialPosts = [heldPost];
     await loadAdmin();
-    expect(host.textContent).toContain("A post with a photo");
-    expect(host.querySelector('img[src="/api/admin/social-posts/media/22222222-2222-4222-8222-222222222222"]')).toBeTruthy();
+    expect(host.textContent).toContain("@alice");
+    expect(host.textContent).toContain("Profile: profile-alice");
+    expect(host.textContent).toContain("Revision 4");
+    expect(host.textContent).toContain("Friday at the Pineapple.");
+    expect(host.textContent).toContain("Area: camden");
+    expect(host.textContent).toContain("Venue: venue-pineapple");
+    expect(host.textContent).toContain("Visibility: Friends");
+    expect(host.textContent).toContain("Comments: Friends");
+    expect(host.textContent).toContain("State: Needs review");
+    expect(host.textContent).toContain("Reason: Provider requested a review.");
+    expect(host.querySelector('time[datetime="2026-08-29T12:00:00.000Z"]')).toBeTruthy();
+    expect(host.querySelector('time[datetime="2026-08-29T12:05:00.000Z"]')).toBeTruthy();
+    const image = host.querySelector(
+      'img[src="/api/admin/social-posts/media/22222222-2222-4222-8222-222222222222"]',
+    );
+    expect(image?.getAttribute("alt")).toBe("Two pints beside the window");
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Approve")).toBe(true);
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Hide")).toBe(true);
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Reject")).toBe(false);
     expect(
       [...host.querySelectorAll("button")].find((button) =>
         button.textContent?.includes("Load reported drops"),
       ),
     ).toBeTruthy();
+  });
+
+  it("hides a post and keeps the row disabled until the decision completes", async () => {
+    state.socialPosts = [{ ...heldPost, revision: 0 }];
+    let releaseAction = () => {};
+    state.socialActionGate = new Promise<void>((resolve) => {
+      releaseAction = resolve;
+    });
+    await loadAdmin();
+    const hide = [...host.querySelectorAll("button")].find((button) => button.textContent === "Hide");
+    expect(hide).toBeTruthy();
+
+    await act(async () => {
+      hide!.click();
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Hiding…");
+    const socialButtons = [...host.querySelectorAll("button")].filter((button) =>
+      button.textContent === "Approve" || button.textContent === "Hiding…",
+    );
+    expect(socialButtons).toHaveLength(2);
+    expect(socialButtons.every((button) => button.disabled)).toBe(true);
+
+    await act(async () => {
+      releaseAction();
+      await state.socialActionGate;
+      await Promise.resolve();
+    });
+    expect(state.socialActionBodies).toEqual([{
+      postId: heldPost.postId,
+      mediaId: heldPost.mediaId,
+      expectedRevision: 0,
+      action: "hide",
+    }]);
+    expect(host.textContent).toContain("Social post hidden.");
+    expect(host.textContent).not.toContain("Friday at the Pineapple.");
+  });
+
+  it("keeps the held row and shows an error when a decision fails", async () => {
+    state.socialPosts = [heldPost];
+    state.socialActionStatus = 503;
+    await loadAdmin();
+    const hide = [...host.querySelectorAll("button")].find((button) => button.textContent === "Hide");
+    await act(async () => {
+      hide!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Friday at the Pineapple.");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Social post action failed. Try again.",
+    );
+  });
+
+  it("removes a stale row and tells the moderator to reload after a conflict", async () => {
+    state.socialPosts = [heldPost];
+    state.socialActionStatus = 409;
+    await loadAdmin();
+    const hide = [...host.querySelectorAll("button")].find((button) => button.textContent === "Hide");
+
+    await act(async () => {
+      hide!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).not.toContain("Friday at the Pineapple.");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Post changed. Reload queue.",
+    );
   });
 });
