@@ -326,6 +326,7 @@ export default function MomentCapture(): React.JSX.Element {
     }
     const replacement = replaceMomentMediaWithEditedBlob(current, result);
     if (replacement.error) {
+      setEditingMediaId(null);
       setMessage(replacement.error);
       return;
     }
@@ -486,7 +487,7 @@ export default function MomentCapture(): React.JSX.Element {
                   />
                 ) : null}
                 <div className="momentMediaActions">
-                  <button type="button" onClick={() => setEditingMediaId(item.id)} aria-label={`Edit ${item.name}`}>
+                  <button type="button" disabled={saveState === "saving"} onClick={() => setEditingMediaId(item.id)} aria-label={`Edit ${item.name}`}>
                     Edit
                   </button>
                   <button type="button" onClick={() => removeMedia(item.id)} aria-label={`Remove ${item.name}`}>
