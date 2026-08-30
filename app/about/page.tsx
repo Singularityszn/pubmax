@@ -295,7 +295,7 @@ export default async function AboutPage() {
         {/* Founder note (FIRST_PRINCIPLES_OUTINGS follow-up): the builder's own
             voice, in first person. Provenance rule holds here harder than
             anywhere: the note carries no dates, schools, jobs, or any personal
-            fact this site cannot stand behind — only the why, the mission, and
+            fact this site cannot stand behind - only the why, the mission, and
             the honesty rule the rest of the page already proves. */}
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">

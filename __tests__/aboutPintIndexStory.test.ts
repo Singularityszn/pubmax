@@ -175,7 +175,7 @@ describe("About outings story (Wave S1)", () => {
     expect(note).toContain("best way in the world to decide which pub");
     expect(note).toContain("Karan Manoharan, founder of PUBMAXX");
     // Provenance rule: the note claims no personal facts the site cannot
-    // stand behind — no dates, no CV, no schools, no prior employers.
+    // stand behind - no dates, no CV, no schools, no prior employers.
     expect(note).not.toMatch(/\b(19|20)\d\d\b/u);
     expect(note).not.toMatch(/university|school|degree|ex-|previously (at|worked)/iu);
     // House voice fences hold inside the note too.
