@@ -81,6 +81,178 @@ function accountBoundActionSignal(
   };
 }
 
+type AccountBoundResponseLifecycle = Readonly<{
+  signal: AbortSignal;
+  retain: () => () => void;
+}>;
+
+const responseBodyMethods = new Set<PropertyKey>([
+  "arrayBuffer",
+  "blob",
+  "bytes",
+  "formData",
+  "json",
+  "text",
+]);
+
+const accountBoundResponseFinalizer = typeof FinalizationRegistry === "undefined"
+  ? null
+  : new FinalizationRegistry<() => void>((release) => release());
+
+function once(callback: () => void): () => void {
+  let active = true;
+  return () => {
+    if (!active) return;
+    active = false;
+    callback();
+  };
+}
+
+function accountBoundResponseLifecycle(
+  action: Readonly<{ signal: AbortSignal; dispose: () => void }>,
+): AccountBoundResponseLifecycle {
+  let retained = 0;
+  let disposed = false;
+  const dispose = (): void => {
+    if (disposed) return;
+    disposed = true;
+    action.signal.removeEventListener("abort", dispose);
+    action.dispose();
+  };
+  action.signal.addEventListener("abort", dispose, { once: true });
+  if (action.signal.aborted) dispose();
+
+  return {
+    signal: action.signal,
+    retain: () => {
+      if (disposed) return () => undefined;
+      retained += 1;
+      let active = true;
+      return () => {
+        if (!active) return;
+        active = false;
+        retained -= 1;
+        if (retained === 0) dispose();
+      };
+    },
+  };
+}
+
+/** Keep one response branch bound until its body finishes or is cancelled. */
+function accountBoundResponseBody(
+  source: ReadableStream<Uint8Array>,
+  lifecycle: AccountBoundResponseLifecycle,
+  release: () => void,
+): ReadableStream<Uint8Array> {
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  let controller: ReadableStreamDefaultController<Uint8Array> | null = null;
+  let settled = false;
+  const settle = (): void => {
+    if (settled) return;
+    settled = true;
+    lifecycle.signal.removeEventListener("abort", onAbort);
+    release();
+  };
+  const onAbort = (): void => {
+    if (settled) return;
+    controller?.error(abortError());
+    void (reader ? reader.cancel() : source.cancel()).catch(() => undefined);
+    settle();
+  };
+
+  return new ReadableStream<Uint8Array>({
+    start(nextController) {
+      controller = nextController;
+      lifecycle.signal.addEventListener("abort", onAbort, { once: true });
+      if (lifecycle.signal.aborted) onAbort();
+    },
+    async pull(nextController) {
+      if (settled) return;
+      try {
+        reader ??= source.getReader();
+        const next = await reader.read();
+        if (lifecycle.signal.aborted) throw abortError();
+        if (next.done) {
+          nextController.close();
+          settle();
+          return;
+        }
+        nextController.enqueue(next.value);
+      } catch (error) {
+        nextController.error(error);
+        settle();
+      }
+    },
+    async cancel(reason) {
+      try {
+        if (reader) await reader.cancel(reason);
+        else await source.cancel(reason);
+      } finally {
+        settle();
+      }
+    },
+  });
+}
+
+/**
+ * Preserve the fetch Response object while owning its body lifecycle.
+ * Clones add leases. Explicit reads and cancellation release them. A finalizer
+ * releases a response that its caller abandons without reading or cancelling.
+ */
+function accountBoundResponse(
+  response: Response,
+  lifecycle: AccountBoundResponseLifecycle,
+): Response {
+  const release = lifecycle.retain();
+  if (!response.body) {
+    release();
+    return response;
+  }
+
+  let wrappedBody: ReadableStream<Uint8Array> | null = null;
+  const finalizerToken = {};
+  const releaseOnce = once(release);
+  const settle = (): void => {
+    accountBoundResponseFinalizer?.unregister(finalizerToken);
+    releaseOnce();
+  };
+  const proxy = new Proxy(response, {
+    get(target, property) {
+      if (property === "body") {
+        if (!wrappedBody) {
+          wrappedBody = accountBoundResponseBody(
+            target.body as ReadableStream<Uint8Array>,
+            lifecycle,
+            settle,
+          );
+          accountBoundResponseFinalizer?.unregister(finalizerToken);
+          accountBoundResponseFinalizer?.register(wrappedBody, releaseOnce, finalizerToken);
+        }
+        return wrappedBody;
+      }
+      if (property === "clone") {
+        return (): Response => accountBoundResponse(target.clone(), lifecycle);
+      }
+      const value = Reflect.get(target, property, target) as unknown;
+      if (responseBodyMethods.has(property) && typeof value === "function") {
+        return async (...args: unknown[]): Promise<unknown> => {
+          try {
+            if (lifecycle.signal.aborted) throw abortError();
+            const body = await Reflect.apply(value, target, args) as unknown;
+            if (lifecycle.signal.aborted) throw abortError();
+            return body;
+          } finally {
+            settle();
+          }
+        };
+      }
+      return typeof value === "function" ? value.bind(target) : value;
+    },
+  });
+  accountBoundResponseFinalizer?.register(proxy, releaseOnce, finalizerToken);
+  return proxy;
+}
+
 function waitForAuthActionReadiness(deadline: number, signal?: AbortSignal): Promise<void> {
   if (
     authActionState.status === "signed-out" ||
@@ -203,14 +375,17 @@ export async function authedActionFetch(
     const headers = new Headers(init.headers);
     if (token) {
       headers.set("authorization", `Bearer ${token}`);
-      return await fetch(input, { ...init, headers, signal: action.signal });
+      const response = await fetch(input, { ...init, headers, signal: action.signal });
+      return accountBoundResponse(response, accountBoundResponseLifecycle(action));
     }
 
     if (authActionState.status !== "signed-out") {
       throw new AuthActionSessionError();
     }
-    return await fetch(input, { ...init, headers, signal: action.signal });
-  } finally {
+    const response = await fetch(input, { ...init, headers, signal: action.signal });
+    return accountBoundResponse(response, accountBoundResponseLifecycle(action));
+  } catch (error) {
     action.dispose();
+    throw error;
   }
 }
