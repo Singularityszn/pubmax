@@ -30,7 +30,7 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
-export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
+export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
 export type MemoryPlanInviteMembershipResult =
@@ -52,7 +52,7 @@ export type PlanCreateOptions = {
 export type PlanStore = {
   create(input: CreatePlanInput, options?: PlanCreateOptions): Promise<PlanCreateResult>;
   get(id: string): Promise<PlanState | null>;
-  join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string }): Promise<PlanJoinResult>;
+  join(id: string, name: unknown, options?: { collaborationAuthorized?: boolean; idempotencyKey?: string; userId?: string }): Promise<PlanJoinResult>;
   updatePresence(id: string, memberToken: unknown, status: unknown): Promise<PlanPresenceResult>;
   update(id: string, memberToken: unknown, update: { status?: PlannedNightStatus; context?: NightContext; stops?: PlanStopDTO[]; expectedRouteRevision?: number; groundedUpgrade?: boolean }): Promise<PlanUpdateResult>;
   addAction(id: string, memberToken: unknown, action: { type: PlanActionDTO["type"]; stopPosition?: number; ending?: CrawlEnding; idempotencyKey?: string }): Promise<PlanUpdateResult>;
@@ -318,13 +318,19 @@ export const supabasePlanStore: PlanStore = {
     const current = lookup.plan;
     if (!current) return { ok: false, error: "not_found" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, key);
-    const requestHash = planRequestDigest({ name, collaborationAuthorized: options.collaborationAuthorized === true });
+    const requestHash = planRequestDigest({
+      name,
+      collaborationAuthorized: options.collaborationAuthorized === true,
+      ...(userId ? { userId } : {}),
+    });
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
     try {
-      const { data, error } = await requireSupabaseAdmin().rpc("join_plan_idempotent_atomic", {
+      const admin = requireSupabaseAdmin();
+      const joinArgs = {
         p_plan_id: id,
         p_member_id: memberId,
         p_member_name: name,
@@ -333,10 +339,26 @@ export const supabasePlanStore: PlanStore = {
         p_can_collaborate: options.collaborationAuthorized === true,
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
+      };
+      let { data, error } = await admin.rpc(userId
+        ? "join_plan_account_idempotent_atomic"
+        : "join_plan_idempotent_atomic", {
+        ...joinArgs,
+        ...(userId ? { p_user_id: userId } : {}),
       });
+      if (userId && error && isMissingDatabaseFunction(error)) {
+        // Migration 0126 has not been applied yet (0106 precedent). Joining
+        // without the account stamp beats refusing every signed-in join; the
+        // seat binds later through the claim lane once the RPC exists. Only a
+        // missing FUNCTION may take this path: a genuine write failure must
+        // stay a refusal.
+        console.warn("[plans] account join RPC missing; joining without account stamp");
+        ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", joinArgs));
+      }
       if (error) throw new Error(error.message);
       if (data === "full") return { ok: false, error: "full" };
       if (data === "conflict") return { ok: false, error: "conflict" };
+      if (data === "account_conflict") return { ok: false, error: "account_conflict" };
       if (data === "not_found") return { ok: false, error: "not_found" };
       if (data !== "joined" && data !== "replayed") return { ok: false, error: "error" };
       const plan = await this.get(id);
@@ -640,8 +662,13 @@ export const memoryPlanStore: PlanStore = {
     const plan = memoryPlans.get(id);
     if (!plan) return { ok: false, error: "not_found" };
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
+    const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, key);
-    const requestHash = planRequestDigest({ name, collaborationAuthorized: options.collaborationAuthorized === true });
+    const requestHash = planRequestDigest({
+      name,
+      collaborationAuthorized: options.collaborationAuthorized === true,
+      ...(userId ? { userId } : {}),
+    });
     const replay = planMemory.joinRequests.get(`${id}:${keyHash}`);
     if (replay) {
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
@@ -651,12 +678,15 @@ export const memoryPlanStore: PlanStore = {
         role: "guest", collaborationAuthorized: options.collaborationAuthorized === true,
       };
     }
+    if (userId && plan.crew.some((member) => member.userId === userId)) {
+      return { ok: false, error: "account_conflict" };
+    }
     if (plan.crew.length >= CREW_MAX_MEMBERS) return { ok: false, error: "full" };
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const at = stamp();
     const collaborationAuthorized = options.collaborationAuthorized === true;
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
-    plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
+    plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized, ...(userId ? { userId } : {}) });
     planMemory.joinRequests.set(`${id}:${keyHash}`, {
       requestHash,
       memberId,
@@ -1028,6 +1058,39 @@ export function __resetMemoryPlans(): void {
   planMemory.sequence = 0;
 }
 
+export type PlanMembershipClaimOutcome =
+  | "claimed"
+  | "already_claimed"
+  | "conflict"
+  | "not_found";
+
+/** Atomically bind one memory-store Plan membership to one auth account. */
+export function claimMemoryPlanMembership(
+  planId: string,
+  memberId: string,
+  userId: string,
+): PlanMembershipClaimOutcome {
+  const plan = memoryPlans.get(planId);
+  const member = plan?.crew.find((row) => row.id === memberId);
+  if (!plan || !member || !userId) return "not_found";
+  if (
+    plan.crew.some(
+      (row) => row.id !== memberId && row.userId === userId,
+    )
+  ) {
+    return "conflict";
+  }
+  const host = plan.crew[0]?.id === memberId;
+  if (member.userId && member.userId !== userId) return "conflict";
+  if (host && plan.ownerUserId && plan.ownerUserId !== userId) return "conflict";
+
+  const alreadyClaimed =
+    member.userId === userId && (!host || plan.ownerUserId === userId);
+  member.userId = userId;
+  if (host) plan.ownerUserId = userId;
+  return alreadyClaimed ? "already_claimed" : "claimed";
+}
+
 /** Test/dev seam: stamp a crew member's auth user (mirrors plan_crew_members.user_id). */
 export function __linkMemoryPlanMemberUser(
   planId: string,
@@ -1063,6 +1126,26 @@ export function __listMemoryPlanMemberUserIds(
   return plan.crew
     .filter((member): member is MemoryMember & { userId: string } => Boolean(member.userId))
     .map((member) => ({ memberId: member.id, userId: member.userId }));
+}
+
+/** Rotate one account-owned memory membership without creating another seat. */
+export function recoverMemoryPlanMembership(
+  planId: string,
+  userId: string,
+  memberToken: string,
+): PlanMemberIdentity | null {
+  const plan = memoryPlans.get(planId);
+  if (!plan || !userId || !memberToken) return null;
+  const memberIndex = plan.crew.findIndex((member) => member.userId === userId);
+  const member = plan.crew[memberIndex];
+  if (!member) return null;
+  member.tokenHash = hashPlanMemberToken(memberToken);
+  member.updatedAt = stamp();
+  return {
+    memberId: member.id,
+    role: memberIndex === 0 ? "host" : "guest",
+    collaborationAuthorized: memberIndex === 0 || member.collaborationAuthorized,
+  };
 }
 
 export type PlanInviteTokenLookupResult = { ok: true; planId: string | null } | { ok: false; error: "error" };

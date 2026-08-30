@@ -27,6 +27,10 @@ let authActionState: AuthActionState = {
 };
 const authActionStateListeners = new Set<() => void>();
 
+function currentAuthActionStatus(): AuthActionState["status"] {
+  return authActionState.status;
+}
+
 /** Publishes the existing AuthProvider state to non-React request callers. */
 export function publishAuthActionState(next: AuthActionState): void {
   authActionState = next;
@@ -289,7 +293,7 @@ async function activeAuthActionFetch(
     return { ...action, response };
   }
 
-  if (authActionState.status !== "signed-out") {
+  if (currentAuthActionStatus() !== "signed-out") {
     throw new AuthActionSessionError();
   }
   const response = await fetch(input, { ...init, headers, signal: action.signal });
@@ -311,6 +315,27 @@ export async function authedActionFetch(
   init: RequestInit = {},
 ): Promise<Response> {
   return (await activeAuthActionFetch(input, init)).response;
+}
+
+/**
+ * Send an account action only when the resolved browser session is signed in.
+ *
+ * A signed-out caller gets null and spends no server request budget, which is
+ * the whole point: the Plan claim and capability-recovery lanes ask on every
+ * arrival, and a stranger's browser must not fire one write per page load to
+ * learn what the session already knows. It waits on the SAME readiness gate
+ * every other action here waits on, because "not asked yet" is not "signed
+ * out", and answering null while the session is still resolving would drop a
+ * claim the account is entitled to.
+ */
+export async function signedInActionFetch(
+  input: RequestInfo | URL,
+  init: RequestInit = {},
+): Promise<Response | null> {
+  const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
+  await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
+  if (currentAuthActionStatus() === "signed-out") return null;
+  return authedActionFetch(input, init);
 }
 
 export type AuthedActionJson<T> = Readonly<{

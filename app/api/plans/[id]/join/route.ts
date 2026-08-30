@@ -23,12 +23,11 @@ import { crewCommittedEventToken } from "@/lib/verifiedAnalytics.server";
 
 /** Best-effort friend-graph byproduct after a committed join. Never fails the join. */
 async function maybeFormCrewFriendEdges(
-  request: Request,
   planId: string,
   memberToken: string,
+  userId: string | null,
 ): Promise<number> {
   try {
-    const userId = await callerUserId(request);
     if (!userId) return 0;
     const identity = await planMemberIdentity(planId, memberToken);
     if (!identity?.memberId) return 0;
@@ -81,6 +80,7 @@ export async function POST(request: Request, context: Context): Promise<Response
   const lookup = await planStateResult(id);
   if (!lookup.ok) return publicApiError("Plan data is temporarily unavailable.", "PLAN_JOIN_UNAVAILABLE", 503, { retryable: true });
   if (!lookup.plan) return publicApiError("That Plan doesn't exist.", "PLAN_NOT_FOUND", 404);
+  const userId = await callerUserId(request);
   // Invite-only: a bare plan id must never join the crew or return PlanState.
   // Open join was an IDOR (know the UUID → read stops/names and stuff the crew).
   // Two invite shapes are accepted:
@@ -107,15 +107,17 @@ export async function POST(request: Request, context: Context): Promise<Response
     const result = await planStore().join(id, name, {
       collaborationAuthorized: false,
       idempotencyKey,
+      userId: userId ?? undefined,
     });
     if (!result.ok) {
       const status = result.error === "invalid" ? 400
         : result.error === "not_found" ? 404
-          : result.error === "full" || result.error === "conflict" ? 409
+          : result.error === "full" || result.error === "conflict" || result.error === "account_conflict" ? 409
             : 503;
       const error = result.error === "full" ? "This Plan's crew is full."
         : result.error === "invalid" ? "Add your name."
           : result.error === "not_found" ? "That Plan doesn't exist."
+            : result.error === "account_conflict" ? "This account is already in the Plan."
             : result.error === "conflict" ? "That request key was already used for a different join."
               : "Could not join the Plan.";
       return publicApiError(
@@ -123,6 +125,7 @@ export async function POST(request: Request, context: Context): Promise<Response
         result.error === "error" ? "PLAN_JOIN_UNAVAILABLE"
           : result.error === "not_found" ? "PLAN_NOT_FOUND"
             : result.error === "full" ? "PLAN_CREW_FULL"
+              : result.error === "account_conflict" ? "PLAN_ACCOUNT_ALREADY_MEMBER"
               : result.error === "conflict" ? "PLAN_IDEMPOTENCY_CONFLICT"
                 : "PLAN_JOIN_INVALID",
         status,
@@ -130,9 +133,9 @@ export async function POST(request: Request, context: Context): Promise<Response
       );
     }
     const friendEdgesFormed = await maybeFormCrewFriendEdges(
-      request,
       id,
       result.memberToken,
+      userId,
     );
     return attachPlanMemberSession(
       jsonNoStore(
@@ -157,18 +160,25 @@ export async function POST(request: Request, context: Context): Promise<Response
     inviteToken,
     name,
     new Date(),
-    { idempotencyKey },
+    { idempotencyKey, userId: userId ?? undefined },
   );
   if (!joined.ok) {
+    if (joined.error === "account_conflict") {
+      return publicApiError(
+        "This account is already in the Plan.",
+        "PLAN_ACCOUNT_ALREADY_MEMBER",
+        409,
+      );
+    }
     if (joined.error === "full") {
       return publicApiError("This Plan's crew is full.", "PLAN_CREW_FULL", 409);
     }
     return collaborationErrorResponse(joined.error);
   }
   const friendEdgesFormed = await maybeFormCrewFriendEdges(
-    request,
     id,
     joined.memberToken,
+    userId,
   );
   return attachPlanMemberSession(
     jsonNoStore(

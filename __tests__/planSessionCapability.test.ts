@@ -1,5 +1,9 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const signedInActionFetch = vi.hoisted(() => vi.fn());
+
+vi.mock("@/lib/authedFetch", () => ({ signedInActionFetch }));
+
 import { clearPlanCapability, parsePlanCapabilitySnapshot, PlanSessionUnavailableError, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 
 function legacyWindow(planId: string, token = "legacy-secret") {
@@ -16,6 +20,7 @@ function legacyWindow(planId: string, token = "legacy-secret") {
 
 afterEach(() => {
   delete (globalThis as { window?: unknown }).window;
+  signedInActionFetch.mockReset();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
 });
@@ -135,6 +140,43 @@ describe("plan session capabilities", () => {
     await expect(restorePlanCapability(id)).resolves.toMatchObject({ role: "host" });
     expect(fetchMock.mock.calls[0]?.[1]).toMatchObject({ method: "POST" });
     expect(fetchMock.mock.calls[1]?.[1]).toEqual(expect.objectContaining({ cache: "no-store" }));
+  });
+
+  it("recovers an account-owned Plan after the HttpOnly cookie is lost", async () => {
+    const id = "45555555-5555-4666-8777-888888888888";
+    legacyWindow(id, "");
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ active: false })));
+    signedInActionFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      active: true,
+      role: "guest",
+      collaborationAuthorized: false,
+    })));
+
+    await expect(restorePlanCapability(id)).resolves.toMatchObject({
+      token: "__pubmax_http_only_plan_session__",
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+    expect(fetchMock.mock.calls[0]?.[1]).toEqual(expect.objectContaining({ cache: "no-store" }));
+    expect(signedInActionFetch.mock.calls[0]?.[1]).toEqual(expect.objectContaining({
+      method: "PATCH",
+      headers: { "idempotency-key": expect.any(String) },
+    }));
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
+  it("does not spend account recovery budget for a signed-out visitor", async () => {
+    const id = "45655555-5555-4666-8777-888888888888";
+    legacyWindow(id, "");
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockResolvedValueOnce(new Response(JSON.stringify({ active: false })));
+    signedInActionFetch.mockResolvedValueOnce(null);
+
+    await expect(restorePlanCapability(id)).resolves.toBeNull();
+
+    expect(fetchMock).toHaveBeenCalledOnce();
+    expect(signedInActionFetch).toHaveBeenCalledOnce();
   });
 
   it("settles a stalled session read as unavailable", async () => {

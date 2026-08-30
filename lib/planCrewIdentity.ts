@@ -8,17 +8,158 @@ import "server-only";
 
 import { isPlanId } from "@/lib/plan";
 import {
-  __linkMemoryPlanMemberUser,
   __listMemoryPlanMemberUserIds,
-  __setMemoryPlanOwnerUserId,
+  claimMemoryPlanMembership,
+  hashPlanMemberToken,
+  planMemberIdentityResult,
+  recoverMemoryPlanMembership,
+  type PlanMemberIdentity,
+  type PlanMembershipClaimOutcome,
 } from "@/lib/planStore";
+import { isMissingDatabaseFunction } from "@/lib/planStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const MEMBERS = "plan_crew_members";
-const PLANS = "plans";
 
 function cleanUserId(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
+}
+
+/**
+ * Legacy member-row stamp for a database without migration 0124 (0106
+ * precedent). Stamps only the member row, never the plan owner, because the
+ * owner half of the atomic claim has no safe two-step equivalent.
+ */
+async function legacyClaimPlanMembership(
+  planId: string,
+  memberId: string,
+  uid: string,
+): Promise<PlanMembershipClaimResult> {
+  const { data, error } = await requireSupabaseAdmin()
+    .from(MEMBERS)
+    .update({ user_id: uid })
+    .eq("plan_id", planId)
+    .eq("id", memberId)
+    .is("user_id", null)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (data) return "claimed";
+  const existing = await requireSupabaseAdmin()
+    .from(MEMBERS)
+    .select("user_id")
+    .eq("plan_id", planId)
+    .eq("id", memberId)
+    .maybeSingle();
+  if (existing.error) throw new Error(existing.error.message);
+  if (!existing.data) return "not_found";
+  return existing.data.user_id === uid ? "already_claimed" : "conflict";
+}
+
+export type PlanMembershipClaimResult =
+  | PlanMembershipClaimOutcome
+  | "error";
+
+export type PlanMembershipRecoveryResult =
+  | { ok: true; identity: PlanMemberIdentity }
+  | { ok: false; error: "not_found" | "conflict" | "error" };
+
+/** Bind an existing Plan member capability to one auth account in one write. */
+export async function claimPlanMembership(
+  planId: string,
+  memberId: string,
+  userId: string,
+): Promise<PlanMembershipClaimResult> {
+  if (!isPlanId(planId) || !isPlanId(memberId)) return "not_found";
+  const uid = cleanUserId(userId);
+  if (!uid) return "not_found";
+  if (!isSupabaseConfigured()) {
+    return claimMemoryPlanMembership(planId, memberId, uid);
+  }
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "claim_plan_membership",
+      {
+        p_plan_id: planId,
+        p_member_id: memberId,
+        p_user_id: uid,
+      },
+    );
+    if (error && isMissingDatabaseFunction(error)) {
+      // Migration 0124 has not been applied yet (0106 precedent). Only a
+      // missing FUNCTION may take this path: a genuine write failure must
+      // stay a refusal.
+      console.warn("[plans] membership claim RPC missing; using legacy member stamp");
+      return await legacyClaimPlanMembership(planId, memberId, uid);
+    }
+    if (error) throw new Error(error.message);
+    return data === "claimed" ||
+      data === "already_claimed" ||
+      data === "conflict" ||
+      data === "not_found"
+      ? data
+      : "error";
+  } catch (error) {
+    console.error(
+      "[plans] membership claim failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return "error";
+  }
+}
+
+/** Rotate capability for the signed-in account's existing Plan membership. */
+export async function recoverPlanMembership(
+  planId: string,
+  userId: string,
+  memberToken: string,
+  recoveredAt: Date = new Date(),
+): Promise<PlanMembershipRecoveryResult> {
+  if (!isPlanId(planId)) return { ok: false, error: "not_found" };
+  const uid = cleanUserId(userId);
+  if (!uid || !memberToken) return { ok: false, error: "not_found" };
+  if (!isSupabaseConfigured()) {
+    const identity = recoverMemoryPlanMembership(planId, uid, memberToken);
+    return identity
+      ? { ok: true, identity }
+      : { ok: false, error: "not_found" };
+  }
+  try {
+    const { data, error } = await requireSupabaseAdmin().rpc(
+      "recover_plan_account_membership_atomic",
+      {
+        p_plan_id: planId,
+        p_user_id: uid,
+        p_member_token_hash: hashPlanMemberToken(memberToken),
+        p_recovered_at: recoveredAt.toISOString(),
+      },
+    );
+    if (error && isMissingDatabaseFunction(error)) {
+      // Migration 0127 has not been applied yet (0106 precedent). There is no
+      // safe two-step equivalent of the atomic capability rotation, so a
+      // database without the RPC honestly has no recovery lane: not_found
+      // stops the client cleanly instead of a retryable 503 loop.
+      console.warn("[plans] membership recovery RPC missing; recovery unavailable");
+      return { ok: false, error: "not_found" };
+    }
+    if (error) throw new Error(error.message);
+    if (data !== "recovered" && data !== "replayed") {
+      return {
+        ok: false,
+        error: data === "conflict" ? "conflict" : "not_found",
+      };
+    }
+    const result = await planMemberIdentityResult(planId, memberToken);
+    return result.ok && result.identity
+      ? { ok: true, identity: result.identity }
+      : { ok: false, error: result.ok ? "not_found" : "error" };
+  } catch (error) {
+    console.error(
+      "[plans] membership recovery failed:",
+      error instanceof Error ? error.message : error,
+    );
+    return { ok: false, error: "error" };
+  }
 }
 
 /** Stamp an auth user onto a crew member row. Idempotent for the same user. */
