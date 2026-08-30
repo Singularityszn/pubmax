@@ -56,17 +56,25 @@ describe("Moment photo editor output", () => {
 
     const oversized = replaceMomentMediaWithEditedBlob(
       original,
-      edited(new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "image/jpeg" })),
+      edited(new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], { type: "image/jpeg" })),
     );
     expect(oversized.media).toBe(original);
-    expect(oversized.error).toMatch(/5MB/i);
+    expect(oversized.error).toMatch(/10MB/i);
   });
 
-  it("matches the existing Moment upload size boundary", () => {
+  it("accepts edited photos through the 10 MB upload boundary", () => {
     const accepted = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES)], { type: "image/jpeg" });
     const rejected = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES + 1)], { type: "image/jpeg" });
+    const original = media();
 
-    expect(validatePhoto(accepted.type, accepted.size)).toBeNull();
-    expect(validatePhoto(rejected.type, rejected.size)).toMatch(/5MB/);
+    const acceptedResult = replaceMomentMediaWithEditedBlob(original, edited(accepted));
+    const rejectedResult = replaceMomentMediaWithEditedBlob(original, edited(rejected));
+
+    expect(acceptedResult.error).toBeNull();
+    expect(acceptedResult.media.size).toBe(10 * 1024 * 1024);
+    expect(rejectedResult.media).toBe(original);
+    expect(rejectedResult.error).toMatch(/10MB/i);
+    expect(validatePhoto(accepted.type, accepted.size, MOMENT_MAX_PHOTO_BYTES)).toBeNull();
+    expect(validatePhoto(rejected.type, rejected.size, MOMENT_MAX_PHOTO_BYTES)).toMatch(/10MB/i);
   });
 });

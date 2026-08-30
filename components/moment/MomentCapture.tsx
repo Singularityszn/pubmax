@@ -279,7 +279,7 @@ export default function MomentCapture(): React.JSX.Element {
     if (!files.length) return;
     const invalid = files.find((file) => !MOMENT_PHOTO_TYPES.has(file.type) || file.size > MOMENT_MAX_PHOTO_BYTES);
     if (invalid) {
-      setMessage("Choose JPEG, PNG, or WebP photos up to 5MB each.");
+      setMessage("Choose JPEG, PNG, or WebP photos up to 10MB each.");
       return;
     }
     const incoming = files.map(makeMedia);

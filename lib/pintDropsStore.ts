@@ -169,12 +169,12 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024; // 5MB
  * Pure photo check so it is testable without a real File. Returns a user-safe
  * error string, or null when the file is acceptable.
  */
-export function validatePhoto(type: string, size: number): string | null {
+export function validatePhoto(type: string, size: number, maxBytes = MAX_PHOTO_BYTES): string | null {
   if (!ALLOWED_TYPES.has(type)) {
     return "Photo must be a JPEG, PNG, or WebP image.";
   }
-  if (size > MAX_PHOTO_BYTES) {
-    return "Photo must be 5MB or smaller.";
+  if (size > maxBytes) {
+    return `Photo must be ${Math.round(maxBytes / (1024 * 1024))}MB or smaller.`;
   }
   return null;
 }
@@ -863,8 +863,9 @@ export async function uploadPhoto(
   venueId: string,
   dropId: string,
   file: File,
+  maxBytes = MAX_PHOTO_BYTES,
 ): Promise<string> {
-  const invalid = validatePhoto(file.type, file.size);
+  const invalid = validatePhoto(file.type, file.size, maxBytes);
   if (invalid) throw new Error(invalid);
 
   // Read the bytes once, sniff the signature, then strip + normalize. A
