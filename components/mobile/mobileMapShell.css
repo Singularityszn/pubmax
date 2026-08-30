@@ -188,6 +188,9 @@
   }
 
   .mobileMapTopbar {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
     min-height: var(--mobile-map-bar-h);
     display: grid;
     /* Five slots: wordmark, area, search, filters, more. The wordmark is
@@ -228,7 +231,10 @@
   }
 
   .mobileMapTopbar.mobileMapTopbarLimited {
-    grid-template-columns: minmax(64px, 1fr) minmax(0, auto);
+    /* The base-pub arrival still renders brand, area, and Search. Keep its
+       three children in explicit tracks so the implicit column cannot push
+       Search outside the viewport while the first-visit card owns the map. */
+    grid-template-columns: minmax(64px, 1fr) minmax(0, 1fr) 44px;
   }
 
   /* The wordmark is a real link home, so it gets a real hit target: the text is
@@ -241,11 +247,12 @@
      nobody can read, and the reader is already inside the app. */
   @media (max-width: 360px) {
     .mobileMapTopbar { grid-template-columns: minmax(0, 1fr) 44px 44px 44px; }
+    .mobileMapTopbar.mobileMapTopbarLimited { grid-template-columns: minmax(0, 1fr) 44px; }
     .mobileMapBrand { display: none; }
   }
   .mobileMapBrand .pubmaxxWordmark { max-width: 100%; font-size: inherit; }
-  .citySwitcher--mobile { min-width: 0; }
-  .citySwitcher--mobile .citySwitcherTrigger { min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
+  .citySwitcher--mobile { width: 100%; min-width: 0; }
+  .citySwitcher--mobile .citySwitcherTrigger { display: flex; width: 100%; min-width: 0; max-width: 100%; border: 0; background: transparent; color: var(--color-text-soft); padding-inline: 6px; }
   .citySwitcher--mobile .citySwitcherTrigger:hover,
   .citySwitcher--mobile .citySwitcherTrigger:focus-visible,
   .citySwitcher--mobile.isOpen .citySwitcherTrigger { border: 0; background: var(--state-active-surface); color: var(--color-text); }
@@ -312,7 +319,9 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    width: 100%;
     min-width: 0;
+    box-sizing: border-box;
     pointer-events: auto;
     /* Chrome already insets by --mobile-map-stack-right; reserve the rest of
        the corner lane so TfL cannot steal the chips' right-edge taps. */
@@ -378,6 +387,7 @@
     background: color-mix(in srgb, var(--amber, #d3a44a) 16%, var(--color-surface-raised));
   }
   .mobileMapTonightChipLabel {
+    min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
