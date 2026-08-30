@@ -255,7 +255,7 @@ describe("sanitizeEvent", () => {
           }
           if (![".ts", ".tsx"].includes(extname(entry.name))) continue;
           if (emitsNextNightCommitted(readFileSync(path, "utf8"))) {
-            found.push(relative(process.cwd(), path));
+            found.push(relative(process.cwd(), path).replaceAll("\\", "/"));
           }
         }
       };
