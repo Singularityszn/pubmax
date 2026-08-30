@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement, type ReactElement } from "react";
+import { act, createElement, type ReactElement, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -22,7 +22,7 @@ vi.mock("@/components/profile/NextBadgeChips", () => ({
   default: () => null,
 }));
 vi.mock("next/link", () => ({
-  default: ({ href, children, ...props }: { href: string; children?: unknown }) =>
+  default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("next/navigation", () => ({

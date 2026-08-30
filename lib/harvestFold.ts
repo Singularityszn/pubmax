@@ -333,7 +333,7 @@ function containsVenueLocationClaim(
   const namePattern = nameTokens
     .map((token) => token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"))
     .join("[^a-z0-9]+");
-  const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])`;
+  const nameBoundary = `(?:^|[^a-z0-9])${namePattern}(?=$|[^a-z0-9])\\s*`;
   const locality = expectedLocality
     ? expectedLocality
         .trim()

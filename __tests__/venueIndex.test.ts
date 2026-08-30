@@ -238,6 +238,7 @@ describe("getVenueIndex", () => {
       return realRead(file, ...(args as [BufferEncoding]));
     });
 
+    if (!venueId) throw new Error("fixture venue id must be available");
     expect(await lookupCanonicalVenueWithOsm(venueId)).toMatchObject({
       status: "found",
       venue: { osmId: "way/123456", osmIds: ["way/123456"] },

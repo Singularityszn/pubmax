@@ -880,7 +880,7 @@ describe("heritageFactFromOverlay / public overlay", () => {
 
   it("fills empty https website and menu, never overwrites an existing https URL, never copies lore", () => {
     const overlay = parseOverlayRow(row());
-    const filled = applyHarvestWebsiteMenu({ website: "", id: "venue-uk-n123" }, overlay);
+    const filled = applyHarvestWebsiteMenu({ website: "", menuUrl: "" }, overlay);
     expect(filled.website).toBe("https://redlion.example/");
     expect(filled.menuUrl).toBe("https://redlion.example/menu");
     expect("matchedLore" in filled).toBe(false);

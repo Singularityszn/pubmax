@@ -126,7 +126,7 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
       }
       return { written };
     } catch (error) {
-      if (isMissingTableSchema(error)) {
+      if (isMissingTableSchema(error, TABLE)) {
         return {
           written: 0,
           failed: true,
@@ -154,10 +154,8 @@ export const supabaseHarvestOverlayStore: HarvestOverlayStore = {
         if (error) throw error;
         if (!data) return { status: "ready" as const, overlay: null };
         const overlay = fromSql(data as OverlaySqlRow);
-        return {
-          status: overlay ? ("ready" as const) : ("degraded" as const),
-          overlay,
-        };
+        if (!overlay) return { status: "degraded" as const, overlay: null };
+        return { status: "ready" as const, overlay };
       },
       onSchemaMiss: async () => ({ status: "degraded" as const, overlay: null }),
       onError: () => ({ status: "degraded" as const, overlay: null }),
