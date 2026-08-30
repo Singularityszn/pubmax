@@ -9,13 +9,42 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
-import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  WHATS_ON_KINDS,
+  dedupeRows,
+  filterNotPast,
+  type WhatsOnKind,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
 type TonightSelectableVenueIds = MapSelectableVenueIds | undefined;
 
 export type TonightWhatsOnStatus = "idle" | "ready" | "empty" | "error";
 export type TonightListingsStatus = TonightWhatsOnStatus;
+
+const TONIGHT_KIND_LEDE_LABEL: Record<WhatsOnKind, string> = {
+  sport: "live sport",
+  quiz: "pub quizzes",
+  deal: "deals",
+  music: "live music",
+  event: "events",
+};
+
+/** Visible category claim for the confirmed rows on this Tonight answer. */
+export function tonightListingLede(
+  status: TonightListingsStatus,
+  kinds: readonly WhatsOnKind[],
+): string | null {
+  if (status !== "ready") return null;
+  const available = new Set(kinds);
+  const labels = WHATS_ON_KINDS.filter((kind) => available.has(kind)).map(
+    (kind) => TONIGHT_KIND_LEDE_LABEL[kind],
+  );
+  if (labels.length === 0) return null;
+  const categories = joinLabels(labels);
+  return `${categories.charAt(0).toUpperCase()}${categories.slice(1)} from sourced listings. Open a listed venue on the map.`;
+}
 
 export type TonightOutAnswer = {
   body:
