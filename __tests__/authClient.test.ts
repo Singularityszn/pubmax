@@ -39,6 +39,17 @@ describe("browser auth client", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
+  it("degrades to unavailable when the public Supabase URL is malformed", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const { ensureSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
+
+    expect(isAuthConfigured()).toBe(false);
+    await expect(ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
   it("constructs and reuses one implicit-flow client when browser auth is configured", async () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");

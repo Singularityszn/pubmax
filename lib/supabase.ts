@@ -4,6 +4,7 @@ import { createHash } from "node:crypto";
 
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 import { isDeployedProduction } from "@/lib/deploymentEnv";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // Server-only Supabase admin client. Returns null when env is absent so every
 // caller degrades to the in-memory store / static cache instead of crashing.
@@ -12,9 +13,13 @@ let cached: SupabaseClient | null | undefined;
 
 export function getSupabaseAdmin(): SupabaseClient | null {
   if (cached !== undefined) return cached;
-  const url = process.env.SUPABASE_URL;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY;
-  cached = url && key ? createClient(url, key, { auth: { persistSession: false } }) : null;
+  const config = resolveSupabaseConfig(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  );
+  cached = config
+    ? createClient(config.url, config.key, { auth: { persistSession: false } })
+    : null;
   return cached;
 }
 
@@ -30,7 +35,10 @@ export function requireSupabaseAdmin(): SupabaseClient {
 }
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY);
+  return resolveSupabaseConfig(
+    process.env.SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY,
+  ) !== null;
 }
 
 export function requiresSupabaseStore(): boolean {

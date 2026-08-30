@@ -5,7 +5,45 @@ import {
   assertServerEnv,
   DEV_RATE_LIMIT_SALT,
 } from "@/lib/serverEnv";
-import { requiresSupabaseStore } from "@/lib/supabase";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
+import { getSupabaseAdmin, isSupabaseConfigured, requiresSupabaseStore } from "@/lib/supabase";
+
+describe("resolveSupabaseConfig", () => {
+  it("trims and accepts HTTP(S) URLs with a non-blank key", () => {
+    expect(resolveSupabaseConfig(" https://example.supabase.co/ ", " publishable-key ")).toEqual({
+      url: "https://example.supabase.co/",
+      key: "publishable-key",
+    });
+  });
+
+  it.each(["not-a-valid-url", "ftp://example.supabase.co"]) (
+    "rejects %s as a Supabase URL",
+    (url) => {
+      expect(resolveSupabaseConfig(url, "service-role-key")).toBeNull();
+    },
+  );
+});
+
+describe("isSupabaseConfigured", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("rejects a malformed server URL even when the service key is present", () => {
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+
+    expect(isSupabaseConfigured()).toBe(false);
+  });
+
+  it("returns no admin client for a malformed server URL", () => {
+    vi.stubEnv("SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("SUPABASE_SERVICE_ROLE_KEY", "service-role-key");
+
+    expect(() => getSupabaseAdmin()).not.toThrow();
+    expect(getSupabaseAdmin()).toBeNull();
+  });
+});
 
 describe("assertProductionSecrets", () => {
   afterEach(() => {

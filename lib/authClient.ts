@@ -16,6 +16,7 @@
 
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { withAuthFetchTimeout } from "@/lib/authFetch";
+import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 
 // @supabase/supabase-js (~208KB) is DYNAMICALLY imported so it code-splits off
 // the browser critical path instead of loading on every route via this module.
@@ -28,27 +29,32 @@ let cached: SupabaseClient | null | undefined;
 
 function buildBrowserClient(): Promise<SupabaseClient | null> {
   return (async () => {
+    const config = resolveSupabaseConfig(
+      process.env.NEXT_PUBLIC_SUPABASE_URL,
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    );
+    if (!config) {
+      cached = null;
+      return cached;
+    }
+
     const { createClient } = await (modulePromise ??= import("@supabase/supabase-js"));
-    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
-    cached = url && key
-      ? createClient(url, key, {
-        global: {
-          fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
-        },
-        auth: {
-          // Keep the session in this browser and refresh it in the background.
-          persistSession: true,
-          autoRefreshToken: true,
-          // AuthProvider establishes the session from the callback fragment
-          // explicitly so failures can be surfaced and one-time tokens are
-          // always scrubbed from the URL before any await. Automatic detection
-          // would race this lazily-loaded client against that scrub.
-          detectSessionInUrl: false,
-          flowType: "implicit",
-        },
-      })
-      : null;
+    cached = createClient(config.url, config.key, {
+      global: {
+        fetch: withAuthFetchTimeout(globalThis.fetch.bind(globalThis)),
+      },
+      auth: {
+        // Keep the session in this browser and refresh it in the background.
+        persistSession: true,
+        autoRefreshToken: true,
+        // AuthProvider establishes the session from the callback fragment
+        // explicitly so failures can be surfaced and one-time tokens are
+        // always scrubbed from the URL before any await. Automatic detection
+        // would race this lazily-loaded client against that scrub.
+        detectSessionInUrl: false,
+        flowType: "implicit",
+      },
+    });
     return cached;
   })();
 }
@@ -83,9 +89,10 @@ export function getSupabaseBrowser(): SupabaseClient | null {
 
 /** True when the public Supabase env is present (browser sign-in can be shown). */
 export function isAuthConfigured(): boolean {
-  return Boolean(
-    process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
-  );
+  return resolveSupabaseConfig(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  ) !== null;
 }
 
 /**
