@@ -154,7 +154,7 @@ describe("the venue badge claims no kind it did not read", () => {
   });
 
   it("keeps the badge free of a kind noun", () => {
-    expect(OUT_LISTING_VENUE_BADGE_LABEL).toBe("PUBMAXX venue");
-    expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b/i);
+    expect(OUT_LISTING_VENUE_BADGE_LABEL).toBe("On PUBMAXX");
+    expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\b(?:pub|venue)\b/i);
   });
 });
