@@ -36,7 +36,7 @@ export default function WantedList(): React.JSX.Element {
   // asked yet" are different answers and only one of them may say Sign in.
   const { supabaseAuthState } = useAuth();
   const [wanteds, setWanteds] = useState<WantedDTO[]>([]);
-  const [loadStatus, setLoadStatus] = useState<"loading" | "ready" | "sign_in" | "error">(
+  const [fetchStatus, setFetchStatus] = useState<"loading" | "ready" | "sign_in" | "error">(
     "loading",
   );
   const [fulfilNote, setFulfilNote] = useState<string | null>(null);
@@ -50,35 +50,42 @@ export default function WantedList(): React.JSX.Element {
         error?: string;
       };
       if (res.status === 401 || body.status === "sign_in_required") {
-        setLoadStatus("sign_in");
+        setFetchStatus("sign_in");
         setWanteds([]);
         return;
       }
       if (!res.ok) {
-        setLoadStatus("error");
+        setFetchStatus("error");
         return;
       }
       setWanteds(Array.isArray(body.wanteds) ? body.wanteds : []);
-      setLoadStatus("ready");
+      setFetchStatus("ready");
     } catch {
-      setLoadStatus("error");
+      setFetchStatus("error");
     }
   }, []);
 
   useEffect(() => {
-    // Unresolved is not signed out: hold the loading shape rather than claim
-    // either answer.
-    if (supabaseAuthState === "unresolved") return;
-    if (supabaseAuthState === "signed-out") {
-      setLoadStatus("sign_in");
-      setWanteds([]);
-      return;
-    }
+    // The only reason to ask is an account to ask for.
+    if (supabaseAuthState !== "authenticated") return;
     void Promise.resolve().then(() => refresh());
   }, [refresh, supabaseAuthState]);
 
-  const open = wanteds.filter((row) => row.status === "open");
-  const fulfilled = wanteds.filter((row) => row.status === "fulfilled");
+  // What the session says is DERIVED, never stored: a signed-out answer is not
+  // a fetch result, and writing it into state would both cascade a render and
+  // leave the previous account's rows to be un-set afterwards. Deriving means
+  // a sign-out hides them in the same paint, which is the law
+  // __tests__/wantedPlanChipsAuth.test.ts already holds for the plan chips.
+  const loadStatus =
+    supabaseAuthState === "signed-out"
+      ? "sign_in"
+      : supabaseAuthState === "unresolved"
+        ? "loading"
+        : fetchStatus;
+  const owned = supabaseAuthState === "authenticated" ? wanteds : [];
+
+  const open = owned.filter((row) => row.status === "open");
+  const fulfilled = owned.filter((row) => row.status === "fulfilled");
 
   return (
     <section className="wantedPanel" id="wanted" aria-labelledby="wanted-heading">
@@ -96,7 +103,7 @@ export default function WantedList(): React.JSX.Element {
         <WantedCapture
           onSaved={(wanted) => {
             setWanteds((prev) => [wanted, ...prev.filter((row) => row.id !== wanted.id)]);
-            setLoadStatus("ready");
+            setFetchStatus("ready");
           }}
         />
       )}

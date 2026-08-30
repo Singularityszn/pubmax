@@ -5,6 +5,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import DrinkMenu from "@/components/drinks/DrinkMenu";
 import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
+import {
+  PINT_DATASET_OBSERVED_AT,
+  PINT_DATASET_STALENESS_BUDGET_DAYS,
+} from "@/lib/dataFreshness";
 import type { Drink } from "@/lib/drinks";
 import { venueDrinkMenu } from "@/lib/drinkMenu";
 import type { PricedVenue } from "@/lib/priceUpdates";
@@ -258,21 +262,39 @@ describe("baseline price-source presentation", () => {
     expect(html).not.toMatch(/\b(current|tonight)\b/i);
   });
 
-  it("uses the dataset lane's 3 July collection stamp and 90-day freshness budget", () => {
+  // The dataset lane reads its OWN budget out of the freshness registry, so
+  // this asserts both sides of it rather than a number typed in here. The
+  // budget was tightened from 90 days to 30 on 30 August 2026: a price is a
+  // price whoever logged it, and lib/communityPrice.ts stops a drinker's own
+  // pint speaking after 30 days, so the bundled lane may not read fresher for
+  // longer. That is exactly what turns this label over.
+  function datasetMenuAt(daysAfterCollection: number): string {
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));
-    const html = renderToStaticMarkup(
+    vi.setSystemTime(
+      new Date(PINT_DATASET_OBSERVED_AT.getTime() + daysAfterCollection * 86_400_000),
+    );
+    return renderToStaticMarkup(
       createElement(DrinkMenu, {
         drinks: venueDrinkMenu("venue-test", [price("")], () => []),
         venueName: "The Test Arms",
       }),
     );
+  }
 
-    expect(html).toContain("Seen");
-    expect(html).not.toContain("Last seen");
-    expect(html).toContain(
+  it("stamps the dataset lane with its own 3 July collection day", () => {
+    expect(datasetMenuAt(1)).toContain(
       '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
     );
+  });
+
+  it("calls a dataset price seen while it is inside the budget", () => {
+    const html = datasetMenuAt(PINT_DATASET_STALENESS_BUDGET_DAYS - 1);
+    expect(html).toContain("Seen");
+    expect(html).not.toContain("Last seen");
+  });
+
+  it("calls it last seen once it is past the budget", () => {
+    expect(datasetMenuAt(PINT_DATASET_STALENESS_BUDGET_DAYS + 1)).toContain("Last seen");
   });
 
   it("formats a late UTC observation on its Europe/London calendar day", () => {

@@ -73,6 +73,29 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     expect(container.textContent).toMatch(/sign in/i);
   });
 
+  it("drops the previous account's places the moment the session goes", async () => {
+    // The signed-out answer is DERIVED rather than stored, so a sign-out hides
+    // those rows in the same paint instead of leaving them up until a write
+    // clears them. Its sibling holds the same line for the plan chips.
+    authState.current = { supabaseAuthState: "authenticated" };
+    authedFetch.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          wanteds: [
+            { id: "w-1", status: "open", venueKind: "pub", venueName: "Account A Pub" },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+    await render();
+    expect(container.textContent).toContain("Account A Pub");
+
+    authState.current = { supabaseAuthState: "signed-out" };
+    await render();
+    expect(container.textContent).not.toContain("Account A Pub");
+  });
+
   it("asks once the session answers with an account", async () => {
     authState.current = { supabaseAuthState: "authenticated" };
     authedFetch.mockResolvedValue(
