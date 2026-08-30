@@ -34,7 +34,7 @@ test("landing / serves, shows hero + Demo honesty label + a working city-first m
   // Hero headline (stable id in components/landing/LandingPage.tsx). Assert the
   // current product promise rather than retired campaign copy.
   await expect(page.locator("#hero-title")).toContainText(
-    "London pints can cost eight quid.",
+    "What a pint costs, pub by pub.",
   );
 
   // Honesty guarantee: seeded demo cards are labelled "Demo" (P4 unified

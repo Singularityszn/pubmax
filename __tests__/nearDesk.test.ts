@@ -339,7 +339,7 @@ describe("rankDeskNearMe", () => {
 
 describe("desk copy", () => {
   it("keeps empty and amenity lines in house voice", () => {
-    expect(deskEmptyLine()).toBe("No desks logged near here yet - add a spot");
+    expect(deskEmptyLine()).toBe("No desks logged near here yet. Add a spot.");
     expect(deskWifiCaption("yes")).toBe("Wifi: yes");
     expect(deskWifiCaption("no")).toBe("Wifi: no");
     expect(deskWifiCaption("unknown")).toBe("Wifi: unknown");

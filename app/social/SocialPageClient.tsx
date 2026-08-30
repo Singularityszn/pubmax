@@ -824,8 +824,8 @@ export default function SocialPageClient({
                 <div className="socialFeedEmpty" role="status">
                   <h2>No posts here yet.</h2>
                   <p>
-                    Find your lot - search a handle or send an invite - and nights
-                    from mutuals land here.
+                    Find your lot: search a handle or send an invite. Nights from
+                    mutuals land here.
                   </p>
                   {/* The search-and-invite surface is the rail's, once. */}
                   <PeopleDirectory myHandle={viewerHandle} />

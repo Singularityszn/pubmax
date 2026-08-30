@@ -15,7 +15,14 @@ export const EDITORIAL_RAIL_TITLE = "Also picked this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
 export const EDITORIAL_DEGRADED_LINE = "Some picks could not be checked.";
 export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";
-export const EDITORIAL_STALE_LINE = "Picks need a fresh check.";
+// A withheld week SAYS WHEN it was last checked. "Picks need a fresh check"
+// admitted staleness without dating it, so a reader met the same sentence on a
+// snapshot two days old and on one two months old, and the rail read as a
+// permanent apology rather than a fact. The undated line stays for the case the
+// staleness test itself covers: a `generatedAt` we could not parse, or one in
+// the future, where naming a day would be inventing one. It is worded like
+// TonightProvenanceLines' own undated sentence so the two cannot drift.
+export const EDITORIAL_UNDATED_LINE = "We can\u2019t date these picks yet.";
 export const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // A generated overlay is a build artifact, not a live feed. Once it is two
 // days old, its current-week rows are withheld until a new poll lands.
@@ -36,6 +43,33 @@ export type EditorialSnapshot = {
   status: "ready" | "degraded";
   items: EditorialItem[];
 };
+
+/** The day an editorial snapshot was generated, in the house short form. */
+export function editorialCheckedDay(generatedAt: string): string | null {
+  const ms = Date.parse(generatedAt);
+  if (!Number.isFinite(ms)) return null;
+  try {
+    return new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Europe/London",
+      day: "numeric",
+      month: "short",
+    })
+      .format(new Date(ms))
+      .replace(/,/gu, "");
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * What the rail says while a stale snapshot's rows are withheld. It names the
+ * day rather than the staleness, and falls through to the undated line only
+ * when the snapshot carries no day we can print.
+ */
+export function editorialStaleLine(snapshot: EditorialSnapshot): string {
+  const day = editorialCheckedDay(snapshot.generatedAt);
+  return day ? `Picks last checked ${day}.` : EDITORIAL_UNDATED_LINE;
+}
 
 export function editorialViaChip(label: string): string {
   return `via ${label}`;

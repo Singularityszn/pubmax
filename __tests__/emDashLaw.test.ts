@@ -37,12 +37,14 @@ import { describe, expect, it } from "vitest";
 const ROOT = process.cwd();
 
 // Surfaces the law governs. Every .tsx under app/ and components/ is a rendered
-// surface. app/ and lib/ are ALSO scanned wholesale for plain .ts: a route
-// handler's JSON error strings and a digest generator's copy reach a reader
-// exactly like JSX text does, and used to slip past this fence entirely
-// because the old scan only walked .tsx. components/ stays .tsx-only for now
-// - its .ts files are hooks and helpers, not string owners, and widening that
-// scan is a separate call. The allowlists below name the plumbing files whose
+// surface. app/, components/ and lib/ are ALSO scanned wholesale for plain .ts:
+// a route handler's JSON error strings and a digest generator's copy reach a
+// reader exactly like JSX text does, and used to slip past this fence entirely
+// because the old scan only walked .tsx. components/ was the last .tsx-only
+// directory on the argument that its .ts files are hooks and helpers; the
+// 2026-08-30 voice pass read all 68 of them, found string owners among the
+// hooks (toast and receipt copy a reader sees), and widened the scan with no
+// exception needed. The allowlists below name the plumbing files whose
 // only dashes live in server logs, thrown developer errors, or never-rendered
 // bookkeeping: words no reader ever sees. Adding a file here is a claim that
 // NOTHING in it reaches a reader. If a listed file grows real copy, remove it
@@ -107,8 +109,7 @@ function walkDir(dir: string, out: string[], ext: RegExp): void {
 
 function collectFiles(): string[] {
   const files: string[] = [];
-  // components/ stays .tsx-only: its .ts files are hooks and helpers.
-  walkDir(join(ROOT, "components"), files, /\.tsx$/);
+  walkDir(join(ROOT, "components"), files, /\.tsx?$/);
 
   // app/ is scanned wholesale for .ts and .tsx: route handlers, sitemap/robots
   // config, and page/layout components all live here, and a route's JSON

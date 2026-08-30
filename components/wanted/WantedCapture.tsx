@@ -185,7 +185,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
         setResolve(resolved);
         setStatus(
           resolved.sourceUrl && !resolved.query
-            ? "We keep the link as provenance and never fetch Instagram or TikTok. Add a pub name, or save it as still matching."
+            ? "We keep the link so you know where it came from, and we never fetch Instagram or TikTok. Add a pub name, or save it as still matching."
             : "No match yet. Save as still matching, or try another name.",
         );
         return;

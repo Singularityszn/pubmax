@@ -77,7 +77,7 @@ describe("editorial rail", () => {
         now: NOW,
       }),
     );
-    expect(markup).toContain("Picks need a fresh check.");
+    expect(markup).toContain("Picks last checked 13 Aug.");
     expect(markup).not.toContain("Point Taproom opens");
   });
 

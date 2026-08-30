@@ -297,7 +297,7 @@ export default function LandingPage({
           </div>
 
           <div className="lpHeroCopy">
-            <h1 id="hero-title">London pints can cost eight quid.</h1>
+            <h1 id="hero-title">What a pint costs, pub by pub.</h1>
             {heroActions}
             {heroLede}
             {readout.length > 0 ? (
@@ -481,9 +481,8 @@ export default function LandingPage({
               <PubmaxxWordmark />
             </Link>
             <p className="lpFooterPitch">
-              A pint in London can cost eight quid and nobody tells you where it is
-              cheaper. We show prices on record, get your mates in one place, and
-              put you all on one route.
+              Nobody tells you which pub pours it cheaper. We show prices on
+              record, get your mates in one place, and put you all on one route.
             </p>
             <p className="lpFooterMission">
               Built so the price of a pint stays fair, by people who go to the pub.

@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { useEffect, useState } from "react";
 
 import {
@@ -29,7 +30,7 @@ export function AnalyticsConsentPromptContent({
       aria-label="Anonymous analytics choice"
     >
       <p>
-        PUBMAXXING uses optional analytics to see what people use. Never sold,
+        {BRAND_NAME} uses optional analytics to see what people use. Never sold,
         no ads.{" "}
         <Link href="/privacy">Privacy</Link>
       </p>

@@ -11,6 +11,7 @@ import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import HandlePasswordSignIn from "@/components/auth/HandlePasswordSignIn";
 import type { MagicLinkResult } from "@/lib/passwordlessAuth";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
+import { BRAND_NAME } from "@/lib/brandNaming";
 import { isClerkProductSessionAvailable } from "@/lib/clerkAvailability";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -282,7 +283,7 @@ function PageHead({
 }): React.JSX.Element {
   return (
     <header className="loginPageHead">
-      <p className="loginPageEyebrow">PUBMAXXING</p>
+      <p className="loginPageEyebrow">{BRAND_NAME}</p>
       <h1 className="loginPageTitle">{title}</h1>
       <p className="loginPageLead">{lead}</p>
     </header>

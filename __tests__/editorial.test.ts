@@ -12,10 +12,11 @@ import {
   EDITORIAL_OGL_URL,
   EDITORIAL_RAIL_TITLE,
   EDITORIAL_SNAPSHOT_MAX_AGE_MS,
-  EDITORIAL_STALE_LINE,
+  EDITORIAL_UNDATED_LINE,
   editorialOglMark,
   editorialOglAttributionForSource,
   editorialSnapshotIsStale,
+  editorialStaleLine,
   editorialThisWeekItems,
   editorialViaChip,
   parseEditorialSnapshot,
@@ -321,7 +322,15 @@ describe("editorial overlay: degraded reads are not empty", () => {
     });
     expect(editorialSnapshotIsStale(fresh, now)).toBe(false);
     expect(editorialSnapshotIsStale(old, now)).toBe(true);
-    expect(EDITORIAL_STALE_LINE).toBe("Picks need a fresh check.");
+    // A withheld week names the day it was last checked, so the same sentence
+    // cannot cover a two-day-old snapshot and a two-month-old one.
+    expect(editorialStaleLine(old)).toBe("Picks last checked 15 Aug.");
+    // Only a snapshot carrying no day we can print falls through to the
+    // undated line: a date we cannot read is never a date we invent.
+    expect(EDITORIAL_UNDATED_LINE).toBe("We can\u2019t date these picks yet.");
+    expect(
+      editorialStaleLine({ version: 1, generatedAt: "not a date", status: "ready", items: [] }),
+    ).toBe(EDITORIAL_UNDATED_LINE);
   });
 
   it("a shipped overlay file never stores a body or extra keys", () => {

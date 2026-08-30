@@ -11,7 +11,11 @@ describe("first-visit analytics consent prompt", () => {
     }));
     const copy = markup.toLowerCase();
 
-    expect(markup).toContain("PUBMAXXING uses optional analytics");
+    // Product UI names the BRAND, never the app: the banner sits on every
+    // first-visit page, so it was the loudest of the three surfaces reading
+    // PUBMAXXING while the wordmark beside it read PUBMAXX.
+    expect(markup).toContain("PUBMAXX uses optional analytics");
+    expect(markup).not.toContain("PUBMAXXING");
     expect(copy).toContain("what people use");
     expect(copy).toContain("never sold, no ads");
     expect(markup).toContain(">Allow<");

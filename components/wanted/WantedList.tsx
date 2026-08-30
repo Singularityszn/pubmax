@@ -68,7 +68,7 @@ export default function WantedList(): React.JSX.Element {
       </h2>
       <p className="wantedPanel__lede">
         Paste a pub name or a link you saved elsewhere. It becomes a place you can plan
-        around. We store the link as provenance and never fetch Instagram or TikTok.
+        around. We keep the link so you know where it came from, and we never fetch Instagram or TikTok.
       </p>
 
       {loadStatus === "sign_in" ? (
@@ -113,11 +113,11 @@ export default function WantedList(): React.JSX.Element {
                   <p className="wantedRow__name">{title}</p>
                   <p className="wantedRow__meta">
                     {wanted.venueKind === "uk_base"
-                      ? "UK pub · mark only, no invented pint price"
+                      ? "UK pub · no listed price"
                       : wanted.venueKind === "pending"
                         ? "Still matching"
                         : "On the priced map"}
-                    {wanted.sourceUrl ? " · link saved as provenance" : ""}
+                    {wanted.sourceUrl ? " · link saved" : ""}
                     {wanted.note ? ` · ${wanted.note}` : ""}
                   </p>
                 </div>

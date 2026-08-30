@@ -58,9 +58,9 @@ export function homeCardCoverage(stats: AboutStats): string[] {
 // product already owns, then the lede under it. No jokes on this card, because
 // a figure sits four lines below (docs/VOICE.md, "Where the jokes live").
 export const HOME_CARD_EYEBROW = "Real prices · One map · Nobody pays to rank";
-export const HOME_CARD_HERO_LEAD = "London pints";
-export const HOME_CARD_HERO_TAIL = "can cost";
-export const HOME_CARD_HERO_ACCENT = "eight quid.";
+export const HOME_CARD_HERO_LEAD = "What a pint";
+export const HOME_CARD_HERO_TAIL = "costs,";
+export const HOME_CARD_HERO_ACCENT = "pub by pub.";
 export const HOME_CARD_SUPPORT =
   "Open the map, pick a drink, and see which nearby pubs pour it cheapest. We name the source when there is one, and say when there is not.";
 

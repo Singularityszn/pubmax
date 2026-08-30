@@ -6,7 +6,7 @@
 
 import { getAccessToken } from "@/lib/authClient";
 
-export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session - try again.";
+export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session. Try again.";
 
 export type AuthActionState = Readonly<{
   status: "unknown" | "signed-out" | "signed-in";
