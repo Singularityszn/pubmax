@@ -41,6 +41,14 @@ function cacheableImageMiss(): Response {
   });
 }
 
+async function cancelUpstreamBody(response: Response | null): Promise<void> {
+  try {
+    await response?.body?.cancel();
+  } catch {
+    // The body can already be closed or aborted. Either state releases it.
+  }
+}
+
 function isForbiddenHost(hostname: string): boolean {
   const h = hostname.toLowerCase();
   if (h === "localhost" || h.endsWith(".localhost") || h.endsWith(".local") || h.endsWith(".internal")) {
@@ -99,6 +107,7 @@ export async function GET(request: Request): Promise<Response> {
         const followed: URL | null = location
           ? validate(new URL(location, target).toString())
           : null;
+        await cancelUpstreamBody(upstream);
         if (!followed || hop === MAX_REDIRECTS) {
           return new Response("Image source redirected out of policy.", { status: 502 });
         }
@@ -107,17 +116,31 @@ export async function GET(request: Request): Promise<Response> {
       }
       break;
     }
-    if (!upstream || !upstream.ok) {
-      return cacheableImageMiss();
+    if (!upstream) return new Response("Image source unavailable.", { status: 502 });
+    if (!upstream.ok) {
+      await cancelUpstreamBody(upstream);
+      return upstream.status === 404 || upstream.status === 410
+        ? cacheableImageMiss()
+        : new Response("Image source unavailable.", { status: 502 });
     }
     const type = (upstream.headers.get("content-type") ?? "").toLowerCase();
     // Raster images only. SVG is executable content — served same-origin it
     // would be a stored-XSS vector (cursor bot, PR #171) — so it is refused
     // outright rather than sandboxed.
-    if (type.includes("svg")) return new Response("Not an image.", { status: 502 });
-    if (!type.startsWith("image/")) return cacheableImageMiss();
+    if (type.includes("svg")) {
+      await cancelUpstreamBody(upstream);
+      return new Response("Not an image.", { status: 502 });
+    }
+    if (!type.startsWith("image/")) {
+      await cancelUpstreamBody(upstream);
+      return cacheableImageMiss();
+    }
     const declared = Number(upstream.headers.get("content-length") ?? "0");
-    if (declared > MAX_BYTES) return new Response("Image too large.", { status: 502 });
+    if (declared > MAX_BYTES) {
+      controller.abort();
+      await cancelUpstreamBody(upstream);
+      return new Response("Image too large.", { status: 502 });
+    }
     // Stream with a hard byte cap (cursor bot, PR #171): a chunked/mislabelled
     // response is aborted the moment it crosses the cap, never fully buffered.
     const reader = upstream.body?.getReader();
@@ -134,6 +157,7 @@ export async function GET(request: Request): Promise<Response> {
       }
       chunks.push(value);
     }
+    if (received === 0) return cacheableImageMiss();
     const body = new Blob(chunks as BlobPart[]);
     return new Response(body, {
       status: 200,

@@ -80,13 +80,18 @@ describe("GET /api/image-proxy", () => {
   });
 
   it("returns a cacheable miss for allowed non-image content", async () => {
+    const cancel = vi.fn();
     vi.spyOn(globalThis, "fetch").mockResolvedValue(
-      new Response("<html></html>", { status: 200, headers: { "content-type": "text/html" } }),
+      new Response(new ReadableStream({ cancel }), {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
     );
     const res = await GET(req("https://example.com/p.jpg"));
 
     expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toContain("max-age=86400");
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it("returns a cacheable miss when an allowed upstream image is unavailable", async () => {
@@ -95,6 +100,14 @@ describe("GET /api/image-proxy", () => {
 
     expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toContain("max-age=86400");
+  });
+
+  it.each([429, 500, 502, 503])("keeps transient upstream status %s as an uncached failure", async (status) => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status }));
+    const res = await GET(req("https://example.com/temporary.jpg"));
+
+    expect(res.status).toBe(502);
+    expect(res.headers.get("cache-control")).toBeNull();
   });
 
   it("returns a cacheable miss when an allowed legacy image redirects to site HTML", async () => {
@@ -128,6 +141,19 @@ describe("GET /api/image-proxy", () => {
       new Response(null, { status: 200, headers: { "content-type": "image/jpeg" } }),
     );
     const res = await GET(req("https://example.com/empty.jpg"));
+
+    expect(res.status).toBe(204);
+    expect(res.headers.get("cache-control")).toContain("max-age=86400");
+  });
+
+  it("returns a cacheable miss for an empty readable raster body", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new Uint8Array(), {
+        status: 200,
+        headers: { "content-type": "image/jpeg" },
+      }),
+    );
+    const res = await GET(req("https://example.com/empty-stream.jpg"));
 
     expect(res.status).toBe(204);
     expect(res.headers.get("cache-control")).toContain("max-age=86400");
