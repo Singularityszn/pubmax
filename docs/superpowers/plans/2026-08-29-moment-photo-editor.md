@@ -4,7 +4,7 @@
 
 **Goal:** Let Moment authors optionally crop, filter, add text, and draw on each attached photo before the existing private upload.
 
-**Architecture:** Keep `MomentMediaDraft.blob` as the upload source of truth. Add a client-only editor sheet that is dynamically imported by `/moment` but rendered only for an explicit Edit action. Accept the editor's output only when it satisfies the current JPEG, PNG, WebP, and 5MB constraints, then replace the draft media item so the existing `FormData` and storage/moderation path remain unchanged.
+**Architecture:** Keep `MomentMediaDraft.blob` as the upload source of truth. Add a client-only editor sheet that is dynamically imported by `/moment` but rendered only for an explicit Edit action. Accept the editor's output only when it satisfies the current JPEG, PNG, WebP, and 10MB constraints, then replace the draft media item so the existing `FormData` and storage/moderation path remain unchanged.
 
 **Tech Stack:** Next.js 16 App Router, React 19, TypeScript, `@unlayer/react-image-editor` 1.0.1, Vitest, Playwright, Chrome DevTools evidence.
 
@@ -15,7 +15,7 @@
 - Attach photo -> Edit button -> editor modal/sheet -> edited image replaces original.
 - Mobile-first at 390x844; interactive controls use 44px minimum tap targets.
 - Lazy-load the editor wrapper and CDN runtime only after Edit; it must not enter map or landing bundles.
-- Edited output must pass existing JPEG, PNG, WebP, and 5MB checks and use the existing upload/moderation path.
+- Edited output must pass existing JPEG, PNG, WebP, and 10MB checks and use the existing upload/moderation path.
 - Keep PUBMAXX copy minimal and do not add supporting copy below headings by default.
 - Stop with needs-decision if peer dependencies, license, or bundle/runtime cost makes `@unlayer/react-image-editor` incompatible.
 
@@ -30,7 +30,7 @@
 
 - [x] **Step 1: Write the failing tests**
 
-  Test that valid editor output replaces only the selected photo, preserves its alt text and id, and updates name/type/size/object URL. Test that an unsupported type or output over 5MB is refused. Keep lazy-loader behavior in the executable browser contract.
+  Test that valid editor output replaces only the selected photo, preserves its alt text and id, and updates name/type/size/object URL. Test that an unsupported type or output over 10MB is refused. Keep lazy-loader behavior in the executable browser contract.
 
 - [x] **Step 2: Run focused tests to verify they fail**
 
@@ -87,7 +87,7 @@
 
   Use a deterministic repository PNG and assert the Edit control, editor sheet, Close control, and original preview preservation after closing. Capture the open editor sheet at 390x844.
 
-- [x] **Step 2: Run the headed browser proof**
+- [ ] **Step 2: Run the headed browser proof**
 
   Run: `PW_SKIP_WEBSERVER=1 PW_MOMENT_BASE_URL=http://127.0.0.1:3100 npx playwright test e2e/moment-photo-editor.spec.ts --headed --project=chromium`
 
@@ -125,7 +125,7 @@
 - Added optional Unlayer editing after Moment photo attach.
 - Offers crop, resize, filters, draw, text, and shapes through the editor.
 - Frame and Stickers are not offered because `img-src` excludes `https://cdn.unlayer.com` and the image policy must not widen; see https://github.com/Singularityszn/pubmax/issues/1248.
-- Keeps edited output on the existing JPEG, PNG, WebP, and 5MB upload path.
+- Keeps edited output on the existing JPEG, PNG, WebP, and 10MB upload path.
 - Lazy-loads the editor wrapper and CDN runtime only after Edit.
 
 ## Evidence

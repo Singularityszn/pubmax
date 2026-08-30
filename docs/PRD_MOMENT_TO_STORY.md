@@ -17,7 +17,7 @@ PUBMAXX helps a Pubmaxxer keep the people, places, drinks, events and side quest
 
 ## Implemented slice
 
-- Dedicated mobile-first Moment composer with camera/library selection, up to four JPEG, PNG or WebP photos, caption, night title and optional venue reference.
+- Dedicated mobile-first Moment composer with camera/library selection, up to four JPEG, PNG or WebP photos, optional per-photo editing, caption, night title and optional venue reference.
 - IndexedDB draft persistence with a versioned schema, local metadata fallback and cross-tab revision notification.
 - Guest-to-account draft recovery after sign-in.
 - Authenticated server upload through the existing normalized private-photo pipeline; browser code never receives storage credentials.
