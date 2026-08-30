@@ -45,19 +45,17 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const [error, setError] = useState<string | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [text, setText] = useState("");
+  const disposedRef = useRef(false);
   const connectedAtRef = useRef<number | null>(null);
+  const grantIssuedRef = useRef(false);
   const releasedRef = useRef(false);
+  const sdkSessionStartedRef = useRef(false);
   const capTimerRef = useRef<number | null>(null);
-  const startControllerRef = useRef<ReturnType<typeof createPubPalVoiceStartController> | null>(null);
-  if (startControllerRef.current == null) {
-    startControllerRef.current = createPubPalVoiceStartController();
-  }
-  const startController = startControllerRef.current;
+  const [startController] = useState(createPubPalVoiceStartController);
 
   const finalizeSession = useCallback(async (connected: boolean) => {
     if (releasedRef.current) return;
-    releasedRef.current = true;
-    if (capTimerRef.current) {
+    if (capTimerRef.current !== null) {
       window.clearTimeout(capTimerRef.current);
       capTimerRef.current = null;
     }
@@ -65,8 +63,27 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       ? Math.round((Date.now() - connectedAtRef.current) / 1000)
       : 0;
     connectedAtRef.current = null;
+    if (!grantIssuedRef.current) return;
+    releasedRef.current = true;
     await releaseVoiceSession(durationSeconds);
   }, []);
+
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+      startController.cancel();
+      if (capTimerRef.current !== null) {
+        window.clearTimeout(capTimerRef.current);
+        capTimerRef.current = null;
+      }
+      if (sdkSessionStartedRef.current) {
+        sdkSessionStartedRef.current = false;
+        endSession();
+      }
+      void finalizeSession(connectedAtRef.current !== null);
+    };
+  }, [endSession, finalizeSession, startController]);
 
   useEffect(() => {
     if (status !== "connected") onStateChange?.("idle");
@@ -75,19 +92,22 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   }, [isListening, isSpeaking, onStateChange, status]);
 
   const stop = useCallback(async () => {
+    if (disposedRef.current) return;
     const connected = status === "connected";
     startController.settle();
     setIsStarting(false);
     endSession();
+    sdkSessionStartedRef.current = false;
     await finalizeSession(connected);
-    onStateChange?.("idle");
+    if (!disposedRef.current) onStateChange?.("idle");
   }, [endSession, finalizeSession, onStateChange, startController, status]);
 
   const start = async () => {
+    if (disposedRef.current) return;
     if (startController.isStarting()) return;
-    let grantIssued = false;
     setError(null);
     setIsStarting(true);
+    grantIssuedRef.current = false;
     releasedRef.current = false;
     connectedAtRef.current = null;
     onStateChange?.("noticing");
@@ -106,10 +126,14 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             errorMessageFrom(body, "Voice is unavailable. Use text instead."),
           );
         }
-        grantIssued = true;
+        grantIssuedRef.current = true;
         return { ...body, signedUrl: body.signedUrl };
       },
       connect: (grant) => {
+        if (disposedRef.current) {
+          void finalizeSession(false);
+          return;
+        }
         const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
         const overrides = grant.overrides;
         startSession({
@@ -127,19 +151,24 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
               }
             : undefined,
           onConnect: () => {
+            if (disposedRef.current) return;
             startController.settle();
             setIsStarting(false);
+            sdkSessionStartedRef.current = true;
             connectedAtRef.current = Date.now();
             capTimerRef.current = window.setTimeout(() => {
               void stop();
             }, maxSessionSeconds * 1000);
           },
           onDisconnect: () => {
+            if (disposedRef.current) return;
             startController.settle();
             setIsStarting(false);
+            sdkSessionStartedRef.current = false;
             void finalizeSession(connectedAtRef.current !== null);
           },
           onError: () => {
+            if (disposedRef.current) return;
             startController.settle();
             setIsStarting(false);
             setError(PAL_VOICE_START_ERROR);
@@ -147,15 +176,20 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
             void finalizeSession(connectedAtRef.current !== null);
           },
         });
+        sdkSessionStartedRef.current = true;
       },
       onFailure: (message) => {
+        if (grantIssuedRef.current) void finalizeSession(false);
+        if (disposedRef.current) return;
         setIsStarting(false);
         setError(message);
         onStateChange?.("error");
-        if (grantIssued) void releaseVoiceSession(0);
+      },
+      onCancelled: () => {
+        if (grantIssuedRef.current) void finalizeSession(false);
       },
     });
-    if (!started && !startController.isStarting()) {
+    if (!started && !startController.isStarting() && !disposedRef.current) {
       setIsStarting(false);
     }
   };

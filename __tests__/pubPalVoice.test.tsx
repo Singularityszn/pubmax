@@ -44,8 +44,18 @@ import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { PAL_MICROPHONE_PERMISSION_ERROR } from "@/lib/pubPalVoiceSession";
 
 let container: HTMLDivElement;
-let root: Root;
+let root: Root | null;
 let getUserMedia: ReturnType<typeof vi.fn>;
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
+}
 
 async function settle(): Promise<void> {
   await act(async () => {
@@ -56,10 +66,17 @@ async function settle(): Promise<void> {
 
 async function mountAvailable(): Promise<void> {
   await act(async () => {
-    root.render(createElement(PubPalVoice));
+    root?.render(createElement(PubPalVoice));
   });
   await settle();
   expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
+}
+
+function unmount(): void {
+  act(() => {
+    root?.unmount();
+  });
+  root = null;
 }
 
 beforeEach(() => {
@@ -92,16 +109,16 @@ beforeEach(() => {
 });
 
 afterEach(() => {
-  act(() => root.unmount());
+  unmount();
   container.remove();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 describe("Pub Pal voice controls", () => {
   it("does not issue a grant after microphone denial and unlocks Starting UI", async () => {
-    getUserMedia.mockRejectedValueOnce(
-      new DOMException("Permission denied", "NotAllowedError"),
-    );
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
     await mountAvailable();
 
     const startButton = container.querySelector<HTMLButtonElement>("button");
@@ -114,10 +131,45 @@ describe("Pub Pal voice controls", () => {
     });
 
     expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(startButton?.disabled).toBe(true);
+    expect(startButton?.getAttribute("aria-busy")).toBe("true");
+    expect(container.querySelector(".palVoiceStatus")?.textContent).toBe(
+      "Starting voice",
+    );
+
+    await act(async () => {
+      permission.reject(new DOMException("Permission denied", "NotAllowedError"));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
     expect(requests.authedActionFetch).not.toHaveBeenCalled();
     expect(startButton?.disabled).toBe(false);
     expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
     expect(container.textContent).toContain(PAL_MICROPHONE_PERMISSION_ERROR);
+  });
+
+  it("cancels pending permission on unmount and stops a late probe without grant or connect", async () => {
+    const permission = deferred<MediaStream>();
+    getUserMedia.mockReturnValueOnce(permission.promise);
+    await mountAvailable();
+
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(getUserMedia).toHaveBeenCalledOnce();
+
+    const stopTrack = vi.fn();
+    unmount();
+    permission.resolve({ getTracks: () => [{ stop: stopTrack }] } as unknown as MediaStream);
+    await settle();
+
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).not.toHaveBeenCalled();
+    expect(voice.startSession).not.toHaveBeenCalled();
   });
 
   it("releases one granted session when the SDK reports an error", async () => {
@@ -166,5 +218,58 @@ describe("Pub Pal voice controls", () => {
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
     ]);
+  });
+
+  it("cleans up an issued grant on unmount and ignores late SDK callbacks", async () => {
+    vi.useFakeTimers();
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    requests.authedActionFetch
+      .mockResolvedValueOnce(new Response(JSON.stringify({
+        signedUrl: "wss://voice.example/session",
+        maxSessionSeconds: 1,
+      }), {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }))
+      .mockResolvedValue(new Response(null, { status: 204 }));
+
+    await mountAvailable();
+    await act(async () => {
+      container.querySelector<HTMLButtonElement>("button")?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.startSession).toHaveBeenCalledOnce();
+    const session = voice.startSession.mock.calls[0][0] as {
+      onConnect?: () => void;
+      onError?: (error: unknown) => void;
+      onDisconnect?: () => void;
+    };
+    await act(async () => {
+      session.onConnect?.();
+      await Promise.resolve();
+    });
+
+    unmount();
+    await settle();
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      vi.advanceTimersByTime(1_001);
+      session.onError?.(new Error("late socket failure"));
+      session.onDisconnect?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(voice.endSession).toHaveBeenCalledOnce();
+    expect(requests.authedActionFetch).toHaveBeenCalledTimes(2);
+    expect(stopTrack).toHaveBeenCalledOnce();
   });
 });

@@ -11,6 +11,13 @@ type VoiceStartAttempt<TGrant> = {
   issueGrant: () => Promise<TGrant>;
   connect: (grant: TGrant) => void;
   onFailure?: (message: string) => void;
+  onCancelled?: () => void;
+};
+
+type ActiveVoiceStart = {
+  cancelled: boolean;
+  cancellationNotified: boolean;
+  onCancelled?: () => void;
 };
 
 export class PubPalVoiceStartError extends Error {}
@@ -39,26 +46,55 @@ function stopProbe(stream: VoiceProbeStream): void {
 export function createPubPalVoiceStartController() {
   let locked = false;
   let inFlight: Promise<boolean> | null = null;
+  let activeStart: ActiveVoiceStart | null = null;
+
+  const notifyCancellation = (start: ActiveVoiceStart): void => {
+    if (start.cancellationNotified) return;
+    start.cancellationNotified = true;
+    start.onCancelled?.();
+  };
 
   return {
     isStarting: () => locked,
     settle: () => {
       locked = false;
     },
+    cancel: () => {
+      locked = false;
+      if (!activeStart) return;
+      activeStart.cancelled = true;
+      notifyCancellation(activeStart);
+    },
     start<TGrant>(attempt: VoiceStartAttempt<TGrant>): Promise<boolean> {
       if (inFlight) return inFlight;
       if (locked) return Promise.resolve(false);
       locked = true;
 
+      const currentStart: ActiveVoiceStart = {
+        cancelled: false,
+        cancellationNotified: false,
+        onCancelled: attempt.onCancelled,
+      };
+      activeStart = currentStart;
+
       const current = Promise.resolve()
         .then(async () => {
           try {
             const stream = await attempt.requestMicrophone();
+            if (currentStart.cancelled) {
+              stopProbe(stream);
+              return false;
+            }
             stopProbe(stream);
             const grant = await attempt.issueGrant();
+            if (currentStart.cancelled) {
+              notifyCancellation(currentStart);
+              return false;
+            }
             attempt.connect(grant);
             return true;
           } catch (error) {
+            if (currentStart.cancelled) return false;
             locked = false;
             attempt.onFailure?.(voiceStartErrorMessage(error));
             return false;
@@ -66,6 +102,7 @@ export function createPubPalVoiceStartController() {
         })
         .finally(() => {
           inFlight = null;
+          if (activeStart === currentStart) activeStart = null;
         });
       inFlight = current;
       return current;
