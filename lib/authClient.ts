@@ -32,6 +32,10 @@ function buildBrowserClient(): Promise<SupabaseClient | null> {
     const config = resolveSupabaseConfig(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
       process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+      {
+        expectedKeyRole: "publishable",
+        allowUnknownKeyRole: process.env.NODE_ENV !== "production",
+      },
     );
     if (!config) return null;
 
@@ -100,6 +104,10 @@ export function isAuthConfigured(): boolean {
   return resolveSupabaseConfig(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+    {
+      expectedKeyRole: "publishable",
+      allowUnknownKeyRole: process.env.NODE_ENV !== "production",
+    },
   ) !== null;
 }
 

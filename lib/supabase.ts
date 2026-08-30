@@ -12,10 +12,15 @@ import { resolveSupabaseConfig } from "@/lib/supabaseConfig";
 let cached: SupabaseClient | null | undefined;
 
 function resolveServerSupabaseConfig() {
+  const isVercelProduction = process.env.VERCEL_ENV === "production";
   return resolveSupabaseConfig(
     process.env.SUPABASE_URL,
     process.env.SUPABASE_SERVICE_ROLE_KEY,
-    { requireHttps: isDeployedProduction() },
+    {
+      requireHttps: isVercelProduction,
+      expectedKeyRole: "secret",
+      allowUnknownKeyRole: !isVercelProduction,
+    },
   );
 }
 
