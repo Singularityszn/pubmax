@@ -1,5 +1,9 @@
 import { firstHttp } from "@/lib/httpUrl";
-import { outCardSource, outSourceDisplayLabel } from "@/lib/out/attribution";
+import {
+  outCardSource,
+  outRowSourceCredit,
+  outSourceDisplayLabel,
+} from "@/lib/out/attribution";
 import {
   OUT_DEGRADED_LINE,
   OUT_READ_FAILED_LINE,
@@ -475,14 +479,21 @@ export type TonightRowLinks = {
  * venue discharges nothing. The map keeps its own way in beside the card, as a
  * sibling rather than an anchor inside an anchor, which the parser un-nests.
  * A venue's own listing is unchanged: the pub it names is the destination.
+ *
+ * What the credit SAYS and where it GOES come from the one owner the /out card
+ * reads, so the two surfaces cannot disagree about a row: a publisher whose
+ * link lands on another host is named with that host, and a link that opens a
+ * front door rather than the event is no link at all, which drops the row
+ * through to the map below exactly as a row carrying no link does.
  */
 export function tonightRowLinks(
   row: WhatsOnRow,
   selectable: TonightSelectableVenueIds = undefined,
 ): TonightRowLinks {
   const rawLabel = row.source?.label ?? "";
-  const sourceLabel = outSourceDisplayLabel(rawLabel);
-  const sourceUrl = firstHttp(row.source?.url);
+  const credit = outRowSourceCredit({ label: rawLabel, url: row.source?.url ?? "" });
+  const sourceLabel = credit.label;
+  const sourceUrl = credit.href ? firstHttp(credit.href) : null;
   const venueId = canonicalOutVenueId(row.venueId);
   const mapHref =
     venueId && tonightMapHrefAllowed(venueId, selectable)

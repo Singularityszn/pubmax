@@ -18,6 +18,23 @@ export const OUT_OPEN_PLANS_MIN_SENDABLE = 1;
 export const OUT_LISTING_PUB_ABSENT_LINE =
   "No matching pub in PUBMAXX yet.";
 
+/**
+ * The badge over a listing whose place PUBMAXX lists.
+ *
+ * It used to read "PUBMAXX pub", and printed that over Pop Brixton and the ABBA
+ * Arena. The kind was never read: `SlimVenue.kind` is OPTIONAL and an absent
+ * kind means pub, a back-compat default that keeps 1,907 of the 1,996 curated
+ * London rows drawing a pub pin. That default is safe for a PIN and wrong for a
+ * PRINTED NOUN - one is a shape, the other is a claim about the place.
+ *
+ * So the badge names what it actually knows: this listing's place is one
+ * PUBMAXX carries, and here it is on the map. The pub word stays in the absent
+ * line above, where it is answering the narrower question the /out venue index
+ * really asks (lib/out/venueMatch.server.ts matches pub kinds alone), and
+ * naming what we do NOT have costs nobody a wrong noun.
+ */
+export const OUT_LISTING_VENUE_BADGE_LABEL = "PUBMAXX venue";
+
 export { OUT_UNMATCHED_PLACES_SHOWN } from "@/lib/out/types";
 
 export { canonicalOutVenueId } from "@/lib/out/venueId";
