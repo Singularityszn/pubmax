@@ -21,8 +21,9 @@ import { POST as JOIN } from "@/app/api/plans/[id]/join/route";
 import { POST as CREATE_INVITE } from "@/app/api/plans/[id]/invites/route";
 import { POST as ROTATE } from "@/app/api/plans/[id]/invite-rotate/route";
 import { POST as RSVP } from "@/app/api/invite/[token]/rsvp/route";
+import { DELETE as REMOVE_RSVP, POST as UPDATE_RSVP } from "@/app/api/plans/[id]/invite-rsvp/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
-import { __resetMemoryPlans } from "@/lib/planStore";
+import { __resetMemoryPlans, planMemberIdentity, planStore } from "@/lib/planStore";
 import { __resetMemoryRsvps } from "@/lib/planInviteRsvpStore";
 import { GUEST_LIST_DISPLAY_CAP, RSVP_PLAN_CEILING } from "@/lib/planInvite";
 import { rsvpStore } from "@/lib/planInviteRsvpStore";
@@ -152,7 +153,242 @@ describe("POST /api/plans/[id]/invite-rotate", () => {
 });
 
 describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
-  it("refuses a brand-new guest once the plan is at the RSVP ceiling, but still allows an existing guest to change status", async () => {
+  it("turns a Going RSVP into one replay-safe canonical guest membership", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const request = () => new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Priya", status: "going", submitterId: "device-canonical-going" }),
+    });
+
+    const first = await RSVP(request(), tokenCtx(inviteToken));
+    expect(first.status).toBe(200);
+    const firstBody = await first.json() as {
+      memberToken?: string;
+      role?: string;
+      collaborationAuthorized?: boolean;
+      isUpdate?: boolean;
+    };
+    expect(firstBody).toMatchObject({
+      role: "guest",
+      collaborationAuthorized: false,
+      isUpdate: false,
+    });
+    expect(firstBody.memberToken).toMatch(/^[0-9a-f]{64}$/);
+    expect(first.headers.get("set-cookie")).toContain("HttpOnly");
+    expect(first.headers.get("set-cookie")).toContain(`Path=/api/plans/${planId}`);
+
+    const replay = await RSVP(request(), tokenCtx(inviteToken));
+    expect(replay.status).toBe(200);
+    const replayBody = await replay.json() as { memberToken?: string; isUpdate?: boolean };
+    expect(replayBody).toMatchObject({ memberToken: firstBody.memberToken, isUpdate: true });
+
+    const memberState = await planStore().get(planId);
+    expect(memberState?.crew.map((member) => member.name)).toEqual(["Host", "Priya"]);
+  });
+
+  it("refuses a host RSVP without creating a duplicate membership", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+
+    const going = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        body: JSON.stringify({
+          inviteToken,
+          displayName: "Host",
+          status: "going",
+          submitterId: "host-rsvp-device",
+          memberToken: host.memberToken,
+        }),
+      }),
+      ctx(planId),
+    );
+
+    expect(going.status).toBe(409);
+    expect(await going.json()).toMatchObject({ code: "PLAN_HOST_CANNOT_RSVP" });
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual(["Host"]);
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 0, maybe: 0 } });
+  });
+
+  it("lets a guest capability update only its own linked RSVP", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const joined = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status: "going", submitterId: "linked-device" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    const joinedBody = await joined.json() as { memberToken: string };
+    const cookie = joined.headers.get("set-cookie")?.split(";")[0];
+    expect(cookie).toBeTruthy();
+
+    const refused = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        headers: { cookie: cookie! },
+        body: JSON.stringify({
+          inviteToken,
+          displayName: "Other",
+          status: "maybe",
+          submitterId: "different-device",
+        }),
+      }),
+      ctx(planId),
+    );
+    expect(refused.status).toBe(403);
+    expect(await planMemberIdentity(planId, joinedBody.memberToken)).toMatchObject({ role: "guest" });
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 1, maybe: 0 } });
+
+    const updated = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        headers: { cookie: cookie! },
+        body: JSON.stringify({
+          inviteToken,
+          displayName: "Priya",
+          status: "maybe",
+          submitterId: "linked-device",
+        }),
+      }),
+      ctx(planId),
+    );
+    expect(updated.status).toBe(200);
+    expect(await planMemberIdentity(planId, joinedBody.memberToken)).toBeNull();
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 0, maybe: 1 } });
+  });
+
+  it("keeps the public RSVP name while canonical crew identity uses its 40-character limit", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const displayName = "P".repeat(60);
+
+    const response = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName, status: "going", submitterId: "device-long-going-name" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    expect(response.status).toBe(200);
+    expect((await response.json()) as { summary: { guests: Array<{ displayName: string }> } })
+      .toMatchObject({ summary: { guests: [{ displayName }] } });
+    expect((await planStore().get(planId))?.crew[1]?.name).toBe("P".repeat(40));
+  });
+
+  it("keeps a Maybe RSVP outside membership and revokes membership when Going changes to Maybe", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const rsvp = async (status: "going" | "maybe") => RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status, submitterId: "device-going-maybe" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    const going = await rsvp("going");
+    expect(going.status).toBe(200);
+    const goingBody = await going.json() as { memberToken: string };
+    expect(await planMemberIdentity(planId, goingBody.memberToken)).toMatchObject({ role: "guest" });
+
+    const maybe = await rsvp("maybe");
+    expect(maybe.status).toBe(200);
+    expect(await maybe.json()).not.toHaveProperty("memberToken");
+    expect(await planMemberIdentity(planId, goingBody.memberToken)).toBeNull();
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual(["Host"]);
+  });
+
+  it("refuses Going atomically when canonical crew is full while Maybe still lands", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    for (let i = 0; i < 19; i++) {
+      const response = await RSVP(
+        new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+          method: "POST",
+          body: JSON.stringify({ displayName: `Crew ${i}`, status: "going", submitterId: `crew-device-${i}` }),
+        }),
+        tokenCtx(inviteToken),
+      );
+      expect(response.status).toBe(200);
+    }
+
+    const rejected = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Full Guest", status: "going", submitterId: "crew-device-full" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    expect(rejected.status).toBe(409);
+    expect(await rejected.json()).toMatchObject({ code: "PLAN_CREW_FULL" });
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 19, maybe: 0 } });
+
+    const maybe = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Full Guest", status: "maybe", submitterId: "crew-device-full" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    expect(maybe.status).toBe(200);
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 19, maybe: 1 } });
+
+    const stillRejected = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Full Guest", status: "going", submitterId: "crew-device-full" }),
+      }),
+      tokenCtx(inviteToken),
+    );
+    expect(stillRejected.status).toBe(409);
+    expect(await rsvpStore().summarize(planId)).toMatchObject({ counts: { going: 19, maybe: 1 } });
+  });
+
+  it("host removal revokes the linked membership and a fresh Going RSVP can rejoin safely", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const request = () => new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+      method: "POST",
+      body: JSON.stringify({ displayName: "Priya", status: "going", submitterId: "device-remove-rejoin" }),
+    });
+    const joined = await RSVP(request(), tokenCtx(inviteToken));
+    const joinedBody = await joined.json() as {
+      memberToken: string;
+      summary: { guests: Array<{ id: string; displayName: string }> };
+    };
+    const rsvpId = joinedBody.summary.guests.find((guest) => guest.displayName === "Priya")?.id;
+    expect(rsvpId).toBeTruthy();
+
+    const removed = await REMOVE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "DELETE",
+        body: JSON.stringify({ rsvpId, memberToken: host.memberToken }),
+      }),
+      ctx(planId),
+    );
+    expect(removed.status).toBe(200);
+    expect(await planMemberIdentity(planId, joinedBody.memberToken)).toBeNull();
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual(["Host"]);
+
+    const rejoined = await RSVP(request(), tokenCtx(inviteToken));
+    expect(rejoined.status).toBe(200);
+    const rejoinedBody = await rejoined.json() as { memberToken: string; isUpdate: boolean };
+    expect(rejoinedBody).toMatchObject({ memberToken: joinedBody.memberToken, isUpdate: false });
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual(["Host", "Priya"]);
+  });
+
+  it("refuses a brand-new guest once the plan is at the RSVP ceiling, but still allows an existing guest to update", async () => {
     const host = await createPlan();
     const inviteToken = await ownInviteToken(host.plan.plan.id, host.memberToken);
 
@@ -160,7 +396,7 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
       const res = await RSVP(
         new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
           method: "POST",
-          body: JSON.stringify({ displayName: `Guest ${i}`, status: "going", submitterId: `device-${i}` }),
+          body: JSON.stringify({ displayName: `Guest ${i}`, status: "maybe", submitterId: `device-${i}` }),
         }),
         tokenCtx(inviteToken),
       );
@@ -170,21 +406,21 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
     const overflow = await RSVP(
       new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
         method: "POST",
-        body: JSON.stringify({ displayName: "Overflow", status: "going", submitterId: "device-overflow" }),
+        body: JSON.stringify({ displayName: "Overflow", status: "maybe", submitterId: "device-overflow" }),
       }),
       tokenCtx(inviteToken),
     );
     expect(overflow.status).toBe(409);
     expect(await overflow.json()).toMatchObject({ error: "This guest list is full." });
 
-    const existingChangesStatus = await RSVP(
+    const existingUpdates = await RSVP(
       new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
         method: "POST",
-        body: JSON.stringify({ displayName: "Guest 0", status: "maybe", submitterId: "device-0" }),
+        body: JSON.stringify({ displayName: "Guest Zero", status: "maybe", submitterId: "device-0" }),
       }),
       tokenCtx(inviteToken),
     );
-    expect(existingChangesStatus.status).toBe(200);
+    expect(existingUpdates.status).toBe(200);
   }, 20_000);
 });
 
@@ -198,7 +434,7 @@ describe("guest-list display truncation", () => {
       await RSVP(
         new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
           method: "POST",
-          body: JSON.stringify({ displayName: `Guest ${i}`, status: "going", submitterId: `device-trunc-${i}` }),
+          body: JSON.stringify({ displayName: `Guest ${i}`, status: "maybe", submitterId: `device-trunc-${i}` }),
         }),
         tokenCtx(inviteToken),
       );
@@ -206,7 +442,7 @@ describe("guest-list display truncation", () => {
 
     const summary = await rsvpStore().summarize(host.plan.plan.id);
     expect(summary.guests.length).toBe(GUEST_LIST_DISPLAY_CAP);
-    expect(summary.counts.going).toBe(total);
+    expect(summary.counts.maybe).toBe(total);
     expect(summary.counts.going + summary.counts.maybe - summary.guests.length).toBe(total - GUEST_LIST_DISPLAY_CAP);
   }, 20_000);
 });

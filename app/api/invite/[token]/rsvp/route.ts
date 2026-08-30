@@ -9,7 +9,8 @@ import { socialFreezeResponse } from "@/lib/opsFreeze";
 import { isLimited } from "@/lib/pintDrops";
 import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus } from "@/lib/planInvite";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
-import { RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
+import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
+import { attachPlanMemberSession } from "@/lib/planMemberCapability";
 import { hashActor } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 
@@ -49,14 +50,32 @@ export async function POST(request: Request, { params }: { params: Promise<{ tok
   }
 
   try {
-    const { summary, isUpdate } = await rsvpStore().upsert(resolved.planId, submitterHash, displayName, status);
-    return jsonNoStore({ summary, isUpdate }, { status: 200 });
+    const { summary, isUpdate, membership } = await rsvpStore().upsert(
+      resolved.planId,
+      submitterHash,
+      displayName,
+      status,
+    );
+    const response = jsonNoStore(
+      {
+        summary,
+        isUpdate,
+        ...(membership ?? {}),
+      },
+      { status: 200 },
+    );
+    return membership
+      ? attachPlanMemberSession(response, request, resolved.planId, membership.memberToken)
+      : response;
   } catch (err) {
     if (err instanceof UnknownPlanError) {
       return publicApiError("This invite link isn't valid.", "NOT_FOUND", 404);
     }
     if (err instanceof RsvpCapExceededError) {
       return publicApiError("This guest list is full.", "CONFLICT", 409);
+    }
+    if (err instanceof PlanCrewFullError) {
+      return publicApiError("This Plan's crew is full.", "PLAN_CREW_FULL", 409);
     }
     console.error("[invite-rsvp] POST failed:", err instanceof Error ? err.stack || err.message : err);
     return publicApiError("RSVPs are unavailable.", "UNAVAILABLE", 503, { retryable: true });

@@ -33,6 +33,9 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
+export type MemoryPlanInviteMembershipResult =
+  | ({ ok: true; memberId: string } & Extract<PlanJoinResult, { ok: true }>)
+  | Extract<PlanJoinResult, { ok: false }>;
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
 export type PlanCompletionResult =
@@ -213,7 +216,10 @@ async function readSupabasePlanState(
     { data: actionRows, error: actionsError },
   ] = await Promise.all([
     admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
-    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at").order("id"),
+    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
+      .eq("plan_id", id)
+      .is("membership_revoked_at", null)
+      .order("joined_at").order("id"),
     admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
   ]);
   if (stopsError || membersError || actionsError) {
@@ -804,6 +810,7 @@ async function supabaseLegacyPlanMemberIdentityResult(id: string, rawToken: stri
     const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
       .select("id,token_hash,joined_at,can_collaborate")
       .eq("plan_id", id)
+      .is("membership_revoked_at", null)
       .order("joined_at").order("id");
     if (error) return { ok: false, error: "error" };
     const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
@@ -832,6 +839,53 @@ export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boo
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
   if (!member) return false;
   member.collaborationAuthorized = true;
+  return true;
+}
+
+/**
+ * Keyless-store seam for public Going RSVPs. The ordinary Plan join remains
+ * the one membership writer, while this wrapper returns its deterministic
+ * member id so the RSVP row can retain the canonical link.
+ */
+export async function joinMemoryPlanInviteRsvpMember(
+  id: string,
+  name: string,
+  idempotencyKey: string,
+): Promise<MemoryPlanInviteMembershipResult> {
+  if (isSupabaseConfigured()) return { ok: false, error: "error" };
+  const memberName = cleanCrewName(name);
+  if (!memberName) return { ok: false, error: "invalid" };
+  const joined = await memoryPlanStore.join(id, memberName, {
+    collaborationAuthorized: false,
+    idempotencyKey,
+  });
+  if (!joined.ok) return joined;
+  const memberId = planIdempotentUuid(`plan-join-member:${id}`, idempotencyKey);
+  const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.id === memberId);
+  if (!member) return { ok: false, error: "error" };
+  if (member.name !== memberName) {
+    member.name = memberName;
+    member.updatedAt = stamp();
+  }
+  return { ...joined, memberId };
+}
+
+/**
+ * Remove only a non-host member linked from an invite RSVP. Matching join
+ * replay state leaves with the member so the same device can join again.
+ */
+export function removeMemoryPlanInviteRsvpMember(id: string, memberId: string): boolean {
+  if (isSupabaseConfigured()) return false;
+  const plan = memoryPlans.get(id);
+  if (!plan) return true;
+  const memberIndex = plan.crew.findIndex((member) => member.id === memberId);
+  if (memberIndex === 0) return false;
+  if (memberIndex > 0) plan.crew.splice(memberIndex, 1);
+  for (const [requestKey, request] of planMemory.joinRequests) {
+    if (requestKey.startsWith(`${id}:`) && request.memberId === memberId) {
+      planMemory.joinRequests.delete(requestKey);
+    }
+  }
   return true;
 }
 

@@ -16,10 +16,12 @@ import {
   type RsvpStatus,
 } from "@/lib/planInvite";
 import {
+  clearPlanCapability,
   parsePlanCapabilitySnapshot,
   planCapabilityEvent,
   readPlanCapabilitySnapshot,
   restorePlanCapability,
+  writePlanCapability,
 } from "@/lib/planSessionCapability";
 import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
@@ -33,6 +35,111 @@ import { REACTION_KEYS, REACTION_META, type ReactionKey, type ReactionSummary } 
 const GUEST_NAME_STORAGE_KEY = "pubmax:inviteGuestName:v1";
 
 const RSVP_SAVED_LINE = "RSVP saved.";
+
+type InviteRsvpCapabilityResponse = {
+  memberToken?: unknown;
+  role?: unknown;
+  collaborationAuthorized?: unknown;
+};
+
+type InviteRsvpSubmitCapability = {
+  token: string;
+  role: "host" | "guest";
+};
+
+type InviteRsvpRestore = (
+  planId: string,
+) => Promise<{ token: string; role: "host" | "guest" | null } | null>;
+
+/** Resolve the HttpOnly-backed role before route choice so a fast host tap stays host-bound. */
+export async function resolveInviteRsvpSubmitCapability(
+  planId: string,
+  currentToken: string,
+  currentRole: "host" | "guest" | null,
+  restore: InviteRsvpRestore = restorePlanCapability,
+): Promise<InviteRsvpSubmitCapability | null> {
+  if (currentToken && currentRole) return { token: currentToken, role: currentRole };
+  const restored = await restore(planId);
+  return restored?.token && restored.role
+    ? { token: restored.token, role: restored.role }
+    : null;
+}
+
+type InviteRsvpPostInput = {
+  planId: string;
+  inviteToken: string;
+  displayName: string;
+  status: RsvpStatus;
+  submitterId: string;
+  capability: InviteRsvpSubmitCapability | null;
+};
+
+type InviteRsvpRequest = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
+
+/** Send through the member-bound route, falling back only after confirmed revocation. */
+export async function postInviteRsvp(
+  input: InviteRsvpPostInput,
+  request: InviteRsvpRequest = fetch,
+): Promise<{ response: Response; capability: InviteRsvpSubmitCapability | null }> {
+  const send = (capability: InviteRsvpSubmitCapability | null) => request(
+    capability
+      ? `/api/plans/${input.planId}/invite-rsvp`
+      : `/api/invite/${encodeURIComponent(input.inviteToken)}/rsvp`,
+    {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        displayName: input.displayName,
+        status: input.status,
+        submitterId: input.submitterId,
+        ...(capability ? { inviteToken: input.inviteToken, memberToken: capability.token } : {}),
+      }),
+    },
+  );
+
+  const response = await send(input.capability);
+  if (input.capability?.role !== "guest" || response.status !== 403) {
+    return { response, capability: input.capability };
+  }
+  const error = await response.clone().json().catch(() => null) as { code?: unknown } | null;
+  if (error?.code !== "PLAN_MEMBER_SESSION_REVOKED") {
+    return { response, capability: input.capability };
+  }
+
+  discardBody(response);
+  clearPlanCapability(input.planId);
+  return { response: await send(null), capability: null };
+}
+
+/** Keep the live Plan authority aligned with the RSVP membership transition. */
+export function applyInviteRsvpCapability(
+  planId: string,
+  status: RsvpStatus,
+  currentRole: "host" | "guest" | null,
+  response: InviteRsvpCapabilityResponse,
+): boolean {
+  if (status === "maybe") {
+    if (currentRole === "guest") clearPlanCapability(planId);
+    return true;
+  }
+  // Host cannot RSVP. A malformed success must never demote host authority or
+  // make the surface claim the RSVP saved.
+  if (currentRole === "host") return false;
+  if (
+    typeof response.memberToken !== "string"
+    || !/^[0-9a-f]{64}$/.test(response.memberToken)
+    || response.role !== "guest"
+    || response.collaborationAuthorized !== false
+  ) {
+    return false;
+  }
+  writePlanCapability(planId, {
+    token: response.memberToken,
+    role: "guest",
+    collaborationAuthorized: false,
+  });
+  return true;
+}
 
 function readStoredGuestName(): string {
   if (typeof window === "undefined") return "";
@@ -223,15 +330,16 @@ export default function PlanInviteRsvp({
       writeStoredGuestName(trimmedName);
 
       try {
-        const res = await fetch(`/api/invite/${encodeURIComponent(token)}/rsvp`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            displayName: trimmedName,
-            status: chosen,
-            submitterId: getAnonId(),
-          }),
+        const submitCapability = await resolveInviteRsvpSubmitCapability(planId, memberToken, role);
+        const submitted = await postInviteRsvp({
+          planId,
+          inviteToken: token,
+          displayName: trimmedName,
+          status: chosen,
+          submitterId: getAnonId(),
+          capability: submitCapability,
         });
+        const res = submitted.response;
         if (!res.ok) {
           discardBody(res);
           setRsvpError(
@@ -239,14 +347,26 @@ export default function PlanInviteRsvp({
               ? "That's a lot of RSVPs. Give it a moment."
               : res.status === 404
                 ? "This invite link isn't valid."
-                : res.status === 409
+                : res.status === 409 && submitted.capability?.role === "host"
+                  ? "Host is already in this Plan."
+                  : res.status === 409
                   ? "This guest list is full."
                   : "Couldn't save that RSVP.",
           );
           return;
         }
-        const data = (await res.json()) as { summary?: unknown; isUpdate?: unknown };
+        const data = (await res.json()) as {
+          summary?: unknown;
+          isUpdate?: unknown;
+          memberToken?: unknown;
+          role?: unknown;
+          collaborationAuthorized?: unknown;
+        };
         if (isPlanInviteRsvpSummary(data.summary)) {
+          if (!applyInviteRsvpCapability(planId, chosen, submitted.capability?.role ?? null, data)) {
+            setRsvpError("Couldn't save that RSVP.");
+            return;
+          }
           setRsvp(data.summary);
           setRsvpCommitted(true);
           markDeviceRsvpCommitted(planId, deviceStorage());
@@ -260,7 +380,7 @@ export default function PlanInviteRsvp({
         setSubmittingRsvp(false);
       }
     },
-    [name, planId, submittingRsvp, token],
+    [memberToken, name, planId, role, submittingRsvp, token],
   );
 
   const onSubmit = useCallback(

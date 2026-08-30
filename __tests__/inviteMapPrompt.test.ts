@@ -1,13 +1,19 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { InviteMapPrompt } from "@/components/plan/PlanInviteRsvp";
+import {
+  applyInviteRsvpCapability,
+  InviteMapPrompt,
+  postInviteRsvp,
+  resolveInviteRsvpSubmitCapability,
+} from "@/components/plan/PlanInviteRsvp";
 import {
   inviteRsvpDeviceKey,
   markDeviceRsvpCommitted,
   readDeviceRsvpCommitted,
 } from "@/lib/planInvite";
+import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot, writePlanCapability } from "@/lib/planSessionCapability";
 
 function memoryStorage(seed: Record<string, string> = {}) {
   const values = new Map<string, string>(Object.entries(seed));
@@ -158,5 +164,108 @@ describe("device RSVP memory", () => {
     expect(() => markDeviceRsvpCommitted("plan-1", denied)).not.toThrow();
     expect(readDeviceRsvpCommitted("plan-1", null)).toBe(false);
     expect(readDeviceRsvpCommitted("   ", memoryStorage())).toBe(false);
+  });
+});
+
+describe("invite RSVP member capability", () => {
+  it("waits for HttpOnly session restoration before choosing the RSVP route", async () => {
+    let finishRestore: ((value: { token: string; role: "host"; collaborationAuthorized: true }) => void) | undefined;
+    const restore = () => new Promise<{ token: string; role: "host"; collaborationAuthorized: true }>((resolve) => {
+      finishRestore = resolve;
+    });
+    let settled = false;
+
+    const pending = resolveInviteRsvpSubmitCapability("plan-host-race", "", null, restore)
+      .finally(() => { settled = true; });
+    await Promise.resolve();
+    expect(settled).toBe(false);
+    finishRestore?.({ token: "__pubmax_http_only_plan_session__", role: "host", collaborationAuthorized: true });
+
+    await expect(pending).resolves.toEqual({
+      token: "__pubmax_http_only_plan_session__",
+      role: "host",
+    });
+  });
+
+  it("clears a revoked guest capability and retries through the public invite route", async () => {
+    (globalThis as { window?: unknown }).window = { dispatchEvent: () => undefined };
+    writePlanCapability("plan-stale-guest", {
+      token: "stale-guest-token",
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+    const request = vi.fn()
+      .mockResolvedValueOnce(new Response(JSON.stringify({ code: "PLAN_MEMBER_SESSION_REVOKED" }), { status: 403 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ summary: {} }), { status: 200 }));
+
+    const result = await postInviteRsvp({
+      planId: "plan-stale-guest",
+      inviteToken: "classic-token",
+      displayName: "Priya",
+      status: "going",
+      submitterId: "device-priya",
+      capability: { token: "stale-guest-token", role: "guest" },
+    }, request);
+
+    expect(request.mock.calls.map(([url]) => url)).toEqual([
+      "/api/plans/plan-stale-guest/invite-rsvp",
+      "/api/invite/classic-token/rsvp",
+    ]);
+    expect(result.capability).toBeNull();
+    expect(readPlanCapabilitySnapshot("plan-stale-guest")).toBe("|0|");
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("stores a Going guest capability without replacing an existing host", () => {
+    (globalThis as { window?: unknown }).window = { dispatchEvent: () => undefined };
+    applyInviteRsvpCapability("plan-going-guest", "going", null, {
+      memberToken: "a".repeat(64),
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot("plan-going-guest"))).toMatchObject({
+      token: "a".repeat(64),
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+
+    writePlanCapability("plan-going-host", {
+      token: "host-token",
+      role: "host",
+      collaborationAuthorized: true,
+    });
+    expect(applyInviteRsvpCapability("plan-going-host", "going", "host", {
+      memberToken: "b".repeat(64),
+      role: "guest",
+      collaborationAuthorized: false,
+    })).toBe(false);
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot("plan-going-host"))).toMatchObject({
+      token: "host-token",
+      role: "host",
+    });
+    delete (globalThis as { window?: unknown }).window;
+  });
+
+  it("clears a revoked guest capability on Maybe but keeps a host capability", () => {
+    (globalThis as { window?: unknown }).window = { dispatchEvent: () => undefined };
+    writePlanCapability("plan-maybe-guest", {
+      token: "guest-token",
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+    applyInviteRsvpCapability("plan-maybe-guest", "maybe", "guest", {});
+    expect(readPlanCapabilitySnapshot("plan-maybe-guest")).toBe("|0|");
+
+    writePlanCapability("plan-maybe-host", {
+      token: "host-token",
+      role: "host",
+      collaborationAuthorized: true,
+    });
+    applyInviteRsvpCapability("plan-maybe-host", "maybe", "host", {});
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot("plan-maybe-host"))).toMatchObject({
+      token: "host-token",
+      role: "host",
+    });
+    delete (globalThis as { window?: unknown }).window;
   });
 });
