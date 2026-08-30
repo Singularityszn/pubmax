@@ -186,6 +186,12 @@ describe("Clerk CSP sources", () => {
 });
 
 describe("the CSP the proxy actually ships", () => {
+  it("does not trust a third-party photo editor on every page", () => {
+    const policy = policyFor();
+
+    expect(policy).not.toContain("cdn.unlayer.com");
+  });
+
   it("still carries a fresh per-request nonce", () => {
     const first = directive(policyFor(), "script-src");
     const second = directive(policyFor(), "script-src");

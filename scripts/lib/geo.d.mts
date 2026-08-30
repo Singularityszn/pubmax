@@ -11,3 +11,10 @@ export function haversineKm(
   bLat: number,
   bLng: number,
 ): number;
+
+export function haversineKmLngLat(
+  aLng: number,
+  aLat: number,
+  bLng: number,
+  bLat: number,
+): number;

@@ -309,6 +309,76 @@ export type SlimShardLoader = {
   coverageComplete(bounds: MapBounds): boolean | null;
 };
 
+export type SlimShardViewportLoadKind = "target" | "refresh";
+
+export function openingLocationCancellationAfterAttempt({
+  openingLocationResolved,
+  openingLocationCancelledBeforeResolution,
+}: {
+  openingLocationResolved: boolean;
+  openingLocationCancelledBeforeResolution: boolean;
+}): boolean {
+  return (
+    openingLocationCancelledBeforeResolution || !openingLocationResolved
+  );
+}
+
+export function resolveInitialSlimShardLifecycle<Viewport>({
+  openingLocationResolved,
+  openingLocationCancelled,
+  openingLocationSettled,
+  deferInitialSpatialLoad,
+  initialMapView,
+  openingLoadViewport,
+}: {
+  openingLocationResolved: boolean;
+  openingLocationCancelled: boolean;
+  openingLocationSettled: boolean;
+  deferInitialSpatialLoad: boolean;
+  initialMapView: Viewport;
+  openingLoadViewport: Viewport;
+}): { ready: boolean; viewport: Viewport } {
+  return {
+    ready:
+      deferInitialSpatialLoad ||
+      (openingLocationCancelled
+        ? openingLocationSettled
+        : openingLocationResolved),
+    viewport:
+      deferInitialSpatialLoad || openingLocationCancelled
+        ? initialMapView
+        : openingLoadViewport,
+  };
+}
+
+type SlimShardViewportTiming = {
+  requestIdleCallback?: (
+    callback: IdleRequestCallback,
+    options?: IdleRequestOptions,
+  ) => number;
+  setTimeout(callback: () => void, delay: number): unknown;
+};
+
+/**
+ * Start the settled target viewport on the caller's turn. Only later ring
+ * refreshes may wait for idle time, with the existing timeout fallback.
+ */
+export function scheduleSlimShardViewportLoad(
+  load: () => void,
+  kind: SlimShardViewportLoadKind,
+  timing: SlimShardViewportTiming = window,
+): void {
+  if (kind === "target") {
+    load();
+    return;
+  }
+  if (typeof timing.requestIdleCallback === "function") {
+    timing.requestIdleCallback(load, { timeout: 3_000 });
+  } else {
+    timing.setTimeout(load, 1_000);
+  }
+}
+
 /**
  * Build a loader bound to one city. Fetches (and offline-mirrors) the manifest
  * once; on a manifest miss (a city that still ships a single slim file) it

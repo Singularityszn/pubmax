@@ -1,5 +1,18 @@
 # Moment Photo Editor Implementation Plan
 
+> **Superseded on 2026-08-30:** Issue #1248 removed the Unlayer runtime and its
+> site-wide CSP permissions. Current `/moment` editing reuses the first-party
+> canvas cropper in `ProfileImageCropper`, then applies local filters, text, and
+> freehand drawing in `MomentPhotoDecorator`. It keeps the existing lazy
+> boundary and upload path, and sends no photo to an editor provider. Text below
+> records the original implementation. Mobile browser proof remains tracked by
+> issue #1250.
+
+## Archived original plan - do not execute
+
+Everything below this heading records the replaced Unlayer implementation. It
+is not current architecture, validation evidence, or a PR description.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Let Moment authors optionally crop, filter, add text, and draw on each attached photo before the existing private upload.
