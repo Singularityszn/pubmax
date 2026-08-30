@@ -97,7 +97,7 @@ promise about one fetch, so the grid is what gives.
 | pub | 3650 |
 | restaurant | 159 |
 
-No UI reads these shards yet. The layer is published and kind-tagged so a
+At the time of this extract, no UI read these shards. The layer was published and kind-tagged so a
 work-spot surface can be built against real data; `lib/londonVenueShards.ts`
 is the decoder and `isPubVenueKind` answers false for every non-pub kind in
 it, so nothing here can reach a price band, a pin figure, a cheapest bucket
@@ -182,4 +182,3 @@ nothing.
 
 Nothing in these packs is a price source. No row may reach a price band, a
 pin figure, a cheapest bucket or the Pint Index.
-

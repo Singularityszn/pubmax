@@ -18,10 +18,19 @@
  * OSM data is © OpenStreetMap contributors, ODbL 1.0.
  */
 
-import { parseShardManifest, type ShardEntry, type ShardManifest } from "@/lib/slimShards";
+import {
+  bboxIntersects,
+  parseShardManifest,
+  type MapBounds,
+  type ShardEntry,
+  type ShardManifest,
+} from "@/lib/slimShards";
 import { isVenueKind, type VenueKind } from "@/lib/venues";
+import { discardBody } from "@/lib/responseBody";
 
 export const LONDON_VENUE_SHARD_VERSION = 1;
+export const LONDON_VENUE_MANIFEST_PATH = "/data/london_venues/manifest.json";
+export const MAX_LONDON_VENUE_RESIDENT_SHARDS = 12;
 
 const LONDON_VENUE_URL_PREFIX = /^\/data\/london_venues\/(?:packs\/[a-f0-9]{16}\/)?$/;
 
@@ -163,3 +172,102 @@ export function londonVenuesOfKind(
 
 /** The work-spot kinds: somewhere with a table, a socket and a reason to stay. */
 export const WORK_SPOT_KINDS: readonly VenueKind[] = ["cafe", "coworking", "library"];
+
+export type LondonVenueLoader = {
+  venuesForBounds(bounds: MapBounds): Promise<LondonVenue[]>;
+  residentShardCount(): number;
+};
+
+/**
+ * Build one viewport loader for one map instance. The wider layer deliberately
+ * drops pub rows because curated pins and the UK base layer already own pubs.
+ */
+export function createLondonVenueLoader(): LondonVenueLoader {
+  let manifestPromise: Promise<ShardManifest | null> | null = null;
+  const resident = new Map<string, LondonVenue[]>();
+  const inFlight = new Map<string, Promise<LondonVenue[]>>();
+
+  async function fetchManifest(): Promise<ShardManifest | null> {
+    try {
+      const response = await fetch(LONDON_VENUE_MANIFEST_PATH);
+      if (!response.ok) {
+        discardBody(response);
+        return null;
+      }
+      return parseLondonVenueManifest(await response.json());
+    } catch {
+      return null;
+    }
+  }
+
+  function manifest(): Promise<ShardManifest | null> {
+    if (!manifestPromise) {
+      manifestPromise = fetchManifest().then((parsed) => {
+        if (!parsed) manifestPromise = null;
+        return parsed;
+      });
+    }
+    return manifestPromise;
+  }
+
+  function touch(url: string, venues: LondonVenue[]): void {
+    resident.delete(url);
+    resident.set(url, venues);
+  }
+
+  function prune(keep: ReadonlySet<string>): void {
+    for (const url of [...resident.keys()]) {
+      if (resident.size <= MAX_LONDON_VENUE_RESIDENT_SHARDS) break;
+      if (keep.has(url)) continue;
+      resident.delete(url);
+    }
+    for (const url of [...resident.keys()]) {
+      if (resident.size <= MAX_LONDON_VENUE_RESIDENT_SHARDS) break;
+      resident.delete(url);
+    }
+  }
+
+  function loadShard(entry: ShardEntry): Promise<LondonVenue[]> {
+    const cached = resident.get(entry.url);
+    if (cached) {
+      touch(entry.url, cached);
+      return Promise.resolve(cached);
+    }
+    const pending = inFlight.get(entry.url);
+    if (pending) return pending;
+
+    const request = fetch(entry.url)
+      .then(async (response) => {
+        if (!response.ok) {
+          discardBody(response);
+          throw new Error(`HTTP ${response.status}`);
+        }
+        const decoded = parseLondonVenueShardForEntry(await response.json(), entry);
+        if (!decoded) throw new Error("Invalid London venue shard");
+        const venues = decoded.filter((venue) => venue.kind !== "pub");
+        touch(entry.url, venues);
+        return venues;
+      })
+      .catch(() => [] as LondonVenue[])
+      .finally(() => {
+        inFlight.delete(entry.url);
+      });
+    inFlight.set(entry.url, request);
+    return request;
+  }
+
+  return {
+    async venuesForBounds(bounds) {
+      const index = await manifest();
+      if (!index) return [];
+      const entries = index.shards.filter((entry) => bboxIntersects(entry.bbox, bounds));
+      const keep = new Set(entries.map((entry) => entry.url));
+      const venues = (await Promise.all(entries.map(loadShard))).flat();
+      prune(keep);
+      return venues;
+    },
+    residentShardCount() {
+      return resident.size;
+    },
+  };
+}

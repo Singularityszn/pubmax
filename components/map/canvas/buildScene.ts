@@ -182,6 +182,7 @@ export const PIN_PRICE_LABEL_PADDING = 4;
 // to 15) the curated icon is the hero and always draws.
 export const LANDMARK_ICON_PRIORITY_ZOOM = 14;
 export const FIRST_PUB_LAYER_ID = "pubs-drops-halo";
+export const WIDER_VENUE_MIN_ZOOM = 15;
 
 export type SceneCtx = {
   map: maplibregl.Map;
@@ -204,6 +205,8 @@ export type SceneCtx = {
   userLocationData: GeoJSON.FeatureCollection;
   /** UK base pubs for the CURRENT viewport only — see buildUkBase. */
   ukBaseData: GeoJSON.FeatureCollection;
+  /** Neutral non-pub OSM Venues for the current London viewport. */
+  widerVenuesData: GeoJSON.FeatureCollection;
   tonightData: GeoJSON.FeatureCollection;
   tonightVisible: boolean;
   selectedId: string;
@@ -856,6 +859,46 @@ export function buildUkBase(ctx: SceneCtx) {
 }
 
 /**
+ * Neutral street context from the wider Venue Dataset. The source owns no pub
+ * or price authority, and its only symbol is added below both pub layers so a
+ * Venue name cannot displace a curated pin or UK base pub.
+ */
+export function buildWiderVenues(ctx: SceneCtx) {
+  const { map, tokens, dark, textFont, addLayerOnce, widerVenuesData } = ctx;
+  if (!map.getSource("wider-venues")) {
+    map.addSource("wider-venues", {
+      type: "geojson",
+      data: widerVenuesData,
+      attribution: OSM_ATTRIBUTION,
+    });
+  }
+  addLayerOnce({
+    id: "wider-venues-label",
+    type: "symbol",
+    source: "wider-venues",
+    minzoom: WIDER_VENUE_MIN_ZOOM,
+    layout: {
+      "text-field": ["get", "name"],
+      "text-font": textFont,
+      "text-size": ["interpolate", ["linear"], ["zoom"], 15, 10, 17, 12],
+      "text-max-width": 10,
+      "text-variable-anchor": ["top", "bottom", "left", "right"],
+      "text-radial-offset": 0.45,
+      "text-padding": 4,
+      "text-optional": true,
+      "text-allow-overlap": false,
+      "text-ignore-placement": false,
+    },
+    paint: {
+      "text-color": dark ? tokens.muted : tokens.ink,
+      "text-halo-color": dark ? tokens.inkDeep : tokens.paper,
+      "text-halo-width": 1.25,
+      "text-opacity": dark ? 0.78 : 0.72,
+    },
+  });
+}
+
+/**
  * The reader's own position.
  *
  * It lives on the CANVAS, under the pub layers, and that ordering is the whole
@@ -1412,6 +1455,7 @@ export function assembleSceneCritical(ctx: SceneCtx) {
   registerSceneIcons(ctx);
   // BEFORE the pub layers on purpose — see buildUserLocation.
   buildUserLocation(ctx);
+  buildWiderVenues(ctx);
   buildUkBase(ctx);
   buildLandmarks(ctx);
   buildPois(ctx);

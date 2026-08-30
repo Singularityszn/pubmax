@@ -135,6 +135,7 @@ import { mobileSelectCameraOffset } from "@/lib/sheetSnap";
 import { nearMeMapVenues } from "@/lib/nearMeMapFrame";
 import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
 import { useUkBaseStreaming } from "@/components/map/pubmap/useUkBaseStreaming";
+import { useLondonVenueStreaming } from "@/components/map/pubmap/useLondonVenueStreaming";
 import type { MapViewportSnapshot } from "@/lib/mobileShell";
 import {
   PAINT_WATCHDOG_INTERVAL_MS,
@@ -891,6 +892,10 @@ export default function PubMapCanvas({
   // on every settled camera). Held as a ref like every other source payload so
   // a theme setStyle can reseed the layer without a refetch.
   const ukBaseDataRef = useRef<GeoJSON.FeatureCollection>({
+    type: "FeatureCollection",
+    features: [],
+  });
+  const widerVenuesDataRef = useRef<GeoJSON.FeatureCollection>({
     type: "FeatureCollection",
     features: [],
   });
@@ -1833,6 +1838,7 @@ export default function PubMapCanvas({
         pubsData: pubsDataRef.current,
         userLocationData: userLocationDataRef.current,
         ukBaseData: ukBaseDataRef.current,
+        widerVenuesData: widerVenuesDataRef.current,
         tonightData: tonightDataRef.current,
         tonightVisible: tonightOverlayVisibleRef.current,
         selectedId: selectedIdRef.current,
@@ -1912,6 +1918,7 @@ export default function PubMapCanvas({
               pubsData: pubsDataRef.current,
               userLocationData: userLocationDataRef.current,
               ukBaseData: ukBaseDataRef.current,
+              widerVenuesData: widerVenuesDataRef.current,
               tonightData: tonightDataRef.current,
               tonightVisible: tonightOverlayVisibleRef.current,
               selectedId: selectedIdRef.current,
@@ -2965,6 +2972,14 @@ export default function PubMapCanvas({
     restoreId: ukBaseRestore?.id ?? null,
     onRestorePub: handleRestoredBasePub,
   });
+  const widerVenues = useLondonVenueStreaming({
+    mapRef,
+    mapReady,
+    applyToMap,
+    widerVenuesDataRef,
+    enabled: cityId === "london",
+    scopeKey: cityId,
+  });
 
   useEffect(() => {
     ukBaseResidentPubsRef.current = ukBase.pubs;
@@ -3618,6 +3633,7 @@ export default function PubMapCanvas({
       data-route-stops={route.length}
       data-venue-count={venues.length}
       data-uk-base-count={ukBase.count}
+      data-wider-venue-count={widerVenues.count}
     >
       <div ref={containerRef} className="maplibreMap" />
       {/* The reader's dot is painted on the canvas, which says nothing to a

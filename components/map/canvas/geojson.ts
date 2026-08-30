@@ -11,6 +11,7 @@ import type { MapLensPrice } from "@/lib/mapExperienceLens";
 import { bandAnchors } from "@/lib/storyBandGeometry";
 import type { StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
+import type { LondonVenue } from "@/lib/londonVenueShards";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
 import type { VenueSignal } from "./types";
@@ -370,6 +371,31 @@ export function landmarksToGeoJSON(
         priority: index,
       },
       geometry: { type: "Point", coordinates: landmark.coordinates },
+    })),
+  };
+}
+
+/**
+ * Wider OSM Venues are street context only. This projection is an allow-list:
+ * no price, price band, freshness, or trust property can reach the map source.
+ */
+export function londonVenuesToGeoJSON(
+  venues: readonly LondonVenue[],
+): GeoJSON.FeatureCollection {
+  return {
+    type: "FeatureCollection",
+    features: venues.map((venue) => ({
+      type: "Feature",
+      properties: {
+        id: venue.id,
+        name: venue.name,
+        address: venue.address,
+        kind: venue.kind,
+      },
+      geometry: {
+        type: "Point",
+        coordinates: [venue.lng, venue.lat],
+      },
     })),
   };
 }

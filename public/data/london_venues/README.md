@@ -22,6 +22,14 @@ A shard row is a tuple, not an object:
 id salting live in [`lib/londonVenueShards.ts`](../../../lib/londonVenueShards.ts);
 `__tests__/londonVenueShards.test.ts` pins the shape.
 
+## Runtime reader
+
+The London map streams intersecting shards from zoom 15. It draws non-pub
+Venue names as neutral street context below the UK base and curated pub layers.
+The reader excludes `pub` rows because those two pub layers already own them.
+It does not add wider Venues to search, lists, Crawl Routes, Pint Prices,
+cheapest buckets, or the Pint Index.
+
 ## Why this is not `uk_base`
 
 `uk_base` is the country-wide `amenity=pub` layer. Its row tuple ends in a

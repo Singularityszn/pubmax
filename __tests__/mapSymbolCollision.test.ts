@@ -6,6 +6,7 @@ import {
   buildPois,
   buildPubs,
   buildUkBase,
+  buildWiderVenues,
   CLUSTER_COLLISION_PADDING,
   CLUSTER_MAX_RADIUS_PX,
   CLUSTER_MAX_ZOOM,
@@ -19,6 +20,7 @@ import {
   UK_BASE_ICON_OPACITY,
   UK_BASE_ICON_SIZE_EXPR,
   UK_BASE_MIN_ZOOM,
+  WIDER_VENUE_MIN_ZOOM,
   type SceneCtx,
 } from "@/components/map/canvas/buildScene";
 import {
@@ -83,6 +85,7 @@ function buildScenePieces(selectedId = "") {
     pubsData: { type: "FeatureCollection", features: [] },
     userLocationData: { type: "FeatureCollection", features: [] },
     ukBaseData: { type: "FeatureCollection", features: [] },
+    widerVenuesData: { type: "FeatureCollection", features: [] },
     tonightData: { type: "FeatureCollection", features: [] },
     tonightVisible: false,
     selectedId,
@@ -91,6 +94,7 @@ function buildScenePieces(selectedId = "") {
 
   buildLandmarks(ctx);
   buildPois(ctx);
+  buildWiderVenues(ctx);
   buildUkBase(ctx);
   buildPubs(ctx);
   return { layers, sources };
@@ -203,6 +207,30 @@ describe("UK base layer (unpriced, visually subordinate, never clustered)", () =
     const paint = (layers.get("uk-base-point")?.paint ?? {}) as Record<string, unknown>;
     expect(JSON.stringify(paint)).not.toContain("bucket");
     expect(layout("uk-base-point")["icon-image"]).toBe("base:pub");
+  });
+});
+
+describe("wider Venue layer (neutral street context)", () => {
+  const { layers, sources } = buildScenePieces();
+  const label = layers.get("wider-venues-label")!;
+  const layout = (label.layout ?? {}) as Record<string, unknown>;
+
+  it("draws one unclustered neutral source only at street zoom", () => {
+    expect(sources.get("wider-venues")?.type).toBe("geojson");
+    expect(sources.get("wider-venues")?.cluster).toBeUndefined();
+    expect((label as { minzoom?: number }).minzoom).toBe(WIDER_VENUE_MIN_ZOOM);
+    expect(WIDER_VENUE_MIN_ZOOM).toBe(15);
+    expect(JSON.stringify(label)).not.toContain("price");
+    expect(JSON.stringify(label)).not.toContain("bucket");
+  });
+
+  it("lets every pub layer win label collisions", () => {
+    const ids = [...layers.keys()];
+    expect(ids.indexOf("wider-venues-label")).toBeLessThan(ids.indexOf("uk-base-point"));
+    expect(ids.indexOf("wider-venues-label")).toBeLessThan(ids.indexOf("pubs-point"));
+    expect(layout["text-allow-overlap"]).toBe(false);
+    expect(layout["text-ignore-placement"]).toBe(false);
+    expect(layout["text-optional"]).toBe(true);
   });
 });
 

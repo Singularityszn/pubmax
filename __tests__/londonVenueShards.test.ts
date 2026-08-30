@@ -5,14 +5,18 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import { coveringStamp } from "../scripts/lib/coveringStamp.mjs";
+import { londonVenuesToGeoJSON } from "@/components/map/canvas/geojson";
 import { UK_BASE_ID_PREFIX } from "@/lib/ukBasePubs";
 import {
   LONDON_VENUE_ID_PREFIX,
+  LONDON_VENUE_MANIFEST_PATH,
   LONDON_VENUE_SHARD_VERSION,
+  MAX_LONDON_VENUE_RESIDENT_SHARDS,
   WORK_SPOT_KINDS,
+  createLondonVenueLoader,
   isLondonVenueId,
   londonVenueIdFor,
   londonVenuesOfKind,
@@ -97,6 +101,155 @@ describe("London venue shard decoding", () => {
     expect(
       parseLondonVenueShardForEntry({ ...shard([CAFE, LIBRARY]), version: 99 }, entry as never),
     ).toBeNull();
+  });
+});
+
+describe("London venue map projection", () => {
+  it("projects only neutral identity and kind properties", () => {
+    const [feature] = londonVenuesToGeoJSON(parseLondonVenueShard(shard([CAFE]))).features;
+
+    expect(feature).toEqual({
+      type: "Feature",
+      properties: {
+        id: "venue-osm-n1",
+        name: "Desk & Bean",
+        address: "1 Test Road, London",
+        kind: "cafe",
+      },
+      geometry: { type: "Point", coordinates: [-0.12, 51.51] },
+    });
+    expect(JSON.stringify(feature)).not.toContain("price");
+    expect(JSON.stringify(feature)).not.toContain("bucket");
+  });
+});
+
+describe("London venue viewport loading", () => {
+  const realFetch = globalThis.fetch;
+  const manifest = {
+    version: LONDON_VENUE_SHARD_VERSION,
+    urlPrefix: "/data/london_venues/packs/0123456789abcdef/",
+    bbox: [-0.5, 51.25, 0.25, 51.75],
+    grid: { originLat: 49.75, originLon: -8.75, latStep: 0.025, lonStep: 0.025 },
+    shards: [
+      { id: "near", core: false, count: 2, bbox: [-0.2, 51.4, -0.1, 51.5] },
+      { id: "east", core: false, count: 1, bbox: [-0.1, 51.4, 0, 51.5] },
+      { id: "far", core: false, count: 1, bbox: [0.1, 51.6, 0.2, 51.7] },
+    ],
+  };
+  const bodies: Record<string, unknown> = {
+    [LONDON_VENUE_MANIFEST_PATH]: manifest,
+    "/data/london_venues/packs/0123456789abcdef/near.json": {
+      version: LONDON_VENUE_SHARD_VERSION,
+      cell: "near",
+      venues: [
+        ["n1", "Night Cafe", "1 Test Road", 51.45, -0.15, "cafe"],
+        ["n2", "Duplicate Pub", "2 Test Road", 51.46, -0.14, "pub"],
+      ],
+    },
+    "/data/london_venues/packs/0123456789abcdef/east.json": {
+      version: LONDON_VENUE_SHARD_VERSION,
+      cell: "east",
+      venues: [["n3", "Late Counter", "", 51.45, -0.05, "food"]],
+    },
+    "/data/london_venues/packs/0123456789abcdef/far.json": {
+      version: LONDON_VENUE_SHARD_VERSION,
+      cell: "far",
+      venues: [["n4", "Far Library", "", 51.65, 0.15, "library"]],
+    },
+  };
+  let fetched: string[];
+  let failed: Set<string>;
+
+  beforeEach(() => {
+    fetched = [];
+    failed = new Set();
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      fetched.push(url);
+      if (failed.has(url)) throw new Error("network unavailable");
+      if (!(url in bodies)) return new Response(null, { status: 404 });
+      return Response.json(bodies[url]);
+    }) as typeof fetch;
+  });
+
+  afterEach(() => {
+    globalThis.fetch = realFetch;
+  });
+
+  it("fetches only intersecting cells and keeps pub rows out of the wider layer", async () => {
+    const loader = createLondonVenueLoader();
+    const venues = await loader.venuesForBounds({
+      west: -0.19,
+      south: 51.41,
+      east: -0.11,
+      north: 51.49,
+    });
+
+    expect(venues.map((venue) => venue.name)).toEqual(["Night Cafe"]);
+    expect(fetched).toEqual([
+      LONDON_VENUE_MANIFEST_PATH,
+      "/data/london_venues/packs/0123456789abcdef/near.json",
+    ]);
+
+    fetched = [];
+    await loader.venuesForBounds({ west: -0.19, south: 51.41, east: -0.11, north: 51.49 });
+    expect(fetched).toEqual([]);
+  });
+
+  it("retries a failed shard on the next viewport settle", async () => {
+    const nearUrl = "/data/london_venues/packs/0123456789abcdef/near.json";
+    failed.add(nearUrl);
+    const loader = createLondonVenueLoader();
+    const bounds = { west: -0.19, south: 51.41, east: -0.11, north: 51.49 };
+
+    expect(await loader.venuesForBounds(bounds)).toEqual([]);
+    failed.delete(nearUrl);
+    expect((await loader.venuesForBounds(bounds)).map((venue) => venue.name)).toEqual([
+      "Night Cafe",
+    ]);
+    expect(fetched.filter((url) => url === nearUrl)).toHaveLength(2);
+  });
+
+  it("bounds resident shard memory", async () => {
+    const loader = createLondonVenueLoader();
+    await loader.venuesForBounds({ west: -0.2, south: 51.4, east: 0, north: 51.5 });
+    await loader.venuesForBounds({ west: 0.1, south: 51.6, east: 0.2, north: 51.7 });
+
+    expect(MAX_LONDON_VENUE_RESIDENT_SHARDS).toBeLessThanOrEqual(12);
+    expect(loader.residentShardCount()).toBeLessThanOrEqual(
+      MAX_LONDON_VENUE_RESIDENT_SHARDS,
+    );
+  });
+
+  it("keeps residency capped when one viewport intersects more cells than the cap", async () => {
+    const shardCount = MAX_LONDON_VENUE_RESIDENT_SHARDS + 1;
+    const wideManifest = {
+      ...manifest,
+      shards: Array.from({ length: shardCount }, (_, index) => ({
+        id: `cell-${index}`,
+        core: false,
+        count: 1,
+        bbox: [index / 100, 51.4, (index + 1) / 100, 51.5],
+      })),
+    };
+    globalThis.fetch = (async (input: RequestInfo | URL) => {
+      const url = String(input);
+      if (url === LONDON_VENUE_MANIFEST_PATH) return Response.json(wideManifest);
+      const id = url.match(/\/(cell-\d+)\.json$/)?.[1];
+      if (!id) return new Response(null, { status: 404 });
+      const index = Number(id.slice("cell-".length));
+      return Response.json({
+        version: LONDON_VENUE_SHARD_VERSION,
+        cell: id,
+        venues: [[`n${index}`, `Venue ${index}`, "", 51.45, index / 100, "cafe"]],
+      });
+    }) as typeof fetch;
+    const loader = createLondonVenueLoader();
+
+    expect(
+      await loader.venuesForBounds({ west: 0, south: 51.4, east: 1, north: 51.5 }),
+    ).toHaveLength(shardCount);
+    expect(loader.residentShardCount()).toBe(MAX_LONDON_VENUE_RESIDENT_SHARDS);
   });
 });
 

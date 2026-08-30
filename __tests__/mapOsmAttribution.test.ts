@@ -69,6 +69,7 @@ describe("OpenStreetMap attribution", () => {
       pubsData: { type: "FeatureCollection", features: [] },
       userLocationData: { type: "FeatureCollection", features: [] },
       ukBaseData: { type: "FeatureCollection", features: [] },
+      widerVenuesData: { type: "FeatureCollection", features: [] },
       tonightData: { type: "FeatureCollection", features: [] },
       tonightVisible: false,
       selectedId: "",
