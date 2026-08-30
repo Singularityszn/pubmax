@@ -392,6 +392,7 @@ import {
 } from "@/lib/mapArrival";
 import {
   readMapChosenArea,
+  rememberMapChosenAreaSelection,
   resolveMapChosenAreaRestore,
   subscribeMapChosenArea,
   writeMapChosenArea,
@@ -3751,6 +3752,10 @@ export default function PubMap({
       });
       // 2. Resolve what the sheet shows on arrival.
       const target = journey.target;
+      // Every explicit search-area pick is a new named map area, so it replaces
+      // any older remembered area before the chip renders. The pure transition
+      // carries the public search centre; viewer location never reaches it.
+      rememberMapChosenAreaSelection({ cityId, ...journey.rememberedArea });
       if (target.kind === "place") {
         setSearchAreaTarget({ kind: "place", name: target.name, center: target.center, radiusKm: target.radiusKm });
       } else {
@@ -4010,8 +4015,8 @@ export default function PubMap({
         name: stored.label,
         center: stored.center,
         coverage: null,
-        kind: stored.slug.startsWith("locality:") ? "locality" : "area",
-        zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
+        kind: stored.kind === "night-area" ? "area" : stored.kind,
+        zoom: stored.kind === "locality" ? 15 : undefined,
       });
     });
   }, [

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   MAP_CHOSEN_AREA_KEY,
   clearMapChosenArea,
+  rememberMapChosenAreaSelection,
   readMapChosenArea,
   resolveMapChosenAreaRestore,
   writeMapChosenArea,
@@ -24,6 +25,80 @@ function makeMemoryStorage(): Storage {
 }
 
 describe("mapChosenArea", () => {
+  it("replaces a stale remembered area when search selects a named area", () => {
+    const storage = makeMemoryStorage();
+    const remembered = {
+      cityId: "london" as const,
+      label: "Piccadilly & Soho",
+      slug: "piccadilly-soho",
+      center: [-0.134, 51.511] as [number, number],
+      kind: "night-area" as const,
+    } satisfies MapChosenArea;
+    writeMapChosenArea(remembered, storage);
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "night-area",
+        label: "Camden",
+        slug: "camden",
+        center: [-0.143, 51.539],
+      },
+      storage,
+    );
+
+    expect(readMapChosenArea(storage)).toEqual({
+      cityId: "london",
+      label: "Camden",
+      slug: "camden",
+      center: [-0.143, 51.539],
+      kind: "night-area",
+    });
+  });
+
+  it("stores a searched locality as a locality, not a Night Area", () => {
+    const storage = makeMemoryStorage();
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "locality",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+      },
+      storage,
+    );
+
+    expect(JSON.parse(storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null")).toEqual({
+      cityId: "london",
+      label: "Willesden",
+      slug: "locality:willesden",
+      kind: "locality",
+      center: [-0.23, 51.55],
+    });
+  });
+
+  it("stores a searched borough as a borough, not a Night Area", () => {
+    const storage = makeMemoryStorage();
+    rememberMapChosenAreaSelection(
+      {
+        cityId: "london",
+        kind: "borough",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+      },
+      storage,
+    );
+
+    expect(JSON.parse(storage.getItem(MAP_CHOSEN_AREA_KEY) ?? "null")).toEqual({
+      cityId: "london",
+      label: "Hackney",
+      slug: "borough:hackney",
+      kind: "borough",
+      center: [-0.06, 51.545],
+    });
+  });
+
   it("round-trips a remembered area", () => {
     const storage = makeMemoryStorage();
     expect(readMapChosenArea(storage)).toBeNull();
@@ -101,6 +176,62 @@ describe("resolveMapChosenAreaRestore", () => {
     expect(resolveMapChosenAreaRestore(base)).toEqual({
       action: "restore",
       area: CAMDEN,
+    });
+  });
+
+  it("restores a typed locality without relabelling it as a Night Area", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+        kind: "locality",
+      }),
+    );
+    const stored = readMapChosenArea(storage);
+
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored }),
+    ).toEqual({
+      action: "restore",
+      area: {
+        cityId: "london",
+        label: "Willesden",
+        slug: "locality:willesden",
+        center: [-0.23, 51.55],
+        kind: "locality",
+      },
+    });
+  });
+
+  it("restores a typed borough without relabelling it as a Night Area", () => {
+    const storage = makeMemoryStorage();
+    storage.setItem(
+      MAP_CHOSEN_AREA_KEY,
+      JSON.stringify({
+        cityId: "london",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+        kind: "borough",
+      }),
+    );
+    const stored = readMapChosenArea(storage);
+
+    expect(
+      resolveMapChosenAreaRestore({ ...base, stored }),
+    ).toEqual({
+      action: "restore",
+      area: {
+        cityId: "london",
+        label: "Hackney",
+        slug: "borough:hackney",
+        center: [-0.06, 51.545],
+        kind: "borough",
+      },
     });
   });
 

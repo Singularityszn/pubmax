@@ -6,13 +6,22 @@ import { safeLocalStorage } from "@/lib/safeStorage";
 export const MAP_CHOSEN_AREA_KEY = "pubmax:map-chosen-area:v1";
 const CHANGE_EVENT = "pubmax:map-chosen-area";
 
-export type MapChosenAreaKind = "near-me" | "night-area" | "city";
+export type MapChosenNamedPlaceKind = "night-area" | "locality" | "borough";
+export type MapChosenAreaKind = "near-me" | "city" | MapChosenNamedPlaceKind;
 
 type MapChosenAreaBase = {
   cityId: CityId;
   label: string;
   slug: string;
 };
+
+/** Named public places remain a real discriminated union. */
+export type MapChosenNamedPlace = {
+  [Kind in MapChosenNamedPlaceKind]: MapChosenAreaBase & {
+    kind: Kind;
+    center: [number, number];
+  };
+}[MapChosenNamedPlaceKind];
 
 /**
  * A remembered map area, and the one rule that shapes it: NO VIEWER POINT is
@@ -25,10 +34,20 @@ type MapChosenAreaBase = {
 export type MapChosenArea =
   | (MapChosenAreaBase & { kind: "near-me" })
   | (MapChosenAreaBase & { kind: "city" })
-  | (MapChosenAreaBase & { kind: "night-area"; center: [number, number] });
+  | MapChosenNamedPlace;
 
-/** A remembered row that really does name a place, so it may carry a centre. */
+/** A remembered curated Night Area. */
 export type MapChosenNightArea = Extract<MapChosenArea, { kind: "night-area" }>;
+
+/**
+ * The public, named centre a search result may make the remembered map area.
+ * This covers modelled Night Areas, localities and boroughs. It can never carry
+ * viewer coordinates.
+ */
+export type MapChosenAreaSelection = Pick<
+  MapChosenNamedPlace,
+  "cityId" | "kind" | "label" | "slug" | "center"
+>;
 
 function resolveStorage(storage?: Storage | null): Storage | null {
   if (storage !== undefined) return storage;
@@ -65,12 +84,18 @@ function parseMapChosenArea(value: unknown): MapChosenArea | null {
   if (row.kind === "near-me" || row.kind === "city") {
     return { ...base, kind: row.kind };
   }
-  if (row.kind !== "night-area") return null;
+  if (
+    row.kind !== "night-area" &&
+    row.kind !== "locality" &&
+    row.kind !== "borough"
+  ) {
+    return null;
+  }
   const center = row.center;
   if (!Array.isArray(center) || center.length !== 2) return null;
   const [lng, lat] = center;
   if (typeof lng !== "number" || typeof lat !== "number") return null;
-  return { ...base, kind: "night-area", center: [lng, lat] };
+  return { ...base, kind: row.kind, center: [lng, lat] };
 }
 
 /** The closed field set that reaches storage. A mode marker keeps no point. */
@@ -81,7 +106,9 @@ function toStoredRow(area: MapChosenArea): Record<string, unknown> {
     slug: area.slug,
     kind: area.kind,
   };
-  return area.kind === "night-area" ? { ...base, center: area.center } : base;
+  return area.kind === "near-me" || area.kind === "city"
+    ? base
+    : { ...base, center: area.center };
 }
 
 type SnapshotCache = { raw: string | null; value: MapChosenArea | null };
@@ -166,6 +193,14 @@ export function writeMapChosenArea(
   }
 }
 
+/** Remember a named public area selected from map search. */
+export function rememberMapChosenAreaSelection(
+  selection: MapChosenAreaSelection,
+  storage?: Storage | null,
+): void {
+  writeMapChosenArea(selection, storage);
+}
+
 export function clearMapChosenArea(storage?: Storage | null): void {
   const store = resolveStorage(storage);
   if (!store) return;
@@ -198,7 +233,7 @@ export type MapChosenAreaRestore =
   | { action: "skip" }
   | { action: "wait" }
   | { action: "locate" }
-  | { action: "restore"; area: MapChosenNightArea };
+  | { action: "restore"; area: MapChosenNamedPlace };
 
 export function resolveMapChosenAreaRestore(input: {
   stored: MapChosenArea | null;
