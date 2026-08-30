@@ -233,7 +233,9 @@ export function outUnmatchedListingsNotice(
       ? rest
       : Math.max(0, options.unmatchedPlaceCount - named.length);
   const places =
-    named.length === 0
+    shown > 0
+      ? ""
+      : named.length === 0
       ? ""
       : extraPlaceCount > 0
         ? `${named.join(", ")} and ${extraPlaceCount} more ${extraPlaceCount === 1 ? "place" : "places"}.`

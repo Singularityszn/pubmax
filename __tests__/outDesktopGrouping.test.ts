@@ -251,20 +251,32 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.line).toBe("4 listings tonight are at places we don't list yet.");
   });
 
-  it("says 'more' when the pub list is not empty, so the count is about the hidden rows alone", () => {
+  it("keeps the hidden-row count without place names when the pub list is not empty", () => {
     const notice = outUnmatchedListingsNotice(
       [matched, unmatched("a", "The O2"), unmatched("b", "Wembley Arena")],
       "tonight",
       "ready",
     );
     expect(notice?.line).toBe("2 more listings tonight are at places we don't list yet.");
-    expect(notice?.places).toBe("The O2 and Wembley Arena.");
+    expect(notice?.places).toBe("");
   });
 
   it("reads as one more listing beside a matched card", () => {
     expect(
       outUnmatchedListingsNotice([matched, unmatched("a", "The O2")], "tonight", "ready")?.line,
     ).toBe("1 more listing tonight is at a place we don't list yet.");
+  });
+
+  it("omits unmatched place names when a matched venue card is shown", () => {
+    const notice = outUnmatchedListingsNotice(
+      [matched, unmatched("a", "The O2", "ticketmaster")],
+      "tonight",
+      "ready",
+    );
+    expect(notice?.line).toBe("1 more listing tonight is at a place we don't list yet.");
+    expect(notice?.places).toBe("");
+    expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
+    expect(notice?.way).toEqual({ href: "/tonight", label: "See what else is on tonight" });
   });
 
   it("names the window the chip asked for and sends the other days to the map", () => {
@@ -276,7 +288,7 @@ describe("outUnmatchedListingsNotice", () => {
     expect(weekend?.way.href).toBe("/map");
   });
 
-  it("names each place once, caps the list, and counts the rest beside a matched card", () => {
+  it("omits place inventory beside a matched card even with many hidden places", () => {
     const rows = [
       matched,
       ...Array.from({ length: OUT_UNMATCHED_PLACES_SHOWN + 2 }, (_, index) =>
@@ -289,9 +301,7 @@ describe("outUnmatchedListingsNotice", () => {
     expect(notice?.line).toBe(
       `${OUT_UNMATCHED_PLACES_SHOWN + 3} more listings tonight are at places we don't list yet.`,
     );
-    expect(notice?.places).toBe(
-      `${Array.from({ length: OUT_UNMATCHED_PLACES_SHOWN }, (_, index) => `Place ${index + 1}`).join(", ")} and 2 more places.`,
-    );
+    expect(notice?.places).toBe("");
   });
 
   it("credits every provider behind the hidden rows, spelled the way the cards spell it", () => {
@@ -326,7 +336,7 @@ describe("outUnmatchedListingsNotice", () => {
     );
   });
 
-  it("uses the pre-cap count while naming served places beside a matched card", () => {
+  it("uses the pre-cap count while omitting place names beside a matched card", () => {
     const notice = outUnmatchedListingsNotice(
       [matched, unmatched("a", "The O2")],
       "tonight",
@@ -334,7 +344,7 @@ describe("outUnmatchedListingsNotice", () => {
       { unmatchedCount: 4, unmatchedPlaces: ["The O2"], unmatchedSources: ["Ticketmaster"] },
     );
     expect(notice?.line).toBe("4 more listings tonight are at places we don't list yet.");
-    expect(notice?.places).toBe("The O2.");
+    expect(notice?.places).toBe("");
     expect(notice?.credits.map((credit) => credit.label)).toEqual(["Ticketmaster"]);
   });
 
@@ -354,7 +364,7 @@ describe("outUnmatchedListingsNotice", () => {
     ).toBe("1 listing tonight is at a place we don't list yet.");
   });
 
-  it("counts distinct places beyond the six names carried by the response", () => {
+  it("omits response place inventory when a matched card is present", () => {
     const notice = outUnmatchedListingsNotice(
       [matched, unmatched("a", "Place 1")],
       "tonight",
@@ -368,8 +378,6 @@ describe("outUnmatchedListingsNotice", () => {
         unmatchedSources: ["Ticketmaster"],
       },
     );
-    expect(notice?.places).toBe(
-      "Place 1, Place 2, Place 3, Place 4, Place 5, Place 6 and 2 more places.",
-    );
+    expect(notice?.places).toBe("");
   });
 });
