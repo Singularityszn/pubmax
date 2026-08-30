@@ -148,6 +148,7 @@ export default function MomentCapture(): React.JSX.Element {
   const [dragOver, setDragOver] = useState(false);
   const [editingMediaId, setEditingMediaId] = useState<string | null>(null);
   const editorSessionRef = useRef<{ mediaId: string } | null>(null);
+  const editorOpenerRef = useRef<HTMLElement | null>(null);
   const previewUrls = useRef<Set<string>>(new Set());
   // Arm the identity nudge once per composer visit, the first time a signed-out
   // guest has a Moment draft worth keeping. The server save path requires auth,
@@ -320,8 +321,9 @@ export default function MomentCapture(): React.JSX.Element {
     update({ media: draft.media.filter((item) => item.id !== id) });
   }
 
-  function openPhotoEditor(mediaId: string) {
+  function openPhotoEditor(mediaId: string, opener: HTMLElement) {
     editorSessionRef.current = { mediaId };
+    editorOpenerRef.current = opener;
     setEditingMediaId(mediaId);
   }
 
@@ -330,8 +332,9 @@ export default function MomentCapture(): React.JSX.Element {
     setEditingMediaId(null);
   }
 
-  function finishPhotoEdit(result: { blob: Blob }) {
-    const current = draft.media.find((item) => item.id === editingMediaId);
+  function finishPhotoEdit(session: { mediaId: string } | null, result: { blob: Blob }) {
+    if (!session || editorSessionRef.current !== session || editingMediaId !== session.mediaId) return;
+    const current = draft.media.find((item) => item.id === session.mediaId);
     if (!current) {
       closePhotoEditor();
       return;
@@ -501,7 +504,7 @@ export default function MomentCapture(): React.JSX.Element {
                   />
                 ) : null}
                 <div className="momentMediaActions">
-                  <button type="button" disabled={saveState === "saving"} onClick={() => openPhotoEditor(item.id)} aria-label={`Edit ${item.name}`}>
+                  <button type="button" disabled={saveState === "saving"} onClick={(event) => openPhotoEditor(item.id, event.currentTarget)} aria-label={`Edit ${item.name}`}>
                     Edit
                   </button>
                   <button type="button" onClick={() => removeMedia(item.id)} aria-label={`Remove ${item.name}`}>
@@ -610,7 +613,8 @@ export default function MomentCapture(): React.JSX.Element {
           <MomentImageEditorBoundary onError={() => handlePhotoEditorError(editorSession)}>
             <MomentImageEditor
               image={editingMedia.objectUrl}
-              onSave={finishPhotoEdit}
+              openerRef={editorOpenerRef}
+              onSave={(result) => finishPhotoEdit(editorSession, result)}
               onCancel={() => {
                 if (editorSessionRef.current !== editorSession) return;
                 closePhotoEditor();

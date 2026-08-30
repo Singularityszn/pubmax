@@ -2,13 +2,14 @@
 
 import ImageEditor from "@unlayer/react-image-editor";
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 type MomentImageEditorProps = {
   image: string;
+  openerRef: RefObject<HTMLElement | null>;
   onSave: (result: { blob: Blob }) => void;
   onCancel: () => void;
   onError: () => void;
@@ -16,13 +17,14 @@ type MomentImageEditorProps = {
 
 export default function MomentImageEditor({
   image,
+  openerRef,
   onSave,
   onCancel,
   onError,
 }: MomentImageEditorProps): React.JSX.Element {
   const sheetRef = useRef<HTMLElement | null>(null);
 
-  useFocusTrap(true, sheetRef);
+  useFocusTrap(true, sheetRef, "strict-modal", openerRef);
   useDismissOnEscape(true, onCancel);
   useEffect(() => {
     sheetRef.current?.focus({ preventScroll: true });
