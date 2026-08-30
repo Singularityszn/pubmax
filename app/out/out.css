@@ -189,6 +189,16 @@
   color: inherit;
 }
 
+/* A credit with no event page to open is a <p>, not an <a>: it still owes the
+   publisher their name, and it may not look tappable while opening nothing.
+   The <p> carries the browser's default block margins, so they are cleared
+   here rather than left to shift the card. */
+.outSourceCredit--unlinked {
+  margin: 0;
+  cursor: default;
+  text-decoration: none;
+}
+
 .outListingSurface {
   display: grid;
   gap: 22px;
