@@ -126,4 +126,21 @@ describe("Plan crew threshold analytics", () => {
       { deliveryToken: "verified-threshold-token" },
     );
   });
+
+  it("tracks Route readiness frozen by the threshold transaction", async () => {
+    await join({
+      memberToken: "member-token",
+      collaborationAuthorized: false,
+      crewCommitted: "verified-threshold-token",
+      crewCommittedRouteReady: false,
+      friendEdgesFormed: 0,
+      plan: { plan: { id: PLAN_ID }, crew },
+    });
+
+    expect(mocks.trackEvent).toHaveBeenCalledWith(
+      "crew_committed",
+      { source: "shared-plan", participants: 2, routeReady: false },
+      { deliveryToken: "verified-threshold-token" },
+    );
+  });
 });

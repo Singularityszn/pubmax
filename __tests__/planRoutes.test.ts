@@ -208,6 +208,16 @@ describe("Plan public HTTP contract", () => {
     expect(laterGuest.plan.crew).toHaveLength(3);
     expect(laterGuest.crewCommitted).toBeUndefined();
 
+    const thresholdReplay = await JOIN(new Request(`${URL}/${body.plan.plan.id}/join`, {
+      method: "POST",
+      headers: { "idempotency-key": "plan-routes-classic-join" },
+      body: JSON.stringify({ name: "Priya", inviteToken: classicToken }),
+    }), ctx(body.plan.plan.id));
+    expect(thresholdReplay.status).toBe(200);
+    const replayedGuest = await thresholdReplay.json() as { crewCommitted?: string; plan: PlanState };
+    expect(replayedGuest.plan.crew).toHaveLength(3);
+    expect(replayedGuest.crewCommitted).toBe(guest.crewCommitted);
+
     const wrongPlan = await createPlan();
     const cross = await JOIN(new Request(`${URL}/${wrongPlan.body.plan.plan.id}/join`, {
       method: "POST",

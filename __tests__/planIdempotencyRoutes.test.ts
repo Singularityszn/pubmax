@@ -176,6 +176,59 @@ describe("Plan mutation idempotency", () => {
     expect(await conflict.json()).toMatchObject({ code: "PLAN_COLLAB_CONFLICT" });
   });
 
+  it("keeps one threshold receipt through concurrent joins and a later replay", async () => {
+    const stops = [
+      { venueId: "venue-xjf3n0" },
+      { venueId: "venue-16pnwmm" },
+      { venueId: "venue-1f5ygjb" },
+    ];
+    const key = "create-for-concurrent-commitment";
+    const host = await create(key, {
+      ...payload,
+      stops,
+      groundingProof: mintPlanGroundingProof(stops.map((stop) => stop.venueId), key),
+    });
+    const id = host.body.plan.plan.id;
+    const joinInputs = [
+      { name: "Priya", idempotencyKey: "concurrent-commitment-priya" },
+      { name: "Sam", idempotencyKey: "concurrent-commitment-sam" },
+    ] as const;
+    const concurrent = await Promise.all(joinInputs.map((input) => (
+      memoryPlanStore.join(id, input.name, {
+        collaborationAuthorized: false,
+        idempotencyKey: input.idempotencyKey,
+      })
+    )));
+    const joined = concurrent.filter((result) => result.ok);
+    const threshold = joined.filter((result) => Boolean(result.crewCommitment));
+
+    expect(joined).toHaveLength(2);
+    expect(threshold).toHaveLength(1);
+    expect(threshold[0]?.crewCommitment).toMatchObject({
+      committedAt: expect.any(String),
+      routeReady: false,
+    });
+
+    const later = await memoryPlanStore.join(id, "Alex", {
+      collaborationAuthorized: false,
+      idempotencyKey: "concurrent-commitment-alex",
+    });
+    expect(later).toMatchObject({ ok: true, crewCommitment: null });
+
+    const thresholdIndex = concurrent.findIndex((result) => result.ok && Boolean(result.crewCommitment));
+    const thresholdInput = joinInputs[thresholdIndex];
+    expect(thresholdInput).toBeDefined();
+    const replay = await memoryPlanStore.join(id, thresholdInput!.name, {
+      collaborationAuthorized: false,
+      idempotencyKey: thresholdInput!.idempotencyKey,
+    });
+    expect(replay).toMatchObject({
+      ok: true,
+      crewCommitment: threshold[0]?.crewCommitment,
+    });
+    if (replay.ok) expect(replay.plan.crew).toHaveLength(4);
+  });
+
   it("records one atomic live action for repeated delivery", async () => {
     const host = await create("create-for-action");
     const id = host.body.plan.plan.id;

@@ -4,14 +4,14 @@ import { callerUserId } from "@/lib/authServer";
 import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
 import { cleanCrewName } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
-import { isPlanId, type PlanState } from "@/lib/plan";
+import { isPlanId } from "@/lib/plan";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
-import { planRouteReady } from "@/lib/planPrivacy";
 import {
   planMemberIdentity,
   planStateResult,
   planStore,
   resolvePlanIdByInviteToken,
+  type PlanCrewCommitment,
 } from "@/lib/planStore";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { collaborationErrorResponse } from "@/lib/planCollaborationHttp";
@@ -46,17 +46,15 @@ async function maybeFormCrewFriendEdges(
 assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
-// A Planned Night emits one verified crew threshold event, when its second
-// committed human joins. The Plan id stays inside the server-side HMAC subject
-// and never becomes an analytics property. The second member's durable join
-// time keeps an idempotent route replay byte-stable.
-function crewCommittedToken(planId: string, plan: PlanState | null): string | undefined {
-  const thresholdMember = plan?.crew[1];
-  if (!plan || plan.crew.length !== 2 || !thresholdMember) return undefined;
+// The atomic join owns whether this member crossed the two-person threshold.
+// Its durable receipt survives later joins and idempotent replay. Plan id stays
+// inside the server-side HMAC subject and never becomes an analytics property.
+function crewCommittedToken(planId: string, commitment: PlanCrewCommitment | null): string | undefined {
+  if (!commitment) return undefined;
   return crewCommittedEventToken({
     planId,
-    committedAt: thresholdMember.joinedAt,
-    routeReady: planRouteReady(plan),
+    committedAt: commitment.committedAt,
+    routeReady: commitment.routeReady,
   });
 }
 
@@ -140,7 +138,8 @@ export async function POST(request: Request, context: Context): Promise<Response
           memberToken: result.memberToken,
           role: result.role,
           collaborationAuthorized: result.collaborationAuthorized,
-          crewCommitted: crewCommittedToken(id, result.plan),
+          crewCommitted: crewCommittedToken(id, result.crewCommitment),
+          crewCommittedRouteReady: result.crewCommitment?.routeReady,
           friendEdgesFormed,
         },
         { status: 200 },
@@ -173,7 +172,8 @@ export async function POST(request: Request, context: Context): Promise<Response
     jsonNoStore(
       {
         ...joined,
-        crewCommitted: crewCommittedToken(id, joined.plan),
+        crewCommitted: crewCommittedToken(id, joined.crewCommitment),
+        crewCommittedRouteReady: joined.crewCommitment?.routeReady,
         friendEdgesFormed,
       },
       { status: 200 },

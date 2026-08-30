@@ -232,7 +232,9 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       rememberStatus("in");
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
-      const routeReady = body.plan ? planRouteReady(body.plan) : false;
+      const routeReady = typeof body.crewCommittedRouteReady === "boolean"
+        ? body.crewCommittedRouteReady
+        : body.plan ? planRouteReady(body.plan) : false;
       const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
       if (deliveryToken) {
         trackEvent("crew_committed", {

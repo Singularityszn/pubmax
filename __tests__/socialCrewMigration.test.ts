@@ -1,4 +1,5 @@
 import { execFile, execFileSync, spawn, type ChildProcess } from "node:child_process";
+import { createHash } from "node:crypto";
 import { existsSync, mkdtempSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -12,6 +13,8 @@ const MIGRATIONS = join(ROOT, "supabase/migrations");
 const FORWARD_NAME = "20260806235944_0075_social_crews.sql";
 const FORWARD = join(MIGRATIONS, FORWARD_NAME);
 const ROLLBACK = join(ROOT, "supabase/migrations/rollback/20260806235944_0075_social_crews_rollback.sql");
+const COMMITMENT_FORWARD = join(MIGRATIONS, "20260830140000_0124_plan_crew_commitment_receipts.sql");
+const COMMITMENT_ROLLBACK = join(ROOT, "supabase/migrations/rollback/20260830140000_0124_plan_crew_commitment_receipts_rollback.sql");
 const SESSION_FIXTURE = join(ROOT, "scripts/rls/session-fixture.sql");
 const PREREQUISITES = readdirSync(MIGRATIONS)
   .filter((name) => name.endsWith(".sql") && name < FORWARD_NAME)
@@ -241,6 +244,10 @@ function json(value: string): Record<string, unknown> {
 
 function jsonValue(value: string): unknown {
   return JSON.parse(value);
+}
+
+function commitmentDigest(label: string): string {
+  return createHash("sha256").update(`plan-commitment-test:${label}`).digest("hex");
 }
 
 function readSnapshot(
@@ -672,6 +679,7 @@ beforeAll(async () => {
   `);
   beforeCatalog = catalog(database);
   database.apply(FORWARD);
+  database.apply(COMMITMENT_FORWARD);
 }, 120_000);
 
 afterAll(async () => database?.stop());
@@ -2030,8 +2038,141 @@ describe("Social Crew migration foundation", () => {
     expect(db.sql(`select social_owner_account_id from public.plans where id='${PLAN}'`)).toBe(BOB_ACCOUNT);
   });
 
+  it("persists one crew commitment receipt across concurrent joins and later replay", async () => {
+    const db = database!;
+    const plan = "24242424-2424-4242-8242-242424242424";
+    const host = "25252525-2525-4252-8252-252525252525";
+    const members = [
+      "26262626-2626-4262-8262-262626262626",
+      "27272727-2727-4272-8272-272727272727",
+    ] as const;
+    const names = ["Priya", "Sam"] as const;
+    const tokenHashes = [
+      commitmentDigest("concurrent-priya-token"),
+      commitmentDigest("concurrent-sam-token"),
+    ] as const;
+    const keyHashes = [
+      commitmentDigest("concurrent-priya-key"),
+      commitmentDigest("concurrent-sam-key"),
+    ] as const;
+    const requestHashes = [
+      commitmentDigest("concurrent-priya-request"),
+      commitmentDigest("concurrent-sam-request"),
+    ] as const;
+    const hostHash = commitmentDigest("concurrent-host-token");
+    db.sql(`
+      insert into public.plans(
+        id,title,start_time,status,plan_outcome,route_ready_at
+      ) values(
+        '${plan}','Commitment race',now()+interval '1 day','ready','route',now()
+      );
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+        ('${plan}','venue-one','Venue One',0),
+        ('${plan}','venue-two','Venue Two',1),
+        ('${plan}','venue-three','Venue Three',2);
+      insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate
+      ) values(
+        '${host}','${plan}','Host','${hostHash}','in',now()-interval '1 minute',now(),true
+      )
+    `);
+    const start = new Date(Date.now() + 2_000).toISOString();
+    const synchronizedJoin = (index: 0 | 1) => `begin;
+      set local statement_timeout='10s';
+      select pg_sleep(greatest(0,extract(epoch from timestamptz '${start}'-clock_timestamp())));
+      select public.join_plan_idempotent_atomic_with_commitment(
+        '${plan}','${members[index]}','${names[index]}','${tokenHashes[index]}',now(),false,
+        '${keyHashes[index]}','${requestHashes[index]}'
+      );
+      commit;`;
+    const results = (await db.concurrentResults([
+      synchronizedJoin(0),
+      synchronizedJoin(1),
+    ])).map(json);
+    const thresholdIndex = results.findIndex((result) => result.crewCommittedAt !== null);
+
+    expect(results.map((result) => result.status)).toEqual(["joined", "joined"]);
+    expect(results.filter((result) => result.crewCommittedAt !== null)).toHaveLength(1);
+    expect(results[thresholdIndex]).toMatchObject({
+      crewCommittedAt: expect.any(String),
+      crewCommittedRouteReady: true,
+    });
+
+    const later = json(db.sql(`select public.join_plan_idempotent_atomic_with_commitment(
+      '${plan}','28282828-2828-4282-8282-282828282828','Alex','${commitmentDigest("concurrent-alex-token")}',now(),false,
+      '${commitmentDigest("concurrent-alex-key")}','${commitmentDigest("concurrent-alex-request")}'
+    )`));
+    expect(later).toMatchObject({
+      status: "joined",
+      crewCommittedAt: null,
+      crewCommittedRouteReady: null,
+    });
+
+    const replay = json(db.sql(`select public.join_plan_idempotent_atomic_with_commitment(
+      '${plan}','${members[thresholdIndex]}','${names[thresholdIndex]}','${tokenHashes[thresholdIndex]}',now(),false,
+      '${keyHashes[thresholdIndex]}','${requestHashes[thresholdIndex]}'
+    )`));
+    expect(replay).toEqual({ ...results[thresholdIndex], status: "replayed" });
+    expect(db.sql(`select count(*) from public.plan_crew_members where plan_id='${plan}' and crew_committed_at is not null`)).toBe("1");
+  });
+
+  it("replays the one-use invite commitment receipt after a later join", () => {
+    const db = database!;
+    const plan = "29292929-2929-4292-8292-292929292929";
+    const host = "30303030-3030-4303-8303-303030303030";
+    const invite = "31313131-3131-4313-8313-313131313131";
+    const thresholdMember = "32323232-3232-4323-8323-323232323232";
+    const hostHash = commitmentDigest("invite-host-token");
+    const thresholdHash = commitmentDigest("invite-threshold-token");
+    const laterHash = commitmentDigest("invite-later-token");
+    const inviteHash = commitmentDigest("invite-capability");
+    const keyHash = commitmentDigest("invite-threshold-key");
+    const requestHash = commitmentDigest("invite-threshold-request");
+    db.sql(`
+      insert into public.plans(
+        id,title,start_time,status,plan_outcome,route_ready_at
+      ) values(
+        '${plan}','Invite commitment',now()+interval '1 day','ready','route',now()
+      );
+      insert into public.plan_stops(plan_id,venue_id,venue_name,position) values
+        ('${plan}','venue-four','Venue Four',0),
+        ('${plan}','venue-five','Venue Five',1),
+        ('${plan}','venue-six','Venue Six',2);
+      insert into public.plan_crew_members(
+        id,plan_id,name,token_hash,status,joined_at,updated_at,can_collaborate
+      ) values(
+        '${host}','${plan}','Host','${hostHash}','in',now()-interval '1 minute',now(),true
+      );
+      insert into public.plan_invites(
+        id,plan_id,created_by_member_id,token_hash,idempotency_key,created_at,expires_at
+      ) values(
+        '${invite}','${plan}','${host}','${inviteHash}','commitment-invite',now(),now()+interval '1 day'
+      )
+    `);
+    const call = () => json(db.sql(`select public.redeem_plan_invite_idempotent_atomic_with_commitment(
+      '${plan}','${inviteHash}','${thresholdMember}','Guest','${thresholdHash}',now(),
+      '${keyHash}','${requestHash}'
+    )`));
+    const first = call();
+    expect(first).toMatchObject({
+      status: "joined",
+      crewCommittedAt: expect.any(String),
+      crewCommittedRouteReady: true,
+    });
+
+    expect(json(db.sql(`select public.join_plan_idempotent_atomic_with_commitment(
+      '${plan}','33333333-3333-4333-8333-333333333333','Later guest','${laterHash}',now(),false,
+      '${commitmentDigest("invite-later-key")}','${commitmentDigest("invite-later-request")}'
+    )`))).toMatchObject({ status: "joined", crewCommittedAt: null });
+    expect(call()).toEqual({ ...first, status: "replayed" });
+    expect(db.sql("select has_function_privilege('authenticated','public.redeem_plan_invite_idempotent_atomic_with_commitment(uuid,text,uuid,text,text,timestamptz,text,text)','execute')")).toBe("f");
+    expect(db.sql("select has_function_privilege('service_role','public.redeem_plan_invite_idempotent_atomic_with_commitment(uuid,text,uuid,text,text,timestamptz,text,text)','execute')")).toBe("t");
+    expect(db.sql("select has_function_privilege('service_role','pubmax_private.plan_join_commitment_result(uuid,uuid,text,timestamptz)','execute')")).toBe("f");
+  });
+
   it("restores the byte-equivalent pre-0075 catalog on rollback", () => {
     const db = database!;
+    db.apply(COMMITMENT_ROLLBACK);
     db.apply(ROLLBACK);
     expect(catalog(db)).toBe(beforeCatalog);
     expect(db.sql(`select string_agg(n.nspname,',' order by n.nspname)
