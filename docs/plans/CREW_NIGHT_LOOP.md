@@ -1,6 +1,6 @@
 # Crew Night Loop (Social Wave S1)
 
-> Status: **EXECUTING** - plan PR lands first; product slices ship as separate draft PRs on `cursor/*-dd0b`.
+> Status: **S1 COMPLETE** - every box in §6 has shipped (PRs referenced there). Wave S2+ stays parked until S1 retention reads.
 >
 > Owns the **invite-first Social layer** that sits on the Night OS trust spine. Social is live by default; set `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` only for emergency rollback. Does **not** reopen WhatsApp CTA structure from `#816` (`PlanInviteNextStep`).
 >
@@ -12,7 +12,11 @@
 
 > Make the next soft, affordable, low-pressure IRL plan with your lot so obvious that staying in is the harder choice.
 
-**Primary metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`.
+**Per-night metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`.
+
+**Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed >= 2` measures one night, and this measures the loop.
+
+Three usual-lot reinvite surfaces emit it, and they are the whole list: `components/plan/LastCrewInvite.tsx` (source `crew-reinvite`), `components/plan/CompletedPlanUsualLot.tsx` and `components/night/MorningReentryCard.tsx` (both source `completed_plan`). Every one of them builds its props through the single seam `nextNightCommittedProps` (`lib/lastCrew.ts`), so what the event may carry cannot drift between surfaces: a closed `source` plus coarse `windowDays`, and never a name, a venue id or a coordinate. The rail itself is consent-gated (`lib/analyticsEvents.ts`), where `source` is additionally held to a closed value set, so a free-text source is dropped rather than recorded. `__tests__/analyticsEvents.test.ts` pins the prop shape, all three emitters, and this section.
 
 **Loop:**
 
@@ -80,10 +84,10 @@ Follow `docs/VOICE.md`. No em dashes, no exclamation marks, British spelling. Jo
 
 ## 6. Definition of done for S1
 
-- [ ] Plan doc on `main`
-- [ ] North-star metric documented and test-pinned
-- [ ] Invite artifact can show an honest spend band (or silence)
-- [ ] Soft occasion path visible without changing Social launch state
-- [ ] Friends-only crew tonight surface + We-are-out honesty
-- [ ] Usual-lot reinvite emits `next_night_committed`
-- [ ] `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` rollback remains documented in `.env.example` and soft-launch runbooks
+- [x] Plan doc on `main` (PR #918)
+- [x] Per-night and loop metrics documented and test-pinned (`crew_committed` pin PR #919; `next_night_committed` loop north star documented and pinned in `__tests__/analyticsEvents.test.ts`)
+- [x] Invite artifact can show an honest spend band (or silence) (PR #924: `planInviteSpendBandFromListedPrices`, invite page, OG card; silent when any stop price is missing)
+- [x] Soft occasion path visible without changing Social launch state (PR #921: `SOFT_PLAN_OCCASION_IDS` in `lib/planOccasion.ts`)
+- [x] Friends-only crew tonight surface + We-are-out honesty (PR #922; hardened for live-default Social by PR #1247)
+- [x] Usual-lot reinvite emits `next_night_committed` (PR #923: `LastCrewInvite`, `CompletedPlanUsualLot` and `MorningReentryCard`, all three through `nextNightCommittedProps` with closed sources in `lib/lastCrew.ts`)
+- [x] `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` rollback remains documented in `.env.example` and soft-launch runbooks (PR #1247)

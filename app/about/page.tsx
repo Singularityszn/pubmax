@@ -134,6 +134,11 @@ export default async function AboutPage() {
       description:
         "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
+      founder: {
+        "@type": "Person",
+        name: "Karan Manoharan",
+        url: "https://x.com/karansznx",
+      },
       sameAs: ["https://x.com/karansznx"],
     },
   };
@@ -287,6 +292,40 @@ export default async function AboutPage() {
           thinner national map, and what a price is allowed to claim. Those
           fights land in the product, not in a brand deck.
         </p>
+        {/* Founder note (FIRST_PRINCIPLES_OUTINGS follow-up): the builder's own
+            voice, in first person. Provenance rule holds here harder than
+            anywhere: the note carries no dates, schools, jobs, or any personal
+            fact this site cannot stand behind - only the why, the mission, and
+            the honesty rule the rest of the page already proves. */}
+        <figure className="aboutFounderNote">
+          <blockquote className="aboutFounderQuote">
+            <p className="aboutBody">
+              I built this because the price of a pint stopped being something
+              you could know. Eight quid on one corner, a fair pour ten minutes
+              away, and not one app that would just say so. Every map I opened
+              worked for the venue: ads, bookings, a star rating from three
+              summers ago. Nothing worked for the person paying.
+            </p>
+            <p className="aboutBody">
+              So the rule I build by is short. If PUBMAXXING shows you a
+              figure, it can say where the figure came from: a named publisher,
+              a drinker who logged it on a stated day, or a plain admission
+              that nobody has. I would rather ship a gap than a guess. That
+              goes for this page too. No invented users, no invented
+              biography, no number we cannot count.
+            </p>
+            <p className="aboutBody">
+              The mission is not modest. I want this to be the best way in the
+              world to decide which pub to walk into, and I want it built the
+              honest way: London first, one checked price at a time. The
+              eight-quid pint is not a fact of life. It is a market with the
+              lights off, and we are switching them on.
+            </p>
+          </blockquote>
+          <figcaption className="aboutFounderSig">
+            Karan Manoharan, founder of PUBMAXX
+          </figcaption>
+        </figure>
       </section>
 
       <section className="aboutSection" aria-labelledby="ethos">
