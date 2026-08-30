@@ -37,6 +37,24 @@ describe("review scope guard", () => {
     expect(report.domains).toEqual(["app", "lib"]);
   });
 
+  it("does not count review tooling as a runtime domain", () => {
+    const report = summarizeReviewScope([
+      "app/api/review/route.ts",
+      "lib/reviewScope.ts",
+      "scripts/check_review_scope.mjs",
+      ".github/workflows/ci.yml",
+      "docs/reviews/review-scope.md",
+    ]);
+
+    expect(report.domains).toEqual(["app", "lib"]);
+    expect(report.warnings).toEqual([]);
+    expect(report.categoryCounts).toEqual({
+      source: 3,
+      evidence: 1,
+      config: 1,
+    });
+  });
+
   it("warns only after the runtime-domain and file-count thresholds", () => {
     const twoDomains = summarizeReviewScope([
       "app/api/example/route.ts",
