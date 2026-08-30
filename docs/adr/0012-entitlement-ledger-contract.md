@@ -34,9 +34,9 @@ When a ledger is built later, it must:
 6. Keep rounds as spend diary, never debt (`lib/rounds.ts`), until a licensed
    PSP settlement path exists as an explicit later ADR.
 
-**Near-term substitute:** capability flags already in tree (Social beta,
-trusted handoff, admin roles) stay env / moderator gated. Soft-launch success
-is invite k-factor + corroborated coverage, not MRR.
+**Near-term substitute:** capability flags already in tree (Social emergency
+rollback, trusted handoff, admin roles) stay env / moderator gated. Soft-launch
+success is invite k-factor + corroborated coverage, not MRR.
 
 ## Consequences
 

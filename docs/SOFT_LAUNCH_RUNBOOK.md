@@ -204,7 +204,11 @@ The site's one public contact address is `CONTACT_EMAIL` in `lib/siteContact.ts`
 
 ### 5.2 Social moderation rota
 
-`docs/social/SOCIAL_BETA_CONTRACT.md` requires a named primary and backup moderator, able to resolve reports within 24 hours, before relying on live Social content. Check its moderation table for current status during each launch review. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, use static preview only.
+Live Social uses the existing admin session and named moderator role for queue
+decisions. Check queue access and moderator ownership during each launch
+review. The historical
+[`SOCIAL_BETA_CONTRACT.md`](social/SOCIAL_BETA_CONTRACT.md) is not a current
+launch gate. During `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0`, use static preview only.
 
 ---
 
