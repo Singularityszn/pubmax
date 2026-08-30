@@ -13,7 +13,12 @@ import {
   markDeviceRsvpCommitted,
   readDeviceRsvpCommitted,
 } from "@/lib/planInvite";
-import { parsePlanCapabilitySnapshot, readPlanCapabilitySnapshot, writePlanCapability } from "@/lib/planSessionCapability";
+import {
+  parsePlanCapabilitySnapshot,
+  PlanSessionUnavailableError,
+  readPlanCapabilitySnapshot,
+  writePlanCapability,
+} from "@/lib/planSessionCapability";
 
 function memoryStorage(seed: Record<string, string> = {}) {
   const values = new Map<string, string>(Object.entries(seed));
@@ -185,6 +190,16 @@ describe("invite RSVP member capability", () => {
       token: "__pubmax_http_only_plan_session__",
       role: "host",
     });
+  });
+
+  it("does not use the public RSVP route when session restoration is unavailable", async () => {
+    const restore = async () => {
+      throw new PlanSessionUnavailableError();
+    };
+
+    await expect(
+      resolveInviteRsvpSubmitCapability("plan-session-down", "", null, restore),
+    ).rejects.toBeInstanceOf(PlanSessionUnavailableError);
   });
 
   it("clears a revoked guest capability and retries through the public invite route", async () => {

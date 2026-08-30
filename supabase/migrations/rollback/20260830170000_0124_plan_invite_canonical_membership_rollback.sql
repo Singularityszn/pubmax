@@ -1,21 +1,24 @@
 begin;
 
 do $$
+declare has_revoked_memberships boolean := false;
 begin
   if exists (
-    select 1 from public.plan_crew_members
-    where membership_revoked_at is not null
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'plan_crew_members'
+      and column_name = 'membership_revoked_at'
   ) then
+    execute 'select exists (select 1 from public.plan_crew_members where membership_revoked_at is not null)'
+      into has_revoked_memberships;
+  end if;
+
+  if has_revoked_memberships then
     raise exception '0124 rollback requires explicit reconciliation of revoked Plan memberships';
   end if;
 end;
 $$;
-
-revoke all on function public.upsert_plan_invite_rsvp_membership_atomic(
-  uuid, text, text, text, uuid, uuid, text, text, text, text, timestamptz, integer
-) from service_role;
-revoke all on function public.remove_plan_invite_rsvp_membership_atomic(uuid, uuid)
-  from service_role;
 
 drop function if exists public.upsert_plan_invite_rsvp_membership_atomic(
   uuid, text, text, text, uuid, uuid, text, text, text, text, timestamptz, integer

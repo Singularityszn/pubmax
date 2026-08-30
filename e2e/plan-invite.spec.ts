@@ -235,7 +235,13 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   expect(joinedSession).toMatchObject({ active: true, role: "guest" });
 
   await guestPage.getByRole("button", { name: "Maybe", exact: true }).click();
-  await guestPage.getByRole("button", { name: "RSVP", exact: true }).click();
+  await Promise.all([
+    guestPage.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && /\/api\/(?:invite\/[^/]+\/rsvp|plans\/[^/]+\/invite-rsvp)$/.test(new URL(response.url()).pathname),
+    ),
+    guestPage.getByRole("button", { name: "RSVP", exact: true }).click(),
+  ]);
   const maybeSession = await guestPage.evaluate(async (id) => {
     const response = await fetch(`/api/plans/${id}/session`, { cache: "no-store" });
     return response.json() as Promise<{ active?: boolean }>;
@@ -243,7 +249,13 @@ test("invite loop: guest RSVP, host Remove via cookie path, guest map handoff", 
   expect(maybeSession.active).toBe(false);
 
   await guestPage.getByRole("button", { name: "Going", exact: true }).click();
-  await guestPage.getByRole("button", { name: "RSVP", exact: true }).click();
+  await Promise.all([
+    guestPage.waitForResponse((response) =>
+      response.request().method() === "POST"
+      && /\/api\/(?:invite\/[^/]+\/rsvp|plans\/[^/]+\/invite-rsvp)$/.test(new URL(response.url()).pathname),
+    ),
+    guestPage.getByRole("button", { name: "RSVP", exact: true }).click(),
+  ]);
   const rejoinedSession = await guestPage.evaluate(async (id) => {
     const response = await fetch(`/api/plans/${id}/session`, { cache: "no-store" });
     return response.json() as Promise<{ active?: boolean; role?: string }>;

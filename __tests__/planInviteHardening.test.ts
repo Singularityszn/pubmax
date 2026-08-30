@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+const isLimitedMock = vi.hoisted(() => vi.fn(async () => false));
+
 // F9 (token rotate/revoke) + F10 (guest-list caps) — invite hardening bundle.
 // Mirrors __tests__/planInviteRsvpModerationRoute.test.ts's harness shape.
 
@@ -12,7 +14,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
+  return { ...actual, isLimited: isLimitedMock };
 });
 
 import { POST as CREATE } from "@/app/api/plans/route";
@@ -24,9 +26,11 @@ import { POST as RSVP } from "@/app/api/invite/[token]/rsvp/route";
 import { DELETE as REMOVE_RSVP, POST as UPDATE_RSVP } from "@/app/api/plans/[id]/invite-rsvp/route";
 import { __resetPlanCollaboration } from "@/lib/planCollaborationStore";
 import { __resetMemoryPlans, planMemberIdentity, planStore } from "@/lib/planStore";
+import * as planStoreModule from "@/lib/planStore";
 import { __resetMemoryRsvps } from "@/lib/planInviteRsvpStore";
 import { GUEST_LIST_DISPLAY_CAP, RSVP_PLAN_CEILING } from "@/lib/planInvite";
 import { rsvpStore } from "@/lib/planInviteRsvpStore";
+import { hashActor } from "@/lib/supabase";
 
 const PLANS_URL = "http://localhost/api/plans";
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -34,6 +38,8 @@ const tokenCtx = (token: string) => ({ params: Promise.resolve({ token }) });
 const route = [{ venueId: "venue-1f5ygjb" }, { venueId: "venue-xjf3n0" }, { venueId: "venue-3h52h" }];
 
 beforeEach(() => {
+  isLimitedMock.mockReset();
+  isLimitedMock.mockResolvedValue(false);
   __resetMemoryPlans();
   __resetMemoryRsvps();
   __resetPlanCollaboration();
@@ -153,6 +159,26 @@ describe("POST /api/plans/[id]/invite-rotate", () => {
 });
 
 describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
+  it("applies the IP rate limit before the public invite lookup", async () => {
+    isLimitedMock.mockClear();
+    isLimitedMock.mockResolvedValueOnce(true);
+
+    const response = await RSVP(
+      new Request("http://localhost/api/invite/not-a-real-invite/rsvp", {
+        method: "POST",
+        body: JSON.stringify({
+          displayName: "Priya",
+          status: "going",
+          submitterId: "device-public-rate-limited",
+        }),
+      }),
+      tokenCtx("not-a-real-invite"),
+    );
+
+    expect(response.status).toBe(429);
+    expect(isLimitedMock).toHaveBeenCalledTimes(1);
+  });
+
   it("turns a Going RSVP into one replay-safe canonical guest membership", async () => {
     const host = await createPlan();
     const planId = host.plan.plan.id;
@@ -186,6 +212,152 @@ describe("POST /api/invite/[token]/rsvp guest-list ceiling", () => {
 
     const memberState = await planStore().get(planId);
     expect(memberState?.crew.map((member) => member.name)).toEqual(["Host", "Priya"]);
+  });
+
+  it("updates the same keyless Going membership when the guest changes name", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const submit = (displayName: string) => RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({
+          displayName,
+          status: "going",
+          submitterId: "device-canonical-rename",
+        }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    const first = await submit("Priya");
+    const firstBody = await first.json() as { memberToken?: string };
+    const firstIdentity = await planMemberIdentity(planId, firstBody.memberToken);
+    const renamed = await submit("Priya Patel");
+    const renamedBody = await renamed.json() as { memberToken?: string };
+    const renamedIdentity = await planMemberIdentity(planId, renamedBody.memberToken);
+
+    expect(first.status).toBe(200);
+    expect(renamed.status).toBe(200);
+    expect(renamedBody.memberToken).toBe(firstBody.memberToken);
+    expect(renamedIdentity?.memberId).toBe(firstIdentity?.memberId);
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual([
+      "Host",
+      "Priya Patel",
+    ]);
+  });
+
+  it("does not turn an ordinary join replay conflict into an RSVP rename", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const submitterId = "device-ordinary-join-collision";
+    const joined = await planStore().join(planId, "Collaborator", {
+      collaborationAuthorized: true,
+      idempotencyKey: `invite-rsvp:${hashActor(submitterId)}`,
+    });
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+
+    const response = await RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName: "Priya", status: "going", submitterId }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    expect(response.status).toBe(503);
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual([
+      "Host",
+      "Collaborator",
+    ]);
+    expect(await planMemberIdentity(planId, joined.memberToken)).toMatchObject({
+      role: "guest",
+      collaborationAuthorized: true,
+    });
+  });
+
+  it("does not claim an ordinary same-name replay before an RSVP rename", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const inviteToken = await ownInviteToken(planId, host.memberToken);
+    const submitterId = "device-ordinary-same-name";
+    const idempotencyKey = `invite-rsvp:${hashActor(submitterId)}`;
+    const joined = await planStore().join(planId, "Priya", {
+      collaborationAuthorized: false,
+      idempotencyKey,
+    });
+    expect(joined.ok).toBe(true);
+    if (!joined.ok) return;
+
+    const submit = (displayName: string) => RSVP(
+      new Request(`http://localhost/api/invite/${inviteToken}/rsvp`, {
+        method: "POST",
+        body: JSON.stringify({ displayName, status: "going", submitterId }),
+      }),
+      tokenCtx(inviteToken),
+    );
+
+    expect((await submit("Priya")).status).toBe(503);
+    expect((await submit("Priya Patel")).status).toBe(503);
+    expect((await planStore().get(planId))?.crew.map((member) => member.name)).toEqual([
+      "Host",
+      "Priya",
+    ]);
+    expect(await planMemberIdentity(planId, joined.memberToken)).toMatchObject({
+      role: "guest",
+      collaborationAuthorized: false,
+    });
+  });
+
+  it("preserves an unavailable invite lookup as a retryable 503", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    const lookup = vi.spyOn(planStoreModule, "resolvePlanIdByInviteToken")
+      .mockResolvedValueOnce({ ok: false, error: "error" });
+
+    const response = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        body: JSON.stringify({
+          inviteToken: "temporarily-unavailable",
+          displayName: "Priya",
+          status: "going",
+          submitterId: "device-unavailable-invite",
+          memberToken: host.memberToken,
+        }),
+      }),
+      ctx(planId),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE", retryable: true });
+    lookup.mockRestore();
+  });
+
+  it("applies the IP rate limit before invite and member lookups", async () => {
+    const host = await createPlan();
+    const planId = host.plan.plan.id;
+    isLimitedMock.mockClear();
+    isLimitedMock.mockResolvedValueOnce(true);
+
+    const response = await UPDATE_RSVP(
+      new Request(`${PLANS_URL}/${planId}/invite-rsvp`, {
+        method: "POST",
+        body: JSON.stringify({
+          inviteToken: "not-a-real-invite",
+          displayName: "Priya",
+          status: "going",
+          submitterId: "device-rate-limited",
+          memberToken: host.memberToken,
+        }),
+      }),
+      ctx(planId),
+    );
+
+    expect(response.status).toBe(429);
+    expect(isLimitedMock).toHaveBeenCalledTimes(1);
   });
 
   it("refuses a host RSVP without creating a duplicate membership", async () => {

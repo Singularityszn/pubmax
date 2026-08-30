@@ -11,7 +11,7 @@ import { GUEST_DISPLAY_NAME_MAX, isRsvpStatus } from "@/lib/planInvite";
 import { resolveClassicInvitePlan } from "@/lib/planInviteResolve";
 import { PlanCrewFullError, RsvpCapExceededError, UnknownPlanError, rsvpStore } from "@/lib/planInviteRsvpStore";
 import { attachPlanMemberSession } from "@/lib/planMemberCapability";
-import { hashActor } from "@/lib/supabase";
+import { clientIp, hashActor, hashIp } from "@/lib/supabase";
 import { cleanText, readString } from "@/lib/textClean";
 
 const RSVP_LIMIT = 8;
@@ -20,6 +20,11 @@ const RSVP_WINDOW_MS = 60_000;
 export async function POST(request: Request, { params }: { params: Promise<{ token: string }> }): Promise<Response> {
   const frozen = socialFreezeResponse();
   if (frozen) return frozen;
+
+  const limiterKey = `plan-invite-rsvp:${hashIp(clientIp(request))}`;
+  if (await isLimited(limiterKey, limiterKey, 30)) {
+    return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
+  }
 
   const { token } = await params;
   const resolved = await resolveClassicInvitePlan(token);
