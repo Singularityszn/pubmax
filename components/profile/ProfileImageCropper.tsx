@@ -311,6 +311,7 @@ export default function ProfileImageCropper({
     const image = imageRef.current;
     if (!image || !ready || rendering || busy) return;
     let croppedFile: File | null = null;
+    setError(null);
     setRendering(true);
     onBusyChange?.(true);
     try {

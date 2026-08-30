@@ -254,4 +254,52 @@ describe("MomentImageEditor crop export", () => {
     expect(range.value).toBe(beforeZoom);
     expect(onCropped).toHaveBeenCalledOnce();
   });
+
+  it("clears a failed export on retry and emits the successful crop", async () => {
+    const onCropped = vi.fn();
+    const { confirm } = await mountSharedCropper(onCropped, vi.fn());
+
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () => null,
+    });
+    await act(async () => {
+      confirm.click();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="status"]')).not.toBeNull();
+    expect(onCropped).not.toHaveBeenCalled();
+
+    Object.defineProperty(HTMLCanvasElement.prototype, "getContext", {
+      configurable: true,
+      writable: true,
+      value: () => ({
+        drawImage: () => {},
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: "high",
+      }),
+    });
+    await act(async () => {
+      confirm.click();
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    const resolve = resolveExport;
+    expect(resolve).not.toBeNull();
+    resolveExport = null;
+    await act(async () => {
+      resolve!(new Blob(["cropped"], { type: "image/jpeg" }));
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="status"]')).toBeNull();
+    expect(onCropped).toHaveBeenCalledOnce();
+    const [cropped] = onCropped.mock.calls[0] as [File];
+    expect(cropped).toBeInstanceOf(File);
+    expect(cropped.name).toBe("avatar.jpg");
+    expect(cropped.type).toBe("image/jpeg");
+  });
 });
