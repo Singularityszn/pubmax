@@ -51,7 +51,15 @@ export default function MomentImageEditor({
               theme: "light",
               offline: true,
               aiAssistantOpenState: "closed",
-              features: { ai: false },
+              features: {
+                ai: false,
+                imageEditor: {
+                  tools: {
+                    frame: false,
+                    stickers: false,
+                  },
+                },
+              },
             }}
             minHeight="min(500px, calc(100svh - 170px))"
             style={{ width: "100%", minHeight: "min(500px, calc(100svh - 170px))" }}
