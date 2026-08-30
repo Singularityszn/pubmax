@@ -21,7 +21,7 @@ const MOMENT_PHOTO_CROP: CropTarget = {
   id: "moment-photo",
   aspectRatio: 4 / 5,
   outputBox: { width: 1200, height: 1500 },
-  nounLower: "Moment photo",
+  nounLower: "moment photo",
   fileName: "moment-photo.jpg",
 };
 

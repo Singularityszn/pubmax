@@ -41,6 +41,21 @@ describe("MomentImageEditor privacy boundary", () => {
     expect(markup).toContain(">Draw<");
   });
 
+  it("uses a lowercase noun in moment crop instructions", () => {
+    const source = new File(["photo"], "night.jpg", { type: "image/jpeg" });
+    const markup = renderToStaticMarkup(createElement(MomentImageEditor, {
+      file: source,
+      openerRef: createRef<HTMLElement>(),
+      onSave: vi.fn(),
+      onCancel: vi.fn(),
+      onError: vi.fn(),
+    }));
+
+    expect(markup).toContain(
+      'aria-label="Reposition your moment photo. Drag it, or nudge it with the arrow keys."',
+    );
+  });
+
   it("keeps the phone editor clear of the bottom safe area", () => {
     const css = readFileSync(
       resolve(process.cwd(), "components/moment/moment.css"),
