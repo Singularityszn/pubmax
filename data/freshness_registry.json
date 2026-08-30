@@ -10,7 +10,8 @@
       "artifact": "public/data/pint_prices_app_dataset.json",
       "stamp": { "kind": "literal", "value": "2026-07-03T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
       "cadence": "episodic — re-collected by hand, then re-exported",
-      "stalenessBudgetHours": 2160,
+      "stalenessBudgetHours": 720,
+      "budgetRationale": "A price is a price, whoever logged it. lib/communityPrice.ts stops a drinker's own pint speaking after COMMUNITY_PRICE_MAX_AGE_MS (30 days), so this bundled lane may not go on reading FRESH for longer than that. It did: the 30 August 2026 audit found the dataset 1384.5h old and still labelled fresh under a 90-day budget, which is a claim the community lane would have refused twice over. Tightening it to the same 30 days is what makes /api/freshness call it stale and what turns the drink menu's own aged label (Seen → Last seen, components/drinks/DrinkMenu.tsx) on. A breach here is owner-visible and never a build break.",
       "refreshWorkflow": "manual (npm run export:data → canonicalize:venues → build:slim)",
       "gate": "none (bundled static; keyless)"
     },

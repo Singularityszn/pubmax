@@ -1,5 +1,18 @@
 # Freshness burndown - per-feed verdicts and fix classes (2026-08-07)
 
+> **Update 2026-08-30 (does not rewrite the inventory below).** `pint_prices`
+> now carries a **720h (30-day)** budget, not 2160h. A price is a price whoever
+> logged it, and `lib/communityPrice.ts` stops a drinker's own pint speaking
+> after 30 days, so the bundled lane may not go on reading FRESH for longer
+> than that. The 30 August live audit found the dataset 1384.5h old and still
+> labelled fresh, which the community lane would have refused twice over. The
+> feed reads **STALE** under the tightened budget until it is re-collected, and
+> that is the honest answer: `npm run check:freshness` says so to the owner and
+> `validate-data` warns without failing the build. The drink menu's own aged
+> label (`Seen` becomes `Last seen`) turns on from the same number. Rationale is
+> recorded on the entry in
+> [`data/freshness_registry.json`](../data/freshness_registry.json).
+
 > **Update 2026-08-20 (does not rewrite the inventory below).** `price_updates`
 > is now **UNTRACKED** in the spine: episodic, no machine budget, empty served
 > envelope with an honest 2026-07-03 collection-day stamp while parsers are

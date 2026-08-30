@@ -14,7 +14,9 @@ import {
 import {
   formatObservedDate,
   PINT_DATASET_OBSERVED_AT,
+  PINT_DATASET_STALENESS_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
+import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 
 const ROOT = join(__dirname, "..");
 const AS_OF_LABEL = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
@@ -65,6 +67,31 @@ describe("price freshness honesty (Grok W5.7)", () => {
     expect(hasBreach(results.filter((row) => row.id === "price_updates"))).toBe(
       false,
     );
+  });
+
+  // A PRICE IS A PRICE, whoever logged it.
+  //
+  // lib/communityPrice.ts stops a drinker's own pint speaking after 30 days.
+  // The bundled lane used to get 90 before it even read as stale, so the
+  // 30 August 2026 audit found the dataset 1384.5h old and still labelled
+  // FRESH - a claim the community lane would have refused twice over. Two
+  // budgets for one kind of fact is the defect; this is the fence that keeps
+  // them one.
+  it("never lets the bundled dataset outlive a drinker's own logged pint", () => {
+    const budgetMs = PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+    expect(budgetMs).toBeLessThanOrEqual(COMMUNITY_PRICE_MAX_AGE_MS);
+  });
+
+  it("calls a dataset past that budget stale rather than fresh", () => {
+    // One hour past the budget, read through the real registry entry.
+    const observedAt = PINT_DATASET_OBSERVED_AT.toISOString();
+    const now = new Date(
+      PINT_DATASET_OBSERVED_AT.getTime() +
+        (PINT_DATASET_STALENESS_BUDGET_DAYS * 24 + 1) * 60 * 60 * 1000,
+    );
+    const results = evaluateRegistry(registry, () => ({ observedAt, reason: null }), now);
+    const pintPrices = results.find((row) => row.id === "pint_prices");
+    expect(pintPrices?.status).toBe("stale");
   });
 
   it("prints the bundled baseline as-of date on the Pint Index arrival strip", () => {
