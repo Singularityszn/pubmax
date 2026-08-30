@@ -196,6 +196,45 @@ describe("Pub Pal voice controls", () => {
     expect(voice.endSession).not.toHaveBeenCalled();
   });
 
+  it.each([
+    [429, "VOICE_ALLOWANCE_USED", "Your trial voice allowance is used for this month."],
+    [503, "UNAVAILABLE", "Voice is not configured yet."],
+  ])("does not release a parsed non-ok grant response (%s)", async (status, code, error) => {
+    const stopTrack = vi.fn();
+    getUserMedia.mockResolvedValueOnce({
+      getTracks: () => [{ stop: stopTrack }],
+    });
+    requests.authedActionFetch.mockResolvedValueOnce(new Response(JSON.stringify({
+      error,
+      code,
+    }), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    }));
+
+    await mountAvailable();
+    const startButton = container.querySelector<HTMLButtonElement>("button");
+    await act(async () => {
+      startButton?.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(getUserMedia).toHaveBeenCalledOnce();
+    expect(stopTrack).toHaveBeenCalledOnce();
+    expect(voice.startSession).not.toHaveBeenCalled();
+    expect(startButton?.disabled).toBe(false);
+    expect(startButton?.getAttribute("aria-busy")).not.toBe("true");
+    expect(container.textContent).toContain(error);
+    expect(requests.authedActionFetch).toHaveBeenCalledOnce();
+
+    unmount();
+    await settle();
+    expect(requests.authedActionFetch).toHaveBeenCalledOnce();
+  });
+
   it("cancels pending permission on unmount and stops a late probe without grant or connect", async () => {
     const permission = deferred<MediaStream>();
     getUserMedia.mockReturnValueOnce(permission.promise);

@@ -27,9 +27,7 @@ type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
 
 type VoiceSessionAttempt = {
   cancelled: boolean;
-  grantRequestStarted: boolean;
-  grantRequestSettled: boolean;
-  grantIssued: boolean;
+  releaseRequired: boolean;
   released: boolean;
   sdkSessionStarted: boolean;
   connectedAt: number | null;
@@ -80,7 +78,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
       ? 0
       : Math.max(0, Math.round((Date.now() - attempt.connectedAt) / 1000));
     attempt.connectedAt = null;
-    if (!attempt.grantRequestStarted || !attempt.grantRequestSettled) return;
+    if (!attempt.releaseRequired) return;
     attempt.released = true;
     await releaseVoiceSession(durationSeconds);
   }, [clearCapTimer]);
@@ -136,9 +134,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     if (startController.isStarting()) return;
     const attempt: VoiceSessionAttempt = {
       cancelled: false,
-      grantRequestStarted: false,
-      grantRequestSettled: false,
-      grantIssued: false,
+      releaseRequired: false,
       released: false,
       sdkSessionStarted: false,
       connectedAt: null,
@@ -156,20 +152,15 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         return navigator.mediaDevices.getUserMedia({ audio: true });
       },
       issueGrant: async () => {
-        attempt.grantRequestStarted = true;
-        try {
-          const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
-          const body = await response.json() as VoiceTokenResponse;
-          if (!response.ok || !body.signedUrl) {
-            throw new PubPalVoiceStartError(
-              errorMessageFrom(body, "Voice is unavailable. Use text instead."),
-            );
-          }
-          attempt.grantIssued = true;
-          return { ...body, signedUrl: body.signedUrl };
-        } finally {
-          attempt.grantRequestSettled = true;
+        const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
+        if (response.ok) attempt.releaseRequired = true;
+        const body = await response.json() as VoiceTokenResponse;
+        if (!response.ok || !body.signedUrl) {
+          throw new PubPalVoiceStartError(
+            errorMessageFrom(body, "Voice is unavailable. Use text instead."),
+          );
         }
+        return { ...body, signedUrl: body.signedUrl };
       },
       connect: (grant) => {
         if (!ownsAttempt(attempt)) {
