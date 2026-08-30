@@ -11,22 +11,27 @@ import { isSocialFriendsLaunchEnabled } from "@/lib/socialLaunch";
 const ROOT = process.cwd();
 const USER_ID = "44444444-4444-4444-8444-444444444444";
 
-const ACTIVE_SURFACES = [
-  "app/api/social",
-  "app/social",
-  "components/social",
-  "lib/socialAccess.ts",
-  "lib/socialAccessServer.ts",
-  "lib/socialLaunch.ts",
+const RETIREMENT_SCAN_PATHS = [
+  "app",
+  "components",
+  "lib",
+  "docs",
+  "supabase",
   "app/api/identity/adult-assertion/route.ts",
-  "docs/SOFT_LAUNCH_RUNBOOK.md",
-  "docs/prd/SOCIAL_LAUNCH_PRD.md",
+  "lib/trustedHandoffFlags.server.ts",
   ".env.example",
+  "capacitor.config.ts",
+  "eslint.config.mjs",
+  "next.config.mjs",
   "package.json",
+  "playwright.config.ts",
+  "postcss.config.mjs",
   "proxy.ts",
+  "tsconfig.json",
+  "vitest.config.ts",
 ];
 
-const ACTIVE_SOCIAL_CODE = [
+const SOCIAL_ACCESS_CODE_PATHS = [
   "app/api/social",
   "app/social",
   "components/social",
@@ -35,6 +40,37 @@ const ACTIVE_SOCIAL_CODE = [
   "lib/socialLaunch.ts",
   "app/api/identity/adult-assertion/route.ts",
 ];
+
+// Historical plans/proof, migration compatibility, generated payloads, and
+// test/e2e fixtures may retain the retired names as evidence. They are not
+// active access/configuration surfaces and stay outside this fence.
+const RETIREMENT_SCAN_EXCLUSIONS = [
+  "docs/superpowers/",
+  "docs/proof/",
+  "docs/archive/",
+  "supabase/migrations/",
+  "public/data/",
+  "__tests__/",
+  "e2e/",
+  "node_modules/",
+  ".next/",
+  ".git/",
+];
+
+const TEXT_FILE_EXTENSIONS = new Set([
+  ".cjs",
+  ".css",
+  ".html",
+  ".js",
+  ".json",
+  ".md",
+  ".mjs",
+  ".sql",
+  ".ts",
+  ".tsx",
+  ".yml",
+  ".yaml",
+]);
 
 const RETIRED_MARKERS = [
   "SOCIAL_INVITE_BETA_ENABLED",
@@ -44,8 +80,21 @@ const RETIRED_MARKERS = [
 ];
 
 function filesAt(relativePath: string): string[] {
+  if (
+    RETIREMENT_SCAN_EXCLUSIONS.some(
+      (prefix) => relativePath === prefix.slice(0, -1) || relativePath.startsWith(prefix),
+    )
+  ) {
+    return [];
+  }
   const absolutePath = join(ROOT, relativePath);
-  if (statSync(absolutePath).isFile()) return [relativePath];
+  if (statSync(absolutePath).isFile()) {
+    if (RETIREMENT_SCAN_PATHS.includes(relativePath)) return [relativePath];
+    const extension = relativePath.slice(relativePath.lastIndexOf("."));
+    return TEXT_FILE_EXTENSIONS.has(extension) || !relativePath.includes(".")
+      ? [relativePath]
+      : [];
+  }
   return readdirSync(absolutePath, { withFileTypes: true }).flatMap((entry) =>
     filesAt(join(relativePath, entry.name)),
   );
@@ -85,7 +134,8 @@ function dependencies(
 
 describe("retired Social beta access boundary", () => {
   it("keeps retired flags and legacy provider branches out of active surfaces", () => {
-    const activeSources = sourceFiles(ACTIVE_SURFACES);
+    const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);
+    expect(activeSources.has(".env.example")).toBe(true);
     for (const [relativePath, source] of activeSources) {
       for (const marker of RETIRED_MARKERS) {
         expect(source, `${relativePath} still contains ${marker}`).not.toContain(
@@ -94,9 +144,9 @@ describe("retired Social beta access boundary", () => {
       }
     }
 
-    const socialCode = sourceFiles(ACTIVE_SOCIAL_CODE);
+    const socialCode = sourceFiles(SOCIAL_ACCESS_CODE_PATHS);
     const legacyBranch =
-      /\b(?:verifyClerkSession|clerkSession|clerkIdentity|yoti|migrateSocialProductAccount)\b/i;
+      /\b(?:verifyClerkSession|clerkSession|clerkIdentity|isSocialInviteBetaEnabled|migrateSocialProductAccount)\b|(?:from|import)\s+["'][^"']*(?:social[^"']*(?:clerk|yoti)|(?:clerk|yoti)[^"']*social)[^"']*["']/i;
     for (const [relativePath, source] of socialCode) {
       expect(source, `${relativePath} still contains legacy Social auth`).not.toMatch(
         legacyBranch,
@@ -109,7 +159,25 @@ describe("retired Social beta access boundary", () => {
     expect(isSocialFriendsLaunchEnabled("1")).toBe(true);
     expect(isSocialFriendsLaunchEnabled("0")).toBe(false);
 
-    await expect(resolveSocialAccess(undefined, dependencies())).resolves.toEqual({
+    const verify = vi.fn(async () => ({
+      status: "verified" as const,
+      userId: USER_ID,
+    }));
+    const read = vi.fn(async () => ({
+      account: {
+        id: "account-1",
+        clerkUserId: `supabase:${USER_ID}`,
+        ownershipState: "active" as const,
+      },
+      profile: { id: "profile-1", handle: "alice" },
+      dateOfBirth: "1990-01-01",
+    }));
+    await expect(
+      resolveSocialAccess(undefined, dependencies({
+        verifySupabaseSession: verify,
+        readFriendsLaunchAccess: read,
+      })),
+    ).resolves.toEqual({
       available: true,
       state: "verified",
       actor: {
@@ -118,17 +186,20 @@ describe("retired Social beta access boundary", () => {
         handle: "alice",
       },
     });
+    expect(verify).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(read).toHaveBeenCalledWith(USER_ID);
 
-    const verify = vi.fn(async () => ({
+    const rollbackVerify = vi.fn(async () => ({
       status: "verified" as const,
       userId: USER_ID,
     }));
     await expect(
       resolveSocialAccess(
         undefined,
-        dependencies({ friendsLaunchEnabled: false, verifySupabaseSession: verify }),
+        dependencies({ friendsLaunchEnabled: false, verifySupabaseSession: rollbackVerify }),
       ),
     ).resolves.toEqual({ available: true, state: "preview" });
-    expect(verify).not.toHaveBeenCalled();
+    expect(rollbackVerify).not.toHaveBeenCalled();
   });
 });
