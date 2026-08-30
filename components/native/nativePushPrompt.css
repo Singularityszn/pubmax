@@ -95,6 +95,20 @@
   color: var(--ink-deep, #16122a);
 }
 
+/* An action may be a LINK rather than a button: the create-password ask hands
+   over to the account hub, because a fixed card is the one shape the soft
+   keyboard covers and a password form does not belong in it. An anchor is
+   inline by default, so it would ignore the 44px minimum the buttons beside it
+   keep and land under the audited tap-target floor. */
+a.nativePushPrompt__later,
+a.nativePushPrompt__enable {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  text-decoration: none;
+}
+
 @media (hover: hover) and (pointer: fine) {
   .nativePushPrompt__later:hover,
   .nativePushPrompt__enable:hover {

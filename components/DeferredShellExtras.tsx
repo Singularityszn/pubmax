@@ -48,6 +48,10 @@ const CheapPintPingPrompt = nextDynamic(
   () => import("@/components/pwa/CheapPintPingPrompt"),
   { ssr: false },
 );
+const CreatePasswordPrompt = nextDynamic(
+  () => import("@/components/auth/CreatePasswordPrompt"),
+  { ssr: false },
+);
 const NativeSystemBars = nextDynamic(() => import("@/components/native/NativeSystemBars"), {
   ssr: false,
 });
@@ -103,6 +107,7 @@ export default function DeferredShellExtras() {
       <NativePushPrompt />
       <WebPushPrompt />
       <CheapPintPingPrompt />
+      <CreatePasswordPrompt />
       <NativeSystemBars />
       <NativeDeepLinks />
       <CellarNotice />
