@@ -49,6 +49,17 @@ invite events (`plan_invite_link_copied`, `invite_page_viewed`,
 `invite_rsvp_submitted`, and the rest of §7) follow the same rule: no `planId`
 on those link or guest-side events. See §7 for the id-hygiene rationale.
 
+**Loop closure:** `next_night_committed` is the Crew Night loop's north star
+(`docs/plans/CREW_NIGHT_LOOP.md` §0): a finished night turning into the next
+one. Three usual-lot reinvite surfaces emit it, and they are the whole list:
+`components/plan/LastCrewInvite.tsx` (source `crew-reinvite`),
+`components/plan/CompletedPlanUsualLot.tsx` and
+`components/night/MorningReentryCard.tsx` (both source `completed_plan`).
+All three build their props through the one seam `nextNightCommittedProps`
+(`lib/lastCrew.ts`): a closed `source` plus coarse `windowDays`, never a name,
+a venue id or a coordinate. `crew_committed >= 2` measures one night;
+`next_night_committed` measures the loop.
+
 ## 1. Nights planned / week
 
 **Events (both pre-existing, reused as-is):**

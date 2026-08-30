@@ -1,5 +1,5 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { readdirSync, readFileSync } from "node:fs";
+import { extname, join, relative } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -16,6 +16,10 @@ const METRICS_FUNNEL_DOC = readFileSync(
 );
 const INVITE_SCOREBOARD_DOC = readFileSync(
   join(process.cwd(), "docs/growth/V1_INVITE_SCOREBOARD.md"),
+  "utf8",
+);
+const CREW_NIGHT_LOOP_DOC = readFileSync(
+  join(process.cwd(), "docs/plans/CREW_NIGHT_LOOP.md"),
   "utf8",
 );
 
@@ -193,6 +197,79 @@ describe("sanitizeEvent", () => {
       expect(METRICS_FUNNEL_DOC).toMatch(/crew_committed/);
       expect(INVITE_SCOREBOARD_DOC).toMatch(/participants\s*>=\s*2/);
       expect(INVITE_SCOREBOARD_DOC).toMatch(/crew_committed/);
+    });
+  });
+
+  describe("loop north star (next_night_committed)", () => {
+    it("registers only windowDays and source on next_night_committed", () => {
+      expect(ANALYTICS_EVENTS.next_night_committed).toEqual(["windowDays", "source"]);
+    });
+
+    it("accepts both closed reinvite sources and strips a free-text one", () => {
+      for (const source of ["crew-reinvite", "completed_plan"]) {
+        expect(sanitizeEvent("next_night_committed", { windowDays: 3, source })).toEqual({
+          name: "next_night_committed",
+          props: { windowDays: 3, source },
+        });
+      }
+      expect(sanitizeEvent("next_night_committed", {
+        windowDays: 3,
+        source: "told a mate at the bar",
+      })).toEqual({
+        name: "next_night_committed",
+        props: { windowDays: 3 },
+      });
+    });
+
+    // The three reinvite surfaces are the whole emitter list. A fourth that
+    // builds its own props inline would be free to attach a name or a venue
+    // id, so every emitter is held to the one `nextNightCommittedProps` seam.
+    const REINVITE_SURFACES = [
+      "components/plan/LastCrewInvite.tsx",
+      "components/plan/CompletedPlanUsualLot.tsx",
+      "components/night/MorningReentryCard.tsx",
+    ];
+    // MorningReentryCard wraps its call across lines, so the emitter is matched
+    // whitespace-tolerantly rather than as one flat substring.
+    const emitsNextNightCommitted = (source: string): boolean =>
+      /trackEvent\(\s*"next_night_committed"/.test(source);
+
+    it("is emitted by every usual-lot reinvite surface through the one props seam", () => {
+      for (const path of REINVITE_SURFACES) {
+        const source = readFileSync(join(process.cwd(), path), "utf8");
+        expect(emitsNextNightCommitted(source)).toBe(true);
+        expect(source).toContain("nextNightCommittedProps(");
+      }
+    });
+
+    it("has no emitter outside that list", () => {
+      const found: string[] = [];
+      const scan = (directory: string): void => {
+        for (const entry of readdirSync(directory, { withFileTypes: true })) {
+          const path = join(directory, entry.name);
+          if (entry.isDirectory()) {
+            scan(path);
+            continue;
+          }
+          if (![".ts", ".tsx"].includes(extname(entry.name))) continue;
+          if (emitsNextNightCommitted(readFileSync(path, "utf8"))) {
+            found.push(relative(process.cwd(), path));
+          }
+        }
+      };
+      for (const directory of ["app", "components", "lib"]) {
+        scan(join(process.cwd(), directory));
+      }
+
+      expect(found.sort()).toEqual([...REINVITE_SURFACES].sort());
+    });
+
+    it("is documented as the loop north star in the plan doc and funnel doc", () => {
+      expect(CREW_NIGHT_LOOP_DOC).toMatch(/Loop north star:\*{0,2}\s*`next_night_committed`/);
+      expect(CREW_NIGHT_LOOP_DOC).toContain("crew-reinvite");
+      expect(CREW_NIGHT_LOOP_DOC).toContain("completed_plan");
+      expect(METRICS_FUNNEL_DOC).toContain("next_night_committed");
+      expect(METRICS_FUNNEL_DOC).toMatch(/north star/i);
     });
   });
 
