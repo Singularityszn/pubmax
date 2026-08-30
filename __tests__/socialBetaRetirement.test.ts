@@ -6,7 +6,10 @@ import {
   resolveSocialAccess,
   type SocialAccessServerDependencies,
 } from "@/lib/socialAccessServer";
-import { isSocialFriendsLaunchEnabled } from "@/lib/socialLaunch";
+import {
+  isSocialFriendsLaunchEnabled,
+  SOCIAL_FRIENDS_LAUNCH_ENV,
+} from "@/lib/socialLaunch";
 
 const ROOT = process.cwd();
 const USER_ID = "44444444-4444-4444-8444-444444444444";
@@ -15,6 +18,7 @@ const RETIREMENT_SCAN_PATHS = [
   "app",
   "components",
   "lib",
+  "convex",
   "docs",
   "supabase",
   "app/api/identity/adult-assertion/route.ts",
@@ -35,6 +39,7 @@ const SOCIAL_ACCESS_CODE_PATHS = [
   "app/api/social",
   "app/social",
   "components/social",
+  "convex",
   "lib/socialAccess.ts",
   "lib/socialAccessServer.ts",
   "lib/socialLaunch.ts",
@@ -78,6 +83,20 @@ const RETIRED_MARKERS = [
   "isSocialInviteBetaEnabled",
   "migrateSocialProductAccount",
 ];
+
+const LEGACY_SOCIAL_REFERENCE =
+  /\b(?:verifyClerkSession|clerkSession|clerkIdentity|isSocialInviteBetaEnabled|migrateSocialProductAccount)\b|(?:\bfrom\s+|\bimport\s*(?:\(\s*)?|\brequire\s*\(\s*)["'][^"']*(?:clerk|yoti)[^"']*["']/i;
+
+const LEGACY_SOCIAL_REFERENCE_FIXTURES = [
+  {
+    name: "dynamic provider import",
+    source: 'const auth = await import("@/lib/clerkAuth");',
+  },
+  {
+    name: "renamed provider import",
+    source: 'import { verifySession as verify } from "@/lib/clerkAuth";',
+  },
+] as const;
 
 function filesAt(relativePath: string): string[] {
   if (
@@ -145,14 +164,28 @@ describe("retired Social beta access boundary", () => {
     }
 
     const socialCode = sourceFiles(SOCIAL_ACCESS_CODE_PATHS);
-    const legacyBranch =
-      /\b(?:verifyClerkSession|clerkSession|clerkIdentity|isSocialInviteBetaEnabled|migrateSocialProductAccount)\b|(?:from|import)\s+["'][^"']*(?:social[^"']*(?:clerk|yoti)|(?:clerk|yoti)[^"']*social)[^"']*["']/i;
     for (const [relativePath, source] of socialCode) {
       expect(source, `${relativePath} still contains legacy Social auth`).not.toMatch(
-        legacyBranch,
+        LEGACY_SOCIAL_REFERENCE,
       );
     }
   });
+
+  it("scans active Convex backend paths", () => {
+    const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);
+    expect(
+      Array.from(activeSources.keys()).some((relativePath) =>
+        relativePath.startsWith("convex/"),
+      ),
+    ).toBe(true);
+  });
+
+  it.each(LEGACY_SOCIAL_REFERENCE_FIXTURES)(
+    "detects $name as a retired Social reference",
+    ({ source }) => {
+      expect(source).toMatch(LEGACY_SOCIAL_REFERENCE);
+    },
+  );
 
   it("keeps Supabase verified access and explicit emergency rollback", async () => {
     expect(isSocialFriendsLaunchEnabled(undefined)).toBe(true);
@@ -201,5 +234,25 @@ describe("retired Social beta access boundary", () => {
       ),
     ).resolves.toEqual({ available: true, state: "preview" });
     expect(rollbackVerify).not.toHaveBeenCalled();
+  });
+
+  it("reads enabled and disabled launch values through default dependencies", async () => {
+    const originalValue = process.env[SOCIAL_FRIENDS_LAUNCH_ENV];
+    try {
+      process.env[SOCIAL_FRIENDS_LAUNCH_ENV] = "1";
+      await expect(resolveSocialAccess()).resolves.toEqual({
+        available: true,
+        state: "sign_in_required",
+      });
+
+      process.env[SOCIAL_FRIENDS_LAUNCH_ENV] = "0";
+      await expect(resolveSocialAccess()).resolves.toEqual({
+        available: true,
+        state: "preview",
+      });
+    } finally {
+      if (originalValue === undefined) delete process.env[SOCIAL_FRIENDS_LAUNCH_ENV];
+      else process.env[SOCIAL_FRIENDS_LAUNCH_ENV] = originalValue;
+    }
   });
 });
