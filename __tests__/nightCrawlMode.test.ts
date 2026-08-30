@@ -14,6 +14,7 @@ const harness = vi.hoisted(() => ({
   enqueue: vi.fn(),
   flush: vi.fn(),
   hasPending: vi.fn(),
+  handoff: vi.fn(),
 }));
 
 vi.mock("react", async (importOriginal) => {
@@ -65,6 +66,10 @@ vi.mock("@/lib/activePlan", async (importOriginal) => {
 vi.mock("@/lib/planMutationKey", () => ({
   persistentPlanMutationKey: harness.mutationKey,
   clearPersistentPlanMutationKey: harness.clearMutationKey,
+}));
+
+vi.mock("@/lib/nightModeHandoff", () => ({
+  requestNightModeEndingHandoff: harness.handoff,
 }));
 
 vi.mock("@/lib/planMutationOutbox", () => ({
@@ -151,6 +156,7 @@ beforeEach(() => {
   harness.flush.mockReset();
   harness.hasPending.mockReset();
   harness.hasPending.mockReturnValue(false);
+  harness.handoff.mockReset();
 });
 
 afterEach(() => {
@@ -216,5 +222,93 @@ describe("NightCrawlMode failed action reconciliation", () => {
       (element) => (element.props as { role?: string }).role === "status",
     );
     expect(textOf(status)).toBe("That did not save. Try again when you have signal.");
+  });
+});
+
+describe("NightCrawlMode final-stop handoff", () => {
+  it("opens the existing ending owner after the final Stop action confirms", async () => {
+    harness.activeCursor = 1;
+    harness.enqueue.mockResolvedValue({
+      id: `night-crawl-action:${PLAN_ID}:arrived:1`,
+    });
+    harness.flush.mockResolvedValue([
+      {
+        planId: PLAN_ID,
+        entryId: `night-crawl-action:${PLAN_ID}:arrived:1`,
+        outcome: "confirmed",
+        plan: {
+          ...PLAN,
+          actions: [
+            {
+              id: "final-arrival",
+              type: "arrived",
+              stopPosition: 1,
+              ending: null,
+              createdAt: "2026-08-30T22:00:00.000Z",
+            },
+          ],
+        },
+        type: "arrived",
+        stopPosition: 1,
+      },
+    ]);
+
+    const firstRender = renderMode();
+    const arrive = findElement(
+      firstRender,
+      (element) => element.type === "button" && textOf(element).includes("We are here"),
+    );
+
+    expect(arrive).not.toBeNull();
+    await (arrive?.props as { onClick: () => Promise<void> }).onClick();
+
+    await vi.waitFor(() => {
+      expect(harness.handoff).toHaveBeenCalledWith(PLAN_ID);
+    });
+  });
+
+  it("keeps an all-skipped Crawl open and tells the crew to check in once", async () => {
+    harness.activeCursor = 1;
+    harness.enqueue.mockResolvedValue({
+      id: `night-crawl-action:${PLAN_ID}:skipped:1`,
+    });
+    harness.flush.mockResolvedValue([
+      {
+        planId: PLAN_ID,
+        entryId: `night-crawl-action:${PLAN_ID}:skipped:1`,
+        outcome: "confirmed",
+        plan: {
+          ...PLAN,
+          actions: [
+            {
+              id: "final-skip",
+              type: "skipped",
+              stopPosition: 1,
+              ending: null,
+              createdAt: "2026-08-30T22:00:00.000Z",
+            },
+          ],
+        },
+        type: "skipped",
+        stopPosition: 1,
+      },
+    ]);
+
+    const firstRender = renderMode();
+    const skip = findElement(
+      firstRender,
+      (element) => element.type === "button" && textOf(element).includes("Skip it"),
+    );
+
+    expect(skip).not.toBeNull();
+    await (skip?.props as { onClick: () => Promise<void> }).onClick();
+
+    await vi.waitFor(() => {
+      expect(harness.handoff).not.toHaveBeenCalled();
+      expect(harness.stateValues[3]).toEqual({
+        text: "Check in at one stop before finishing the night.",
+        tone: "guidance",
+      });
+    });
   });
 });
