@@ -12,6 +12,9 @@ import "server-only";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
 import { outDayWindow, type OutLiveProvider } from "@/lib/out/loadOut";
+import { attachOutVenues, type OutVenueMatchIndex } from "@/lib/out/venueMatch";
+import { loadOutVenueMatchIndex } from "@/lib/out/venueMatch.server";
+import { canonicalOutVenueId } from "@/lib/out/venueId";
 import {
   dedupeRows,
   filterNotPast,
@@ -39,6 +42,7 @@ import {
 } from "../scripts/whatson/sportFixtures.mjs";
 import {
   buildQuestionOneRows,
+  isGreaterLondonLatLng,
   parseQuestionOneNextPage,
   parseQuestionOneVenuesPage,
 } from "../scripts/whatson/quizParsers.mjs";
@@ -50,6 +54,12 @@ export type OfficialWhatsOnProviderReport = {
   name: string;
   configured: boolean;
   rows: number;
+  fetched?: number;
+  dateValid?: number;
+  cityValid?: number;
+  matchStatus?: "not-run" | "ready" | "unavailable";
+  matched?: number;
+  unmatched?: number;
   error?: string;
 };
 
@@ -65,6 +75,7 @@ export type RefreshOfficialWhatsOnListingsOpts = {
   now?: number;
   store?: WhatsOnListingStore;
   providers?: OutLiveProvider[];
+  loadVenueMatchIndex?: () => Promise<OutVenueMatchIndex | null>;
 };
 
 export type WhatsOnKindRefreshReport = {
@@ -107,6 +118,82 @@ function rowsByKind(rows: WhatsOnRow[]): Map<WhatsOnKind, WhatsOnRow[]> {
   return grouped;
 }
 
+type OfficialProviderRefreshEntry = {
+  report: OfficialWhatsOnProviderReport;
+  rows: WhatsOnRow[];
+};
+
+type ProviderRowsMatchResult = {
+  ok: boolean;
+  rows: WhatsOnRow[];
+  reports: OfficialWhatsOnProviderReport[];
+};
+
+function reportVenueMatches(
+  entry: OfficialProviderRefreshEntry,
+  status: "ready" | "unavailable",
+  rows: WhatsOnRow[],
+): OfficialWhatsOnProviderReport {
+  const matched = rows.filter((row) => canonicalOutVenueId(row.venueId) !== null).length;
+  return {
+    ...entry.report,
+    matchStatus: status,
+    matched,
+    unmatched: entry.rows.length - matched,
+  };
+}
+
+async function matchProviderRowsForStore(
+  entries: OfficialProviderRefreshEntry[],
+  loadVenueMatchIndex: () => Promise<OutVenueMatchIndex | null>,
+): Promise<ProviderRowsMatchResult> {
+  const providerRows = entries.flatMap((entry) => entry.rows);
+  if (providerRows.length === 0) {
+    return {
+      ok: true,
+      rows: [],
+      reports: entries.map((entry) =>
+        entry.report.configured && entry.report.error === undefined
+          ? reportVenueMatches(entry, "ready", entry.rows)
+          : entry.report,
+      ),
+    };
+  }
+
+  let index: OutVenueMatchIndex | null;
+  try {
+    index = await loadVenueMatchIndex();
+  } catch {
+    index = null;
+  }
+
+  if (!index || (index.exactByKey.size === 0 && index.byNormalizedName.size === 0)) {
+    return {
+      ok: false,
+      rows: [],
+      reports: entries.map((entry) =>
+        entry.report.configured && entry.report.error === undefined
+          ? reportVenueMatches(entry, "unavailable", [])
+          : entry.report,
+      ),
+    };
+  }
+
+  const matchedEntries = entries.map((entry) => {
+    if (!entry.report.configured || entry.report.error !== undefined) return entry;
+    const rows = attachOutVenues(entry.rows, index).rows;
+    return {
+      rows,
+      report: reportVenueMatches(entry, "ready", rows),
+    };
+  });
+  return {
+    ok: true,
+    rows: matchedEntries.flatMap((entry) => entry.rows),
+    reports: matchedEntries.map((entry) => entry.report),
+  };
+}
+
 function officialRefreshWindow(now: number): { startMs: number; endMs: number } {
   const today = outDayWindow("today", now);
   const tomorrow = outDayWindow("tomorrow", now);
@@ -136,7 +223,17 @@ export async function refreshOfficialWhatsOnListings(
       ): Promise<{ report: OfficialWhatsOnProviderReport; rows: WhatsOnRow[] }> => {
         if (!provider.isConfigured()) {
           return {
-            report: { name: provider.name, configured: false, rows: 0 },
+            report: {
+              name: provider.name,
+              configured: false,
+              rows: 0,
+              fetched: 0,
+              dateValid: 0,
+              cityValid: 0,
+              matchStatus: "not-run",
+              matched: 0,
+              unmatched: 0,
+            },
             rows: [],
           };
         }
@@ -147,10 +244,24 @@ export async function refreshOfficialWhatsOnListings(
             window,
             cache: "bypass",
           });
-          const kept = filterNotPast(raw, now)
-            .filter(isServableWhatsOnRow);
+          const dateValid = filterNotPast(raw, now);
+          const cityValid = dateValid.filter((row) => {
+            if (!Number.isFinite(row.lat) || !Number.isFinite(row.lng)) return true;
+            return isGreaterLondonLatLng(row.lat as number, row.lng as number);
+          });
+          const kept = cityValid.filter(isServableWhatsOnRow);
           return {
-            report: { name: provider.name, configured: true, rows: kept.length },
+            report: {
+              name: provider.name,
+              configured: true,
+              rows: kept.length,
+              fetched: raw.length,
+              dateValid: dateValid.length,
+              cityValid: cityValid.length,
+              matchStatus: "not-run",
+              matched: 0,
+              unmatched: kept.length,
+            },
             rows: kept,
           };
         } catch (err) {
@@ -159,6 +270,12 @@ export async function refreshOfficialWhatsOnListings(
               name: provider.name,
               configured: true,
               rows: 0,
+              fetched: 0,
+              dateValid: 0,
+              cityValid: 0,
+              matchStatus: "not-run",
+              matched: 0,
+              unmatched: 0,
               error: err instanceof Error ? err.message : String(err),
             },
             rows: [],
@@ -168,7 +285,7 @@ export async function refreshOfficialWhatsOnListings(
     ),
   );
 
-  const reports = settled.map((entry) => entry.report);
+  let reports = settled.map((entry) => entry.report);
   const anyConfigured = reports.some((report) => report.configured);
   if (!anyConfigured) {
     return {
@@ -191,7 +308,22 @@ export async function refreshOfficialWhatsOnListings(
     };
   }
 
-  const grouped = rowsByKind(settled.flatMap((entry) => entry.rows));
+  const providerMatch = await matchProviderRowsForStore(
+    settled,
+    opts.loadVenueMatchIndex ?? (() => loadOutVenueMatchIndex("london")),
+  );
+  reports = providerMatch.reports;
+  if (!providerMatch.ok) {
+    return {
+      ok: false,
+      mode: "providers",
+      written: 0,
+      observedAt: null,
+      providers: reports,
+    };
+  }
+
+  const grouped = rowsByKind(providerMatch.rows);
   if (reports.some((report) => !report.configured)) {
     const previous = await store.readAll();
     if (previous.failed) {
@@ -321,6 +453,7 @@ export async function refreshWhatsOnListings(
     now,
     store,
     providers: opts.providers,
+    loadVenueMatchIndex: opts.loadVenueMatchIndex,
   });
   const defaults = defaultKindRefreshers(now);
   const refreshers = { ...defaults, ...(opts.refreshers ?? {}) };

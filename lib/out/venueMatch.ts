@@ -42,7 +42,10 @@ export const OUT_VENUE_MATCH_PROXIMITY_METERS = VENUE_MATCH_PROXIMITY_METERS;
  */
 export type OutVenueMatchStatus = "ready" | "unavailable";
 
-export type OutVenueMatchIndex = VenueResolverIndex;
+export type OutVenueMatchIndex = VenueResolverIndex & {
+  /** Canonical Venue ids accepted by pub-only reads. Built once with the matcher. */
+  venueIds: ReadonlySet<string>;
+};
 
 /**
  * Build the resolver index from slim venue refs.
@@ -53,6 +56,7 @@ export type OutVenueMatchIndex = VenueResolverIndex;
  */
 export function buildOutVenueMatchIndex(venues: Iterable<VenueRef>): OutVenueMatchIndex {
   const byNormalizedName = new Map<string, VenueResolverCandidate[]>();
+  const venueIds = new Set<string>();
   for (const venue of venues) {
     const normName = normalizeVenueIdentityName(venue.name);
     if (!normName) continue;
@@ -67,8 +71,10 @@ export function buildOutVenueMatchIndex(venues: Iterable<VenueRef>): OutVenueMat
     const held = byNormalizedName.get(normName);
     if (held) held.push(candidate);
     else byNormalizedName.set(normName, [candidate]);
+    const venueId = canonicalOutVenueId(venue.id);
+    if (venueId) venueIds.add(venueId);
   }
-  return { exactByKey: new Map(), byNormalizedName };
+  return { exactByKey: new Map(), byNormalizedName, venueIds };
 }
 
 /** The venue one row lands on, or null when the matcher would be guessing. */
@@ -91,16 +97,7 @@ export function isOutVenueId(
   venueId: string | null | undefined,
 ): boolean {
   const canonicalId = canonicalOutVenueId(venueId);
-  if (!canonicalId) return false;
-  for (const candidateVenueId of index.exactByKey.values()) {
-    if (canonicalOutVenueId(candidateVenueId) === canonicalId) return true;
-  }
-  for (const candidates of index.byNormalizedName.values()) {
-    for (const candidate of candidates) {
-      if (candidate.venueId === canonicalId) return true;
-    }
-  }
-  return false;
+  return canonicalId !== null && index.venueIds.has(canonicalId);
 }
 
 export type AttachOutVenuesResult = {
