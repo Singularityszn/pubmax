@@ -79,6 +79,8 @@ export default function MomentImageEditor({
             <ProfileImageCropper
               target={MOMENT_PHOTO_CROP}
               file={file}
+              busy={saving}
+              busyLabel="Preparing…"
               onCropped={setCroppedFile}
               onCancel={onCancel}
               onBusyChange={setSaving}

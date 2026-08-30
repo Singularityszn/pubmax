@@ -53,6 +53,7 @@ type ProfileImageCropperProps = {
   target: CropTarget;
   file: File;
   busy?: boolean;
+  busyLabel?: string;
   onCancel: () => void;
   onCropped: (file: File) => void;
   onBusyChange?: (busy: boolean) => void;
@@ -69,6 +70,7 @@ export default function ProfileImageCropper({
   target,
   file,
   busy = false,
+  busyLabel = "Uploading…",
   onCancel,
   onCropped,
   onBusyChange,
@@ -144,7 +146,7 @@ export default function ProfileImageCropper({
     if (!element) return;
     const onWheel = (event: WheelEvent) => {
       const natural = naturalRef.current;
-      if (natural.width < 1) return;
+      if (natural.width < 1 || busy || rendering) return;
       event.preventDefault();
       const rect = element.getBoundingClientRect();
       const current = transformRef.current;
@@ -160,7 +162,7 @@ export default function ProfileImageCropper({
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [commit]);
+  }, [busy, commit, rendering]);
 
   function handleLoad(event: React.SyntheticEvent<HTMLImageElement>) {
     const image = event.currentTarget;
@@ -206,14 +208,14 @@ export default function ProfileImageCropper({
   }
 
   function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
-    if (!ready || busy) return;
+    if (!ready || busy || rendering) return;
     event.currentTarget.setPointerCapture(event.pointerId);
     pointersRef.current.set(event.pointerId, localPoint(event));
     rebase();
   }
 
   function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
-    if (!ready || busy) return;
+    if (!ready || busy || rendering) return;
     if (!pointersRef.current.has(event.pointerId)) return;
     event.preventDefault();
     pointersRef.current.set(event.pointerId, localPoint(event));
@@ -270,7 +272,7 @@ export default function ProfileImageCropper({
   }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
-    if (!ready || busy) return;
+    if (!ready || busy || rendering) return;
     const step = event.shiftKey ? KEYBOARD_NUDGE_FAST_PX : KEYBOARD_NUDGE_PX;
     const current = transformRef.current;
     const nudge: Record<string, [number, number]> = {
@@ -290,6 +292,7 @@ export default function ProfileImageCropper({
   }
 
   function handleZoom(event: React.ChangeEvent<HTMLInputElement>) {
+    if (busy || rendering) return;
     const position = Number(event.target.value) / ZOOM_STEPS;
     const frame = frameBoxRef.current;
     const natural = naturalRef.current;
@@ -352,7 +355,7 @@ export default function ProfileImageCropper({
     if (croppedFile) onCropped(croppedFile);
   }
 
-  const confirmLabel = rendering || busy ? "Uploading…" : CROP_CONFIRM_LABEL;
+  const confirmLabel = rendering || busy ? busyLabel : CROP_CONFIRM_LABEL;
   // A file this browser could not open has nothing to position. Showing an
   // empty frame with a dead button reads as a broken control; the sentence and
   // the way back are the whole surface.

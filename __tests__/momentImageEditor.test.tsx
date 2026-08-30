@@ -84,6 +84,9 @@ describe("MomentImageEditor privacy boundary", () => {
 
     expect(cropper).toContain("onBusyChange?.(true)");
     expect(cropper).toContain("onBusyChange?.(false)");
+    expect(cropper).toContain("busyLabel");
     expect(editor).toContain("onBusyChange={setSaving}");
+    expect(editor).toContain("busy={saving}");
+    expect(editor).toContain('busyLabel="Preparing…"');
   });
 });
