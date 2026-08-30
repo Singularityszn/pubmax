@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  MOMENT_MAX_PHOTO_BYTES,
   replaceMomentMediaWithEditedBlob,
   type EditedMomentPhotoResult,
 } from "@/lib/momentPhotoEditor";
 import type { MomentMediaDraft } from "@/lib/momentDraft";
+import { validatePhoto } from "@/lib/pintDropsStore";
 
 function media(overrides: Partial<MomentMediaDraft> = {}): MomentMediaDraft {
   return {
@@ -54,9 +56,17 @@ describe("Moment photo editor output", () => {
 
     const oversized = replaceMomentMediaWithEditedBlob(
       original,
-      edited(new Blob([new Uint8Array(10 * 1024 * 1024 + 1)], { type: "image/jpeg" })),
+      edited(new Blob([new Uint8Array(5 * 1024 * 1024 + 1)], { type: "image/jpeg" })),
     );
     expect(oversized.media).toBe(original);
-    expect(oversized.error).toMatch(/10 MB/i);
+    expect(oversized.error).toMatch(/5MB/i);
+  });
+
+  it("matches the existing Moment upload size boundary", () => {
+    const accepted = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES)], { type: "image/jpeg" });
+    const rejected = new Blob([new Uint8Array(MOMENT_MAX_PHOTO_BYTES + 1)], { type: "image/jpeg" });
+
+    expect(validatePhoto(accepted.type, accepted.size)).toBeNull();
+    expect(validatePhoto(rejected.type, rejected.size)).toMatch(/5MB/);
   });
 });

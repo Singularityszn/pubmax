@@ -1,7 +1,8 @@
 import type { MomentMediaDraft } from "@/lib/momentDraft";
 
 export const MOMENT_PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-export const MOMENT_MAX_PHOTO_BYTES = 10 * 1024 * 1024;
+// Mirrors validatePhoto in lib/pintDropsStore.ts.
+export const MOMENT_MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 export type EditedMomentPhotoResult = {
   blob: Blob;
@@ -32,7 +33,7 @@ export function replaceMomentMediaWithEditedBlob(
     return { media: current, error: "Edited photo must be JPEG, PNG, or WebP." };
   }
   if (result.blob.size > MOMENT_MAX_PHOTO_BYTES) {
-    return { media: current, error: "Edited photo must be 10 MB or smaller." };
+    return { media: current, error: "Edited photo must be 5MB or smaller." };
   }
 
   const file = new File([result.blob], editedName(current.name, mimeType), {
