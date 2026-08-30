@@ -118,3 +118,55 @@
   display: flex;
   gap: 12px;
 }
+
+/* ── Desktop composition ──────────────────────────────────────────────────
+   The check-in was one 640px column at every width, so a 1440 monitor showed a
+   thin ribbon of form in a wide empty page. Desktop pairs the two halves the
+   surface already has: the explanation on the left, the action card on the
+   right. Mobile is untouched by contract — .weAreOutLayout is `display:
+   contents` below the breakpoint, so the header and the form stay direct flex
+   children of .feedShell exactly as before and the phone stack is unchanged.
+   Breakpoint and rail treatment follow the /social + /feed idiom. */
+.weAreOutLayout {
+  display: contents;
+}
+
+@media (min-width: 1024px) {
+  .weAreOut .weAreOutLayout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+    align-items: start;
+    justify-content: center;
+    gap: 56px;
+    width: 100%;
+    max-width: var(--content-max-wide, 1240px);
+    margin: 0 auto;
+    padding-top: 24px;
+  }
+
+  /* The header leads its own column, so it stops being centred trim above a
+     form and becomes the reading half of the pair. */
+  .weAreOut .feedHeader {
+    align-items: flex-start;
+    max-width: none;
+    padding: 0;
+    text-align: left;
+  }
+
+  .weAreOut .feedLede {
+    margin: 0;
+    max-width: 42ch;
+  }
+
+  /* The action half reads as one card, the same panel treatment the social
+     context rail uses, so the form has an edge instead of floating. */
+  .weAreOut .weAreOutForm,
+  .weAreOut .weAreOutDone {
+    max-width: none;
+    margin: 0;
+    padding: 24px;
+    border: 1px solid var(--line);
+    border-radius: 18px;
+    background: var(--panel-raised);
+  }
+}

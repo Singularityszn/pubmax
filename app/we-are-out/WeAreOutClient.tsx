@@ -95,82 +95,84 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
     <main id="main" className="feedShell weAreOut">
       <SiteNav active="feed" />
 
-      <header className="feedHeader">
-        <p className="feedEyebrow">Tonight</p>
-        <h1 className="feedTitle">I&rsquo;m here</h1>
-        <p className="feedLede">
-          Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
-          who follow you back see it. It clears itself after 12 hours.
-        </p>
-      </header>
-
-      {state === "done" ? (
-        <section className="weAreOutDone" role="status">
-          <p className="weAreOutDoneTitle">You&rsquo;re here. Your lot can see it.</p>
-          <div className="weAreOutDoneActions">
-            {socialFriendsLaunchEnabled ? (
-              <Link className="feedDropCta" href="/social">
-                Open Social
-              </Link>
-            ) : (
-              <Link className="feedDropCta" href="/u/you#night-memories">
-                Open Memories
-              </Link>
-            )}
-          </div>
-        </section>
-      ) : (
-        <section className="weAreOutForm">
-          <label className="weAreOutField">
-            <span className="weAreOutLabel">Area</span>
-            <select
-              className="weAreOutSelect"
-              value={areaSlug}
-              onChange={(e) => setAreaSlug(e.target.value)}
-            >
-              <option value="">Where are you?</option>
-              {areas.map((area) => (
-                <option key={area.slug} value={area.slug}>
-                  {area.name}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="weAreOutField">
-            <span className="weAreOutLabel">
-              A line <span className="weAreOutOptional">(optional)</span>
-            </span>
-            <input
-              className="weAreOutInput"
-              type="text"
-              maxLength={140}
-              value={note}
-              placeholder="Garden's rammed, come find us"
-              onChange={(e) => setNote(e.target.value)}
-            />
-          </label>
-
-          <p className="weAreOutPrivacy">
-            Visible to your lot only. Never your exact location.
+      <div className="weAreOutLayout">
+        <header className="feedHeader">
+          <p className="feedEyebrow">Tonight</p>
+          <h1 className="feedTitle">I&rsquo;m here</h1>
+          <p className="feedLede">
+            Tell your lot you&rsquo;re here tonight. Area only, no exact spot. Friends
+            who follow you back see it. It clears itself after 12 hours.
           </p>
+        </header>
 
-          {state === "error" && error ? (
-            <p className="weAreOutError" role="alert">
-              {error}
+        {state === "done" ? (
+          <section className="weAreOutDone" role="status">
+            <p className="weAreOutDoneTitle">You&rsquo;re here. Your lot can see it.</p>
+            <div className="weAreOutDoneActions">
+              {socialFriendsLaunchEnabled ? (
+                <Link className="feedDropCta" href="/social">
+                  Open Social
+                </Link>
+              ) : (
+                <Link className="feedDropCta" href="/u/you#night-memories">
+                  Open Memories
+                </Link>
+              )}
+            </div>
+          </section>
+        ) : (
+          <section className="weAreOutForm">
+            <label className="weAreOutField">
+              <span className="weAreOutLabel">Area</span>
+              <select
+                className="weAreOutSelect"
+                value={areaSlug}
+                onChange={(e) => setAreaSlug(e.target.value)}
+              >
+                <option value="">Where are you?</option>
+                {areas.map((area) => (
+                  <option key={area.slug} value={area.slug}>
+                    {area.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="weAreOutField">
+              <span className="weAreOutLabel">
+                A line <span className="weAreOutOptional">(optional)</span>
+              </span>
+              <input
+                className="weAreOutInput"
+                type="text"
+                maxLength={140}
+                value={note}
+                placeholder="Garden's rammed, come find us"
+                onChange={(e) => setNote(e.target.value)}
+              />
+            </label>
+
+            <p className="weAreOutPrivacy">
+              Visible to your lot only. Never your exact location.
             </p>
-          ) : null}
 
-          <button
-            type="button"
-            className="weAreOutSubmit"
-            disabled={state === "posting"}
-            onClick={post}
-          >
-            {state === "posting" ? "Posting." : "I'm here"}
-          </button>
-        </section>
-      )}
+            {state === "error" && error ? (
+              <p className="weAreOutError" role="alert">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              className="weAreOutSubmit"
+              disabled={state === "posting"}
+              onClick={post}
+            >
+              {state === "posting" ? "Posting." : "I'm here"}
+            </button>
+          </section>
+        )}
+      </div>
     </main>
   );
 }
