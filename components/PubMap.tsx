@@ -323,7 +323,10 @@ const MapArrivalCard = dynamic(() => import("@/components/map/MapArrivalCard"), 
   ssr: false,
 });
 import type { MapSearchSuggestProps } from "@/components/map/MapSearchSuggest";
-import type { PlaceSuggestion } from "@/lib/mapSearchSuggest";
+import {
+  LOCALITY_FLY_ZOOM,
+  type PlaceSuggestion,
+} from "@/lib/mapSearchSuggest";
 import { haversineKm } from "@/lib/haversine";
 import { mergeLazyDetailPins } from "@/lib/lazyVenueDetail";
 import {
@@ -399,7 +402,10 @@ import {
   resolveQueryRestoreFit,
 } from "@/lib/mapArrival";
 import {
+  mapChosenAreaFlyTarget,
+  mapChosenAreaPickerKind,
   readMapChosenArea,
+  rememberMapChosenAreaSelection,
   resolveMapChosenAreaRestore,
   subscribeMapChosenArea,
   writeMapChosenArea,
@@ -3810,6 +3816,10 @@ export default function PubMap({
       });
       // 2. Resolve what the sheet shows on arrival.
       const target = journey.target;
+      // Every explicit search-area pick is a new named map area, so it replaces
+      // any older remembered area before the chip renders. The pure transition
+      // carries the public search centre; viewer location never reaches it.
+      rememberMapChosenAreaSelection({ cityId, ...journey.rememberedArea });
       if (target.kind === "place") {
         setSearchAreaTarget({ kind: "place", name: target.name, center: target.center, radiusKm: target.radiusKm });
       } else {
@@ -4000,21 +4010,27 @@ export default function PubMap({
         return;
       }
       const { row } = pick;
-      writeMapChosenArea({
+      const kind = mapChosenAreaPickerKind(row.slug);
+      const rememberedArea = {
         cityId,
         label: row.name,
         slug: row.slug,
         center: row.center,
-        kind: "night-area",
-      });
+        kind,
+      } as const;
+      rememberMapChosenAreaSelection(rememberedArea);
       restoredChosenAreaRef.current = true;
+      const camera = mapChosenAreaFlyTarget(
+        rememberedArea,
+        LOCALITY_FLY_ZOOM,
+      );
       flyToArea({
         slug: row.slug,
         name: row.name,
         center: row.center,
         coverage: null,
-        kind: row.slug.startsWith("locality:") ? "locality" : "area",
-        zoom: row.slug.startsWith("locality:") ? 15 : undefined,
+        kind: camera.kind,
+        zoom: camera.zoom,
       });
     },
     [changeMapOverlay, cityId, flyToArea, showNearbyMap],
@@ -4063,14 +4079,15 @@ export default function PubMap({
       return;
     }
     const stored = decision.area;
+    const camera = mapChosenAreaFlyTarget(stored, LOCALITY_FLY_ZOOM);
     queueMicrotask(() => {
       flyToArea({
         slug: stored.slug,
         name: stored.label,
         center: stored.center,
         coverage: null,
-        kind: stored.slug.startsWith("locality:") ? "locality" : "area",
-        zoom: stored.slug.startsWith("locality:") ? 15 : undefined,
+        kind: camera.kind,
+        zoom: camera.zoom,
       });
     });
   }, [

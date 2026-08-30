@@ -8,6 +8,7 @@
 // to import on the client and to unit test without a DOM.
 
 import type { CityId } from "@/lib/cities";
+import type { MapChosenAreaSelection } from "@/lib/mapChosenArea";
 import { haversineKm } from "@/lib/haversine";
 import {
   drinkLensUnknownRowLabel,
@@ -555,6 +556,11 @@ export type AreaSelectJourney = {
   camera: { center: [number, number]; zoom: number };
   /** What the sheet shows on arrival. */
   target: AreaSheetTarget;
+  /**
+   * The named public place this explicit pick makes current. Its centre comes
+   * from the search row, never from viewer location, and is safe to remember.
+   */
+  rememberedArea: Omit<MapChosenAreaSelection, "cityId">;
   /** Always true: the suggestions panel + input collapse on any select. */
   collapseSearch: true;
   /** Always "area": the pubs display opens once the fly settles. */
@@ -574,5 +580,17 @@ export function planAreaSelect(
     kind === "area"
       ? { kind: "area", slug: option.slug, name: option.name }
       : { kind: "place", name: option.name, center: option.center, radiusKm };
-  return { camera, target, collapseSearch: true, openSheet: "area" };
+  const rememberedArea = {
+    kind: kind === "area" ? "night-area" : kind,
+    label: option.name,
+    slug: option.slug,
+    center: option.center,
+  } satisfies Omit<MapChosenAreaSelection, "cityId">;
+  return {
+    camera,
+    target,
+    rememberedArea,
+    collapseSearch: true,
+    openSheet: "area",
+  };
 }
