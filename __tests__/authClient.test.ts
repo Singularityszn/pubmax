@@ -39,6 +39,61 @@ describe("browser auth client", () => {
     expect(createClient).not.toHaveBeenCalled();
   });
 
+  it("degrades to unavailable when the public Supabase URL is malformed", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const { ensureSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
+
+    expect(isAuthConfigured()).toBe(false);
+    await expect(ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("rejects URL-parsable shorthand before constructing the browser client", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https:example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const { ensureSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
+
+    expect(isAuthConfigured()).toBe(false);
+    await expect(ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["current secret key", "sb_secret_server-only"],
+    ["legacy service-role key", "e30.eyJyb2xlIjoic2VydmljZV9yb2xlIn0.signature"],
+    ["unknown key class", "opaque-production-key"],
+  ])("never exposes a %s through browser auth", async (_label, key) => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", key);
+    const { ensureSupabaseBrowser, isAuthConfigured } = await loadAuthClient();
+
+    expect(isAuthConfigured()).toBe(false);
+    await expect(ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+  });
+
+  it("retries construction after malformed public configuration is repaired", async () => {
+    vi.stubGlobal("window", {});
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "not-a-valid-url");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "publishable-key");
+    const client = { auth: { getSession: vi.fn() } };
+    createClient.mockReturnValue(client);
+    const { ensureSupabaseBrowser } = await loadAuthClient();
+
+    await expect(ensureSupabaseBrowser()).resolves.toBeNull();
+    expect(createClient).not.toHaveBeenCalled();
+
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+
+    await expect(ensureSupabaseBrowser()).resolves.toBe(client);
+    expect(createClient).toHaveBeenCalledOnce();
+  });
+
   it("constructs and reuses one implicit-flow client when browser auth is configured", async () => {
     vi.stubGlobal("window", {});
     vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");

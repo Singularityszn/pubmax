@@ -6,6 +6,7 @@
 
 import { useEffect } from "react";
 
+import { requestNightModeEndingFromFlush } from "@/lib/nightModeHandoff";
 import {
   applyActivePlanFlushRollback,
   flushPlanMutationOutbox,
@@ -18,6 +19,9 @@ export default function PlanMutationOutboxHost() {
     const flush = () => {
       void flushPlanMutationOutbox().then((results) => {
         for (const result of results) {
+          if (result.outcome === "confirmed") {
+            requestNightModeEndingFromFlush(result);
+          }
           if (
             result.outcome === "forbidden" ||
             result.outcome === "rejected" ||
