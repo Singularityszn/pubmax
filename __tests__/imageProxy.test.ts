@@ -189,4 +189,17 @@ describe("GET /api/image-proxy", () => {
     );
     expect((await GET(req("https://example.com/p.jpg"))).status).toBe(502);
   });
+
+  it("cancels a redirect body before rejecting a malformed location", async () => {
+    const cancel = vi.fn();
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      new Response(new ReadableStream({ cancel }), {
+        status: 302,
+        headers: { location: "https://[" },
+      }),
+    );
+
+    expect((await GET(req("https://example.com/p.jpg"))).status).toBe(502);
+    expect(cancel).toHaveBeenCalledOnce();
+  });
 });

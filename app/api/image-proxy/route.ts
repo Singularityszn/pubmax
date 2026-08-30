@@ -104,10 +104,15 @@ export async function GET(request: Request): Promise<Response> {
       });
       if (upstream.status >= 300 && upstream.status < 400) {
         const location = upstream.headers.get("location");
-        const followed: URL | null = location
-          ? validate(new URL(location, target).toString())
-          : null;
         await cancelUpstreamBody(upstream);
+        let followed: URL | null = null;
+        if (location) {
+          try {
+            followed = validate(new URL(location, target).toString());
+          } catch {
+            followed = null;
+          }
+        }
         if (!followed || hop === MAX_REDIRECTS) {
           return new Response("Image source redirected out of policy.", { status: 502 });
         }
