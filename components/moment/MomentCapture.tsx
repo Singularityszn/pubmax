@@ -7,9 +7,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowRight, Camera, ImagePlus, LockKeyhole, MapPin, Sparkles, Upload, X } from "lucide-react";
 import {
   ChangeEvent,
+  Component,
   DragEvent as ReactDragEvent,
   FormEvent,
   MouseEvent as ReactMouseEvent,
+  type ReactNode,
   useEffect,
   useMemo,
   useRef,
@@ -52,6 +54,34 @@ const MomentImageEditor = dynamic(() => import("./MomentImageEditor"), {
   ssr: false,
   loading: () => <div className="momentEditorLoading" role="status">Opening editor...</div>,
 });
+
+type MomentImageEditorBoundaryProps = {
+  children: ReactNode;
+  onError: () => void;
+};
+
+type MomentImageEditorBoundaryState = {
+  hasError: boolean;
+};
+
+class MomentImageEditorBoundary extends Component<
+  MomentImageEditorBoundaryProps,
+  MomentImageEditorBoundaryState
+> {
+  state: MomentImageEditorBoundaryState = { hasError: false };
+
+  static getDerivedStateFromError(): MomentImageEditorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(): void {
+    this.props.onError();
+  }
+
+  render(): ReactNode {
+    return this.state.hasError ? null : this.props.children;
+  }
+}
 
 /** Phone shell (≤640): camera-first. Wider: upload / drag-drop primacy. */
 function subscribeMobileViewport(onStoreChange: () => void): () => void {
@@ -309,6 +339,11 @@ export default function MomentCapture(): React.JSX.Element {
     setMessage("Edited photo ready.");
   }
 
+  function handlePhotoEditorError() {
+    setEditingMediaId(null);
+    setMessage("Editor could not open. Original photo kept.");
+  }
+
   const editingMedia = editingMediaId
     ? draft.media.find((item) => item.id === editingMediaId)
     : null;
@@ -557,18 +592,17 @@ export default function MomentCapture(): React.JSX.Element {
         </form>
 
         {editingMedia?.objectUrl ? (
-          <MomentImageEditor
-            image={editingMedia.objectUrl}
-            onSave={finishPhotoEdit}
-            onCancel={() => {
-              setEditingMediaId(null);
-              setMessage("Original photo kept.");
-            }}
-            onError={() => {
-              setEditingMediaId(null);
-              setMessage("Editor could not open. Original photo kept.");
-            }}
-          />
+          <MomentImageEditorBoundary onError={handlePhotoEditorError}>
+            <MomentImageEditor
+              image={editingMedia.objectUrl}
+              onSave={finishPhotoEdit}
+              onCancel={() => {
+                setEditingMediaId(null);
+                setMessage("Original photo kept.");
+              }}
+              onError={handlePhotoEditorError}
+            />
+          </MomentImageEditorBoundary>
         ) : null}
 
         {savedMemoryId ? (

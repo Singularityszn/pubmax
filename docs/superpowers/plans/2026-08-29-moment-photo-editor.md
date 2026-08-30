@@ -23,7 +23,6 @@
 
 **Files:**
 - Create: `__tests__/momentPhotoEditor.test.ts`
-- Create: `__tests__/momentPhotoEditorWiring.test.ts`
 
 **Interfaces:**
 - The editor host accepts one `MomentMediaDraft`, returns an edited `Blob` or cancellation.
@@ -31,11 +30,11 @@
 
 - [x] **Step 1: Write the failing tests**
 
-  Test that valid editor output replaces only the selected photo, preserves its alt text and id, and updates name/type/size/object URL. Test that an unsupported type or output over 5MB is refused. Test that the lazy loader is not invoked until an Edit action is rendered and tapped.
+  Test that valid editor output replaces only the selected photo, preserves its alt text and id, and updates name/type/size/object URL. Test that an unsupported type or output over 5MB is refused. Keep lazy-loader behavior in the executable browser contract.
 
 - [x] **Step 2: Run focused tests to verify they fail**
 
-  Run: `npm test -- __tests__/momentPhotoEditor.test.ts __tests__/momentPhotoEditorWiring.test.ts`
+  Run: `npm test -- __tests__/momentPhotoEditor.test.ts`
 
   Expected: FAIL because the editor host and media replacement contract do not exist.
 
@@ -47,7 +46,7 @@
 - Modify: `components/moment/MomentCapture.tsx`
 - Modify: `components/moment/moment.css`
 - Modify: `proxy.ts`
-- Test: `__tests__/momentPhotoEditor.test.ts`, `__tests__/momentPhotoEditorWiring.test.ts`
+- Test: `__tests__/momentPhotoEditor.test.ts`
 
 **Interfaces:**
 - `MomentImageEditor` renders `@unlayer/react-image-editor` with `offline: true`, no AI feature, and `onSave`, `onCancel`, and error callbacks.
@@ -71,7 +70,7 @@
 
 - [x] **Step 5: Run focused tests to verify they pass**
 
-  Run: `npm test -- __tests__/momentPhotoEditor.test.ts __tests__/momentPhotoEditorWiring.test.ts`
+  Run: `npm test -- __tests__/momentPhotoEditor.test.ts`
 
   Expected: PASS with no unhandled editor or React warnings.
 
@@ -114,7 +113,7 @@
 
 - [x] **Step 3: Commit the feature**
 
-  Run: `git add package.json package-lock.json components/moment proxy.ts __tests__/momentPhotoEditor.test.ts __tests__/momentPhotoEditorWiring.test.ts e2e/moment-photo-editor.spec.ts docs/superpowers/plans/2026-08-29-moment-photo-editor.md docs/proof/moment-photo-editor/moment-editor-390.png && git commit -m "feat: add optional Moment photo editing"`
+  Run: `git add package.json package-lock.json components/moment proxy.ts __tests__/momentPhotoEditor.test.ts e2e/moment-photo-editor.spec.ts docs/superpowers/plans/2026-08-29-moment-photo-editor.md docs/proof/moment-photo-editor/moment-editor-390.png && git commit -m "feat: add optional Moment photo editing"`
 
 ## PR draft
 
