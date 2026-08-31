@@ -45,6 +45,12 @@ describe("city capability profiles", () => {
     expect(bath.releaseTier).toBe("core");
   });
 
+  it("keeps Llandudno outside the V1 core cohort as a preview", () => {
+    const llandudno = getCityCapabilityProfile("llandudno");
+
+    expect(llandudno.releaseTier).toBe("preview");
+  });
+
   it("falls back to London for an invalid external city value", () => {
     expect(getCityCapabilityProfile("not-a-city").cityId).toBe("london");
   });
