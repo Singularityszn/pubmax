@@ -12,9 +12,10 @@ community price has already been logged.
   write.
 - Every attributed price insert or correction queues its Venue and drink
   category in the same database transaction.
-- Venue signals do not enter this queue. Routine moderation-only updates do not
-  enqueue through the database trigger. Explicit admin recovery and failed
-  one-tap pairing repair may enqueue the affected price pair.
+- Price hide and restore updates queue their Venue and drink category, including
+  legacy rows without an actor. Venue signals do not enter this queue. Explicit
+  admin recovery and failed one-tap pairing repair may also enqueue the affected
+  price pair.
 - Queue work is service-role only. Browser roles cannot read or write it.
 - Queue revisions use a never-reused sequence on every qualifying write. A
   worker acknowledges only the revision it processed, including after a prior

@@ -97,10 +97,6 @@ export type PriceTrustEventStore = {
     events: PriceTrustEvent[];
     degraded: boolean;
   }>;
-  latestReversalCovering(observationId: string): Promise<{
-    event: PriceTrustEvent | null;
-    degraded: boolean;
-  }>;
   terminalReversalFor(event: PriceTrustEvent): Promise<{
     event: PriceTrustEvent | null;
     degraded: boolean;
@@ -172,28 +168,6 @@ function isReversed(eventId: string, events: readonly PriceTrustEvent[]): boolea
   return events.some((event) => event.reversalOf === eventId);
 }
 
-function terminalReversal(
-  positives: readonly PriceTrustEvent[],
-  reversals: readonly PriceTrustEvent[],
-): { event: PriceTrustEvent | null; degraded: boolean } {
-  const consumedReversalIds = new Set<string>();
-  for (const reversal of reversals) {
-    if (
-      positives.some((event) =>
-        event.evidenceFingerprint.startsWith("restored:") &&
-        event.evidenceFingerprint.endsWith(`:${reversal.id}`),
-      )
-    ) {
-      consumedReversalIds.add(reversal.id);
-    }
-  }
-  const terminal = reversals.filter(
-    (event) => !consumedReversalIds.has(event.id),
-  );
-  if (terminal.length > 1) return { event: null, degraded: true };
-  return { event: terminal[0] ?? null, degraded: false };
-}
-
 function terminalReversalForRoot(
   root: PriceTrustEvent,
   events: readonly PriceTrustEvent[],
@@ -207,26 +181,40 @@ function terminalReversalForRoot(
     if (reversals.length > 1) return { event: null, degraded: true };
     const reversal = reversals[0];
     if (!reversal) return { event: null, degraded: false };
-    if (seen.has(reversal.id)) return { event: null, degraded: true };
-    seen.add(reversal.id);
-
-    const restoredFingerprint =
-      `restored:${root.evidenceFingerprint}:${reversal.id}`;
-    const restored = events.filter(
-      (candidate) =>
-        candidate.reversalOf === null &&
-        candidate.evidenceFingerprint === restoredFingerprint,
-    );
-    if (restored.length > 1) return { event: null, degraded: true };
-    if (restored.length === 0) return { event: reversal, degraded: false };
     if (
-      restored[0].venueId !== root.venueId ||
-      restored[0].category !== root.category ||
-      seen.has(restored[0].id)
+      reversal.venueId !== root.venueId ||
+      reversal.category !== root.category ||
+      seen.has(reversal.id)
     ) {
       return { event: null, degraded: true };
     }
-    current = restored[0];
+    seen.add(reversal.id);
+
+    const restorations = events.filter(
+      (candidate) =>
+        candidate.reversalOf === null &&
+        candidate.venueId === root.venueId &&
+        candidate.category === root.category &&
+        candidate.evidenceFingerprint.startsWith("restored:") &&
+        candidate.evidenceFingerprint.endsWith(`:${reversal.id}`),
+    );
+    if (restorations.length === 0) return { event: reversal, degraded: false };
+    if (restorations.some((event) => !Number.isFinite(Date.parse(event.createdAt)))) {
+      return { event: null, degraded: true };
+    }
+    const live = restorations.filter((event) => !isReversed(event.id, events));
+    if (live.length > 1) return { event: null, degraded: true };
+    const restored =
+      live[0] ??
+      [...restorations].sort(
+        (left, right) =>
+          Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
+          left.id.localeCompare(right.id),
+      )[0];
+    if (!restored || seen.has(restored.id)) {
+      return { event: null, degraded: true };
+    }
+    current = restored;
     seen.add(current.id);
   }
   return { event: null, degraded: true };
@@ -340,19 +328,6 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
         !isReversed(event.id, memory.events),
     );
     return { events, degraded: false };
-  },
-
-  async latestReversalCovering(observationId) {
-    const id = cleanText(observationId, 64);
-    const positives = memory.events.filter(
-      (event) => event.reversalOf === null && event.observationIds.includes(id),
-    );
-    const positiveIds = new Set(positives.map((event) => event.id));
-    const reversals = memory.events.filter(
-      (candidate) =>
-        candidate.reversalOf !== null && positiveIds.has(candidate.reversalOf),
-    );
-    return terminalReversal(positives, reversals);
   },
 
   async terminalReversalFor(root) {
@@ -487,6 +462,191 @@ async function insertCredits(eventId: string, userIds: readonly string[]): Promi
   if (error) throw new Error(error.message);
 }
 
+type PriceTrustEventRead = {
+  events: PriceTrustEvent[];
+  degraded: boolean;
+};
+
+type PriceTrustEventResult = {
+  event: PriceTrustEvent | null;
+  degraded: boolean;
+};
+
+function parseEventRows(
+  rows: readonly unknown[] | null | undefined,
+  maximum: number,
+): PriceTrustEventRead {
+  const held = rows ?? [];
+  if (held.length > maximum) return { events: [], degraded: true };
+  const events = held
+    .map((row) => fromEventRow(row as EventRow))
+    .filter((event): event is PriceTrustEvent => event !== null);
+  return events.length === held.length
+    ? { events, degraded: false }
+    : { events: [], degraded: true };
+}
+
+async function readLineageRoot(root: PriceTrustEvent): Promise<PriceTrustEventResult> {
+  const rows = await admin()
+    .from(EVENTS_TABLE)
+    .select(
+      "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+    )
+    .eq("evidence_fingerprint", root.evidenceFingerprint)
+    .is("reversal_of", null)
+    .limit(2);
+  if (rows.error) throw new Error(rows.error.message);
+  const parsed = parseEventRows(rows.data, 1);
+  const selected = parsed.events[0];
+  if (
+    parsed.degraded ||
+    parsed.events.length !== 1 ||
+    selected?.id !== root.id ||
+    selected.venueId !== root.venueId ||
+    selected.category !== root.category
+  ) {
+    return { event: null, degraded: true };
+  }
+  return { event: selected, degraded: false };
+}
+
+async function readLineageReversal(
+  current: PriceTrustEvent,
+  root: PriceTrustEvent,
+): Promise<PriceTrustEventResult> {
+  const rows = await admin()
+    .from(EVENTS_TABLE)
+    .select(
+      "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+    )
+    .in("reversal_of", [current.id])
+    .limit(2);
+  if (rows.error) throw new Error(rows.error.message);
+  const parsed = parseEventRows(rows.data, 1);
+  if (parsed.degraded) return { event: null, degraded: true };
+  const reversal = parsed.events[0];
+  if (!reversal) return { event: null, degraded: false };
+  if (
+    reversal.reversalOf !== current.id ||
+    reversal.venueId !== root.venueId ||
+    reversal.category !== root.category
+  ) {
+    return { event: null, degraded: true };
+  }
+  return { event: reversal, degraded: false };
+}
+
+async function readLineageRestorations(
+  reversal: PriceTrustEvent,
+  root: PriceTrustEvent,
+): Promise<PriceTrustEventRead> {
+  const rows = await admin()
+    .from(EVENTS_TABLE)
+    .select(
+      "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+    )
+    .eq("venue_id", root.venueId)
+    .eq("category", root.category)
+    .like("evidence_fingerprint", `%:${reversal.id}`)
+    .is("reversal_of", null)
+    .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
+  if (rows.error) throw new Error(rows.error.message);
+  const parsed = parseEventRows(rows.data, REVERSAL_CHAIN_READ_LIMIT);
+  if (parsed.degraded) return parsed;
+  const invalid = parsed.events.some(
+    (event) =>
+      event.reversalOf !== null ||
+      event.venueId !== root.venueId ||
+      event.category !== root.category ||
+      !event.evidenceFingerprint.startsWith("restored:") ||
+      !event.evidenceFingerprint.endsWith(`:${reversal.id}`) ||
+      !Number.isFinite(Date.parse(event.createdAt)),
+  );
+  return invalid ? { events: [], degraded: true } : parsed;
+}
+
+async function readReversedRestorationIds(
+  restorations: readonly PriceTrustEvent[],
+  root: PriceTrustEvent,
+): Promise<{ ids: Set<string>; degraded: boolean }> {
+  const restorationIds = restorations.map((event) => event.id);
+  const rows = await admin()
+    .from(EVENTS_TABLE)
+    .select(
+      "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+    )
+    .in("reversal_of", restorationIds)
+    .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
+  if (rows.error) throw new Error(rows.error.message);
+  const parsed = parseEventRows(rows.data, REVERSAL_CHAIN_READ_LIMIT);
+  if (parsed.degraded) return { ids: new Set(), degraded: true };
+  const ids = new Set<string>();
+  for (const candidate of parsed.events) {
+    if (
+      !candidate.reversalOf ||
+      !restorationIds.includes(candidate.reversalOf) ||
+      candidate.venueId !== root.venueId ||
+      candidate.category !== root.category ||
+      ids.has(candidate.reversalOf)
+    ) {
+      return { ids: new Set(), degraded: true };
+    }
+    ids.add(candidate.reversalOf);
+  }
+  return { ids, degraded: false };
+}
+
+function selectLineageRestoration(
+  restorations: readonly PriceTrustEvent[],
+  reversedIds: ReadonlySet<string>,
+): PriceTrustEventResult {
+  const live = restorations.filter((event) => !reversedIds.has(event.id));
+  if (live.length > 1) return { event: null, degraded: true };
+  const selected =
+    live[0] ??
+    [...restorations].sort(
+      (left, right) =>
+        Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
+        left.id.localeCompare(right.id),
+    )[0];
+  return { event: selected ?? null, degraded: !selected };
+}
+
+async function readTerminalReversalForRoot(
+  root: PriceTrustEvent,
+): Promise<PriceTrustEventResult> {
+  const selectedRoot = await readLineageRoot(root);
+  if (selectedRoot.degraded || !selectedRoot.event) return selectedRoot;
+  let current = selectedRoot.event;
+  const seen = new Set([current.id]);
+  for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
+    const reversalRead = await readLineageReversal(current, root);
+    if (reversalRead.degraded) return reversalRead;
+    const reversal = reversalRead.event;
+    if (!reversal) return { event: null, degraded: false };
+    if (seen.has(reversal.id)) return { event: null, degraded: true };
+    seen.add(reversal.id);
+
+    const restorationRead = await readLineageRestorations(reversal, root);
+    if (restorationRead.degraded) return { event: null, degraded: true };
+    if (restorationRead.events.length === 0) {
+      return { event: reversal, degraded: false };
+    }
+    const reversed = await readReversedRestorationIds(
+      restorationRead.events,
+      root,
+    );
+    if (reversed.degraded) return { event: null, degraded: true };
+    const restored = selectLineageRestoration(restorationRead.events, reversed.ids);
+    if (restored.degraded || !restored.event || seen.has(restored.event.id)) {
+      return { event: null, degraded: true };
+    }
+    current = restored.event;
+    seen.add(current.id);
+  }
+  return { event: null, degraded: true };
+}
+
 export const supabasePriceTrustEventStore: PriceTrustEventStore = {
   async ensureCredits(eventId, userIds) {
     const key = cleanText(eventId, 64);
@@ -604,57 +764,6 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
     });
   },
 
-  async latestReversalCovering(observationId) {
-    const id = cleanText(observationId, 64);
-    if (!id) return { event: null, degraded: false };
-    return guard.guard({
-      context: "latestReversalCovering",
-      onSchemaMiss: () => memoryPriceTrustEventStore.latestReversalCovering(id),
-      message: "trust reversal read failed",
-      onError: () => ({ event: null, degraded: true }),
-      run: async () => {
-        const originals = await admin()
-          .from(EVENTS_TABLE)
-          .select(
-            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
-          )
-          .contains("observation_ids", [id])
-          .is("reversal_of", null)
-          .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
-        if (originals.error) throw new Error(originals.error.message);
-        if ((originals.data?.length ?? 0) > REVERSAL_CHAIN_READ_LIMIT) {
-          return { event: null, degraded: true };
-        }
-        const positives = (originals.data ?? [])
-          .map((row) => fromEventRow(row as EventRow))
-          .filter((row): row is PriceTrustEvent => row !== null);
-        if (positives.length !== (originals.data?.length ?? 0)) {
-          return { event: null, degraded: true };
-        }
-        const ids = positives.map((event) => event.id);
-        if (ids.length === 0) return { event: null, degraded: false };
-        const reversalRows = await admin()
-          .from(EVENTS_TABLE)
-          .select(
-            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
-          )
-          .in("reversal_of", ids)
-          .limit(REVERSAL_CHAIN_READ_LIMIT + 1);
-        if (reversalRows.error) throw new Error(reversalRows.error.message);
-        if ((reversalRows.data?.length ?? 0) > REVERSAL_CHAIN_READ_LIMIT) {
-          return { event: null, degraded: true };
-        }
-        const reversals = (reversalRows.data ?? [])
-          .map((row) => fromEventRow(row as EventRow))
-          .filter((row): row is PriceTrustEvent => row !== null);
-        if (reversals.length !== (reversalRows.data?.length ?? 0)) {
-          return { event: null, degraded: true };
-        }
-        return terminalReversal(positives, reversals);
-      },
-    });
-  },
-
   async terminalReversalFor(root) {
     const id = cleanText(root.id, 64);
     const fingerprint = cleanText(root.evidenceFingerprint, 128);
@@ -679,83 +788,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
         memoryPriceTrustEventStore.terminalReversalFor(cleanRoot),
       message: "trust reversal chain read failed",
       onError: () => ({ event: null, degraded: true }),
-      run: async () => {
-        const rootRows = await admin()
-          .from(EVENTS_TABLE)
-          .select(
-            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
-          )
-          .eq("evidence_fingerprint", fingerprint)
-          .is("reversal_of", null)
-          .limit(2);
-        if (rootRows.error) throw new Error(rootRows.error.message);
-        if ((rootRows.data?.length ?? 0) !== 1) {
-          return { event: null, degraded: true };
-        }
-        const selectedRoot = fromEventRow(rootRows.data![0] as EventRow);
-        if (
-          !selectedRoot ||
-          selectedRoot.id !== id ||
-          selectedRoot.venueId !== venueId ||
-          selectedRoot.category !== root.category
-        ) {
-          return { event: null, degraded: true };
-        }
-
-        let current = selectedRoot;
-        const seen = new Set([current.id]);
-        for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
-          const reversalRows = await admin()
-            .from(EVENTS_TABLE)
-            .select(
-              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
-            )
-            .in("reversal_of", [current.id])
-            .limit(2);
-          if (reversalRows.error) throw new Error(reversalRows.error.message);
-          if ((reversalRows.data?.length ?? 0) > 1) {
-            return { event: null, degraded: true };
-          }
-          if ((reversalRows.data?.length ?? 0) === 0) {
-            return { event: null, degraded: false };
-          }
-          const reversal = fromEventRow(reversalRows.data![0] as EventRow);
-          if (!reversal || seen.has(reversal.id)) {
-            return { event: null, degraded: true };
-          }
-          seen.add(reversal.id);
-
-          const restoredFingerprint =
-            `restored:${fingerprint}:${reversal.id}`;
-          const restoredRows = await admin()
-            .from(EVENTS_TABLE)
-            .select(
-              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
-            )
-            .eq("evidence_fingerprint", restoredFingerprint)
-            .is("reversal_of", null)
-            .limit(2);
-          if (restoredRows.error) throw new Error(restoredRows.error.message);
-          if ((restoredRows.data?.length ?? 0) > 1) {
-            return { event: null, degraded: true };
-          }
-          if ((restoredRows.data?.length ?? 0) === 0) {
-            return { event: reversal, degraded: false };
-          }
-          const restored = fromEventRow(restoredRows.data![0] as EventRow);
-          if (
-            !restored ||
-            restored.venueId !== venueId ||
-            restored.category !== root.category ||
-            seen.has(restored.id)
-          ) {
-            return { event: null, degraded: true };
-          }
-          current = restored;
-          seen.add(current.id);
-        }
-        return { event: null, degraded: true };
-      },
+      run: () => readTerminalReversalForRoot(cleanRoot),
     });
   },
   async recordUnlock(input) {

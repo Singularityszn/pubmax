@@ -18,6 +18,7 @@ type QueryState = {
   isNull: string[];
   inFilters: [string, unknown[]][];
   containsFilters: [string, unknown[]][];
+  likeFilters: [string, string][];
   limit: number | null;
 };
 
@@ -38,6 +39,16 @@ function matches(row: EventRow, state: QueryState): boolean {
       return false;
     }
   }
+  for (const [column, pattern] of state.likeFilters) {
+    const held = record[column];
+    if (
+      typeof held !== "string" ||
+      !pattern.startsWith("%") ||
+      !held.endsWith(pattern.slice(1))
+    ) {
+      return false;
+    }
+  }
   return true;
 }
 
@@ -47,6 +58,7 @@ function makeQuery() {
     isNull: [],
     inFilters: [],
     containsFilters: [],
+    likeFilters: [],
     limit: null,
   };
   const query = {
@@ -67,6 +79,10 @@ function makeQuery() {
     },
     contains(column: string, values: unknown[]) {
       state.containsFilters.push([column, values]);
+      return query;
+    },
+    like(column: string, pattern: string) {
+      state.likeFilters.push([column, pattern]);
       return query;
     },
     order() {
@@ -156,7 +172,7 @@ describe("supabasePriceTrustEventStore.liveEventsFor", () => {
   });
 });
 
-describe("supabasePriceTrustEventStore.latestReversalCovering", () => {
+describe("supabasePriceTrustEventStore.terminalReversalFor", () => {
   it("finds the terminal reversal through a repeated cycle with equal timestamps", async () => {
     const timestamp = "2026-08-16T18:00:00.000Z";
     events.push(
@@ -185,10 +201,81 @@ describe("supabasePriceTrustEventStore.latestReversalCovering", () => {
       },
     );
 
-    const result = await supabasePriceTrustEventStore.latestReversalCovering("obs-a");
+    await expect(
+      supabasePriceTrustEventStore.terminalReversalFor({
+        id: UNLOCK.id,
+        evidenceFingerprint: UNLOCK.evidence_fingerprint,
+        venueId: UNLOCK.venue_id,
+        category: "beer",
+        observationIds: UNLOCK.observation_ids,
+        createdAt: UNLOCK.created_at,
+        reversalOf: null,
+      }),
+    ).resolves.toMatchObject({
+      event: { id: "reversal-two" },
+      degraded: false,
+    });
+  });
 
-    expect(result.degraded).toBe(false);
-    expect(result.event?.id).toBe("reversal-two");
+  it("degrades when the exact lineage exceeds the bounded read", async () => {
+    let previousId = UNLOCK.id;
+    events.push(UNLOCK);
+    for (let index = 0; index < 101; index += 1) {
+      const reversalId = `reversal-${index}`;
+      const restoredId = `restored-${index}`;
+      events.push({
+        ...UNLOCK,
+        id: reversalId,
+        evidence_fingerprint: `reverse-${index}`,
+        observation_ids: [],
+        reversal_of: previousId,
+      });
+      events.push({
+        ...UNLOCK,
+        id: restoredId,
+        evidence_fingerprint: `restored:fingerprint-${index}:${reversalId}`,
+        reversal_of: null,
+      });
+      previousId = restoredId;
+    }
+
+    await expect(
+      supabasePriceTrustEventStore.terminalReversalFor({
+        id: UNLOCK.id,
+        evidenceFingerprint: UNLOCK.evidence_fingerprint,
+        venueId: UNLOCK.venue_id,
+        category: "beer",
+        observationIds: UNLOCK.observation_ids,
+        createdAt: UNLOCK.created_at,
+        reversalOf: null,
+      }),
+    ).resolves.toEqual({ event: null, degraded: true });
+  });
+
+  it("follows an exact root through restored evidence that changed", async () => {
+    events.push(
+      UNLOCK,
+      {
+        ...UNLOCK,
+        id: "reversal-one",
+        evidence_fingerprint: "reverse-one",
+        observation_ids: [],
+        reversal_of: "event-one",
+      },
+      {
+        ...UNLOCK,
+        id: "event-two",
+        evidence_fingerprint: "restored:fingerprint-two:reversal-one",
+        observation_ids: ["obs-b", "obs-c"],
+      },
+      {
+        ...UNLOCK,
+        id: "reversal-two",
+        evidence_fingerprint: "reverse-two",
+        observation_ids: [],
+        reversal_of: "event-two",
+      },
+    );
 
     await expect(
       supabasePriceTrustEventStore.terminalReversalFor({
@@ -206,24 +293,62 @@ describe("supabasePriceTrustEventStore.latestReversalCovering", () => {
     });
   });
 
-  it("degrades when the covering chain exceeds the bounded read", async () => {
-    for (let index = 0; index < 101; index += 1) {
-      events.push({
+  it("follows the deterministic restoration after sibling branches are reversed", async () => {
+    events.push(
+      UNLOCK,
+      {
         ...UNLOCK,
-        id: `event-${index}`,
-        evidence_fingerprint: `fingerprint-${index}`,
-      });
-    }
-    events.push({
-      ...UNLOCK,
-      id: "reversal-overflow",
-      evidence_fingerprint: "reverse-overflow",
-      observation_ids: [],
-      reversal_of: "event-100",
-    });
+        id: "reversal-root",
+        evidence_fingerprint: "reverse-root",
+        observation_ids: [],
+        created_at: "2026-08-16T18:00:01.000Z",
+        reversal_of: "event-one",
+      },
+      {
+        ...UNLOCK,
+        id: "restored-keeper",
+        evidence_fingerprint: "restored:keeper:reversal-root",
+        observation_ids: ["obs-b", "obs-c"],
+        created_at: "2026-08-16T18:00:02.000Z",
+      },
+      {
+        ...UNLOCK,
+        id: "restored-loser",
+        evidence_fingerprint: "restored:loser:reversal-root",
+        observation_ids: ["obs-c", "obs-d"],
+        created_at: "2026-08-16T18:00:03.000Z",
+      },
+      {
+        ...UNLOCK,
+        id: "reversal-loser",
+        evidence_fingerprint: "reverse-loser",
+        observation_ids: [],
+        created_at: "2026-08-16T18:00:04.000Z",
+        reversal_of: "restored-loser",
+      },
+      {
+        ...UNLOCK,
+        id: "reversal-keeper",
+        evidence_fingerprint: "reverse-keeper",
+        observation_ids: [],
+        created_at: "2026-08-16T18:00:05.000Z",
+        reversal_of: "restored-keeper",
+      },
+    );
 
     await expect(
-      supabasePriceTrustEventStore.latestReversalCovering("obs-a"),
-    ).resolves.toEqual({ event: null, degraded: true });
+      supabasePriceTrustEventStore.terminalReversalFor({
+        id: UNLOCK.id,
+        evidenceFingerprint: UNLOCK.evidence_fingerprint,
+        venueId: UNLOCK.venue_id,
+        category: "beer",
+        observationIds: UNLOCK.observation_ids,
+        createdAt: UNLOCK.created_at,
+        reversalOf: null,
+      }),
+    ).resolves.toMatchObject({
+      event: { id: "reversal-keeper" },
+      degraded: false,
+    });
   });
 });

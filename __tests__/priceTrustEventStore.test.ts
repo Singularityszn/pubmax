@@ -298,10 +298,106 @@ describe("priceTrustEventStore", () => {
     });
 
     await expect(
-      memoryPriceTrustEventStore.latestReversalCovering("obs-a"),
+      memoryPriceTrustEventStore.terminalReversalFor(original.event!),
     ).resolves.toEqual({ event: secondReversal.event, degraded: false });
+  });
+
+  it("follows an exact root through restored evidence that changed", async () => {
+    const original = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "unlock-one",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-a", "obs-b"],
+      userIds: [],
+      now: NOW,
+    });
+    const firstReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-one",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: original.event!.id,
+      now: NOW,
+    });
+    const restored = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: `restored:unlock-two:${firstReversal.event!.id}`,
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-b", "obs-c"],
+      userIds: [],
+      now: NOW,
+    });
+    const secondReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-two",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: restored.event!.id,
+      now: NOW,
+    });
+
     await expect(
       memoryPriceTrustEventStore.terminalReversalFor(original.event!),
     ).resolves.toEqual({ event: secondReversal.event, degraded: false });
+  });
+
+  it("follows the deterministic restoration after sibling branches are reversed", async () => {
+    const original = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "unlock-sibling-root",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-a", "obs-b"],
+      userIds: [],
+      now: NOW - 5_000,
+    });
+    const rootReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-sibling-root",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: original.event!.id,
+      now: NOW - 4_000,
+    });
+    const keeper = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: `restored:keeper:${rootReversal.event!.id}`,
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-b", "obs-c"],
+      userIds: [],
+      now: NOW - 3_000,
+    });
+    const loser = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: `restored:loser:${rootReversal.event!.id}`,
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: ["obs-c", "obs-d"],
+      userIds: [],
+      now: NOW - 2_000,
+    });
+    await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-sibling-loser",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: loser.event!.id,
+      now: NOW - 1_000,
+    });
+    const keeperReversal = await memoryPriceTrustEventStore.recordUnlock({
+      fingerprint: "reverse-sibling-keeper",
+      venueId: "venue-one",
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: keeper.event!.id,
+      now: NOW,
+    });
+
+    await expect(
+      memoryPriceTrustEventStore.terminalReversalFor(original.event!),
+    ).resolves.toEqual({ event: keeperReversal.event, degraded: false });
   });
 });

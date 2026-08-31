@@ -301,7 +301,7 @@ describe("community price moderation (memory backend)", () => {
     it("retries trust-credit reconciliation after the price is already hidden", async () => {
       const id = await logPrice("v1", 4.2, 1_000, "profile:one");
       const store = priceTrustEventStore();
-      await store.recordUnlock({
+      const original = await store.recordUnlock({
         fingerprint: "initial-cluster",
         venueId: "v1",
         category: "beer",
@@ -326,11 +326,13 @@ describe("community price moderation (memory backend)", () => {
 
       expect((await adminPost({ action: "hide", id })).status).toBe(200);
       expect((await store.readVisibleImpact("user-one")).lifetimeTrustUnlocks).toBe(0);
-      const reversalId = (await store.latestReversalCovering(id)).event?.id;
+      const reversalId = (await store.terminalReversalFor(original.event!)).event?.id;
       expect(reversalId).toBeTruthy();
       expect((await adminPost({ action: "hide", id })).status).toBe(200);
       expect((await store.readVisibleImpact("user-one")).lifetimeTrustUnlocks).toBe(0);
-      expect((await store.latestReversalCovering(id)).event?.id).toBe(reversalId);
+      expect((await store.terminalReversalFor(original.event!)).event?.id).toBe(
+        reversalId,
+      );
     });
 
     it("rejects an unknown action and a missing id", async () => {

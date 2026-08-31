@@ -27,6 +27,10 @@ import {
 } from "@/lib/profileStore";
 import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
 import {
+  reversalFingerprint,
+  trustEventFingerprint,
+} from "@/lib/priceTrustEvents";
+import {
   drainPendingPriceTrustReconciliations,
   readPriceTrustImpact,
   reconcilePriceTrustForObservation,
@@ -40,6 +44,7 @@ const VENUE = "venue-one";
 const USER_A = "00000000-0000-4000-8000-0000000000aa";
 const USER_B = "00000000-0000-4000-8000-0000000000bb";
 const USER_C = "00000000-0000-4000-8000-0000000000cc";
+const USER_D = "00000000-0000-4000-8000-0000000000dd";
 
 async function onboard(userId: string, handle: string): Promise<string> {
   const result = await memoryPrivateIdentityStore.completeOnboarding({
@@ -245,6 +250,240 @@ describe("syncTrustAfterPriceWrite", () => {
     });
     expect(await readPriceTrustImpact(USER_B)).toMatchObject({
       lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("restores the qualifying root when another reversed chain shares its evidence", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const profileC = await onboard(USER_C, "cara_pint");
+    const idA = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    const idB = await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    const idC = await logPrice("cara_pint", profileC, 4.2, NOW - 1_000);
+    const store = priceTrustEventStore();
+
+    const firstFingerprint = trustEventFingerprint(VENUE, "beer", [idA, idB]);
+    const first = await store.recordUnlock({
+      fingerprint: firstFingerprint,
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [idA, idB],
+      userIds: [USER_A, USER_B],
+      now: NOW - 2_000,
+    });
+    await store.recordUnlock({
+      fingerprint: reversalFingerprint(firstFingerprint),
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: first.event!.id,
+      now: NOW - 1_500,
+    });
+    const competingFingerprint = trustEventFingerprint(VENUE, "beer", [idA, idC]);
+    const competing = await store.recordUnlock({
+      fingerprint: competingFingerprint,
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [idA, idC],
+      userIds: [USER_A, USER_C],
+      now: NOW - 1_000,
+    });
+    await store.recordUnlock({
+      fingerprint: reversalFingerprint(competingFingerprint),
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: competing.event!.id,
+      now: NOW - 500,
+    });
+    expect((await store.terminalReversalFor(first.event!)).degraded).toBe(false);
+    expect((await store.terminalReversalFor(competing.event!)).degraded).toBe(false);
+
+    expect(await syncTrustAfterPriceRestored(idA, NOW)).toEqual({
+      status: "synced",
+    });
+    const live = await store.liveEventsFor(VENUE, "beer");
+    expect(live.events).toHaveLength(1);
+    expect(live.events[0]?.observationIds).toEqual([idA, idB].sort());
+  });
+
+  it("converges divergent live events on the earliest valid unlock", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const profileC = await onboard(USER_C, "cara_pint");
+    const profileD = await onboard(USER_D, "dave_pint");
+    const idA = await logPrice("alice_pint", profileA, 4.2, NOW - 4_000);
+    const idB = await logPrice("bob_pint", profileB, 4.2, NOW - 3_000);
+    const idC = await logPrice("cara_pint", profileC, 6, NOW - 2_000);
+    const idD = await logPrice("dave_pint", profileD, 6, NOW - 1_000);
+    const store = priceTrustEventStore();
+    const first = await store.recordUnlock({
+      fingerprint: trustEventFingerprint(VENUE, "beer", [idA, idB]),
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [idA, idB],
+      userIds: [USER_A, USER_B],
+      now: NOW - 100,
+    });
+    await store.recordUnlock({
+      fingerprint: trustEventFingerprint(VENUE, "beer", [idC, idD]),
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [idC, idD],
+      userIds: [USER_C, USER_D],
+      now: NOW,
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(2);
+
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW + 1)).toEqual({
+      status: "synced",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events.map((event) => event.id)).toEqual([
+      first.event!.id,
+    ]);
+    expect(await readPriceTrustImpact(USER_C)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact(USER_D)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+  });
+
+  it("makes bounded progress when more live events exist than one pass can reverse", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const idA = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    const idB = await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    const store = priceTrustEventStore();
+    for (let index = 0; index < 18; index += 1) {
+      await store.recordUnlock({
+        fingerprint: `concurrent-unlock-${index}`,
+        venueId: VENUE,
+        category: "beer",
+        observationIds: [idA, idB],
+        userIds: [],
+        now: NOW + index,
+      });
+    }
+
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW + 100)).toEqual({
+      status: "unavailable",
+    });
+    const partlyConverged = await store.liveEventsFor(VENUE, "beer");
+    expect(partlyConverged.events).toHaveLength(2);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+
+    expect(await drainPendingPriceTrustReconciliations(20, NOW + 200)).toEqual({
+      processed: 1,
+      synced: 1,
+      pending: 0,
+      degraded: false,
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("does not restore or credit a stale pre-hide pair snapshot", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+    const store = priceTrustEventStore();
+    const originalLiveEventsFor = store.liveEventsFor.bind(store);
+    let releaseRead: (() => void) | null = null;
+    let holdNextRead = true;
+    vi.spyOn(store, "liveEventsFor").mockImplementation(async (...args) => {
+      if (holdNextRead) {
+        holdNextRead = false;
+        await new Promise<void>((resolve) => {
+          releaseRead = resolve;
+        });
+      }
+      return originalLiveEventsFor(...args);
+    });
+
+    const staleWorker = syncTrustAfterPriceWrite(VENUE, "beer", NOW);
+    await vi.waitFor(() => expect(releaseRead).not.toBeNull());
+    expect(await moderateCommunityPrice(hiddenId, true)).toBe(true);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "synced",
+    });
+    releaseRead!();
+    await staleWorker;
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+  });
+
+  it("revokes profile credit when hidden evidence is a legacy actor-null row", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    const legacy = await submitCommunityPrice(
+      {
+        venueId: VENUE,
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+      },
+      NOW - 2_000,
+    );
+    expect(legacy.price?.id).toBeTruthy();
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "synced",
+    });
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+
+    expect(await moderateCommunityPrice(legacy.price!.id!, true)).toBe(true);
+    expect(await syncTrustAfterPriceHidden(legacy.price!.id!, NOW)).toEqual({
+      status: "synced",
+    });
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 0,
+    });
+  });
+
+  it("keeps lifetime credit when a visible contributor later corrects the price", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const idA = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "synced",
+    });
+
+    expect(await logPrice("alice_pint", profileA, 6.5, NOW)).toBe(idA);
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 1,
+    });
+    expect((await priceTrustEventStore().listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await reconcilePriceTrustForObservation(idA, NOW + 1)).toEqual({
+      status: "synced",
     });
   });
 });

@@ -60,6 +60,9 @@ const TRUST_SYNCED: PriceTrustReconciliation = { status: "synced" };
 const TRUST_UNAVAILABLE: PriceTrustReconciliation = { status: "unavailable" };
 const TRUST_NOT_FOUND: PriceTrustObservationReconciliation = { status: "not-found" };
 const PRICE_TRUST_RECONCILIATION_BUDGET = 3;
+const MAX_CLUSTER_EVENT_WRITE_ATTEMPTS = 2;
+const MAX_CONCURRENT_REVERSALS_PER_PASS = 8;
+const MAX_CONVERGENCE_PASSES = 2;
 
 type PriceTrustReconciliationBudget = { remaining: number };
 
@@ -118,7 +121,7 @@ async function recordFirstCluster(
   category: DrinkCategory,
   observations: readonly TrustObservation[],
   now: number,
-  restorationKey?: string,
+  budget?: PriceTrustReconciliationBudget,
 ): Promise<PriceTrustReconciliation> {
   const cluster = firstQualifyingCluster(observations, now);
   if (!cluster) return TRUST_SYNCED;
@@ -127,53 +130,62 @@ async function recordFirstCluster(
   if (cluster.actors.length > 0 && userIds.length === 0) return TRUST_SYNCED;
   const store = priceTrustEventStore();
   const fingerprint = trustEventFingerprint(venueId, category, cluster.observationIds);
-  const written = await store.recordUnlock({
-    // A previous unlock may have a hide reversal. Restoring the observation
-    // needs a new positive event because the original fingerprint remains
-    // append-only and cannot be reused as visible credit.
-    fingerprint: restorationKey ? `restored:${fingerprint}:${restorationKey}` : fingerprint,
-    venueId,
-    category,
-    observationIds: cluster.observationIds,
-    userIds,
-    now,
-  });
-  if (written.failed || !written.event) return TRUST_UNAVAILABLE;
+  let terminalReversalId: string | undefined;
+  for (let attempt = 0; attempt < MAX_CLUSTER_EVENT_WRITE_ATTEMPTS; attempt += 1) {
+    if (attempt > 0 && budget && !consumeReconciliationStep(budget)) {
+      return TRUST_UNAVAILABLE;
+    }
+    const written = await store.recordUnlock({
+      // A previous unlock may have a hide reversal. Restoring the observation
+      // needs a new positive event because the original fingerprint remains
+      // append-only and cannot be reused as visible credit.
+      fingerprint: terminalReversalId
+        ? `restored:${fingerprint}:${terminalReversalId}`
+        : fingerprint,
+      venueId,
+      category,
+      observationIds: cluster.observationIds,
+      // Credit becomes visible only after final pair evidence is re-read.
+      userIds: [],
+      now,
+    });
+    if (written.failed || !written.event) return TRUST_UNAVAILABLE;
 
-  const live = await store.liveEventsFor(venueId, category);
-  if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
-  if (live.events.length === 1) return TRUST_SYNCED;
-  if (restorationKey || written.created) return TRUST_UNAVAILABLE;
+    const live = await store.liveEventsFor(venueId, category);
+    if (live.degraded) return TRUST_UNAVAILABLE;
+    if (live.events.length > 1) {
+      return convergeConcurrentLiveEvents(venueId, category, live.events, now);
+    }
+    if (live.events.length === 1) {
+      return repairEventCredits(live.events[0], now);
+    }
 
-  // The evidence fingerprint is append-only. A repeated qualifying cluster can
-  // therefore reuse an older positive event which a hide already reversed.
-  // Key the replacement to that chain's terminal reversal, then prove a live
-  // event exists before the reconciliation queue can be acknowledged.
-  const reversal = await store.terminalReversalFor(written.event);
-  if (reversal.degraded || !reversal.event) return TRUST_UNAVAILABLE;
-  const restored = await store.recordUnlock({
-    fingerprint: `restored:${fingerprint}:${reversal.event.id}`,
-    venueId,
-    category,
-    observationIds: cluster.observationIds,
-    userIds,
-    now,
-  });
-  if (restored.failed || !restored.event) return TRUST_UNAVAILABLE;
-  const verified = await store.liveEventsFor(venueId, category);
-  return !verified.degraded && verified.events.length === 1
-    ? TRUST_SYNCED
-    : TRUST_UNAVAILABLE;
+    const reversal = await store.terminalReversalFor(written.event);
+    if (
+      reversal.degraded ||
+      !reversal.event ||
+      reversal.event.id === terminalReversalId
+    ) {
+      return TRUST_UNAVAILABLE;
+    }
+    terminalReversalId = reversal.event.id;
+  }
+  return TRUST_UNAVAILABLE;
 }
 
 async function repairEventCredits(
   event: PriceTrustEvent,
-  observations: readonly CommunityPriceObservation[],
+  now: number,
 ): Promise<PriceTrustReconciliation> {
   if (event.observationIds.length === 0) return TRUST_UNAVAILABLE;
-  const byId = new Map(observations.map((row) => [row.id, row]));
+  const listed = await listCommunityPriceObservations(event.venueId, event.category);
+  if (listed.degraded) return TRUST_UNAVAILABLE;
+  const byId = new Map(listed.observations.map((row) => [row.id, row]));
   const evidence = event.observationIds.map((id) => byId.get(id));
-  if (evidence.some((row) => !row || row.hidden)) return TRUST_UNAVAILABLE;
+  if (evidence.some((row) => !row || row.hidden)) {
+    await reverseTrustEvent(event, now);
+    return TRUST_UNAVAILABLE;
+  }
   const actors = evidence
     .map((row) => row?.actor)
     .filter((actor): actor is string => typeof actor === "string" && actor !== "");
@@ -181,6 +193,81 @@ async function repairEventCredits(
   if (!userIds) return TRUST_UNAVAILABLE;
   const ensured = await priceTrustEventStore().ensureCredits(event.id, userIds);
   return ensured.failed ? TRUST_UNAVAILABLE : TRUST_SYNCED;
+}
+
+function validConcurrentEvent(
+  event: PriceTrustEvent,
+  venueId: string,
+  category: DrinkCategory,
+  rowsById: ReadonlyMap<string, CommunityPriceObservation>,
+): boolean {
+  if (
+    event.reversalOf !== null ||
+    event.venueId !== venueId ||
+    event.category !== category ||
+    event.observationIds.length === 0 ||
+    !Number.isFinite(Date.parse(event.createdAt))
+  ) {
+    return false;
+  }
+  const evidence = event.observationIds.map((id) => rowsById.get(id));
+  return !evidence.some((row) => !row || row.hidden);
+}
+
+async function reverseTrustEvent(
+  event: PriceTrustEvent,
+  now: number,
+): Promise<boolean> {
+  const reversed = await priceTrustEventStore().recordUnlock({
+    fingerprint: reversalFingerprint(event.evidenceFingerprint),
+    venueId: event.venueId,
+    category: event.category,
+    observationIds: [],
+    userIds: [],
+    reversalOf: event.id,
+    now,
+  });
+  return !reversed.failed && Boolean(reversed.event);
+}
+
+async function convergeConcurrentLiveEvents(
+  venueId: string,
+  category: DrinkCategory,
+  initialEvents: readonly PriceTrustEvent[],
+  now: number,
+): Promise<PriceTrustReconciliation> {
+  let liveEvents = [...initialEvents];
+  for (let pass = 0; pass < MAX_CONVERGENCE_PASSES; pass += 1) {
+    if (liveEvents.length < 2) return TRUST_UNAVAILABLE;
+    const listed = await listCommunityPriceObservations(venueId, category);
+    if (listed.degraded) return TRUST_UNAVAILABLE;
+    const rowsById = new Map(listed.observations.map((row) => [row.id, row]));
+    const valid = liveEvents.filter((event) =>
+      validConcurrentEvent(event, venueId, category, rowsById),
+    );
+    const invalid = liveEvents.filter((event) => !valid.includes(event));
+    const keeper = [...valid].sort(
+      (left, right) =>
+        Date.parse(left.createdAt) - Date.parse(right.createdAt) ||
+        left.id.localeCompare(right.id),
+    )[0];
+    const losers = [
+      ...invalid,
+      ...valid.filter((event) => event.id !== keeper?.id),
+    ].slice(0, MAX_CONCURRENT_REVERSALS_PER_PASS);
+    if (losers.length === 0) return TRUST_UNAVAILABLE;
+    for (const loser of losers) {
+      if (!(await reverseTrustEvent(loser, now))) return TRUST_UNAVAILABLE;
+    }
+    const final = await priceTrustEventStore().liveEventsFor(venueId, category);
+    if (final.degraded) return TRUST_UNAVAILABLE;
+    if (final.events.length === 1 && final.events[0]?.id === keeper?.id) {
+      return repairEventCredits(final.events[0], now);
+    }
+    if (final.events.length === 0) return TRUST_UNAVAILABLE;
+    liveEvents = final.events;
+  }
+  return TRUST_UNAVAILABLE;
 }
 
 export async function reconcilePendingPriceTrust(
@@ -197,9 +284,12 @@ export async function reconcilePendingPriceTrust(
       task.venueId,
       task.category,
     );
-    if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+    if (live.degraded) return TRUST_UNAVAILABLE;
+    if (live.events.length > 1) {
+      return convergeConcurrentLiveEvents(task.venueId, task.category, live.events, now);
+    }
     if (live.events.length === 1) {
-      return repairEventCredits(live.events[0], listed.observations);
+      return repairEventCredits(live.events[0], now);
     }
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
@@ -298,16 +388,6 @@ async function acknowledgePreparedPriceTrust(
   }
 }
 
-function sameObservationIds(
-  left: readonly string[],
-  right: readonly string[],
-): boolean {
-  if (left.length !== right.length) return false;
-  const orderedLeft = [...left].sort();
-  const orderedRight = [...right].sort();
-  return orderedLeft.every((id, index) => id === orderedRight[index]);
-}
-
 async function proveCurrentPriceTrustInvariant(
   observationId: string,
   venueId: string,
@@ -328,27 +408,24 @@ async function proveCurrentPriceTrustInvariant(
   if (listed.degraded) return TRUST_UNAVAILABLE;
   const observations = asTrustObservations(listed.observations);
   const currentCluster = firstQualifyingCluster(observations, now);
-  const live = await priceTrustEventStore().liveEventsFor(venueId, category);
-  if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+  let live = await priceTrustEventStore().liveEventsFor(venueId, category);
+  if (live.degraded) return TRUST_UNAVAILABLE;
+  if (live.events.length > 1) {
+    const converged = await convergeConcurrentLiveEvents(
+      venueId,
+      category,
+      live.events,
+      now,
+    );
+    if (converged.status === "unavailable") return converged;
+    live = await priceTrustEventStore().liveEventsFor(venueId, category);
+    if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+  }
   if (currentCluster && live.events.length !== 1) return TRUST_UNAVAILABLE;
 
   const event = live.events[0];
   if (event) {
-    const byId = new Map(listed.observations.map((row) => [row.id, row]));
-    const evidence = event.observationIds
-      .map((id) => byId.get(id))
-      .filter((row): row is CommunityPriceObservation => row !== undefined);
-    const eventAt = Date.parse(event.createdAt);
-    const evidenceCluster = Number.isFinite(eventAt)
-      ? firstQualifyingCluster(asTrustObservations(evidence), eventAt)
-      : null;
-    if (
-      !evidenceCluster
-      || !sameObservationIds(evidenceCluster.observationIds, event.observationIds)
-    ) {
-      return TRUST_UNAVAILABLE;
-    }
-    const credits = await repairEventCredits(event, listed.observations);
+    const credits = await repairEventCredits(event, now);
     if (credits.status === "unavailable") return credits;
   }
 
@@ -413,8 +490,18 @@ async function syncTrustAfterPriceHiddenWithBudget(
     if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
     if (live.degraded) return TRUST_UNAVAILABLE;
-    if (live.events.length > 0) return TRUST_SYNCED;
-    return recordFirstCluster(venueId, drinkCategory, observations, now);
+    if (live.events.length > 1) {
+      return convergeConcurrentLiveEvents(
+        venueId,
+        drinkCategory,
+        live.events,
+        now,
+      );
+    }
+    if (live.events.length === 1) {
+      return repairEventCredits(live.events[0], now);
+    }
+    return recordFirstCluster(venueId, drinkCategory, observations, now, budget);
   } catch (error) {
     console.warn(`${STORE_TAG} sync after hide failed`, error);
     return TRUST_UNAVAILABLE;
@@ -437,13 +524,17 @@ async function syncTrustAfterPriceRestoredWithBudget(
     if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
     const live = await priceTrustEventStore().liveEventsFor(venueId, drinkCategory);
     if (live.degraded) return TRUST_UNAVAILABLE;
-    if (live.events.length > 0) return TRUST_SYNCED;
-    // The row's moderation stamp identifies this transition. Retries and
-    // concurrent syncs therefore share one append-only event identity.
-    const reversal = await priceTrustEventStore().latestReversalCovering(observationId);
-    if (reversal.degraded) return TRUST_UNAVAILABLE;
-    if (!reversal.event) return TRUST_SYNCED;
-    const restorationKey = reversal.event.id;
+    if (live.events.length > 1) {
+      return convergeConcurrentLiveEvents(
+        venueId,
+        drinkCategory,
+        live.events,
+        now,
+      );
+    }
+    if (live.events.length === 1) {
+      return repairEventCredits(live.events[0], now);
+    }
     const current = await findCommunityPriceObservation(observationId);
     if (current.degraded) return TRUST_UNAVAILABLE;
     if (current.observation?.hidden) return TRUST_SYNCED;
@@ -452,7 +543,7 @@ async function syncTrustAfterPriceRestoredWithBudget(
       drinkCategory,
       observations,
       now,
-      restorationKey,
+      budget,
     );
     if (recorded.status === "unavailable") return recorded;
     const final = await findCommunityPriceObservation(observationId);
