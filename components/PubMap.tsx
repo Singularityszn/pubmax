@@ -301,7 +301,11 @@ import {
 import type { ThingsToDoOpportunity } from "@/lib/citymcp/client";
 import { pinsToSlimVenues, slimVenuesToPins } from "@/lib/slimPins";
 import { formatSelectionHint, parseSelectionHint } from "@/lib/mapSelectionHistory";
-import { isUkBaseId, type UkBasePub } from "@/lib/ukBasePubs";
+import {
+  isUkBaseId,
+  type UkBasePub,
+  type UkBaseStreamStatus,
+} from "@/lib/ukBasePubs";
 import { computeZonePintIndex } from "@/lib/zones";
 import { useCityStoryCatalog } from "@/components/map/useCityStoryCatalog";
 import { mapSeedNeedsCuratedCrawlLookup } from "@/lib/mapSeedCrawlPolicy";
@@ -350,7 +354,7 @@ import {
 import {
   readOpeningMapLocation,
   readMapOpeningLocation,
-  resolveMapOpeningLocation,
+  resolveMapOpeningView,
   writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
@@ -799,22 +803,16 @@ export default function PubMap({
       };
     }
     if (mapOpeningNeedsResolution) return OPENING_LOCATION_HOLD_VIEW;
-    const cityDefault = {
-      lat: city.mapView.center[1],
-      lng: city.mapView.center[0],
-    };
-    const location = resolveMapOpeningLocation(
+    const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
         ? lastKnownLocation
-        : null,
-      cityDefault,
+        : null;
+    return resolveMapOpeningView(
+      city.mapView,
+      location,
+      LOCATION_FIRST_ZOOM,
     );
-    return {
-      ...city.mapView,
-      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
-      center: [location.lng, location.lat],
-    };
   });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -1055,40 +1053,33 @@ export default function PubMap({
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
   const fallbackOpeningMapView = useMemo(() => {
-    const cityDefault = {
-      lat: city.mapView.center[1],
-      lng: city.mapView.center[0],
-    };
-    const location = resolveMapOpeningLocation(
+    const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
         ? lastKnownLocation
-        : null,
-      cityDefault,
+        : null;
+    return resolveMapOpeningView(
+      city.mapView,
+      location,
+      LOCATION_FIRST_ZOOM,
     );
-    return {
-      ...city.mapView,
-      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
-      center: [location.lng, location.lat] as [number, number],
-    };
   }, [city, lastKnownLocation]);
   const locationFirstMapView = useMemo(() => {
     if (!mapOpeningNeedsResolution) return initialMapView;
     if (!openingLocationResolved) return OPENING_LOCATION_HOLD_VIEW;
     if (!grantedOpeningLocation) return fallbackOpeningMapView;
-    return {
-      ...fallbackOpeningMapView,
-      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
-        number,
-        number,
-      ],
-    };
+    return resolveMapOpeningView(
+      city.mapView,
+      grantedOpeningLocation,
+      LOCATION_FIRST_ZOOM,
+    );
   }, [
     fallbackOpeningMapView,
     grantedOpeningLocation,
     initialMapView,
     mapOpeningNeedsResolution,
     openingLocationResolved,
+    city.mapView,
   ]);
   const openingLoadViewport = useMemo(
     () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,
@@ -2455,6 +2446,8 @@ export default function PubMap({
     ],
   );
   const [renderedBasePubs, setRenderedBasePubs] = useState<UkBasePub[]>([]);
+  const [ukBaseStatus, setUkBaseStatus] =
+    useState<UkBaseStreamStatus>("loading");
   /** Resident streamed base pubs (padded viewport), for map-search name match. */
   const [residentUkBasePubs, setResidentUkBasePubs] = useState<UkBasePub[]>([]);
   const provisionalRestoreResolved = useRef(!ukBaseRestore);
@@ -4818,6 +4811,7 @@ export default function PubMap({
           onVenueClick={handleVenueClick}
           onUkBasePubClick={handleUkBasePubClick}
           onUkBasePubsChange={setRenderedBasePubs}
+          onUkBaseStatusChange={setUkBaseStatus}
           onUkBaseResidentPubsChange={setResidentUkBasePubs}
           onVisibleVenueIdsChange={handleVisibleVenueIdsChange}
           onRenderedStateChange={handleRenderedMapStateChange}
@@ -5016,6 +5010,7 @@ export default function PubMap({
         <MapVenueList
           model={mapVenueListModel}
           ukBaseModel={ukBasePubListModel}
+          ukBaseStatus={ukBaseStatus}
           cityName={mapContextName}
           open={mapListOpen}
           onOpenChange={setMapListOpen}

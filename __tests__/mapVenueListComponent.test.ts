@@ -140,4 +140,100 @@ describe("MapVenueList", () => {
     );
     expect(html).not.toContain('aria-label="Sort venues on the map"');
   });
+
+  it("does not claim an empty view when unlisted pubs could not load", () => {
+    const curated: MapVenueListModel = {
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        ukBaseStatus: "unavailable",
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain("Unlisted pubs could not load");
+    expect(html).not.toContain("Nothing matches");
+    expect(html).not.toContain("Nothing in view fits that");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+  });
+
+  it("keeps an empty list pending while unlisted pubs are still loading", () => {
+    const curated: MapVenueListModel = {
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        ukBaseStatus: "loading",
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain("Counting them up…");
+    expect(html).not.toContain("Nothing matches");
+    expect(html).not.toContain("Nothing in view fits that");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+  });
+
+  it("discloses incomplete unlisted-pub coverage beside curated results", () => {
+    const curated: MapVenueListModel = {
+      rows: [
+        {
+          id: "venue-curated",
+          name: "Curated Arms",
+          typeLabel: "Pub",
+          priceLabel: "£4.50",
+          anchor: null,
+        },
+      ],
+      total: 1,
+      shown: 1,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        ukBaseStatus: "unavailable",
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain("Some unlisted pubs could not load");
+    expect(html).toContain("Curated Arms");
+  });
 });
