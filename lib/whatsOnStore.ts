@@ -362,6 +362,7 @@ export async function loadWhatsOn(
         markVerifiedLondonRows(baseline, true);
         baselineProviderObservedAt = canonicalPastIso(served.providerObservedAt, now);
       } catch (error) {
+        readStatus = "degraded";
         console.warn(
           "[whats-on] durable listing read failed; using bundled fallback:",
           error instanceof Error ? error.message : String(error),
