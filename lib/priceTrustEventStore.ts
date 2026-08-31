@@ -19,9 +19,12 @@ import {
 
 const EVENTS_TABLE = "price_trust_events";
 const CREDITS_TABLE = "price_trust_credits";
-const MIGRATION_HINT = "apply migration 0108";
+const QUEUE_TABLE = "price_trust_reconciliation_queue";
+const EVENTS_MIGRATION_HINT = "apply migration 0108";
+const QUEUE_MIGRATION_HINT = "apply migration 0126";
 const STORE_TAG = "price-trust-events";
 const REVERSAL_CHAIN_READ_LIMIT = 100;
+const RECONCILIATION_READ_LIMIT = 100;
 
 export type PriceTrustEvent = {
   id: string;
@@ -36,6 +39,13 @@ export type PriceTrustEvent = {
 export type PriceTrustCredit = {
   userId: string;
   trustEventId: string;
+};
+
+export type PriceTrustReconciliationTask = {
+  venueId: string;
+  category: DrinkCategory;
+  version: number;
+  enqueuedAt: string;
 };
 
 export type RecordUnlockInput = {
@@ -63,6 +73,22 @@ export type VisibleImpact = {
 
 export type PriceTrustEventStore = {
   recordUnlock(input: RecordUnlockInput): Promise<RecordUnlockResult>;
+  ensureCredits(
+    eventId: string,
+    userIds: readonly string[],
+  ): Promise<{ failed?: true }>;
+  enqueueReconciliation(
+    venueId: string,
+    category: DrinkCategory,
+    now?: number,
+  ): Promise<{ task: PriceTrustReconciliationTask | null; failed?: true }>;
+  listPendingReconciliations(limit?: number): Promise<{
+    tasks: PriceTrustReconciliationTask[];
+    degraded: boolean;
+  }>;
+  ackReconciliation(
+    task: PriceTrustReconciliationTask,
+  ): Promise<{ acknowledged: boolean; failed?: true }>;
   liveEventsFor(
     venueId: string,
     category: DrinkCategory,
@@ -72,6 +98,10 @@ export type PriceTrustEventStore = {
     degraded: boolean;
   }>;
   latestReversalCovering(observationId: string): Promise<{
+    event: PriceTrustEvent | null;
+    degraded: boolean;
+  }>;
+  terminalReversalFor(event: PriceTrustEvent): Promise<{
     event: PriceTrustEvent | null;
     degraded: boolean;
   }>;
@@ -102,12 +132,41 @@ function cleanIds(values: readonly unknown[]): string[] {
 type MemoryState = {
   events: PriceTrustEvent[];
   credits: PriceTrustCredit[];
+  reconciliationQueue: Map<string, PriceTrustReconciliationTask>;
+  nextReconciliationVersion: number;
 };
 
 const memory: MemoryState = {
   events: [],
   credits: [],
+  reconciliationQueue: new Map(),
+  nextReconciliationVersion: 0,
 };
+
+function reconciliationKey(venueId: string, category: DrinkCategory): string {
+  return `${venueId}\0${category}`;
+}
+
+function reconciliationLimit(value: number | undefined): number {
+  if (!Number.isFinite(value)) return 20;
+  return Math.max(1, Math.min(RECONCILIATION_READ_LIMIT, Math.floor(value!)));
+}
+
+function cleanReconciliationTask(
+  task: PriceTrustReconciliationTask,
+): PriceTrustReconciliationTask | null {
+  const venueId = cleanText(task.venueId, 64);
+  if (
+    !venueId ||
+    !isDrinkCategory(task.category) ||
+    !Number.isSafeInteger(task.version) ||
+    task.version < 1 ||
+    !task.enqueuedAt
+  ) {
+    return null;
+  }
+  return { ...task, venueId };
+}
 
 function isReversed(eventId: string, events: readonly PriceTrustEvent[]): boolean {
   return events.some((event) => event.reversalOf === eventId);
@@ -135,6 +194,44 @@ function terminalReversal(
   return { event: terminal[0] ?? null, degraded: false };
 }
 
+function terminalReversalForRoot(
+  root: PriceTrustEvent,
+  events: readonly PriceTrustEvent[],
+): { event: PriceTrustEvent | null; degraded: boolean } {
+  let current = root;
+  const seen = new Set([root.id]);
+  for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
+    const reversals = events.filter(
+      (candidate) => candidate.reversalOf === current.id,
+    );
+    if (reversals.length > 1) return { event: null, degraded: true };
+    const reversal = reversals[0];
+    if (!reversal) return { event: null, degraded: false };
+    if (seen.has(reversal.id)) return { event: null, degraded: true };
+    seen.add(reversal.id);
+
+    const restoredFingerprint =
+      `restored:${root.evidenceFingerprint}:${reversal.id}`;
+    const restored = events.filter(
+      (candidate) =>
+        candidate.reversalOf === null &&
+        candidate.evidenceFingerprint === restoredFingerprint,
+    );
+    if (restored.length > 1) return { event: null, degraded: true };
+    if (restored.length === 0) return { event: reversal, degraded: false };
+    if (
+      restored[0].venueId !== root.venueId ||
+      restored[0].category !== root.category ||
+      seen.has(restored[0].id)
+    ) {
+      return { event: null, degraded: true };
+    }
+    current = restored[0];
+    seen.add(current.id);
+  }
+  return { event: null, degraded: true };
+}
+
 function stampEvent(input: RecordUnlockInput, nowMs: number): PriceTrustEvent {
   return {
     id: randomUUID(),
@@ -160,15 +257,66 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     const event = existing ?? stampEvent({ ...input, fingerprint, venueId }, input.now ?? Date.now());
     const created = !existing;
     if (created) memory.events.push(event);
-    for (const raw of input.userIds) {
+    const credits = await memoryPriceTrustEventStore.ensureCredits(
+      event.id,
+      input.userIds,
+    );
+    return credits.failed ? { event, created, failed: true } : { event, created };
+  },
+
+  async ensureCredits(eventId, userIds) {
+    const key = cleanText(eventId, 64);
+    if (!key || !memory.events.some((event) => event.id === key)) {
+      return { failed: true };
+    }
+    for (const raw of userIds) {
       const userId = cleanUserId(raw);
       if (!userId) continue;
       const held = memory.credits.some(
-        (credit) => credit.userId === userId && credit.trustEventId === event.id,
+        (credit) => credit.userId === userId && credit.trustEventId === key,
       );
-      if (!held) memory.credits.push({ userId, trustEventId: event.id });
+      if (!held) memory.credits.push({ userId, trustEventId: key });
     }
-    return { event, created };
+    return {};
+  },
+
+  async enqueueReconciliation(venueId, category, now = Date.now()) {
+    const key = cleanText(venueId, 64);
+    if (!key || !isDrinkCategory(category)) {
+      return { task: null, failed: true };
+    }
+    const queueKey = reconciliationKey(key, category);
+    const task: PriceTrustReconciliationTask = {
+      venueId: key,
+      category,
+      version: (memory.nextReconciliationVersion += 1),
+      enqueuedAt: new Date(now).toISOString(),
+    };
+    memory.reconciliationQueue.set(queueKey, task);
+    return { task };
+  },
+
+  async listPendingReconciliations(limit) {
+    const tasks = [...memory.reconciliationQueue.values()]
+      .sort(
+        (left, right) =>
+          left.enqueuedAt.localeCompare(right.enqueuedAt) ||
+          left.venueId.localeCompare(right.venueId) ||
+          left.category.localeCompare(right.category),
+      )
+      .slice(0, reconciliationLimit(limit));
+    return { tasks, degraded: false };
+  },
+
+  async ackReconciliation(rawTask) {
+    const task = cleanReconciliationTask(rawTask);
+    if (!task) return { acknowledged: false, failed: true };
+    const key = reconciliationKey(task.venueId, task.category);
+    const held = memory.reconciliationQueue.get(key);
+    if (!held) return { acknowledged: true };
+    if (held.version !== task.version) return { acknowledged: false };
+    memory.reconciliationQueue.delete(key);
+    return { acknowledged: true };
   },
 
   async liveEventsFor(venueId, category) {
@@ -207,6 +355,19 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
     return terminalReversal(positives, reversals);
   },
 
+  async terminalReversalFor(root) {
+    const held = memory.events.find(
+      (event) =>
+        event.id === root.id &&
+        event.evidenceFingerprint === root.evidenceFingerprint &&
+        event.reversalOf === null,
+    );
+    if (!held) {
+      return { event: null, degraded: true };
+    }
+    return terminalReversalForRoot(held, memory.events);
+  },
+
   async readVisibleImpact(userId) {
     const key = cleanUserId(userId);
     if (!key) {
@@ -230,7 +391,13 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
 const guard = createFailSoftGuard({
   tag: STORE_TAG,
   tables: [EVENTS_TABLE, CREDITS_TABLE],
-  migrationHint: MIGRATION_HINT,
+  migrationHint: EVENTS_MIGRATION_HINT,
+});
+
+const queueGuard = createFailSoftGuard({
+  tag: STORE_TAG,
+  tables: QUEUE_TABLE,
+  migrationHint: QUEUE_MIGRATION_HINT,
 });
 
 type EventRow = {
@@ -241,6 +408,13 @@ type EventRow = {
   observation_ids?: unknown;
   created_at?: unknown;
   reversal_of?: unknown;
+};
+
+type ReconciliationRow = {
+  venue_id?: unknown;
+  category?: unknown;
+  version?: unknown;
+  enqueued_at?: unknown;
 };
 
 function fromEventRow(row: EventRow): PriceTrustEvent | null {
@@ -269,6 +443,25 @@ function fromEventRow(row: EventRow): PriceTrustEvent | null {
   };
 }
 
+function fromReconciliationRow(
+  row: ReconciliationRow,
+): PriceTrustReconciliationTask | null {
+  const venueId = cleanText(row.venue_id, 64);
+  const category = isDrinkCategory(row.category) ? row.category : null;
+  const version = Number(row.version);
+  const enqueuedAt = typeof row.enqueued_at === "string" ? row.enqueued_at : "";
+  if (
+    !venueId ||
+    !category ||
+    !Number.isSafeInteger(version) ||
+    version < 1 ||
+    !enqueuedAt
+  ) {
+    return null;
+  }
+  return { venueId, category, version, enqueuedAt };
+}
+
 async function selectEventByFingerprint(
   fingerprint: string,
 ): Promise<PriceTrustEvent | null> {
@@ -295,6 +488,122 @@ async function insertCredits(eventId: string, userIds: readonly string[]): Promi
 }
 
 export const supabasePriceTrustEventStore: PriceTrustEventStore = {
+  async ensureCredits(eventId, userIds) {
+    const key = cleanText(eventId, 64);
+    if (!key) return { failed: true };
+    return guard.guard({
+      context: "ensureCredits",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: EVENTS_MIGRATION_HINT,
+          fallback: () => memoryPriceTrustEventStore.ensureCredits(key, userIds),
+        }),
+      message: "trust credit write failed",
+      onError: () => ({ failed: true as const }),
+      run: async () => {
+        await insertCredits(key, userIds);
+        return {};
+      },
+    });
+  },
+
+  async enqueueReconciliation(venueId, category, now = Date.now()) {
+    const key = cleanText(venueId, 64);
+    if (!key || !isDrinkCategory(category)) {
+      return { task: null, failed: true };
+    }
+    return queueGuard.guard({
+      context: "enqueueReconciliation",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: QUEUE_MIGRATION_HINT,
+          fallback: () =>
+            memoryPriceTrustEventStore.enqueueReconciliation(key, category, now),
+        }),
+      message: "trust reconciliation enqueue failed",
+      onError: () => ({ task: null, failed: true as const }),
+      run: async () => {
+        const { data, error } = await admin().rpc(
+          "enqueue_price_trust_reconciliation",
+          { p_venue_id: key, p_category: category },
+        );
+        if (error) throw new Error(error.message);
+        const rows = Array.isArray(data) ? data : [];
+        const task = rows[0]
+          ? fromReconciliationRow(rows[0] as ReconciliationRow)
+          : null;
+        return task
+          ? { task }
+          : { task: null, failed: true as const };
+      },
+    });
+  },
+
+  async listPendingReconciliations(limit) {
+    const bounded = reconciliationLimit(limit);
+    return queueGuard.guard({
+      context: "listPendingReconciliations",
+      onSchemaMiss: () =>
+        memoryPriceTrustEventStore.listPendingReconciliations(bounded),
+      message: "trust reconciliation list failed",
+      onError: () => ({ tasks: [], degraded: true }),
+      run: async () => {
+        const { data, error } = await admin()
+          .from(QUEUE_TABLE)
+          .select("venue_id, category, version, enqueued_at")
+          .order("enqueued_at", { ascending: true })
+          .order("venue_id", { ascending: true })
+          .order("category", { ascending: true })
+          .limit(bounded);
+        if (error) throw new Error(error.message);
+        const tasks = (data ?? [])
+          .map((row) => fromReconciliationRow(row as ReconciliationRow))
+          .filter((task): task is PriceTrustReconciliationTask => task !== null);
+        return tasks.length === (data?.length ?? 0)
+          ? { tasks, degraded: false }
+          : { tasks: [], degraded: true };
+      },
+    });
+  },
+
+  async ackReconciliation(rawTask) {
+    const task = cleanReconciliationTask(rawTask);
+    if (!task) return { acknowledged: false, failed: true };
+    return queueGuard.guard({
+      context: "ackReconciliation",
+      onSchemaMiss: () =>
+        onMissingDurableWrite({
+          storeTag: STORE_TAG,
+          migrationHint: QUEUE_MIGRATION_HINT,
+          fallback: () => memoryPriceTrustEventStore.ackReconciliation(task),
+        }),
+      message: "trust reconciliation acknowledgement failed",
+      onError: () => ({ acknowledged: false, failed: true as const }),
+      run: async () => {
+        const deleted = await admin()
+          .from(QUEUE_TABLE)
+          .delete()
+          .eq("venue_id", task.venueId)
+          .eq("category", task.category)
+          .eq("version", task.version)
+          .select("version")
+          .maybeSingle();
+        if (deleted.error) throw new Error(deleted.error.message);
+        if (deleted.data) return { acknowledged: true };
+        const current = await admin()
+          .from(QUEUE_TABLE)
+          .select("version")
+          .eq("venue_id", task.venueId)
+          .eq("category", task.category)
+          .maybeSingle();
+        if (current.error) throw new Error(current.error.message);
+        return { acknowledged: current.data == null };
+      },
+    });
+  },
+
   async latestReversalCovering(observationId) {
     const id = cleanText(observationId, 64);
     if (!id) return { event: null, degraded: false };
@@ -345,6 +654,110 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
       },
     });
   },
+
+  async terminalReversalFor(root) {
+    const id = cleanText(root.id, 64);
+    const fingerprint = cleanText(root.evidenceFingerprint, 128);
+    const venueId = cleanText(root.venueId, 64);
+    if (
+      !id ||
+      !fingerprint ||
+      !venueId ||
+      !isDrinkCategory(root.category)
+    ) {
+      return { event: null, degraded: true };
+    }
+    const cleanRoot: PriceTrustEvent = {
+      ...root,
+      id,
+      evidenceFingerprint: fingerprint,
+      venueId,
+    };
+    return guard.guard({
+      context: "terminalReversalFor",
+      onSchemaMiss: () =>
+        memoryPriceTrustEventStore.terminalReversalFor(cleanRoot),
+      message: "trust reversal chain read failed",
+      onError: () => ({ event: null, degraded: true }),
+      run: async () => {
+        const rootRows = await admin()
+          .from(EVENTS_TABLE)
+          .select(
+            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+          )
+          .eq("evidence_fingerprint", fingerprint)
+          .is("reversal_of", null)
+          .limit(2);
+        if (rootRows.error) throw new Error(rootRows.error.message);
+        if ((rootRows.data?.length ?? 0) !== 1) {
+          return { event: null, degraded: true };
+        }
+        const selectedRoot = fromEventRow(rootRows.data![0] as EventRow);
+        if (
+          !selectedRoot ||
+          selectedRoot.id !== id ||
+          selectedRoot.venueId !== venueId ||
+          selectedRoot.category !== root.category
+        ) {
+          return { event: null, degraded: true };
+        }
+
+        let current = selectedRoot;
+        const seen = new Set([current.id]);
+        for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
+          const reversalRows = await admin()
+            .from(EVENTS_TABLE)
+            .select(
+              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+            )
+            .in("reversal_of", [current.id])
+            .limit(2);
+          if (reversalRows.error) throw new Error(reversalRows.error.message);
+          if ((reversalRows.data?.length ?? 0) > 1) {
+            return { event: null, degraded: true };
+          }
+          if ((reversalRows.data?.length ?? 0) === 0) {
+            return { event: null, degraded: false };
+          }
+          const reversal = fromEventRow(reversalRows.data![0] as EventRow);
+          if (!reversal || seen.has(reversal.id)) {
+            return { event: null, degraded: true };
+          }
+          seen.add(reversal.id);
+
+          const restoredFingerprint =
+            `restored:${fingerprint}:${reversal.id}`;
+          const restoredRows = await admin()
+            .from(EVENTS_TABLE)
+            .select(
+              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+            )
+            .eq("evidence_fingerprint", restoredFingerprint)
+            .is("reversal_of", null)
+            .limit(2);
+          if (restoredRows.error) throw new Error(restoredRows.error.message);
+          if ((restoredRows.data?.length ?? 0) > 1) {
+            return { event: null, degraded: true };
+          }
+          if ((restoredRows.data?.length ?? 0) === 0) {
+            return { event: reversal, degraded: false };
+          }
+          const restored = fromEventRow(restoredRows.data![0] as EventRow);
+          if (
+            !restored ||
+            restored.venueId !== venueId ||
+            restored.category !== root.category ||
+            seen.has(restored.id)
+          ) {
+            return { event: null, degraded: true };
+          }
+          current = restored;
+          seen.add(current.id);
+        }
+        return { event: null, degraded: true };
+      },
+    });
+  },
   async recordUnlock(input) {
     const fingerprint = cleanText(input.fingerprint, 128);
     const venueId = cleanText(input.venueId, 64);
@@ -356,7 +769,7 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
       onSchemaMiss: () =>
         onMissingDurableWrite({
           storeTag: STORE_TAG,
-          migrationHint: MIGRATION_HINT,
+          migrationHint: EVENTS_MIGRATION_HINT,
           fallback: () => memoryPriceTrustEventStore.recordUnlock(input),
         }),
       message: "trust event write failed",
@@ -390,8 +803,13 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
           (data ? fromEventRow(data as EventRow) : null) ??
           (await selectEventByFingerprint(fingerprint));
         if (!event) return { event: null, created: false, failed: true as const };
-        await insertCredits(event.id, input.userIds);
-        return { event, created: data != null };
+        const credits = await supabasePriceTrustEventStore.ensureCredits(
+          event.id,
+          input.userIds,
+        );
+        return credits.failed
+          ? { event, created: data != null, failed: true as const }
+          : { event, created: data != null };
       },
     });
   },
@@ -550,5 +968,8 @@ export const priceTrustEventStore = createDualBackendStore(
 export function __resetMemoryPriceTrustEvents(): void {
   memory.events.length = 0;
   memory.credits.length = 0;
+  memory.reconciliationQueue.clear();
+  memory.nextReconciliationVersion = 0;
   guard.resetWarnings();
+  queueGuard.resetWarnings();
 }

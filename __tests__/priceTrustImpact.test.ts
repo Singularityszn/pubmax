@@ -27,7 +27,9 @@ import {
 } from "@/lib/profileStore";
 import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
 import {
+  drainPendingPriceTrustReconciliations,
   readPriceTrustImpact,
+  reconcilePriceTrustForObservation,
   syncTrustAfterPriceHidden,
   syncTrustAfterPriceRestored,
   syncTrustAfterPriceWrite,
@@ -83,6 +85,70 @@ afterEach(() => {
 });
 
 describe("syncTrustAfterPriceWrite", () => {
+  it("keeps a failed first-cluster event pending until a later drain credits its original contributors once", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const write = vi
+      .spyOn(store, "recordUnlock")
+      .mockResolvedValueOnce({ event: null, created: false, failed: true });
+
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+
+    write.mockRestore();
+    await drainPendingPriceTrustReconciliations(20, NOW - 1_000);
+    await drainPendingPriceTrustReconciliations(20, NOW);
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("repairs a live event's missing credit from its stored observation ids without a duplicate event", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const ensureCredits = vi
+      .spyOn(store, "ensureCredits")
+      .mockResolvedValueOnce({ failed: true });
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    ensureCredits.mockRestore();
+
+    await drainPendingPriceTrustReconciliations(20, NOW - 1_000);
+    await drainPendingPriceTrustReconciliations(20, NOW);
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
   it("credits every independent contributor in the first cluster once", async () => {
     const profileA = await onboard(USER_A, "alice_pint");
     const profileB = await onboard(USER_B, "bob_pint");
@@ -141,6 +207,82 @@ describe("syncTrustAfterPriceWrite", () => {
     });
     expect((await priceTrustEventStore().liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
   });
+
+  it("does not acknowledge a reused qualifying cluster while its prior event remains reversed", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const original = (await store.liveEventsFor(VENUE, "beer")).events[0];
+    expect(original).toBeTruthy();
+    const reversal = await store.recordUnlock({
+      fingerprint: `manual-reversal:${original.evidenceFingerprint}`,
+      venueId: VENUE,
+      category: "beer",
+      observationIds: [],
+      userIds: [],
+      reversalOf: original.id,
+      now: NOW - 1_000,
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW)).toEqual({
+      status: "synced",
+    });
+
+    const live = await store.liveEventsFor(VENUE, "beer");
+    expect(live.events).toHaveLength(1);
+    expect(live.events[0]?.id).not.toBe(original.id);
+    expect(live.events[0]?.evidenceFingerprint).toBe(
+      `restored:${original.evidenceFingerprint}:${reversal.event?.id}`,
+    );
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+});
+
+describe("drainPendingPriceTrustReconciliations", () => {
+  it("rotates unavailable pairs behind newer work without dropping them", async () => {
+    const store = priceTrustEventStore();
+    const originalLiveEventsFor = store.liveEventsFor.bind(store);
+    vi.spyOn(store, "liveEventsFor").mockImplementation(
+      async (venueId, category) =>
+        venueId.startsWith("poison-")
+          ? { events: [], degraded: true }
+          : originalLiveEventsFor(venueId, category),
+    );
+
+    for (let index = 0; index < 20; index += 1) {
+      const queued = await store.enqueueReconciliation(
+        `poison-${String(index).padStart(2, "0")}`,
+        "beer",
+        NOW + index,
+      );
+      expect(queued.failed).not.toBe(true);
+    }
+    const healthy = await store.enqueueReconciliation(
+      "healthy-newer-pair",
+      "beer",
+      NOW + 20,
+    );
+    expect(healthy.failed).not.toBe(true);
+
+    await drainPendingPriceTrustReconciliations(20, NOW + 100);
+    await drainPendingPriceTrustReconciliations(20, NOW + 200);
+
+    const pending = (await store.listPendingReconciliations(100)).tasks;
+    expect(pending).toHaveLength(20);
+    expect(pending.some((task) => task.venueId === "healthy-newer-pair")).toBe(false);
+    expect(pending.every((task) => task.venueId.startsWith("poison-"))).toBe(true);
+  });
 });
 
 describe("syncTrustAfterPriceHidden", () => {
@@ -152,7 +294,9 @@ describe("syncTrustAfterPriceHidden", () => {
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
 
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
-    await syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "synced",
+    });
     expect(await readPriceTrustImpact(USER_A)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
@@ -301,12 +445,347 @@ describe("syncTrustAfterPriceHidden", () => {
 
     const { moderateCommunityPrice } = await import("@/lib/communityPriceStore");
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
-    await syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "unavailable",
+    });
 
     expect(recordUnlock).toHaveBeenCalledTimes(1);
     expect(
       warn.mock.calls.some((call) => String(call[0]).includes(standingEventId)),
     ).toBe(true);
+  });
+
+  it("reports an unavailable replacement and repairs it on retry", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const profileC = await onboard(USER_C, "cara_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 4_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("cara_pint", profileC, 4.2, NOW - 500);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let replacementFailed = false;
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (!input.reversalOf && !replacementFailed) {
+        replacementFailed = true;
+        return { event: null, created: false, failed: true };
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW + 1)).toEqual({
+      status: "synced",
+    });
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_C)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+});
+
+describe("reconcilePriceTrustForObservation", () => {
+  it("creates a missing visible unlock, repairs credits, and acknowledges its pair task", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const recordUnlock = vi
+      .spyOn(store, "recordUnlock")
+      .mockResolvedValueOnce({ event: null, created: false, failed: true });
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+    recordUnlock.mockRestore();
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+  });
+
+  it("repairs missing credits on an existing visible event and acknowledges its pair task", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const ensureCredits = vi
+      .spyOn(store, "ensureCredits")
+      .mockResolvedValueOnce({ failed: true });
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    ensureCredits.mockRestore();
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+  });
+
+  it("converges to hidden when moderation lands during visible reconciliation", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let hidden = false;
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (!input.reversalOf && !hidden) {
+        hidden = true;
+        expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(true);
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+  });
+
+  it("converges to visible when restoration lands during hidden reconciliation", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+    expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let restored = false;
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (input.reversalOf && !restored) {
+        restored = true;
+        expect(await moderateCommunityPrice(observationId, false)).toBe(true);
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(false);
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 1 });
+  });
+
+  it("acknowledges a pending pair task after hidden reconciliation reverses its trust", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const ensureCredits = vi
+      .spyOn(store, "ensureCredits")
+      .mockResolvedValueOnce({ failed: true });
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+    ensureCredits.mockRestore();
+    expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({ lifetimeTrustUnlocks: 0 });
+  });
+
+  it("detects a hidden-visible-hidden ABA revision before reporting synced", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+    expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+    const initial = (await findCommunityPriceObservation(observationId)).observation;
+    expect(initial?.hidden).toBe(true);
+
+    const store = priceTrustEventStore();
+    const originalEnqueue = store.enqueueReconciliation.bind(store);
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let restored = false;
+    let hiddenAgain = false;
+    vi.spyOn(store, "enqueueReconciliation").mockImplementation(async (...args) => {
+      if (!restored) {
+        restored = true;
+        expect(await moderateCommunityPrice(observationId, false)).toBe(true);
+      }
+      return originalEnqueue(...args);
+    });
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (!input.reversalOf && restored && !hiddenAgain) {
+        hiddenAgain = true;
+        expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "synced",
+    });
+
+    const final = (await findCommunityPriceObservation(observationId)).observation;
+    expect(final?.hidden).toBe(true);
+    expect((await store.liveEventsCovering(observationId)).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      pricesTrustedNow: 0,
+      lifetimeTrustUnlocks: 0,
+    });
+    expect((await store.listPendingReconciliations(20)).tasks).toEqual([]);
+  });
+
+  it("keeps final-attempt hidden-visible-hidden ABA queued instead of acknowledging transient trust", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+    expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+
+    const store = priceTrustEventStore();
+    const originalEnqueue = store.enqueueReconciliation.bind(store);
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let abaCycles = 0;
+    vi.spyOn(store, "enqueueReconciliation").mockImplementation(async (...args) => {
+      const current = (await findCommunityPriceObservation(observationId)).observation;
+      if (current?.hidden) {
+        expect(await moderateCommunityPrice(observationId, false)).toBe(true);
+      }
+      return originalEnqueue(...args);
+    });
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      const current = (await findCommunityPriceObservation(observationId)).observation;
+      if (!input.reversalOf && current && !current.hidden) {
+        expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+        abaCycles += 1;
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "unavailable",
+    });
+
+    expect(abaCycles).toBe(3);
+    expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(true);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+  });
+
+  it("keeps final-attempt visible-hidden-visible ABA queued when current trust is missing", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const originalEnqueue = store.enqueueReconciliation.bind(store);
+    const originalLiveEventsFor = store.liveEventsFor.bind(store);
+    let abaCycles = 0;
+    vi.spyOn(store, "enqueueReconciliation").mockImplementation(async (...args) => {
+      const current = (await findCommunityPriceObservation(observationId)).observation;
+      if (current && !current.hidden) {
+        expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+      }
+      return originalEnqueue(...args);
+    });
+    vi.spyOn(store, "liveEventsFor").mockImplementation(async (...args) => {
+      const current = (await findCommunityPriceObservation(observationId)).observation;
+      if (current?.hidden) {
+        expect(await moderateCommunityPrice(observationId, false)).toBe(true);
+        abaCycles += 1;
+      }
+      return originalLiveEventsFor(...args);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "unavailable",
+    });
+
+    expect(abaCycles).toBe(3);
+    expect((await findCommunityPriceObservation(observationId)).observation?.hidden).toBe(false);
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+  });
+
+  it("returns unavailable when repeated visibility handoffs exhaust one shared budget", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const observationId = await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000);
+    expect(await moderateCommunityPrice(observationId, true)).toBe(true);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let handoffs = 0;
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (handoffs < 3) {
+        const nextHidden = !input.reversalOf;
+        const current = (await findCommunityPriceObservation(observationId)).observation;
+        if (current?.hidden !== nextHidden) {
+          expect(await moderateCommunityPrice(observationId, nextHidden)).toBe(true);
+          handoffs += 1;
+        }
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await reconcilePriceTrustForObservation(observationId, NOW)).toEqual({
+      status: "unavailable",
+    });
+    expect(handoffs).toBeLessThanOrEqual(3);
   });
 });
 

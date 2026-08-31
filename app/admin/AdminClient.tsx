@@ -18,7 +18,7 @@ import {
 } from "@/lib/adminSessionClient";
 import { adminAlert, adminStatus, type AdminNotice } from "@/lib/adminNotice";
 import { discardBody } from "@/lib/responseBody";
-import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
 import { venueMapUrl } from "@/lib/venueMapUrl";
 import {
@@ -1062,7 +1062,7 @@ export default function AdminClient() {
   }, []);
 
   const decideCommunityPrice = useCallback(
-    async (row: ModeratorCommunityPrice, action: "hide" | "restore") => {
+    async (row: ModeratorCommunityPrice, action: "hide" | "restore" | "reconcile") => {
       setCommunityPricePendingId(row.id);
       setCommunityPriceMessage(null);
       try {
@@ -1080,11 +1080,24 @@ export default function AdminClient() {
           return;
         }
         if (!res.ok) {
+          const payload = await readApiJson(res);
           discardBody(res);
-          setCommunityPriceMessage(adminAlert("Action failed. Try again."));
+          setCommunityPriceMessage(
+            adminAlert(errorMessageFrom(payload, "Action failed. Try again.")),
+          );
           return;
         }
         discardBody(res);
+
+        if (action === "reconcile") {
+          const refreshed = await loadCommunityPriceQueues();
+          setCommunityPriceMessage(
+            refreshed === null
+              ? adminAlert("Price trust updated. Refresh unavailable. Reload to confirm.")
+              : adminStatus("Price trust updated."),
+          );
+          return;
+        }
 
         // Refresh only this queue. Pint Drops, Visit Reports and other admin
         // lanes keep their current state while the observation moves.
@@ -1104,9 +1117,13 @@ export default function AdminClient() {
         setCommunityPriceMessage(
           refreshed === null
             ? adminAlert(
-                `${action === "hide" ? "Community price hidden" : "Community price restored"}. Refresh unavailable. Reload to confirm.`,
+                `${action === "hide" ? "Community observation hidden" : "Community observation restored"}. Refresh unavailable. Reload to confirm.`,
               )
-            : adminStatus(action === "hide" ? "Community price hidden." : "Community price restored."),
+            : adminStatus(
+                action === "hide"
+                  ? "Community observation hidden."
+                  : "Community observation restored.",
+              ),
         );
       } catch {
         setCommunityPriceMessage(adminAlert("Could not reach the server."));
@@ -1637,6 +1654,17 @@ export default function AdminClient() {
                     ) : null}
                   </div>
                   <div className="admin-actions">
+                    {row.kind === "price" ? (
+                      <button
+                        className="admin-btn admin-keep"
+                        onClick={() => void decideCommunityPrice(row, "reconcile")}
+                        disabled={communityPricePendingId !== null || communityPriceLoading}
+                      >
+                        {communityPricePendingId === row.id
+                          ? "Working…"
+                          : "Retry trust update"}
+                      </button>
+                    ) : null}
                     <button
                       className="admin-btn admin-keep"
                       onClick={() => void decideCommunityPrice(row, "hide")}
@@ -1689,6 +1717,17 @@ export default function AdminClient() {
                     ) : null}
                   </div>
                   <div className="admin-actions">
+                    {row.kind === "price" ? (
+                      <button
+                        className="admin-btn admin-keep"
+                        onClick={() => void decideCommunityPrice(row, "reconcile")}
+                        disabled={communityPricePendingId !== null || communityPriceLoading}
+                      >
+                        {communityPricePendingId === row.id
+                          ? "Working…"
+                          : "Retry trust update"}
+                      </button>
+                    ) : null}
                     <button
                       className="admin-btn admin-restore"
                       onClick={() => void decideCommunityPrice(row, "restore")}
