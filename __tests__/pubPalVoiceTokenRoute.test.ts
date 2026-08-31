@@ -4,6 +4,8 @@ import { PAL_VOICE_MAX_SESSION_SECONDS, PAL_VOICE_MONTHLY_MINUTES } from "@/lib/
 const voiceState = vi.hoisted(() => ({
   configured: true,
   events: [] as string[],
+  palLookupFails: false,
+  palPresent: true,
   rpc: vi.fn(),
   userId: "11111111-1111-4111-8111-111111111111",
   pal: {
@@ -38,7 +40,12 @@ vi.mock("@/lib/authServer", () => ({
 }));
 
 vi.mock("@/lib/pubPalStore", () => ({
-  getPubPal: async () => voiceState.pal,
+  getPubPal: async () => voiceState.palLookupFails || !voiceState.palPresent
+    ? null
+    : voiceState.pal,
+  getPubPalResult: async () => voiceState.palLookupFails
+    ? { ok: false as const, error: "error" as const }
+    : { ok: true as const, value: voiceState.palPresent ? voiceState.pal : null },
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -64,6 +71,10 @@ describe("Pub Pal voice token route", () => {
   beforeEach(() => {
     voiceState.configured = true;
     voiceState.events.length = 0;
+    voiceState.palLookupFails = false;
+    voiceState.palPresent = true;
+    voiceState.pal.muted = false;
+    voiceState.pal.hidden = false;
     voiceState.rpc.mockReset();
     voiceState.userId = "11111111-1111-4111-8111-111111111111";
     vi.stubEnv("ELEVENLABS_API_KEY", "server-only-key");
@@ -88,6 +99,58 @@ describe("Pub Pal voice token route", () => {
     expect(await response.json()).toMatchObject({ fallback: "text" });
     expect(providerFetch).not.toHaveBeenCalled();
     expect(voiceState.rpc).not.toHaveBeenCalled();
+  });
+
+  it("returns 503 when Pal ownership cannot be checked before quota or provider allocation", async () => {
+    voiceState.palLookupFails = true;
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "PUB_PAL_STORE_UNAVAILABLE" });
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it("requires an owned Pal before quota or provider allocation", async () => {
+    voiceState.palPresent = false;
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "PUB_PAL_REQUIRED" });
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it("refuses a muted Pal before quota or provider allocation", async () => {
+    voiceState.pal.muted = true;
+    const providerFetch = vi.fn();
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(409);
+    expect(await response.json()).toMatchObject({ code: "VOICE_MUTED" });
+    expect(voiceState.rpc).not.toHaveBeenCalled();
+    expect(providerFetch).not.toHaveBeenCalled();
+  });
+
+  it("keeps a directly opened hidden Pal eligible for voice", async () => {
+    voiceState.pal.hidden = true;
+    voiceState.rpc.mockResolvedValue({ data: true, error: null });
+    const providerFetch = vi.fn(async () => Response.json({ signed_url: "wss://voice.example/session" }));
+    vi.stubGlobal("fetch", providerFetch);
+
+    const response = await POST(issueRequest());
+
+    expect(response.status).toBe(200);
+    expect(voiceState.rpc).toHaveBeenCalledWith("consume_pub_pal_voice_trial", expect.any(Object));
+    expect(providerFetch).toHaveBeenCalledOnce();
   });
 
   it("does not allocate a provider session when quota reservation is refused", async () => {
