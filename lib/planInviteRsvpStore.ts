@@ -19,7 +19,17 @@
 // instead for the browser-safe constants and DTO shapes.
 
 import { admin, isForeignKeyViolation, isUniqueViolation, selectStore } from "@/lib/storeBackend";
+import { cleanCrewName } from "@/lib/crew";
 import { GUEST_LIST_DISPLAY_CAP, isRsvpStatus, RSVP_PLAN_CEILING, type PlanInviteGuest, type PlanInviteRsvpSummary, type RsvpStatus } from "@/lib/planInvite";
+import {
+  hashPlanMemberToken,
+  joinMemoryPlanInviteRsvpMember,
+  planIdempotencyDigest,
+  planIdempotentUuid,
+  planRequestDigest,
+  removeMemoryPlanInviteRsvpMember,
+  type PlanMemberIdentity,
+} from "@/lib/planStore";
 import { isReactionKey, type ReactionKey, type ReactionSummary } from "@/lib/reactions";
 
 /** The plan id backing an invite token no longer exists (or never did). */
@@ -35,6 +45,30 @@ export class RsvpCapExceededError extends Error {
   constructor(planId: string) {
     super(`RSVP cap reached for plan: ${planId}`);
     this.name = "RsvpCapExceededError";
+  }
+}
+
+/** Going requires one canonical Plan member and cannot exceed its crew cap. */
+export class PlanCrewFullError extends Error {
+  constructor(planId: string) {
+    super(`Plan crew is full: ${planId}`);
+    this.name = "PlanCrewFullError";
+  }
+}
+
+/** A member capability may change only the RSVP already linked to that member. */
+export class PlanInviteMembershipMismatchError extends Error {
+  constructor(planId: string) {
+    super(`RSVP membership does not match for plan: ${planId}`);
+    this.name = "PlanInviteMembershipMismatchError";
+  }
+}
+
+/** Host is already the canonical first member and cannot hold an RSVP row. */
+export class PlanHostCannotRsvpError extends Error {
+  constructor(planId: string) {
+    super(`Host cannot RSVP for plan: ${planId}`);
+    this.name = "PlanHostCannotRsvpError";
   }
 }
 
@@ -57,7 +91,22 @@ function summarizeRsvpRows(rows: RsvpRow[]): PlanInviteRsvpSummary {
   return { counts, guests: guests.slice(0, GUEST_LIST_DISPLAY_CAP) };
 }
 
-export type PlanInviteRsvpUpsertResult = { summary: PlanInviteRsvpSummary; isUpdate: boolean };
+export type PlanInviteMembershipCapability = {
+  memberToken: string;
+  role: "host" | "guest";
+  collaborationAuthorized: boolean;
+};
+
+export type ExistingPlanInviteMembership = {
+  memberToken: string;
+  identity: PlanMemberIdentity;
+};
+
+export type PlanInviteRsvpUpsertResult = {
+  summary: PlanInviteRsvpSummary;
+  isUpdate: boolean;
+  membership: PlanInviteMembershipCapability | null;
+};
 
 export type PlanInviteRsvpStore = {
   /**
@@ -66,7 +115,7 @@ export type PlanInviteRsvpStore = {
    * a brand-new guest, sourced from the existence check the write already
    * makes rather than a second query.
    */
-  upsert(planId: string, submitterHash: string, displayName: string, status: RsvpStatus): Promise<PlanInviteRsvpUpsertResult>;
+  upsert(planId: string, submitterHash: string, displayName: string, status: RsvpStatus, existingMembership?: ExistingPlanInviteMembership): Promise<PlanInviteRsvpUpsertResult>;
   /** Current RSVP summary for a plan's invite page. */
   summarize(planId: string): Promise<PlanInviteRsvpSummary>;
   /** Host-only removal of one guest's RSVP row. No-op if already gone. */
@@ -74,36 +123,53 @@ export type PlanInviteRsvpStore = {
 };
 
 export const supabaseRsvpStore: PlanInviteRsvpStore = {
-  async upsert(planId, submitterHash, displayName, status) {
-    const { data: existing, error: existingError } = await admin()
-      .from(RSVP_TABLE)
-      .select("id")
-      .eq("plan_id", planId)
-      .eq("submitter_hash", submitterHash)
-      .maybeSingle();
-    if (existingError) throw new Error(existingError.message);
-    // Only a brand-new guest counts against the ceiling; an existing guest
-    // changing Going/Maybe is always allowed, even once a plan is full.
-    if (!existing) {
-      const { count, error: countError } = await admin()
-        .from(RSVP_TABLE)
-        .select("id", { count: "exact", head: true })
-        .eq("plan_id", planId);
-      if (countError) throw new Error(countError.message);
-      if ((count ?? 0) >= RSVP_PLAN_CEILING) throw new RsvpCapExceededError(planId);
-    }
-    const { error } = await admin()
-      .from(RSVP_TABLE)
-      .upsert(
-        { plan_id: planId, submitter_hash: submitterHash, display_name: displayName, status, updated_at: new Date().toISOString() },
-        { onConflict: "plan_id,submitter_hash" },
-      );
+  async upsert(planId, submitterHash, displayName, status, existingMembership) {
+    if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
+    const membershipKey = `invite-rsvp:${submitterHash}`;
+    const memberToken = planIdempotencyDigest(`plan-join-token:${planId}`, membershipKey);
+    const memberId = planIdempotentUuid(`plan-join-member:${planId}`, membershipKey);
+    const { data, error } = await admin().rpc(
+      "upsert_plan_invite_rsvp_membership_atomic",
+      {
+        p_plan_id: planId,
+        p_submitter_hash: submitterHash,
+        p_display_name: displayName,
+        p_status: status,
+        p_member_id: memberId,
+        p_existing_member_id: existingMembership?.identity.memberId ?? null,
+        p_member_name: cleanCrewName(displayName),
+        p_member_token_hash: hashPlanMemberToken(memberToken),
+        p_member_join_key_hash: planIdempotencyDigest(`plan-join-key:${planId}`, membershipKey),
+        p_member_request_hash: planRequestDigest({ inviteRsvpSubmitterHash: submitterHash }),
+        p_joined_at: new Date().toISOString(),
+        p_rsvp_ceiling: RSVP_PLAN_CEILING,
+      },
+    );
     if (error) {
       if (isForeignKeyViolation(error)) throw new UnknownPlanError(planId);
       throw new Error(error.message);
     }
+    const result = data && typeof data === "object" ? data as Record<string, unknown> : {};
+    const outcome = result.outcome;
+    if (outcome === "not_found") throw new UnknownPlanError(planId);
+    if (outcome === "rsvp_full") throw new RsvpCapExceededError(planId);
+    if (outcome === "crew_full") throw new PlanCrewFullError(planId);
+    if (outcome === "forbidden") throw new PlanInviteMembershipMismatchError(planId);
+    if (outcome !== "saved") throw new Error("Invite RSVP membership write failed");
     const summary = await supabaseRsvpStore.summarize(planId);
-    return { summary, isUpdate: Boolean(existing) };
+    return {
+      summary,
+      isUpdate: result.is_update === true,
+      membership: status === "going"
+        ? existingMembership
+          ? {
+              memberToken: existingMembership.memberToken,
+              role: existingMembership.identity.role,
+              collaborationAuthorized: existingMembership.identity.collaborationAuthorized,
+            }
+          : { memberToken, role: "guest", collaborationAuthorized: false }
+        : null,
+    };
   },
   async summarize(planId) {
     const { data, error } = await admin()
@@ -114,8 +180,14 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
     return summarizeRsvpRows((data ?? []) as RsvpRow[]);
   },
   async remove(planId, rsvpId) {
-    const { error } = await admin().from(RSVP_TABLE).delete().eq("plan_id", planId).eq("id", rsvpId);
+    const { data, error } = await admin().rpc(
+      "remove_plan_invite_rsvp_membership_atomic",
+      { p_plan_id: planId, p_rsvp_id: rsvpId },
+    );
     if (error) throw new Error(error.message);
+    if (data !== "removed" && data !== "missing") {
+      throw new Error("Invite RSVP membership removal failed");
+    }
   },
 };
 
@@ -123,7 +195,7 @@ export const supabaseRsvpStore: PlanInviteRsvpStore = {
 // production build can bundle this module into separate server chunks per
 // route/page, each getting its own top-level state unless it is anchored here.
 type InviteRsvpMemoryState = {
-  rsvps: Map<string, Map<string, { id: string; displayName: string; status: RsvpStatus; createdAt: string }>>;
+  rsvps: Map<string, Map<string, { id: string; displayName: string; status: RsvpStatus; createdAt: string; memberId?: string }>>;
 };
 const inviteRsvpMemoryGlobal = globalThis as typeof globalThis & {
   __pubmaxPlanInviteRsvpMemory?: InviteRsvpMemoryState;
@@ -135,19 +207,54 @@ inviteRsvpMemory.rsvps ??= new Map();
 const memoryRsvps = inviteRsvpMemory.rsvps;
 
 export const memoryRsvpStore: PlanInviteRsvpStore = {
-  async upsert(planId, submitterHash, displayName, status) {
+  async upsert(planId, submitterHash, displayName, status, existingMembership) {
+    if (existingMembership?.identity.role === "host") throw new PlanHostCannotRsvpError(planId);
     const byPlan = memoryRsvps.get(planId) ?? new Map();
     const existing = byPlan.get(submitterHash);
+    if (existingMembership && (!existing || existing.memberId !== existingMembership.identity.memberId)) {
+      throw new PlanInviteMembershipMismatchError(planId);
+    }
     if (!existing && byPlan.size >= RSVP_PLAN_CEILING) throw new RsvpCapExceededError(planId);
+    const membershipKey = `invite-rsvp:${submitterHash}`;
+    const joinedMembership = status === "going" && !existingMembership
+      ? await joinMemoryPlanInviteRsvpMember(planId, displayName, membershipKey)
+      : null;
+    if (joinedMembership && !joinedMembership.ok) {
+      if (joinedMembership.error === "not_found") throw new UnknownPlanError(planId);
+      if (joinedMembership.error === "full") throw new PlanCrewFullError(planId);
+      throw new Error(`Could not create RSVP membership: ${joinedMembership.error}`);
+    }
+    if (status === "maybe" && existing?.memberId) {
+      if (!removeMemoryPlanInviteRsvpMember(planId, existing.memberId)) {
+        throw new Error("Refused to remove the host membership from an RSVP");
+      }
+    }
     byPlan.set(submitterHash, {
       id: existing?.id ?? crypto.randomUUID(),
       displayName,
       status,
       createdAt: existing?.createdAt ?? new Date().toISOString(),
+      memberId: existingMembership?.identity.memberId ?? (joinedMembership?.ok ? joinedMembership.memberId : undefined),
     });
     memoryRsvps.set(planId, byPlan);
     const summary = await memoryRsvpStore.summarize(planId);
-    return { summary, isUpdate: Boolean(existing) };
+    return {
+      summary,
+      isUpdate: Boolean(existing),
+      membership: status === "going"
+        ? existingMembership
+          ? {
+              memberToken: existingMembership.memberToken,
+              role: existingMembership.identity.role,
+              collaborationAuthorized: existingMembership.identity.collaborationAuthorized,
+            }
+          : {
+              memberToken: joinedMembership!.memberToken,
+              role: "guest",
+              collaborationAuthorized: false,
+            }
+        : null,
+    };
   },
   async summarize(planId) {
     const byPlan = memoryRsvps.get(planId);
@@ -160,7 +267,11 @@ export const memoryRsvpStore: PlanInviteRsvpStore = {
     const byPlan = memoryRsvps.get(planId);
     if (!byPlan) return;
     for (const [hash, row] of byPlan) {
-      if (row.id === rsvpId) byPlan.delete(hash);
+      if (row.id !== rsvpId) continue;
+      if (row.memberId && !removeMemoryPlanInviteRsvpMember(planId, row.memberId)) {
+        throw new Error("Refused to remove the host membership from an RSVP");
+      }
+      byPlan.delete(hash);
     }
   },
 };

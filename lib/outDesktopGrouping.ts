@@ -153,7 +153,7 @@ export function outListingUnmatchedCount(rows: readonly WhatsOnRow[]): number {
 export type OutUnmatchedNotice = {
   /** The count, and which night it is about. */
   line: string;
-  /** The places, as the provider names them, ending in a full stop. */
+  /** Provider place names, or empty beside useful matched Venue cards. */
   places: string;
   /** Who listed the hidden rows. Credit is owed whether or not a card shows. */
   credits: OutSourceCredit[];
@@ -178,9 +178,10 @@ function joinPlaces(names: readonly string[]): string {
  *
  * Every unmatched row is dropped from the pub list (groupOutListings), so
  * without this line an Out with four Ticketmaster rows at four arenas read as
- * an empty city under one word, "Some". The rule: say how many, say where,
- * credit who listed them, and hand the reader somewhere to go. The count is
- * about the HIDDEN rows alone, so with cards on screen it says "more".
+ * an empty city under one word, "Some". The rule: say how many, credit who
+ * listed them, and hand the reader somewhere to go. Name the hidden places
+ * only when no matched card is available. The count is about the HIDDEN rows
+ * alone, so with cards on screen it says "more".
  *
  * A match that could not RUN is a different finding from a place that is not
  * listed: the slim index failed to read, and the same four rows may well be at
@@ -233,7 +234,9 @@ export function outUnmatchedListingsNotice(
       ? rest
       : Math.max(0, options.unmatchedPlaceCount - named.length);
   const places =
-    named.length === 0
+    venueMatch === "ready" && shown > 0
+      ? ""
+      : named.length === 0
       ? ""
       : extraPlaceCount > 0
         ? `${named.join(", ")} and ${extraPlaceCount} more ${extraPlaceCount === 1 ? "place" : "places"}.`

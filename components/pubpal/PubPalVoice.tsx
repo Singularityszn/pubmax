@@ -10,12 +10,28 @@ import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import type { PalAnimationState } from "@/lib/pubPal";
 import type { PalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { PAL_VOICE_MAX_SESSION_SECONDS } from "@/lib/palVoiceMetering";
+import {
+  createPubPalVoiceStartController,
+  PAL_VOICE_START_ERROR,
+  PubPalVoiceStartError,
+} from "@/lib/pubPalVoiceSession";
 
 type VoiceTokenResponse = {
   signedUrl?: string;
   overrides?: PalVoiceOverrides;
   maxSessionSeconds?: number;
   error?: string;
+};
+
+type VoiceGrant = Omit<VoiceTokenResponse, "signedUrl"> & { signedUrl: string };
+
+type VoiceSessionAttempt = {
+  cancelled: boolean;
+  releaseRequired: boolean;
+  released: boolean;
+  sdkSessionStarted: boolean;
+  connectedAt: number | null;
+  capTimer: number | null;
 };
 
 async function releaseVoiceSession(durationSeconds: number): Promise<void> {
@@ -36,24 +52,55 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
   const { status } = useConversationStatus();
   const { isListening, isSpeaking } = useConversationMode();
   const [error, setError] = useState<string | null>(null);
+  const [isStarting, setIsStarting] = useState(false);
   const [text, setText] = useState("");
-  const connectedAtRef = useRef<number | null>(null);
-  const releasedRef = useRef(false);
-  const capTimerRef = useRef<number | null>(null);
+  const disposedRef = useRef(false);
+  const activeAttemptRef = useRef<VoiceSessionAttempt | null>(null);
+  const [startController] = useState(createPubPalVoiceStartController);
 
-  const finalizeSession = useCallback(async (connected: boolean) => {
-    if (releasedRef.current) return;
-    releasedRef.current = true;
-    if (capTimerRef.current) {
-      window.clearTimeout(capTimerRef.current);
-      capTimerRef.current = null;
+  const ownsAttempt = useCallback((attempt: VoiceSessionAttempt): boolean => (
+    activeAttemptRef.current === attempt &&
+    !attempt.cancelled &&
+    !disposedRef.current
+  ), []);
+
+  const clearCapTimer = useCallback((attempt: VoiceSessionAttempt): void => {
+    if (attempt.capTimer !== null) {
+      window.clearTimeout(attempt.capTimer);
+      attempt.capTimer = null;
     }
-    const durationSeconds = connected && connectedAtRef.current
-      ? Math.round((Date.now() - connectedAtRef.current) / 1000)
-      : 0;
-    connectedAtRef.current = null;
-    await releaseVoiceSession(durationSeconds);
   }, []);
+
+  const finalizeSession = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (attempt.released) return;
+    clearCapTimer(attempt);
+    const durationSeconds = attempt.connectedAt === null
+      ? 0
+      : Math.max(0, Math.round((Date.now() - attempt.connectedAt) / 1000));
+    attempt.connectedAt = null;
+    if (!attempt.releaseRequired) return;
+    attempt.released = true;
+    await releaseVoiceSession(durationSeconds);
+  }, [clearCapTimer]);
+
+  useEffect(() => {
+    disposedRef.current = false;
+    return () => {
+      disposedRef.current = true;
+      const attempt = activeAttemptRef.current;
+      if (!attempt) {
+        startController.cancel();
+        return;
+      }
+      attempt.cancelled = true;
+      if (attempt.sdkSessionStarted) {
+        attempt.sdkSessionStarted = false;
+        endSession();
+      }
+      startController.cancel();
+      void finalizeSession(attempt);
+    };
+  }, [endSession, finalizeSession, startController]);
 
   useEffect(() => {
     if (status !== "connected") onStateChange?.("idle");
@@ -61,63 +108,129 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     else if (isListening) onStateChange?.("listening");
   }, [isListening, isSpeaking, onStateChange, status]);
 
-  const stop = useCallback(async () => {
-    const connected = status === "connected";
-    endSession();
-    await finalizeSession(connected);
-    onStateChange?.("idle");
-  }, [endSession, finalizeSession, onStateChange, status]);
+  const stop = useCallback(async (attempt: VoiceSessionAttempt) => {
+    if (!ownsAttempt(attempt)) return;
+    const wasCurrent = activeAttemptRef.current === attempt;
+    attempt.cancelled = true;
+    startController.settle();
+    setIsStarting(false);
+    if (attempt.sdkSessionStarted) {
+      attempt.sdkSessionStarted = false;
+      endSession();
+    }
+    await finalizeSession(attempt);
+    if (wasCurrent && activeAttemptRef.current === attempt && !disposedRef.current) {
+      onStateChange?.("idle");
+    }
+  }, [endSession, finalizeSession, onStateChange, ownsAttempt, startController]);
+
+  const stopCurrentAttempt = useCallback((): void => {
+    const attempt = activeAttemptRef.current;
+    if (attempt) void stop(attempt);
+  }, [stop]);
 
   const start = async () => {
+    if (disposedRef.current) return;
+    if (startController.isStarting()) return;
+    const attempt: VoiceSessionAttempt = {
+      cancelled: false,
+      releaseRequired: false,
+      released: false,
+      sdkSessionStarted: false,
+      connectedAt: null,
+      capTimer: null,
+    };
+    activeAttemptRef.current = attempt;
     setError(null);
-    releasedRef.current = false;
-    connectedAtRef.current = null;
+    setIsStarting(true);
     onStateChange?.("noticing");
-    try {
-      const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
-      const body = await response.json() as VoiceTokenResponse;
-      if (!response.ok || !body.signedUrl) {
-        setError(errorMessageFrom(body, "Voice is unavailable. Use text instead."));
-        onStateChange?.("error");
-        return;
-      }
-
-      const maxSessionSeconds = body.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
-      const overrides = body.overrides;
-
-      startSession({
-        signedUrl: body.signedUrl,
-        connectionType: "websocket",
-        overrides: overrides
-          ? {
-              agent: {
-                prompt: { prompt: overrides.systemPrompt },
-                firstMessage: overrides.firstMessage,
-              },
-              ...(overrides.voiceId
-                ? { tts: { voiceId: overrides.voiceId } }
-                : {}),
+    const started = await startController.start<VoiceGrant>({
+      requestMicrophone: async () => {
+        if (!navigator.mediaDevices?.getUserMedia) {
+          throw new PubPalVoiceStartError("Microphone is unavailable. Use text instead.");
+        }
+        return navigator.mediaDevices.getUserMedia({ audio: true });
+      },
+      issueGrant: async () => {
+        const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
+        if (response.ok) attempt.releaseRequired = true;
+        const body = await response.json() as VoiceTokenResponse;
+        if (!response.ok || !body.signedUrl) {
+          throw new PubPalVoiceStartError(
+            errorMessageFrom(body, "Voice is unavailable. Use text instead."),
+          );
+        }
+        return { ...body, signedUrl: body.signedUrl };
+      },
+      connect: (grant) => {
+        if (!ownsAttempt(attempt)) {
+          void finalizeSession(attempt);
+          return;
+        }
+        const maxSessionSeconds = grant.maxSessionSeconds ?? PAL_VOICE_MAX_SESSION_SECONDS;
+        const overrides = grant.overrides;
+        attempt.sdkSessionStarted = true;
+        startSession({
+          signedUrl: grant.signedUrl,
+          connectionType: "websocket",
+          overrides: overrides
+            ? {
+                agent: {
+                  prompt: { prompt: overrides.systemPrompt },
+                  firstMessage: overrides.firstMessage,
+                },
+                ...(overrides.voiceId
+                  ? { tts: { voiceId: overrides.voiceId } }
+                  : {}),
+              }
+            : undefined,
+          onConnect: () => {
+            if (!ownsAttempt(attempt)) return;
+            startController.settle();
+            setIsStarting(false);
+            attempt.connectedAt = Date.now();
+            clearCapTimer(attempt);
+            attempt.capTimer = window.setTimeout(() => {
+              void stop(attempt);
+            }, maxSessionSeconds * 1000);
+          },
+          onDisconnect: () => {
+            if (!ownsAttempt(attempt)) return;
+            startController.settle();
+            setIsStarting(false);
+            attempt.cancelled = true;
+            attempt.sdkSessionStarted = false;
+            void finalizeSession(attempt);
+          },
+          onError: () => {
+            if (!ownsAttempt(attempt)) return;
+            startController.settle();
+            setIsStarting(false);
+            attempt.cancelled = true;
+            if (attempt.sdkSessionStarted) {
+              attempt.sdkSessionStarted = false;
+              endSession();
             }
-          : undefined,
-        onConnect: () => {
-          connectedAtRef.current = Date.now();
-          capTimerRef.current = window.setTimeout(() => {
-            void stop();
-          }, maxSessionSeconds * 1000);
-        },
-        onDisconnect: () => {
-          void finalizeSession(connectedAtRef.current !== null);
-        },
-        onError: (message) => {
-          setError(String(message));
-          onStateChange?.("error");
-          void finalizeSession(connectedAtRef.current !== null);
-        },
-      });
-    } catch {
-      setError("Voice is unavailable. Use text instead.");
-      onStateChange?.("error");
-      await releaseVoiceSession(0);
+            setError(PAL_VOICE_START_ERROR);
+            onStateChange?.("error");
+            void finalizeSession(attempt);
+          },
+        });
+      },
+      onFailure: (message) => {
+        void finalizeSession(attempt);
+        if (!ownsAttempt(attempt)) return;
+        attempt.cancelled = true;
+        setIsStarting(false);
+        setError(message);
+        onStateChange?.("error");
+      },
+      onCancelled: () => {
+        void finalizeSession(attempt);
+      },
+    });
+    if (!started && !startController.isStarting() && !disposedRef.current) {
+      setIsStarting(false);
     }
   };
 
@@ -133,16 +246,25 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
     <div className="palVoice">
       <div className="palVoiceStatus" role="status">
         <i className={status === "connected" ? "isLive" : ""} />
-        {status === "connected" ? "Pal is listening" : "Voice ready when you are"}
+        {isStarting
+          ? "Starting voice"
+          : status === "connected"
+            ? "Pal is listening"
+            : "Voice ready when you are"}
       </div>
       <div className="palVoiceActions">
         {status === "connected" ? (
-          <button type="button" onClick={() => { void stop(); }}>
+          <button type="button" onClick={stopCurrentAttempt}>
             <MicOff size={18} /> End
           </button>
         ) : (
-          <button type="button" onClick={() => { void start(); }}>
-            <Mic size={18} /> Start voice chat
+          <button
+            type="button"
+            disabled={isStarting}
+            aria-busy={isStarting}
+            onClick={() => { void start(); }}
+          >
+            <Mic size={18} /> {isStarting ? "Starting" : "Start voice chat"}
           </button>
         )}
         <label>
@@ -176,6 +298,8 @@ export type PalVoiceAvailability = "asking" | "available" | "unavailable";
 
 export const PAL_VOICE_UNAVAILABLE_LINE =
   "Voice is not switched on here yet. Ask me in writing and you get the same grounded answers.";
+const PAL_VOICE_MUTED_LINE =
+  "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 
 /**
  * Read the probe's answer.
@@ -213,6 +337,21 @@ export function PalVoiceOffline() {
   );
 }
 
+function PalVoiceMuted() {
+  return (
+    <div className="palVoice palVoice--offline">
+      <div className="palVoiceStatus" role="status">
+        {PAL_VOICE_MUTED_LINE}
+      </div>
+      <div className="palVoiceActions">
+        <Link className="palVoiceWriteLink" href="/pal/chat">
+          <Send size={17} aria-hidden="true" /> Ask in writing
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function useVoiceAvailability(): PalVoiceAvailability {
   const [state, setState] = useState<PalVoiceAvailability>("asking");
   useEffect(() => {
@@ -235,7 +374,7 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-export default function PubPalVoice({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
   const availability = useVoiceAvailability();
 
   // Tri-state: while the probe is out the control claims neither, because
@@ -257,4 +396,15 @@ export default function PubPalVoice({ onStateChange }: { onStateChange?: (state:
       <VoiceControls onStateChange={onStateChange} />
     </ConversationProvider>
   );
+}
+
+export default function PubPalVoice({
+  muted = false,
+  onStateChange,
+}: {
+  muted?: boolean;
+  onStateChange?: (state: PalAnimationState) => void;
+}) {
+  if (muted) return <PalVoiceMuted />;
+  return <VoiceAvailabilityGate onStateChange={onStateChange} />;
 }

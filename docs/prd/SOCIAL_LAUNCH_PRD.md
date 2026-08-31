@@ -392,10 +392,10 @@ empty; search finds a handle and follow works from it.
   start time to any link holder (`app/invite/[token]/page.tsx`, migration
   0081); adding a face turns that into face + route + start time. Night
   stories' `public` tier likewise stays face-free.
-- **`SOCIAL_INVITE_BETA_ENABLED` is retired.** It is not a supported
-  configuration value or access path. The launch switch is live by default,
-  and `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the captain-controlled emergency
-  rollback.
+- **Legacy Social access is retired.** The former provider-specific beta is not
+  a supported configuration value or access path. The launch switch is live by
+  default, and `PUBMAX_SOCIAL_FRIENDS_LAUNCH=0` is the captain-controlled
+  emergency rollback.
 - Standing honest-path anti-goals (root `CLAUDE.md`) apply unchanged: no
   growth engine, no referral feature grants ever, no payments theatre, no AI
   that fabricates.

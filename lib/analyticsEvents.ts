@@ -402,7 +402,7 @@ export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
 export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
 
 /** Landing hero / final CTA destinations (docs/plans/LANDING_ACQUISITION.md W6). */
-export const LANDING_CTA_TARGETS = ["map", "near", "plan"] as const;
+export const LANDING_CTA_TARGETS = ["map", "near", "plan", "pal"] as const;
 export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
 /** First time this browser has opened a Pint Index page, or a return. */

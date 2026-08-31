@@ -18,7 +18,7 @@ import { readScrapedPubsForPage } from "@/lib/scrapedPubs.server";
 
 /** The rendered heading, read off the page's own output. */
 async function renderedHeading(): Promise<string | undefined> {
-  const html = renderToStaticMarkup(await PubsPage());
+  const html = renderToStaticMarkup(await PubsPage({}));
   return html.match(/<h1[^>]*>(.*?)<\/h1>/)?.[1];
 }
 

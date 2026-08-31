@@ -6,7 +6,7 @@ import { ExternalLink, MapPin, Sparkles } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import PriceBadge from "@/components/PriceBadge";
 import CommunityPriceReport from "@/components/map/CommunityPriceReport";
-import VenuePriceEntryPanel from "@/components/map/inspector/VenuePriceEntryPanel";
+import VenueSheetPriceEntry from "@/components/map/inspector/VenueSheetPriceEntry";
 import {
   freshestCommunityPrice,
   type CommunityPricesState,
@@ -222,10 +222,11 @@ export default function UnverifiedPubSheet({
 
       {overlay ? <HarvestOverlayFields overlay={overlay} /> : null}
 
-      <VenuePriceEntryPanel
+      <VenueSheetPriceEntry
         key={pub.id}
         venueId={pub.id}
         venueName={pub.name}
+        isPub
         communityPrices={communityPrices}
         canSubmitPrice={!authConfigured || Boolean(user)}
         showSignInGate

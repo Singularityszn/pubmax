@@ -209,11 +209,124 @@ type ModeratorSocialPost = {
   staffDisplayName: string;
   postId: string;
   mediaId: string | null;
+  revision: number;
+  authorHandle: string;
+  body: string;
+  photoAltText: string | null;
+  area: string | null;
+  venueId: string | null;
+  visibility: "public" | "friends" | "private";
+  commentPolicy: "open" | "friends" | "locked";
   moderationClaim: string;
+  moderationState: "needs_review" | "approved";
   createdAt: string;
+  updatedAt: string;
 };
 
 type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
+type SocialPostAction = { postId: string; action: "approve" | "hide" };
+
+function socialPostPolicyLabel(value: string): string {
+  const words = value.replaceAll("_", " ");
+  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
+}
+
+function socialPostActionLabel(
+  pending: SocialPostAction | null,
+  postId: string,
+  action: "approve" | "hide",
+): string {
+  if (pending?.postId === postId && pending.action === action) {
+    return action === "approve" ? "Approving…" : "Hiding…";
+  }
+  return action === "approve" ? "Approve" : "Hide";
+}
+
+function SocialPostModerationQueue({
+  posts,
+  state,
+  pendingAction,
+  onDecision,
+}: {
+  posts: ModeratorSocialPost[];
+  state: SocialPostsState;
+  pendingAction: SocialPostAction | null;
+  onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
+}) {
+  return (
+    <>
+      <h2 className="admin-section">Social post moderation</h2>
+      {state === "loading" ? (
+        <div className="admin-empty" role="status">
+          Loading Social posts awaiting review…
+        </div>
+      ) : state === "unavailable" ? (
+        <div className="admin-empty" role="alert">
+          Social post moderation is unavailable.
+        </div>
+      ) : posts.length === 0 && state === "ready" ? (
+        <div className="admin-empty">
+          <strong>No Social posts awaiting review</strong>
+        </div>
+      ) : state === "ready" ? (
+        <div className="admin-list">
+          {posts.map((post) => (
+            <article className="admin-card" key={post.postId}>
+              <div className="admin-card-head">
+                <span className="admin-handle">@{post.authorHandle}</span>
+                <span className="admin-report">Revision {post.revision}</span>
+              </div>
+              <p className="admin-note">{post.body}</p>
+              {post.mediaId ? (
+                <div className="admin-photos">
+                  <Image
+                    src={`/api/admin/social-posts/media/${post.mediaId}`}
+                    alt={post.photoAltText ?? "Social post photo"}
+                    width={160}
+                    height={160}
+                    unoptimized
+                  />
+                </div>
+              ) : null}
+              <div className="admin-meta">
+                <span>Area: {post.area ?? "None"}</span>
+                <span>Venue: {post.venueId ?? "None"}</span>
+                <span>Visibility: {socialPostPolicyLabel(post.visibility)}</span>
+                <span>Comments: {socialPostPolicyLabel(post.commentPolicy)}</span>
+                <span>State: {socialPostPolicyLabel(post.moderationState)}</span>
+              </div>
+              <p className="admin-note">Reason: {post.moderationClaim}</p>
+              <div className="admin-meta">
+                <span>
+                  Created: <time dateTime={post.createdAt}>{new Date(post.createdAt).toLocaleString()}</time>
+                </span>
+                <span>
+                  Updated: <time dateTime={post.updatedAt}>{new Date(post.updatedAt).toLocaleString()}</time>
+                </span>
+              </div>
+              <div className="admin-actions">
+                <button
+                  className="admin-btn admin-restore"
+                  onClick={() => onDecision(post, "approve")}
+                  disabled={pendingAction !== null}
+                >
+                  {socialPostActionLabel(pendingAction, post.postId, "approve")}
+                </button>
+                <button
+                  className="admin-btn admin-keep"
+                  onClick={() => onDecision(post, "hide")}
+                  disabled={pendingAction !== null}
+                >
+                  {socialPostActionLabel(pendingAction, post.postId, "hide")}
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      ) : null}
+    </>
+  );
+}
 
 const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
@@ -323,6 +436,7 @@ export default function AdminClient() {
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [socialPosts, setSocialPosts] = useState<ModeratorSocialPost[]>([]);
   const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
+  const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
   const [loading, setLoading] = useState(false);
@@ -641,7 +755,7 @@ export default function AdminClient() {
 
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
-      setPendingId(post.postId);
+      setSocialPostAction({ postId: post.postId, action });
       setMessage(null);
       try {
         const res = await retryWithFreshSession(() =>
@@ -649,12 +763,23 @@ export default function AdminClient() {
             ...SESSION_FETCH,
             method: "POST",
             headers: { "content-type": "application/json" },
-            body: JSON.stringify({ postId: post.postId, mediaId: post.mediaId, action }),
+            body: JSON.stringify({
+              postId: post.postId,
+              mediaId: post.mediaId,
+              expectedRevision: post.revision,
+              action,
+            }),
           }),
         );
         if (res.status === 403) {
           discardBody(res);
           setMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        if (res.status === 409) {
+          discardBody(res);
+          setSocialPosts((current) => current.filter((item) => item.postId !== post.postId));
+          setMessage(adminAlert("Post changed. Reload queue."));
           return;
         }
         if (!res.ok) {
@@ -667,7 +792,7 @@ export default function AdminClient() {
       } catch {
         setMessage(adminAlert("Could not reach the server."));
       } finally {
-        setPendingId(null);
+        setSocialPostAction(null);
       }
     },
     [retryWithFreshSession],
@@ -1451,62 +1576,12 @@ export default function AdminClient() {
             </>
           ) : null}
 
-          <h2 className="admin-section">Social post moderation</h2>
-          {socialPostsState === "loading" ? (
-            <div className="admin-empty" role="status">
-              Loading Social posts awaiting review…
-            </div>
-          ) : socialPostsState === "unavailable" ? (
-            <div className="admin-empty" role="alert">
-              Social post moderation is unavailable.
-            </div>
-          ) : socialPosts.length === 0 && socialPostsState === "ready" ? (
-            <div className="admin-empty">
-              <strong>No Social posts awaiting review</strong>
-            </div>
-          ) : socialPostsState === "ready" ? (
-            <div className="admin-list">
-              {socialPosts.map((post) => (
-                <article className="admin-card" key={post.postId}>
-                  <div className="admin-card-head">
-                    <span className="admin-handle">Social post</span>
-                    <span className="admin-report">{post.staffDisplayName}</span>
-                  </div>
-                  <p className="admin-note">{post.moderationClaim}</p>
-                  {post.mediaId ? (
-                    <div className="admin-photos">
-                      <Image
-                        src={`/api/admin/social-posts/media/${post.mediaId}`}
-                        alt={`Photo attached to Social post from ${post.staffDisplayName}`}
-                        width={160}
-                        height={160}
-                        unoptimized
-                      />
-                    </div>
-                  ) : null}
-                  <div className="admin-meta">
-                    <span>Queued: {new Date(post.createdAt).toLocaleString()}</span>
-                  </div>
-                  <div className="admin-actions">
-                    <button
-                      className="admin-btn admin-restore"
-                      onClick={() => void decideSocialPost(post, "approve")}
-                      disabled={pendingId === post.postId}
-                    >
-                      {pendingId === post.postId ? "Working…" : "Approve"}
-                    </button>
-                    <button
-                      className="admin-btn admin-keep"
-                      onClick={() => void decideSocialPost(post, "hide")}
-                      disabled={pendingId === post.postId}
-                    >
-                      {pendingId === post.postId ? "Working…" : "Hide"}
-                    </button>
-                  </div>
-                </article>
-              ))}
-            </div>
-          ) : null}
+          <SocialPostModerationQueue
+            posts={socialPosts}
+            state={socialPostsState}
+            pendingAction={socialPostAction}
+            onDecision={(post, action) => void decideSocialPost(post, action)}
+          />
 
           {/* ── Community observation moderation queue ─────────────────────── */}
           <h2 className="admin-section">Community Price moderation</h2>

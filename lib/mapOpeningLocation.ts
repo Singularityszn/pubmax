@@ -4,6 +4,13 @@ const STORAGE_KEY = "pubmax:map-opening-location:v1";
 
 export type MapOpeningLocation = { lat: number; lng: number };
 
+export type MapOpeningView = {
+  center: [number, number];
+  zoom: number;
+  pitch: number;
+  bearing: number;
+};
+
 export type MapOpeningLocationEnvironment = {
   geolocation?: Pick<Geolocation, "getCurrentPosition">;
   permissions?: Pick<Permissions, "query">;
@@ -62,6 +69,19 @@ export function resolveMapOpeningLocation(
   cityDefault: MapOpeningLocation,
 ): MapOpeningLocation {
   return validLocation(lastKnown) ? lastKnown : cityDefault;
+}
+
+export function resolveMapOpeningView(
+  cityView: MapOpeningView,
+  location: MapOpeningLocation | null,
+  locationZoom: number,
+): MapOpeningView {
+  if (!validLocation(location)) return cityView;
+  return {
+    ...cityView,
+    center: [location.lng, location.lat],
+    zoom: Math.max(cityView.zoom, locationZoom),
+  };
 }
 
 export async function readOpeningMapLocation(

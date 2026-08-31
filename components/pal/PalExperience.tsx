@@ -25,7 +25,6 @@ import {
   DEFAULT_PAL_DRAFT,
   anonymousPalDraftOwner,
   clearPalOnboardingDraft,
-  hasPalRouteActivation,
   migrateLegacyPalOnboardingDraft,
   PAL_UNLOCKS,
   palMasteryProgress,
@@ -215,7 +214,6 @@ export default function PalExperience() {
   const [error, setError] = useState<string | null>(null);
   const [memories, setMemories] = useState<PubPalMemory[]>([]);
   const [palAnimationState, setPalAnimationState] = useState<PalAnimationState>("idle");
-  const [routeActivated, setRouteActivated] = useState(false);
   const [editingMemoryId, setEditingMemoryId] = useState("");
   const [editingMemoryValue, setEditingMemoryValue] = useState("");
   const [controlSaving, setControlSaving] = useState(false);
@@ -252,26 +250,14 @@ export default function PalExperience() {
     let cancelled = false;
     void Promise.resolve().then(() => {
       if (cancelled) return;
-      const activated = hasPalRouteActivation();
-      setRouteActivated(activated);
       setDraftOwner(owner);
-      setMode(restored && activated ? "onboarding" : "meeting");
+      setMode(restored ? "onboarding" : "meeting");
       setStep(restored?.step ?? 0);
       setDraft(restored?.draft ?? firstRunDraft);
       setPrivacy(restored?.privacy ?? DEFAULT_PRIVACY);
     });
     return () => { cancelled = true; };
   }, [anonymousOwner, draftOwner, loading, user]);
-
-  useEffect(() => {
-    const sync = () => setRouteActivated(hasPalRouteActivation());
-    window.addEventListener("storage", sync);
-    window.addEventListener("pubmaxx:pal-route-activation", sync);
-    return () => {
-      window.removeEventListener("storage", sync);
-      window.removeEventListener("pubmaxx:pal-route-activation", sync);
-    };
-  }, []);
 
   useEffect(() => {
     if (mode !== "onboarding" || !draftOwner) return;
@@ -291,7 +277,7 @@ export default function PalExperience() {
       setStep(restored.step);
       setDraft(restored.draft);
       setPrivacy(restored.privacy);
-      if (hasPalRouteActivation()) setMode("onboarding");
+      setMode("onboarding");
     });
   }, [draftOwner]);
 
@@ -313,7 +299,6 @@ export default function PalExperience() {
       controlSavingRef.current = null;
       setControlSaving(false);
       setReady(!user);
-      if (!user) setMode("meeting");
     });
     if (!user) return () => controller.abort();
 
@@ -673,7 +658,7 @@ export default function PalExperience() {
             <h1 id="pal-home-title">{pal.name}</h1>
             <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-            <PubPalVoice onStateChange={setPalAnimationState} />
+            <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
           </div>
         </section>
         <section className="palControls" aria-labelledby="pal-controls-title">
@@ -748,31 +733,6 @@ export default function PalExperience() {
   }
 
   if (mode === "meeting") {
-    if (!routeActivated) {
-      return (
-        <main id="main" className="palExperience palMeeting">
-          <div className="palTopbar">
-            <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-            <span><LockKeyhole size={14} /> Skip it if you like</span>
-          </div>
-          <section className="palMeetingStage" aria-labelledby="pal-activation-title">
-            <div className="palMeetingPortrait">
-              <PalPortrait appearance={draft.appearance} name="A waiting Pub Pal signal" state="thinking" />
-              <p className="palSpeech">Make one useful route first. Then I can meet you with real context.</p>
-            </div>
-            <div className="palMeetingCopy">
-              <p className="palEyebrow">Nothing to talk about yet</p>
-              <h1 id="pal-activation-title">First, describe your night.</h1>
-              <p>Pub Pal is a companion to a plan, not a gate in front of one. Get three grounded stops, then choose the voice and form that fits you.</p>
-              <div className="palMeetingActions">
-                <Link className="palPrimary" href="/map?plan=1"><MapPinned size={18} /> Describe my night</Link>
-                <Link href="/map">Keep exploring the map</Link>
-              </div>
-            </div>
-          </section>
-        </main>
-      );
-    }
     return (
       <main id="main" className="palExperience palMeeting">
         <div className="palTopbar">

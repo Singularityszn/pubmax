@@ -4,8 +4,10 @@ import {
   readOpeningMapLocation,
   readMapOpeningLocation,
   resolveMapOpeningLocation,
+  resolveMapOpeningView,
   writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
+import { CITIES } from "@/lib/cities";
 
 function storage(): Storage {
   const values = new Map<string, string>();
@@ -22,6 +24,24 @@ function storage(): Storage {
 }
 
 describe("map opening location", () => {
+  it("uses city zoom until a reader location owns the opening view", () => {
+    const cityView = CITIES.london.mapView;
+
+    expect(resolveMapOpeningView(cityView, null, 15)).toEqual(cityView);
+    expect(resolveMapOpeningView(cityView, null, 15).zoom).toBe(12);
+    expect(
+      resolveMapOpeningView(
+        cityView,
+        { lat: 51.51, lng: -0.09 },
+        15,
+      ),
+    ).toEqual({
+      ...cityView,
+      center: [-0.09, 51.51],
+      zoom: 15,
+    });
+  });
+
   it("uses last-known location before the city default", () => {
     expect(resolveMapOpeningLocation(
       { lat: 51.51, lng: -0.09 },

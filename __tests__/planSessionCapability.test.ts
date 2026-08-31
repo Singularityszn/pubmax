@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { parsePlanCapabilitySnapshot, PlanSessionUnavailableError, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
+import { clearPlanCapability, parsePlanCapabilitySnapshot, PlanSessionUnavailableError, readPlanCapabilitySnapshot, restorePlanCapability, writePlanCapability } from "@/lib/planSessionCapability";
 
 function legacyWindow(planId: string, token = "legacy-secret") {
   const values = new Map<string, string>([[`pubmax-plan-member:${planId}`, token]]);
@@ -33,6 +33,62 @@ describe("plan session capabilities", () => {
     });
     expect(sessionStorage.setItem).not.toHaveBeenCalled();
     expect(sessionStorage.getItem).not.toHaveBeenCalled();
+  });
+
+  it("clears only the named Plan capability", () => {
+    const sessionStorage = { setItem: vi.fn(), getItem: vi.fn() };
+    (globalThis as { window?: unknown }).window = { dispatchEvent: vi.fn(), sessionStorage };
+    writePlanCapability("plan-a", { token: "guest-a", collaborationAuthorized: false, role: "guest" });
+    writePlanCapability("plan-b", { token: "host-b", collaborationAuthorized: true, role: "host" });
+
+    clearPlanCapability("plan-a");
+
+    expect(readPlanCapabilitySnapshot("plan-a")).toBe("|0|");
+    expect(parsePlanCapabilitySnapshot(readPlanCapabilitySnapshot("plan-b"))).toMatchObject({
+      token: "host-b",
+      role: "host",
+    });
+  });
+
+  it("cancels a pending restoration and makes the next call read the HttpOnly session again", async () => {
+    const id = "66666666-7777-4888-8999-000000000000";
+    (globalThis as { window?: unknown }).window = {
+      dispatchEvent: vi.fn(),
+      sessionStorage: { getItem: vi.fn(() => null), removeItem: vi.fn() },
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch")
+      .mockImplementationOnce((_input, init) => new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(new DOMException("Aborted", "AbortError")));
+      }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ active: false }), { status: 401 }));
+
+    const pending = restorePlanCapability(id);
+    clearPlanCapability(id);
+
+    await expect(pending).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    await expect(restorePlanCapability(id)).resolves.toBeNull();
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not restore stale authority when clear lands during response parsing", async () => {
+    const id = "77777777-8888-4999-8aaa-111111111111";
+    (globalThis as { window?: unknown }).window = {
+      dispatchEvent: vi.fn(),
+      sessionStorage: { getItem: vi.fn(() => null), removeItem: vi.fn() },
+    };
+    let finishJson: ((value: { active: boolean; role: string; collaborationAuthorized: boolean }) => void) | undefined;
+    vi.spyOn(globalThis, "fetch").mockResolvedValue({
+      status: 200,
+      json: () => new Promise((resolve) => { finishJson = resolve; }),
+    } as Response);
+
+    const pending = restorePlanCapability(id);
+    await vi.waitFor(() => expect(finishJson).toBeTypeOf("function"));
+    clearPlanCapability(id);
+    finishJson?.({ active: true, role: "guest", collaborationAuthorized: false });
+
+    await expect(pending).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    expect(readPlanCapabilitySnapshot(id)).toBe("|0|");
   });
 
   it("exchanges then purges legacy sessionStorage bearer keys", async () => {
