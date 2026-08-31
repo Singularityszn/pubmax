@@ -5,6 +5,7 @@ import Image from "next/image";
 import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
+import CoverageDemandQueue from "./CoverageDemandQueue";
 import Link from "next/link";
 import { useCallback, useState } from "react";
 
@@ -173,7 +174,11 @@ export function profileCoverFromAvatar(avatar: ModeratorProfileAvatar): Moderato
   };
 }
 
-type AdminTab = "moderation" | "import" | "operators";
+type AdminTab = "moderation" | "import" | "operators" | "coverage";
+
+function adminTabClass(selected: boolean): string {
+  return selected ? "admin-tab active" : "admin-tab";
+}
 
 // Operator rail (Wayfinder 3.5) review DTOs, as returned by the moderator GETs.
 type OperatorClaimRow = {
@@ -1328,7 +1333,7 @@ export default function AdminClient() {
         <button
           type="button"
           role="tab"
-          className={tab === "moderation" ? "admin-tab active" : "admin-tab"}
+          className={adminTabClass(tab === "moderation")}
           aria-selected={tab === "moderation"}
           onClick={() => setTab("moderation")}
         >
@@ -1337,7 +1342,7 @@ export default function AdminClient() {
         <button
           type="button"
           role="tab"
-          className={tab === "import" ? "admin-tab active" : "admin-tab"}
+          className={adminTabClass(tab === "import")}
           aria-selected={tab === "import"}
           onClick={() => {
             setTab("import");
@@ -1349,7 +1354,7 @@ export default function AdminClient() {
         <button
           type="button"
           role="tab"
-          className={tab === "operators" ? "admin-tab active" : "admin-tab"}
+          className={adminTabClass(tab === "operators")}
           aria-selected={tab === "operators"}
           onClick={() => {
             setTab("operators");
@@ -1357,6 +1362,15 @@ export default function AdminClient() {
           }}
         >
           Operators
+        </button>
+        <button
+          type="button"
+          role="tab"
+          className={adminTabClass(tab === "coverage")}
+          aria-selected={tab === "coverage"}
+          onClick={() => setTab("coverage")}
+        >
+          Coverage demand
         </button>
       </div>
 
@@ -2228,7 +2242,7 @@ export default function AdminClient() {
             )}
           </div>
         </>
-      ) : (
+      ) : tab === "operators" ? (
         <>
           <h2 className="admin-section" style={{ marginTop: 0, borderTop: "none", paddingTop: 0 }}>
             Operator rail
@@ -2344,6 +2358,11 @@ export default function AdminClient() {
             </div>
           )}
         </>
+      ) : (
+        <CoverageDemandQueue
+          ensureAdminSession={ensureAdminSession}
+          retryWithFreshSession={retryWithFreshSession}
+        />
       )}
     </main>
   );

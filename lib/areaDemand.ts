@@ -25,6 +25,17 @@ import {
 export const AREA_DEMAND_SOURCES = ["near-empty", "area-picker", "map-miss"] as const;
 export type AreaDemandSource = (typeof AREA_DEMAND_SOURCES)[number];
 
+/** Privacy-safe aggregate returned to the moderator coverage queue. */
+export type AreaDemandSummary = Readonly<{
+  area: string;
+  areaKey: string;
+  matchedPatchId: string | null;
+  signalCount: number;
+  sourceCounts: Readonly<Record<AreaDemandSource, number>>;
+  firstSeen: string;
+  lastSeen: string;
+}>;
+
 /** Free-text area, capped. A night out is named in a word or two ("Broadway
  *  Market", "Peckham Rye") — anything longer is not an area name. */
 export const MAX_AREA_LENGTH = 80;
