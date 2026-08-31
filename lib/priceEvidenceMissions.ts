@@ -36,6 +36,8 @@ export type VenueMissionRows = {
   venueId: string;
   prices: readonly CommunityPrice[];
   degraded?: boolean;
+  /** Current categories already observed by the signed-in stable actor. */
+  actorCoveredCategories?: readonly DrinkCategory[];
 };
 
 export type MissionReceiptOutcome =
@@ -107,6 +109,10 @@ function candidateForVenue(
   if (venue.degraded && venue.prices.length === 0) return null;
   const rows = submittableRows(venue.prices);
   if (rows.length === 0) {
+    // A current own row can be absent from the public read because moderation
+    // hid it. Re-offering a category-flexible task would only update that same
+    // hidden actor row, so it cannot produce useful or visible evidence.
+    if ((venue.actorCoveredCategories?.length ?? 0) > 0) return null;
     return { venueId: venue.venueId, reason: "missing" };
   }
 
@@ -120,7 +126,12 @@ function candidateForVenue(
 
   const provisional: CommunityPrice[] = [];
   const stale: CommunityPrice[] = [];
+  const actorCovered = new Set(venue.actorCoveredCategories ?? []);
   for (const price of byCategory.values()) {
+    // Repeating one actor's current observation cannot add the independent
+    // evidence a provisional price needs. Coverage never contains stale rows,
+    // so an old observation remains a useful refresh task.
+    if (actorCovered.has(price.drinkCategory)) continue;
     if (isWithinMaxAge(price, now) && isCorroborated(price)) continue;
     if (isWithinMaxAge(price, now)) provisional.push(price);
     else stale.push(price);

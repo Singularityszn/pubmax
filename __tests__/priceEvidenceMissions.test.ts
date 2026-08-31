@@ -118,6 +118,53 @@ describe("rankPriceEvidenceMission", () => {
     }
   });
 
+  it("does not turn an actor-covered current category into a missing mission", () => {
+    const mission = rankPriceEvidenceMission(
+      venues([{
+        venueId: "venue-covered",
+        prices: [row("venue-covered", "beer")],
+        actorCoveredCategories: ["beer"],
+      }]),
+      NOW,
+    );
+
+    expect(mission).toBeNull();
+  });
+
+  it("does not invent a missing mission when moderation hides the covered row", () => {
+    const mission = rankPriceEvidenceMission(
+      venues([{
+        venueId: "venue-covered-hidden",
+        prices: [],
+        actorCoveredCategories: ["beer"],
+      }]),
+      NOW,
+    );
+
+    expect(mission).toBeNull();
+  });
+
+  it("uses another uncovered category at the same Venue", () => {
+    const mission = rankPriceEvidenceMission(
+      venues([{
+        venueId: "venue-two-categories",
+        prices: [
+          row("venue-two-categories", "beer"),
+          row("venue-two-categories", "wine"),
+        ],
+        actorCoveredCategories: ["beer"],
+      }]),
+      NOW,
+    );
+
+    expect(mission).toEqual({
+      venueId: "venue-two-categories",
+      reason: "provisional",
+      drinkCategory: "wine",
+      observedAt: NOW - 3_600_000,
+    });
+  });
+
   it("skips a trusted in-window category and uses the next reason", () => {
     const mission = rankPriceEvidenceMission(
       venues([{

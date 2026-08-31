@@ -34,9 +34,18 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 const storeState = vi.hoisted(() => ({
   degradeVenueIds: new Set<string>(),
+  degradeActorCoverage: false,
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
+  type ActorCoverageReader = (
+    venueIds: readonly string[],
+    actor: string,
+    now?: number,
+  ) => Promise<{
+    pairs: Array<{ venueId: string; drinkCategory: string }>;
+    degraded: boolean;
+  }>;
   return {
     ...actual,
     readCommunityPricesWithStatus: async (venueId: string, now?: number) => {
@@ -45,6 +54,18 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
       }
       return actual.readCommunityPricesWithStatus(venueId, now);
     },
+    readCurrentCommunityPriceActorCoverage: async (
+      venueIds: readonly string[],
+      actor: string,
+      now?: number,
+    ) => {
+      if (storeState.degradeActorCoverage) {
+        return { pairs: [], degraded: true };
+      }
+      return (actual as typeof actual & {
+        readCurrentCommunityPriceActorCoverage: ActorCoverageReader;
+      }).readCurrentCommunityPriceActorCoverage(venueIds, actor, now);
+    },
   };
 });
 
@@ -52,6 +73,7 @@ import { GET } from "@/app/api/price-missions/route";
 import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 import {
   __resetCommunityPrices,
+  moderateCommunityPrice,
   submitCommunityPrice,
 } from "@/lib/communityPriceStore";
 import {
@@ -63,6 +85,7 @@ import {
 } from "@/lib/priceEvidenceMissions";
 import {
   __resetMemoryProfiles,
+  profileStore,
 } from "@/lib/profileStore";
 import {
   __resetMemoryPrivateIdentities,
@@ -75,7 +98,7 @@ function get(query: string): Request {
   return new Request(`http://localhost/api/price-missions${query}`);
 }
 
-async function authorizeContributor(userId: string, handle: string): Promise<void> {
+async function authorizeContributor(userId: string, handle: string): Promise<string> {
   authState.userId = userId;
   const onboarding = await memoryPrivateIdentityStore.completeOnboarding({
     userId,
@@ -83,6 +106,9 @@ async function authorizeContributor(userId: string, handle: string): Promise<voi
     dateOfBirth: "1990-01-01",
   });
   expect(onboarding).toMatchObject({ ok: true });
+  const profile = await profileStore().getByUserId(userId);
+  if (!profile) throw new Error("Expected contributor profile");
+  return `profile:${profile.id}`;
 }
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
@@ -96,6 +122,7 @@ beforeEach(async () => {
   authState.userId = null;
   authState.unavailable = false;
   storeState.degradeVenueIds.clear();
+  storeState.degradeActorCoverage = false;
   __resetCommunityPrices();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -159,6 +186,113 @@ describe("GET /api/price-missions", () => {
     expect(body.mission).not.toHaveProperty("priceGbp");
     expect(body.mission).not.toHaveProperty("handle");
     expect(JSON.stringify(body)).not.toMatch(/51\.|lat|lng|coord/i);
+  });
+
+  it("does not repeat the caller's fresh submission on a new route read", async () => {
+    const actor = await authorizeContributor("user-own-price", "mission_owner");
+    await submitCommunityPrice({
+      venueId: "venue-own-price",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor,
+    }, NOW);
+
+    for (let remount = 0; remount < 2; remount += 1) {
+      const res = await GET(get("?venueId=venue-own-price"));
+      expect(res.status).toBe(200);
+      await expect(res.json()).resolves.toMatchObject({
+        status: "ready",
+        mission: null,
+      });
+    }
+  });
+
+  it("does not send a hidden own submission into a missing-mission loop", async () => {
+    const actor = await authorizeContributor("user-hidden-price", "mission_hidden");
+    const submission = await submitCommunityPrice({
+      venueId: "venue-own-hidden",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor,
+    }, NOW);
+    expect(submission.price?.id).toBeTruthy();
+    await expect(
+      moderateCommunityPrice(submission.price!.id!, true, "not visible"),
+    ).resolves.toBe(true);
+
+    const res = await GET(get("?venueId=venue-own-hidden"));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      status: "ready",
+      mission: null,
+    });
+  });
+
+  it("keeps a missing mission when own coverage is not submittable", async () => {
+    const actor = await authorizeContributor("user-own-gin", "mission_gin");
+    await submitCommunityPrice({
+      venueId: "venue-own-gin",
+      drinkCategory: "gin",
+      priceGbp: 7.2,
+      actor,
+    }, NOW);
+
+    const res = await GET(get("?venueId=venue-own-gin"));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      status: "ready",
+      mission: {
+        venueId: "venue-own-gin",
+        reason: "missing",
+      },
+    });
+  });
+
+  it("keeps the caller's stale category eligible after excluding fresh evidence", async () => {
+    const actor = await authorizeContributor("user-stale-price", "mission_stale");
+    await submitCommunityPrice({
+      venueId: "venue-own-fresh",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor,
+    }, NOW);
+    await submitCommunityPrice({
+      venueId: "venue-own-stale",
+      drinkCategory: "wine",
+      priceGbp: 5.5,
+      actor,
+    }, NOW - COMMUNITY_PRICE_MAX_AGE_MS - 1);
+
+    const res = await GET(get(
+      "?venueId=venue-own-fresh&venueId=venue-own-stale",
+    ));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      status: "ready",
+      mission: {
+        venueId: "venue-own-stale",
+        reason: "stale",
+        drinkCategory: "wine",
+      },
+    });
+  });
+
+  it("fails closed when actor coverage cannot be read completely", async () => {
+    await authorizeContributor("user-coverage-failure", "mission_degraded");
+    await submitCommunityPrice({
+      venueId: "venue-someone-else",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+      actor: "profile:someone-else",
+    }, NOW);
+    storeState.degradeActorCoverage = true;
+
+    const res = await GET(get("?venueId=venue-someone-else"));
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      status: "degraded",
+      mission: null,
+    });
   });
 
   it("marks a failed store read degraded and does not claim an empty market", async () => {

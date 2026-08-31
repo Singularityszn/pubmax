@@ -9,7 +9,10 @@
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
-import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import {
+  readCommunityPricesWithStatus,
+  readCurrentCommunityPriceActorCoverage,
+} from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
 import {
   parsePriceEvidenceMissionVenueIds,
@@ -47,12 +50,31 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const now = Date.now();
-  const rows: VenueMissionRows[] = await Promise.all(
-    parsed.venueIds.map(async (venueId) => {
-      const read = await readCommunityPricesWithStatus(venueId, now);
-      return { venueId, prices: read.prices, degraded: read.degraded };
-    }),
-  );
+  const [priceReads, actorCoverage] = await Promise.all([
+    Promise.all(
+      parsed.venueIds.map(async (venueId) => {
+        const read = await readCommunityPricesWithStatus(venueId, now);
+        return { venueId, prices: read.prices, degraded: read.degraded };
+      }),
+    ),
+    readCurrentCommunityPriceActorCoverage(
+      parsed.venueIds,
+      contributor.actor,
+      now,
+    ),
+  ]);
+  if (actorCoverage.degraded) {
+    return jsonNoStore({ status: "degraded", mission: null });
+  }
+  const coveredByVenue = new Map<string, VenueMissionRows["actorCoveredCategories"]>();
+  for (const pair of actorCoverage.pairs) {
+    const categories = coveredByVenue.get(pair.venueId) ?? [];
+    coveredByVenue.set(pair.venueId, [...categories, pair.drinkCategory]);
+  }
+  const rows: VenueMissionRows[] = priceReads.map((read) => ({
+    ...read,
+    actorCoveredCategories: coveredByVenue.get(read.venueId),
+  }));
   const degraded = rows.some((row) => row.degraded);
   const ranked = rankPriceEvidenceMission(rows, now);
   return jsonNoStore({

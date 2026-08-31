@@ -55,6 +55,7 @@ import {
   isWithinMaxAge,
   marksMapProvisionally,
   roundToPennies,
+  SUBMITTABLE_DRINK_CATEGORIES,
   submitterBucket,
   type CommunityPrice,
   type CommunityPriceInput,
@@ -138,6 +139,16 @@ export type CommunityContributorCount = {
 
 export type CommunityPriceReadResult = {
   prices: CommunityPrice[];
+  degraded: boolean;
+};
+
+export type CommunityPriceActorCoveragePair = {
+  venueId: string;
+  drinkCategory: DrinkCategory;
+};
+
+export type CommunityPriceActorCoverageReadResult = {
+  pairs: CommunityPriceActorCoveragePair[];
   degraded: boolean;
 };
 
@@ -2127,6 +2138,107 @@ export type CommunityPriceObservationPair = {
 // that silently drops an unlock is worse than one that says it could not look.
 const OBSERVATION_PAIR_SCAN_PAIRS = 50;
 const OBSERVATION_PAIR_SCAN_ROWS = OBSERVATION_PAIR_SCAN_PAIRS * VENUE_SCAN_ROWS;
+const MAX_CURRENT_ACTOR_COVERAGE_VENUES = 8;
+const MAX_CURRENT_ACTOR_COVERAGE_ROWS =
+  MAX_CURRENT_ACTOR_COVERAGE_VENUES * SUBMITTABLE_DRINK_CATEGORIES.length;
+const currentActorCoverageCategories = new Set<DrinkCategory>(
+  SUBMITTABLE_DRINK_CATEGORIES,
+);
+
+function isCurrentActorCoverageCategory(
+  value: unknown,
+): value is DrinkCategory {
+  return isDrinkCategory(value) && currentActorCoverageCategories.has(value);
+}
+
+function cleanActorCoverageVenueIds(
+  rawVenueIds: readonly string[],
+): string[] | null {
+  const venueIds: string[] = [];
+  const seen = new Set<string>();
+  for (const rawVenueId of rawVenueIds) {
+    const venueId = cleanVenueId(rawVenueId);
+    if (!venueId || seen.has(venueId)) continue;
+    seen.add(venueId);
+    venueIds.push(venueId);
+    if (venueIds.length > MAX_CURRENT_ACTOR_COVERAGE_VENUES) return null;
+  }
+  return venueIds;
+}
+
+function actorCoveragePairKey(
+  venueId: string,
+  drinkCategory: DrinkCategory,
+): string {
+  return `${venueId}\u0000${drinkCategory}`;
+}
+
+function currentActorCoverageFromStored(
+  venueIds: readonly string[],
+  actor: string,
+  now: number,
+): CommunityPriceActorCoveragePair[] {
+  const pairs: CommunityPriceActorCoveragePair[] = [];
+  const seen = new Set<string>();
+  for (const venueId of venueIds) {
+    for (const row of venues.get(venueId) ?? []) {
+      if (
+        row.actor !== actor ||
+        !isCurrentActorCoverageCategory(row.drinkCategory) ||
+        !isWithinMaxAge(row, now)
+      ) {
+        continue;
+      }
+      const key = actorCoveragePairKey(venueId, row.drinkCategory);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push({ venueId, drinkCategory: row.drinkCategory });
+    }
+  }
+  return pairs;
+}
+
+function currentActorCoverageFromRows(
+  rows: unknown,
+  venueIds: readonly string[],
+  actor: string,
+  now: number,
+): CommunityPriceActorCoveragePair[] {
+  if (!Array.isArray(rows)) return [];
+  const wanted = new Set(venueIds);
+  const pairs: CommunityPriceActorCoveragePair[] = [];
+  const seen = new Set<string>();
+  for (const raw of rows) {
+    if (typeof raw !== "object" || raw === null) continue;
+    const row = raw as Record<string, unknown>;
+    const venueId = cleanVenueId(row.venue_id);
+    if (!wanted.has(venueId) || row.actor !== actor) continue;
+    if (!isCurrentActorCoverageCategory(row.drink_category)) continue;
+    if (typeof row.submitted_at !== "string" || row.submitted_at === "") {
+      continue;
+    }
+    const submittedAt = Date.parse(row.submitted_at);
+    if (!isWithinMaxAge({ submittedAt }, now)) continue;
+    const key = actorCoveragePairKey(venueId, row.drink_category);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    pairs.push({ venueId, drinkCategory: row.drink_category });
+  }
+  return pairs;
+}
+
+const currentActorCoverageReader = {
+  async read(
+    venueIds: readonly string[],
+    actor: string,
+    now: number,
+  ): Promise<CommunityPriceActorCoverageReadResult> {
+    return {
+      pairs: currentActorCoverageFromStored(venueIds, actor, now),
+      degraded: false,
+    };
+  },
+};
 
 function observationFromStored(row: StoredPrice): CommunityPriceObservation | null {
   if (!row.id || !isDrinkCategory(row.drinkCategory)) return null;
@@ -2295,6 +2407,42 @@ const observationGuard = createFailSoftGuard({
   migrationHint: "apply migration 0054",
 });
 
+const durableCurrentActorCoverageReader = {
+  async read(
+    venueIds: readonly string[],
+    actor: string,
+    now: number,
+  ): Promise<CommunityPriceActorCoverageReadResult> {
+    return observationGuard.guard({
+      context: "currentActorCoverage",
+      // A configured durable store cannot prove coverage from process memory.
+      // Missing schema is unavailable, not an honest empty result.
+      onSchemaMiss: () => Promise.resolve({ pairs: [], degraded: true }),
+      message: "current actor coverage read failed",
+      onError: () => ({ pairs: [], degraded: true }),
+      run: async () => {
+        const cutoff = new Date(now - COMMUNITY_PRICE_MAX_AGE_MS).toISOString();
+        const { data, error } = await admin()
+          .from("community_prices")
+          .select("venue_id, drink_category, submitted_at, actor")
+          .eq("actor", actor)
+          .in("venue_id", [...venueIds])
+          .in("drink_category", [...SUBMITTABLE_DRINK_CATEGORIES])
+          .gte("submitted_at", cutoff)
+          .limit(MAX_CURRENT_ACTOR_COVERAGE_ROWS);
+        if (error) throw new Error(error.message);
+        if (!Array.isArray(data)) {
+          return { pairs: [], degraded: true };
+        }
+        return {
+          pairs: currentActorCoverageFromRows(data, venueIds, actor, now),
+          degraded: false,
+        };
+      },
+    });
+  },
+};
+
 const durableObservationReader = {
   async listForVenueCategory(
     venueId: string,
@@ -2373,6 +2521,35 @@ const durableObservationReader = {
 
 function observations(): typeof observationReader {
   return selectStore(observationReader, durableObservationReader);
+}
+
+function currentActorCoverage(): typeof currentActorCoverageReader {
+  return selectStore(
+    currentActorCoverageReader,
+    durableCurrentActorCoverageReader,
+  );
+}
+
+/**
+ * Current drink categories already observed by one stable actor across a
+ * bounded mission request. Hidden rows count here because another write by the
+ * same actor cannot add independent evidence or bypass moderation. Actor tokens
+ * never leave this server-only module.
+ */
+export function readCurrentCommunityPriceActorCoverage(
+  rawVenueIds: readonly string[],
+  actor: string,
+  now: number = Date.now(),
+): Promise<CommunityPriceActorCoverageReadResult> {
+  const venueIds = cleanActorCoverageVenueIds(rawVenueIds);
+  if (venueIds === null) {
+    return Promise.resolve({ pairs: [], degraded: true });
+  }
+  if (venueIds.length === 0 || actor === "") {
+    return Promise.resolve({ pairs: [], degraded: false });
+  }
+  const at = Number.isFinite(now) ? now : Date.now();
+  return currentActorCoverage().read(venueIds, actor, at);
 }
 
 export function listCommunityPriceObservations(
