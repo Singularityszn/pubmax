@@ -250,6 +250,27 @@
 .palPrivacyFacts p, .palAccountGate p { line-height: 1.5; }
 .palAccountGate div { display: grid; gap: .6rem; }
 .palAccountGate a { color: var(--pal-paper); }
+.palGuestStartActions {
+  display: flex !important;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: .65rem !important;
+}
+.palGuestStartActions .palPrimary,
+.palGuestStartActions .palGuestText {
+  min-height: 2.75rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: .45rem;
+  padding: 0 1rem;
+  border-radius: .8rem;
+  text-decoration: none;
+}
+.palGuestStartActions .palGuestText {
+  border: 1px solid var(--pal-line);
+  background: transparent;
+}
 .palReview { margin-top: 1.5rem; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .65rem; }
 .palReview > div { min-height: 4.6rem; padding: .9rem 1rem; border: 1px solid var(--pal-line); border-radius: .9rem; display: grid; gap: .2rem; }
 .palReview span { color: var(--pal-soft); font-size: .7rem; }
@@ -367,6 +388,8 @@
   .palSpeciesGrid .palChoice { min-height: 4.85rem; padding-right: 2.5rem; }
   .palRange { grid-template-columns: 5.2rem 1fr; }
   .palReview { grid-template-columns: 1fr; }
+  .palGuestStartActions { display: grid !important; }
+  .palGuestStartActions > a { width: 100%; }
   .palOnboardingActions { position: relative; bottom: auto; z-index: 2; margin: 1.25rem -1rem 0; padding: .75rem 1rem; border-top: 1px solid var(--pal-line); background: color-mix(in srgb, var(--pal-night) 92%, transparent); backdrop-filter: blur(1.1rem); }
   .palOnboardingActions > button:not(.palPrimary) { display: none; }
   .palOnboardingActions .palPrimary { width: 100%; }

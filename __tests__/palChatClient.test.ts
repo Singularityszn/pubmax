@@ -43,7 +43,40 @@ const WHATS_ON_BODY = {
   ],
 };
 
+const ASK_BODY = {
+  answer: "One pick from our records.",
+  cards: [
+    {
+      key: "venue-1",
+      venueId: "venue-1",
+      title: "The Lamb",
+      place: "Bloomsbury",
+      note: "Quiet",
+      price: 5.4,
+      provenance: { label: "On record", kind: "directory" },
+    },
+  ],
+  proposals: [],
+  sources: [{ label: "On record", kind: "directory" }],
+  status: "ready",
+  toolsUsed: ["search_venues"],
+};
+
 describe("createPalChatSession", () => {
+  it("accepts the complete Night OS Ask response contract", async () => {
+    const ask = createPalChatSession({
+      fetchImpl: async () => jsonResponse(ASK_BODY),
+    });
+
+    const result = await ask("quiet near bank", "london");
+
+    expect(result?.status).toBe("answered");
+    if (result?.status === "answered") {
+      expect(result.message).toBe("One pick from our records.");
+      expect(result.cards[0].venueId).toBe("venue-1");
+    }
+  });
+
   it("returns a grounded venue answer with On-record provenance", async () => {
     const ask = createPalChatSession({
       fetchImpl: async () => jsonResponse(VENUE_BODY),
@@ -157,6 +190,71 @@ describe("createPalChatSession", () => {
     });
     const result = await ask("anything", "london");
     expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
+  });
+
+  it("refuses a schema-malformed successful response", async () => {
+    const ask = createPalChatSession({
+      fetchImpl: async () => jsonResponse({}),
+    });
+
+    const result = await ask("anything", "london");
+
+    expect(result).toEqual({ status: "error", message: PAL_ERROR_FALLBACK });
+  });
+
+  it("refuses an incomplete Night OS Ask response", async () => {
+    const ask = createPalChatSession({
+      fetchImpl: async () => jsonResponse({
+        answer: "Looks valid but has no response receipt.",
+        cards: [],
+        proposals: [],
+      }),
+    });
+
+    expect(await ask("anything", "london")).toEqual({
+      status: "error",
+      message: PAL_ERROR_FALLBACK,
+    });
+  });
+
+  it("refuses malformed or unreceipted Night OS cards", async () => {
+    for (const body of [
+      { ...ASK_BODY, cards: [null] },
+      {
+        ...ASK_BODY,
+        cards: [{ ...ASK_BODY.cards[0], provenance: undefined }],
+      },
+      {
+        ...ASK_BODY,
+        cards: [{
+          ...ASK_BODY.cards[0],
+          provenance: { label: "Unknown", kind: "directory" },
+        }],
+      },
+    ]) {
+      const ask = createPalChatSession({
+        fetchImpl: async () => jsonResponse(body),
+      });
+      expect(await ask("anything", "london")).toEqual({
+        status: "error",
+        message: PAL_ERROR_FALLBACK,
+      });
+    }
+  });
+
+  it("refuses non-empty legacy arrays when every row is malformed", async () => {
+    for (const body of [
+      { venues: [null] },
+      { mode: "whats-on", listings: [{}] },
+    ]) {
+      const ask = createPalChatSession({
+        fetchImpl: async () => jsonResponse(body),
+      });
+      expect(await ask("anything", "london")).toEqual({
+        status: "error",
+        message: PAL_ERROR_FALLBACK,
+      });
+    }
   });
 
   it("curates copy for a non-ok, non-JSON body (no SyntaxError leak)", async () => {

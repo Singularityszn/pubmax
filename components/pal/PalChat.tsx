@@ -10,9 +10,12 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUp, MapPin, Sparkles } from "lucide-react";
+import { ArrowUp, MapPin, MessageSquareText, Mic, Sparkles } from "lucide-react";
 
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import PalGuestAccountGate from "@/components/pal/PalGuestAccountGate";
+import PalPortrait from "@/components/pal/PalPortrait";
+import PalTalkControl from "@/components/pal/PalTalkControl";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import IntentLink from "@/components/nav/IntentLink";
@@ -37,6 +40,32 @@ import { palLocalityLine, resolvePalLocality, type PalLocality } from "@/lib/pal
 import { planPalRouteHandoffHref } from "@/lib/planOccasion";
 import { writePlanningIntent } from "@/lib/planningIntent";
 import { createPalChatSession } from "@/lib/palChatClient";
+import {
+  speakPalBrowserAnswer,
+  stopPalBrowserSpeech,
+} from "@/lib/palBrowserSpeech";
+import {
+  DEFAULT_PAL_GUEST_TRIAL,
+  PAL_GUEST_ANSWER_LIMIT,
+  PAL_GUEST_TRIAL_STORAGE_KEY,
+  isPalGuestTrialComplete,
+  palGuestResultConsumesAnswer,
+  readPalGuestTrial,
+  recordPalGuestAnswer,
+  withPalGuestTurnLock,
+  writePalGuestChoice,
+  type PalGuestMode,
+  type PalGuestTrialState,
+} from "@/lib/palGuestTrial";
+import {
+  DEFAULT_PAL_DRAFT,
+  PAL_LAUNCH_COPY,
+  anonymousPalDraftOwner,
+  compatiblePalSpecies,
+  readPalOnboardingDraft,
+  type PubPalDraft,
+  type PubPalSpecies,
+} from "@/lib/pubPal";
 import {
   cheapestGlanceLine,
   countTonightKinds,
@@ -211,11 +240,21 @@ export function AnswerCard({
 
 export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }) {
   const router = useRouter();
-  const { user, session } = useAuth();
+  const { user, session, loading: authLoading = false } = useAuth();
+  const userRef = useRef(user);
+  const authLoadingRef = useRef(authLoading);
   const auth = captureAccountAuth(user?.id ?? null, session);
   const [entries, setEntries] = useState<Entry[]>([]);
   const [query, setQuery] = useState("");
   const [pending, setPending] = useState(false);
+  const pendingRef = useRef(false);
+  const [guestTrial, setGuestTrial] = useState<PalGuestTrialState>({
+    ...DEFAULT_PAL_GUEST_TRIAL,
+  });
+  const guestTrialRef = useRef<PalGuestTrialState>(guestTrial);
+  const [guestDraft, setGuestDraft] = useState<PubPalDraft | null>(null);
+  const [guestVoiceAllowed, setGuestVoiceAllowed] = useState(true);
+  const [trialReady, setTrialReady] = useState(false);
   const [knownVenueIds, setKnownVenueIds] = useState<ReadonlySet<string> | null>(null);
   const inputId = useId();
   const scrollRef = useRef<HTMLDivElement | null>(null);
@@ -223,6 +262,64 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const counterRef = useRef(0);
   // Every ask this thread has carried, oldest first. In-thread only.
   const priorAsksRef = useRef<string[]>([]);
+
+  useEffect(() => {
+    userRef.current = user;
+    authLoadingRef.current = authLoading;
+  }, [authLoading, user]);
+
+  useEffect(() => {
+    guestTrialRef.current = guestTrial;
+  }, [guestTrial]);
+
+  useEffect(() => {
+    let active = true;
+    const timer = window.setTimeout(() => {
+      const stored = readPalGuestTrial();
+      const params = new URLSearchParams(window.location.search);
+      const requestedSpecies = compatiblePalSpecies(params.get("pal"));
+      const requestedMode = params.get("mode");
+      const onboarding = readPalOnboardingDraft(anonymousPalDraftOwner());
+      const voiceAllowed = onboarding?.privacy.muted !== true;
+      const selectedMode: PalGuestMode =
+        requestedMode === "talk" || requestedMode === "text"
+          ? requestedMode
+          : stored.mode;
+      const mode: PalGuestMode = voiceAllowed ? selectedMode : "text";
+      const next = writePalGuestChoice(
+        requestedSpecies ?? stored.species,
+        mode,
+      );
+      if (!active) return;
+      guestTrialRef.current = next;
+      setGuestTrial(next);
+      setGuestDraft(onboarding?.draft ?? null);
+      setGuestVoiceAllowed(voiceAllowed);
+      setTrialReady(true);
+    }, 0);
+    return () => {
+      active = false;
+      window.clearTimeout(timer);
+      stopPalBrowserSpeech();
+    };
+  }, []);
+
+  useEffect(() => {
+    const syncGuestCount = (event: StorageEvent) => {
+      if (event.key !== PAL_GUEST_TRIAL_STORAGE_KEY) return;
+      const stored = readPalGuestTrial();
+      const current = guestTrialRef.current;
+      if (stored.answeredPrompts <= current.answeredPrompts) return;
+      const next = {
+        ...current,
+        answeredPrompts: stored.answeredPrompts,
+      };
+      guestTrialRef.current = next;
+      setGuestTrial(next);
+    };
+    window.addEventListener("storage", syncGuestCount);
+    return () => window.removeEventListener("storage", syncGuestCount);
+  }, []);
 
   const nextId = useCallback(() => {
     counterRef.current += 1;
@@ -265,40 +362,99 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
   const ask = useCallback(
     async (raw: string) => {
       const text = raw.trim();
-      if (!text || pending) return;
-      sessionRef.current ??= createPalChatSession();
-      // Read the recall BEFORE this ask joins the transcript, so the Pal never
-      // recalls the question it is answering.
-      const recall = palRecall(priorAsksRef.current, text);
-      priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
-      setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
-      setQuery("");
+      if (!text || pendingRef.current) return;
+      pendingRef.current = true;
       setPending(true);
-      trackEvent("concierge_ask");
-      const result = await sessionRef.current(text, DEFAULT_CITY_ID);
-      setPending(false);
-      if (result === null) return; // superseded by a newer ask — do nothing
-      if (result.status === "error") {
+      const execute = async () => {
+        if (authLoadingRef.current) return;
+        const storedGuestTrial = readPalGuestTrial();
+        if (
+          !userRef.current
+          && storedGuestTrial.answeredPrompts
+            > guestTrialRef.current.answeredPrompts
+        ) {
+          const next = {
+            ...guestTrialRef.current,
+            answeredPrompts: storedGuestTrial.answeredPrompts,
+          };
+          guestTrialRef.current = next;
+          setGuestTrial(next);
+        }
+        if (
+          !userRef.current
+          && (!trialReady || isPalGuestTrialComplete(guestTrialRef.current))
+        ) {
+          return;
+        }
+        sessionRef.current ??= createPalChatSession();
+        // Read recall before this ask joins the in-thread transcript.
+        const recall = palRecall(priorAsksRef.current, text);
+        priorAsksRef.current = [...priorAsksRef.current, text].slice(-12);
+        setEntries((prev) => [...prev, { kind: "user", id: nextId(), text }]);
+        setQuery("");
+        trackEvent("concierge_ask");
+        const result = await sessionRef.current(text, DEFAULT_CITY_ID);
+        if (result === null) return;
+        if (result.status === "error") {
+          setEntries((prev) => [
+            ...prev,
+            { kind: "error", id: nextId(), message: result.message },
+          ]);
+          return;
+        }
+        if (!userRef.current && palGuestResultConsumesAnswer(result)) {
+          const previousCount = guestTrialRef.current.answeredPrompts;
+          const next = recordPalGuestAnswer(undefined, guestTrialRef.current);
+          guestTrialRef.current = next;
+          setGuestTrial(next);
+          if (previousCount === 0 && next.answeredPrompts === 1) {
+            trackEvent("pub_pal_guest_trial_started");
+          }
+          trackEvent("pub_pal_guest_answer_completed", {
+            turn: next.answeredPrompts,
+          });
+          if (guestVoiceAllowed) {
+            speakPalBrowserAnswer(result.message, next.mode);
+          }
+        }
+        const locality = palHandoff
+          ? resolvePalLocality(text, readRememberedArea())
+          : null;
+        const proposals = result.proposals ?? [];
         setEntries((prev) => [
           ...prev,
-          { kind: "error", id: nextId(), message: result.message },
+          { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
         ]);
-        return;
+      };
+
+      try {
+        if (userRef.current) {
+          await execute();
+        } else {
+          await withPalGuestTurnLock(execute);
+        }
+      } finally {
+        pendingRef.current = false;
+        setPending(false);
       }
-      // Ground WHERE this answer applies from the query and remembered area,
-      // only when the handoff is on. Off = no locality copy, byte-identical.
-      const locality = palHandoff ? resolvePalLocality(text, readRememberedArea()) : null;
-      const proposals =
-        result.status === "answered" || result.status === "empty"
-          ? result.proposals ?? []
-          : [];
-      setEntries((prev) => [
-        ...prev,
-        { kind: "answer", id: nextId(), answer: result, locality, proposals, recall },
-      ]);
     },
-    [nextId, pending, palHandoff],
+    [guestVoiceAllowed, nextId, palHandoff, trialReady],
   );
+
+  const chooseGuestMode = useCallback((mode: PalGuestMode) => {
+    if (mode === "talk" && !guestVoiceAllowed) return;
+    if (guestTrialRef.current.mode === mode) return;
+    const next = writePalGuestChoice(
+      guestTrialRef.current.species,
+      mode,
+      undefined,
+      guestTrialRef.current,
+    );
+    guestTrialRef.current = next;
+    setGuestTrial(next);
+    if (mode === "text") stopPalBrowserSpeech();
+    trackEvent("pub_pal_guest_mode_selected", { mode });
+  }, [guestVoiceAllowed]);
 
   const dismissProposal = useCallback((entryId: string, proposalId: string) => {
     setEntries((prev) =>
@@ -385,24 +541,28 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     [ask, query],
   );
 
-  // Vibe deep link (?ask=...): a Tonight vibe chip can hand its preset ask to
-  // this surface pre-fired. Read from location once on mount — a client-only,
-  // fire-once concern, so plain location.search avoids wrapping the page in a
-  // useSearchParams Suspense boundary. The ref (not `pending`) guards double
-  // fire under StrictMode re-mounts.
+  // Vibe deep link (?ask=...): signed-in chat can preserve the existing
+  // pre-fired handoff. A guest sees the preset in the editable composer and
+  // must press Ask, matching the disclosed guest Talk/Text boundary.
   const autoAskedRef = useRef(false);
   useEffect(() => {
-    if (autoAskedRef.current) return;
+    if (!trialReady || autoAskedRef.current) return;
     autoAskedRef.current = true;
     const preset = new URLSearchParams(window.location.search).get("ask");
     const text = preset?.trim() ?? "";
     if (!text || text.length > 500) return;
     // Defer out of the effect body (React 19 idiom, as TonightClient's
-    // settle()): ask() sets state, which must not run synchronously here.
-    const timer = setTimeout(() => void ask(text), 0);
+    // settle()): neither prefill nor ask may set state synchronously here.
+    const timer = setTimeout(() => {
+      if (!userRef.current) {
+        setQuery(text);
+        return;
+      }
+      void ask(text);
+    }, 0);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- fire once on mount
-  }, []);
+  }, [trialReady]);
 
   const empty = entries.length === 0 && !pending;
   // Tonight-at-a-glance data: the same /api/whats-on spine the map fetches,
@@ -456,6 +616,33 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
     () => (cheapest ? cheapestGlanceLine(cheapest.areaLabel, cheapest.card, formatPrice) : null),
     [cheapest],
   );
+  const guestEligible = trialReady
+    && !authLoading
+    && !user;
+  const guestLocked = guestEligible && isPalGuestTrialComplete(guestTrial);
+  const gateTrackedRef = useRef(false);
+  useEffect(() => {
+    if (!guestLocked || gateTrackedRef.current) return;
+    gateTrackedRef.current = true;
+    trackEvent("pub_pal_guest_gate_shown");
+  }, [guestLocked]);
+  const launchCopy = PAL_LAUNCH_COPY as Partial<
+    Record<PubPalSpecies, Readonly<{ title: string; note: string }>>
+  >;
+  const matchingGuestDraft = guestDraft?.appearance.species === guestTrial.species
+    ? guestDraft
+    : null;
+  const guestPalName = matchingGuestDraft?.name.trim()
+    || launchCopy[guestTrial.species]?.title
+    || "Pub Pal";
+  const guestAppearance = {
+    ...(matchingGuestDraft?.appearance ?? DEFAULT_PAL_DRAFT.appearance),
+    species: guestTrial.species,
+  };
+  const guestAnswersLeft = Math.max(
+    0,
+    PAL_GUEST_ANSWER_LIMIT - guestTrial.answeredPrompts,
+  );
 
   return (
     <>
@@ -467,10 +654,29 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
             ← Pub Pal
           </Link>
         ) : null}
-        <p className="palChatEyebrow">
-          <PubPalMascot size={18} circular />
-          Ask your Pub Pal
-        </p>
+        {guestEligible ? (
+          <div className="palChatIdentity">
+            <div className="palChatIdentityPortrait">
+              <PalPortrait
+                appearance={guestAppearance}
+                name={guestPalName}
+                compact
+              />
+            </div>
+            <div>
+              <p className="palChatEyebrow">
+                <PubPalMascot size={18} circular />
+                Ask your Pub Pal
+              </p>
+              <p className="palChatPalName">{guestPalName}</p>
+            </div>
+          </div>
+        ) : (
+          <p className="palChatEyebrow">
+            <PubPalMascot size={18} circular />
+            Ask your Pub Pal
+          </p>
+        )}
         <h1 className="palChatTitle">{"What's the night?"}</h1>
         <p className="palChatIntro">
           Straight answers from what we have actually seen. Every card keeps its
@@ -592,7 +798,7 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
           ) : null}
         </div>
 
-        {empty ? (
+        {empty && !authLoading ? (
           /* Vibe quick-asks (docs/VIBE_LAYER_SPEC_2026-07-19.md): the chip
              label is the user's voice; the press fires the chip's parser-tuned
              preset through the same deterministic ask path as typed text. */
@@ -654,29 +860,64 @@ export default function PalChat({ palHandoff = false }: { palHandoff?: boolean }
         ) : null}
       </div>
 
-      <form className="palChatComposer" onSubmit={onSubmit}>
-        <label className="palChatSr" htmlFor={inputId}>
-          Describe the outing
-        </label>
-        <input
-          id={inputId}
-          className="palChatInput"
-          value={query}
-          onChange={(event) => setQuery(event.target.value)}
-          placeholder="Quiet-ish near Bank, not pricey"
-          maxLength={500}
-          enterKeyHint="send"
-          autoComplete="off"
+      {guestEligible && !guestLocked ? (
+        <div className="palGuestTrialBar">
+          <p role="status">
+            {guestAnswersLeft} guest {guestAnswersLeft === 1 ? "answer" : "answers"} left
+          </p>
+          <div className="palGuestModeSwitch" role="group" aria-label="How to ask">
+            {guestVoiceAllowed ? (
+              <button
+                type="button"
+                aria-pressed={guestTrial.mode === "talk"}
+                onClick={() => chooseGuestMode("talk")}
+              >
+                <Mic size={17} aria-hidden="true" /> Talk
+              </button>
+            ) : null}
+            <button
+              type="button"
+              aria-pressed={guestTrial.mode === "text"}
+              onClick={() => chooseGuestMode("text")}
+            >
+              <MessageSquareText size={17} aria-hidden="true" /> Text
+            </button>
+          </div>
+        </div>
+      ) : null}
+      {guestLocked ? (
+        <PalGuestAccountGate
+          palName={guestPalName}
+          onSignInOpen={() => trackEvent("pub_pal_guest_sign_in_opened")}
         />
-        <button
-          type="submit"
-          className="palChatSend pressable"
-          disabled={pending || !query.trim()}
-          aria-label="Ask"
-        >
-          <ArrowUp size={18} aria-hidden="true" />
-        </button>
-      </form>
+      ) : !authLoading ? (
+        <form className="palChatComposer" onSubmit={onSubmit}>
+          {guestEligible && guestVoiceAllowed && guestTrial.mode === "talk" ? (
+            <PalTalkControl disabled={pending} onChange={setQuery} />
+          ) : null}
+          <label className="palChatSr" htmlFor={inputId}>
+            Describe the outing
+          </label>
+          <input
+            id={inputId}
+            className="palChatInput"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Quiet-ish near Bank, not pricey"
+            maxLength={500}
+            enterKeyHint="send"
+            autoComplete="off"
+          />
+          <button
+            type="submit"
+            className="palChatSend pressable"
+            disabled={pending || !query.trim()}
+            aria-label="Ask"
+          >
+            <ArrowUp size={18} aria-hidden="true" />
+          </button>
+        </form>
+      ) : null}
       </main>
     </>
   );

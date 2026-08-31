@@ -23,18 +23,88 @@ type SessionOptions = {
   fetchImpl?: typeof fetch;
 };
 
-function askBodyToPal(body: unknown): PalChatResult {
-  // Prefer the Ask agent shape when present.
-  const ask = answerFromBody(body);
-  if (ask.status === "error") return ask;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
 
-  if (
-    body &&
-    typeof body === "object" &&
-    !Array.isArray(body) &&
-    typeof (body as Record<string, unknown>).answer === "string"
-  ) {
-    const record = body as Record<string, unknown>;
+const ASK_SOURCE_KINDS = new Set([
+  "directory",
+  "whats-on",
+  "heritage",
+  "community-price",
+  "citymcp",
+  "plan",
+]);
+
+function isAskSource(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false;
+  return typeof value.label === "string"
+    && Boolean(value.label.trim())
+    && typeof value.kind === "string"
+    && ASK_SOURCE_KINDS.has(value.kind)
+    && (value.url === undefined || typeof value.url === "string");
+}
+
+function sameAskSource(
+  left: Record<string, unknown>,
+  right: Record<string, unknown>,
+): boolean {
+  return left.label === right.label
+    && left.kind === right.kind
+    && (left.url ?? "") === (right.url ?? "");
+}
+
+function isAskCard(
+  value: unknown,
+  sources: readonly Record<string, unknown>[],
+): boolean {
+  if (!isRecord(value)) return false;
+  const provenance = value.provenance;
+  if (!isAskSource(provenance)) return false;
+  const validPrice = value.price === null
+    || (typeof value.price === "number" && Number.isFinite(value.price));
+  return typeof value.key === "string"
+    && Boolean(value.key.trim())
+    && typeof value.venueId === "string"
+    && typeof value.title === "string"
+    && Boolean(value.title.trim())
+    && typeof value.place === "string"
+    && typeof value.note === "string"
+    && validPrice
+    && sources.some((source) => sameAskSource(source, provenance));
+}
+
+function isOfficialAskBody(record: Record<string, unknown>): boolean {
+  const sources = Array.isArray(record.sources)
+    ? record.sources.filter(isAskSource)
+    : [];
+  return typeof record.answer === "string"
+    && Boolean(record.answer.trim())
+    && Array.isArray(record.cards)
+    && record.cards.every((card) => isAskCard(card, sources))
+    && Array.isArray(record.proposals)
+    && Array.isArray(record.sources)
+    && sources.length === record.sources.length
+    && (record.status === "ready" || record.status === "degraded")
+    && Array.isArray(record.toolsUsed)
+    && record.toolsUsed.every((tool) => typeof tool === "string" && Boolean(tool));
+}
+
+function askBodyToPal(body: unknown): PalChatResult {
+  if (!isRecord(body)) {
+    return { status: "error", message: PAL_ERROR_FALLBACK };
+  }
+  const record = body;
+
+  if (isOfficialAskBody(record)) {
+    const ask = answerFromBody(record);
+    if (ask.status === "error") return ask;
+    if (
+      !Array.isArray(record.proposals)
+      || ask.proposals.length !== record.proposals.length
+    ) {
+      return { status: "error", message: PAL_ERROR_FALLBACK };
+    }
     const rawCards = Array.isArray(record.cards) ? record.cards : [];
     const cards: PalCard[] = [];
     for (const [index, raw] of rawCards.entries()) {
@@ -80,8 +150,19 @@ function askBodyToPal(body: unknown): PalChatResult {
     };
   }
 
-  // Legacy concierge body.
-  const legacy = palAnswerFromBody(body);
+  const legacyRows = record.mode === "whats-on"
+    ? (Array.isArray(record.listings) ? record.listings : null)
+    : (Array.isArray(record.venues) ? record.venues : null);
+  if (!legacyRows) {
+    return { status: "error", message: PAL_ERROR_FALLBACK };
+  }
+
+  // Empty legacy arrays are an honest empty result. A non-empty array whose
+  // rows all fail provenance/name validation is a malformed success response.
+  const legacy = palAnswerFromBody(record);
+  if (legacyRows.length > 0 && legacy.cards.length === 0) {
+    return { status: "error", message: PAL_ERROR_FALLBACK };
+  }
   return { ...legacy, proposals: [] };
 }
 

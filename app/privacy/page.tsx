@@ -25,7 +25,7 @@ import "../legal.css";
 const PAGE_TITLE = "Privacy";
 const PAGE_DESCRIPTION =
   "What PUBMAXX collects, why, who else sees it, how long we keep it, and how to get it deleted. Written against the app's behaviour.";
-const LAST_UPDATED = "16 August 2026";
+const LAST_UPDATED = "31 August 2026";
 
 export const metadata: Metadata = {
   title: PAGE_TITLE,
@@ -106,6 +106,17 @@ export default function PrivacyPage() {
           Map tiles are fetched by your browser directly from the tile hosts
           named below, so those hosts see your IP address the same way any
           website you visit does.
+        </p>
+
+        <h3 className="legalH3">If you try Pub Pal as a guest</h3>
+        <p className="legalBody">
+          Guest Talk starts only after an explicit action. Browser speech
+          recognition turns your speech into editable text. You can review or
+          change it before you send it. Only choosing Ask sends the reviewed
+          text through the existing Ask provider path. Your browser or
+          operating system speech provider may process the speech. When the
+          feature is available, browser speech synthesis may read the answer
+          aloud.
         </p>
 
         <h3 className="legalH3">If you ask for a new area</h3>
@@ -463,6 +474,13 @@ export default function PrivacyPage() {
             same rules and drops anything it doesn&rsquo;t recognise.
           </li>
           <li>
+            With analytics consent, guest trial events can record only that the
+            trial started, Talk or Text mode, an answer number from 1 to 5, the
+            account gate appearing, or sign-in opening. Those events never
+            include a prompt, answer, transcript, audio, Pub Pal species or name,
+            account identity, handle, Venue or coordinates.
+          </li>
+          <li>
             For crash reporting, the browser analytics SDK sends the crash type
             with the same standard device context and the same coarse app path
             as a page visit, so we can tell two different faults apart. Error
@@ -604,6 +622,22 @@ export default function PrivacyPage() {
             on your device unless you sign in and choose to bring it to your
             account.
           </li>
+          <li>
+            The durable guest trial record contains only the successful answer
+            count, selected Pub Pal species and selected mode. It never contains
+            a prompt, answer, transcript, audio, account identity, handle, Venue
+            or coordinates. This record stays in this browser so the five-answer
+            guest limit survives a reload.
+          </li>
+          <li>
+            The Pub Pal setup draft stores the selected setup step, chosen name,
+            adult confirmation, appearance, personality, voice and privacy
+            controls in browser storage. An anonymous session owner token keeps
+            that draft separate on this device. We do not upload this draft as a
+            bundle. If you sign in in the same browser session, PUBMAXX can move
+            it to account-owned setup. Creating your Pal sends the choices to the
+            Production Store.
+          </li>
         </ul>
         <p className="legalBody">
           Because nothing non-essential is set before you agree to it, the first
@@ -716,10 +750,14 @@ export default function PrivacyPage() {
           <div className="legalRow">
             <dt>AI features</dt>
             <dd>
-              If you ask The Landlord about a pub, or talk to Pub Pal, the text
-              or audio of that request goes to the model provider that answers
-              it (OpenRouter, and ElevenLabs for voice) and nothing else about
-              you goes with it.
+              If you ask The Landlord or Pub Pal, the reviewed text goes to the
+              model provider that answers it through the existing Ask path.
+              Guest Talk does not use ElevenLabs. Its browser or operating
+              system speech provider may process the speech, and only the text
+              you choose to send reaches the Ask path. A signed-in adult can
+              separately start provider voice after setting up a Pub Pal. Our
+              server then issues a short-lived ElevenLabs Voice Session Grant.
+              Browser speech synthesis may read an answer without that grant.
             </dd>
           </div>
           <div className="legalRow">

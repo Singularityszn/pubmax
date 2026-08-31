@@ -47,6 +47,15 @@ export const ANALYTICS_EVENTS = {
   pub_pal_adopted: ["pal"],
   pub_pal_summoned: ["surface"],
   pub_pal_memory_changed: ["action", "category"],
+  // Guest Pub Pal conversion. These use the same consent-gated analytics
+  // client as every registry event. Mode and bounded answer turn are the only
+  // props. Never add Pal choice, prompt, answer, transcript, identity, Venue,
+  // or coordinates here.
+  pub_pal_guest_trial_started: [],
+  pub_pal_guest_mode_selected: ["mode"],
+  pub_pal_guest_answer_completed: ["turn"],
+  pub_pal_guest_gate_shown: [],
+  pub_pal_guest_sign_in_opened: [],
   discovery_viewed: ["surface", "daypart"],
   plan_invite_sent: ["channel"],
   plan_invite_opened: ["source"],
@@ -393,6 +402,9 @@ export type MissionReason = (typeof MISSION_REASONS)[number];
 export const MISSION_OUTCOMES = ["logged", "trusted", "needs_check"] as const;
 export type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
 
+export const PUB_PAL_GUEST_MODES = ["talk", "text"] as const;
+export type PubPalGuestMode = (typeof PUB_PAL_GUEST_MODES)[number];
+
 /**
  * Which Pint Index page the arrival happened on: the live index, or one of its
  * dated monthly editions. Kept apart because a press link to a frozen edition
@@ -402,7 +414,14 @@ export const PINT_INDEX_SURFACES = ["index", "archive"] as const;
 export type PintIndexSurface = (typeof PINT_INDEX_SURFACES)[number];
 
 /** Landing hero / final CTA destinations (docs/plans/LANDING_ACQUISITION.md W6). */
-export const LANDING_CTA_TARGETS = ["map", "near", "plan", "pal"] as const;
+export const LANDING_CTA_TARGETS = [
+  "map",
+  "near",
+  "plan",
+  "pal",
+  "pal_talk",
+  "pal_text",
+] as const;
 export type LandingCtaTarget = (typeof LANDING_CTA_TARGETS)[number];
 
 /** First time this browser has opened a Pint Index page, or a return. */
@@ -454,6 +473,7 @@ const SAFE_STRING_VALUES = new Set([
   "degraded", "skipped", "venue", "uk_place", "unknown",
   "arrived", "skipped", "swapped", "food_preview", "get_home_preview", "keep_going_preview",
   "food", "get_home", "keep_going", "hound", "raven", "fox",
+  ...PUB_PAL_GUEST_MODES,
   "create", "edit", "delete", "approve", "reject", "preference", "correction", "outcome",
   // reviewed domain enums
   "daytime", "after_work", "evening", "late_night", "morning", "afternoon", "night",
@@ -564,6 +584,8 @@ const TRUSTED_HANDOFF_REQUIRED_KEYS = {
   invite_rsvp_submitted: ["status", "isUpdate"],
   invite_reaction_toggled: ["reaction", "active"],
   landing_cta_clicked: ["target"],
+  pub_pal_guest_mode_selected: ["mode"],
+  pub_pal_guest_answer_completed: ["turn"],
 } as const satisfies Partial<Record<AnalyticsEventName, readonly string[]>>;
 
 function includesValue(values: readonly string[], value: string | number | boolean): boolean {
@@ -749,6 +771,22 @@ function isAllowedContributionGateProp(
   return includesValue(CONTRIBUTION_GATE_STEPS, value);
 }
 
+function isAllowedPubPalGuestTrialProp(
+  name: AnalyticsEventName,
+  key: string,
+  value: string | number | boolean,
+): boolean {
+  if (!name.startsWith("pub_pal_guest_")) return true;
+  if (key === "mode") return includesValue(PUB_PAL_GUEST_MODES, value);
+  if (key === "turn") {
+    return typeof value === "number"
+      && Number.isInteger(value)
+      && value >= 1
+      && value <= 5;
+  }
+  return true;
+}
+
 /**
  * Press-arrival strictness. `surface`, `visit` and `area` each have their own
  * closed vocabulary, and `area` shares no key name with another event, so the
@@ -871,6 +909,7 @@ export function sanitizeEvent(
               && isAllowedPriceFunnelProp(name, key, value)
               && isAllowedMissionProp(name, key, value)
               && isAllowedContributionGateProp(name, key, value)
+              && isAllowedPubPalGuestTrialProp(name, key, value)
               && isAllowedPintIndexArrivalProp(name, key, value)
               && isAllowedInviteLoopProp(name, key, value)
               && isAllowedMessageAttachProp(name, key, value)

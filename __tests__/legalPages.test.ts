@@ -115,6 +115,35 @@ describe("legal content pages", () => {
     expect(terms).not.toMatch(/optional anonymous analytics/i);
   });
 
+  it("discloses the Pub Pal guest Talk boundary and local trial record", () => {
+    expect(privacyText).toMatch(/Guest Talk starts only after an explicit action/i);
+    expect(privacyText).toMatch(/browser speech recognition turns your speech into editable text/i);
+    expect(privacyText).toMatch(/Only choosing Ask sends the reviewed text through the existing Ask provider path/i);
+    expect(privacyText).toMatch(/browser or operating system speech provider may process the speech/i);
+    expect(privacyText).toMatch(/browser speech synthesis may read the answer aloud/i);
+
+    expect(privacyText).toMatch(
+      /durable guest trial record contains only the successful answer count, selected Pub Pal species and selected mode/i,
+    );
+    expect(privacyText).toMatch(
+      /never contains a prompt, answer, transcript, audio, account identity, handle, Venue or coordinates/i,
+    );
+    expect(privacyText).toMatch(/Guest Talk does not use ElevenLabs/i);
+    expect(privacyText).toMatch(
+      /signed-in adult[^]*short-lived ElevenLabs Voice Session Grant/i,
+    );
+    expect(privacyText).toMatch(
+      /With analytics consent, guest trial events can record only that the trial started, Talk or Text mode, an answer number from 1 to 5, the account gate appearing, or sign-in opening/i,
+    );
+    expect(privacyText).toMatch(
+      /Those events never include a prompt, answer, transcript, audio, Pub Pal species or name, account identity, handle, Venue or coordinates/i,
+    );
+    expect(privacyText).toMatch(
+      /Pub Pal setup draft[^]*selected setup step[^]*name[^]*adult confirmation[^]*appearance[^]*personality[^]*voice[^]*privacy controls/i,
+    );
+    expect(privacyText).toMatch(/anonymous session owner token/i);
+  });
+
   it("discloses Social ownership and the self-asserted 18+ gate", () => {
     for (const page of [privacy, terms]) {
       expect(page).toMatch(/18\+/);
@@ -440,7 +469,7 @@ describe("legal content pages", () => {
     expect(terms).toMatch(/Only your handle is public/);
     for (const page of [privacy, terms]) {
       expect(page).not.toMatch(
-        /discard the date of birth|adult confirmation|date you become eligible/i,
+        /discard (?:the )?(?:date of birth|adult confirmation)|date you become eligible/i,
       );
       expect(page).not.toMatch(/under 18[\s\S]*cannot contribute/i);
     }

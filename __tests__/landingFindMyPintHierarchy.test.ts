@@ -62,7 +62,10 @@ describe("landing Pub Pal hierarchy", () => {
       /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
     );
     expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
-    expect(hero).toContain("Sign in to keep it");
+    expect(hero?.match(/class="lpPalChoice"/g)).toHaveLength(7);
+    expect(landingTsx).toMatch(/LandingPalEntry/);
+    expect(hero).toContain("try five answers by Talk or Text");
+    expect(hero).toContain("Create an account to keep going");
     expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
     expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
   });
@@ -102,6 +105,15 @@ describe("landing Pub Pal hierarchy", () => {
     );
     expect(landingCss).toMatch(
       /\.lpButtonPrimary\s*\{[\s\S]*?color:\s*var\(--color-on-accent\)/,
+    );
+    expect(landingCss).toMatch(
+      /\.lpPalEntryModes\s*\{[^}]*grid-template-columns:\s*repeat\(2,\s*minmax\(0,\s*1fr\)\)/,
+    );
+    expect(landingCss).toMatch(
+      /\.lpPalEntryMode\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*44px/,
+    );
+    expect(landingCss).toMatch(
+      /\.lpPalChoice\s*\{[^}]*min-width:\s*0[^}]*min-height:\s*44px/,
     );
     // Mobile: no equal-weight Pal/Plan/Map button group.
     expect(landingCss).toMatch(

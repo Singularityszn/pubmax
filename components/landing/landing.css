@@ -199,6 +199,79 @@
   /* Brass on on-accent is the house high-contrast primary. */
   box-shadow: 0 16px 38px color-mix(in srgb, var(--brass) 28%, transparent);
 }
+.lpPalEntry {
+  min-width: 0;
+  margin: 0;
+  padding: 10px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid color-mix(in srgb, var(--line) 76%, var(--river) 24%);
+  border-radius: 16px;
+  background: color-mix(in srgb, var(--panel-raised) 82%, transparent);
+}
+.lpPalEntry legend {
+  padding: 0 5px;
+  color: var(--ink-soft);
+  font: 700 11px/1.2 var(--font-data);
+  letter-spacing: .05em;
+  text-transform: uppercase;
+}
+.lpPalChoices {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
+.lpPalChoice {
+  min-width: 0;
+  min-height: 44px;
+  padding: 5px 7px;
+  border: 1px solid var(--line);
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--panel) 90%, transparent);
+  color: var(--ink-soft);
+  font: 700 11px/1.15 var(--font-data);
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+.lpPalChoice:hover {
+  border-color: color-mix(in srgb, var(--brass) 52%, var(--line));
+  color: var(--ink);
+}
+.lpPalChoice:disabled { cursor: default; }
+.lpPalChoice[aria-pressed="true"] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--brass) 36%, transparent);
+}
+.lpPalEntryModes {
+  min-width: 0;
+  min-height: 44px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.lpPalEntryMode {
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 1px solid color-mix(in srgb, var(--line) 72%, var(--river) 28%);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--panel-raised) 90%, transparent);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 750;
+  text-decoration: none;
+}
+.lpPalEntryMode:hover {
+  border-color: var(--river);
+  background: color-mix(in srgb, var(--river) 10%, var(--panel-raised));
+}
 .lpHeroSecondaryRow {
   display: flex;
   flex-wrap: wrap;
@@ -570,6 +643,7 @@
   /* Primary phone canvas (430px): show three hero pins, not four, so the 44px
      hit targets never crowd or overlap on the narrowest common screen. */
   .thamesHeroPhoto { min-height: 0; }.thamesHeroPin:nth-child(n+4) { display: none; }
+  .lpPalChoices { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .lpMemoryActions { align-items: stretch; flex-direction: column; }.lpMemoryActions .lpTextLink { justify-content: center; }
 }
 
@@ -577,6 +651,7 @@
   .lpNavActions .authUserNav { display: none; }
   .lpHeroActions { grid-template-columns: 1fr; }
   .lpHeroActions .lpButton:first-child { grid-column: auto; }
+  .lpPalChoices { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Hero / atmosphere presence. Three quiet motions only: orbit drift, scanline

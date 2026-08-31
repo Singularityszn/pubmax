@@ -802,8 +802,78 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("landing_cta_clicked", { target: "pal" })?.props).toEqual({
       target: "pal",
     });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "pal_talk" })?.props).toEqual({
+      target: "pal_talk",
+    });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "pal_text" })?.props).toEqual({
+      target: "pal_text",
+    });
     expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
     expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
+  });
+
+  it("registers the consent-gated Pub Pal guest trial events", () => {
+    expect(ANALYTICS_EVENTS.pub_pal_guest_trial_started).toEqual([]);
+    expect(ANALYTICS_EVENTS.pub_pal_guest_mode_selected).toEqual(["mode"]);
+    expect(ANALYTICS_EVENTS.pub_pal_guest_answer_completed).toEqual(["turn"]);
+    expect(ANALYTICS_EVENTS.pub_pal_guest_gate_shown).toEqual([]);
+    expect(ANALYTICS_EVENTS.pub_pal_guest_sign_in_opened).toEqual([]);
+
+    expect(sanitizeEvent("pub_pal_guest_trial_started", {
+      species: "hound",
+      prompt: "private prompt",
+    })).toEqual({ name: "pub_pal_guest_trial_started", props: {} });
+    expect(sanitizeEvent("pub_pal_guest_gate_shown", {
+      transcript: "private transcript",
+      coordinates: "51.5,-0.1",
+    })).toEqual({ name: "pub_pal_guest_gate_shown", props: {} });
+    expect(sanitizeEvent("pub_pal_guest_sign_in_opened", {
+      handle: "@private",
+      venueId: "private-venue",
+    })).toEqual({ name: "pub_pal_guest_sign_in_opened", props: {} });
+  });
+
+  it("keeps Pub Pal guest mode to the closed talk or text choice", () => {
+    for (const mode of ["talk", "text"]) {
+      expect(sanitizeEvent("pub_pal_guest_mode_selected", {
+        mode,
+        species: "raven",
+        prompt: "private prompt",
+        answer: "private answer",
+        audio: "private audio",
+        palName: "private Pal",
+        identity: "private identity",
+        coordinates: "51.5,-0.1",
+      })).toEqual({
+        name: "pub_pal_guest_mode_selected",
+        props: { mode },
+      });
+    }
+
+    expect(sanitizeEvent("pub_pal_guest_mode_selected", { mode: "voice" })).toBeNull();
+    expect(sanitizeEvent("pub_pal_guest_mode_selected", {})).toBeNull();
+  });
+
+  it("keeps Pub Pal guest answer turns inside the five-answer limit", () => {
+    for (const turn of [1, 2, 3, 4, 5]) {
+      expect(sanitizeEvent("pub_pal_guest_answer_completed", {
+        turn,
+        transcript: "private transcript",
+        pal: "private-pal",
+        handle: "@private",
+        venueId: "private-venue",
+        latitude: 51.5,
+        longitude: -0.1,
+      })).toEqual({
+        name: "pub_pal_guest_answer_completed",
+        props: { turn },
+      });
+    }
+
+    for (const turn of [0, 1.5, 6, "5"]) {
+      expect(sanitizeEvent("pub_pal_guest_answer_completed", { turn })).toBeNull();
+    }
+    expect(sanitizeEvent("pub_pal_guest_answer_completed", {})).toBeNull();
   });
 
   it("registers Wanted Wave A events with closed venueKind props only", () => {

@@ -45,6 +45,7 @@ import type { LandingCtaTarget } from "@/lib/analyticsEvents";
 import { socialSurfaceName } from "@/lib/socialLaunch";
 
 import PintDropStripLoading from "./PintDropStripLoading";
+import LandingPalEntry from "./LandingPalEntry";
 import ThamesHero from "./ThamesHero";
 import "./landing.css";
 import "./heroCinema.css";
@@ -239,6 +240,7 @@ export default function LandingPage({
   const heroActions = (
     <div className="lpHeroActions">
       {heroPrimary}
+      <LandingPalEntry onTarget={trackLandingCta} />
       <div className="lpHeroSecondaryRow">
         <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <UsersRound size={17} aria-hidden="true" /> Plan tonight together
@@ -259,8 +261,8 @@ export default function LandingPage({
   );
   const heroLede = (
     <p className="lpHeroLede">
-      Choose its form and voice in five steps. Sign in to keep it, then talk or
-      type while it shapes a night from PUBMAXX prices, venues, and events.
+      Choose its form and voice, then try five answers by Talk or Text. Create
+      an account to keep going with PUBMAXX prices, venues, and events.
     </p>
   );
 

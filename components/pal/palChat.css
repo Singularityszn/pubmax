@@ -39,6 +39,10 @@
   outline-offset: 2px;
 }
 
+body:has(.palChat) .createFab {
+  display: none;
+}
+
 .palChatSr {
   position: absolute;
   width: 1px;
@@ -57,6 +61,36 @@
   width: min(46rem, 100%);
   margin: 0 auto;
   padding: clamp(1rem, 4vw, 1.75rem) clamp(1rem, 4vw, 1.5rem) 0.85rem;
+}
+
+.palChatIdentity {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.7rem;
+}
+
+.palChatIdentityPortrait {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 1px solid color-mix(in srgb, var(--brass) 38%, var(--line));
+  border-radius: 17px;
+  background: color-mix(in srgb, var(--ink-deep) 88%, var(--brass) 12%);
+}
+
+.palChatIdentityPortrait .palPortrait {
+  width: 74px;
+  min-height: 74px;
+  transform: scale(0.66);
+}
+
+.palChatPalName {
+  margin: 0;
+  color: var(--ink);
+  font: 720 1rem/1 var(--font-display);
 }
 
 .palChatEyebrow {
@@ -409,10 +443,41 @@
   padding: 0.7rem clamp(1rem, 4vw, 1.5rem) calc(0.7rem + env(safe-area-inset-bottom, 0px));
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 0.55rem;
   border-top: 1px solid var(--line);
   background: color-mix(in srgb, var(--paper) 88%, transparent);
   backdrop-filter: blur(0.8rem) saturate(140%);
+}
+
+.palTalkControl {
+  flex: 1 0 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.palTalkButton {
+  min-height: 44px;
+  padding: 0 0.9rem;
+  border: 1px solid color-mix(in srgb, var(--brass) 45%, var(--line));
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--brass) 12%, var(--panel-raised));
+  color: var(--ink);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.palTalkButton:disabled {
+  opacity: 0.58;
+  cursor: not-allowed;
+}
+
+.palTalkStatus {
+  flex: 1 0 100%;
+  margin: 0;
+  color: var(--ink-soft);
+  font-size: 0.78rem;
 }
 
 .palChatInput {
@@ -461,6 +526,100 @@
   cursor: not-allowed;
 }
 
+.palGuestTrialBar {
+  flex: 0 0 auto;
+  width: min(46rem, 100%);
+  margin: 0 auto;
+  padding: 0.55rem clamp(1rem, 4vw, 1.5rem) 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.palGuestTrialBar > p {
+  margin: 0;
+  color: var(--ink-soft);
+  font: 650 0.72rem/1 var(--font-data);
+}
+
+.palGuestModeSwitch {
+  display: inline-flex;
+  gap: 0.35rem;
+}
+
+.palGuestModeSwitch button {
+  min-height: 44px;
+  padding: 0 0.75rem;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.palGuestModeSwitch button[aria-pressed="true"] {
+  border-color: var(--brass);
+  background: color-mix(in srgb, var(--brass) 16%, var(--panel-raised));
+  color: var(--ink);
+}
+
+.palGuestAccountGate {
+  flex: 0 0 auto;
+  width: min(46rem, calc(100% - 2rem));
+  margin: 0.7rem auto calc(0.7rem + env(safe-area-inset-bottom, 0px));
+  padding: 1rem;
+  border: 1px solid color-mix(in srgb, var(--brass) 42%, var(--line));
+  border-radius: 18px;
+  background: var(--panel-raised);
+}
+
+.palGuestAccountGate h2 {
+  margin: 0;
+  font: 740 1.25rem/1.05 var(--font-display);
+  letter-spacing: -0.02em;
+}
+
+.palGuestAccountGate h2:focus {
+  outline: none;
+}
+
+.palGuestAccountGate > p {
+  margin: 0.55rem 0 0;
+  color: var(--ink-soft);
+}
+
+.palGuestAccountActions {
+  margin-top: 0.85rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem 1rem;
+}
+
+.palGuestAccountPrimary,
+.palGuestAccountSecondary {
+  min-height: 44px;
+  font-weight: 720;
+}
+
+.palGuestAccountPrimary {
+  padding: 0 1rem;
+  border-radius: 12px;
+  background: var(--brass);
+  color: var(--color-on-accent);
+  text-decoration: none;
+}
+
+.palGuestAccountSecondary {
+  color: var(--ink);
+  text-underline-offset: 4px;
+}
+
 /* Clear the fixed mobile tab bar AND the floating re-open pill so the composer
    never hides behind either. --night-pill-clearance is 0px unless a pill is
    actually mounted (see components/night/nightMode.css). */
@@ -470,6 +629,9 @@
   }
   .palChatComposer {
     padding-bottom: 0.7rem;
+  }
+  .palGuestAccountGate {
+    margin-bottom: calc(0.7rem + var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px));
   }
 }
 

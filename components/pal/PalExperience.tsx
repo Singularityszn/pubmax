@@ -11,6 +11,7 @@ import {
   EyeOff,
   LockKeyhole,
   MapPinned,
+  MessageSquareText,
   Mic,
   ShieldCheck,
   Trash2,
@@ -26,6 +27,7 @@ import {
   anonymousPalDraftOwner,
   clearPalOnboardingDraft,
   migrateLegacyPalOnboardingDraft,
+  PAL_LAUNCH_COPY,
   PAL_UNLOCKS,
   palMasteryProgress,
   PAL_ONBOARDING_SPECIES,
@@ -42,6 +44,11 @@ import {
   type PubPalPersonality,
   type PubPalMemory,
 } from "@/lib/pubPal";
+import {
+  palGuestChatHref,
+  writePalGuestChoice,
+  type PalGuestMode,
+} from "@/lib/palGuestTrial";
 import PalPortrait from "./PalPortrait";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
@@ -52,13 +59,7 @@ const STORAGE_KEY = "pubmax_pub_pal_v1";
 const PRIVACY_KEY = "pubmax_pub_pal_privacy_v1";
 
 const speciesCopy = {
-  robin: { title: "Circuit Robin", note: "Bright · grounded" },
-  greyhound: { title: "Greyhound", note: "Loyal · perceptive" },
-  cat: { title: "Black Cat", note: "Calm · mischievous" },
-  fox: { title: "Fox", note: "Curious · quick" },
-  pigeon: { title: "Pigeon", note: "Streetwise · social" },
-  badger: { title: "Badger", note: "Steady · protective" },
-  corgi: { title: "Corgi", note: "Bright · encouraging" },
+  ...PAL_LAUNCH_COPY,
   hound: { title: "Signal Hound", note: "Legacy companion" },
   raven: { title: "Raven", note: "Legacy companion" },
   rabbit: { title: "Rabbit", note: "Alert · spontaneous" },
@@ -359,6 +360,16 @@ export default function PalExperience() {
   const previewName = draft.name.trim() || `Your ${speciesCopy[draft.appearance.species].title}`;
   const level = useMemo(() => Math.floor((pal?.masteryPoints ?? 0) / 50) + 1, [pal]);
   const canContinue = step !== 0 || draft.adultConfirmed;
+
+  const prepareGuestTrial = (inputMode: PalGuestMode) => {
+    if (!draftOwner) return;
+    writePalOnboardingDraft(draftOwner, {
+      step: 4,
+      draft,
+      privacy,
+    });
+    writePalGuestChoice(draft.appearance.species, inputMode);
+  };
 
   const updateAppearance = (patch: Partial<PubPalAppearance>) => {
     setDraft((current) => ({
@@ -844,7 +855,33 @@ export default function PalExperience() {
               </div>
               <label className="palToggleRow"><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
               <label className="palToggleRow"><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
-              {!user && <div className="palAccountGate"><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you choose to sign in. Nothing is saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
+              {!user && (
+                <div className="palAccountGate">
+                  <LockKeyhole />
+                  <div>
+                    <strong>Try {previewName} before you sign in</strong>
+                    <div className="palGuestStartActions" aria-label="Try your Pub Pal">
+                      {!privacy.muted ? (
+                        <Link
+                          className="palPrimary"
+                          href={palGuestChatHref(draft.appearance.species, "talk")}
+                          onClick={() => prepareGuestTrial("talk")}
+                        >
+                          <Mic size={18} aria-hidden="true" /> Talk to {previewName}
+                        </Link>
+                      ) : null}
+                      <Link
+                        className={privacy.muted ? "palPrimary" : "palGuestText"}
+                        href={palGuestChatHref(draft.appearance.species, "text")}
+                        onClick={() => prepareGuestTrial("text")}
+                      >
+                        <MessageSquareText size={18} aria-hidden="true" /> Text {previewName}
+                      </Link>
+                    </div>
+                    {configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}
+                  </div>
+                </div>
+              )}
               {error && <p className="palError" role="alert">{error}</p>}
             </div>
           )}
