@@ -106,11 +106,9 @@ async function registerNativePushWithPermissionRequest(
     });
     listenerRemovers.push(() => errorListener.remove());
 
-    await PushNotifications.register();
-    const timedOutcome = new Promise<boolean>((resolve) => {
-      timeout = setTimeout(() => resolve(false), REGISTRATION_TIMEOUT_MS);
-    });
-    return await Promise.race([registrationOutcome, timedOutcome]);
+    timeout = setTimeout(() => settleRegistration(false), REGISTRATION_TIMEOUT_MS);
+    void PushNotifications.register().catch(() => settleRegistration(false));
+    return await registrationOutcome;
   } catch {
     return false;
   } finally {

@@ -57,6 +57,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.useRealTimers();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
 });
@@ -153,6 +154,18 @@ describe("registerNativePush", () => {
     await expect(registerNativePush()).resolves.toBe(false);
 
     expect(addListener).toHaveBeenCalledWith("registrationError", expect.any(Function));
+    expect(removeListener).toHaveBeenCalledTimes(2);
+  });
+
+  it("times out when Capacitor registration never settles", async () => {
+    vi.useFakeTimers();
+    register.mockImplementation(() => new Promise<void>(() => {}));
+
+    const outcome = registerNativePush();
+    await vi.advanceTimersByTimeAsync(15_000);
+
+    await expect(Promise.race([outcome, Promise.resolve("still-pending")]))
+      .resolves.toBe(false);
     expect(removeListener).toHaveBeenCalledTimes(2);
   });
 
