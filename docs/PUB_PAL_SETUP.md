@@ -98,6 +98,10 @@ curl -s -o /dev/null -w '%{http_code}\n' \
 Then open `/pal`, create a Pal, and press Start voice chat. The status line
 reads "Pal is listening" once the socket is up.
 
+On the first tap, the browser asks for microphone access before the server
+issues a metered voice grant. A denied request keeps the writing door open and
+can be retried. Repeated taps while voice starts use the same attempt.
+
 `GET /api/pub-pal/voice-token` answers one boolean about this deployment's own
 configuration and reads no account, which is the whole reason the Pal can
 explain itself before the tap. `POST` still needs a signed-in caller and spends

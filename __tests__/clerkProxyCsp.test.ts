@@ -7,7 +7,7 @@
 // if either is dropped, and they fail if the CSP is widened to buy Clerk its
 // origins the lazy way.
 
-import { NextRequest } from "next/server";
+import { NextRequest, type NextFetchEvent } from "next/server";
 import { unstable_doesMiddlewareMatch } from "next/experimental/testing/server";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -186,6 +186,12 @@ describe("Clerk CSP sources", () => {
 });
 
 describe("the CSP the proxy actually ships", () => {
+  it("does not trust a third-party photo editor on every page", () => {
+    const policy = policyFor();
+
+    expect(policy).not.toContain("cdn.unlayer.com");
+  });
+
   it("still carries a fresh per-request nonce", () => {
     const first = directive(policyFor(), "script-src");
     const second = directive(policyFor(), "script-src");
@@ -531,17 +537,77 @@ describe("the middleware gate needs BOTH keys", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Security-Policy")).toContain("script-src");
   });
+
+  it("keeps preview Social APIs on the plain security proxy", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
+    vi.resetModules();
+    const clerkProxy = vi.fn(() => new Response(null, { status: 418 }));
+    vi.doMock("@clerk/nextjs/server", () => ({
+      clerkMiddleware: vi.fn(() => clerkProxy),
+    }));
+
+    try {
+      const mod = await import("@/proxy");
+      const response = await mod.proxy(
+        new NextRequest(
+          "https://pubmax-preview.vercel.app/api/social/access",
+          { headers: { host: "pubmax-preview.vercel.app" } },
+        ),
+        {} as NextFetchEvent,
+      );
+
+      expect(response.status).toBe(200);
+      expect(clerkProxy).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("@clerk/nextjs/server");
+      vi.resetModules();
+    }
+  });
+
+  it("keeps Clerk on its frontend API and ordinary documents", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
+    vi.resetModules();
+    const clerkProxy = vi.fn(() => new Response(null, { status: 418 }));
+    vi.doMock("@clerk/nextjs/server", () => ({
+      clerkMiddleware: vi.fn(() => clerkProxy),
+    }));
+
+    try {
+      const mod = await import("@/proxy");
+      const event = {} as NextFetchEvent;
+      const clerkResponse = await mod.proxy(
+        new NextRequest("https://pubmaxxing.com/__clerk/v1/environment"),
+        event,
+      );
+      const documentResponse = await mod.proxy(
+        new NextRequest("https://pubmaxxing.com/login"),
+        event,
+      );
+
+      expect(clerkResponse.status).toBe(418);
+      expect(documentResponse.status).toBe(418);
+      expect(clerkProxy).toHaveBeenCalledTimes(2);
+      expect(
+        clerkProxy.mock.calls.map(([request]) => request.nextUrl.pathname),
+      ).toEqual(["/__clerk/v1/environment", "/login"]);
+    } finally {
+      vi.doUnmock("@clerk/nextjs/server");
+      vi.resetModules();
+    }
+  });
 });
 
 describe("the proxy export Next.js actually runs", () => {
-  it("matches protected Social APIs without widening to every API", () => {
-    expect(config.matcher).toContainEqual({ source: "/api/social/:path*" });
+  it("leaves Supabase-authoritative Social APIs outside Clerk middleware", () => {
+    expect(config.matcher).not.toContainEqual({ source: "/api/social/:path*" });
     expect(
       unstable_doesMiddlewareMatch({
         config,
         url: "https://pubmaxxing.com/api/social/access",
       }),
-    ).toBe(true);
+    ).toBe(false);
     expect(
       unstable_doesMiddlewareMatch({
         config,

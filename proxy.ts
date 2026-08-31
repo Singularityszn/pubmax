@@ -1,6 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { NextRequest, ProxyConfig } from "next/server";
+import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
@@ -184,10 +184,10 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // still ships from next.config.mjs on `/:path*`; only the CSP moved here so it
 // can be built per-request with the live nonce.
 //
-// This function is NOT the export Next.js runs — `proxy` at the bottom of this
-// file is, and it wraps this one with clerkMiddleware(). Keeping the security
-// logic as its own named function is what lets the redirect and CSP tests drive
-// it directly, with no Clerk key and no NextFetchEvent to fabricate.
+// This function is NOT the export Next.js runs - `proxy` at the bottom of this
+// file is. It sends Social APIs here directly and wraps other matched requests
+// with clerkMiddleware(). Keeping the security logic as its own named function
+// lets redirect and CSP tests drive it with no Clerk key or NextFetchEvent.
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (shouldRedirectVercelHost(request)) {
@@ -276,11 +276,7 @@ export function securityProxy(request: NextRequest) {
   //   NB: no 'strict-dynamic' — it would make the browser ignore the 'self'
   //   source expression, blocking the parser-inserted external theme-init.js;
   //   Next's chunk loading is happy under plain 'self' + a nonce'd bootstrap.
-  //   The external hosts are va.vercel-scripts.com for Vercel Analytics and
-  //   https://cdn.unlayer.com for the Moment photo editor runtime. The editor
-  //   (@unlayer/react-image-editor, mounted only by
-  //   components/moment/MomentImageEditor.tsx) loads its runtime from that CDN;
-  //   removing it breaks photo editing on /moment.
+  //   The external host is va.vercel-scripts.com for Vercel Analytics.
   //   Vercel injects its tag itself, so it carries no nonce of ours; the script
   //   is still consent-gated in the app (`beforeSend` cancels pre-consent
   //   pageviews — docs/OBSERVABILITY_CERTIFICATION.md), so allowing that origin
@@ -290,10 +286,7 @@ export function securityProxy(request: NextRequest) {
   //   Every one of them is an exact origin derived from the publishable key or
   //   named in lib/clerkIdentity.ts; NONE of them is 'unsafe-inline', and
   //   nothing here relaxes the nonce contract above. With no Clerk key set,
-  //   `clerk.script` is empty, but this line still carries the editor origin.
-  //   This site-wide widening is not /moment-scoped; issue
-  //   https://github.com/Singularityszn/pubmax/issues/1248 tracks narrowing or
-  //   self-hosting it.
+  //   `clerk.script` is empty.
   // Local development may point NEXT_PUBLIC_SUPABASE_URL at an auth stack on
   // this machine (`supabase start`, or a stub GoTrue for keyless auth testing);
   // the `*.supabase.co` allowance never covers that origin, so browser sign-in
@@ -317,13 +310,12 @@ export function securityProxy(request: NextRequest) {
   // costs is exactly this: Next's own inline RSC bootstrap and our two inline
   // blocks in app/layout.tsx (speculation rules, site JSON-LD) are admitted by
   // being inline rather than by carrying a secret. Other source expressions
-  // remain unchanged; the editor origin is the only feature-specific addition,
-  // and its script/font/connect widening is site-wide as recorded above. Both
-  // surfaces render no personal data and take no user input into markup.
+  // remain unchanged. Both surfaces render no personal data and take no user
+  // input into markup.
   const inlineScriptSource = cdnCachedDocument
     ? "'unsafe-inline'"
     : `'nonce-${nonce}'`;
-  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com https://cdn.unlayer.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
+  const scriptSrc = `script-src 'self' ${inlineScriptSource} https://va.vercel-scripts.com${clerkScript}${isDev ? " 'unsafe-eval'" : ""}`;
 
   // frame-src did not exist before Clerk: framing fell through to `child-src
   // blob:`, so blob: frames were the only ones allowed. Turnstile and Clerk's
@@ -334,8 +326,7 @@ export function securityProxy(request: NextRequest) {
     clerk.frame.length > 0 ? [`frame-src blob: ${clerk.frame.join(" ")}`] : [];
 
   // The baseline non-script directives below follow the previous static CSP in
-  // next.config.mjs. See that file's history for the per-directive rationale;
-  // font-src and connect-src additionally carry the Moment editor CDN.
+  // next.config.mjs. See that file's history for the per-directive rationale.
   const contentSecurityPolicy = [
     "default-src 'self'",
     scriptSrc,
@@ -360,13 +351,11 @@ export function securityProxy(request: NextRequest) {
     // a first-party ACCOUNT image, not a third-party venue photo, so the
     // "proxy-or-nothing" rule above is untouched: no venue imagery may join it.
     `img-src 'self' data: blob: https://commons.wikimedia.org https://upload.wikimedia.org https://*.supabase.co https://*.googleusercontent.com https://gkbr-p-001.sitecorecontenthub.cloud${clerk.img.map((origin) => ` ${origin}`).join("")}`,
-    // The Moment photo editor loads its fonts from https://cdn.unlayer.com.
-    "font-src 'self' data: https://tiles.openfreemap.org https://cdn.unlayer.com",
+    "font-src 'self' data: https://tiles.openfreemap.org",
     // Clerk adds its Frontend API host (session, sign-in and sign-up calls) and
     // its abuse-protection hosts. Supabase's entries stay: both auth systems
     // run side by side, and removing either would break the other's sign-in.
-    // The Moment photo editor loads its assets from https://cdn.unlayer.com.
-    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://cdn.unlayer.com https://*.supabase.co wss://*.supabase.co${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
+    `connect-src 'self' https://tiles.openfreemap.org https://basemaps.cartocdn.com https://tiles.basemaps.cartocdn.com https://*.supabase.co wss://*.supabase.co${devSupabaseConnect}${clerk.connect.map((origin) => ` ${origin}`).join("")}`,
     // Clerk also requires worker-src 'self' blob: — already true for MapLibre's
     // tile workers and the offline service worker, so it needs no change here.
     "worker-src 'self' blob:",
@@ -404,17 +393,17 @@ export function securityProxy(request: NextRequest) {
 
 // THE SHIPPED ENTRY POINT. Clerk's quickstart says to create proxy.ts with
 // `export default clerkMiddleware()`; this file already existed, so Clerk is
-// COMPOSED with it via clerkMiddleware's handler form instead — Clerk runs
-// first, establishes the request's auth context, then calls securityProxy and
-// returns whatever it returns (a 308 canonical redirect, or the nonce'd
-// response). Neither the canonical-host redirect nor the CSP nonce is lost.
+// COMPOSED with it via clerkMiddleware's handler form for matched non-Social
+// requests. Clerk establishes auth context, then calls securityProxy. Social
+// APIs use Supabase authority and go directly to securityProxy. Neither the
+// canonical-host redirect nor the CSP nonce is lost.
 //
 // WHY A NAMED `proxy` EXPORT AND NOT `export default`:
 // Next.js resolves the userland handler as `mod.proxy || mod.default`
 // (packages/next/src/build/templates/middleware.ts), so the NAMED export wins.
 // Leaving the old `export function proxy` in place beside a default Clerk
 // export would have made Next keep running the un-composed function and Clerk
-// would never have executed — silently, with no error anywhere.
+// would never have executed, with no error anywhere.
 //
 // WHY THE TERNARY, AND WHY IT NEEDS BOTH KEYS: clerkMiddleware() throws
 // "@clerk/nextjs: Missing secretKey" on EVERY request when CLERK_SECRET_KEY is
@@ -423,8 +412,16 @@ export function securityProxy(request: NextRequest) {
 // identity. Verified by running this app with only the publishable key set.
 // Requiring both keys means the worst half-configured case is browser-side
 // Clerk with no server session, and the site itself stays up.
-export const proxy = isClerkMiddlewareConfigured()
+const clerkSecurityProxy = isClerkMiddlewareConfigured()
   ? clerkMiddleware(async (_auth, request) => securityProxy(request))
+  : null;
+
+export const proxy = clerkSecurityProxy
+  ? (request: NextRequest, event: NextFetchEvent) =>
+      request.nextUrl.pathname === "/api/social" ||
+      request.nextUrl.pathname.startsWith("/api/social/")
+        ? securityProxy(request)
+        : clerkSecurityProxy(request, event)
   : securityProxy;
 
 export const config = {
@@ -439,9 +436,6 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
-    // Protected Social APIs resolve Clerk sessions server-side. Other APIs stay
-    // outside Clerk middleware so keyless product routes keep their old path.
-    { source: "/api/social/:path*" },
     {
       source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [

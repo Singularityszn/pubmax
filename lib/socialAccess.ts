@@ -9,7 +9,6 @@ export type SocialAccessState =
 
 export type SocialProductAccount = {
   id: string;
-  clerkUserId: string;
   ownershipState: "active" | "suspended";
 };
 

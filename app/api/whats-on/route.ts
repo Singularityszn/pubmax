@@ -1,4 +1,10 @@
-// GET /api/whats-on?kind=&window=tonight&near=lat,lng&limit=
+// GET /api/whats-on?kind=&near=lat,lng&limit=
+//
+// ALWAYS the current London service day. The scope is not a parameter: a bare
+// GET used to answer with every future row the bundled files held, which on a
+// Sunday meant 384 Wetherspoon weekday food clubs served as tonight. See
+// lib/whatsOnHandler.ts for the whole reasoning. `window=tonight` is still
+// accepted and still means what it says, so existing callers are unchanged.
 //
 // Merged baseline + live What's-On rows (Task B1). Read-only over bundled static
 // data + a fail-soft CityMCP live layer, so it never needs prod-only guards and
