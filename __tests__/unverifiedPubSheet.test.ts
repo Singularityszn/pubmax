@@ -1,6 +1,6 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
 import UnverifiedPubSheet, { HarvestOverlayFields } from "@/components/map/UnverifiedPubSheet";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
@@ -10,6 +10,16 @@ import type {
   VenuePriceReadStatus,
 } from "@/lib/mapExperienceLens";
 import type { UkBasePub } from "@/lib/ukBasePubs";
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => ({
+    user: { id: "signed-in-drinker" },
+    handle: "night_owl",
+    identityResolved: true,
+    loading: false,
+    configured: true,
+  }),
+}));
 
 const pub: UkBasePub = {
   id: "venue-uk-n123",
@@ -71,6 +81,15 @@ function renderSheet(
 // browser, in e2e/map-uk-base-layer.spec.ts.
 
 describe("UnverifiedPubSheet", () => {
+  it("holds a signed-in base-pub form while its price mission loads", () => {
+    const html = renderSheet([]);
+
+    expect(html).toContain("Checking...");
+    expect(html).not.toContain(">Log it<");
+    expect(html).not.toContain("moves the map");
+    expect(html).not.toContain("colour");
+  });
+
   it("never flashes no-price framing while a stored price reloads", () => {
     const stored: CommunityPrice = {
       venueId: pub.id,

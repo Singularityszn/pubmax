@@ -119,6 +119,23 @@ afterEach(() => {
 });
 
 describe("Pub Pal voice controls", () => {
+  it("does not probe or offer voice while the Pal is muted", async () => {
+    const availabilityFetch = vi.fn(async () => Response.json({ available: true }));
+    vi.stubGlobal("fetch", availabilityFetch);
+
+    await act(async () => {
+      root?.render(createElement(PubPalVoice, { muted: true }));
+    });
+    await settle();
+
+    expect(availabilityFetch).not.toHaveBeenCalled();
+    expect([...container.querySelectorAll("button")].some((button) => (
+      button.textContent?.includes("Start voice chat")
+    ))).toBe(false);
+    const writingLink = container.querySelector<HTMLAnchorElement>('a[href="/pal/chat"]');
+    expect(writingLink?.textContent).toContain("Ask in writing");
+  });
+
   it("does not issue a grant after microphone denial and unlocks Starting UI", async () => {
     const permission = deferred<MediaStream>();
     getUserMedia.mockReturnValueOnce(permission.promise);

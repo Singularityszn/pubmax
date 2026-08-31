@@ -47,7 +47,7 @@ type PubsPageProps = {
 
 export default async function PubsPage({
   searchParams,
-}: PubsPageProps = {}) {
+}: PubsPageProps) {
   const { pubs, complete } = await readScrapedPubsForPage();
   const count = complete ? pubs.length : null;
   const filters = parsePubsFilterQuery((await searchParams) ?? {});

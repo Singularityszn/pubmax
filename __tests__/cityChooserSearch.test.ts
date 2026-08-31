@@ -1,14 +1,21 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-import { CITIES, listEnabledCities } from "@/lib/cities";
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn() }),
+}));
+
+import CityChooser from "@/components/city/CityChooser";
+import { CITIES, listEnabledCities, type CityId } from "@/lib/cities";
 import {
   buildCityChooserSearchResults,
   cityGuideCountWord,
   cityGuideMembershipLine,
-  cityGuidesHavePricesLine,
+  cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
 } from "@/lib/cityChooserSearch";
 import {
@@ -16,6 +23,28 @@ import {
   ukPlaceMapUrl,
   type UkPlace,
 } from "@/lib/ukPlaceSearch";
+import { cityMapShareUrl } from "@/lib/cityShare";
+
+const V1_CITY_IDS = [
+  "london",
+  "manchester",
+  "liverpool",
+  "oxford",
+  "durham",
+  "glasgow",
+  "bristol",
+  "cambridge",
+  "bath",
+] as const satisfies readonly CityId[];
+
+function cityLinkMarkup(markup: string, cityId: CityId): string {
+  const href = cityMapShareUrl(cityId).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return markup.match(
+    new RegExp(
+      `<a(?=[^>]*href="${href}")(?=[^>]*class="cityChooserLink")[^>]*>([\\s\\S]*?)</a>`,
+    ),
+  )?.[1] ?? "";
+}
 
 const place = (row: Omit<UkPlace, "search">): UkPlace => ({
   ...row,
@@ -144,12 +173,18 @@ describe("city chooser search mobile contract", () => {
     expect(Number(result.match(/min-height:\s*(\d+)px/)?.[1])).toBeGreaterThanOrEqual(56);
   });
 
-  it("contains long place names inside a 390px single-column result list", () => {
+  it("contains long place and city names inside a 390px single-column list", () => {
     expect(css).toMatch(/\.cityChooserSearch\s*{[^}]*min-width:\s*0/);
     expect(css).toMatch(/\.cityChooserResultCopy\s*{[^}]*min-width:\s*0/);
     expect(css).toMatch(/\.cityChooserResultName\s*{[^}]*overflow-wrap:\s*anywhere/);
+    expect(css).toMatch(/\.cityChooserLink\s*{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.cityChooserNameRow\s*{[^}]*min-width:\s*0/);
+    expect(css).toMatch(/\.cityChooserName\s*{[^}]*overflow-wrap:\s*anywhere/);
     expect(css).toMatch(
       /@media \(max-width: 560px\)[\s\S]*?\.cityChooserResults\s*{[^}]*grid-template-columns:\s*1fr/,
+    );
+    expect(css).toMatch(
+      /@media \(max-width: 560px\)[\s\S]*?\.cityChooserList\s*{[^}]*grid-template-columns:\s*1fr/,
     );
   });
 
@@ -162,18 +197,33 @@ describe("city chooser search mobile contract", () => {
   });
 });
 
-describe("city guide count copy", () => {
-  it("derives the count from the enabled list, never a typed nine", () => {
-    const count = listEnabledCities().length;
-    const word = cityGuideCountWord(count);
-    expect(count).toBeGreaterThan(0);
-    expect(cityGuidesHavePricesLine(count)).toContain(`${word} city guides`);
-    expect(cityGuidesSearchUnavailableLine(count)).toContain(`${word} city maps`);
-    if (count !== 9) {
-      expect(cityGuidesHavePricesLine(count)).not.toMatch(/\bnine city guides/);
-      expect(cityGuidesSearchUnavailableLine(count)).not.toMatch(/\bnine city maps/);
+describe("city chooser release labels", () => {
+  it("labels only Llandudno as Preview, once", () => {
+    const markup = renderToStaticMarkup(createElement(CityChooser));
+    const previewBadges = markup.match(
+      /class="cityChooserReleaseBadge"[^>]*>Preview<\/span>/g,
+    ) ?? [];
+
+    expect(previewBadges).toHaveLength(1);
+    expect(cityLinkMarkup(markup, "llandudno")).toContain(
+      'class="cityChooserReleaseBadge">Preview</span>',
+    );
+    for (const cityId of V1_CITY_IDS) {
+      expect(cityLinkMarkup(markup, cityId)).not.toContain(">Preview<");
     }
-    expect(cityGuidesHavePricesLine(10)).toContain("ten city guides");
-    expect(cityGuidesHavePricesLine(10)).not.toMatch(/\bnine city guides/);
+  });
+});
+
+describe("city guide count copy", () => {
+  it("derives truthful map, price, crawl, and preview coverage", () => {
+    const cities = listEnabledCities();
+    const count = cities.length;
+    const word = cityGuideCountWord(count);
+
+    expect(count).toBe(10);
+    expect(cityGuidesCoverageLine(cities)).toBe(
+      "Ten city maps, including one preview. London has pint prices; eight cities have crawls.",
+    );
+    expect(cityGuidesSearchUnavailableLine(count)).toContain(`${word} city maps`);
   });
 });

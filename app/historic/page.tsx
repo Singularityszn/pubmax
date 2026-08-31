@@ -80,7 +80,7 @@ type HistoricPageProps = {
 
 export default async function HistoricPage({
   searchParams,
-}: HistoricPageProps = {}) {
+}: HistoricPageProps) {
   const [pubs, venues] = await Promise.all([
     loadHistoricPubs(),
     loadGroupedVenues(),

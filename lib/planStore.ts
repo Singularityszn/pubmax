@@ -33,6 +33,9 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
+export type MemoryPlanInviteMembershipResult =
+  | ({ ok: true; memberId: string } & Extract<PlanJoinResult, { ok: true }>)
+  | Extract<PlanJoinResult, { ok: false }>;
 export type PlanPresenceResult = { ok: true; plan: PlanState } | { ok: false; error: PlanWriteError };
 export type PlanUpdateResult = PlanPresenceResult;
 export type PlanCompletionResult =
@@ -213,7 +216,10 @@ async function readSupabasePlanState(
     { data: actionRows, error: actionsError },
   ] = await Promise.all([
     admin.from(STOPS).select("venue_id,venue_name,position").eq("plan_id", id).order("position"),
-    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at").eq("plan_id", id).order("joined_at").order("id"),
+    admin.from(MEMBERS).select("id,name,status,joined_at,updated_at")
+      .eq("plan_id", id)
+      .is("membership_revoked_at", null)
+      .order("joined_at").order("id"),
     admin.from(ACTIONS).select("id,type,stop_position,ending,created_at").eq("plan_id", id).order("created_at"),
   ]);
   if (stopsError || membersError || actionsError) {
@@ -524,7 +530,10 @@ type PlanMemoryState = {
   plans: Map<string, MemoryPlan>;
   sequence: number;
   createRequests: Map<string, { requestHash: string; planId: string }>;
-  joinRequests: Map<string, { requestHash: string; memberId: string }>;
+  joinRequests: Map<
+    string,
+    { requestHash: string; memberId: string; origin?: "plan" | "invite_rsvp" }
+  >;
   actionRequests: Map<string, { requestHash: string; actionId: string }>;
   /** invite_token -> plan id, the memory-store mirror of plans.invite_token. */
   inviteTokens: Map<string, string>;
@@ -648,7 +657,11 @@ export const memoryPlanStore: PlanStore = {
     const collaborationAuthorized = options.collaborationAuthorized === true;
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     plan.crew.push({ id: memberId, name, status: "in", joinedAt: at, updatedAt: at, tokenHash: hashPlanMemberToken(memberToken), collaborationAuthorized });
-    planMemory.joinRequests.set(`${id}:${keyHash}`, { requestHash, memberId });
+    planMemory.joinRequests.set(`${id}:${keyHash}`, {
+      requestHash,
+      memberId,
+      origin: "plan",
+    });
     return { ok: true, plan: publicState(plan), memberToken, role: "guest", collaborationAuthorized };
   },
   async updatePresence(id, rawToken, rawStatus) {
@@ -804,6 +817,7 @@ async function supabaseLegacyPlanMemberIdentityResult(id: string, rawToken: stri
     const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
       .select("id,token_hash,joined_at,can_collaborate")
       .eq("plan_id", id)
+      .is("membership_revoked_at", null)
       .order("joined_at").order("id");
     if (error) return { ok: false, error: "error" };
     const index = (data ?? []).findIndex((member) => member.token_hash === hashPlanMemberToken(rawToken.trim()));
@@ -832,6 +846,87 @@ export function grantMemoryPlanCollaboration(id: string, rawToken: unknown): boo
   const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.tokenHash === hashPlanMemberToken(rawToken));
   if (!member) return false;
   member.collaborationAuthorized = true;
+  return true;
+}
+
+/**
+ * Keyless-store seam for public Going RSVPs. The ordinary Plan join remains
+ * the one membership writer, while this wrapper returns its deterministic
+ * member id so the RSVP row can retain the canonical link.
+ */
+export async function joinMemoryPlanInviteRsvpMember(
+  id: string,
+  name: string,
+  idempotencyKey: string,
+): Promise<MemoryPlanInviteMembershipResult> {
+  if (isSupabaseConfigured()) return { ok: false, error: "error" };
+  const memberName = cleanCrewName(name);
+  if (!memberName) return { ok: false, error: "invalid" };
+  const memberId = planIdempotentUuid(`plan-join-member:${id}`, idempotencyKey);
+  const keyHash = planIdempotencyDigest(`plan-join-key:${id}`, idempotencyKey);
+  const replayKey = `${id}:${keyHash}`;
+  const existingReplay = planMemory.joinRequests.get(replayKey);
+  if (existingReplay && existingReplay.origin !== "invite_rsvp") {
+    return { ok: false, error: "conflict" };
+  }
+  const joined = await memoryPlanStore.join(id, memberName, {
+    collaborationAuthorized: false,
+    idempotencyKey,
+  });
+  if (!joined.ok) {
+    if (joined.error !== "conflict") return joined;
+    const replay = planMemory.joinRequests.get(replayKey);
+    const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.id === memberId);
+    if (
+      !replay
+      || replay.origin !== "invite_rsvp"
+      || replay.memberId !== memberId
+      || !member
+    ) return joined;
+    member.name = memberName;
+    member.updatedAt = stamp();
+    replay.requestHash = planRequestDigest({ name: memberName, collaborationAuthorized: false });
+    const plan = await memoryPlanStore.get(id);
+    return plan
+      ? {
+          ok: true,
+          plan,
+          memberToken: planIdempotencyDigest(`plan-join-token:${id}`, idempotencyKey),
+          role: "guest",
+          collaborationAuthorized: false,
+          memberId,
+        }
+      : { ok: false, error: "error" };
+  }
+  const member = memoryPlans.get(id)?.crew.find((candidate) => candidate.id === memberId);
+  const replay = planMemory.joinRequests.get(replayKey);
+  if (!member || !replay || replay.memberId !== memberId) {
+    return { ok: false, error: "error" };
+  }
+  if (!existingReplay) replay.origin = "invite_rsvp";
+  if (member.name !== memberName) {
+    member.name = memberName;
+    member.updatedAt = stamp();
+  }
+  return { ...joined, memberId };
+}
+
+/**
+ * Remove only a non-host member linked from an invite RSVP. Matching join
+ * replay state leaves with the member so the same device can join again.
+ */
+export function removeMemoryPlanInviteRsvpMember(id: string, memberId: string): boolean {
+  if (isSupabaseConfigured()) return false;
+  const plan = memoryPlans.get(id);
+  if (!plan) return true;
+  const memberIndex = plan.crew.findIndex((member) => member.id === memberId);
+  if (memberIndex === 0) return false;
+  if (memberIndex > 0) plan.crew.splice(memberIndex, 1);
+  for (const [requestKey, request] of planMemory.joinRequests) {
+    if (requestKey.startsWith(`${id}:`) && request.memberId === memberId) {
+      planMemory.joinRequests.delete(requestKey);
+    }
+  }
   return true;
 }
 
