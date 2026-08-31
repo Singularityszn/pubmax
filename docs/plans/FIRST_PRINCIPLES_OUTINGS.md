@@ -91,7 +91,6 @@ Shipped strengths:
 Gaps:
 
 - “Why we built it” is generic startup fatigue, not *your* back-and-forth: the nights you overpaid, the spreadsheet phase, the arguments about corroboration vs speed, the London-first bet
-- No team / builder presence beyond a press-kit founder line
 - “Who it’s for” still centres drinkers; food, coffee, sober hangs, Spoons-as-third-space are missing
 - Press kit one-liner still frames only pints
 

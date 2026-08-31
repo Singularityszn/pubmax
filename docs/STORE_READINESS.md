@@ -2,13 +2,13 @@
 
 **Status:** Everything on this page is pre-writable now, without an Apple or Google developer account. It is the copy, metadata, and answer sheet the owner pastes into App Store Connect and the Google Play Console once enrolment clears. Paid-account work includes enrolment, certificates, Sign in with Apple activation, and the first binary upload, listed as the owner checklist in the last section.
 
-**App:** PUBMAXX. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
+**App:** PUBMAXXING. London pub finder, crawl planner, and night log, wrapped in a Capacitor shell over `https://pubmaxxing.com` (see `docs/IOS_APP_PRD.md`, `docs/CAPACITOR_WRAP.md`).
 
 **Identity (already fixed in the repo, do not change):**
 
 | Field | Value | Source |
 | --- | --- | --- |
-| App name | PUBMAXX | `capacitor.config.ts` `appName`; iOS `CFBundleDisplayName`; Android `app_name` |
+| App name | PUBMAXXING | `capacitor.config.ts` `appName`; iOS `CFBundleDisplayName`; Android `app_name` |
 | iOS bundle id | `com.pubmaxx.app` | `capacitor.config.ts` `appId` |
 | Android applicationId | `com.pubmaxx.app` | `android/app/build.gradle` (same string, iOS convention) |
 | Version name | 1.0 | `android/app/build.gradle` `versionName`; iOS `MARKETING_VERSION` |
@@ -24,7 +24,7 @@
 Keep the name clean and let the subtitle and keyword field carry the search terms. Do not stuff keywords into the name or subtitle, both stores penalise it and Apple bins duplicates between the name, subtitle, and keyword field.
 
 **App name (30 char max, Apple / 30 char, Google):**
-> PUBMAXX
+> PUBMAXXING
 
 **Subtitle (Apple, 30 char max):**
 > Cheap pints near you, tonight
@@ -96,7 +96,7 @@ Same body works for both stores. Google Play allows 4000 characters and renders 
 > Pubs change their prices and we are not standing at the bar. We show the best figure we hold and when we last saw it. Use it as a rough steer, check at the bar, and do not hold us to the penny.
 >
 > Privacy
-> Your location is used on your phone to sort pubs by distance. It is not sent to us and it is not tied to your name. Usage analytics are off until you turn them on. There are no adverts and nothing is sold on.
+> Full GPS precision stays on your phone. If you ask for nearby events, transport or a journey, the app sends a rounded point for that request. It is not tied to your public profile. Usage analytics are off until you turn them on. There are no adverts and nothing is sold on.
 >
 > London only for now. More cities are coming.
 >
@@ -146,7 +146,7 @@ Expected result: **17+** (Apple's new 17+ tier for frequent alcohol references, 
 | Promotes or facilitates the purchase of alcohol? | No (we do not sell or take orders) |
 | Gambling, violence, sexual content, language | No / None |
 | Does the app share the user's location with other users? | No |
-| Users interact / share content? | Moments are private to the user by default. If any sharing surface is public at review time, answer Yes and describe it. |
+| Users interact / share content? | **Yes.** Social, Messages, Visit Reports, community prices, venue reports, recommendations, and public Moments can carry user content. Reporting, moderation, blocking, account deletion, and the public support contact must work in the submitted build. |
 
 Expected result: **PEGI 18 / ESRB Mature 17+ / "Parental guidance"** band driven by the alcohol reference. Target audience in the Play Console: **18 and over**. Do not select any age band under 18 and do not opt into the Designed for Families / Teacher Approved programmes.
 
@@ -160,7 +160,7 @@ These are derived from the actual code, not aspirations. File references are inl
 
 | Data | Collected? | Linked to identity? | Used for tracking? | Purpose | Evidence |
 | --- | --- | --- | --- | --- | --- |
-| Precise / coarse location | **Not collected off-device.** The app requests location permission and uses it on the phone only, to sort places by distance. Coordinates are never sent to our servers. | No | No | App functionality (near-me ranking) | `components/nearme/NearMeNow.tsx` calls `rankNearMe(position.coords…)` against the in-memory slim index; the coordinates never leave the client. `components/nearme/NearDeskNow.tsx` ranks the London desk pack the same way, in the browser. `PubMap.tsx`, `CityChooser.tsx` use geolocation client-side only. |
+| Precise location | **Yes, only when the user asks for a location feature.** Full GPS precision stays on the device. The app rounds a viewer point to three decimal places before network egress. That is about 70 to 110 metres in London and still falls within Apple and Google Play's precise-location definitions. Request handlers use it ephemerally for nearby listings, conditions, transport, and journey options. | No | No | App functionality | `lib/geo.ts` owns the one three-decimal egress seam. `/api/whats-on`, `/api/tonight-conditions`, `/api/last-train`, `/api/tfl-disruption`, and `/api/citymcp/journey` process the rounded point. TfL, CityMCP, and a user-opened Google Maps journey can receive that rounded point for the requested result. `app/privacy/page.tsx` lists each path. |
 | Product interaction / usage data | **Yes, only after the user opts in.** A closed set of named UI events with allow-listed fixed-schema props, plus browser, operating system, device type, screen and viewport size, referrer, campaign parameters, and Web Vitals. | No (pseudonymous device profile only) | No | Analytics | `lib/analytics.ts`: consent-gated (default off), honours Do Not Track, forwards to PostHog EU ingest only when consent is granted; `lib/analyticsEvents.ts` owns closed property schemas with no coordinates or free text. |
 | Pseudonymous analytics id | Yes, only after opt-in | No (contains no account or contact data) | No | Analytics | `lib/analytics.ts` `anonymousAnalyticsId()`: an `anon_` UUID created only once consent is `granted`, stored in localStorage and used as PostHog's persistent device identity across page loads and sessions. |
 | Device/web push delivery material | Yes, when the user enables notifications | No (stored with no user or plan link) | No | App functionality (public night-signal and installed-web daily-brief pushes) | `lib/nativePush.ts` or explicitly-invoked `lib/webPush.ts` posts to `POST /api/push-tokens`; `lib/pushTokenStore.ts` stores it with no identity column (migrations 0039 + 0046). |
@@ -172,7 +172,7 @@ These are derived from the actual code, not aspirations. File references are inl
 - No advertising SDKs, no ad identifiers, no cross-app tracking. Nothing on this list is used to track the user across other companies' apps or sites.
 - No selling or sharing of personal data with data brokers.
 - No account required to find a pint. Identity is optional and prompted contextually, not at launch.
-- Location is never transmitted to the server or shared with other users.
+- No background location access. Full-precision viewer coordinates stay on the device. Rounded coordinates are not shown to other users and are used only to answer a location request.
 
 ### Apple App Privacy label (App Store Connect > App Privacy)
 
@@ -180,13 +180,13 @@ Declare the following. Everything else: Not Collected.
 
 - **Data Used to Track You:** None.
 - **Data Linked to You:** Contact Info > Email Address (account sign-in or optional area-demand contact), purpose App Functionality. User Content > Photos or Videos (Moments, on publish), purpose App Functionality.
-- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics.
-- **Location:** Because location is processed only on device and never leaves it, Apple's rules mean it is not "collected". Do not declare it as collected. It is still gated by the standard iOS location permission prompt at runtime.
+- **Data Not Linked to You:** Identifiers > Device ID (push token), purpose App Functionality. Usage Data > Product Interaction (opt-in analytics), purpose Analytics. Precise Location, purpose App Functionality, only when the user starts a location feature.
+- **Location processing:** declare Precise Location because three decimal places is about 70 to 110 metres. Mark it optional, not linked, not used for tracking, and used for App Functionality. The app processes the rounded point ephemerally. Confirm current processor retention terms in App Store Connect before submission.
 
 ### Google Play Data safety form
 
 - **Does your app collect or share any of the required user data types?** Yes.
-- **Location:** Not collected (processed on-device only). If the reviewer disagrees because the permission is present, be ready to explain the on-device-only handling above.
+- **Precise location:** Collected, optional, processed ephemerally, purpose App functionality, not used for tracking. Full GPS precision stays on the device; only the three-decimal point leaves it. In the Data safety flow, identify the ephemeral processing and current service-provider or user-initiated transfers exactly as the form asks.
 - **Personal info > Email address:** Collected, not shared, optional, purpose App functionality. Encrypted in transit. Account deletion removes the sign-in address; other erasure requests use the public contact in `lib/siteContact.ts`.
 - **Photos and videos:** Collected (on Moment publish), not shared publicly by default, purpose App functionality.
 - **App activity > Product interaction:** Collected, not shared, optional (opt-in), purpose Analytics. Encrypted in transit.
@@ -274,14 +274,15 @@ Everything above is done or ready to paste. The steps below need a real account,
 ### Apple App Store
 
 - [ ] **Enrol** in the Apple Developer Program, 99 USD per year, at developer.apple.com. Individual or Organization. Note the **Team ID** once issued.
-- [ ] **Activate Sign in with Apple when wanted:** create the App ID, Services ID, return URL, and provider key, then enable Apple in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed provider setup. Email magic link remains complete while Apple is disabled.
+- [ ] **Activate Sign in with Apple when wanted:** create the App ID, Services ID, return URL, and provider key, then enable Apple in Supabase. [`DEPLOYMENT.md`](./DEPLOYMENT.md#apple) owns the detailed provider setup.
+- [ ] **Verify native auth return:** replace the `TEAMID` placeholder, add the Associated Domains capability, deploy the updated association file, then prove email, Google, and Apple callback URLs return to the signed-in app on a physical iPhone. Code accepts exact `/auth/callback`; association and device proof remain owner gates.
 - [ ] **Install full Xcode** from the Mac App Store (not just Command Line Tools). Confirm `xcode-select -p` points at `…/Xcode.app`.
 - [ ] `npm ci` then `npx cap sync ios`, then `npx cap open ios` to open the project in Xcode.
 - [ ] **Signing:** App target > Signing & Capabilities, select the team, confirm bundle id `com.pubmaxx.app`. Let Xcode manage signing.
 - [ ] **Certificates and profiles** are auto-managed by Xcode once the team is set. No manual keychain work needed for a first upload.
-- [ ] **Push (only when you want notifications live):** add the Push Notifications capability, create an APNs Auth Key in the developer portal, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` on the server, and verify a signed-device delivery. The APNs HTTP/2 transport exists in `lib/pushProvider.ts`; credentials and entitlement remain owner-only. See `docs/CAPACITOR_WRAP.md`.
-- [ ] **Universal links (optional for v1):** add the Associated Domains capability `applinks:pubmaxxing.com`, and replace the `TEAMID` placeholder in `public/.well-known/apple-app-site-association` with the real Team ID.
-- [ ] **Create the app record** in App Store Connect: name PUBMAXX, bundle id `com.pubmaxx.app`, primary language English (UK), category Food & Drink.
+- [ ] **Push (only when you want notifications live):** add the Push Notifications capability, create an APNs Auth Key in the developer portal, and set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, and `APNS_ENV` on the server. Use `APNS_ENV=production` for TestFlight and App Store production tokens. Use `APNS_ENV=sandbox` only for development-signed sandbox tokens. Missing or invalid `APNS_ENV` fails closed when credentials are configured. Never commit the `.p8` key. Verify delivery on the matching signed device. The APNs HTTP/2 transport exists in `lib/pushProvider.ts`; credentials, entitlement, signing, and device proof remain owner-only. See `docs/CAPACITOR_WRAP.md`.
+- [ ] **Universal links:** add the Associated Domains capability `applinks:pubmaxxing.com`, and replace the `TEAMID` placeholder in `public/.well-known/apple-app-site-association` with the real Team ID. Sign-in return depends on this gate.
+- [ ] **Create the app record in App Store Connect: name PUBMAXXING**, bundle id `com.pubmaxx.app`, primary language English (UK), category Food & Drink.
 - [ ] **Paste metadata** from sections 1 to 5 of this doc. Upload screenshots from section 6.
 - [ ] **Archive and upload** the first build: Xcode > Product > Archive > Distribute App > App Store Connect.
 - [ ] **TestFlight** internal test on your own device before submitting for review.
@@ -290,12 +291,13 @@ Everything above is done or ready to paste. The steps below need a real account,
 ### Google Play
 
 - [ ] **Enrol** in the Google Play Console, 25 USD one-time, at play.google.com/console. Complete identity verification (can take a few days for individual accounts, start this early, it is the long pole).
-- [ ] **Install Android Studio** (for the signing and bundle build), plus a JDK 17. Confirm `./gradlew` runs in `android/`.
+- [ ] **Install Android Studio** for signing and bundle work, plus **JDK 21**. Confirm `java -version` reports 21 before `./gradlew` runs in `android/`; generated Capacitor Gradle compiles with Java 21.
 - [ ] `npm ci` then `npx cap sync android`, then `npx cap open android` to open the project in Android Studio.
 - [ ] **Upload key / signing:** opt into Play App Signing (recommended). Generate an upload keystore once (`keytool` or Android Studio > Generate Signed Bundle), keep it safe, it signs every future update. This is the one irreversible owner step, do not lose the keystore.
 - [ ] **Build the release bundle:** Android Studio > Build > Generate Signed App Bundle (.aab), or `./gradlew bundleRelease`. Target SDK is already 36, which clears the Play target-API requirement.
-- [ ] **Push (optional):** Firebase is required for Android push. Create a Firebase project, add an Android app with package `com.pubmaxx.app`, download `google-services.json` into `android/app/`. The Gradle file already applies the plugin only if that file is present, so nothing breaks until you add it.
-- [ ] **Create the app** in the Play Console: name PUBMAXX, category Food & Drink, free.
+- [ ] **Push:** source delivery is implemented through platform-routed FCM HTTP v1. Create a Firebase project, add Android package `com.pubmaxx.app`, and place its real `google-services.json` in `android/app/`. Set all four server values `FCM_PROJECT_ID`, `FCM_CLIENT_EMAIL`, `FCM_PRIVATE_KEY_ID`, and `FCM_PRIVATE_KEY`. Then prove token registration, notification receipt, and safe tap navigation on a physical configured build. Never commit the service-account JSON or private key.
+- [ ] **Publish verified App Links:** add the release signing fingerprint to `/.well-known/assetlinks.json`, deploy it, then prove email, Google, and Apple callback URLs return to the signed-in app on a physical Android device.
+- [ ] **Create the app in the Play Console: name PUBMAXXING**, category Food & Drink, free.
 - [ ] **Complete the Data safety form** and **content rating (IARC) questionnaire** from sections 4 and 5.
 - [ ] **Set target audience** to 18 and over. Do not opt into Designed for Families.
 - [ ] **Paste metadata** from sections 1 to 3. Upload screenshots and the 1024x500 feature graphic from section 6.
