@@ -59,6 +59,31 @@ describe("durable London What's-On locality", () => {
     ]);
   });
 
+  it("drops a coordless unresolved durable row without London locality evidence", async () => {
+    durable.load.mockResolvedValueOnce({
+      rows: [
+        {
+          ...durableRows[0],
+          id: "unresolved-provider-row",
+          venueId: undefined,
+          placeName: "Unresolved provider venue",
+        },
+      ],
+      providerObservedAt: "2026-08-27T11:07:30.691Z",
+      readStatus: "ready",
+    });
+
+    const result = await loadWhatsOn(
+      { window: "tonight" },
+      {
+        now: Date.parse("2026-08-27T12:00:00.000Z"),
+        fetchLive: async () => [],
+      },
+    );
+
+    expect(result.rows).toEqual([]);
+  });
+
   it("marks the bundled fallback degraded when the durable loader throws", async () => {
     durable.load.mockRejectedValueOnce(new Error("durable read failed"));
 

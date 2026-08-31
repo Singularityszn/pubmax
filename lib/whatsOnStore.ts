@@ -286,7 +286,11 @@ function flattenGroupsBeforeLimit(
 
 function markVerifiedLondonRows(rows: WhatsOnRow[], trusted: boolean): void {
   if (!trusted) return;
-  for (const row of rows) londonVerifiedRows.add(row);
+  for (const row of rows) {
+    if (canonicalOutVenueId(row.venueId) !== null || Boolean(row.area)) {
+      londonVerifiedRows.add(row);
+    }
+  }
 }
 
 function filterRowsForRequest(
