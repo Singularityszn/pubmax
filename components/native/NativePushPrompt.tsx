@@ -8,7 +8,7 @@
 // in lib/nativePushPrompt.ts (shouldOfferPushPrompt), this component is pure
 // presentation + the two button actions.
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { registerNativePush } from "@/lib/nativePush";
 import { trackEvent } from "@/lib/analytics";
@@ -17,6 +17,7 @@ import {
   getPushPromptVisibleSnapshot,
   markPushPromptDismissed,
   markPushPromptEnabled,
+  NATIVE_PUSH_PROMPT_COPY,
   subscribePushPrompt,
 } from "@/lib/nativePushPrompt";
 import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
@@ -25,6 +26,7 @@ const PUSH_SURFACE = "native-push";
 import "./nativePushPrompt.css";
 
 export default function NativePushPrompt(): React.JSX.Element | null {
+  const [enabling, setEnabling] = useState(false);
   const visible = useSyncExternalStore(
     subscribePushPrompt,
     getPushPromptVisibleSnapshot,
@@ -41,13 +43,14 @@ export default function NativePushPrompt(): React.JSX.Element | null {
 
   if (!canShow) return null;
 
-  function handleEnable() {
-    // Persist immediately so the sheet can't double-fire on a slow
-    // registration response; the OS permission dialog appears inside
-    // registerNativePush() itself.
-    markPushPromptEnabled();
+  async function handleEnable() {
+    if (enabling) return;
+    setEnabling(true);
     trackEvent("native_push_prompt_enable");
-    void registerNativePush();
+    const registered = await registerNativePush();
+    if (registered) markPushPromptEnabled();
+    else markPushPromptDismissed();
+    setEnabling(false);
   }
 
   function handleLater() {
@@ -65,17 +68,23 @@ export default function NativePushPrompt(): React.JSX.Element | null {
         aria-describedby="native-push-prompt-body"
       >
         <p id="native-push-prompt-title" className="nativePushPrompt__title">
-          Stay in the loop
+          {NATIVE_PUSH_PROMPT_COPY.title}
         </p>
         <p id="native-push-prompt-body" className="nativePushPrompt__body">
-          Get pinged when your crew votes or the get-in closes.
+          {NATIVE_PUSH_PROMPT_COPY.body}
         </p>
         <div className="nativePushPrompt__actions">
           <button type="button" className="nativePushPrompt__later pressable" onClick={handleLater}>
-            Later
+            {NATIVE_PUSH_PROMPT_COPY.later}
           </button>
-          <button type="button" className="nativePushPrompt__enable pressable" onClick={handleEnable}>
-            Enable
+          <button
+            type="button"
+            className="nativePushPrompt__enable pressable"
+            onClick={() => void handleEnable()}
+            disabled={enabling}
+            aria-busy={enabling}
+          >
+            {NATIVE_PUSH_PROMPT_COPY.enable}
           </button>
         </div>
       </div>

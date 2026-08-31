@@ -7,11 +7,13 @@
 // at boot. Instead we wait for the user's first meaningful plan action
 // inside the native shell — joining a plan, starting a plan/round, or
 // confirming a route proposal — and show a small in-app explainer FIRST
-// ("Get pinged when your crew votes / get-in closes") with Enable / Later.
-// Only "Enable" calls registerNativePush(), so the OS dialog only appears
+// ("Get a ping when a fresh London night signal goes live") with Turn on /
+// Not now. Native tokens have no account or Plan identity, so the explainer
+// must not promise the dormant crew-scoped push seam.
+// Only "Turn on" calls registerNativePush(), so the OS dialog only appears
 // once the user has already opted in once, in-app.
 //
-// "Later" persists and is re-offered only after the NEXT qualifying plan
+// "Not now" persists and is re-offered only after the NEXT qualifying plan
 // action, not immediately — otherwise every subsequent join/vote in the same
 // session would re-show the sheet. We track that with a monotonic action
 // sequence number (bumped once per recordPlanHighIntentAction call), remember
@@ -23,10 +25,11 @@
 // Storage mirrors the lib/firstRunTour.ts / lib/cityPreference.ts idiom:
 // localStorage-backed, SSR-safe, same-tab CHANGE_EVENT for
 // useSyncExternalStore, no-ops when storage is unavailable. Never shows on
-// the web — every write/read path that can trigger the UI is gated on
-// isNativeApp() (lib/nativePlatform.ts), the only Capacitor-detection seam.
+// web - every write/read path that can trigger the UI is gated on
+// nativePushRegistrationSupported() (lib/nativePush.ts). Stored platform keeps
+// Android FCM delivery separate from iOS APNs delivery.
 
-import { isNativeApp } from "@/lib/nativePlatform";
+import { nativePushRegistrationSupported } from "@/lib/nativePush";
 import { recordWebPushHighIntentAction } from "@/lib/webPushPrompt";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
@@ -35,6 +38,12 @@ const DISMISSED_SEQ_KEY = "pubmax:nativePush:dismissedSeq:v1";
 const SEQ_KEY = "pubmax:nativePush:actionSeq:v1";
 /** Same-tab notify so useSyncExternalStore clients (the prompt UI) re-read after a write. */
 export const NATIVE_PUSH_PROMPT_EVENT = "pubmax:native-push-prompt";
+export const NATIVE_PUSH_PROMPT_COPY = {
+  title: "Know when tonight changes",
+  body: "Get a ping when a fresh London night signal goes live.",
+  later: "Not now",
+  enable: "Turn on",
+} as const;
 
 function hasStorage(): boolean {
   return safeLocalStorage() !== null;
@@ -133,7 +142,7 @@ function dismissedAtSeq(): number | null {
  * the sequence never advances there, so the prompt can never fire.
  */
 export function recordPlanHighIntentAction(): void {
-  if (!isNativeApp()) {
+  if (!nativePushRegistrationSupported()) {
     recordWebPushHighIntentAction();
     return;
   }
@@ -151,7 +160,7 @@ export function recordPlanHighIntentAction(): void {
 /** Client snapshot for useSyncExternalStore: should the prompt be visible right now? */
 export function getPushPromptVisibleSnapshot(): boolean {
   return shouldOfferPushPrompt({
-    isNative: isNativeApp(),
+    isNative: nativePushRegistrationSupported(),
     alreadyEnabled: hasEnabledNativePush(),
     dismissedAtSeq: dismissedAtSeq(),
     currentSeq: currentActionSeq(),

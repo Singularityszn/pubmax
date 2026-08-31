@@ -9,7 +9,6 @@ import {
   apnsPushProvider,
   buildApnsJwt,
   createApnsPushProvider,
-  createRoutingPushProvider,
   createWebPushProvider,
   isApnsConfigured,
   isVapidConfigured,
@@ -21,8 +20,14 @@ import {
   type ApnsRawResponse,
   type ApnsRequest,
   type ApnsTransport,
-  type PushProvider,
 } from "@/lib/pushProvider";
+import {
+  buildFcmServiceAccountJwt,
+  createFcmPushProvider,
+  isFcmConfigured,
+  noopFcmPushProvider,
+  type FcmConfig,
+} from "@/lib/fcmPushProvider";
 import { encodeWebPushSubscription } from "@/lib/webPushSubscription";
 
 const APNS_ENV = {
@@ -60,11 +65,23 @@ const { privateKey: testPrivateKey, publicKey: testPublicKey } = generateKeyPair
 });
 const testPrivatePem = testPrivateKey.export({ format: "pem", type: "pkcs8" }).toString();
 
+const { privateKey: testFcmPrivateKey, publicKey: testFcmPublicKey } = generateKeyPairSync("rsa", {
+  modulusLength: 2_048,
+});
+const testFcmPrivatePem = testFcmPrivateKey.export({ format: "pem", type: "pkcs8" }).toString();
+
 const TEST_CONFIG: ApnsConfig = {
   keyId: "TESTKEY",
   teamId: "TESTTEAM",
   privateKey: testPrivatePem,
   host: "api.sandbox.push.apple.com",
+};
+
+const TEST_FCM_CONFIG: FcmConfig = {
+  projectId: "pubmaxx-test",
+  clientEmail: "push@pubmaxx-test.iam.gserviceaccount.com",
+  privateKeyId: "test-key-123",
+  privateKey: testFcmPrivatePem,
 };
 
 function decodeJwtPart(part: string): Record<string, unknown> {
@@ -98,22 +115,179 @@ describe("isApnsConfigured", () => {
     expect(isApnsConfigured()).toBe(false);
   });
 
-  it("is true when every APNs key is set", () => {
+  it("is true when every APNs key and a valid environment are set", () => {
     stubApnsEnv();
+    vi.stubEnv("APNS_ENV", "production");
     expect(isApnsConfigured()).toBe(true);
+  });
+
+  it("is false when APNS_ENV is missing or invalid", () => {
+    stubApnsEnv();
+    expect(isApnsConfigured()).toBe(false);
+
+    vi.stubEnv("APNS_ENV", "staging");
+    expect(isApnsConfigured()).toBe(false);
+  });
+});
+
+describe("Firebase Cloud Messaging provider", () => {
+  it("requires every service-account environment value", () => {
+    vi.stubEnv("FCM_PROJECT_ID", TEST_FCM_CONFIG.projectId);
+    vi.stubEnv("FCM_CLIENT_EMAIL", TEST_FCM_CONFIG.clientEmail);
+    vi.stubEnv("FCM_PRIVATE_KEY_ID", TEST_FCM_CONFIG.privateKeyId);
+    expect(isFcmConfigured()).toBe(false);
+    vi.stubEnv("FCM_PRIVATE_KEY", TEST_FCM_CONFIG.privateKey);
+    expect(isFcmConfigured()).toBe(true);
+  });
+
+  it("builds a verifiable RS256 service-account assertion", () => {
+    const iat = 1_700_000_000;
+    const jwt = buildFcmServiceAccountJwt({ ...TEST_FCM_CONFIG, iat });
+    const [headerB64, claimsB64, signatureB64] = jwt.split(".");
+    expect(decodeJwtPart(headerB64)).toEqual({
+      alg: "RS256",
+      typ: "JWT",
+      kid: TEST_FCM_CONFIG.privateKeyId,
+    });
+    expect(decodeJwtPart(claimsB64)).toEqual({
+      iss: TEST_FCM_CONFIG.clientEmail,
+      scope: "https://www.googleapis.com/auth/firebase.messaging",
+      aud: "https://oauth2.googleapis.com/token",
+      iat,
+      exp: iat + 3_600,
+    });
+    expect(cryptoVerify(
+      "RSA-SHA256",
+      Buffer.from(`${headerB64}.${claimsB64}`),
+      testFcmPublicKey,
+      Buffer.from(signatureB64, "base64url"),
+    )).toBe(true);
+  });
+
+  it("mints one OAuth token, reuses it, and sends the HTTP v1 Android payload", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input);
+      if (url === "https://oauth2.googleapis.com/token") {
+        return new Response(JSON.stringify({ access_token: "access-1", expires_in: 3_600 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      expect(url).toBe("https://fcm.googleapis.com/v1/projects/pubmaxx-test/messages:send");
+      expect(init?.headers).toMatchObject({
+        authorization: "Bearer access-1",
+        "content-type": "application/json",
+      });
+      expect(JSON.parse(String(init?.body))).toEqual({
+        message: {
+          token: "android-token",
+          notification: { title: "New tonight", body: "Late licence tonight" },
+          data: { kind: "night_signal_live", url: "/tonight" },
+          android: {
+            priority: "HIGH",
+            ttl: "21600s",
+            notification: { sound: "default", tag: "night-signals" },
+          },
+        },
+      });
+      return new Response(JSON.stringify({ name: "projects/pubmaxx-test/messages/1" }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const provider = createFcmPushProvider({
+      config: () => TEST_FCM_CONFIG,
+      fetch: fetchMock,
+      now: () => 1_700_000_000_000,
+      accessTokenCache: new Map(),
+    });
+
+    const payload = {
+      title: "New tonight",
+      body: "Late licence tonight",
+      threadId: "night-signals",
+      data: { kind: "night_signal_live", url: "/tonight" },
+    };
+    expect(await provider.send(["android-token"], payload)).toEqual([
+      { token: "android-token", status: "sent" },
+    ]);
+    expect(await provider.send(["android-token"], payload)).toEqual([
+      { token: "android-token", status: "sent" },
+    ]);
+    expect(fetchMock.mock.calls.filter(([input]) => String(input).includes("oauth2")).length).toBe(1);
+    const tokenRequest = fetchMock.mock.calls.find(([input]) => String(input).includes("oauth2"));
+    expect(String(tokenRequest?.[1]?.body)).toContain(
+      "grant_type=urn%3Aietf%3Aparams%3Aoauth%3Agrant-type%3Ajwt-bearer",
+    );
+  });
+
+  it("prunes only FCM-specific invalid registrations and keeps service failures retryable", async () => {
+    const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      if (String(input).includes("oauth2")) {
+        return new Response(JSON.stringify({ access_token: "access-1", expires_in: 3_600 }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      const token = JSON.parse(String(init?.body)).message.token;
+      if (token === "gone") {
+        return new Response(JSON.stringify({
+          error: {
+            status: "NOT_FOUND",
+            details: [{
+              "@type": "type.googleapis.com/google.firebase.fcm.v1.FcmError",
+              errorCode: "UNREGISTERED",
+            }],
+          },
+        }), { status: 404, headers: { "content-type": "application/json" } });
+      }
+      if (token === "bad-payload") {
+        return new Response(JSON.stringify({
+          error: {
+            status: "INVALID_ARGUMENT",
+            details: [{ "@type": "type.googleapis.com/google.rpc.BadRequest" }],
+          },
+        }), { status: 400, headers: { "content-type": "application/json" } });
+      }
+      return new Response(JSON.stringify({ error: { status: "UNAVAILABLE" } }), {
+        status: 503,
+        headers: { "content-type": "application/json" },
+      });
+    });
+    const provider = createFcmPushProvider({
+      config: () => TEST_FCM_CONFIG,
+      fetch: fetchMock,
+      accessTokenCache: new Map(),
+    });
+    expect(await provider.send(["gone", "bad-payload", "retry"], { title: "T", body: "B" })).toEqual([
+      { token: "gone", status: "invalid", reason: "fcm_unregistered" },
+      { token: "bad-payload", status: "error", reason: "fcm_invalid_argument" },
+      { token: "retry", status: "error", reason: "fcm_unavailable" },
+    ]);
+  });
+
+  it("uses a truthful Android no-op until Firebase credentials exist", async () => {
+    expect(selectPushProvider("android")).toBe(noopFcmPushProvider);
+    expect(await noopFcmPushProvider.send(["android-token"], { title: "T", body: "B" })).toEqual([
+      { token: "android-token", status: "skipped", reason: "fcm_not_configured" },
+    ]);
+  });
+
+  it("fails loudly instead of treating partial Firebase credentials as unconfigured", async () => {
+    vi.stubEnv("FCM_PROJECT_ID", TEST_FCM_CONFIG.projectId);
+    const provider = selectPushProvider("android");
+    expect(provider).not.toBe(noopFcmPushProvider);
+    await expect(provider.send(["android-token"], { title: "T", body: "B" })).rejects.toThrow(
+      "FCM_PROJECT_ID, FCM_CLIENT_EMAIL, FCM_PRIVATE_KEY_ID and FCM_PRIVATE_KEY must all be set",
+    );
   });
 });
 
 describe("selectPushProvider", () => {
-  it("routes an unconfigured mixed batch to truthful transport no-ops", async () => {
-    const results = await selectPushProvider().send(
-      ["native-token", WEB_TOKEN],
-      { title: "T", body: "B" },
-    );
-    expect(results).toEqual([
-      { token: "native-token", status: "skipped", reason: "apns_not_configured" },
-      { token: WEB_TOKEN, status: "skipped", reason: "vapid_not_configured" },
-    ]);
+  it("selects truthful no-ops from the stored platform", () => {
+    expect(selectPushProvider("ios")).toBe(noopPushProvider);
+    expect(selectPushProvider("android")).toBe(noopFcmPushProvider);
+    expect(selectPushProvider("web")).toBe(noopWebPushProvider);
   });
 
   it("recognises VAPID only when the public/private pair is complete", () => {
@@ -121,6 +295,17 @@ describe("selectPushProvider", () => {
     expect(isVapidConfigured()).toBe(false);
     vi.stubEnv("VAPID_PRIVATE_KEY", "private");
     expect(isVapidConfigured()).toBe(true);
+  });
+
+  it("fails loudly instead of treating partial APNs configuration as absent", async () => {
+    vi.stubEnv("APNS_KEY_ID", APNS_ENV.APNS_KEY_ID);
+
+    const provider = selectPushProvider("ios");
+
+    expect(provider).not.toBe(noopPushProvider);
+    await expect(provider.send(["ios-token"], { title: "T", body: "B" })).rejects.toThrow(
+      "APNS_KEY_ID, APNS_TEAM_ID and APNS_PRIVATE_KEY must all be set",
+    );
   });
 });
 
@@ -221,33 +406,6 @@ describe("Web Push / VAPID provider", () => {
     ]);
   });
 
-  it("routing preserves mixed input order", async () => {
-    const native: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "sent" })) };
-    const web: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "skipped", reason: "test" })) };
-    const results = await createRoutingPushProvider(native, web).send(
-      [WEB_TOKEN, "native-a", "webpush:broken", "native-b"],
-      { title: "T", body: "B" },
-    );
-    expect(results.map((result) => [result.token, result.status])).toEqual([
-      [WEB_TOKEN, "skipped"],
-      ["native-a", "sent"],
-      ["webpush:broken", "skipped"],
-      ["native-b", "sent"],
-    ]);
-  });
-
-  it("a broken web configuration does not poison successful native delivery", async () => {
-    const native: PushProvider = { send: async (tokens) => tokens.map((token) => ({ token, status: "sent" })) };
-    const web: PushProvider = { send: async () => { throw new Error("bad private key"); } };
-    const results = await createRoutingPushProvider(native, web).send(
-      ["native-a", WEB_TOKEN],
-      { title: "T", body: "B" },
-    );
-    expect(results).toEqual([
-      { token: "native-a", status: "sent" },
-      { token: WEB_TOKEN, status: "error", reason: "web_provider_threw" },
-    ]);
-  });
 });
 
 describe("buildApnsJwt", () => {
@@ -456,12 +614,13 @@ describe("createApnsPushProvider — transport + response mapping", () => {
     expect(hosts).toEqual(["api.push.apple.com"]);
   });
 
-  it("defaults to the sandbox host when APNS_ENV is unset", async () => {
+  it("selects the sandbox host when APNS_ENV=sandbox", async () => {
     const transport = mockTransport(() => ({ status: 200 }));
     const hosts: string[] = [];
     for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
       vi.stubEnv(k, v);
     }
+    vi.stubEnv("APNS_ENV", "sandbox");
     const provider = createApnsPushProvider({
       now: () => 1_700_000_000_000,
       jwtCache: new Map(),
@@ -472,6 +631,49 @@ describe("createApnsPushProvider — transport + response mapping", () => {
     });
     await provider.send(["tok"], { title: "T", body: "B" });
     expect(hosts).toEqual(["api.sandbox.push.apple.com"]);
+  });
+
+  it("normalizes escaped PEM newlines from one-line deployment values", async () => {
+    const transport = mockTransport(() => ({ status: 200 }));
+    for (const [k, v] of Object.entries(APNS_ENV)) vi.stubEnv(k, v);
+    vi.stubEnv("APNS_PRIVATE_KEY", testPrivatePem.replace(/\n/g, "\\n"));
+    vi.stubEnv("APNS_ENV", "production");
+    const provider = createApnsPushProvider({
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: () => transport,
+    });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).resolves.toEqual([
+      { token: "tok", status: "sent" },
+    ]);
+  });
+
+  it("fails closed when APNS_ENV is unset", async () => {
+    const sessionFactory = vi.fn(() => mockTransport(() => ({ status: 200 })));
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    const provider = createApnsPushProvider({ sessionFactory });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).rejects.toThrow(
+      'APNS_ENV must be set to "sandbox" or "production"',
+    );
+    expect(sessionFactory).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when APNS_ENV is invalid", async () => {
+    const sessionFactory = vi.fn(() => mockTransport(() => ({ status: 200 })));
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    vi.stubEnv("APNS_ENV", "staging");
+    const provider = createApnsPushProvider({ sessionFactory });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).rejects.toThrow(
+      'APNS_ENV must be set to "sandbox" or "production"',
+    );
+    expect(sessionFactory).not.toHaveBeenCalled();
   });
 });
 

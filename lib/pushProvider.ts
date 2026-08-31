@@ -1,7 +1,6 @@
-// Push delivery seam. ONE interface routes native device tokens to APNs and
-// installed-web subscriptions to VAPID Web Push. Each transport has a truthful
-// no-op until its owner credentials exist, so callers and local development do
-// not branch on provider setup.
+// Push delivery seam. Stored platform routes iOS tokens to APNs, Android tokens
+// to FCM, and installed-web subscriptions to VAPID Web Push. Each transport has
+// a truthful no-op until its owner credentials exist.
 //
 // No APNs SDK is a dependency. apnsPushProvider speaks HTTP/2 (node:http2) to
 // api.push.apple.com with an ES256 provider JWT (node:crypto) signed from
@@ -20,13 +19,24 @@ import webpush from "web-push";
 
 import type { DeliveryStatus } from "@/lib/deliveryStatus";
 import {
+  fcmPushProvider,
+  isFcmConfigurationPresent,
+  noopFcmPushProvider,
+} from "@/lib/fcmPushProvider";
+import type { PushPlatform } from "@/lib/pushTokenStore";
+import {
   decodeWebPushSubscription,
-  isWebPushToken,
   type WebPushSubscription,
 } from "@/lib/webPushSubscription";
 
 /** Bundle id (apns-topic) for the Capacitor shell — see docs/CAPACITOR_WRAP.md. */
 export const APNS_BUNDLE_ID = "com.pubmaxx.app";
+
+type ApnsEnvironment = "sandbox" | "production";
+
+function isApnsEnvironment(value: string | undefined): value is ApnsEnvironment {
+  return value === "sandbox" || value === "production";
+}
 
 /** A provider-agnostic notification. `data` carries safe routing hints. */
 export type PushPayload = {
@@ -56,12 +66,23 @@ export interface PushProvider {
   send(tokens: readonly string[], payload: PushPayload): Promise<PerTokenResult[]>;
 }
 
-/** The env keys the real APNs sender needs. All must be present to go live. */
+/** Every APNs credential and an explicit target environment must be valid. */
 export function isApnsConfigured(): boolean {
   return Boolean(
     process.env.APNS_KEY_ID
       && process.env.APNS_TEAM_ID
-      && process.env.APNS_PRIVATE_KEY,
+      && process.env.APNS_PRIVATE_KEY
+      && isApnsEnvironment(process.env.APNS_ENV),
+  );
+}
+
+/** Distinguish an empty local setup from a broken partial production setup. */
+export function isApnsConfigurationPresent(): boolean {
+  return Boolean(
+    process.env.APNS_KEY_ID
+      || process.env.APNS_TEAM_ID
+      || process.env.APNS_PRIVATE_KEY
+      || process.env.APNS_ENV,
   );
 }
 
@@ -207,19 +228,25 @@ function getCachedJwt(config: ApnsConfig, nowMs: number, cache: Map<string, JwtC
   return token;
 }
 
-/** Read + validate APNs env into a config. Throws (loud) if a key is missing —
- *  callers only reach here once isApnsConfigured() is true. `APNS_ENV` selects
- *  the host; sandbox is the default (safer for the first TestFlight build). */
+/** Read + validate APNs env into a config. Throws (loud) if a key is missing.
+ * `APNS_ENV` must select the host explicitly so production device tokens can
+ * never be sent to the sandbox endpoint by omission. */
 function resolveApnsConfig(): ApnsConfig {
   const keyId = process.env.APNS_KEY_ID;
   const teamId = process.env.APNS_TEAM_ID;
-  const privateKey = process.env.APNS_PRIVATE_KEY;
+  const privateKey = process.env.APNS_PRIVATE_KEY?.replace(/\\n/g, "\n").trim();
   if (!keyId || !teamId || !privateKey) {
     throw new Error(
       "apnsPushProvider: APNS_KEY_ID, APNS_TEAM_ID and APNS_PRIVATE_KEY must all be set.",
     );
   }
-  const host = process.env.APNS_ENV === "production"
+  const environment = process.env.APNS_ENV;
+  if (!isApnsEnvironment(environment)) {
+    throw new Error(
+      'apnsPushProvider: APNS_ENV must be set to "sandbox" or "production".',
+    );
+  }
+  const host = environment === "production"
     ? "api.push.apple.com"
     : "api.sandbox.push.apple.com";
   return { keyId, teamId, privateKey, host };
@@ -381,9 +408,9 @@ export function createApnsPushProvider(deps: ApnsProviderDeps = {}): PushProvide
 }
 
 /**
- * APNs sender. Active once APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY exist;
- * speaks HTTP/2 to Apple with an ES256 provider JWT. Uses production defaults
- * (real node:http2 transport, wall clock, env credentials).
+ * APNs sender. Active once APNS_KEY_ID / APNS_TEAM_ID / APNS_PRIVATE_KEY and
+ * an explicit APNS_ENV exist; speaks HTTP/2 to Apple with an ES256 provider
+ * JWT. Uses real node:http2 transport, wall clock, and env credentials.
  */
 export const apnsPushProvider: PushProvider = createApnsPushProvider();
 
@@ -485,55 +512,14 @@ export function createWebPushProvider(deps: WebPushProviderDeps = {}): PushProvi
 
 export const webPushProvider: PushProvider = createWebPushProvider();
 
-/** Route one mixed registry batch by token kind while preserving the original
- * input order. Native and web providers keep independent configuration/no-op
- * behaviour behind the single PushProvider interface. */
-export function createRoutingPushProvider(
-  nativeProvider: PushProvider,
-  browserProvider: PushProvider,
-): PushProvider {
-  return {
-    async send(tokens, payload) {
-      const native: Array<{ token: string; index: number }> = [];
-      const web: Array<{ token: string; index: number }> = [];
-      tokens.forEach((token, index) => {
-        (isWebPushToken(token) ? web : native).push({ token, index });
-      });
-      const sendGroup = async (
-        kind: "native" | "web",
-        provider: PushProvider,
-        group: Array<{ token: string; index: number }>,
-      ): Promise<PerTokenResult[]> => {
-        try {
-          return await provider.send(group.map((entry) => entry.token), payload);
-        } catch {
-          console.error(
-            `[pushProvider:routing] ${kind} provider failed for ${group.length} token(s); check ${kind} provider credentials.`,
-          );
-          return group.map(({ token }) => ({
-            token,
-            status: "error",
-            reason: `${kind}_provider_threw`,
-          }));
-        }
-      };
-      const [nativeResults, webResults] = await Promise.all([
-        sendGroup("native", nativeProvider, native),
-        sendGroup("web", browserProvider, web),
-      ]);
-      const results = new Array<PerTokenResult>(tokens.length);
-      native.forEach((entry, index) => { results[entry.index] = nativeResults[index]; });
-      web.forEach((entry, index) => { results[entry.index] = webResults[index]; });
-      return results;
-    },
-  };
-}
-
-/** Single selection point for both transports. Missing credentials select a
- * truthful per-transport no-op; mixed native/web batches remain supported. */
-export function selectPushProvider(): PushProvider {
-  return createRoutingPushProvider(
-    isApnsConfigured() ? apnsPushProvider : noopPushProvider,
-    isVapidConfigured() ? webPushProvider : noopWebPushProvider,
-  );
+/** Select one transport from stored registration platform. This is the routing
+ * authority for current fan-out and prevents Android tokens reaching APNs. */
+export function selectPushProvider(platform: PushPlatform): PushProvider {
+  if (platform === "ios") {
+    return isApnsConfigurationPresent() ? apnsPushProvider : noopPushProvider;
+  }
+  if (platform === "android") {
+    return isFcmConfigurationPresent() ? fcmPushProvider : noopFcmPushProvider;
+  }
+  return isVapidConfigured() ? webPushProvider : noopWebPushProvider;
 }

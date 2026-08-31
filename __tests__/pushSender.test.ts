@@ -6,15 +6,19 @@ import type { PerTokenResult, PushProvider } from "@/lib/pushProvider";
 // (the house pattern: mock the boundary, keep everything else real). The real
 // process-memory token store is used — Supabase env is stripped in
 // vitest.setup.ts — so token pruning is asserted against actual store state.
-const { sendMock } = vi.hoisted(() => ({
-  sendMock: vi.fn<PushProvider["send"]>(async (tokens) =>
+const { sendMock, selectPlatformMock } = vi.hoisted(() => {
+  const send = vi.fn<PushProvider["send"]>(async (tokens) =>
     tokens.map((token) => ({ token, status: "sent" }) as PerTokenResult),
-  ),
-}));
+  );
+  return {
+    sendMock: send,
+    selectPlatformMock: vi.fn(() => ({ send })),
+  };
+});
 
 vi.mock("@/lib/pushProvider", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pushProvider")>();
-  return { ...actual, selectPushProvider: () => ({ send: sendMock }) };
+  return { ...actual, selectPushProvider: selectPlatformMock };
 });
 
 import {
@@ -44,6 +48,7 @@ beforeEach(() => {
   __resetNightSignalBroadcasts();
   __resetPintDrops();
   sendMock.mockReset();
+  selectPlatformMock.mockClear();
   sendMock.mockImplementation(async (tokens) =>
     tokens.map((token) => ({ token, status: "sent" }) as PerTokenResult),
   );
@@ -52,6 +57,70 @@ beforeEach(() => {
 const HIGHLIGHT = { id: "sig-1", title: "The Anchor", body: "Late licence tonight", entityId: "venue-anchor" };
 
 describe("broadcastNightSignalLive", () => {
+  it("routes iOS, Android, and web registrations by their stored platform", async () => {
+    await memoryPushTokenStore.save({ token: "ios-token", platform: "ios" });
+    await memoryPushTokenStore.save({ token: "android-token", platform: "android" });
+    const webToken = encodeWebPushSubscription({
+      endpoint: "https://updates.push.services.mozilla.com/wpush/v2/mixed",
+      expirationTime: null,
+      keys: { p256dh: "A".repeat(87), auth: "B".repeat(22) },
+    })!;
+    await memoryPushTokenStore.save({ token: webToken, platform: "web" });
+
+    const summary = await broadcastNightSignalLive([HIGHLIGHT]);
+
+    expect(selectPlatformMock.mock.calls.map(([platform]) => platform)).toEqual([
+      "ios",
+      "android",
+      "web",
+    ]);
+    expect(sendMock.mock.calls.map(([tokens]) => tokens)).toEqual([
+      ["ios-token"],
+      ["android-token"],
+      [webToken],
+    ]);
+    expect(summary.results.map((result) => result.token)).toEqual([
+      "ios-token",
+      "android-token",
+      webToken,
+    ]);
+    expect(summary).toMatchObject({ targeted: 3, sent: 3, errors: 0 });
+  });
+
+  it("prunes an unregistered Android token without removing other platforms", async () => {
+    await memoryPushTokenStore.save({ token: "ios-good", platform: "ios" });
+    await memoryPushTokenStore.save({ token: "android-gone", platform: "android" });
+    sendMock.mockImplementation(async (tokens) => tokens.map((token) => token === "android-gone"
+      ? { token, status: "invalid", reason: "fcm_unregistered" }
+      : { token, status: "sent" }));
+
+    const summary = await broadcastNightSignalLive([HIGHLIGHT]);
+
+    expect(summary).toMatchObject({ targeted: 2, sent: 1, pruned: 1, errors: 0 });
+    expect(__listMemoryPushTokens().map((registration) => registration.token)).toEqual(["ios-good"]);
+  });
+
+  it("contains a provider-level failure to its platform group", async () => {
+    await memoryPushTokenStore.save({ token: "ios-good", platform: "ios" });
+    await memoryPushTokenStore.save({ token: "android-retry", platform: "android" });
+    sendMock.mockImplementation(async (tokens) => {
+      if (tokens[0] === "android-retry") throw new Error("Firebase unavailable");
+      return tokens.map((token) => ({ token, status: "sent" }));
+    });
+
+    const summary = await broadcastNightSignalLive([HIGHLIGHT]);
+
+    expect(summary).toMatchObject({ targeted: 2, sent: 1, pruned: 0, errors: 1 });
+    expect(summary.results).toEqual([
+      { token: "ios-good", status: "sent" },
+      { token: "android-retry", status: "error", reason: "android_provider_threw" },
+    ]);
+    expect(__listMemoryPushTokens().map((registration) => registration.token)).toEqual([
+      "ios-good",
+      "android-retry",
+    ]);
+  });
+
   it("fans out to every registered token and summarises sends", async () => {
     await seed("tok-a", "tok-b", "tok-c");
     const summary = await broadcastNightSignalLive([HIGHLIGHT]);
