@@ -658,7 +658,7 @@ export default function PalExperience() {
             <h1 id="pal-home-title">{pal.name}</h1>
             <p>A {signalCopy[pal.appearance.signalAffinity].toLowerCase()} {pal.appearance.species} shaped around your night, with boundaries you control.</p>
             <Link className="palPrimary" href="/plan">Plan with {pal.name}<ArrowRight size={18} /></Link>
-            <PubPalVoice onStateChange={setPalAnimationState} />
+            <PubPalVoice muted={pal.muted} onStateChange={setPalAnimationState} />
           </div>
         </section>
         <section className="palControls" aria-labelledby="pal-controls-title">

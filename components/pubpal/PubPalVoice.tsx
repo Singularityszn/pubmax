@@ -298,6 +298,8 @@ export type PalVoiceAvailability = "asking" | "available" | "unavailable";
 
 export const PAL_VOICE_UNAVAILABLE_LINE =
   "Voice is not switched on here yet. Ask me in writing and you get the same grounded answers.";
+const PAL_VOICE_MUTED_LINE =
+  "Voice is muted. Ask me in writing or turn voice back on when you want it.";
 
 /**
  * Read the probe's answer.
@@ -335,6 +337,21 @@ export function PalVoiceOffline() {
   );
 }
 
+function PalVoiceMuted() {
+  return (
+    <div className="palVoice palVoice--offline">
+      <div className="palVoiceStatus" role="status">
+        {PAL_VOICE_MUTED_LINE}
+      </div>
+      <div className="palVoiceActions">
+        <Link className="palVoiceWriteLink" href="/pal/chat">
+          <Send size={17} aria-hidden="true" /> Ask in writing
+        </Link>
+      </div>
+    </div>
+  );
+}
+
 function useVoiceAvailability(): PalVoiceAvailability {
   const [state, setState] = useState<PalVoiceAvailability>("asking");
   useEffect(() => {
@@ -357,7 +374,7 @@ function useVoiceAvailability(): PalVoiceAvailability {
   return state;
 }
 
-export default function PubPalVoice({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
+function VoiceAvailabilityGate({ onStateChange }: { onStateChange?: (state: PalAnimationState) => void }) {
   const availability = useVoiceAvailability();
 
   // Tri-state: while the probe is out the control claims neither, because
@@ -379,4 +396,15 @@ export default function PubPalVoice({ onStateChange }: { onStateChange?: (state:
       <VoiceControls onStateChange={onStateChange} />
     </ConversationProvider>
   );
+}
+
+export default function PubPalVoice({
+  muted = false,
+  onStateChange,
+}: {
+  muted?: boolean;
+  onStateChange?: (state: PalAnimationState) => void;
+}) {
+  if (muted) return <PalVoiceMuted />;
+  return <VoiceAvailabilityGate onStateChange={onStateChange} />;
 }

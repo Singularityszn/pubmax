@@ -13,8 +13,7 @@ import {
 } from "@/lib/palVoiceMetering";
 import { buildPalVoiceOverrides } from "@/lib/palVoiceOverrides";
 import { palVoiceConfigured } from "@/lib/pubPalVoiceConfig.server";
-import { DEFAULT_PAL_DRAFT, type PubPal } from "@/lib/pubPal";
-import { getPubPal } from "@/lib/pubPalStore";
+import { getPubPalResult } from "@/lib/pubPalStore";
 import { clientIp, hashIp, isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const usage = new Map<string, PalVoiceMeterState>();
@@ -63,26 +62,6 @@ function meterFor(userId: string, month: string): PalVoiceMeterState {
   const meter = { month, usedMinutes: 0, reservations: 0 };
   usage.set(userId, meter);
   return meter;
-}
-
-function fallbackPal(ownerId: string): PubPal {
-  const now = new Date().toISOString();
-  const draft = DEFAULT_PAL_DRAFT;
-  return {
-    id: "voice-default",
-    ownerId,
-    name: draft.name || "Pal",
-    adultAttestedAt: now,
-    appearance: draft.appearance,
-    personality: draft.personality,
-    voice: draft.voice,
-    muted: false,
-    hidden: false,
-    proposalPreferences: { memories: false, routes: true },
-    masteryPoints: 0,
-    createdAt: now,
-    updatedAt: now,
-  };
 }
 
 async function releaseVoiceReservation(
@@ -165,6 +144,25 @@ async function handleRelease(
 }
 
 async function handleIssueToken(userId: string): Promise<Response> {
+  const palResult = await getPubPalResult(userId);
+  if (!palResult.ok) {
+    return publicApiError("Pub Pal is temporarily unavailable.", "PUB_PAL_STORE_UNAVAILABLE", 503, {
+      retryable: true,
+      compatibilityFields: { fallback: "text" },
+    });
+  }
+  const pal = palResult.value;
+  if (!pal) {
+    return publicApiError("Create your Pub Pal before starting voice.", "PUB_PAL_REQUIRED", 409, {
+      compatibilityFields: { fallback: "text" },
+    });
+  }
+  if (pal.muted) {
+    return publicApiError("Voice is muted. Turn it back on to start a voice chat.", "VOICE_MUTED", 409, {
+      compatibilityFields: { fallback: "text" },
+    });
+  }
+
   const apiKey = process.env.ELEVENLABS_API_KEY?.trim();
   const agentId = process.env.ELEVENLABS_PUB_PAL_AGENT_ID?.trim();
   if (!apiKey || !agentId) {
@@ -214,7 +212,6 @@ async function handleIssueToken(userId: string): Promise<Response> {
     usage.set(userId, meter);
   }
 
-  const pal = (await getPubPal(userId)) ?? fallbackPal(userId);
   const overrides = buildPalVoiceOverrides(pal);
 
   let providerAllocated = false;
