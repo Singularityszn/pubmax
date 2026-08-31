@@ -7,7 +7,7 @@
 // A failed store read is `degraded`, never an empty-market claim.
 
 import { jsonNoStore } from "@/lib/apiResponses";
-import { publicApiError } from "@/lib/apiError";
+import { publicApiError, publicApiErrorFromStatus } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
 import { isLimited } from "@/lib/pintDrops";
@@ -18,6 +18,7 @@ import {
   type VenueMissionRows,
 } from "@/lib/priceEvidenceMissions";
 import { hashIp, clientIp } from "@/lib/supabase";
+import { resolveWritableVenueId } from "@/lib/venueWriteTarget.server";
 
 export const runtime = "nodejs";
 
@@ -46,9 +47,24 @@ export async function GET(request: Request): Promise<Response> {
     );
   }
 
+  const targets = await Promise.all(
+    parsed.venueIds.map((venueId) =>
+      resolveWritableVenueId(venueId, { pubsOnly: true }),
+    ),
+  );
+  const failedTarget = targets.find((target) => !target.ok);
+  if (failedTarget && !failedTarget.ok) {
+    return publicApiErrorFromStatus(failedTarget.error, failedTarget.status);
+  }
+  const venueIds = [
+    ...new Set(
+      targets.flatMap((target) => target.ok ? [target.venueId] : []),
+    ),
+  ];
+
   const now = Date.now();
   const rows: VenueMissionRows[] = await Promise.all(
-    parsed.venueIds.map(async (venueId) => {
+    venueIds.map(async (venueId) => {
       const read = await readCommunityPricesWithStatus(venueId, now);
       return { venueId, prices: read.prices, degraded: read.degraded };
     }),

@@ -34,12 +34,14 @@ vi.mock("@/lib/authServer", async (importOriginal) => {
 
 const storeState = vi.hoisted(() => ({
   degradeVenueIds: new Set<string>(),
+  readVenueIds: [] as string[],
 }));
 vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/communityPriceStore")>();
   return {
     ...actual,
     readCommunityPricesWithStatus: async (venueId: string, now?: number) => {
+      storeState.readVenueIds.push(venueId);
       if (storeState.degradeVenueIds.has(venueId)) {
         return { prices: [], degraded: true };
       }
@@ -47,6 +49,39 @@ vi.mock("@/lib/communityPriceStore", async (importOriginal) => {
     },
   };
 });
+
+const venueTargetState = vi.hoisted(() => ({
+  aliases: new Map<string, string>(),
+  invalid: new Set<string>(),
+  unavailable: new Set<string>(),
+  calls: [] as Array<{ venueId: string; pubsOnly: boolean | undefined }>,
+}));
+vi.mock("@/lib/venueWriteTarget.server", () => ({
+  resolveWritableVenueId: async (
+    venueId: string,
+    options?: { pubsOnly?: boolean },
+  ) => {
+    venueTargetState.calls.push({ venueId, pubsOnly: options?.pubsOnly });
+    if (venueTargetState.unavailable.has(venueId)) {
+      return {
+        ok: false as const,
+        status: 503 as const,
+        error: "Venue list is unavailable right now, try again shortly.",
+      };
+    }
+    if (venueTargetState.invalid.has(venueId)) {
+      return {
+        ok: false as const,
+        status: 400 as const,
+        error: "Pick a venue from the map.",
+      };
+    }
+    return {
+      ok: true as const,
+      venueId: venueTargetState.aliases.get(venueId) ?? venueId,
+    };
+  },
+}));
 
 import { GET } from "@/app/api/price-missions/route";
 import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
@@ -96,6 +131,11 @@ beforeEach(async () => {
   authState.userId = null;
   authState.unavailable = false;
   storeState.degradeVenueIds.clear();
+  storeState.readVenueIds.length = 0;
+  venueTargetState.aliases.clear();
+  venueTargetState.invalid.clear();
+  venueTargetState.unavailable.clear();
+  venueTargetState.calls.length = 0;
   __resetCommunityPrices();
   __resetMemoryIdentityHandles();
   __resetMemoryProfiles();
@@ -133,6 +173,47 @@ describe("GET /api/price-missions", () => {
     expect(res.status).toBe(400);
     const body = await res.json() as { code: string };
     expect(body.code).toBe("INVALID_REQUEST");
+  });
+
+  it("refuses an unknown Venue instead of inventing a missing-price mission", async () => {
+    await authorizeContributor("user-missions", "mission_owl");
+    venueTargetState.invalid.add("venue-unknown");
+
+    const res = await GET(get("?venueId=venue-unknown"));
+
+    expect(res.status).toBe(400);
+    await expect(res.json()).resolves.toMatchObject({ code: "INVALID_REQUEST" });
+    expect(storeState.readVenueIds).toEqual([]);
+    expect(venueTargetState.calls).toEqual([
+      { venueId: "venue-unknown", pubsOnly: true },
+    ]);
+  });
+
+  it("fails closed when Venue authority is unavailable", async () => {
+    await authorizeContributor("user-missions", "mission_owl");
+    venueTargetState.unavailable.add("venue-xjf3n0");
+
+    const res = await GET(get("?venueId=venue-xjf3n0"));
+
+    expect(res.status).toBe(503);
+    await expect(res.json()).resolves.toMatchObject({ code: "UNAVAILABLE" });
+    expect(storeState.readVenueIds).toEqual([]);
+  });
+
+  it("canonicalises aliases and reads each resolved Venue once", async () => {
+    await authorizeContributor("user-missions", "mission_owl");
+    venueTargetState.aliases.set("venue-alias", "venue-xjf3n0");
+
+    const res = await GET(
+      get("?venueId=venue-alias&venueId=venue-xjf3n0"),
+    );
+
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toMatchObject({
+      status: "ready",
+      mission: { venueId: "venue-xjf3n0", reason: "missing" },
+    });
+    expect(storeState.readVenueIds).toEqual(["venue-xjf3n0"]);
   });
 
   it("returns a ready provisional mission without a price or handle", async () => {
