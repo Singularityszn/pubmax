@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { authedActionFetch } from "@/lib/authedFetch";
 import type { SocialPostDTO } from "@/lib/socialPosts";
 import { discardBody } from "@/lib/responseBody";
 
@@ -80,7 +81,7 @@ export default function SocialOutbox({
         params.set("cursor", cursor);
         params.set("limit", "20");
       }
-      const response = await fetch(
+      const response = await authedActionFetch(
         `/api/social/outbox${params.size ? `?${params}` : ""}`,
         { cache: "no-store", signal },
       );
