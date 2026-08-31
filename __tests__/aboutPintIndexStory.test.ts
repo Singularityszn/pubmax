@@ -159,7 +159,7 @@ describe("About outings story (Wave S1)", () => {
     expect(html).not.toContain("!");
   });
 
-  it("carries a first-person founder note with no invented biography", async () => {
+  it("keeps the founder note to the owner-approved beats", async () => {
     const html = await renderAbout();
 
     // The note lives inside the "Who builds it" section, after the intro line.
@@ -169,11 +169,16 @@ describe("About outings story (Wave S1)", () => {
     expect(noteAt).toBeGreaterThan(teamAt);
 
     const note = html.slice(noteAt, html.indexOf("</figure>", noteAt));
-    // The three beats: the why, the honesty rule, the mission.
-    expect(note).toContain("Nothing worked for the person paying");
-    expect(note).toContain("I would rather ship a gap than a guess");
+    expect(note).not.toMatch(
+      /\b(?:minute|hour|day|week|month|summer|year)s?\s+(?:away|ago)\b/iu,
+    );
+    // The three approved beats: the why, the price provenance states, and the
+    // mission. A change back to an invented origin anecdote must fail here.
+    expect(note).toContain("pint prices became hard to know");
     expect(note).toContain("source status");
+    expect(note).toContain("named publisher where one is recorded");
     expect(note).toContain("publisher is not recorded");
+    expect(note).toContain("drinker who logged it on a stated day");
     expect(note).toContain("nobody has logged a figure");
     expect(note).toContain("best way in the world to decide which pub");
     expect(note).toContain("Karan Manoharan, founder of PUBMAXX");
@@ -181,6 +186,9 @@ describe("About outings story (Wave S1)", () => {
     // stand behind - no dates, no CV, no schools, no prior employers.
     expect(note).not.toMatch(/\b(19|20)\d\d\b/u);
     expect(note).not.toMatch(/university|school|degree|ex-|previously (at|worked)/iu);
+    expect(note).not.toMatch(
+      /\b(?:thousands?|millions?|followers?|downloads?|revenue|growth|customers?)\b/iu,
+    );
     // House voice fences hold inside the note too.
     expect(note).not.toContain("—");
     expect(note).not.toContain("!");

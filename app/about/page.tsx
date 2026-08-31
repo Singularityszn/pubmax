@@ -300,27 +300,17 @@ export default async function AboutPage() {
         <figure className="aboutFounderNote">
           <blockquote className="aboutFounderQuote">
             <p className="aboutBody">
-              I built this because the price of a pint stopped being something
-              you could know. Eight quid on one corner, a fair pour ten minutes
-              away, and not one app that would just say so. Every map I opened
-              worked for the venue: ads, bookings, a star rating from three
-              summers ago. Nothing worked for the person paying.
+              I built PUBMAXX because pint prices became hard to know.
             </p>
             <p className="aboutBody">
-              So the rule I build by is short. If PUBMAXXING shows you a
-              figure, it tells you its source status: a named publisher where
-              one is recorded, an honest note when a publisher is not recorded,
-              or a drinker who logged it on a stated day. If nobody has logged a
-              figure, it says so. I would rather ship a gap than a guess. That
-              goes for this page too. No invented users, no invented biography,
-              no number we cannot count.
+              If PUBMAXX shows you a figure, it tells you its source status: a
+              named publisher where one is recorded, an honest note when a
+              publisher is not recorded, or a drinker who logged it on a stated
+              day. If nobody has logged a figure, it says so.
             </p>
             <p className="aboutBody">
-              The mission is not modest. I want this to be the best way in the
-              world to decide which pub to walk into, and I want it built the
-              honest way: London first, one checked price at a time. The
-              eight-quid pint is not a fact of life. It is a market with the
-              lights off, and we are switching them on.
+              I want PUBMAXX to be the best way in the world to decide which pub
+              to walk into.
             </p>
           </blockquote>
           <figcaption className="aboutFounderSig">
