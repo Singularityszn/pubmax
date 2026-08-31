@@ -17,8 +17,12 @@ export type PriceEvidenceMissionSlotProps = {
   surface: MissionSurface;
   communityPrices: CommunityPricesState;
   onDismiss: (mission: PriceEvidenceMission) => void;
+  onOpen?: (mission: PriceEvidenceMission) => void;
+  onComplete?: (mission: PriceEvidenceMission) => void;
   /** Map already mounts the composer; Near opens it on tap. */
   embedComposer?: boolean;
+  /** Keep the earned receipt, but stop presenting this as an active task. */
+  resolved?: boolean;
 };
 
 export default function PriceEvidenceMissionSlot({
@@ -27,7 +31,10 @@ export default function PriceEvidenceMissionSlot({
   surface,
   communityPrices,
   onDismiss,
+  onOpen,
+  onComplete,
   embedComposer = false,
+  resolved = false,
 }: PriceEvidenceMissionSlotProps) {
   const [opened, setOpened] = useState(embedComposer);
   const heading = missionHeading({
@@ -38,41 +45,54 @@ export default function PriceEvidenceMissionSlot({
   const headingId = `pemHeading-${mission.venueId}`;
 
   function open(): void {
+    onOpen?.(mission);
     setOpened(true);
     trackEvent("mission_opened", missionAnalyticsProps(surface, mission));
   }
 
   return (
-    <section className="pemSlot" aria-labelledby={headingId} data-surface={surface}>
-      <div className="pemHead">
-        <h3 id={headingId} className="pemHeading">
-          {heading}
-        </h3>
-        <div className="pemActions">
-          {!opened ? (
-            <button type="button" className="pemOpen" onClick={open}>
-              Log it
+    <section
+      className="pemSlot"
+      aria-labelledby={resolved ? undefined : headingId}
+      aria-label={resolved ? "Price check complete" : undefined}
+      data-surface={surface}
+    >
+      {resolved ? null : (
+        <div className="pemHead">
+          <h3 id={headingId} className="pemHeading">
+            {heading}
+          </h3>
+          <div className="pemActions">
+            {!opened ? (
+              <button type="button" className="pemOpen" onClick={open}>
+                Log it
+              </button>
+            ) : null}
+            <button
+              type="button"
+              className="pemSkip"
+              onClick={() => onDismiss(mission)}
+            >
+              Not now
             </button>
-          ) : null}
-          <button
-            type="button"
-            className="pemSkip"
-            onClick={() => onDismiss(mission)}
-          >
-            Not now
-          </button>
+          </div>
         </div>
-      </div>
+      )}
       {opened ? (
         <VenuePriceSubmit
           venueId={mission.venueId}
           venueName={venueName}
           communityPrices={communityPrices}
-          mission={{
-            reason: mission.reason,
-            drinkCategory: mission.drinkCategory,
-            surface,
-          }}
+          mission={
+            resolved
+              ? null
+              : {
+                  reason: mission.reason,
+                  drinkCategory: mission.drinkCategory,
+                  surface,
+                }
+          }
+          onMissionComplete={() => onComplete?.(mission)}
         />
       ) : null}
     </section>

@@ -41,6 +41,8 @@ type VenuePriceEntryPanelProps = {
   onDismissMission?: (mission: PriceEvidenceMission) => void;
   /** Refresh Pint Drops for this venue after a successful Log it. */
   onLogged?: (venueId: string) => void;
+  /** Remove a confirmed mission from this surface's active ranking. */
+  onMissionComplete?: (venueId: string) => void;
 };
 
 /**
@@ -66,6 +68,7 @@ export default function VenuePriceEntryPanel({
   missionPending = false,
   onDismissMission,
   onLogged,
+  onMissionComplete,
 }: VenuePriceEntryPanelProps) {
   const viewedVenueId = useRef<string | null>(null);
   const openedMissionKey = useRef<string | null>(null);
@@ -109,6 +112,7 @@ export default function VenuePriceEntryPanel({
       }
       missionPending={missionPending}
       onLogged={onLogged}
+      onMissionComplete={onMissionComplete}
     />
   ) : showSignInGate ? (
     <VenuePriceSignInGate

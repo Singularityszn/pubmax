@@ -31,14 +31,20 @@ export function usePriceEvidenceMission(input: {
   venueIds: readonly string[];
   enabled: boolean;
   surface: MissionSurface;
+  /** Let a surface that masks reranked results own the visible-view event. */
+  trackViewed?: boolean;
 }): {
   mission: PriceEvidenceMission | null;
   status: PriceEvidenceMissionView["status"];
   dismiss: (mission: PriceEvidenceMission) => void;
+  complete: (mission: PriceEvidenceMission) => void;
 } {
   const { user, identityResolved } = useAuth();
   const signedIn = Boolean(identityResolved && user);
   const [dismissed, setDismissed] = useState<Set<string>>(() => new Set());
+  const [completedVenueIds, setCompletedVenueIds] = useState<Set<string>>(
+    () => new Set(),
+  );
   useEffect(() => {
     // Session storage is the only owner of skip state across this tab.
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -46,8 +52,13 @@ export function usePriceEvidenceMission(input: {
   }, []);
   const requestIds = useMemo(() => {
     const skipped = dismissedVenueIds(dismissed);
-    return input.venueIds.filter((venueId) => venueId && !skipped.has(venueId));
-  }, [dismissed, input.venueIds]);
+    return input.venueIds.filter(
+      (venueId) =>
+        venueId &&
+        !skipped.has(venueId) &&
+        !completedVenueIds.has(venueId),
+    );
+  }, [completedVenueIds, dismissed, input.venueIds]);
   const requestUrl = useMemo(
     () => buildPriceEvidenceMissionUrl(requestIds),
     [requestIds],
@@ -101,12 +112,12 @@ export function usePriceEvidenceMission(input: {
     : null;
 
   useEffect(() => {
-    if (!mission) return;
+    if (input.trackViewed === false || !mission) return;
     const key = `${input.surface}:${mission.venueId}:${mission.reason}:${mission.drinkCategory ?? ""}`;
     if (viewedKey.current === key) return;
     viewedKey.current = key;
     trackEvent("mission_viewed", missionAnalyticsProps(input.surface, mission));
-  }, [input.surface, mission]);
+  }, [input.surface, input.trackViewed, mission]);
 
   const dismiss = useCallback(
     (current: PriceEvidenceMission) => {
@@ -123,6 +134,14 @@ export function usePriceEvidenceMission(input: {
     [input.surface],
   );
 
-  return { mission, status: view.status, dismiss };
-}
+  const complete = useCallback((current: PriceEvidenceMission) => {
+    setCompletedVenueIds((held) => {
+      if (held.has(current.venueId)) return held;
+      const next = new Set(held);
+      next.add(current.venueId);
+      return next;
+    });
+  }, []);
 
+  return { mission, status: view.status, dismiss, complete };
+}

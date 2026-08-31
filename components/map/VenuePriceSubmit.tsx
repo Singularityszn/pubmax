@@ -108,6 +108,8 @@ type VenuePriceSubmitProps = {
   missionPending?: boolean;
   /** Refresh this venue's Pint Drops after a successful Log it. */
   onLogged?: (venueId: string) => void;
+  /** Remove a confirmed mission from active ranking without touching drops. */
+  onMissionComplete?: (venueId: string) => void;
 };
 
 type VenuePriceSubmissionReceipt =
@@ -146,6 +148,7 @@ export default function VenuePriceSubmit({
   mission = null,
   missionPending = false,
   onLogged,
+  onMissionComplete,
 }: VenuePriceSubmitProps) {
   const titleId = `vpsubTitle-${venueId}`;
   const priceInputRef = useRef<HTMLInputElement>(null);
@@ -291,6 +294,10 @@ export default function VenuePriceSubmit({
     // The Enter key reaches here even while the button is disabled; one
     // submission at a time keeps the optimistic rollback snapshots coherent.
     if (submitting || missionPending || !priceValidation.ok) return;
+    const submittedMission =
+      mission && (missionCategory === null || missionCategory === category)
+        ? mission
+        : null;
     setError(null);
     setReceipt(null);
     await requestContribution(async (auth) => {
@@ -302,15 +309,15 @@ export default function VenuePriceSubmit({
       }, auth);
       if (!result.ok) {
         trackEvent("price_submit_failed", { category, reason: result.reason });
-        const failedReceipt = mission
+        const failedReceipt = submittedMission
           ? missionFailureReceipt(result.error)
           : null;
-        if (mission && failedReceipt) {
+        if (submittedMission && failedReceipt) {
           trackEvent(
             "mission_submitted",
             missionAnalyticsProps(
-              mission.surface,
-              { reason: mission.reason, drinkCategory: category },
+              submittedMission.surface,
+              { reason: submittedMission.reason, drinkCategory: category },
               { outcome: failedReceipt.outcome },
             ),
           );
@@ -333,12 +340,12 @@ export default function VenuePriceSubmit({
         return;
       }
       trackEvent("price_submitted", { category });
-      const missionReceipt = mission
+      const missionReceipt = submittedMission
         ? missionReceiptFromReadback({ price: result.price })
         : undefined;
-      if (mission && missionReceipt) {
-        const analytics = missionAnalyticsProps(mission.surface, {
-          reason: mission.reason,
+      if (submittedMission && missionReceipt) {
+        const analytics = missionAnalyticsProps(submittedMission.surface, {
+          reason: submittedMission.reason,
           drinkCategory: category,
         }, { outcome: missionReceipt.outcome });
         trackEvent("mission_submitted", analytics);
@@ -355,6 +362,7 @@ export default function VenuePriceSubmit({
       setPrice("");
       setHeldCategory(null);
       clearPintPhoto();
+      if (missionReceipt) onMissionComplete?.(venueId);
       onLogged?.(venueId);
     });
   }
@@ -513,9 +521,9 @@ export default function VenuePriceSubmit({
             {receipt.missionReceipt.line}
           </p>
         </div>
-      ) : receipt?.category === category &&
-        receipt.kind === "success" &&
-        (receipt.missionReceipt || stamped) ? (
+      ) : receipt?.kind === "success" &&
+        (receipt.missionReceipt ||
+          (receipt.category === category && stamped)) ? (
         // The receipt. Same figure and day label the venue card now carries -
         // one vocabulary, one moment. What it must NOT do is overclaim: a lone
         // report does not set the pin's price, and saying "on the map" for it
@@ -530,7 +538,9 @@ export default function VenuePriceSubmit({
           <p className="vpsubStamp" role="status">
             <Check size={14} aria-hidden="true" className="vpsubStampTick" />
             {receipt.missionReceipt ? (
-              <strong className="vpsubStampPrice">{receipt.missionReceipt.line}</strong>
+              <strong className="vpsubStampPrice">
+                {submitCategoryLabel(receipt.category)} · {receipt.missionReceipt.line}
+              </strong>
             ) : stamped ? (
               <>
                 <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
