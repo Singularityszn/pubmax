@@ -1,6 +1,6 @@
 // Community-observation moderation queue for the admin console.
 //   GET                    → { prices: ModeratorCommunityPrice[] }
-//   POST { action, id, note? } → { ok: true }   action ∈ hide | restore
+//   POST { action, id, note? } → { ok: true }   action ∈ hide | restore | reconcile
 //
 // The complaint side of the community observation path: readers flag a figure or
 // a venue signal via POST /api/price-submit { action: "report" }, this route is
@@ -30,6 +30,7 @@ import {
   moderateCommunityPriceWithState,
 } from "@/lib/communityPriceStore";
 import {
+  reconcilePriceTrustForObservation,
   syncTrustAfterPriceHidden,
   syncTrustAfterPriceRestored,
 } from "@/lib/priceTrustImpact.server";
@@ -74,11 +75,27 @@ export async function POST(request: Request): Promise<Response> {
   if (!id) return publicApiError("Missing report id.", "INVALID_REQUEST", 400);
 
   const action = readString(body.action);
-  if (action !== "hide" && action !== "restore") {
+  if (action !== "hide" && action !== "restore" && action !== "reconcile") {
     return publicApiError("Unknown action.", "INVALID_REQUEST", 400);
   }
 
   try {
+    if (action === "reconcile") {
+      const reconciliation = await reconcilePriceTrustForObservation(id);
+      if (reconciliation.status === "not-found") {
+        return publicApiError("Report not found.", "NOT_FOUND", 404);
+      }
+      if (reconciliation.status === "unavailable") {
+        return publicApiError(
+          "Price trust could not be updated. Try again.",
+          "UNAVAILABLE",
+          503,
+          { retryable: true },
+        );
+      }
+      return jsonNoStore({ ok: true }, { status: 200 });
+    }
+
     const result = await moderateCommunityPriceWithState(
       id,
       action === "hide",

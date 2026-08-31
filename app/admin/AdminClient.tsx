@@ -1062,7 +1062,7 @@ export default function AdminClient() {
   }, []);
 
   const decideCommunityPrice = useCallback(
-    async (row: ModeratorCommunityPrice, action: "hide" | "restore") => {
+    async (row: ModeratorCommunityPrice, action: "hide" | "restore" | "reconcile") => {
       setCommunityPricePendingId(row.id);
       setCommunityPriceMessage(null);
       try {
@@ -1088,6 +1088,16 @@ export default function AdminClient() {
           return;
         }
         discardBody(res);
+
+        if (action === "reconcile") {
+          const refreshed = await loadCommunityPriceQueues();
+          setCommunityPriceMessage(
+            refreshed === null
+              ? adminAlert("Price trust updated. Refresh unavailable. Reload to confirm.")
+              : adminStatus("Price trust updated."),
+          );
+          return;
+        }
 
         // Refresh only this queue. Pint Drops, Visit Reports and other admin
         // lanes keep their current state while the observation moves.
@@ -1644,6 +1654,17 @@ export default function AdminClient() {
                     ) : null}
                   </div>
                   <div className="admin-actions">
+                    {row.kind === "price" ? (
+                      <button
+                        className="admin-btn admin-keep"
+                        onClick={() => void decideCommunityPrice(row, "reconcile")}
+                        disabled={communityPricePendingId !== null || communityPriceLoading}
+                      >
+                        {communityPricePendingId === row.id
+                          ? "Working…"
+                          : "Retry trust update"}
+                      </button>
+                    ) : null}
                     <button
                       className="admin-btn admin-keep"
                       onClick={() => void decideCommunityPrice(row, "hide")}
@@ -1699,7 +1720,7 @@ export default function AdminClient() {
                     {row.kind === "price" ? (
                       <button
                         className="admin-btn admin-keep"
-                        onClick={() => void decideCommunityPrice(row, "hide")}
+                        onClick={() => void decideCommunityPrice(row, "reconcile")}
                         disabled={communityPricePendingId !== null || communityPriceLoading}
                       >
                         {communityPricePendingId === row.id

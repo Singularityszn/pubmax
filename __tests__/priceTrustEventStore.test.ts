@@ -300,5 +300,8 @@ describe("priceTrustEventStore", () => {
     await expect(
       memoryPriceTrustEventStore.latestReversalCovering("obs-a"),
     ).resolves.toEqual({ event: secondReversal.event, degraded: false });
+    await expect(
+      memoryPriceTrustEventStore.terminalReversalFor(original.event!),
+    ).resolves.toEqual({ event: secondReversal.event, degraded: false });
   });
 });

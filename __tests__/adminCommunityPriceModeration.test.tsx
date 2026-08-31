@@ -247,6 +247,25 @@ describe("community price moderation queues", () => {
     ).toHaveLength(3);
   });
 
+  it("reconciles trust from a reported row without restoring it again", async () => {
+    communityPrices = [reportedPrice];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    await click(findButton("Retry trust update"));
+
+    const request = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/community-prices" &&
+        (init as RequestInit | undefined)?.method === "POST",
+    );
+    expect(request?.[1]).toMatchObject({
+      body: JSON.stringify({ action: "reconcile", id: "price-1" }),
+    });
+    expect(communityCard("price-1").textContent).toContain("Hide");
+    expect(host.textContent).toContain("Price trust updated.");
+  });
+
   it("shows loading state while the moderation queue is pending", async () => {
     let resolveQueue!: (response: Response) => void;
     const queuePromise = new Promise<Response>((resolve) => {
@@ -340,7 +359,7 @@ describe("community price moderation queues", () => {
     expect(communityCard("price-1").textContent).toContain("Hide");
   });
 
-  it("can retry trust reconciliation from the hidden queue after a reload", async () => {
+  it("reconciles trust from a hidden row without hiding it again", async () => {
     communityPrices = [{ ...reportedPrice, hidden: true }];
     await renderAdmin();
     await click(findButton("Load reported drops"));
@@ -353,9 +372,10 @@ describe("community price moderation queues", () => {
         (init as RequestInit | undefined)?.method === "POST",
     );
     expect(request?.[1]).toMatchObject({
-      body: JSON.stringify({ action: "hide", id: "price-1" }),
+      body: JSON.stringify({ action: "reconcile", id: "price-1" }),
     });
     expect(communityCard("price-1").textContent).toContain("Restore");
+    expect(host.textContent).toContain("Price trust updated.");
   });
 
   it("keeps the previous queues when a later refresh cannot load them", async () => {

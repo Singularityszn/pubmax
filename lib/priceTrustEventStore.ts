@@ -101,6 +101,10 @@ export type PriceTrustEventStore = {
     event: PriceTrustEvent | null;
     degraded: boolean;
   }>;
+  terminalReversalFor(event: PriceTrustEvent): Promise<{
+    event: PriceTrustEvent | null;
+    degraded: boolean;
+  }>;
   readVisibleImpact(userId: string): Promise<VisibleImpact>;
 };
 
@@ -188,6 +192,44 @@ function terminalReversal(
   );
   if (terminal.length > 1) return { event: null, degraded: true };
   return { event: terminal[0] ?? null, degraded: false };
+}
+
+function terminalReversalForRoot(
+  root: PriceTrustEvent,
+  events: readonly PriceTrustEvent[],
+): { event: PriceTrustEvent | null; degraded: boolean } {
+  let current = root;
+  const seen = new Set([root.id]);
+  for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
+    const reversals = events.filter(
+      (candidate) => candidate.reversalOf === current.id,
+    );
+    if (reversals.length > 1) return { event: null, degraded: true };
+    const reversal = reversals[0];
+    if (!reversal) return { event: null, degraded: false };
+    if (seen.has(reversal.id)) return { event: null, degraded: true };
+    seen.add(reversal.id);
+
+    const restoredFingerprint =
+      `restored:${root.evidenceFingerprint}:${reversal.id}`;
+    const restored = events.filter(
+      (candidate) =>
+        candidate.reversalOf === null &&
+        candidate.evidenceFingerprint === restoredFingerprint,
+    );
+    if (restored.length > 1) return { event: null, degraded: true };
+    if (restored.length === 0) return { event: reversal, degraded: false };
+    if (
+      restored[0].venueId !== root.venueId ||
+      restored[0].category !== root.category ||
+      seen.has(restored[0].id)
+    ) {
+      return { event: null, degraded: true };
+    }
+    current = restored[0];
+    seen.add(current.id);
+  }
+  return { event: null, degraded: true };
 }
 
 function stampEvent(input: RecordUnlockInput, nowMs: number): PriceTrustEvent {
@@ -311,6 +353,19 @@ export const memoryPriceTrustEventStore: PriceTrustEventStore = {
         candidate.reversalOf !== null && positiveIds.has(candidate.reversalOf),
     );
     return terminalReversal(positives, reversals);
+  },
+
+  async terminalReversalFor(root) {
+    const held = memory.events.find(
+      (event) =>
+        event.id === root.id &&
+        event.evidenceFingerprint === root.evidenceFingerprint &&
+        event.reversalOf === null,
+    );
+    if (!held) {
+      return { event: null, degraded: true };
+    }
+    return terminalReversalForRoot(held, memory.events);
   },
 
   async readVisibleImpact(userId) {
@@ -596,6 +651,110 @@ export const supabasePriceTrustEventStore: PriceTrustEventStore = {
           return { event: null, degraded: true };
         }
         return terminalReversal(positives, reversals);
+      },
+    });
+  },
+
+  async terminalReversalFor(root) {
+    const id = cleanText(root.id, 64);
+    const fingerprint = cleanText(root.evidenceFingerprint, 128);
+    const venueId = cleanText(root.venueId, 64);
+    if (
+      !id ||
+      !fingerprint ||
+      !venueId ||
+      !isDrinkCategory(root.category)
+    ) {
+      return { event: null, degraded: true };
+    }
+    const cleanRoot: PriceTrustEvent = {
+      ...root,
+      id,
+      evidenceFingerprint: fingerprint,
+      venueId,
+    };
+    return guard.guard({
+      context: "terminalReversalFor",
+      onSchemaMiss: () =>
+        memoryPriceTrustEventStore.terminalReversalFor(cleanRoot),
+      message: "trust reversal chain read failed",
+      onError: () => ({ event: null, degraded: true }),
+      run: async () => {
+        const rootRows = await admin()
+          .from(EVENTS_TABLE)
+          .select(
+            "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+          )
+          .eq("evidence_fingerprint", fingerprint)
+          .is("reversal_of", null)
+          .limit(2);
+        if (rootRows.error) throw new Error(rootRows.error.message);
+        if ((rootRows.data?.length ?? 0) !== 1) {
+          return { event: null, degraded: true };
+        }
+        const selectedRoot = fromEventRow(rootRows.data![0] as EventRow);
+        if (
+          !selectedRoot ||
+          selectedRoot.id !== id ||
+          selectedRoot.venueId !== venueId ||
+          selectedRoot.category !== root.category
+        ) {
+          return { event: null, degraded: true };
+        }
+
+        let current = selectedRoot;
+        const seen = new Set([current.id]);
+        for (let depth = 0; depth < REVERSAL_CHAIN_READ_LIMIT; depth += 1) {
+          const reversalRows = await admin()
+            .from(EVENTS_TABLE)
+            .select(
+              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+            )
+            .in("reversal_of", [current.id])
+            .limit(2);
+          if (reversalRows.error) throw new Error(reversalRows.error.message);
+          if ((reversalRows.data?.length ?? 0) > 1) {
+            return { event: null, degraded: true };
+          }
+          if ((reversalRows.data?.length ?? 0) === 0) {
+            return { event: null, degraded: false };
+          }
+          const reversal = fromEventRow(reversalRows.data![0] as EventRow);
+          if (!reversal || seen.has(reversal.id)) {
+            return { event: null, degraded: true };
+          }
+          seen.add(reversal.id);
+
+          const restoredFingerprint =
+            `restored:${fingerprint}:${reversal.id}`;
+          const restoredRows = await admin()
+            .from(EVENTS_TABLE)
+            .select(
+              "id, evidence_fingerprint, venue_id, category, observation_ids, created_at, reversal_of",
+            )
+            .eq("evidence_fingerprint", restoredFingerprint)
+            .is("reversal_of", null)
+            .limit(2);
+          if (restoredRows.error) throw new Error(restoredRows.error.message);
+          if ((restoredRows.data?.length ?? 0) > 1) {
+            return { event: null, degraded: true };
+          }
+          if ((restoredRows.data?.length ?? 0) === 0) {
+            return { event: reversal, degraded: false };
+          }
+          const restored = fromEventRow(restoredRows.data![0] as EventRow);
+          if (
+            !restored ||
+            restored.venueId !== venueId ||
+            restored.category !== root.category ||
+            seen.has(restored.id)
+          ) {
+            return { event: null, degraded: true };
+          }
+          current = restored;
+          seen.add(current.id);
+        }
+        return { event: null, degraded: true };
       },
     });
   },

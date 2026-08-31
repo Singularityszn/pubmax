@@ -44,6 +44,10 @@ export type PriceTrustReconciliation =
   | { status: "synced" }
   | { status: "unavailable" };
 
+export type PriceTrustObservationReconciliation =
+  | PriceTrustReconciliation
+  | { status: "not-found" };
+
 export type PriceTrustReconciliationDrain = {
   processed: number;
   synced: number;
@@ -54,6 +58,24 @@ export type PriceTrustReconciliationDrain = {
 const STORE_TAG = "price-trust-events";
 const TRUST_SYNCED: PriceTrustReconciliation = { status: "synced" };
 const TRUST_UNAVAILABLE: PriceTrustReconciliation = { status: "unavailable" };
+const TRUST_NOT_FOUND: PriceTrustObservationReconciliation = { status: "not-found" };
+const PRICE_TRUST_RECONCILIATION_BUDGET = 3;
+
+type PriceTrustReconciliationBudget = { remaining: number };
+
+type PreparedPriceTrustReconciliation =
+  | { status: "synced"; task: PriceTrustReconciliationTask }
+  | { status: "unavailable"; task: PriceTrustReconciliationTask | null };
+
+function createReconciliationBudget(): PriceTrustReconciliationBudget {
+  return { remaining: PRICE_TRUST_RECONCILIATION_BUDGET };
+}
+
+function consumeReconciliationStep(budget: PriceTrustReconciliationBudget): boolean {
+  if (budget.remaining <= 0) return false;
+  budget.remaining -= 1;
+  return true;
+}
 
 function pairKey(venueId: string, category: DrinkCategory): string {
   return `${venueId}\0${category}`;
@@ -103,8 +125,9 @@ async function recordFirstCluster(
   const userIds = await userIdsForActors(cluster.actors);
   if (!userIds) return TRUST_UNAVAILABLE;
   if (cluster.actors.length > 0 && userIds.length === 0) return TRUST_SYNCED;
+  const store = priceTrustEventStore();
   const fingerprint = trustEventFingerprint(venueId, category, cluster.observationIds);
-  const written = await priceTrustEventStore().recordUnlock({
+  const written = await store.recordUnlock({
     // A previous unlock may have a hide reversal. Restoring the observation
     // needs a new positive event because the original fingerprint remains
     // append-only and cannot be reused as visible credit.
@@ -115,7 +138,32 @@ async function recordFirstCluster(
     userIds,
     now,
   });
-  return written.failed || !written.event ? TRUST_UNAVAILABLE : TRUST_SYNCED;
+  if (written.failed || !written.event) return TRUST_UNAVAILABLE;
+
+  const live = await store.liveEventsFor(venueId, category);
+  if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+  if (live.events.length === 1) return TRUST_SYNCED;
+  if (restorationKey || written.created) return TRUST_UNAVAILABLE;
+
+  // The evidence fingerprint is append-only. A repeated qualifying cluster can
+  // therefore reuse an older positive event which a hide already reversed.
+  // Key the replacement to that chain's terminal reversal, then prove a live
+  // event exists before the reconciliation queue can be acknowledged.
+  const reversal = await store.terminalReversalFor(written.event);
+  if (reversal.degraded || !reversal.event) return TRUST_UNAVAILABLE;
+  const restored = await store.recordUnlock({
+    fingerprint: `restored:${fingerprint}:${reversal.event.id}`,
+    venueId,
+    category,
+    observationIds: cluster.observationIds,
+    userIds,
+    now,
+  });
+  if (restored.failed || !restored.event) return TRUST_UNAVAILABLE;
+  const verified = await store.liveEventsFor(venueId, category);
+  return !verified.degraded && verified.events.length === 1
+    ? TRUST_SYNCED
+    : TRUST_UNAVAILABLE;
 }
 
 async function repairEventCredits(
@@ -199,17 +247,41 @@ export async function syncTrustAfterPriceWrite(
   category: DrinkCategory,
   now: number = Date.now(),
 ): Promise<PriceTrustReconciliation> {
+  const prepared = await preparePriceTrustAfterWrite(venueId, category, now);
+  if (prepared.status === "unavailable") return TRUST_UNAVAILABLE;
+  return acknowledgePreparedPriceTrust(prepared.task);
+}
+
+async function preparePriceTrustAfterWrite(
+  venueId: string,
+  category: DrinkCategory,
+  now: number,
+): Promise<PreparedPriceTrustReconciliation> {
   try {
     const enqueued = await priceTrustEventStore().enqueueReconciliation(
       venueId,
       category,
       now,
     );
-    if (enqueued.failed || !enqueued.task) return TRUST_UNAVAILABLE;
+    if (enqueued.failed || !enqueued.task) {
+      return { status: "unavailable", task: null };
+    }
     const reconciled = await reconcilePendingPriceTrust(enqueued.task, now);
-    if (reconciled.status === "unavailable") return reconciled;
+    return reconciled.status === "unavailable"
+      ? { status: "unavailable", task: enqueued.task }
+      : { status: "synced", task: enqueued.task };
+  } catch (error) {
+    console.warn(`${STORE_TAG} sync after write failed`, error);
+    return { status: "unavailable", task: null };
+  }
+}
+
+async function acknowledgePreparedPriceTrust(
+  task: PriceTrustReconciliationTask,
+): Promise<PriceTrustReconciliation> {
+  try {
     const acknowledged = await priceTrustEventStore().ackReconciliation(
-      enqueued.task,
+      task,
     );
     if (acknowledged.failed || !acknowledged.acknowledged) {
       return TRUST_UNAVAILABLE;
@@ -221,9 +293,82 @@ export async function syncTrustAfterPriceWrite(
   }
 }
 
-export async function syncTrustAfterPriceHidden(
+function sameObservationIds(
+  left: readonly string[],
+  right: readonly string[],
+): boolean {
+  if (left.length !== right.length) return false;
+  const orderedLeft = [...left].sort();
+  const orderedRight = [...right].sort();
+  return orderedLeft.every((id, index) => id === orderedRight[index]);
+}
+
+async function proveCurrentPriceTrustInvariant(
   observationId: string,
-  now: number = Date.now(),
+  venueId: string,
+  category: DrinkCategory,
+  now: number,
+): Promise<PriceTrustObservationReconciliation> {
+  const before = await findCommunityPriceObservation(observationId);
+  if (before.degraded) return TRUST_UNAVAILABLE;
+  if (!before.observation) return TRUST_NOT_FOUND;
+  if (
+    before.observation.venueId !== venueId
+    || before.observation.drinkCategory !== category
+  ) {
+    return TRUST_UNAVAILABLE;
+  }
+
+  const listed = await listCommunityPriceObservations(venueId, category);
+  if (listed.degraded) return TRUST_UNAVAILABLE;
+  const observations = asTrustObservations(listed.observations);
+  const currentCluster = firstQualifyingCluster(observations, now);
+  const live = await priceTrustEventStore().liveEventsFor(venueId, category);
+  if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+  if (currentCluster && live.events.length !== 1) return TRUST_UNAVAILABLE;
+
+  const event = live.events[0];
+  if (event) {
+    const byId = new Map(listed.observations.map((row) => [row.id, row]));
+    const evidence = event.observationIds
+      .map((id) => byId.get(id))
+      .filter((row): row is CommunityPriceObservation => row !== undefined);
+    const eventAt = Date.parse(event.createdAt);
+    const evidenceCluster = Number.isFinite(eventAt)
+      ? firstQualifyingCluster(asTrustObservations(evidence), eventAt)
+      : null;
+    if (
+      !evidenceCluster
+      || !sameObservationIds(evidenceCluster.observationIds, event.observationIds)
+    ) {
+      return TRUST_UNAVAILABLE;
+    }
+    const credits = await repairEventCredits(event, listed.observations);
+    if (credits.status === "unavailable") return credits;
+  }
+
+  if (before.observation.hidden) {
+    const covering = await priceTrustEventStore().liveEventsCovering(observationId);
+    if (covering.degraded || covering.events.length > 0) return TRUST_UNAVAILABLE;
+  }
+
+  const after = await findCommunityPriceObservation(observationId);
+  if (after.degraded) return TRUST_UNAVAILABLE;
+  if (!after.observation) return TRUST_NOT_FOUND;
+  if (
+    after.observation.venueId !== venueId
+    || after.observation.drinkCategory !== category
+    || after.observation.hidden !== before.observation.hidden
+  ) {
+    return TRUST_UNAVAILABLE;
+  }
+  return TRUST_SYNCED;
+}
+
+async function syncTrustAfterPriceHiddenWithBudget(
+  observationId: string,
+  now: number,
+  budget: PriceTrustReconciliationBudget,
 ): Promise<PriceTrustReconciliation> {
   try {
     const found = await findCommunityPriceObservation(observationId);
@@ -256,7 +401,8 @@ export async function syncTrustAfterPriceHidden(
     if (!current.observation?.hidden) {
       // A restore may have completed after this hide read its live event. The
       // reversal above is now stale, so reconcile from final row visibility.
-      return syncTrustAfterPriceRestored(observationId, now);
+      if (!consumeReconciliationStep(budget)) return TRUST_UNAVAILABLE;
+      return syncTrustAfterPriceRestoredWithBudget(observationId, now, budget);
     }
     const observations = asTrustObservations(listed.observations);
     if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
@@ -270,9 +416,10 @@ export async function syncTrustAfterPriceHidden(
   }
 }
 
-export async function syncTrustAfterPriceRestored(
+async function syncTrustAfterPriceRestoredWithBudget(
   observationId: string,
-  now: number = Date.now(),
+  now: number,
+  budget: PriceTrustReconciliationBudget,
 ): Promise<PriceTrustReconciliation> {
   try {
     const found = await findCommunityPriceObservation(observationId);
@@ -309,13 +456,70 @@ export async function syncTrustAfterPriceRestored(
       // A hide can land after the visibility check above but before the
       // restored unlock write. Its sync then sees no live event to reverse.
       // Re-read after the write so final hidden state owns the trust result.
-      return syncTrustAfterPriceHidden(observationId, now);
+      if (!consumeReconciliationStep(budget)) return TRUST_UNAVAILABLE;
+      return syncTrustAfterPriceHiddenWithBudget(observationId, now, budget);
     }
     return TRUST_SYNCED;
   } catch (error) {
     console.warn(`${STORE_TAG} sync after restore failed`, error);
     return TRUST_UNAVAILABLE;
   }
+}
+
+export async function syncTrustAfterPriceHidden(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<PriceTrustReconciliation> {
+  const budget = createReconciliationBudget();
+  if (!consumeReconciliationStep(budget)) return TRUST_UNAVAILABLE;
+  return syncTrustAfterPriceHiddenWithBudget(observationId, now, budget);
+}
+
+export async function syncTrustAfterPriceRestored(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<PriceTrustReconciliation> {
+  const budget = createReconciliationBudget();
+  if (!consumeReconciliationStep(budget)) return TRUST_UNAVAILABLE;
+  return syncTrustAfterPriceRestoredWithBudget(observationId, now, budget);
+}
+
+export async function reconcilePriceTrustForObservation(
+  observationId: string,
+  now: number = Date.now(),
+): Promise<PriceTrustObservationReconciliation> {
+  const budget = createReconciliationBudget();
+  while (consumeReconciliationStep(budget)) {
+    const before = await findCommunityPriceObservation(observationId);
+    if (before.degraded) return TRUST_UNAVAILABLE;
+    if (!before.observation) return TRUST_NOT_FOUND;
+
+    let unavailable = false;
+    if (before.observation.hidden) {
+      const hidden = await syncTrustAfterPriceHiddenWithBudget(observationId, now, budget);
+      unavailable = hidden.status === "unavailable";
+    }
+    const prepared = await preparePriceTrustAfterWrite(
+      before.observation.venueId,
+      before.observation.drinkCategory,
+      now,
+    );
+    unavailable ||= prepared.status === "unavailable";
+
+    const proof = await proveCurrentPriceTrustInvariant(
+      observationId,
+      before.observation.venueId,
+      before.observation.drinkCategory,
+      now,
+    );
+    if (proof.status === "not-found") return proof;
+    if (proof.status === "unavailable" || unavailable) continue;
+    if (prepared.status !== "synced") continue;
+
+    const acknowledged = await acknowledgePreparedPriceTrust(prepared.task);
+    if (acknowledged.status === "synced") return TRUST_SYNCED;
+  }
+  return TRUST_UNAVAILABLE;
 }
 
 export async function readPriceTrustImpact(

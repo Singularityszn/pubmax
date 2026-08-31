@@ -213,6 +213,79 @@ describe("community price moderation (memory backend)", () => {
       expect(await readCommunityPrices("v1", 1_000)).toHaveLength(1);
     });
 
+    it("reconciles the current visible state without changing moderation", async () => {
+      const id = await logPrice("v1", 4.2, 1_000);
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+
+      const response = await adminPost({ action: "reconcile", id });
+
+      expect(response.status).toBe(200);
+      expect(moderate).not.toHaveBeenCalled();
+      expect(await readCommunityPrices("v1", 1_000)).toHaveLength(1);
+    });
+
+    it("reconciles the current hidden state without changing moderation", async () => {
+      const id = await logPrice("v1", 4.2, 1_000);
+      expect(await moderateCommunityPrice(id, true)).toBe(true);
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+
+      const response = await adminPost({ action: "reconcile", id });
+
+      expect(response.status).toBe(200);
+      expect(moderate).not.toHaveBeenCalled();
+      expect(await readCommunityPrices("v1", 1_000)).toEqual([]);
+    });
+
+    it("reports missing and degraded reconciliation reads honestly", async () => {
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+      const find = vi.spyOn(
+        communityPriceStoreModule,
+        "findCommunityPriceObservation",
+      );
+      find.mockResolvedValueOnce({ observation: null, degraded: false });
+
+      const missing = await adminPost({ action: "reconcile", id: "missing" });
+      expect(missing.status).toBe(404);
+      expect(await missing.json()).toMatchObject({ code: "NOT_FOUND" });
+
+      find.mockResolvedValueOnce({ observation: null, degraded: true });
+      const degraded = await adminPost({ action: "reconcile", id: "price-1" });
+      expect(degraded.status).toBe(503);
+      expect(await degraded.json()).toMatchObject({ code: "UNAVAILABLE" });
+      expect(moderate).not.toHaveBeenCalled();
+    });
+
+    it("delegates retry to one bounded reconciliation operation without pre-reading state", async () => {
+      const find = vi
+        .spyOn(communityPriceStoreModule, "findCommunityPriceObservation")
+        .mockRejectedValue(new Error("route must not pre-read observation state"));
+      const reconcile = vi
+        .spyOn(
+          priceTrustImpactModule as typeof priceTrustImpactModule & {
+            reconcilePriceTrustForObservation: (
+              observationId: string,
+            ) => Promise<{ status: "synced" | "not-found" | "unavailable" }>;
+          },
+          "reconcilePriceTrustForObservation",
+        )
+        .mockResolvedValue({ status: "synced" });
+
+      const response = await adminPost({ action: "reconcile", id: "price-1" });
+
+      expect(response.status).toBe(200);
+      expect(reconcile).toHaveBeenCalledWith("price-1");
+      expect(find).not.toHaveBeenCalled();
+    });
+
     it("returns retryable unavailable when durable moderation cannot decide", async () => {
       const spy = vi
         .spyOn(communityPriceStoreModule, "moderateCommunityPriceWithState")
