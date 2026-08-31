@@ -18,7 +18,6 @@ function dependencies(
     readFriendsLaunchAccess: async () => ({
       account: {
         id: "account-1",
-        clerkUserId: `supabase:${USER_ID}`,
         ownershipState: "active",
       },
       profile: { id: "profile-1", handle: "alice" },
@@ -74,7 +73,7 @@ describe("server Social access resolution", () => {
   it("offers one adult tap only for a claimed handle with no age answer", async () => {
     await expect(resolveSocialAccess(undefined, dependencies({
       readFriendsLaunchAccess: async () => ({
-        account: { id: "account-1", clerkUserId: `supabase:${USER_ID}`, ownershipState: "active" },
+        account: { id: "account-1", ownershipState: "active" },
         profile: { id: "profile-1", handle: "night_owl" },
         dateOfBirth: null,
         adultSelfAssertedAt: null,
@@ -105,7 +104,6 @@ describe("server Social access resolution", () => {
       readFriendsLaunchAccess: async () => ({
         account: {
           id: "account-1",
-          clerkUserId: `supabase:${USER_ID}`,
           ownershipState: "suspended",
         },
         profile: { id: "profile-1", handle: "alice" },
