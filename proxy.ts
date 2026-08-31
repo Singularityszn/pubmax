@@ -1,6 +1,6 @@
 import { clerkMiddleware } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
-import type { NextRequest, ProxyConfig } from "next/server";
+import type { NextFetchEvent, NextRequest, ProxyConfig } from "next/server";
 
 import { clerkCspSources, isClerkMiddlewareConfigured } from "@/lib/clerkIdentity";
 import { assertE2ELoginSafe } from "@/lib/e2eReviewAuth";
@@ -184,10 +184,10 @@ function shouldSkipContentSecurityPolicy(request: NextRequest): boolean {
 // still ships from next.config.mjs on `/:path*`; only the CSP moved here so it
 // can be built per-request with the live nonce.
 //
-// This function is NOT the export Next.js runs — `proxy` at the bottom of this
-// file is, and it wraps this one with clerkMiddleware(). Keeping the security
-// logic as its own named function is what lets the redirect and CSP tests drive
-// it directly, with no Clerk key and no NextFetchEvent to fabricate.
+// This function is NOT the export Next.js runs - `proxy` at the bottom of this
+// file is. It sends Social APIs here directly and wraps other matched requests
+// with clerkMiddleware(). Keeping the security logic as its own named function
+// lets redirect and CSP tests drive it with no Clerk key or NextFetchEvent.
 export function securityProxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   if (shouldRedirectVercelHost(request)) {
@@ -393,17 +393,17 @@ export function securityProxy(request: NextRequest) {
 
 // THE SHIPPED ENTRY POINT. Clerk's quickstart says to create proxy.ts with
 // `export default clerkMiddleware()`; this file already existed, so Clerk is
-// COMPOSED with it via clerkMiddleware's handler form instead — Clerk runs
-// first, establishes the request's auth context, then calls securityProxy and
-// returns whatever it returns (a 308 canonical redirect, or the nonce'd
-// response). Neither the canonical-host redirect nor the CSP nonce is lost.
+// COMPOSED with it via clerkMiddleware's handler form for matched non-Social
+// requests. Clerk establishes auth context, then calls securityProxy. Social
+// APIs use Supabase authority and go directly to securityProxy. Neither the
+// canonical-host redirect nor the CSP nonce is lost.
 //
 // WHY A NAMED `proxy` EXPORT AND NOT `export default`:
 // Next.js resolves the userland handler as `mod.proxy || mod.default`
 // (packages/next/src/build/templates/middleware.ts), so the NAMED export wins.
 // Leaving the old `export function proxy` in place beside a default Clerk
 // export would have made Next keep running the un-composed function and Clerk
-// would never have executed — silently, with no error anywhere.
+// would never have executed, with no error anywhere.
 //
 // WHY THE TERNARY, AND WHY IT NEEDS BOTH KEYS: clerkMiddleware() throws
 // "@clerk/nextjs: Missing secretKey" on EVERY request when CLERK_SECRET_KEY is
@@ -412,8 +412,16 @@ export function securityProxy(request: NextRequest) {
 // identity. Verified by running this app with only the publishable key set.
 // Requiring both keys means the worst half-configured case is browser-side
 // Clerk with no server session, and the site itself stays up.
-export const proxy = isClerkMiddlewareConfigured()
+const clerkSecurityProxy = isClerkMiddlewareConfigured()
   ? clerkMiddleware(async (_auth, request) => securityProxy(request))
+  : null;
+
+export const proxy = clerkSecurityProxy
+  ? (request: NextRequest, event: NextFetchEvent) =>
+      request.nextUrl.pathname === "/api/social" ||
+      request.nextUrl.pathname.startsWith("/api/social/")
+        ? securityProxy(request)
+        : clerkSecurityProxy(request, event)
   : securityProxy;
 
 export const config = {
@@ -428,9 +436,6 @@ export const config = {
     // listed ahead of the general rule below because that rule's `missing`
     // prefetch clause must never be able to exclude a Clerk request.
     { source: "/__clerk/:path*" },
-    // Protected Social APIs resolve Clerk sessions server-side. Other APIs stay
-    // outside Clerk middleware so keyless product routes keep their old path.
-    { source: "/api/social/:path*" },
     {
       source: "/((?!api|ingest|_next/static|_next/image|favicon.ico).*)",
       missing: [
