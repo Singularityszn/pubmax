@@ -7,6 +7,7 @@ import {
   InviteMapPrompt,
   postInviteRsvp,
   resolveInviteRsvpSubmitCapability,
+  submitInviteRsvpAtMembershipBoundary,
 } from "@/components/plan/PlanInviteRsvp";
 import {
   inviteRsvpDeviceKey,
@@ -192,14 +193,29 @@ describe("invite RSVP member capability", () => {
     });
   });
 
-  it("does not use the public RSVP route when session restoration is unavailable", async () => {
+  it("does not request either RSVP route when HttpOnly session restoration is unavailable", async () => {
     const restore = async () => {
       throw new PlanSessionUnavailableError();
     };
+    const request = vi.fn(async () => new Response(null, { status: 200 }));
 
-    await expect(
-      resolveInviteRsvpSubmitCapability("plan-session-down", "", null, restore),
-    ).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    let failure: unknown;
+    try {
+      await submitInviteRsvpAtMembershipBoundary({
+        planId: "plan-session-down",
+        inviteToken: "classic-token",
+        displayName: "Priya",
+        status: "going",
+        submitterId: "device-priya",
+        currentToken: "",
+        currentRole: null,
+      }, restore, request);
+    } catch (error) {
+      failure = error;
+    }
+
+    expect(request).not.toHaveBeenCalled();
+    expect(failure).toBeInstanceOf(PlanSessionUnavailableError);
   });
 
   it("clears a revoked guest capability and retries through the public invite route", async () => {

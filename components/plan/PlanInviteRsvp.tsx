@@ -111,6 +111,26 @@ export async function postInviteRsvp(
   return { response: await send(null), capability: null };
 }
 
+type InviteRsvpMembershipBoundaryInput = Omit<InviteRsvpPostInput, "capability"> & {
+  currentToken: string;
+  currentRole: "host" | "guest" | null;
+};
+
+export async function submitInviteRsvpAtMembershipBoundary(
+  input: InviteRsvpMembershipBoundaryInput,
+  restore: InviteRsvpRestore = restorePlanCapability,
+  request: InviteRsvpRequest = fetch,
+): Promise<{ response: Response; capability: InviteRsvpSubmitCapability | null }> {
+  const { currentToken, currentRole, ...postInput } = input;
+  const capability = await resolveInviteRsvpSubmitCapability(
+    input.planId,
+    currentToken,
+    currentRole,
+    restore,
+  );
+  return postInviteRsvp({ ...postInput, capability }, request);
+}
+
 /** Keep the live Plan authority aligned with the RSVP membership transition. */
 export function applyInviteRsvpCapability(
   planId: string,
@@ -330,14 +350,14 @@ export default function PlanInviteRsvp({
       writeStoredGuestName(trimmedName);
 
       try {
-        const submitCapability = await resolveInviteRsvpSubmitCapability(planId, memberToken, role);
-        const submitted = await postInviteRsvp({
+        const submitted = await submitInviteRsvpAtMembershipBoundary({
           planId,
           inviteToken: token,
           displayName: trimmedName,
           status: chosen,
           submitterId: getAnonId(),
-          capability: submitCapability,
+          currentToken: memberToken,
+          currentRole: role,
         });
         const res = submitted.response;
         if (!res.ok) {
