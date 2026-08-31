@@ -279,10 +279,30 @@ export type CommunityPriceReviewReadResult = {
   degraded: boolean;
 };
 
-export type ModerationStateResult = {
-  status: "ok" | "not-found" | "unavailable";
-  changed: boolean;
-};
+export type ModerationObservationKind = "price" | "signal";
+
+export type ModerationStateResult =
+  | {
+      status: "ok";
+      changed: boolean;
+      kind: ModerationObservationKind;
+    }
+  | {
+      status: "not-found" | "unavailable";
+      changed: false;
+    };
+
+function durableModerationKind(row: unknown): ModerationObservationKind {
+  if (
+    row &&
+    typeof row === "object" &&
+    "drink_category" in row &&
+    (row as { drink_category?: unknown }).drink_category === null
+  ) {
+    return "signal";
+  }
+  return "price";
+}
 
 // Penny envelope, mirroring lib/communityPrice.ts (£1 … £30) and the DB CHECK
 // in migration 0054 - defence in depth, three layers agreeing.
@@ -1097,7 +1117,11 @@ export const memoryCommunityPriceStore: CommunityPriceStore = {
     row.moderatedAt = nextModerationStamp();
     const cleaned = cleanReason(note);
     if (cleaned) row.moderatorNote = cleaned;
-    return { status: "ok", changed };
+    return {
+      status: "ok",
+      changed,
+      kind: "drinkCategory" in row ? "price" : "signal",
+    };
   },
 
   async listForReviewWithStatus(limit = REVIEW_LIMIT) {
@@ -1721,21 +1745,31 @@ export const supabaseCommunityPriceStore: CommunityPriceStore = {
             moderated_at: new Date().toISOString(),
           })
           .eq("id", id)
-          .select("id");
+          .select("id, drink_category");
         const { data, error } = hidden
           ? await query.is("hidden_at", null)
           : await query.not("hidden_at", "is", null);
         if (error) throw new Error(error.message);
-        if (Array.isArray(data) && data.length > 0) return { status: "ok", changed: true };
+        if (Array.isArray(data) && data.length > 0) {
+          return {
+            status: "ok",
+            changed: true,
+            kind: durableModerationKind(data[0]),
+          };
+        }
         const { data: existing, error: lookupError } = await admin()
           .from("community_prices")
-          .select("id")
+          .select("id, drink_category")
           .eq("id", id)
           .limit(1);
         if (lookupError) throw new Error(lookupError.message);
+        if (!Array.isArray(existing) || existing.length === 0) {
+          return { status: "not-found", changed: false };
+        }
         return {
-          status: Array.isArray(existing) && existing.length > 0 ? "ok" : "not-found",
+          status: "ok",
           changed: false,
+          kind: durableModerationKind(existing[0]),
         };
       },
     });

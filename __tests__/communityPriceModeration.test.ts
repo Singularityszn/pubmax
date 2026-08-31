@@ -43,7 +43,11 @@ import {
   submitCommunityVenueSignal,
 } from "@/lib/communityPriceStore";
 import * as communityPriceStoreModule from "@/lib/communityPriceStore";
-import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
+import * as priceTrustImpactModule from "@/lib/priceTrustImpact.server";
+import {
+  __resetMemoryPriceTrustEvents,
+  priceTrustEventStore,
+} from "@/lib/priceTrustEventStore";
 
 const ORIGINAL_SUPABASE_URL = process.env.SUPABASE_URL;
 const ORIGINAL_SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
@@ -85,6 +89,7 @@ describe("community price moderation (memory backend)", () => {
   });
 
   afterEach(() => {
+    vi.restoreAllMocks();
     __resetCommunityPrices();
     __resetMemoryPriceTrustEvents();
     if (ORIGINAL_SUPABASE_URL === undefined) delete process.env.SUPABASE_URL;
@@ -208,6 +213,79 @@ describe("community price moderation (memory backend)", () => {
       expect(await readCommunityPrices("v1", 1_000)).toHaveLength(1);
     });
 
+    it("reconciles the current visible state without changing moderation", async () => {
+      const id = await logPrice("v1", 4.2, 1_000);
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+
+      const response = await adminPost({ action: "reconcile", id });
+
+      expect(response.status).toBe(200);
+      expect(moderate).not.toHaveBeenCalled();
+      expect(await readCommunityPrices("v1", 1_000)).toHaveLength(1);
+    });
+
+    it("reconciles the current hidden state without changing moderation", async () => {
+      const id = await logPrice("v1", 4.2, 1_000);
+      expect(await moderateCommunityPrice(id, true)).toBe(true);
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+
+      const response = await adminPost({ action: "reconcile", id });
+
+      expect(response.status).toBe(200);
+      expect(moderate).not.toHaveBeenCalled();
+      expect(await readCommunityPrices("v1", 1_000)).toEqual([]);
+    });
+
+    it("reports missing and degraded reconciliation reads honestly", async () => {
+      const moderate = vi.spyOn(
+        communityPriceStoreModule,
+        "moderateCommunityPriceWithState",
+      );
+      const find = vi.spyOn(
+        communityPriceStoreModule,
+        "findCommunityPriceObservation",
+      );
+      find.mockResolvedValueOnce({ observation: null, degraded: false });
+
+      const missing = await adminPost({ action: "reconcile", id: "missing" });
+      expect(missing.status).toBe(404);
+      expect(await missing.json()).toMatchObject({ code: "NOT_FOUND" });
+
+      find.mockResolvedValueOnce({ observation: null, degraded: true });
+      const degraded = await adminPost({ action: "reconcile", id: "price-1" });
+      expect(degraded.status).toBe(503);
+      expect(await degraded.json()).toMatchObject({ code: "UNAVAILABLE" });
+      expect(moderate).not.toHaveBeenCalled();
+    });
+
+    it("delegates retry to one bounded reconciliation operation without pre-reading state", async () => {
+      const find = vi
+        .spyOn(communityPriceStoreModule, "findCommunityPriceObservation")
+        .mockRejectedValue(new Error("route must not pre-read observation state"));
+      const reconcile = vi
+        .spyOn(
+          priceTrustImpactModule as typeof priceTrustImpactModule & {
+            reconcilePriceTrustForObservation: (
+              observationId: string,
+            ) => Promise<{ status: "synced" | "not-found" | "unavailable" }>;
+          },
+          "reconcilePriceTrustForObservation",
+        )
+        .mockResolvedValue({ status: "synced" });
+
+      const response = await adminPost({ action: "reconcile", id: "price-1" });
+
+      expect(response.status).toBe(200);
+      expect(reconcile).toHaveBeenCalledWith("price-1");
+      expect(find).not.toHaveBeenCalled();
+    });
+
     it("returns retryable unavailable when durable moderation cannot decide", async () => {
       const spy = vi
         .spyOn(communityPriceStoreModule, "moderateCommunityPriceWithState")
@@ -218,6 +296,41 @@ describe("community price moderation (memory backend)", () => {
         code: "UNAVAILABLE",
       });
       spy.mockRestore();
+    });
+
+    it("retries trust-credit reconciliation after the price is already hidden", async () => {
+      const id = await logPrice("v1", 4.2, 1_000, "profile:one");
+      const store = priceTrustEventStore();
+      await store.recordUnlock({
+        fingerprint: "initial-cluster",
+        venueId: "v1",
+        category: "beer",
+        observationIds: [id],
+        userIds: ["user-one"],
+        now: 1_000,
+      });
+      const originalRecordUnlock = store.recordUnlock.bind(store);
+      vi.spyOn(store, "recordUnlock")
+        .mockResolvedValueOnce({ event: null, created: false, failed: true })
+        .mockImplementation(originalRecordUnlock);
+
+      const first = await adminPost({ action: "hide", id });
+      expect(first.status).toBe(503);
+      expect(await first.json()).toEqual({
+        error: "Community observation was hidden, but its trust credit could not be updated. Try again.",
+        code: "TRUST_RECONCILIATION_UNAVAILABLE",
+        retryable: true,
+      });
+      expect(await readCommunityPrices("v1", 1_000)).toEqual([]);
+      expect((await store.readVisibleImpact("user-one")).lifetimeTrustUnlocks).toBe(1);
+
+      expect((await adminPost({ action: "hide", id })).status).toBe(200);
+      expect((await store.readVisibleImpact("user-one")).lifetimeTrustUnlocks).toBe(0);
+      const reversalId = (await store.latestReversalCovering(id)).event?.id;
+      expect(reversalId).toBeTruthy();
+      expect((await adminPost({ action: "hide", id })).status).toBe(200);
+      expect((await store.readVisibleImpact("user-one")).lifetimeTrustUnlocks).toBe(0);
+      expect((await store.latestReversalCovering(id)).event?.id).toBe(reversalId);
     });
 
     it("rejects an unknown action and a missing id", async () => {
@@ -269,7 +382,10 @@ describe("community venue signal moderation (memory backend)", () => {
     delete process.env.ADMIN_TOKEN;
     devGate.open = true;
   });
-  afterEach(() => __resetCommunityPrices());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    __resetCommunityPrices();
+  });
 
   async function logSignal(
     venueId: string,
@@ -354,6 +470,17 @@ describe("community venue signal moderation (memory backend)", () => {
 
     expect((await adminPost({ action: "restore", id })).status).toBe(200);
     expect(await readCommunityVenueSignals("v1", 1_000)).toHaveLength(1);
+  });
+
+  it("does not run price trust reconciliation for a venue signal", async () => {
+    const id = await logSignal("v1", "step-free", 1_000, "device-a");
+    const sync = vi
+      .spyOn(priceTrustImpactModule, "syncTrustAfterPriceHidden")
+      .mockResolvedValue({ status: "unavailable" });
+
+    expect((await adminPost({ action: "hide", id })).status).toBe(200);
+    expect(sync).not.toHaveBeenCalled();
+    expect(await readCommunityVenueSignals("v1", 1_000)).toEqual([]);
   });
 });
 

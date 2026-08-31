@@ -266,7 +266,10 @@ export async function POST(request: Request): Promise<Response> {
     void qualifyCheapPintForOwnerActor(contributor.actor);
   }
 
-  await syncTrustAfterPriceWrite(submission.venueId, price.drinkCategory);
+  const trust = await syncTrustAfterPriceWrite(
+    submission.venueId,
+    price.drinkCategory,
+  );
   // Read the venue back so the response carries this figure's authoritative
   // `corroborations` - the number that decides whether the submitter's tap
   // moves a pin or only lands on the pub's sheet. The client cannot derive it
@@ -296,6 +299,8 @@ export async function POST(request: Request): Promise<Response> {
         status: "credited",
         handle: contributor.handle,
       },
+      trustReconciliation:
+        trust.status === "synced" ? "synced" : "pending",
       price:
         record ??
         {

@@ -189,6 +189,21 @@ describe("supabasePriceTrustEventStore.latestReversalCovering", () => {
 
     expect(result.degraded).toBe(false);
     expect(result.event?.id).toBe("reversal-two");
+
+    await expect(
+      supabasePriceTrustEventStore.terminalReversalFor({
+        id: UNLOCK.id,
+        evidenceFingerprint: UNLOCK.evidence_fingerprint,
+        venueId: UNLOCK.venue_id,
+        category: "beer",
+        observationIds: UNLOCK.observation_ids,
+        createdAt: UNLOCK.created_at,
+        reversalOf: null,
+      }),
+    ).resolves.toMatchObject({
+      event: { id: "reversal-two" },
+      degraded: false,
+    });
   });
 
   it("degrades when the covering chain exceeds the bounded read", async () => {
