@@ -234,8 +234,10 @@ whether the write-back made the figure trusted.
   open surface.
 - `mission_dismissed` — `{ surface, reason, category? }`. Session-only skip.
 - `mission_submitted` — `{ surface, reason, category?, outcome }`. Fires after
-  the authoritative `/api/price-submit` write-back. `outcome` is `logged`,
-  `trusted`, or `needs_check`.
+  one submit attempt. `outcome` is `logged`, `trusted`, `needs_check`, or
+  `failed`. Only the first three follow a confirmed authoritative write-back.
+  `failed` means the client could not confirm completion. It does not claim
+  that the server stored nothing.
 - `mission_newly_trusted` — same props. Fires only when that write-back is
   corroborated, in window, and the category may colour the map.
 - `mission_impact_opened` — `{ surface }`. Fires when the personal

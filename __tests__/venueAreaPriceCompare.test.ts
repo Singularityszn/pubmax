@@ -334,7 +334,14 @@ describe("VenueOverviewTab area-price compare mount", () => {
       submit: async () => ({
         ok: true,
         attribution: { status: "anonymous" },
-        price: null,
+        price: {
+          venueId,
+          drinkCategory: "beer",
+          priceGbp: 4.2,
+          submittedAt: 0,
+          source: "community",
+          corroborations: 1,
+        },
       }),
       submitVenueSignal: async () => ({ ok: true }),
       submitting: false,

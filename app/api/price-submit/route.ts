@@ -296,6 +296,10 @@ export async function POST(request: Request): Promise<Response> {
         status: "credited",
         handle: contributor.handle,
       },
+      writeTarget: {
+        requestedVenueId: result.value.venueId,
+        canonicalVenueId: submission.venueId,
+      },
       price:
         record ??
         {

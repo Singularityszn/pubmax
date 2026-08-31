@@ -150,7 +150,12 @@ type PriceBody = {
   ok?: boolean;
   error?: string;
   attribution?: { status: "credited"; handle: string } | { status: "anonymous" };
+  writeTarget?: {
+    requestedVenueId: string;
+    canonicalVenueId: string;
+  };
   price?: {
+    venueId: string;
     priceGbp: number;
     drinkCategory: string;
     source: string;
@@ -551,6 +556,16 @@ describe("POST /api/price-submit", () => {
     );
 
     expect(res.status).toBe(201);
+    const data = (await res.json()) as PriceBody;
+    expect(data.writeTarget).toEqual({
+      requestedVenueId: "legacy-price-pub",
+      canonicalVenueId: "venue-xjf3n0",
+    });
+    expect(data.price).toMatchObject({
+      venueId: "venue-xjf3n0",
+      drinkCategory: "beer",
+      priceGbp: 4.2,
+    });
     expect(await readCommunityPrices("legacy-price-pub")).toEqual([]);
     expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
   });

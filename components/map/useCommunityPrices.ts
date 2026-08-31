@@ -62,7 +62,7 @@ export type CommunitySubmissionFailure = {
 };
 
 export type CommunityPriceSubmitResult =
-  | { ok: true; attribution: CommunityPriceAttribution; price: CommunityPrice | null }
+  | { ok: true; attribution: CommunityPriceAttribution; price: CommunityPrice }
   // `reason` is the coarse funnel bucket for the failure - the analytics enum,
   // not a second copy of the sentence. `error` stays the human sentence and is
   // never sent anywhere.
@@ -200,6 +200,29 @@ export function readCommunityPriceAttribution(
   return handle
     ? { status: "credited", handle }
     : { status: "anonymous" };
+}
+
+function readPriceWriteTarget(value: unknown): {
+  requestedVenueId: string;
+  canonicalVenueId: string;
+} | null {
+  if (!value || typeof value !== "object") return null;
+  const target = value as {
+    requestedVenueId?: unknown;
+    canonicalVenueId?: unknown;
+  };
+  if (
+    typeof target.requestedVenueId !== "string" ||
+    typeof target.canonicalVenueId !== "string" ||
+    !target.requestedVenueId ||
+    !target.canonicalVenueId
+  ) {
+    return null;
+  }
+  return {
+    requestedVenueId: target.requestedVenueId,
+    canonicalVenueId: target.canonicalVenueId,
+  };
 }
 
 /**
@@ -982,6 +1005,7 @@ export function useCommunityPrices(): CommunityPricesState {
           | {
               price?: CommunityPrice;
               attribution?: unknown;
+              writeTarget?: unknown;
               error?: unknown;
               status?: string;
             }
@@ -1003,22 +1027,40 @@ export function useCommunityPrices(): CommunityPricesState {
         // replace, not the keep-newer merge: a device clock ahead of the
         // server would otherwise out-rank the record and keep the optimistic
         // stamp forever.
-        const [stored] = readPrices({ prices: [data?.price] }) ?? [];
-        if (stored) {
-          loadedRows.current.set(
-            venueId,
-            replacePrice(loadedRows.current.get(venueId) ?? [], stored),
-          );
-          setByVenueId((current) => {
-            const next = new Map(current);
-            next.set(venueId, replacePrice(next.get(venueId) ?? [], stored));
-            return next;
-          });
+        const [candidate] = readPrices({ prices: [data?.price] }) ?? [];
+        const writeTarget = readPriceWriteTarget(data?.writeTarget);
+        const venueMatches = writeTarget
+          ? writeTarget.requestedVenueId === venueId &&
+            writeTarget.canonicalVenueId === candidate?.venueId
+          : candidate?.venueId === venueId;
+        const stored =
+          venueMatches &&
+          candidate &&
+          candidate.drinkCategory === drinkCategory &&
+          candidate.priceGbp === priceGbp
+            ? candidate
+            : null;
+        if (!stored) {
+          rollback();
+          return {
+            ok: false,
+            error: "Could not confirm that price. It may still be logged.",
+            reason: "rejected",
+          };
         }
+        loadedRows.current.set(
+          venueId,
+          replacePrice(loadedRows.current.get(venueId) ?? [], stored),
+        );
+        setByVenueId((current) => {
+          const next = new Map(current);
+          next.set(venueId, replacePrice(next.get(venueId) ?? [], stored));
+          return next;
+        });
         return {
           ok: true,
           attribution: readCommunityPriceAttribution(data?.attribution),
-          price: stored ?? null,
+          price: stored,
         };
       } catch {
         rollback();

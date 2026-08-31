@@ -30,6 +30,7 @@ import {
   effectiveSubmitCategory,
   holdSubmitCategory,
   missionAnalyticsProps,
+  missionFailureReceipt,
   missionNamedCategory,
   missionReceiptFromReadback,
   type MissionReceipt,
@@ -109,6 +110,19 @@ type VenuePriceSubmitProps = {
   onLogged?: (venueId: string) => void;
 };
 
+type VenuePriceSubmissionReceipt =
+  | {
+      kind: "success";
+      category: DrinkCategory;
+      attribution: CommunityPriceAttribution;
+      missionReceipt?: MissionReceipt;
+    }
+  | {
+      kind: "failed";
+      category: DrinkCategory;
+      missionReceipt: MissionReceipt;
+    };
+
 /**
  * The freshest community price for the chosen category, or null. Read from the
  * shared layer so the confirmation and the pin can never disagree.
@@ -173,14 +187,11 @@ export default function VenuePriceSubmit({
     setError(null);
   }
 
-  // Which drink this viewer just logged, so the receipt celebrates THEIR tap.
-  // The dated community price itself is shown in the price block above by
-  // VenueOverviewTab for every reader, submitter or not.
-  const [logged, setLogged] = useState<{
-    category: DrinkCategory;
-    attribution: CommunityPriceAttribution;
-    missionReceipt?: MissionReceipt;
-  } | null>(null);
+  // Which drink this viewer just tried to log. Success and failure are distinct
+  // receipts, so a failed confirmation can never inherit the tick or impact
+  // credit from an earlier successful write.
+  const [receipt, setReceipt] =
+    useState<VenuePriceSubmissionReceipt | null>(null);
   const { requestContribution, contributionGateDialog } =
     useContributionGate();
 
@@ -281,6 +292,7 @@ export default function VenuePriceSubmit({
     // submission at a time keeps the optimistic rollback snapshots coherent.
     if (submitting || missionPending || !priceValidation.ok) return;
     setError(null);
+    setReceipt(null);
     await requestContribution(async (auth) => {
       const result = await submit({
         venueId,
@@ -290,13 +302,34 @@ export default function VenuePriceSubmit({
       }, auth);
       if (!result.ok) {
         trackEvent("price_submit_failed", { category, reason: result.reason });
+        const failedReceipt = mission
+          ? missionFailureReceipt(result.error)
+          : null;
+        if (mission && failedReceipt) {
+          trackEvent(
+            "mission_submitted",
+            missionAnalyticsProps(
+              mission.surface,
+              { reason: mission.reason, drinkCategory: category },
+              { outcome: failedReceipt.outcome },
+            ),
+          );
+        }
         if (result.status) {
           return {
             status: result.status,
             error: result.error,
           };
         }
-        setError(result.error);
+        if (failedReceipt) {
+          setReceipt({
+            kind: "failed",
+            category,
+            missionReceipt: failedReceipt,
+          });
+        } else {
+          setError(result.error);
+        }
         return;
       }
       trackEvent("price_submitted", { category });
@@ -313,7 +346,8 @@ export default function VenuePriceSubmit({
           trackEvent("mission_newly_trusted", analytics);
         }
       }
-      setLogged({
+      setReceipt({
+        kind: "success",
         category,
         attribution: result.attribution,
         missionReceipt,
@@ -473,7 +507,15 @@ export default function VenuePriceSubmit({
         </p>
       ) : null}
 
-      {logged?.category === category && (logged.missionReceipt || stamped) ? (
+      {receipt?.category === category && receipt.kind === "failed" ? (
+        <div className="vpsubStampBlock" data-outcome="failed">
+          <p className="vpsubError" role="alert">
+            {receipt.missionReceipt.line}
+          </p>
+        </div>
+      ) : receipt?.category === category &&
+        receipt.kind === "success" &&
+        (receipt.missionReceipt || stamped) ? (
         // The receipt. Same figure and day label the venue card now carries -
         // one vocabulary, one moment. What it must NOT do is overclaim: a lone
         // report does not set the pin's price, and saying "on the map" for it
@@ -487,8 +529,8 @@ export default function VenuePriceSubmit({
         <div className="vpsubStampBlock">
           <p className="vpsubStamp" role="status">
             <Check size={14} aria-hidden="true" className="vpsubStampTick" />
-            {logged.missionReceipt ? (
-              <strong className="vpsubStampPrice">{logged.missionReceipt.line}</strong>
+            {receipt.missionReceipt ? (
+              <strong className="vpsubStampPrice">{receipt.missionReceipt.line}</strong>
             ) : stamped ? (
               <>
                 <strong className="vpsubStampPrice">{formatPrice(stamped.priceGbp)}</strong>
@@ -498,11 +540,11 @@ export default function VenuePriceSubmit({
               </>
             ) : null}
           </p>
-          <PriceContributionImpact attribution={logged.attribution} />
+          <PriceContributionImpact attribution={receipt.attribution} />
           {/* Close the loop in-session: the mark the map just gained, named and
               coloured exactly as the map draws it, so the submitter can look up
               and find their own dot rather than take our word for it. */}
-          {!logged.missionReceipt && markedProvisionally ? (
+          {!receipt.missionReceipt && markedProvisionally ? (
             <p className="vpsubStampHint">
               <i className="vpsubStampDot" aria-hidden="true" />
               Its pin now carries this dot.{" "}

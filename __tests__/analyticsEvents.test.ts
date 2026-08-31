@@ -634,6 +634,14 @@ describe("price evidence mission events", () => {
         outcome: "needs_check",
       },
     });
+    expect(sanitizeEvent("mission_submitted", {
+      surface: "near",
+      reason: "missing",
+      outcome: "failed",
+    })).toEqual({
+      name: "mission_submitted",
+      props: { surface: "near", reason: "missing", outcome: "failed" },
+    });
   });
 
   it("allows a missing mission to omit category", () => {

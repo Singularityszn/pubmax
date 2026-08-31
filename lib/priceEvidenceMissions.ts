@@ -38,7 +38,11 @@ export type VenueMissionRows = {
   degraded?: boolean;
 };
 
-export type MissionReceiptOutcome = "logged" | "trusted" | "needs_check";
+export type MissionReceiptOutcome =
+  | "logged"
+  | "trusted"
+  | "needs_check"
+  | "failed";
 
 export type MissionReceipt = {
   outcome: MissionReceiptOutcome;
@@ -176,14 +180,11 @@ export function toPriceEvidenceMissionDto(
 }
 
 export function missionReceiptFromReadback(input: {
-  price: CommunityPrice | null;
+  price: CommunityPrice;
   now?: number;
 }): MissionReceipt {
   const now = input.now ?? Date.now();
   const price = input.price;
-  if (!price) {
-    return { outcome: "logged", line: "Logged." };
-  }
   if (isWithinMaxAge(price, now) && isCorroborated(price)) {
     if (!isMapLensDrinkCategory(price.drinkCategory)) {
       return { outcome: "logged", line: "Logged." };
@@ -197,6 +198,13 @@ export function missionReceiptFromReadback(input: {
     };
   }
   return { outcome: "logged", line: "Logged." };
+}
+
+export function missionFailureReceipt(error: string): MissionReceipt {
+  return {
+    outcome: "failed",
+    line: error.trim() || "Could not log that price right now.",
+  };
 }
 
 /**
@@ -275,6 +283,8 @@ export function missionAnalyticsProps(
     reason: mission.reason,
     ...extra,
   };
-  if (mission.drinkCategory) props.category = mission.drinkCategory;
+  if (mission.reason !== "missing" && mission.drinkCategory) {
+    props.category = mission.drinkCategory;
+  }
   return props;
 }

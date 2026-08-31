@@ -11,7 +11,9 @@ import {
   PRICE_EVIDENCE_MISSION_REASONS,
   effectiveSubmitCategory,
   holdSubmitCategory,
+  missionAnalyticsProps,
   missionHeading,
+  missionFailureReceipt,
   missionNamedCategory,
   missionReceiptFromReadback,
   parsePriceEvidenceMissionVenueIds,
@@ -273,6 +275,31 @@ describe("missionReceiptFromReadback", () => {
       .toBe("needs_check");
     expect(missionReceiptFromReadback({ price: corroborated, now: NOW }).outcome)
       .toBe("trusted");
+  });
+});
+
+describe("missionFailureReceipt", () => {
+  it("keeps a failed write distinct from a logged receipt", () => {
+    expect(
+      missionFailureReceipt(
+        "Could not confirm that price. It may still be logged.",
+      ),
+    ).toEqual({
+      outcome: "failed",
+      line: "Could not confirm that price. It may still be logged.",
+    });
+  });
+});
+
+describe("missionAnalyticsProps", () => {
+  it("never attaches the chosen drink to a missing-price mission", () => {
+    expect(
+      missionAnalyticsProps(
+        "map",
+        { reason: "missing", drinkCategory: "wine" },
+        { outcome: "failed" },
+      ),
+    ).toEqual({ surface: "map", reason: "missing", outcome: "failed" });
   });
 });
 

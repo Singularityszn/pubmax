@@ -377,9 +377,10 @@ export const PRICE_SUBMIT_CATEGORIES = completeDrinkTaxonomy([
 
 /**
  * Why a submission did not land. `invalid` is the client-side envelope check
- * (the same validator the route runs), `rejected` a non-2xx answer from the
- * route, `offline` a transport failure. Deliberately three coarse buckets - the
- * error sentence the drinker sees is free text and never leaves the device.
+ * (the same validator the route runs), `rejected` a route refusal or a response
+ * that cannot confirm the submitted price, `offline` a transport failure.
+ * Deliberately three coarse buckets - the error sentence the drinker sees is
+ * free text and never leaves the device.
  */
 export const PRICE_SUBMIT_FAILURE_REASONS = ["invalid", "rejected", "offline"] as const;
 export type PriceSubmitFailureReason = (typeof PRICE_SUBMIT_FAILURE_REASONS)[number];
@@ -390,7 +391,12 @@ export type MissionSurface = (typeof MISSION_SURFACES)[number];
 export const MISSION_REASONS = ["provisional", "stale", "missing"] as const;
 export type MissionReason = (typeof MISSION_REASONS)[number];
 
-export const MISSION_OUTCOMES = ["logged", "trusted", "needs_check"] as const;
+export const MISSION_OUTCOMES = [
+  "logged",
+  "trusted",
+  "needs_check",
+  "failed",
+] as const;
 export type MissionOutcome = (typeof MISSION_OUTCOMES)[number];
 
 /**
