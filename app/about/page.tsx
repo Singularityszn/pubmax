@@ -134,6 +134,11 @@ export default async function AboutPage() {
       description:
         "Listed prices with explicit source status for UK pubs, mapped for nights out, daytime hangs, food, coffee, and alcohol-free rounds. A free outing planner that never lets anyone pay to rank.",
       email: CONTACT_EMAIL,
+      founder: {
+        "@type": "Person",
+        name: "Karan Manoharan",
+        url: "https://x.com/karansznx",
+      },
       sameAs: ["https://x.com/karansznx"],
     },
   };
@@ -287,6 +292,31 @@ export default async function AboutPage() {
           thinner national map, and what a price is allowed to claim. Those
           fights land in the product, not in a brand deck.
         </p>
+        {/* Founder note (FIRST_PRINCIPLES_OUTINGS follow-up): the builder's own
+            voice, in first person. Provenance rule holds here harder than
+            anywhere: the note carries no dates, schools, jobs, or any personal
+            fact this site cannot stand behind - only the why, the mission, and
+            the honesty rule the rest of the page already proves. */}
+        <figure className="aboutFounderNote">
+          <blockquote className="aboutFounderQuote">
+            <p className="aboutBody">
+              I built PUBMAXX because pint prices became hard to know.
+            </p>
+            <p className="aboutBody">
+              If PUBMAXX shows you a figure, it tells you its source status: a
+              named publisher where one is recorded, an honest note when a
+              publisher is not recorded, or a drinker who logged it on a stated
+              day. If nobody has logged a figure, it says so.
+            </p>
+            <p className="aboutBody">
+              I want PUBMAXX to be the best way in the world to decide which pub
+              to walk into.
+            </p>
+          </blockquote>
+          <figcaption className="aboutFounderSig">
+            Karan Manoharan, founder of PUBMAXX
+          </figcaption>
+        </figure>
       </section>
 
       <section className="aboutSection" aria-labelledby="ethos">
