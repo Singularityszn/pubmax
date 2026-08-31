@@ -40,6 +40,7 @@ export async function linkPlanMemberUser(
       .update({ user_id: uid })
       .eq("plan_id", planId)
       .eq("id", memberId)
+      .is("membership_revoked_at", null)
       .is("user_id", null)
       .select("id")
       .maybeSingle();
@@ -51,6 +52,7 @@ export async function linkPlanMemberUser(
       .select("user_id")
       .eq("plan_id", planId)
       .eq("id", memberId)
+      .is("membership_revoked_at", null)
       .maybeSingle();
     if (existing.error) throw new Error(existing.error.message);
     return existing.data?.user_id === uid;
@@ -106,6 +108,7 @@ export async function listPlanMemberUserIds(
       .from(MEMBERS)
       .select("id,user_id")
       .eq("plan_id", planId)
+      .is("membership_revoked_at", null)
       .not("user_id", "is", null);
     if (error) throw new Error(error.message);
     const out: Array<{ memberId: string; userId: string }> = [];

@@ -4,6 +4,7 @@ type VolatileCapability = { token: string; collaborationAuthorized: boolean; rol
 
 const volatile = new Map<string, VolatileCapability>();
 const restoration = new Map<string, Promise<VolatileCapability | null>>();
+const restorationAbort = new Map<string, AbortController>();
 const legacyRecovery = new Map<string, string>();
 export const PLAN_HTTP_ONLY_SESSION = "__pubmax_http_only_plan_session__";
 /** Keep invite and route surfaces from waiting forever on a stalled session read. */
@@ -19,8 +20,12 @@ export class PlanSessionUnavailableError extends Error {
 async function fetchPlanSession(
   input: RequestInfo | URL,
   init?: RequestInit,
+  cancellation?: AbortSignal,
 ): Promise<Response> {
   const controller = new AbortController();
+  const cancel = () => controller.abort();
+  if (cancellation?.aborted) cancel();
+  else cancellation?.addEventListener("abort", cancel, { once: true });
   let timeoutId: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<never>((_, reject) => {
     timeoutId = setTimeout(() => {
@@ -35,6 +40,7 @@ async function fetchPlanSession(
     ]);
   } finally {
     if (timeoutId !== null) clearTimeout(timeoutId);
+    cancellation?.removeEventListener("abort", cancel);
   }
 }
 
@@ -63,6 +69,16 @@ export function writePlanCapability(planId: string, capability: VolatileCapabili
   window.dispatchEvent(new Event(planCapabilityEvent(planId)));
 }
 
+/** Drop one Plan's volatile authority and stop any stale restore from replacing it. */
+export function clearPlanCapability(planId: string): void {
+  volatile.delete(planId);
+  legacyRecovery.delete(planId);
+  restorationAbort.get(planId)?.abort();
+  restorationAbort.delete(planId);
+  restoration.delete(planId);
+  window.dispatchEvent(new Event(planCapabilityEvent(planId)));
+}
+
 /** Recover script-inaccessible plan authority without exposing the bearer. */
 export function restorePlanCapability(planId: string): Promise<VolatileCapability | null> {
   const current = volatile.get(planId);
@@ -81,9 +97,13 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
   } catch {
     // Storage may be blocked; the HttpOnly session remains the primary path.
   }
+  const controller = new AbortController();
+  restorationAbort.set(planId, controller);
   const readResponse = async (response: Response): Promise<VolatileCapability | null> => {
+      if (controller.signal.aborted) throw new PlanSessionUnavailableError();
       if (response.status >= 500) throw new PlanSessionUnavailableError();
       const body = await response.json().catch(() => null) as { active?: unknown; role?: unknown; collaborationAuthorized?: unknown } | null;
+      if (controller.signal.aborted) throw new PlanSessionUnavailableError();
       if (body?.active !== true || (body.role !== "host" && body.role !== "guest")) return null;
       const capability: VolatileCapability = {
         token: PLAN_HTTP_ONLY_SESSION,
@@ -93,14 +113,14 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
       writePlanCapability(planId, capability);
       return capability;
   };
-  const request = (async () => {
+  const request: Promise<VolatileCapability | null> = (async () => {
     try {
       if (legacyToken) {
         const exchange = await fetchPlanSession(`/api/plans/${planId}/session`, {
           method: "POST",
           cache: "no-store",
           headers: { authorization: `Bearer ${legacyToken}` },
-        });
+        }, controller.signal);
         const exchanged = await readResponse(exchange);
         if (exchanged) {
           legacyRecovery.delete(planId);
@@ -109,12 +129,19 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
         if (exchange.status !== 401 && exchange.status !== 403) return null;
         legacyRecovery.delete(planId);
       }
-      return await readResponse(await fetchPlanSession(`/api/plans/${planId}/session`, { cache: "no-store" }));
+      return await readResponse(await fetchPlanSession(
+        `/api/plans/${planId}/session`,
+        { cache: "no-store" },
+        controller.signal,
+      ));
     } catch (error) {
       if (error instanceof PlanSessionUnavailableError) throw error;
       throw new PlanSessionUnavailableError();
     }
-  })().finally(() => restoration.delete(planId));
+  })().finally(() => {
+    if (restoration.get(planId) === request) restoration.delete(planId);
+    if (restorationAbort.get(planId) === controller) restorationAbort.delete(planId);
+  });
   restoration.set(planId, request);
   return request;
 }
