@@ -92,11 +92,20 @@ export async function POST(request: Request): Promise<Response> {
     if (result.status === "not-found") {
       return publicApiError("Report not found.", "NOT_FOUND", 404);
     }
-    if (!result.changed) return jsonNoStore({ ok: true }, { status: 200 });
-    if (action === "hide") {
-      await syncTrustAfterPriceHidden(id);
-    } else {
-      await syncTrustAfterPriceRestored(id);
+    if (result.kind === "signal") {
+      return jsonNoStore({ ok: true }, { status: 200 });
+    }
+    const reconciliation = action === "hide"
+      ? await syncTrustAfterPriceHidden(id)
+      : await syncTrustAfterPriceRestored(id);
+    if (reconciliation.status === "unavailable") {
+      const state = action === "hide" ? "hidden" : "restored";
+      return publicApiError(
+        `Community observation was ${state}, but its trust credit could not be updated. Try again.`,
+        "TRUST_RECONCILIATION_UNAVAILABLE",
+        503,
+        { retryable: true },
+      );
     }
     return jsonNoStore({ ok: true }, { status: 200 });
   } catch {

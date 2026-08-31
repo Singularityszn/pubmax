@@ -76,7 +76,8 @@ const hiddenSignal: CommunityPriceRow = {
 
 let communityPrices: CommunityPriceRow[];
 let communityPriceFailure = false;
-let moderationFailure = false;
+let moderationFailure: "json" | "text" | null = null;
+let moderationFailureResponse: Response | null = null;
 let fetchMock: ReturnType<typeof vi.fn>;
 let host: HTMLDivElement;
 let root: Root;
@@ -98,9 +99,23 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
 
   if (path === "/api/admin/community-prices") {
     if (method === "POST") {
-      return moderationFailure
-        ? jsonResponse({ error: "Action failed" }, 503)
-        : jsonResponse({ ok: true });
+      if (moderationFailure) {
+        moderationFailureResponse = moderationFailure === "json"
+          ? jsonResponse(
+              {
+                error: "Community observation was hidden, but its trust credit could not be updated. Try again.",
+                code: "TRUST_RECONCILIATION_UNAVAILABLE",
+                retryable: true,
+              },
+              503,
+            )
+          : new Response("Upstream unavailable", {
+              status: 503,
+              headers: { "content-type": "text/plain" },
+            });
+        return moderationFailureResponse;
+      }
+      return jsonResponse({ ok: true });
     }
     if (communityPriceFailure) return jsonResponse({ prices: [], degraded: true });
     return jsonResponse({ prices: communityPrices });
@@ -155,7 +170,8 @@ beforeEach(() => {
   localStorage.setItem("pubmax_admin_token", "test-token");
   communityPrices = [];
   communityPriceFailure = false;
-  moderationFailure = false;
+  moderationFailure = null;
+  moderationFailureResponse = null;
   fetchMock = vi.fn((input: string, init?: RequestInit) => responseFor(input, init));
   vi.stubGlobal("fetch", fetchMock);
   host = document.createElement("div");
@@ -277,11 +293,69 @@ describe("community price moderation queues", () => {
     await renderAdmin();
     await click(findButton("Load reported drops"));
 
-    moderationFailure = true;
+    moderationFailure = "json";
     await click(findButton("Hide"));
 
     expect(communityCard("price-1").textContent).toContain("£5.50");
-    expect(host.textContent).toContain("Action failed. Try again.");
+    expect(host.textContent).toContain(
+      "Community observation was hidden, but its trust credit could not be updated. Try again.",
+    );
+    expect(
+      [...host.querySelectorAll('[role="alert"]')].some((alert) =>
+        alert.textContent?.includes(
+          "Community observation was hidden, but its trust credit could not be updated. Try again.",
+        ),
+      ),
+    ).toBe(true);
+    expect(communityCard("price-1").textContent).toContain("Hide");
+
+    moderationFailure = null;
+    communityPrices = [{ ...reportedPrice, hidden: true }];
+    await click(findButton("Hide"));
+
+    expect(communityCard("price-1").textContent).toContain("Restore");
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input, init]) =>
+          input === "/api/admin/community-prices" &&
+          (init as RequestInit | undefined)?.method === "POST",
+      ),
+    ).toHaveLength(2);
+  });
+
+  it("cancels a non-JSON moderation failure body", async () => {
+    communityPrices = [reportedPrice];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    moderationFailure = "text";
+    await click(findButton("Hide"));
+
+    expect(moderationFailureResponse?.bodyUsed).toBe(true);
+    expect(
+      [...host.querySelectorAll('[role="alert"]')].some((alert) =>
+        alert.textContent?.includes("Action failed. Try again."),
+      ),
+    ).toBe(true);
+    expect(communityCard("price-1").textContent).toContain("Hide");
+  });
+
+  it("can retry trust reconciliation from the hidden queue after a reload", async () => {
+    communityPrices = [{ ...reportedPrice, hidden: true }];
+    await renderAdmin();
+    await click(findButton("Load reported drops"));
+
+    await click(findButton("Retry trust update"));
+
+    const request = fetchMock.mock.calls.find(
+      ([input, init]) =>
+        input === "/api/admin/community-prices" &&
+        (init as RequestInit | undefined)?.method === "POST",
+    );
+    expect(request?.[1]).toMatchObject({
+      body: JSON.stringify({ action: "hide", id: "price-1" }),
+    });
+    expect(communityCard("price-1").textContent).toContain("Restore");
   });
 
   it("keeps the previous queues when a later refresh cannot load them", async () => {

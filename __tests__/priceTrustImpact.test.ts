@@ -152,7 +152,9 @@ describe("syncTrustAfterPriceHidden", () => {
     await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 1_000);
 
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
-    await syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "synced",
+    });
     expect(await readPriceTrustImpact(USER_A)).toMatchObject({
       pricesTrustedNow: 0,
       lifetimeTrustUnlocks: 0,
@@ -301,12 +303,57 @@ describe("syncTrustAfterPriceHidden", () => {
 
     const { moderateCommunityPrice } = await import("@/lib/communityPriceStore");
     expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
-    await syncTrustAfterPriceHidden(hiddenId, NOW);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "unavailable",
+    });
 
     expect(recordUnlock).toHaveBeenCalledTimes(1);
     expect(
       warn.mock.calls.some((call) => String(call[0]).includes(standingEventId)),
     ).toBe(true);
+  });
+
+  it("reports an unavailable replacement and repairs it on retry", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    const profileC = await onboard(USER_C, "cara_pint");
+    const hiddenId = await logPrice("alice_pint", profileA, 4.2, NOW - 4_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("cara_pint", profileC, 4.2, NOW - 500);
+
+    const store = priceTrustEventStore();
+    const originalRecordUnlock = store.recordUnlock.bind(store);
+    let replacementFailed = false;
+    vi.spyOn(store, "recordUnlock").mockImplementation(async (input) => {
+      if (!input.reversalOf && !replacementFailed) {
+        replacementFailed = true;
+        return { event: null, created: false, failed: true };
+      }
+      return originalRecordUnlock(input);
+    });
+
+    expect(await moderateCommunityPrice(hiddenId, true, "menu mismatch")).toBe(true);
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+
+    expect(await syncTrustAfterPriceHidden(hiddenId, NOW + 1)).toEqual({
+      status: "synced",
+    });
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_C)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
   });
 });
 
