@@ -3,6 +3,13 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const state = vi.hoisted(() => ({
   rows: new Map<string, unknown>(),
   calls: [] as Array<{ name: string; input: Record<string, unknown> }>,
+  tableRows: new Map<string, unknown[]>(),
+  tableCalls: [] as Array<{
+    table: string;
+    columns: string;
+    postIds: string[];
+    state: string;
+  }>,
 }));
 
 vi.mock("@/lib/supabase", () => ({
@@ -11,6 +18,16 @@ vi.mock("@/lib/supabase", () => ({
       state.calls.push({ name, input });
       return { data: state.rows.get(name) ?? [], error: null };
     },
+    from: (table: string) => ({
+      select: (columns: string) => ({
+        in: (_column: string, postIds: string[]) => ({
+          eq: async (_columnName: string, queueState: string) => {
+            state.tableCalls.push({ table, columns, postIds, state: queueState });
+            return { data: state.tableRows.get(table) ?? [], error: null };
+          },
+        }),
+      }),
+    }),
   }),
 }));
 
@@ -22,6 +39,8 @@ const staffRoleId = "99999999-9999-4999-8999-999999999999";
 beforeEach(() => {
   state.rows = new Map();
   state.calls = [];
+  state.tableRows = new Map();
+  state.tableCalls = [];
 });
 
 describe("Social post consent and private read store", () => {
@@ -103,24 +122,59 @@ describe("Social post consent and private read store", () => {
     state.rows.set("read_social_post_moderation_queue_admin", [{
       staff_display_name: "Captain",
       post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      media_id: null,
+      media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
       moderation_claim: "A queued post",
-      created_at: "2026-08-29T12:00:00.000Z",
+      created_at: "2026-08-29T11:55:00.000Z",
     }]);
     state.rows.set("moderate_social_post_admin", true);
+    state.tableRows.set("social_post_moderation_jobs", [{
+      post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      revision: 4,
+      media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      moderation_claim: "A queued post",
+      state: "done",
+      created_at: "2026-08-29T12:01:00.000Z",
+      social_posts: {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        author_handle: "alice",
+        visibility: "friends",
+        status: "visible",
+        body: "Friday at the Pineapple.",
+        area_slug: "camden",
+        venue_id: "venue-pineapple",
+        comment_policy: "friends",
+        photo_media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        photo_alt_text: "Two pints beside the window",
+        moderation_state: "approved",
+        revision: 4,
+        created_at: "2026-08-29T11:55:00.000Z",
+        updated_at: "2026-08-29T12:00:00.000Z",
+      },
+    }]);
 
     const store = createSocialPostConsentStore();
     await expect(store.heldQueueForAdmin(staffRoleId, 50)).resolves.toEqual([{
       staffDisplayName: "Captain",
       postId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      mediaId: null,
+      mediaId: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      revision: 4,
+      authorHandle: "alice",
+      body: "Friday at the Pineapple.",
+      photoAltText: "Two pints beside the window",
+      area: "camden",
+      venueId: "venue-pineapple",
+      visibility: "friends",
+      commentPolicy: "friends",
       moderationClaim: "A queued post",
-      createdAt: "2026-08-29T12:00:00.000Z",
+      moderationState: "approved",
+      createdAt: "2026-08-29T11:55:00.000Z",
+      updatedAt: "2026-08-29T12:00:00.000Z",
     }]);
     await store.moderateHeldForAdmin(
       staffRoleId,
       "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-      null,
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      0,
       "approve",
     );
     expect(state.calls).toEqual([
@@ -133,11 +187,80 @@ describe("Social post consent and private read store", () => {
         input: {
           p_staff_role_id: staffRoleId,
           p_post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
-          p_media_id: null,
+          p_media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+          p_expected_revision: 0,
           p_action: "approve",
         },
       },
     ]);
+    expect(state.tableCalls).toEqual([expect.objectContaining({
+      table: "social_post_moderation_jobs",
+      postIds: ["aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa"],
+      state: "done",
+    })]);
+    expect(state.tableCalls[0]?.columns).toContain("author_handle");
+    expect(state.tableCalls[0]?.columns).toContain("moderation_state");
+    expect(state.tableCalls[0]?.columns).not.toContain("author_profile_id");
+  });
+
+  it("does not combine an authorised queue row with a different post revision", async () => {
+    state.rows.set("read_social_post_moderation_queue_admin", [{
+      staff_display_name: "Captain",
+      post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      media_id: null,
+      moderation_claim: "Held revision four",
+      created_at: "2026-08-29T12:00:00.000Z",
+    }]);
+    state.tableRows.set("social_post_moderation_jobs", [{
+      post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      revision: 5,
+      media_id: null,
+      moderation_claim: "Held revision five",
+      state: "done",
+      created_at: "2026-08-29T12:05:00.000Z",
+      social_posts: {
+        id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        author_handle: "alice",
+        visibility: "public",
+        status: "visible",
+        body: "A newer revision.",
+        area_slug: null,
+        venue_id: null,
+        comment_policy: "open",
+        photo_media_id: null,
+        photo_alt_text: null,
+        moderation_state: "needs_review",
+        revision: 5,
+        created_at: "2026-08-29T11:55:00.000Z",
+        updated_at: "2026-08-29T12:05:00.000Z",
+      },
+    }]);
+
+    await expect(createSocialPostConsentStore().heldQueueForAdmin(staffRoleId, 50))
+      .resolves.toEqual([]);
+  });
+
+  it("rejects a stale expected revision for the same post and media", async () => {
+    state.rows.set("moderate_social_post_admin", false);
+    const store = createSocialPostConsentStore();
+
+    await expect(store.moderateHeldForAdmin(
+      staffRoleId,
+      "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+      "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+      4,
+      "approve",
+    )).rejects.toMatchObject({ kind: "conflict" });
+    expect(state.calls).toEqual([{
+      name: "moderate_social_post_admin",
+      input: {
+        p_staff_role_id: staffRoleId,
+        p_post_id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+        p_media_id: "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb",
+        p_expected_revision: 4,
+        p_action: "approve",
+      },
+    }]);
   });
 
   it("binds consent cursors to stable viewer and lane", async () => {
