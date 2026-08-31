@@ -43,13 +43,13 @@ Resource gate for 2026-08-31: run one focused test process at a time. Do not run
 - Modify: `components/city/cityChooser.css`
 - Test: `__tests__/cityChooserSearch.test.ts`
 
-- [ ] Add a failing render test that expects one concise `Preview` label for Llandudno and no preview label for nine V1 cities.
-- [ ] Run the focused test and confirm the label is missing.
-- [ ] Read release tier from `getCityCapabilityProfile(city.id)` while rendering each city link.
-- [ ] Add one compact badge beside city name. Do not add a subtitle or repeat the tagline.
-- [ ] Keep link target at least 44 px and contain long names at 390 px.
-- [ ] Run focused unit tests. Save browser proof for Task 6.
-- [ ] Commit: `feat(city): label map previews at entry`
+- [x] Add a failing render test that expects one concise `Preview` label for Llandudno and no preview label for nine V1 cities.
+- [x] Run the focused test and confirm the label is missing.
+- [x] Read release tier from `getCityCapabilityProfile(city.id)` while rendering each city link.
+- [x] Add one compact badge beside city name. Do not add a subtitle or repeat the tagline.
+- [x] Keep link target at least 44 px and contain long names at 390 px.
+- [x] Run focused unit tests. Save browser proof for Task 6.
+- [x] Commit: `feat(city): label map previews at entry`
 
 ### Task 3: Add one capability-driven map notice
 

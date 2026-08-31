@@ -16,6 +16,7 @@ import PubmaxxWordmark from "@/components/brand/PubmaxxWordmark";
 
 import { listEnabledCities, type CityId } from "@/lib/cities";
 import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
+import { getCityCapabilityProfile } from "@/lib/cityCapabilities";
 import {
   buildCityChooserSearchResults,
   cityGuidesCoverageLine,
@@ -368,6 +369,8 @@ export default function CityChooser({
           <ul id={listId} className="cityChooserList">
             {cities.map((city, i) => {
               const href = cityMapShareUrl(city.id);
+              const profile = getCityCapabilityProfile(city.id);
+              const isPreview = profile.releaseTier === "preview";
               return (
                 <li
                   key={city.id}
@@ -378,9 +381,14 @@ export default function CityChooser({
                     href={href}
                     className="cityChooserLink"
                     onClick={() => selectCity(city.id)}
-                    aria-label={`${city.displayName}: ${city.tagline}. Open map.`}
+                    aria-label={`${city.displayName}${isPreview ? ", Preview" : ""}: ${city.tagline}. Open map.`}
                   >
-                    <span className="cityChooserName">{city.displayName}</span>
+                    <span className="cityChooserNameRow">
+                      <span className="cityChooserName">{city.displayName}</span>
+                      {isPreview ? (
+                        <span className="cityChooserReleaseBadge">Preview</span>
+                      ) : null}
+                    </span>
                     <p className="cityChooserTagline">{city.tagline}</p>
                   </Link>
                 </li>
