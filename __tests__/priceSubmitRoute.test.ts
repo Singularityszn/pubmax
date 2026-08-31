@@ -84,6 +84,10 @@ const oneTapState = vi.hoisted(() => ({
     | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
     | undefined,
 }));
+const trustSyncState = vi.hoisted(() => ({
+  override: null as { status: "synced" | "unavailable" } | null,
+  calls: 0,
+}));
 vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/oneTapPintDrop.server")>();
   return {
@@ -96,6 +100,18 @@ vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
         return oneTapState.forcedOutcome;
       }
       return actual.writeOneTapPintDrop(input, photos);
+    },
+  };
+});
+vi.mock("@/lib/priceTrustImpact.server", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/lib/priceTrustImpact.server")>();
+  return {
+    ...actual,
+    syncTrustAfterPriceWrite: async (
+      ...args: Parameters<typeof actual.syncTrustAfterPriceWrite>
+    ) => {
+      trustSyncState.calls += 1;
+      return trustSyncState.override ?? actual.syncTrustAfterPriceWrite(...args);
     },
   };
 });
@@ -149,6 +165,7 @@ import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 type PriceBody = {
   ok?: boolean;
   error?: string;
+  trustReconciliation?: "synced" | "pending";
   attribution?: { status: "credited"; handle: string } | { status: "anonymous" };
   price?: {
     priceGbp: number;
@@ -218,6 +235,8 @@ beforeEach(async () => {
   readBackState.override = null;
   readBackState.statusOverride = null;
   oneTapState.forcedOutcome = undefined;
+  trustSyncState.override = null;
+  trustSyncState.calls = 0;
   authState.userId = null;
   __resetCommunityPrices();
   __resetMemoryPriceTrustEvents();
@@ -254,6 +273,7 @@ describe("POST /api/price-submit", () => {
     expect(res.status).toBe(201);
     const data = (await res.json()) as PriceBody;
     expect(data.ok).toBe(true);
+    expect(data.trustReconciliation).toBe("synced");
     expect(data.price?.priceGbp).toBe(4.2);
     expect(data.price?.source).toBe("community");
     expect(typeof data.price?.submittedAt).toBe("number");
@@ -279,6 +299,27 @@ describe("POST /api/price-submit", () => {
       drink: submitCategoryLabel("beer"),
       authorityKey: pintDropAuthorityKey("venue-xjf3n0", authState.userId),
     });
+  });
+
+  it("keeps an accepted price at 201 while trust reconciliation is pending", async () => {
+    trustSyncState.override = { status: "unavailable" };
+
+    const res = await POST(
+      post({ venueId: "venue-xjf3n0", drinkCategory: "beer", priceGbp: 4.2 }),
+    );
+
+    expect(res.status).toBe(201);
+    expect(await res.json()).toMatchObject({
+      ok: true,
+      trustReconciliation: "pending",
+      price: {
+        venueId: "venue-xjf3n0",
+        drinkCategory: "beer",
+        priceGbp: 4.2,
+      },
+    });
+    expect(await readCommunityPrices("venue-xjf3n0")).toHaveLength(1);
+    expect(listVisiblePintDrops("venue-xjf3n0")).toHaveLength(1);
   });
 
   it("pairs a second same-day price with its own Pint Drop", async () => {
@@ -597,6 +638,8 @@ describe("POST /api/price-submit venue signals", () => {
     expect(response.status).toBe(201);
     const body = (await response.json()) as PriceBody;
     expect(body.ok).toBe(true);
+    expect(body.trustReconciliation).toBeUndefined();
+    expect(trustSyncState.calls).toBe(0);
     expect(body.signal).toMatchObject({
       venueId: "venue-xjf3n0",
       signalKey: "character",

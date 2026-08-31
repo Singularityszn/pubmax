@@ -15,7 +15,11 @@ import {
 } from "@/lib/communityPriceStore";
 import type { DrinkCategory } from "@/lib/drinks";
 import { profileStore } from "@/lib/profileStore";
-import { priceTrustEventStore } from "@/lib/priceTrustEventStore";
+import {
+  priceTrustEventStore,
+  type PriceTrustEvent,
+  type PriceTrustReconciliationTask,
+} from "@/lib/priceTrustEventStore";
 import {
   categoryIsTrusted,
   firstQualifyingCluster,
@@ -40,6 +44,13 @@ export type PriceTrustReconciliation =
   | { status: "synced" }
   | { status: "unavailable" };
 
+export type PriceTrustReconciliationDrain = {
+  processed: number;
+  synced: number;
+  pending: number;
+  degraded: boolean;
+};
+
 const STORE_TAG = "price-trust-events";
 const TRUST_SYNCED: PriceTrustReconciliation = { status: "synced" };
 const TRUST_UNAVAILABLE: PriceTrustReconciliation = { status: "unavailable" };
@@ -62,7 +73,9 @@ function asTrustObservations(
   }));
 }
 
-async function userIdsForActors(actors: readonly string[]): Promise<string[]> {
+async function userIdsForActors(
+  actors: readonly string[],
+): Promise<string[] | null> {
   const ids: string[] = [];
   const seen = new Set<string>();
   for (const actor of actors) {
@@ -70,7 +83,8 @@ async function userIdsForActors(actors: readonly string[]): Promise<string[]> {
     if (!profileId) continue;
     const profile = await profileStore().getById(profileId);
     const userId = profile?.userId?.trim();
-    if (!userId || seen.has(userId)) continue;
+    if (!userId) return null;
+    if (seen.has(userId)) continue;
     seen.add(userId);
     ids.push(userId);
   }
@@ -87,6 +101,7 @@ async function recordFirstCluster(
   const cluster = firstQualifyingCluster(observations, now);
   if (!cluster) return TRUST_SYNCED;
   const userIds = await userIdsForActors(cluster.actors);
+  if (!userIds) return TRUST_UNAVAILABLE;
   if (cluster.actors.length > 0 && userIds.length === 0) return TRUST_SYNCED;
   const fingerprint = trustEventFingerprint(venueId, category, cluster.observationIds);
   const written = await priceTrustEventStore().recordUnlock({
@@ -103,21 +118,106 @@ async function recordFirstCluster(
   return written.failed || !written.event ? TRUST_UNAVAILABLE : TRUST_SYNCED;
 }
 
+async function repairEventCredits(
+  event: PriceTrustEvent,
+  observations: readonly CommunityPriceObservation[],
+): Promise<PriceTrustReconciliation> {
+  if (event.observationIds.length === 0) return TRUST_UNAVAILABLE;
+  const byId = new Map(observations.map((row) => [row.id, row]));
+  const evidence = event.observationIds.map((id) => byId.get(id));
+  if (evidence.some((row) => !row || row.hidden)) return TRUST_UNAVAILABLE;
+  const actors = evidence
+    .map((row) => row?.actor)
+    .filter((actor): actor is string => typeof actor === "string" && actor !== "");
+  const userIds = await userIdsForActors(actors);
+  if (!userIds) return TRUST_UNAVAILABLE;
+  const ensured = await priceTrustEventStore().ensureCredits(event.id, userIds);
+  return ensured.failed ? TRUST_UNAVAILABLE : TRUST_SYNCED;
+}
+
+export async function reconcilePendingPriceTrust(
+  task: PriceTrustReconciliationTask,
+  now: number = Date.now(),
+): Promise<PriceTrustReconciliation> {
+  try {
+    const listed = await listCommunityPriceObservations(
+      task.venueId,
+      task.category,
+    );
+    if (listed.degraded) return TRUST_UNAVAILABLE;
+    const live = await priceTrustEventStore().liveEventsFor(
+      task.venueId,
+      task.category,
+    );
+    if (live.degraded || live.events.length > 1) return TRUST_UNAVAILABLE;
+    if (live.events.length === 1) {
+      return repairEventCredits(live.events[0], listed.observations);
+    }
+    const observations = asTrustObservations(listed.observations);
+    if (!categoryIsTrusted(observations, now)) return TRUST_SYNCED;
+    return recordFirstCluster(task.venueId, task.category, observations, now);
+  } catch (error) {
+    console.warn(`${STORE_TAG} pending pair reconciliation failed`, error);
+    return TRUST_UNAVAILABLE;
+  }
+}
+
+export async function drainPendingPriceTrustReconciliations(
+  limit: number = 20,
+  now: number = Date.now(),
+): Promise<PriceTrustReconciliationDrain> {
+  const listed = await priceTrustEventStore().listPendingReconciliations(limit);
+  if (listed.degraded) {
+    return { processed: 0, synced: 0, pending: 0, degraded: true };
+  }
+  let synced = 0;
+  let pending = 0;
+  for (const task of listed.tasks) {
+    const result = await reconcilePendingPriceTrust(task, now);
+    if (result.status === "unavailable") {
+      pending += 1;
+      continue;
+    }
+    const acknowledged = await priceTrustEventStore().ackReconciliation(task);
+    if (acknowledged.failed) {
+      pending += 1;
+      continue;
+    }
+    if (acknowledged.acknowledged) synced += 1;
+    else pending += 1;
+  }
+  return {
+    processed: listed.tasks.length,
+    synced,
+    pending,
+    degraded: false,
+  };
+}
+
 export async function syncTrustAfterPriceWrite(
   venueId: string,
   category: DrinkCategory,
   now: number = Date.now(),
-): Promise<void> {
+): Promise<PriceTrustReconciliation> {
   try {
-    const listed = await listCommunityPriceObservations(venueId, category);
-    if (listed.degraded) return;
-    const observations = asTrustObservations(listed.observations);
-    if (!categoryIsTrusted(observations, now)) return;
-    const live = await priceTrustEventStore().liveEventsFor(venueId, category);
-    if (live.degraded || live.events.length > 0) return;
-    await recordFirstCluster(venueId, category, observations, now);
+    const enqueued = await priceTrustEventStore().enqueueReconciliation(
+      venueId,
+      category,
+      now,
+    );
+    if (enqueued.failed || !enqueued.task) return TRUST_UNAVAILABLE;
+    const reconciled = await reconcilePendingPriceTrust(enqueued.task, now);
+    if (reconciled.status === "unavailable") return reconciled;
+    const acknowledged = await priceTrustEventStore().ackReconciliation(
+      enqueued.task,
+    );
+    if (acknowledged.failed || !acknowledged.acknowledged) {
+      return TRUST_UNAVAILABLE;
+    }
+    return TRUST_SYNCED;
   } catch (error) {
     console.warn(`${STORE_TAG} sync after write failed`, error);
+    return TRUST_UNAVAILABLE;
   }
 }
 

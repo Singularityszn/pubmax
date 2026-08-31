@@ -27,6 +27,7 @@ import {
 } from "@/lib/profileStore";
 import { __resetMemoryPriceTrustEvents, priceTrustEventStore } from "@/lib/priceTrustEventStore";
 import {
+  drainPendingPriceTrustReconciliations,
   readPriceTrustImpact,
   syncTrustAfterPriceHidden,
   syncTrustAfterPriceRestored,
@@ -83,6 +84,70 @@ afterEach(() => {
 });
 
 describe("syncTrustAfterPriceWrite", () => {
+  it("keeps a failed first-cluster event pending until a later drain credits its original contributors once", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const write = vi
+      .spyOn(store, "recordUnlock")
+      .mockResolvedValueOnce({ event: null, created: false, failed: true });
+
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+
+    write.mockRestore();
+    await drainPendingPriceTrustReconciliations(20, NOW - 1_000);
+    await drainPendingPriceTrustReconciliations(20, NOW);
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
+  it("repairs a live event's missing credit from its stored observation ids without a duplicate event", async () => {
+    const profileA = await onboard(USER_A, "alice_pint");
+    const profileB = await onboard(USER_B, "bob_pint");
+    await logPrice("alice_pint", profileA, 4.2, NOW - 3_000);
+    await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 3_000);
+    await logPrice("bob_pint", profileB, 4.2, NOW - 2_000);
+
+    const store = priceTrustEventStore();
+    const ensureCredits = vi
+      .spyOn(store, "ensureCredits")
+      .mockResolvedValueOnce({ failed: true });
+    expect(await syncTrustAfterPriceWrite(VENUE, "beer", NOW - 2_000)).toEqual({
+      status: "unavailable",
+    });
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    ensureCredits.mockRestore();
+
+    await drainPendingPriceTrustReconciliations(20, NOW - 1_000);
+    await drainPendingPriceTrustReconciliations(20, NOW);
+
+    expect((await store.liveEventsFor(VENUE, "beer")).events).toHaveLength(1);
+    expect(await readPriceTrustImpact(USER_A)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+    expect(await readPriceTrustImpact(USER_B)).toMatchObject({
+      lifetimeTrustUnlocks: 1,
+    });
+  });
+
   it("credits every independent contributor in the first cluster once", async () => {
     const profileA = await onboard(USER_A, "alice_pint");
     const profileB = await onboard(USER_B, "bob_pint");

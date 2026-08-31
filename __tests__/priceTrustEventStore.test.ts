@@ -56,6 +56,60 @@ afterEach(() => {
 });
 
 describe("priceTrustEventStore", () => {
+  it("does not acknowledge a newer pending pair with an older queue version", async () => {
+    const queue = priceTrustEventStore();
+    const first = await queue.enqueueReconciliation("venue-one", "beer", NOW);
+    expect(first).toEqual({
+      task: {
+        venueId: "venue-one",
+        category: "beer",
+        version: 1,
+        enqueuedAt: new Date(NOW).toISOString(),
+      },
+    });
+
+    const newer = await queue.enqueueReconciliation("venue-one", "beer", NOW + 1);
+    expect(newer).toEqual({
+      task: {
+        venueId: "venue-one",
+        category: "beer",
+        version: 2,
+        enqueuedAt: new Date(NOW + 1).toISOString(),
+      },
+    });
+    expect(first.task).not.toBeNull();
+    expect(newer.task).not.toBeNull();
+
+    expect(await queue.ackReconciliation(first.task!)).toEqual({
+      acknowledged: false,
+    });
+    expect(await queue.listPendingReconciliations(10)).toEqual({
+      tasks: [newer.task],
+      degraded: false,
+    });
+
+    expect(await queue.ackReconciliation(newer.task!)).toEqual({
+      acknowledged: true,
+    });
+    expect(await queue.listPendingReconciliations(10)).toEqual({
+      tasks: [],
+      degraded: false,
+    });
+
+    const recreated = await queue.enqueueReconciliation(
+      "venue-one",
+      "beer",
+      NOW + 2,
+    );
+    expect(recreated.task?.version).toBe(3);
+    expect(await queue.ackReconciliation(newer.task!)).toEqual({
+      acknowledged: false,
+    });
+    expect((await queue.listPendingReconciliations(10)).tasks).toEqual([
+      recreated.task,
+    ]);
+  });
+
   it("credits every independent contributor in the first cluster once", async () => {
     const cluster = firstQualifyingCluster(rows(), NOW);
     expect(cluster).not.toBeNull();
