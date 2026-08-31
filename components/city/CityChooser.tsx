@@ -18,7 +18,7 @@ import { listEnabledCities, type CityId } from "@/lib/cities";
 import { MAIN_LANDMARK_ID } from "@/lib/a11yLandmarks";
 import {
   buildCityChooserSearchResults,
-  cityGuidesHavePricesLine,
+  cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
 } from "@/lib/cityChooserSearch";
 import { writePreferredCity } from "@/lib/cityPreference";
@@ -249,7 +249,7 @@ export default function CityChooser({
             />
           </div>
           <p id={`${listId}-search-help`} className="cityChooserSearchHelp">
-            {cityGuidesHavePricesLine(cities.length)}
+            {cityGuidesCoverageLine(cities)}
           </p>
         </div>
 

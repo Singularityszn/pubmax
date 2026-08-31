@@ -8,7 +8,7 @@ import {
   buildCityChooserSearchResults,
   cityGuideCountWord,
   cityGuideMembershipLine,
-  cityGuidesHavePricesLine,
+  cityGuidesCoverageLine,
   cityGuidesSearchUnavailableLine,
 } from "@/lib/cityChooserSearch";
 import {
@@ -163,17 +163,15 @@ describe("city chooser search mobile contract", () => {
 });
 
 describe("city guide count copy", () => {
-  it("derives the count from the enabled list, never a typed nine", () => {
-    const count = listEnabledCities().length;
+  it("derives truthful map, price, crawl, and preview coverage", () => {
+    const cities = listEnabledCities();
+    const count = cities.length;
     const word = cityGuideCountWord(count);
-    expect(count).toBeGreaterThan(0);
-    expect(cityGuidesHavePricesLine(count)).toContain(`${word} city guides`);
+
+    expect(count).toBe(10);
+    expect(cityGuidesCoverageLine(cities)).toBe(
+      "Ten city maps, including one preview. London has pint prices; eight cities have crawls.",
+    );
     expect(cityGuidesSearchUnavailableLine(count)).toContain(`${word} city maps`);
-    if (count !== 9) {
-      expect(cityGuidesHavePricesLine(count)).not.toMatch(/\bnine city guides/);
-      expect(cityGuidesSearchUnavailableLine(count)).not.toMatch(/\bnine city maps/);
-    }
-    expect(cityGuidesHavePricesLine(10)).toContain("ten city guides");
-    expect(cityGuidesHavePricesLine(10)).not.toMatch(/\bnine city guides/);
   });
 });
