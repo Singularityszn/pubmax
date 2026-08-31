@@ -11,6 +11,7 @@ import { normalizeViewerHandle } from "@/lib/pintDrops";
 import { pintDropsStore, type PintDropPhotos } from "@/lib/pintDropsStore";
 import { profileStore } from "@/lib/profileStore";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
+import { reconcilePriceTrustForObservation } from "@/lib/priceTrustImpact.server";
 
 export type OneTapPintDropInput = Readonly<{
   venueId: string;
@@ -65,7 +66,8 @@ export async function revertOneTapCommunityPricePairing(
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       if (await moderateCommunityPrice(priceId, true, note)) {
-        return true;
+        const trust = await reconcilePriceTrustForObservation(priceId);
+        return trust.status === "synced";
       }
     } catch (err) {
       log("warn", "one_tap_pint_drop.price_pairing_revert_failed", {

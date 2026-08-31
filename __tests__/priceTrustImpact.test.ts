@@ -249,6 +249,42 @@ describe("syncTrustAfterPriceWrite", () => {
   });
 });
 
+describe("drainPendingPriceTrustReconciliations", () => {
+  it("rotates unavailable pairs behind newer work without dropping them", async () => {
+    const store = priceTrustEventStore();
+    const originalLiveEventsFor = store.liveEventsFor.bind(store);
+    vi.spyOn(store, "liveEventsFor").mockImplementation(
+      async (venueId, category) =>
+        venueId.startsWith("poison-")
+          ? { events: [], degraded: true }
+          : originalLiveEventsFor(venueId, category),
+    );
+
+    for (let index = 0; index < 20; index += 1) {
+      const queued = await store.enqueueReconciliation(
+        `poison-${String(index).padStart(2, "0")}`,
+        "beer",
+        NOW + index,
+      );
+      expect(queued.failed).not.toBe(true);
+    }
+    const healthy = await store.enqueueReconciliation(
+      "healthy-newer-pair",
+      "beer",
+      NOW + 20,
+    );
+    expect(healthy.failed).not.toBe(true);
+
+    await drainPendingPriceTrustReconciliations(20, NOW + 100);
+    await drainPendingPriceTrustReconciliations(20, NOW + 200);
+
+    const pending = (await store.listPendingReconciliations(100)).tasks;
+    expect(pending).toHaveLength(20);
+    expect(pending.some((task) => task.venueId === "healthy-newer-pair")).toBe(false);
+    expect(pending.every((task) => task.venueId.startsWith("poison-"))).toBe(true);
+  });
+});
+
 describe("syncTrustAfterPriceHidden", () => {
   it("restores contribution trust after a hidden observation is restored", async () => {
     const profileA = await onboard(USER_A, "alice_pint");

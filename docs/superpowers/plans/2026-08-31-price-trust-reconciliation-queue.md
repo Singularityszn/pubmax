@@ -17,6 +17,14 @@ Vercel Cron.
 
 **Spec:** `docs/specs/2026-08-31-price-trust-reconciliation-queue.md`
 
+## Current state
+
+Tasks 1-3 are implemented in PR #1289. Review follow-up also keeps a failed
+one-tap pairing from retaining trust and rotates unavailable queue pairs behind
+newer work without dropping them. Focused tests, targeted ESLint, and diff
+checks pass. Full suite, build, hosted CI, database application, merge, and
+production proof remain separate release gates.
+
 ## Global Constraints
 
 - Stable PUBMAXX User IDs own credits. Handles never do.

@@ -223,6 +223,11 @@ export async function drainPendingPriceTrustReconciliations(
   for (const task of listed.tasks) {
     const result = await reconcilePendingPriceTrust(task, now);
     if (result.status === "unavailable") {
+      await priceTrustEventStore().enqueueReconciliation(
+        task.venueId,
+        task.category,
+        now,
+      );
       pending += 1;
       continue;
     }

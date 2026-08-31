@@ -83,6 +83,7 @@ const oneTapState = vi.hoisted(() => ({
   forcedOutcome: undefined as
     | import("@/lib/oneTapPintDrop.server").OneTapPintDropOutcome
     | undefined,
+  beforeOutcome: null as (() => Promise<void>) | null,
 }));
 const trustSyncState = vi.hoisted(() => ({
   override: null as { status: "synced" | "unavailable" } | null,
@@ -97,6 +98,7 @@ vi.mock("@/lib/oneTapPintDrop.server", async (importOriginal) => {
       photos?: Parameters<typeof actual.writeOneTapPintDrop>[1],
     ) => {
       if (oneTapState.forcedOutcome !== undefined) {
+        await oneTapState.beforeOutcome?.();
         return oneTapState.forcedOutcome;
       }
       return actual.writeOneTapPintDrop(input, photos);
@@ -137,8 +139,14 @@ import {
   moderateCommunityPrice,
   readCommunityPrices,
 } from "@/lib/communityPriceStore";
-import { __resetMemoryPriceTrustEvents } from "@/lib/priceTrustEventStore";
-import { readPriceTrustImpact } from "@/lib/priceTrustImpact.server";
+import {
+  __resetMemoryPriceTrustEvents,
+  priceTrustEventStore,
+} from "@/lib/priceTrustEventStore";
+import {
+  readPriceTrustImpact,
+  syncTrustAfterPriceWrite,
+} from "@/lib/priceTrustImpact.server";
 import { COMMUNITY_PRICE_MAX_GBP, submitCategoryLabel } from "@/lib/communityPrice";
 import {
   __resetMemoryIdentityHandles,
@@ -235,6 +243,7 @@ beforeEach(async () => {
   readBackState.override = null;
   readBackState.statusOverride = null;
   oneTapState.forcedOutcome = undefined;
+  oneTapState.beforeOutcome = null;
   trustSyncState.override = null;
   trustSyncState.calls = 0;
   authState.userId = null;
@@ -346,6 +355,83 @@ describe("POST /api/price-submit", () => {
     expect(res.status).toBe(503);
     expect(await readCommunityPrices(venueId)).toEqual([]);
     expect(listVisiblePintDrops(venueId)).toHaveLength(0);
+  });
+
+  it("reverses trust that lands before a failed Pint Drop pairing rolls its price back", async () => {
+    const venueId = "venue-xjf3n0";
+    expect(
+      (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
+    ).toBe(201);
+    await authorizeContributor("user-second", "second_contributor");
+    oneTapState.beforeOutcome = async () => {
+      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
+        status: "synced",
+      });
+      expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toHaveLength(1);
+    };
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+
+    const response = await POST(
+      post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({ code: "UNAVAILABLE" });
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
+    expect((await priceTrustEventStore().liveEventsFor(venueId, "beer")).events).toEqual([]);
+    expect((await priceTrustEventStore().listPendingReconciliations(20)).tasks).toEqual([]);
+    expect(await readPriceTrustImpact("user-default")).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact("user-second")).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+  });
+
+  it("keeps failed hidden-state trust cleanup queued and reports pairing repair required", async () => {
+    const venueId = "venue-xjf3n0";
+    expect(
+      (await POST(post({ venueId, drinkCategory: "beer", priceGbp: 4.2 }))).status,
+    ).toBe(201);
+    await authorizeContributor("user-second", "second_contributor");
+    const store = priceTrustEventStore();
+    oneTapState.beforeOutcome = async () => {
+      expect(await syncTrustAfterPriceWrite(venueId, "beer")).toEqual({
+        status: "synced",
+      });
+      vi.spyOn(store, "ackReconciliation").mockResolvedValue({
+        acknowledged: false,
+        failed: true,
+      });
+    };
+    oneTapState.forcedOutcome = {
+      ok: false,
+      kind: "storage",
+      message: "Could not save your pint drop right now.",
+    };
+
+    const response = await POST(
+      post({ venueId, drinkCategory: "beer", priceGbp: 4.3 }),
+    );
+
+    expect(response.status).toBe(503);
+    expect(await response.json()).toMatchObject({
+      code: "PAIRING_REPAIR_REQUIRED",
+      retryable: true,
+    });
+    expect(await readCommunityPrices(venueId)).toMatchObject([{ priceGbp: 4.2 }]);
+    expect((await store.liveEventsFor(venueId, "beer")).events).toEqual([]);
+    expect((await store.listPendingReconciliations(20)).tasks).toHaveLength(1);
+    expect(await readPriceTrustImpact("user-default")).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
+    expect(await readPriceTrustImpact("user-second")).toMatchObject({
+      lifetimeTrustUnlocks: 0,
+    });
   });
 
   it("never reports success when the price and Pint Drop split", async () => {

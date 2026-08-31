@@ -12,7 +12,9 @@ community price has already been logged.
   write.
 - Every attributed price insert or correction queues its Venue and drink
   category in the same database transaction.
-- Venue signals and moderation-only updates do not enter this queue.
+- Venue signals do not enter this queue. Routine moderation-only updates do not
+  enqueue through the database trigger. Explicit admin recovery and failed
+  one-tap pairing repair may enqueue the affected price pair.
 - Queue work is service-role only. Browser roles cannot read or write it.
 - Queue revisions use a never-reused sequence on every qualifying write. A
   worker acknowledges only the revision it processed, including after a prior
@@ -23,8 +25,9 @@ community price has already been logged.
   fences.
 - A stored trust event with missing credits is repaired from its stored
   observation IDs. It is not replaced by a new event.
-- No browser retry endpoint, viewer coordinate, handle key, or new public data
-  practice is added.
+- No public reader retry endpoint, viewer coordinate, handle key, or new public
+  data practice is added. Existing authenticated admin moderation may retry
+  reconciliation.
 
 ## Receipt
 
