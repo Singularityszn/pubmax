@@ -75,7 +75,25 @@ export async function handleWhatsOnRequest(
     const load: LoadWhatsOnParams = {};
     const kind = parseKind(params.get("kind"));
     if (kind) load.kind = kind;
-    if ((params.get("window") ?? "").trim().toLowerCase() === "tonight") load.window = "tonight";
+    // THIS ROUTE SERVES ONE NIGHT, and it is the one happening now.
+    //
+    // The window used to be opt-in, so a bare GET answered with every future
+    // row the bundled files held. On Sunday 30 August 2026 that was 384
+    // Wetherspoon weekday food clubs and 244 KB - Tuesday burgers, served as
+    // what is on tonight, on a night this same read had nothing for. Every
+    // in-app caller already asked for `tonight`; the only reader getting the
+    // whole horizon was the one nobody wrote, and it was the dishonest answer.
+    //
+    // So the service day is the DEFAULT scope. `londonServiceDayBounds` owns
+    // where a night starts and ends, and an unrecognised `window` lands here
+    // too, the same way an unknown `kind` is dropped rather than 400ed. A night
+    // with nothing on it answers with nothing, which is the honest empty, and a
+    // kind with no rows tonight is simply absent rather than advertised.
+    //
+    // A caller that genuinely wants another day asks the store directly rather
+    // than this route: Pub Pal's what's-on tool keeps its weekday lane that way
+    // (lib/ask/tools.ts), so nothing here narrows a question somebody asked.
+    load.window = "tonight";
     const near = parseNear(params.get("near"));
     if (near) load.near = near;
     const limit = parseLimit(params.get("limit"));

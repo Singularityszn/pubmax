@@ -250,7 +250,7 @@ describe("createUkBaseLoader", () => {
 
   it("fetches only the cells the viewport covers, and the manifest exactly once", async () => {
     const loader = createUkBaseLoader();
-    const pubs = await loader.pubsForBounds({
+    const { pubs } = await loader.pubsForBounds({
       west: -0.19,
       south: 51.42,
       east: -0.17,
@@ -269,7 +269,7 @@ describe("createUkBaseLoader", () => {
   it("returns the whole viewport's set, not just the newly fetched cell", async () => {
     const loader = createUkBaseLoader();
     await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });
-    const both = await loader.pubsForBounds({ west: -0.15, south: 51.42, east: -0.03, north: 51.46 });
+    const { pubs: both } = await loader.pubsForBounds({ west: -0.15, south: 51.42, east: -0.03, north: 51.46 });
     // A source setData replaces everything, so a partial answer would blank the
     // cells the camera is still over.
     expect(both.map((p) => p.name).sort()).toEqual(["The Anchor", "The Bell", "The Crown"]);
@@ -278,10 +278,13 @@ describe("createUkBaseLoader", () => {
   it("degrades to no pins (and retries next time) when a cell fails", async () => {
     installFetch(new Set(["/data/uk_base/a.json"]));
     const loader = createUkBaseLoader();
-    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual([]);
+    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual({
+      status: "unavailable",
+      pubs: [],
+    });
 
     installFetch();
-    const retried = await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });
+    const { pubs: retried } = await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 });
     expect(retried.map((p) => p.name)).toEqual(["The Anchor", "The Bell"]);
   });
 
@@ -312,10 +315,10 @@ describe("createUkBaseLoader", () => {
         east: -0.17,
         north: 51.44,
       }),
-    ).toEqual([]);
+    ).toEqual({ status: "unavailable", pubs: [] });
 
     installFetch();
-    const retried = await loader.pubsForBounds({
+    const { pubs: retried } = await loader.pubsForBounds({
       west: -0.19,
       south: 51.42,
       east: -0.17,
@@ -327,7 +330,26 @@ describe("createUkBaseLoader", () => {
   it("yields no pins at all when the manifest is unreachable", async () => {
     installFetch(new Set([UK_BASE_MANIFEST_PATH]));
     const loader = createUkBaseLoader();
-    expect(await loader.pubsForBounds({ west: -0.19, south: 51.42, east: -0.17, north: 51.44 })).toEqual([]);
+    expect(
+      await loader.pubsForBounds({
+        west: -0.19,
+        south: 51.42,
+        east: -0.17,
+        north: 51.44,
+      }),
+    ).toEqual({ status: "unavailable", pubs: [] });
+  });
+
+  it("reports a successful viewport with no matching cells as ready-empty", async () => {
+    const loader = createUkBaseLoader();
+    expect(
+      await loader.pubsForBounds({
+        west: 10,
+        south: 40,
+        east: 11,
+        north: 41,
+      }),
+    ).toEqual({ status: "ready", pubs: [] });
   });
 
   it("find() resolves a resident pub by id and nothing else", async () => {
@@ -368,7 +390,7 @@ describe("createUkBaseLoader", () => {
     });
     fetched = [];
     // Pan east: draw pad still only a, but the pan-ahead stretch reaches b.
-    const drawn = await loader.pubsForBounds({
+    const { pubs: drawn } = await loader.pubsForBounds({
       west: -0.13,
       south: 51.42,
       east: -0.11,
