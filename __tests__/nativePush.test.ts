@@ -104,6 +104,18 @@ describe("registerNativePush", () => {
     expect(register).toHaveBeenCalledOnce();
   });
 
+  it("requests Android permission again when rationale is available", async () => {
+    nativePlatform.mockReturnValue("android");
+    checkPermissions.mockResolvedValue({ receive: "prompt-with-rationale" });
+    requestPermissions.mockResolvedValue({ receive: "granted" });
+
+    await expect(registerNativePush()).resolves.toBe(true);
+
+    expect(requestPermissions).toHaveBeenCalledOnce();
+    expect(addListener).toHaveBeenCalledWith("registration", expect.any(Function));
+    expect(register).toHaveBeenCalledOnce();
+  });
+
   it("posts delivered tokens with the native platform", async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(null, { status: 204 }));
     vi.stubGlobal("fetch", fetch);

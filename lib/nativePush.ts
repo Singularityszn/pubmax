@@ -74,7 +74,10 @@ async function registerNativePushWithPermissionRequest(
   try {
     const { PushNotifications } = await import("@capacitor/push-notifications");
     let permission = await PushNotifications.checkPermissions();
-    if (permission.receive === "prompt" && requestPermission) {
+    if (
+      requestPermission &&
+      (permission.receive === "prompt" || permission.receive === "prompt-with-rationale")
+    ) {
       permission = await PushNotifications.requestPermissions();
     }
     if (permission.receive !== "granted") return false;
