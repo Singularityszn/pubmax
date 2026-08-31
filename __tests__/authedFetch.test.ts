@@ -184,6 +184,33 @@ describe("authedFetch (Wave I2)", () => {
     await rejection;
   });
 
+  it("gives an explicit init signal precedence over a Request signal", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    vi.mocked(getAccessToken).mockResolvedValueOnce("account-a-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const requestOwner = new AbortController();
+    const initOwner = new AbortController();
+    const requestReason = new Error("stale Request owner left");
+    const initReason = new Error("active dialog closed");
+    const input = new Request("https://pubmaxx.example/api/social/posts", {
+      signal: requestOwner.signal,
+    });
+    requestOwner.abort(requestReason);
+
+    await authedActionFetch(input, {
+      method: "POST",
+      signal: initOwner.signal,
+    });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+    expect(actionSignal?.aborted).toBe(false);
+    initOwner.abort(initReason);
+    expect(actionSignal?.aborted).toBe(true);
+    expect(actionSignal?.reason).toBe(initReason);
+  });
+
   it("keeps caller and provider aborts active without AbortSignal.any", async () => {
     const anyDescriptor = Object.getOwnPropertyDescriptor(AbortSignal, "any");
     Object.defineProperty(AbortSignal, "any", {

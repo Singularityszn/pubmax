@@ -62,9 +62,8 @@ function callerActionSignals(
   const requestSignal = typeof Request !== "undefined" && input instanceof Request
     ? input.signal
     : undefined;
-  return [...new Set(
-    [requestSignal, initSignal].filter((signal): signal is AbortSignal => Boolean(signal)),
-  )];
+  const callerSignal = initSignal ?? requestSignal;
+  return callerSignal ? [callerSignal] : [];
 }
 
 const fallbackAbortControllers = new WeakMap<AbortSignal, AbortController>();
@@ -303,7 +302,8 @@ async function activeAuthActionFetch(
  * While auth is unresolved, this waits for the existing identity signal and
  * retries the browser session read within one bounded two-second window.
  * Once auth is usable, token lookup and the active fetch bind to that provider
- * identity revision. Both Request and init abort signals remain authoritative.
+ * identity revision. An explicit init signal overrides the Request signal,
+ * matching the native fetch contract.
  * The returned native Response retains the signal through its body lifecycle.
  */
 export async function authedActionFetch(
