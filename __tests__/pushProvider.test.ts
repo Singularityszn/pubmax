@@ -115,9 +115,18 @@ describe("isApnsConfigured", () => {
     expect(isApnsConfigured()).toBe(false);
   });
 
-  it("is true when every APNs key is set", () => {
+  it("is true when every APNs key and a valid environment are set", () => {
     stubApnsEnv();
+    vi.stubEnv("APNS_ENV", "production");
     expect(isApnsConfigured()).toBe(true);
+  });
+
+  it("is false when APNS_ENV is missing or invalid", () => {
+    stubApnsEnv();
+    expect(isApnsConfigured()).toBe(false);
+
+    vi.stubEnv("APNS_ENV", "staging");
+    expect(isApnsConfigured()).toBe(false);
   });
 });
 
@@ -286,6 +295,17 @@ describe("selectPushProvider", () => {
     expect(isVapidConfigured()).toBe(false);
     vi.stubEnv("VAPID_PRIVATE_KEY", "private");
     expect(isVapidConfigured()).toBe(true);
+  });
+
+  it("fails loudly instead of treating partial APNs configuration as absent", async () => {
+    vi.stubEnv("APNS_KEY_ID", APNS_ENV.APNS_KEY_ID);
+
+    const provider = selectPushProvider("ios");
+
+    expect(provider).not.toBe(noopPushProvider);
+    await expect(provider.send(["ios-token"], { title: "T", body: "B" })).rejects.toThrow(
+      "APNS_KEY_ID, APNS_TEAM_ID and APNS_PRIVATE_KEY must all be set",
+    );
   });
 });
 
@@ -594,12 +614,13 @@ describe("createApnsPushProvider — transport + response mapping", () => {
     expect(hosts).toEqual(["api.push.apple.com"]);
   });
 
-  it("defaults to the sandbox host when APNS_ENV is unset", async () => {
+  it("selects the sandbox host when APNS_ENV=sandbox", async () => {
     const transport = mockTransport(() => ({ status: 200 }));
     const hosts: string[] = [];
     for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
       vi.stubEnv(k, v);
     }
+    vi.stubEnv("APNS_ENV", "sandbox");
     const provider = createApnsPushProvider({
       now: () => 1_700_000_000_000,
       jwtCache: new Map(),
@@ -610,6 +631,49 @@ describe("createApnsPushProvider — transport + response mapping", () => {
     });
     await provider.send(["tok"], { title: "T", body: "B" });
     expect(hosts).toEqual(["api.sandbox.push.apple.com"]);
+  });
+
+  it("normalizes escaped PEM newlines from one-line deployment values", async () => {
+    const transport = mockTransport(() => ({ status: 200 }));
+    for (const [k, v] of Object.entries(APNS_ENV)) vi.stubEnv(k, v);
+    vi.stubEnv("APNS_PRIVATE_KEY", testPrivatePem.replace(/\n/g, "\\n"));
+    vi.stubEnv("APNS_ENV", "production");
+    const provider = createApnsPushProvider({
+      now: () => 1_700_000_000_000,
+      jwtCache: new Map(),
+      sessionFactory: () => transport,
+    });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).resolves.toEqual([
+      { token: "tok", status: "sent" },
+    ]);
+  });
+
+  it("fails closed when APNS_ENV is unset", async () => {
+    const sessionFactory = vi.fn(() => mockTransport(() => ({ status: 200 })));
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    const provider = createApnsPushProvider({ sessionFactory });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).rejects.toThrow(
+      'APNS_ENV must be set to "sandbox" or "production"',
+    );
+    expect(sessionFactory).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when APNS_ENV is invalid", async () => {
+    const sessionFactory = vi.fn(() => mockTransport(() => ({ status: 200 })));
+    for (const [k, v] of Object.entries({ ...APNS_ENV, APNS_PRIVATE_KEY: testPrivatePem })) {
+      vi.stubEnv(k, v);
+    }
+    vi.stubEnv("APNS_ENV", "staging");
+    const provider = createApnsPushProvider({ sessionFactory });
+
+    await expect(provider.send(["tok"], { title: "T", body: "B" })).rejects.toThrow(
+      'APNS_ENV must be set to "sandbox" or "production"',
+    );
+    expect(sessionFactory).not.toHaveBeenCalled();
   });
 });
 

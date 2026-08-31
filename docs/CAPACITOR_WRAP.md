@@ -86,10 +86,13 @@ see `docs/screenshots/WRAPPED_BUILD_GATE_Z_2026-07-20.md`.
    - Create an APNs Auth Key in the Apple Developer portal. The server-side
      **sending pipeline and HTTP/2 transport are built** behind a provider seam
      (`lib/pushProvider.ts` + `lib/pushSender.ts`); it runs the `noopPushProvider`
-     (logs + reports every token `skipped`) until the APNs env keys exist. To go
-     live, set `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY` (bundle id is
-     `com.pubmaxx.app`) - platform selection then flips to
-     `apnsPushProvider` with no caller change. Live delivery still requires the
+     (logs + reports every token `skipped`) until APNs credentials exist. Set
+     `APNS_KEY_ID`, `APNS_TEAM_ID`, `APNS_PRIVATE_KEY`, and `APNS_ENV` together
+     (bundle id is `com.pubmaxx.app`). Set `APNS_ENV=production` for TestFlight
+     and App Store production tokens. Use `APNS_ENV=sandbox` only for tokens
+     issued to development-signed builds by the APNs sandbox. A configured send
+     with missing or invalid `APNS_ENV` fails closed instead of guessing an APNs
+     host. Never commit the `.p8` key. Live delivery still requires the
      entitlement, credentials, signed build, and a real device-token smoke.
 4. **Android push (Firebase Cloud Messaging)**
    - Create the Android app `com.pubmaxx.app` in Firebase. Download its owner
