@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  invalidateUkBaseStreamToken,
   nextUkBaseStreamToken,
   parseUkBaseRestoreResponse,
+  ukBaseStreamModeIsCurrent,
   visibleUkBaseStreamState,
 } from "@/components/map/pubmap/useUkBaseStreaming";
 
@@ -14,6 +16,17 @@ describe("nextUkBaseStreamToken", () => {
     expect(nextUkBaseStreamToken(generation, 10, 13)).toBeNull();
     expect(generation.current).toBe(5);
     expect(inFlightToken).not.toBe(generation.current);
+  });
+
+  it("invalidates an active viewport read as soon as another camera settle is queued", () => {
+    const generation = { current: 0 };
+    const activeToken = nextUkBaseStreamToken(generation, 12, 12);
+
+    invalidateUkBaseStreamToken(generation);
+
+    expect(activeToken).toBe(1);
+    expect(generation.current).toBe(2);
+    expect(activeToken).not.toBe(generation.current);
   });
 });
 
@@ -39,6 +52,25 @@ describe("visibleUkBaseStreamState", () => {
 
     expect(first).toBe(second);
     expect(first).toEqual({ status: "suspended", count: 0, pubs: [] });
+  });
+});
+
+describe("ukBaseStreamModeIsCurrent", () => {
+  it("drops a deferred read after scope or suspension changes", async () => {
+    const current = { scopeKey: "london", suspended: false };
+    const requested = { ...current };
+    let settle: (() => void) | undefined;
+    const deferred = new Promise<void>((resolve) => {
+      settle = resolve;
+    }).then(() => ukBaseStreamModeIsCurrent(current, requested));
+
+    current.scopeKey = "manchester";
+    settle?.();
+    await expect(deferred).resolves.toBe(false);
+
+    current.scopeKey = "london";
+    current.suspended = true;
+    expect(ukBaseStreamModeIsCurrent(current, requested)).toBe(false);
   });
 });
 

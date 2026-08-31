@@ -16,8 +16,9 @@
 // ~28 x ~17 km cell under /data/uk_base/. This module fetches:
 //   • the manifest once, the first time the camera crosses UK_BASE_MIN_ZOOM;
 //   • a cell body only when the (padded) viewport overlaps its bbox.
-// Nothing here is touched at first paint - a session that never zooms in past
-// the gate pays zero bytes for the whole layer.
+// London's normal city-centre opening starts at the gate and loads only its
+// viewport cells. A wider camera that stays below the gate pays zero bytes for
+// the whole layer.
 //
 // RESIDENCY. Shards are held in a small LRU (MAX_RESIDENT_SHARDS) rather than
 // accumulated, so panning the length of the country cannot grow the tab without

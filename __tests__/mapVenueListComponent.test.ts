@@ -168,6 +168,37 @@ describe("MapVenueList", () => {
     expect(html).toContain("Unlisted pubs could not load");
     expect(html).not.toContain("Nothing matches");
     expect(html).not.toContain("Nothing in view fits that");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
+  });
+
+  it("keeps an empty list pending while unlisted pubs are still loading", () => {
+    const curated: MapVenueListModel = {
+      rows: [],
+      total: 0,
+      shown: 0,
+      truncated: false,
+      coverageNote: null,
+    };
+
+    const html = renderToStaticMarkup(
+      createElement(MapVenueList, {
+        model: curated,
+        ukBaseModel: emptyBase,
+        ukBaseStatus: "loading",
+        cityName: "London",
+        open: true,
+        onOpenChange: () => {},
+        loaded: true,
+        onSelectVenue: () => {},
+        onSelectUkBasePub: () => {},
+        onPrefetchVenue: () => {},
+      }),
+    );
+
+    expect(html).toContain("Counting them up…");
+    expect(html).not.toContain("Nothing matches");
+    expect(html).not.toContain("Nothing in view fits that");
+    expect(html.match(/role="status"/g)).toHaveLength(1);
   });
 
   it("discloses incomplete unlisted-pub coverage beside curated results", () => {

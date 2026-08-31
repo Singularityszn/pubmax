@@ -354,7 +354,7 @@ import {
 import {
   readOpeningMapLocation,
   readMapOpeningLocation,
-  resolveMapOpeningLocation,
+  resolveMapOpeningView,
   writeMapOpeningLocation,
 } from "@/lib/mapOpeningLocation";
 import type { MapOpeningLocation } from "@/lib/mapOpeningLocation";
@@ -803,22 +803,16 @@ export default function PubMap({
       };
     }
     if (mapOpeningNeedsResolution) return OPENING_LOCATION_HOLD_VIEW;
-    const cityDefault = {
-      lat: city.mapView.center[1],
-      lng: city.mapView.center[0],
-    };
-    const location = resolveMapOpeningLocation(
+    const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
         ? lastKnownLocation
-        : null,
-      cityDefault,
+        : null;
+    return resolveMapOpeningView(
+      city.mapView,
+      location,
+      LOCATION_FIRST_ZOOM,
     );
-    return {
-      ...city.mapView,
-      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
-      center: [location.lng, location.lat],
-    };
   });
   const mobileViewport = useSyncExternalStore(
     subscribeMobileViewport,
@@ -1059,40 +1053,33 @@ export default function PubMap({
     useState<MapViewportSnapshot | null>(mapResumeSeed?.viewport ?? null);
   const openingViewport = mapResumeViewport ?? restoredMobileSession?.viewport ?? null;
   const fallbackOpeningMapView = useMemo(() => {
-    const cityDefault = {
-      lat: city.mapView.center[1],
-      lng: city.mapView.center[0],
-    };
-    const location = resolveMapOpeningLocation(
+    const location =
       lastKnownLocation &&
         pointInCityBounds(lastKnownLocation.lat, lastKnownLocation.lng, city)
         ? lastKnownLocation
-        : null,
-      cityDefault,
+        : null;
+    return resolveMapOpeningView(
+      city.mapView,
+      location,
+      LOCATION_FIRST_ZOOM,
     );
-    return {
-      ...city.mapView,
-      zoom: Math.max(city.mapView.zoom, LOCATION_FIRST_ZOOM),
-      center: [location.lng, location.lat] as [number, number],
-    };
   }, [city, lastKnownLocation]);
   const locationFirstMapView = useMemo(() => {
     if (!mapOpeningNeedsResolution) return initialMapView;
     if (!openingLocationResolved) return OPENING_LOCATION_HOLD_VIEW;
     if (!grantedOpeningLocation) return fallbackOpeningMapView;
-    return {
-      ...fallbackOpeningMapView,
-      center: [grantedOpeningLocation.lng, grantedOpeningLocation.lat] as [
-        number,
-        number,
-      ],
-    };
+    return resolveMapOpeningView(
+      city.mapView,
+      grantedOpeningLocation,
+      LOCATION_FIRST_ZOOM,
+    );
   }, [
     fallbackOpeningMapView,
     grantedOpeningLocation,
     initialMapView,
     mapOpeningNeedsResolution,
     openingLocationResolved,
+    city.mapView,
   ]);
   const openingLoadViewport = useMemo(
     () => mapResumeSeed?.viewport ?? restoredMobileSession?.viewport ?? locationFirstMapView,

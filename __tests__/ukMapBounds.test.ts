@@ -23,7 +23,7 @@ describe("UK map camera bounds", () => {
     expect(contains(LONDON_BOUNDS, leeds)).toBe(false);
   });
 
-  it("keeps both London default framings unchanged", () => {
+  it("keeps national overview separate from the London base-layer arrival", () => {
     expect(LONDON_VIEW).toEqual({
       center: [-0.12, 51.52],
       zoom: 10.7,

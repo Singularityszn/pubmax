@@ -80,6 +80,17 @@ export type UkBaseStreamState = {
   pubs: UkBasePub[];
 };
 type PublishedUkBaseStreamState = UkBaseStreamState & { scopeKey: string };
+export type UkBaseStreamMode = { scopeKey: string; suspended: boolean };
+
+export function ukBaseStreamModeIsCurrent(
+  current: UkBaseStreamMode,
+  requested: UkBaseStreamMode,
+): boolean {
+  return (
+    current.scopeKey === requested.scopeKey &&
+    current.suspended === requested.suspended
+  );
+}
 
 const LOADING_UK_BASE_STREAM_STATE: UkBaseStreamState = {
   status: "loading",
@@ -113,6 +124,13 @@ export function nextUkBaseStreamToken(
 ): number | null {
   const token = ++generation.current;
   return zoom < minZoom ? null : token;
+}
+
+/** Invalidate the active viewport read before the camera settle debounce. */
+export function invalidateUkBaseStreamToken(
+  generation: { current: number },
+): void {
+  generation.current += 1;
 }
 
 /**
@@ -325,6 +343,7 @@ export function useUkBaseStreaming({
         status: "loading",
       }));
       if (!loaderRef.current) loaderRef.current = createUkBaseLoader();
+      const requestedMode = { scopeKey, suspended };
       const bounds = current.getBounds();
       const viewportBounds = {
         west: bounds.getWest(),
@@ -335,7 +354,14 @@ export function useUkBaseStreaming({
       void loaderRef.current
         .pubsForBounds(viewportBounds)
         .then((read) => {
-          if (cancelled || token !== generation.current) return;
+          if (
+            cancelled ||
+            token !== generation.current ||
+            !ukBaseStreamModeIsCurrent(
+              publishedModeRef.current,
+              requestedMode,
+            )
+          ) return;
           const drawablePubs = publish(read.pubs, read.status);
           const wanted = restoreIdRef.current;
           if (!wanted) return;
@@ -347,6 +373,7 @@ export function useUkBaseStreaming({
     };
 
     const schedule = () => {
+      invalidateUkBaseStreamToken(generation);
       if (timer) clearTimeout(timer);
       timer = setTimeout(stream, STREAM_DEBOUNCE_MS);
     };

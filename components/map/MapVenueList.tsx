@@ -104,6 +104,11 @@ export default function MapVenueList({
   // reader's landmark list on both viewports.
   if (!open) return null;
 
+  const awaitingRows =
+    total === 0
+    && ukBaseStatus !== "unavailable"
+    && (ukBaseStatus === "loading" || !loaded);
+
   return (
     <section className="mapVenueList mapVenueList--open" aria-label={`${cityName} venue list`}>
         <div className="mapVenueListPanel" id={panelId} role="group" aria-label={`${cityName} venues on the map`}>
@@ -113,7 +118,7 @@ export default function MapVenueList({
               <span className="mapVenueListCount" role="status" aria-live="polite">
                 {ukBaseStatus === "unavailable" && total === 0
                   ? "Unlisted pubs unavailable"
-                  : !loaded && ukBaseModel.total === 0
+                  : awaitingRows
                   ? "Counting them up…"
                   : total === 0
                     ? "Nothing matches"
@@ -164,7 +169,7 @@ export default function MapVenueList({
           ) : null}
 
           {total === 0 ? (
-            <p className="mapVenueListEmpty" role="status">
+            awaitingRows ? null : <p className="mapVenueListEmpty">
               {ukBaseStatus === "unavailable"
                 ? "Unlisted pubs could not load. Try the map again."
                 : loaded
