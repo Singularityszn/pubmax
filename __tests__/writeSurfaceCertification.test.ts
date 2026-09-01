@@ -257,7 +257,7 @@ describe("mutating API surface certification", () => {
 
   it("gives every mutating handler its own abuse or authority boundary", () => {
     const uncovered = mutationHandlers
-      .filter(({ method, route, source }) =>
+      .filter(({ source }) =>
         boundaries(source).length === 0,
       )
       .map(mutationHandlerKey);
