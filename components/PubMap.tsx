@@ -1974,7 +1974,7 @@ export default function PubMap({
       const openingBounds =
         initialShardStart.settledBounds ??
         boundsForOpeningView(
-          openingLoadViewportFor(initialShardStart.viewport, city.mapView as MapViewportSnapshot),
+          openingLoadViewportFor(initialShardStart.viewport, city.mapView),
         );
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
