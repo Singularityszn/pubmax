@@ -25,6 +25,9 @@ import { measurePerfRoute, preparePerfPage } from "./helpers/perfMeasurement";
 //     same-origin script the route asked for before it was interactive.
 //   requests — how many same-origin requests it took to get there. A route can
 //     hold its bytes and still lose the night to a waterfall.
+//   lcpMs — the largest contentful paint the same run observed. The three above
+//     are levers; this is the one a drinker feels, and a route can hold every
+//     lever and still paint late.
 //
 // HOW it is measured is e2e/helpers/perfMeasurement.ts, shared with the UX lane
 // report so the two sets of figures are taken the same way and stay comparable.
@@ -53,6 +56,7 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
       serverRenderMs: sample.serverRenderMs,
       jsDecodedKB: sample.jsDecodedKB,
       requests: sample.requests,
+      lcpMs: Math.round(sample.lcpMs),
     });
   }
 

@@ -18,6 +18,41 @@ CI refuses a change that goes past it.
 | `serverRenderMs` | `responseStart - requestStart` on the document's own navigation entry | Over loopback there is no network in that figure, so it is the part of a production TTFB the code owns. |
 | `jsDecodedKB` | Decoded bytes of every same-origin script the route asked for before it was interactive | Decoded, not transferred, because parse time is what a phone feels. |
 | `requests` | Same-origin requests to the same point, the document included | A route can hold its bytes and still lose the night to a waterfall. |
+| `lcpMs` | The largest contentful paint the SAME run observed, from a buffered `PerformanceObserver` | The three above are levers; this is the one a drinker feels, and a route can hold every lever and still paint late. |
+
+## Where the LCP ceilings came from
+
+Seeded on 2026-09-01 from three production runs per route under this method's
+own emulation (390x844 at DPR 3, 4x CPU throttle), over the real network rather
+than loopback, so a seed run is pessimistic against CI's own sweep. Medians:
+
+| route | measured LCP | seeded ceiling |
+| --- | --- | --- |
+| `/` | 296 ms | 1500 ms |
+| `/pal` | 792 ms | 1500 ms |
+| `/map` | 1196 ms | 2500 ms |
+| `/today` | 720 ms | 2500 ms |
+| `/tonight` | 784 ms | 2500 ms |
+| `/out` | 900 ms | 2500 ms |
+| `/about` | 320 ms | 2500 ms |
+| `/pubs` | 372 ms | 2500 ms |
+
+The ceilings are deliberately looser than the measurements. A seed taken on one
+box against production is not the sweep, and a first ceiling that fails CI on
+the day it lands teaches nothing. `/` and `/pal` take the speed programme's own
+1500 ms target because they are the front door and its one primary action;
+every other route takes 2500 ms, the Core Web Vitals good boundary, so no route
+may be worse than good. Ratcheting them to CI's measured numbers is the same
+down-only move every other ceiling here makes.
+
+`/pal` joins the file with them. It was the heaviest unbudgeted route in the
+seed sweep at 1745 KB decoded, and an unbudgeted route is one nothing can
+regress.
+
+Production RUM corroborates the lab figure independently: `onLCP` already
+reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
+(`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
+identifier.
 
 ## How a run is taken
 

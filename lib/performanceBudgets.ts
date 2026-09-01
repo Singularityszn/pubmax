@@ -13,11 +13,19 @@
 
 import budgetsJson from "@/perf/route-budgets.json";
 
-/** The three things a route is budgeted on. */
+/**
+ * The four things a route is budgeted on.
+ *
+ * `lcpMs` is the one a drinker actually feels: the other three are the levers
+ * that move it, and a route can hold all three and still paint late. It is
+ * measured by the same run, under the same method block, so the four figures
+ * in a sweep describe one load rather than four.
+ */
 export const BUDGET_METRICS = [
   "serverRenderMs",
   "jsDecodedKB",
   "requests",
+  "lcpMs",
 ] as const;
 
 export type BudgetMetric = (typeof BUDGET_METRICS)[number];
@@ -27,6 +35,7 @@ export const BUDGET_METRIC_LABELS: Record<BudgetMetric, string> = {
   serverRenderMs: "server render (ms)",
   jsDecodedKB: "JS decoded (KB)",
   requests: "requests",
+  lcpMs: "LCP (ms)",
 };
 
 export type RouteBudget = {

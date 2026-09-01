@@ -22,6 +22,7 @@ const route = (over: Partial<RouteBudget> = {}): RouteBudget => ({
   serverRenderMs: 100,
   jsDecodedKB: 1000,
   requests: 50,
+  lcpMs: 2000,
   ...over,
 });
 
@@ -29,6 +30,7 @@ const measurement = (over: Partial<RouteMeasurement> = {}): RouteMeasurement => 
   serverRenderMs: 10,
   jsDecodedKB: 100,
   requests: 5,
+  lcpMs: 200,
   ...over,
 });
 

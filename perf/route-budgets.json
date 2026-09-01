@@ -1,5 +1,5 @@
 {
-  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision.",
+  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision. lcpMs is seeded from three production runs on 2026-09-01 under this method block (390x844 at DPR 3, 4x CPU throttle, real network rather than loopback, so a seed run is pessimistic against CI's own sweep). Medians measured: / 296, /pal 792, /map 1196, /today 720, /tonight 784, /out 900, /about 320, /pubs 372. The seeded ceilings are deliberately looser than those figures: / and /pal take the programme's 1500 ms target, and every other route takes 2500 ms, the Core Web Vitals good boundary, so no route may be worse than good. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
     "warmupRuns": 1,
     "measuredRuns": 3,
@@ -16,7 +16,18 @@
       "why": "The landing every shared link and every search result opens.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1250,
-      "requests": 50
+      "requests": 50,
+      "lcpMs": 1500
+    },
+    {
+      "path": "/pal",
+      "readySelector": ".palExperience",
+      "settledSelectorHidden": ".palLoading",
+      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. Added with the LCP ceilings: it was the heaviest unbudgeted route in the 2026-09-01 seed sweep at 1745 KB decoded, and an unbudgeted route is one nothing can regress. Its JS ceiling records that seed rather than a target; U2 of docs/plans/SITE_SPEED_2026-09-01.md is the diet that brings it down.",
+      "serverRenderMs": 450,
+      "jsDecodedKB": 1800,
+      "requests": 60,
+      "lcpMs": 1500
     },
     {
       "path": "/map",
@@ -26,6 +37,7 @@
       "serverRenderMs": 150,
       "jsDecodedKB": 3400,
       "requests": 160,
+      "lcpMs": 2500,
       "pinReady": {
         "path": "/map/london",
         "targetMs": 4000,
@@ -41,7 +53,8 @@
       "why": "The morning brief, composed on the server from bundled data. Its server figure is the loosest here because it is the one route that really composes something.",
       "serverRenderMs": 450,
       "jsDecodedKB": 1300,
-      "requests": 52
+      "requests": 52,
+      "lcpMs": 2500
     },
     {
       "path": "/tonight",
@@ -49,7 +62,8 @@
       "why": "The fastest route we have. It is the shape every other route is held against.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1280,
-      "requests": 56
+      "requests": 56,
+      "lcpMs": 2500
     },
     {
       "path": "/out",
@@ -57,7 +71,8 @@
       "why": "The Out tab shell. Composed from existing what's-on rows; no new API.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1300,
-      "requests": 56
+      "requests": 56,
+      "lcpMs": 2500
     },
     {
       "path": "/about",
@@ -65,7 +80,8 @@
       "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1900,
-      "requests": 70
+      "requests": 70,
+      "lcpMs": 2500
     },
     {
       "path": "/pubs",
@@ -73,7 +89,8 @@
       "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed.",
       "serverRenderMs": 150,
       "jsDecodedKB": 1950,
-      "requests": 75
+      "requests": 75,
+      "lcpMs": 2500
     }
   ]
 }
