@@ -23,9 +23,9 @@
       "path": "/pal",
       "readySelector": ".palExperience",
       "settledSelectorHidden": ".palLoading",
-      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. Added with the LCP ceilings: it was the heaviest unbudgeted route in the 2026-09-01 seed sweep at 1745 KB decoded, and an unbudgeted route is one nothing can regress. Its JS ceiling records that seed rather than a target; U2 of docs/plans/SITE_SPEED_2026-09-01.md is the diet that brings it down.",
+      "why": "The front door's one primary action, so it is measured beside the landing that sends people to it. The 2026-09-01 seed sweep measured 1745 KB decoded, of which a single 603 KB chunk was the ElevenLabs conversation SDK, parsed before first paint for a control the reader may never reach and the deployment may not even have switched on. That chunk now loads when the availability probe says voice is on (components/pubpal/PubPalVoiceSession.tsx), so this ceiling ratchets to 1300 KB against an expected ~1142 KB. CI's sweep is the oracle; U8's ratchet check banks whatever slack is left.",
       "serverRenderMs": 450,
-      "jsDecodedKB": 1800,
+      "jsDecodedKB": 1300,
       "requests": 60,
       "lcpMs": 1500
     },
