@@ -30,6 +30,17 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
+export async function planAccountHasActiveSeat(planId: string, userId: string): Promise<boolean> {
+  const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
+    .select("id")
+    .eq("plan_id", planId)
+    .eq("user_id", userId)
+    .is("membership_revoked_at", null)
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  return Boolean(data);
+}
+
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
@@ -356,6 +367,9 @@ export const supabasePlanStore: PlanStore = {
         // keeps keyless and development parity; the seat binds later through
         // the claim lane. Only a missing FUNCTION may take this path: a genuine
         // write failure must stay a refusal.
+        if (await planAccountHasActiveSeat(id, userId)) {
+          return { ok: false, error: "account_conflict" };
+        }
         console.warn("[plans] account join RPC missing; joining without account stamp");
         ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", {
           ...joinArgs,

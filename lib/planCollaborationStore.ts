@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, planAccountHasActiveSeat, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -679,6 +679,9 @@ const supabaseStore: PlanCollaborationStore = {
       // FUNCTION is unavailable (0106 precedent). Redeeming without the
       // account stamp keeps development parity; the seat binds later through
       // the claim lane. Only a missing FUNCTION may take this path.
+      if (await planAccountHasActiveSeat(planId, userId)) {
+        return { ok: false, error: "account_conflict" };
+      }
       console.warn("[plans] account invite redeem RPC missing; redeeming without account stamp");
       ({ data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", {
         ...redeemArgs,

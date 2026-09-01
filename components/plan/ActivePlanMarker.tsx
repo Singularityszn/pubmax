@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useSyncExternalStore } from "react";
+import { useEffect, useRef, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import {
@@ -30,7 +30,7 @@ import { discardBody } from "@/lib/responseBody";
 // writes the same capability event (role "guest") the host gets at creation
 // (role "host"), so a mate who joins mid-visit picks this up live, no reload.
 export default function ActivePlanMarker({ id, startTime }: { id: string; startTime: string }) {
-  const { session, user } = useAuth();
+  const { identityResolved, session, user } = useAuth();
   const capabilitySnapshot = useSyncExternalStore(
     (onChange) => {
       const event = planCapabilityEvent(id);
@@ -42,18 +42,30 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
   );
   const { role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
 
+  const restoreAttempt = useRef({ planId: id, identityResolved, attempted: false });
+
   useEffect(() => {
     if (role === "host" || role === "guest") {
       markActivePlan(id, startTime);
       setActivePlanRole(id, role);
-      return;
     }
+  }, [id, startTime, role]);
+
+  useEffect(() => {
+    const attempt = restoreAttempt.current;
+    if (attempt.planId !== id || attempt.identityResolved !== identityResolved) {
+      attempt.planId = id;
+      attempt.identityResolved = identityResolved;
+      attempt.attempted = false;
+    }
+    if (!identityResolved || role === "host" || role === "guest" || attempt.attempted) return;
     // No cached capability yet — this is either a bare visitor (fail closed,
     // mark nothing) or a member whose cookie hasn't been restored into the
     // client cache this tab. Ask once; a positive result fires the same
     // capability event and re-runs this effect with role set.
+    attempt.attempted = true;
     void restorePlanCapability(id).catch(() => undefined);
-  }, [id, startTime, role]);
+  }, [id, identityResolved, role]);
 
   useEffect(() => {
     const auth = captureAccountAuth(user?.id ?? null, session);

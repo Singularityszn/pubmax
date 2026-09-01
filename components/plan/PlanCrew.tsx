@@ -1,7 +1,8 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { FormEvent, useCallback, useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { CREW_NAME_MAX, type CrewMemberDTO, type CrewPresenceStatus } from "@/lib/crew";
@@ -34,6 +35,7 @@ const STATUS_LABELS: Record<CrewPresenceStatus, string> = {
 // full crew (names + presence + size) is fetched on mount from the
 // capability-gated /api/plans/[id] and only ever arrives for a valid member.
 export default function PlanCrew({ planId, hostName }: { planId: string; hostName: string }) {
+  const { identityResolved } = useAuth();
   const [crew, setCrew] = useState<CrewMemberDTO[]>([]);
   const [name, setName] = useState("");
   const [pending, setPending] = useState(false);
@@ -94,9 +96,22 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
   );
   const { token: memberToken, collaborationAuthorized, role } = parsePlanCapabilitySnapshot(capabilitySnapshot);
   const sessionReady = Boolean(memberToken) || sessionCheckedPlanId === planId;
+  const restoreAttempt = useRef({ planId, identityResolved, sessionAttempt, attempted: false });
 
   useEffect(() => {
-    if (memberToken) return;
+    const attempt = restoreAttempt.current;
+    if (
+      attempt.planId !== planId
+      || attempt.identityResolved !== identityResolved
+      || attempt.sessionAttempt !== sessionAttempt
+    ) {
+      attempt.planId = planId;
+      attempt.identityResolved = identityResolved;
+      attempt.sessionAttempt = sessionAttempt;
+      attempt.attempted = false;
+    }
+    if (memberToken || !identityResolved || attempt.attempted) return;
+    attempt.attempted = true;
     let active = true;
     void restorePlanCapability(planId)
       .then(() => {
@@ -106,7 +121,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       })
       .catch(() => { if (active) setSessionUnavailable(true); });
     return () => { active = false; };
-  }, [memberToken, planId, sessionAttempt]);
+  }, [identityResolved, memberToken, planId, sessionAttempt]);
 
   useEffect(() => {
     return subscribeToAuthFragmentRestored(() => {

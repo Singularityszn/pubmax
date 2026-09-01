@@ -4,6 +4,11 @@ import { act, createElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+const planSession = vi.hoisted(() => ({
+  role: "host" as "host" | "guest" | null,
+  restorePlanCapability: vi.fn(),
+}));
+
 const state = vi.hoisted(() => ({
   user: { id: "11111111-1111-4111-8111-111111111111" } as { id: string } | null,
   session: {
@@ -29,18 +34,26 @@ vi.mock("@/lib/activePlan", () => ({
   markActivePlan: vi.fn(),
   setActivePlanRole: vi.fn(),
 }));
+vi.mock("@/lib/authRedirect", () => ({
+  subscribeToAuthFragmentRestored: vi.fn(() => () => {}),
+}));
+vi.mock("@/lib/crewRealtime", () => ({
+  subscribeToPlanCrew: vi.fn(() => () => {}),
+}));
 vi.mock("@/lib/planSessionCapability", () => ({
   parsePlanCapabilitySnapshot: () => ({
     token: "",
     collaborationAuthorized: true,
-    role: "host",
+    role: planSession.role,
   }),
   planCapabilityEvent: (id: string) => `pubmax:plan-capability:${id}`,
-  readPlanCapabilitySnapshot: () => "|1|host",
-  restorePlanCapability: vi.fn().mockResolvedValue({ role: "host" }),
+  readPlanCapabilitySnapshot: () => planSession.role ? `|1|${planSession.role}` : "|0|",
+  restorePlanCapability: planSession.restorePlanCapability,
+  writePlanCapability: vi.fn(),
 }));
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
+import PlanCrew from "@/components/plan/PlanCrew";
 import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
@@ -51,6 +64,8 @@ let container: HTMLDivElement;
 let rootUnmounted = false;
 
 beforeEach(() => {
+  planSession.role = "host";
+  planSession.restorePlanCapability.mockReset().mockResolvedValue({ role: "host" });
   state.user = { id: "11111111-1111-4111-8111-111111111111" };
   state.session = {
     access_token: "account-token",
@@ -151,6 +166,60 @@ describe("active Plan account claim", () => {
     });
 
     expect(state.accountBoundFetch).toHaveBeenCalledOnce();
+  });
+
+  it("restores capability on the auth-ready transition", async () => {
+    state.identityResolved = false;
+    planSession.role = null;
+
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "56565656-5656-4565-8565-565656565656",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(planSession.restorePlanCapability).not.toHaveBeenCalled();
+
+    state.identityResolved = true;
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "56565656-5656-4565-8565-565656565656",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(planSession.restorePlanCapability).toHaveBeenCalledOnce();
+  });
+
+  it("restores PlanCrew capability on the auth-ready transition", async () => {
+    state.identityResolved = false;
+    planSession.role = null;
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({}), { status: 200 }));
+
+    await act(async () => {
+      root.render(createElement(PlanCrew, {
+        planId: "67676767-6767-4676-8676-676767676767",
+        hostName: "Priya",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(planSession.restorePlanCapability).not.toHaveBeenCalled();
+
+    state.identityResolved = true;
+    await act(async () => {
+      root.render(createElement(PlanCrew, {
+        planId: "67676767-6767-4676-8676-676767676767",
+        hostName: "Priya",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(planSession.restorePlanCapability).toHaveBeenCalledOnce();
+    fetchSpy.mockRestore();
   });
 
   it("retries one transient claim failure", async () => {
