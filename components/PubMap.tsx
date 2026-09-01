@@ -284,8 +284,11 @@ import { getSaved } from "@/lib/savedPubs";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
+  NEIGHBOUR_SHARD_RING,
+  openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
   scheduleSlimShardViewportLoad,
+  VIEWPORT_SHARD_RING,
   type MapBounds,
   type SlimShardLoader,
   type SlimShardViewportLoadKind,
@@ -1861,24 +1864,34 @@ export default function PubMap({
       const isCurrentLoader = () =>
         slimLoaderRef.current === loader &&
         slimLoaderGenerationRef.current === loaderGeneration;
-      const load = () => {
+      const loadRing = (ring: number, onSettled?: () => void) => {
         if (!isCurrentLoader()) return;
         void loader
-          .inBounds(bounds, 1)
+          .inBounds(bounds, ring)
           .then((rows) => {
             if (!isCurrentLoader()) return;
             mergeSlimVenues(rows);
             refreshCountCoverage();
           })
           .catch(() => undefined)
-          .finally(() => {
+          .finally(() => onSettled?.());
+      };
+      // The map a reader is looking at loads on this turn; the ring around it
+      // waits for idle time. They used to be one request set, so the sides
+      // raced the screen for connections before the map was interactive.
+      if (kind === "target") {
+        targetViewportLoadStartedRef.current = true;
+        loadRing(VIEWPORT_SHARD_RING);
+      }
+      scheduleSlimShardViewportLoad(
+        () =>
+          loadRing(NEIGHBOUR_SHARD_RING, () => {
             if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
               ringLoadPendingKeyRef.current = null;
             }
-          });
-      };
-      if (kind === "target") targetViewportLoadStartedRef.current = true;
-      scheduleSlimShardViewportLoad(load, kind);
+          }),
+        "refresh",
+      );
     },
     [mergeSlimVenues, refreshCountCoverage],
   );
@@ -1955,9 +1968,14 @@ export default function PubMap({
       !ukNationalBrowse &&
       initialShardReady
     ) {
+      // A placeholder viewport names nowhere, and its bounds are the whole
+      // world. Reading shards from it asked for the entire city before the map
+      // was interactive (lib/slimShards.ts openingLoadViewportFor).
       const openingBounds =
         initialShardStart.settledBounds ??
-        boundsForOpeningView(initialShardStart.viewport);
+        boundsForOpeningView(
+          openingLoadViewportFor(initialShardStart.viewport, city.mapView as MapViewportSnapshot),
+        );
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
@@ -2095,7 +2113,7 @@ export default function PubMap({
       ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
