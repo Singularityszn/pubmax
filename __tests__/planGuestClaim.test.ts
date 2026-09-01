@@ -8,7 +8,16 @@ const database = vi.hoisted(() => ({
   configured: false,
   rpc: vi.fn(),
 }));
-const isLimitedMock = vi.hoisted(() => vi.fn(async () => false));
+const isLimitedMock = vi.hoisted(() => vi.fn(async (...args: [
+  localKey: string,
+  durableKey: string,
+  limit?: number,
+  windowMs?: number,
+  opts?: { failClosed?: boolean },
+]) => {
+  void args;
+  return false;
+}));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
