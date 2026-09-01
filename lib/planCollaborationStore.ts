@@ -645,9 +645,10 @@ const supabaseStore: PlanCollaborationStore = {
       ...(userId ? { p_user_id: userId } : {}),
     });
     if (userId && error && isMissingDatabaseFunction(error)) {
-      // Migration 0126 has not been applied yet (0106 precedent). Redeeming
-      // without the account stamp beats refusing every signed-in redemption;
-      // the seat binds later through the claim lane once the RPC exists.
+      // The current Plan schema may be present while the invite-redemption
+      // FUNCTION is unavailable (0106 precedent). Redeeming without the
+      // account stamp keeps development parity; the seat binds later through
+      // the claim lane. Only a missing FUNCTION may take this path.
       console.warn("[plans] account invite redeem RPC missing; redeeming without account stamp");
       ({ data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", redeemArgs));
     }

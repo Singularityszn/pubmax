@@ -248,7 +248,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       }
       // Identity-first ordering (docs/PROMPT_ORCHESTRATION.md): the account
       // nudge wins the shared moment; push defers to a pending identity nudge.
-      recordPlanNudgeTrigger();
+      recordPlanNudgeTrigger(planId);
       if (!isIdentityNudgePending()) {
         recordPlanHighIntentAction();
       }

@@ -28,9 +28,10 @@ function cleanUserId(value: unknown): string {
 }
 
 /**
- * Legacy member-row stamp for a database without migration 0124 (0106
- * precedent). Stamps only the member row, never the plan owner, because the
- * owner half of the atomic claim has no safe two-step equivalent.
+ * Legacy member-row stamp for a current-schema database where the claim
+ * FUNCTION is unavailable (0106 precedent). Stamps only the member row, never
+ * the plan owner, because the owner half of the atomic claim has no safe
+ * two-step equivalent.
  */
 async function legacyClaimPlanMembership(
   planId: string,
@@ -88,9 +89,9 @@ export async function claimPlanMembership(
       },
     );
     if (error && isMissingDatabaseFunction(error)) {
-      // Migration 0124 has not been applied yet (0106 precedent). Only a
-      // missing FUNCTION may take this path: a genuine write failure must
-      // stay a refusal.
+      // The current Plan schema may be present while the claim FUNCTION is
+      // unavailable (0106 precedent). Only a missing FUNCTION may take this
+      // path: a genuine write failure must stay a refusal.
       console.warn("[plans] membership claim RPC missing; using legacy member stamp");
       return await legacyClaimPlanMembership(planId, memberId, uid);
     }
@@ -137,10 +138,9 @@ export async function recoverPlanMembership(
       },
     );
     if (error && isMissingDatabaseFunction(error)) {
-      // Migration 0127 has not been applied yet (0106 precedent). There is no
-      // safe two-step equivalent of the atomic capability rotation, so a
-      // database without the RPC honestly has no recovery lane: not_found
-      // stops the client cleanly instead of a retryable 503 loop.
+      // The current Plan schema may be present while the recovery FUNCTION is
+      // unavailable (0106 precedent). There is no safe two-step equivalent of
+      // the atomic capability rotation, so recovery honestly has no fallback.
       console.warn("[plans] membership recovery RPC missing; recovery unavailable");
       return { ok: false, error: "not_found" };
     }

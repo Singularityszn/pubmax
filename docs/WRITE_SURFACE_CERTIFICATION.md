@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 140 mutating handlers across 113 route files.** Each exported
+> **Inventory: 142 mutating handlers across 113 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -1267,9 +1267,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Write:** one RPC each (`claim_plan_membership`,
   `recover_plan_account_membership_atomic`), so a partial claim can never leave
   a Plan attached to two accounts and a recovery can never mint a second seat.
-  A membership held by a different account is an honest 409, and a database
-  without migrations 0124/0127 falls back per the 0106 precedent
-  (`lib/planCrewIdentity.ts`) instead of refusing every claim.
+  A membership held by a different account is an honest 409. The missing-function
+  fallbacks preserve keyless and development parity when the current Plan schema
+  is present; a genuine write failure remains a refusal.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

@@ -20,7 +20,7 @@ const PLAN_COMPLETION_SELECT = "id,plan_id,ending,terminal_venue_id,ending_selec
  * Does this failure mean the database has no such function? PostgREST answers
  * PGRST202 when a function is missing from its schema cache and PostgreSQL
  * answers 42883 when the call itself finds no candidate. Either says the
- * migration behind the call has not been applied on this database yet.
+ * function is unavailable from this database's schema.
  */
 export function isMissingDatabaseFunction(error: unknown): boolean {
   if (!error || typeof error !== "object") return false;
@@ -347,11 +347,11 @@ export const supabasePlanStore: PlanStore = {
         ...(userId ? { p_user_id: userId } : {}),
       });
       if (userId && error && isMissingDatabaseFunction(error)) {
-        // Migration 0126 has not been applied yet (0106 precedent). Joining
-        // without the account stamp beats refusing every signed-in join; the
-        // seat binds later through the claim lane once the RPC exists. Only a
-        // missing FUNCTION may take this path: a genuine write failure must
-        // stay a refusal.
+        // The current Plan schema may be present while the account-join FUNCTION
+        // is unavailable (0106 precedent). Joining without the account stamp
+        // keeps keyless and development parity; the seat binds later through
+        // the claim lane. Only a missing FUNCTION may take this path: a genuine
+        // write failure must stay a refusal.
         console.warn("[plans] account join RPC missing; joining without account stamp");
         ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", joinArgs));
       }

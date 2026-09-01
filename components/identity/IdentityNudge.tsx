@@ -24,6 +24,7 @@ import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
+  identityNudgeAuthNext,
   markIdentityNudgeAccepted,
   markIdentityNudgeDismissed,
   subscribeIdentityNudge,
@@ -121,12 +122,15 @@ export default function IdentityNudge(): React.JSX.Element | null {
   if (!canShow || !trigger) return null;
 
   const copy = COPY[trigger];
+  const authNext = trigger === "plan" ? identityNudgeAuthNext() : undefined;
   const hasSocialProviders = socialProviders.google || socialProviders.apple;
 
-  async function startSignIn(provider: () => Promise<{ error: string | null }>) {
+  async function startSignIn(
+    provider: (next?: string) => Promise<{ error: string | null }>,
+  ) {
     setAuthBusy(true);
     setAuthError("");
-    const result = await provider();
+    const result = await provider(authNext);
     if (result.error) {
       setAuthError(result.error);
       setAuthBusy(false);
@@ -172,7 +176,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           <MagicLinkForm
             disabled={authBusy}
             hasSocialProviders={hasSocialProviders}
-            signInWithEmail={signInWithEmail}
+            signInWithEmail={(email) => signInWithEmail(email, authNext)}
             cancelAuthAttempt={cancelAuthAttempt}
           />
         ) : null}
