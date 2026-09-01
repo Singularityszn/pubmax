@@ -11,13 +11,16 @@ jobs:
     name: API latency budget
     if: >-
       github.event.deployment_status.state == 'success' &&
-      (github.event.deployment_status.environment == 'Preview' ||
-      github.event.deployment_status.environment == 'preview') &&
+      (github.event.deployment_status.environment == 'Production' ||
+      github.event.deployment_status.environment == 'production') &&
+      (github.event.deployment.ref == 'main' ||
+      github.event.deployment.ref == 'refs/heads/main') &&
       github.event.deployment_status.target_url != ''
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - name: Checkout deployed commit
+      # PR previews are excluded because this job executes deployed source; the main-only gate keeps that source trusted.
+      - name: Checkout trusted deployed commit
         uses: actions/checkout@v4
         with:
           persist-credentials: false
@@ -28,8 +31,22 @@ jobs:
         with:
           node-version: 22
 
-      - name: Probe preview API budgets
+      - name: Validate production target
         env:
           PUBMAX_PROBE_BASE_URL: ${{ github.event.deployment_status.target_url }}
-          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: |
+          node --input-type=module <<'NODE'
+          const target = process.env.PUBMAX_PROBE_BASE_URL;
+          const url = new URL(target);
+          const projectHost = url.hostname === "pubmaxxing.vercel.app" ||
+            (url.hostname.startsWith("pubmaxxing-") && url.hostname.endsWith(".vercel.app"));
+          const siteHost = url.hostname === "pubmaxxing.com" || url.hostname === "www.pubmaxxing.com";
+          if (url.protocol !== "https:" || url.username || url.password || url.port || (!projectHost && !siteHost)) {
+            throw new Error(`Unallowlisted deployment target: ${target}`);
+          }
+          NODE
+
+      - name: Probe production API budgets
+        env:
+          PUBMAX_PROBE_BASE_URL: ${{ github.event.deployment_status.target_url }}
         run: node scripts/probe-api-budgets.mjs

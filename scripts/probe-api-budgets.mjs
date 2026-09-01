@@ -7,9 +7,9 @@
  * verification runs on remote CI rather than a local full build, so this takes
  * a base URL and nothing else.
  *
- *   node scripts/probe-api-budgets.mjs --base-url https://<preview>.vercel.app
+ *   node scripts/probe-api-budgets.mjs --base-url https://<deployment>.vercel.app
  *
- * The rules (percentile, breach, tables) live in lib/apiBudgets.ts so they are
+ * The rules (percentile, breach, tables) live in lib/apiBudgets.mjs so they are
  * unit-tested without a network. This file only measures.
  */
 
@@ -32,15 +32,38 @@ const {
   formatApiBreachTable,
   formatApiMeasurementTable,
   percentile,
-} = await import("../lib/apiBudgets.ts");
+} = await import("../lib/apiBudgets.mjs");
 
 const configuredTimeoutMs = Number(process.env.PUBMAX_API_PROBE_TIMEOUT_MS);
 const probeTimeoutMs = Number.isFinite(configuredTimeoutMs) && configuredTimeoutMs > 0
   ? configuredTimeoutMs
   : 10_000;
 const requestHeaders = { accept: "application/json" };
-if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
-  requestHeaders["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+
+function mediaType(response) {
+  return (response.headers.get("content-type") ?? "")
+    .split(";", 1)[0]
+    .trim()
+    .toLowerCase();
+}
+
+function assertJsonContentType(response) {
+  const type = mediaType(response);
+  if (type !== "application/json" && !type.endsWith("+json")) {
+    throw new Error("response was not JSON");
+  }
+}
+
+async function validateJsonBody(response) {
+  let body;
+  try {
+    body = await response.json();
+  } catch {
+    throw new Error("response JSON was invalid");
+  }
+  if (body === null || typeof body !== "object" || Array.isArray(body)) {
+    throw new Error("response JSON shape was invalid");
+  }
 }
 
 /**
@@ -55,15 +78,25 @@ async function sample(url) {
     const response = await fetch(url, {
       headers: requestHeaders,
       cache: "no-store",
+      redirect: "manual",
       signal: controller.signal,
     });
+    if (response.status >= 300 && response.status < 400) {
+      throw new Error(`redirect response (${response.status})`);
+    }
+    assertJsonContentType(response);
+    const validationResponse = response.clone();
     const reader = response.body?.getReader();
     if (!reader) throw new Error("response body unavailable");
-    const firstRead = await reader.read();
-    if (firstRead.done) throw new Error("response body was empty");
-    const measuredAt = performance.now();
-    await reader.cancel().catch(() => {});
-    return { ms: measuredAt - started, status: response.status };
+    try {
+      const firstRead = await reader.read();
+      if (firstRead.done) throw new Error("response body was empty");
+      const measuredAt = performance.now();
+      await validateJsonBody(validationResponse);
+      return { ms: measuredAt - started, status: response.status };
+    } finally {
+      await reader.cancel().catch(() => {});
+    }
   } catch (error) {
     if (controller.signal.aborted) {
       throw new Error(`timed out after ${probeTimeoutMs}ms`);

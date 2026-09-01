@@ -4,7 +4,7 @@
     "samples": 12,
     "warmupSamples": 2,
     "measure": "time to first byte of the response body, in milliseconds",
-    "target": "a deployed preview, probed from the CI runner",
+    "target": "a deployed main commit, probed from the CI runner",
     "countedUpTo": "The whole request: a reader waits for the byte, not for the handler. A route is only budgeted here when it is a public GET a surface spends on arrival, so a probe needs no session and a slow answer is a slow night for everybody."
   },
   "routes": [

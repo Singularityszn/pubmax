@@ -10,7 +10,7 @@ CI refuses a change that goes past it.
 - The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
 - The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
 - The gate: the `performance-budget` job in `.github/workflows/ci.yml`; the UX lane report is its own `ux-lane-performance` job, because one 15-minute wall cannot hold two full sweeps
-- The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful deployed Preview
+- The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
 
 ## What each metric means
 
@@ -141,12 +141,12 @@ can hold every byte budget it has and still lose the night because the read
 behind it took a second.
 
 Six reads are budgeted on p50 and p95, measured as time to the first byte of
-the body. `lib/apiBudgets.ts` owns the rules and
-`scripts/probe-api-budgets.mjs` only measures, so the verdict is unit-tested
-without a network:
+the body. `lib/apiBudgets.mjs` owns the runtime rules and
+`lib/apiBudgets.ts` supplies the application types; `scripts/probe-api-budgets.mjs`
+only measures, so the verdict is unit-tested without a network:
 
 ```
-node scripts/probe-api-budgets.mjs --base-url https://<preview>.vercel.app
+node scripts/probe-api-budgets.mjs --base-url https://<deployment>.vercel.app
 ```
 
 Seeded on 2026-09-01 from eight production samples per route, timed as curl's

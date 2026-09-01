@@ -88,9 +88,10 @@ shared-cache header; measured repeat-visit latency improvement recorded.
 ### U7. API latency budgets
 Create `perf/api-budgets.json` mirroring the route-budgets discipline:
 per-route p50/p95 server-timing ceilings for the hot read APIs the map,
-today, and out surfaces call. CI probe hits them against a deployed preview
-(remote CI, KTD-3) and fails on ceiling breach. Down-only ratchet from seed
-measurements.
+today, and out surfaces call. Trusted remote CI probes a successful main
+deployment and fails on ceiling breach; pull-request previews stay outside the
+credentialed probe because the probe executes deployed source. Down-only
+ratchet from seed measurements.
 Acceptance: file + CI job green with seeded ceilings; breach fails.
 
 ### U8. Ratchet automation

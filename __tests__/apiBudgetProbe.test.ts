@@ -98,6 +98,54 @@ describe("probe-api-budgets CLI", () => {
     }
   }, 20_000);
 
+  it("fails a redirect instead of following it", async () => {
+    const { server, baseUrl } = await startServer((_request, response) => {
+      response.writeHead(302, {
+        location: "/login",
+        "content-type": "text/html",
+      });
+      response.end("<html>sign in</html>");
+    });
+    try {
+      const result = await runProbe(baseUrl);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("/api/whats-on: redirect response (302)");
+    } finally {
+      await stopServer(server);
+    }
+  }, 20_000);
+
+  it("fails an HTML error page even when its status is successful", async () => {
+    const { server, baseUrl } = await startServer((_request, response) => {
+      response.writeHead(200, { "content-type": "text/html" });
+      response.end("<html>service unavailable</html>");
+    });
+    try {
+      const result = await runProbe(baseUrl);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("/api/whats-on: response was not JSON");
+    } finally {
+      await stopServer(server);
+    }
+  }, 20_000);
+
+  it("fails malformed JSON instead of treating its first byte as a measurement", async () => {
+    const { server, baseUrl } = await startServer((_request, response) => {
+      response.writeHead(200, { "content-type": "application/json" });
+      response.end("not-json");
+    });
+    try {
+      const result = await runProbe(baseUrl);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain("/api/whats-on: response JSON was invalid");
+    } finally {
+      await stopServer(server);
+    }
+  }, 20_000);
+
   it("fails a sample that never sends response headers", async () => {
     let first = true;
     const { server, baseUrl } = await startServer((request, response) => {
@@ -125,10 +173,19 @@ describe("probe-api-budgets CLI", () => {
 
   it("reports time to first byte before slow stream cancellation", async () => {
     const preload = encodeURIComponent(`
-      globalThis.fetch = async () => new Response(new ReadableStream({
-        start(controller) { controller.enqueue(new Uint8Array([123])); },
-        cancel() { return new Promise((resolve) => setTimeout(resolve, 40)); },
-      }), { status: 200, headers: { "content-type": "application/json" } });
+      globalThis.fetch = async () => ({
+        status: 200,
+        headers: { get() { return "application/json"; } },
+        body: {
+          getReader() {
+            return {
+              read: async () => ({ done: false, value: new Uint8Array([123]) }),
+              cancel() { return new Promise((resolve) => setTimeout(resolve, 40)); },
+            };
+          },
+        },
+        clone() { return { json: async () => ({}) }; },
+      });
     `);
     const { server, baseUrl } = await startServer((_request, response) => writeJson(response));
     try {
