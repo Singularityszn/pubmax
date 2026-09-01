@@ -132,6 +132,29 @@ only shrink. The fence now checks the invariant rather than trusting it: every
 caller must coarsen above the line that builds the URL, and the viewer-origin
 journey must stay on POST.
 
+## The API latency budgets
+
+`perf/api-budgets.json` is the same discipline one layer down: what the public
+GETs the map, Today and Out spend on arrival may make a reader wait for. A page
+can hold every byte budget it has and still lose the night because the read
+behind it took a second.
+
+Six reads are budgeted on p50 and p95, measured as time to the first byte of
+the body. `lib/apiBudgets.ts` owns the rules and
+`scripts/probe-api-budgets.mjs` only measures, so the verdict is unit-tested
+without a network:
+
+```
+node scripts/probe-api-budgets.mjs --base-url https://<preview>.vercel.app
+```
+
+Seeded on 2026-09-01 from eight production samples per route, timed as curl's
+`time_starttransfer`, which includes this machine's round trip and a cold
+invocation in the first sample. The ceilings are looser again than the seed for
+that reason, and the same down-only rule applies to them as to the page
+budgets. A route the probe could not measure fails: a budget nothing checked is
+not a budget, and an error page is not a fast read.
+
 ## How a run is taken
 
 Against the production build, at 390x844, with a 4x CPU throttle and every
