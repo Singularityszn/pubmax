@@ -8,6 +8,7 @@ const database = vi.hoisted(() => ({
   configured: false,
   rpc: vi.fn(),
 }));
+const isLimitedMock = vi.hoisted(() => vi.fn(async () => false));
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/lib/serverEnv", () => ({ assertServerEnv: () => {} }));
@@ -21,7 +22,7 @@ vi.mock("@/lib/supabase", async (importOriginal) => {
 });
 vi.mock("@/lib/pintDrops", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@/lib/pintDrops")>();
-  return { ...actual, isLimited: async () => false };
+  return { ...actual, isLimited: isLimitedMock };
 });
 vi.mock("@/lib/authServer", () => ({
   callerUserId: async () => auth.status === "verified" ? auth.userId : null,
@@ -123,6 +124,7 @@ beforeEach(() => {
   auth.userId = "11111111-1111-4111-8111-111111111111";
   database.configured = false;
   database.rpc.mockReset();
+  isLimitedMock.mockReset().mockResolvedValue(false);
 });
 
 describe("guest Plan account claim", () => {
@@ -165,9 +167,29 @@ describe("guest Plan account claim", () => {
     ).resolves.toMatchObject({ active: true, role: "host" });
     expect((await memoryPlanStore.get(guest.id))?.crew[0]?.status).toBe("running_late");
 
-    const replay = await recover(guest.id);
+    const replay = await recover(guest.id, "recover-plan-membership-from-another-tab");
     expect(replay.status).toBe(200);
     expect(replay.headers.get("set-cookie")?.split(";")[0]).toBe(recoveredCookie);
+  });
+
+  it("scopes recovery budget per Plan and keeps a global IP ceiling", async () => {
+    const first = await createGuestPlan();
+    const second = await createGuestPlan();
+    auth.status = "verified";
+    expect((await claim(first.id, first.cookie)).status).toBe(200);
+    expect((await claim(second.id, second.cookie)).status).toBe(200);
+    isLimitedMock.mockClear();
+
+    expect((await recover(first.id, "recovery-budget-first")).status).toBe(200);
+    expect((await recover(second.id, "recovery-budget-second")).status).toBe(200);
+
+    expect(isLimitedMock).toHaveBeenCalledTimes(4);
+    expect(isLimitedMock.mock.calls[0]?.[0]).toBe(isLimitedMock.mock.calls[0]?.[1]);
+    expect(isLimitedMock.mock.calls[0]?.[2]).toBe(200);
+    expect(isLimitedMock.mock.calls[2]?.[0]).toBe(isLimitedMock.mock.calls[0]?.[0]);
+    expect(isLimitedMock.mock.calls[1]?.[0]).not.toBe(isLimitedMock.mock.calls[3]?.[0]);
+    expect(isLimitedMock.mock.calls[1]?.[2]).toBe(20);
+    expect(isLimitedMock.mock.calls[3]?.[2]).toBe(20);
   });
 
   it("does not recover another account or a signed-out visitor", async () => {

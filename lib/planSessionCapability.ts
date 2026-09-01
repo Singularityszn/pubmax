@@ -7,7 +7,6 @@ const volatile = new Map<string, VolatileCapability>();
 const restoration = new Map<string, Promise<VolatileCapability | null>>();
 const restorationAbort = new Map<string, AbortController>();
 const legacyRecovery = new Map<string, string>();
-const accountRecoveryKeys = new Map<string, string>();
 export const PLAN_HTTP_ONLY_SESSION = "__pubmax_http_only_plan_session__";
 /** Keep invite and route surfaces from waiting forever on a stalled session read. */
 export const PLAN_SESSION_RESTORE_TIMEOUT_MS = 5_000;
@@ -174,10 +173,8 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
       // A signed-in browser that lost its cookie capability recovers it here,
       // once, under one idempotency key. A signed-out caller gets null from
       // fetchSignedInPlanSession and spends no write.
-      const recoveryKey = accountRecoveryKeys.get(planId)
-        ?? globalThis.crypto?.randomUUID?.()
+      const recoveryKey = globalThis.crypto?.randomUUID?.()
         ?? `plan-recovery-${Date.now().toString(36)}`;
-      accountRecoveryKeys.set(planId, recoveryKey);
       const recoveryResponse = await fetchSignedInPlanSession(
         `/api/plans/${planId}/session`,
         {
@@ -188,13 +185,9 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
         controller.signal,
       );
       if (!recoveryResponse) {
-        accountRecoveryKeys.delete(planId);
         return null;
       }
       const recovered = await readResponse(recoveryResponse);
-      if (recovered || recoveryResponse.status < 500) {
-        accountRecoveryKeys.delete(planId);
-      }
       return recovered;
     } catch (error) {
       if (error instanceof PlanSessionUnavailableError) throw error;

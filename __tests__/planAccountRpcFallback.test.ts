@@ -1,20 +1,23 @@
-// The five account-claim RPCs are live in production, but a keyless dev
-// database or a deploy that lands before migrations 0124-0127 must not refuse
-// every signed-in join, redeem or claim (0106 precedent). Only a MISSING
-// FUNCTION may take a fallback: a genuine write failure stays a refusal.
+// The account-claim RPCs are live in production. A keyless dev database or a
+// current-schema database with one account function unavailable must keep
+// parity without refusing every signed-in join, redeem or claim. Only a
+// MISSING FUNCTION may take a fallback: a genuine write failure stays a refusal.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabase = vi.hoisted(() => ({
   rpc: vi.fn(),
   maybeSingleResults: [] as Array<{ data: unknown; error: unknown }>,
+  queryCalls: [] as Array<[string, ...unknown[]]>,
 }));
 
 function chainBuilder(): Record<string, unknown> {
   const builder: Record<string, unknown> = {};
-  const chain = () => builder;
   for (const method of ["select", "update", "eq", "is", "not"]) {
-    builder[method] = chain;
+    builder[method] = (...args: unknown[]) => {
+      supabase.queryCalls.push([method, ...args]);
+      return builder;
+    };
   }
   builder.maybeSingle = async () =>
     supabase.maybeSingleResults.shift() ?? { data: null, error: null };
@@ -67,6 +70,7 @@ describe("account claim RPC fallbacks", () => {
   beforeEach(() => {
     supabase.rpc.mockReset();
     supabase.maybeSingleResults = [];
+    supabase.queryCalls = [];
     vi.spyOn(supabasePlanStore, "get").mockResolvedValue(STATE);
   });
 
@@ -74,7 +78,7 @@ describe("account claim RPC fallbacks", () => {
     vi.restoreAllMocks();
   });
 
-  it("joins without the account stamp when migration 0126 has not been applied", async () => {
+  it("joins without the account stamp when the account join function is unavailable", async () => {
     supabase.maybeSingleResults.push({ data: { id: PLAN_ID }, error: null });
     supabase.rpc.mockImplementation(async (fn: string) =>
       fn === "join_plan_account_idempotent_atomic"
@@ -110,7 +114,7 @@ describe("account claim RPC fallbacks", () => {
     expect(supabase.rpc).toHaveBeenCalledOnce();
   });
 
-  it("redeems without the account stamp when migration 0126 has not been applied", async () => {
+  it("redeems without the account stamp when the account invite function is unavailable", async () => {
     supabase.rpc.mockImplementation(async (fn: string) =>
       fn === "redeem_plan_invite_account_idempotent_atomic"
         ? missingFunction(fn)
@@ -132,15 +136,22 @@ describe("account claim RPC fallbacks", () => {
     expect(fallback[1]).not.toHaveProperty("p_user_id");
   });
 
-  it("stamps the member row through the legacy update when migration 0124 has not been applied", async () => {
+  it("stamps the member row when the account claim function is unavailable", async () => {
     supabase.rpc.mockResolvedValue(missingFunction("claim_plan_membership"));
     supabase.maybeSingleResults.push({ data: { id: MEMBER_ID }, error: null });
 
     await expect(claimPlanMembership(PLAN_ID, MEMBER_ID, USER_ID)).resolves.toBe("claimed");
+    expect(supabase.queryCalls.filter(([method, field, value]) =>
+      method === "is" && field === "membership_revoked_at" && value === null,
+    )).toHaveLength(1);
 
+    supabase.queryCalls = [];
     supabase.maybeSingleResults.push({ data: null, error: null });
     supabase.maybeSingleResults.push({ data: { user_id: USER_ID }, error: null });
     await expect(claimPlanMembership(PLAN_ID, MEMBER_ID, USER_ID)).resolves.toBe("already_claimed");
+    expect(supabase.queryCalls.filter(([method, field, value]) =>
+      method === "is" && field === "membership_revoked_at" && value === null,
+    )).toHaveLength(2);
 
     supabase.maybeSingleResults.push({ data: null, error: null });
     supabase.maybeSingleResults.push({ data: { user_id: "44444444-4444-4444-8444-444444444444" }, error: null });

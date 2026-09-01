@@ -7,6 +7,7 @@ import {
   accountBoundFetch,
   captureAccountAuth,
 } from "@/lib/accountBoundFetch";
+import { readProviderIdentitySignal } from "@/lib/authProviderRevision";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   parsePlanCapabilitySnapshot,
@@ -56,10 +57,15 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
 
   useEffect(() => {
     const auth = captureAccountAuth(user?.id ?? null, session);
-    if (!auth || (role !== "host" && role !== "guest")) {
+    const actionSignal = readProviderIdentitySignal();
+    if (!auth || (role !== "host" && role !== "guest") || actionSignal.aborted) {
       return;
     }
     let cancelled = false;
+    const onAbort = (): void => {
+      cancelled = true;
+    };
+    actionSignal.addEventListener("abort", onAbort, { once: true });
     let retryTimer: ReturnType<typeof setTimeout> | undefined;
     const wait = (delayMs: number): Promise<void> => new Promise((resolve) => {
       retryTimer = setTimeout(resolve, delayMs);
@@ -73,7 +79,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
           const response = await accountBoundFetch(
             auth,
             `/api/plans/${id}/session`,
-            { method: "PUT" },
+            { method: "PUT", signal: actionSignal },
           );
           const retryableStatus = response.status === 429 || response.status === 503;
           if (!response.ok) discardBody(response);
@@ -86,6 +92,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
     void claim();
     return () => {
       cancelled = true;
+      actionSignal.removeEventListener("abort", onAbort);
       if (retryTimer) clearTimeout(retryTimer);
     };
   }, [id, role, session, user?.id]);

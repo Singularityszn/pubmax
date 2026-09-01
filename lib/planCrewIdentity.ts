@@ -14,6 +14,8 @@ import {
   claimMemoryPlanMembership,
   hashPlanMemberToken,
   planMemberIdentityResult,
+  planIdempotencyDigest,
+  planRequestDigest,
   recoverMemoryPlanMembership,
   type PlanMemberIdentity,
   type PlanMembershipClaimOutcome,
@@ -22,6 +24,14 @@ import { isMissingDatabaseFunction } from "@/lib/planStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const MEMBERS = "plan_crew_members";
+const PLAN_ACCOUNT_RECOVERY_OPERATION = "plan-account-session-recovery";
+
+function planAccountRecoveryKey(planId: string, userId: string): string {
+  return planIdempotencyDigest(
+    `${PLAN_ACCOUNT_RECOVERY_OPERATION}:key`,
+    `${planId}:${userId}`,
+  );
+}
 
 function cleanUserId(value: unknown): string {
   return typeof value === "string" ? value.trim() : "";
@@ -44,6 +54,7 @@ async function legacyClaimPlanMembership(
     .eq("plan_id", planId)
     .eq("id", memberId)
     .is("user_id", null)
+    .is("membership_revoked_at", null)
     .select("id")
     .maybeSingle();
   if (error) throw new Error(error.message);
@@ -53,6 +64,7 @@ async function legacyClaimPlanMembership(
     .select("user_id")
     .eq("plan_id", planId)
     .eq("id", memberId)
+    .is("membership_revoked_at", null)
     .maybeSingle();
   if (existing.error) throw new Error(existing.error.message);
   if (!existing.data) return "not_found";
@@ -66,6 +78,13 @@ export type PlanMembershipClaimResult =
 export type PlanMembershipRecoveryResult =
   | { ok: true; identity: PlanMemberIdentity }
   | { ok: false; error: "not_found" | "conflict" | "error" };
+
+export function planAccountRecoveryToken(planId: string, userId: string): string {
+  return planIdempotencyDigest(
+    `${PLAN_ACCOUNT_RECOVERY_OPERATION}:token`,
+    planAccountRecoveryKey(planId, userId),
+  );
+}
 
 /** Bind an existing Plan member capability to one auth account in one write. */
 export async function claimPlanMembership(
@@ -134,13 +153,16 @@ export async function recoverPlanMembership(
         p_plan_id: planId,
         p_user_id: uid,
         p_member_token_hash: hashPlanMemberToken(memberToken),
+        p_idempotency_key_hash: planAccountRecoveryKey(planId, uid),
+        p_request_hash: planRequestDigest({
+          operation: PLAN_ACCOUNT_RECOVERY_OPERATION,
+          planId,
+          userId: uid,
+        }),
         p_recovered_at: recoveredAt.toISOString(),
       },
     );
     if (error && isMissingDatabaseFunction(error)) {
-      // The current Plan schema may be present while the recovery FUNCTION is
-      // unavailable (0106 precedent). There is no safe two-step equivalent of
-      // the atomic capability rotation, so recovery honestly has no fallback.
       console.warn("[plans] membership recovery RPC missing; recovery unavailable");
       return { ok: false, error: "not_found" };
     }

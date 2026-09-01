@@ -41,6 +41,7 @@ vi.mock("@/lib/planSessionCapability", () => ({
 }));
 
 import ActivePlanMarker from "@/components/plan/ActivePlanMarker";
+import { setProviderIdentity } from "@/lib/authProviderRevision";
 
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
@@ -67,6 +68,7 @@ beforeEach(() => {
 
 afterEach(async () => {
   if (!rootUnmounted) await act(async () => root.unmount());
+  setProviderIdentity("supabase", null);
   container.remove();
   vi.clearAllMocks();
 });
@@ -87,8 +89,39 @@ describe("active Plan account claim", () => {
         accessToken: "account-token",
       },
       "/api/plans/aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa/session",
-      { method: "PUT" },
+      { method: "PUT", signal: expect.any(AbortSignal) },
     );
+  });
+
+  it("aborts an in-flight claim when the provider identity changes", async () => {
+    setProviderIdentity("supabase", "account-a");
+    let actionSignal: AbortSignal | undefined;
+    state.accountBoundFetch.mockImplementationOnce((_auth, _input, init) => {
+      actionSignal = init?.signal ?? undefined;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener(
+          "abort",
+          () => reject(new DOMException("The operation was aborted.", "AbortError")),
+          { once: true },
+        );
+      });
+    });
+
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "12121212-1212-4121-8121-121212121212",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(actionSignal).toBeInstanceOf(AbortSignal);
+    setProviderIdentity("supabase", "account-b");
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(actionSignal?.aborted).toBe(true);
   });
 
   it("does not claim while signed out", async () => {

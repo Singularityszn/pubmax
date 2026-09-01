@@ -4,16 +4,23 @@ import { isLimited } from "@/lib/pintDrops";
 import { publicApiError } from "@/lib/apiError";
 import { verifyCallerAuth } from "@/lib/authServer";
 import { isPlanId } from "@/lib/plan";
-import { claimPlanMembership, recoverPlanMembership } from "@/lib/planCrewIdentity";
+import {
+  claimPlanMembership,
+  planAccountRecoveryToken,
+  recoverPlanMembership,
+} from "@/lib/planCrewIdentity";
 import {
   attachPlanMemberSession,
   planMemberCapability,
   planMemberCookieCapability,
 } from "@/lib/planMemberCapability";
-import { planIdempotencyDigest, planMemberIdentityResult } from "@/lib/planStore";
+import { planMemberIdentityResult } from "@/lib/planStore";
 import { PLAN_IDEMPOTENCY_ERROR, planMutationIdempotencyKey } from "@/lib/planMutationHttp";
 
 type Context = { params: Promise<{ id: string }> };
+
+const PLAN_ACCOUNT_RECOVERY_PER_PLAN_LIMIT = 20;
+const PLAN_ACCOUNT_RECOVERY_PER_IP_LIMIT = 200;
 
 export async function GET(request: Request, context: Context): Promise<Response> {
   const { id } = await context.params;
@@ -80,14 +87,24 @@ export async function PATCH(request: Request, context: Context): Promise<Respons
       401,
     );
   }
-  const limiterKey = `plan-account-recovery:${hashIp(`${clientIp(request)}:${auth.identity.id}`)}`;
-  if (await isLimited(limiterKey, limiterKey, 20)) {
+  const requestIp = clientIp(request);
+  const globalLimiterKey = `plan-account-recovery:ip:${hashIp(requestIp)}`;
+  const planLimiterKey = `plan-account-recovery:plan:${hashIp(`${requestIp}:${auth.identity.id}:${id}`)}`;
+  if (
+    await isLimited(
+      globalLimiterKey,
+      globalLimiterKey,
+      PLAN_ACCOUNT_RECOVERY_PER_IP_LIMIT,
+    ) ||
+    await isLimited(
+      planLimiterKey,
+      planLimiterKey,
+      PLAN_ACCOUNT_RECOVERY_PER_PLAN_LIMIT,
+    )
+  ) {
     return publicApiError("Too many requests, slow down.", "RATE_LIMITED", 429, { retryable: true });
   }
-  const memberToken = planIdempotencyDigest(
-    `plan-account-session-recovery:${id}:${auth.identity.id}`,
-    idempotencyKey,
-  );
+  const memberToken = planAccountRecoveryToken(id, auth.identity.id);
   const recovered = await recoverPlanMembership(
     id,
     auth.identity.id,

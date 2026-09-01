@@ -1261,9 +1261,9 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   (`planMemberCookieCapability`), so a bearer alone cannot claim a seat it
   never held, and a cookie alone cannot bind a seat to nobody.
 - **Rate limit (boundary):** the claim spends a per-IP `isLimited` budget; the
-  recovery spends a per-IP-and-account budget and requires an idempotency key,
-  which also derives the rotated member token so a replay answers the same
-  capability.
+  recovery spends a global per-IP ceiling plus a per-IP/account/Plan budget and
+  requires an idempotency key. Server-side account/Plan idempotency derives the
+  stable rotated member token, so concurrent recovery requests converge.
 - **Write:** one RPC each (`claim_plan_membership`,
   `recover_plan_account_membership_atomic`), so a partial claim can never leave
   a Plan attached to two accounts and a recovery can never mint a second seat.
