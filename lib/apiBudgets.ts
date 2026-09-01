@@ -10,7 +10,7 @@
 // network. docs/PERFORMANCE_BUDGETS.md owns the rule for changing a number, and
 // it is the same rule: down is free, up is a decision.
 
-import budgetsJson from "@/perf/api-budgets.json";
+import budgetsJson from "../perf/api-budgets.json" with { type: "json" };
 
 /** The two percentiles a read is judged on. */
 export const API_BUDGET_METRICS = ["p50Ms", "p95Ms"] as const;

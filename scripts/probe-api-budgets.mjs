@@ -13,14 +13,7 @@
  * unit-tested without a network. This file only measures.
  */
 
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import process from "node:process";
-
-const ROOT = process.cwd();
-const budgets = JSON.parse(
-  readFileSync(join(ROOT, "perf/api-budgets.json"), "utf8"),
-);
 
 function arg(name) {
   const index = process.argv.indexOf(name);
@@ -33,12 +26,21 @@ if (!baseUrl) {
   process.exit(2);
 }
 
-/** Nearest-rank, the same rule lib/apiBudgets.ts states. */
-function percentile(samples, fraction) {
-  if (samples.length === 0) return Number.NaN;
-  const sorted = [...samples].sort((a, b) => a - b);
-  const rank = Math.ceil(fraction * sorted.length);
-  return sorted[Math.min(Math.max(rank, 1), sorted.length) - 1];
+const {
+  API_BUDGETS: budgets,
+  findApiBudgetBreaches,
+  formatApiBreachTable,
+  formatApiMeasurementTable,
+  percentile,
+} = await import("../lib/apiBudgets.ts");
+
+const configuredTimeoutMs = Number(process.env.PUBMAX_API_PROBE_TIMEOUT_MS);
+const probeTimeoutMs = Number.isFinite(configuredTimeoutMs) && configuredTimeoutMs > 0
+  ? configuredTimeoutMs
+  : 10_000;
+const requestHeaders = { accept: "application/json" };
+if (process.env.VERCEL_AUTOMATION_BYPASS_SECRET) {
+  requestHeaders["x-vercel-protection-bypass"] = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
 }
 
 /**
@@ -47,18 +49,29 @@ function percentile(samples, fraction) {
  */
 async function sample(url) {
   const started = performance.now();
-  const response = await fetch(url, {
-    headers: { accept: "application/json" },
-    cache: "no-store",
-  });
-  const reader = response.body?.getReader();
-  if (reader) {
-    await reader.read();
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), probeTimeoutMs);
+  try {
+    const response = await fetch(url, {
+      headers: requestHeaders,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error("response body unavailable");
+    const firstRead = await reader.read();
+    if (firstRead.done) throw new Error("response body was empty");
+    const measuredAt = performance.now();
     await reader.cancel().catch(() => {});
-  } else {
-    await response.text().catch(() => {});
+    return { ms: measuredAt - started, status: response.status };
+  } catch (error) {
+    if (controller.signal.aborted) {
+      throw new Error(`timed out after ${probeTimeoutMs}ms`);
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
   }
-  return { ms: performance.now() - started, status: response.status };
 }
 
 async function main() {
@@ -69,20 +82,25 @@ async function main() {
   for (const route of budgets.routes) {
     const url = new URL(route.path, baseUrl).toString();
     const times = [];
-    let lastStatus = 0;
+    let firstNonSuccessStatus = null;
+    let failure = null;
     for (let run = 0; run < warmupSamples + samples; run += 1) {
       try {
         const result = await sample(url);
-        lastStatus = result.status;
+        if (result.status < 200 || result.status >= 300) {
+          firstNonSuccessStatus ??= result.status;
+        }
         if (run >= warmupSamples) times.push(result.ms);
       } catch (error) {
-        unreachable.push(`${route.path}: ${String(error)}`);
+        failure = error instanceof Error ? error.message : String(error);
         break;
       }
     }
-    // A probe that never got a 2xx measured an error page, not the read.
-    if (times.length === 0 || lastStatus >= 400) {
-      unreachable.push(`${route.path}: HTTP ${lastStatus || "no response"}`);
+    const reasons = [];
+    if (firstNonSuccessStatus !== null) reasons.push(`HTTP ${firstNonSuccessStatus}`);
+    if (failure) reasons.push(failure);
+    if (times.length === 0 || reasons.length > 0) {
+      unreachable.push(`${route.path}: ${reasons.join("; ") || "no response"}`);
       continue;
     }
     measured.set(route.path, {
@@ -90,9 +108,6 @@ async function main() {
       p95Ms: Math.round(percentile(times, 0.95)),
     });
   }
-
-  const { findApiBudgetBreaches, formatApiBreachTable, formatApiMeasurementTable } =
-    await import("../lib/apiBudgets.ts");
 
   console.log(`[api-budget] ${baseUrl}`);
   console.log(formatApiMeasurementTable(budgets.routes, measured));

@@ -94,6 +94,16 @@ describe("findBudgetBreaches", () => {
     ]);
   });
 
+  it("fails a metric that was not measured", () => {
+    const breaches = findBudgetBreaches(
+      [route()],
+      new Map([["/x", measurement({ lcpMs: Number.NaN })]]),
+    );
+
+    expect(breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+    expect(Number.isNaN(breaches[0].measured)).toBe(true);
+  });
+
   it("fails a route nobody measured rather than reading silence as a pass", () => {
     const breaches = findBudgetBreaches([route()], new Map());
     expect(breaches.map((breach) => breach.metric)).toEqual([...BUDGET_METRICS]);

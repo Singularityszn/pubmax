@@ -1,0 +1,35 @@
+name: API performance
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  api-latency-budget:
+    name: API latency budget
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      (github.event.deployment_status.environment == 'Preview' ||
+      github.event.deployment_status.environment == 'preview') &&
+      github.event.deployment_status.target_url != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout deployed commit
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.deployment.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Probe preview API budgets
+        env:
+          PUBMAX_PROBE_BASE_URL: ${{ github.event.deployment_status.target_url }}
+          VERCEL_AUTOMATION_BYPASS_SECRET: ${{ secrets.VERCEL_AUTOMATION_BYPASS_SECRET }}
+        run: node scripts/probe-api-budgets.mjs

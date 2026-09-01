@@ -53,13 +53,26 @@ function json(body: unknown, status = 200): Response {
 }
 
 export async function GET(request: Request): Promise<Response> {
-  const params = new URL(request.url).searchParams;
+  const requestUrl = new URL(request.url);
+  const params = requestUrl.searchParams;
   const lat = Number.parseFloat(params.get("lat") ?? "");
   const lng = Number.parseFloat(params.get("lng") ?? "");
   if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
     return publicApiError("Add valid lat and lng coordinates.", "INVALID_REQUEST", 400, { compatibilityFields: { disruption: null } });
   }
   const viewerPoint = coarsenViewerPoint({ lat, lng });
+  const canonicalUrl = new URL(requestUrl);
+  canonicalUrl.searchParams.set("lat", String(viewerPoint.lat));
+  canonicalUrl.searchParams.set("lng", String(viewerPoint.lng));
+  if (canonicalUrl.href !== requestUrl.href) {
+    return new Response(null, {
+      status: 307,
+      headers: {
+        location: canonicalUrl.href,
+        "cache-control": "no-store",
+      },
+    });
+  }
   if (!pointInCityBounds(viewerPoint.lat, viewerPoint.lng, CITIES.london)) {
     // The patch relevance table is London-only; anywhere else is honestly silent.
     return json({ disruption: null, generatedAt: new Date().toISOString() });
