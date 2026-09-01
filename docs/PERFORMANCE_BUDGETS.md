@@ -54,6 +54,40 @@ reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
 (`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
 identifier.
 
+## What each route actually parses
+
+Swept on 2026-09-01 against production at 390x844, by fetching every same-origin
+script the route loaded and reading the four heavy libraries out of the text.
+Decoded KB, so parse cost rather than transfer:
+
+| route | total | MapLibre | Convex | ElevenLabs | Supabase |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 1144 | 0 | 0 | 0 | 344 |
+| `/pal` | 1746 | 0 | 0 | 603 | 363 |
+| `/map` | 2599 | 1024 | 0 | 0 | 503 |
+| `/today` | 1180 | 0 | 0 | 0 | 341 |
+| `/tonight` | 1175 | 0 | 0 | 0 | 341 |
+| `/out` | 1129 | 0 | 0 | 0 | 341 |
+| `/about` | 1082 | 0 | 0 | 0 | 341 |
+| `/pubs` | 1093 | 0 | 0 | 0 | 341 |
+
+Three things this settles.
+
+MapLibre is on `/map` and nowhere else, and Supabase is on every route as the
+same ~341 KB lazily fetched after paint by `ensureSupabaseBrowser`. Entry-point
+isolation is already correct for both.
+
+`/about` and `/pubs` were carrying 1900 and 1950 KB ceilings against 1081 and
+1092 KB measured. There was no accidental import to split: no MapLibre, no
+Convex, no voice SDK, no image cropper in any of their 24 and 25 chunks. They
+were 800 KB of unbanked slack, which is the shape #1296 named, so both ceilings
+ratchet to 1200.
+
+Their REQUEST ceilings are left alone. A seed run counts requests against its
+own interactive moment on a different box and network: this sweep counted 62 on
+`/` where CI is green at 50, so a request figure measured here is not
+comparable. Decoded bytes are, which is why only those ratcheted.
+
 ## How a run is taken
 
 Against the production build, at 390x844, with a 4x CPU throttle and every

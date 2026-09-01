@@ -77,18 +77,18 @@
     {
       "path": "/about",
       "readySelector": "main",
-      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on.",
+      "why": "The page that states what the figures mean and where they come from, linked from every trust claim on the site. It composes nothing per request, so it is the floor a server-rendered page here should sit on. The 1900 KB ceiling was stale by 800 KB: the 2026-09-01 sweep measured 1081 KB decoded over 24 chunks with no MapLibre, no Convex, no voice SDK and no image cropper in any of them, so there was no accidental import to split, only slack to bank. The REQUEST ceiling is left where it is: a seed run counts requests against its own interactive moment on a different box and network, and this one counted 62 on / where CI is green at 50, so a request figure measured here is not comparable to the sweep's. Decoded bytes are.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1900,
+      "jsDecodedKB": 1200,
       "requests": 70,
       "lcpMs": 2500
     },
     {
       "path": "/pubs",
       "readySelector": ".pubsPage",
-      "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed.",
+      "why": "The one launch surface whose server render was not a shell: it re-parsed the 6.7 MB price dataset per request until the shared priced-venue index was reused. The ceiling is here so that read cannot come back unnoticed. Its JS ceiling was stale by 850 KB: the 2026-09-01 sweep measured 1092 KB decoded over 25 chunks, the same shared baseline /about carries, with none of the heavy libraries in any of them. Its request ceiling is left alone for the reason /about's is.",
       "serverRenderMs": 150,
-      "jsDecodedKB": 1950,
+      "jsDecodedKB": 1200,
       "requests": 75,
       "lcpMs": 2500
     }
