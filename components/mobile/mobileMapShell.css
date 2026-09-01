@@ -141,6 +141,24 @@
     white-space: normal;
   }
 
+  /* COLLAPSED, the credit is one control and it takes this lane's own shape:
+     a 44px circle on the raised surface, exactly like the compass below it.
+     MapLibre ships it as a 24x20 white sliver, so a button raised to the tap
+     floor overflowed its own container and read as a white blob. */
+  .appShell .mapStage
+    .maplibregl-ctrl-attrib.maplibregl-compact:not(.maplibregl-compact-show) {
+    display: grid;
+    place-items: center;
+    width: 44px;
+    height: 44px;
+    min-height: 44px;
+    padding: 0;
+    border: 1px solid var(--ink-soft);
+    border-radius: 50%;
+    background: var(--color-surface-raised);
+    box-shadow: var(--map-overlay-shadow-tight);
+  }
+
   .appShell .mapStage .maplibregl-ctrl-attrib-button {
     display: inline-flex;
     align-items: center;
@@ -150,6 +168,15 @@
     min-width: 44px;
     min-height: 44px;
     box-sizing: border-box;
+    /* The glyph is a 24px background SVG and MapLibre never constrains its
+       repeat, because its own button is 24px too. Raising the button to the
+       44px tap floor therefore TILED it 2 x 2, and four stacked info glyphs on
+       a white blob read as a rendering defect rather than a control. */
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 24px 24px;
+    background-color: transparent;
+    border-radius: 50%;
   }
 
   /* Portal sheets sit outside .appShell. Hide map-owned controls while one is
