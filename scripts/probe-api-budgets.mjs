@@ -54,7 +54,7 @@ function assertJsonContentType(response) {
   }
 }
 
-async function validateJsonBody(response) {
+async function validateJsonBody(response, route) {
   let body;
   try {
     body = await response.json();
@@ -64,13 +64,21 @@ async function validateJsonBody(response) {
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
     throw new Error("response JSON shape was invalid");
   }
+  const missingKeys = route.requiredJsonKeys.filter(
+    (key) => !Object.prototype.hasOwnProperty.call(body, key),
+  );
+  if (missingKeys.length > 0) {
+    throw new Error(
+      `response JSON shape missing required keys: ${missingKeys.join(", ")}`,
+    );
+  }
 }
 
 /**
  * Time to the first byte of the body. The response is drained afterwards:
  * a body nobody reads is a request that never finishes (lib/responseBody.ts).
  */
-async function sample(url) {
+async function sample(url, route) {
   const started = performance.now();
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), probeTimeoutMs);
@@ -92,7 +100,7 @@ async function sample(url) {
       const firstRead = await reader.read();
       if (firstRead.done) throw new Error("response body was empty");
       const measuredAt = performance.now();
-      await validateJsonBody(validationResponse);
+      await validateJsonBody(validationResponse, route);
       return { ms: measuredAt - started, status: response.status };
     } finally {
       await reader.cancel().catch(() => {});
@@ -119,7 +127,7 @@ async function main() {
     let failure = null;
     for (let run = 0; run < warmupSamples + samples; run += 1) {
       try {
-        const result = await sample(url);
+        const result = await sample(url, route);
         if (result.status < 200 || result.status >= 300) {
           firstNonSuccessStatus ??= result.status;
         }

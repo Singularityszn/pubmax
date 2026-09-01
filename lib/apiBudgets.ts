@@ -15,6 +15,7 @@ export const API_BUDGET_METRIC_LABELS = runtime.API_BUDGET_METRIC_LABELS as Reco
 export type ApiRouteBudget = {
   path: string;
   why: string;
+  requiredJsonKeys: readonly string[];
   seedP50Ms: number;
   seedP95Ms: number;
 } & Record<ApiBudgetMetric, number>;

@@ -36,12 +36,12 @@ jobs:
           PUBMAX_PROBE_BASE_URL: ${{ github.event.deployment_status.target_url }}
         run: |
           node --input-type=module <<'NODE'
+          import { PRODUCTION_DEPLOYMENT_HOSTS } from "./lib/productionDeploymentHosts.mjs";
+
           const target = process.env.PUBMAX_PROBE_BASE_URL;
           const url = new URL(target);
-          const projectHost = url.hostname === "pubmaxxing.vercel.app" ||
-            (url.hostname.startsWith("pubmaxxing-") && url.hostname.endsWith(".vercel.app"));
-          const siteHost = url.hostname === "pubmaxxing.com" || url.hostname === "www.pubmaxxing.com";
-          if (url.protocol !== "https:" || url.username || url.password || url.port || (!projectHost && !siteHost)) {
+          const allowedHosts = new Set(Object.values(PRODUCTION_DEPLOYMENT_HOSTS));
+          if (url.protocol !== "https:" || url.username || url.password || url.port || !allowedHosts.has(url.hostname)) {
             throw new Error(`Unallowlisted deployment target: ${target}`);
           }
           NODE

@@ -35,9 +35,33 @@ async function stopServer(server: Server): Promise<void> {
   });
 }
 
-function writeJson(response: ServerResponse, status = 200): void {
+function validBodyForPath(pathname: string): Record<string, unknown> {
+  switch (pathname) {
+    case "/api/whats-on":
+      return { rows: [], servedAt: "2026-09-01T00:00:00.000Z", sourceFreshnessKind: "bundled" };
+    case "/api/out":
+      return { status: "ready", events: [] };
+    case "/api/night-areas":
+      return { cityId: "london", areas: [] };
+    case "/api/pint-drops":
+      return { drops: [] };
+    case "/api/map-search":
+      return { intent: { primary: "venue" }, nationalPubs: [], nationalStatus: "ready" };
+    case "/api/founding-members":
+      return { members: [], cap: 100 };
+    default:
+      return {};
+  }
+}
+
+function writeJson(
+  request: IncomingMessage,
+  response: ServerResponse,
+  status = 200,
+  body = validBodyForPath(new URL(request.url ?? "/", "http://localhost").pathname),
+): void {
   response.writeHead(status, { "content-type": "application/json" });
-  response.end("{}");
+  response.end(JSON.stringify(body));
 }
 
 function runProbe(
@@ -71,7 +95,7 @@ function runProbe(
 
 describe("probe-api-budgets CLI", () => {
   it("runs the documented Node command against a deployed-style target", async () => {
-    const { server, baseUrl } = await startServer((_request, response) => writeJson(response));
+    const { server, baseUrl } = await startServer((request, response) => writeJson(request, response));
     try {
       const result = await runProbe(baseUrl);
 
@@ -84,8 +108,8 @@ describe("probe-api-budgets CLI", () => {
 
   it("fails when any sample returns an error status", async () => {
     let first = true;
-    const { server, baseUrl } = await startServer((_request, response) => {
-      writeJson(response, first ? 500 : 200);
+    const { server, baseUrl } = await startServer((request, response) => {
+      writeJson(request, response, first ? 500 : 200);
       first = false;
     });
     try {
@@ -154,7 +178,7 @@ describe("probe-api-budgets CLI", () => {
         request.on("aborted", () => response.destroy());
         return;
       }
-      writeJson(response);
+      writeJson(request, response);
     });
     try {
       const result = await runProbe(
@@ -171,6 +195,23 @@ describe("probe-api-budgets CLI", () => {
     }
   }, 5_000);
 
+  it("fails a well-formed JSON response with the wrong route shape", async () => {
+    const whatsOnBody = validBodyForPath("/api/whats-on");
+    const { server, baseUrl } = await startServer((request, response) => {
+      writeJson(request, response, 200, whatsOnBody);
+    });
+    try {
+      const result = await runProbe(baseUrl);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain(
+        "/api/out: response JSON shape missing required keys: status, events",
+      );
+    } finally {
+      await stopServer(server);
+    }
+  }, 20_000);
+
   it("reports time to first byte before slow stream cancellation", async () => {
     const preload = encodeURIComponent(`
       globalThis.fetch = async () => ({
@@ -184,10 +225,28 @@ describe("probe-api-budgets CLI", () => {
             };
           },
         },
-        clone() { return { json: async () => ({}) }; },
+        clone() {
+          return {
+            json: async () => ({
+              rows: [],
+              servedAt: "2026-09-01T00:00:00.000Z",
+              sourceFreshnessKind: "bundled",
+              status: "ready",
+              events: [],
+              cityId: "london",
+              areas: [],
+              drops: [],
+              intent: { primary: "venue" },
+              nationalPubs: [],
+              nationalStatus: "ready",
+              members: [],
+              cap: 100,
+            }),
+          };
+        },
       });
     `);
-    const { server, baseUrl } = await startServer((_request, response) => writeJson(response));
+    const { server, baseUrl } = await startServer((request, response) => writeJson(request, response));
     try {
       const result = await runProbe(
         baseUrl,
