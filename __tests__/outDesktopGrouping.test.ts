@@ -1,5 +1,6 @@
 import {
   OUT_LISTING_PUB_ABSENT_LINE,
+  OUT_LISTING_VENUE_BADGE_LABEL,
   OUT_OPEN_PLANS_MIN_SENDABLE,
   groupOutListings,
   outListingGroupKey,
@@ -180,7 +181,7 @@ describe("out desktop grouping", () => {
     expect(html).not.toContain(OUT_LISTING_PUB_ABSENT_LINE);
   });
 
-  it("labels a matched event place as a PUBMAXX venue", () => {
+  it("labels a matched event place without naming a kind", () => {
     const html = renderToStaticMarkup(
       createElement(OutListingPubPair, {
         row: row({
@@ -193,8 +194,13 @@ describe("out desktop grouping", () => {
       }),
     );
 
-    expect(html).toContain(">PUBMAXX venue<");
+    // Read from the constant, not a literal: the label and the assertion drifted
+    // apart once already. An arena is not a pub and not a venue of ours in the
+    // sense the old wording implied, so the badge names the relationship rather
+    // than the kind (lib/outDesktopGrouping.ts).
+    expect(html).toContain(`>${OUT_LISTING_VENUE_BADGE_LABEL}<`);
     expect(html).not.toContain(">PUBMAXX pub<");
+    expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b|\bvenue\b/i);
   });
 
   it("keeps desktop listing columns balanced inside a centred surface", () => {
