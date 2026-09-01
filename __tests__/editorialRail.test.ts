@@ -10,6 +10,7 @@ import {
   EDITORIAL_DEGRADED_LINE,
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_RAIL_TITLE,
+  EDITORIAL_STALE_LINE,
 } from "@/lib/editorial";
 import type { EditorialSnapshot } from "@/lib/editorial";
 
@@ -77,7 +78,10 @@ describe("editorial rail", () => {
         now: NOW,
       }),
     );
-    expect(markup).toContain("Picks need a fresh check.");
+    expect(markup).toContain(EDITORIAL_STALE_LINE);
+    // Reader-facing, never our maintenance: it says what they get without
+    // claiming the week is empty, which a withheld snapshot cannot know.
+    expect(EDITORIAL_STALE_LINE).not.toMatch(/check|refresh|stale|snapshot/i);
     expect(markup).not.toContain("Point Taproom opens");
   });
 

@@ -321,7 +321,7 @@ describe("editorial overlay: degraded reads are not empty", () => {
     });
     expect(editorialSnapshotIsStale(fresh, now)).toBe(false);
     expect(editorialSnapshotIsStale(old, now)).toBe(true);
-    expect(EDITORIAL_STALE_LINE).toBe("Picks need a fresh check.");
+    expect(EDITORIAL_STALE_LINE).toBe("No fresh picks to show just now.");
   });
 
   it("a shipped overlay file never stores a body or extra keys", () => {
