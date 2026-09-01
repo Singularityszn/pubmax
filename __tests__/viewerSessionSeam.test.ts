@@ -53,29 +53,56 @@ function sourceFiles(dir: string): string[] {
  * ANSWER rather than a guess off a null user, and the dialog only mounts once
  * a reader has asked to contribute.
  */
-const AMBIENT_DOOR_EXCEPTIONS = new Set([
-  "components/identity/ContributionGateDialog.tsx",
-]);
+const AMBIENT_DOOR_EXCEPTIONS: Readonly<Record<string, string>> = {
+  "components/identity/ContributionGateDialog.tsx":
+    "the account-bound contribution action supplies its server decision",
+  "components/map/VenueWeatherRecommendations.tsx":
+    "the contribution button delegates its decision to the account-bound gate",
+  "components/visits/VisitReportPanel.tsx":
+    "the contribution button delegates its decision to the account-bound gate",
+};
 
-/** Any read that can tell "not yet" apart from "nobody". */
-const TRI_STATE_AUTHORITIES = [
-  "useViewerSession",
-  "identityResolved",
-  "providerAuthState",
-  "supabaseAuthState",
-];
+function withoutComments(source: string): string {
+  return source
+    .replace(/\/\*[\s\S]*?\*\//g, "")
+    .replace(/(^|\r?\n)\s*\/\/[^\r\n]*/g, "$1");
+}
+
+function isAuthInfrastructure(relative: string): boolean {
+  return (
+    relative.startsWith("components/auth/") ||
+    relative.startsWith("app/login/") ||
+    relative.startsWith("app/signin/")
+  );
+}
+
+function hasAmbientDoorSignal(source: string): boolean {
+  return (
+    source.includes('from "@/components/auth/SignInButton"') ||
+    source.includes("from '@/components/auth/SignInButton'") ||
+    /<(?:Link|a)\b[^>]*\bhref\s*=\s*[^>]*\/login/.test(source) ||
+    /\bSign in to\b/.test(source)
+  );
+}
+
+function hasViewerAuthRead(source: string): boolean {
+  return (
+    source.includes("useAuth(") ||
+    source.includes("useViewerHandle(") ||
+    source.includes("identityResolved")
+  );
+}
 
 describe("every ambient sign-in door waits for the live session", () => {
-  it("routes a SignInButton beside an auth read through a tri-state answer", () => {
+  it("routes every identity-aware door through the session seam", () => {
     const offenders: string[] = [];
     for (const dir of ["app", "components"]) {
       for (const file of sourceFiles(dir)) {
         const relative = file.slice(REPO_ROOT.length + 1);
-        if (AMBIENT_DOOR_EXCEPTIONS.has(relative)) continue;
-        const source = readFileSync(file, "utf8");
-        if (!source.includes('from "@/components/auth/SignInButton"')) continue;
-        if (!source.includes("useAuth(")) continue;
-        if (TRI_STATE_AUTHORITIES.some((name) => source.includes(name))) continue;
+        if (isAuthInfrastructure(relative) || relative in AMBIENT_DOOR_EXCEPTIONS) continue;
+        const source = withoutComments(readFileSync(file, "utf8"));
+        if (!hasAmbientDoorSignal(source) || !hasViewerAuthRead(source)) continue;
+        if (source.includes("useViewerSession(")) continue;
         offenders.push(relative);
       }
     }
@@ -84,6 +111,10 @@ describe("every ambient sign-in door waits for the live session", () => {
       offenders,
       "a null user is not sign-out: read components/auth/useViewerSession.ts",
     ).toEqual([]);
+
+    expect(
+      Object.values(AMBIENT_DOOR_EXCEPTIONS).every((reason) => reason.trim()),
+    ).toBe(true);
   });
 
   it("keeps the seam itself free of a device-cache fallback", () => {

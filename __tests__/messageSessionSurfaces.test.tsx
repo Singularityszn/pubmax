@@ -21,7 +21,10 @@ const viewerState = vi.hoisted(() => ({
 }));
 const fetchState = vi.hoisted(() => ({
   pending: false,
-  resolve: null as ((response: Response) => void) | null,
+  requests: [] as Array<{
+    url: string;
+    resolve: (response: Response) => void;
+  }>,
   response: null as (() => Response) | null,
 }));
 
@@ -39,10 +42,10 @@ vi.mock("next/link", () => ({
     createElement("a", { href, ...props }, children),
 }));
 vi.mock("@/lib/authedFetch", () => ({
-  authedActionFetch: () => {
+  authedActionFetch: (input: string) => {
     if (fetchState.pending) {
       return new Promise<Response>((resolve) => {
-        fetchState.resolve = resolve;
+        fetchState.requests.push({ url: String(input), resolve });
       });
     }
     return Promise.resolve(
@@ -96,13 +99,24 @@ async function render(element: ReactElement): Promise<void> {
   });
 }
 
-async function releaseFetch(response?: Response): Promise<void> {
-  const resolve = fetchState.resolve;
-  fetchState.pending = false;
-  fetchState.resolve = null;
-  if (!resolve) return;
+async function releaseFetch(
+  response?: Response,
+  urlPart?: string,
+  latest = false,
+): Promise<void> {
+  const candidates = fetchState.requests
+    .map((request, index) => ({ request, index }))
+    .filter(({ request }) => !urlPart || request.url.includes(urlPart));
+  const candidate = latest
+    ? candidates[candidates.length - 1]
+    : candidates[0];
+  if (!candidate) return;
+  fetchState.requests.splice(candidate.index, 1);
+  if (fetchState.requests.length === 0) fetchState.pending = false;
   await act(async () => {
-    resolve(response ?? Response.json({ conversations: [], messages: [] }));
+    candidate.request.resolve(
+      response ?? Response.json({ conversations: [], messages: [] }),
+    );
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -111,7 +125,7 @@ async function releaseFetch(response?: Response): Promise<void> {
 beforeEach(() => {
   signedOut();
   fetchState.pending = false;
-  fetchState.resolve = null;
+  fetchState.requests = [];
   fetchState.response = null;
   window.matchMedia = (() => ({
     matches: false,
@@ -130,7 +144,7 @@ beforeEach(() => {
 });
 
 afterEach(async () => {
-  await releaseFetch();
+  while (fetchState.requests.length > 0) await releaseFetch();
   await act(async () => root.unmount());
   host.remove();
 });
@@ -214,5 +228,89 @@ describe("message sign-in doors", () => {
     expect(host.textContent).not.toContain("Account A private note");
     expect(host.textContent).toContain("With you in a sec.");
     await releaseFetch(Response.json({ messages: [] }));
+  });
+
+  it("keeps the newest conversation read after A to B to A responses race", async () => {
+    signedIn("account-a", "alice", 1);
+    fetchState.response = () =>
+      Response.json({
+        messages: [
+          {
+            id: "message-initial-a",
+            conversationId: "conversation-a",
+            senderHandle: "bridget",
+            body: "Initial A",
+            createdAt: "2026-09-01T10:00:00.000Z",
+            read: false,
+            flagged: false,
+          },
+        ],
+      });
+    await render(createElement(MessageThread, { conversationId: "conversation-a" }));
+    expect(host.textContent).toContain("Initial A");
+
+    fetchState.pending = true;
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+      await Promise.resolve();
+    });
+    await render(createElement(MessageThread, { conversationId: "conversation-b" }));
+    await render(createElement(MessageThread, { conversationId: "conversation-a" }));
+
+    await releaseFetch(
+      Response.json({
+        messages: [
+          {
+            id: "message-new-a",
+            conversationId: "conversation-a",
+            senderHandle: "bridget",
+            body: "Newest A",
+            createdAt: "2026-09-01T10:02:00.000Z",
+            read: false,
+            flagged: false,
+          },
+        ],
+      }),
+      "conversation-a",
+      true,
+    );
+    expect(host.textContent).toContain("Newest A");
+
+    await releaseFetch(
+      Response.json({
+        messages: [
+          {
+            id: "message-b",
+            conversationId: "conversation-b",
+            senderHandle: "charlie",
+            body: "B content",
+            createdAt: "2026-09-01T10:01:00.000Z",
+            read: false,
+            flagged: false,
+          },
+        ],
+      }),
+      "conversation-b",
+    );
+    await releaseFetch(
+      Response.json({
+        messages: [
+          {
+            id: "message-old-a",
+            conversationId: "conversation-a",
+            senderHandle: "bridget",
+            body: "Old A",
+            createdAt: "2026-09-01T09:59:00.000Z",
+            read: false,
+            flagged: false,
+          },
+        ],
+      }),
+      "conversation-a",
+    );
+
+    expect(host.textContent).toContain("Newest A");
+    expect(host.textContent).not.toContain("Old A");
+    expect(host.textContent).not.toContain("B content");
   });
 });

@@ -133,12 +133,27 @@ type ThreadReadKey = {
   accountRevision: number;
 };
 
+type ThreadReadRequest = ThreadReadKey & {
+  generation: number;
+};
+
 function sameThreadReadKey(
   key: ThreadReadKey | null,
   conversationId: string,
   accountRevision: number,
 ): boolean {
   return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
+}
+
+function sameThreadReadRequest(
+  left: ThreadReadRequest | null,
+  right: ThreadReadRequest,
+): boolean {
+  return (
+    left?.conversationId === right.conversationId &&
+    left.accountRevision === right.accountRevision &&
+    left.generation === right.generation
+  );
 }
 
 /** What is riding on the NEXT message. At most one, by design. */
@@ -173,6 +188,15 @@ export default function MessageThread({
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
   const viewRevisionRef = useRef<ThreadReadKey | null>(null);
+  const activeReadRef = useRef<ThreadReadRequest | null>(null);
+  const requestGenerationRef = useRef(0);
+  const conversationIdRef = useRef(conversationId);
+  if (conversationIdRef.current !== conversationId) {
+    activeReadRef.current = null;
+    loadedForRef.current = null;
+    viewRevisionRef.current = null;
+    conversationIdRef.current = conversationId;
+  }
   const accountRevisionRef = useRef(accountRevision);
   accountRevisionRef.current = accountRevision;
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
@@ -222,7 +246,17 @@ export default function MessageThread({
       const requestRevision = accountRevision;
       if (requestRevision !== accountRevisionRef.current) return;
       const requestKey: ThreadReadKey = { conversationId, accountRevision: requestRevision };
-      const stillCurrent = () => requestRevision === accountRevisionRef.current;
+      const request: ThreadReadRequest = {
+        ...requestKey,
+        generation: requestGenerationRef.current + 1,
+      };
+      requestGenerationRef.current = request.generation;
+      activeReadRef.current = request;
+      const stillCurrent = () =>
+        !signal?.aborted &&
+        sameThreadReadRequest(activeReadRef.current, request) &&
+        conversationIdRef.current === requestKey.conversationId &&
+        accountRevisionRef.current === requestKey.accountRevision;
       if (!user) {
         if (!stillCurrent()) return;
         loadedForRef.current = null;

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { captureAccountAuth } from "@/lib/accountBoundFetch";
 import { trackEvent } from "@/lib/analytics";
 import {
@@ -42,7 +43,8 @@ export default function VenueOccupancyRow({
   revealRecord = false,
   revealRecordLate = false,
 }: VenueOccupancyRowProps) {
-  const { user, session, identityResolved } = useAuth();
+  const { user, session } = useAuth();
+  const viewerSession = useViewerSession();
   const auth = captureAccountAuth(user?.id ?? null, session);
   const { reading, report, reporting, error } = useVenueOccupancy(venueId, active);
   const [receipt, setReceipt] = useState<{ venueId: string; line: string } | null>(
@@ -135,7 +137,7 @@ export default function VenueOccupancyRow({
             </button>
           ))}
         </div>
-      ) : identityResolved ? (
+      ) : viewerSession.signedOut ? (
         <p className="venueOccupancySignIn">
           <Link href={occupancySignInHref(venueId)}>Sign in to report</Link>
         </p>

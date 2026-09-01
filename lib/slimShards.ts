@@ -421,6 +421,15 @@ export function scheduleSlimShardViewportLoad(
   }
 }
 
+export function scheduleSlimShardRingLoads(
+  loadViewport: () => void,
+  loadNeighbour: () => void,
+  timing: SlimShardViewportTiming = window,
+): void {
+  loadViewport();
+  scheduleSlimShardViewportLoad(loadNeighbour, "refresh", timing);
+}
+
 /**
  * Build a loader bound to one city. Fetches (and offline-mirrors) the manifest
  * once; on a manifest miss (a city that still ships a single slim file) it

@@ -63,7 +63,9 @@ export default function FindYourLot({
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const accountRevisionRef = useRef(accountRevision);
   const viewerRef = useRef("");
-  const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
+  const viewer = viewerSession.signedIn
+    ? normalizeHandle(identityViewerHandle ?? "")
+    : "";
   const viewerKey = `${accountRevision}:${viewer}`;
 
   useEffect(() => {
@@ -297,8 +299,13 @@ export default function FindYourLot({
                   <span className="findLot__self">You</span>
                 ) : !viewer ? (
                   viewerSession.unresolved ? null : (
-                    <Link className="findLot__ghost" href={user ? "/u/you" : "/login"}>
-                      {user ? "Claim a handle to follow" : "Sign in to follow"}
+                    <Link
+                      className="findLot__ghost"
+                      href={viewerSession.signedIn ? "/u/you" : "/login"}
+                    >
+                      {viewerSession.signedIn
+                        ? "Claim a handle to follow"
+                        : "Sign in to follow"}
                     </Link>
                   )
                 ) : (
@@ -339,8 +346,13 @@ export default function FindYourLot({
             {inviteBusy ? "Minting…" : "Get invite link"}
           </button>
         ) : viewerSession.unresolved ? null : (
-          <Link className="findLot__follow" href={user ? "/u/you" : "/login"}>
-            {user ? "Claim a handle to invite" : "Sign in to invite"}
+          <Link
+            className="findLot__follow"
+            href={viewerSession.signedIn ? "/u/you" : "/login"}
+          >
+            {viewerSession.signedIn
+              ? "Claim a handle to invite"
+              : "Sign in to invite"}
           </Link>
         )}
         {shareSelf ? (

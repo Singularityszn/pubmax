@@ -28,6 +28,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   NEIGHBOUR_SHARD_RING,
   openingLoadViewportFor,
+  scheduleSlimShardRingLoads,
   scheduleSlimShardViewportLoad,
   shardsForBounds,
   viewportNamesNowhere,
@@ -134,6 +135,34 @@ describe("the viewport loads on this turn, the ring on idle", () => {
     expect(deferred).toHaveBeenCalledTimes(1);
   });
 
+  it("starts every settled viewport immediately and defers only its neighbour ring", () => {
+    const idle: Array<() => void> = [];
+    const timing = {
+      requestIdleCallback: (callback: IdleRequestCallback) => {
+        idle.push(callback as unknown as () => void);
+        return 0;
+      },
+      setTimeout: vi.fn(),
+    };
+    const targetViewport = vi.fn();
+    const targetNeighbour = vi.fn();
+    const refreshViewport = vi.fn();
+    const refreshNeighbour = vi.fn();
+
+    scheduleSlimShardRingLoads(targetViewport, targetNeighbour, timing);
+    scheduleSlimShardRingLoads(refreshViewport, refreshNeighbour, timing);
+
+    expect(targetViewport).toHaveBeenCalledTimes(1);
+    expect(refreshViewport).toHaveBeenCalledTimes(1);
+    expect(targetNeighbour).not.toHaveBeenCalled();
+    expect(refreshNeighbour).not.toHaveBeenCalled();
+
+    idle.forEach((callback) => callback());
+
+    expect(targetNeighbour).toHaveBeenCalledTimes(1);
+    expect(refreshNeighbour).toHaveBeenCalledTimes(1);
+  });
+
   it("sends the ring through the idle lane, whatever the settle was", () => {
     const source = readFileSync(join(process.cwd(), "components/PubMap.tsx"), "utf8");
     const lane = source.slice(source.indexOf("const scheduleRingLoad = useCallback("));
@@ -141,10 +170,9 @@ describe("the viewport loads on this turn, the ring on idle", () => {
 
     expect(body).toContain("loadRing(VIEWPORT_SHARD_RING)");
     expect(body).toContain("loadRing(NEIGHBOUR_SHARD_RING");
-    // The ring is never scheduled on the caller's turn: "refresh" is the idle
-    // lane, and it is the only kind this call may pass.
-    expect(body).toContain('"refresh",');
-    // What shipped: one immediate request set that already reached the ring.
+    expect(body).toContain("scheduleSlimShardRingLoads(");
+    expect(body).not.toContain('scheduleRingLoad(loader, bounds, "target")');
+    expect(body).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
     expect(body).not.toContain("inBounds(bounds, 1)");
   });
 

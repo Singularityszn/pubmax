@@ -11,6 +11,15 @@ const authState = vi.hoisted(() => ({
   identityResolved: true,
 }));
 
+const viewerState = vi.hoisted(() => ({
+  current: {
+    phase: "signed-out" as "unresolved" | "signed-in" | "signed-out",
+    signedIn: false,
+    signedOut: true,
+    unresolved: false,
+  },
+}));
+
 const occupancyState = vi.hoisted(() => ({
   reading: {
     now: null,
@@ -30,6 +39,10 @@ vi.mock("@/components/auth/AuthProvider", () => ({
   }),
 }));
 
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => viewerState.current,
+}));
+
 vi.mock("@/components/map/useVenueOccupancy", () => ({
   trackOccupancyRead: () => undefined,
   useVenueOccupancy: () => ({
@@ -46,6 +59,12 @@ vi.mock("@/components/map/useVenueOccupancy", () => ({
 function signedIn(): void {
   authState.user = { id: "user-a" };
   authState.session = { access_token: "token", user: { id: "user-a" } };
+  viewerState.current = {
+    phase: "signed-in",
+    signedIn: true,
+    signedOut: false,
+    unresolved: false,
+  };
 }
 
 function render(props: { revealRecord?: boolean; revealRecordLate?: boolean } = {}): string {
@@ -58,6 +77,12 @@ beforeEach(() => {
   authState.user = null;
   authState.session = null;
   authState.identityResolved = true;
+  viewerState.current = {
+    phase: "signed-out",
+    signedIn: false,
+    signedOut: true,
+    unresolved: false,
+  };
   occupancyState.reading = {
     now: null,
     ageMinutes: null,
@@ -192,6 +217,12 @@ describe("occupancy venue surface", () => {
 
   it("names nobody and offers no door until identity resolves", () => {
     authState.identityResolved = false;
+    viewerState.current = {
+      phase: "unresolved",
+      signedIn: false,
+      signedOut: false,
+      unresolved: true,
+    };
 
     const html = render();
     expect(html).toContain("How busy is it right now?");

@@ -19,6 +19,15 @@ const LIST = {
   ],
 };
 
+const viewerState = vi.hoisted(() => ({
+  current: {
+    phase: "signed-in" as "unresolved" | "signed-in" | "signed-out",
+    signedIn: true,
+    signedOut: false,
+    unresolved: false,
+  },
+}));
+
 vi.mock("next/link", () => ({
   default: ({ href, children }: { href: string; children: React.ReactNode }) =>
     createElement("a", { href }, children),
@@ -26,6 +35,10 @@ vi.mock("next/link", () => ({
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ identityResolved: true }),
+}));
+
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => viewerState.current,
 }));
 
 vi.mock("@/components/auth/useViewerHandle", () => ({
@@ -46,6 +59,12 @@ let host: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
+  viewerState.current = {
+    phase: "signed-in",
+    signedIn: true,
+    signedOut: false,
+    unresolved: false,
+  };
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   host = document.createElement("div");
   document.body.appendChild(host);
@@ -97,5 +116,33 @@ describe("CreatorListsLane retry", () => {
     expect(host.textContent).toContain("Sunday roasts");
     expect(host.textContent).not.toContain("We could not reach creator lists.");
     expect(host.textContent).not.toContain("No creators have shared a list yet.");
+  });
+
+  it("keeps follow neutral while the viewer session is unresolved", async () => {
+    viewerState.current = {
+      phase: "unresolved",
+      signedIn: false,
+      signedOut: false,
+      unresolved: true,
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        new Response(JSON.stringify({ status: "ready", lists: [LIST] }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+      ),
+    );
+
+    await act(async () => {
+      root.render(createElement(CreatorListsLane));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).toContain("Sunday roasts");
+    expect(host.textContent).not.toContain("Follow list");
+    expect(host.querySelector('a[href*="/login"]')).toBeNull();
   });
 });

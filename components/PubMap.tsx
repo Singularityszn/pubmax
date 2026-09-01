@@ -287,11 +287,10 @@ import {
   NEIGHBOUR_SHARD_RING,
   openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
-  scheduleSlimShardViewportLoad,
+  scheduleSlimShardRingLoads,
   VIEWPORT_SHARD_RING,
   type MapBounds,
   type SlimShardLoader,
-  type SlimShardViewportLoadKind,
 } from "@/lib/slimShards";
 import { useInitialSlimShardStart } from "@/components/map/useInitialSlimShardStart";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -1850,7 +1849,6 @@ export default function PubMap({
     (
       loader: SlimShardLoader,
       bounds: MapBounds,
-      kind: SlimShardViewportLoadKind,
     ) => {
       const key = JSON.stringify([
         bounds.west,
@@ -1876,21 +1874,18 @@ export default function PubMap({
           .catch(() => undefined)
           .finally(() => onSettled?.());
       };
-      // The map a reader is looking at loads on this turn; the ring around it
-      // waits for idle time. They used to be one request set, so the sides
-      // raced the screen for connections before the map was interactive.
-      if (kind === "target") {
-        targetViewportLoadStartedRef.current = true;
-        loadRing(VIEWPORT_SHARD_RING);
-      }
-      scheduleSlimShardViewportLoad(
+      scheduleSlimShardRingLoads(
+        () => {
+          if (!isCurrentLoader()) return;
+          targetViewportLoadStartedRef.current = true;
+          loadRing(VIEWPORT_SHARD_RING);
+        },
         () =>
           loadRing(NEIGHBOUR_SHARD_RING, () => {
             if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
               ringLoadPendingKeyRef.current = null;
             }
           }),
-        "refresh",
       );
     },
     [mergeSlimVenues, refreshCountCoverage],
@@ -2007,7 +2002,7 @@ export default function PubMap({
                 targetBounds &&
                 !targetViewportLoadStartedRef.current
               ) {
-                scheduleRingLoad(loader, targetBounds, "target");
+                scheduleRingLoad(loader, targetBounds);
               }
             }
             refreshCountCoverage();
@@ -2151,11 +2146,7 @@ export default function PubMap({
       const firstLoad = !initialShardLoadStartedRef.current;
       if (!firstLoad && !initialShardLoadSettledRef.current) return;
       if (!firstLoad) {
-        if (!targetViewportLoadStartedRef.current) {
-          scheduleRingLoad(loader, bounds, "target");
-        } else {
-          scheduleRingLoad(loader, bounds, "refresh");
-        }
+        scheduleRingLoad(loader, bounds);
         return;
       }
       initialShardLoadStartedRef.current = true;
@@ -2178,7 +2169,7 @@ export default function PubMap({
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready" && isCurrentLoader()) {
-              scheduleRingLoad(loader, bounds, "target");
+              scheduleRingLoad(loader, bounds);
             }
           }
           refreshCountCoverage();
