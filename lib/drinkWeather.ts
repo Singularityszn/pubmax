@@ -13,6 +13,8 @@
 //   fireplace   -> no amenity in the vocabulary, so no venue claim is made
 //   any         -> no venue filter; the weather line stands alone
 
+import type { DaySlot } from "@/lib/daySlot";
+
 export type VenueLens = "beer-garden" | "fireplace" | "riverside" | "any";
 
 export type DrinkWeatherRuleId =
@@ -33,6 +35,13 @@ export type DrinkWeatherInput = {
   precipitationProbabilityPct: number;
   /** Calendar month, 1 (January) to 12 (December). */
   month: number;
+  /**
+   * Which part of the London day the verdict is being read in. Optional, and
+   * omitting it keeps the evening wording this table was written in, so
+   * /tonight is unchanged. A caller that shows the line beside a greeting
+   * passes its own band (lib/daySlot.ts) or the two contradict each other.
+   */
+  dayPart?: DaySlot;
 };
 
 export type DrinkWeatherVerdict = {
@@ -48,6 +57,17 @@ export type DrinkWeatherVerdict = {
 type DrinkWeatherRule = DrinkWeatherVerdict & {
   /** Fires when true; rules are evaluated top to bottom, first match wins. */
   when: (input: DrinkWeatherInput) => boolean;
+  /**
+   * Wording for the day bands where `line` would name the wrong one.
+   *
+   * `line` stays the EVENING sentence, because that is where this table was
+   * written and where /tonight reads it, so nothing on that surface moves.
+   * Only the four rules that name a time of day carry entries here: a reader
+   * greeted "Good morning" on /today met "Crisp autumn evening. Amber ale
+   * weather." underneath it, and the card and the greeting were describing two
+   * different parts of the same day.
+   */
+  dayPartLine?: Partial<Record<DaySlot, string>>;
 };
 
 const RAINING_HARD_PCT = 60;
@@ -82,6 +102,10 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     venueLens: "fireplace",
     drinkSuggestion: "a stout or a dark ale",
     line: "Cold one tonight. Stout weather.",
+    dayPartLine: {
+      morning: "Cold one today. Stout weather.",
+      afternoon: "Cold out. Stout weather.",
+    },
   },
   {
     ruleId: "summer-garden",
@@ -116,6 +140,11 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     venueLens: "fireplace",
     drinkSuggestion: "a porter",
     line: "Winter evening, dark early. Porter weather.",
+    dayPartLine: {
+      morning: "Winter day, dark early. Porter weather.",
+      afternoon: "Winter afternoon, dark early. Porter weather.",
+      night: "Winter night. Porter weather.",
+    },
   },
   {
     ruleId: "mild-riverside",
@@ -131,6 +160,11 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     venueLens: "any",
     drinkSuggestion: "an amber ale",
     line: "Crisp autumn evening. Amber ale weather.",
+    dayPartLine: {
+      morning: "Crisp autumn morning. Amber ale weather.",
+      afternoon: "Crisp autumn afternoon. Amber ale weather.",
+      night: "Crisp autumn night. Amber ale weather.",
+    },
   },
   {
     ruleId: "cool-spring",
@@ -138,6 +172,11 @@ export const DRINK_WEATHER_RULES: readonly DrinkWeatherRule[] = [
     venueLens: "any",
     drinkSuggestion: "a best bitter",
     line: "Cool spring evening. Bitter weather.",
+    dayPartLine: {
+      morning: "Cool spring morning. Bitter weather.",
+      afternoon: "Cool spring afternoon. Bitter weather.",
+      night: "Cool spring night. Bitter weather.",
+    },
   },
   {
     ruleId: "cool-default",
@@ -164,7 +203,9 @@ export function evaluateDrinkWeather(input: DrinkWeatherInput): DrinkWeatherVerd
   if (!Number.isInteger(input.month) || input.month < 1 || input.month > 12) return null;
   const match = DRINK_WEATHER_RULES.find((rule) => rule.when(input));
   if (!match) return null;
-  const { when: _when, ...verdict } = match;
+  const { when: _when, dayPartLine, ...verdict } = match;
   void _when;
-  return verdict;
+  const dayPart = input.dayPart;
+  const line = (dayPart && dayPartLine?.[dayPart]) || verdict.line;
+  return { ...verdict, line };
 }
