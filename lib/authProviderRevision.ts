@@ -1,5 +1,9 @@
 export type AuthProviderName = "clerk" | "supabase";
-export type ProviderAuthState = "unresolved" | "authenticated" | "signed-out";
+export type ProviderAuthState =
+  | "unresolved"
+  | "authenticated"
+  | "signed-out"
+  | "unavailable";
 
 export type SupabaseAuthSettlement =
   | "initial-session"

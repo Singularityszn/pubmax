@@ -5,7 +5,11 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
-  current: {} as { user: { id: string } | null; handle: string | null },
+  current: {} as {
+    user: { id: string } | null;
+    handle: string | null;
+    accountRevision: number;
+  },
 }));
 const viewerState = vi.hoisted(() => ({
   current: {} as {
@@ -18,6 +22,7 @@ const viewerState = vi.hoisted(() => ({
 const fetchState = vi.hoisted(() => ({
   pending: false,
   resolve: null as ((response: Response) => void) | null,
+  response: null as (() => Response) | null,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
@@ -40,7 +45,9 @@ vi.mock("@/lib/authedFetch", () => ({
         fetchState.resolve = resolve;
       });
     }
-    return Promise.resolve(Response.json({ conversations: [], messages: [] }));
+    return Promise.resolve(
+      fetchState.response?.() ?? Response.json({ conversations: [], messages: [] }),
+    );
   },
 }));
 vi.mock("@/lib/messagesRealtime", () => ({
@@ -58,7 +65,7 @@ let host: HTMLDivElement;
 let root: Root;
 
 function signedOut(): void {
-  authState.current = { user: null, handle: null };
+  authState.current = { user: null, handle: null, accountRevision: 0 };
   viewerState.current = {
     phase: "signed-out",
     signedIn: false,
@@ -67,8 +74,12 @@ function signedOut(): void {
   };
 }
 
-function signedIn(): void {
-  authState.current = { user: { id: "user-1" }, handle: "alice" };
+function signedIn(
+  userId = "user-1",
+  handle = "alice",
+  accountRevision = 1,
+): void {
+  authState.current = { user: { id: userId }, handle, accountRevision };
   viewerState.current = {
     phase: "signed-in",
     signedIn: true,
@@ -85,13 +96,13 @@ async function render(element: ReactElement): Promise<void> {
   });
 }
 
-async function releaseFetch(): Promise<void> {
+async function releaseFetch(response?: Response): Promise<void> {
   const resolve = fetchState.resolve;
   fetchState.pending = false;
   fetchState.resolve = null;
   if (!resolve) return;
   await act(async () => {
-    resolve(Response.json({ conversations: [], messages: [] }));
+    resolve(response ?? Response.json({ conversations: [], messages: [] }));
     await Promise.resolve();
     await Promise.resolve();
   });
@@ -101,6 +112,7 @@ beforeEach(() => {
   signedOut();
   fetchState.pending = false;
   fetchState.resolve = null;
+  fetchState.response = null;
   window.matchMedia = (() => ({
     matches: false,
     media: "",
@@ -146,5 +158,61 @@ describe("message sign-in doors", () => {
 
     expect(host.textContent).not.toContain("Sign in to read and send messages");
     expect(host.textContent).toContain("With you in a sec.");
+  });
+
+  it("hides account A inbox content while account B is still loading", async () => {
+    signedIn("account-a", "alice", 1);
+    fetchState.response = () =>
+      Response.json({
+        conversations: [
+          {
+            id: "conversation-a",
+            otherHandle: "bridget",
+            lastBody: "Account A private note",
+            lastAt: "2026-09-01T10:00:00.000Z",
+            lastFromMe: false,
+            unread: 0,
+          },
+        ],
+      });
+    await render(createElement(MessagesInboxClient));
+    expect(host.textContent).toContain("Account A private note");
+
+    fetchState.pending = true;
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessagesInboxClient));
+
+    expect(host.textContent).not.toContain("Account A private note");
+    expect(host.textContent).not.toContain("@bridget");
+    expect(host.textContent).toContain("With you in a sec.");
+    await releaseFetch(Response.json({ conversations: [] }));
+  });
+
+  it("hides account A thread content while account B is still loading", async () => {
+    signedIn("account-a", "alice", 1);
+    fetchState.response = () =>
+      Response.json({
+        messages: [
+          {
+            id: "message-a",
+            conversationId: "conversation-1",
+            senderHandle: "bridget",
+            body: "Account A private note",
+            createdAt: "2026-09-01T10:00:00.000Z",
+            read: false,
+            flagged: false,
+          },
+        ],
+      });
+    await render(createElement(MessageThread, { conversationId: "conversation-1" }));
+    expect(host.textContent).toContain("Account A private note");
+
+    fetchState.pending = true;
+    signedIn("account-b", "bob", 2);
+    await render(createElement(MessageThread, { conversationId: "conversation-1" }));
+
+    expect(host.textContent).not.toContain("Account A private note");
+    expect(host.textContent).toContain("With you in a sec.");
+    await releaseFetch(Response.json({ messages: [] }));
   });
 });

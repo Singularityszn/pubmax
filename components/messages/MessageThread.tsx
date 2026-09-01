@@ -128,6 +128,19 @@ function MessageBody({ body }: { body: string }): React.JSX.Element {
 
 type ThreadState = "loading" | "ready" | "notfound" | "signedout" | "unreachable";
 
+type ThreadReadKey = {
+  conversationId: string;
+  accountRevision: number;
+};
+
+function sameThreadReadKey(
+  key: ThreadReadKey | null,
+  conversationId: string,
+  accountRevision: number,
+): boolean {
+  return key?.conversationId === conversationId && key?.accountRevision === accountRevision;
+}
+
 /** What is riding on the NEXT message. At most one, by design. */
 type PendingAttachment =
   | { kind: "photo"; file: File; previewUrl: string }
@@ -142,7 +155,7 @@ export default function MessageThread({
 }: {
   conversationId: string;
 }): React.JSX.Element {
-  const { user, handle: authHandle } = useAuth();
+  const { accountRevision, user, handle: authHandle } = useAuth();
   // The phase settles once per boot, and the refresh below re-keys on it so a
   // thread that waited for the session reloads the moment it answers.
   const viewerSession = useViewerSession();
@@ -158,7 +171,10 @@ export default function MessageThread({
   const [pickingVenue, setPickingVenue] = useState(false);
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
-  const loadedForRef = useRef<string | null>(null);
+  const loadedForRef = useRef<ThreadReadKey | null>(null);
+  const viewRevisionRef = useRef<ThreadReadKey | null>(null);
+  const accountRevisionRef = useRef(accountRevision);
+  accountRevisionRef.current = accountRevision;
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
@@ -203,7 +219,14 @@ export default function MessageThread({
   // sits beside the inbox, so switching conversations reuses this instance.
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
+      const requestRevision = accountRevision;
+      if (requestRevision !== accountRevisionRef.current) return;
+      const requestKey: ThreadReadKey = { conversationId, accountRevision: requestRevision };
+      const stillCurrent = () => requestRevision === accountRevisionRef.current;
       if (!user) {
+        if (!stillCurrent()) return;
+        loadedForRef.current = null;
+        viewRevisionRef.current = viewerSession.unresolved ? null : requestKey;
         // The live session has not answered yet: a thread that cannot be read
         // is still loading. Calling it signed-out here showed a signed-in
         // drinker the sign-in door on their own conversation.
@@ -212,6 +235,9 @@ export default function MessageThread({
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
       if (!h) {
+        if (!stillCurrent()) return;
+        loadedForRef.current = null;
+        viewRevisionRef.current = requestKey;
         setState("signedout");
         return;
       }
@@ -220,38 +246,54 @@ export default function MessageThread({
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
           { signal },
         );
+        if (!stillCurrent()) {
+          discardBody(res);
+          return;
+        }
         if (res.status === 401) {
           discardBody(res);
+          loadedForRef.current = null;
+          viewRevisionRef.current = requestKey;
           setState("signedout");
           return;
         }
         if (res.status === 404) {
           discardBody(res);
+          loadedForRef.current = null;
+          viewRevisionRef.current = requestKey;
           setState("notfound");
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          if (loadedForRef.current !== conversationId) setState("unreachable");
+          viewRevisionRef.current = requestKey;
+          if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
+            setState("unreachable");
+          }
           return;
         }
         const body = (await res.json()) as { messages?: MessageDTO[] };
+        if (!stillCurrent()) return;
         const next = Array.isArray(body.messages) ? body.messages : [];
-        loadedForRef.current = conversationId;
+        loadedForRef.current = requestKey;
+        viewRevisionRef.current = requestKey;
         setMessages(next);
-        // Derive the other participant from the first non-mine message, else keep
-        // whatever we had (a brand-new thread with only my messages shows me).
         const theirs = next.find((m) => m.senderHandle !== h);
-        if (theirs) setOtherHandle(theirs.senderHandle);
+        setOtherHandle(theirs?.senderHandle ?? "");
         setState("ready");
       } catch (err) {
         // An abort is our own teardown, never a failure the reader should see.
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
-        if (!aborted && loadedForRef.current !== conversationId) setState("unreachable");
+        if (!aborted && stillCurrent()) {
+          viewRevisionRef.current = requestKey;
+          if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
+            setState("unreachable");
+          }
+        }
       }
     },
-    [conversationId, user, authHandle, viewerSession.unresolved],
+    [accountRevision, conversationId, user, authHandle, viewerSession.unresolved],
   );
 
   useEffect(() => {
@@ -417,6 +459,10 @@ export default function MessageThread({
     },
     [conversationId, refresh, user, authHandle],
   );
+
+  if (!sameThreadReadKey(viewRevisionRef.current, conversationId, accountRevision)) {
+    return <p className="conversationPreview">With you in a sec.</p>;
+  }
 
   if (state === "signedout" && viewerSession.signedOut) {
     return (

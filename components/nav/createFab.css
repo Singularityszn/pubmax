@@ -18,9 +18,7 @@
     gap: 8px;
     position: fixed;
     right: calc(12px + env(safe-area-inset-right, 0px));
-    bottom: calc(
-      var(--tabbar-h) + env(safe-area-inset-bottom, 0px) + var(--float-stack-gap)
-    );
+    bottom: var(--create-fab-bottom);
     /* BELOW the map sheet portal. The portal is clipped at the tab bar so the
        bar is never covered, and this control sits inside that clip, so a create
        action at the bar's own layer floated on top of an open Filters or List
@@ -32,29 +30,6 @@
       opacity var(--duration-base) var(--ease-out),
       transform var(--duration-base) var(--ease-out),
       visibility 0s;
-  }
-
-  /* One stack, never an overlap: the create action parks one gap above the
-     TOPMOST member that is actually on screen.
-
-     Every berth is the member's own published top edge (mobileNav.css), never a
-     number restated here - reading only the tab bar put this control on the map's
-     planning pill, and reading only the Pub Pal pill put it on the Near me FAB.
-
-     These four rules share one specificity, so SOURCE ORDER decides, and they are
-     ordered by ascending top edge: the last one that matches is the highest
-     member present, which is exactly the berth to clear. Adding a member means
-     adding its rule in that order (plan pill, Pub Pal, map-edge column). */
-  body:has(.mobilePlanActivation) .createFabRoot {
-    bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
-  }
-
-  body:has(.palSummon) .createFabRoot {
-    bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
-  }
-
-  body:has(.mobileMapUtilityCorner) .createFabRoot {
-    bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
   }
 
   /* The root is a fixed, mostly empty box, so it must not eat taps around the

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
@@ -410,9 +411,14 @@ function SocialPageAccountState({
   friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { accountRevision, identityResolved, user } = useAuth();
+  const { accountRevision, identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
-    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
+    viewerSession.unresolved
+      ? "unresolved"
+      : viewerSession.signedIn
+        ? "resolved"
+        : "signed-out";
   const [access, setAccess] = useState<AccessLoadState>("checking");
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
@@ -449,17 +455,21 @@ function SocialPageAccountState({
       });
       return;
     }
-    if (!identityResolved) {
+    if (viewerSession.phase === "unresolved") {
       void Promise.resolve().then(() => setAccess("checking"));
       return;
     }
-    if (!user) {
+    if (viewerSession.phase === "signed-out") {
       void Promise.resolve().then(() => {
         setAccess("sign_in_required");
         setAdultPrompt(false);
         setDraftScope(null);
         setViewerHandle(null);
       });
+      return;
+    }
+    if (!identityResolved) {
+      void Promise.resolve().then(() => setAccess("checking"));
       return;
     }
 
@@ -497,7 +507,14 @@ function SocialPageAccountState({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, accountRevision, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
+  }, [
+    accessAttempt,
+    accountRevision,
+    friendsLaunchEnabled,
+    identityResolved,
+    initialState.tab,
+    viewerSession.phase,
+  ]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without

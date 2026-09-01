@@ -299,7 +299,9 @@ export function AuthProvider({
       : supabaseProviderState === "authenticated" ||
           (clerkIntegrationConfigured && clerkProviderState === "authenticated")
         ? "authenticated"
-        : "signed-out";
+        : supabaseProviderState === "unavailable"
+          ? "unavailable"
+          : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
@@ -506,7 +508,7 @@ export function AuthProvider({
     //
     // The load can REJECT (a deploy moved the chunk, the connection dropped
     // mid-download). That is a read we could not run, not an answer about the
-    // viewer, so it is retried and then left UNRESOLVED - never published as a
+    // viewer, so it is retried and then published as unavailable - never as a
     // confident sign-out. An unhandled rejection here used to leave the 20
     // second ceiling to settle it, and every page in the tab then painted its
     // signed-out variant over an intact session (lib/authClientLoad.ts).
@@ -524,6 +526,8 @@ export function AuthProvider({
         // skew check to run: it reloads onto the current deployment, and its
         // own guards refuse a loop or a page with unsaved input.
         window.clearTimeout(loadingTimeout);
+        setProviderAuthState("supabase", "unavailable");
+        setSessionLoading(false);
         requestDeploymentSkewCheck();
         return;
       }
@@ -913,11 +917,13 @@ export function AuthProvider({
           ? "unknown"
           : session
             ? "signed-in"
-            : "signed-out",
+            : supabaseProviderState === "unavailable"
+              ? "unknown"
+              : "signed-out",
       identityResolved:
         !configured || (canonicalIdentityState.status === "resolved" && !loading),
     });
-  }, [canonicalIdentityState.status, configured, loading, session]);
+  }, [canonicalIdentityState.status, configured, loading, session, supabaseProviderState]);
 
   const resumeSignIn = useCallback(async (next?: string): Promise<MagicLinkResult> => {
     if (typeof window === "undefined") {

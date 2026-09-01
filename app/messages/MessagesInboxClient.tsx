@@ -30,15 +30,17 @@ export default function MessagesInboxClient({
 }: {
   activeConversationId?: string;
 }): React.JSX.Element {
-  const { user, handle: authHandle } = useAuth();
+  const { accountRevision, user, handle: authHandle } = useAuth();
   const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
+  const accountRevisionRef = useRef(accountRevision);
+  accountRevisionRef.current = accountRevision;
 
   useEffect(() => {
     let active = true;
@@ -54,26 +56,35 @@ export default function MessagesInboxClient({
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
+      const requestRevision = accountRevision;
+      if (requestRevision !== accountRevisionRef.current) return;
+      const stillCurrent = () => requestRevision === accountRevisionRef.current;
       if (!user) {
+        if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoaded(true);
+        setLoadedRevision(requestRevision);
         return;
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
-      if (h !== handle) setHandle(h);
+      if (h !== handle && stillCurrent()) setHandle(h);
       if (!h) {
+        if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoaded(true);
+        setLoadedRevision(requestRevision);
         return;
       }
       try {
         const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
           signal,
         });
+        if (!stillCurrent()) {
+          discardBody(res);
+          return;
+        }
         if (res.status === 401) {
           discardBody(res);
           setNeedsSignIn(true);
@@ -90,19 +101,20 @@ export default function MessagesInboxClient({
         setNeedsSignIn(false);
         setFailed(false);
         const body = (await res.json()) as { conversations?: ConversationDTO[] };
+        if (!stillCurrent()) return;
         setConversations(Array.isArray(body.conversations) ? body.conversations : []);
       } catch (err) {
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
-        if (!aborted) {
+        if (!aborted && stillCurrent()) {
           setNeedsSignIn(false);
           setFailed(true);
         }
       } finally {
-        setLoaded(true);
+        if (stillCurrent()) setLoadedRevision(requestRevision);
       }
     },
-    [handle, user, authHandle],
+    [accountRevision, handle, user, authHandle],
   );
 
   const retry = useCallback(() => {
@@ -139,6 +151,8 @@ export default function MessagesInboxClient({
     };
   }, [refresh, handle]);
 
+  const accountDataReady = loadedRevision === accountRevision;
+
   return (
     <>
       <h1 className="messagesHeading">Messages</h1>
@@ -146,7 +160,7 @@ export default function MessagesInboxClient({
         Messages need a signed-in account. Keep it low-key, and report anything off.
       </p>
 
-      {!loaded ? (
+      {!accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : viewerSession.unresolved ? (
         <p className="conversationPreview">With you in a sec.</p>

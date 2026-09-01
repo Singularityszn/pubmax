@@ -181,7 +181,7 @@ describe("AuthProvider never publishes a sign-out it did not read", () => {
     const body = branch.slice(0, branch.indexOf("const supabase ="));
     expect(body).toContain("clearTimeout(loadingTimeout)");
     expect(body).toContain("requestDeploymentSkewCheck()");
-    expect(body).not.toContain("setProviderAuthState");
-    expect(body).not.toContain("setSessionLoading");
+    expect(body).toContain('setProviderAuthState("supabase", "unavailable")');
+    expect(body).toContain("setSessionLoading(false)");
   });
 });

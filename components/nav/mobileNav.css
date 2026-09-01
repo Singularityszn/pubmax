@@ -17,7 +17,7 @@
      member publishes its own bottom offset and its own height here. That is
      what makes the stack derivable: a member's TOP edge is bottom + height, and
      the create action takes the berth one gap above the topmost member that is
-     actually on screen (createFab.css reads these through body:has()).
+     actually on screen (this file reads them through body:has()).
 
      Owning the numbers here rather than at each member's own rule is the point.
      The create action first shipped assuming only the tab bar was below it, then
@@ -86,6 +86,10 @@
   );
 }
 
+body {
+  --float-stack-top-create: calc(var(--create-fab-bottom) + var(--create-fab-h));
+}
+
 body:has(.mapStage) {
   --pal-summon-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
   --float-stack-top-pal: calc(var(--pal-summon-bottom) + var(--pal-summon-h));
@@ -111,6 +115,16 @@ body:has(.mapStage):has(.analyticsConsentPrompt) {
   --float-stack-top-map-corner: calc(
     var(--map-corner-bottom-consent) + var(--map-corner-locate-size)
   );
+}
+
+body:has(.mobilePlanActivation) {
+  --create-fab-bottom: calc(var(--float-stack-top-plan) + var(--float-stack-gap));
+}
+body:has(.palSummon) {
+  --create-fab-bottom: calc(var(--float-stack-top-pal) + var(--float-stack-gap));
+}
+body:has(.mobileMapUtilityCorner) {
+  --create-fab-bottom: calc(var(--float-stack-top-map-corner) + var(--float-stack-gap));
 }
 
 /* Instant primary-tab loading shell (App Router loading.tsx). Paper/ink only —

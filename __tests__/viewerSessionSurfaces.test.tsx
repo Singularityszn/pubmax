@@ -62,6 +62,12 @@ describe("the profile message control waits for the live session", () => {
     expect(html).toBe("");
   });
 
+  it("keeps an unavailable session neutral", () => {
+    const html = messageButton({ providerAuthState: "unavailable" });
+
+    expect(html).toBe("");
+  });
+
   it("keeps the door once the session has answered nobody", () => {
     const html = messageButton({ providerAuthState: "signed-out" });
 
