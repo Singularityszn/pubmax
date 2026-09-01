@@ -4,9 +4,18 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { venuePinEdgeTokens } from "@/components/map/canvas/tokens";
-import { BUILDING_EXTRUSION_OPACITY } from "@/components/map/canvas/buildScene";
+import {
+  BUILDING_EXTRUSION_OPACITY,
+  UK_BASE_ICON_OPACITY,
+} from "@/components/map/canvas/buildScene";
 import { buildPalette, mixHex } from "@/lib/mapBasemapTaste";
-import { UNPRICED_PIN_FILL, VENUE_PIN_FILL_TOKEN } from "@/lib/mapIcons";
+import {
+  BASE_PUB_DARK_RING_OPACITY,
+  BASE_PUB_RING_COLOR,
+  BASE_PUB_RING_OPACITY,
+  UNPRICED_PIN_FILL,
+  VENUE_PIN_FILL_TOKEN,
+} from "@/lib/mapIcons";
 
 // The dark theme's own values, read from the SHIPPED stylesheet rather than
 // restated here. That is the whole point of this file: the defect it guards
@@ -231,5 +240,69 @@ describe("the dear band is never the CTA colour", () => {
     // on the light elevation ladder. The recessed well is its darkest step.
     expect(contrast(LIGHT.brick, LIGHT.paper)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(LIGHT.brick, LIGHT.panel)).toBeGreaterThanOrEqual(4.5);
+  });
+});
+
+// A base pub is second-class, not invisible.
+//
+// DEFECT (captain, live, 2026-09-01): browsing Cumbria, the map answered with
+// no pubs at all while the banner said the town's pubs were on the map. They
+// were: the shards loaded, the features were placed in `uk-base-point`, the
+// icon was registered. It was drawn as a 0.6-alpha bark ring over a `paper`
+// backing disc, and `paper` is a near-black in dark - the SAME defect the
+// drink pins were fixed for, repeated on the layer that covers the country.
+//
+// The fix gives this mark the same two-tone edge the bands take, from the same
+// tokens, so the two cannot drift apart again.
+describe("dark-mode base pub pin", () => {
+  const edge = venuePinEdgeTokens({ ink: DARK.ink, inkDeep: DARK.inkDeep }, true);
+
+  /** The tone actually laid down: icon alpha, then the layer's own opacity. */
+  function laid(background: string, ink: string, alpha: number): string {
+    return mixHex(background, ink, alpha * UK_BASE_ICON_OPACITY);
+  }
+
+  it("takes the shared edge tokens rather than a colour of its own", () => {
+    const source = readFileSync(join(process.cwd(), "lib/mapIcons.ts"), "utf8");
+    const draw = source.slice(source.indexOf("function drawBasePub"));
+    const body = draw.slice(0, draw.indexOf("\n}"));
+    expect(body).toContain("t.pinRim");
+    expect(body).toContain("t.pinCasing");
+  });
+
+  it("gives the base ring an edge over every dark basemap tone", () => {
+    const failures: string[] = [];
+    for (const [name, background] of Object.entries(BACKGROUNDS)) {
+      const rim = laid(background, edge.pinRim!, BASE_PUB_DARK_RING_OPACITY);
+      const casing = laid(background, edge.pinCasing!, 0.9);
+      const best = Math.max(contrast(rim, background), contrast(casing, background));
+      if (best < EDGE_MIN) failures.push(`${name} ${background}: ${best.toFixed(2)}:1`);
+    }
+    expect(failures).toEqual([]);
+  });
+
+  it("keeps the historical invisible base ring impossible", () => {
+    // What shipped: BASE_PUB_RING_COLOR at 0.6 over a `paper` disc, where dark
+    // `paper` is buildScene's `--ink-deep`. Nothing separated it from the land.
+    const wasBacking = laid(palette.land, DARK.inkDeep, 0.72);
+    const wasRing = laid(wasBacking, BASE_PUB_RING_COLOR, BASE_PUB_RING_OPACITY);
+    expect(contrast(wasRing, palette.land)).toBeLessThan(EDGE_MIN);
+
+    const nowRing = laid(palette.land, edge.pinRim!, BASE_PUB_DARK_RING_OPACITY);
+    expect(contrast(nowRing, palette.land)).toBeGreaterThanOrEqual(EDGE_MIN);
+  });
+
+  it("leaves the light base pin exactly as it was", () => {
+    // Light mode publishes no edge tokens, so drawBasePub keeps its paper disc
+    // and bark ring - the look the design judgement of 2026-08-01 settled.
+    expect(venuePinEdgeTokens({ ink: DARK.ink, inkDeep: DARK.inkDeep }, false)).toEqual({});
+    expect(BASE_PUB_RING_COLOR).toBe("#6b5f57");
+    expect(BASE_PUB_RING_OPACITY).toBe(0.6);
+  });
+
+  it("keeps a base pub visibly second-class beside a priced pin", () => {
+    // Never fully opaque, and never the brand accent the selection ring owns.
+    expect(UK_BASE_ICON_OPACITY).toBeLessThan(1);
+    expect(BASE_PUB_DARK_RING_OPACITY).toBeLessThan(1);
   });
 });
