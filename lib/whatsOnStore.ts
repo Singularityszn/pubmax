@@ -21,6 +21,7 @@ import {
   type WhatsOnKind,
   type WhatsOnKindObservedAt,
   type WhatsOnRow,
+  tonightPubSurfaceAllowsKind,
 } from "@/lib/whatsOn";
 import { mapThingsToDoToRows } from "@/lib/whatsOnCitymcp";
 import { fetchThingsToDo, type ThingsToDoResult } from "@/lib/citymcp/client";
@@ -303,6 +304,7 @@ function filterRowsForRequest(
   if (params.window === "tonight") filtered = filterTonight(filtered, now);
   if (params.pubOnly) {
     filtered = filtered.filter((row) => {
+      if (!tonightPubSurfaceAllowsKind(row.kind)) return false;
       const venueId = canonicalOutVenueId(row.venueId);
       return venueId !== null && params.venueMatchIndex !== undefined
         ? isOutVenueId(params.venueMatchIndex, venueId)

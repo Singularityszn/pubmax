@@ -31,7 +31,6 @@ import SiteNav from "@/components/nav/SiteNav";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
-import DealsTonightLane from "@/components/discovery/DealsTonightLane";
 import MusicTonightLane from "@/components/discovery/MusicTonightLane";
 import TonightConditionsStrip from "./TonightConditionsStrip";
 import TonightListingsNotice from "./TonightListingsNotice";
@@ -422,10 +421,8 @@ export default function TonightClient({
   const secondaryHeroes = groupedAll.map((group) => group.row);
   const secondaryLanes = (
     <>
-      <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />
-      {/* The music lane is dated by the MUSIC feed, never by the freshest thing
-          on the page: the deals feed is rebuilt far more often, and borrowing
-          its date would claim gigs were confirmed on a day nobody looked. */}
+      {/* Music lane only — quiz/burger/deal filler must not lead Tonight.
+          Dated by the MUSIC feed alone, never by a fresher deals stamp. */}
       <MusicTonightLane rows={secondaryHeroes} asOf={kindObservedAt.music} />
     </>
   );
@@ -450,8 +447,7 @@ export default function TonightClient({
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
         <p className="tonightLede">
-          Quiz, sport, deals, live music and events from sourced listings. Open a
-          listed venue on the map.
+          Sport, live music and events at listed pubs. Open a venue on the map.
         </p>
         {ready || empty ? (
           <TonightProvenanceLines

@@ -191,39 +191,77 @@ describe("/tonight pub surface", () => {
   });
 
   it("drops What's-On rows with no listed pub and past rows from the spine", () => {
-    const quiz = row({
-      id: "quiz-1",
-      kind: "quiz",
-      title: "Quiz",
+    const music = row({
+      id: "music-1",
+      kind: "music",
+      title: "Live set",
       venueId: "venue-the-dove",
       placeName: "The Dove",
-      source: { label: "Pub listing", url: "https://example.com/quiz" },
+      source: { label: "Pub listing", url: "https://example.com/music" },
     });
     const noVenue = row({
-      id: "quiz-ghost",
-      kind: "quiz",
-      title: "Ghost quiz",
+      id: "music-ghost",
+      kind: "music",
+      title: "Ghost gig",
       placeName: "Somewhere",
       source: { label: "Pub listing", url: "https://example.com/ghost" },
     });
     const finished = row({
-      id: "quiz-finished",
-      kind: "quiz",
-      title: "Finished quiz",
+      id: "music-finished",
+      kind: "music",
+      title: "Finished gig",
       venueId: "venue-the-dove",
       startsAt: new Date(NOW - 8 * 60 * 60_000).toISOString(),
       source: { label: "Pub listing", url: "https://example.com/old" },
     });
     const merged = mergeTonightListingRows(
-      [quiz, noVenue, finished],
+      [music, noVenue, finished],
       [],
       NOW,
       "ready",
       SELECTABLE,
     );
-    expect(merged.map((item) => item.id)).toEqual(["quiz-1"]);
-    expect(tonightRowHasListedPub(quiz, SELECTABLE)).toBe(true);
+    expect(merged.map((item) => item.id)).toEqual(["music-1"]);
+    expect(tonightRowHasListedPub(music, SELECTABLE)).toBe(true);
     expect(tonightRowHasListedPub(noVenue, SELECTABLE)).toBe(false);
     expect(tonightRowHasListedPub(unknownVenueId, SELECTABLE)).toBe(false);
+  });
+
+  it("drops quiz and deal filler even when the venue is listed", () => {
+    const quiz = row({
+      id: "quiz-1",
+      kind: "quiz",
+      title: "Gourmet Burgers Club",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "Wetherspoon", url: "https://example.com/quiz" },
+    });
+    const deal = row({
+      id: "deal-1",
+      kind: "deal",
+      title: "Two for one",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "Pub listing", url: "https://example.com/deal" },
+    });
+    const sport = row({
+      id: "sport-1",
+      kind: "sport",
+      title: "Match screening",
+      venueId: "venue-the-dove",
+      placeName: "The Dove",
+      source: { label: "Pub listing", url: "https://example.com/sport" },
+    });
+    const merged = mergeTonightListingRows(
+      [quiz, deal, sport],
+      [],
+      NOW,
+      "ready",
+      SELECTABLE,
+    );
+    expect(merged.map((item) => item.id)).toEqual(["sport-1"]);
+    expect(tonightRowHasListedPub(quiz, SELECTABLE)).toBe(false);
+    expect(tonightRowHasListedPub(deal, SELECTABLE)).toBe(false);
+    expect(tonightRowHasListedPub(sport, SELECTABLE)).toBe(true);
   });
 });

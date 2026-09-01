@@ -48,7 +48,7 @@ export function outAnswerView<T>(
 }
 
 export type OutListingsBody = Pick<OutResponse, "status" | "events" | "reason"> &
-  Partial<Pick<OutResponse, "listingsStatus" | "listingsReason" | "venueMatch">>;
+  Partial<Pick<OutResponse, "listingsStatus" | "listingsReason" | "venueMatch" | "unmatchedCount">>;
 
 /**
  * The listings lane's own health, for every surface that shows only listings.
@@ -76,6 +76,8 @@ export function outListingsHealth(body: OutListingsBody): {
  * A degraded answer with zero rows says only that some listings could not be
  * checked - printing "No listings for this day yet." beside it tells a reader
  * the city is quiet when what actually happened is that we could not look.
+ * Unmatched Ticketmaster with zero pub cards is the same shape: the unmatched
+ * notice owns that honesty, so quiet must not print beside it.
  */
 export function outStatusLines(input: {
   body: OutListingsBody | null;
@@ -101,7 +103,13 @@ export function outStatusLines(input: {
     return lines;
   }
   if (input.failed) return lines;
-  if (body.events.length === 0) {
+  const unmatched =
+    typeof body.unmatchedCount === "number" && Number.isFinite(body.unmatchedCount)
+      ? Math.max(0, Math.floor(body.unmatchedCount))
+      : 0;
+  // Unmatched Ticketmaster stays off the cards; the unmatched notice owns that
+  // honesty. An empty-market line beside it would claim the city has nothing.
+  if (body.events.length === 0 && unmatched === 0) {
     lines.push(OUT_EMPTY_LINE);
     return lines;
   }

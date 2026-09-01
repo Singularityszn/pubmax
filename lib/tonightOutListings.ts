@@ -9,7 +9,12 @@ import type { OutResponse } from "@/lib/out/types";
 import { canonicalOutVenueId } from "@/lib/out/venueId";
 import type { MapSelectableVenueIds } from "@/lib/pricedLanding";
 import type { TonightGroupedRow } from "@/lib/tonightListGrouping";
-import { dedupeRows, filterNotPast, type WhatsOnRow } from "@/lib/whatsOn";
+import {
+  dedupeRows,
+  filterNotPast,
+  tonightPubSurfaceAllowsKind,
+  type WhatsOnRow,
+} from "@/lib/whatsOn";
 import { checkedLabel } from "@/lib/whatsOnBadges";
 
 type TonightSelectableVenueIds = MapSelectableVenueIds | undefined;
@@ -36,6 +41,7 @@ export function tonightRowHasListedPub(
   row: WhatsOnRow,
   selectable: TonightSelectableVenueIds = undefined,
 ): boolean {
+  if (!tonightPubSurfaceAllowsKind(row.kind)) return false;
   const venueId = canonicalOutVenueId(row.venueId);
   if (!venueId) return false;
   if (selectable === undefined) return true;

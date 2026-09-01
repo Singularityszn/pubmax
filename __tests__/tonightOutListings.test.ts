@@ -124,7 +124,7 @@ describe("tonight Out merge", () => {
   it("dedupes the same listing and keeps the fresher observation", () => {
     const older = row({
       id: "quiz-1",
-      kind: "quiz",
+      kind: "music",
       title: "Quiz",
       venueId: "venue-the-dove",
       placeName: "The Dove",
@@ -133,7 +133,7 @@ describe("tonight Out merge", () => {
     });
     const newer = row({
       id: "quiz-1",
-      kind: "quiz",
+      kind: "music",
       title: "Quiz (updated)",
       venueId: "venue-the-dove",
       placeName: "The Dove",
@@ -162,7 +162,7 @@ describe("tonight listings status", () => {
     const whatsOnRows = [
       row({
         id: "quiz-1",
-        kind: "quiz",
+        kind: "music",
         title: "Quiz",
         venueId: "venue-the-dove",
         placeName: "The Dove",
@@ -363,7 +363,7 @@ describe("where a Tonight row leads", () => {
     const links = tonightRowLinks(
       row({
         id: "quiz-1",
-        kind: "quiz",
+        kind: "music",
         title: "Quiz",
         venueId: "venue-the-dove",
         source: { label: "The Dove", url: "https://example.com/quiz" },
@@ -407,7 +407,7 @@ describe("where a Tonight row leads", () => {
       tonightRowLinks(
         row({
           id: "quiz-2",
-          kind: "quiz",
+          kind: "music",
           title: "Quiz",
           source: { label: "The Dove", url: "https://example.com/quiz" },
         }),
@@ -427,7 +427,7 @@ describe("tonight lane split", () => {
   it("attributes each surviving row to the read that put it there", () => {
     const whatsOnRow = row({
       id: "quiz-1",
-      kind: "quiz",
+      kind: "music",
       title: "Quiz",
       venueId: "venue-the-dove",
       placeName: "The Dove",
@@ -477,7 +477,7 @@ describe("tonight provenance credits", () => {
   it("credits and dates each lane by its own read", () => {
     const quiz = row({
       id: "quiz-1",
-      kind: "quiz",
+      kind: "music",
       title: "Quiz",
       venueId: "venue-the-dove",
       placeName: "The Dove",

@@ -448,7 +448,10 @@ export async function buildOutResponse(
 
   const unmatchedMetadata = unmatchedNoticeMetadata(matchedRows);
   const matchedCount = matchedRows.length - unmatched;
+  // Pub cards only: unmatched Ticketmaster stays in unmatched* notice fields
+  // and must not fill or starve the events cap.
   const merged = matchedRows
+    .filter((row) => canonicalOutVenueId(row.venueId) !== null)
     .map(fillEventArea)
     .sort(
       (left, right) =>
@@ -485,7 +488,12 @@ export async function buildOutResponse(
   // over visible cards contradicts them.
   const askedNothing =
     reports.length > 0 && reports.every((report) => report.status === "not-configured");
-  if (status === "ready" && askedNothing && merged.length === 0) status = "not-configured";
+  // Empty pub cards alone do not mean listings are off: unmatched Ticketmaster
+  // still answers supply in unmatched* fields. not-configured only when nothing
+  // was asked AND nothing is left to report (no cards and no unmatched).
+  if (status === "ready" && askedNothing && merged.length === 0 && unmatched === 0) {
+    status = "not-configured";
+  }
 
   const body: OutResponse = {
     status,

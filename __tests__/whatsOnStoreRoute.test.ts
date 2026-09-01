@@ -248,6 +248,8 @@ describe("loadWhatsOn orchestration", () => {
     );
     const matched = makeRow({
       id: "matched-pub",
+      kind: "music",
+      title: "Live jazz at the Pub",
       placeName: "The Pub",
       lat: 51.5,
       lng: -0.1,
@@ -265,6 +267,43 @@ describe("loadWhatsOn orchestration", () => {
     const body = await response.json();
     expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["matched-pub"]);
     expect(body.rows[0].venueId).toBe("pub-1");
+  });
+
+  it("drops quiz and deal rows from pubOnly even when the venue is listed", async () => {
+    const response = await handleWhatsOnRequest(req("?window=tonight&pubOnly=1"), {
+      now: NOW,
+      loadBaseline: () => [
+        makeRow({
+          id: "quiz-listed",
+          kind: "quiz",
+          title: "Gourmet Burgers Club",
+          placeName: "The Pub",
+          venueId: "pub-1",
+        }),
+        makeRow({
+          id: "deal-listed",
+          kind: "deal",
+          title: "Two for one",
+          placeName: "The Pub",
+          venueId: "pub-1",
+        }),
+        makeRow({
+          id: "sport-listed",
+          kind: "sport",
+          title: "Match screening",
+          placeName: "The Pub",
+          venueId: "pub-1",
+        }),
+      ],
+      fetchLive: async () => [],
+      loadVenueMatchIndex: async () =>
+        buildOutVenueMatchIndex([
+          { id: "pub-1", name: "The Pub", borough: "Camden", lat: 51.5, lng: -0.1 },
+        ]),
+    });
+
+    const body = await response.json();
+    expect(body.rows.map((row: WhatsOnRow) => row.id)).toEqual(["sport-listed"]);
   });
 
   it("does not request-time match a bundled row that has no venue identity", async () => {

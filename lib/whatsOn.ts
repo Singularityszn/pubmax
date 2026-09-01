@@ -19,7 +19,20 @@ import {
 export type WhatsOnListedWindow = "tonight" | "tomorrow_night" | "this_weekend";
 
 export const WHATS_ON_KINDS = ["sport", "quiz", "deal", "music", "event"] as const;
+
 export type WhatsOnKind = (typeof WHATS_ON_KINDS)[number];
+
+/** Tonight pub surface: sport/music/event at listed pubs only — quiz/deal never lead. */
+export const TONIGHT_PUB_SURFACE_KINDS = ["sport", "music", "event"] as const;
+export type TonightPubSurfaceKind = (typeof TONIGHT_PUB_SURFACE_KINDS)[number];
+
+export function tonightPubSurfaceAllowsKind(kind: WhatsOnKind | string | null | undefined): boolean {
+  if (kind == null) return false;
+  const k = String(kind).trim().toLowerCase();
+  return (TONIGHT_PUB_SURFACE_KINDS as readonly string[]).includes(k);
+}
+
+
 
 // "confirmed": venue/organiser directly confirms this row. "listed": a
 // first-party listing names this exact row (e.g. a quiz supplier's own venue
