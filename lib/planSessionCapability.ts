@@ -1,5 +1,6 @@
 import type { PlanMemberRole } from "@/lib/plan";
 import { signedInActionFetch } from "@/lib/authedFetch";
+import { discardBody } from "@/lib/responseBody";
 
 type VolatileCapability = { token: string; collaborationAuthorized: boolean; role: PlanMemberRole | null };
 
@@ -131,8 +132,14 @@ export function restorePlanCapability(planId: string): Promise<VolatileCapabilit
   const controller = new AbortController();
   restorationAbort.set(planId, controller);
   const readResponse = async (response: Response): Promise<VolatileCapability | null> => {
-      if (controller.signal.aborted) throw new PlanSessionUnavailableError();
-      if (response.status >= 500) throw new PlanSessionUnavailableError();
+      if (controller.signal.aborted) {
+        discardBody(response);
+        throw new PlanSessionUnavailableError();
+      }
+      if (response.status >= 500) {
+        discardBody(response);
+        throw new PlanSessionUnavailableError();
+      }
       const body = await response.json().catch(() => null) as { active?: unknown; role?: unknown; collaborationAuthorized?: unknown } | null;
       if (controller.signal.aborted) throw new PlanSessionUnavailableError();
       if (body?.active !== true || (body.role !== "host" && body.role !== "guest")) return null;

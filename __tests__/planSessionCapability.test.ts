@@ -18,6 +18,15 @@ function legacyWindow(planId: string, token = "legacy-secret") {
   return { values, sessionStorage };
 }
 
+function cancellableResponse(status: number, onCancel: () => void): Response {
+  return new Response(new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(new TextEncoder().encode("{}"));
+    },
+    cancel: onCancel,
+  }), { status });
+}
+
 afterEach(() => {
   delete (globalThis as { window?: unknown }).window;
   signedInActionFetch.mockReset();
@@ -75,6 +84,25 @@ describe("plan session capabilities", () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
+  it("discards a response that arrives after restoration is cancelled", async () => {
+    const id = "67666666-7777-4888-8999-000000000000";
+    legacyWindow(id, "");
+    let resolveFetch: ((response: Response) => void) | undefined;
+    let cancelled = false;
+    vi.spyOn(globalThis, "fetch").mockImplementationOnce(() => new Promise<Response>((resolve) => {
+      resolveFetch = resolve;
+    }));
+
+    const pending = restorePlanCapability(id);
+    await vi.waitFor(() => expect(resolveFetch).toBeTypeOf("function"));
+    const response = cancellableResponse(200, () => { cancelled = true; });
+    clearPlanCapability(id);
+    resolveFetch?.(response);
+
+    await expect(pending).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    await vi.waitFor(() => expect(cancelled).toBe(true));
+  });
+
   it("does not restore stale authority when clear lands during response parsing", async () => {
     const id = "77777777-8888-4999-8aaa-111111111111";
     (globalThis as { window?: unknown }).window = {
@@ -111,10 +139,12 @@ describe("plan session capabilities", () => {
   it("keeps a purged legacy token in volatile memory across a retryable 503", async () => {
     const id = "22222222-3333-4444-8555-666666666666";
     const { values } = legacyWindow(id);
+    let cancelled = false;
     const fetchMock = vi.spyOn(globalThis, "fetch")
-      .mockResolvedValueOnce(new Response(JSON.stringify({ error: "unavailable" }), { status: 503 }))
+      .mockResolvedValueOnce(cancellableResponse(503, () => { cancelled = true; }))
       .mockResolvedValueOnce(new Response(JSON.stringify({ active: true, role: "host", collaborationAuthorized: true })));
     await expect(restorePlanCapability(id)).rejects.toBeInstanceOf(PlanSessionUnavailableError);
+    await vi.waitFor(() => expect(cancelled).toBe(true));
     expect([...values.keys()]).toEqual([]);
     await expect(restorePlanCapability(id)).resolves.toMatchObject({ role: "host" });
     expect(fetchMock).toHaveBeenLastCalledWith(`/api/plans/${id}/session`, expect.objectContaining({ method: "POST" }));

@@ -20,7 +20,8 @@ declare
   v_existing public.plan_crew_members%rowtype;
   v_claim text;
 begin
-  -- Lock Plan before member so join, claim, and RSVP paths share one order.
+  -- Canonical lock order is shared Plan advisory, Plan row, then member row.
+  perform pg_advisory_xact_lock(hashtextextended('plan:join:' || p_plan_id::text, 0));
   select id
     into v_plan_id
   from public.plans
