@@ -72,10 +72,12 @@ begin
     return 'not_found';
   end if;
 
-  if v_member.recovery_key_hash is not null then
+  if v_member.recovery_key_hash is not null
+     and v_member.recovery_request_hash is not null
+     and v_member.token_hash = p_member_token_hash then
     if v_member.recovery_key_hash = p_idempotency_key_hash
        and v_member.recovery_request_hash = p_request_hash
-       and v_member.token_hash = p_member_token_hash then
+    then
       return 'replayed';
     end if;
     return 'conflict';

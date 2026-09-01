@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -350,7 +350,33 @@ const memoryStore: PlanCollaborationStore = {
     });
     const requestKey = `${planId}:invite:join:${key}`;
     const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } } | undefined;
-    if (replay) return replay.requestHash === requestHash ? structuredClone(replay.result) : { ok: false, error: "conflict" };
+    if (replay) {
+      if (replay.requestHash === requestHash) return structuredClone(replay.result);
+      if (userId && replay.requestHash === planRequestDigest({ name, inviteHash: hash })) {
+        const accountReplay = reconcileMemoryPlanAccountJoin(
+          planId,
+          key,
+          name,
+          true,
+          userId,
+        );
+        if (accountReplay) {
+          if (!accountReplay.ok) {
+            return accountReplay.error === "full"
+              ? { ok: false, error: "full" }
+              : accountReplay.error === "account_conflict"
+                ? { ok: false, error: "account_conflict" }
+                : accountReplay.error === "not_found"
+                  ? { ok: false, error: "not_found" }
+                  : accountReplay.error === "conflict"
+                    ? { ok: false, error: "conflict" }
+                    : { ok: false, error: "error" };
+          }
+          return { ...accountReplay, collaborationAuthorized: true as const };
+        }
+      }
+      return { ok: false, error: "conflict" };
+    }
     const invite = [...memory.invites.values()].find((candidate) => candidate.planId === planId && candidate.tokenHash === hash);
     if (!invite) return { ok: false, error: "not_found" };
     if (invite.revokedAt) return { ok: false, error: "revoked" };

@@ -82,7 +82,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
             { method: "PUT", signal: actionSignal },
           );
           const retryableStatus = response.status === 429 || response.status === 503;
-          if (!response.ok) discardBody(response);
+          discardBody(response);
           if (response.ok || !retryableStatus) return;
         } catch {
           // A session or network race gets the same bounded retry as a 503.

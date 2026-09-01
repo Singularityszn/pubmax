@@ -516,6 +516,30 @@ describe("authedFetch (Wave I2)", () => {
     expect(getAccessToken).not.toHaveBeenCalled();
   });
 
+  it("does not send a signed-in-only action after unresolved readiness times out", async () => {
+    vi.useFakeTimers();
+    publishAuthActionState({ status: "signed-in", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    const request = signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+    await vi.advanceTimersByTimeAsync(2_100);
+
+    await expect(request).resolves.toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("sends a signed-in-only action when identity resolves before timeout", async () => {
+    publishAuthActionState({ status: "signed-in", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    setTimeout(() => publishAuthActionState({ status: "signed-in", identityResolved: true }), 10);
+
+    await signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(getAccessToken).toHaveBeenCalledOnce();
+  });
+
   it("settles a signed-in-only action immediately while signed out", async () => {
     vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => {}));
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));

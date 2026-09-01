@@ -158,6 +158,16 @@ describe("account claim RPC fallbacks", () => {
     await expect(claimPlanMembership(PLAN_ID, MEMBER_ID, USER_ID)).resolves.toBe("conflict");
   });
 
+  it("maps the fallback membership unique violation to a conflict", async () => {
+    supabase.rpc.mockResolvedValue(missingFunction("claim_plan_membership"));
+    supabase.maybeSingleResults.push({
+      data: null,
+      error: { code: "23505", message: "duplicate key" },
+    });
+
+    await expect(claimPlanMembership(PLAN_ID, MEMBER_ID, USER_ID)).resolves.toBe("conflict");
+  });
+
   it("answers not_found when the recovery RPC is missing instead of a retryable error", async () => {
     supabase.rpc.mockResolvedValue(missingFunction("recover_plan_account_membership_atomic"));
 

@@ -57,7 +57,12 @@ async function legacyClaimPlanMembership(
     .is("membership_revoked_at", null)
     .select("id")
     .maybeSingle();
-  if (error) throw new Error(error.message);
+  if (error) {
+    if (typeof error === "object" && error !== null && "code" in error && error.code === "23505") {
+      return "conflict";
+    }
+    throw new Error(error.message);
+  }
   if (data) return "claimed";
   const existing = await requireSupabaseAdmin()
     .from(MEMBERS)

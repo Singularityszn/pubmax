@@ -205,6 +205,31 @@ describe("active Plan account claim", () => {
     vi.useRealTimers();
   });
 
+  it("discards a successful claim body", async () => {
+    let cancelled = false;
+    state.accountBoundFetch.mockResolvedValueOnce(new Response(
+      new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode('{"claimed":true}'));
+        },
+        cancel() {
+          cancelled = true;
+        },
+      }),
+      { status: 200 },
+    ));
+
+    await act(async () => {
+      root.render(createElement(ActivePlanMarker, {
+        id: "abababab-abab-4aba-8aba-abababababab",
+        startTime: "2026-08-27T19:00:00.000Z",
+      }));
+      await Promise.resolve();
+    });
+
+    expect(cancelled).toBe(true);
+  });
+
   it("does not schedule a retry after unmount while the first claim is pending", async () => {
     vi.useFakeTimers();
     let resolveClaim: ((response: Response) => void) | undefined;

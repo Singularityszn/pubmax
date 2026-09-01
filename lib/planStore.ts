@@ -671,6 +671,16 @@ export const memoryPlanStore: PlanStore = {
     });
     const replay = planMemory.joinRequests.get(`${id}:${keyHash}`);
     if (replay) {
+      if (replay.requestHash !== requestHash && userId) {
+        const accountReplay = reconcileMemoryPlanAccountJoin(
+          id,
+          key,
+          name,
+          options.collaborationAuthorized === true,
+          userId,
+        );
+        if (accountReplay) return accountReplay;
+      }
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
       if (!plan.crew.some((member) => member.id === replay.memberId)) return { ok: false, error: "error" };
       return {
@@ -1089,6 +1099,41 @@ export function claimMemoryPlanMembership(
   member.userId = userId;
   if (host) plan.ownerUserId = userId;
   return alreadyClaimed ? "already_claimed" : "claimed";
+}
+
+export function reconcileMemoryPlanAccountJoin(
+  planId: string,
+  key: string,
+  name: string,
+  collaborationAuthorized: boolean,
+  userId: string,
+): PlanJoinResult | null {
+  if (isSupabaseConfigured() || !isPlanId(planId) || !isPlanIdempotencyKey(key) || !userId) return null;
+  const plan = memoryPlans.get(planId);
+  if (!plan) return null;
+  const keyHash = planIdempotencyDigest(`plan-join-key:${planId}`, key);
+  const replay = planMemory.joinRequests.get(`${planId}:${keyHash}`);
+  if (!replay) return null;
+  const anonymousRequestHash = planRequestDigest({ name, collaborationAuthorized });
+  const accountRequestHash = planRequestDigest({ name, collaborationAuthorized, userId });
+  if (replay.requestHash !== anonymousRequestHash && replay.requestHash !== accountRequestHash) {
+    return { ok: false, error: "conflict" };
+  }
+  const member = plan.crew.find((candidate) => candidate.id === replay.memberId);
+  if (!member) return { ok: false, error: "error" };
+  const memberToken = planIdempotencyDigest(`plan-join-token:${planId}`, key);
+  if (member.tokenHash !== hashPlanMemberToken(memberToken)) return { ok: false, error: "conflict" };
+  if (member.userId && member.userId !== userId) return { ok: false, error: "conflict" };
+  const claim = claimMemoryPlanMembership(planId, member.id, userId);
+  if (claim === "conflict") return { ok: false, error: "account_conflict" };
+  if (claim === "not_found") return { ok: false, error: "error" };
+  return {
+    ok: true,
+    plan: publicState(plan),
+    memberToken,
+    role: "guest",
+    collaborationAuthorized: member.collaborationAuthorized,
+  };
 }
 
 /** Test/dev seam: stamp a crew member's auth user (mirrors plan_crew_members.user_id). */

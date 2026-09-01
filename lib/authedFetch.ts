@@ -334,7 +334,7 @@ export async function signedInActionFetch(
 ): Promise<Response | null> {
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
   await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
-  if (currentAuthActionStatus() === "signed-out") return null;
+  if (authActionState.status !== "signed-in" || !authActionState.identityResolved) return null;
   return authedActionFetch(input, init);
 }
 

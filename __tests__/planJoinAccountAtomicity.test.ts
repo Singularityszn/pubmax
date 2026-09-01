@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({
-  userId: "11111111-1111-4111-8111-111111111111",
+  userId: "11111111-1111-4111-8111-111111111111" as string | null,
 }));
 
 vi.mock("server-only", () => ({}));
@@ -62,6 +62,68 @@ async function join(planId: string, inviteToken: string, key: string, name: stri
 }
 
 describe("signed-in Plan join account atomicity", () => {
+  it("binds a lost anonymous classic join response to the later account", async () => {
+    const created = await createPlan();
+    const invite = await planInviteToken(created.plan.plan.id);
+    if (!invite.ok || !invite.inviteToken) throw new Error("missing invite");
+
+    auth.userId = null;
+    const guest = await join(
+      created.plan.plan.id,
+      invite.inviteToken,
+      "anonymous-classic-transition",
+      "Guest name",
+    );
+    expect(guest.status).toBe(200);
+    const guestBody = await guest.json() as { memberToken: string };
+
+    auth.userId = "22222222-2222-4222-8222-222222222222";
+    const account = await join(
+      created.plan.plan.id,
+      invite.inviteToken,
+      "anonymous-classic-transition",
+      "Guest name",
+    );
+    expect(account.status).toBe(200);
+    expect((await account.json()).memberToken).toBe(guestBody.memberToken);
+    expect(__listMemoryPlanMemberUserIds(created.plan.plan.id)).toEqual([
+      expect.objectContaining({ userId: auth.userId }),
+    ]);
+  });
+
+  it("binds a lost anonymous collaboration redeem response to the later account", async () => {
+    const created = await createPlan();
+    const invite = await planCollaborationStore().createInvite(
+      created.plan.plan.id,
+      created.memberToken,
+      { expiresInMinutes: 30, idempotencyKey: "anonymous-redeem-invite" },
+    );
+    if (!invite.ok) throw new Error("missing collaboration invite");
+
+    auth.userId = null;
+    const guest = await join(
+      created.plan.plan.id,
+      invite.token,
+      "anonymous-redeem-transition",
+      "Guest name",
+    );
+    expect(guest.status).toBe(200);
+    const guestBody = await guest.json() as { memberToken: string };
+
+    auth.userId = "22222222-2222-4222-8222-222222222222";
+    const account = await join(
+      created.plan.plan.id,
+      invite.token,
+      "anonymous-redeem-transition",
+      "Guest name",
+    );
+    expect(account.status).toBe(200);
+    expect((await account.json()).memberToken).toBe(guestBody.memberToken);
+    expect(__listMemoryPlanMemberUserIds(created.plan.plan.id)).toEqual([
+      expect.objectContaining({ userId: auth.userId }),
+    ]);
+  });
+
   it("refuses a second classic-invite seat for the same account", async () => {
     const created = await createPlan();
     const invite = await planInviteToken(created.plan.plan.id);
