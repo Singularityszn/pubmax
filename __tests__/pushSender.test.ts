@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PerTokenResult, PushProvider } from "@/lib/pushProvider";
+import type { PushPlatform } from "@/lib/pushTokenStore";
 
 // Drive the fan-out with a controllable provider pinned at the selection seam
 // (the house pattern: mock the boundary, keep everything else real). The real
@@ -12,7 +13,10 @@ const { sendMock, selectPlatformMock } = vi.hoisted(() => {
   );
   return {
     sendMock: send,
-    selectPlatformMock: vi.fn(() => ({ send })),
+    selectPlatformMock: vi.fn((platform: PushPlatform) => {
+      void platform;
+      return { send };
+    }),
   };
 });
 

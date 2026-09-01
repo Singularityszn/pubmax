@@ -329,6 +329,10 @@ export default defineConfig({
         env: {
           NODE_OPTIONS: E2E_NODE_OPTIONS,
           NEXT_DIST_DIR,
+          // E2E builds run from a checkout whose generated data is stamped
+          // `local`. Keep GitHub's GITHUB_SHA from rewriting those tracked
+          // fixtures and tripping the restored-build guard.
+          NEXT_PUBLIC_SW_VERSION: "local",
           NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
           NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
           NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN: E2E_POSTHOG_PROJECT_TOKEN,
@@ -394,6 +398,7 @@ export default defineConfig({
             env: {
               NODE_OPTIONS: E2E_NODE_OPTIONS,
               NEXT_DIST_DIR: KEYLESS_NEXT_DIST_DIR,
+              NEXT_PUBLIC_SW_VERSION: "local",
               NEXT_PUBLIC_POSTHOG_E2E_ALLOW_BOT: "1",
               NEXT_PUBLIC_VAPID_PUBLIC_KEY: E2E_VAPID_PUBLIC_KEY,
               NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN:
