@@ -1102,6 +1102,15 @@ export function __linkMemoryPlanMemberUser(
   const member = plan.crew.find((row) => row.id === memberId);
   if (!member) return false;
   if (member.userId && member.userId !== userId) return false;
+  // One account holds one seat in a Plan. Production enforces that with the
+  // partial unique index plan_crew_members_plan_user_unique_idx on
+  // (plan_id, user_id) where user_id is not null, so the memory backend has to
+  // refuse the same second seat or a keyless run would accept a membership the
+  // durable store rejects, and the two backends would disagree about the law.
+  const seatTaken = plan.crew.some(
+    (row) => row.id !== memberId && row.userId === userId,
+  );
+  if (seatTaken) return false;
   member.userId = userId;
   return true;
 }
