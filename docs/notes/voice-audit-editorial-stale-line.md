@@ -51,3 +51,24 @@ have been a third variant of the same admission.
 Pinned by `__tests__/editorial.test.ts` and `__tests__/editorialRail.test.ts`,
 both of which assert the composed string and that the first sentence never
 becomes the empty-week claim.
+
+## What to do when the two branches meet
+
+The CONSTANT is byte-identical on both sides, so its value never conflicts.
+Three hunks around it do, all comment-and-assertion adjacency, and each one
+resolves to THIS branch's side because this branch carries the ruled form:
+
+1. `lib/editorial.ts`, the comment above `EDITORIAL_STALE_LINE`. Take this
+   branch's: it documents the composed line and the ruling. The bugs branch's
+   comment describes the first sentence alone, which is now half the story.
+2. `__tests__/editorial.test.ts`. Take this branch's block, which asserts the
+   composed string and keeps the bugs branch's own two guards inside it: the
+   constant is never the empty-week line, and never names our maintenance.
+3. `__tests__/editorialRail.test.ts`. Take this branch's rendered assertion,
+   and KEEP the bugs branch's two lines beside it rather than replacing them.
+   They are compatible: that guard reads the CONSTANT, which is
+   "No fresh picks to show just now." and contains none of check, refresh,
+   stale or snapshot. Only the composed OUTPUT carries "Last checked", and
+   nothing asserts the output is free of those words.
+
+Nothing else in either branch touches this lane.
