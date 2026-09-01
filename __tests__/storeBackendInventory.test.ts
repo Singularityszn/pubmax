@@ -1,6 +1,5 @@
-import { execFileSync } from "node:child_process";
 import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative, sep } from "node:path";
 import { describe, expect, it } from "vitest";
 
 const ROOT = process.cwd();
@@ -20,31 +19,30 @@ function documentedStoreNames(): string[] {
 }
 
 function repositoryInlineBackendReferences(): string[] {
-  return execFileSync(
-      "rg",
-      [
-      "-a",
-      "-l",
-      "selectStore|isSupabaseConfigured",
-      "app",
-      "components",
-      "lib",
-      "scripts",
-      "--glob",
-      "*.ts",
-      "--glob",
-      "*.tsx",
-      "--glob",
-      "*.mjs",
-      "--glob",
-      "*.js",
-    ],
-    { cwd: ROOT, encoding: "utf8" },
-  )
-    .trim()
-    .split("\n")
-    .filter(Boolean)
-    .sort();
+  const roots = ["app", "components", "lib", "scripts"];
+  const extensions = new Set([".ts", ".tsx", ".mjs", ".js"]);
+  const references: string[] = [];
+
+  function visit(relativeDirectory: string): void {
+    for (const entry of readdirSync(join(ROOT, relativeDirectory), {
+      withFileTypes: true,
+    })) {
+      const relativePath = join(relativeDirectory, entry.name);
+      if (entry.isDirectory()) {
+        visit(relativePath);
+        continue;
+      }
+      if (!entry.isFile() || !extensions.has(entry.name.slice(entry.name.lastIndexOf(".")))) {
+        continue;
+      }
+      if (/selectStore|isSupabaseConfigured/.test(readFileSync(join(ROOT, relativePath), "utf8"))) {
+        references.push(relative(ROOT, join(ROOT, relativePath)).split(sep).join("/"));
+      }
+    }
+  }
+
+  for (const root of roots) visit(root);
+  return references.sort();
 }
 
 function documentedInlineBackendReferences(): string[] {

@@ -52,7 +52,10 @@ const E2E_PLAN_SIGNING_SECRET = randomBytes(32).toString("base64url");
 const E2E_VAPID_PUBLIC_KEY = "BJVNwV9XflSMFMBkpBQ8zuzYIfru_xnE_LnqA3x8ENQl2ehKJYw_20TE1UTVr_7vQ207rjQwC1FHbbKE9QeOk4w";
 const E2E_POSTHOG_PROJECT_TOKEN = "phc_pubmaxx_e2e_public_test";
 const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
-const E2E_SUPABASE_PUBLISHABLE_KEY = "pubmaxx-e2e-publishable-key";
+// Production browser builds enforce Supabase key roles. Keep the E2E key fake,
+// but give it the same public-key shape as the value it stands in for so the
+// browser auth graph remains enabled and route doubles can answer it.
+const E2E_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_pubmaxx_e2e";
 const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
 // The founders' door is read from the environment at build time, so a keyless
 // E2E build renders no door at all unless the build is given one. This code is
