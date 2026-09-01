@@ -3,6 +3,7 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { detectA2hsPlatform } from "@/lib/a2hsPrompt";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -40,6 +41,7 @@ function subscribeNoop(): () => void {
  */
 export default function StepOutNudgePref(): React.JSX.Element {
   const { user } = useAuth();
+  const viewerSession = useViewerSession();
   const [pref, setPref] = useState<PrefState | null>(null);
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
@@ -148,6 +150,9 @@ export default function StepOutNudgePref(): React.JSX.Element {
       setBusy(false);
     }
   }
+
+  // The live session has not answered: this owner-only card says nothing yet.
+  if (!user && viewerSession.unresolved) return null;
 
   if (!user) {
     return (

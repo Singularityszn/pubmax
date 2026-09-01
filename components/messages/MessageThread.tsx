@@ -12,6 +12,7 @@ import {
 } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import ProfileImageCropper from "@/components/profile/ProfileImageCropper";
 import MessageAttachmentPicker, {
@@ -142,6 +143,9 @@ export default function MessageThread({
   conversationId: string;
 }): React.JSX.Element {
   const { user, handle: authHandle } = useAuth();
+  // The phase settles once per boot, and the refresh below re-keys on it so a
+  // thread that waited for the session reloads the moment it answers.
+  const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [otherHandle, setOtherHandle] = useState("");
@@ -200,7 +204,10 @@ export default function MessageThread({
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
       if (!user) {
-        setState("signedout");
+        // The live session has not answered yet: a thread that cannot be read
+        // is still loading. Calling it signed-out here showed a signed-in
+        // drinker the sign-in door on their own conversation.
+        setState(viewerSession.unresolved ? "loading" : "signedout");
         return;
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
@@ -244,7 +251,7 @@ export default function MessageThread({
         if (!aborted && loadedForRef.current !== conversationId) setState("unreachable");
       }
     },
-    [conversationId, user, authHandle],
+    [conversationId, user, authHandle, viewerSession.unresolved],
   );
 
   useEffect(() => {

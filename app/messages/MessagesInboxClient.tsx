@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
@@ -30,6 +31,7 @@ export default function MessagesInboxClient({
   activeConversationId?: string;
 }): React.JSX.Element {
   const { user, handle: authHandle } = useAuth();
+  const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -145,6 +147,8 @@ export default function MessagesInboxClient({
       </p>
 
       {!loaded ? (
+        <p className="conversationPreview">With you in a sec.</p>
+      ) : viewerSession.unresolved ? (
         <p className="conversationPreview">With you in a sec.</p>
       ) : needsSignIn || !user ? (
         <EmptyState

@@ -9,6 +9,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import {
   errorMessageFrom,
   findYourLotInviteFailureMessage,
@@ -45,6 +46,10 @@ export default function FindYourLot({
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const { accountRevision, user } = useAuth();
+  // A sign-in door is a claim about the viewer, so it waits for the live
+  // session. While that is unresolved this lane offers the claim-a-handle
+  // route to nobody and the sign-in route to nobody.
+  const viewerSession = useViewerSession();
   const identityViewerHandle = useViewerHandle();
   const [query, setQuery] = useState("");
   const [matches, setMatches] = useState<SearchMatch[]>([]);
@@ -291,9 +296,11 @@ export default function FindYourLot({
                 {isSelf ? (
                   <span className="findLot__self">You</span>
                 ) : !viewer ? (
-                  <Link className="findLot__ghost" href={user ? "/u/you" : "/login"}>
-                    {user ? "Claim a handle to follow" : "Sign in to follow"}
-                  </Link>
+                  viewerSession.unresolved ? null : (
+                    <Link className="findLot__ghost" href={user ? "/u/you" : "/login"}>
+                      {user ? "Claim a handle to follow" : "Sign in to follow"}
+                    </Link>
+                  )
                 ) : (
                   <button
                     type="button"
@@ -331,7 +338,7 @@ export default function FindYourLot({
           >
             {inviteBusy ? "Minting…" : "Get invite link"}
           </button>
-        ) : (
+        ) : viewerSession.unresolved ? null : (
           <Link className="findLot__follow" href={user ? "/u/you" : "/login"}>
             {user ? "Claim a handle to invite" : "Sign in to invite"}
           </Link>

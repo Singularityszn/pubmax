@@ -1,8 +1,9 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 
 import {
+  DEPLOYMENT_SKEW_CHECK_EVENT,
   fetchCurrentDeploymentId,
   getClientDeploymentId,
   getSessionStorage,
@@ -38,6 +39,15 @@ export default function DeploymentSkewRecovery(): null {
     debounceMs: 0,
     events: DEPLOYMENT_RECOVERY_EVENTS,
   });
+
+  // A failed lazy chunk asks for the same check without waiting for a wake
+  // (lib/deploymentSkewRecovery.ts). The guards below it are unchanged: one
+  // reload per deployment id, and never over unsaved input.
+  useEffect(() => {
+    const onCheck = () => checkDeployment();
+    window.addEventListener(DEPLOYMENT_SKEW_CHECK_EVENT, onCheck);
+    return () => window.removeEventListener(DEPLOYMENT_SKEW_CHECK_EVENT, onCheck);
+  }, [checkDeployment]);
 
   return null;
 }
