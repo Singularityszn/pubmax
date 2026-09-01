@@ -12,7 +12,7 @@ import {
   EDITORIAL_OGL_URL,
   EDITORIAL_RAIL_TITLE,
   EDITORIAL_SNAPSHOT_MAX_AGE_MS,
-  EDITORIAL_UNDATED_LINE,
+  EDITORIAL_STALE_LINE,
   editorialOglMark,
   editorialOglAttributionForSource,
   editorialSnapshotIsStale,
@@ -322,15 +322,23 @@ describe("editorial overlay: degraded reads are not empty", () => {
     });
     expect(editorialSnapshotIsStale(fresh, now)).toBe(false);
     expect(editorialSnapshotIsStale(old, now)).toBe(true);
-    // A withheld week names the day it was last checked, so the same sentence
-    // cannot cover a two-day-old snapshot and a two-month-old one.
-    expect(editorialStaleLine(old)).toBe("Picks last checked 15 Aug.");
-    // Only a snapshot carrying no day we can print falls through to the
-    // undated line: a date we cannot read is never a date we invent.
-    expect(EDITORIAL_UNDATED_LINE).toBe("We can\u2019t date these picks yet.");
+    // The ruled composed line (captain, 2026-09-01): what the reader gets, then
+    // when the check was. Neither half alone was enough - the first claims
+    // nothing about the week, and the second stops one sentence covering both a
+    // two-day-old snapshot and a two-month-old one.
+    expect(editorialStaleLine(old)).toBe(
+      "No fresh picks to show just now. Last checked 15 Aug.",
+    );
+    expect(editorialStaleLine(old)).toContain(EDITORIAL_STALE_LINE);
+    // It may never claim the week is empty: a withheld snapshot did not look.
+    expect(EDITORIAL_STALE_LINE).not.toBe(EDITORIAL_EMPTY_LINE);
+    expect(EDITORIAL_STALE_LINE).not.toMatch(/needs? a fresh|refresh|stale|snapshot/i);
+    // A snapshot carrying no day we can print keeps the first sentence alone.
+    // A date we cannot read is never a date we invent, and a second apology in
+    // different words would say less than saying less.
     expect(
       editorialStaleLine({ version: 1, generatedAt: "not a date", status: "ready", items: [] }),
-    ).toBe(EDITORIAL_UNDATED_LINE);
+    ).toBe(EDITORIAL_STALE_LINE);
   });
 
   it("a shipped overlay file never stores a body or extra keys", () => {

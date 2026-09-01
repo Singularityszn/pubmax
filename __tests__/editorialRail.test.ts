@@ -82,7 +82,9 @@ describe("editorial rail", () => {
         onRetry: () => undefined,
       }),
     );
-    expect(markup).toContain("Picks last checked 13 Aug.");
+    expect(markup).toContain(
+      "No fresh picks to show just now. Last checked 13 Aug.",
+    );
     expect(markup).not.toContain("Point Taproom opens");
   });
 
