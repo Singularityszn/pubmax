@@ -61,6 +61,13 @@ parity; it does not prove that Captain has applied these new version rows to the
 remote ledger.
 Check `supabase migration list` before any push or database action.
 
+The Plan account-claim follow-up migrations `0133` and `0134` are in the
+source ledger with matching rollback files. Their account-claim RPCs are
+already live in production, so the application change has no deploy-order
+hazard. Captain still owns reconciling and applying these source migration
+rows before treating their revised recovery and account-join behaviour as
+applied.
+
 The complete applied order is deliberately not copied here. Treat the live
 `supabase migration list` and the files in `supabase/migrations/` as authoritative.
 
@@ -163,7 +170,7 @@ Find the previous URL in the Vercel dashboard's Deployments list, or `vercel ls`
 Applied migrations are not covered by a code rollback. Rolling back the app does not undo a schema change.
 
 Every migration from `0071` onward, including reconciliation migrations `0127`-
-`0132` (section 1.3), has its own matching file in
+`0134` (section 1.3), has its own matching file in
 `supabase/migrations/rollback/`. Run the rollback SQL manually against the
 database; nothing runs it automatically.
 
