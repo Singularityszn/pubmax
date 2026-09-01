@@ -13,6 +13,17 @@ const authState = vi.hoisted(() => ({
   user: { id: "account-a" } as { id: string } | null,
 }));
 
+type ViewerState = {
+  phase: "unresolved" | "signed-in" | "signed-out";
+  signedIn: boolean;
+  signedOut: boolean;
+  unresolved: boolean;
+};
+
+const viewerState = vi.hoisted(() => ({
+  current: {} as ViewerState,
+}));
+
 const transport = vi.hoisted(() => ({
   authedActionFetch: vi.fn(),
 }));
@@ -28,6 +39,10 @@ vi.mock("next/navigation", () => ({
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState,
+}));
+
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => viewerState.current,
 }));
 
 vi.mock("@/lib/authedFetch", () => ({
@@ -183,6 +198,12 @@ beforeEach(() => {
   authState.accountRevision = 1;
   authState.identityResolved = true;
   authState.user = { id: "account-a" };
+  viewerState.current = {
+    phase: "signed-in",
+    signedIn: true,
+    signedOut: false,
+    unresolved: false,
+  };
   transport.authedActionFetch.mockReset();
   transport.authedActionFetch.mockImplementation(async (input: RequestInfo | URL) => {
     const href = String(input);
@@ -236,6 +257,31 @@ async function flushAccountA(): Promise<void> {
 }
 
 describe("Social account boundary", () => {
+  it("keeps Social neutral while the viewer session is unavailable", async () => {
+    authState.user = null;
+    authState.identityResolved = true;
+    viewerState.current = {
+      phase: "unresolved",
+      signedIn: false,
+      signedOut: false,
+      unresolved: true,
+    };
+
+    await act(async () => {
+      root.render(createElement(SocialPageClient, {
+        initialState,
+        rivalry: [],
+        heritageCrawls: [],
+      }));
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).not.toContain("Sign in to use Social");
+    expect(host.textContent).not.toContain("Sign in to invite");
+    expect(host.querySelector('[aria-busy="true"]')).toBeTruthy();
+  });
+
   it("never renders account A Social state after account B becomes current", async () => {
     await flushAccountA();
 

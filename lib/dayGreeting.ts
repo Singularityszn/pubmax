@@ -18,12 +18,17 @@
 //
 // No em dashes or en dashes anywhere (product-copy rule).
 
-import { londonHour } from "@/lib/ambientPresence";
+import { daySlot, type DaySlot } from "@/lib/daySlot";
 import type { DrinkWeatherRuleId, VenueLens } from "@/lib/drinkWeather";
 import type { WeatherBrief } from "@/lib/todayBrief";
 
+// Re-exported so the surfaces that already read the day band from here keep
+// their import. The boundaries themselves live in lib/daySlot.ts, which the
+// drink-weather verdict reads too.
+export { daySlot };
+export type { DaySlot };
+
 /** The four bands the copy is written for, in Europe/London wall-clock time. */
-export type DaySlot = "morning" | "afternoon" | "evening" | "night";
 
 export type DayGreeting = {
   slot: DaySlot;
@@ -37,14 +42,6 @@ export type DayGreeting = {
   weatherAware: boolean;
 };
 
-/** Time band for a moment, London wall clock. */
-export function daySlot(now: Date): DaySlot {
-  const hour = londonHour(now);
-  if (hour >= 5 && hour < 12) return "morning";
-  if (hour >= 12 && hour < 17) return "afternoon";
-  if (hour >= 17 && hour < 22) return "evening";
-  return "night";
-}
 
 const SALUTATION: Record<DaySlot, string> = {
   morning: "Good morning",

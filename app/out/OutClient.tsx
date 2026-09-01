@@ -104,6 +104,33 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             {line}
           </p>
         ))}
+        <div className="outListingSurface">
+          {listingGroups.map((group) => (
+            <section
+              key={group.key}
+              className="outGroup"
+              aria-labelledby={`out-group-${group.key}`}
+            >
+              <h3 id={`out-group-${group.key}`} className="outGroupTitle">
+                {group.label}
+              </h3>
+              <ul className="outGroupList">
+                {group.rows.map((row) => (
+                  <li key={row.id} className="outListingRow">
+                    <div className="outListingGig">
+                      <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
+                    </div>
+                    <OutListingPubPair row={row} />
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
+        </div>
+        {/* The honesty line comes AFTER the listings it is honest about. It led
+            the page, so a reader met "57 more listings are at places we don't
+            list yet" before the one listing we DO have - and the word "more"
+            was answering nothing. */}
         {unmatchedNotice ? (
           <div className="outListingUnmatched" role="status" data-testid="out-unmatched-notice">
             <p className="outStatus outListingUnmatchedLine">
@@ -130,29 +157,6 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
             </p>
           </div>
         ) : null}
-        <div className="outListingSurface">
-          {listingGroups.map((group) => (
-            <section
-              key={group.key}
-              className="outGroup"
-              aria-labelledby={`out-group-${group.key}`}
-            >
-              <h3 id={`out-group-${group.key}`} className="outGroupTitle">
-                {group.label}
-              </h3>
-              <ul className="outGroupList">
-                {group.rows.map((row) => (
-                  <li key={row.id} className="outListingRow">
-                    <div className="outListingGig">
-                      <OutCardBody row={row} onOpen={() => onOpen(row)} titleLevel={4} />
-                    </div>
-                    <OutListingPubPair row={row} />
-                  </li>
-                ))}
-              </ul>
-            </section>
-          ))}
-        </div>
       </section>
 
       <EditorialRail />

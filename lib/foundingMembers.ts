@@ -85,6 +85,19 @@ export const FOUNDERS_WALL_EMPTY =
 export const FOUNDERS_WALL_UNAVAILABLE =
   "Couldn't load the founders list just now. Give it a moment and try again.";
 
+/**
+ * The wall's address, and the one label a surface may give it.
+ *
+ * A link, never a lure: no count, no slots-remaining line, and no branch on
+ * whether the reader has a number. The wall is PUBLIC and already sitemapped,
+ * but until now nothing in the app pointed at it, so the only people who ever
+ * saw it were crawlers. Reaching a public list of people is not a perk, and
+ * saying how many places are left would be exactly the hurry-up this whole
+ * model refuses.
+ */
+export const FOUNDERS_WALL_HREF = "/founders";
+export const FOUNDERS_WALL_LINK_LABEL = "Founding members";
+
 /** The one door, and the only place a founding member is invited anywhere. */
 export const FOUNDERS_DISCORD_CTA = "Join the founders’ Discord";
 

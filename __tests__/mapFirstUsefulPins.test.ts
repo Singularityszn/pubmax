@@ -83,14 +83,15 @@ describe("first useful map pins", () => {
     expect(setTimeout).toHaveBeenCalledWith(refreshLoad, 1_000);
   });
 
-  it("wires the first settled target separately from later rings", () => {
+  it("wires every settled viewport through the two ring lanes", () => {
     const source = readFileSync(
       join(process.cwd(), "components/PubMap.tsx"),
       "utf8",
     );
 
-    expect(source).toContain('scheduleRingLoad(loader, bounds, "target")');
-    expect(source).toContain('scheduleRingLoad(loader, bounds, "refresh")');
+    expect(source).toContain("scheduleRingLoad(loader, bounds);");
+    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "target")');
+    expect(source).not.toContain('scheduleRingLoad(loader, bounds, "refresh")');
     expect(source).toContain("useInitialSlimShardStart({");
   });
 

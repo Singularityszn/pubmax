@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -55,7 +56,6 @@ export default function IdentityNudge(): React.JSX.Element | null {
     getIdentityNudgeServerSnapshot,
   );
   const {
-    user,
     loading,
     configured,
     socialProviders,
@@ -64,6 +64,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
+  const viewerSession = useViewerSession();
 
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -96,7 +97,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
     Boolean(trigger) &&
     graced &&
     !loading &&
-    !user &&
+    // Only a session that has ANSWERED nobody may be nudged to sign in.
+    viewerSession.signedOut &&
     configured &&
     hasPromptBudgetFor(IDENTITY_SURFACE);
 

@@ -1,5 +1,23 @@
 export const DEPLOYMENT_SKEW_RELOAD_KEY = "pubmax:deployment-skew-reloaded:v1";
 
+/**
+ * Ask the recovery component to check the deployment now, rather than at the
+ * next tab wake. A browser that cannot load a lazily imported chunk is the
+ * strongest evidence of a stale document there is, and a drinker who is
+ * actively browsing through a deploy never fires a wake event at all.
+ */
+export const DEPLOYMENT_SKEW_CHECK_EVENT = "pubmax:deployment-skew-check";
+
+/** Fire that ask. Safe on the server and in a browser with no listener. */
+export function requestDeploymentSkewCheck(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.dispatchEvent(new Event(DEPLOYMENT_SKEW_CHECK_EVENT));
+  } catch {
+    // A browser that refuses a synthetic event simply waits for the next wake.
+  }
+}
+
 export type DeploymentSkewRecoveryResult =
   | "same"
   | "reloaded"

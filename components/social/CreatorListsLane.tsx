@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
-import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import { trackEvent } from "@/lib/analytics";
@@ -229,13 +229,13 @@ export default function CreatorListsLane(): React.JSX.Element {
   const [status, setStatus] = useState<CreatorListsLoadStatus>("loading");
   const [lists, setLists] = useState<CreatorListDiscoveryItem[]>([]);
   const [attempt, setAttempt] = useState(0);
-  const { identityResolved, user } = useAuth();
+  const viewerSession = useViewerSession();
   const resolvedViewerHandle = useViewerHandle();
-  const viewerHandle = identityResolved
-    ? user
+  const viewerHandle = viewerSession.unresolved
+    ? null
+    : viewerSession.signedIn
       ? resolvedViewerHandle
-      : ""
-    : null;
+      : "";
 
   useEffect(() => {
     const controller = new AbortController();

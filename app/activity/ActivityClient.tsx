@@ -5,6 +5,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import SiteNav from "@/components/nav/SiteNav";
 import NextBadgeChips from "@/components/profile/NextBadgeChips";
@@ -64,7 +65,9 @@ function subjectHref(n: NotificationDTO): string | null {
 }
 
 export default function ActivityClient(): React.JSX.Element {
-  const { accountRevision, handle: authHandle, identityResolved, user } = useAuth();
+  const { accountRevision, handle: authHandle, identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
+  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const [handle, setHandle] = useState("");
   const [handleReady, setHandleReady] = useState(false);
@@ -99,8 +102,12 @@ export default function ActivityClient(): React.JSX.Element {
     let active = true;
     void Promise.resolve().then(() => {
       if (!active) return;
-      setHandle(identityResolved && user ? normalizeHandle(authHandle ?? "") : "");
-      setHandleReady(identityResolved);
+      setHandle(
+        identityReadyForSurface && viewerSession.signedIn
+          ? normalizeHandle(authHandle ?? "")
+          : "",
+      );
+      setHandleReady(identityReadyForSurface);
       setItemsRevision(accountRevision);
       setItems([]);
       setFailed(false);
@@ -108,7 +115,13 @@ export default function ActivityClient(): React.JSX.Element {
     return () => {
       active = false;
     };
-  }, [accountRevision, authHandle, identityResolved, socialFriendsLaunchEnabled, user]);
+  }, [
+    accountRevision,
+    authHandle,
+    identityReadyForSurface,
+    socialFriendsLaunchEnabled,
+    viewerSession.signedIn,
+  ]);
 
   const load = useCallback(async () => {
     if (!socialFriendsLaunchEnabled) {
@@ -116,7 +129,10 @@ export default function ActivityClient(): React.JSX.Element {
       return;
     }
     if (!handleReady) return;
-    const h = identityResolved && user ? normalizeHandle(authHandle ?? "") : "";
+    const h =
+      identityReadyForSurface && viewerSession.signedIn
+        ? normalizeHandle(authHandle ?? "")
+        : "";
     if (!h) {
       setLoading(false);
       return;
@@ -152,7 +168,14 @@ export default function ActivityClient(): React.JSX.Element {
     } finally {
       if (accountRevisionRef.current === requestRevision) setLoading(false);
     }
-  }, [accountRevision, handleReady, authHandle, identityResolved, socialFriendsLaunchEnabled, user]);
+  }, [
+    accountRevision,
+    handleReady,
+    authHandle,
+    identityReadyForSurface,
+    socialFriendsLaunchEnabled,
+    viewerSession.signedIn,
+  ]);
 
   useEffect(() => {
     // Defer through a promise callback so setState (inside load) never runs
@@ -196,7 +219,7 @@ export default function ActivityClient(): React.JSX.Element {
             title="Social preview"
             body={socialBoundaryCopy("preview", false)}
           />
-        ) : !handleReady || loading ? (
+        ) : viewerSession.unresolved || !handleReady || loading ? (
           // Skeleton mirrors the ready-state grid so first paint already carries
           // the page's shape — a plain list on phones, rail + two-up timeline at
           // ≥1024 — instead of a jump from one line of text. Same block idiom as

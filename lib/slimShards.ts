@@ -351,6 +351,48 @@ export function resolveInitialSlimShardLifecycle<Viewport>({
   };
 }
 
+/**
+ * A viewport that names nowhere, so nothing spatial may be read from it.
+ *
+ * The map holds this placeholder (centre [0, 0] at zoom 0) while the opening
+ * location question is still open. Turned into bounds it is the whole WORLD,
+ * and the first-visit shard read took it literally: a cold `/map` on a phone
+ * asked for 163 of London's 244 cells - the entire city - before the map was
+ * interactive, for a screen covering about four kilometres. That is the whole
+ * request budget spent on pins nobody is looking at.
+ */
+export function viewportNamesNowhere(viewport: {
+  center: [number, number];
+  zoom: number;
+}): boolean {
+  return (
+    viewport.zoom <= 0 && viewport.center[0] === 0 && viewport.center[1] === 0
+  );
+}
+
+/**
+ * The viewport the OPENING shard read may use.
+ *
+ * A placeholder is answered with the city's own default view, which is where
+ * the camera lands the moment the location question resolves to no. Never the
+ * placeholder itself: a read is about a place, and this one has none.
+ */
+export function openingLoadViewportFor<
+  Viewport extends { center: [number, number]; zoom: number },
+>(viewport: Viewport, cityView: Viewport): Viewport {
+  return viewportNamesNowhere(viewport) ? cityView : viewport;
+}
+
+/**
+ * How far past the settled viewport each shard lane reaches.
+ *
+ * The viewport is loaded on the caller's turn; the ring around it waits for
+ * idle time. Captain's law: the map a reader is looking at loads first, and
+ * the sides fill in afterwards.
+ */
+export const VIEWPORT_SHARD_RING = 0;
+export const NEIGHBOUR_SHARD_RING = 1;
+
 type SlimShardViewportTiming = {
   requestIdleCallback?: (
     callback: IdleRequestCallback,
@@ -377,6 +419,15 @@ export function scheduleSlimShardViewportLoad(
   } else {
     timing.setTimeout(load, 1_000);
   }
+}
+
+export function scheduleSlimShardRingLoads(
+  loadViewport: () => void,
+  loadNeighbour: () => void,
+  timing: SlimShardViewportTiming = window,
+): void {
+  loadViewport();
+  scheduleSlimShardViewportLoad(loadNeighbour, "refresh", timing);
 }
 
 /**

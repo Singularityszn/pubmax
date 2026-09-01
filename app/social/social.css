@@ -1172,3 +1172,9 @@
   font: inherit;
   cursor: pointer;
 }
+
+/* The founders wall link sits in the same column as the packs above it. */
+.socialFoundersLink {
+  margin-top: 12px;
+  justify-content: center;
+}
