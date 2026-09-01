@@ -76,6 +76,14 @@
      answered - it is one tap and one time, and it is the card's own lane.
      The map's first-visit arrival card is the same shape and the same deal:
      full width, its own two actions in this lane, and gone on one tap. */
+  /* A page that has no use for compose says so once, and the body clearance
+     below reads the same marker (mobileNav.css). The 404 is the reason this is
+     a marker and not a path: it renders under whatever address was mistyped, so
+     there is no pathname to test. */
+  body:has(.pageHidesCreateFab) .createFabRoot {
+    display: none;
+  }
+
   body:has(.analyticsConsentPrompt) .createFabRoot,
   body:has(.mapArrivalCard) .createFabRoot,
   body:has(.appShell.detail-open) .createFabRoot,
