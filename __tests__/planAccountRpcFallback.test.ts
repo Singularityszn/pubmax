@@ -33,7 +33,11 @@ vi.mock("@/lib/supabase", () => ({
 }));
 
 import type { PlanState } from "@/lib/plan";
-import { claimPlanMembership, recoverPlanMembership } from "@/lib/planCrewIdentity";
+import {
+  claimPlanMembership,
+  linkPlanOwnerUser,
+  recoverPlanMembership,
+} from "@/lib/planCrewIdentity";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
 import { planRequestDigest, supabasePlanStore } from "@/lib/planStore";
 
@@ -205,6 +209,12 @@ describe("account claim RPC fallbacks", () => {
     supabase.maybeSingleResults.push({ data: null, error: null });
     supabase.maybeSingleResults.push({ data: { user_id: "44444444-4444-4444-8444-444444444444" }, error: null });
     await expect(claimPlanMembership(PLAN_ID, MEMBER_ID, USER_ID)).resolves.toBe("conflict");
+  });
+
+  it("stamps the Plan owner through the configured store", async () => {
+    supabase.maybeSingleResults.push({ data: { id: PLAN_ID }, error: null });
+
+    await expect(linkPlanOwnerUser(PLAN_ID, USER_ID)).resolves.toBe(true);
   });
 
   it("maps the fallback membership unique violation to a conflict", async () => {

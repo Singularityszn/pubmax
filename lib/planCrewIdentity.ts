@@ -24,6 +24,7 @@ import { isMissingDatabaseFunction } from "@/lib/planStore";
 import { isSupabaseConfigured, requireSupabaseAdmin } from "@/lib/supabase";
 
 const MEMBERS = "plan_crew_members";
+const PLANS = "plans";
 const PLAN_ACCOUNT_RECOVERY_OPERATION = "plan-account-session-recovery";
 
 function planAccountRecoveryKey(planId: string, userId: string): string {

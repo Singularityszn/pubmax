@@ -72,7 +72,7 @@ beforeEach(() => {
     user: { id: "11111111-1111-4111-8111-111111111111" },
   };
   state.identityResolved = true;
-  state.accountBoundFetch.mockResolvedValue(
+  state.accountBoundFetch.mockReset().mockResolvedValue(
     new Response(JSON.stringify({ claimed: true, role: "host" })),
   );
   container = document.createElement("div");
