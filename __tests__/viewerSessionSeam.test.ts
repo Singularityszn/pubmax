@@ -23,8 +23,10 @@ import { describe, expect, it } from "vitest";
 
 import {
   AUTH_CLIENT_LOAD_RETRY_DELAYS_MS,
+  AUTH_CLIENT_LOAD_TIMEOUT_MS,
   loadAuthClientWithRetry,
 } from "@/lib/authClientLoad";
+import { AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS } from "@/lib/authSessionBootstrap";
 
 const REPO_ROOT = join(__dirname, "..");
 
@@ -147,6 +149,17 @@ describe("a load we could not run is not an answer about the viewer", () => {
   it("is bounded, so a broken deployment settles rather than retrying for ever", () => {
     expect(AUTH_CLIENT_LOAD_RETRY_DELAYS_MS.length).toBeGreaterThan(0);
     expect(AUTH_CLIENT_LOAD_RETRY_DELAYS_MS.length).toBeLessThanOrEqual(5);
+    expect(AUTH_CLIENT_LOAD_TIMEOUT_MS).toBeGreaterThan(0);
+    expect(AUTH_CLIENT_LOAD_TIMEOUT_MS).toBeLessThan(AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS);
+  });
+
+  it("answers unavailable when the client import stays pending", async () => {
+    const outcome = await loadAuthClientWithRetry(
+      () => new Promise<"client">(() => {}),
+      { delay: async () => {}, retryDelaysMs: [], timeoutMs: 1 },
+    );
+
+    expect(outcome).toEqual({ status: "unavailable" });
   });
 });
 

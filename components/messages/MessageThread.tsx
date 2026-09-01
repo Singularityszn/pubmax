@@ -418,13 +418,16 @@ export default function MessageThread({
     [conversationId, refresh, user, authHandle],
   );
 
-  if (state === "signedout") {
+  if (state === "signedout" && viewerSession.signedOut) {
     return (
       <div className="conversationPreview messagesSignInPrompt">
         <p>Sign in to read and send messages.</p>
         <SignInButton />
       </div>
     );
+  }
+  if (state === "signedout") {
+    return <p className="conversationPreview">With you in a sec.</p>;
   }
   if (state === "notfound") {
     return (

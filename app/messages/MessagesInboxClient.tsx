@@ -150,7 +150,7 @@ export default function MessagesInboxClient({
         <p className="conversationPreview">With you in a sec.</p>
       ) : viewerSession.unresolved ? (
         <p className="conversationPreview">With you in a sec.</p>
-      ) : needsSignIn || !user ? (
+      ) : viewerSession.signedOut && (needsSignIn || !user) ? (
         <EmptyState
           title="Sign in to message"
           body="Private messages need a signed-in account, so each message is tied to the right handle."

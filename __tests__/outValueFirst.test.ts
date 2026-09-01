@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // Out leads with the night, not with an apology about it.
 //
 // UI audit, 2026-09-01, production, 390x844. Three findings on one page:
@@ -13,21 +15,41 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it } from "vitest";
 
+import { MARK_COLORS } from "@/components/brand/PubmaxxMark";
+import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import {
   EDITORIAL_DEGRADED_EMPTY_LINE,
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_STALE_LINE,
 } from "@/lib/editorial";
+import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
 const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
-const pubPair = readFileSync(
-  join(REPO_ROOT, "components/out/OutListingPubPair.tsx"),
-  "utf8",
-);
+
+const matchedRow: WhatsOnRow = {
+  id: "mark-render",
+  kind: "event",
+  title: "Comedy",
+  venueId: "venue-mark",
+  placeName: "The Comedy Store",
+  source: { label: "Ticketmaster", url: "https://example.com/event/mark" },
+  observedAt: "2026-08-14T12:00:00.000Z",
+  confidence: "listed",
+};
+
+function renderedPubPair(): HTMLElement {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    createElement(OutListingPubPair, { row: matchedRow }),
+  );
+  return host;
+}
 
 describe("the listings come before the line about what is missing", () => {
   it("renders the unmatched notice after the listing surface", () => {
@@ -80,13 +102,25 @@ describe("an empty rail speaks to a drinker", () => {
 });
 
 describe("the venue badge wears our own mark", () => {
-  it("never draws the Crossing X in one flat ink beside a rival's credit", () => {
-    expect(pubPair).not.toContain('variant="mono"');
-    expect(pubPair).toContain('variant="duo"');
+  it("renders coral arms and a bright ember in the venue badge", () => {
+    const host = renderedPubPair();
+    const mark = host.querySelector("svg.pubmaxxMark");
+    expect(mark).not.toBeNull();
+    const fills = mark
+      ? [...mark.querySelectorAll("polygon, circle")].map((shape) =>
+          shape.getAttribute("fill"),
+        )
+      : [];
+
+    expect(fills.filter((fill) => fill === MARK_COLORS.coral)).toHaveLength(3);
+    expect(fills).toContain(MARK_COLORS.bright);
+    expect(fills).not.toContain("currentColor");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
   });
 
-  it("still names the venue in words, so the mark is never the only claim", () => {
-    expect(pubPair).toContain("PUBMAXX venue");
-    expect(pubPair).toContain('aria-hidden="true"');
+  it("still names the venue in words, so the mark is not the only claim", () => {
+    expect(
+      renderedPubPair().querySelector(".outListingPubPairLabel")?.textContent,
+    ).toBe("PUBMAXX venue");
   });
 });

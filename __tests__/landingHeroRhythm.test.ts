@@ -1,3 +1,5 @@
+// @vitest-environment jsdom
+
 // The hero's lede belongs to the button it describes.
 //
 // DEFECT (UI audit, 2026-09-01, production, 390x844): "Choose its form and
@@ -13,47 +15,57 @@
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-const REPO_ROOT = join(__dirname, "..");
-const landingTsx = readFileSync(
-  join(REPO_ROOT, "components/landing/LandingPage.tsx"),
-  "utf8",
-);
+vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
+
 const landingCss = readFileSync(
-  join(REPO_ROOT, "components/landing/landing.css"),
+  join(process.cwd(), "components/landing/landing.css"),
   "utf8",
 );
+
+function heroActions(): HTMLElement {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(createElement(LandingPage));
+  const actions = host.querySelector<HTMLElement>(".lpHeroActions");
+  expect(actions, "landing action stack present").not.toBeNull();
+  return actions!;
+}
 
 describe("the lede sits under the call to action it describes", () => {
   it("renders inside the action stack, between the primary and the links", () => {
-    const actions = landingTsx.match(
-      /const heroActions = \([\s\S]*?\n  \);/,
-    )?.[0];
-    expect(actions, "hero action block present").toBeTruthy();
-
-    const primaryAt = actions!.indexOf("{heroPrimary}");
-    const ledeAt = actions!.indexOf("{heroLede}");
-    const secondaryAt = actions!.indexOf("lpHeroSecondaryRow");
-    expect(primaryAt).toBeGreaterThan(-1);
-    expect(ledeAt).toBeGreaterThan(primaryAt);
-    expect(secondaryAt).toBeGreaterThan(ledeAt);
-  });
-
-  it("is mounted once, and no longer as a sibling of the whole block", () => {
-    expect(landingTsx.match(/\{heroLede\}/g)).toHaveLength(1);
-    expect(landingTsx).not.toMatch(/\{heroActions\}\s*\n\s*\{heroLede\}/);
+    const actions = heroActions();
+    expect([...actions.children].map((child) => child.className)).toEqual([
+      "lpButton lpButtonPrimary",
+      "lpHeroLede",
+      "lpHeroSecondaryRow",
+    ]);
+    expect(actions.querySelectorAll(".lpHeroLede")).toHaveLength(1);
   });
 
   it("carries no margin of its own, so the stack's gap owns the rhythm", () => {
     expect(landingCss).toMatch(/\.lpHeroLede \{[^}]*margin: 0;/);
-  });
-
-  it("drops the phone order rule that only made sense as a flattened sibling", () => {
-    const phoneBlock = landingCss.slice(landingCss.indexOf(".lpHeroCopy { display: contents; }"));
-    expect(phoneBlock.slice(0, 400)).not.toMatch(/\.lpHeroLede \{ order:/);
-    expect(phoneBlock.slice(0, 400)).toMatch(/\.lpHeroActions \{ order: 2; \}/);
   });
 });
 

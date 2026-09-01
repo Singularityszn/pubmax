@@ -26,12 +26,14 @@ export type AuthClientLoadOutcome<TClient> =
  * broken deployment settles rather than retrying for the life of the tab.
  */
 export const AUTH_CLIENT_LOAD_RETRY_DELAYS_MS: readonly number[] = [400, 1_600, 4_000];
+export const AUTH_CLIENT_LOAD_TIMEOUT_MS = 15_000;
 
 export type AuthClientLoadDeps = {
   /** Resolve after `ms`. Injected so the policy is testable without timers. */
   delay: (ms: number) => Promise<void>;
   /** Overrides the backoff table. Tests pass an empty list for no waiting. */
   retryDelaysMs?: readonly number[];
+  timeoutMs?: number;
 };
 
 /**
@@ -46,14 +48,28 @@ export async function loadAuthClientWithRetry<TClient>(
   deps: AuthClientLoadDeps,
 ): Promise<AuthClientLoadOutcome<TClient>> {
   const delays = deps.retryDelaysMs ?? AUTH_CLIENT_LOAD_RETRY_DELAYS_MS;
-  for (let attempt = 0; ; attempt += 1) {
-    try {
-      const client = await load();
-      if (client === null) return { status: "unconfigured" };
-      return { status: "ready", client };
-    } catch {
-      if (attempt >= delays.length) return { status: "unavailable" };
-      await deps.delay(delays[attempt] ?? 0);
+  const attempts = (async (): Promise<AuthClientLoadOutcome<TClient>> => {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        const client = await load();
+        if (client === null) return { status: "unconfigured" };
+        return { status: "ready", client };
+      } catch {
+        if (attempt >= delays.length) return { status: "unavailable" };
+        await deps.delay(delays[attempt] ?? 0);
+      }
     }
+  })();
+
+  const timeoutMs = deps.timeoutMs ?? AUTH_CLIENT_LOAD_TIMEOUT_MS;
+  let timeout: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<AuthClientLoadOutcome<TClient>>((resolve) => {
+    timeout = setTimeout(() => resolve({ status: "unavailable" }), timeoutMs);
+  });
+
+  try {
+    return await Promise.race([attempts, deadline]);
+  } finally {
+    if (timeout !== undefined) clearTimeout(timeout);
   }
 }
