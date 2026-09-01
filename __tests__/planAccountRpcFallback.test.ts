@@ -3,6 +3,8 @@
 // parity without refusing every signed-in join, redeem or claim. Only a
 // MISSING FUNCTION may take a fallback: a genuine write failure stays a refusal.
 
+import { createHash } from "node:crypto";
+
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const supabase = vi.hoisted(() => ({
@@ -33,7 +35,7 @@ vi.mock("@/lib/supabase", () => ({
 import type { PlanState } from "@/lib/plan";
 import { claimPlanMembership, recoverPlanMembership } from "@/lib/planCrewIdentity";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
-import { supabasePlanStore } from "@/lib/planStore";
+import { planRequestDigest, supabasePlanStore } from "@/lib/planStore";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const MEMBER_ID = "33333333-3333-4333-8333-333333333333";
@@ -97,8 +99,9 @@ describe("account claim RPC fallbacks", () => {
     expect(fallback[0]).toBe("join_plan_idempotent_atomic");
     expect(fallback[1]).not.toHaveProperty("p_user_id");
     expect(fallback[1]).toMatchObject({
-      p_request_hash: supabase.rpc.mock.calls[0][1].p_request_hash,
+      p_request_hash: planRequestDigest({ name: "Priya", collaborationAuthorized: false }),
     });
+    expect(fallback[1].p_request_hash).not.toBe(supabase.rpc.mock.calls[0][1].p_request_hash);
   });
 
   it("reports a genuine account-join failure rather than retrying it unguarded", async () => {
@@ -134,6 +137,12 @@ describe("account claim RPC fallbacks", () => {
     const fallback = supabase.rpc.mock.calls[1];
     expect(fallback[0]).toBe("redeem_plan_invite_idempotent_atomic");
     expect(fallback[1]).not.toHaveProperty("p_user_id");
+    const inviteSalt = process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite";
+    const inviteTokenHash = createHash("sha256").update(`${inviteSalt}:invite-token`).digest("hex");
+    expect(fallback[1].p_request_hash).toBe(
+      planRequestDigest({ name: "Priya", inviteHash: inviteTokenHash }),
+    );
+    expect(fallback[1].p_request_hash).not.toBe(supabase.rpc.mock.calls[0][1].p_request_hash);
   });
 
   it("stamps the member row when the account claim function is unavailable", async () => {

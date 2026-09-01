@@ -207,21 +207,26 @@ describe("Plan account transition migrations", () => {
   it("binds anonymous join and redeem retries, then recovers stale RSVP tokens", () => {
     const planJoin = "10000000-0000-4000-8000-000000000001";
     const planRedeem = "10000000-0000-4000-8000-000000000002";
+    const planKeyed = "10000000-0000-4000-8000-000000000003";
     const hostJoin = "20000000-0000-4000-8000-000000000001";
     const hostRedeem = "20000000-0000-4000-8000-000000000002";
+    const hostKeyed = "20000000-0000-4000-8000-000000000003";
     const memberJoin = "30000000-0000-4000-8000-000000000001";
     const memberRedeem = "30000000-0000-4000-8000-000000000002";
+    const memberKeyed = "30000000-0000-4000-8000-000000000003";
     const userJoin = "40000000-0000-4000-8000-000000000001";
     const userRedeem = "40000000-0000-4000-8000-000000000002";
+    const userKeyed = "40000000-0000-4000-8000-000000000003";
     const when = "2026-09-01 12:00:00+00";
 
     session!.sql(`
-      insert into public.plans (id) values ('${planJoin}'), ('${planRedeem}');
+      insert into public.plans (id) values ('${planJoin}'), ('${planRedeem}'), ('${planKeyed}');
       insert into public.plan_crew_members
         (id, plan_id, name, token_hash, status, joined_at, updated_at, can_collaborate)
       values
         ('${hostJoin}', '${planJoin}', 'Host', repeat('1', 64), 'in', '${when}', '${when}', true),
-        ('${hostRedeem}', '${planRedeem}', 'Host', repeat('2', 64), 'in', '${when}', '${when}', true);
+        ('${hostRedeem}', '${planRedeem}', 'Host', repeat('2', 64), 'in', '${when}', '${when}', true),
+        ('${hostKeyed}', '${planKeyed}', 'Host', repeat('7', 64), 'in', '${when}', '${when}', true);
     `);
 
     expect(session!.sql(`
@@ -255,6 +260,22 @@ describe("Plan account transition migrations", () => {
       )
     `)).toBe("replayed");
     expect(session!.sql(`select user_id::text from public.plan_crew_members where id = '${memberRedeem}'`)).toBe(userRedeem);
+
+    expect(session!.sql(`
+      select public.join_plan_account_idempotent_atomic(
+        '${planKeyed}', '${memberKeyed}', 'Keyed guest', repeat('8', 64), '${when}', false,
+        repeat('a', 64), repeat('b', 64), '${userKeyed}'
+      )
+    `)).toBe("joined");
+    expect(session!.sql(`
+      select public.recover_plan_account_membership_atomic('${planKeyed}', '${userKeyed}', repeat('9', 64), repeat('c', 64), repeat('d', 64), '${when}'::timestamptz + interval '1 minute')
+    `)).toBe("recovered");
+    expect(session!.sql(`
+      select public.join_plan_account_idempotent_atomic(
+        '${planKeyed}', '${memberKeyed}', 'Keyed guest', repeat('8', 64), '${when}', false,
+        repeat('a', 64), repeat('b', 64), '${userKeyed}'
+      )
+    `)).toBe("conflict");
 
     session!.sql(`
       insert into public.plan_invite_rsvps

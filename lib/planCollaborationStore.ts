@@ -351,7 +351,10 @@ const memoryStore: PlanCollaborationStore = {
     const requestKey = `${planId}:invite:join:${key}`;
     const replay = memory.idempotency.get(requestKey) as { requestHash: string; result: { ok: true; plan: PlanState | null; memberToken: string; role: "guest"; collaborationAuthorized: true } } | undefined;
     if (replay) {
-      if (replay.requestHash === requestHash) return structuredClone(replay.result);
+      if (replay.requestHash === requestHash) {
+        if (!await planMemberIdentity(planId, replay.result.memberToken)) return { ok: false, error: "conflict" };
+        return structuredClone(replay.result);
+      }
       if (userId && replay.requestHash === planRequestDigest({ name, inviteHash: hash })) {
         const accountReplay = reconcileMemoryPlanAccountJoin(
           planId,
@@ -651,6 +654,7 @@ const supabaseStore: PlanCollaborationStore = {
     if (ended) return ended;
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const inviteTokenHash = inviteHash(rawToken.trim());
+    const anonymousRequestHash = planRequestDigest({ name, inviteHash: inviteTokenHash });
     const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
     const admin = requireSupabaseAdmin();
@@ -676,7 +680,10 @@ const supabaseStore: PlanCollaborationStore = {
       // account stamp keeps development parity; the seat binds later through
       // the claim lane. Only a missing FUNCTION may take this path.
       console.warn("[plans] account invite redeem RPC missing; redeeming without account stamp");
-      ({ data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", redeemArgs));
+      ({ data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", {
+        ...redeemArgs,
+        p_request_hash: anonymousRequestHash,
+      }));
     }
     if (error) return { ok: false, error: "error" };
     if (data !== "joined" && data !== "replayed") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "capability_replayed" ? "replayed" : data === "conflict" ? "conflict" : data === "account_conflict" ? "account_conflict" : data === "not_found" ? "not_found" : "error" };

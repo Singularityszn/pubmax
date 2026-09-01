@@ -16,9 +16,18 @@ security definer
 set search_path = ''
 as $$
 declare
+  v_plan_id uuid;
   v_existing public.plan_crew_members%rowtype;
   v_claim text;
 begin
+  -- Lock Plan before member so join, claim, and RSVP paths share one order.
+  select id
+    into v_plan_id
+  from public.plans
+  where id = p_plan_id
+  for update;
+  if not found then return 'not_found'; end if;
+
   select *
     into v_existing
   from public.plan_crew_members
@@ -29,7 +38,9 @@ begin
 
   if v_existing.join_request_hash = p_request_hash
      and v_existing.id = p_member_id
-     and v_existing.user_id = p_user_id then
+     and v_existing.user_id = p_user_id
+     and v_existing.membership_revoked_at is null
+     and v_existing.token_hash = p_member_token_hash then
     return 'replayed';
   end if;
 
@@ -53,6 +64,7 @@ begin
 
   if v_existing.id = p_member_id
      and v_existing.user_id = p_user_id
+     and v_existing.membership_revoked_at is null
      and v_existing.name = p_member_name
      and v_existing.can_collaborate is not distinct from p_can_collaborate
      and v_existing.token_hash = p_member_token_hash

@@ -325,6 +325,10 @@ export const supabasePlanStore: PlanStore = {
       collaborationAuthorized: options.collaborationAuthorized === true,
       ...(userId ? { userId } : {}),
     });
+    const anonymousRequestHash = planRequestDigest({
+      name,
+      collaborationAuthorized: options.collaborationAuthorized === true,
+    });
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
@@ -353,7 +357,10 @@ export const supabasePlanStore: PlanStore = {
         // the claim lane. Only a missing FUNCTION may take this path: a genuine
         // write failure must stay a refusal.
         console.warn("[plans] account join RPC missing; joining without account stamp");
-        ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", joinArgs));
+        ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", {
+          ...joinArgs,
+          p_request_hash: anonymousRequestHash,
+        }));
       }
       if (error) throw new Error(error.message);
       if (data === "full") return { ok: false, error: "full" };
@@ -682,9 +689,12 @@ export const memoryPlanStore: PlanStore = {
         if (accountReplay) return accountReplay;
       }
       if (replay.requestHash !== requestHash) return { ok: false, error: "conflict" };
-      if (!plan.crew.some((member) => member.id === replay.memberId)) return { ok: false, error: "error" };
+      const member = plan.crew.find((candidate) => candidate.id === replay.memberId);
+      if (!member) return { ok: false, error: "error" };
+      const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
+      if (member.tokenHash !== hashPlanMemberToken(memberToken)) return { ok: false, error: "conflict" };
       return {
-        ok: true, plan: publicState(plan), memberToken: planIdempotencyDigest(`plan-join-token:${id}`, key),
+        ok: true, plan: publicState(plan), memberToken,
         role: "guest", collaborationAuthorized: options.collaborationAuthorized === true,
       };
     }

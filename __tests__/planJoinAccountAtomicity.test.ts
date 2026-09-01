@@ -28,6 +28,7 @@ import {
   __resetMemoryPlans,
   memoryPlanStore,
   planInviteToken,
+  recoverMemoryPlanMembership,
 } from "@/lib/planStore";
 
 const ctx = (id: string) => ({ params: Promise.resolve({ id }) });
@@ -122,6 +123,48 @@ describe("signed-in Plan join account atomicity", () => {
     expect(__listMemoryPlanMemberUserIds(created.plan.plan.id)).toEqual([
       expect.objectContaining({ userId: auth.userId }),
     ]);
+  });
+
+  it("rejects an original keyless join retry after capability recovery", async () => {
+    const created = await createPlan();
+    const invite = await planInviteToken(created.plan.plan.id);
+    if (!invite.ok || !invite.inviteToken) throw new Error("missing invite");
+
+    auth.userId = null;
+    const guest = await join(
+      created.plan.plan.id,
+      invite.inviteToken,
+      "keyless-stale-retry",
+      "Guest name",
+    );
+    expect(guest.status).toBe(200);
+    await guest.json();
+
+    const userId = "22222222-2222-4222-8222-222222222222";
+    auth.userId = userId;
+    const account = await join(
+      created.plan.plan.id,
+      invite.inviteToken,
+      "keyless-stale-retry",
+      "Guest name",
+    );
+    expect(account.status).toBe(200);
+    await account.json();
+    expect(recoverMemoryPlanMembership(
+      created.plan.plan.id,
+      userId,
+      "rotated-memory-capability",
+    )).not.toBeNull();
+
+    auth.userId = null;
+    const retry = await join(
+      created.plan.plan.id,
+      invite.inviteToken,
+      "keyless-stale-retry",
+      "Guest name",
+    );
+    expect(retry.status).toBe(409);
+    expect(await retry.json()).toMatchObject({ code: "PLAN_IDEMPOTENCY_CONFLICT" });
   });
 
   it("refuses a second classic-invite seat for the same account", async () => {
