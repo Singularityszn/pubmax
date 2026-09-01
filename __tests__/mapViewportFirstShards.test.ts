@@ -122,16 +122,16 @@ describe("the viewport loads on this turn, the ring on idle", () => {
     expect(immediate).toHaveBeenCalledTimes(1);
 
     const deferred = vi.fn();
-    let idle: (() => void) | null = null;
+    const idle: Array<() => void> = [];
     scheduleSlimShardViewportLoad(deferred, "refresh", {
       requestIdleCallback: (callback) => {
-        idle = callback as unknown as () => void;
+        idle.push(callback as unknown as () => void);
         return 0;
       },
       setTimeout: () => 0,
     });
     expect(deferred).not.toHaveBeenCalled();
-    idle?.();
+    idle[0]?.();
     expect(deferred).toHaveBeenCalledTimes(1);
   });
 

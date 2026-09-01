@@ -78,7 +78,8 @@ describe("the card and the greeting agree on one morning", () => {
     const greeting = buildDayGreeting({
       now,
       weather: null,
-      handle: null,
+      dateLabel: "Tuesday 6 October",
+      name: null,
     });
     const verdict = evaluateDrinkWeather({ ...CRISP_AUTUMN, dayPart: daySlot(now) });
 

@@ -39,7 +39,7 @@ function subscribeNoop(): () => void {
  * You → notifications: Step Out weekly nudge opt-in. Default OFF. Names the
  * weekly cap and iOS Home Screen install requirement honestly.
  */
-export default function StepOutNudgePref(): React.JSX.Element {
+export default function StepOutNudgePref(): React.JSX.Element | null {
   const { user } = useAuth();
   const viewerSession = useViewerSession();
   const [pref, setPref] = useState<PrefState | null>(null);

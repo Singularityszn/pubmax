@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -187,18 +188,21 @@ export default function MessageThread({
   const [mobileAttachOpen, setMobileAttachOpen] = useState(false);
   const listEndRef = useRef<HTMLDivElement | null>(null);
   const loadedForRef = useRef<ThreadReadKey | null>(null);
-  const viewRevisionRef = useRef<ThreadReadKey | null>(null);
+  const [viewRevision, setViewRevision] = useState<ThreadReadKey | null>(null);
   const activeReadRef = useRef<ThreadReadRequest | null>(null);
   const requestGenerationRef = useRef(0);
   const conversationIdRef = useRef(conversationId);
-  if (conversationIdRef.current !== conversationId) {
+  const accountRevisionRef = useRef(accountRevision);
+  useLayoutEffect(() => {
+    if (conversationIdRef.current === conversationId) return;
     activeReadRef.current = null;
     loadedForRef.current = null;
-    viewRevisionRef.current = null;
+    setViewRevision(null);
     conversationIdRef.current = conversationId;
-  }
-  const accountRevisionRef = useRef(accountRevision);
-  accountRevisionRef.current = accountRevision;
+  }, [conversationId]);
+  useLayoutEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
   const attachmentPickerRef = useRef<MessageAttachmentPickerHandle | null>(null);
   const inputRef = useRef<HTMLTextAreaElement | null>(null);
   const cropCardRef = useRef<HTMLDivElement | null>(null);
@@ -260,7 +264,7 @@ export default function MessageThread({
       if (!user) {
         if (!stillCurrent()) return;
         loadedForRef.current = null;
-        viewRevisionRef.current = viewerSession.unresolved ? null : requestKey;
+        setViewRevision(viewerSession.unresolved ? null : requestKey);
         // The live session has not answered yet: a thread that cannot be read
         // is still loading. Calling it signed-out here showed a signed-in
         // drinker the sign-in door on their own conversation.
@@ -271,7 +275,7 @@ export default function MessageThread({
       if (!h) {
         if (!stillCurrent()) return;
         loadedForRef.current = null;
-        viewRevisionRef.current = requestKey;
+        setViewRevision(requestKey);
         setState("signedout");
         return;
       }
@@ -287,20 +291,20 @@ export default function MessageThread({
         if (res.status === 401) {
           discardBody(res);
           loadedForRef.current = null;
-          viewRevisionRef.current = requestKey;
+          setViewRevision(requestKey);
           setState("signedout");
           return;
         }
         if (res.status === 404) {
           discardBody(res);
           loadedForRef.current = null;
-          viewRevisionRef.current = requestKey;
+          setViewRevision(requestKey);
           setState("notfound");
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          viewRevisionRef.current = requestKey;
+          setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
             setState("unreachable");
           }
@@ -310,7 +314,7 @@ export default function MessageThread({
         if (!stillCurrent()) return;
         const next = Array.isArray(body.messages) ? body.messages : [];
         loadedForRef.current = requestKey;
-        viewRevisionRef.current = requestKey;
+        setViewRevision(requestKey);
         setMessages(next);
         const theirs = next.find((m) => m.senderHandle !== h);
         setOtherHandle(theirs?.senderHandle ?? "");
@@ -320,7 +324,7 @@ export default function MessageThread({
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
         if (!aborted && stillCurrent()) {
-          viewRevisionRef.current = requestKey;
+          setViewRevision(requestKey);
           if (!sameThreadReadKey(loadedForRef.current, conversationId, requestRevision)) {
             setState("unreachable");
           }
@@ -494,7 +498,7 @@ export default function MessageThread({
     [conversationId, refresh, user, authHandle],
   );
 
-  if (!sameThreadReadKey(viewRevisionRef.current, conversationId, accountRevision)) {
+  if (!sameThreadReadKey(viewRevision, conversationId, accountRevision)) {
     return <p className="conversationPreview">With you in a sec.</p>;
   }
 

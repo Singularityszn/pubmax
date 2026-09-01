@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
@@ -40,7 +40,9 @@ export default function MessagesInboxClient({
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
   const accountRevisionRef = useRef(accountRevision);
-  accountRevisionRef.current = accountRevision;
+  useLayoutEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
 
   useEffect(() => {
     let active = true;
