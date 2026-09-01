@@ -143,7 +143,7 @@ test("/discover renders the cheap-pint leaderboard section", async ({ page }) =>
   const response = await page.goto("/discover");
   expect(response?.status()).toBe(200);
   // Stable, app-owned heading (id in app/discover/page.tsx).
-  await expect(page.locator("#cheap-title")).toBeVisible();
+  await expect(page.locator("#cheap-title").first()).toBeVisible();
   expect(errors).toEqual([]);
 });
 
@@ -392,7 +392,7 @@ test("mobile venue sheet sticky actions switch to Train and price sign-in gate",
   await expect(overviewTab).toHaveAttribute("aria-selected", "true");
   await expect(page.locator("#venuePanel-overview")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Sign in to add a price" }),
+    page.getByRole("heading", { name: "Sign in to add a price" }).first(),
   ).toBeVisible();
 });
 

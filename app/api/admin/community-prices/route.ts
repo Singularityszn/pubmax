@@ -109,7 +109,7 @@ export async function POST(request: Request): Promise<Response> {
     if (result.status === "not-found") {
       return publicApiError("Report not found.", "NOT_FOUND", 404);
     }
-    if (result.kind === "signal") {
+    if (result.status === "ok" && result.kind === "signal") {
       return jsonNoStore({ ok: true }, { status: 200 });
     }
     const reconciliation = action === "hide"

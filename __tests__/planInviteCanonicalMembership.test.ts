@@ -165,7 +165,7 @@ describe("canonical invite RSVP membership migration", () => {
     const sql = readFileSync(migrationPath, "utf8");
 
     expect(sql).toMatch(/add column if not exists member_id uuid references public\.plan_crew_members\(id\) on delete cascade/i);
-    expect(sql).toMatch(/create unique index[^;]+plan_invite_rsvps[^;]+member_id/is);
+    expect(sql).toMatch(/create unique index[^;]+plan_invite_rsvps[^;]+member_id/i);
     expect(sql).toContain("upsert_plan_invite_rsvp_membership_atomic");
     expect(sql).toContain("remove_plan_invite_rsvp_membership_atomic");
     expect(sql).toContain("create or replace function public._0075_join_plan_idempotent_atomic");

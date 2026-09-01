@@ -124,7 +124,7 @@ function filesAt(relativePath: string): string[] {
   );
 }
 
-function sourceFiles(paths: string[]): Map<string, string> {
+function sourceFiles(paths: readonly string[]): Map<string, string> {
   return new Map(
     Array.from(new Set(paths.flatMap(filesAt))).map((relativePath) => [
       relativePath,
@@ -158,7 +158,7 @@ function dependencies(
 describe("retired Social beta access boundary", () => {
   it("scans active deployment configuration roots", () => {
     expect(RETIREMENT_SCAN_PATHS).toEqual(
-      expect.arrayContaining(ACTIVE_DEPLOYMENT_SCAN_PATHS),
+      expect.arrayContaining([...ACTIVE_DEPLOYMENT_SCAN_PATHS]),
     );
 
     const activeSources = sourceFiles(RETIREMENT_SCAN_PATHS);

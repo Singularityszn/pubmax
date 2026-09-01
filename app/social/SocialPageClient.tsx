@@ -681,7 +681,6 @@ function SocialPageAccountState({
     access === "verified";
   return (
     <>
-      <SiteNav active="social" />
       <main className="socialPage" id="main-content">
         <h1 className="socialTitle">{surfaceName}</h1>
         <div className="socialLayout">
@@ -871,5 +870,16 @@ function SocialPageAccountState({
 
 export default function SocialPageClient(props: SocialPageClientProps) {
   const { user } = useAuth();
-  return <SocialPageAccountState key={user?.id ?? "signed-out"} {...props} />;
+  // The key is what isolates one account's Social state from the next: a switch
+  // remounts this subtree so no held feed, composer draft or activity list can
+  // carry over. SiteNav sits OUTSIDE it on purpose. The nav is not Social state,
+  // and remounting it destroyed the account menu mid-switch: the open card that
+  // is supposed to name the account you just switched TO disappeared instead,
+  // against the law that a held profile card carries the handle it is about.
+  return (
+    <>
+      <SiteNav active="social" />
+      <SocialPageAccountState key={user?.id ?? "signed-out"} {...props} />
+    </>
+  );
 }

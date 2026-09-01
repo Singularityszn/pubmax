@@ -1,10 +1,33 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
 
 const root = process.cwd();
-const landing = readFileSync(join(root, "components/landing/LandingPage.tsx"), "utf8");
 const wordmark = readFileSync(join(root, "components/brand/PubmaxxWordmark.tsx"), "utf8");
 const consent = readFileSync(join(root, "app/globals.css"), "utf8");
 const tour = readFileSync(join(root, "components/onboarding/firstRunTour.css"), "utf8");
@@ -18,14 +41,14 @@ const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
 const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
-  it("makes Plan tonight together the landing hero primary", () => {
-    const heroPrimary = landing.match(/const heroPrimary[\s\S]*?\n  \);/)?.[0] ?? "";
-    expect(heroPrimary).toMatch(
-      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/plan"[\s\S]*?Plan tonight together/,
+  it("makes Meet your Pub Pal the landing hero primary", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const hero = rendered.match(/<section class="lpHero"[\s\S]*?<\/section>/)?.[0];
+    expect(hero, "landing hero present").toBeTruthy();
+    expect(hero).toMatch(
+      /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
     );
-    expect(heroPrimary).not.toMatch(
-      /className="lpButton lpButtonPrimary"[\s\S]*?href="\/near\?locate=1"[\s\S]*?Find my pint/,
-    );
+    expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
   });
 
   it("publishes the complete PUBMAXX brand to assistive technology", () => {

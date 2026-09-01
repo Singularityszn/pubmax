@@ -159,11 +159,13 @@ test(
     await expect(page.getByTestId("listings-skeleton")).toHaveCount(0, { timeout: 10_000 });
     await expect(page.getByRole("heading", { name: "A Night at the Playhouse" })).toBeVisible();
     await expect(page.getByRole("heading", { name: "Unmatched Playhouse" })).toHaveCount(0);
-    // The hidden row is counted and named, never summarised as "some".
+    // The hidden row is counted and credited, while place names stay hidden
+    // beside the matched venue card.
     const notice = page.getByTestId("out-unmatched-notice");
     await expect(notice).toContainText(
-      "1 more listing tonight is at a place we don't list yet. The O2.",
+      "1 more listing tonight is at a place we don't list yet.",
     );
+    await expect(notice).not.toContainText("The O2");
     const listings = page.getByRole("region", { name: "What's on tonight" });
     await expect(listings).toBeVisible();
     await expect(page.getByRole("region", { name: "Open plans" })).toHaveCount(0);
