@@ -6,7 +6,7 @@ reviewed surface—even when a POST is semantically read-only. The regression te
 Adding a mutating route or removing its authority/abuse boundary fails
 CI until this certification is deliberately updated.
 
-> **Inventory: 140 mutating handlers across 113 route files.** Each exported
+> **Inventory: 142 mutating handlers across 113 route files.** Each exported
 > `POST`, `PUT`, `PATCH`, or `DELETE` is one reviewed surface. A file with two
 > mutation methods contributes two entries. Read-only handlers do not enter this
 > inventory. Both counts are merge-conflict coordination points.
@@ -45,6 +45,7 @@ Protection in a sibling method cannot certify another method.
 - `PATCH app/api/night-stories/[id]`
 - `PATCH app/api/night-stories/[id]/contributors`
 - `PATCH app/api/plans/[id]`
+- `PATCH app/api/plans/[id]/session`
 - `PATCH app/api/profiles/[handle]`
 - `PATCH app/api/pub-pal`
 - `PATCH app/api/pub-pal/memories/[memoryId]`
@@ -156,6 +157,7 @@ Protection in a sibling method cannot certify another method.
 - `POST app/api/weather-recommendations`
 - `PUT app/api/me/night-profile`
 - `PUT app/api/me/pending-plan-recaps`
+- `PUT app/api/plans/[id]/session`
 - `PUT app/api/profiles/[handle]`
 - `PUT app/api/social/interactions`
 <!-- mutation-handler-inventory:end -->
@@ -1246,6 +1248,28 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
 - **Read honesty:** the read carries its own state (`fresh`, `stale`, `none`,
   `degraded`), so a failed lookup is never worded as a pub nobody has reported.
   A write that landed still thanks the tap when the read-back degrades.
+
+### `app/api/plans/[id]/session` PUT and PATCH - Plan account claim and recovery (route 92)
+
+- **Route / method:** `PUT app/api/plans/[id]/session/route.ts` binds a
+  guest-created Plan membership to the signed-in account. `PATCH` restores a
+  lost member capability from the account's stamped seat. The existing `POST`
+  capability exchange is unchanged, and `GET` stays read-only and uncounted.
+- **Identity (boundary):** both handlers require `verifyCallerAuth` to answer
+  `verified`; an unavailable verifier is a retryable 503, never a quiet 401.
+  The claim additionally requires the path-scoped HttpOnly member cookie
+  (`planMemberCookieCapability`), so a bearer alone cannot claim a seat it
+  never held, and a cookie alone cannot bind a seat to nobody.
+- **Rate limit (boundary):** the claim spends a per-IP `isLimited` budget; the
+  recovery spends a global per-IP ceiling plus a per-IP/account/Plan budget and
+  requires an idempotency key. Server-side account/Plan idempotency derives the
+  stable rotated member token, so concurrent recovery requests converge.
+- **Write:** one RPC each (`claim_plan_membership`,
+  `recover_plan_account_membership_atomic`), so a partial claim can never leave
+  a Plan attached to two accounts and a recovery can never mint a second seat.
+  A membership held by a different account is an honest 409. The missing-function
+  fallbacks preserve keyless and development parity when the current Plan schema
+  is present; a genuine write failure remains a refusal.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

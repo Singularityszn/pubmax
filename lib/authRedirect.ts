@@ -1,5 +1,5 @@
 import { canonicalAuthStartUrl, siteOrigin } from "@/lib/siteUrl";
-import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 
 /**
  * Keep post-auth navigation on the app origin. This is shared by every auth
@@ -272,17 +272,17 @@ export const HANDLE_CLAIM_NEXT = "/u/you";
 /**
  * Default destination for a signed-out email sign-in with no explicit next.
  * Email sign-in creates the account, and choosing a handle is the step after,
- * so the callback lands on the claim surface. A live page fragment in hand (an
- * invite) outranks that default: the stored-fragment restore must bring the
- * user back to the page that held it, so those keep the current-page return.
+ * so the callback lands on the claim surface. A return target already on that
+ * surface (an add link or Plan) outranks that default, so account setup can
+ * return the user to the action that started it.
  */
 export function defaultEmailAuthNext(currentUrl: string): string | undefined {
   try {
     const current = new URL(currentUrl);
     if (current.hash && !parseAuthResponseFragment(current.hash)) return undefined;
-    const inviteReturnTo = inviteReturnToFromUrl(currentUrl);
-    if (current.pathname === HANDLE_CLAIM_NEXT && inviteReturnTo) {
-      return `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(inviteReturnTo)}`;
+    const claimReturnTo = accountClaimReturnToFromUrl(currentUrl);
+    if (current.pathname === HANDLE_CLAIM_NEXT && claimReturnTo) {
+      return `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(claimReturnTo)}`;
     }
     return HANDLE_CLAIM_NEXT;
   } catch {

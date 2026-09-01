@@ -101,8 +101,9 @@ earlier timestamps, so Captain must apply them with
 Current production migration state and source-ledger reconciliation are owned by
 the [soft-launch runbook](SOFT_LAUNCH_RUNBOOK.md#13-migrations). Check the live
 ledger there before applying any migration, including the `0127`-`0132`
-reconciliation entries and their matching rollback files. Captain applies
-migrations; agents do not apply them.
+reconciliation entries and the `0133`-`0134` Plan account-claim follow-up
+entries, all with their matching rollback files. Captain applies migrations;
+agents do not apply them.
 
 Supabase installs the pgcrypto extension in the `extensions` schema, not
 `public`. Local test Postgres installs it in `public`, which hides the

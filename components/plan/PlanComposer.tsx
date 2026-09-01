@@ -1839,6 +1839,7 @@ function PlanComposerForm({
         const mapped = hydratedHandoff ? composerLockErrorFromResponse(response.status) : null;
         throw new Error(mapped || errorMessageFrom(body, "The plan could not be created."));
       }
+      const planId = body.plan.plan.id as string;
       const attribution = serverPlanCreationAttribution(body);
       if (!attribution) throw new Error("We could not check the route details. Reload the plan before continuing.");
       settleConsumedPlanningIntent(completeStops);
@@ -1868,9 +1869,8 @@ function PlanComposerForm({
       // First high-intent action → arm the signed-out account nudge (self-gates
       // on auth/cooldown; browsing was never gated). In the native shell this
       // wins over the push prompt, which defers via isIdentityNudgePending().
-      if (attribution.created) recordPlanNudgeTrigger();
+      if (attribution.created) recordPlanNudgeTrigger(planId);
       if (body.memberToken) {
-        const planId = body.plan.plan.id as string;
         writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: true, role: "host" });
         const metadataPatch = createdPlanMetadataPatch(body.plan as PlanState, nightContext);
         if (metadataPatch) {
@@ -1893,7 +1893,7 @@ function PlanComposerForm({
       clearPersistedPlanDrafts({ planDraft: safeSessionStorage(), routeDraft: safeLocalStorage() });
       clearPlanIntakeDraft();
       clearPersistentPlanMutationKey("create", operationKey);
-      router.push(`/plan/${body.plan.plan.id}#share`);
+      router.push(`/plan/${planId}#share`);
     } catch (caught) {
       setError(caught instanceof Error ? caught.message : "The plan could not be created.");
     } finally {
