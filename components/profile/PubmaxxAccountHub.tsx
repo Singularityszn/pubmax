@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import FoundingMemberCard from "@/components/founding/FoundingMemberCard";
 import {
   analyticsConsentDecision,
@@ -871,6 +872,12 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <FoundingMemberCard />
+        {/* Beside the card, never inside it: the CARD is for a founding member
+            alone, and the WALL is a public list anybody may read. */}
+        <div className="accountHubFoundersWall">
+          <h3>The first hundred</h3>
+          <FoundersWallLink />
+        </div>
         {socialFriendsLaunchEnabled ? (
           <ReferralInviteCard
             status={visibleReferralStatus}

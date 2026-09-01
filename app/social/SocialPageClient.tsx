@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
+import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
@@ -722,6 +723,12 @@ function SocialPageAccountState({
                 own follow results, so the two would disagree about what a tap
                 just did. */}
             {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
+            {/* The founders wall. Public, already sitemapped, and until now
+                reachable from nowhere inside the app. One quiet link, no
+                count, and no branch on whether this reader holds a number:
+                that would make the number a capability, which
+                lib/foundingMembers.ts forbids. */}
+            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
             {/* And ONE live copy of the search-and-invite surface, for the same
                 reason: the body used to mount a second one beside it, so an
                 unverified viewer met the same heading, the same field and the

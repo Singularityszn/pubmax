@@ -1927,6 +1927,10 @@
 .accountHubFounding { justify-items: start; }
 .accountHubFounding h3 { margin: 0; font-size: inherit; font-weight: inherit; }
 .accountHubGrid .accountHubFounding .foundersDiscordLink { justify-self: start; }
+/* The public founders wall, beside the founding member's own card. */
+.accountHubFoundersWall { justify-items: start; }
+.accountHubFoundersWall h3 { margin: 0 0 8px; }
+.accountHubGrid .accountHubFoundersWall .foundersWallLink { justify-self: start; }
 /* Create / change password. The card is ordinary until the read says the
    account HAS no password: then it takes the full row and an edge, so the one
    thing an email-link account is owed is the thing it lands on. Never a dialog
