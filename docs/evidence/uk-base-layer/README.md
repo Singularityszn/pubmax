@@ -14,3 +14,7 @@ the base layer's live feature count for the viewport.
 The base layer's own coverage in Greater Manchester sits outside the curated
 core — 23 base pubs in the Middleton/Blackley box alone — which is exactly the
 gap it exists to fill.
+
+These captures predate the later dark-mode base-pub edge repair. Current dark
+base pubs use the shared `pinRim` and `pinCasing` edge; light output remains
+byte-identical. Do not use `london-390x844.jpg` as current dark-mode proof.
