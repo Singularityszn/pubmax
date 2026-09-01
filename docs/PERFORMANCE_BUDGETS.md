@@ -88,6 +88,32 @@ own interactive moment on a different box and network: this sweep counted 62 on
 `/` where CI is green at 50, so a request figure measured here is not
 comparable. Decoded bytes are, which is why only those ratcheted.
 
+## Which API reads may sit at the edge
+
+A shared cache holds ONE answer for everybody, so only a route whose answer is
+the same for everybody may ask for one. The bar is narrower than "is it
+public": the body has to be a pure function of the request URL and the
+deployment. A session, a caller's identity, a store read that can change
+between two requests, or a URL that can carry the viewer's own coordinates all
+disqualify it.
+
+| class | contract | verdict |
+| --- | --- | --- |
+| Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
+| Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
+| What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
+| Everything actor-gated | Answer differs per caller | No-store, by law |
+
+`__tests__/sharedCacheHonesty.test.ts` is the fence. It sweeps every route file
+and fails when a shared-cache header sits beside a per-caller read or a viewer
+point.
+
+It found two routes that already ship one over a coarsened viewer point:
+`/api/tfl-disruption` (`s-maxage=60`) and `/api/citymcp/journey`. Whether a
+coarsened point may sit in a shared cache key is a product call rather than an
+implementation one, so both are named in the fence as an escalated exception
+with the finding attached, and the list may only shrink.
+
 ## How a run is taken
 
 Against the production build, at 390x844, with a 4x CPU throttle and every
