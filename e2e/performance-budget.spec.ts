@@ -3,8 +3,10 @@ import { expect, test } from "@playwright/test";
 import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
+  findRatchetCandidates,
   formatBreachTable,
   formatMeasurementTable,
+  formatRatchetTable,
   type RouteMeasurement,
 } from "../lib/performanceBudgets";
 import { measurePerfRoute, preparePerfPage } from "./helpers/perfMeasurement";
@@ -61,6 +63,19 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   }
 
   console.log(`[perf-budget]\n${formatMeasurementTable(budgets.routes, measured)}`);
+
+  // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
+  // route quietly grows back into. A sweep that beats one by a clear margin
+  // names the candidate here so the margin gets banked as a lower number rather
+  // than spent. It is a WARNING - it edits nothing and fails nothing.
+  const ratchet = findRatchetCandidates(budgets.routes, measured);
+  if (ratchet.length > 0) {
+    console.log(
+      `\n[perf-budget][ratchet] ceilings with slack to bank ` +
+        `(docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):\n` +
+        `${formatRatchetTable(ratchet)}\n`,
+    );
+  }
 
   const breaches = findBudgetBreaches(budgets.routes, measured);
   expect(

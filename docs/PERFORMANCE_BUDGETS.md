@@ -155,6 +155,26 @@ that reason, and the same down-only rule applies to them as to the page
 budgets. A route the probe could not measure fails: a budget nothing checked is
 not a budget, and an error page is not a fast read.
 
+## Banking the slack
+
+Slack does not stay slack. #1296 is the record of what happens otherwise: a
+ceiling set generously, a route that quietly grows back into it, and nobody
+able to say when.
+
+So the sweep prints a second table. Any route that beats a ceiling by more than
+15% is named as a ratchet candidate, with what it measured and how far under it
+sat. A sweep where every ceiling is snug prints nothing, so a quiet run stays
+quiet.
+
+It is a WARNING and only a warning. It edits no file and fails no build:
+`lib/performanceBudgets.ts` touches the filesystem at all only to read the
+ceilings, and `__tests__/lcpBudget.test.ts` holds it to that. A ceiling comes
+down because a person decided it should, with the measurement in front of them,
+which is the same rule the budget file's own note states.
+
+An unmeasured route is never a candidate. That route is a BREACH, and the
+breach table already says so.
+
 ## How a run is taken
 
 Against the production build, at 390x844, with a 4x CPU throttle and every

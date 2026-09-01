@@ -126,12 +126,94 @@ export function findBudgetBreaches(
   return breaches;
 }
 
+/**
+ * How far under a ceiling a route has to sit before the slack is worth banking.
+ *
+ * Slack does not stay slack. #1296 is the record of what happens otherwise: a
+ * ceiling set generously, a route that quietly grew back into it, and nobody
+ * able to say when. So a sweep that beats a ceiling by more than this names the
+ * candidate, and somebody decides whether to take it down.
+ */
+export const RATCHET_SLACK_FRACTION = 0.15;
+
+export type RatchetCandidate = {
+  path: string;
+  metric: BudgetMetric;
+  measured: number;
+  budget: number;
+  /** How far under the ceiling, as a whole percentage. */
+  underBy: number;
+};
+
+/**
+ * Every metric a run beat by more than the slack fraction.
+ *
+ * This is a WARNING and nothing else: it edits no file and fails no build. A
+ * ceiling comes down because a person decided it should, with the measurement
+ * in front of them - the same rule the budget file's own note states.
+ *
+ * An unmeasured route is not a candidate: it is a breach, and
+ * `findBudgetBreaches` already says so.
+ */
+export function findRatchetCandidates(
+  budgets: readonly RouteBudget[],
+  measured: ReadonlyMap<string, RouteMeasurement>,
+  slackFraction: number = RATCHET_SLACK_FRACTION,
+): RatchetCandidate[] {
+  const candidates: RatchetCandidate[] = [];
+  for (const route of budgets) {
+    const measurement = measured.get(route.path);
+    if (!measurement) continue;
+    for (const metric of BUDGET_METRICS) {
+      const budget = route[metric];
+      const value = measurement[metric];
+      if (!Number.isFinite(value) || budget <= 0) continue;
+      const slack = (budget - value) / budget;
+      if (slack <= slackFraction) continue;
+      candidates.push({
+        path: route.path,
+        metric,
+        measured: value,
+        budget,
+        underBy: Math.round(slack * 100),
+      });
+    }
+  }
+  return candidates;
+}
+
 function pad(value: string, width: number): string {
   return value.length >= width ? value : value + " ".repeat(width - value.length);
 }
 
 function figure(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value)) : "not measured";
+}
+
+/**
+ * The ratchet table a green run prints when there is slack to bank. Empty
+ * string when every ceiling is snug, so a quiet sweep stays quiet.
+ */
+export function formatRatchetTable(candidates: readonly RatchetCandidate[]): string {
+  if (candidates.length === 0) return "";
+  const rows = candidates.map((candidate) => [
+    candidate.path,
+    BUDGET_METRIC_LABELS[candidate.metric],
+    figure(candidate.measured),
+    figure(candidate.budget),
+    `-${candidate.underBy}%`,
+  ]);
+  const header = ["route", "metric", "measured", "budget", "under by"];
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+  );
+  const line = (cells: string[]) =>
+    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+  return [
+    line(header),
+    widths.map((width) => "-".repeat(width)).join("  "),
+    ...rows.map(line),
+  ].join("\n");
 }
 
 /** The over-budget table a failing run prints. Empty string when nothing broke. */
