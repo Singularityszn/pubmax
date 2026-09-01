@@ -51,20 +51,30 @@ const PER_CALLER_READS = [
 const VIEWER_POINT_READS = ["coarsenViewerPoint", 'searchParams.get("lat")'];
 
 /**
- * Two routes that already shipped a shared-cache header over a coarsened viewer
- * point, and are NOT this unit's to change: /api/tfl-disruption caches 60s and
- * /api/citymcp/journey caches its own window, both keyed on a URL carrying
- * lat and lng. Whether a coarsened point may sit in a shared cache key is a
- * product call above an implementation lane, so they are named here with the
- * finding rather than quietly changed or quietly allowed.
+ * Routes that return a shared-cache header from a file that also mentions
+ * `coarsenViewerPoint`, and are RULED to be honest.
  *
- * This list may only ever SHRINK. Anything new that wants to join it is a
- * decision somebody has to make on purpose.
+ * The captain's invariant (2026-09-01): no UN-COARSENED viewer point may ever
+ * appear in a URL or a shared cache key; a bucket many people share by
+ * construction may. Each entry below states which side of that line it is on,
+ * and the assertions under it check the claim rather than trusting it.
+ *
+ * This list may only ever SHRINK. A new entry is a decision somebody makes on
+ * purpose, with the trace that justifies it.
  */
-const VIEWER_POINT_CACHE_ESCALATED = new Set([
-  "app/api/tfl-disruption/route.ts",
-  "app/api/citymcp/journey/route.ts",
-]);
+const VIEWER_POINT_CACHE_RULED: Record<string, { reason: string }> = {
+  // Case (1): every caller coarsens BEFORE building the URL, so the key holds
+  // only bucket values. Kept cached.
+  "app/api/tfl-disruption/route.ts": {
+    reason: "callers coarsen before the URL; key holds a shared bucket",
+  },
+  // Not a viewer-point cache at all: the cacheable GET carries venue-to-venue
+  // coordinates, which are public map data, and a request that starts where the
+  // reader stands goes by POST with cache: no-store.
+  "app/api/citymcp/journey/route.ts": {
+    reason: "cached lane is venue-to-venue; the viewer lane is POST no-store",
+  },
+};
 
 function sharedCached(source: string): boolean {
   return source.includes("jsonCached") || source.includes("s-maxage");
@@ -96,22 +106,62 @@ describe("only a route with one answer may take a shared cache", () => {
       const source = readFileSync(file, "utf8");
       if (!sharedCached(source)) continue;
       const relative = file.slice(REPO_ROOT.length + 1);
-      if (VIEWER_POINT_CACHE_ESCALATED.has(relative)) continue;
+      if (relative in VIEWER_POINT_CACHE_RULED) continue;
       const reads = VIEWER_POINT_READS.filter((read) => source.includes(read));
       if (reads.length > 0) offenders.push(`${relative}: ${reads.join(", ")}`);
     }
     expect(offenders).toEqual([]);
   });
 
-  it("keeps the escalated pair a closed, shrinking list", () => {
-    // Both must still exist and still be the shape that put them here, or the
-    // exception has outlived the finding and should go.
-    for (const relative of VIEWER_POINT_CACHE_ESCALATED) {
+  it("keeps the ruled pair a closed, shrinking list that still states its reason", () => {
+    const entries = Object.entries(VIEWER_POINT_CACHE_RULED);
+    expect(entries.length).toBeLessThanOrEqual(2);
+    for (const [relative, { reason }] of entries) {
       const source = readFileSync(join(REPO_ROOT, relative), "utf8");
       expect(sharedCached(source), relative).toBe(true);
-      expect(source.includes("coarsenViewerPoint"), relative).toBe(true);
+      expect(reason.length, relative).toBeGreaterThan(20);
     }
-    expect(VIEWER_POINT_CACHE_ESCALATED.size).toBeLessThanOrEqual(2);
+  });
+});
+
+// The invariant itself, checked rather than trusted: a client that builds a URL
+// for a shared-cached route out of a viewer point must reduce it to a bucket
+// BEFORE the URL exists. Coarsening on the server would be too late - the raw
+// point would already be in the request line, the proxy logs and the cache key.
+describe("a viewer point is bucketed before it reaches a cached URL", () => {
+  const CACHED_VIEWER_POINT_CALLERS = [
+    "components/transport/DisruptionLine.tsx",
+    "app/today/TodayTubeCard.tsx",
+  ];
+
+  it("coarsens in every caller, above the line that builds the URL", () => {
+    for (const relative of CACHED_VIEWER_POINT_CALLERS) {
+      const source = readFileSync(join(REPO_ROOT, relative), "utf8");
+      const coarsenAt = source.indexOf("coarsenViewerPoint(");
+      const urlAt = source.indexOf("/api/tfl-disruption?lat=");
+      expect(coarsenAt, `${relative} coarsens`).toBeGreaterThan(-1);
+      expect(urlAt, `${relative} builds the URL`).toBeGreaterThan(-1);
+      expect(coarsenAt, `${relative} coarsens first`).toBeLessThan(urlAt);
+    }
+  });
+
+  it("keeps the viewer-origin journey on POST, never on the cached GET", () => {
+    const caller = readFileSync(
+      join(REPO_ROOT, "components/map/useVenueJourney.ts"),
+      "utf8",
+    );
+    expect(caller).toContain('method: "POST"');
+    expect(caller).toContain('cache: "no-store"');
+    expect(caller).not.toContain("/api/citymcp/journey?");
+  });
+
+  it("states the bucket width beside the route that spends it", () => {
+    const route = readFileSync(
+      join(REPO_ROOT, "app/api/tfl-disruption/route.ts"),
+      "utf8",
+    );
+    expect(route).toContain("three decimal places");
+    expect(route).toContain("many people");
   });
 });
 

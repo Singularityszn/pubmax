@@ -108,11 +108,29 @@ disqualify it.
 and fails when a shared-cache header sits beside a per-caller read or a viewer
 point.
 
-It found two routes that already ship one over a coarsened viewer point:
-`/api/tfl-disruption` (`s-maxage=60`) and `/api/citymcp/journey`. Whether a
-coarsened point may sit in a shared cache key is a product call rather than an
-implementation one, so both are named in the fence as an escalated exception
-with the finding attached, and the list may only shrink.
+It first flagged two routes that ship one from a file mentioning
+`coarsenViewerPoint`. The captain's ruling of 2026-09-01 set the invariant: no
+UN-COARSENED viewer point may ever appear in a URL or a shared cache key, and a
+bucket many people share by construction may. Traced against it, both are on the
+right side.
+
+`/api/tfl-disruption` is case one. Both callers, `DisruptionLine` and
+`TodayTubeCard`, run `coarsenViewerPoint` BEFORE they build the URL, so the key
+holds only bucket values and the route's own call is a defensive second pass for
+a direct caller. The bucket is three decimal places, roughly a 70 to 110 metre
+cell: in the London this strip serves that is a city block holding many people,
+and the answer is a whole transport patch, coarser again than the cell that
+selected it. The cache stays.
+
+`/api/citymcp/journey` was never a viewer-point cache. Its cacheable GET carries
+venue-to-venue coordinates, which are public map data; a journey that starts
+where the reader stands goes by POST with `cache: no-store`, which
+`useVenueJourney` says in its own comment.
+
+Both stay named in the fence with the reason that ruled them, and the list may
+only shrink. The fence now checks the invariant rather than trusting it: every
+caller must coarsen above the line that builds the URL, and the viewer-origin
+journey must stay on POST.
 
 ## How a run is taken
 

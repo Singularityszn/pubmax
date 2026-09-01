@@ -32,6 +32,21 @@ function json(body: unknown, status = 200): Response {
       // The upstream TfL call is already cached with a 5-min revalidate; this
       // per-patch response is cheap to recompute, so we let the browser reuse it
       // briefly but never pin it long at a shared edge.
+      //
+      // WHY A SHARED CACHE IS HONEST HERE, given the URL carries lat and lng.
+      // The invariant is that no UN-COARSENED viewer point ever reaches a URL
+      // or a shared cache key; a bucket many people share by construction may.
+      // Every caller coarsens BEFORE it builds this URL - DisruptionLine and
+      // TodayTubeCard both run coarsenViewerPoint first - so the key holds only
+      // bucket values, and the server's own call below is the defensive second
+      // pass for a direct caller rather than the first reduction.
+      //
+      // The bucket is three decimal places, roughly a 70 to 110 metre cell in
+      // the UK (lib/geo.ts). In the London the disruption strip serves, a cell
+      // that size is a city block and holds many people, so it is a genuinely
+      // shared key rather than one that could name a reader. The answer itself
+      // is a whole transport patch, coarser again than the cell that selected
+      // it. __tests__/sharedCacheHonesty.test.ts holds the callers to it.
       "cache-control": "public, s-maxage=60, stale-while-revalidate=300",
     },
   });
