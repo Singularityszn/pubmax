@@ -414,6 +414,7 @@ import {
   subscribeMapChosenArea,
   writeMapChosenArea,
 } from "@/lib/mapChosenArea";
+import type { MapCameraFocus } from "@/lib/mapCameraFocus";
 import {
   shouldShowMapFirstVisitArrival,
   subscribeMapFirstVisitArrival,
@@ -835,11 +836,8 @@ export default function PubMap({
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
   const mapCameraTouchedRef = useRef(false);
-  const [openingLocationFocus, setOpeningLocationFocus] = useState<{
-    center: [number, number];
-    zoom: number;
-    token: number;
-  } | null>(null);
+  const [openingLocationFocus, setOpeningLocationFocus] =
+    useState<MapCameraFocus | null>(null);
   const openingLocationCancelledRef = useRef(false);
   const [
     openingLocationCancelledBeforeResolution,
@@ -1839,6 +1837,7 @@ export default function PubMap({
       return {
         center: viewport.center,
         zoom: viewport.zoom,
+        source: "opening-location",
         token: (current?.token ?? 0) + 1,
       };
     });
@@ -3739,9 +3738,7 @@ export default function PubMap({
     [mapViewport.center, userLocation],
   );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
-  const [areaFocus, setAreaFocus] = useState<
-    { center: [number, number]; zoom: number; token: number } | null
-  >(null);
+  const [areaFocus, setAreaFocus] = useState<MapCameraFocus | null>(null);
   /**
    * The ONE way the camera is deliberately moved to another place.
    *
@@ -3762,6 +3759,7 @@ export default function PubMap({
       setAreaFocus((prev) => ({
         center: camera.center,
         zoom: camera.zoom,
+        source: "area",
         token: (prev?.token ?? 0) + 1,
       }));
     },
