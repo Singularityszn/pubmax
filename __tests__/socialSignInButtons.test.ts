@@ -89,6 +89,7 @@ describe("signed-out sign-in surface", () => {
       user: null,
       loading: false,
       configured: true,
+      supabaseAuthState: "signed-out",
       socialProviders,
       signInWithGoogle: vi.fn(),
       signInWithApple: vi.fn(),

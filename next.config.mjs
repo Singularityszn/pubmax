@@ -6,9 +6,14 @@ import {
   freshnessArtifactIncludeById,
   freshnessArtifactIncludes,
 } from "./lib/freshnessTracing.mjs";
+import { PAL_MASCOT_SIZES, PAL_MASCOT_SLUGS } from "./lib/palMascotAssets.mjs";
 import { runtimeDataPackRouteIncludes } from "./lib/venueIndexTracing.mjs";
 
 const projectRoot = path.dirname(fileURLToPath(import.meta.url));
+const palMascotAssetPattern =
+  "(?:" + Object.values(PAL_MASCOT_SLUGS).join("|") + ")-" +
+  "(?:avatar-)?" +
+  "(?:" + PAL_MASCOT_SIZES.join("|") + ")\\.(?:webp|png)";
 
 const ukBaseManifest = JSON.parse(
   readFileSync(
@@ -342,7 +347,7 @@ const nextConfig = {
       cacheRule("/fonts/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule("/night-signals/:path*", UNHASHED_PUBLIC_ASSET_CACHE_CONTROL),
       cacheRule(
-        "/pal/:asset(circuit-robin-(?:avatar-)?(?:32|64|128|512)\\.(?:webp|png))",
+        "/pal/:asset(" + palMascotAssetPattern + ")",
         UNHASHED_PUBLIC_ASSET_CACHE_CONTROL,
       ),
       cacheRule("/llms.txt", SHORT_EDGE_PUBLIC_ASSET_CACHE_CONTROL),
