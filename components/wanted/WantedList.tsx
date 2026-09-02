@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
@@ -24,6 +24,15 @@ function mapUrlFor(wanted: WantedDTO): string | null {
   }
 }
 
+type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error";
+
+type WantedAccountState = {
+  userId: string;
+  wanteds: WantedDTO[];
+  fetchStatus: WantedFetchStatus;
+  fulfilNote: string | null;
+};
+
 export default function WantedList(): React.JSX.Element {
   // Wanted is owner-only, so asking for it without a session is a question we
   // already know the answer to. A cold /you fired GET /api/wanted anyway and
@@ -34,14 +43,19 @@ export default function WantedList(): React.JSX.Element {
   // the reason every identity read here is: `loading` can go false while a
   // durable resume is still restoring an account, so "not signed in" and "not
   // asked yet" are different answers and only one of them may say Sign in.
-  const { supabaseAuthState } = useAuth();
-  const [wanteds, setWanteds] = useState<WantedDTO[]>([]);
-  const [fetchStatus, setFetchStatus] = useState<"loading" | "ready" | "sign_in" | "error">(
-    "loading",
-  );
-  const [fulfilNote, setFulfilNote] = useState<string | null>(null);
+  const { supabaseAuthState, user } = useAuth();
+  const userId = supabaseAuthState === "authenticated" ? user?.id ?? null : null;
+  const activeUserId = useRef<string | null>(userId);
+  const requestRevision = useRef(0);
+  useLayoutEffect(() => {
+    activeUserId.current = userId;
+  }, [userId]);
+  const [accountState, setAccountState] = useState<WantedAccountState | null>(null);
 
   const refresh = useCallback(async () => {
+    if (supabaseAuthState !== "authenticated" || !userId) return;
+    const requestUserId = userId;
+    const revision = ++requestRevision.current;
     try {
       const res = await authedFetch("/api/wanted");
       const body = (await res.json()) as {
@@ -49,27 +63,93 @@ export default function WantedList(): React.JSX.Element {
         status?: string;
         error?: string;
       };
+      if (
+        activeUserId.current !== requestUserId ||
+        requestRevision.current !== revision
+      ) {
+        return;
+      }
       if (res.status === 401 || body.status === "sign_in_required") {
-        setFetchStatus("sign_in");
-        setWanteds([]);
+        setAccountState((current) => ({
+          userId: requestUserId,
+          wanteds: [],
+          fetchStatus: "sign_in",
+          fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+        }));
         return;
       }
       if (!res.ok) {
-        setFetchStatus("error");
+        setAccountState((current) => ({
+          userId: requestUserId,
+          wanteds: current?.userId === requestUserId ? current.wanteds : [],
+          fetchStatus: "error",
+          fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+        }));
         return;
       }
-      setWanteds(Array.isArray(body.wanteds) ? body.wanteds : []);
-      setFetchStatus("ready");
+      setAccountState((current) => ({
+        userId: requestUserId,
+        wanteds: Array.isArray(body.wanteds) ? body.wanteds : [],
+        fetchStatus: "ready",
+        fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+      }));
     } catch {
-      setFetchStatus("error");
+      if (
+        activeUserId.current !== requestUserId ||
+        requestRevision.current !== revision
+      ) {
+        return;
+      }
+      setAccountState((current) => ({
+        userId: requestUserId,
+        wanteds: current?.userId === requestUserId ? current.wanteds : [],
+        fetchStatus: "error",
+        fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
+      }));
     }
-  }, []);
+  }, [supabaseAuthState, userId]);
 
   useEffect(() => {
     // The only reason to ask is an account to ask for.
-    if (supabaseAuthState !== "authenticated") return;
+    if (!userId) return;
     void Promise.resolve().then(() => refresh());
-  }, [refresh, supabaseAuthState]);
+  }, [refresh, userId]);
+
+  const currentAccountState = accountState?.userId === userId ? accountState : null;
+  const fulfilNote = currentAccountState?.fulfilNote ?? null;
+  const handleSaved = useCallback(
+    (wanted: WantedDTO) => {
+      if (!userId || activeUserId.current !== userId) return;
+      setAccountState((current) => ({
+        userId,
+        wanteds: [
+          wanted,
+          ...(current?.userId === userId
+            ? current.wanteds.filter((row) => row.id !== wanted.id)
+            : []),
+        ],
+        fetchStatus: "ready",
+        fulfilNote: current?.userId === userId ? current.fulfilNote : null,
+      }));
+    },
+    [userId],
+  );
+  const handleFulfilNote = useCallback(
+    (note: string | null) => {
+      if (!userId || activeUserId.current !== userId) return;
+      setAccountState((current) => ({
+        userId,
+        wanteds: current?.userId === userId ? current.wanteds : [],
+        fetchStatus: current?.userId === userId ? current.fetchStatus : "loading",
+        fulfilNote: note,
+      }));
+    },
+    [userId],
+  );
+  const handleFulfilRefresh = useCallback(() => {
+    if (!userId || activeUserId.current !== userId) return;
+    void refresh();
+  }, [refresh, userId]);
 
   // What the session says is DERIVED, never stored: a signed-out answer is not
   // a fetch result, and writing it into state would both cascade a render and
@@ -79,10 +159,10 @@ export default function WantedList(): React.JSX.Element {
   const loadStatus =
     supabaseAuthState === "signed-out"
       ? "sign_in"
-      : supabaseAuthState === "unresolved"
+      : supabaseAuthState !== "authenticated" || !userId
         ? "loading"
-        : fetchStatus;
-  const owned = supabaseAuthState === "authenticated" ? wanteds : [];
+        : currentAccountState?.fetchStatus ?? "loading";
+  const owned = currentAccountState?.wanteds ?? [];
 
   const open = owned.filter((row) => row.status === "open");
   const fulfilled = owned.filter((row) => row.status === "fulfilled");
@@ -101,10 +181,7 @@ export default function WantedList(): React.JSX.Element {
         <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
       ) : (
         <WantedCapture
-          onSaved={(wanted) => {
-            setWanteds((prev) => [wanted, ...prev.filter((row) => row.id !== wanted.id)]);
-            setFetchStatus("ready");
-          }}
+          onSaved={handleSaved}
         />
       )}
 
@@ -181,8 +258,7 @@ export default function WantedList(): React.JSX.Element {
         </ul>
       ) : null}
 
-      {/* Keep setFulfilNote reachable for presence celebrate handoff via custom event. */}
-      <WantedFulfilListener onNote={setFulfilNote} onRefresh={() => void refresh()} />
+      <WantedFulfilListener onNote={handleFulfilNote} onRefresh={handleFulfilRefresh} />
     </section>
   );
 }

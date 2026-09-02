@@ -87,14 +87,19 @@ describe("a credit names where the tap lands", () => {
 });
 
 describe("a homepage is not an event page", () => {
-  it("tells a front door apart from a page about one event", () => {
+  it("rejects a publisher front door with query or hash", () => {
     expect(outSourceLinksToEventPage(TICKETMASTER_HOME)).toBe(false);
     expect(outSourceLinksToEventPage("https://www.ticketmaster.co.uk")).toBe(false);
+    expect(outSourceLinksToEventPage(`${TICKETMASTER_HOME}?utm_source=pubmaxx`)).toBe(false);
+    expect(outSourceLinksToEventPage(`${TICKETMASTER_HOME}#event`)).toBe(false);
+    expect(outSourceLinksToEventPage(`${TICKETMASTER_HOME}?utm_source=pubmaxx#event`)).toBe(false);
+    expect(outSourceLinksToEventPage("not a url")).toBe(false);
+  });
+
+  it("accepts a real event route with a path segment", () => {
     expect(outSourceLinksToEventPage(TICKETMASTER_URL)).toBe(true);
     expect(outSourceLinksToEventPage(UNIVERSE_URL)).toBe(true);
-    // A hash-only deep link still names one performance.
     expect(outSourceLinksToEventPage(TICKETMASTER_SUBDOMAIN_URL)).toBe(true);
-    expect(outSourceLinksToEventPage("not a url")).toBe(false);
   });
 
   it("credits the publisher without a link when there is no event page", () => {

@@ -148,8 +148,8 @@ export default function LandingPage({
   // BROWSING and ARRIVING are two acts, and they take two destinations.
   //
   // Browsing is the header nav's "Map" and the footer directory's "The map" -
-  // the desktop twins of the mobile tab bar's Map tab, which goes straight to
-  // /map at every width and for every viewer. lib/cityPreference already
+  // the desktop twins of the mobile tab bar's Map tab, which follows the same
+  // preferred-city destination after mount. lib/cityPreference already
   // answers /map for a viewer with no stored city ("when unset, Map links stay
   // on /map"), so `mapBrowseHref` IS that same destination and the two navs
   // stop disagreeing about where Map is. The footer's own comment below draws

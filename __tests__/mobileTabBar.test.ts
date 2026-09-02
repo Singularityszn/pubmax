@@ -52,6 +52,11 @@ describe("mobile tab bar contract", () => {
     expect(byLabel.You.href).toBe("/u/you");
   });
 
+  it("accepts the preferred-city Map destination", () => {
+    const tabs = buildTabs("/u/you", "/today", true, "/map/glasgow");
+    expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
+  });
+
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
     const tabs = buildTabs("/u/karan");
     const you = tabs.find((tab) => tab.label === "You");

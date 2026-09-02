@@ -93,7 +93,7 @@ export function outSourceLinksToEventPage(url: string): boolean {
   const parsed = parsedUrl(url);
   if (!parsed) return false;
   const path = parsed.pathname.replace(/\/+$/, "");
-  return path !== "" || parsed.search !== "" || parsed.hash !== "";
+  return path !== "";
 }
 
 export type OutRowSourceCredit = {

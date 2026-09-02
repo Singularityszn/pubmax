@@ -10,6 +10,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/map",
+  readPreferredCity: () => null,
   subscribePreferredCity: () => () => {},
 }));
 vi.mock("@/components/auth/useViewerHandle", () => ({

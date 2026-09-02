@@ -17,7 +17,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
-  current: { supabaseAuthState: "unresolved" } as { supabaseAuthState: string },
+  current: {
+    supabaseAuthState: "unresolved",
+    user: null,
+  } as { supabaseAuthState: string; user: { id: string } | null },
 }));
 const authedFetch = vi.hoisted(() => vi.fn());
 
@@ -35,7 +38,7 @@ let container: HTMLDivElement;
 let root: Root;
 
 beforeEach(() => {
-  authState.current = { supabaseAuthState: "unresolved" };
+  authState.current = { supabaseAuthState: "unresolved", user: null };
   authedFetch.mockReset();
   container = document.createElement("div");
   document.body.append(container);
@@ -53,6 +56,28 @@ async function render(): Promise<void> {
   });
 }
 
+function deferred<T>(): {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+} {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
+function wantedResponse(venueName?: string): Response {
+  return new Response(
+    JSON.stringify({
+      wanteds: venueName
+        ? [{ id: venueName, status: "open", venueKind: "pub", venueName }]
+        : [],
+    }),
+    { status: 200, headers: { "content-type": "application/json" } },
+  );
+}
+
 describe("the Wanted list asks only when there is somebody to ask for", () => {
   it("asks nothing while the session has not answered", async () => {
     await render();
@@ -60,13 +85,13 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
   });
 
   it("asks nothing for a signed-out reader", async () => {
-    authState.current = { supabaseAuthState: "signed-out" };
+    authState.current = { supabaseAuthState: "signed-out", user: null };
     await render();
     expect(authedFetch).not.toHaveBeenCalled();
   });
 
   it("still offers that reader the way in", async () => {
-    authState.current = { supabaseAuthState: "signed-out" };
+    authState.current = { supabaseAuthState: "signed-out", user: null };
     await render();
     // The 401 was how this state used to be reached. Reaching it without one
     // must not cost the reader the sentence that tells them what to do.
@@ -77,7 +102,7 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     // The signed-out answer is DERIVED rather than stored, so a sign-out hides
     // those rows in the same paint instead of leaving them up until a write
     // clears them. Its sibling holds the same line for the plan chips.
-    authState.current = { supabaseAuthState: "authenticated" };
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
     authedFetch.mockResolvedValue(
       new Response(
         JSON.stringify({
@@ -91,13 +116,13 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     await render();
     expect(container.textContent).toContain("Account A Pub");
 
-    authState.current = { supabaseAuthState: "signed-out" };
+    authState.current = { supabaseAuthState: "signed-out", user: null };
     await render();
     expect(container.textContent).not.toContain("Account A Pub");
   });
 
   it("asks once the session answers with an account", async () => {
-    authState.current = { supabaseAuthState: "authenticated" };
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
     authedFetch.mockResolvedValue(
       new Response(JSON.stringify({ wanteds: [] }), {
         status: 200,
@@ -106,5 +131,70 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     );
     await render();
     expect(authedFetch).toHaveBeenCalledWith("/api/wanted");
+  });
+
+  it.each(["unresolved", "signed-out"] as const)(
+    "does not fetch after a fulfil event while auth is %s",
+    async (supabaseAuthState) => {
+      authState.current = { supabaseAuthState, user: null };
+      await render();
+
+      await act(async () => {
+        window.dispatchEvent(
+          new CustomEvent("pubmax:wanted-fulfilled", {
+            detail: { note: "Not for this reader" },
+          }),
+        );
+      });
+
+      expect(authedFetch).not.toHaveBeenCalled();
+      expect(container.textContent).not.toContain("Not for this reader");
+    },
+  );
+
+  it("keeps an earlier account response out after switching accounts", async () => {
+    const accountA = deferred<Response>();
+    const accountB = deferred<Response>();
+    authedFetch
+      .mockImplementationOnce(() => accountA.promise)
+      .mockImplementationOnce(() => accountB.promise);
+
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    await render();
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await render();
+    expect(authedFetch).toHaveBeenCalledTimes(2);
+
+    await act(async () => {
+      accountB.resolve(wantedResponse("Account B Pub"));
+      await accountB.promise;
+    });
+    expect(container.textContent).toContain("Account B Pub");
+
+    await act(async () => {
+      accountA.resolve(wantedResponse("Account A Pub"));
+      await accountA.promise;
+    });
+    expect(container.textContent).toContain("Account B Pub");
+    expect(container.textContent).not.toContain("Account A Pub");
+  });
+
+  it("does not carry a fulfil note to another account", async () => {
+    authedFetch.mockImplementation(() => Promise.resolve(wantedResponse()));
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    await render();
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("pubmax:wanted-fulfilled", {
+          detail: { note: "Account A was fulfilled" },
+        }),
+      );
+    });
+    expect(container.textContent).toContain("Account A was fulfilled");
+
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await render();
+    expect(container.textContent).not.toContain("Account A was fulfilled");
   });
 });
