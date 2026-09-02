@@ -24,28 +24,29 @@ const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
 /** Backticked tokens that look like a path into this repository. */
 const POINTER = /`([A-Za-z0-9_@./*[\]-]+\.(?:ts|tsx|mjs|mts|sql|json|css|md))`|`([a-z0-9_/-]+\/)`/g;
 
-// Names that look like repo paths but are package specifiers, generated
-// artifacts, or files a reader is told to create rather than find.
+// Explicit non-file names remain here so real repository pointers are checked.
 const NOT_REPO_PATHS = new Set([
-  "next.config.mjs",
-  "package.json",
-  "package-lock.json",
-  "tsconfig.json",
-  "vercel.json",
-  "playwright.config.ts",
-  "proxy.ts",
-  ".env.local",
-  "next-env.d.ts",
+  // Next development route types are generated and absent from a clean clone.
   "./.next/dev/types/routes.d.ts",
+  // Server suffix names a convention, not one concrete file.
   ".server.ts",
+  // Generic JSON glob names a publish input class, not one repository file.
   "*.json",
-  // A URL in the trailing-slash law, not a file: `/api/thing/` is the address
-  // whose 308 makes it work, and no such directory exists or should.
+  // Generic manifest name is a publish input, not the repository root file.
+  "manifest.json",
+  // ESM declaration suffix names a sidecar convention, not one concrete file.
+  ".d.mts",
+  // Homepage card uses `/api/home-card`, not this absent Next file convention.
+  "opengraph-image.tsx",
+  // Next trace suffix names generated output, not a committed file.
+  ".nft.json",
+  // This glob names a class of server modules, not one concrete file.
+  "lib/**/*.server.ts",
+  // URL in trailing-slash law, not a repository path.
   "/api/thing/",
-  // Harvest working directories. `data-harvest/` is gitignored by design and
-  // `raw_venues/` holds throwaway Overpass pulls, so both are absent from a
-  // clean clone while still being the right thing to name.
+  // Harvest working directory is gitignored by design.
   "data-harvest/bars-enriched/",
+  // Throwaway Overpass working directory is absent from clean clones.
   "raw_venues/",
 ]);
 
@@ -54,13 +55,6 @@ function pointers(): string[] {
   for (const match of DOC.matchAll(POINTER)) {
     const raw = (match[1] ?? match[2] ?? "").trim();
     if (!raw || NOT_REPO_PATHS.has(raw)) continue;
-    // Only paths, not bare filenames: a bare name is prose, not a pointer.
-    if (!raw.includes("/")) continue;
-    if (raw.startsWith("@") || raw.startsWith("http")) continue;
-    // `lib/**/*.server.ts` names a CLASS of files rather than one path. That is
-    // prose about a convention, and resolving it would only assert that the
-    // convention has at least one member, which is not what the law says.
-    if (raw.includes("**")) continue;
     found.add(raw);
   }
   return [...found].sort();
@@ -94,6 +88,6 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    expect(pointers().length).toBeGreaterThan(516);
+    expect(pointers().length).toBeGreaterThan(535);
   });
 });
