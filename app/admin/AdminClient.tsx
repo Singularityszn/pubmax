@@ -10,6 +10,7 @@ import { useCallback, useRef, useState } from "react";
 
 import {
   ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
+  ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   browserFetch,
   readAdminSessionState,
@@ -555,12 +556,19 @@ export default function AdminClient() {
     const res = await request();
     if (res.status !== 403) return { kind: "response", response: res };
     setSessionEstablished(false);
-    if ((await ensureAdminSession(true)).status !== "open") {
-      discardBody(res);
-      return { kind: "session-expired" };
+    const session = await ensureAdminSession(true);
+    if (session.status !== "open") {
+      const anonymousProbe =
+        session.message === ADMIN_SESSION_NOT_KEPT_MESSAGE ||
+        (!token.trim() && session.message === ADMIN_SESSION_NOT_AUTHORISED_MESSAGE);
+      if (anonymousProbe) {
+        discardBody(res);
+        return { kind: "session-expired" };
+      }
+      return { kind: "response", response: res };
     }
     return { kind: "response", response: await request() };
-  }, [ensureAdminSession]);
+  }, [ensureAdminSession, token]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);

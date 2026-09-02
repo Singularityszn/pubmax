@@ -46,7 +46,9 @@ const state = vi.hoisted(() => ({
   socialThrows: false,
   socialRefusals: 0,
   socialRefusalStatus: 503,
+  socialRefusalProbeUnknown: false,
   sessionAuthenticated: true,
+  sessionProbeUnknown: false,
   sessionPostResponses: [] as Array<{
     gate: Promise<void> | null;
     accepted: boolean;
@@ -91,6 +93,7 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
         : jsonResponse({ ok: true });
       return queuedResponse?.gate ? queuedResponse.gate.then(response) : response();
     }
+    if (state.sessionProbeUnknown) return rawResponse("{");
     return jsonResponse({ authenticated: state.sessionAuthenticated });
   }
   if (url.pathname === "/api/admin/social-posts") {
@@ -114,7 +117,10 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     if (state.socialRefusals > 0) {
       state.socialRefusals -= 1;
       const status = state.socialRefusalStatus;
-      if (status === 403) state.sessionAuthenticated = false;
+      if (status === 403) {
+        state.sessionAuthenticated = false;
+        state.sessionProbeUnknown = state.socialRefusalProbeUnknown;
+      }
       return jsonResponse({ error: "unavailable" }, status);
     }
     return state.socialUnavailable
@@ -163,7 +169,9 @@ beforeEach(() => {
   state.socialThrows = false;
   state.socialRefusals = 0;
   state.socialRefusalStatus = 503;
+  state.socialRefusalProbeUnknown = false;
   state.sessionAuthenticated = true;
+  state.sessionProbeUnknown = false;
   state.sessionPostResponses = [];
   state.socialResponsePosts = null;
   state.socialGetResponses = [];
@@ -273,6 +281,17 @@ describe("Admin Social post moderation queue", () => {
       "session:GET",
       "session:GET",
     ]);
+  });
+
+  it("does not report expiry when the session probe is unknown", async () => {
+    localStorage.removeItem("pubmax_admin_token");
+    state.socialRefusals = 1;
+    state.socialRefusalStatus = 403;
+    state.socialRefusalProbeUnknown = true;
+    await loadAdmin();
+
+    expect(host.textContent).toContain("The server refused the request.");
+    expect(host.textContent).not.toContain("The console session has expired.");
   });
 
   it("reuses an open session for an ordinary load", async () => {
