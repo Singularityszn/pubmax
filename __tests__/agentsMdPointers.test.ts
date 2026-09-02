@@ -22,7 +22,7 @@ const ROOT = process.cwd();
 const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
 
 /** Backticked tokens that look like a path into this repository. */
-const POINTER = /`([A-Za-z0-9_@./*[\]-]+\.(?:ts|tsx|mjs|mts|sql|json|css|md))`|`([a-z0-9_/-]+\/)`/g;
+const POINTER = /`([A-Za-z0-9_@./*\[\]{}<>-]+\.[A-Za-z0-9_@./*\[\]{}<>-]+|[A-Za-z0-9_@./*\[\]{}<>-]+\/)`/g;
 
 // Explicit non-file names remain here so real repository pointers are checked.
 const NOT_REPO_PATHS = new Set([
@@ -42,6 +42,26 @@ const NOT_REPO_PATHS = new Set([
   ".nft.json",
   // This glob names a class of server modules, not one concrete file.
   "lib/**/*.server.ts",
+  // Member name, not a repository path.
+  "AuthProvider.updateSession",
+  // Database column glob, not a repository path.
+  "profiles.cover_*",
+  // Analytics event name, not a repository path.
+  "uploaded_image.scan_skipped",
+  // Database column name, not a repository path.
+  "plan_crew_members.token_hash",
+  // Database column name, not a repository path.
+  "community_prices.actor",
+  // Database column name, not a repository path.
+  "venue_occupancy_flags.actor_hash",
+  // External host policy endpoint, not a repository path.
+  "robots.txt",
+  // Database column name, not a repository path.
+  "profiles.founding_member_number",
+  // Date-template path, not a literal repository path.
+  "public/data/pint_index/<YYYY-MM>.json",
+  // Next configuration property, not a repository path.
+  "experimental.staleTimes",
   // URL in trailing-slash law, not a repository path.
   "/api/thing/",
   // Harvest working directory is gitignored by design.
@@ -88,6 +108,6 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    expect(pointers().length).toBeGreaterThan(535);
+    expect(pointers().length).toBeGreaterThan(538);
   });
 });
