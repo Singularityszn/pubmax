@@ -25,7 +25,6 @@ describe("GET /api/night-areas", () => {
           routeReadyReasons: expect.any(Array),
           missingEvidence: [],
           gate: expect.objectContaining({ version: 1, passed: true }),
-          routeReady: true,
           lastReviewedAt: expect.any(String),
           reviewExpiresAt: expect.any(String),
         }),
@@ -33,10 +32,10 @@ describe("GET /api/night-areas", () => {
           slug: "barnes",
           coverageStatus: "reviewed",
           missingEvidence: expect.arrayContaining(["opening_hours"]),
-          routeReady: false,
         }),
         expect.objectContaining({ slug: "camden", demandWave: 1 }),
       ]));
+      expect(body.areas.find((area: { slug: string }) => area.slug === "clapham")).not.toHaveProperty("routeReady");
     } finally {
       vi.useRealTimers();
     }
@@ -65,7 +64,8 @@ describe("GET /api/night-areas/:slug", () => {
       params: Promise.resolve({ slug: "clapham" }),
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
+    const body = await response.json();
+    expect(body).toMatchObject({
       slug: "clapham",
       name: "Clapham",
       transportAnchors: expect.any(Array),
@@ -73,8 +73,10 @@ describe("GET /api/night-areas/:slug", () => {
       recentSignals: [],
       coverageStatus: "route_ready",
       gate: expect.objectContaining({ version: 1, passed: true }),
-      routeReady: true,
+      lastReviewedAt: expect.any(String),
+      reviewExpiresAt: expect.any(String),
     });
+    expect(body).not.toHaveProperty("routeReady");
   });
 
   it("returns reviewed expansion areas while keeping their route gate visible", async () => {
@@ -82,12 +84,35 @@ describe("GET /api/night-areas/:slug", () => {
       params: Promise.resolve({ slug: "camden" }),
     });
     expect(response.status).toBe(200);
-    expect(await response.json()).toMatchObject({
+    const body = await response.json();
+    expect(body).toMatchObject({
       slug: "camden",
       coverageStatus: "captured",
       gate: expect.objectContaining({ passed: false }),
-      routeReady: false,
     });
+    expect(body).not.toHaveProperty("routeReady");
+  });
+
+  it("keeps cached Night Area bodies independent of the current clock", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date("2026-12-31T23:59:59.000Z"));
+      const beforeExpiry = await GET(new Request("http://localhost/api/night-areas/clapham"), {
+        params: Promise.resolve({ slug: "clapham" }),
+      });
+      const beforeBody = await beforeExpiry.json();
+
+      vi.setSystemTime(new Date("2027-01-01T00:00:01.000Z"));
+      const afterExpiry = await GET(new Request("http://localhost/api/night-areas/clapham"), {
+        params: Promise.resolve({ slug: "clapham" }),
+      });
+      const afterBody = await afterExpiry.json();
+
+      expect(afterBody).toEqual(beforeBody);
+      expect(afterBody).not.toHaveProperty("routeReady");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("returns a not-found response for an unknown Night Area slug", async () => {

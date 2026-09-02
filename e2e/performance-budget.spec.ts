@@ -3,8 +3,10 @@ import { expect, test } from "@playwright/test";
 import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
+  findRatchetCandidates,
   formatBreachTable,
   formatMeasurementTable,
+  formatRatchetTable,
   type RouteMeasurement,
 } from "../lib/performanceBudgets";
 import { measurePerfRoute, preparePerfPage } from "./helpers/perfMeasurement";
@@ -25,6 +27,9 @@ import { measurePerfRoute, preparePerfPage } from "./helpers/perfMeasurement";
 //     same-origin script the route asked for before it was interactive.
 //   requests — how many same-origin requests it took to get there. A route can
 //     hold its bytes and still lose the night to a waterfall.
+//   lcpMs — the largest contentful paint the same run observed. The three above
+//     are levers; this is the one a drinker feels, and a route can hold every
+//     lever and still paint late.
 //
 // HOW it is measured is e2e/helpers/perfMeasurement.ts, shared with the UX lane
 // report so the two sets of figures are taken the same way and stay comparable.
@@ -53,10 +58,24 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
       serverRenderMs: sample.serverRenderMs,
       jsDecodedKB: sample.jsDecodedKB,
       requests: sample.requests,
+      lcpMs: Math.round(sample.lcpMs),
     });
   }
 
   console.log(`[perf-budget]\n${formatMeasurementTable(budgets.routes, measured)}`);
+
+  // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
+  // route quietly grows back into. A sweep that beats one by a clear margin
+  // names the candidate here so the margin gets banked as a lower number rather
+  // than spent. It is a WARNING - it edits nothing and fails nothing.
+  const ratchet = findRatchetCandidates(budgets.routes, measured);
+  if (ratchet.length > 0) {
+    console.log(
+      `\n[perf-budget][ratchet] ceilings with slack to bank ` +
+        `(docs/PERFORMANCE_BUDGETS.md: down is free, up is a decision):\n` +
+        `${formatRatchetTable(ratchet)}\n`,
+    );
+  }
 
   const breaches = findBudgetBreaches(budgets.routes, measured);
   expect(
