@@ -14,11 +14,6 @@ import { describe, expect, it } from "vitest";
 // what it CAN check is that every file, test and directory the prose sends a
 // reader to is still there.
 //
-// Written while trimming the file from 164KB to a pointer document, during
-// which a bullet count plus an identifier diff caught four laws that would
-// otherwise have been shipped dropped or gutted. That check was manual and
-// one-off; this is the part of it worth keeping.
-
 const ROOT = resolve(process.cwd());
 const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
 const TRACKED_PATHS = new Set(
