@@ -12,6 +12,8 @@ import "server-only";
 // to (auth.getUser(jwt)) using the admin client — this validates the signature +
 // expiry server-side, so a forged/expired token yields null (anonymous), never a
 // trusted uid. NEVER trust a uid sent in the body/query; only a verified token.
+// The production-style keyless Playwright server uses a server-provided fixture
+// map instead, and deployed production never accepts that map.
 
 import { getSupabaseAdmin } from "@/lib/supabase";
 
@@ -74,6 +76,46 @@ function isInvalidBearerError(error: unknown): boolean {
   );
 }
 
+/** Verify identities in the production-style keyless Playwright server only. */
+function verifyKeylessE2EIdentity(token: string): CallerAuthVerification | null {
+  if (
+    process.env.PUBMAX_E2E_KEYLESS !== "1" ||
+    process.env.VERCEL_ENV === "production"
+  ) {
+    return null;
+  }
+  const rawUsers = process.env.PUBMAX_E2E_AUTH_USERS?.trim();
+  if (!rawUsers) return null;
+
+  let users: unknown;
+  try {
+    users = JSON.parse(rawUsers);
+  } catch {
+    return { status: "unavailable" };
+  }
+  if (!users || typeof users !== "object" || Array.isArray(users)) {
+    return { status: "unavailable" };
+  }
+  const candidate = (users as Record<string, unknown>)[token];
+  if (candidate === undefined) return { status: "invalid" };
+  if (!candidate || typeof candidate !== "object" || Array.isArray(candidate)) {
+    return { status: "unavailable" };
+  }
+
+  const identity = candidate as Record<string, unknown>;
+  const id = typeof identity.id === "string" ? identity.id.trim() : "";
+  if (!id) return { status: "unavailable" };
+  return {
+    status: "verified",
+    identity: {
+      id,
+      email: typeof identity.email === "string" ? identity.email : null,
+      createdAt:
+        typeof identity.createdAt === "string" ? identity.createdAt : null,
+    },
+  };
+}
+
 export async function verifyCallerAuth(
   request: Request,
 ): Promise<CallerAuthVerification> {
@@ -81,7 +123,9 @@ export async function verifyCallerAuth(
   if (!token) return { status: "absent" };
 
   const admin = getSupabaseAdmin();
-  if (!admin) return { status: "unavailable" };
+  if (!admin) {
+    return verifyKeylessE2EIdentity(token) ?? { status: "unavailable" };
+  }
 
   try {
     const { data, error } = await admin.auth.getUser(token);

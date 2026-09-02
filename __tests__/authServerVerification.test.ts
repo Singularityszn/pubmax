@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const authState = vi.hoisted(() => ({
   admin: null as {
@@ -26,6 +26,10 @@ beforeEach(() => {
       getUser: vi.fn(),
     },
   };
+});
+
+afterEach(() => {
+  vi.unstubAllEnvs();
 });
 
 describe("verifyCallerAuth", () => {
@@ -64,6 +68,53 @@ describe("verifyCallerAuth", () => {
     await expect(verifyCallerAuth(request("valid-token"))).resolves.toEqual({
       status: "unavailable",
     });
+  });
+
+  it("verifies configured keyless E2E identities without a Supabase admin client", async () => {
+    authState.admin = null;
+    vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
+    vi.stubEnv("VERCEL_ENV", "development");
+    vi.stubEnv(
+      "PUBMAX_E2E_AUTH_USERS",
+      JSON.stringify({
+        "pubmaxx-e2e-access-token-A": {
+          id: "00000000-0000-4000-8000-0000000000a1",
+          email: "karan@example.test",
+          createdAt: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+
+    await expect(
+      verifyCallerAuth(request("pubmaxx-e2e-access-token-A")),
+    ).resolves.toEqual({
+      status: "verified",
+      identity: {
+        id: "00000000-0000-4000-8000-0000000000a1",
+        email: "karan@example.test",
+        createdAt: "2026-07-29T00:00:00.000Z",
+      },
+    });
+  });
+
+  it("does not use keyless E2E identities on a Vercel Production process", async () => {
+    authState.admin = null;
+    vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv(
+      "PUBMAX_E2E_AUTH_USERS",
+      JSON.stringify({
+        "pubmaxx-e2e-access-token-A": {
+          id: "00000000-0000-4000-8000-0000000000a1",
+          email: "karan@example.test",
+          createdAt: "2026-07-29T00:00:00.000Z",
+        },
+      }),
+    );
+
+    await expect(
+      verifyCallerAuth(request("pubmaxx-e2e-access-token-A")),
+    ).resolves.toEqual({ status: "unavailable" });
   });
 
   it("does not treat a transient verification failure as invalid", async () => {

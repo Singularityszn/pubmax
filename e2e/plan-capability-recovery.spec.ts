@@ -96,9 +96,6 @@ test.describe("signed-in Plan capability recovery", () => {
   test("a signed-in host who lost the capability cookie recovers it on the Plan page", async ({
     page,
   }) => {
-    test.skip(
-      "No service-role key in the e2e web server, so verifyCallerAuth answers \"unavailable\" and both the claim PUT and the recovery PATCH answer 503 by design.",
-    );
     // This test asserts the recovery PATCH, not the resume cookie, so it leaves
     // the real /api/auth/session budget alone (60 persists an hour per IP).
     await installAuthDoubles(page);
