@@ -19,6 +19,7 @@
 // rest of bootstrap finishes.
 
 import { useAuth } from "@/components/auth/authContext";
+import { providerHasAnswered } from "@/lib/authProviderRevision";
 
 /** Three answers, never two. `unresolved` is "we have not been told". */
 export type ViewerSessionPhase = "unresolved" | "signed-in" | "signed-out";
@@ -41,7 +42,7 @@ export type ViewerSession = {
 export function useViewerSessionPhase(): ViewerSessionPhase {
   const { user, providerAuthState } = useAuth();
   if (user) return "signed-in";
-  if (providerAuthState === "unresolved" || providerAuthState === "unavailable") {
+  if (!providerHasAnswered(providerAuthState)) {
     return "unresolved";
   }
   return "signed-out";

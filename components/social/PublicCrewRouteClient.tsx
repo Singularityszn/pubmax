@@ -12,6 +12,7 @@ import PublicCrewPreview, {
 import CrewDetailClient from "@/app/social/crews/[crewId]/CrewDetailClient";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
+import { providerHasAnswered } from "@/lib/authProviderRevision";
 import { discardBody } from "@/lib/responseBody";
 import { parseCrewRead, parsePublicCrewPreview, crewIdempotencyKey } from "@/lib/socialCrewsUi";
 import { socialBoundaryCopy } from "@/lib/socialLaunch";
@@ -321,7 +322,7 @@ export default function PublicCrewRouteClient({
   const currentProblem = problemScope === scope ? problem : "";
   if (!friendsLaunchEnabled) return <RollbackPreview />;
   const privateReadPending =
-    providerAuthState === "unresolved" ||
+    !providerHasAnswered(providerAuthState) ||
     (providerAuthState === "authenticated" &&
       (privateStateScope !== scope ||
         currentPrivateState === "idle" ||

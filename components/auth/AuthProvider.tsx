@@ -528,6 +528,16 @@ export function AuthProvider({
         window.clearTimeout(loadingTimeout);
         setProviderAuthState("supabase", "unavailable");
         setSessionLoading(false);
+        void callbackCapture.then((captured) => {
+          const callbackAttempt = captured?.attempt ?? null;
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+          scrubLingeringBrowserAuthCallback();
+          if (!active) return;
+          if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
         requestDeploymentSkewCheck();
         return;
       }
@@ -721,20 +731,26 @@ export function AuthProvider({
         );
         if (!active) return;
         window.clearTimeout(loadingTimeout);
-        if (bootstrapped.status === "local") {
+        if (bootstrapped.status === "unavailable") {
+          if (readProviderAuthState("supabase") === "unresolved") {
+            setProviderAuthState("supabase", "unavailable");
+          }
+        } else if (bootstrapped.status === "local") {
           // INITIAL_SESSION normally supplied this same session already. The
           // explicit update also covers a client that did not emit that event.
           updateSession(bootstrapped.session);
         } else if (bootstrapped.status === "expired") {
           setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
         }
-        const bootstrapAuthState = resolveSupabaseAuthState(
-          "bootstrap",
-          sessionTransitions.current.currentUserId() !== null,
-          sessionTransitions.current.currentUserId(),
-        );
-        if (bootstrapAuthState) {
-          setProviderAuthState("supabase", bootstrapAuthState);
+        if (bootstrapped.status !== "unavailable") {
+          const bootstrapAuthState = resolveSupabaseAuthState(
+            "bootstrap",
+            sessionTransitions.current.currentUserId() !== null,
+            sessionTransitions.current.currentUserId(),
+          );
+          if (bootstrapAuthState) {
+            setProviderAuthState("supabase", bootstrapAuthState);
+          }
         }
         // A restored result has already awaited auth.setSession. Supabase emits
         // SIGNED_IN through the subscription above, so the session and identity
