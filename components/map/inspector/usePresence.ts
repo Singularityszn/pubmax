@@ -9,7 +9,8 @@ import type { Venue } from "@/lib/venues";
 export type PresenceState = "idle" | "sending" | "here" | "no-handle";
 
 export function usePresence(venue: Venue) {
-  const { user } = useAuth();
+  const { accountRevision, supabaseAuthState, user } = useAuth();
+  const currentUserId = user?.id ?? null;
   // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). Opt-in: it
   // only ever fires from a deliberate tap of this button — NO auto-tracking, NO
   // GPS. Identity is the viewer's self-asserted handle (localStorage
@@ -22,9 +23,17 @@ export function usePresence(venue: Venue) {
   // VenueInspector), so a stale "You're here" would linger on the next venue.
   // React's adjust-state-during-render pattern resets it when the venue id
   // changes — no effect, so react-hooks/set-state-in-effect stays satisfied.
-  const [presenceVenueId, setPresenceVenueId] = useState(venue.id);
-  if (presenceVenueId !== venue.id) {
-    setPresenceVenueId(venue.id);
+  const [presenceScope, setPresenceScope] = useState(() => ({
+    venueId: venue.id,
+    userId: currentUserId,
+    accountRevision,
+  }));
+  if (
+    presenceScope.venueId !== venue.id ||
+    presenceScope.userId !== currentUserId ||
+    presenceScope.accountRevision !== accountRevision
+  ) {
+    setPresenceScope({ venueId: venue.id, userId: currentUserId, accountRevision });
     setPresenceState("idle");
   }
 
@@ -36,15 +45,19 @@ export function usePresence(venue: Venue) {
   useEffect(() => {
     currentVenueIdRef.current = venue.id;
   }, [venue.id]);
-  const currentUserIdRef = useRef<string | null>(user?.id ?? null);
+  const currentUserIdRef = useRef<string | null>(currentUserId);
+  const currentAccountRevisionRef = useRef(accountRevision);
   useLayoutEffect(() => {
-    currentUserIdRef.current = user?.id ?? null;
-  }, [user?.id]);
+    currentUserIdRef.current = currentUserId;
+    currentAccountRevisionRef.current = accountRevision;
+  }, [accountRevision, currentUserId]);
 
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
+    if (supabaseAuthState !== "authenticated" || !user?.id) return;
     const requestVenueId = venue.id;
-    const requestUserId = user?.id ?? null;
+    const requestUserId = user.id;
+    const requestAccountRevision = accountRevision;
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {
@@ -63,7 +76,8 @@ export function usePresence(venue: Venue) {
       // "idle", so drop this response rather than stamping the wrong pub.
       if (
         currentVenueIdRef.current !== requestVenueId ||
-        currentUserIdRef.current !== requestUserId
+        currentUserIdRef.current !== requestUserId ||
+        currentAccountRevisionRef.current !== requestAccountRevision
       ) {
         return;
       }
@@ -84,7 +98,8 @@ export function usePresence(venue: Venue) {
               body.wantedNote &&
               typeof window !== "undefined" &&
               currentVenueIdRef.current === requestVenueId &&
-              currentUserIdRef.current === requestUserId
+              currentUserIdRef.current === requestUserId &&
+              currentAccountRevisionRef.current === requestAccountRevision
             ) {
               window.dispatchEvent(
                 new CustomEvent("pubmax:wanted-fulfilled", {
@@ -100,7 +115,8 @@ export function usePresence(venue: Venue) {
     } catch {
       if (
         currentVenueIdRef.current !== requestVenueId ||
-        currentUserIdRef.current !== requestUserId
+        currentUserIdRef.current !== requestUserId ||
+        currentAccountRevisionRef.current !== requestAccountRevision
       ) {
         return;
       }

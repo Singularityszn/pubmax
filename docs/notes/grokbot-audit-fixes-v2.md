@@ -2,8 +2,9 @@
 
 A rebuild of `origin/fm/grokbot-audit-fixes` onto current `main`, carrying the
 standing verdict's KEEP list only. The original branch is not merged and is not
-the base: every commit here was cherry-picked with `-x`, so each one names the
-commit it came from.
+the base. This history contains source commits cherry-picked with `-x`, rebuild
+commits created while recomposing the keep list, and pipeline-owned fix commits.
+The `-x` trailers apply only to the source cherry-picks.
 
 ## Kept
 

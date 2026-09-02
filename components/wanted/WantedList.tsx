@@ -186,6 +186,7 @@ export default function WantedList(): React.JSX.Element {
         <p className="wantedPanel__empty">Sign in to keep a Wanted list.</p>
       ) : (
         <WantedCapture
+          key={userId ?? "no-account"}
           onSaved={handleSaved}
         />
       )}

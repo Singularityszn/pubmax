@@ -179,6 +179,28 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     expect(container.textContent).not.toContain("Account A Pub");
   });
 
+  it("does not keep one account's Wanted draft for the next account", async () => {
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedFetch.mockResolvedValue(wantedResponse());
+    await render();
+    const paste = container.querySelector<HTMLInputElement>("#wanted-paste");
+    expect(paste).not.toBeNull();
+    if (!paste) return;
+
+    await act(async () => {
+      paste.value = "Account A draft";
+      paste.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await render();
+    expect(container.querySelector<HTMLInputElement>("#wanted-paste")?.value).toBe(
+      "Account A draft",
+    );
+
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await render();
+    expect(container.querySelector<HTMLInputElement>("#wanted-paste")?.value).toBe("");
+  });
+
   it("does not carry a fulfil note to another account", async () => {
     authedFetch.mockImplementation(() => Promise.resolve(wantedResponse()));
     authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
