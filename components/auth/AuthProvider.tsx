@@ -528,6 +528,16 @@ export function AuthProvider({
         window.clearTimeout(loadingTimeout);
         setProviderAuthState("supabase", "unavailable");
         setSessionLoading(false);
+        void callbackCapture.then((captured) => {
+          const callbackAttempt = captured?.attempt ?? null;
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+          scrubLingeringBrowserAuthCallback();
+          if (!active) return;
+          if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
         requestDeploymentSkewCheck();
         return;
       }

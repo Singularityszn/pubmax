@@ -48,6 +48,7 @@ export async function bootstrapAuthSession(
 ): Promise<AuthSessionBootstrapOutcome> {
   let localSettled = false;
   let localSession: Session | null = null;
+  let localReadFailed = false;
   let localSessionPromise: Promise<Session | null>;
   try {
     localSessionPromise = auth
@@ -59,11 +60,13 @@ export async function bootstrapAuthSession(
       })
       .catch(() => {
         localSettled = true;
+        localReadFailed = true;
         localSession = null;
         return null;
       });
   } catch {
     localSettled = true;
+    localReadFailed = true;
     localSessionPromise = Promise.resolve(null);
   }
 
@@ -71,6 +74,7 @@ export async function bootstrapAuthSession(
   // starting a resume request that cannot be needed. A slow local lookup does
   // not get to hold anonymous visitors behind the recovery ceiling.
   await Promise.resolve();
+  if (localSettled && localReadFailed) return { status: "unavailable" };
   if (localSettled && localSession) return { status: "local", session: localSession };
 
   const readHint = deps.readHint ?? fetchResumeHint;
@@ -82,9 +86,12 @@ export async function bootstrapAuthSession(
     return { status: "unavailable" };
   }
   if (hint.status === "unavailable") return { status: "unavailable" };
-  if (hint.status === "absent") return { status: "none" };
+  if (hint.status === "absent") {
+    return localReadFailed ? { status: "unavailable" } : { status: "none" };
+  }
 
   const resolvedLocalSession = await localSessionPromise;
+  if (localReadFailed) return { status: "unavailable" };
   if (resolvedLocalSession) return { status: "local", session: resolvedLocalSession };
 
   let restored: RedeemResult;

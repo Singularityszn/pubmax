@@ -95,6 +95,20 @@ describe("browser auth session bootstrap", () => {
     }
   });
 
+  it("preserves a failed local session read as unavailable", async () => {
+    const browser = auth({
+      getSession: vi.fn(async () => {
+        throw new Error("storage blocked");
+      }),
+    });
+
+    await expect(
+      bootstrapAuthSession(browser, {
+        readHint: async () => ({ status: "absent" }),
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+  });
+
   it("returns local session without touching the resume cookie", async () => {
     const localSession = {
       access_token: "access-local",
