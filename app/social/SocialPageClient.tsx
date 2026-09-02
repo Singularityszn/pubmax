@@ -741,9 +741,9 @@ function SocialPageAccountState({
                 boundary, so leaving them mounted would offer follows on a page
                 that says it is not open yet. Pinned by
                 __tests__/socialRollbackRender.test.tsx. */}
-            {/* ONE live copy of the packs on this page. A second would keep its
-                own follow results, so the two would disagree about what a tap
-                just did. */}
+            {/* ONE live copy of the packs on this page. Signed-in cards keep
+                their follow results; stranger cards are read-only, and the
+                two render paths must never appear together. */}
             {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
             {/* The founders wall. Public, already sitemapped, and until now
                 reachable from nowhere inside the app. One quiet link, no
@@ -791,9 +791,9 @@ function SocialPageAccountState({
               />
               {/* The packs are public and already listed, so a stranger meeting
                   the door can see who is already here rather than one sentence
-                  in an empty page. Still ONE live copy: the rail drops its own
-                  while this one is up, or the two would keep separate follow
-                  results and disagree about what a tap just did. */}
+                  in an empty page. Still ONE live copy: the rail drops its
+                  signed-in copy while this one is up, so the two render paths
+                  cannot appear together or carry conflicting follow results. */}
               {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
             </>
           ) : access === "checking" ? (

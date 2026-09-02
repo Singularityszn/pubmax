@@ -202,9 +202,10 @@ export default function StarterPacks({
     }
   }
 
-  // The whole render decision is `starterPacksSurfaceVisible` in the policy
-  // module. It is not restated here: a second copy of the rule is how a surface
-  // starts offering packs to somebody who already has a lot.
+  // Both render decisions live in the policy module. The signed-in surface
+  // asks `starterPacksSurfaceVisible` whether this viewer still needs packs;
+  // read-only stranger cards ask `starterPacksVisibleToStranger` only whether
+  // public packs exist. Neither rule is restated here.
   const settledLoaded = viewerStateKey === viewerKey && loaded;
   const settledPackCount = viewerStateKey === viewerKey ? packs.length : 0;
   const visible = readOnly
