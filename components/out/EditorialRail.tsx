@@ -16,7 +16,7 @@ import {
   type EditorialSnapshot,
 } from "@/lib/editorial";
 import { loadEditorialSnapshot } from "@/lib/editorialLoader";
-import { OUT_MAP_WAY } from "@/lib/out/outStatus";
+import { OUT_MAP_WAY, OUT_RETRY_LABEL } from "@/lib/out/outStatus";
 import EmptyState from "@/components/EmptyState";
 
 import "./editorialRail.css";
@@ -24,9 +24,11 @@ import "./editorialRail.css";
 export function EditorialRailView({
   snapshot,
   now,
+  onRetry,
 }: {
   snapshot: EditorialSnapshot;
   now?: number;
+  onRetry: () => void;
 }) {
   const stale = editorialSnapshotIsStale(snapshot, now);
   const items = stale ? [] : editorialThisWeekItems(snapshot, now);
@@ -55,9 +57,15 @@ export function EditorialRailView({
           title={statusLine}
           actionTone="accent"
           action={
-            <Link prefetch={false} href={OUT_MAP_WAY.href}>
-              {OUT_MAP_WAY.label}
-            </Link>
+            snapshot.status === "degraded" ? (
+              <button type="button" onClick={onRetry}>
+                {OUT_RETRY_LABEL}
+              </button>
+            ) : (
+              <Link prefetch={false} href={OUT_MAP_WAY.href}>
+                {OUT_MAP_WAY.label}
+              </Link>
+            )
           }
         />
       ) : statusLine ? (
@@ -102,6 +110,7 @@ export function EditorialRailView({
 
 export default function EditorialRail() {
   const [snapshot, setSnapshot] = useState<EditorialSnapshot | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -111,7 +120,12 @@ export default function EditorialRail() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadAttempt]);
+
+  function retry() {
+    setSnapshot(null);
+    setLoadAttempt((attempt) => attempt + 1);
+  }
 
   if (!snapshot) {
     return (
@@ -128,5 +142,5 @@ export default function EditorialRail() {
     );
   }
 
-  return <EditorialRailView snapshot={snapshot} />;
+  return <EditorialRailView snapshot={snapshot} onRetry={retry} />;
 }

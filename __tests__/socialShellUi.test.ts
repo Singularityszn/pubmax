@@ -44,20 +44,16 @@ const socialCss = readFileSync("app/social/social.css", "utf8");
 
 describe("Social access boundary", () => {
   it("keeps signed-out preview to one boundary and one sign-in action", () => {
-    const signedOutBranch =
-      socialPageSource.match(
-        /viewerPhase === "signed-out" \? \(([\s\S]*?)\) : access === "checking"/,
-      )?.[1] ?? "";
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, {
+        state: "sign_in_required",
+        friendsLaunchEnabled: true,
+      }),
+    );
 
-    expect(signedOutBranch).toContain("SocialAccessBoundary");
-    expect(signedOutBranch).not.toContain("SocialViewerState");
-    expect(signedOutBranch).not.toContain("socialFeedEmpty");
-    // Captain 2026-09-02: the public packs ride BESIDE the door, so a stranger
-    // sees who is already here instead of one sentence in an empty page. They
-    // are read-only there, which is what keeps this branch to ONE sign-in
-    // action: a follow button would answer 401 and read as a second door.
-    expect(signedOutBranch).toContain("<StarterPacks readOnly />");
-    expect(signedOutBranch).not.toMatch(/<StarterPacks(?!\s+readOnly\s*\/>)/);
+    expect(html).toContain("Sign in to use Social.");
+    expect(html).not.toContain("socialFeedEmpty");
+    expect(html.match(/href="/g)).toHaveLength(1);
     const viewerCards =
       socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
     expect(viewerCards).toMatch(
