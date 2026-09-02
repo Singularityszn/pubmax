@@ -229,6 +229,37 @@ type ModeratorSocialPost = {
   updatedAt: string;
 };
 
+const MODERATOR_SOCIAL_POST_VISIBILITIES = new Set(["public", "friends", "private"]);
+const MODERATOR_SOCIAL_POST_COMMENT_POLICIES = new Set(["open", "friends", "locked"]);
+const MODERATOR_SOCIAL_POST_MODERATION_STATES = new Set(["needs_review", "approved"]);
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.staffDisplayName === "string" &&
+    typeof row.postId === "string" &&
+    isNullableString(row.mediaId) &&
+    Number.isSafeInteger(row.revision) &&
+    (row.revision as number) >= 0 &&
+    typeof row.authorHandle === "string" &&
+    typeof row.body === "string" &&
+    isNullableString(row.photoAltText) &&
+    isNullableString(row.area) &&
+    isNullableString(row.venueId) &&
+    MODERATOR_SOCIAL_POST_VISIBILITIES.has(row.visibility) &&
+    MODERATOR_SOCIAL_POST_COMMENT_POLICIES.has(row.commentPolicy) &&
+    typeof row.moderationClaim === "string" &&
+    MODERATOR_SOCIAL_POST_MODERATION_STATES.has(row.moderationState) &&
+    typeof row.createdAt === "string" &&
+    typeof row.updatedAt === "string"
+  );
+}
+
 type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
 type SocialPostAction = { postId: string; action: "approve" | "hide" };
 
@@ -291,10 +322,6 @@ function SocialPostModerationQueue({
               ).text
             }
           </span>
-          {/* A queue with nothing to show and nothing to press is the door-slam
-              the friction-voice law forbids. A retry mints a fresh session
-              before it asks again, so every one of the four causes is worth
-              another go. */}
           <button
             type="button"
             className="admin-retry"
@@ -669,11 +696,11 @@ export default function AdminClient() {
         return;
       }
       if (requestGeneration !== socialPostsRequestGeneration.current) return;
-      if (!body || !Array.isArray(body.posts)) {
+      if (!body || !Array.isArray(body.posts) || !body.posts.every(isModeratorSocialPost)) {
         socialQueueUnavailable("unreadable");
         return;
       }
-      setSocialPosts(body.posts as ModeratorSocialPost[]);
+      setSocialPosts(body.posts);
       setSocialPostsState("ready");
     },
     [retryWithFreshSession, socialQueueUnavailable],
@@ -681,10 +708,12 @@ export default function AdminClient() {
 
   const load = useCallback(async (forceSession = false) => {
     const requestGeneration = ++socialPostsRequestGeneration.current;
+    const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
     setLoading(true);
     setMessage(null);
     try {
       const session = await ensureAdminSession(forceSession);
+      if (!isLatestLoad()) return;
       if (session.status !== "open") {
         setReportedDrops([]);
         setDrops([]);
@@ -823,11 +852,12 @@ export default function AdminClient() {
         setMessage(adminStatus("No reported drops in the queue."));
       }
     } catch {
+      if (!isLatestLoad()) return;
       setReportedDrops([]);
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
-      setLoading(false);
+      if (isLatestLoad()) setLoading(false);
     }
   }, [
     ensureAdminSession,
@@ -1473,7 +1503,7 @@ export default function AdminClient() {
           aria-label="Admin token"
         />
         {tab === "moderation" ? (
-          <button className="admin-btn" onClick={load} disabled={loading}>
+          <button className="admin-btn" onClick={() => load()} disabled={loading}>
             {loading ? "Loading…" : "Load reported drops"}
           </button>
         ) : null}

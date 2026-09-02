@@ -55,7 +55,7 @@ export type AdminQueueUnavailableReason =
 const QUEUE_UNAVAILABLE_CAUSE: Readonly<
   Record<AdminQueueUnavailableReason, string>
 > = {
-  session: "The console session is not open.",
+  session: "The console session has expired. Re-enter the admin token.",
   refused: "The server refused the request.",
   unreadable: "The answer could not be read.",
   unreachable: "The server could not be reached.",
@@ -64,8 +64,8 @@ const QUEUE_UNAVAILABLE_CAUSE: Readonly<
 /**
  * What a queue says when it has nothing to show and that is our fault.
  *
- * Every reason is worth another go - a retry mints a fresh session before it
- * asks again - so the surface that renders this owes a control beside it.
+ * Every reason is worth another go, so the surface that renders this owes a
+ * control beside it.
  */
 export function adminQueueUnavailable(
   queue: string,

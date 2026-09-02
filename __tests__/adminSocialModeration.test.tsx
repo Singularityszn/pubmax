@@ -45,6 +45,12 @@ const state = vi.hoisted(() => ({
   socialMalformedBody: null as string | null,
   socialThrows: false,
   socialRefusals: 0,
+  sessionAuthenticated: true,
+  sessionPostResponses: [] as Array<{
+    gate: Promise<void> | null;
+    accepted: boolean;
+  }>,
+  socialResponsePosts: null as unknown[] | null,
   socialGetResponses: [] as Array<{
     gate: Promise<void> | null;
     posts: unknown[];
@@ -77,7 +83,14 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
   const method = init?.method ?? "GET";
   if (url.pathname === "/api/admin/session") {
     state.fetchEvents.push(`session:${method}`);
-    return method === "POST" ? jsonResponse({ ok: true }) : jsonResponse({ authenticated: true });
+    if (method === "POST") {
+      const queuedResponse = state.sessionPostResponses.shift();
+      const response = () => queuedResponse?.accepted === false
+        ? jsonResponse({ error: "refused" }, 403)
+        : jsonResponse({ ok: true });
+      return queuedResponse?.gate ? queuedResponse.gate.then(response) : response();
+    }
+    return jsonResponse({ authenticated: state.sessionAuthenticated });
   }
   if (url.pathname === "/api/admin/social-posts") {
     state.fetchEvents.push(`social:${method}`);
@@ -96,6 +109,7 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
       const response = () => jsonResponse({ posts: queuedResponse.posts });
       return queuedResponse.gate ? queuedResponse.gate.then(response) : response();
     }
+    if (state.socialResponsePosts !== null) return jsonResponse({ posts: state.socialResponsePosts });
     if (state.socialRefusals > 0) {
       state.socialRefusals -= 1;
       return jsonResponse({ error: "unavailable" }, 503);
@@ -145,6 +159,9 @@ beforeEach(() => {
   state.socialMalformedBody = null;
   state.socialThrows = false;
   state.socialRefusals = 0;
+  state.sessionAuthenticated = true;
+  state.sessionPostResponses = [];
+  state.socialResponsePosts = null;
   state.socialGetResponses = [];
   state.fetchEvents = [];
   state.socialActionStatus = 200;
@@ -216,10 +233,12 @@ describe("Admin Social post moderation queue", () => {
     expect(host.textContent).not.toContain("The server could not be reached.");
   });
 
-  it("mints a fresh session before retrying a refused Social queue", async () => {
+  it("reports an expired session when retry has no token", async () => {
+    localStorage.removeItem("pubmax_admin_token");
     state.socialRefusals = 1;
     await loadAdmin();
     expect(host.textContent).toContain("The server refused the request.");
+    state.sessionAuthenticated = false;
     state.fetchEvents = [];
     const retry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Try again",
@@ -234,10 +253,27 @@ describe("Admin Social post moderation queue", () => {
       await Promise.resolve();
     });
 
-    expect(state.fetchEvents.filter((event) =>
-      ["session:POST", "session:GET", "social:GET"].includes(event),
-    )).toEqual(["session:POST", "session:GET", "social:GET"]);
-    expect(host.textContent).toContain("No Social posts awaiting review");
+    expect(state.fetchEvents.filter((event) => event.startsWith("session:"))).toEqual(["session:GET"]);
+    expect(host.textContent).toContain("The console session has expired. Re-enter the admin token.");
+  });
+
+  it("reuses an open session for an ordinary load", async () => {
+    await loadAdmin();
+    state.fetchEvents = [];
+    const load = [...host.querySelectorAll("button")].find((button) =>
+      button.textContent?.includes("Load reported drops"),
+    );
+    expect(load).toBeTruthy();
+
+    await act(async () => {
+      load!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.fetchEvents).not.toContain("session:POST");
   });
 
   it("disables retry during loading and ignores an older response", async () => {
@@ -295,6 +331,64 @@ describe("Admin Social post moderation queue", () => {
     });
     expect(host.textContent).toContain("Later retry response.");
     expect(host.textContent).not.toContain("Earlier retry response.");
+  });
+
+  it("keeps a newer queue when an older retry loses its session", async () => {
+    state.socialRefusals = 1;
+    await loadAdmin();
+
+    let releaseOlderSession = () => {};
+    const olderSession = new Promise<void>((resolve) => {
+      releaseOlderSession = resolve;
+    });
+    const newerPost = {
+      ...heldPost,
+      postId: "44444444-4444-4444-8444-444444444444",
+      body: "Newer queue response.",
+    };
+    state.sessionPostResponses = [
+      { gate: olderSession, accepted: false },
+      { gate: null, accepted: true },
+    ];
+    state.socialGetResponses = [{ gate: null, posts: [newerPost] }];
+    const retry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(retry).toBeTruthy();
+
+    await act(async () => {
+      retry!.click();
+      retry!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Newer queue response.");
+
+    await act(async () => {
+      releaseOlderSession();
+      await olderSession;
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Newer queue response.");
+    expect(host.textContent).not.toContain("The console session has expired.");
+  });
+
+  it("rejects a Social row with an invalid moderation state", async () => {
+    state.socialResponsePosts = [{ ...heldPost, moderationState: "pending" }];
+    await loadAdmin();
+    expect(host.textContent).toContain("The answer could not be read.");
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Approve")).toBe(false);
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Hide")).toBe(false);
+  });
+
+  it("rejects a Social row that is null", async () => {
+    state.socialResponsePosts = [null];
+    await loadAdmin();
+    expect(host.textContent).toContain("The answer could not be read.");
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Approve")).toBe(false);
+    expect([...host.querySelectorAll("button")].some((button) => button.textContent === "Hide")).toBe(false);
   });
 
   it("separates a server it never reached from one that answered", async () => {
