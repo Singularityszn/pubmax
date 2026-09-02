@@ -84,9 +84,8 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     accountSignal: () => accountController.signal,
     set(provider, identity) {
       if (identities[provider] === identity) return revision;
-      const hadAccount = Object.values(identities).some((current) => current !== null);
       identities[provider] = identity;
-      if (hadAccount) advanceAccountRevision();
+      advanceAccountRevision();
       return advanceRevision();
     },
     setAuthState(provider, state) {

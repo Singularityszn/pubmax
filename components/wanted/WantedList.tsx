@@ -4,7 +4,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
-import { readProviderAccountSignal } from "@/lib/authProviderRevision";
+import {
+  readProviderAccountRevision,
+  readProviderAccountSignal,
+} from "@/lib/authProviderRevision";
 import {
   isWantedPromotable,
   wantedPendingLabel,
@@ -33,7 +36,8 @@ type WantedFulfilEventDetail = {
 type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error";
 
 type WantedAccountState = {
-  userId: string;
+  userId: string | null;
+  accountRevision: number;
   wanteds: WantedDTO[];
   fetchStatus: WantedFetchStatus;
   fulfilNote: string | null;
@@ -64,10 +68,12 @@ export default function WantedList(): React.JSX.Element {
     if (supabaseAuthState !== "authenticated" || !userId) return;
     const requestUserId = userId;
     const requestAccountRevision = accountRevision;
+    const requestProviderAccountRevision = readProviderAccountRevision();
     const isCurrentRequest = () =>
       getCurrentUserId() === requestUserId &&
       activeUserId.current === requestUserId &&
-      activeAccountRevision.current === requestAccountRevision;
+      activeAccountRevision.current === requestAccountRevision &&
+      readProviderAccountRevision() === requestProviderAccountRevision;
     if (!isCurrentRequest()) {
       return;
     }
@@ -86,6 +92,7 @@ export default function WantedList(): React.JSX.Element {
       if (res.status === 401 || body.status === "sign_in_required") {
         setAccountState((current) => ({
           userId: requestUserId,
+          accountRevision: requestProviderAccountRevision,
           wanteds: [],
           fetchStatus: "sign_in",
           fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
@@ -95,6 +102,7 @@ export default function WantedList(): React.JSX.Element {
       if (!res.ok) {
         setAccountState((current) => ({
           userId: requestUserId,
+          accountRevision: requestProviderAccountRevision,
           wanteds: current?.userId === requestUserId ? current.wanteds : [],
           fetchStatus: "error",
           fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
@@ -103,6 +111,7 @@ export default function WantedList(): React.JSX.Element {
       }
       setAccountState((current) => ({
         userId: requestUserId,
+        accountRevision: requestProviderAccountRevision,
         wanteds: Array.isArray(body.wanteds) ? body.wanteds : [],
         fetchStatus: "ready",
         fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
@@ -113,6 +122,7 @@ export default function WantedList(): React.JSX.Element {
       }
       setAccountState((current) => ({
         userId: requestUserId,
+        accountRevision: requestProviderAccountRevision,
         wanteds: current?.userId === requestUserId ? current.wanteds : [],
         fetchStatus: "error",
         fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
@@ -126,36 +136,96 @@ export default function WantedList(): React.JSX.Element {
     void Promise.resolve().then(() => refresh());
   }, [refresh, userId]);
 
-  const currentAccountState = accountState?.userId === userId ? accountState : null;
+  const providerAccountRevision = readProviderAccountRevision();
+  const pendingSavedWanted = useRef<{
+    wanted: WantedDTO;
+    accountRevision: number;
+  } | null>(null);
+  const currentAccountState =
+    accountState !== null &&
+    accountState.accountRevision === providerAccountRevision &&
+    accountState.userId === userId &&
+    (userId !== null || supabaseAuthState === "unresolved")
+      ? accountState
+      : null;
   const fulfilNote = currentAccountState?.fulfilNote ?? null;
-  const handleSaved = useCallback(
-    (wanted: WantedDTO) => {
-      if (!userId || activeUserId.current !== userId) return;
+
+  useEffect(() => {
+    if (!userId) return;
+    const pending = pendingSavedWanted.current;
+    if (!pending) return;
+    if (pending.accountRevision !== readProviderAccountRevision()) {
+      pendingSavedWanted.current = null;
+      return;
+    }
+    pendingSavedWanted.current = null;
+    void Promise.resolve().then(() => {
+      if (
+        readProviderAccountRevision() !== pending.accountRevision ||
+        getCurrentUserId() !== userId ||
+        activeUserId.current !== userId
+      ) {
+        return;
+      }
       setAccountState((current) => ({
         userId,
+        accountRevision: pending.accountRevision,
+        wanteds: [
+          pending.wanted,
+          ...(current?.userId === userId && current.accountRevision === pending.accountRevision
+            ? current.wanteds.filter((row) => row.id !== pending.wanted.id)
+            : []),
+        ],
+        fetchStatus: "ready",
+        fulfilNote:
+          current?.userId === userId && current.accountRevision === pending.accountRevision
+            ? current.fulfilNote
+            : null,
+      }));
+    });
+  }, [accountRevision, getCurrentUserId, userId]);
+
+  const handleSaved = useCallback(
+    (wanted: WantedDTO) => {
+      if (readProviderAccountRevision() !== providerAccountRevision) return;
+      if (userId !== null && activeUserId.current !== userId) return;
+      if (userId === null && supabaseAuthState === "signed-out") return;
+      if (userId === null) {
+        pendingSavedWanted.current = {
+          wanted,
+          accountRevision: providerAccountRevision,
+        };
+      }
+      setAccountState((current) => ({
+        userId,
+        accountRevision: providerAccountRevision,
         wanteds: [
           wanted,
-          ...(current?.userId === userId
+          ...(current?.userId === userId && current.accountRevision === providerAccountRevision
             ? current.wanteds.filter((row) => row.id !== wanted.id)
             : []),
         ],
         fetchStatus: "ready",
-        fulfilNote: current?.userId === userId ? current.fulfilNote : null,
+        fulfilNote:
+          current?.userId === userId && current.accountRevision === providerAccountRevision
+            ? current.fulfilNote
+            : null,
       }));
     },
-    [userId],
+    [providerAccountRevision, supabaseAuthState, userId],
   );
   const handleFulfilNote = useCallback(
     (note: string | null, eventUserId?: string | null) => {
       if (!userId || eventUserId !== userId || activeUserId.current !== userId) return;
       setAccountState((current) => ({
         userId,
+        accountRevision: providerAccountRevision,
         wanteds: current?.userId === userId ? current.wanteds : [],
         fetchStatus: current?.userId === userId ? current.fetchStatus : "loading",
         fulfilNote: note,
       }));
     },
-    [userId],
+    [providerAccountRevision, userId],
   );
   const handleFulfilRefresh = useCallback((eventUserId?: string | null) => {
     if (!userId || eventUserId !== userId || activeUserId.current !== userId) return;

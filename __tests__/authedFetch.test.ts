@@ -530,19 +530,20 @@ describe("authedFetch (Wave I2)", () => {
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer resolved-jwt-token");
   });
 
-  it("does not treat an auth-hydrating browser as signed out", async () => {
+  it("aborts an auth-hydrating action before the first account binds", async () => {
     publishAuthActionState({ status: "unknown", identityResolved: false });
     vi.mocked(getAccessToken).mockResolvedValue("hydrated-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const request = authedActionFetch("/api/messages", { method: "POST" });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     setTimeout(() => {
       setProviderIdentity("supabase", "hydrated-account");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
 
-    await authedActionFetch("/api/messages", { method: "POST" });
+    await rejection;
 
-    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
-    expect(new Headers(init.headers).get("authorization")).toBe("Bearer hydrated-jwt-token");
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 
   it("keeps signed-out action behaviour anonymous", async () => {
