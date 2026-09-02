@@ -398,6 +398,10 @@ function SocialPostModerationQueue({
 const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
 
+type AdminRetryResult =
+  | { kind: "response"; response: Response }
+  | { kind: "session-expired" };
+
 function readStoredToken(): string {
   if (typeof window === "undefined") return "";
   return window.localStorage.getItem(TOKEN_KEY) ?? "";
@@ -547,12 +551,15 @@ export default function AdminClient() {
     [token, sessionEstablished],
   );
 
-  const retryWithFreshSession = useCallback(async (request: () => Promise<Response>) => {
+  const retryWithFreshSession = useCallback(async (request: () => Promise<Response>): Promise<AdminRetryResult> => {
     const res = await request();
-    if (res.status !== 403) return res;
+    if (res.status !== 403) return { kind: "response", response: res };
     setSessionEstablished(false);
-    if ((await ensureAdminSession(true)).status !== "open") return res;
-    return request();
+    if ((await ensureAdminSession(true)).status !== "open") {
+      discardBody(res);
+      return { kind: "session-expired" };
+    }
+    return { kind: "response", response: await request() };
   }, [ensureAdminSession]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
@@ -569,9 +576,15 @@ export default function AdminClient() {
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportNotes([]);
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       if (res.status === 403) {
         discardBody(res);
         setImportNotes([]);
@@ -605,9 +618,14 @@ export default function AdminClient() {
           return null;
         }
 
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/community-prices", SESSION_FETCH),
         );
+        if (retryResult.kind === "session-expired") {
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return null;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
@@ -666,42 +684,48 @@ export default function AdminClient() {
         socialQueueUnavailable("session");
         return;
       }
-      let response: Response;
       try {
-        response = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/social-posts", SESSION_FETCH),
         );
+        if (retryResult.kind === "session-expired") {
+          if (requestGeneration === socialPostsRequestGeneration.current) {
+            socialQueueUnavailable("session");
+          }
+          return;
+        }
+        const response = retryResult.response;
+        if (requestGeneration !== socialPostsRequestGeneration.current) {
+          discardBody(response);
+          return;
+        }
+        if (!response.ok) {
+          discardBody(response);
+          socialQueueUnavailable("refused");
+          return;
+        }
+        let body: { posts?: unknown } | null;
+        try {
+          body = (await response.json()) as { posts?: unknown } | null;
+        } catch {
+          if (requestGeneration === socialPostsRequestGeneration.current) {
+            socialQueueUnavailable("unreadable");
+          }
+          return;
+        }
+        if (requestGeneration !== socialPostsRequestGeneration.current) return;
+        if (!body || !Array.isArray(body.posts) || !body.posts.every(isModeratorSocialPost)) {
+          socialQueueUnavailable("unreadable");
+          return;
+        }
+        setSocialPosts(body.posts);
+        setSocialPostsState("ready");
       } catch {
         if (requestGeneration === socialPostsRequestGeneration.current) {
           socialQueueUnavailable("unreachable");
         }
         return;
       }
-      if (requestGeneration !== socialPostsRequestGeneration.current) {
-        discardBody(response);
-        return;
-      }
-      if (!response.ok) {
-        discardBody(response);
-        socialQueueUnavailable("refused");
-        return;
-      }
-      let body: { posts?: unknown } | null;
-      try {
-        body = (await response.json()) as { posts?: unknown } | null;
-      } catch {
-        if (requestGeneration === socialPostsRequestGeneration.current) {
-          socialQueueUnavailable("unreadable");
-        }
-        return;
-      }
-      if (requestGeneration !== socialPostsRequestGeneration.current) return;
-      if (!body || !Array.isArray(body.posts) || !body.posts.every(isModeratorSocialPost)) {
-        socialQueueUnavailable("unreadable");
-        return;
-      }
-      setSocialPosts(body.posts);
-      setSocialPostsState("ready");
     },
     [retryWithFreshSession, socialQueueUnavailable],
   );
@@ -872,7 +896,7 @@ export default function AdminClient() {
       setSocialPostAction({ postId: post.postId, action });
       setMessage(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/social-posts", {
             ...SESSION_FETCH,
             method: "POST",
@@ -885,6 +909,11 @@ export default function AdminClient() {
             }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setMessage(adminAlert("Not authorised. Check the admin token."));
@@ -1180,7 +1209,7 @@ export default function AdminClient() {
       setCommunityPricePendingId(row.id);
       setCommunityPriceMessage(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/community-prices", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1188,6 +1217,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id: row.id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
@@ -1257,7 +1291,7 @@ export default function AdminClient() {
         setImportMsg(adminAlert(session.message));
         return;
       }
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch("/api/admin/import-notes", {
           ...SESSION_FETCH,
           method: "POST",
@@ -1270,6 +1304,11 @@ export default function AdminClient() {
           }),
         }),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -1303,7 +1342,7 @@ export default function AdminClient() {
         setImportMsg(adminAlert(session.message));
         return;
       }
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch("/api/admin/import-notes", {
           ...SESSION_FETCH,
           method: "PATCH",
@@ -1311,6 +1350,11 @@ export default function AdminClient() {
           body: JSON.stringify({ id, action }),
         }),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -1344,7 +1388,7 @@ export default function AdminClient() {
         setOperatorMsg(adminAlert(session.message));
         return;
       }
-      const [claimsRes, proposalsRes] = await Promise.all([
+      const [claimsResult, proposalsResult] = await Promise.all([
         retryWithFreshSession(() =>
           fetch("/api/venue-operators/claim?state=pending", SESSION_FETCH),
         ),
@@ -1352,6 +1396,14 @@ export default function AdminClient() {
           fetch("/api/operator-proposals?status=pending", SESSION_FETCH),
         ),
       ]);
+      if (claimsResult.kind === "session-expired" || proposalsResult.kind === "session-expired") {
+        setOperatorClaims([]);
+        setOperatorProposals([]);
+        setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const claimsRes = claimsResult.response;
+      const proposalsRes = proposalsResult.response;
       if (claimsRes.status === 403 || proposalsRes.status === 403) {
         setOperatorClaims([]);
         setOperatorProposals([]);
@@ -1380,7 +1432,7 @@ export default function AdminClient() {
       setOperatorActionId(id);
       setOperatorMsg(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/venue-operators/claim", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1388,6 +1440,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
@@ -1414,7 +1471,7 @@ export default function AdminClient() {
       setOperatorActionId(id);
       setOperatorMsg(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/operator-proposals", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1422,6 +1479,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setOperatorMsg(adminAlert("Not authorised. Check the admin token."));

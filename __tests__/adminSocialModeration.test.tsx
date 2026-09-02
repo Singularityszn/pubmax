@@ -45,6 +45,7 @@ const state = vi.hoisted(() => ({
   socialMalformedBody: null as string | null,
   socialThrows: false,
   socialRefusals: 0,
+  socialRefusalStatus: 503,
   sessionAuthenticated: true,
   sessionPostResponses: [] as Array<{
     gate: Promise<void> | null;
@@ -112,7 +113,9 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     if (state.socialResponsePosts !== null) return jsonResponse({ posts: state.socialResponsePosts });
     if (state.socialRefusals > 0) {
       state.socialRefusals -= 1;
-      return jsonResponse({ error: "unavailable" }, 503);
+      const status = state.socialRefusalStatus;
+      if (status === 403) state.sessionAuthenticated = false;
+      return jsonResponse({ error: "unavailable" }, status);
     }
     return state.socialUnavailable
       ? jsonResponse({ error: "unavailable" }, 503)
@@ -159,6 +162,7 @@ beforeEach(() => {
   state.socialMalformedBody = null;
   state.socialThrows = false;
   state.socialRefusals = 0;
+  state.socialRefusalStatus = 503;
   state.sessionAuthenticated = true;
   state.sessionPostResponses = [];
   state.socialResponsePosts = null;
@@ -255,6 +259,20 @@ describe("Admin Social post moderation queue", () => {
 
     expect(state.fetchEvents.filter((event) => event.startsWith("session:"))).toEqual(["session:GET"]);
     expect(host.textContent).toContain("The console session has expired. Re-enter the admin token.");
+  });
+
+  it("reports an expired session after a Social refusal loses the session", async () => {
+    localStorage.removeItem("pubmax_admin_token");
+    state.socialRefusals = 1;
+    state.socialRefusalStatus = 403;
+    await loadAdmin();
+
+    expect(host.textContent).toContain("The console session has expired. Re-enter the admin token.");
+    expect(host.textContent).not.toContain("The server refused the request.");
+    expect(state.fetchEvents.filter((event) => event.startsWith("session:"))).toEqual([
+      "session:GET",
+      "session:GET",
+    ]);
   });
 
   it("reuses an open session for an ordinary load", async () => {
