@@ -4,7 +4,7 @@ import {
   fetchResumeHint,
   redeemPersistedSession,
   type RedeemResult,
-  type ResumeHint,
+  type ResumeHintReadOutcome,
 } from "@/lib/authSessionResumeClient";
 
 export type BrowserAuthSession = {
@@ -26,7 +26,7 @@ export type AuthSessionBootstrapOutcome =
   | { status: "unavailable" };
 
 export type AuthSessionBootstrapDeps = {
-  readHint?: () => Promise<ResumeHint | null>;
+  readHint?: () => Promise<ResumeHintReadOutcome>;
   redeem?: () => Promise<RedeemResult>;
 };
 
@@ -75,13 +75,14 @@ export async function bootstrapAuthSession(
 
   const readHint = deps.readHint ?? fetchResumeHint;
   const redeem = deps.redeem ?? redeemPersistedSession;
-  let hint: ResumeHint | null;
+  let hint: ResumeHintReadOutcome;
   try {
     hint = await readHint();
   } catch {
     return { status: "unavailable" };
   }
-  if (!hint) return { status: "none" };
+  if (hint.status === "unavailable") return { status: "unavailable" };
+  if (hint.status === "absent") return { status: "none" };
 
   const resolvedLocalSession = await localSessionPromise;
   if (resolvedLocalSession) return { status: "local", session: resolvedLocalSession };
