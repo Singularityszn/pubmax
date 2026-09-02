@@ -39,6 +39,14 @@ const NOT_REPO_PATHS = new Set([
   "./.next/dev/types/routes.d.ts",
   ".server.ts",
   "*.json",
+  // A URL in the trailing-slash law, not a file: `/api/thing/` is the address
+  // whose 308 makes it work, and no such directory exists or should.
+  "/api/thing/",
+  // Harvest working directories. `data-harvest/` is gitignored by design and
+  // `raw_venues/` holds throwaway Overpass pulls, so both are absent from a
+  // clean clone while still being the right thing to name.
+  "data-harvest/bars-enriched/",
+  "raw_venues/",
 ]);
 
 function pointers(): string[] {
@@ -77,10 +85,15 @@ describe("AGENTS.md pointers", () => {
     expect(dangling, "AGENTS.md points at paths that are no longer here").toEqual([]);
   });
 
-  it("still carries pointers at all, so a trim cannot quietly gut it", () => {
-    // A pointer document with no pointers has stopped being one. The floor is
-    // deliberately far below the current count: this catches a wholesale
-    // deletion, not ordinary editing.
-    expect(pointers().length).toBeGreaterThan(150);
+  it("keeps its pointers, so a trim cannot quietly gut it", () => {
+    // A pointer document with no pointers has stopped being one, and the
+    // pointer is the half a future reader cannot reconstruct: prose can be
+    // re-derived from the code, the knowledge of WHICH file owns a rule cannot.
+    // So this floor RATCHETS. It sits just under the shipped count rather than
+    // far below it, because a floor hundreds of pointers beneath the number it guards
+    // reads as protection and can never fire. Same rule as the performance
+    // budgets: take it UP when the count rises, and take it DOWN only in the
+    // commit that removes pointers on purpose, with the reason.
+    expect(pointers().length).toBeGreaterThan(516);
   });
 });
