@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { palMascotSlug } from "@/lib/palMascotAssets.mjs";
 import { cleanPalDraft, compatiblePalSpecies, DEFAULT_PAL_DRAFT, hasPalRouteActivation, markPalRouteActivation, migrateLegacyPalOnboardingDraft, PAL_ANIMATION_STATES, PAL_ONBOARDING_DRAFT_KEY, PAL_ONBOARDING_SPECIES, PAL_ROUTE_ACTIVATION_KEY, PAL_SPECIES, PAL_UNLOCKS, PAL_VISUAL_MANIFEST, palMasteryProgress, SIGNAL_FAMILIES, palOnboardingDraftKey, readPalOnboardingDraft, writePalOnboardingDraft } from "@/lib/pubPal";
 
 function memoryStorage(): Storage {
@@ -39,7 +40,7 @@ describe("Pub Pal domain", () => {
   it("ships seven reviewed launch visuals with every emotional state", () => {
     expect(Object.keys(PAL_VISUAL_MANIFEST)).toEqual(["robin", "greyhound", "cat", "fox", "pigeon", "badger", "corgi"]);
     expect(PAL_ANIMATION_STATES).toEqual(["idle", "noticing", "listening", "thinking", "speaking", "celebrating", "sleeping", "error"]);
-    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => (visual.format === "layered-svg" || visual.format === "circuit-robin") && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
+    expect(Object.values(PAL_VISUAL_MANIFEST).every((visual) => (visual.format === "layered-svg" || visual.format === palMascotSlug(visual.species)) && visual.face && visual.signatureProp && visual.material && visual.idlePose && visual.supportedStates.length === 8)).toBe(true);
   });
 
   it("round-trips an incomplete five-step onboarding draft safely", () => {

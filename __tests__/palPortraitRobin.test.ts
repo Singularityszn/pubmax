@@ -31,13 +31,28 @@ describe("PalPortrait circuit robin", () => {
     expect(html).not.toContain("palRigGreyhound");
   });
 
-  it("keeps legacy rigs selectable for alternate forms", () => {
+  it("draws the rendered species from its own master, never the robin's", () => {
     const greyhound = portraitMarkup("greyhound");
-    expect(greyhound).toContain("palRigGreyhound");
+    expect(greyhound).toContain("circuit-greyhound");
     expect(greyhound).not.toContain("circuit-robin");
+    expect(greyhound).not.toContain("palRigGreyhound");
 
     const cat = portraitMarkup("cat");
-    expect(cat).toContain("palRigCat");
+    expect(cat).toContain("circuit-cat");
     expect(cat).not.toContain("circuit-robin");
+    expect(cat).not.toContain("palRigCat");
+  });
+
+  it("keeps the layered-SVG rig for a species with no master", () => {
+    const fox = portraitMarkup("fox");
+    expect(fox).toContain("palRigFox");
+    expect(fox).not.toContain("/pal/circuit-");
+    expect(fox).toContain('role="img"');
+
+    // `hound` is the legacy spelling and has no row of its own, so it stays on
+    // the rig even though `greyhound` now ships a master.
+    const hound = portraitMarkup("hound");
+    expect(hound).toContain("palRigGreyhound");
+    expect(hound).not.toContain("/pal/circuit-");
   });
 });

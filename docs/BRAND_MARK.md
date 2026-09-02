@@ -159,6 +159,20 @@ Live under `public/`:
 | `apple-touch-icon-dark.png` | dark | 180px, full bleed, opaque |
 | `pal/circuit-robin-{32,64,128,512}.{webp,png}` | circuit robin | square mascot renditions |
 | `pal/circuit-robin-avatar-{32,64,128,512}.{webp,png}` | circuit robin | circular-avatar-safe mascot renditions |
+| `pal/circuit-greyhound-{32,64,128,512}.{webp,png}` | circuit greyhound | square mascot renditions |
+| `pal/circuit-greyhound-avatar-{32,64,128,512}.{webp,png}` | circuit greyhound | circular-avatar-safe mascot renditions |
+| `pal/circuit-cat-{32,64,128,512}.{webp,png}` | circuit cat | square mascot renditions |
+| `pal/circuit-cat-avatar-{32,64,128,512}.{webp,png}` | circuit cat | circular-avatar-safe mascot renditions |
+
+The Pub Pal renditions are the one set here that is not cut from the mark. Each
+species that ships a master owns one row in `lib/palMascotAssets.mjs`, and that
+row names the same slug as the species' `format` in `lib/pubPal.ts`; a species
+absent from the table has no master and every surface draws its layered-SVG rig
+instead. Write a set with `node scripts/gen-pubpal-mascot.mjs <species>
+<master.png>`, which centre-square crops the master once and writes the four
+squares and four circular avatars in webp and png. Masters stay outside the repo.
+Circuit Robin stays the assistant face and the default (`docs` on Pub Pal, plus
+the AGENTS.md entry); the greyhound and the cat are selectable alternates.
 
 The `-x` files are byte-identical mirrors, not separate designs. `app/layout.tsx`
 links the suffixed paths because a new PATH is the only reliable way to move a
