@@ -33,10 +33,13 @@
 .planPage__masthead a:hover { color: var(--plan-accent-strong); }
 .planPage__brand { color: var(--ink) !important; font-weight: 850; letter-spacing: 0.01em; }
 
+/* The page's whole job is the describe field below, so the hero owes it room:
+   112px above the headline and 72px below the lede put the input off a
+   1280x800 desktop entirely. The phone override further down is unchanged. */
 .planPage__intro,
 .planPage__hero {
   max-width: 920px;
-  margin: clamp(50px, 9vw, 112px) auto clamp(34px, 6vw, 72px);
+  margin: clamp(36px, 4vw, 56px) auto clamp(28px, 3vw, 40px);
 }
 
 .planPage__eyebrow {
@@ -59,7 +62,10 @@
    fold. The clamp's 3rem minimum still wins on a phone, so nothing moves there. */
 .planPage__intro h1,
 .planPage__hero h1 {
-  max-width: 760px;
+  /* The measure matches the hero's own, so the headline sets in two lines at
+     1280 rather than three. Same size, same weight: it costs the hierarchy
+     nothing and buys the field a line of vertical room. */
+  max-width: 920px;
   margin: 0;
   font-size: clamp(3rem, 9vw, 6rem);
   line-height: 0.9;
