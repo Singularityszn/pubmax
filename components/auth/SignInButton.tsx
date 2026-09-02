@@ -333,6 +333,7 @@ export default function SignInButton({
         hidden
         data-auth-configured="false"
         data-auth-resolved={clientHydrated ? "true" : "false"}
+        data-auth-empty="true"
       />
     );
   }
@@ -444,7 +445,14 @@ export default function SignInButton({
   // signed-in branch above did not return, so the phase is unresolved or
   // signed-out, and only the latter may speak.
   if (!providerHasAnswered(supabaseAuthState) && !clerkSessionAvailable) {
-    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
+    return (
+      <span
+        hidden
+        data-auth-configured="true"
+        data-auth-resolved="false"
+        data-auth-empty="true"
+      />
+    );
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;

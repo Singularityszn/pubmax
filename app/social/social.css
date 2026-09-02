@@ -114,6 +114,14 @@
   min-width: 0;
 }
 
+/* Who is already here, shown under the sign-in door to somebody with no
+   account. The packs bring their own material and their own heading, so this
+   owes only the space between them and the door above - and no wrapper, which
+   with no packs to show would leave an empty landmark behind. */
+.socialBoundary + .starterPacks {
+  margin-top: 20px;
+}
+
 .socialBoundary,
 .socialFeedError,
 .socialFeedEmpty {

@@ -25,6 +25,40 @@ function readHandle(): string {
   return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
+/**
+ * What the empty thread pane says, decided by the LIVE session.
+ *
+ * The pane used to be server-rendered copy: "Choose someone from your inbox to
+ * read the thread and reply." A page may not server-render per-account content
+ * (the client-router-cache law), so it could not know it was saying that to
+ * somebody with no account and therefore no inbox to choose from. It reads the
+ * session here instead, the way every other surface that names or routes the
+ * viewer does, and it says nothing at all until that session answers.
+ */
+export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
+  const viewerSession = useViewerSession();
+
+  if (viewerSession.unresolved) return null;
+
+  if (viewerSession.signedOut) {
+    return (
+      <div>
+        <p className="messagesThreadEyebrow">Messages</p>
+        <h2>Your conversations show here.</h2>
+        <p>One thread for each person you go out with, kept to the two of you.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="messagesThreadEyebrow">Your conversations</p>
+      <h2>Pick a message</h2>
+      <p>Choose someone from your inbox to read the thread and reply.</p>
+    </div>
+  );
+}
+
 export default function MessagesInboxClient({
   activeConversationId,
 }: {
