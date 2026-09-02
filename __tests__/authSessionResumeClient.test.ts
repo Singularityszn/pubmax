@@ -49,6 +49,16 @@ describe("reading the resume hint", () => {
       status: "unavailable",
     });
   });
+
+  it("rejects a present hint without its masked address field", async () => {
+    const malformed = vi.fn(
+      async () => new Response(JSON.stringify({ hint: {} }), { status: 200 }),
+    );
+
+    await expect(fetchResumeHint(malformed)).resolves.toEqual({
+      status: "unavailable",
+    });
+  });
 });
 
 describe("persisting the resume cookie", () => {

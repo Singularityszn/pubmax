@@ -51,13 +51,16 @@ export async function fetchResumeHint(
     ) {
       return { status: "unavailable" };
     }
-    const masked = (body.hint as { maskedEmail?: unknown }).maskedEmail;
-    if (masked !== undefined && masked !== null && typeof masked !== "string") {
+    if (!Object.prototype.hasOwnProperty.call(body.hint, "maskedEmail")) {
+      return { status: "unavailable" };
+    }
+    const masked = (body.hint as { maskedEmail: unknown }).maskedEmail;
+    if (masked !== null && typeof masked !== "string") {
       return { status: "unavailable" };
     }
     return {
       status: "present",
-      hint: { maskedEmail: typeof masked === "string" ? masked : null },
+      hint: { maskedEmail: masked },
     };
   } catch {
     return { status: "unavailable" };

@@ -722,7 +722,9 @@ export function AuthProvider({
         if (!active) return;
         window.clearTimeout(loadingTimeout);
         if (bootstrapped.status === "unavailable") {
-          setProviderAuthState("supabase", "unavailable");
+          if (readProviderAuthState("supabase") === "unresolved") {
+            setProviderAuthState("supabase", "unavailable");
+          }
         } else if (bootstrapped.status === "local") {
           // INITIAL_SESSION normally supplied this same session already. The
           // explicit update also covers a client that did not emit that event.
