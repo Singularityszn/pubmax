@@ -95,12 +95,19 @@ function runProbe(
 
 describe("probe-api-budgets CLI", () => {
   it("runs the documented Node command against a deployed-style target", async () => {
-    const { server, baseUrl } = await startServer((request, response) => writeJson(request, response));
+    const calls = new Map<string, number>();
+    const { server, baseUrl } = await startServer((request, response) => {
+      const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+      calls.set(pathname, (calls.get(pathname) ?? 0) + 1);
+      writeJson(request, response);
+    });
     try {
       const result = await runProbe(baseUrl);
 
       expect(result.code).toBe(0);
       expect(result.stdout).toContain("[api-budget] every budgeted read inside its ceiling.");
+      expect(calls.get("/api/whats-on")).toBe(14);
+      expect(calls.get("/api/founding-members")).toBe(7);
     } finally {
       await stopServer(server);
     }
@@ -206,6 +213,29 @@ describe("probe-api-budgets CLI", () => {
       expect(result.code).toBe(1);
       expect(result.stderr).toContain(
         "/api/out: response JSON shape missing required keys: status, events",
+      );
+    } finally {
+      await stopServer(server);
+    }
+  }, 20_000);
+
+  it("fails a well-formed JSON response whose required values are null", async () => {
+    const invalidOutBody = { status: null, events: null };
+    const { server, baseUrl } = await startServer((request, response) => {
+      const pathname = new URL(request.url ?? "/", "http://localhost").pathname;
+      writeJson(
+        request,
+        response,
+        200,
+        pathname === "/api/out" ? invalidOutBody : validBodyForPath(pathname),
+      );
+    });
+    try {
+      const result = await runProbe(baseUrl);
+
+      expect(result.code).toBe(1);
+      expect(result.stderr).toContain(
+        "/api/out: response JSON shape invalid for required fields: status (string), events (array)",
       );
     } finally {
       await stopServer(server);

@@ -64,12 +64,26 @@ async function validateJsonBody(response, route) {
   if (body === null || typeof body !== "object" || Array.isArray(body)) {
     throw new Error("response JSON shape was invalid");
   }
-  const missingKeys = route.requiredJsonKeys.filter(
+  const missingFields = Object.keys(route.requiredJsonFields).filter(
     (key) => !Object.prototype.hasOwnProperty.call(body, key),
   );
-  if (missingKeys.length > 0) {
+  if (missingFields.length > 0) {
     throw new Error(
-      `response JSON shape missing required keys: ${missingKeys.join(", ")}`,
+      `response JSON shape missing required keys: ${missingFields.join(", ")}`,
+    );
+  }
+  const invalidFields = Object.entries(route.requiredJsonFields).filter(([key, type]) => {
+    const value = body[key];
+    if (value === null) return true;
+    if (type === "array") return !Array.isArray(value);
+    if (type === "object") return typeof value !== "object" || Array.isArray(value);
+    return typeof value !== type;
+  });
+  if (invalidFields.length > 0) {
+    throw new Error(
+      `response JSON shape invalid for required fields: ${invalidFields
+        .map(([key, type]) => `${key} (${type})`)
+        .join(", ")}`,
     );
   }
 }
@@ -123,9 +137,14 @@ async function main() {
   for (const route of budgets.routes) {
     const url = new URL(route.path, baseUrl).toString();
     const times = [];
+    const sampleCount = route.sampleCount ?? samples;
     let firstNonSuccessStatus = null;
     let failure = null;
-    for (let run = 0; run < warmupSamples + samples; run += 1) {
+    if (!Number.isInteger(sampleCount) || sampleCount < 1) {
+      unreachable.push(`${route.path}: invalid sample count`);
+      continue;
+    }
+    for (let run = 0; run < warmupSamples + sampleCount; run += 1) {
       try {
         const result = await sample(url, route);
         if (result.status < 200 || result.status >= 300) {

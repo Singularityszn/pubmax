@@ -11,7 +11,11 @@
     {
       "path": "/api/whats-on",
       "why": "Tonight and Today both open on it, and it merges bundled rows with a live layer.",
-      "requiredJsonKeys": ["rows", "servedAt", "sourceFreshnessKind"],
+      "requiredJsonFields": {
+        "rows": "array",
+        "servedAt": "string",
+        "sourceFreshnessKind": "string"
+      },
       "seedP50Ms": 257,
       "seedP95Ms": 2774,
       "p50Ms": 600,
@@ -20,7 +24,10 @@
     {
       "path": "/api/out",
       "why": "The Out tab's whole answer, and the one read with its own per-IP budget.",
-      "requiredJsonKeys": ["status", "events"],
+      "requiredJsonFields": {
+        "status": "string",
+        "events": "array"
+      },
       "seedP50Ms": 149,
       "seedP95Ms": 766,
       "p50Ms": 500,
@@ -29,7 +36,10 @@
     {
       "path": "/api/night-areas?city=london",
       "why": "Bundled config behind the area picker, and now edge-cached, so it is the floor every other read here is judged against.",
-      "requiredJsonKeys": ["cityId", "areas"],
+      "requiredJsonFields": {
+        "cityId": "string",
+        "areas": "array"
+      },
       "seedP50Ms": 261,
       "seedP95Ms": 482,
       "p50Ms": 500,
@@ -38,7 +48,9 @@
     {
       "path": "/api/pint-drops?city=london",
       "why": "The map's community-price lane, spent on every cold map open.",
-      "requiredJsonKeys": ["drops"],
+      "requiredJsonFields": {
+        "drops": "array"
+      },
       "seedP50Ms": 165,
       "seedP95Ms": 467,
       "p50Ms": 500,
@@ -47,7 +59,11 @@
     {
       "path": "/api/map-search?q=lexington",
       "why": "The national pub-name index behind map search, which opens a server-side file per request.",
-      "requiredJsonKeys": ["intent", "nationalPubs", "nationalStatus"],
+      "requiredJsonFields": {
+        "intent": "object",
+        "nationalPubs": "array",
+        "nationalStatus": "string"
+      },
       "seedP50Ms": 134,
       "seedP95Ms": 474,
       "p50Ms": 500,
@@ -56,7 +72,12 @@
     {
       "path": "/api/founding-members",
       "why": "The founders wall read, and the one public list route that goes to the profile store.",
-      "requiredJsonKeys": ["members", "cap"],
+      "requiredJsonFields": {
+        "members": "array",
+        "cap": "number"
+      },
+      "sampleCount": 5,
+      "sampleNote": "Five measured samples stay below this route's public 8-request-per-60-second limit. The median is intentionally coarser: nearest-rank p95 is the slowest of five, a worst-of-five, but it remains an enforceable ceiling.",
       "seedP50Ms": 355,
       "seedP95Ms": 536,
       "p50Ms": 600,

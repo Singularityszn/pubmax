@@ -7,6 +7,8 @@ export const API_BUDGET_METRICS = runtime.API_BUDGET_METRICS as readonly [
 
 export type ApiBudgetMetric = (typeof API_BUDGET_METRICS)[number];
 
+export type ApiJsonFieldType = "array" | "object" | "string" | "number" | "boolean";
+
 export const API_BUDGET_METRIC_LABELS = runtime.API_BUDGET_METRIC_LABELS as Record<
   ApiBudgetMetric,
   string
@@ -15,7 +17,9 @@ export const API_BUDGET_METRIC_LABELS = runtime.API_BUDGET_METRIC_LABELS as Reco
 export type ApiRouteBudget = {
   path: string;
   why: string;
-  requiredJsonKeys: readonly string[];
+  requiredJsonFields: Readonly<Record<string, ApiJsonFieldType>>;
+  sampleCount?: number;
+  sampleNote?: string;
   seedP50Ms: number;
   seedP95Ms: number;
 } & Record<ApiBudgetMetric, number>;
