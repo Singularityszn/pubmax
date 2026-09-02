@@ -32,6 +32,8 @@ export function resolveSupabaseAuthState(
 export type ProviderIdentityRevisionStore = {
   read: () => number;
   signal: () => AbortSignal;
+  accountRevision: () => number;
+  accountSignal: () => AbortSignal;
   set: (provider: AuthProviderName, identity: string | null) => number;
   setAuthState: (provider: AuthProviderName, state: ProviderAuthState) => number;
   authState: (provider: AuthProviderName) => ProviderAuthState;
@@ -47,7 +49,9 @@ export type ProviderIdentityRevisionStore = {
  */
 export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionStore {
   let revision = 0;
+  let accountRevision = 0;
   let revisionController = new AbortController();
+  let accountController = new AbortController();
   const identities: Record<AuthProviderName, string | null> = {
     clerk: null,
     supabase: null,
@@ -65,13 +69,24 @@ export function createProviderIdentityRevisionStore(): ProviderIdentityRevisionS
     for (const listener of listeners) listener();
     return revision;
   };
+  const advanceAccountRevision = (): number => {
+    accountRevision += 1;
+    const previousController = accountController;
+    accountController = new AbortController();
+    previousController.abort(new DOMException("The operation was aborted.", "AbortError"));
+    return accountRevision;
+  };
 
   return {
     read: () => revision,
     signal: () => revisionController.signal,
+    accountRevision: () => accountRevision,
+    accountSignal: () => accountController.signal,
     set(provider, identity) {
       if (identities[provider] === identity) return revision;
+      const hadAccount = Object.values(identities).some((current) => current !== null);
       identities[provider] = identity;
+      if (hadAccount) advanceAccountRevision();
       return advanceRevision();
     },
     setAuthState(provider, state) {
@@ -91,6 +106,8 @@ const providerIdentityRevisionStore = createProviderIdentityRevisionStore();
 
 export const readProviderIdentityRevision = providerIdentityRevisionStore.read;
 export const readProviderIdentitySignal = providerIdentityRevisionStore.signal;
+export const readProviderAccountRevision = providerIdentityRevisionStore.accountRevision;
+export const readProviderAccountSignal = providerIdentityRevisionStore.accountSignal;
 export const setProviderIdentity = providerIdentityRevisionStore.set;
 export const setProviderAuthState = providerIdentityRevisionStore.setAuthState;
 export const readProviderAuthState = providerIdentityRevisionStore.authState;

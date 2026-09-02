@@ -4,7 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedFetch } from "@/lib/authedFetch";
-import { readProviderIdentitySignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import {
   isWantedPromotable,
   wantedPendingLabel,
@@ -72,7 +72,7 @@ export default function WantedList(): React.JSX.Element {
       return;
     }
     const revision = ++requestRevision.current;
-    const requestAccountSignal = readProviderIdentitySignal();
+    const requestAccountSignal = readProviderAccountSignal();
     try {
       const res = await authedFetch("/api/wanted", { signal: requestAccountSignal });
       const body = (await res.json()) as {

@@ -16,7 +16,7 @@ import {
   signedInActionFetch,
 } from "@/lib/authedFetch";
 import {
-  readProviderIdentitySignal,
+  readProviderAccountSignal,
   setProviderIdentity,
 } from "@/lib/authProviderRevision";
 
@@ -76,7 +76,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockReturnValueOnce(token);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     const request = authedFetch("/api/wanted", {
-      signal: readProviderIdentitySignal(),
+      signal: readProviderAccountSignal(),
     });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
@@ -134,8 +134,21 @@ describe("authedFetch (Wave I2)", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     const request = authedActionFetch("/api/presence", {
       method: "POST",
-      signal: readProviderIdentitySignal(),
     });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not send a signed-in-only action after an account switch during readiness", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const request = signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
 
@@ -259,7 +272,7 @@ describe("authedFetch (Wave I2)", () => {
     try {
       setProviderIdentity("supabase", "account-a");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
-      const providerSignal = readProviderIdentitySignal();
+      const providerSignal = readProviderAccountSignal();
       const providerListenerSpy = vi.spyOn(providerSignal, "addEventListener");
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
         async (_input, init) => {
@@ -341,7 +354,7 @@ describe("authedFetch (Wave I2)", () => {
     try {
       setProviderIdentity("supabase", "account-a");
       publishAuthActionState({ status: "signed-in", identityResolved: true });
-      const providerSignal = readProviderIdentitySignal();
+      const providerSignal = readProviderAccountSignal();
       const owner = new AbortController();
       vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 

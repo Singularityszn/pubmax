@@ -3,7 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { readProviderIdentitySignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
@@ -60,7 +60,7 @@ export function usePresence(venue: Venue) {
     const requestVenueId = venue.id;
     const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
-    const requestAccountSignal = readProviderIdentitySignal();
+    const requestAccountSignal = readProviderAccountSignal();
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {

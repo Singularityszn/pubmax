@@ -6,8 +6,8 @@
 
 import { getAccessToken } from "@/lib/authClient";
 import {
-  readProviderIdentityRevision,
-  readProviderIdentitySignal,
+  readProviderAccountRevision,
+  readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
 
 export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session - try again.";
@@ -175,8 +175,8 @@ function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
 }
 
 function bindAccountAction(callerSignals: readonly AbortSignal[]): AccountBoundAction {
-  const accountRevision = readProviderIdentityRevision();
-  const providerSignal = readProviderIdentitySignal();
+  const accountRevision = readProviderAccountRevision();
+  const providerSignal = readProviderAccountSignal();
   return {
     accountRevision,
     signal: compositeActionSignal([providerSignal, ...callerSignals]),
@@ -284,17 +284,12 @@ type ActiveAuthActionResponse = Readonly<{
 async function activeAuthActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
+  boundAction?: AccountBoundAction,
 ): Promise<ActiveAuthActionResponse> {
   const callerSignals = callerActionSignals(input, init.signal ?? undefined);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  let action = authActionState.status === "unknown"
-    ? null
-    : bindAccountAction(callerSignals);
-  await waitForAuthActionReadiness(
-    deadline,
-    action?.signal ?? compositeActionSignal(callerSignals),
-  );
-  action ??= bindAccountAction(callerSignals);
+  const action = boundAction ?? bindAccountAction(callerSignals);
+  await waitForAuthActionReadiness(deadline, action.signal);
 
   let token: string | null = null;
   for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
@@ -355,10 +350,12 @@ export async function signedInActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response | null> {
+  const callerSignals = callerActionSignals(input, init.signal ?? undefined);
+  const action = bindAccountAction(callerSignals);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
+  await waitForAuthActionReadiness(deadline, action.signal);
   if (authActionState.status !== "signed-in" || !authActionState.identityResolved) return null;
-  return authedActionFetch(input, init);
+  return (await activeAuthActionFetch(input, init, action)).response;
 }
 
 export type AuthedActionJson<T> = Readonly<{
@@ -374,6 +371,6 @@ export async function authedActionJson<T = unknown>(
   const { signal, accountRevision, response } = await activeAuthActionFetch(input, init);
   const body = (await response.json()) as T;
   if (signal.aborted) throw abortReason(signal);
-  if (readProviderIdentityRevision() !== accountRevision) throw abortError();
+  if (readProviderAccountRevision() !== accountRevision) throw abortError();
   return { response, body };
 }
