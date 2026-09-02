@@ -52,6 +52,12 @@ describe("Social access boundary", () => {
     expect(signedOutBranch).toContain("SocialAccessBoundary");
     expect(signedOutBranch).not.toContain("SocialViewerState");
     expect(signedOutBranch).not.toContain("socialFeedEmpty");
+    // Captain 2026-09-02: the public packs ride BESIDE the door, so a stranger
+    // sees who is already here instead of one sentence in an empty page. They
+    // are read-only there, which is what keeps this branch to ONE sign-in
+    // action: a follow button would answer 401 and read as a second door.
+    expect(signedOutBranch).toContain("<StarterPacks readOnly />");
+    expect(signedOutBranch).not.toMatch(/<StarterPacks(?!\s+readOnly\s*\/>)/);
     const viewerCards =
       socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
     expect(viewerCards).toMatch(

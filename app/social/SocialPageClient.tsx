@@ -697,6 +697,11 @@ function SocialPageAccountState({
     isPosts &&
     viewerPhase === "resolved" &&
     access === "verified";
+  // A signed-out reader meets the door in the body, so the packs go beside it
+  // there rather than in the narrow rail, where they left the column empty.
+  const packsBesideTheDoor =
+    friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
+
   return (
     <>
       <main className="socialPage" id="main-content">
@@ -739,7 +744,7 @@ function SocialPageAccountState({
             {/* ONE live copy of the packs on this page. A second would keep its
                 own follow results, so the two would disagree about what a tap
                 just did. */}
-            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
+            {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
             {/* The founders wall. Public, already sitemapped, and until now
                 reachable from nowhere inside the app. One quiet link, no
                 count, and no branch on whether this reader holds a number:
@@ -779,10 +784,18 @@ function SocialPageAccountState({
               />
             </section>
           ) : viewerPhase === "signed-out" ? (
-            <SocialAccessBoundary
-              state="sign_in_required"
-              friendsLaunchEnabled={friendsLaunchEnabled}
-            />
+            <>
+              <SocialAccessBoundary
+                state="sign_in_required"
+                friendsLaunchEnabled={friendsLaunchEnabled}
+              />
+              {/* The packs are public and already listed, so a stranger meeting
+                  the door can see who is already here rather than one sentence
+                  in an empty page. Still ONE live copy: the rail drops its own
+                  while this one is up, or the two would keep separate follow
+                  results and disagree about what a tap just did. */}
+              {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
+            </>
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>
