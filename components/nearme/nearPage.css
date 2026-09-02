@@ -1,13 +1,14 @@
 /* /near page shell. Matches other app reading pages (discover/today): standard
-   SiteNav + a centred content column. No custom back-arrow bar — the shared
-   nav owns wayfinding (journey audit P0). */
+   SiteNav and shared wayfinding. Phones keep one centred answer column;
+   desktop widens that answer and adds a sticky Pint/Desk rail without changing
+   the markup. */
 
 .nmnPage {
   min-height: 100dvh;
   background: var(--paper);
   color: var(--ink);
-  /* Same outer pad rhythm as .discoverPage / content pages so the column
-     does not sit in a left-biased void at 1440. */
+  /* Same outer pad rhythm as .discoverPage / content pages keeps content inside
+     the screen gutters. The desktop composition widens the body below. */
   padding: 16px var(--page-gutter) calc(96px + env(safe-area-inset-bottom, 0px));
   box-sizing: border-box;
 }
