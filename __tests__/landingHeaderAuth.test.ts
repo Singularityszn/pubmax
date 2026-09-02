@@ -86,6 +86,28 @@ describe("header waits for the live session", () => {
     expect(html).not.toContain("Account");
   });
 
+  it("does not offer Sign in when the auth client could not load", () => {
+    // The captain's report, 2026-09-02: signed in weeks ago, never signed out,
+    // and the landing header still said Sign in while the You tab named the
+    // account. `unavailable` is the OTHER not-told state, set when the auth
+    // client cannot load, and the likeliest cause is a stale document, which
+    // `/` always is: it is CDN-cached and prerendered, so a long-lived session
+    // resolves entirely in the browser.
+    //
+    // The test above covered `unresolved` only, which is why #1239's rule was
+    // already in place and the bug shipped anyway. Both not-told states now go
+    // through providerHasAnswered, so neither can be half-learned again.
+    const html = compactHeader({
+      user: null,
+      handle: null,
+      loading: false,
+      supabaseAuthState: "unavailable",
+    });
+
+    expect(html).not.toContain("Sign in");
+    expect(html).not.toContain("Account");
+  });
+
   it("still offers Sign in once the session has answered nobody", () => {
     const html = compactHeader({
       user: null,
