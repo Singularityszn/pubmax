@@ -23,9 +23,10 @@ const authState = vi.hoisted(() => ({
   } as { supabaseAuthState: string; user: { id: string } | null },
 }));
 const authedFetch = vi.hoisted(() => vi.fn());
+const getCurrentUserId = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/auth/AuthProvider", () => ({
-  useAuth: () => authState.current,
+  useAuth: () => ({ ...authState.current, getCurrentUserId }),
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedFetch }));
 
@@ -40,6 +41,7 @@ let root: Root;
 beforeEach(() => {
   authState.current = { supabaseAuthState: "unresolved", user: null };
   authedFetch.mockReset();
+  getCurrentUserId.mockImplementation(() => authState.current.user?.id ?? null);
   container = document.createElement("div");
   document.body.append(container);
   root = createRoot(container);
@@ -131,6 +133,24 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     );
     await render();
     expect(authedFetch).toHaveBeenCalledWith("/api/wanted");
+  });
+
+  it("does not issue a queued read after the live account changes", async () => {
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-a" } };
+    authedFetch.mockResolvedValue(wantedResponse());
+    await render();
+    authedFetch.mockReset();
+
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("pubmax:wanted-fulfilled", {
+          detail: { note: "Account A was fulfilled", userId: "account-a" },
+        }),
+      );
+    });
+
+    expect(authedFetch).not.toHaveBeenCalled();
   });
 
   it.each(["unresolved", "signed-out"] as const)(

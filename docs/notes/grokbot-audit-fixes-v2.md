@@ -64,9 +64,10 @@ about: the badge may name neither "pub" nor "venue".
 
 ## Verification
 
-No validation run and no push, per the prep instruction. The seven kept
-commits' own fences plus the adjacent Out, landing and voice fences were run
-locally: `outSourceHonesty`, `priceFreshnessHonesty`, `planInputTypes`,
+No pipeline validation run or push occurred at the time of writing, per the
+prep instruction. The seven kept commits' own fences plus the adjacent Out,
+landing and voice fences were run locally: `outSourceHonesty`,
+`priceFreshnessHonesty`, `planInputTypes`,
 `wantedListAuthGate`, `boroughCoverageStatus`, `zones`,
 `priceSourcePresentation`, `landingMapNavParity`, `outListings`,
 `outAttribution`, `outDesktopGrouping`, `tonightOutListings`, `coreUiAudit`,

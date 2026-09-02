@@ -26,7 +26,8 @@ import type { Venue } from "@/lib/venues";
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean })
   .IS_REACT_ACT_ENVIRONMENT = true;
 
-const venue = (id: string): Venue => ({ id, name: id, address: "", latitude: 0, longitude: 0 } as Venue);
+const venue = (id: string): Venue =>
+  ({ id, name: id, address: "", latitude: 0, longitude: 0 }) as Venue;
 
 function Harness({ selectedVenue }: { selectedVenue: Venue }): React.JSX.Element {
   const { presenceState, markPresenceHere } = usePresence(selectedVenue);
@@ -96,7 +97,7 @@ function state(): string {
 }
 
 describe("presence account boundary", () => {
-  it("does not start while Supabase auth is unresolved or has no user", async () => {
+  it("does not start while Supabase auth is unresolved or identity is missing", async () => {
     await render();
     await clickCheckIn();
     expect(authedActionFetch).not.toHaveBeenCalled();
@@ -111,6 +112,36 @@ describe("presence account boundary", () => {
     await clickCheckIn();
     expect(authedActionFetch).not.toHaveBeenCalled();
     expect(state()).toBe("idle");
+  });
+
+  it("keeps anonymous presence available after auth settles signed-out", async () => {
+    authState.current = {
+      accountRevision: 1,
+      supabaseAuthState: "signed-out",
+      user: null,
+    };
+    authedActionFetch.mockResolvedValue(response());
+    await render();
+    await clickCheckIn();
+    expect(authedActionFetch).toHaveBeenCalledWith("/api/presence", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ handle: "tester", venueId: "venue-a" }),
+    });
+    expect(state()).toBe("here");
+  });
+
+  it("keeps no-handle guidance available to an anonymous visitor", async () => {
+    authState.current = {
+      accountRevision: 1,
+      supabaseAuthState: "signed-out",
+      user: null,
+    };
+    window.localStorage.removeItem("pubmax_handle");
+    await render();
+    await clickCheckIn();
+    expect(authedActionFetch).not.toHaveBeenCalled();
+    expect(state()).toBe("no-handle");
   });
 
   it("resets confirmed presence when the account changes", async () => {

@@ -54,9 +54,10 @@ export function usePresence(venue: Venue) {
 
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
-    if (supabaseAuthState !== "authenticated" || !user?.id) return;
+    if (supabaseAuthState === "unresolved") return;
+    if (supabaseAuthState === "authenticated" && !user?.id) return;
     const requestVenueId = venue.id;
-    const requestUserId = user.id;
+    const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();

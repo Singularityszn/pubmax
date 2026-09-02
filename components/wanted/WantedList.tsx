@@ -48,18 +48,28 @@ export default function WantedList(): React.JSX.Element {
   // the reason every identity read here is: `loading` can go false while a
   // durable resume is still restoring an account, so "not signed in" and "not
   // asked yet" are different answers and only one of them may say Sign in.
-  const { supabaseAuthState, user } = useAuth();
+  const { accountRevision = 0, getCurrentUserId, supabaseAuthState, user } = useAuth();
   const userId = supabaseAuthState === "authenticated" ? user?.id ?? null : null;
   const activeUserId = useRef<string | null>(userId);
+  const activeAccountRevision = useRef(accountRevision);
   const requestRevision = useRef(0);
   useLayoutEffect(() => {
     activeUserId.current = userId;
-  }, [userId]);
+    activeAccountRevision.current = accountRevision;
+  }, [accountRevision, userId]);
   const [accountState, setAccountState] = useState<WantedAccountState | null>(null);
 
   const refresh = useCallback(async () => {
     if (supabaseAuthState !== "authenticated" || !userId) return;
     const requestUserId = userId;
+    const requestAccountRevision = accountRevision;
+    const isCurrentRequest = () =>
+      getCurrentUserId() === requestUserId &&
+      activeUserId.current === requestUserId &&
+      activeAccountRevision.current === requestAccountRevision;
+    if (!isCurrentRequest()) {
+      return;
+    }
     const revision = ++requestRevision.current;
     try {
       const res = await authedFetch("/api/wanted");
@@ -68,10 +78,7 @@ export default function WantedList(): React.JSX.Element {
         status?: string;
         error?: string;
       };
-      if (
-        activeUserId.current !== requestUserId ||
-        requestRevision.current !== revision
-      ) {
+      if (!isCurrentRequest() || requestRevision.current !== revision) {
         return;
       }
       if (res.status === 401 || body.status === "sign_in_required") {
@@ -99,10 +106,7 @@ export default function WantedList(): React.JSX.Element {
         fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
       }));
     } catch {
-      if (
-        activeUserId.current !== requestUserId ||
-        requestRevision.current !== revision
-      ) {
+      if (!isCurrentRequest() || requestRevision.current !== revision) {
         return;
       }
       setAccountState((current) => ({
@@ -112,7 +116,7 @@ export default function WantedList(): React.JSX.Element {
         fulfilNote: current?.userId === requestUserId ? current.fulfilNote : null,
       }));
     }
-  }, [supabaseAuthState, userId]);
+  }, [accountRevision, getCurrentUserId, supabaseAuthState, userId]);
 
   useEffect(() => {
     // The only reason to ask is an account to ask for.
