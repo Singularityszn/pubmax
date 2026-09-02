@@ -22,6 +22,7 @@ import { describe, expect, it } from "vitest";
 
 import { MARK_COLORS } from "@/components/brand/PubmaxxMark";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
+import { OUT_LISTING_VENUE_BADGE_LABEL } from "@/lib/outDesktopGrouping";
 import {
   EDITORIAL_DEGRADED_EMPTY_LINE,
   EDITORIAL_EMPTY_LINE,
@@ -119,8 +120,12 @@ describe("the venue badge wears our own mark", () => {
   });
 
   it("still names the venue in words, so the mark is not the only claim", () => {
+    // Asserted against the OWNING constant rather than a retyped string. A
+    // guard that spells the label itself is a second copy of the thing it is
+    // guarding: rename the label and this test keeps passing against words no
+    // reader sees any more.
     expect(
       renderedPubPair().querySelector(".outListingPubPairLabel")?.textContent,
-    ).toBe("PUBMAXX venue");
+    ).toBe(OUT_LISTING_VENUE_BADGE_LABEL);
   });
 });
