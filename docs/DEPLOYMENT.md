@@ -61,10 +61,15 @@ cryptographically random process-local HMAC key. This keeps Plan grounding and
 verified analytics usable in the same in-memory process without creating a
 public forgeable key; tokens intentionally stop verifying after restart. Any
 `NODE_ENV=production`, deployed, or Supabase-backed process must configure one
-of the trusted secrets above. `PUBMAX_E2E_KEYLESS=1` selects only the in-memory
-storage backend; it never relaxes signing. `playwright.config.ts` injects a fresh
-32-byte `PLAN_IDEMPOTENCY_SECRET` through `webServer.env` for each
-production-style browser-test run, keeping it out of the command and argv.
+of the trusted secrets above. `PUBMAX_E2E_KEYLESS=1` selects the in-memory
+storage backend. With the explicit `PUBMAX_E2E_AUTH_USERS` map supplied by
+`playwright.config.ts`, the local production-style Playwright server can
+resolve fixture identities for authenticated browser write tests. This
+test-only map is rejected on Vercel Production and must not be configured on
+deployed targets. The keyless flag never relaxes trusted signing.
+`playwright.config.ts` injects a fresh 32-byte `PLAN_IDEMPOTENCY_SECRET`
+through `webServer.env` for each production-style browser-test run, keeping it
+out of the command and argv.
 Plan generation, creation, and completion return retryable
 `PLAN_SIGNING_UNAVAILABLE` (503) before mutation when that boundary is
 misconfigured.
