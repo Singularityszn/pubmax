@@ -16,7 +16,13 @@ import {
   submitAdminToken,
   type AdminSessionSubmitOutcome,
 } from "@/lib/adminSessionClient";
-import { adminAlert, adminStatus, type AdminNotice } from "@/lib/adminNotice";
+import {
+  adminAlert,
+  adminQueueUnavailable,
+  adminStatus,
+  type AdminNotice,
+  type AdminQueueUnavailableReason,
+} from "@/lib/adminNotice";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -245,13 +251,18 @@ function socialPostActionLabel(
 function SocialPostModerationQueue({
   posts,
   state,
+  unavailableReason,
   pendingAction,
   onDecision,
+  onRetry,
 }: {
   posts: ModeratorSocialPost[];
   state: SocialPostsState;
+  /** Why the queue is unavailable. Four causes, four sentences, never one word. */
+  unavailableReason: AdminQueueUnavailableReason | null;
   pendingAction: SocialPostAction | null;
   onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
+  onRetry: () => void;
 }) {
   return (
     <>
@@ -262,7 +273,21 @@ function SocialPostModerationQueue({
         </div>
       ) : state === "unavailable" ? (
         <div className="admin-empty" role="alert">
-          Social post moderation is unavailable.
+          <span>
+            {
+              adminQueueUnavailable(
+                "Social posts",
+                unavailableReason ?? "unreachable",
+              ).text
+            }
+          </span>
+          {/* A queue with nothing to show and nothing to press is the door-slam
+              the friction-voice law forbids. A retry mints a fresh session
+              before it asks again, so every one of the four causes is worth
+              another go. */}
+          <button type="button" className="admin-retry" onClick={onRetry}>
+            Try again
+          </button>
         </div>
       ) : posts.length === 0 && state === "ready" ? (
         <div className="admin-empty">
@@ -436,6 +461,8 @@ export default function AdminClient() {
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [socialPosts, setSocialPosts] = useState<ModeratorSocialPost[]>([]);
   const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
+  const [socialPostsReason, setSocialPostsReason] =
+    useState<AdminQueueUnavailableReason | null>(null);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
@@ -571,12 +598,25 @@ export default function AdminClient() {
     [ensureAdminSession, retryWithFreshSession],
   );
 
+  // Four causes, four sentences. A closed session, a refusal, an answer we
+  // could not read and a server we never reached used to render as one word
+  // with nothing to press, so a moderator could not tell whose fault it was
+  // and had no way onward either.
+  const socialQueueUnavailable = useCallback(
+    (reason: AdminQueueUnavailableReason) => {
+      setSocialPostsReason(reason);
+      setSocialPostsState("unavailable");
+    },
+    [],
+  );
+
   const loadSocialPosts = useCallback(
     async (authenticatedSession: AdminSessionSubmitOutcome) => {
       setSocialPostsState("loading");
+      setSocialPostsReason(null);
       setSocialPosts([]);
       if (authenticatedSession.status !== "open") {
-        setSocialPostsState("unavailable");
+        socialQueueUnavailable("session");
         return;
       }
       try {
@@ -585,21 +625,21 @@ export default function AdminClient() {
         );
         if (!response.ok) {
           discardBody(response);
-          setSocialPostsState("unavailable");
+          socialQueueUnavailable("refused");
           return;
         }
         const body = (await response.json()) as { posts?: unknown };
         if (!Array.isArray(body.posts)) {
-          setSocialPostsState("unavailable");
+          socialQueueUnavailable("unreadable");
           return;
         }
         setSocialPosts(body.posts as ModeratorSocialPost[]);
         setSocialPostsState("ready");
       } catch {
-        setSocialPostsState("unavailable");
+        socialQueueUnavailable("unreachable");
       }
     },
-    [retryWithFreshSession],
+    [retryWithFreshSession, socialQueueUnavailable],
   );
 
   const load = useCallback(async () => {
@@ -612,7 +652,7 @@ export default function AdminClient() {
         setDrops([]);
         setComments([]);
         setSocialPosts([]);
-        setSocialPostsState("unavailable");
+        socialQueueUnavailable("session");
         setMessage(adminAlert(session.message));
         return;
       }
@@ -751,7 +791,13 @@ export default function AdminClient() {
     } finally {
       setLoading(false);
     }
-  }, [ensureAdminSession, loadCommunityPriceQueues, loadSocialPosts, venueNames.size]);
+  }, [
+    ensureAdminSession,
+    loadCommunityPriceQueues,
+    loadSocialPosts,
+    socialQueueUnavailable,
+    venueNames.size,
+  ]);
 
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
@@ -1596,8 +1642,10 @@ export default function AdminClient() {
           <SocialPostModerationQueue
             posts={socialPosts}
             state={socialPostsState}
+            unavailableReason={socialPostsReason}
             pendingAction={socialPostAction}
             onDecision={(post, action) => void decideSocialPost(post, action)}
+            onRetry={() => void load()}
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}

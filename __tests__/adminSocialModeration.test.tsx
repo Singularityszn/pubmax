@@ -41,6 +41,8 @@ const state = vi.hoisted(() => ({
     updatedAt: string;
   }>,
   socialUnavailable: false,
+  socialUnreadable: false,
+  socialThrows: false,
   socialActionStatus: 200,
   socialActionGate: null as Promise<void> | null,
   socialActionBodies: [] as unknown[],
@@ -70,6 +72,8 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
         : jsonResponse({ error: "unavailable" }, state.socialActionStatus);
       return state.socialActionGate ? state.socialActionGate.then(response) : response();
     }
+    if (state.socialThrows) throw new TypeError("Failed to fetch");
+    if (state.socialUnreadable) return jsonResponse({ posts: "not-a-list" });
     return state.socialUnavailable
       ? jsonResponse({ error: "unavailable" }, 503)
       : jsonResponse({ posts: state.socialPosts });
@@ -111,6 +115,8 @@ beforeEach(() => {
   state.pintDropsFail = false;
   state.socialPosts = [];
   state.socialUnavailable = false;
+  state.socialUnreadable = false;
+  state.socialThrows = false;
   state.socialActionStatus = 200;
   state.socialActionGate = null;
   state.socialActionBodies = [];
@@ -151,11 +157,39 @@ describe("Admin Social post moderation queue", () => {
     expect(host.textContent).not.toContain("Social post moderation is unavailable.");
   });
 
-  it("shows unavailable when the Social queue cannot be read", async () => {
+  // Four causes answered with one word, and nothing to press. A moderator could
+  // not tell whose fault it was and had no way onward either, which is the
+  // door-slam the friction-voice law forbids.
+  it("names the cause when the server refuses the Social queue, and offers a way onward", async () => {
     state.socialUnavailable = true;
     await loadAdmin();
-    expect(host.textContent).toContain("Social post moderation is unavailable.");
+    expect(host.textContent).toContain("Could not load Social posts.");
+    expect(host.textContent).toContain("The server refused the request.");
     expect(host.textContent).not.toContain("No Social posts awaiting review");
+    const retry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(retry).toBeTruthy();
+  });
+
+  it("separates an answer it could not read from a refusal", async () => {
+    state.socialUnreadable = true;
+    await loadAdmin();
+    expect(host.textContent).toContain("The answer could not be read.");
+    expect(host.textContent).not.toContain("The server refused the request.");
+  });
+
+  it("separates a server it never reached from one that answered", async () => {
+    state.socialThrows = true;
+    await loadAdmin();
+    expect(host.textContent).toContain("The server could not be reached.");
+    expect(host.textContent).not.toContain("The server refused the request.");
+  });
+
+  it("never says the retired one-word line", async () => {
+    state.socialUnavailable = true;
+    await loadAdmin();
+    expect(host.textContent).not.toContain("Social post moderation is unavailable.");
   });
 
   it("shows the exact held revision and its review context even when Pint Drop requests fail", async () => {
