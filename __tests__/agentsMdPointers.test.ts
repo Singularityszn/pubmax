@@ -1,5 +1,6 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { join } from "node:path";
+import { isAbsolute, join, relative, resolve, sep } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -18,8 +19,25 @@ import { describe, expect, it } from "vitest";
 // otherwise have been shipped dropped or gutted. That check was manual and
 // one-off; this is the part of it worth keeping.
 
-const ROOT = process.cwd();
+const ROOT = resolve(process.cwd());
 const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
+const TRACKED_PATHS = new Set(
+  execFileSync("git", ["ls-tree", "-r", "-z", "--name-only", "HEAD"], {
+    cwd: ROOT,
+    encoding: "utf8",
+  })
+    .split("\0")
+    .filter(Boolean),
+);
+const TRACKED_DIRECTORIES = new Set<string>();
+
+for (const trackedPath of TRACKED_PATHS) {
+  let directory = trackedPath;
+  while (directory.includes("/")) {
+    directory = directory.slice(0, directory.lastIndexOf("/"));
+    TRACKED_DIRECTORIES.add(directory);
+  }
+}
 
 /** Backticked tokens that look like a path into this repository. */
 const BACKTICKED_TOKEN = /`([^`\r\n]+)`/g;
@@ -159,8 +177,27 @@ function wildcardRegExp(segment: string): RegExp {
   return new RegExp(`^${escaped.replace(/\*/g, ".*")}$`);
 }
 
+function relativePathInsideRoot(path: string): string | null {
+  const candidate = relative(ROOT, resolve(path));
+  if (
+    candidate === ".." ||
+    candidate.startsWith(`..${sep}`) ||
+    isAbsolute(candidate)
+  ) {
+    return null;
+  }
+  return candidate.split(sep).join("/");
+}
+
+function trackedNodeExists(path: string): boolean {
+  return Boolean(path) && (TRACKED_PATHS.has(path) || TRACKED_DIRECTORIES.has(path));
+}
+
 function resolvesPattern(pointer: string): boolean {
   const segments = pointer.split("/").filter(Boolean);
+  if (segments.length === 0 || segments.some((segment) => segment === "..")) {
+    return false;
+  }
 
   function visit(directory: string, index: number): boolean {
     if (index === segments.length) return true;
@@ -170,12 +207,25 @@ function resolvesPattern(pointer: string): boolean {
       if (!existsSync(directory) || !statSync(directory).isDirectory()) return false;
       const pattern = wildcardRegExp(segment);
       return readdirSync(directory).some(
-        (entry) => pattern.test(entry) && visit(join(directory, entry), index + 1),
+        (entry) => {
+          if (!pattern.test(entry)) return false;
+          const candidate = join(directory, entry);
+          const candidatePath = relativePathInsideRoot(candidate);
+          return (
+            candidatePath !== null &&
+            trackedNodeExists(candidatePath) &&
+            existsSync(candidate) &&
+            visit(candidate, index + 1)
+          );
+        },
       );
     }
 
     const next = join(directory, segment);
-    if (!existsSync(next)) return false;
+    const nextPath = relativePathInsideRoot(next);
+    if (nextPath === null || !trackedNodeExists(nextPath) || !existsSync(next)) {
+      return false;
+    }
     return visit(next, index + 1);
   }
 
