@@ -6,7 +6,7 @@ import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
@@ -255,6 +255,7 @@ function SocialPostModerationQueue({
   pendingAction,
   onDecision,
   onRetry,
+  retryDisabled,
 }: {
   posts: ModeratorSocialPost[];
   state: SocialPostsState;
@@ -263,6 +264,7 @@ function SocialPostModerationQueue({
   pendingAction: SocialPostAction | null;
   onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
   onRetry: () => void;
+  retryDisabled: boolean;
 }) {
   return (
     <>
@@ -270,6 +272,14 @@ function SocialPostModerationQueue({
       {state === "loading" ? (
         <div className="admin-empty" role="status">
           Loading Social posts awaiting review…
+          <button
+            type="button"
+            className="admin-retry"
+            onClick={onRetry}
+            disabled={retryDisabled || state === "loading"}
+          >
+            Try again
+          </button>
         </div>
       ) : state === "unavailable" ? (
         <div className="admin-empty" role="alert">
@@ -285,7 +295,12 @@ function SocialPostModerationQueue({
               the friction-voice law forbids. A retry mints a fresh session
               before it asks again, so every one of the four causes is worth
               another go. */}
-          <button type="button" className="admin-retry" onClick={onRetry}>
+          <button
+            type="button"
+            className="admin-retry"
+            onClick={onRetry}
+            disabled={retryDisabled || state === "loading"}
+          >
             Try again
           </button>
         </div>
@@ -463,6 +478,7 @@ export default function AdminClient() {
   const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
   const [socialPostsReason, setSocialPostsReason] =
     useState<AdminQueueUnavailableReason | null>(null);
+  const socialPostsRequestGeneration = useRef(0);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
@@ -611,7 +627,11 @@ export default function AdminClient() {
   );
 
   const loadSocialPosts = useCallback(
-    async (authenticatedSession: AdminSessionSubmitOutcome) => {
+    async (
+      authenticatedSession: AdminSessionSubmitOutcome,
+      requestGeneration: number,
+    ) => {
+      if (requestGeneration !== socialPostsRequestGeneration.current) return;
       setSocialPostsState("loading");
       setSocialPostsReason(null);
       setSocialPosts([]);
@@ -625,7 +645,13 @@ export default function AdminClient() {
           fetch("/api/admin/social-posts", SESSION_FETCH),
         );
       } catch {
-        socialQueueUnavailable("unreachable");
+        if (requestGeneration === socialPostsRequestGeneration.current) {
+          socialQueueUnavailable("unreachable");
+        }
+        return;
+      }
+      if (requestGeneration !== socialPostsRequestGeneration.current) {
+        discardBody(response);
         return;
       }
       if (!response.ok) {
@@ -637,9 +663,12 @@ export default function AdminClient() {
       try {
         body = (await response.json()) as { posts?: unknown } | null;
       } catch {
-        socialQueueUnavailable("unreadable");
+        if (requestGeneration === socialPostsRequestGeneration.current) {
+          socialQueueUnavailable("unreadable");
+        }
         return;
       }
+      if (requestGeneration !== socialPostsRequestGeneration.current) return;
       if (!body || !Array.isArray(body.posts)) {
         socialQueueUnavailable("unreadable");
         return;
@@ -651,6 +680,7 @@ export default function AdminClient() {
   );
 
   const load = useCallback(async (forceSession = false) => {
+    const requestGeneration = ++socialPostsRequestGeneration.current;
     setLoading(true);
     setMessage(null);
     try {
@@ -665,7 +695,7 @@ export default function AdminClient() {
         return;
       }
 
-      void loadSocialPosts(session);
+      void loadSocialPosts(session, requestGeneration);
 
       // Community observations have their own reversible queues. Load them in
       // this pass, but keep their failures isolated from Pint Drops and the
@@ -1654,6 +1684,7 @@ export default function AdminClient() {
             pendingAction={socialPostAction}
             onDecision={(post, action) => void decideSocialPost(post, action)}
             onRetry={() => void load(true)}
+            retryDisabled={loading}
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}

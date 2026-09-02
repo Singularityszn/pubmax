@@ -45,6 +45,10 @@ const state = vi.hoisted(() => ({
   socialMalformedBody: null as string | null,
   socialThrows: false,
   socialRefusals: 0,
+  socialGetResponses: [] as Array<{
+    gate: Promise<void> | null;
+    posts: unknown[];
+  }>,
   fetchEvents: [] as string[],
   socialActionStatus: 200,
   socialActionGate: null as Promise<void> | null,
@@ -87,6 +91,11 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     if (state.socialThrows) throw new TypeError("Failed to fetch");
     if (state.socialMalformedBody !== null) return rawResponse(state.socialMalformedBody);
     if (state.socialUnreadable) return jsonResponse({ posts: "not-a-list" });
+    const queuedResponse = state.socialGetResponses.shift();
+    if (queuedResponse) {
+      const response = () => jsonResponse({ posts: queuedResponse.posts });
+      return queuedResponse.gate ? queuedResponse.gate.then(response) : response();
+    }
     if (state.socialRefusals > 0) {
       state.socialRefusals -= 1;
       return jsonResponse({ error: "unavailable" }, 503);
@@ -136,6 +145,7 @@ beforeEach(() => {
   state.socialMalformedBody = null;
   state.socialThrows = false;
   state.socialRefusals = 0;
+  state.socialGetResponses = [];
   state.fetchEvents = [];
   state.socialActionStatus = 200;
   state.socialActionGate = null;
@@ -228,6 +238,63 @@ describe("Admin Social post moderation queue", () => {
       ["session:POST", "session:GET", "social:GET"].includes(event),
     )).toEqual(["session:POST", "session:GET", "social:GET"]);
     expect(host.textContent).toContain("No Social posts awaiting review");
+  });
+
+  it("disables retry during loading and ignores an older response", async () => {
+    state.socialRefusals = 1;
+    await loadAdmin();
+
+    let releaseFirstResponse = () => {};
+    const firstResponse = new Promise<void>((resolve) => {
+      releaseFirstResponse = resolve;
+    });
+    let releaseSecondResponse = () => {};
+    const secondResponse = new Promise<void>((resolve) => {
+      releaseSecondResponse = resolve;
+    });
+    const earlierPost = { ...heldPost, body: "Earlier retry response." };
+    const laterPost = {
+      ...heldPost,
+      postId: "33333333-3333-4333-8333-333333333333",
+      body: "Later retry response.",
+    };
+    state.socialGetResponses = [
+      { gate: firstResponse, posts: [earlierPost] },
+      { gate: secondResponse, posts: [laterPost] },
+    ];
+    const retry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(retry).toBeTruthy();
+
+    await act(async () => {
+      retry!.click();
+      retry!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+    const busyRetry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(busyRetry?.disabled).toBe(true);
+
+    await act(async () => {
+      releaseSecondResponse();
+      await secondResponse;
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Later retry response.");
+    expect(host.textContent).not.toContain("Earlier retry response.");
+
+    await act(async () => {
+      releaseFirstResponse();
+      await firstResponse;
+      await Promise.resolve();
+    });
+    expect(host.textContent).toContain("Later retry response.");
+    expect(host.textContent).not.toContain("Earlier retry response.");
   });
 
   it("separates a server it never reached from one that answered", async () => {
