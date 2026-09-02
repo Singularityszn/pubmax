@@ -1,20 +1,5 @@
 import { type Page } from "@playwright/test";
 
-/**
- * Shared browser auth doubles for the e2e suite.
- *
- * Extracted verbatim from e2e/account-switch-identity.spec.ts, where this
- * apparatus was written and where it still proves the device-identity laws.
- * Nothing here changed in the move except the `export` keywords: the account
- * fixtures, the storage keys, the GoTrue double and the readers are the same
- * code that spec has been passing on, so a second spec leaning on it inherits
- * behaviour that is already proven rather than a fresh guess at it.
- *
- * The keyless Playwright server has no Supabase, so the session and the
- * owner-only reads are browser route doubles. Every surface under test is the
- * real shipped UI, and the durable resume cookie is the REAL route.
- */
-
 export const ACCOUNTS = {
   A: {
     id: "00000000-0000-4000-8000-0000000000a1",
