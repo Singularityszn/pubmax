@@ -107,6 +107,17 @@ test.describe("signed-in Plan capability recovery", () => {
     const planId = await lockInAPlan(page, { waitForAccountClaim: true });
     await loseTheCapabilityCookie(page, planId);
 
+    let documentRequests = 0;
+    page.on("request", (request) => {
+      if (
+        request.isNavigationRequest()
+        && request.resourceType() === "document"
+        && request.frame() === page.mainFrame()
+      ) {
+        documentRequests += 1;
+      }
+    });
+
     // The recovery write is a PATCH under one idempotency key, so a second tab
     // or a retry converges rather than rotating the token twice.
     const recovery = page.waitForRequest(
@@ -128,6 +139,7 @@ test.describe("signed-in Plan capability recovery", () => {
     await expect(page.getByRole("button", { name: "Copy invite link" })).toBeVisible({
       timeout: RECOVERY_OBSERVATION_BUDGET_MS,
     });
+    expect(documentRequests, "one main-frame document request after cookie loss").toBe(1);
     expect(
       (await page.context().cookies()).some(
         (cookie) => cookie.name === CAPABILITY_COOKIE(planId),
@@ -136,7 +148,8 @@ test.describe("signed-in Plan capability recovery", () => {
     ).toBe(true);
   });
 
-  test("a signed-out browser never spends a recovery write", async ({ page }) => {
+  test("a signed-out browser never spends a recovery write", async ({ page }, testInfo) => {
+    testInfo.setTimeout(testInfo.timeout + RECOVERY_OBSERVATION_BUDGET_MS);
     await installAuthDoubles(page);
     await seedSignedIn(page, "A");
     const planId = await lockInAPlan(page);
