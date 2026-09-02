@@ -96,6 +96,20 @@ test.describe("signed-in Plan capability recovery", () => {
   test("a signed-in host who lost the capability cookie recovers it on the Plan page", async ({
     page,
   }) => {
+    // HELD, NOT DELETED. The e2e web server runs keyless, so it has no
+    // SUPABASE_SERVICE_ROLE_KEY and getSupabaseAdmin() answers null. That makes
+    // verifyCallerAuth answer "unavailable", and app/api/plans/[id]/session
+    // answers 503 to BOTH the PUT that claims the seat and the PATCH that
+    // recovers it. So the signed-in half cannot pass here, and the only ways to
+    // make it pass are a real service-role key in CI or a test-only bypass
+    // inside verifyCallerAuth. Both were refused: a backdoor in production auth
+    // code is not paid for by a browser test. The journey below is kept whole so
+    // it can be switched on the day a real authenticated e2e lane exists.
+    // See #1300 for what would actually prove it.
+    test.skip(
+      true,
+      "No service-role key in the keyless e2e server: verifyCallerAuth answers \"unavailable\", so the claim PUT and the recovery PATCH both answer 503 by design.",
+    );
     // This test asserts the recovery PATCH, not the resume cookie, so it leaves
     // the real /api/auth/session budget alone (60 persists an hour per IP).
     await installAuthDoubles(page);

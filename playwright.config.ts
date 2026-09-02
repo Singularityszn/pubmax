@@ -57,20 +57,6 @@ const E2E_SUPABASE_URL = "https://pubmaxx-e2e.supabase.co";
 // browser auth graph remains enabled and route doubles can answer it.
 const E2E_SUPABASE_PUBLISHABLE_KEY = "sb_publishable_pubmaxx_e2e";
 const E2E_ADMIN_TOKEN = process.env.PW_E2E_ADMIN_TOKEN ?? "pubmax-e2e-admin-token";
-// Server-only identities let keyless Plan E2E exercise account ownership while
-// the browser continues to use its normal provider-shaped session fixture.
-const E2E_AUTH_USERS = JSON.stringify({
-  "pubmaxx-e2e-access-token-A": {
-    id: "00000000-0000-4000-8000-0000000000a1",
-    email: "karan@example.test",
-    createdAt: "2026-07-29T00:00:00.000Z",
-  },
-  "pubmaxx-e2e-access-token-B": {
-    id: "00000000-0000-4000-8000-0000000000b2",
-    email: "karanmanoharann@example.test",
-    createdAt: "2026-07-29T00:00:00.000Z",
-  },
-});
 // The founders' door is read from the environment at build time, so a keyless
 // E2E build renders no door at all unless the build is given one. This code is
 // deliberately fake: the specs assert the door RENDERS and where it points, and
@@ -365,7 +351,6 @@ export default defineConfig({
           PLAN_IDEMPOTENCY_SECRET: E2E_PLAN_SIGNING_SECRET,
           ADMIN_TOKEN: E2E_ADMIN_TOKEN,
           RATE_LIMIT_SALT: E2E_RATE_LIMIT_SALT,
-          PUBMAX_E2E_AUTH_USERS: E2E_AUTH_USERS,
           PUBMAX_E2E_LOGIN: "0",
           PUBMAX_E2E_KEYLESS: "1",
           // Auth regressions may opt into the real public Supabase project.

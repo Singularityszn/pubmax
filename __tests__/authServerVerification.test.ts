@@ -70,7 +70,13 @@ describe("verifyCallerAuth", () => {
     });
   });
 
-  it("verifies configured keyless E2E identities without a Supabase admin client", async () => {
+  // No environment may stand in for the admin verifier. A keyless process has
+  // nothing that can check a signature or an expiry, so the only honest answer
+  // is "we could not verify" - never "verified". This test exists because a
+  // fixture map keyed on the bearer string itself was proposed to make a
+  // browser test pass, and a bearer string that IS the password is a backdoor
+  // however narrowly its flag is gated.
+  it("answers unavailable with no admin client whatever the environment says", async () => {
     authState.admin = null;
     vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
     vi.stubEnv("VERCEL_ENV", "development");
@@ -79,35 +85,6 @@ describe("verifyCallerAuth", () => {
       JSON.stringify({
         "pubmaxx-e2e-access-token-A": {
           id: "00000000-0000-4000-8000-0000000000a1",
-          email: "karan@example.test",
-          createdAt: "2026-07-29T00:00:00.000Z",
-        },
-      }),
-    );
-
-    await expect(
-      verifyCallerAuth(request("pubmaxx-e2e-access-token-A")),
-    ).resolves.toEqual({
-      status: "verified",
-      identity: {
-        id: "00000000-0000-4000-8000-0000000000a1",
-        email: "karan@example.test",
-        createdAt: "2026-07-29T00:00:00.000Z",
-      },
-    });
-  });
-
-  it("does not use keyless E2E identities on a Vercel Production process", async () => {
-    authState.admin = null;
-    vi.stubEnv("PUBMAX_E2E_KEYLESS", "1");
-    vi.stubEnv("VERCEL_ENV", "production");
-    vi.stubEnv(
-      "PUBMAX_E2E_AUTH_USERS",
-      JSON.stringify({
-        "pubmaxx-e2e-access-token-A": {
-          id: "00000000-0000-4000-8000-0000000000a1",
-          email: "karan@example.test",
-          createdAt: "2026-07-29T00:00:00.000Z",
         },
       }),
     );
