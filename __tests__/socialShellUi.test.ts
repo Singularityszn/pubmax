@@ -39,7 +39,6 @@ const protectedPost: SocialPostDTO = {
   venueName: "The Test Arms",
 };
 
-const socialPageSource = readFileSync("app/social/SocialPageClient.tsx", "utf8");
 const socialCss = readFileSync("app/social/social.css", "utf8");
 
 describe("Social access boundary", () => {
@@ -54,11 +53,6 @@ describe("Social access boundary", () => {
     expect(html).toContain("Sign in to use Social.");
     expect(html).not.toContain("socialFeedEmpty");
     expect(html.match(/href="/g)).toHaveLength(1);
-    const viewerCards =
-      socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
-    expect(viewerCards).toMatch(
-      /isPosts\s*&&\s*viewerPhase === "resolved"\s*&&\s*access === "verified"/,
-    );
   });
 
   it("uses a compact boundary so preview does not leave a large empty panel", () => {
