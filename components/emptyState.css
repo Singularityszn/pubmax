@@ -38,6 +38,13 @@
   opacity: 0.88;
 }
 
+/* Flush variant: the card sits under a section heading in a left-aligned page
+   flow rather than centred in a column of its own. Layout only - the material,
+   the copy scale and the action tone are the ones above. */
+.emptyState--flush {
+  margin-inline: 0;
+}
+
 .emptyStateEyebrow {
   margin: 0 0 8px;
   color: var(--brass);

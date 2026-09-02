@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import {
@@ -15,6 +16,8 @@ import {
   type EditorialSnapshot,
 } from "@/lib/editorial";
 import { loadEditorialSnapshot } from "@/lib/editorialLoader";
+import { OUT_MAP_WAY } from "@/lib/out/outStatus";
+import EmptyState from "@/components/EmptyState";
 
 import "./editorialRail.css";
 
@@ -44,7 +47,22 @@ export function EditorialRailView({
       <h2 id="editorial-rail-heading" className="editorialRailTitle">
         {EDITORIAL_RAIL_TITLE}
       </h2>
-      {statusLine ? <p className="editorialRailStatus">{statusLine}</p> : null}
+      {statusLine && empty ? (
+        // Nothing to read this week is still a night out, and the pubs are
+        // always there. A bare sentence under the heading was a dead end.
+        <EmptyState
+          className="emptyState--flush"
+          title={statusLine}
+          actionTone="accent"
+          action={
+            <Link prefetch={false} href={OUT_MAP_WAY.href}>
+              {OUT_MAP_WAY.label}
+            </Link>
+          }
+        />
+      ) : statusLine ? (
+        <p className="editorialRailStatus">{statusLine}</p>
+      ) : null}
       {items.length > 0 ? (
         <ul className="editorialRailList">
           {items.map((item) => {

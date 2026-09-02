@@ -24,7 +24,13 @@ import {
   outListingsSectionTitle,
   type OutDayWindow,
 } from "@/lib/outListings";
-import { outStatusLines } from "@/lib/out/outStatus";
+import {
+  OUT_MAP_WAY,
+  OUT_RETRY_LABEL,
+  outEmptyLane,
+  outStatusLines,
+} from "@/lib/out/outStatus";
+import EmptyState from "@/components/EmptyState";
 import { handleSegmentLinkKeyDown } from "@/lib/segmentLinkKeys";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
@@ -37,7 +43,7 @@ const DAY_LABEL: Record<OutDayWindow, string> = {
 };
 
 export default function OutClient({ day }: { day: OutDayWindow }) {
-  const { body, failed, pending } = useOutListings(day);
+  const { body, failed, pending, retry } = useOutListings(day);
 
   useEffect(() => {
     trackEvent("out_screen_view");
@@ -63,6 +69,9 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
   const openPlansPreview = body?.openPlansStatus === "preview";
   const openPlansDegraded = body?.openPlansStatus === "degraded";
   const sendablePlans = sendableOpenPlans(body?.openPlans ?? []);
+  // A lane with nothing in it is a card with one way onward, never a bare
+  // sentence over an empty page. The lines are the ones the lane already said.
+  const emptyLane = outEmptyLane({ body, failed, pending });
   const showOpenPlans =
     !openPlansPreview &&
     !openPlansDegraded &&
@@ -99,11 +108,31 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           {outListingsSectionTitle(day)}
         </h2>
         {pending ? <ListingsSkeleton /> : null}
-        {outStatusLines({ body, failed }).map((line) => (
-          <p className="outStatus" key={line}>
-            {line}
-          </p>
-        ))}
+        {emptyLane ? (
+          <EmptyState
+            className="emptyState--flush"
+            title={emptyLane.lines[0]}
+            body={emptyLane.lines.slice(1).join(" ") || undefined}
+            actionTone="accent"
+            action={
+              emptyLane.way === "retry" ? (
+                <button type="button" onClick={retry}>
+                  {OUT_RETRY_LABEL}
+                </button>
+              ) : (
+                <Link prefetch={false} href={OUT_MAP_WAY.href}>
+                  {OUT_MAP_WAY.label}
+                </Link>
+              )
+            }
+          />
+        ) : (
+          outStatusLines({ body, failed }).map((line) => (
+            <p className="outStatus" key={line}>
+              {line}
+            </p>
+          ))
+        )}
         <div className="outListingSurface">
           {listingGroups.map((group) => (
             <section
@@ -173,7 +202,17 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
           <h2 id="out-plans-heading" className="outSectionTitle outPlansSectionTitle">
             Open plans
           </h2>
-          <p className="outStatus" role="status">Open plans could not be checked.</p>
+          <EmptyState
+            className="emptyState--flush"
+            title="Open plans could not be checked."
+            role="alert"
+            actionTone="accent"
+            action={
+              <button type="button" onClick={retry}>
+                {OUT_RETRY_LABEL}
+              </button>
+            }
+          />
         </section>
       ) : showOpenPlans ? (
         <section className="outPlans" aria-labelledby="out-plans-heading">
