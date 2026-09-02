@@ -24,6 +24,11 @@ function mapUrlFor(wanted: WantedDTO): string | null {
   }
 }
 
+type WantedFulfilEventDetail = {
+  note?: string;
+  userId?: string | null;
+};
+
 type WantedFetchStatus = "loading" | "ready" | "sign_in" | "error";
 
 type WantedAccountState = {
@@ -135,8 +140,8 @@ export default function WantedList(): React.JSX.Element {
     [userId],
   );
   const handleFulfilNote = useCallback(
-    (note: string | null) => {
-      if (!userId || activeUserId.current !== userId) return;
+    (note: string | null, eventUserId?: string | null) => {
+      if (!userId || eventUserId !== userId || activeUserId.current !== userId) return;
       setAccountState((current) => ({
         userId,
         wanteds: current?.userId === userId ? current.wanteds : [],
@@ -146,8 +151,8 @@ export default function WantedList(): React.JSX.Element {
     },
     [userId],
   );
-  const handleFulfilRefresh = useCallback(() => {
-    if (!userId || activeUserId.current !== userId) return;
+  const handleFulfilRefresh = useCallback((eventUserId?: string | null) => {
+    if (!userId || eventUserId !== userId || activeUserId.current !== userId) return;
     void refresh();
   }, [refresh, userId]);
 
@@ -267,14 +272,14 @@ function WantedFulfilListener({
   onNote,
   onRefresh,
 }: {
-  onNote: (note: string | null) => void;
-  onRefresh: () => void;
+  onNote: (note: string | null, userId?: string | null) => void;
+  onRefresh: (userId?: string | null) => void;
 }): null {
   useEffect(() => {
     function onEvent(event: Event) {
-      const detail = (event as CustomEvent<{ note?: string }>).detail;
-      if (detail?.note) onNote(detail.note);
-      onRefresh();
+      const detail = (event as CustomEvent<WantedFulfilEventDetail>).detail;
+      if (detail?.note) onNote(detail.note, detail.userId);
+      onRefresh(detail?.userId);
     }
     window.addEventListener("pubmax:wanted-fulfilled", onEvent);
     return () => window.removeEventListener("pubmax:wanted-fulfilled", onEvent);

@@ -187,7 +187,7 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     await act(async () => {
       window.dispatchEvent(
         new CustomEvent("pubmax:wanted-fulfilled", {
-          detail: { note: "Account A was fulfilled" },
+          detail: { note: "Account A was fulfilled", userId: "account-a" },
         }),
       );
     });
@@ -195,6 +195,24 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
 
     authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
     await render();
+    expect(container.textContent).not.toContain("Account A was fulfilled");
+  });
+
+  it("ignores a fulfil event owned by another account", async () => {
+    authedFetch.mockImplementation(() => Promise.resolve(wantedResponse()));
+    authState.current = { supabaseAuthState: "authenticated", user: { id: "account-b" } };
+    await render();
+    const reads = authedFetch.mock.calls.length;
+
+    await act(async () => {
+      window.dispatchEvent(
+        new CustomEvent("pubmax:wanted-fulfilled", {
+          detail: { note: "Account A was fulfilled", userId: "account-a" },
+        }),
+      );
+    });
+
+    expect(authedFetch.mock.calls).toHaveLength(reads);
     expect(container.textContent).not.toContain("Account A was fulfilled");
   });
 });

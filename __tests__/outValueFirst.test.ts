@@ -27,6 +27,7 @@ import {
   EDITORIAL_EMPTY_LINE,
   EDITORIAL_STALE_LINE,
 } from "@/lib/editorial";
+import { OUT_LISTING_VENUE_BADGE_LABEL } from "@/lib/outDesktopGrouping";
 import type { WhatsOnRow } from "@/lib/whatsOn";
 
 const REPO_ROOT = join(__dirname, "..");
@@ -121,6 +122,6 @@ describe("the venue badge wears our own mark", () => {
   it("still names the venue in words, so the mark is not the only claim", () => {
     expect(
       renderedPubPair().querySelector(".outListingPubPairLabel")?.textContent,
-    ).toBe("PUBMAXX venue");
+    ).toBe(OUT_LISTING_VENUE_BADGE_LABEL);
   });
 });

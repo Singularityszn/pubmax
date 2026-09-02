@@ -183,6 +183,18 @@ describe("zoneOrderSurpriseLine", () => {
     expect(zoneOrderSurpriseLine(index(wellSampled))).toBeNull();
   });
 
+  it("continues past a non-thin inversion to a later thin one", () => {
+    const laterThinInversion = [
+      { zone: 1, pricedCount: 100, enough: true, medianGbp: 4 },
+      { zone: 2, pricedCount: 100, enough: true, medianGbp: 5 },
+      { zone: 3, pricedCount: 10, enough: true, medianGbp: 4 },
+      { zone: 4, pricedCount: 10, enough: true, medianGbp: 6 },
+    ];
+    expect(zoneOrderSurpriseLine(index(laterThinInversion))).toBe(
+      "Zone 4 reads dearer than Zone 3. They are the thinnest samples here: 10 and 10 priced pubs.",
+    );
+  });
+
   it("claims no confidence, no interval and no probability", () => {
     const line = zoneOrderSurpriseLine(index(liveRows)) ?? "";
     expect(line).not.toMatch(/probab|confidence|margin|significan|likely/i);

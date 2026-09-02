@@ -176,7 +176,7 @@ export function zoneOrderSurpriseLine(index: ZonePintIndex): string | null {
       .sort((a, b) => a - b)
       .slice(0, 2);
     const pair = [inner.pricedCount, outer.pricedCount].sort((a, b) => a - b);
-    if (pair[0] !== thinnest[0] || pair[1] !== thinnest[1]) return null;
+    if (pair[0] !== thinnest[0] || pair[1] !== thinnest[1]) continue;
     return `Zone ${outer.zone} reads dearer than Zone ${inner.zone}. They are the thinnest samples here: ${outer.pricedCount} and ${inner.pricedCount} priced pubs.`;
   }
   return null;

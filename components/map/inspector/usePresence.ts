@@ -1,5 +1,6 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
+import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { isUkBaseVenueId } from "@/lib/wanted";
@@ -8,6 +9,7 @@ import type { Venue } from "@/lib/venues";
 export type PresenceState = "idle" | "sending" | "here" | "no-handle";
 
 export function usePresence(venue: Venue) {
+  const { user } = useAuth();
   // "I'm here tonight" presence (PRD §1.5 / §5.1 — the tonight loop). Opt-in: it
   // only ever fires from a deliberate tap of this button — NO auto-tracking, NO
   // GPS. Identity is the viewer's self-asserted handle (localStorage
@@ -34,10 +36,15 @@ export function usePresence(venue: Venue) {
   useEffect(() => {
     currentVenueIdRef.current = venue.id;
   }, [venue.id]);
+  const currentUserIdRef = useRef<string | null>(user?.id ?? null);
+  useLayoutEffect(() => {
+    currentUserIdRef.current = user?.id ?? null;
+  }, [user?.id]);
 
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
     const requestVenueId = venue.id;
+    const requestUserId = user?.id ?? null;
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {
@@ -54,7 +61,12 @@ export function usePresence(venue: Venue) {
       // Stale-response guard: the pub changed while this request was in
       // flight — the adjust-during-render reset already put the new venue on
       // "idle", so drop this response rather than stamping the wrong pub.
-      if (currentVenueIdRef.current !== requestVenueId) return;
+      if (
+        currentVenueIdRef.current !== requestVenueId ||
+        currentUserIdRef.current !== requestUserId
+      ) {
+        return;
+      }
       // Presence is best-effort: a non-ok response still lands the viewer back on
       // an actionable state rather than a spinner. A 200 confirms "you're here".
       setPresenceState(res.ok ? "here" : "idle");
@@ -68,10 +80,15 @@ export function usePresence(venue: Venue) {
             trackEvent("wanted_fulfilled", {
               venueKind: isUkBaseVenueId(requestVenueId) ? "uk_base" : "curated",
             });
-            if (body.wantedNote && typeof window !== "undefined") {
+            if (
+              body.wantedNote &&
+              typeof window !== "undefined" &&
+              currentVenueIdRef.current === requestVenueId &&
+              currentUserIdRef.current === requestUserId
+            ) {
               window.dispatchEvent(
                 new CustomEvent("pubmax:wanted-fulfilled", {
-                  detail: { note: body.wantedNote },
+                  detail: { note: body.wantedNote, userId: requestUserId },
                 }),
               );
             }
@@ -81,7 +98,12 @@ export function usePresence(venue: Venue) {
         }
       }
     } catch {
-      if (currentVenueIdRef.current !== requestVenueId) return;
+      if (
+        currentVenueIdRef.current !== requestVenueId ||
+        currentUserIdRef.current !== requestUserId
+      ) {
+        return;
+      }
       setPresenceState("idle");
     }
   }

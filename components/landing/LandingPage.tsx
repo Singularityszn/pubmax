@@ -144,7 +144,7 @@ export default function LandingPage({
     readPreferredCity,
     () => null,
   );
-  const mapHref = preferredCityMapHref();
+  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
   // BROWSING and ARRIVING are two acts, and they take two destinations.
   //
   // Browsing is the header nav's "Map" and the footer directory's "The map" -

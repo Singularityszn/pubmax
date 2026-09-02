@@ -2,6 +2,7 @@
 
 import { act, createElement, Fragment, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
+import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const preferredCityState = vi.hoisted(() => ({
@@ -106,6 +107,19 @@ async function renderNavigation(): Promise<void> {
   });
 }
 
+function serverNavigation(): HTMLDivElement {
+  const host = document.createElement("div");
+  host.innerHTML = renderToStaticMarkup(
+    createElement(
+      Fragment,
+      null,
+      createElement(LandingPage),
+      createElement(MobileTabBar),
+    ),
+  );
+  return host;
+}
+
 function href(selector: string): string | null {
   return container.querySelector<HTMLAnchorElement>(selector)?.getAttribute("href") ?? null;
 }
@@ -119,6 +133,14 @@ function linksContaining(text: string): HTMLAnchorElement[] {
 describe("landing and mobile Map navigation", () => {
   it("uses the same preferred-city destination in both navs", async () => {
     preferredCityState.current = "glasgow";
+    const server = serverNavigation();
+    expect(server.querySelector<HTMLAnchorElement>(".lpPrimaryNav a")?.getAttribute("href")).toBe(
+      "/map",
+    );
+    expect(
+      server.querySelector<HTMLAnchorElement>(".mobileTabBar a[href^='/map']")?.getAttribute("href"),
+    ).toBe("/map");
+
     await renderNavigation();
 
     expect(href(".lpPrimaryNav a")).toBe("/map/glasgow");
