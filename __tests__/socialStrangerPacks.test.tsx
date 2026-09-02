@@ -4,6 +4,9 @@ import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import type { ViewerSession } from "@/components/auth/useViewerSession";
+import type { SocialShellState } from "@/lib/socialShell";
+
 const authState = vi.hoisted(() => ({
   accountRevision: 0,
   identityResolved: true,
@@ -12,7 +15,7 @@ const authState = vi.hoisted(() => ({
 
 const viewerSession = vi.hoisted(() => ({
   current: {
-    phase: "signed-out" as const,
+    phase: "signed-out" as ViewerSession["phase"],
     signedIn: false,
     signedOut: true,
     unresolved: false,
@@ -113,9 +116,7 @@ function jsonResponse(value: unknown): Response {
 
 let host: HTMLDivElement;
 let root: Root;
-type SocialRenderState = Omit<typeof initialState, "tab"> & {
-  tab: "posts" | "discover";
-};
+type SocialRenderState = SocialShellState;
 
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -229,7 +230,7 @@ describe("Social viewer surfaces", () => {
       unresolved: false,
     };
 
-    await renderSocial({ ...initialState, tab: "discover" });
+    await renderSocial({ valid: true, tab: "discover", feed: null, area: null });
 
     expect(host.querySelectorAll("[data-viewer-card]")).toHaveLength(0);
   });
