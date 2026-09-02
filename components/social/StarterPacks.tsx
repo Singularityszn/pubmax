@@ -111,7 +111,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
       try {
         const response = await authedActionFetch(
           `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`,
-          { cache: "no-store" },
+          { cache: "no-store" }, { requiresIdentity: true },
         );
         if (!response.ok) {
           discardBody(response);
@@ -148,7 +148,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ follower: viewer }),
-        },
+        }, { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as
         | {

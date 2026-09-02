@@ -548,7 +548,7 @@ export function usePintDrops(
       if (submittedPintFile) body.set("pint_photo", submittedPintFile);
       if (submittedVenueFile) body.set("venue_photo", submittedVenueFile);
 
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body });
+      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = await response.json().catch(() => null);
       if (!response.ok) {
         markFailed(errorMessageFrom(data, "Could not save that drop."));
@@ -632,7 +632,7 @@ export function usePintDrops(
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "report", id, actor: getAnonId() }),
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         if (reportedDrop) {

@@ -189,7 +189,7 @@ export default function PublicCrewRouteClient({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (response.status === 404) {
           discardBody(response);
@@ -281,7 +281,7 @@ export default function PublicCrewRouteClient({
             "idempotency-key": joinKey.current.key,
           },
           body: "{}",
-        },
+        }, { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
       if (!response.ok) throw new Error(errorMessageFrom(body, "That did not go through."));

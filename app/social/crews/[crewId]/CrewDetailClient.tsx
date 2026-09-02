@@ -121,7 +121,7 @@ export default function CrewDetailClient({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (response.status === 404) {
           discardBody(response);
@@ -191,7 +191,7 @@ export default function CrewDetailClient({
         cache: "no-store",
         credentials: "same-origin",
         signal: controller.signal,
-      },
+      }, { requiresIdentity: true },
     )
       .then(async (response) => {
         if (response.status === 404) {
@@ -266,7 +266,7 @@ export default function CrewDetailClient({
           cache: "no-store",
           credentials: "same-origin",
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!response.ok) {
           discardBody(response);
           return;
@@ -345,7 +345,7 @@ export default function CrewDetailClient({
           "idempotency-key": crewIdempotencyKey(init.prefix),
         },
         ...(init.body === undefined ? {} : { body: init.body }),
-      });
+      }, { requiresIdentity: true });
       const body = (await response.json().catch(() => null)) as Record<
         string,
         unknown

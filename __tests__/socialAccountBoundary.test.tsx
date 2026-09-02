@@ -335,6 +335,7 @@ describe("Social account boundary", () => {
     expect(transport.authedActionFetch).toHaveBeenCalledWith(
       "/api/social/outbox",
       expect.objectContaining({ cache: "no-store" }),
+      { requiresIdentity: true },
     );
     expect(bareFetch).not.toHaveBeenCalled();
   });

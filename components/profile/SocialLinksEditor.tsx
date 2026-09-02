@@ -79,7 +79,7 @@ export default function SocialLinksEditor(): React.JSX.Element | null {
     async function load() {
       const response = await authedActionFetch("/api/social-connections", {
         signal: controller.signal,
-      }).catch(() => null);
+      }, { requiresIdentity: true }).catch(() => null);
       if (controller.signal.aborted) return;
       if (!response?.ok) {
         setState("unavailable");
@@ -107,7 +107,7 @@ export default function SocialLinksEditor(): React.JSX.Element | null {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "manual", value }),
-    }).catch(() => null);
+    }, { requiresIdentity: true }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as { error?: unknown } | null;
     if (response?.ok) {
       setValue("");
@@ -127,7 +127,7 @@ export default function SocialLinksEditor(): React.JSX.Element | null {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ mode: "oauth" }),
-    }).catch(() => null);
+    }, { requiresIdentity: true }).catch(() => null);
     const body = (await response?.json().catch(() => null)) as {
       authorizeUrl?: string;
       error?: unknown;
@@ -146,7 +146,7 @@ export default function SocialLinksEditor(): React.JSX.Element | null {
     setNotice("");
     const response = await authedActionFetch(`/api/social-connections/${target}`, {
       method: "DELETE",
-    }).catch(() => null);
+    }, { requiresIdentity: true }).catch(() => null);
     if (response?.ok) {
       setNotice(`${socialProviderLabel(target)} removed.`);
       setLoadNonce((nonce) => nonce + 1);

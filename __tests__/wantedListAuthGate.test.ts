@@ -135,6 +135,7 @@ describe("the Wanted list asks only when there is somebody to ask for", () => {
     expect(authedFetch).toHaveBeenCalledWith(
       "/api/wanted",
       { signal: expect.any(AbortSignal) },
+      { requiresIdentity: true },
     );
   });
 

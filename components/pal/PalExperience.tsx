@@ -307,7 +307,7 @@ export default function PalExperience() {
     });
     if (!user) return () => controller.abort();
 
-    void authedActionFetch("/api/pub-pal", { signal: controller.signal })
+    void authedActionFetch("/api/pub-pal", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
         const body = await response.json().catch(() => ({})) as { pal?: PubPal | null };
         if (controller.signal.aborted || activeOwnerRef.current !== ownerId) return;
@@ -339,7 +339,7 @@ export default function PalExperience() {
               // Invalid local consent fails closed: proposals remain disabled.
             }
           }
-          void authedActionFetch("/api/pub-pal/memories", { signal: controller.signal })
+          void authedActionFetch("/api/pub-pal/memories", { signal: controller.signal }, { requiresIdentity: true })
             .then(async (memoryResponse) => {
               const memoryBody = await memoryResponse.json().catch(() => ({})) as { memories?: PubPalMemory[] };
               if (!controller.signal.aborted && activeOwnerRef.current === ownerId && memoryResponse.ok) setMemories(memoryBody.memories ?? []);
@@ -397,7 +397,7 @@ export default function PalExperience() {
           muted: privacy.muted,
           proposalPreferences: { memories: privacy.proposeMemories, routes: true },
         }),
-      });
+      }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: string };
       if (!response.ok || !body.pal) throw new Error(errorMessageFrom(body, "Your Pal could not be created."));
 
@@ -435,7 +435,7 @@ export default function PalExperience() {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify(patch),
-      });
+      }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: unknown };
       if (!response.ok || !body.pal) {
         throw new Error(errorMessageFrom(body, "Pal control update could not be saved."));
@@ -480,7 +480,7 @@ export default function PalExperience() {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ proposalPreferences }),
-      });
+      }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { pal?: PubPal; error?: string };
       if (!response.ok || !body.pal) throw new Error(errorMessageFrom(body, "Pal proposal controls could not be saved."));
       if (activeOwnerRef.current !== ownerId || body.pal.ownerId !== ownerId) return;
@@ -520,7 +520,7 @@ export default function PalExperience() {
         method: "PATCH",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ value: editingMemoryValue }),
-      });
+      }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { memory?: PubPalMemory; error?: string };
       if (!response.ok || !body.memory) throw new Error(errorMessageFrom(body, "That memory correction could not be saved."));
       if (activeOwnerRef.current !== ownerId) return;
@@ -549,7 +549,7 @@ export default function PalExperience() {
     setSaving(true);
     setError(null);
     try {
-      const response = await authedActionFetch(`/api/pub-pal/memories/${encodeURIComponent(memory.id)}`, { method: "DELETE" });
+      const response = await authedActionFetch(`/api/pub-pal/memories/${encodeURIComponent(memory.id)}`, { method: "DELETE" }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "That memory could not be deleted."));
       if (activeOwnerRef.current !== ownerId) return;
@@ -578,7 +578,7 @@ export default function PalExperience() {
     setSaving(true);
     setError(null);
     try {
-      const response = await authedActionFetch("/api/pub-pal/memories/export");
+      const response = await authedActionFetch("/api/pub-pal/memories/export", {}, { requiresIdentity: true });
       if (!response.ok) {
         const body = await response.json().catch(() => ({})) as { error?: string };
         throw new Error(errorMessageFrom(body, "Your Pal memory export could not be prepared."));
@@ -610,7 +610,7 @@ export default function PalExperience() {
     setSaving(true);
     setError(null);
     try {
-      const response = await authedActionFetch("/api/pub-pal", { method: "DELETE" });
+      const response = await authedActionFetch("/api/pub-pal", { method: "DELETE" }, { requiresIdentity: true });
       const body = await response.json().catch(() => ({})) as { error?: string };
       if (!response.ok) throw new Error(errorMessageFrom(body, "Your Pal could not be deleted."));
       if (activeOwnerRef.current !== ownerId) return;

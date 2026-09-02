@@ -139,6 +139,7 @@ describe("presence account boundary", () => {
         body: JSON.stringify({ handle: "tester", venueId: "venue-a" }),
         signal: expect.any(AbortSignal),
       }),
+      { requiresIdentity: true },
     );
     expect(state()).toBe("here");
   });

@@ -207,6 +207,7 @@ describe("Pub Pal voice controls", () => {
         method: "POST",
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
+      { requiresIdentity: true },
     ]);
 
     unmount();
@@ -317,6 +318,7 @@ describe("Pub Pal voice controls", () => {
         method: "POST",
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
+      { requiresIdentity: true },
     ]);
 
     await settle();
@@ -584,6 +586,7 @@ describe("Pub Pal voice controls", () => {
         method: "POST",
         body: JSON.stringify({ action: "release", durationSeconds: 0 }),
       }),
+      { requiresIdentity: true },
     ]);
 
     await act(async () => {

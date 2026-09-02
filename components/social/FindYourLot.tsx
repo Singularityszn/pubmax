@@ -143,7 +143,7 @@ export default function FindYourLot({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ follower: viewer }),
-        },
+        }, { requiresIdentity: true },
       );
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as unknown;
@@ -169,7 +169,7 @@ export default function FindYourLot({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: "{}",
-      });
+      }, { requiresIdentity: true });
       const body = (await response.json().catch(() => null)) as
         | { url?: string; error?: unknown }
         | null;

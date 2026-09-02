@@ -480,7 +480,7 @@ function SocialPageAccountState({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (!response.ok) throw new Error("Social access unavailable");
         const body = await response.json();
@@ -536,7 +536,7 @@ function SocialPageAccountState({
       method: "POST",
       cache: "no-store",
       credentials: "same-origin",
-    })
+    }, { requiresIdentity: true })
       .then((response) => {
         discardBody(response);
         if (!response.ok) throw new Error("Adult assertion refused");
@@ -575,7 +575,7 @@ function SocialPageAccountState({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (!response.ok) throw new Error("Social feed unavailable");
         const page = parsePostPage(await response.json());
@@ -621,7 +621,7 @@ function SocialPageAccountState({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (!response.ok) throw new Error("Social activity unavailable");
         const items = parseActivityPage(await response.json());
@@ -658,7 +658,7 @@ function SocialPageAccountState({
         cache: "no-store",
         credentials: "same-origin",
         signal: controller.signal,
-      });
+      }, { requiresIdentity: true });
       if (!response.ok) {
         discardBody(response);
         throw new Error("Social feed unavailable");

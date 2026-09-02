@@ -471,11 +471,11 @@ export default function PubmaxxAccountHub() {
       }
     });
     void Promise.allSettled([
-      authedActionFetch("/api/me/night-profile", { signal: controller.signal }),
+      authedActionFetch("/api/me/night-profile", { signal: controller.signal }, { requiresIdentity: true }),
       socialFriendsLaunchEnabled
-        ? authedActionFetch("/api/referrals/status", { signal: controller.signal })
+        ? authedActionFetch("/api/referrals/status", { signal: controller.signal }, { requiresIdentity: true })
         : Promise.resolve(null),
-      authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }),
+      authedActionFetch("/api/me/pending-plan-recaps", { signal: controller.signal }, { requiresIdentity: true }),
     ]).then(async ([nightProfileResult, referralsResult, pendingRecapResult]) => {
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       const nightProfile = nightProfileResult.status === "fulfilled"
@@ -578,7 +578,7 @@ export default function PubmaxxAccountHub() {
         profile: confirmed.profile,
         expectedUpdatedAt: confirmed.expectedUpdatedAt,
       }),
-    });
+    }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as {
       profile?: NightProfile;
       error?: string;
@@ -632,7 +632,7 @@ export default function PubmaxxAccountHub() {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ action: "claim", choice: "bring-device", items }),
-    });
+    }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as {
       memories?: Array<{ memory?: { id: string; planCompletionId?: string | null } }>;
       error?: string;
@@ -667,7 +667,7 @@ export default function PubmaxxAccountHub() {
         profile: nightProfileDraft,
         expectedUpdatedAt: accountNightProfile?.updatedAt ?? null,
       }),
-    });
+    }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as {
       profile?: NightProfile;
       error?: string;
@@ -701,7 +701,7 @@ export default function PubmaxxAccountHub() {
     try {
       const response = await authedActionFetch("/api/referrals/invite-link", {
         method: "POST",
-      });
+      }, { requiresIdentity: true });
       const body = (await response.json().catch(() => null)) as {
         url?: string;
         error?: unknown;

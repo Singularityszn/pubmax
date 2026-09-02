@@ -221,7 +221,7 @@ export default function ContributionLanesCard({ handle }: Props) {
       try {
         const res = await authedActionFetch("/api/price-impact", {
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           if (!controller.signal.aborted) setImpact({ kind: "degraded" });

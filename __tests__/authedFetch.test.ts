@@ -44,7 +44,7 @@ afterEach(() => {
 describe("authedFetch (Wave I2)", () => {
   it("attaches Authorization Bearer when a token is available", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
-    await authedFetch("/api/messages?handle=ken");
+    await authedFetch("/api/messages?handle=ken", {}, { requiresIdentity: true });
     expect(getAccessToken).toHaveBeenCalled();
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     const headers = new Headers(init.headers);
@@ -59,7 +59,7 @@ describe("authedFetch (Wave I2)", () => {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: "{}",
-    });
+    }, { requiresIdentity: true });
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     const headers = new Headers(init.headers);
     expect(headers.get("authorization")).toBeNull();
@@ -77,7 +77,7 @@ describe("authedFetch (Wave I2)", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     const request = authedFetch("/api/wanted", {
       signal: readProviderAccountSignal(),
-    });
+    }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
 
@@ -95,7 +95,7 @@ describe("authedFetch (Wave I2)", () => {
       .mockResolvedValueOnce("late-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 
-    await authedActionFetch("/api/referrals/invite-link", { method: "POST" });
+    await authedActionFetch("/api/referrals/invite-link", { method: "POST" }, { requiresIdentity: true });
 
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).get("authorization")).toBe("Bearer late-jwt-token");
@@ -116,7 +116,7 @@ describe("authedFetch (Wave I2)", () => {
     const request = authedActionFetch("/api/identity/adult-assertion", {
       method: "POST",
       signal: owner.signal,
-    });
+    }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
 
@@ -134,7 +134,7 @@ describe("authedFetch (Wave I2)", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
     const request = authedActionFetch("/api/presence", {
       method: "POST",
-    });
+    }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
 
@@ -164,7 +164,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => undefined));
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 
-    const action = authedActionFetch("/api/social/posts", { method: "POST" });
+    const action = authedActionFetch("/api/social/posts", { method: "POST" }, { requiresIdentity: true });
     const rejection = expect(action).rejects.toMatchObject({ name: "AbortError" });
     await Promise.resolve();
 
@@ -190,7 +190,7 @@ describe("authedFetch (Wave I2)", () => {
       }),
     );
 
-    const request = authedActionFetch("/api/social/tags", { method: "POST" });
+    const request = authedActionFetch("/api/social/tags", { method: "POST" }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
 
@@ -222,7 +222,7 @@ describe("authedFetch (Wave I2)", () => {
     });
     const reason = new Error("request owner left");
 
-    const action = authedActionFetch(input, { method: "POST" });
+    const action = authedActionFetch(input, { method: "POST" }, { requiresIdentity: true });
     const rejection = action.then(
       () => expect.unreachable("Request abort must reject the active fetch."),
       (error: unknown) => expect(error).toBe(reason),
@@ -253,7 +253,7 @@ describe("authedFetch (Wave I2)", () => {
     await authedActionFetch(input, {
       method: "POST",
       signal: initOwner.signal,
-    });
+    }, { requiresIdentity: true });
 
     expect(fetchSpy).toHaveBeenCalledOnce();
     const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
@@ -286,10 +286,10 @@ describe("authedFetch (Wave I2)", () => {
 
       const firstResponse = await authedActionFetch("/api/social/posts/first", {
         signal: firstOwner.signal,
-      });
+      }, { requiresIdentity: true });
       const secondResponse = await authedActionFetch("/api/social/posts/second", {
         signal: secondOwner.signal,
-      });
+      }, { requiresIdentity: true });
       const firstBody = firstResponse.text();
       const secondBody = secondResponse.text();
       const firstSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
@@ -331,7 +331,7 @@ describe("authedFetch (Wave I2)", () => {
 
       const response = await authedActionFetch("/api/social/posts", {
         signal: owner.signal,
-      });
+      }, { requiresIdentity: true });
       const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
 
       expect(response).toBe(source);
@@ -360,7 +360,7 @@ describe("authedFetch (Wave I2)", () => {
 
       await authedActionFetch("/api/social/posts", {
         signal: owner.signal,
-      });
+      }, { requiresIdentity: true });
 
       expect(readFallbackFollowerCountForTest(providerSignal)).toBe(1);
       expect(readFallbackFollowerCountForTest(owner.signal)).toBe(1);
@@ -388,7 +388,7 @@ describe("authedFetch (Wave I2)", () => {
 
     const action = authedActionFetch("/api/social/posts", {
       signal: owner.signal,
-    });
+    }, { requiresIdentity: true });
     const rejection = action.then(
       () => expect.unreachable("Caller abort must reject token lookup."),
       (error: unknown) => expect(error).toBe(reason),
@@ -416,7 +416,7 @@ describe("authedFetch (Wave I2)", () => {
       return source;
     });
 
-    const response = await authedActionFetch(input, { method: "POST" });
+    const response = await authedActionFetch(input, { method: "POST" }, { requiresIdentity: true });
     const body = response.text();
     owner.abort(reason);
 
@@ -442,7 +442,7 @@ describe("authedFetch (Wave I2)", () => {
     const response = await authedActionFetch("/api/social/posts", {
       method: "POST",
       signal: owner.signal,
-    });
+    }, { requiresIdentity: true });
     const body = response.text();
     owner.abort(reason);
     setProviderIdentity("supabase", "account-b");
@@ -464,7 +464,7 @@ describe("authedFetch (Wave I2)", () => {
       return source;
     });
 
-    const response = await authedActionFetch("/api/social/posts");
+    const response = await authedActionFetch("/api/social/posts", {}, { requiresIdentity: true });
     const body = response.text();
     setProviderIdentity("supabase", "account-b");
 
@@ -488,7 +488,7 @@ describe("authedFetch (Wave I2)", () => {
       }),
     );
 
-    const read = authedActionJson<{ owner: string }>("/api/social/posts");
+    const read = authedActionJson<{ owner: string }>("/api/social/posts", {}, { requiresIdentity: true });
     const rejection = expect(read).rejects.toMatchObject({ name: "AbortError" });
     await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
 
@@ -505,7 +505,7 @@ describe("authedFetch (Wave I2)", () => {
     const source = new Response(new ReadableStream<Uint8Array>());
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(source);
 
-    const response = await authedActionFetch("/api/social/posts");
+    const response = await authedActionFetch("/api/social/posts", {}, { requiresIdentity: true });
     const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
 
     expect(response).toBe(source);
@@ -523,7 +523,7 @@ describe("authedFetch (Wave I2)", () => {
       publishAuthActionState({ status: "signed-in", identityResolved: true });
     }, 10);
 
-    await authedActionFetch("/api/profiles/ken/avatar", { method: "POST" });
+    await authedActionFetch("/api/profiles/ken/avatar", { method: "POST" }, { requiresIdentity: true });
 
     expect(getAccessToken).toHaveBeenCalledTimes(2);
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
@@ -534,7 +534,7 @@ describe("authedFetch (Wave I2)", () => {
     publishAuthActionState({ status: "unknown", identityResolved: false });
     vi.mocked(getAccessToken).mockResolvedValue("hydrated-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
-    const request = authedActionFetch("/api/messages", { method: "POST" });
+    const request = authedActionFetch("/api/messages", { method: "POST" }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
     setTimeout(() => {
       setProviderIdentity("supabase", "hydrated-account");
@@ -550,7 +550,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockResolvedValue(null);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 
-    await authedActionFetch("/api/referrals/invite-link", { method: "POST" });
+    await authedActionFetch("/api/referrals/invite-link", { method: "POST" }, { requiresIdentity: true });
 
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).get("authorization")).toBeNull();
@@ -645,7 +645,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockResolvedValue(null);
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 
-    const request = authedActionFetch("/api/referrals/invite-link", { method: "POST" });
+    const request = authedActionFetch("/api/referrals/invite-link", { method: "POST" }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toBeInstanceOf(AuthActionSessionError);
     await vi.advanceTimersByTimeAsync(2_100);
 
@@ -663,7 +663,7 @@ describe("authedFetch (Wave I2)", () => {
     vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => {}));
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
 
-    const request = authedActionFetch("/api/profiles/ken/avatar", { method: "POST" });
+    const request = authedActionFetch("/api/profiles/ken/avatar", { method: "POST" }, { requiresIdentity: true });
     const rejection = expect(request).rejects.toBeInstanceOf(AuthActionSessionError);
     await vi.advanceTimersByTimeAsync(2_100);
 

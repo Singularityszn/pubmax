@@ -81,7 +81,7 @@ export default function WantedList(): React.JSX.Element {
     const revision = ++requestRevision.current;
     const requestAccountSignal = readProviderAccountSignal();
     try {
-      const res = await authedFetch("/api/wanted", { signal: requestAccountSignal });
+      const res = await authedFetch("/api/wanted", { signal: requestAccountSignal }, { requiresIdentity: true });
       const body = (await res.json()) as {
         wanteds?: WantedDTO[];
         status?: string;

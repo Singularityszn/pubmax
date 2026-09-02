@@ -61,7 +61,7 @@ export default function ProfileMessageButton({
           handle: effectiveViewer,
           other: targetHandle,
         }),
-      });
+      }, { requiresIdentity: true });
       if (!res.ok) {
         const body: unknown = await res.json().catch(() => null);
         setError(

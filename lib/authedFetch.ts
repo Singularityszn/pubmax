@@ -60,9 +60,11 @@ type QueuedAction = Readonly<{
   requiresIdentity: boolean;
 }>;
 
-export type AuthActionOptions = Readonly<{
-  requiresIdentity?: boolean;
+export type AuthFetchOptions = Readonly<{
+  requiresIdentity: boolean;
 }>;
+
+export type AuthActionOptions = AuthFetchOptions;
 
 function callerActionSignals(
   input: RequestInfo | URL,
@@ -183,7 +185,7 @@ function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
 function bindQueuedAction(
   callerSignals: readonly AbortSignal[],
   requiresIdentity: boolean,
-): AccountBoundAction {
+): QueuedAction {
   const accountRevision = readProviderAccountRevision();
   const signals = requiresIdentity
     ? [readProviderAccountSignal(), ...callerSignals]
@@ -272,10 +274,21 @@ function readTokenBefore(deadline: number, signal?: AbortSignal): Promise<string
  */
 export async function authedFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
+  options: AuthFetchOptions,
 ): Promise<Response> {
-  const signal = callerActionSignals(input, init.signal ?? undefined)[0];
+  const callerSignal = callerActionSignals(input, init.signal ?? undefined)[0];
+  const signal = options.requiresIdentity
+    ? compositeActionSignal([
+        readProviderAccountSignal(),
+        ...(callerSignal ? [callerSignal] : []),
+      ])
+    : callerSignal;
   const headers = new Headers(init.headers);
+  if (!options.requiresIdentity) {
+    headers.delete("authorization");
+    return fetch(input, { ...init, headers });
+  }
   try {
     const token = await readTokenWithSignal(signal);
     if (signal?.aborted) throw abortReason(signal);
@@ -284,7 +297,7 @@ export async function authedFetch(
     if (signal?.aborted) throw error;
     // Signed-out / storage blocked — proceed anonymously.
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, signal });
 }
 
 type ActiveAuthActionResponse = Readonly<{
@@ -296,13 +309,13 @@ type ActiveAuthActionResponse = Readonly<{
 
 async function activeAuthActionFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
-  boundAction?: QueuedAction,
-  options: AuthActionOptions = {},
+  init: RequestInit,
+  boundAction: QueuedAction | undefined,
+  options: AuthActionOptions,
 ): Promise<ActiveAuthActionResponse> {
   const callerSignals = callerActionSignals(input, init.signal ?? undefined);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  const action = boundAction ?? bindQueuedAction(callerSignals, options.requiresIdentity !== false);
+  const action = boundAction ?? bindQueuedAction(callerSignals, options.requiresIdentity);
   if (!action.requiresIdentity) {
     const headers = new Headers(init.headers);
     headers.delete("authorization");
@@ -341,8 +354,8 @@ async function activeAuthActionFetch(
 }
 
 /**
- * Fetch for a server action. Account-bound by default; explicitly anonymous
- * actions omit auth and do not wait for session readiness.
+ * Fetch for a server action. Each caller declares whether its request carries
+ * viewer identity; anonymous actions omit auth and do not wait for readiness.
  * While auth is unresolved, this waits for the existing identity signal and
  * retries the browser session read within one bounded two-second window.
  * Once auth is usable, token lookup and the active fetch bind to that provider
@@ -352,8 +365,8 @@ async function activeAuthActionFetch(
  */
 export async function authedActionFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
-  options: AuthActionOptions = {},
+  init: RequestInit,
+  options: AuthActionOptions,
 ): Promise<Response> {
   return (await activeAuthActionFetch(input, init, undefined, options)).response;
 }
@@ -378,7 +391,7 @@ export async function signedInActionFetch(
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
   await waitForAuthActionReadiness(deadline, action.signal);
   if (authActionState.status !== "signed-in" || !authActionState.identityResolved) return null;
-  return (await activeAuthActionFetch(input, init, action)).response;
+  return (await activeAuthActionFetch(input, init, action, { requiresIdentity: true })).response;
 }
 
 export type AuthedActionJson<T> = Readonly<{
@@ -389,8 +402,8 @@ export type AuthedActionJson<T> = Readonly<{
 /** Fetch and parse account-scoped JSON under one provider identity revision. */
 export async function authedActionJson<T = unknown>(
   input: RequestInfo | URL,
-  init: RequestInit = {},
-  options: AuthActionOptions = {},
+  init: RequestInit,
+  options: AuthActionOptions,
 ): Promise<AuthedActionJson<T>> {
   const { signal, accountRevision, requiresIdentity, response } = await activeAuthActionFetch(
     input,

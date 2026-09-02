@@ -88,7 +88,7 @@ export async function postRating(input: {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(input),
-  });
+  }, { requiresIdentity: true });
   const body = (await res.json().catch(() => ({}))) as {
     summary?: RatingSummary;
     error?: string;

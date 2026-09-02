@@ -80,7 +80,7 @@ export default function OutTonightToggle({ handle }: Props) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, areaSlug: areaChoice || undefined }),
-      });
+      }, { requiresIdentity: true });
       const body = (await res.json().catch(() => ({}))) as {
         error?: string;
         checkIn?: { areaSlug?: string | null };
@@ -103,7 +103,7 @@ export default function OutTonightToggle({ handle }: Props) {
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle }),
-      });
+      }, { requiresIdentity: true });
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_off");

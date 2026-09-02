@@ -61,7 +61,7 @@ export default function MessagePhoto({
 
     void (async () => {
       try {
-        const res = await authedActionFetch(address, { signal: controller.signal });
+        const res = await authedActionFetch(address, { signal: controller.signal }, { requiresIdentity: true });
         if (!res.ok) {
           // Between learning the status and reading the body, let the body go.
           discardBody(res);

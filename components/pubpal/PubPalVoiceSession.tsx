@@ -58,7 +58,7 @@ async function releaseVoiceSession(durationSeconds: number): Promise<void> {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "release", durationSeconds }),
-    });
+    }, { requiresIdentity: true });
     discardBody(response);
   } catch {
     // Best effort: a failed release must not block ending the local session.
@@ -170,7 +170,7 @@ function VoiceControls({ onStateChange }: { onStateChange?: (state: PalAnimation
         return navigator.mediaDevices.getUserMedia({ audio: true });
       },
       issueGrant: async () => {
-        const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" });
+        const response = await authedActionFetch("/api/pub-pal/voice-token", { method: "POST" }, { requiresIdentity: true });
         if (response.ok) attempt.releaseRequired = true;
         const body = await response.json() as VoiceTokenResponse;
         if (!response.ok || !body.signedUrl) {
