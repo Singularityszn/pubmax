@@ -128,18 +128,10 @@ export function groupOutListings(rows: readonly WhatsOnRow[]): OutListingGroup[]
   });
 }
 
-/** The pub beside a gig is the resolved venue on the row, or an honest absence. */
-/**
- * The one owner of the /out venue badge label.
- *
- * The badge told a reader this listing is at a place PUBMAXX lists, and the
- * words for that lived as a bare string inside the component. A label with no
- * owner is a label two surfaces can spell differently, and the test guarding it
- * had to retype it to check it. This is the same rule the rest of the file
- * already follows: the module that owns the grouping owns the words for it.
- */
+/** Single reader-facing label for the resolved venue badge on /out listings. */
 export const OUT_LISTING_VENUE_BADGE_LABEL = "PUBMAXX venue";
 
+/** The pub beside a gig is the resolved venue on the row, or an honest absence. */
 export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {
   const venueId = canonicalOutVenueId(row.venueId);
   if (venueId) {
