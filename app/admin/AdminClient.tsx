@@ -619,34 +619,42 @@ export default function AdminClient() {
         socialQueueUnavailable("session");
         return;
       }
+      let response: Response;
       try {
-        const response = await retryWithFreshSession(() =>
+        response = await retryWithFreshSession(() =>
           fetch("/api/admin/social-posts", SESSION_FETCH),
         );
-        if (!response.ok) {
-          discardBody(response);
-          socialQueueUnavailable("refused");
-          return;
-        }
-        const body = (await response.json()) as { posts?: unknown };
-        if (!Array.isArray(body.posts)) {
-          socialQueueUnavailable("unreadable");
-          return;
-        }
-        setSocialPosts(body.posts as ModeratorSocialPost[]);
-        setSocialPostsState("ready");
       } catch {
         socialQueueUnavailable("unreachable");
+        return;
       }
+      if (!response.ok) {
+        discardBody(response);
+        socialQueueUnavailable("refused");
+        return;
+      }
+      let body: { posts?: unknown } | null;
+      try {
+        body = (await response.json()) as { posts?: unknown } | null;
+      } catch {
+        socialQueueUnavailable("unreadable");
+        return;
+      }
+      if (!body || !Array.isArray(body.posts)) {
+        socialQueueUnavailable("unreadable");
+        return;
+      }
+      setSocialPosts(body.posts as ModeratorSocialPost[]);
+      setSocialPostsState("ready");
     },
     [retryWithFreshSession, socialQueueUnavailable],
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceSession = false) => {
     setLoading(true);
     setMessage(null);
     try {
-      const session = await ensureAdminSession();
+      const session = await ensureAdminSession(forceSession);
       if (session.status !== "open") {
         setReportedDrops([]);
         setDrops([]);
@@ -1645,7 +1653,7 @@ export default function AdminClient() {
             unavailableReason={socialPostsReason}
             pendingAction={socialPostAction}
             onDecision={(post, action) => void decideSocialPost(post, action)}
-            onRetry={() => void load()}
+            onRetry={() => void load(true)}
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}

@@ -42,7 +42,10 @@ const state = vi.hoisted(() => ({
   }>,
   socialUnavailable: false,
   socialUnreadable: false,
+  socialMalformedBody: null as string | null,
   socialThrows: false,
+  socialRefusals: 0,
+  fetchEvents: [] as string[],
   socialActionStatus: 200,
   socialActionGate: null as Promise<void> | null,
   socialActionBodies: [] as unknown[],
@@ -58,13 +61,22 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+function rawResponse(body: string, status = 200): Response {
+  return new Response(body, {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
+
 function responseFor(input: string, init?: RequestInit): Response | Promise<Response> {
   const url = new URL(input, "http://localhost");
   const method = init?.method ?? "GET";
   if (url.pathname === "/api/admin/session") {
+    state.fetchEvents.push(`session:${method}`);
     return method === "POST" ? jsonResponse({ ok: true }) : jsonResponse({ authenticated: true });
   }
   if (url.pathname === "/api/admin/social-posts") {
+    state.fetchEvents.push(`social:${method}`);
     if (method === "POST") {
       state.socialActionBodies.push(JSON.parse(String(init?.body)));
       const response = () => state.socialActionStatus === 200
@@ -73,7 +85,12 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
       return state.socialActionGate ? state.socialActionGate.then(response) : response();
     }
     if (state.socialThrows) throw new TypeError("Failed to fetch");
+    if (state.socialMalformedBody !== null) return rawResponse(state.socialMalformedBody);
     if (state.socialUnreadable) return jsonResponse({ posts: "not-a-list" });
+    if (state.socialRefusals > 0) {
+      state.socialRefusals -= 1;
+      return jsonResponse({ error: "unavailable" }, 503);
+    }
     return state.socialUnavailable
       ? jsonResponse({ error: "unavailable" }, 503)
       : jsonResponse({ posts: state.socialPosts });
@@ -116,7 +133,10 @@ beforeEach(() => {
   state.socialPosts = [];
   state.socialUnavailable = false;
   state.socialUnreadable = false;
+  state.socialMalformedBody = null;
   state.socialThrows = false;
+  state.socialRefusals = 0;
+  state.fetchEvents = [];
   state.socialActionStatus = 200;
   state.socialActionGate = null;
   state.socialActionBodies = [];
@@ -177,6 +197,37 @@ describe("Admin Social post moderation queue", () => {
     await loadAdmin();
     expect(host.textContent).toContain("The answer could not be read.");
     expect(host.textContent).not.toContain("The server refused the request.");
+  });
+
+  it("names a malformed answered body as unreadable, not unreachable", async () => {
+    state.socialMalformedBody = "{";
+    await loadAdmin();
+    expect(host.textContent).toContain("The answer could not be read.");
+    expect(host.textContent).not.toContain("The server could not be reached.");
+  });
+
+  it("mints a fresh session before retrying a refused Social queue", async () => {
+    state.socialRefusals = 1;
+    await loadAdmin();
+    expect(host.textContent).toContain("The server refused the request.");
+    state.fetchEvents = [];
+    const retry = [...host.querySelectorAll("button")].find(
+      (button) => button.textContent?.trim() === "Try again",
+    );
+    expect(retry).toBeTruthy();
+
+    await act(async () => {
+      retry!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.fetchEvents.filter((event) =>
+      ["session:POST", "session:GET", "social:GET"].includes(event),
+    )).toEqual(["session:POST", "session:GET", "social:GET"]);
+    expect(host.textContent).toContain("No Social posts awaiting review");
   });
 
   it("separates a server it never reached from one that answered", async () => {
