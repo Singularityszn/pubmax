@@ -66,6 +66,14 @@
   margin-top: 20px;
 }
 
+/* An action element that renders nothing still hands the wrapper a div, and the
+   margin above it then reads as a gap where a button should be. SignInButton is
+   the one that does this on purpose: it says nothing about the viewer while the
+   session is unresolved, or when the auth client could not load at all. */
+.emptyStateAction:empty {
+  display: none;
+}
+
 .emptyStateAction :is(a, button) {
   display: inline-flex;
   align-items: center;
