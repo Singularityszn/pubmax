@@ -11,47 +11,19 @@ const state = vi.hoisted(() => ({
     user: null as { id: string } | null,
   },
   fetch: vi.fn(),
+  action: vi.fn(),
   getCurrentUserId: vi.fn(),
-}));
-
-const wanted = vi.hoisted(() => ({
-  id: "wanted-a",
-  ownerActor: "profile:aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa",
-  venueKind: "curated" as const,
-  venueId: "venue-a",
-  venueName: "The Dove",
-  sourceUrl: "",
-  sourcePlatform: "none" as const,
-  note: "",
-  rawPaste: "The Dove",
-  status: "open" as const,
-  createdAt: "2026-09-02T12:00:00.000Z",
-  fulfilledAt: null,
-  promotedListType: null,
-  promotedAt: null,
 }));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => ({ ...state.auth, getCurrentUserId: state.getCurrentUserId }),
 }));
-vi.mock("@/lib/authedFetch", () => ({ authedFetch: state.fetch }));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: state.action,
+  authedFetch: state.fetch,
+}));
 vi.mock("@/lib/venueMapUrl", () => ({
   venueMapUrl: (venueId: string) => `/map/${venueId}`,
-}));
-vi.mock("@/components/wanted/WantedCapture", () => ({
-  default: ({
-    onSaved,
-  }: {
-    onSaved?: (wanted: import("@/lib/wanted").WantedDTO) => void;
-  }) => createElement(
-    "button",
-    {
-      type: "button",
-      "data-testid": "save-wanted",
-      onClick: () => onSaved?.(wanted),
-    },
-    "Save",
-  ),
 }));
 vi.mock("@/components/wanted/WantedPromotionControl", () => ({
   default: () => null,
@@ -74,6 +46,27 @@ beforeEach(() => {
     user: null,
   };
   state.fetch.mockReset().mockImplementation(() => new Promise<Response>(() => {}));
+  state.action.mockReset().mockImplementation(async (input: RequestInfo | URL) => {
+    if (String(input) === "/api/wanted/resolve") {
+      return new Response(JSON.stringify({
+        query: "Dove",
+        sourceUrl: "",
+        sourcePlatform: "none",
+        rawPaste: "The Dove",
+        status: "ready",
+        candidates: [
+          {
+            venueId: "venue-dove",
+            venueName: "The Dove",
+            venueKind: "curated",
+            address: "",
+            contextLabel: "Hammersmith",
+          },
+        ],
+      }), { status: 200, headers: { "content-type": "application/json" } });
+    }
+    throw new Error(`Unexpected action: ${String(input)}`);
+  });
   state.getCurrentUserId.mockImplementation(() => state.auth.user?.id ?? null);
   container = document.createElement("div");
   document.body.append(container);
@@ -92,41 +85,36 @@ async function render(): Promise<void> {
 }
 
 describe("Wanted saves crossing auth settlement", () => {
-  it("keeps a completed save visible after the capture remounts", async () => {
-    setProviderIdentity("supabase", "account-a");
-    state.auth = {
-      accountRevision: 1,
-      supabaseAuthState: "unresolved",
-      user: null,
-    };
+  it("keeps an anonymous save after the first account arrives without attributing it", async () => {
     await render();
 
     await act(async () => {
-      container.querySelector<HTMLButtonElement>("[data-testid='save-wanted']")?.click();
+      const paste = container.querySelector<HTMLInputElement>("#wanted-paste");
+      if (!paste) throw new Error("Wanted paste input missing.");
+      paste.value = "The Dove";
+      paste.dispatchEvent(new Event("input", { bubbles: true }));
     });
-    expect(container.textContent).toContain("The Dove");
 
-    state.auth = {
-      accountRevision: 2,
-      supabaseAuthState: "authenticated",
-      user: { id: "account-a" },
-    };
-    await render();
+    const findButton = container.querySelector<HTMLButtonElement>("button.wantedCapture__submit");
+    expect(findButton?.disabled).toBe(false);
     await act(async () => {
+      findButton?.click();
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+
+    const candidate = container.querySelector<HTMLButtonElement>(".wantedCandidate");
+    expect(candidate).not.toBeNull();
+    await act(async () => {
+      candidate?.click();
       await Promise.resolve();
-      await Promise.resolve();
     });
-
-    expect(container.textContent).toContain("The Dove");
-  });
-
-  it("does not attach an unresolved result to the first account that arrives", async () => {
-    await render();
-
-    await act(async () => {
-      container.querySelector<HTMLButtonElement>("[data-testid='save-wanted']")?.click();
+    const anonymousList = container.querySelector<HTMLElement>("[aria-label='Anonymous open Wanted places']");
+    expect(anonymousList?.textContent).toContain("The Dove");
+    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
+    expect(state.action.mock.calls.some(([input]) => String(input) === "/api/wanted")).toBe(false);
+    expect(state.action.mock.calls.find(([input]) => String(input) === "/api/wanted/resolve")?.[2]).toEqual({
+      requiresIdentity: false,
     });
-    expect(container.textContent).toContain("The Dove");
 
     setProviderIdentity("supabase", "account-a");
     state.auth = {
@@ -140,6 +128,8 @@ describe("Wanted saves crossing auth settlement", () => {
       await Promise.resolve();
     });
 
-    expect(container.textContent).not.toContain("The Dove");
+    expect(container.querySelector("[aria-label='Anonymous open Wanted places']")?.textContent)
+      .toContain("The Dove");
+    expect(container.querySelector("[aria-label='Open Wanted places']")).toBeNull();
   });
 });

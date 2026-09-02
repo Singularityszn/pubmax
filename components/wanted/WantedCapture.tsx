@@ -5,16 +5,22 @@ import { useState } from "react";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
-import type {
-  WantedDTO,
-  WantedResolveCandidate,
-  WantedResolveResult,
+import { cleanText } from "@/lib/textClean";
+import {
+  cleanWantedNote,
+  detectSourcePlatform,
+  MAX_WANTED_RAW_PASTE,
+  type WantedDTO,
+  type WantedResolveCandidate,
+  type WantedResolveResult,
+  type WantedSourcePlatform,
 } from "@/lib/wanted";
 
 import "./wanted.css";
 
 type Props = {
   onSaved?: (wanted: WantedDTO) => void;
+  anonymous?: boolean;
   /** Prefill when saving from a venue sheet. */
   prefill?: {
     venueId: string;
@@ -23,7 +29,40 @@ type Props = {
   };
 };
 
-export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.Element {
+function anonymousWantedId(): string {
+  if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
+    return `anonymous-${crypto.randomUUID()}`;
+  }
+  return `anonymous-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+function createAnonymousWanted(input: {
+  candidate?: WantedResolveCandidate;
+  sourceUrl: string;
+  sourcePlatform: WantedSourcePlatform;
+  rawPaste: string;
+  note: string;
+}): WantedDTO {
+  const now = new Date().toISOString();
+  return {
+    id: anonymousWantedId(),
+    ownerActor: "anonymous",
+    venueKind: input.candidate?.venueKind ?? "pending",
+    venueId: input.candidate?.venueId ?? "",
+    venueName: input.candidate?.venueName ?? "",
+    sourceUrl: input.sourceUrl,
+    sourcePlatform: input.sourcePlatform,
+    note: cleanWantedNote(input.note),
+    rawPaste: cleanText(input.rawPaste, MAX_WANTED_RAW_PASTE),
+    status: "open",
+    createdAt: now,
+    fulfilledAt: null,
+    promotedListType: null,
+    promotedAt: null,
+  };
+}
+
+export default function WantedCapture({ onSaved, anonymous = false, prefill }: Props): React.JSX.Element {
   const [paste, setPaste] = useState(prefill?.venueName ?? "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,6 +73,25 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
     setBusy(true);
     setStatus(null);
     try {
+      if (anonymous) {
+        const wanted = createAnonymousWanted({
+          candidate,
+          sourceUrl,
+          sourcePlatform: detectSourcePlatform(sourceUrl),
+          rawPaste,
+          note,
+        });
+        trackEvent("wanted_created", {
+          venueKind: wanted.venueKind,
+          hasSourceUrl: Boolean(wanted.sourceUrl),
+        });
+        setStatus(`Saved ${wanted.venueName} for this session.`);
+        setPaste("");
+        setNote("");
+        setResolve(null);
+        onSaved?.(wanted);
+        return;
+      }
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -45,7 +103,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           note: note || undefined,
           rawPaste: rawPaste || paste,
         }),
-      });
+      }, { requiresIdentity: true });
       const body = (await res.json().catch(() => null)) as { wanted?: WantedDTO; error?: unknown; status?: string } | null;
       if (!body) {
         setStatus("Could not save that Wanted place.");
@@ -81,6 +139,24 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
     setBusy(true);
     setStatus(null);
     try {
+      if (anonymous) {
+        const wanted = createAnonymousWanted({
+          sourceUrl,
+          sourcePlatform: detectSourcePlatform(sourceUrl),
+          rawPaste,
+          note,
+        });
+        trackEvent("wanted_created", {
+          venueKind: wanted.venueKind,
+          hasSourceUrl: Boolean(wanted.sourceUrl),
+        });
+        setStatus("Saved here as still matching. Add a pub name when you know it.");
+        setPaste("");
+        setNote("");
+        setResolve(null);
+        onSaved?.(wanted);
+        return;
+      }
       const res = await authedActionFetch("/api/wanted", {
         method: "POST",
         headers: { "content-type": "application/json" },
@@ -90,7 +166,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
           sourceUrl: sourceUrl || undefined,
           note: note || undefined,
         }),
-      });
+      }, { requiresIdentity: true });
       const body = (await res.json().catch(() => null)) as { wanted?: WantedDTO; error?: unknown; status?: string } | null;
       if (!body) {
         setStatus("Could not save that paste.");
@@ -147,7 +223,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ paste: trimmed }),
-      });
+      }, { requiresIdentity: !anonymous });
       const body = (await res.json().catch(() => null)) as {
         error?: unknown;
         status?: string;

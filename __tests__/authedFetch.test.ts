@@ -556,6 +556,31 @@ describe("authedFetch (Wave I2)", () => {
     expect(new Headers(init.headers).get("authorization")).toBeNull();
   });
 
+  it("keeps an explicitly anonymous action outside account rotation", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    let resolveFetch!: (response: Response) => void;
+    const source = new Response("ok");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
+      async () => new Promise<Response>((resolve) => { resolveFetch = resolve; }),
+    );
+    const request = authedActionFetch(
+      "/api/wanted/resolve",
+      { method: "POST", headers: { authorization: "Bearer stale-token" } },
+      { requiresIdentity: false },
+    );
+
+    await vi.waitFor(() => expect(fetchSpy).toHaveBeenCalledOnce());
+    const actionSignal = fetchSpy.mock.calls[0]?.[1]?.signal;
+    setProviderIdentity("supabase", "account-b");
+    expect(actionSignal?.aborted).toBe(false);
+    expect(new Headers(fetchSpy.mock.calls[0]?.[1]?.headers).get("authorization")).toBeNull();
+    resolveFetch(source);
+
+    await expect(request).resolves.toBe(source);
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
   it("does not send a signed-in-only action while signed out", async () => {
     vi.mocked(getAccessToken).mockResolvedValue("stale-jwt-token");
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));

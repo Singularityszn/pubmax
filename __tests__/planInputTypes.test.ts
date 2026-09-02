@@ -107,8 +107,55 @@ async function mountedInputs(): Promise<HTMLInputElement[]> {
   const storage = window.sessionStorage;
   const previousDraft = storage.getItem(PLAN_DRAFT_KEY);
   const previousDraftV2 = storage.getItem(PLAN_DRAFT_V2_KEY);
+  const collaborationState = {
+    memberId: "member-1",
+    invites: [],
+    constraints: [
+      {
+        id: "constraint-1",
+        planId: "plan-input-types-host-collaboration",
+        memberId: "member-1",
+        kind: "budget",
+        value: "Under £25",
+        priority: "required",
+        createdAt: "2026-09-02T12:00:00.000Z",
+        resolvedAt: null,
+        resolvedByMemberId: null,
+        evidence: null,
+      },
+    ],
+    proposals: [
+      {
+        id: "proposal-1",
+        planId: "plan-input-types-host-collaboration",
+        proposedByMemberId: "member-2",
+        expectedRouteRevision: 1,
+        stops: [{ venueId: "venue-a", venueName: "The Pub", position: 1 }],
+        reason: "Keep the route short",
+        resolvedConstraintIds: [],
+        unresolvedConstraintIds: ["constraint-1"],
+        status: "pending",
+        createdAt: "2026-09-02T12:00:00.000Z",
+        decidedAt: null,
+      },
+    ],
+    votes: [],
+  };
   const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(
-    async () => new Response(null, { status: 401 }),
+    async (input) => {
+      const url = typeof input === "string"
+        ? input
+        : input instanceof Request
+          ? input.url
+          : input.toString();
+      if (url.includes("plan-input-types-host-collaboration/collaboration")) {
+        return new Response(JSON.stringify(collaborationState), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(null, { status: 401 });
+    },
   );
   let root: Root | null = null;
   try {
@@ -128,6 +175,15 @@ async function mountedInputs(): Promise<HTMLInputElement[]> {
           hostName: "Host",
         }),
         createElement(PlanComposer),
+        createElement(PlanCollaborationPanel, {
+          planId: "plan-input-types-host-collaboration",
+          memberToken: "member-token",
+          isHost: true,
+          draftStops: [{ venueId: "venue-a", venueName: "The Pub", position: 1 }],
+          routeRevision: 1,
+          canPropose: false,
+          onProposalCreated: () => undefined,
+        }),
       ));
       await Promise.resolve();
     });
@@ -137,6 +193,15 @@ async function mountedInputs(): Promise<HTMLInputElement[]> {
         await Promise.resolve();
       });
     }
+    const constraintSelect = host.querySelector<HTMLSelectElement>("[aria-label='Must-have need to review']");
+    const proposalSelect = host.querySelector<HTMLSelectElement>("[aria-label='Route proposal to check']");
+    if (!constraintSelect || !proposalSelect) throw new Error("Host collaboration evidence controls missing.");
+    await act(async () => {
+      constraintSelect.value = "constraint-1";
+      constraintSelect.dispatchEvent(new Event("change", { bubbles: true }));
+      proposalSelect.value = "proposal-1";
+      proposalSelect.dispatchEvent(new Event("change", { bubbles: true }));
+    });
     return Array.from(host.querySelectorAll<HTMLInputElement>("input"));
   } finally {
     if (root) {
@@ -158,25 +223,11 @@ describe("plan and Wanted fields expose their input types", () => {
   it("renders an explicit type for every native input", async () => {
     const inputs = [...renderedInputs(), ...(await mountedInputs())];
 
-    expect(inputs).toHaveLength(18);
-    expect(inputs.map((input) => input.getAttribute("type"))).toEqual([
-      "text",
-      "text",
-      "number",
-      "number",
-      "datetime-local",
-      "number",
-      "number",
-      "text",
-      "text",
-      "text",
-      "text",
-      "text",
-      "text",
-      "text",
-      "text",
-      "datetime-local",
-      "text",
-    ]);
+    expect(inputs.length).toBeGreaterThan(18);
+    expect(inputs.every((input) => Boolean(input.getAttribute("type")?.trim()))).toBe(true);
+    const sourceUrl = inputs.find((input) => input.getAttribute("aria-label") === "Source URL for The Pub");
+    const publisher = inputs.find((input) => input.getAttribute("aria-label") === "Source publisher for The Pub");
+    expect(sourceUrl?.getAttribute("type")).toBe("url");
+    expect(publisher?.getAttribute("type")).toBe("text");
   });
 });

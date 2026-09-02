@@ -74,7 +74,7 @@ export function usePresence(venue: Venue) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, venueId: venue.id }),
         signal: requestAccountSignal,
-      });
+      }, { requiresIdentity: true });
       // Stale-response guard: the pub changed while this request was in
       // flight — the adjust-during-render reset already put the new venue on
       // "idle", so drop this response rather than stamping the wrong pub.

@@ -335,7 +335,7 @@ describe("POST /api/wanted/resolve", () => {
     expect(body.candidates[0]?.venueId).toBe("venue-dove");
   });
 
-  it("requires auth", async () => {
+  it("searches without an account identity", async () => {
     contributionIdentityState.resolution = {
       ok: false,
       body: { status: "sign_in_required", error: "Sign in to contribute." },
@@ -348,6 +348,7 @@ describe("POST /api/wanted/resolve", () => {
         body: JSON.stringify({ paste: "Dove" }),
       }),
     );
-    expect(res.status).toBe(401);
+    expect(res.status).toBe(200);
+    expect((await res.json()).candidates[0]?.venueId).toBe("venue-dove");
   });
 });
