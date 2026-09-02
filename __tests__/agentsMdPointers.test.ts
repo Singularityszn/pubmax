@@ -184,7 +184,8 @@ function resolvesPattern(pointer: string): boolean {
 
 /** Resolve a pointer that may carry glob syntax or be a directory. */
 function resolves(pointer: string): boolean {
-  return expandBraces(pointer).some(resolvesPattern);
+  // Brace sets assert every named path; wildcard segments assert any matching path.
+  return expandBraces(pointer).every(resolvesPattern);
 }
 
 describe("AGENTS.md pointers", () => {
