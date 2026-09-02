@@ -45,6 +45,20 @@ function futureLondonFirstPint(): string {
   return `${lookup("year")}-${lookup("month")}-${lookup("day")}T${lookup("hour")}:${lookup("minute")}`;
 }
 
+function trackMainFrameDocumentNavigations(page: Page): () => number {
+  let documentRequests = 0;
+  page.on("request", (request) => {
+    if (
+      request.isNavigationRequest()
+      && request.resourceType() === "document"
+      && request.frame() === page.mainFrame()
+    ) {
+      documentRequests += 1;
+    }
+  });
+  return () => documentRequests;
+}
+
 /** Create a real Plan as the signed-in host and answer its id. */
 async function lockInAPlan(
   page: Page,
@@ -118,16 +132,7 @@ test.describe("signed-in Plan capability recovery", () => {
     const planId = await lockInAPlan(page, { waitForAccountClaim: true });
     await loseTheCapabilityCookie(page, planId);
 
-    let documentRequests = 0;
-    page.on("request", (request) => {
-      if (
-        request.isNavigationRequest()
-        && request.resourceType() === "document"
-        && request.frame() === page.mainFrame()
-      ) {
-        documentRequests += 1;
-      }
-    });
+    const documentRequestCount = trackMainFrameDocumentNavigations(page);
 
     // The recovery write is a PATCH under one idempotency key, so a second tab
     // or a retry converges rather than rotating the token twice.
@@ -150,7 +155,7 @@ test.describe("signed-in Plan capability recovery", () => {
     await expect(page.getByRole("button", { name: "Copy invite link" })).toBeVisible({
       timeout: RECOVERY_OBSERVATION_BUDGET_MS,
     });
-    expect(documentRequests, "one main-frame document request after cookie loss").toBe(1);
+    expect(documentRequestCount(), "one main-frame document request after cookie loss").toBe(1);
     expect(
       (await page.context().cookies()).some(
         (cookie) => cookie.name === CAPABILITY_COOKIE(planId),
@@ -169,6 +174,7 @@ test.describe("signed-in Plan capability recovery", () => {
     // Sign out and clear the seeded session, so the page loads as a stranger.
     await page.evaluate(() => window.localStorage.clear());
 
+    const documentRequestCount = trackMainFrameDocumentNavigations(page);
     const writes: string[] = [];
     page.on("request", (request) => {
       if (
@@ -179,11 +185,19 @@ test.describe("signed-in Plan capability recovery", () => {
       }
     });
 
-    await page.reload();
+    const reloadResponse = await page.reload();
+    expect(reloadResponse?.status(), "public Plan reload succeeds").toBe(200);
+    await expect(
+      page.getByRole("heading", { name: /^Your night out(?: in .+)?$/ }),
+    ).toBeVisible({ timeout: RECOVERY_OBSERVATION_BUDGET_MS });
     // Give the effect the same budget the signed-in case gets before concluding
     // that nothing was sent, so this cannot pass by simply being quicker.
     await page.waitForTimeout(RECOVERY_OBSERVATION_BUDGET_MS);
 
+    expect(
+      documentRequestCount(),
+      "one main-frame document request after cookie loss",
+    ).toBe(1);
     expect(writes, "a signed-out browser sends no recovery PATCH").toEqual([]);
     await expect(
       page.getByRole("button", { name: "Copy invite link" }),
