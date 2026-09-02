@@ -171,8 +171,6 @@ absent from the table has no master and every surface draws its layered-SVG rig
 instead. Write a set with `node scripts/gen-pubpal-mascot.mjs <species>
 <master.png>`, which centre-square crops the master once and writes the four
 squares and four circular avatars in webp and png. Masters stay outside the repo.
-Circuit Robin stays the assistant face and the default (`docs` on Pub Pal, plus
-the AGENTS.md entry); the greyhound and the cat are selectable alternates.
 
 The `-x` files are byte-identical mirrors, not separate designs. `app/layout.tsx`
 links the suffixed paths because a new PATH is the only reliable way to move a
