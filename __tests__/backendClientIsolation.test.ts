@@ -5,34 +5,12 @@
 // asks is entry-point isolation rather than removal: is either parsed on a
 // route that does not use it?
 //
-// Swept on production 2026-09-01 by fetching every same-origin script each
-// route loaded and reading the libraries out of the text (decoded KB):
-//
-//   route      total  MapLibre  Convex  ElevenLabs  Supabase
-//   /           1144         0       0           0       344
-//   /pal        1746         0       0         603       363
-//   /map        2599      1024       0           0       503
-//   /today      1180         0       0           0       341
-//   /tonight    1175         0       0           0       341
-//   /out        1129         0       0           0       341
-//   /about      1082         0       0           0       341
-//   /pubs       1093         0       0           0       341
-//
-// Three findings.
-//
-//  1. Supabase is on every route as the same ~341 KB, and it is FETCHED AFTER
-//     PAINT by ensureSupabaseBrowser's dynamic import (measured starting around
-//     t=630 ms). It is the session, so every route genuinely uses it, and it is
-//     already off the critical path. Nothing to isolate.
-//  2. MapLibre is on /map and nowhere else. Already isolated.
-//  3. Convex reaches NO browser bundle on any route, and no module under app,
-//     components or lib imports it outside lib/convex, whose two files are
-//     imported only by tests. Recorded for the captain rather than removed:
-//     the convex/ directory carries a real schema and a migration scaffold
-//     under the Wave 0.6 containment law (__tests__/convexContainment.test.ts),
-//     so "no browser pays for it" is the finding, not "delete the dependency".
-//
-// This file is the fence that keeps those three true.
+// The 2026-09-01 production inventory and decoded-KB figures live in
+// docs/PERFORMANCE_BUDGETS.md under "What each route actually parses". This
+// file is the fence for its three entry-point conclusions: Supabase stays
+// dynamic and off the critical path, MapLibre stays on the map, and Convex
+// reaches no browser bundle. The Convex scaffold remains under its Wave 0.6
+// containment law (__tests__/convexContainment.test.ts).
 
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";

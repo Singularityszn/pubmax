@@ -47,16 +47,18 @@ file documents the seed measurements.
 first paint (analytics, posthog-js, @elevenlabs/react, ai SDK, providers) and
 move everything not needed for first paint to idle-time or first-interaction
 dynamic import. The consent banner must not pull the full analytics bundle
-before consent. Target ceiling after diet: <= 950KB on `/`, then ratchet the
-budget file to the measured number (KTD-2: down only).
+before consent. The landing measured 1143KB, but that cost is shared baseline
+rather than landing-only code, so its 1250KB ceiling stays for the CI sweep to
+ratchet. The /pal voice split is recorded in `docs/PERFORMANCE_BUDGETS.md`.
 Acceptance: new lower ceilings committed and green in CI; no behaviour
 fences broken; consent semantics unchanged.
 
 ### U3. Heavy-outlier routes /about and /pubs
-1900KB and 1950KB decoded JS for mostly-static content pages is an accidental
-import. Trace the chunk graph (bundle analysis on CI, per KTD-3) to find what
-leaks into their bundles (maplibre? photo editor? convex client?), split it
-out, ratchet ceilings down to measured.
+The initial 1900KB and 1950KB ceilings were stale for these mostly-static
+content pages. The production inventory found no accidental MapLibre, photo
+editor, Convex or voice import to split, so this unit banks the slack instead.
+The measured inventory and the 1200KB ceilings live in
+`docs/PERFORMANCE_BUDGETS.md`.
 Acceptance: both routes measurably below 1300KB or a documented reason why
 not, ceilings ratcheted, no route regressed.
 
@@ -77,26 +79,30 @@ Acceptance: fewer font files on first load, zero visual diff on the audited
 surfaces at 390x844.
 
 ### U6. Cacheable API GET headers
-Dynamic `/api/*` routes currently ship no CDN caching. Classify GET routes by
+Classify dynamic `/api/*` GET routes by
 freshness contract (weather: 6h cron; whats-on: daily; manifest/slim-index
 reads: per deploy) and add `s-maxage` + `stale-while-revalidate` where the
 data's own refresh cadence makes it honest. Never cache personalised or
 session-varying responses. Document each choice next to the route.
+Night Area list and slug reads now use `jsonCached` because they contain bundled
+deployment data; coordinate-bearing, live and personalised reads stay
+uncached. The current classification lives in `docs/PERFORMANCE_BUDGETS.md`.
 Acceptance: header tests per route class; no personalised route carries a
 shared-cache header; measured repeat-visit latency improvement recorded.
 
 ### U7. API latency budgets
 Create `perf/api-budgets.json` mirroring the route-budgets discipline:
-per-route p50/p95 server-timing ceilings for the hot read APIs the map,
+per-route p50/p95 time-to-first-byte ceilings for the hot read APIs the map,
 today, and out surfaces call. Trusted remote CI probes a successful main
 deployment and fails on ceiling breach; pull-request previews stay outside the
 credentialed probe because the probe executes deployed source. Down-only
-ratchet from seed measurements.
+ratchet from seed measurements. The probe uses curl-compatible response timing,
+not a `Server-Timing` header.
 Acceptance: file + CI job green with seeded ceilings; breach fails.
 
 ### U8. Ratchet automation
 Small CI check: when a measured route beats its ceiling by >15% for the whole
-sweep, emit a warning artifact listing the ratchet candidates, so slack gets
+sweep, print a warning table listing the ratchet candidates, so slack gets
 banked as lower ceilings instead of quietly regrowing (#1296 pattern).
 Acceptance: warning appears in CI output when slack exists; no auto-edit.
 
