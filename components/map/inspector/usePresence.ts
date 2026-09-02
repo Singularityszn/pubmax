@@ -3,6 +3,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { trackEvent } from "@/lib/analytics";
 import { authedActionFetch } from "@/lib/authedFetch";
+import { readProviderIdentitySignal } from "@/lib/authProviderRevision";
 import { isUkBaseVenueId } from "@/lib/wanted";
 import type { Venue } from "@/lib/venues";
 
@@ -54,11 +55,12 @@ export function usePresence(venue: Venue) {
 
   async function markPresenceHere() {
     if (presenceState === "sending" || presenceState === "here") return;
-    if (supabaseAuthState === "unresolved") return;
+    if (supabaseAuthState === "unresolved" || supabaseAuthState === "unavailable") return;
     if (supabaseAuthState === "authenticated" && !user?.id) return;
     const requestVenueId = venue.id;
     const requestUserId = user?.id ?? null;
     const requestAccountRevision = accountRevision;
+    const requestAccountSignal = readProviderIdentitySignal();
     const handle =
       typeof window === "undefined" ? "" : (window.localStorage.getItem("pubmax_handle") ?? "").trim();
     if (!handle) {
@@ -71,6 +73,7 @@ export function usePresence(venue: Venue) {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, venueId: venue.id }),
+        signal: requestAccountSignal,
       });
       // Stale-response guard: the pub changed while this request was in
       // flight — the adjust-during-render reset already put the new venue on

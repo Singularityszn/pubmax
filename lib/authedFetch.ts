@@ -70,6 +70,26 @@ function callerActionSignals(
   return callerSignal ? [callerSignal] : [];
 }
 
+function readTokenWithSignal(signal?: AbortSignal): Promise<string | null> {
+  if (!signal) return getAccessToken();
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (token: string | null, error?: unknown): void => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      if (error) reject(error);
+      else resolve(token);
+    };
+    const onAbort = (): void => finish(null, abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    void getAccessToken()
+      .then((token) => finish(token))
+      .catch(() => finish(null));
+  });
+}
+
 const fallbackAbortControllers = new WeakMap<AbortSignal, AbortController>();
 const fallbackAbortFollowers = new WeakMap<
   AbortSignal,
@@ -242,11 +262,14 @@ export async function authedFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response> {
+  const signal = callerActionSignals(input, init.signal ?? undefined)[0];
   const headers = new Headers(init.headers);
   try {
-    const token = await getAccessToken();
+    const token = await readTokenWithSignal(signal);
+    if (signal?.aborted) throw abortReason(signal);
     if (token) headers.set("authorization", `Bearer ${token}`);
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw error;
     // Signed-out / storage blocked — proceed anonymously.
   }
   return fetch(input, { ...init, headers });

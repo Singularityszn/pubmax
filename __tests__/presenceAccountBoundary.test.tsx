@@ -97,22 +97,30 @@ function state(): string {
 }
 
 describe("presence account boundary", () => {
-  it("does not start while Supabase auth is unresolved or identity is missing", async () => {
-    await render();
-    await clickCheckIn();
-    expect(authedActionFetch).not.toHaveBeenCalled();
-    expect(state()).toBe("idle");
+  it.each(["unresolved", "unavailable"] as const)(
+    "does not start while Supabase auth is %s",
+    async (supabaseAuthState) => {
+      authState.current = {
+        accountRevision: 0,
+        supabaseAuthState,
+        user: null,
+      };
+      await render();
+      await clickCheckIn();
+      expect(authedActionFetch).not.toHaveBeenCalled();
+      expect(state()).toBe("idle");
 
-    authState.current = {
-      accountRevision: 1,
-      supabaseAuthState: "authenticated",
-      user: null,
-    };
-    await render();
-    await clickCheckIn();
-    expect(authedActionFetch).not.toHaveBeenCalled();
-    expect(state()).toBe("idle");
-  });
+      authState.current = {
+        accountRevision: 1,
+        supabaseAuthState: "authenticated",
+        user: null,
+      };
+      await render();
+      await clickCheckIn();
+      expect(authedActionFetch).not.toHaveBeenCalled();
+      expect(state()).toBe("idle");
+    },
+  );
 
   it("keeps anonymous presence available after auth settles signed-out", async () => {
     authState.current = {
@@ -123,11 +131,15 @@ describe("presence account boundary", () => {
     authedActionFetch.mockResolvedValue(response());
     await render();
     await clickCheckIn();
-    expect(authedActionFetch).toHaveBeenCalledWith("/api/presence", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ handle: "tester", venueId: "venue-a" }),
-    });
+    expect(authedActionFetch).toHaveBeenCalledWith(
+      "/api/presence",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ handle: "tester", venueId: "venue-a" }),
+        signal: expect.any(AbortSignal),
+      }),
+    );
     expect(state()).toBe("here");
   });
 

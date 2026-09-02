@@ -67,6 +67,27 @@ describe("authedFetch (Wave I2)", () => {
     fetchSpy.mockRestore();
   });
 
+  it("does not send an account-bound read after its token lookup is invalidated", async () => {
+    let resolveToken!: (token: string | null) => void;
+    const token = new Promise<string | null>((resolve) => {
+      resolveToken = resolve;
+    });
+    setProviderIdentity("supabase", "account-a");
+    vi.mocked(getAccessToken).mockReturnValueOnce(token);
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const request = authedFetch("/api/wanted", {
+      signal: readProviderIdentitySignal(),
+    });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
+    resolveToken("account-b-token");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
   it("waits for a token that arrives after the first lookup before sending an action", async () => {
     publishAuthActionState({ status: "signed-in", identityResolved: true });
     vi.mocked(getAccessToken)
@@ -102,6 +123,23 @@ describe("authedFetch (Wave I2)", () => {
     setProviderIdentity("supabase", "account-b");
     owner.abort();
     resolveToken("account-b-token");
+
+    await rejection;
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not send a queued action under a newer provider identity while readiness settles", async () => {
+    setProviderIdentity("supabase", "account-a");
+    publishAuthActionState({ status: "unknown", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    const request = authedActionFetch("/api/presence", {
+      method: "POST",
+      signal: readProviderIdentitySignal(),
+    });
+    const rejection = expect(request).rejects.toMatchObject({ name: "AbortError" });
+    await Promise.resolve();
+
+    setProviderIdentity("supabase", "account-b");
 
     await rejection;
     expect(fetchSpy).not.toHaveBeenCalled();
