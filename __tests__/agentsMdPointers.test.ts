@@ -1,5 +1,5 @@
 import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { join } from "node:path";
 
 import { describe, expect, it } from "vitest";
 
@@ -22,7 +22,15 @@ const ROOT = process.cwd();
 const DOC = readFileSync(join(ROOT, "AGENTS.md"), "utf8");
 
 /** Backticked tokens that look like a path into this repository. */
-const POINTER = /`([A-Za-z0-9_@./*\[\]{}<>-]+\.[A-Za-z0-9_@./*\[\]{}<>-]+|[A-Za-z0-9_@./*\[\]{}<>-]+\/)`/g;
+const BACKTICKED_TOKEN = /`([^`\r\n]+)`/g;
+const PATH_TOKEN = /^[A-Za-z0-9_.\[\]{}<>,*\/-]+$/;
+
+function looksLikeRepositoryPath(raw: string): boolean {
+  if (!raw || raw === "." || raw === ".." || !PATH_TOKEN.test(raw)) return false;
+  if (raw.startsWith("@")) return false;
+  if (raw.startsWith("/")) return raw.length > 1 && raw.endsWith("/");
+  return raw.includes("/") || raw.includes(".");
+}
 
 // Explicit non-file names remain here so real repository pointers are checked.
 const NOT_REPO_PATHS = new Set([
@@ -68,29 +76,69 @@ const NOT_REPO_PATHS = new Set([
   "data-harvest/bars-enriched/",
   // Throwaway Overpass working directory is absent from clean clones.
   "raw_venues/",
+  // Next's generated build directory is absent from clean clones.
+  ".next",
 ]);
 
 function pointers(): string[] {
   const found = new Set<string>();
-  for (const match of DOC.matchAll(POINTER)) {
-    const raw = (match[1] ?? match[2] ?? "").trim();
-    if (!raw || NOT_REPO_PATHS.has(raw)) continue;
+  for (const match of DOC.matchAll(BACKTICKED_TOKEN)) {
+    const raw = (match[1] ?? "").trim();
+    if (!looksLikeRepositoryPath(raw) || NOT_REPO_PATHS.has(raw)) continue;
     found.add(raw);
   }
   return [...found].sort();
 }
 
-/** Resolve a pointer that may carry a `*` segment or be a directory. */
+function expandBraces(pointer: string): string[] {
+  const open = pointer.indexOf("{");
+  if (open === -1) return [pointer];
+
+  let depth = 0;
+  for (let index = open; index < pointer.length; index += 1) {
+    if (pointer[index] === "{") depth += 1;
+    if (pointer[index] === "}" && --depth === 0) {
+      const options = pointer.slice(open + 1, index).split(",");
+      return options.flatMap((option) =>
+        expandBraces(pointer.slice(0, open) + option + pointer.slice(index + 1)),
+      );
+    }
+  }
+
+  return [pointer];
+}
+
+function wildcardRegExp(segment: string): RegExp {
+  const escaped = segment.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+  return new RegExp(`^${escaped.replace(/\*/g, ".*")}$`);
+}
+
+function resolvesPattern(pointer: string): boolean {
+  const segments = pointer.split("/").filter(Boolean);
+
+  function visit(directory: string, index: number): boolean {
+    if (index === segments.length) return true;
+
+    const segment = segments[index];
+    if (segment.includes("*")) {
+      if (!existsSync(directory) || !statSync(directory).isDirectory()) return false;
+      const pattern = wildcardRegExp(segment);
+      return readdirSync(directory).some(
+        (entry) => pattern.test(entry) && visit(join(directory, entry), index + 1),
+      );
+    }
+
+    const next = join(directory, segment);
+    if (!existsSync(next)) return false;
+    return visit(next, index + 1);
+  }
+
+  return visit(ROOT, 0);
+}
+
+/** Resolve a pointer that may carry glob syntax or be a directory. */
 function resolves(pointer: string): boolean {
-  const full = join(ROOT, pointer);
-  if (existsSync(full)) return true;
-  if (!pointer.includes("*")) return false;
-  const dir = join(ROOT, dirname(pointer));
-  if (!existsSync(dir) || !statSync(dir).isDirectory()) return false;
-  const pattern = new RegExp(
-    `^${pointer.slice(pointer.lastIndexOf("/") + 1).replace(/[.+^${}()|[\]\\]/g, "\\$&").replace(/\*/g, ".*")}$`,
-  );
-  return readdirSync(dir).some((entry) => pattern.test(entry));
+  return expandBraces(pointer).some(resolvesPattern);
 }
 
 describe("AGENTS.md pointers", () => {
@@ -108,6 +156,6 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    expect(pointers().length).toBeGreaterThan(538);
+    expect(pointers().length).toBeGreaterThan(554);
   });
 });
