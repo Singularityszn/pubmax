@@ -172,7 +172,13 @@ for (const viewport of DESKTOP_CASES) {
       await expect(page.locator("html")).not.toHaveAttribute("data-theme", "dark");
     }
     await expect(page.getByRole("heading", { name: "Messages", exact: true })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Pick a message" })).toBeVisible();
+    // This case is SIGNED OUT (expectSignedOutCardFitsInbox below), and the
+    // thread pane reads the live session now: it may not tell somebody with no
+    // account to choose from an inbox they cannot have.
+    await expect(
+      page.getByRole("heading", { name: "Your conversations show here." }),
+    ).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Pick a message" })).toHaveCount(0);
     await expect(page.locator(".messagesThreadEyebrow")).toHaveCSS("text-transform", "none");
     await expectDesktopSplit(page);
     await expectSignedOutCardFitsInbox(page);

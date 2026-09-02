@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 import SiteNav from "@/components/nav/SiteNav";
 
-import MessagesInboxClient from "./MessagesInboxClient";
+import MessagesInboxClient, { MessagesThreadEmptyCopy } from "./MessagesInboxClient";
 
 import "./messages.css";
 
@@ -24,12 +24,10 @@ export default function MessagesInboxPage(): React.JSX.Element {
           <aside className="messagesInboxPane" aria-label="Inbox">
             <MessagesInboxClient />
           </aside>
+          {/* The pane is neutral here on purpose: what it says depends on the
+              viewer, and this page may not server-render per-account content. */}
           <section className="messagesThreadPane messagesThreadEmpty" aria-label="Conversation">
-            <div>
-              <p className="messagesThreadEyebrow">Your conversations</p>
-              <h2>Pick a message</h2>
-              <p>Choose someone from your inbox to read the thread and reply.</p>
-            </div>
+            <MessagesThreadEmptyCopy />
           </section>
         </div>
       </main>
