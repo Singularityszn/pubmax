@@ -12,6 +12,7 @@ import {
   EDITORIAL_RAIL_TITLE,
   EDITORIAL_STALE_LINE,
 } from "@/lib/editorial";
+import { OUT_MAP_WAY, OUT_RETRY_LABEL } from "@/lib/out/outStatus";
 import type { EditorialSnapshot } from "@/lib/editorial";
 
 const OUT_CLIENT = readFileSync(join(process.cwd(), "app/out/OutClient.tsx"), "utf8");
@@ -46,7 +47,9 @@ const readyItems: EditorialSnapshot = {
 const NOW = Date.parse("2026-08-16T12:00:00.000Z");
 
 function html(snapshot: EditorialSnapshot) {
-  return renderToStaticMarkup(createElement(EditorialRailView, { snapshot, now: NOW }));
+  return renderToStaticMarkup(
+    createElement(EditorialRailView, { snapshot, now: NOW, onRetry: () => undefined }),
+  );
 }
 
 describe("editorial rail", () => {
@@ -76,6 +79,7 @@ describe("editorial rail", () => {
           generatedAt: "2026-08-13T10:00:00.000Z",
         },
         now: NOW,
+        onRetry: () => undefined,
       }),
     );
     expect(markup).toContain(EDITORIAL_STALE_LINE);
@@ -110,6 +114,28 @@ describe("editorial rail", () => {
         items: [],
       }),
     ).toContain(EDITORIAL_DEGRADED_EMPTY_LINE);
+  });
+
+  it("retries a failed empty read and opens the map for an answered empty read", () => {
+    const quiet = html({
+      version: 1,
+      generatedAt: "2026-08-16T10:00:00.000Z",
+      status: "ready",
+      items: [],
+    });
+    const failed = html({
+      version: 1,
+      generatedAt: "2026-08-16T10:00:00.000Z",
+      status: "degraded",
+      items: [],
+    });
+
+    expect(quiet).toContain(OUT_MAP_WAY.label);
+    expect(quiet).toContain(`href="${OUT_MAP_WAY.href}"`);
+    expect(quiet).not.toContain(OUT_RETRY_LABEL);
+    expect(failed).toContain(OUT_RETRY_LABEL);
+    expect(failed).not.toContain(OUT_MAP_WAY.label);
+    expect(failed).not.toContain(`href="${OUT_MAP_WAY.href}"`);
   });
 
   it("sits on /out and /tonight, never on the map cold-open", () => {

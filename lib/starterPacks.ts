@@ -274,6 +274,24 @@ export function starterPacksSurfaceVisible(input: {
   return viewerNeedsStarterPacks(input.viewerFollowing) || input.followedAny;
 }
 
+/**
+ * Whether somebody with NO account may see the packs.
+ *
+ * A stranger meeting the sign-in door is shown who is already here, and is
+ * offered nothing: following is an account action, and a pack card carrying a
+ * button that would answer 401 is a second sign-in door beside the one they are
+ * already reading. So this asks only whether there is anything to show.
+ *
+ * starterPacksSurfaceVisible stays the SIGNED-IN question - whether this viewer
+ * still needs packs - and neither predicate is restated at a call site.
+ */
+export function starterPacksVisibleToStranger(input: {
+  loaded: boolean;
+  packCount: number;
+}): boolean {
+  return input.loaded && input.packCount > 0;
+}
+
 /** What happened to one member of a pack, in one word. */
 export const STARTER_PACK_FOLLOW_OUTCOMES = [
   "followed",
