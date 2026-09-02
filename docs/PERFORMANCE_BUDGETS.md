@@ -23,9 +23,11 @@ CI refuses a change that goes past it.
 
 ## Where the LCP ceilings came from
 
-Seeded on 2026-09-01 from three production runs per route under this method's
-own emulation (390x844 at DPR 3, 4x CPU throttle), over the real network rather
-than loopback, so a seed run is pessimistic against CI's own sweep. Medians:
+Seeded on 2026-09-01 from three production runs per route over the real network
+rather than loopback. Those seed runs used 390x844 at DPR 3. The enforced sweep
+uses Desktop Chrome at device pixel ratio 1 with the same CSS viewport, 4x CPU
+throttle, and cross-origin requests refused, so seed figures are indicative of
+their origin rather than reproductions of CI's method. Medians:
 
 | route | measured LCP | seeded ceiling |
 | --- | --- | --- |
@@ -178,11 +180,12 @@ breach table already says so.
 
 ## How a run is taken
 
-Against the production build, at 390x844, with a 4x CPU throttle and every
-cross-origin request refused, so a run measures what we ship and never a tile
-server's morning. Each route gets a warm-up load whose request lifecycle must
-fully drain before measurement, then the median of three measured runs. A
-network that does not drain within 20 seconds fails the run.
+Against the production build in Desktop Chrome at device pixel ratio 1, with a
+CSS viewport of 390x844, a 4x CPU throttle, and every cross-origin request
+refused, so a run measures what we ship and never a tile server's morning. Each
+route gets a warm-up load whose request lifecycle must fully drain before
+measurement, then the median of three measured runs. A network that does not
+drain within 20 seconds fails the run.
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the route's own
 readiness gate, no earlier than the window load event. A resource counts if it
@@ -221,7 +224,7 @@ unmeasured route reads as a pass and never fails again.
 
 ## The pin-ready record on /map
 
-`/map` carries one extra tracked block, `pinReady`. It is NOT one of the three
+`/map` carries one extra tracked block, `pinReady`. It is NOT one of the four
 budgeted metrics: `lib/performanceBudgets.ts` never reads it, so nothing here
 fails a build. It is the RECORD of the map's own arrival promise - a cold phone
 visit must reach tappable pins - kept beside the route it describes so the

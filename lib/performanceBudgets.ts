@@ -50,6 +50,8 @@ export type RouteBudget = {
 } & Record<BudgetMetric, number>;
 
 export type BudgetMethod = {
+  browser: string;
+  deviceScaleFactor: number;
   /** Unmeasured runs first, so a cold module load is not charged to the route. */
   warmupRuns: number;
   /** Measured runs per route. */
@@ -60,6 +62,7 @@ export type BudgetMethod = {
   viewport: { width: number; height: number };
   /** Cross-origin requests are refused, so a run measures only what we ship. */
   thirdPartyBlocked: boolean;
+  futureDeviceMigration: string;
   /**
    * Where the byte and request counts are cut, in words. Deliberately part of
    * the tracked config: two runs are only comparable if they stopped counting

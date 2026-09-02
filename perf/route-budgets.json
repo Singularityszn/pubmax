@@ -1,12 +1,15 @@
 {
-  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision. lcpMs is seeded from three production runs on 2026-09-01 under this method block (390x844 at DPR 3, 4x CPU throttle, real network rather than loopback, so a seed run is pessimistic against CI's own sweep). Medians measured: / 296, /pal 792, /map 1196, /today 720, /tonight 784, /out 900, /about 320, /pubs 372. The seeded ceilings are deliberately looser than those figures: / and /pal take the programme's 1500 ms target, and every other route takes 2500 ms, the Core Web Vitals good boundary, so no route may be worse than good. CI's own sweep is the oracle and the ratchet check banks the slack.",
+  "note": "Per-route performance ceilings. Read docs/PERFORMANCE_BUDGETS.md before changing a number: down is free, up is a decision. lcpMs is seeded from three production runs on 2026-09-01 over the real network rather than loopback. Those seed runs used 390x844 at DPR 3, while the enforced sweep uses Desktop Chrome at device pixel ratio 1 with the same CSS viewport, 4x CPU throttle, and third-party requests blocked, so a seed figure is indicative rather than a reproduction of CI's method. Medians measured: / 296, /pal 792, /map 1196, /today 720, /tonight 784, /out 900, /about 320, /pubs 372. The seeded ceilings are deliberately looser than those figures: / and /pal take the programme's 1500 ms target, and every other route takes 2500 ms, the Core Web Vitals good boundary, so no route may be worse than good. CI's own sweep is the oracle and the ratchet check banks the slack.",
   "method": {
+    "browser": "Desktop Chrome",
+    "deviceScaleFactor": 1,
     "warmupRuns": 1,
     "measuredRuns": 3,
     "aggregate": "median",
     "cpuThrottleRate": 4,
     "viewport": { "width": 390, "height": 844 },
     "thirdPartyBlocked": true,
+    "futureDeviceMigration": "A later DPR-3 migration is possible, but it must re-seed every ceiling in one commit. playwright.config.ts already has iPhone 14 wiring; the cost is re-measurement, not plumbing.",
     "countedUpTo": "route interactive: its readiness gate, no earlier than the window load event. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is."
   },
   "routes": [
