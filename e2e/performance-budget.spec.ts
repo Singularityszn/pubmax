@@ -44,17 +44,6 @@ const budgets = PERFORMANCE_BUDGETS;
 const SWEEP_TIMEOUT_MS =
   60_000 * budgets.routes.length * (budgets.method.warmupRuns + budgets.method.measuredRuns);
 
-function measurementFromSample(
-  sample: Awaited<ReturnType<typeof measurePerfRoute>>,
-): RouteMeasurement {
-  return {
-    serverRenderMs: sample.serverRenderMs,
-    jsDecodedKB: sample.jsDecodedKB,
-    requests: sample.requests,
-    lcpMs: Math.round(sample.lcpMs),
-  };
-}
-
 test("every budgeted route stays inside its performance budget", async ({ page, baseURL }) => {
   test.skip(!process.env.PUBMAX_PERF_BUDGET, "Owned by the performance-budget CI job.");
   test.setTimeout(SWEEP_TIMEOUT_MS);
@@ -64,34 +53,13 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
 
   const measured = new Map<string, RouteMeasurement>();
   for (const route of budgets.routes) {
-    let measurement = measurementFromSample(
-      await measurePerfRoute(page, route, budgets.method),
-    );
-    const initialBreaches = findBudgetBreaches(
-      [route],
-      new Map([[route.path, measurement]]),
-    );
-
-    // A shared CI runner can briefly delay one route's renderer or let one
-    // post-paint request cross the interactive cut. Confirm only that route
-    // before failing, so one noisy sample cannot block an unrelated change.
-    if (initialBreaches.length > 0) {
-      const confirmation = measurementFromSample(
-        await measurePerfRoute(page, route, budgets.method),
-      );
-      const confirmationBreaches = findBudgetBreaches(
-        [route],
-        new Map([[route.path, confirmation]]),
-      );
-      console.log(
-        `[perf-budget][confirmation] ${route.path}: ` +
-          (confirmationBreaches.length === 0
-            ? "initial breach did not repeat"
-            : "breach repeated"),
-      );
-      measurement = confirmation;
-    }
-    measured.set(route.path, measurement);
+    const sample = await measurePerfRoute(page, route, budgets.method);
+    measured.set(route.path, {
+      serverRenderMs: sample.serverRenderMs,
+      jsDecodedKB: sample.jsDecodedKB,
+      requests: sample.requests,
+      lcpMs: Math.round(sample.lcpMs),
+    });
   }
 
   console.log(`[perf-budget]\n${formatMeasurementTable(budgets.routes, measured)}`);

@@ -209,12 +209,6 @@ PUBMAX_PERF_BUDGET=1 npx playwright test e2e/performance-budget.spec.ts --projec
 A failing run prints one row per breach: route, metric, measured, budget, and
 how far past the ceiling it went.
 
-The gate confirms a route once when its first measured median breaches. The
-confirmation repeats that route's warm-up and measured runs. A breach must
-repeat before CI fails, because shared runners can briefly delay one renderer or
-move one post-paint request across the interactive cut. The confirmation does
-not change any ceiling or turn a repeated breach into a warning.
-
 ## Changing a number
 
 A budget is a ratchet. Take one DOWN whenever the measured figure has been
