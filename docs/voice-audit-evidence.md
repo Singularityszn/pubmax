@@ -1066,7 +1066,8 @@ just now. Last checked 15 Aug." from the snapshot's own `generatedAt`. A
 snapshot with no printable day keeps the first sentence alone, because a date
 we cannot read is never a date we invent and a second apology in different
 words says less than saying less. A future timestamp follows the same path.
-`public/data/editorial/README.md` and the proof note move with the copy.
+`public/data/editorial/README.md` owns the current freshness wording; the proof
+note points to it.
 
 The audit's other findings (the desktop header Map destination, the `/out`
 source links and venue badge, the Pal avatar 404, the Clerk CSP entry, the
