@@ -233,11 +233,12 @@
                              640px matches the dominant pattern (today, crawls,
                              moment, ≈feed): adopt on /tonight, /feed, crawl and
                              moment pages, profile's text column.
-         --content-max-wide  full-bleed / marketing + map-class surfaces that
-                             intentionally run wider: landing page, profile shell,
-                             any hero/gallery grid.
-       DEFINE-ONLY this wave — per-page CSS is retrofitted next wave (other lanes
-       own those files). New work should reach for these instead of a literal. */
+         --content-max-wide  wide page compositions that intentionally run
+                             wider: landing page, profile shell, /near,
+                             /we-are-out, and any hero/gallery grid.
+       Per-page CSS adopts these tokens as each surface receives its intended
+       composition; existing literal paddings remain untouched. New work should
+       reach for these instead of a literal. */
   --content-max: 640px;
   --content-max-wide: 1240px;
 
