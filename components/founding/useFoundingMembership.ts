@@ -51,7 +51,7 @@ export function useFoundingMembership(): FoundingMembership {
     }
     const controller = new AbortController();
     let live = true;
-    void authedActionFetch("/api/identity/handle/current", { signal: controller.signal })
+    void authedActionFetch("/api/identity/handle/current", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
         if (!response.ok) return null;
         return (await response.json().catch(() => null)) as

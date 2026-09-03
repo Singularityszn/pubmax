@@ -409,7 +409,7 @@ export default function MomentCapture(): React.JSX.Element {
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ title: draft.memoryTitle.trim() || "Tonight's Memory" }),
-      }).catch(() => null);
+      }, { requiresIdentity: true }).catch(() => null);
       const memoryBody = memoryResponse
         ? await memoryResponse.json().catch(() => ({})) as { memory?: { id: string }; error?: string }
         : {};
@@ -450,7 +450,7 @@ export default function MomentCapture(): React.JSX.Element {
           method: "POST",
           ...(body instanceof FormData ? {} : { headers: { "content-type": "application/json" } }),
           body,
-        },
+        }, { requiresIdentity: true },
       ).catch(() => null);
       const responseBody = response
         ? await response.json().catch(() => ({})) as { error?: string }

@@ -68,9 +68,11 @@ export function usePriceEvidenceMission(input: {
     // External read owns this paint. The last answer stays until this one lands.
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setResolved({ requestUrl, view: { status: "loading" } });
+    const accountBoundFetch = (input: RequestInfo | URL, init?: RequestInit) =>
+      authedActionFetch(input, init ?? {}, { requiresIdentity: true });
     const request = startPriceEvidenceMissionRequest(
       requestUrl,
-      authedActionFetch,
+      accountBoundFetch,
     );
     // The deadline may only degrade a read that is still in flight, so the
     // race settles exactly once and a mission that landed stays put.
@@ -125,4 +127,3 @@ export function usePriceEvidenceMission(input: {
 
   return { mission, status: view.status, dismiss };
 }
-

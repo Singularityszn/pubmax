@@ -100,7 +100,7 @@ export default function SaveToListControl({
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ handle: h, action: "createList", name }),
-          });
+          }, { requiresIdentity: true });
           if (res.ok) {
             const body = (await res.json()) as { lists?: string[] };
             if (Array.isArray(body.lists)) setCustomLists(body.lists);

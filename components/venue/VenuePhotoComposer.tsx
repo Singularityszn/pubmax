@@ -74,7 +74,7 @@ export default function VenuePhotoComposer({
       const response = await authedActionFetch("/api/venue-photos", {
         method: "POST",
         body: form,
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setError(

@@ -115,7 +115,8 @@ export default function ProfileCoverPhotosEditor({
         base,
         {
           signal: controller.signal,
-          fetchImpl: authedActionFetch,
+          fetchImpl: (input, init) =>
+            authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
           validate: (body) => Array.isArray(body?.covers),
         },
         (body) => {
@@ -157,7 +158,7 @@ export default function ProfileCoverPhotosEditor({
     setBusy(state);
     setError(null);
     try {
-      const response = await authedActionFetch(url, init);
+      const response = await authedActionFetch(url, init, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
           setError(errorMessageFrom(body, fallbackError));
@@ -212,7 +213,7 @@ export default function ProfileCoverPhotosEditor({
         for (const id of ids) {
           const response = await authedActionFetch(`${base}/${encodeURIComponent(id)}`, {
             method: "DELETE",
-          });
+          }, { requiresIdentity: true });
           const body: unknown = await response.json().catch(() => null);
           if (!response.ok) {
             setError(errorMessageFrom(body, "Could not remove your cover. Try again."));
@@ -222,7 +223,7 @@ export default function ProfileCoverPhotosEditor({
         }
         return;
       }
-      const response = await authedActionFetch(legacyCoverUrl, { method: "DELETE" });
+      const response = await authedActionFetch(legacyCoverUrl, { method: "DELETE" }, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setError(errorMessageFrom(body, "Could not remove your cover. Try again."));

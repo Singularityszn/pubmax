@@ -22,7 +22,7 @@ export async function syncPendingPlanRecapToAccount(
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ recap: safe }),
       signal,
-    });
+    }, { requiresIdentity: true });
     return response.ok;
   } catch {
     return false;

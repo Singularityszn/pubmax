@@ -84,7 +84,7 @@ export default function SocialTagInbox() {
       try {
         const response = await authedActionFetch(`/api/social/tags?${params}`, {
           cache: "no-store",
-        });
+        }, { requiresIdentity: true });
         if (!response.ok) {
           discardBody(response);
           throw new Error("Tag lane read failed");
@@ -147,7 +147,7 @@ export default function SocialTagInbox() {
             ? { expectedAudienceRevision: item.reviewRevision }
             : {}),
         }),
-      });
+      }, { requiresIdentity: true });
       if (!response.ok) {
         discardBody(response);
         if (action === "approve") {
