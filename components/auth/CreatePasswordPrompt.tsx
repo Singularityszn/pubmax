@@ -55,6 +55,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   const accountId = user?.id ?? null;
   const [handle, setHandle] = useState<string | null>(null);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [statusAccountId, setStatusAccountId] = useState<string | null>(null);
   const [budgetClaimed, setBudgetClaimed] = useState(false);
   const [answeredLocallyFor, setAnsweredLocallyFor] = useState<string | null>(null);
   const promptRendered = useRef(false);
@@ -77,9 +78,11 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
       void Promise.resolve().then(() => {
         setHandle(null);
         setHasPassword(null);
+        setStatusAccountId(null);
       });
       return;
     }
+    const requestedAccountId = accountId;
     const controller = new AbortController();
     void (async () => {
       try {
@@ -92,6 +95,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
           if (!controller.signal.aborted) {
             setHandle(null);
             setHasPassword(null);
+            setStatusAccountId(requestedAccountId);
           }
           return;
         }
@@ -108,15 +112,17 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
         setHasPassword(
           typeof body.hasPassword === "boolean" ? body.hasPassword : null,
         );
+        setStatusAccountId(requestedAccountId);
       } catch {
         if (!controller.signal.aborted) {
           setHandle(null);
           setHasPassword(null);
+          setStatusAccountId(requestedAccountId);
         }
       }
     })();
     return () => controller.abort();
-  }, [configured, identityResolved, user]);
+  }, [accountId, configured, identityResolved, user]);
 
   const hasBudget = useSyncExternalStore(
     subscribePromptBudget,
@@ -127,8 +133,8 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     configured,
     accountId,
     identityResolved,
-    handle,
-    hasPassword,
+    handle: statusAccountId === accountId ? handle : null,
+    hasPassword: statusAccountId === accountId ? hasPassword : null,
     answered,
   });
   const eligible = owed && hasBudget;

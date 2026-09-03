@@ -138,4 +138,30 @@ describe("CreatePasswordPrompt rendered behavior", () => {
     expect(window.localStorage.getItem(passwordPromptAnsweredKey("acct-1"))).toBe("1");
     expect(releasePromptBudget).not.toHaveBeenCalled();
   });
+
+  it("does not carry the previous account's status into a new account read", async () => {
+    await renderPrompt();
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+
+    let resolveStatus: ((response: Response) => void) | undefined;
+    authedActionFetch.mockImplementationOnce(
+      () => new Promise<Response>((resolve) => {
+        resolveStatus = resolve;
+      }),
+    );
+    authState.current = {
+      configured: true,
+      identityResolved: true,
+      user: { id: "acct-2" },
+    };
+
+    await act(async () => {
+      root.render(createElement(CreatePasswordPrompt));
+      await Promise.resolve();
+    });
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+    resolveStatus?.(Response.json({ handle: null, hasPassword: null }));
+    await settle();
+  });
 });
