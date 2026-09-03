@@ -27,13 +27,26 @@ export const HARVEST_SKIP_REASONS = [
   "robots-disallowed",
   "robots-unreadable",
   "terms-forbid-commercial-use",
+  // PERMITTED, AND STILL EMPTY. A chain whose robots admit us but whose prices
+  // live in its Order and Pay app publishes nothing a reader may take. That is
+  // a fact about the SOURCE and not about our permission, so it needs its own
+  // word: refusing it as `robots-disallowed` would libel a host that said yes,
+  // and dropping it from the table would lose the finding entirely.
+  "publishes-no-web-price",
   "no-firecrawl-key",
   "budget-exhausted",
   "not-scheduled-this-run",
 ] as const;
 export type HarvestSkipReason = (typeof HARVEST_SKIP_REASONS)[number];
 
-export type HarvestSourceKind = "chain-deals" | "venue-events" | "pub-facts";
+export type HarvestSourceKind =
+  | "chain-deals"
+  | "venue-events"
+  | "pub-facts"
+  // A chain's own published menu prices. Its own kind rather than a flavour of
+  // `chain-deals`, because a DEAL is an offer with a day on it and a PRICE is
+  // what a pint costs tonight, and only the second may reach a price surface.
+  | "chain-menu-prices";
 
 export type HarvestSourceAccess =
   | { allowed: true; evidence: string; checkedOn: string }
@@ -66,6 +79,9 @@ export type HarvestSource = {
 };
 
 const CHECKED_ON = "2026-08-09";
+
+/** The day the chain menu-price sources below were re-read, live. */
+const PRICE_CHECKED_ON = "2026-09-03";
 
 export const HARVEST_SOURCES: readonly HarvestSource[] = [
   // --- chain deals: first-party operator offers pages ----------------------
@@ -142,6 +158,69 @@ export const HARVEST_SOURCES: readonly HarvestSource[] = [
     },
     notes:
       "Refused on permission, not on reachability. Revisit if the estate publishes a readable robots.txt that admits a rendering crawler, or if Mitchells & Butlers offers a feed.",
+  },
+
+  // --- chain menu PRICES: permission, and then the separate question of
+  // whether anything is published ------------------------------------------
+  //
+  // These rows exist because price sources had no entry in this table at all,
+  // and that gap let the two governance tables disagree in production:
+  // data/price_sources.json marked Nicholson's permissible while the estate
+  // entry below refused it, and 1,914 Nicholson's rows shipped on the refused
+  // side of that contradiction. A price source is now fenced exactly like every
+  // other source, and the narrower rule binds.
+  //
+  // PERMISSION AND SUPPLY ARE TWO QUESTIONS. Both chains below said YES on
+  // 2026-09-03 and both publish no price a reader can take, which is why
+  // `publishes-no-web-price` exists as its own answer.
+  {
+    id: "greene-king-menu-prices",
+    label: "Greene King - pub menus",
+    url: "https://www.greeneking.co.uk/pubs",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: false,
+      reason: "publishes-no-web-price",
+      evidence:
+        "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` disallowing infrastructure paths only (/bin/, /media/, /sitecore/, /js/, /css/ and the booking query strings), with the single blanket Disallow aimed at Screaming Frog. The pub and menu paths are permitted. The refusal is NOT about permission: a per-pub menu page (/pubs/greater-london/sherlock-holmes/menu) answered 200 with 150 KB and NOT ONE price in the document. It is a Sitecore JSS app that renders its menu in the browser, and the served HTML carries no embedded price JSON either.",
+      checkedOn: PRICE_CHECKED_ON,
+    },
+    notes:
+      "Revisit when Greene King server-renders its menu or publishes a feed. Permission is already in hand, so the only thing missing is a price in the document. The 1,538 Greene King rows already in public/data/drink_price_updates are 863 wines and 675 cocktails with no beer among them, which is the same finding from the other direction.",
+  },
+  {
+    id: "wetherspoon-menu-prices",
+    label: "J D Wetherspoon - pub menus",
+    url: "https://www.jdwetherspoon.com/pub-menus-sitemap.xml",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: false,
+      reason: "publishes-no-web-price",
+      evidence:
+        "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` with an empty `Disallow:` (allow all) plus `Crawl-delay: 10`. The sitemap index publishes a pub-menus sitemap listing 828 per-pub menu pages, every one of them permitted. The refusal is NOT about permission: the menu page states its own answer in its own copy, `Download our app - See pricing and effortlessly order food and drinks to your table`. The page offers a PDF table menu and allergen information; the prices are in the app.",
+      checkedOn: PRICE_CHECKED_ON,
+    },
+    crawlDelaySeconds: 10,
+    notes:
+      "828 permitted pub-menu pages and no price on any of them. Revisit if the PDF table menu starts carrying prices, or if Wetherspoon publishes a price feed. Reading the app would need an agreement, not a crawler.",
+  },
+  {
+    id: "mitchells-butlers-menu-prices",
+    label: "Mitchells & Butlers pub menus (Nicholson's and estate)",
+    url: "https://www.nicholsonspubs.co.uk/",
+    kind: "chain-menu-prices",
+    firstParty: true,
+    access: {
+      allowed: false,
+      reason: "robots-unreadable",
+      evidence:
+        "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. This is the entry that settles the contradiction with data/price_sources.json.",
+      checkedOn: PRICE_CHECKED_ON,
+    },
+    notes:
+      "The one chain in the tree that DOES publish per-drink prices on the web, and the one we may not read. That asymmetry is the whole argument for asking Mitchells & Butlers for permission or a feed: it is the single largest lever on price coverage. Until then no Nicholson's page is read and no Nicholson's row may seed an estimate basis.",
   },
 
   // --- events: the one permitted listings reader, then the refused ---------
@@ -261,12 +340,34 @@ export function contextDevEventSources(): HarvestSource[] {
 }
 
 /**
+ * The skip reasons that mean WE MAY NOT READ THIS HOST, as opposed to the ones
+ * that mean we read it and there was nothing there, or we did not get to it
+ * this run.
+ *
+ * The distinction is load-bearing for `REFUSED_HOSTS` below. Greene King and
+ * Wetherspoon both gave permission and both publish no price, so their
+ * menu-price rows are refused for `publishes-no-web-price`. Folding that into a
+ * permission refusal would bar their own pub pages from every other lane, which
+ * would be a false statement about hosts that said yes.
+ */
+const PERMISSION_REFUSALS: ReadonlySet<HarvestSkipReason> = new Set([
+  "robots-disallowed",
+  "robots-unreadable",
+  "terms-forbid-commercial-use",
+]);
+
+/** True when a source is refused because we may not read it, not because it was empty. */
+export function isRefusedOnPermission(source: HarvestSource): boolean {
+  return !source.access.allowed && PERMISSION_REFUSALS.has(source.access.reason);
+}
+
+/**
  * A venue's own site is first-party by definition, so it needs no table row -
  * but it still has to be a real http(s) origin we can attribute, and it may
- * never be one of the refused hosts wearing a venue's name.
+ * never be one of the hosts we may not read, wearing a venue's name.
  */
 const REFUSED_HOSTS = new Set(
-  HARVEST_SOURCES.filter((source) => !source.access.allowed).map((source) => {
+  HARVEST_SOURCES.filter(isRefusedOnPermission).map((source) => {
     try {
       return new URL(source.url).hostname.replace(/^www\./, "");
     } catch {
