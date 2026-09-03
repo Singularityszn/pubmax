@@ -202,12 +202,14 @@ export async function recoverPlanMembership(
  * shipped. #1301 therefore kept a hand-rolled revoked-aware body, and #1294
  * carried the debt.
  *
- * 0135 closes it. The RPC counts ACTIVE seats only, and 0128's unique index is
- * narrowed to match, so a revoked seat no longer holds an account's place for
- * the life of the Plan. With the function reading the column, one atomic call
- * is strictly better than the two statements it replaces, which could
- * interleave between the update and the read-back and answer on a row that had
- * changed underneath them.
+ * 0135 closes the claim boundary. The RPC counts ACTIVE seats only, and 0128's
+ * unique index is narrowed to match, so a revoked seat no longer holds an
+ * account's place for the life of the Plan. The account-aware join and
+ * invite-redemption entry points have separate prechecks; migration 0136
+ * makes those revoked-aware too. With the function reading the column, one
+ * atomic call is strictly better than the two statements it replaces, which
+ * could interleave between the update and the read-back and answer on a row
+ * that had changed underneath them.
  *
  * The fallback still matters and is unchanged: where the FUNCTION is absent on
  * a current schema, `claimPlanMembership` drops to `legacyClaimPlanMembership`,

@@ -64,9 +64,12 @@ Check `supabase migration list` before any push or database action.
 The Plan account-claim follow-up migrations `0133` and `0134` are in the
 source ledger with matching rollback files. Their account-claim RPCs are
 already live in production, so the application change has no deploy-order
-hazard. Captain still owns reconciling and applying these source migration
-rows before treating their revised recovery and account-join behaviour as
-applied.
+hazard. Migrations `0135` and `0136` extend this lane and also have matching
+rollback files. `0135` makes the claim RPC and its unique index count active
+seats only. `0136` applies the same active-seat predicate to both account join
+and invite-redemption prechecks. Captain owns reconciling and applying
+`0135` and `0136`; do not treat revoked-seat join or invite redemption as live
+until `0136` is present in the remote ledger.
 
 The complete applied order is deliberately not copied here. Treat the live
 `supabase migration list` and the files in `supabase/migrations/` as authoritative.
