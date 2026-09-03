@@ -52,6 +52,7 @@
     "build:heritage-listings": "node scripts/build_heritage_listings.mjs",
     "pubpal:agent": "node scripts/pubpal/create-elevenlabs-agent.mjs",
     "gen:brand-assets": "node scripts/gen-brand-assets.mjs",
+    "gen:store-screenshots": "node scripts/gen-store-screenshots.mjs",
     "refresh:prices": "node scripts/refresh_prices.mjs",
     "refresh:drink-prices": "node scripts/refresh_drink_prices.mjs",
     "enrich:city": "node scripts/enrich_city_pubs_tavily.mjs",

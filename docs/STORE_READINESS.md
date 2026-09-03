@@ -21,6 +21,8 @@
 
 ## 1. App Store Optimisation (ASO)
 
+The copy below lives in `lib/storeListing.ts` with each store's character limit beside it, and `__tests__/storeAssets.test.ts` holds every field to its own limit. Edit it there; this section is the paste sheet.
+
 Keep the name clean and let the subtitle and keyword field carry the search terms. Do not stuff keywords into the name or subtitle, both stores penalise it and Apple bins duplicates between the name, subtitle, and keyword field.
 
 **App name (30 char max, Apple / 30 char, Google):**
@@ -35,9 +37,9 @@ Keep the name clean and let the subtitle and keyword field carry the search term
 > Leaving the office and want a good cheap pint near you? PUBMAXX shows the nearest pubs, what a pint costs, and a crawl route home. London only, for now.
 
 **Keyword field (Apple, 100 char, comma-separated, no spaces after commas to save characters):**
-> london pubs,pub crawl,pint prices,cheap pint,near me,nightlife,beer,happy hour,bars,pub finder,drinks
+> london pubs,pub crawl,pint prices,near me,nightlife,beer,happy hour,bars,pub finder,drinks,taproom
 
-(That string is 100 characters exactly. Do not repeat words already in the app name or subtitle, Apple indexes those for free. "pub" and "london" are already implied by the listing.)
+(98 characters. Do not repeat words already in the app name or subtitle, Apple indexes those for free. "cheap pint" used to sit here and was cut for exactly that reason: the subtitle already carries it, so it was spending eleven characters on a term Apple gives us. The old string was also 101 characters, one over the field, which nothing caught until `__tests__/storeAssets.test.ts` measured it.)
 
 **Google Play short description (80 char max):**
 > The nearest London pubs, what a pint costs, and a crawl route home.
@@ -200,20 +202,38 @@ Declare the following. Everything else: Not Collected.
 
 ## 6. Screenshot shot list
 
-Screenshots already exist in `docs/screenshots` from the Gate Z set (`docs/screenshots/GATE_Z_2026-07-12.md`), rendered at phone widths (390 and 430) in light and dark. Use the 430-wide light frames as the base, they map cleanly to the 6.5" and 6.7" required sizes. Reshoot inside the shell only if a device pass shows shell-specific chrome worth capturing.
+The set is GENERATED from the real screens, not cropped from an old QA run:
+
+```
+NEXT_DIST_DIR=.next-prod DEPLOYMENT_VERSION=$(git rev-parse HEAD) npm run build
+NEXT_DIST_DIR=.next-prod DEPLOYMENT_VERSION=$(git rev-parse HEAD) PORT=3100 npm start
+BASE=http://localhost:3100 npm run gen:store-screenshots
+```
+
+Output is `public/store-assets/screenshots/<size>/`, one folder per required
+store size, each with its shots and a `manifest.json` carrying the caption to
+paste beside each one. `__tests__/storeAssets.test.ts` reads the PNG headers, so
+a shot at the wrong pixel size fails rather than being discovered in the upload
+form.
+
+Two things the generator refuses on purpose. It will not shoot a `next dev`
+server, because the dev overlay badge paints straight onto the phone tab bar.
+And it renders each size at its own device viewport rather than upscaling one
+frame, because an upscaled 430-wide shot is what makes a listing look like a
+photographed website.
 
 **Order (first three carry the listing, most installs decide on those):**
 
-1. **Map, nearest pubs**: `map-clean-*-430.png` or `map-sheet-*-430.png`. Caption: "London pubs on the map." This is the core promise, lead with it.
-2. **Pint price on a venue**: `venue-desktop` equivalent at 430, or `map-sheet` with a price visible. Caption: "What a pint actually costs."
-3. **Crawl route**: `crawls-*-430.png` or `mobile-suggested-crawl.png`. Caption: "A crawl you can actually walk."
-4. **Tonight / what is on**: `tonight-*-430.png` or `w1-tonight-sheet-*.png`. Caption: "What is on across London tonight."
-5. **Activity / feed**: `activity-*-430.png` or `feed-*-430.png`. Caption: "Your night, logged."
-6. **Profile / private log**: `profile-you-*-430.png`. Caption: "Private. Yours. Not a feed."
+1. **Map, nearest pubs** (`/map`). Caption: "London pubs on the map." The core promise, lead with it.
+2. **Pint prices near you** (`/near`). Caption: "What a pint actually costs."
+3. **Crawl route** (`/crawls`). Caption: "A crawl you can actually walk."
+4. **Tonight** (`/tonight`). Caption: "What is on across London tonight."
+5. **Feed** (`/feed`). Caption: "Your night, logged."
+6. **Profile** (`/u/you`). Caption: "Private. Yours. Not a feed."
 
-**Required device sizes:**
-- Apple: 6.7" (1290x2796) and 6.5" (1242x2688) are the two that satisfy the current iPhone requirement. One set can cover both if uploaded at 6.7". iPad screenshots only needed if the app is offered on iPad (it is universal-capable, so either provide 12.9" iPad shots or set availability to iPhone only).
-- Google Play: minimum two, up to eight, phone screenshots at 16:9 or 9:16, min 320px, max 3840px. The 430-wide frames upscale fine. A feature graphic (1024x500) is also required, build it from the brand mark on the coral field.
+**Required device sizes** (all three are generated):
+- Apple: 6.7" (1290x2796) and 6.5" (1242x2688) satisfy the current iPhone requirement. Both are rendered, so no manual resize is needed at upload. iPad screenshots are only needed if the app is offered on iPad; otherwise set availability to iPhone only.
+- Google Play: minimum two, up to eight phone screenshots at 9:16, min 320px, max 3840px. The generated `play-phone` set is 1080x1920. A feature graphic (1024x500) is also required.
 
 **Feature graphic (Google Play, 1024x500):** ink-deep field (`#060607`) with the coral double-struck X mark, per the identity lock in section 7, plus wordmark "PUBMAXX" and tagline "Cheap pints near you." (text is fine on the feature graphic, the no-text rule applies to the icon and splash). Start from the `public/store-assets/splash.svg` composition (which keeps the ink field).
 
