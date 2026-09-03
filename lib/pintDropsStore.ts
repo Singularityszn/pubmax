@@ -15,6 +15,7 @@ import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata }
 import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
+  confirmationIsLive,
   isPintDropConfirmationBasis,
   type PintDropConfirmation,
 } from "@/lib/pintDropConfirmation";
@@ -62,6 +63,13 @@ import { londonDayKey } from "@/lib/pintContributions";
 import { PINT_DROPS_TABLE } from "@/lib/pintDropTable";
 
 const TABLE = PINT_DROPS_TABLE;
+
+/**
+ * The ceiling on ONE Pint Index build. It is deliberately far above today's
+ * confirmed count and the producer FAILS LOUD when it is reached, because a
+ * silently truncated Index drops the pubs it could not fit and says nothing.
+ */
+export const MAX_INDEX_CONFIRMED_DROPS = 5000;
 
 /** Bounded public reads: the visible listing never returns more than this. */
 export const MAX_PUBLIC_DROPS = 500;
@@ -180,6 +188,23 @@ export type PintDropStore = {
     confirmation: PintDropConfirmation,
     now?: number,
   ): Promise<boolean>;
+  /**
+   * Every publicly readable, priced drop carrying a LIVE confirmation, newest
+   * first, for the Pint Index producer. Capped at `MAX_INDEX_CONFIRMED_DROPS`;
+   * the producer compares the count against that cap and refuses to publish a
+   * truncated Index rather than dropping pubs in silence.
+   */
+  listConfirmedDrops(now?: number, limit?: number): Promise<PintDrop[]>;
+  /**
+   * Which of these venues the Index can date: those holding a live confirmation.
+   * ONE read for the whole page, because the missions surface asks about up to
+   * eight pubs at once and a per-pub read would be eight round trips for a
+   * question that is one.
+   */
+  listConfirmedVenueIds(
+    venueIds: readonly string[],
+    now?: number,
+  ): Promise<Set<string>>;
   /**
    * Duplicate guard (feat/price-drops-v2): true when `handle` has already logged
    * a PRICED drop at `venueId` on the current London calendar day. The route
@@ -592,6 +617,28 @@ export const memoryPintDropStore: PintDropStore = {
     }
     return wrote;
   },
+  async listConfirmedDrops(now = Date.now(), limit = MAX_INDEX_CONFIRMED_DROPS) {
+    return listConfirmedPintDrops()
+      .filter(
+        (drop) =>
+          drop.priceGbp !== null &&
+          isPubliclyReadableDrop(drop) &&
+          confirmationIsLive(drop.confirmation, now),
+      )
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, limit);
+  },
+  async listConfirmedVenueIds(venueIds, now = Date.now()) {
+    const wanted = new Set(venueIds);
+    const dated = new Set<string>();
+    for (const drop of listConfirmedPintDrops()) {
+      if (!wanted.has(drop.venueId)) continue;
+      if (!isPubliclyReadableDrop(drop)) continue;
+      if (!confirmationIsLive(drop.confirmation, now)) continue;
+      dated.add(drop.venueId);
+    }
+    return dated;
+  },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
   },
@@ -919,6 +966,37 @@ export const supabasePintDropStore: PintDropStore = {
       .select("id");
     if (error) throw new Error(error.message);
     return (data ?? []).length > 0;
+  },
+
+  async listConfirmedDrops(now = Date.now(), limit = MAX_INDEX_CONFIRMED_DROPS) {
+    const liveSince = new Date(now - PRICE_AUTHORITY_MAX_AGE_MS).toISOString();
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .eq("status", "visible")
+      .in("visibility", ["public", "anonymous"])
+      .not("price_gbp", "is", null)
+      .not("confirmation_id", "is", null)
+      .gte("confirmed_at", liveSince)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+    if (error) throw new Error(error.message);
+    return (data ?? []).map(fromRow);
+  },
+
+  async listConfirmedVenueIds(venueIds, now = Date.now()) {
+    if (venueIds.length === 0) return new Set<string>();
+    const liveSince = new Date(now - PRICE_AUTHORITY_MAX_AGE_MS).toISOString();
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("venue_id")
+      .eq("status", "visible")
+      .in("visibility", ["public", "anonymous"])
+      .in("venue_id", [...venueIds])
+      .not("confirmation_id", "is", null)
+      .gte("confirmed_at", liveSince);
+    if (error) throw new Error(error.message);
+    return new Set((data ?? []).map((row) => String(row.venue_id)));
   },
 
   /** ONE atomic RPC (migration 0112) writes the verified-account report ledger

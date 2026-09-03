@@ -64,6 +64,7 @@ import {
   revertOneTapCommunityPricePairing,
   writeOneTapPintDrop,
 } from "@/lib/oneTapPintDrop.server";
+import { confirmVenueBySecondReporter } from "@/lib/pintDropConfirm.server";
 import { qualifyCheapPintForOwnerActor } from "@/lib/cheapPintPingQualify.server";
 import { parsePriceSubmitPostBody } from "@/lib/priceSubmitPostBody.server";
 import { syncTrustAfterPriceWrite } from "@/lib/priceTrustImpact.server";
@@ -264,6 +265,12 @@ export async function POST(request: Request): Promise<Response> {
     );
   } else {
     void qualifyCheapPintForOwnerActor(contributor.actor);
+    // The paired drop is a real priced observation, so it can complete a
+    // confirmation exactly as a Pint Drop posted through /api/pint-drops can.
+    // Running the pass here too is what stops the two write lanes disagreeing
+    // about whether a pub is confirmed. It never throws and never fails the
+    // price that has already landed.
+    await confirmVenueBySecondReporter(submission.venueId);
   }
 
   const trust = await syncTrustAfterPriceWrite(

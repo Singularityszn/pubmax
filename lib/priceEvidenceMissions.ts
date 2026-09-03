@@ -36,6 +36,13 @@ export type VenueMissionRows = {
   venueId: string;
   prices: readonly CommunityPrice[];
   degraded?: boolean;
+  /**
+   * True when the public Pint Index cannot DATE this pub: no Pint Drop here
+   * holds a live confirmation. It changes the ORDER and never the reason, so no
+   * reading surface has to learn a new word, and the count of undated pubs is
+   * not something a client is told.
+   */
+  undated?: boolean;
 };
 
 export type MissionReceiptOutcome = "logged" | "trusted" | "needs_check";
@@ -96,6 +103,8 @@ function categoryOrder(category: DrinkCategory): number {
   return index === -1 ? SUBMITTABLE_DRINK_CATEGORIES.length : index;
 }
 
+type RankedMission = { mission: PriceEvidenceMission; undated: boolean };
+
 function candidateForVenue(
   venue: VenueMissionRows,
   now: number,
@@ -139,20 +148,34 @@ function candidateForVenue(
   return null;
 }
 
+/**
+ * The one mission to offer, most useful first.
+ *
+ * The REASON still decides, exactly as before: a provisional price one report
+ * away from trust beats a stale one, which beats a pub with nothing logged.
+ * Within a reason, a pub the public Pint Index cannot DATE comes first, because
+ * that is the pub where one more price turns a figure nobody can cite into one
+ * anybody can. It is a tie-break and never a promotion: an undated pub with
+ * nothing logged still ranks behind a dated pub whose price is one check away.
+ */
 export function rankPriceEvidenceMission(
   venues: readonly VenueMissionRows[],
   now: number = Date.now(),
   dismissed: ReadonlySet<string> = new Set(),
 ): PriceEvidenceMission | null {
-  const ranked: PriceEvidenceMission[] = [];
+  const ranked: RankedMission[] = [];
   for (const venue of venues) {
     const candidate = candidateForVenue(venue, now);
     if (!candidate) continue;
     if (dismissed.has(priceEvidenceMissionKey(candidate))) continue;
-    ranked.push(candidate);
+    ranked.push({ mission: candidate, undated: venue.undated === true });
   }
-  ranked.sort((left, right) => REASON_RANK[left.reason] - REASON_RANK[right.reason]);
-  return ranked[0] ?? null;
+  ranked.sort(
+    (left, right) =>
+      REASON_RANK[left.mission.reason] - REASON_RANK[right.mission.reason] ||
+      Number(right.undated) - Number(left.undated),
+  );
+  return ranked[0]?.mission ?? null;
 }
 
 export function toPriceEvidenceMissionDto(

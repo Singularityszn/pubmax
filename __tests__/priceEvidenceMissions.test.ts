@@ -43,6 +43,62 @@ function venues(entries: VenueMissionRows[]): VenueMissionRows[] {
   return entries;
 }
 
+describe("an undated pub comes first inside its own reason", () => {
+  // The Pint Index can only date a pub that holds a live confirmation. Among
+  // two equally useful tasks, the one that turns a figure nobody can cite into
+  // one anybody can is the better task.
+  it("prefers the pub the Index cannot date over one it can", () => {
+    const provisional = (venueId: string): CommunityPrice[] => [
+      row(venueId, "beer", { corroborations: 1 }),
+    ];
+    const mission = rankPriceEvidenceMission(
+      venues([
+        { venueId: "venue-dated", prices: provisional("venue-dated"), undated: false },
+        { venueId: "venue-undated", prices: provisional("venue-undated"), undated: true },
+      ]),
+      NOW,
+    );
+    expect(mission?.venueId).toBe("venue-undated");
+  });
+
+  it("is a tie-break and never a promotion over a stronger reason", () => {
+    // An undated pub with nothing logged is still a weaker task than a dated
+    // pub whose price is one independent check away from trust.
+    const mission = rankPriceEvidenceMission(
+      venues([
+        { venueId: "venue-missing", prices: [], undated: true },
+        {
+          venueId: "venue-provisional",
+          prices: [row("venue-provisional", "beer", { corroborations: 1 })],
+          undated: false,
+        },
+      ]),
+      NOW,
+    );
+    expect(mission).toMatchObject({ venueId: "venue-provisional", reason: "provisional" });
+  });
+
+  it("says nothing about dating in what a client is told", () => {
+    const mission = rankPriceEvidenceMission(
+      venues([
+        {
+          venueId: "venue-undated",
+          prices: [row("venue-undated", "beer", { corroborations: 1 })],
+          undated: true,
+        },
+      ]),
+      NOW,
+    );
+    expect(mission).not.toBeNull();
+    expect(Object.keys(toPriceEvidenceMissionDto(mission as PriceEvidenceMission))).toEqual([
+      "venueId",
+      "reason",
+      "drinkCategory",
+      "observedAt",
+    ]);
+  });
+});
+
 describe("rankPriceEvidenceMission", () => {
   it("ranks a current provisional category first", () => {
     const mission = rankPriceEvidenceMission(
