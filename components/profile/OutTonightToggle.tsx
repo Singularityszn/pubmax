@@ -15,6 +15,7 @@ import { useEffect, useState } from "react";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/nativeHaptics";
 import { getNightArea, tryGetNightArea, NIGHT_AREA_SLUGS, type NightAreaSlug } from "@/lib/nightAreas";
 import { normalizeHandle } from "@/lib/profiles";
 import OutTonightPlanCta from "@/components/profile/OutTonightPlanCta";
@@ -87,8 +88,10 @@ export default function OutTonightToggle({ handle }: Props) {
       };
       if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_on");
+      haptic("selection-kept");
       setState({ kind: "on", areaSlug: (body.checkIn?.areaSlug as NightAreaSlug) ?? null });
     } catch (err) {
+      haptic("action-refused");
       setWriteError(err instanceof Error ? err.message : "That didn't send. Give it another go.");
     } finally {
       setBusy(false);
@@ -107,8 +110,10 @@ export default function OutTonightToggle({ handle }: Props) {
       const body = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) throw new Error(errorMessageFrom(body, "That didn't send. Give it another go."));
       trackEvent("out_tonight_beacon_off");
+      haptic("selection-released");
       setState({ kind: "off" });
     } catch (err) {
+      haptic("action-refused");
       setWriteError(err instanceof Error ? err.message : "That didn't send. Give it another go.");
     } finally {
       setBusy(false);

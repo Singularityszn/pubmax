@@ -24,6 +24,8 @@ import { formatPrice } from "@/lib/venues";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import { useContributionGate } from "@/components/identity/ContributionGateDialog";
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/nativeHaptics";
+import { recordPlanHighIntentAction } from "@/lib/nativePushPrompt";
 import PriceContributionImpact from "@/components/map/PriceContributionImpact";
 import type { MissionSurface } from "@/lib/analyticsEvents";
 import {
@@ -296,10 +298,20 @@ export default function VenuePriceSubmit({
             error: result.error,
           };
         }
+        haptic("action-refused");
         setError(result.error);
         return;
       }
       trackEvent("price_submitted", { category });
+      // A Pint Drop is the action this whole product is built around, so it
+      // gets the one two-beat tap in the vocabulary. Fire-and-forget: the
+      // receipt below never waits on a vibrator (lib/nativeHaptics.ts).
+      haptic("contribution-kept");
+      // A price the drinker kept is the first kept action for most people, and
+      // until now only a plan could offer notifications. The explainer still
+      // decides whether to show (lib/nativePushPrompt.ts); this only says an
+      // action worth being offered one happened.
+      recordPlanHighIntentAction();
       const missionReceipt = mission
         ? missionReceiptFromReadback({ price: result.price })
         : undefined;

@@ -3,6 +3,7 @@
 import { useState } from "react";
 
 import { trackEvent } from "@/lib/analytics";
+import { haptic } from "@/lib/nativeHaptics";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { isUkBaseVenueId, type WantedDTO } from "@/lib/wanted";
@@ -46,12 +47,14 @@ export default function SaveForNightButton({
         } else {
           setToast(errorMessageFrom(body, "Could not save for a night."));
         }
+        haptic("action-refused");
         return;
       }
       trackEvent("wanted_created", {
         venueKind: body.wanted.venueKind,
         hasSourceUrl: false,
       });
+      haptic("selection-kept");
       setToast("Saved for a night.");
       window.setTimeout(() => setToast(null), 2500);
     } catch {

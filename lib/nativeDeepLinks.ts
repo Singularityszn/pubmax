@@ -6,8 +6,43 @@ import { isNativeApp } from "@/lib/nativePlatform";
 import { navigateNativeBrowser } from "@/lib/nativeNavigation";
 
 const APP_ORIGIN = "https://pubmaxxing.com";
-const ALLOWED_PATH_PREFIXES = ["/plan/", "/rounds/", "/p/"] as const;
-const ALLOWED_EXACT_PATHS = ["/auth/callback"] as const;
+
+/**
+ * The route families a shared PUBMAXX link may open the binary with. This list
+ * is the app's half of a THREE-WAY agreement, and the other two halves are
+ * data the platforms read rather than code: the iOS
+ * `public/.well-known/apple-app-site-association` components and the Android
+ * `autoVerify` intent filters. `__tests__/nativeWrap.test.ts` holds all three
+ * to each other, because a family added here alone silently keeps opening the
+ * browser, and one added to a manifest alone hands the shell a URL this module
+ * then refuses.
+ *
+ * `/map/` and the two venue permalinks are here because they are what a person
+ * actually shares from this app: a pub, and the city someone is drinking in.
+ * `/venue/` and `/pub/` are server redirects onto `/map?sel=<id>`
+ * (app/venue/[slug]/route.ts, lib/venuePermalinkRedirect.ts), so they land on
+ * the same surface as the map link rather than a second pub page.
+ */
+const ALLOWED_PATH_PREFIXES = [
+  "/plan/",
+  "/rounds/",
+  "/p/",
+  "/map/",
+  "/venue/",
+  "/pub/",
+] as const;
+
+/**
+ * `/map` is EXACT rather than a prefix because the map's own deep link carries
+ * its pub in the query (`/map?sel=<venueId>`, the one contract in
+ * docs/MOBILE_FLOW_SPEC.md §3) and the path itself has nothing after it. The
+ * prefix above covers `/map/<city>`, which is a different route.
+ */
+const ALLOWED_EXACT_PATHS = ["/auth/callback", "/map"] as const;
+
+/** Both halves of the allow list, in the order the manifests declare them. */
+export const NATIVE_DEEP_LINK_PATH_PREFIXES: readonly string[] = ALLOWED_PATH_PREFIXES;
+export const NATIVE_DEEP_LINK_EXACT_PATHS: readonly string[] = ALLOWED_EXACT_PATHS;
 
 function isAllowedPath(pathname: string): boolean {
   return (

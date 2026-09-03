@@ -39,6 +39,35 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/p/" />
             </intent-filter>
+            <!-- A shared pin is /map?sel=<venueId>: the pub rides the query, so
+                 the path itself is exact. /map/<city> is the separate prefix
+                 below. Both mirror lib/nativeDeepLinks.ts. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:path="/map" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/map/" />
+            </intent-filter>
+            <!-- Venue and pub permalinks redirect server-side onto /map?sel=,
+                 so they open the pin rather than a second pub page. -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/venue/" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="pubmaxxing.com" android:pathPrefix="/pub/" />
+            </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -61,4 +90,11 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Android 13 made notifications a runtime permission. Undeclared, the
+         request lib/nativePush.ts makes cannot be granted and registration
+         fails silently on every modern device: no dialog, no token, no error a
+         reader would ever see. Declaring it does not ask for anything - the
+         contextual explainer (lib/nativePushPrompt.ts) is still the only thing
+         that triggers the OS dialog, and only after a kept action. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 </manifest>

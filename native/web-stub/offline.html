@@ -1,36 +1,72 @@
 <!doctype html>
-<html lang="en">
+<html lang="en-GB">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="light dark" />
-    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#fbf8f0" />
-    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#090806" />
-    <title>PUBMAXX is offline</title>
+    <meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f2ec" />
+    <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#0a0a0b" />
+    <title>PUBMAXXING is offline</title>
+    <!--
+      The one screen in the app that cannot import anything.
+
+      Capacitor bundles this file into the binary and serves it through
+      server.errorPath when the main frame cannot reach production, so it runs
+      with no network, no app CSS and no React. It is therefore the only place
+      in the tree that restates token VALUES rather than reading them, and the
+      values below are copied from app/globals.css (light) and app/theme.css
+      (dark). __tests__/nativeWrap.test.ts holds the copy to the source.
+
+      It is still built to the launch shape (docs/design/LAUNCH_SCREENS.md and
+      the Screen primitive): kicker, heading, one line, ONE primary action and
+      nothing else. No blur, no gradient, no card inside a card - the template
+      patterns docs/VOICE.md bans do not get an exemption for being offline.
+    -->
     <style>
       :root {
         color-scheme: light dark;
-        font-family: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-        --bg: #fbf8f0;
-        --panel: #fffdf7;
-        --ink: #16122a;
-        --soft: #625d70;
-        --line: #d9d2c5;
-        --coral: #db3942;
+
+        /* Launch tokens, light. Copied from app/globals.css. */
+        --paper: #f8f2ec;
+        --panel-raised: #fdf9f4;
+        --ink: #17171a;
+        --ink-soft: #3f3f46;
+        --muted: #666670;
+        --hairline: #e2e0e3;
+        --brass: #ff5a5f;
+        --on-accent: #17171a;
+
+        /* Type, space and shape. */
+        --font-body: ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --text-sm: 0.85rem;
+        --text-base: 1rem;
+        --text-3xl: 2.6rem;
+        --leading-tight: 1.05;
+        --leading-normal: 1.55;
+        --tracking-tight: -0.03em;
+        --space-2: 8px;
+        --space-4: 16px;
+        --space-6: 24px;
+        --space-8: 32px;
+        --radius-lg: 18px;
+        --control-radius: 14px;
       }
 
       @media (prefers-color-scheme: dark) {
         :root {
-          --bg: #090806;
-          --panel: #171712;
-          --ink: #fff8e7;
-          --soft: #c9c0ac;
-          --line: #403d34;
-          --coral: #ff5a5f;
+          /* Launch tokens, dark. Copied from app/theme.css. */
+          --paper: #0a0a0b;
+          --panel-raised: #202024;
+          --ink: #eef3ef;
+          --ink-soft: #c9c9ce;
+          --muted: #9a9aa0;
+          --hairline: #3b3a37;
         }
       }
 
-      * { box-sizing: border-box; }
+      * {
+        box-sizing: border-box;
+      }
 
       body {
         min-height: 100vh;
@@ -38,55 +74,63 @@
         margin: 0;
         display: grid;
         place-items: center;
+        /* The shell draws under the status bar and the home indicator, so the
+           inset is the floor and the gutter is the minimum. */
         padding:
-          max(24px, env(safe-area-inset-top, 0px))
-          max(20px, env(safe-area-inset-right, 0px))
-          max(24px, env(safe-area-inset-bottom, 0px))
-          max(20px, env(safe-area-inset-left, 0px));
-        background: var(--bg);
+          max(var(--space-6), env(safe-area-inset-top, 0px))
+          max(var(--space-6), env(safe-area-inset-right, 0px))
+          max(var(--space-6), env(safe-area-inset-bottom, 0px))
+          max(var(--space-6), env(safe-area-inset-left, 0px));
+        background: var(--paper);
         color: var(--ink);
+        font-family: var(--font-body);
+        /* A WebView with nothing to scroll should not bounce, exactly as
+           components/native/nativeShell.css settles it for the live app. */
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       main {
-        width: min(100%, 420px);
-        padding: 28px;
-        border: 1px solid var(--line);
-        border-radius: 18px;
-        background: var(--panel);
-        box-shadow: 0 18px 55px rgb(0 0 0 / 12%);
+        width: min(100%, 26rem);
+        padding: var(--space-8);
+        border-radius: var(--radius-lg);
+        background: var(--panel-raised);
+        /* One hairline, not a border: the de-box rule in docs/DESIGN_SYSTEM.md. */
+        box-shadow: inset 0 0 0 1px var(--hairline);
       }
 
-      .mark {
-        width: 46px;
-        height: 46px;
-        margin-bottom: 26px;
-        color: var(--coral);
+      .kicker {
+        margin: 0 0 var(--space-4);
+        color: var(--muted);
+        font-size: var(--text-sm);
+        font-weight: 600;
       }
 
       h1 {
         margin: 0;
-        font-size: clamp(1.75rem, 8vw, 2.35rem);
-        line-height: 1;
-        letter-spacing: -0.04em;
+        font-size: var(--text-3xl);
+        line-height: var(--leading-tight);
+        letter-spacing: var(--tracking-tight);
       }
 
       p {
-        margin: 16px 0 0;
-        color: var(--soft);
-        font-size: 1rem;
-        line-height: 1.55;
+        margin: var(--space-4) 0 0;
+        color: var(--ink-soft);
+        font-size: var(--text-base);
+        line-height: var(--leading-normal);
       }
 
       button {
         width: 100%;
         min-height: 48px;
-        margin-top: 24px;
+        margin-top: var(--space-6);
+        padding: 0 var(--space-4);
         border: 0;
-        border-radius: 999px;
-        background: var(--coral);
-        color: #fff;
+        border-radius: var(--control-radius);
+        background: var(--brass);
+        color: var(--on-accent);
         font: inherit;
-        font-weight: 800;
+        font-weight: 700;
         cursor: pointer;
       }
 
@@ -94,17 +138,35 @@
         outline: 3px solid var(--ink);
         outline-offset: 3px;
       }
+
+      @media (prefers-reduced-motion: no-preference) {
+        button {
+          transition: transform 120ms ease-out;
+        }
+        button:active {
+          transform: scale(0.98);
+        }
+      }
     </style>
   </head>
   <body>
     <main>
-      <svg class="mark" viewBox="0 0 64 64" aria-hidden="true">
-        <path d="M18.5 18.5 L45.5 45.5 M45.5 18.5 L18.5 45.5" fill="none" stroke="currentColor" stroke-width="8.5" stroke-linecap="round" />
-        <circle cx="32" cy="32" r="4" fill="currentColor" />
-      </svg>
-      <h1>No signal yet.</h1>
-      <p>PUBMAXX needs a connection for live prices, opening times, and travel. Nothing stale is being shown.</p>
-      <button type="button" onclick="window.location.replace('https://pubmaxxing.com')">Try again</button>
+      <p class="kicker">No connection</p>
+      <h1>Nothing to show yet.</h1>
+      <p>
+        PUBMAXXING needs a connection for live prices, opening times and travel.
+        Nothing stale is being shown.
+      </p>
+      <button type="button" id="retry">Try again.</button>
     </main>
+    <script>
+      // The shell serves this file from the bundle, so reloading it would only
+      // ever redraw this page. Going to the origin is the retry: the entry
+      // decision (lib/entryDecision.ts) then lands the person on /tonight, and
+      // a still-dead network simply brings them back here.
+      document.getElementById("retry").addEventListener("click", function () {
+        window.location.replace("https://pubmaxxing.com");
+      });
+    </script>
   </body>
 </html>
