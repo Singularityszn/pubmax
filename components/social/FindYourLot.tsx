@@ -45,7 +45,7 @@ export default function FindYourLot({
   compact?: boolean;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const { accountRevision, user } = useAuth();
+  const { accountRevision } = useAuth();
   // A sign-in door is a claim about the viewer, so it waits for the live
   // session. While that is unresolved this lane offers the claim-a-handle
   // route to nobody and the sign-in route to nobody.
