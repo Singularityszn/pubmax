@@ -128,8 +128,8 @@ export function groupOutListings(rows: readonly WhatsOnRow[]): OutListingGroup[]
   });
 }
 
-/** Single reader-facing label for the resolved venue badge on /out listings. */
-export const OUT_LISTING_VENUE_BADGE_LABEL = "PUBMAXX venue";
+/** Single reader-facing label for the resolved place badge on /out listings. */
+export const OUT_LISTING_VENUE_BADGE_LABEL = "On PUBMAXX";
 
 /** The pub beside a gig is the resolved venue on the row, or an honest absence. */
 export function outListingPubPair(row: WhatsOnRow): OutListingPubPair {

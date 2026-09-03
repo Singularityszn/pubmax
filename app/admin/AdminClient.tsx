@@ -292,6 +292,7 @@ function SocialPostModerationQueue({
   onDecision,
   onRetry,
   retryDisabled,
+  sessionEntry,
   headingRef,
 }: {
   posts: ModeratorSocialPost[];
@@ -302,6 +303,7 @@ function SocialPostModerationQueue({
   onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
   onRetry: () => void;
   retryDisabled: boolean;
+  sessionEntry?: React.ReactNode;
   headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   return (
@@ -322,26 +324,29 @@ function SocialPostModerationQueue({
           </button>
         </div>
       ) : state === "unavailable" ? (
-        <div className="admin-empty" role="alert">
-          <span>
-            {
-              adminQueueUnavailable(
-                "Social posts",
-                unavailableReason ?? "unreachable",
-              ).text
-            }
-          </span>
-          {unavailableReason !== "session" ? (
-            <button
-              type="button"
-              className="admin-retry"
-              onClick={onRetry}
-              disabled={retryDisabled}
-            >
-              Try again
-            </button>
-          ) : null}
-        </div>
+        <>
+          <div className="admin-empty" role="alert">
+            <span>
+              {
+                adminQueueUnavailable(
+                  "Social posts",
+                  unavailableReason ?? "unreachable",
+                ).text
+              }
+            </span>
+            {unavailableReason !== "session" ? (
+              <button
+                type="button"
+                className="admin-retry"
+                onClick={onRetry}
+                disabled={retryDisabled}
+              >
+                Try again
+              </button>
+            ) : null}
+          </div>
+          {unavailableReason === "session" ? sessionEntry : null}
+        </>
       ) : posts.length === 0 && state === "ready" ? (
         <div className="admin-empty">
           <strong>No Social posts awaiting review</strong>
@@ -905,10 +910,18 @@ export default function AdminClient() {
 
   const resumeSocialSession = useCallback(async () => {
     setSessionEstablished(true);
+    setSessionRecoveryNeeded(false);
     setMessage(null);
     const requestGeneration = ++socialPostsRequestGeneration.current;
     await loadSocialPosts({ status: "open" }, requestGeneration);
   }, [loadSocialPosts]);
+
+  const resumeImportSession = useCallback(async () => {
+    setSessionEstablished(true);
+    setSessionRecoveryNeeded(false);
+    setImportMsg(null);
+    await loadImportNotes();
+  }, [loadImportNotes]);
 
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
@@ -1789,6 +1802,7 @@ export default function AdminClient() {
             onDecision={(post, action) => void decideSocialPost(post, action)}
             onRetry={() => void load(true)}
             retryDisabled={loading}
+            headingRef={socialPostsHeadingRef}
             sessionEntry={
               <AdminSessionEntry
                 submitLabel="Resume moderation"
@@ -2327,6 +2341,12 @@ export default function AdminClient() {
             <div className="admin-msg" role={importMsg.tone}>
               {importMsg.text}
             </div>
+          ) : null}
+          {sessionRecoveryNeeded ? (
+            <AdminSessionEntry
+              submitLabel="Resume import"
+              onOpened={resumeImportSession}
+            />
           ) : null}
 
           <form

@@ -207,6 +207,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
       <div className="wantedCapture__row">
         <input
           id="wanted-paste"
+          type="text"
           className="wantedCapture__input"
           value={paste}
           onChange={(event) => setPaste(event.target.value)}
@@ -228,6 +229,7 @@ export default function WantedCapture({ onSaved, prefill }: Props): React.JSX.El
       </label>
       <input
         id="wanted-note"
+        type="text"
         className="wantedCapture__note"
         value={note}
         onChange={(event) => setNote(event.target.value)}

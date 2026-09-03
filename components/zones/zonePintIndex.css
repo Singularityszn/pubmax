@@ -134,6 +134,19 @@ button.zonePintCell:active {
   font-size: 0.8rem;
 }
 
+/* Sits between the tax line and the method note: quieter than the figure it
+   explains, louder than the method it is not part of. */
+.zonePintIndexOrderNote {
+  margin: 0;
+  font-size: 0.8rem;
+  line-height: 1.45;
+  color: var(--ink-soft);
+}
+
+.isCompact .zonePintIndexOrderNote {
+  font-size: 0.74rem;
+}
+
 .zonePintIndexMethod {
   margin: 0;
   font-size: 0.74rem;

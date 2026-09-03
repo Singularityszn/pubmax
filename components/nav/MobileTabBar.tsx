@@ -17,6 +17,11 @@ import {
 import { useSocialFriendsLaunch } from "@/lib/useSocialFriendsLaunch";
 import { requestMobileSheetDismiss } from "@/lib/mobileShell";
 import {
+  preferredCityMapHref,
+  readPreferredCity,
+  subscribePreferredCity,
+} from "@/lib/cityPreference";
+import {
   readSoftKeyboardOpen,
   serverSoftKeyboardOpen,
   subscribeSoftKeyboard,
@@ -51,12 +56,13 @@ type Tab = {
 
 const warmedTabs = new Set<string>();
 
-// Map always opens the canonical /map surface. Now follows London wall clock.
+// Map follows preferred city after mount, with /map as the server fallback. Now follows London wall clock.
 // Exported for the launch-aware tab contract test.
 export function buildTabs(
   youHref = "/u/you",
   nowHref: "/today" | "/tonight" = "/today",
   socialFriendsLaunchEnabled = true,
+  mapHref = "/map",
 ): Tab[] {
   const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
   return PRIMARY_NAV_ITEMS
@@ -68,7 +74,7 @@ export function buildTabs(
         item.key === "now"
           ? nowHref
           : item.key === "map"
-            ? "/map"
+            ? mapHref
             : item.key === "you"
               ? youHref
               : item.href,
@@ -107,6 +113,12 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
     nowTabHref,
     serverNowTabHref,
   );
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    readPreferredCity,
+    () => null,
+  );
+  const mapHref = preferredCity ? preferredCityMapHref() : "/map";
   // You tab: when identity is known, point straight at /u/<handle> instead of
   // the /u/you sentinel (which client-redirects after mount and doubles the
   // navigation cost — the cold-tap 846ms prod median). Unknown identity takes
@@ -130,8 +142,8 @@ function MobileTabBarContent({ pathname }: { pathname: string }) {
   );
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const tabs = useMemo(
-    () => buildTabs(youHref, nowHref, socialFriendsLaunchEnabled),
-    [socialFriendsLaunchEnabled, youHref, nowHref],
+    () => buildTabs(youHref, nowHref, socialFriendsLaunchEnabled, mapHref),
+    [socialFriendsLaunchEnabled, youHref, nowHref, mapHref],
   );
   // Drives the gliding highlight pill (mobileNav.css). -1 (no match — e.g. a
   // route none of the tabs own) hides it via CSS rather than pinning it to a

@@ -64,8 +64,6 @@ describe("the listings come before the line about what is missing", () => {
   it("keeps the read's own status lines above the listings", () => {
     const statusAt = outClient.indexOf("outStatusLines({ body, failed })");
     const surfaceAt = outClient.indexOf('className="outListingSurface"');
-    // A read that could not answer is not an apology about coverage: it says
-    // the listings on screen may be incomplete, so it belongs before them.
     expect(statusAt).toBeGreaterThan(-1);
     expect(statusAt).toBeLessThan(surfaceAt);
   });

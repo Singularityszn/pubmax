@@ -110,6 +110,7 @@ export default function PlanDescribeFirst({
         <label className="planComposer__srOnly" htmlFor="plan-describe-first-query">Describe the outing</label>
         <input
           id="plan-describe-first-query"
+          type="text"
           value={query}
           onChange={(event) => {
             setTouched(true);
