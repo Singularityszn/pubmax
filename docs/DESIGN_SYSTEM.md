@@ -75,7 +75,7 @@ hairlines for structure (see "Edges: the de-box rule").
 control with `--accent-action`; nothing else on that screen wears it.
 
 **Status and price.** `--pint` (`--color-positive`, a confirmed price),
-`--amber` (`--color-caution`, the held scraped lane), `--brick`
+`--amber` (`--color-caution`, a price the pub or its chain published), `--brick`
 (`--color-negative`), `--river` (`--color-info`). Prices read as brass plaques
 through `--accent-price` and `--accent-price-ink`. Counts and metadata take the
 neutral `--badge-surface`, `--badge-border`, `--badge-ink`. "You are here" is
@@ -104,8 +104,10 @@ press. Every animation sits behind the reduced-motion contract.
 `--z-overlay-top`. Never a literal.
 
 The four primitives: `Kicker` is the sentence-case line above a heading;
-`TrustPill` is green for a price confirmed inside 30 days, grey for none, amber
-defined and passed by nothing until London is re-collected (#1329);
+`TrustPill` is a pure renderer over the one standing `lib/priceTier.ts`
+decided: green for a price confirmed inside 30 days, amber for one the pub or
+its chain published, blue for a modelled figure, which prints `est. £X` and
+offers its method, and grey for none;
 `EmptyState` is a title, one line and at most one quiet way onward; `Screen` is
 kicker, heading, one painted primary and at most one secondary, in that order at
 every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.

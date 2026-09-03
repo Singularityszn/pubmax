@@ -161,7 +161,7 @@ Three, and they are the load-bearing part of this work.
 
 ## Surfaces
 
-**TrustPill** (`components/prices/TrustPill.tsx`) is the reader-facing standing:
+**TrustPill** (`components/ui/trust-pill.tsx`) is the reader-facing standing, and it is a PURE RENDERER: it takes a decided standing and re-decides nothing, so no second opinion about a price can exist. Its words come from `lib/trustPill.ts`, which owns the pill's text and no vocabulary of its own.
 one shape, four tones, the figure through `priceStandingFigure`, and for an
 estimate the method link plus its basis note. It renders for `none` too.
 

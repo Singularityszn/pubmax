@@ -1,30 +1,22 @@
-// The words and the tones a trust pill may carry. Pure: no React, no store.
+// The words a trust pill prints. Pure: no React, no store.
 //
-// A trust pill sits beside a price and says how far to trust it. Captain
-// decision 2026-09-03 (issue #1354): green means a drinker confirmed the price
-// inside the authority window, grey means nobody has. Amber is the scraped
-// lane and is HELD until London is re-collected as dated Pint Drops (#1329),
-// so the tone exists here, is styled, and is passed by nothing. The fence in
-// __tests__/launchPrimitives.test.tsx keeps it that way.
+// ONE DECIDER, AND IT IS NOT THIS FILE. What a price is worth is
+// `lib/priceTier.ts`: the four standings, the ages, the labels and the figure
+// formatter all live there, and this module only turns a decided standing into
+// the text a pill shows. Captain decision 2026-09-03: this file used to carry a
+// second tone vocabulary (`confirmed | none | held`, amber held back until
+// London was re-collected) and the two drifted apart within a day of each other
+// shipping. The hold is over and the vocabulary is one.
 //
-// Colour never carries the meaning on its own: every tone prints a word, and
-// the confirmed tone prints the day too, so a reader who cannot see green
+// Colour never carries the meaning on its own: every standing prints a word,
+// the confirmed standing prints the day too, so a reader who cannot see green
 // still reads "Confirmed 3 Sept".
 
-import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
-
-export const TRUST_PILL_TONES = ["confirmed", "none", "held"] as const;
-export type TrustPillTone = (typeof TRUST_PILL_TONES)[number];
-
-/** The tones a launch surface may pass today. `held` waits for #1329. */
-export const TRUST_PILL_LIVE_TONES = ["confirmed", "none"] as const;
-export type TrustPillLiveTone = (typeof TRUST_PILL_LIVE_TONES)[number];
-
-export const TRUST_PILL_LABEL: Record<TrustPillTone, string> = {
-  confirmed: "Confirmed",
-  none: "No price logged",
-  held: "Scraped",
-};
+import {
+  priceStandingLabel,
+  type PriceStanding,
+  type PriceStandingDecision,
+} from "@/lib/priceTier";
 
 const LONDON_DAY = new Intl.DateTimeFormat("en-GB", {
   day: "numeric",
@@ -38,26 +30,36 @@ export function formatTrustDay(atMs: number): string {
 }
 
 /**
- * Which live tone a price earns from its last confirmation. A confirmation
- * inside the 30 day authority window is green; anything older, or no
- * confirmation at all, is grey. A future timestamp is a data fault and reads
- * as unconfirmed rather than as fresh.
+ * The CSS tone a standing wears. Read from `PRICE_STANDING_TONE` rather than
+ * restated, so the pill and every other surface colour a standing the same way.
+ * `modelled` is its own tone on purpose: an estimate that looked as confident
+ * as a published price is the one failure this component exists to prevent.
  */
-export function trustToneForConfirmation(
-  confirmedAtMs: number | null | undefined,
-  now: number = Date.now(),
-): TrustPillLiveTone {
-  if (typeof confirmedAtMs !== "number" || !Number.isFinite(confirmedAtMs)) return "none";
-  const age = now - confirmedAtMs;
-  if (age < 0) return "none";
-  return age <= PRICE_AUTHORITY_MAX_AGE_MS ? "confirmed" : "none";
-}
+export { PRICE_STANDING_TONE as TRUST_PILL_TONE } from "@/lib/priceTier";
 
-/** The whole label for a tone: the word, plus the day when there is one. */
-export function trustPillLabel(tone: TrustPillTone, confirmedAtMs?: number | null): string {
-  const word = TRUST_PILL_LABEL[tone];
-  if (tone === "confirmed" && typeof confirmedAtMs === "number" && Number.isFinite(confirmedAtMs)) {
+/**
+ * The whole label for a standing: the word, plus the day on a confirmed price.
+ *
+ * The word comes from `priceStandingLabel`, so a standing renamed there is
+ * renamed here, and a fifth standing added there cannot silently print nothing.
+ * The day is only ever printed on `confirmed`, because a listed price shows its
+ * source date beside it and a modelled figure has no observation to date.
+ */
+export function trustPillLabel(standing: PriceStanding, confirmedAtMs?: number | null): string {
+  const word = priceStandingLabel(standing);
+  if (standing === "confirmed" && typeof confirmedAtMs === "number" && Number.isFinite(confirmedAtMs)) {
     return `${word} ${formatTrustDay(confirmedAtMs)}`;
   }
   return word;
+}
+
+/**
+ * The day a decision was confirmed, in epoch ms, or null. A decision that is
+ * not `confirmed` has no confirmation day, so it answers null rather than
+ * dating itself off whatever `asOf` happens to carry.
+ */
+export function confirmedAtMsOf(decision: PriceStandingDecision): number | null {
+  if (decision.standing !== "confirmed" || !decision.asOf) return null;
+  const ms = Date.parse(decision.asOf);
+  return Number.isFinite(ms) ? ms : null;
 }
