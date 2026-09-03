@@ -358,6 +358,13 @@ describe("DealsTonightLane", () => {
 });
 
 describe("Tonight rail ending-soon row", () => {
+  function primaryDeal(overrides: Partial<WhatsOnRow> & { id: string }): WhatsOnRow {
+    return deal({
+      source: { label: "Independent pub listing", url: "https://example.com/listing" },
+      ...overrides,
+    });
+  }
+
   function summary(rows: WhatsOnRow[]) {
     return renderToStaticMarkup(
       createElement(TonightOnTonightSummary, {
@@ -371,9 +378,9 @@ describe("Tonight rail ending-soon row", () => {
 
   it("appears, with a real count, only when deals really are about to close", () => {
     const html = summary([
-      deal({ id: "soon-a", endsAt: new Date(NOW + 45 * 60 * 1000).toISOString() }),
-      deal({ id: "soon-b", endsAt: new Date(NOW + 100 * 60 * 1000).toISOString() }),
-      deal({ id: "later", endsAt: new Date(NOW + 6 * HOUR).toISOString() }),
+      primaryDeal({ id: "soon-a", endsAt: new Date(NOW + 45 * 60 * 1000).toISOString() }),
+      primaryDeal({ id: "soon-b", endsAt: new Date(NOW + 100 * 60 * 1000).toISOString() }),
+      primaryDeal({ id: "later", endsAt: new Date(NOW + 6 * HOUR).toISOString() }),
     ]);
     expect(html).toContain("Deals ending soon");
     expect(html).toMatch(/Deals ending soon[\s\S]{0,60}>\s*2</);
@@ -383,18 +390,18 @@ describe("Tonight rail ending-soon row", () => {
   });
 
   it("stays away when nothing closes inside the window", () => {
-    expect(summary([deal({ id: "later", endsAt: new Date(NOW + 6 * HOUR).toISOString() })])).not.toContain(
+    expect(summary([primaryDeal({ id: "later", endsAt: new Date(NOW + 6 * HOUR).toISOString() })])).not.toContain(
       "Deals ending soon",
     );
   });
 
   it("stays away when the only deal has already closed", () => {
-    const rows = [deal({ id: "closed", endsAt: new Date(NOW - 60_000).toISOString() })];
+    const rows = [primaryDeal({ id: "closed", endsAt: new Date(NOW - 60_000).toISOString() })];
     expect(summary(rows)).not.toContain("Deals ending soon");
   });
 
   it("stays away on a night with no deals at all", () => {
-    const quiz: WhatsOnRow = { ...deal({ id: "quiz" }), kind: "quiz", title: "Quiz night" };
+    const quiz: WhatsOnRow = { ...primaryDeal({ id: "quiz" }), kind: "quiz", title: "Quiz night" };
     expect(summary([quiz])).not.toContain("Deals ending soon");
   });
 });

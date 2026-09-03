@@ -9,6 +9,7 @@ import {
   type TonightOutAnswer,
   type TonightWhatsOnStatus,
 } from "@/lib/tonightOutListings";
+import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import {
   loadWhatsOn,
   type LoadWhatsOnResult,
@@ -39,13 +40,22 @@ export function todayPicksReadStatus(
   whatsOnRows: readonly import("@/lib/whatsOn").WhatsOnRow[] = [],
 ): PicksListReadStatus {
   const whatsOnStatus = whatsOnStatusForTonightListings(whatsOnReadStatus, whatsOnRowCount);
+  const primaryOut = out.body
+    ? {
+        ...out,
+        body: {
+          ...out.body,
+          events: tonightPrimaryRows(out.body.events),
+        },
+      }
+    : out;
   const listingsStatus = tonightListingsStatus(
     whatsOnStatus,
-    out,
+    primaryOut,
     now,
-    whatsOnRows,
+    tonightPrimaryRows(whatsOnRows),
     undefined,
-    false,
+    true,
   );
   return listingsStatus === "error" ? "degraded" : "ready";
 }
@@ -88,11 +98,11 @@ export function mergeTodayListingRows(
   whatsOnStatus: TonightWhatsOnStatus = whatsOnRows.length > 0 ? "ready" : "empty",
 ): import("@/lib/whatsOn").WhatsOnRow[] {
   return mergeTonightListingRows(
-    whatsOnRows,
-    out.body?.events ?? [],
+    tonightPrimaryRows(whatsOnRows),
+    tonightPrimaryRows(out.body?.events ?? []),
     now,
     whatsOnStatus,
     undefined,
-    false,
+    true,
   );
 }
