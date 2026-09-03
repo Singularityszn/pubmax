@@ -10,7 +10,15 @@
     "viewport": { "width": 390, "height": 844 },
     "thirdPartyBlocked": true,
     "futureDeviceMigration": "A later DPR-3 migration is possible, but it must re-seed every ceiling in one commit. playwright.config.ts already has iPhone 14 wiring; the cost is re-measurement, not plumbing.",
-    "countedUpTo": "route interactive: its readiness gate, no earlier than the window load event. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is."
+    "countedUpTo": "route interactive: the later of the document's own load event and the first in-page frame on which the route's readiness gate held. A resource counts if it STARTED before that moment, so the post-paint background warmup is excluded by construction rather than by how fast the box is.",
+    "boundaryClock": "page",
+    "sampleSpreadWarnPct": 12,
+    "sampleSpreadFloors": {
+      "serverRenderMs": 25,
+      "jsDecodedKB": 20,
+      "requests": 3,
+      "lcpMs": 250
+    }
   },
   "routes": [
     {
