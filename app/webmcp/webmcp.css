@@ -227,6 +227,15 @@
   line-height: 1.45;
 }
 
+.webmcpStops .webmcpAlternatives {
+  margin-top: 7px;
+  color: var(--muted);
+  font-size: var(--text-xs);
+  overflow-wrap: anywhere;
+}
+
+.webmcpAlternatives strong { color: var(--ink-soft); }
+
 .webmcpRouteMeta {
   display: flex;
   flex-wrap: wrap;
@@ -249,6 +258,18 @@
   color: var(--ink-soft);
   line-height: 1.5;
 }
+
+.webmcpProvenance {
+  margin-top: 14px;
+  padding-top: 13px;
+  border-top: 1px solid var(--hairline);
+  color: var(--ink-soft);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+}
+
+.webmcpProvenance > strong { color: var(--ink); }
+.webmcpProvenance ul { margin: 6px 0 0; padding-left: 18px; }
 
 .webmcpOpen { width: 100%; margin-top: 18px; }
 
@@ -331,6 +352,14 @@
 }
 
 .webmcpContext strong { color: var(--ink); }
+
+.webmcpTrustLabel {
+  margin: 13px 0 0;
+  padding: 8px 10px;
+  border-left: 3px solid var(--amber);
+  background: color-mix(in srgb, var(--amber) 8%, var(--panel));
+  color: var(--ink-soft);
+}
 
 @media (min-width: 760px) {
   .webmcpHead { grid-template-columns: minmax(0, 1fr) auto; }

@@ -87,7 +87,7 @@ describe("WebMCP tool registration", () => {
       {
         type: "object",
         properties: {
-          query: { type: "string", minLength: 2, maxLength: 120 },
+          query: { type: "string", minLength: 2, maxLength: 80 },
           limit: { type: "integer", minimum: 1, maximum: 8 },
         },
         required: ["query"],
@@ -173,6 +173,8 @@ describe("WebMCP tool registration", () => {
 
     const invalidCalls: Array<{ name: keyof WebMcpToolImplementations; input: unknown }> = [
       { name: "search_pubmaxx_venues", input: { query: "x" } },
+      { name: "search_pubmaxx_venues", input: { query: "   " } },
+      { name: "search_pubmaxx_venues", input: { query: "x".repeat(81) } },
       { name: "read_london_night_context", input: { extra: true } },
       { name: "draft_pub_crawl", input: { request: "Camden", expectedRevision: -1 } },
       { name: "swap_crawl_stop", input: { position: 7, expectedRevision: 0 } },

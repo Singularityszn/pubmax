@@ -156,6 +156,9 @@ describe("WebMCP board route contracts", () => {
       ...generatedRoute(),
       extra: undefined,
     })).toBeNull();
+    expect(parseWebMcpRouteResponse({ ...generatedRoute(), grounded: false })).toBeNull();
+    expect(parseWebMcpRouteResponse({ ...generatedRoute(), groundingProof: null })).toBeNull();
+    expect(parseWebMcpRouteResponse({ ...generatedRoute(), operationKey: "" })).toBeNull();
   });
 
   it("publishes only valid routes and increments revision once", () => {
@@ -333,5 +336,27 @@ describe("WebMCP route mutation arbiter", () => {
       currentRevision: 3,
     });
     expect(sideEffect).not.toHaveBeenCalled();
+  });
+
+  it("invalidates a deferred effect when a newer mutation starts", async () => {
+    let revision = 4;
+    const secondMayFinish = deferred<void>();
+    let firstLease: { isCurrent: () => boolean } | null = null;
+    const arbiter = createWebMcpMutationArbiter(() => revision);
+
+    await arbiter.run(4, (lease) => {
+      firstLease = lease;
+      return "opened";
+    });
+    expect(firstLease!.isCurrent()).toBe(true);
+
+    const second = arbiter.run(4, async (lease) => {
+      await secondMayFinish.promise;
+      lease.runSideEffect(() => { revision += 1; });
+      return "new route";
+    });
+    await vi.waitFor(() => expect(firstLease!.isCurrent()).toBe(false));
+    secondMayFinish.resolve();
+    await expect(second).resolves.toMatchObject({ status: "completed" });
   });
 });

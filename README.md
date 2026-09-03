@@ -68,7 +68,7 @@ document.modelContext.registerTool(
     description: "Search the curated PUBMAXX Venue Dataset by venue name or area.",
     inputSchema: {
       type: "object",
-      properties: { query: { type: "string", minLength: 2, maxLength: 120 } },
+      properties: { query: { type: "string", minLength: 2, maxLength: 80 } },
       required: ["query"],
       additionalProperties: false,
     },
