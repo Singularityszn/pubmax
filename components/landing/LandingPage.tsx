@@ -145,7 +145,7 @@ export default function LandingPage({
     () => null,
   );
   const mapHref = preferredCityMapHref();
-  const primaryCtaHref = preferredCity ? mapHref : "/choose-city";
+  const primaryCtaHref = preferredCity ? mapHref : "/map";
   const warmMap = useCallback(() => warmMapRoute(router, mapHref), [router, mapHref]);
   const warmProps = preferredCity
     ? {
@@ -260,6 +260,14 @@ export default function LandingPage({
           onClick={() => trackLandingCta("map")}
         >
           <MapPin size={17} aria-hidden="true" /> Open the map
+        </Link>
+        <Link
+          prefetch={false}
+          className="lpTextLink"
+          href="/tonight"
+          onClick={() => trackLandingCta("tonight")}
+        >
+          <CalendarClock size={17} aria-hidden="true" /> Tonight
         </Link>
         <Link prefetch={false} className="lpTextLink" href="/near?locate=1" onClick={() => trackLandingCta("near")}>
           <LocateFixed size={17} aria-hidden="true" /> Find my pint

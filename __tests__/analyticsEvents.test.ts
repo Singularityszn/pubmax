@@ -802,6 +802,9 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("landing_cta_clicked", { target: "pal" })?.props).toEqual({
       target: "pal",
     });
+    expect(sanitizeEvent("landing_cta_clicked", { target: "tonight" })?.props).toEqual({
+      target: "tonight",
+    });
     expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
     expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
   });

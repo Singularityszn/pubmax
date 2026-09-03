@@ -209,9 +209,8 @@
   align-items: center;
   gap: 6px 22px;
 }
-/* Three links wrapped 2 + 1 on a phone, leaving "Find my pint" dangling under
-   the pair. One per row is the honest shape at this width: the three are peers,
-   and a ragged wrap made the last of them look like an afterthought. */
+/* One link per row keeps all four peer routes clear at phone width. A wrapped
+   final item would read as an afterthought and reduce its reliable hit area. */
 @media (max-width: 640px) {
   .lpHeroSecondaryRow {
     flex-direction: column;
