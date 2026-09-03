@@ -13,6 +13,7 @@ const RETIRED_RUNTIME_SYMBOLS = [
 function sourceFilesBelow(path: string): string[] {
   if (!existsSync(path)) return [];
   return readdirSync(path, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.name.startsWith(".")) return [];
     const child = join(path, entry.name);
     if (entry.isDirectory()) return sourceFilesBelow(child);
     return /\.(?:[cm]?[jt]sx?|json|ya?ml)$/u.test(entry.name) ? [child] : [];
