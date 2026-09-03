@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-03T22:12:16.103Z",
+  "pagesRead": 0,
+  "pageBudget": 200,
+  "sourcesAllowed": [],
+  "sourcesSkipped": [
+    {
+      "id": "greene-king-menu-prices",
+      "reason": "publishes-no-web-price",
+      "checkedOn": "2026-09-03",
+      "evidence": "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` disallowing infrastructure paths only (/bin/, /media/, /sitecore/, /js/, /css/ and the booking query strings), with the single blanket Disallow aimed at Screaming Frog. The pub and menu paths are permitted. The refusal is NOT about permission: a per-pub menu page (/pubs/greater-london/sherlock-holmes/menu) answered 200 with 150 KB and NOT ONE price in the document. It is a Sitecore JSS app that renders its menu in the browser, and the served HTML carries no embedded price JSON either."
+    },
+    {
+      "id": "wetherspoon-menu-prices",
+      "reason": "publishes-no-web-price",
+      "checkedOn": "2026-09-03",
+      "evidence": "robots.txt re-read 2026-09-03: HTTP 200, `User-agent: *` with an empty `Disallow:` (allow all) plus `Crawl-delay: 10`. The sitemap index publishes a pub-menus sitemap listing 828 per-pub menu pages, every one of them permitted. The refusal is NOT about permission: the menu page states its own answer in its own copy, `Download our app - See pricing and effortlessly order food and drinks to your table`. The page offers a PDF table menu and allergen information; the prices are in the app."
+    },
+    {
+      "id": "mitchells-butlers-menu-prices",
+      "reason": "robots-unreadable",
+      "checkedOn": "2026-09-03",
+      "evidence": "robots.txt re-read 2026-09-03, as the brief required: https://www.nicholsonspubs.co.uk/robots.txt answers HTTP 403 with a Cloudflare `Attention Required!` challenge page, not a rules file. No permission can be read, so the estate STAYS REFUSED, unchanged from the 2026-08-09 verdict. This is the entry that settles the contradiction with data/price_sources.json."
+    }
+  ],
+  "coverage": [],
+  "drops": {},
+  "rowsFound": 0
+}
