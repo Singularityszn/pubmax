@@ -111,6 +111,29 @@
   color: var(--ink);
 }
 
+/* The way onward from a queue that could not load. Outline, because the queue
+   it sits in is a refusal rather than an invitation. */
+.admin-empty .admin-retry {
+  justify-self: start;
+  padding: 0.45rem 0.8rem;
+  border: 1px solid var(--brass);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--brass);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-empty .admin-retry:hover {
+  background: color-mix(in srgb, var(--brass) 12%, transparent);
+}
+
+.admin-empty .admin-retry:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 .admin-empty a {
   color: var(--brass);
   font-weight: 800;
