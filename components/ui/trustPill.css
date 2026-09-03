@@ -1,7 +1,12 @@
-/* Trust pill (components/ui/trust-pill.tsx): green confirmed, grey none, amber
-   held. Launch tokens only. A pill is a stamp, so it keeps a fill; the fill is
-   a tint of the status hue on the raised surface so the ink stays readable in
-   both themes. */
+/* Trust pill (components/ui/trust-pill.tsx): green confirmed, amber listed,
+   blue modelled, grey none. Launch tokens only. A pill is a stamp, so it keeps
+   a fill; the fill is a tint of the status hue on the raised surface so the ink
+   stays readable in both themes.
+
+   The modelled tone deliberately takes the informational hue rather than a
+   second warm one: an estimate is a statement about our own working, not a
+   warning about the pub, and it must not read as confidently as the amber a
+   publisher earned. */
 
 .trustPill {
   display: inline-flex;
@@ -27,22 +32,67 @@
   background: var(--color-text-muted);
 }
 
-.trustPill-confirmed {
+.trustPill-green {
   background: color-mix(in srgb, var(--color-positive) 14%, var(--color-surface-raised));
   color: color-mix(in srgb, var(--color-positive) 60%, var(--color-text));
 }
 
-.trustPill-confirmed .trustPillDot {
+.trustPill-green .trustPillDot {
   background: var(--color-positive);
 }
 
-.trustPill-held {
+.trustPill-amber {
   background: color-mix(in srgb, var(--color-caution) 18%, var(--color-surface-raised));
   color: color-mix(in srgb, var(--color-caution) 45%, var(--color-text));
 }
 
-.trustPill-held .trustPillDot {
+.trustPill-amber .trustPillDot {
   background: var(--color-caution);
+}
+
+.trustPill-modelled {
+  background: color-mix(in srgb, var(--color-info) 14%, var(--color-surface-raised));
+  color: color-mix(in srgb, var(--color-info) 55%, var(--color-text));
+}
+
+.trustPill-modelled .trustPillDot {
+  background: var(--color-info);
+}
+
+/* The figure the standing is worth. A price caption never ellipses: the meaning
+   the whole trust argument rests on is the figure itself, so it wraps its row
+   or the cell widens. */
+.trustPillFigure {
+  white-space: normal;
+}
+
+/* The method link and the basis note sit OUTSIDE the pill, because they are a
+   way onward rather than part of the claim. */
+.trustPillRow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.trustPillMethodLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--space-6);
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
+  text-decoration: underline;
+}
+
+.trustPillMethodLink:hover {
+  color: var(--color-text);
+}
+
+.trustPillBasis {
+  font-family: var(--font-body);
+  font-size: var(--text-2xs);
+  color: var(--color-text-muted);
 }
 
 @media (prefers-contrast: more) {

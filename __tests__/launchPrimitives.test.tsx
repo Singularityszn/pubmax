@@ -9,20 +9,20 @@ import EmptyState from "@/components/ui/empty-state";
 import Kicker from "@/components/ui/kicker";
 import Screen from "@/components/ui/screen";
 import TrustPill from "@/components/ui/trust-pill";
-import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import {
-  formatTrustDay,
-  TRUST_PILL_LABEL,
-  trustPillLabel,
-  trustToneForConfirmation,
-} from "@/lib/trustPill";
+  HOW_WE_ESTIMATE_HREF,
+  HOW_WE_ESTIMATE_LABEL,
+  priceStandingFor,
+  priceStandingLabel,
+} from "@/lib/priceTier";
+import { formatTrustDay, trustPillLabel } from "@/lib/trustPill";
 
 // The four launch primitives (issue #1354): Kicker, TrustPill, EmptyState,
 // Screen. These render each one and pin the structural promises the rest of
 // the relaunch builds on: a Screen carries exactly one primary action with
 // its kicker above its heading; a trust pill's meaning is in its words; an
-// empty state points forward with at most one way onward; and amber stays
-// defined but unused until London is re-collected (#1329).
+// empty state points forward with at most one way onward; and the pill re-decides
+// nothing, taking a standing lib/priceTier.ts already decided.
 
 const ROOT = process.cwd();
 
@@ -56,42 +56,87 @@ describe("Kicker", () => {
 
 describe("TrustPill", () => {
   const day = Date.UTC(2026, 8, 3, 12);
+  const at = (ms: number) => new Date(ms).toISOString();
+  const render = (decision: Parameters<typeof TrustPill>[0]["decision"], basisNote?: string) =>
+    renderToStaticMarkup(createElement(TrustPill, { decision, basisNote }));
+
+  const confirmed = priceStandingFor({ confirmed: { priceGbp: 5.4, observedAt: at(day) } }, day);
+  const listed = priceStandingFor(
+    { listed: { priceGbp: 5.9, sourceUrl: "https://pub.example/menu", observedAt: at(day) } },
+    day,
+  );
+  const estimate = priceStandingFor(
+    { estimate: { priceGbp: 6.6, basis: "regional_baseline", sampleSize: 120, computedAt: at(day) } },
+    day,
+  );
+  const nothing = priceStandingFor({}, day);
 
   it("prints the meaning in words, with the day on a confirmed price", () => {
-    const html = renderToStaticMarkup(createElement(TrustPill, { tone: "confirmed", confirmedAt: day }));
+    const html = render(confirmed);
     expect(html).toContain("Confirmed 3 Sept");
-    expect(html).toContain('data-tone="confirmed"');
+    expect(html).toContain('data-standing="confirmed"');
     expect(html).toContain('aria-hidden="true"');
   });
 
-  it("says no price is logged on the grey tone", () => {
-    const html = renderToStaticMarkup(createElement(TrustPill, { tone: "none" }));
-    expect(html).toContain("No price logged");
+  it("says there is no price yet on the grey standing, and shows no figure", () => {
+    const html = render(nothing);
+    expect(html).toContain(priceStandingLabel("none"));
     expect(html).not.toContain("Confirmed");
+    expect(html).not.toContain("£");
   });
 
-  it("derives the live tone from the 30 day authority window", () => {
-    const now = day;
-    expect(trustToneForConfirmation(now - PRICE_AUTHORITY_MAX_AGE_MS, now)).toBe("confirmed");
-    expect(trustToneForConfirmation(now - PRICE_AUTHORITY_MAX_AGE_MS - 1, now)).toBe("none");
-    expect(trustToneForConfirmation(null, now)).toBe("none");
-    expect(trustToneForConfirmation(now + 1, now)).toBe("none");
+  it("prints a published price plainly and offers no method link", () => {
+    const html = render(listed);
+    expect(html).toContain("£5.90");
+    expect(html).toContain("Listed");
+    expect(html).not.toContain("est.");
+    expect(html).not.toContain(HOW_WE_ESTIMATE_HREF);
+  });
+
+  it("never prints a modelled figure as a bare price, and always offers the method", () => {
+    const html = render(estimate);
+    expect(html).toContain("est. £6.60");
+    expect(html).not.toMatch(/>\s*£6\.60\s*</);
+    expect(html).toContain(HOW_WE_ESTIMATE_HREF);
+    expect(html).toContain(HOW_WE_ESTIMATE_LABEL);
+  });
+
+  it("names the sample behind an estimate when it is given one", () => {
+    expect(render(estimate, "Modelled from 120 published prices (prices nearby).")).toContain(
+      "Modelled from 120 published prices",
+    );
+  });
+
+  it("dates only a confirmed price, because the other three have no confirmation day", () => {
+    for (const decision of [listed, estimate, nothing]) {
+      expect(render(decision)).not.toContain("3 Sept");
+    }
+  });
+
+  it("wears a different tone per standing, so the four never read alike", () => {
+    const tones = [confirmed, listed, estimate, nothing].map(
+      (decision) => /data-tone="(\w+)"/.exec(render(decision))?.[1],
+    );
+    expect(tones).toEqual(["green", "amber", "modelled", "grey"]);
+    expect(new Set(tones).size).toBe(4);
   });
 
   it("formats the day in London time as the pill prints it", () => {
     expect(formatTrustDay(day)).toBe("3 Sept");
     expect(trustPillLabel("confirmed", day)).toBe("Confirmed 3 Sept");
-    expect(trustPillLabel("confirmed")).toBe(TRUST_PILL_LABEL.confirmed);
-    expect(trustPillLabel("held")).toBe("Scraped");
+    expect(trustPillLabel("confirmed")).toBe(priceStandingLabel("confirmed"));
   });
 
-  it("keeps amber defined but passed by nothing outside the primitive", () => {
+  it("re-decides nothing: the standing is the only thing any surface passes", () => {
+    // The pill used to carry a second tone vocabulary of its own, and the two
+    // drifted apart within a day. A surface may hand it a decision and nothing
+    // else, so a `tone=` or `held` prop anywhere is the drift coming back.
     const files: string[] = [];
     walk(join(ROOT, "components"), files);
     walk(join(ROOT, "app"), files);
     const offenders = files
       .filter((file) => !file.endsWith("components/ui/trust-pill.tsx"))
-      .filter((file) => /tone\s*[=:]\s*["']held["']/.test(readFileSync(file, "utf8")))
+      .filter((file) => /<TrustPill[^>]*\stone=/.test(readFileSync(file, "utf8")))
       .map((file) => relative(ROOT, file));
     expect(offenders).toEqual([]);
   });
