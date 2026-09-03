@@ -99,7 +99,7 @@ describe("Pub Pal first meeting and onboarding", () => {
     expect(container.textContent).not.toContain("Meet your Pub Pal");
   });
 
-  it("switches from the default robin to a legacy form", async () => {
+  it("switches from the default robin to another rendered form", async () => {
     await act(async () => {
       buttonContaining("Meet your Pub Pal").click();
     });
@@ -124,7 +124,9 @@ describe("Pub Pal first meeting and onboarding", () => {
 
     expect(robin.getAttribute("aria-pressed")).toBe("false");
     expect(greyhound.getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".palRigGreyhound")).not.toBeNull();
-    expect(container.querySelector('img[alt="Pub Pal"]')).toBeNull();
+    // The greyhound ships a master of its own, so the portrait becomes that
+    // photograph rather than the robin's.
+    expect(container.querySelector(".palRigGreyhound")).toBeNull();
+    expect(container.querySelector('img[alt="Pub Pal"]')?.getAttribute("src")).toContain("circuit-greyhound");
   });
 });

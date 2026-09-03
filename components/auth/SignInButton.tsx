@@ -24,6 +24,7 @@ import { LogIn } from "lucide-react";
 import { useAuth, type SignOutScope } from "@/components/auth/AuthProvider";
 import AccountMenu from "@/components/auth/AccountMenu";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
+import { providerHasAnswered } from "@/lib/authProviderRevision";
 import {
   loadPublicProfileCard,
   type PublicProfileCard,
@@ -141,12 +142,12 @@ export default function SignInButton({
     handle: accountHandle,
     clerkIntegrationConfigured,
     socialProviders,
-    supabaseAuthState,
     signInWithGoogle,
     signInWithApple,
     signInWithEmail,
     cancelAuthAttempt,
     signOut,
+    supabaseAuthState,
     switchAccount,
   } = useAuth();
   const clientHydrated = useSyncExternalStore(
@@ -332,6 +333,7 @@ export default function SignInButton({
         hidden
         data-auth-configured="false"
         data-auth-resolved={clientHydrated ? "true" : "false"}
+        data-auth-empty="true"
       />
     );
   }
@@ -427,12 +429,30 @@ export default function SignInButton({
     );
   }
 
-  // Avoid a flash of Sign in until Supabase has answered. The provider state is
-  // the auth readiness contract: loading may remain true briefly after a
-  // signed-out answer, and optional Clerk readiness must not delay Supabase's
-  // own control.
-  if (supabaseAuthState === "unresolved" && !clerkSessionAvailable) {
-    return <span hidden data-auth-configured="true" data-auth-resolved="false" />;
+  // ONLY a settled signed-out answer may paint a sign-in invitation.
+  //
+  // This guarded `supabaseAuthState === "unresolved"` alone, which let the
+  // OTHER not-told state through. `unavailable` is set when the auth client
+  // cannot load (AuthProvider: "say nothing about the viewer and stop the
+  // ceiling from saying it for us"), and the likeliest cause is a stale
+  // document, which is exactly what `/` is: it is CDN-cached and prerendered,
+  // so a long-lived session resolves entirely in the browser. A drinker signed
+  // in weeks ago therefore met "Sign in" in the header while the You tab, which
+  // goes through the seam, knew the account perfectly well.
+  //
+  // `useViewerSession` is that seam and is already tri-state, so the header now
+  // reads the same authority as every door #1302 fixed. Reaching here means the
+  // signed-in branch above did not return, so the phase is unresolved or
+  // signed-out, and only the latter may speak.
+  if (!providerHasAnswered(supabaseAuthState) && !clerkSessionAvailable) {
+    return (
+      <span
+        hidden
+        data-auth-configured="true"
+        data-auth-resolved="false"
+        data-auth-empty="true"
+      />
+    );
   }
 
   const hasSocialProviders = socialProviders.google || socialProviders.apple;

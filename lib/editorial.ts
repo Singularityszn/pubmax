@@ -15,7 +15,11 @@ export const EDITORIAL_RAIL_TITLE = "Also picked this week";
 export const EDITORIAL_EMPTY_LINE = "No picks this week.";
 export const EDITORIAL_DEGRADED_LINE = "Some picks could not be checked.";
 export const EDITORIAL_DEGRADED_EMPTY_LINE = "Picks could not be checked.";
-export const EDITORIAL_STALE_LINE = "Picks need a fresh check.";
+// A snapshot past EDITORIAL_SNAPSHOT_MAX_AGE_MS withholds its rows, so the
+// reader has nothing to show AND nothing we can vouch for. "Picks need a fresh
+// check" described our own maintenance to a drinker; this says what they get
+// without claiming the week is empty, which we do not know.
+export const EDITORIAL_STALE_LINE = "No fresh picks to show just now.";
 export const EDITORIAL_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 // A generated overlay is a build artifact, not a live feed. Once it is two
 // days old, its current-week rows are withheld until a new poll lands.

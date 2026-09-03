@@ -82,6 +82,21 @@
 
 .planPage__side { display: grid; gap: 20px; }
 
+@media (min-width: 761px) {
+  .planPage__intro,
+  .planPage__hero {
+    margin: clamp(36px, 4vw, 56px) auto clamp(28px, 3vw, 40px);
+  }
+
+  .planPage__intro h1,
+  .planPage__hero h1 {
+    max-width: 920px;
+    font-size: clamp(3rem, 9vw, 6rem);
+    line-height: 0.9;
+    letter-spacing: -0.035em;
+  }
+}
+
 .planSummary,
 .planCrew,
 .planVibe,

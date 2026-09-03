@@ -41,6 +41,11 @@ export type PerfSample = {
 
 export const ROUTE_READY_TIMEOUT_MS = 45_000;
 
+export function aggregatePerfMetric(values: readonly number[]): number {
+  if (values.some((value) => !Number.isFinite(value))) return Number.NaN;
+  return median(values);
+}
+
 /** No new resource entry for this long counts as the network having gone quiet. */
 const NETWORK_QUIET_MS = 1_500;
 const NETWORK_QUIET_CEILING_MS = 20_000;
@@ -95,7 +100,7 @@ export async function preparePerfPage(
     const gateWindow = window as typeof window & {
       __pubmaxPerfPaint?: { lcpMs: number; cls: number };
     };
-    gateWindow.__pubmaxPerfPaint = { lcpMs: 0, cls: 0 };
+    gateWindow.__pubmaxPerfPaint = { lcpMs: Number.NaN, cls: 0 };
     try {
       new PerformanceObserver((list) => {
         const last = list.getEntries().at(-1);
@@ -110,9 +115,7 @@ export async function preparePerfPage(
           }
         }
       }).observe({ type: "layout-shift", buffered: true });
-    } catch {
-      /* an engine without these entry types reports zeroes rather than failing */
-    }
+    } catch {}
   });
 
   if (method.thirdPartyBlocked) {
@@ -174,7 +177,7 @@ export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<Per
     const gateWindow = window as typeof window & {
       __pubmaxPerfPaint?: { lcpMs: number; cls: number };
     };
-    const paint = gateWindow.__pubmaxPerfPaint ?? { lcpMs: 0, cls: 0 };
+    const paint = gateWindow.__pubmaxPerfPaint ?? { lcpMs: Number.NaN, cls: 0 };
     const origin = location.origin;
     const [navigation] = performance.getEntriesByType(
       "navigation",
@@ -224,10 +227,10 @@ export async function measurePerfRoute(
     samples.push(await samplePerfRoute(page, route));
   }
   return {
-    serverRenderMs: median(samples.map((sample) => sample.serverRenderMs)),
-    jsDecodedKB: median(samples.map((sample) => sample.jsDecodedKB)),
-    requests: median(samples.map((sample) => sample.requests)),
-    lcpMs: median(samples.map((sample) => sample.lcpMs)),
-    cls: median(samples.map((sample) => sample.cls)),
+    serverRenderMs: aggregatePerfMetric(samples.map((sample) => sample.serverRenderMs)),
+    jsDecodedKB: aggregatePerfMetric(samples.map((sample) => sample.jsDecodedKB)),
+    requests: aggregatePerfMetric(samples.map((sample) => sample.requests)),
+    lcpMs: aggregatePerfMetric(samples.map((sample) => sample.lcpMs)),
+    cls: aggregatePerfMetric(samples.map((sample) => sample.cls)),
   };
 }

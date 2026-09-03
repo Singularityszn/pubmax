@@ -24,6 +24,24 @@ for (const viewport of MOBILE_VIEWPORTS) {
     expect(response?.status()).toBe(200);
     await expect(page.locator(".mobileTabBar")).toBeVisible();
 
+    if (viewport.width === 390) {
+      const phoneStyles = await page.locator(".planPage__intro h1").evaluate((heading) => {
+        const style = getComputedStyle(heading);
+        const fontSize = Number.parseFloat(style.fontSize);
+        return {
+          fontSize,
+          lineHeight: Number.parseFloat(style.lineHeight),
+          letterSpacing: Number.parseFloat(style.letterSpacing),
+          marginBottom: Number.parseFloat(
+            getComputedStyle(heading.parentElement!).marginBottom,
+          ),
+        };
+      });
+      expect(phoneStyles.lineHeight).toBeCloseTo(phoneStyles.fontSize * 0.88, 1);
+      expect(phoneStyles.letterSpacing).toBeCloseTo(phoneStyles.fontSize * -0.065, 1);
+      expect(phoneStyles.marginBottom).toBe(10);
+    }
+
     // /plan opens on the describe-first question; the wizard this test
     // measures sits behind that entry surface's "Guide me instead" link.
     // Clicking it can scroll the link itself into view first; the wizard is

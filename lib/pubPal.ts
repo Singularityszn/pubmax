@@ -1,4 +1,5 @@
 import { clamp as clampRange } from "@/lib/mathClamp";
+import { PAL_MASCOT_SLUGS, type PalMascotSlug } from "@/lib/palMascotAssets.mjs";
 import { cleanText } from "@/lib/textClean";
 
 /**
@@ -43,7 +44,12 @@ export type PalAnimationState = (typeof PAL_ANIMATION_STATES)[number];
 
 export type PalVisualManifest = {
   species: PubPalSpecies;
-  format: "layered-svg" | "circuit-robin";
+  /**
+   * A rendered species names its own asset slug, which is the SAME string
+   * lib/palMascotAssets.mjs holds for it; `layered-svg` means no master exists
+   * and every surface falls back to that species' rig.
+   */
+  format: "layered-svg" | PalMascotSlug;
   silhouette: string;
   face: string;
   signatureProp: string;
@@ -53,9 +59,9 @@ export type PalVisualManifest = {
 };
 
 export const PAL_VISUAL_MANIFEST: Record<(typeof PAL_ONBOARDING_SPECIES)[number], PalVisualManifest> = {
-  robin: { species: "robin", format: "circuit-robin", silhouette: "circuit robin with a warm amber signal chest", face: "bright eyes and a grounded companion gaze", signatureProp: "signal seam", material: "smoked chrome with an amber signal seam", idlePose: "upright and ready beside the route", supportedStates: PAL_ANIMATION_STATES },
-  greyhound: { species: "greyhound", format: "layered-svg", silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "smoked chrome with an amber signal seam", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
-  cat: { species: "cat", format: "layered-svg", silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell", material: "black glass with a soft edge glow", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
+  robin: { species: "robin", format: PAL_MASCOT_SLUGS.robin, silhouette: "circuit robin with a warm amber signal chest", face: "bright eyes and a grounded companion gaze", signatureProp: "signal seam", material: "smoked chrome with an amber signal seam", idlePose: "upright and ready beside the route", supportedStates: PAL_ANIMATION_STATES },
+  greyhound: { species: "greyhound", format: PAL_MASCOT_SLUGS.greyhound, silhouette: "long-nosed, swept-ear greyhound", face: "loyal bright eyes and a narrow muzzle", signatureProp: "signal collar", material: "smoked chrome with an amber signal seam", idlePose: "upright and gently leaning into the route", supportedStates: PAL_ANIMATION_STATES },
+  cat: { species: "cat", format: PAL_MASCOT_SLUGS.cat, silhouette: "compact black cat with a hooked signal tail", face: "half-lidded luminous eyes and a dry smile", signatureProp: "brass bell", material: "black glass with a soft edge glow", idlePose: "seated with one paw lifted", supportedStates: PAL_ANIMATION_STATES },
   fox: { species: "fox", format: "layered-svg", silhouette: "sharp-eared quick fox", face: "curious eyes and an alert tapered muzzle", signatureProp: "route compass", material: "copper hologram with glass highlights", idlePose: "forward on its toes with its tail curled", supportedStates: PAL_ANIMATION_STATES },
   pigeon: { species: "pigeon", format: "layered-svg", silhouette: "round city pigeon with a proud chest", face: "side-eye with a tiny knowing brow", signatureProp: "transit tag", material: "oil-slick chrome with teal and violet signal bands", idlePose: "one foot forward, head tilted toward the street", supportedStates: PAL_ANIMATION_STATES },
   badger: { species: "badger", format: "layered-svg", silhouette: "low, broad badger with strong mask stripes", face: "steady eyes and a reassuring blunt muzzle", signatureProp: "night-key lantern", material: "brushed graphite and frosted signal glass", idlePose: "planted firmly with the lantern held close", supportedStates: PAL_ANIMATION_STATES },

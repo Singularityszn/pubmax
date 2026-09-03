@@ -53,10 +53,13 @@ vi.mock("@/lib/walkRouteStore", () => ({
 import { GET, POST } from "@/app/api/plans/generate/route";
 import { preparePlanGeneration } from "@/lib/planGeneration.server";
 import { verifyPlanGroundingProof } from "@/lib/planGrounding.server";
+import { PINT_DATASET_OBSERVED_AT } from "@/lib/dataFreshness";
 import { hashIp } from "@/lib/supabase";
 import type { LngLat } from "@/lib/walkRoute";
 import type { ConciergeVenue } from "@/lib/concierge/rank";
 import type { PlanIntakeHandoff } from "@/lib/planIntake";
+
+const PLAN_GENERATION_TEST_NOW = PINT_DATASET_OBSERVED_AT.getTime() + 1_000;
 
 function generationIntake(
   overrides: Partial<PlanIntakeHandoff> = {},
@@ -322,22 +325,27 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("keeps inferred brief fields when the client sends only explicit chip corrections", async () => {
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST",
-      body: JSON.stringify({
-        query: "A quiet night in Barnes under £24 each",
-        context: { groupSize: 4 },
-      }),
-    }));
-    const body = await response.json();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({
+          query: "A quiet night in Barnes under £24 each",
+          context: { groupSize: 4 },
+        }),
+      }));
+      const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.inferredContext).toMatchObject({
-      nightArea: "barnes",
-      atmosphere: ["quiet"],
-      budgetLimitPence: 2400,
-      groupSize: 4,
-    });
+      expect(response.status).toBe(200);
+      expect(body.inferredContext).toMatchObject({
+        nightArea: "barnes",
+        atmosphere: ["quiet"],
+        budgetLimitPence: 2400,
+        groupSize: 4,
+      });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("retains partial soft list-based context corrections", async () => {
@@ -423,26 +431,31 @@ describe("POST /api/plans/generate", () => {
   });
 
   it("returns route budget evidence while preserving the legacy numeric confidence", async () => {
-    const response = await POST(new Request("http://localhost/api/plans/generate", {
-      method: "POST",
-      body: JSON.stringify({ query: "Four of us in Clapham, under £24 each" }),
-    }));
-    const body = await response.json();
+    const clock = vi.spyOn(Date, "now").mockReturnValue(PLAN_GENERATION_TEST_NOW);
+    try {
+      const response = await POST(new Request("http://localhost/api/plans/generate", {
+        method: "POST",
+        body: JSON.stringify({ query: "Four of us in Clapham, under £24 each" }),
+      }));
+      const body = await response.json();
 
-    expect(response.status).toBe(200);
-    expect(body.confidence).toEqual(expect.any(Number));
-    expect(body.budgetSummary).toMatchObject({
-      currency: "GBP",
-      limitPence: 2400,
-      estimatedPerPersonPence: expect.any(Number),
-      estimatedCrewPence: expect.any(Number),
-      withinLimit: expect.any(Boolean),
-    });
-    expect(body.stops[0]).toMatchObject({
-      estimatedPintPricePence: expect.any(Number),
-      distanceKm: expect.any(Number),
-      evidence: expect.any(Array),
-    });
+      expect(response.status).toBe(200);
+      expect(body.confidence).toEqual(expect.any(Number));
+      expect(body.budgetSummary).toMatchObject({
+        currency: "GBP",
+        limitPence: 2400,
+        estimatedPerPersonPence: expect.any(Number),
+        estimatedCrewPence: expect.any(Number),
+        withinLimit: expect.any(Boolean),
+      });
+      expect(body.stops[0]).toMatchObject({
+        estimatedPintPricePence: expect.any(Number),
+        distanceKm: expect.any(Number),
+        evidence: expect.any(Array),
+      });
+    } finally {
+      clock.mockRestore();
+    }
   });
 
   it("uses ORS leg durations for per-stop and route walking minutes when keyed", async () => {

@@ -542,7 +542,10 @@ describe("the middleware gate needs BOTH keys", () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
     vi.resetModules();
-    const clerkProxy = vi.fn(() => new Response(null, { status: 418 }));
+    const clerkProxy = vi.fn((request: NextRequest) => {
+      void request;
+      return new Response(null, { status: 418 });
+    });
     vi.doMock("@clerk/nextjs/server", () => ({
       clerkMiddleware: vi.fn(() => clerkProxy),
     }));
@@ -557,6 +560,7 @@ describe("the middleware gate needs BOTH keys", () => {
         {} as NextFetchEvent,
       );
 
+      if (!(response instanceof Response)) throw new Error("proxy returned no response");
       expect(response.status).toBe(200);
       expect(clerkProxy).not.toHaveBeenCalled();
     } finally {
@@ -569,7 +573,10 @@ describe("the middleware gate needs BOTH keys", () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", PUBLISHABLE_KEY);
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test_not_a_real_key");
     vi.resetModules();
-    const clerkProxy = vi.fn(() => new Response(null, { status: 418 }));
+    const clerkProxy = vi.fn((request: NextRequest) => {
+      void request;
+      return new Response(null, { status: 418 });
+    });
     vi.doMock("@clerk/nextjs/server", () => ({
       clerkMiddleware: vi.fn(() => clerkProxy),
     }));
@@ -586,6 +593,12 @@ describe("the middleware gate needs BOTH keys", () => {
         event,
       );
 
+      if (!(clerkResponse instanceof Response)) {
+        throw new Error("Clerk proxy returned no response");
+      }
+      if (!(documentResponse instanceof Response)) {
+        throw new Error("document proxy returned no response");
+      }
       expect(clerkResponse.status).toBe(418);
       expect(documentResponse.status).toBe(418);
       expect(clerkProxy).toHaveBeenCalledTimes(2);

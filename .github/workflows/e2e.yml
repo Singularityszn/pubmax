@@ -48,6 +48,7 @@ jobs:
           e2e/smoke.spec.ts
           e2e/admin-document-guard.spec.ts
           e2e/account-switch-identity.spec.ts
+          e2e/plan-capability-recovery.spec.ts
           e2e/plan-held-acceptance.spec.ts
           e2e/map-surface-history.spec.ts
           e2e/surface-back-and-home.spec.ts

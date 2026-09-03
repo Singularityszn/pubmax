@@ -284,11 +284,13 @@ import { getSaved } from "@/lib/savedPubs";
 import { venuesInNearbyMembership } from "@/lib/mapNearbyMembership";
 import {
   createSlimShardLoader,
+  NEIGHBOUR_SHARD_RING,
+  openingLoadViewportFor,
   openingLocationCancellationAfterAttempt,
-  scheduleSlimShardViewportLoad,
+  scheduleSlimShardRingLoads,
+  VIEWPORT_SHARD_RING,
   type MapBounds,
   type SlimShardLoader,
-  type SlimShardViewportLoadKind,
 } from "@/lib/slimShards";
 import { useInitialSlimShardStart } from "@/components/map/useInitialSlimShardStart";
 import type { SlimVenue } from "@/lib/venuesSlim";
@@ -414,6 +416,7 @@ import {
   subscribeMapChosenArea,
   writeMapChosenArea,
 } from "@/lib/mapChosenArea";
+import type { MapCameraFocus } from "@/lib/mapCameraFocus";
 import {
   shouldShowMapFirstVisitArrival,
   subscribeMapFirstVisitArrival,
@@ -835,11 +838,8 @@ export default function PubMap({
    */
   const [mapCameraTouched, setMapCameraTouched] = useState(false);
   const mapCameraTouchedRef = useRef(false);
-  const [openingLocationFocus, setOpeningLocationFocus] = useState<{
-    center: [number, number];
-    zoom: number;
-    token: number;
-  } | null>(null);
+  const [openingLocationFocus, setOpeningLocationFocus] =
+    useState<MapCameraFocus | null>(null);
   const openingLocationCancelledRef = useRef(false);
   const [
     openingLocationCancelledBeforeResolution,
@@ -1839,6 +1839,7 @@ export default function PubMap({
       return {
         center: viewport.center,
         zoom: viewport.zoom,
+        source: "opening-location",
         token: (current?.token ?? 0) + 1,
       };
     });
@@ -1848,7 +1849,6 @@ export default function PubMap({
     (
       loader: SlimShardLoader,
       bounds: MapBounds,
-      kind: SlimShardViewportLoadKind,
     ) => {
       const key = JSON.stringify([
         bounds.west,
@@ -1862,24 +1862,31 @@ export default function PubMap({
       const isCurrentLoader = () =>
         slimLoaderRef.current === loader &&
         slimLoaderGenerationRef.current === loaderGeneration;
-      const load = () => {
+      const loadRing = (ring: number, onSettled?: () => void) => {
         if (!isCurrentLoader()) return;
         void loader
-          .inBounds(bounds, 1)
+          .inBounds(bounds, ring)
           .then((rows) => {
             if (!isCurrentLoader()) return;
             mergeSlimVenues(rows);
             refreshCountCoverage();
           })
           .catch(() => undefined)
-          .finally(() => {
+          .finally(() => onSettled?.());
+      };
+      scheduleSlimShardRingLoads(
+        () => {
+          if (!isCurrentLoader()) return;
+          targetViewportLoadStartedRef.current = true;
+          loadRing(VIEWPORT_SHARD_RING);
+        },
+        () =>
+          loadRing(NEIGHBOUR_SHARD_RING, () => {
             if (isCurrentLoader() && ringLoadPendingKeyRef.current === key) {
               ringLoadPendingKeyRef.current = null;
             }
-          });
-      };
-      if (kind === "target") targetViewportLoadStartedRef.current = true;
-      scheduleSlimShardViewportLoad(load, kind);
+          }),
+      );
     },
     [mergeSlimVenues, refreshCountCoverage],
   );
@@ -1956,9 +1963,14 @@ export default function PubMap({
       !ukNationalBrowse &&
       initialShardReady
     ) {
+      // A placeholder viewport names nowhere, and its bounds are the whole
+      // world. Reading shards from it asked for the entire city before the map
+      // was interactive (lib/slimShards.ts openingLoadViewportFor).
       const openingBounds =
         initialShardStart.settledBounds ??
-        boundsForOpeningView(initialShardStart.viewport);
+        boundsForOpeningView(
+          openingLoadViewportFor(initialShardStart.viewport, city.mapView),
+        );
       const startInitialLoad = (bounds: MapBounds) => {
         if (!isCurrentLoader() || initialShardLoadStartedRef.current) return;
         initialShardLoadStartedRef.current = true;
@@ -1990,7 +2002,7 @@ export default function PubMap({
                 targetBounds &&
                 !targetViewportLoadStartedRef.current
               ) {
-                scheduleRingLoad(loader, targetBounds, "target");
+                scheduleRingLoad(loader, targetBounds);
               }
             }
             refreshCountCoverage();
@@ -2096,7 +2108,7 @@ export default function PubMap({
       ringLoadPendingKeyRef.current = null;
       targetViewportLoadStartedRef.current = false;
     };
-  }, [arrivalSearch, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
+  }, [arrivalSearch, city.mapView, cityId, deferInitialSpatialLoad, initialShardReady, initialShardViewport, mapResumeSeed, mergeSlimVenues, readInitialShardStart, refreshCountCoverage, scheduleRingLoad, ukNationalBrowse, ukPlaceArrival, venueIndexAttempt]);
 
   // Lazy outer shards: whenever the map settles on a viewport, load the shards
   // it intersects and merge their pins. Already-loaded shards are skipped by
@@ -2134,11 +2146,7 @@ export default function PubMap({
       const firstLoad = !initialShardLoadStartedRef.current;
       if (!firstLoad && !initialShardLoadSettledRef.current) return;
       if (!firstLoad) {
-        if (!targetViewportLoadStartedRef.current) {
-          scheduleRingLoad(loader, bounds, "target");
-        } else {
-          scheduleRingLoad(loader, bounds, "refresh");
-        }
+        scheduleRingLoad(loader, bounds);
         return;
       }
       initialShardLoadStartedRef.current = true;
@@ -2161,7 +2169,7 @@ export default function PubMap({
             setMapResumeUpdating(false);
             initialShardLoadStartedRef.current = result.status === "ready";
             if (result.status === "ready" && isCurrentLoader()) {
-              scheduleRingLoad(loader, bounds, "target");
+              scheduleRingLoad(loader, bounds);
             }
           }
           refreshCountCoverage();
@@ -3739,9 +3747,7 @@ export default function PubMap({
     [mapViewport.center, userLocation],
   );
   // Area button "go somewhere else": bump a token to fly the canvas camera.
-  const [areaFocus, setAreaFocus] = useState<
-    { center: [number, number]; zoom: number; token: number } | null
-  >(null);
+  const [areaFocus, setAreaFocus] = useState<MapCameraFocus | null>(null);
   /**
    * The ONE way the camera is deliberately moved to another place.
    *
@@ -3762,6 +3768,7 @@ export default function PubMap({
       setAreaFocus((prev) => ({
         center: camera.center,
         zoom: camera.zoom,
+        source: "area",
         token: (prev?.token ?? 0) + 1,
       }));
     },

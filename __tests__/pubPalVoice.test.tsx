@@ -72,6 +72,8 @@ async function mountAvailable(): Promise<void> {
     root?.render(createElement(PubPalVoice));
   });
   await settle();
+  await vi.dynamicImportSettled();
+  await settle();
   expect(container.querySelector("button")?.textContent).toContain("Start voice chat");
 }
 

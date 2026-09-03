@@ -30,6 +30,7 @@ import SiteNavMore, {
 } from "@/components/nav/SiteNavMore";
 import { useAuth } from "@/components/auth/AuthProvider";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { authedFetch } from "@/lib/authedFetch";
 import {
   AUTHOR_CRAWL_LIST_DEFAULT_LIMIT,
@@ -37,7 +38,7 @@ import {
   ownUnlistedCrawlsLabel,
 } from "@/lib/authorCrawlList";
 import { syncDeviceHandle } from "@/lib/identityClient";
-import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { BADGE_EVENTS } from "@/lib/badgeEvents";
 import {
   BADGE_EVENT_OPT_INS_STORAGE_KEY,
@@ -357,6 +358,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   const isYouRoute = routeHandle === YOU_SENTINEL;
   const router = useRouter();
   const { accountRevision, user, identityResolved, signOut } = useAuth();
+  const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const followKey = `${accountRevision}:${routeHandle}`;
   const storedBadgeEventOptInRaw = useSyncExternalStore(
@@ -665,7 +667,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   useEffect(() => {
     if (!isYouRoute) return;
     if (viewerHandle && viewerHandle !== YOU_SENTINEL) {
-      const returnTo = inviteReturnToFromUrl(window.location.href);
+      const returnTo = accountClaimReturnToFromUrl(window.location.href);
       if (returnTo) {
         router.replace(returnTo);
         return;
@@ -767,7 +769,8 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   });
   const stats = profileStats(drops as ProfileDrop[]);
   const isOwnProfile = viewerHandle !== "" && viewerHandle === routeHandle;
-  const isAnonymous = identityResolved && !user;
+  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
+  const isAnonymous = identityReadyForSurface && viewerSession.signedOut;
   // A stranger may only adopt a handle NOBODY owns. The offer used to ride on
   // `isAnonymous` alone, so a signed-out visitor met "Claim this handle" under
   // a founding member's face, bio and number - and taking it wrote their handle
@@ -787,7 +790,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // the sentinel never paints the synthesized `You` card.
   const surface = profileSurfaceFor({
     routeHandle,
-    identityResolved,
+    identityResolved: identityReadyForSurface,
     hasUser: Boolean(user),
     viewerHandle,
     state,
@@ -930,7 +933,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
   // a real handle to adopt) - the passport's first-run CTA drives the next step.
   // An unresolved viewer gets no identity-bearing action at all: a Follow
   // button carrying the wrong actor is worse than one that arrives a beat late.
-  const headerActions = !identityResolved ? null : isOwnProfile ? (
+  const headerActions = !identityReadyForSurface ? null : isOwnProfile ? (
     <>
       {/* The crew-invite loop's entry point: your own add link. Opening it shows
           the share surface (ConfirmFollow's self branch), so a friend can add
@@ -1119,7 +1122,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
                       handle={routeHandle}
                       claimNudge={shouldShowContributionClaimNudge({
                         isOwnProfile,
-                        identityResolved,
+                        identityResolved: identityReadyForSurface,
                         hasUser: Boolean(user),
                       })}
                     />

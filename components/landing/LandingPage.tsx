@@ -236,9 +236,19 @@ export default function LandingPage({
       <PubPalMascot size={18} circular decorative /> Meet your Pub Pal
     </Link>
   );
+  // The lede describes the primary call to action, so it sits directly under it.
+  // Rendered as a sibling BELOW the secondary links it had nothing to do with,
+  // it read as an orphaned paragraph floating in the middle of the page.
+  const heroLede = (
+    <p className="lpHeroLede">
+      Choose its form and voice in five steps. Sign in to keep it, then talk or
+      type while it shapes a night from PUBMAXX prices, venues, and events.
+    </p>
+  );
   const heroActions = (
     <div className="lpHeroActions">
       {heroPrimary}
+      {heroLede}
       <div className="lpHeroSecondaryRow">
         <Link prefetch={false} className="lpTextLink" href="/plan" onClick={() => trackLandingCta("plan")}>
           <UsersRound size={17} aria-hidden="true" /> Plan tonight together
@@ -256,12 +266,6 @@ export default function LandingPage({
         </Link>
       </div>
     </div>
-  );
-  const heroLede = (
-    <p className="lpHeroLede">
-      Choose its form and voice in five steps. Sign in to keep it, then talk or
-      type while it shapes a night from PUBMAXX prices, venues, and events.
-    </p>
   );
 
   return (
@@ -302,7 +306,6 @@ export default function LandingPage({
           <div className="lpHeroCopy">
             <h1 id="hero-title">London pints can cost eight quid.</h1>
             {heroActions}
-            {heroLede}
             {readout.length > 0 ? (
               <dl className="lpLiveReadout" aria-label="What PUBMAXX tracks right now">
                 {readout.map(({ icon: Icon, value, label }) => (

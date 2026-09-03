@@ -62,7 +62,7 @@ export const HOME_CARD_HERO_LEAD = "London pints";
 export const HOME_CARD_HERO_TAIL = "can cost";
 export const HOME_CARD_HERO_ACCENT = "eight quid.";
 export const HOME_CARD_SUPPORT =
-  "Open the map, pick a drink, and see which nearby pubs pour it cheapest. We name the source when there is one, and say when there is not.";
+  "Choose its form and voice in five steps. Sign in to keep it, then talk or type while it shapes a night from PUBMAXX prices, venues, and events.";
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);

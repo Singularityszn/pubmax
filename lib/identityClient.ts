@@ -131,7 +131,7 @@ export async function resolveCanonicalIdentity(
  * handle is the step after, and /u/you is the only surface carrying the claim
  * form, so a freshly established session with no claimed handle routes there.
  * Returns the destination path, or null to stay put. Never bounces the user on
- * doubt: a restored return fragment (an invite) owns the destination, a device
+ * doubt: a return target (an add link or Plan) owns the destination, a device
  * handle THIS ACCOUNT owns means /u/you would just redirect back out, and a
  * failed or unreadable server answer is not evidence the account has no handle.
  * When the server already owns a handle, sync it onto this device before

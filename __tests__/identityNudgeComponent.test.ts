@@ -9,6 +9,9 @@ const authState = vi.hoisted(() => ({
 const focusTrapState = vi.hoisted(() => ({
   useFocusTrap: vi.fn(),
 }));
+const magicLinkState = vi.hoisted(() => ({
+  signInWithEmail: null as ((email: string) => Promise<unknown>) | null,
+}));
 
 vi.mock("@/components/auth/AuthProvider", () => ({
   useAuth: () => authState.current,
@@ -17,16 +20,21 @@ vi.mock("@/components/auth/MagicLinkForm", () => ({
   default: ({
     label,
     submitLabel,
+    signInWithEmail,
   }: {
     label?: string;
     submitLabel?: string;
-  }) => createElement(
-    "form",
-    { className: "authMagicLink" },
-    createElement("label", { htmlFor: "magic-email" }, label ?? "Continue with email"),
-    createElement("input", { id: "magic-email", type: "email" }),
-    createElement("button", { type: "submit" }, submitLabel ?? "Email me a link"),
-  ),
+    signInWithEmail: (email: string) => Promise<unknown>;
+  }) => {
+    magicLinkState.signInWithEmail = signInWithEmail;
+    return createElement(
+      "form",
+      { className: "authMagicLink" },
+      createElement("label", { htmlFor: "magic-email" }, label ?? "Continue with email"),
+      createElement("input", { id: "magic-email", type: "email" }),
+      createElement("button", { type: "submit" }, submitLabel ?? "Email me a link"),
+    );
+  },
 }));
 vi.mock("@/components/auth/SocialSignInButtons", () => ({
   default: () => createElement("span", null, "Social sign-in"),
@@ -36,6 +44,7 @@ vi.mock("@/lib/identityNudge", () => ({
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS: 8_000,
   getIdentityNudgeClientSnapshot: () => "plan",
   getIdentityNudgeServerSnapshot: () => null,
+  identityNudgeAuthNext: () => "/u/you?returnTo=%2Fplan%2Faaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
   markIdentityNudgeAccepted: vi.fn(),
   markIdentityNudgeDismissed: vi.fn(),
   subscribeIdentityNudge: () => () => {},
@@ -204,6 +213,7 @@ async function renderAfterGrace(): Promise<void> {
 
 beforeEach(() => {
   vi.useFakeTimers();
+  magicLinkState.signInWithEmail = null;
   authState.current = {
     user: null,
     loading: false,
@@ -304,5 +314,18 @@ describe("IdentityNudge visibility", () => {
     expect(renderedCopy).toContain("Email me a link");
     expect(renderedCopy).not.toMatch(/weekly pint digest|Get the digest/iu);
     expect(buttonLabels).not.toContain("Get the digest");
+  });
+
+  it("passes the Plan return to the magic-link action", async () => {
+    authState.current.configured = true;
+
+    await renderAfterGrace();
+
+    expect(magicLinkState.signInWithEmail).not.toBeNull();
+    await magicLinkState.signInWithEmail!("new@example.com");
+    expect(authState.current.signInWithEmail).toHaveBeenCalledWith(
+      "new@example.com",
+      "/u/you?returnTo=%2Fplan%2Faaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa",
+    );
   });
 });

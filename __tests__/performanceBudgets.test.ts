@@ -22,6 +22,7 @@ const route = (over: Partial<RouteBudget> = {}): RouteBudget => ({
   serverRenderMs: 100,
   jsDecodedKB: 1000,
   requests: 50,
+  lcpMs: 2000,
   ...over,
 });
 
@@ -29,6 +30,7 @@ const measurement = (over: Partial<RouteMeasurement> = {}): RouteMeasurement => 
   serverRenderMs: 10,
   jsDecodedKB: 100,
   requests: 5,
+  lcpMs: 200,
   ...over,
 });
 
@@ -90,6 +92,16 @@ describe("findBudgetBreaches", () => {
     expect(breaches).toEqual([
       { path: "/x", metric: "jsDecodedKB", measured: 1500, budget: 1000, overBy: 50 },
     ]);
+  });
+
+  it("fails a metric that was not measured", () => {
+    const breaches = findBudgetBreaches(
+      [route()],
+      new Map([["/x", measurement({ lcpMs: Number.NaN })]]),
+    );
+
+    expect(breaches.map((breach) => breach.metric)).toEqual(["lcpMs"]);
+    expect(Number.isNaN(breaches[0].measured)).toBe(true);
   });
 
   it("fails a route nobody measured rather than reading silence as a pass", () => {

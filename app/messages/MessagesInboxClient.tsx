@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
 import type { ConversationDTO } from "@/lib/messages";
@@ -24,19 +25,58 @@ function readHandle(): string {
   return normalizeHandle(window.localStorage.getItem(HANDLE_KEY) ?? "");
 }
 
+/**
+ * What the empty thread pane says, decided by the LIVE session.
+ *
+ * The pane used to be server-rendered copy: "Choose someone from your inbox to
+ * read the thread and reply." A page may not server-render per-account content
+ * (the client-router-cache law), so it could not know it was saying that to
+ * somebody with no account and therefore no inbox to choose from. It reads the
+ * session here instead, the way every other surface that names or routes the
+ * viewer does, and it says nothing at all until that session answers.
+ */
+export function MessagesThreadEmptyCopy(): React.JSX.Element | null {
+  const viewerSession = useViewerSession();
+
+  if (viewerSession.unresolved) return null;
+
+  if (viewerSession.signedOut) {
+    return (
+      <div>
+        <p className="messagesThreadEyebrow">Messages</p>
+        <h2>Your conversations show here.</h2>
+        <p>One thread for each person you go out with, kept to the two of you.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div>
+      <p className="messagesThreadEyebrow">Your conversations</p>
+      <h2>Pick a message</h2>
+      <p>Choose someone from your inbox to read the thread and reply.</p>
+    </div>
+  );
+}
+
 export default function MessagesInboxClient({
   activeConversationId,
 }: {
   activeConversationId?: string;
 }): React.JSX.Element {
-  const { user, handle: authHandle } = useAuth();
+  const { accountRevision, user, handle: authHandle } = useAuth();
+  const viewerSession = useViewerSession();
   const [handle, setHandle] = useState("");
   const [conversations, setConversations] = useState<ConversationDTO[]>([]);
-  const [loaded, setLoaded] = useState(false);
+  const [loadedRevision, setLoadedRevision] = useState<number | null>(null);
   const [needsSignIn, setNeedsSignIn] = useState(false);
   const [failed, setFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const retryingRef = useRef(false);
+  const accountRevisionRef = useRef(accountRevision);
+  useLayoutEffect(() => {
+    accountRevisionRef.current = accountRevision;
+  }, [accountRevision]);
 
   useEffect(() => {
     let active = true;
@@ -52,26 +92,35 @@ export default function MessagesInboxClient({
 
   const refresh = useCallback(
     async (signal?: AbortSignal) => {
+      const requestRevision = accountRevision;
+      if (requestRevision !== accountRevisionRef.current) return;
+      const stillCurrent = () => requestRevision === accountRevisionRef.current;
       if (!user) {
+        if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoaded(true);
+        setLoadedRevision(requestRevision);
         return;
       }
       const h = normalizeHandle(authHandle ?? "") || readHandle();
-      if (h !== handle) setHandle(h);
+      if (h !== handle && stillCurrent()) setHandle(h);
       if (!h) {
+        if (!stillCurrent()) return;
         setConversations([]);
         setNeedsSignIn(true);
         setFailed(false);
-        setLoaded(true);
+        setLoadedRevision(requestRevision);
         return;
       }
       try {
         const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
           signal,
         });
+        if (!stillCurrent()) {
+          discardBody(res);
+          return;
+        }
         if (res.status === 401) {
           discardBody(res);
           setNeedsSignIn(true);
@@ -88,19 +137,20 @@ export default function MessagesInboxClient({
         setNeedsSignIn(false);
         setFailed(false);
         const body = (await res.json()) as { conversations?: ConversationDTO[] };
+        if (!stillCurrent()) return;
         setConversations(Array.isArray(body.conversations) ? body.conversations : []);
       } catch (err) {
         const aborted =
           signal?.aborted || (err instanceof Error && err.name === "AbortError");
-        if (!aborted) {
+        if (!aborted && stillCurrent()) {
           setNeedsSignIn(false);
           setFailed(true);
         }
       } finally {
-        setLoaded(true);
+        if (stillCurrent()) setLoadedRevision(requestRevision);
       }
     },
-    [handle, user, authHandle],
+    [accountRevision, handle, user, authHandle],
   );
 
   const retry = useCallback(() => {
@@ -137,6 +187,8 @@ export default function MessagesInboxClient({
     };
   }, [refresh, handle]);
 
+  const accountDataReady = loadedRevision === accountRevision;
+
   return (
     <>
       <h1 className="messagesHeading">Messages</h1>
@@ -144,9 +196,11 @@ export default function MessagesInboxClient({
         Messages need a signed-in account. Keep it low-key, and report anything off.
       </p>
 
-      {!loaded ? (
+      {!accountDataReady ? (
         <p className="conversationPreview">With you in a sec.</p>
-      ) : needsSignIn || !user ? (
+      ) : viewerSession.unresolved ? (
+        <p className="conversationPreview">With you in a sec.</p>
+      ) : viewerSession.signedOut && (needsSignIn || !user) ? (
         <EmptyState
           title="Sign in to message"
           body="Private messages need a signed-in account, so each message is tied to the right handle."

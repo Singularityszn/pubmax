@@ -7,6 +7,7 @@ import {
   bootstrapAuthSession,
   type BrowserAuthSession,
 } from "@/lib/authSessionBootstrap";
+import type { ResumeHintReadOutcome } from "@/lib/authSessionResumeClient";
 
 const RESTORED_SESSION = {
   access_token: "access-restored",
@@ -39,10 +40,10 @@ describe("browser auth session bootstrap", () => {
   });
 
   it("waits for cookie redemption before settling a cold browser", async () => {
-    let resolveHint: ((value: { maskedEmail: string | null }) => void) | undefined;
+    let resolveHint: ((value: ResumeHintReadOutcome) => void) | undefined;
     const readHint = vi.fn(
       () =>
-        new Promise<{ maskedEmail: string | null }>((resolve) => {
+        new Promise<ResumeHintReadOutcome>((resolve) => {
           resolveHint = resolve;
         }),
     );
@@ -58,7 +59,7 @@ describe("browser auth session bootstrap", () => {
     expect(browser.setSession).not.toHaveBeenCalled();
     expect(redeem).not.toHaveBeenCalled();
 
-    resolveHint?.({ maskedEmail: null });
+    resolveHint?.({ status: "present", hint: { maskedEmail: null } });
 
     await expect(bootstrap).resolves.toEqual({
       status: "restored",
@@ -82,7 +83,9 @@ describe("browser auth session bootstrap", () => {
       const startedAt = Date.now();
 
       await expect(
-        bootstrapAuthSession(browser, { readHint: async () => null }),
+        bootstrapAuthSession(browser, {
+          readHint: async () => ({ status: "absent" }),
+        }),
       ).resolves.toEqual({ status: "none" });
       expect(Date.now() - startedAt).toBeLessThan(1_000);
 
@@ -90,6 +93,20 @@ describe("browser auth session bootstrap", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+
+  it("preserves a failed local session read as unavailable", async () => {
+    const browser = auth({
+      getSession: vi.fn(async () => {
+        throw new Error("storage blocked");
+      }),
+    });
+
+    await expect(
+      bootstrapAuthSession(browser, {
+        readHint: async () => ({ status: "absent" }),
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
   });
 
   it("returns local session without touching the resume cookie", async () => {
@@ -119,7 +136,7 @@ describe("browser auth session bootstrap", () => {
 
     await expect(
       bootstrapAuthSession(browser, {
-        readHint: async () => ({ maskedEmail: null }),
+        readHint: async () => ({ status: "present", hint: { maskedEmail: null } }),
         redeem: async () => ({
           status: "restored" as const,
           session: RESTORED_SESSION,
@@ -131,10 +148,18 @@ describe("browser auth session bootstrap", () => {
   it("converts a rejected redemption into unavailable", async () => {
     await expect(
       bootstrapAuthSession(auth(), {
-        readHint: async () => ({ maskedEmail: null }),
+        readHint: async () => ({ status: "present", hint: { maskedEmail: null } }),
         redeem: async () => {
           throw new Error("offline");
         },
+      }),
+    ).resolves.toEqual({ status: "unavailable" });
+  });
+
+  it("preserves an unavailable resume read", async () => {
+    await expect(
+      bootstrapAuthSession(auth(), {
+        readHint: async () => ({ status: "unavailable" }),
       }),
     ).resolves.toEqual({ status: "unavailable" });
   });

@@ -171,7 +171,7 @@ describe("mutating API surface certification", () => {
   it("keeps the reviewed inventory explicit", () => {
     // Each mutation method is one coordination point. Exact path and method
     // pairs live in docs/WRITE_SURFACE_CERTIFICATION.md.
-    expect(mutationHandlers).toHaveLength(139);
+    expect(mutationHandlers).toHaveLength(142);
     expect(certifiedMutationHandlers()).toEqual(
       mutationHandlers.map(mutationHandlerKey),
     );
@@ -257,7 +257,7 @@ describe("mutating API surface certification", () => {
 
   it("gives every mutating handler its own abuse or authority boundary", () => {
     const uncovered = mutationHandlers
-      .filter(({ method, route, source }) =>
+      .filter(({ source }) =>
         boundaries(source).length === 0,
       )
       .map(mutationHandlerKey);

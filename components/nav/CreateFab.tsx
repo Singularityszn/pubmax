@@ -17,6 +17,7 @@ import { shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import {
   CREATE_FAB_ACTIONS,
   createFabMenuVisible,
+  createFabVisible,
   returnToFromLocation,
 } from "@/components/nav/createFabActions";
 import { trackEvent } from "@/lib/analytics";
@@ -53,6 +54,8 @@ function CreateFabGate() {
   const searchParams = useSearchParams();
   const query = searchParams.toString();
   if (!shouldShowMobileTabBar(pathname)) return null;
+  // The tab bar rides every route; compose is the narrower question.
+  if (!createFabVisible(pathname)) return null;
   return <CreateFabContent routerReturnTo={`${pathname}${query ? `?${query}` : ""}`} />;
 }
 

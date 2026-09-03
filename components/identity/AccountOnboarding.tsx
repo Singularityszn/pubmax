@@ -31,7 +31,7 @@ import { cleanDateOfBirth } from "@/lib/privateIdentity";
 import { normalizeHandle } from "@/lib/profiles";
 import { assessPubmaxxHandle } from "@/lib/pubmaxxIdentity";
 import { useReconnectRecovery } from "@/lib/useReconnectRecovery";
-import { inviteReturnToFromUrl } from "@/lib/inviteReturnTo";
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 import { useFocusTrap } from "@/lib/useFocusTrap";
 
 import "./accountOnboarding.css";
@@ -278,7 +278,7 @@ function AccountOnboardingForUser({
       typeof window !== "undefined" && typeof window.location?.href === "string"
         ? window.location.href
         : "";
-    const returnTo = inviteReturnToFromUrl(currentUrl);
+    const returnTo = accountClaimReturnToFromUrl(currentUrl);
     if (returnTo && typeof window.location?.assign === "function") {
       window.location.assign(returnTo);
     }

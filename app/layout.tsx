@@ -103,10 +103,18 @@ const dataMono = JetBrains_Mono({
   subsets: ["latin"],
   variable: "--font-data",
   display: "swap",
-  // 400 added so un-weighted var(--font-data) consumers (globals.css .font-data,
-  // venue price story) render a real regular weight rather than a synthesised
-  // (faux-bold-adjacent) fallback. 500/700 remain for stamped/emphasis numerals.
-  weight: ["400", "500", "700"],
+  // 400 for un-weighted var(--font-data) consumers (globals.css .font-data, the
+  // venue price story), which would otherwise render a synthesised
+  // faux-bold-adjacent fallback, and 700 for the stamped and emphasis numerals.
+  //
+  // 500 is gone because nothing can reach it. CSS picks the nearest available
+  // weight, and for a target ABOVE 500 it searches upward first, so every
+  // stamped rule in the tree - the 550 shorthands on the landing, the legal
+  // pages and the drop strip, and the 600/640/650 ones in Pub Pal chat - lands
+  // on 700 already. Only an exact 500, or a target in (400, 500], could have
+  // used it, and no shipped rule asks for either. __tests__/fontWeights.test.ts
+  // is what keeps that true.
+  weight: ["400", "700"],
 });
 
 // No party accent (Bungee) webfont is loaded on any route: the vibe chips were

@@ -1191,16 +1191,16 @@ for (const viewport of VIEWPORTS) {
   });
 }
 
-// Gated Social is not a primary phone destination. The count-driven row must
-// close to four columns at every supported phone width.
+// Social is a primary phone destination in the live launch. The count-driven
+// row must close to five columns at every supported phone width.
 for (const viewport of VIEWPORTS) {
-  test(`${viewport.width}px gated Social stays out of primary phone chrome`, async ({
+  test(`${viewport.width}px live Social stays in primary phone chrome`, async ({
     page,
   }) => {
     await openPhoneMap(page, viewport);
 
     const primary = page.getByRole("navigation", { name: "Primary" });
-    await expect(primary.locator('a[href="/social"]')).toHaveCount(0);
-    await expect(primary.locator("a")).toHaveCount(4);
+    await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
+    await expect(primary.locator("a")).toHaveCount(5);
   });
 }

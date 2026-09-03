@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import FoundingMemberCard from "@/components/founding/FoundingMemberCard";
 import {
   analyticsConsentDecision,
@@ -347,6 +349,7 @@ function AccountHandleEditor({
 
 export default function PubmaxxAccountHub() {
   const { accountRevision, user, loading, session, identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const accountAuth = useMemo(
     () => captureAccountAuth(user?.id ?? null, session),
@@ -755,8 +758,8 @@ export default function PubmaxxAccountHub() {
       });
   }
 
-  if (loading) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
-  if (!user) return (
+  if (loading || viewerSession.unresolved) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
+  if (viewerSession.signedOut) return (
     <section className="accountHub">
       <p className="profileSectionKicker">Your PUBMAXX</p>
       <h2>Sign in to save your nights</h2>
@@ -772,6 +775,7 @@ export default function PubmaxxAccountHub() {
       {message ? <p role="status" className="accountHubMessage">{message}</p> : null}
     </section>
   );
+  if (!user) return <section className="accountHub" aria-busy="true"><p>Loading your account…</p></section>;
 
   const mergeState = mergeDeferred || !nightProfileLoaded
     ? ({ kind: "none" } as const)
@@ -871,6 +875,12 @@ export default function PubmaxxAccountHub() {
           </div>
         )}
         <FoundingMemberCard />
+        {/* Beside the card, never inside it: the CARD is for a founding member
+            alone, and the WALL is a public list anybody may read. */}
+        <div className="accountHubFoundersWall">
+          <h3>The first hundred</h3>
+          <FoundersWallLink />
+        </div>
         {socialFriendsLaunchEnabled ? (
           <ReferralInviteCard
             status={visibleReferralStatus}

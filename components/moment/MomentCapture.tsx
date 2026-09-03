@@ -21,6 +21,7 @@ import {
 
 import SignInButton from "@/components/auth/SignInButton";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SiteNav from "@/components/nav/SiteNav";
 import { safeMomentReturnTo } from "@/components/nav/navigationModel";
 import { trackEvent } from "@/lib/analytics";
@@ -135,6 +136,7 @@ export default function MomentCapture(): React.JSX.Element {
   const searchParams = useSearchParams();
   const returnTo = safeMomentReturnTo(searchParams?.get("returnTo"));
   const { user, loading: authLoading } = useAuth();
+  const viewerSession = useViewerSession();
   const ownerKey = user?.id ?? GUEST_OWNER;
   const isPhone = useSyncExternalStore(
     subscribeMobileViewport,
@@ -626,7 +628,7 @@ export default function MomentCapture(): React.JSX.Element {
             <button className="momentSave" type="submit" disabled={!canSave}>
               {saveState === "saving" ? "Saving privately..." : "Save private Moment"}
             </button>
-          ) : (
+          ) : viewerSession.unresolved ? null : (
             <div className="momentSignIn">
               <p>Sign in when you are ready to keep this Moment across devices.</p>
               <SignInButton />

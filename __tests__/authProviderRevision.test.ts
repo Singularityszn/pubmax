@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createProviderIdentityRevisionStore,
   resolveSupabaseAuthState,
+  type ProviderAuthState,
 } from "@/lib/authProviderRevision";
 
 afterEach(() => {
@@ -85,7 +86,7 @@ describe("provider identity revision", () => {
 
   it("does not let a bootstrap timeout replace an authenticated session", () => {
     vi.useFakeTimers();
-    let state: "unresolved" | "authenticated" | "signed-out" = "unresolved";
+    let state: ProviderAuthState = "unresolved";
     let currentUserId: string | null = null;
 
     const timeout = setTimeout(() => {

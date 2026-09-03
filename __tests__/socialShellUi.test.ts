@@ -39,24 +39,20 @@ const protectedPost: SocialPostDTO = {
   venueName: "The Test Arms",
 };
 
-const socialPageSource = readFileSync("app/social/SocialPageClient.tsx", "utf8");
 const socialCss = readFileSync("app/social/social.css", "utf8");
 
 describe("Social access boundary", () => {
   it("keeps signed-out preview to one boundary and one sign-in action", () => {
-    const signedOutBranch =
-      socialPageSource.match(
-        /viewerPhase === "signed-out" \? \(([\s\S]*?)\) : access === "checking"/,
-      )?.[1] ?? "";
-
-    expect(signedOutBranch).toContain("SocialAccessBoundary");
-    expect(signedOutBranch).not.toContain("SocialViewerState");
-    expect(signedOutBranch).not.toContain("socialFeedEmpty");
-    const viewerCards =
-      socialPageSource.match(/const showViewerCards =([\s\S]*?);/)?.[1] ?? "";
-    expect(viewerCards).toMatch(
-      /isPosts\s*&&\s*viewerPhase === "resolved"\s*&&\s*access === "verified"/,
+    const html = renderToStaticMarkup(
+      createElement(SocialAccessBoundary, {
+        state: "sign_in_required",
+        friendsLaunchEnabled: true,
+      }),
     );
+
+    expect(html).toContain("Sign in to use Social.");
+    expect(html).not.toContain("socialFeedEmpty");
+    expect(html.match(/href="/g)).toHaveLength(1);
   });
 
   it("uses a compact boundary so preview does not leave a large empty panel", () => {

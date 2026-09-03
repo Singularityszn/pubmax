@@ -1,7 +1,7 @@
 import type { Page, Request } from "@playwright/test";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
+import { aggregatePerfMetric, waitForQuietNetwork } from "../e2e/helpers/perfMeasurement";
 
 type RequestEvent = "request" | "requestfinished" | "requestfailed";
 
@@ -62,5 +62,11 @@ describe("waitForQuietNetwork", () => {
     await vi.advanceTimersByTimeAsync(2_000);
 
     await expect(waiting).resolves.toBeUndefined();
+  });
+});
+
+describe("performance measurement aggregation", () => {
+  it("keeps an absent metric unmeasured instead of treating it as zero", () => {
+    expect(Number.isNaN(aggregatePerfMetric([Number.NaN, 700, 710]))).toBe(true);
   });
 });

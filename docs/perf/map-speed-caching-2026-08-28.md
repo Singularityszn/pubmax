@@ -12,8 +12,11 @@ Measured from the production build data files:
 | `51.525_-0.125` cell | 22,314 | Central London viewport |
 | Initial viewport rows | 109,973 | Manifest plus two cells |
 
-The initial viewport payload is 8.5x smaller than the legacy index. The ring
-loads after the initial shard settles and follows the current map bounds.
+The initial viewport payload is 8.5x smaller than the legacy index. In this
+28 August capture, the ring loaded after the initial shard settled and followed
+the current map bounds. The current scheduler keeps the viewport load on the
+caller's turn and sends the neighbouring ring to idle; `perf/route-budgets.json`
+owns the current request-count note.
 
 ## Browser probe
 

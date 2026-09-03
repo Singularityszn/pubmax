@@ -13,11 +13,19 @@
 
 import budgetsJson from "@/perf/route-budgets.json";
 
-/** The three things a route is budgeted on. */
+/**
+ * The four things a route is budgeted on.
+ *
+ * `lcpMs` is the one a drinker actually feels: the other three are the levers
+ * that move it, and a route can hold all three and still paint late. It is
+ * measured by the same run, under the same method block, so the four figures
+ * in a sweep describe one load rather than four.
+ */
 export const BUDGET_METRICS = [
   "serverRenderMs",
   "jsDecodedKB",
   "requests",
+  "lcpMs",
 ] as const;
 
 export type BudgetMetric = (typeof BUDGET_METRICS)[number];
@@ -27,6 +35,7 @@ export const BUDGET_METRIC_LABELS: Record<BudgetMetric, string> = {
   serverRenderMs: "server render (ms)",
   jsDecodedKB: "JS decoded (KB)",
   requests: "requests",
+  lcpMs: "LCP (ms)",
 };
 
 export type RouteBudget = {
@@ -41,6 +50,8 @@ export type RouteBudget = {
 } & Record<BudgetMetric, number>;
 
 export type BudgetMethod = {
+  browser: string;
+  deviceScaleFactor: number;
   /** Unmeasured runs first, so a cold module load is not charged to the route. */
   warmupRuns: number;
   /** Measured runs per route. */
@@ -51,6 +62,7 @@ export type BudgetMethod = {
   viewport: { width: number; height: number };
   /** Cross-origin requests are refused, so a run measures only what we ship. */
   thirdPartyBlocked: boolean;
+  futureDeviceMigration: string;
   /**
    * Where the byte and request counts are cut, in words. Deliberately part of
    * the tracked config: two runs are only comparable if they stopped counting
@@ -117,12 +129,94 @@ export function findBudgetBreaches(
   return breaches;
 }
 
+/**
+ * How far under a ceiling a route has to sit before the slack is worth banking.
+ *
+ * Slack does not stay slack. #1296 is the record of what happens otherwise: a
+ * ceiling set generously, a route that quietly grew back into it, and nobody
+ * able to say when. So a sweep that beats a ceiling by more than this names the
+ * candidate, and somebody decides whether to take it down.
+ */
+export const RATCHET_SLACK_FRACTION = 0.15;
+
+export type RatchetCandidate = {
+  path: string;
+  metric: BudgetMetric;
+  measured: number;
+  budget: number;
+  /** How far under the ceiling, as a whole percentage. */
+  underBy: number;
+};
+
+/**
+ * Every metric a run beat by more than the slack fraction.
+ *
+ * This is a WARNING and nothing else: it edits no file and fails no build. A
+ * ceiling comes down because a person decided it should, with the measurement
+ * in front of them - the same rule the budget file's own note states.
+ *
+ * An unmeasured route is not a candidate: it is a breach, and
+ * `findBudgetBreaches` already says so.
+ */
+export function findRatchetCandidates(
+  budgets: readonly RouteBudget[],
+  measured: ReadonlyMap<string, RouteMeasurement>,
+  slackFraction: number = RATCHET_SLACK_FRACTION,
+): RatchetCandidate[] {
+  const candidates: RatchetCandidate[] = [];
+  for (const route of budgets) {
+    const measurement = measured.get(route.path);
+    if (!measurement) continue;
+    for (const metric of BUDGET_METRICS) {
+      const budget = route[metric];
+      const value = measurement[metric];
+      if (!Number.isFinite(value) || budget <= 0) continue;
+      const slack = (budget - value) / budget;
+      if (slack <= slackFraction) continue;
+      candidates.push({
+        path: route.path,
+        metric,
+        measured: value,
+        budget,
+        underBy: Math.round(slack * 100),
+      });
+    }
+  }
+  return candidates;
+}
+
 function pad(value: string, width: number): string {
   return value.length >= width ? value : value + " ".repeat(width - value.length);
 }
 
 function figure(value: number): string {
   return Number.isFinite(value) ? String(Math.round(value)) : "not measured";
+}
+
+/**
+ * The ratchet table a green run prints when there is slack to bank. Empty
+ * string when every ceiling is snug, so a quiet sweep stays quiet.
+ */
+export function formatRatchetTable(candidates: readonly RatchetCandidate[]): string {
+  if (candidates.length === 0) return "";
+  const rows = candidates.map((candidate) => [
+    candidate.path,
+    BUDGET_METRIC_LABELS[candidate.metric],
+    figure(candidate.measured),
+    figure(candidate.budget),
+    `-${candidate.underBy}%`,
+  ]);
+  const header = ["route", "metric", "measured", "budget", "under by"];
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+  );
+  const line = (cells: string[]) =>
+    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+  return [
+    line(header),
+    widths.map((width) => "-".repeat(width)).join("  "),
+    ...rows.map(line),
+  ].join("\n");
 }
 
 /** The over-budget table a failing run prints. Empty string when nothing broke. */

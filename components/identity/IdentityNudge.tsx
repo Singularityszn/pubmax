@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import MagicLinkForm from "@/components/auth/MagicLinkForm";
 import SocialSignInButtons from "@/components/auth/SocialSignInButtons";
 import { useDismissOnEscape } from "@/lib/useDismissOnEscape";
@@ -24,6 +25,7 @@ import {
   IDENTITY_NUDGE_FIRST_PAINT_GRACE_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
+  identityNudgeAuthNext,
   markIdentityNudgeAccepted,
   markIdentityNudgeDismissed,
   subscribeIdentityNudge,
@@ -54,7 +56,6 @@ export default function IdentityNudge(): React.JSX.Element | null {
     getIdentityNudgeServerSnapshot,
   );
   const {
-    user,
     loading,
     configured,
     socialProviders,
@@ -63,6 +64,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
     signInWithEmail,
     cancelAuthAttempt,
   } = useAuth();
+  const viewerSession = useViewerSession();
 
   const [authBusy, setAuthBusy] = useState(false);
   const [authError, setAuthError] = useState("");
@@ -95,7 +97,8 @@ export default function IdentityNudge(): React.JSX.Element | null {
     Boolean(trigger) &&
     graced &&
     !loading &&
-    !user &&
+    // Only a session that has ANSWERED nobody may be nudged to sign in.
+    viewerSession.signedOut &&
     configured &&
     hasPromptBudgetFor(IDENTITY_SURFACE);
 
@@ -121,12 +124,15 @@ export default function IdentityNudge(): React.JSX.Element | null {
   if (!canShow || !trigger) return null;
 
   const copy = COPY[trigger];
+  const authNext = trigger === "plan" ? identityNudgeAuthNext() : undefined;
   const hasSocialProviders = socialProviders.google || socialProviders.apple;
 
-  async function startSignIn(provider: () => Promise<{ error: string | null }>) {
+  async function startSignIn(
+    provider: (next?: string) => Promise<{ error: string | null }>,
+  ) {
     setAuthBusy(true);
     setAuthError("");
-    const result = await provider();
+    const result = await provider(authNext);
     if (result.error) {
       setAuthError(result.error);
       setAuthBusy(false);
@@ -172,7 +178,7 @@ export default function IdentityNudge(): React.JSX.Element | null {
           <MagicLinkForm
             disabled={authBusy}
             hasSocialProviders={hasSocialProviders}
-            signInWithEmail={signInWithEmail}
+            signInWithEmail={(email) => signInWithEmail(email, authNext)}
             cancelAuthAttempt={cancelAuthAttempt}
           />
         ) : null}

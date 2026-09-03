@@ -32,6 +32,8 @@
 // action if `!isIdentityNudgePending()`. On the web the push gate is inert
 // (native-only), so there is no conflict there.
 
+import { HANDLE_CLAIM_NEXT } from "@/lib/authRedirect";
+import { safePlanReturnTo } from "@/lib/accountClaimReturnTo";
 import { DAY_MS } from "@/lib/dayMs";
 import { safeLocalStorage } from "@/lib/safeStorage";
 
@@ -40,6 +42,7 @@ export type IdentityNudgeTrigger = "plan" | "moment";
 const DISMISSED_AT_KEY = "pubmax:identityNudge:dismissedAt:v1";
 const PENDING_KEY = "pubmax:identityNudge:pending:v1";
 const PENDING_AT_KEY = "pubmax:identityNudge:pendingAt:v1";
+const PENDING_PLAN_RETURN_TO_KEY = "pubmax:identityNudge:planReturnTo:v1";
 
 /** How long a "not now" keeps the gate shut before the next qualifying action can re-open it. */
 export const IDENTITY_NUDGE_COOLDOWN_DAYS = 7;
@@ -92,6 +95,7 @@ function clearPending(): void {
   try {
     window.localStorage.removeItem(PENDING_KEY);
     window.localStorage.removeItem(PENDING_AT_KEY);
+    window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
   } catch {
     // ignore
   }
@@ -170,8 +174,11 @@ export function shouldOfferIdentityNudge(state: IdentityNudgeGateState): boolean
  * render if nothing is already pending (first qualifying action wins its copy).
  * A no-op on SSR / storage failure — the nudge simply never arms there.
  */
-export function recordPlanNudgeTrigger(): void {
-  armTrigger("plan");
+export function recordPlanNudgeTrigger(planId?: string): void {
+  armTrigger(
+    "plan",
+    typeof planId === "string" ? safePlanReturnTo(`/plan/${planId}`) : null,
+  );
 }
 
 /**
@@ -183,7 +190,7 @@ export function recordMomentNudgeTrigger(): void {
   armTrigger("moment");
 }
 
-function armTrigger(trigger: IdentityNudgeTrigger): void {
+function armTrigger(trigger: IdentityNudgeTrigger, planReturnTo: string | null = null): void {
   if (!hasStorage()) return;
   try {
     // First qualifying action keeps its copy until the nudge resolves; a second
@@ -191,12 +198,33 @@ function armTrigger(trigger: IdentityNudgeTrigger): void {
     // raw read) so an EXPIRED pending is treated as absent — it self-clears, and
     // the fresh action re-arms cleanly with a new timestamp.
     if (readPending() !== null) return;
+    if (trigger === "plan" && planReturnTo) {
+      window.localStorage.setItem(PENDING_PLAN_RETURN_TO_KEY, planReturnTo);
+    } else {
+      window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
+    }
     window.localStorage.setItem(PENDING_KEY, trigger);
     window.localStorage.setItem(PENDING_AT_KEY, String(Date.now()));
   } catch {
     return;
   }
   notify();
+}
+
+export function identityNudgeAuthNext(): string | undefined {
+  if (readPending() !== "plan" || !hasStorage()) return undefined;
+  try {
+    const rawReturnTo = window.localStorage.getItem(PENDING_PLAN_RETURN_TO_KEY);
+    const returnTo = safePlanReturnTo(rawReturnTo);
+    if (rawReturnTo !== null && !returnTo) {
+      window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
+    }
+    return returnTo
+      ? `${HANDLE_CLAIM_NEXT}?returnTo=${encodeURIComponent(returnTo)}`
+      : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -259,6 +287,7 @@ export function markIdentityNudgeDismissed(): void {
     window.localStorage.setItem(DISMISSED_AT_KEY, String(Date.now()));
     window.localStorage.removeItem(PENDING_KEY);
     window.localStorage.removeItem(PENDING_AT_KEY);
+    window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
     notify();
   } catch {
     // Storage full / disabled / private mode — degrade silently.
@@ -275,6 +304,7 @@ export function markIdentityNudgeAccepted(): void {
   try {
     window.localStorage.removeItem(PENDING_KEY);
     window.localStorage.removeItem(PENDING_AT_KEY);
+    window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
     notify();
   } catch {
     // ignore
@@ -288,6 +318,7 @@ export function resetIdentityNudge(): void {
     window.localStorage.removeItem(DISMISSED_AT_KEY);
     window.localStorage.removeItem(PENDING_KEY);
     window.localStorage.removeItem(PENDING_AT_KEY);
+    window.localStorage.removeItem(PENDING_PLAN_RETURN_TO_KEY);
     notify();
   } catch {
     // ignore

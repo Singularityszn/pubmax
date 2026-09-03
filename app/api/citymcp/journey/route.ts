@@ -115,6 +115,11 @@ async function respondWithJourney(
     });
   }
 
+  // `viewerOrigin` is the POST lane and only the POST lane: a request that
+  // starts where the READER is stands is sent as a body with `cache: no-store`
+  // (components/map/useVenueJourney.ts), so a viewer point never reaches this
+  // route's URL and never reaches the shared cache key. The cacheable GET
+  // carries venue-to-venue coordinates, which are public map data.
   const fromPoint = options.viewerOrigin
     ? coarsenViewerPoint({ lat: fromLat, lng: fromLng })
     : { lat: fromLat, lng: fromLng };
