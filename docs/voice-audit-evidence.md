@@ -953,28 +953,25 @@ one surface, not a widened sweep.
 ## Pass 2026-08-30: the remaining surfaces
 
 The passes above were per file, and their inventories name what each one read.
-This pass closes the remainder a different way: it sweeps the WHOLE tree for
-each mechanical class of violation, so no file is left uninspected for those
-classes and no future file can be either. The per-file inventories above still
+This pass records focused fences for named surfaces and mechanical classes. It
+does not claim complete tree coverage. The per-file inventories above still
 record what the earlier passes read and are unchanged.
 
 What the earlier inventories could never do is stay true. A file list is a
 snapshot, and every surface shipped since (Social, Wanted, Desk mode, /out,
 occupancy, cover rotation, message attachments, account switching) landed
-outside it. So each class below is now held by a fence rather than by a list.
+outside it. Each class below therefore states its own tested coverage.
 
 ### Classes swept, and how
 
-Every sweep reads the AST rather than the raw bytes, for the reason the em-dash
-law does: a comment about a banned word is not a banned word, and a regular
-expression that BLOCKS a phrase is the fence rather than the offence. String
-literals, template literals and JSX text are judged; comments, import
-specifiers and regex literals are not.
+Source sweeps in this pass read the AST rather than raw bytes. Rendered fences
+execute the named components and inspect their visible text. Comments, import
+specifiers and regex literals are not reader-facing output.
 
 | Class | How it is held | Result |
 | --- | --- | --- |
 | Em dash, em-dash entity, spaced en dash | `__tests__/emDashLaw.test.ts`, widened here to `components/**/*.ts` (68 files, no exception needed) | Clean |
-| Begging and door-slam copy | `__tests__/frictionVoice.test.ts` "no-begging law", new here, tree-wide over `app`, `components`, `lib` | 2 found, both fixed |
+| Begging and door-slam copy | Rendered `TonightListingsNotice` error, partial-read and empty states plus `SocialAccessBoundary` sign-in and unavailable states in `__tests__/frictionVoice.test.ts`; API fallback and price-submit response are asserted in `__tests__/apiErrorMessage.test.ts` and `__tests__/priceSubmitRoute.test.ts` | Named set clean; other reader-facing states are not covered by this fence |
 | Brand spelling (`Pubmax` for `PUBMAXX`) | Swept; every hit is a storage key, an env name, an identifier or a comment | Clean |
 | American spelling | Swept over reader copy; every hit is a CSS token, a search alias or a flag document | Clean |
 | Exclamation marks | Swept over reader copy | Clean |
@@ -982,6 +979,8 @@ specifiers and regex literals are not.
 | Plumbing words on a reader surface | Swept over JSX text plus the reader-copy attributes | 4 found, all fixed |
 | Pressure copy (the `lib/stepOutNudge.ts` banned-copy spirit) | Swept over the push, nudge and prompt lanes | Clean |
 | Dishonest states | Swept for a failed read that answers as an empty one | 1 found, deferred (below) |
+
+NOT covered by this fence: browser-only failure transitions in `app/crawls/CrawlsPageClient.tsx`, `app/rounds/[code]/RoundPageClient.tsx`, `app/social/SocialComposer.tsx`, `app/we-are-out/WeAreOutClient.tsx` and `app/admin/AdminClient.tsx`; `components/share/ShareBar.tsx` and `components/social/FindYourLot.tsx`; and other reader-facing surfaces or API routes not named above. These need separate rendered or protocol-level assertions before broader coverage is claimed.
 
 ### Violations found and fixed
 
