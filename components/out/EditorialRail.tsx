@@ -30,7 +30,8 @@ export function EditorialRailView({
   now?: number;
   onRetry: () => void;
 }) {
-  const resolvedNow = now ?? Date.now();
+  const [mountedAt] = useState(() => Date.now());
+  const resolvedNow = now ?? mountedAt;
   const stale = editorialSnapshotIsStale(snapshot, resolvedNow);
   const items = stale ? [] : editorialThisWeekItems(snapshot, resolvedNow);
   const empty = items.length === 0;

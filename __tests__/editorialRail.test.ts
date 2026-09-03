@@ -82,6 +82,7 @@ describe("editorial rail", () => {
         onRetry: () => undefined,
       }),
     );
+    expect(markup).toContain(EDITORIAL_STALE_LINE);
     expect(markup).toContain(
       "No fresh picks to show just now. Last checked 13 Aug.",
     );
