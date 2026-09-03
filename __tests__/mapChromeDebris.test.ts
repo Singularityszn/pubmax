@@ -17,6 +17,8 @@ const read = (file: string): string => readFileSync(join(process.cwd(), file), "
 
 const mobileMapCss = read("components/mobile/mobileMapShell.css");
 const mapKeyCss = read("components/map/mapKey.css");
+const cameraControlsCss = read("components/map/mapCameraControls.css");
+const canvasSource = read("components/PubMapCanvas.tsx");
 
 /**
  * Every declaration that lands on `selector`, from each rule that names it.
@@ -37,23 +39,58 @@ function rule(css: string, selector: string): string {
 }
 
 describe("phone map compass — a control, not a box", () => {
-  const group = rule(
+  const appCompass = rule(
     mobileMapCss,
-    ".appShell .mapStage .maplibregl-ctrl-top-right .maplibregl-ctrl-group",
+    ".appShell .mapStage .mapCameraControls .mapCompassBtn",
   );
+  const nativeGroup = rule(mobileMapCss, ".appShell .mapStage .maplibregl-ctrl-top-right");
 
   it("wears the round 44px shape the rest of the lane uses", () => {
-    expect(group).toMatch(/border-radius:\s*50%/);
-    expect(group).toMatch(/width:\s*44px/);
-    expect(group).toMatch(/height:\s*44px/);
-    // A square corner painting outside a round group is the box coming back.
-    expect(group).toMatch(/overflow:\s*hidden/);
+    expect(appCompass).toMatch(/border-radius:\s*50%/);
+    expect(appCompass).toMatch(/width:\s*44px/);
+    expect(appCompass).toMatch(/height:\s*44px/);
   });
 
-  it("keeps the compass itself, which is the only way back to north", () => {
+  // MapLibre's compass is off at the source now (PubMapCanvas), and its zoom
+  // buttons were already hidden here, so the group left behind is an empty
+  // round box parked under the TfL chip — the very debris this file names.
+  it("takes away the native group it left with nothing in it", () => {
+    expect(nativeGroup).toMatch(/display:\s*none/);
+  });
+
+  it("keeps a compass on the phone, which is the only way back from a rotation", () => {
+    expect(mobileMapCss).toContain(".mapCompassBtn");
     expect(mobileMapCss).not.toMatch(
-      /\.maplibregl-ctrl-compass\s*{[^}]*display:\s*none/,
+      /\.mapCameraControls \.mapCompassBtn\s*{[^}]*display:\s*none/,
     );
+  });
+});
+
+describe("wide-screen camera chips — reachable, not under the toolbar", () => {
+  // app/globals.css leaves room for ONE 44px chip above the search toolbar
+  // (--map-overlay-top 108px, --map-top-clearance 159px). A second row lands
+  // inside the toolbar's band, where its right end paints over the chip and
+  // takes the tap: measured at 1024 and 1280 with the city switcher on top of
+  // the compass. Survivable while that row was the route-only Recenter chip;
+  // not survivable now the compass is always there.
+  it("lays the chips out as a row on a wide screen", () => {
+    const row = rule(cameraControlsCss, ".mapCameraControls");
+    expect(row).toMatch(/grid-auto-flow:\s*column/);
+    expect(cameraControlsCss).toMatch(/@media \(min-width:\s*901px\)/);
+  });
+
+  it("is loaded by the canvas that draws the chips", () => {
+    expect(canvasSource).toContain('import "./map/mapCameraControls.css"');
+  });
+
+  // A 44px circle in the phone's map-edge lane cannot hold a word: it wrapped
+  // out of the button and off the right of the screen.
+  it("takes the word off the phone chip and leaves the name on the button", () => {
+    expect(canvasSource).toContain('className="mapCompassBtnLabel"');
+    expect(canvasSource).toMatch(/aria-label=\{compassResetLabel\(/);
+    expect(
+      rule(mobileMapCss, ".appShell .mapStage .mapCameraControls .mapCompassBtn .mapCompassBtnLabel"),
+    ).toMatch(/display:\s*none/);
   });
 });
 

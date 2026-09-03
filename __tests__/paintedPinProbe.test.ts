@@ -130,9 +130,9 @@ describe("paintedMapTapPoints", () => {
       makeMap({ painted: [PIN_A, PIN_B, CLUSTER] }),
     );
     expect(points).toEqual([
-      { kind: "pin", id: "pub-a", x: 120, y: 400 },
-      { kind: "pin", id: "pub-b", x: 220, y: 500 },
-      { kind: "cluster", id: "77", x: 180, y: 300 },
+      { kind: "pin", id: "pub-a", x: 120, y: 400, lng: -0.1, lat: 51.5 },
+      { kind: "pin", id: "pub-b", x: 220, y: 500, lng: -0.2, lat: 51.6 },
+      { kind: "cluster", id: "77", x: 180, y: 300, lng: -0.3, lat: 51.7 },
     ]);
   });
 
@@ -146,7 +146,7 @@ describe("paintedMapTapPoints", () => {
       makeMap({ painted: [CLUSTER, PIN_A], zoom: 10.7 }),
     );
     expect(points).toEqual([
-      { kind: "cluster", id: "77", x: 180, y: 300 },
+      { kind: "cluster", id: "77", x: 180, y: 300, lng: -0.3, lat: 51.7 },
     ]);
   });
 
@@ -157,7 +157,9 @@ describe("paintedMapTapPoints", () => {
         rect: { left: 8, top: 60, width: 374, height: 700 },
       }),
     );
-    expect(points).toEqual([{ kind: "pin", id: "pub-a", x: 128, y: 460 }]);
+    expect(points).toEqual([
+      { kind: "pin", id: "pub-a", x: 128, y: 460, lng: -0.1, lat: 51.5 },
+    ]);
   });
 
   it("drops a mark whose own point does not re-query to it", () => {
@@ -165,7 +167,9 @@ describe("paintedMapTapPoints", () => {
     const points = paintedMapTapPoints(
       makeMap({ painted: [PIN_A, PIN_B], confirmed: ["pub-b"] }),
     );
-    expect(points).toEqual([{ kind: "pin", id: "pub-b", x: 220, y: 500 }]);
+    expect(points).toEqual([
+      { kind: "pin", id: "pub-b", x: 220, y: 500, lng: -0.2, lat: 51.6 },
+    ]);
   });
 
   it("drops a mark the app chrome covers", () => {
@@ -173,7 +177,9 @@ describe("paintedMapTapPoints", () => {
     const points = paintedMapTapPoints(
       makeMap({ painted: [PIN_A, PIN_B], covered: ["pub-a"] }),
     );
-    expect(points).toEqual([{ kind: "pin", id: "pub-b", x: 220, y: 500 }]);
+    expect(points).toEqual([
+      { kind: "pin", id: "pub-b", x: 220, y: 500, lng: -0.2, lat: 51.6 },
+    ]);
   });
 
   it("answers with nothing before the pub layers exist", () => {
@@ -183,5 +189,12 @@ describe("paintedMapTapPoints", () => {
 
   it("answers with nothing when the map paints no pub mark", () => {
     expect(paintedMapTapPoints(makeMap({ painted: [] }))).toEqual([]);
+  });
+
+  // A gesture moves where a mark is DRAWN and may never move where it IS, so a
+  // spec needs both halves to hold one against the other across a rotation.
+  it("carries where the mark is, beside where it is being drawn", () => {
+    const [point] = paintedMapTapPoints(makeMap({ painted: [PIN_A] }));
+    expect(point).toMatchObject({ lng: PIN_A.lng, lat: PIN_A.lat });
   });
 });

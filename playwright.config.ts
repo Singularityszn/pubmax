@@ -137,6 +137,7 @@ export default defineConfig({
         // where the typed demo handle exists (chromium-keyless below).
         "**/spill-composer-keyless.spec.ts",
         "**/map-gl.spec.ts",
+        "**/map-gestures.spec.ts",
         "**/map-fallback.spec.ts",
         "**/map-service-worker.spec.ts",
         "**/map-uk-base-layer.spec.ts",
@@ -228,6 +229,8 @@ export default defineConfig({
       // a real WebGL2 context (SwiftShader), so both run here.
       testMatch: [
         "**/map-gl.spec.ts",
+        // Two-finger rotate and tilt against a real MapLibre canvas.
+        "**/map-gestures.spec.ts",
         "**/map-console-health.spec.ts",
         // Synthetic webglcontextlost recovery — needs a real GL canvas.
         "**/map-webgl-recovery.spec.ts",

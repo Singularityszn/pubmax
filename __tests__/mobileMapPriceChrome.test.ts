@@ -41,8 +41,10 @@ describe("mobile map price chrome", () => {
     expect(keyCss).toMatch(
       /\.mapKeyDetails summary\s*{[\s\S]*?min-height:\s*44px/,
     );
+    // The compass moved out of MapLibre's own control group and into the app's
+    // camera stack, so that stack is what a sheet has to cover.
     expect(mobileCss).toMatch(
-      /body:has\(\.mobileSheetPortal\)[\s\S]*?\.maplibregl-ctrl-top-right\s*{[\s\S]*?visibility:\s*hidden/,
+      /body:has\(\.mobileSheetPortal\)[\s\S]*?\.mapCameraControls\s*{[\s\S]*?visibility:\s*hidden/,
     );
   });
 
