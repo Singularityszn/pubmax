@@ -10,7 +10,17 @@ vi.mock("next/navigation", () => ({
   useRouter: () => ({ prefetch: () => undefined }),
   useSearchParams: () => new URLSearchParams(),
 }));
+vi.mock("@/components/nav/SiteNav", () => ({
+  default: () => null,
+}));
+vi.mock("@/components/nav/NowSegment", () => ({
+  default: () => null,
+}));
+vi.mock("@/components/auth/useViewerHandle", () => ({
+  useViewerHandle: () => null,
+}));
 
+import TodayClient from "@/app/today/TodayClient";
 import TonightListingsNotice from "@/app/tonight/TonightListingsNotice";
 import { SocialAccessBoundary } from "@/app/social/SocialPageClient";
 import { tonightEmptyLead } from "@/lib/tonightOutListings";
@@ -189,20 +199,48 @@ describe("friction-state voice fence", () => {
     });
   }
 
-  it("Tonight's empty night hands the user an exit to the map", () => {
-    const source = read("app/tonight/TonightListingsNotice.tsx");
-    expect(source).toContain("tonightStatusLink");
-    // The sentence beside that exit is the lane-scoped one, so it is asked for
-    // rather than read off this file: a night both lanes answered says the city
-    // is quiet, and a lane nobody asked narrows the claim to what was read.
+  it("Tonight's rendered empty night hands the user an exit to the map", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TonightListingsNotice, {
+        status: "empty",
+        note: null,
+        noteOffersRetry: false,
+        emptyLead: "Nothing listed for tonight.",
+        onRetry: () => undefined,
+      }),
+    );
+    expect(renderedLinkTexts(markup, "/map")).toContain(
+      "The map still knows where the cheap pints are",
+    );
     expect(
       tonightEmptyLead("empty", { body: { status: "ready", events: [] }, failed: false, pending: false }),
     ).toContain("quiet one tonight");
   });
 
-  it("Today's empty picks card hands the user an exit to the map", () => {
-    const source = read("app/today/TodayClient.tsx");
-    expect(source).toContain("Meanwhile, the map knows the cheap pints");
+  it("Today's rendered empty picks card hands the user an exit to the map", () => {
+    const markup = renderToStaticMarkup(
+      createElement(TodayClient, {
+        dateLabel: "Thursday 3 September",
+        nowIso: "2026-09-03T12:00:00.000Z",
+        greeting: {
+          slot: "afternoon",
+          salutation: "Good afternoon",
+          headline: "Your day out, sorted.",
+          support: "Tonight's best, how you'll get home, and one to remember.",
+          weatherAware: false,
+        },
+        weather: null,
+        weatherByArea: {},
+        picks: [],
+        picksStatus: "ready",
+        fact: null,
+        pintsIndex: {},
+        quietPint: null,
+      }),
+    );
+    expect(renderedLinkTexts(markup, "/map")).toContain(
+      "Meanwhile, the map knows the cheap pints",
+    );
   });
 
   it("no button or dropdown row prints a bare numeral as its label", () => {
@@ -371,6 +409,12 @@ function renderedText(markup: string): string {
     .replace(/&quot;/gu, '"')
     .replace(/\s+/gu, " ")
     .trim();
+}
+
+function renderedLinkTexts(markup: string, href: string): string[] {
+  return [...markup.matchAll(/<a\b[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/gu)]
+    .filter((match) => match[1] === href)
+    .map((match) => renderedText(match[2]));
 }
 
 function beggingPhrasesIn(text: string): string[] {
