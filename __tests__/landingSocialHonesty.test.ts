@@ -15,7 +15,6 @@ vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/choose-city",
@@ -25,36 +24,34 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-function renderLanding(socialFriendsLaunchEnabled?: boolean): string {
-  return renderToStaticMarkup(
-    createElement(LandingPage, { socialFriendsLaunchEnabled }),
-  );
+// The landing document is CDN-held, so its Social label is the first one a
+// stranger reads. It must agree with the rollback state: "Social" while the
+// friends launch is on, "Social preview" when it is rolled back, in the nav
+// and the footer alike.
+
+function renderLanding(socialFriendsLaunchEnabled: boolean): string {
+  return renderToStaticMarkup(createElement(LandingPage, { socialFriendsLaunchEnabled }));
 }
 
-function linkTexts(markup: string, href: string): string[] {
-  const escapedHref = href.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return [...markup.matchAll(new RegExp(`<a[^>]*href="${escapedHref}"[^>]*>([\\s\\S]*?)</a>`, "g"))].map(
-    ([, content]) => content!.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim(),
-  );
+function socialLinks(html: string): string[] {
+  return [...html.matchAll(/<a[^>]*href="\/social"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
 }
 
-describe("landing Social honesty", () => {
-  it("defaults Memory to the live Social surface", () => {
-    const markup = renderLanding();
-    expect(linkTexts(markup, "/plan")).toContain("Start a plan");
-    expect(linkTexts(markup, "/social")).toContain("Open Social");
-    expect(linkTexts(markup, "/u/you#night-memories")).toHaveLength(0);
+describe("landing social honesty", () => {
+  it("names Social plainly while the friends launch is on", () => {
+    const html = renderLanding(true);
+    expect(socialLinks(html)).toEqual(["Social", "Social"]);
+    expect(html).not.toContain("Social preview");
   });
 
-  it("uses Memories when the emergency rollback is enabled", () => {
-    const markup = renderLanding(false);
-    expect(linkTexts(markup, "/u/you#night-memories")).toContain("Open Memories");
-    expect(linkTexts(markup, "/social")).not.toContain("Open Social");
+  it("says Social preview everywhere when the launch is rolled back", () => {
+    const html = renderLanding(false);
+    expect(socialLinks(html)).toEqual(["Social preview", "Social preview"]);
   });
 
-  it("labels Social navigation according to its launch state", () => {
-    expect(renderLanding(false)).toContain("Social preview");
-    expect(renderLanding(true)).toContain("Social");
-    expect(renderLanding(true)).not.toContain("Social preview");
+  it("offers no Social or Memories call to action on the landing", () => {
+    const html = renderLanding(true);
+    expect(html).not.toContain("Open Social");
+    expect(html).not.toContain("night-memories");
   });
 });

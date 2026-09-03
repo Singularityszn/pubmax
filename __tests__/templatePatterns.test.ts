@@ -115,13 +115,7 @@ const HEDGE_PHRASES = [
  * that takes it out. Delete the row in that PR.
  */
 const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: string }> = [
-  // Design track PR 2, "landing" (issue #1354).
-  { file: "components/landing/LandingPage.tsx", pattern: "numbered-icon-triplet", owner: "landing PR" },
-  { file: "components/landing/LandingPage.tsx", pattern: "orbit-or-scanline", owner: "landing PR" },
-  { file: "components/landing/landing.css", pattern: "orbit-or-scanline", owner: "landing PR" },
-  { file: "components/landing/landing.css", pattern: "glass-blur", owner: "landing PR" },
-  { file: "components/landing/landing.css", pattern: "dot-grid", owner: "landing PR" },
-  // Design track PR 3, "surface audit".
+  // Design track PR 3, "surface audit" (issue #1354).
   { file: "components/pal/PalExperience.tsx", pattern: "gamified-level", owner: "surface audit PR" },
   { file: "components/pal/PalPortrait.tsx", pattern: "orbit-or-scanline", owner: "surface audit PR" },
   { file: "components/pubpal/pubPal.css", pattern: "orbit-or-scanline", owner: "surface audit PR" },

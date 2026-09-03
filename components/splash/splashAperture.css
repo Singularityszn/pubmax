@@ -11,9 +11,8 @@
      180ms  - hold ends (motionDuration.splashHold); the mark starts
               scaling ~24x and fading while the backdrop fades with it, so
               the coral X opens like a camera aperture into whatever has
-              already painted underneath - the hero cinema's dark-start
-              frame (see components/landing/heroCinema.css), continuing the
-              same shot rather than cutting to it.
+              already painted underneath, continuing the same shot rather
+              than cutting to it.
      700ms  - both animations finish (fill: forwards); the overlay is fully
               transparent and inert (pointer-events: none throughout). */
 
@@ -77,7 +76,7 @@ html[data-splash="on"] .pubmaxSplashMark {
 
 /* Defence in depth: splash-init.js already skips setting data-splash under
    reduced motion, so this never fires in practice - kept in sync with the
-   same house pattern as the compound gate in heroCinema.css. */
+   same house pattern as the retired hero cinema gate. */
 @media (prefers-reduced-motion: reduce) {
   html[data-splash="on"] #pubmax-splash {
     display: none;

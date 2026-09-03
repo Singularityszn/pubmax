@@ -27,7 +27,6 @@ const excludedSelectors = [
 ];
 const stampSelectors = [
   ".feedEyebrow",
-  ".lpHeroKicker",
   ".passportKicker",
   ".passportQuestKicker",
   ".passportQuestOptInKicker",

@@ -44,12 +44,12 @@ for (const view of CASES) {
     expect(box).not.toBeNull();
     expect(box!.x).toBeGreaterThanOrEqual(0);
     expect(box!.x + box!.width).toBeLessThanOrEqual(view.viewport.width);
-    await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
+    await expect(wordmark.locator(".pubmaxxWordmarkAccent")).toHaveCount(1);
     expect(
       await wordmark.evaluate((root) => {
         const bounds = root.getBoundingClientRect();
         const visibleParts = root.querySelectorAll(
-          ".pubmaxxWordmarkLetters, .pubmaxxWordmarkLetters > span, .pubmaxxDoubleX svg",
+          ".pubmaxxWordmarkLetters, .pubmaxxWordmarkLetters > span",
         );
         return root.scrollWidth <= root.clientWidth && [...visibleParts].every((part) => {
           const box = part.getBoundingClientRect();

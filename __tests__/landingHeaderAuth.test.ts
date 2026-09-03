@@ -28,7 +28,6 @@ vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/choose-city",
