@@ -61,8 +61,8 @@ parity; it does not prove that Captain has applied these new version rows to the
 remote ledger.
 Check `supabase migration list` before any push or database action.
 
-The Plan account-claim follow-up migrations `0133`, `0134`, and `0135` are in
-the source ledger with matching rollback files. Their account-claim RPCs are
+The Plan account-claim follow-up migrations `0133` and `0134` are in the
+source ledger with matching rollback files. Their account-claim RPCs are
 already live in production, so the application change has no deploy-order
 hazard. Migrations `0135` and `0136` extend this lane and also have matching
 rollback files. `0135` makes the claim RPC and its unique index count active
