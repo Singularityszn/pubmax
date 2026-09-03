@@ -38,6 +38,10 @@ import {
   type Visibility,
 } from "@/lib/pintDropShared";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
+import {
+  confirmationIsLive,
+  type PintDropConfirmation,
+} from "@/lib/pintDropConfirmation";
 import { londonDayKey } from "@/lib/pintContributions";
 import {
   checkRateLimitDurableDetailed,
@@ -73,8 +77,11 @@ export {
 };
 
 /** Moderator review lanes. `reported` is a queue view over visible rows with
- * an unreviewed report. It is not a persisted Pint Drop status. */
-export type PintDropReviewStatus = "hidden" | "pending" | "reported";
+ * an unreviewed report, and `confirmed` a queue view over visible rows that
+ * carry a minted confirmation. Neither is a persisted Pint Drop status: the
+ * review state a drop actually holds is its `confirmation` record, and the
+ * queue only names the lane a moderator is looking at. */
+export type PintDropReviewStatus = "hidden" | "pending" | "reported" | "confirmed";
 
 const VIBE_TAG_SET: ReadonlySet<string> = new Set(VIBE_TAGS);
 const MAX_VIBE_TAGS = 4;
@@ -566,6 +573,44 @@ export function listReportedPintDrops(): PintDrop[] {
     .filter((d) => d.status === "visible" && Boolean(d.reportedAt) && !d.moderatedAt)
     .sort((a, b) =>
       (b.reportedAt ?? b.createdAt).localeCompare(a.reportedAt ?? a.createdAt),
+    );
+}
+
+/**
+ * Record a minted confirmation against one drop. The in-memory mirror of the
+ * durable write in lib/pintDropsStore.ts, and idempotent in the same way: a
+ * drop that already carries a LIVE confirmation keeps the one it has, so a
+ * replayed pass cannot move the day a trust pill prints. A confirmation that
+ * has aged out is replaceable, because a fresh second reporter is a fresh
+ * event.
+ *
+ * True means this call WROTE. An unknown id and a drop that kept a live
+ * confirmation both answer false, because both mean the same thing to the
+ * caller: nothing here changed.
+ */
+export function confirmPintDrop(
+  id: string,
+  confirmation: PintDropConfirmation,
+  now: number = Date.now(),
+): boolean {
+  const hit = findDrop(id);
+  if (!hit) return false;
+  if (confirmationIsLive(hit.confirmation, now)) return false;
+  hit.confirmation = confirmation;
+  return true;
+}
+
+/** Moderator lane: visible drops carrying a confirmation, newest confirmation
+ *  first. Aged-out confirmations stay in the lane - the queue is a record of
+ *  what was confirmed, and the trust window is a reading of it. */
+export function listConfirmedPintDrops(): PintDrop[] {
+  return Array.from(drops.values())
+    .flat()
+    .filter((d) => d.status === "visible" && Boolean(d.confirmation))
+    .sort((a, b) =>
+      (b.confirmation?.confirmedAt ?? b.createdAt).localeCompare(
+        a.confirmation?.confirmedAt ?? a.createdAt,
+      ),
     );
 }
 

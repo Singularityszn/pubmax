@@ -4,6 +4,8 @@ import { MapPin } from "lucide-react";
 
 import Disclosure from "@/components/Disclosure";
 import PriceBadge from "@/components/PriceBadge";
+import TrustPill from "@/components/ui/trust-pill";
+import { priceStandingFor, type ConfirmedPriceInput } from "@/lib/priceTier";
 import { Amenity, ClaimBadge } from "@/components/map/venueInspectorBits";
 import {
   COMMUNITY_PRICE_NOTE,
@@ -58,6 +60,7 @@ import type { ZonePintIndex } from "@/lib/zones";
 function VenuePriceSummary({
   venue,
   latestContributorPrice,
+  confirmedPrice,
   sourcedPrice,
   sourcedObserved,
   anchorStamp,
@@ -67,6 +70,7 @@ function VenuePriceSummary({
 }: {
   venue: Venue;
   latestContributorPrice: number | null | undefined;
+  confirmedPrice?: ConfirmedPriceInput | null;
   sourcedPrice: PricedVenue["sourcedPrice"];
   sourcedObserved: string;
   anchorStamp: string | null;
@@ -75,6 +79,10 @@ function VenuePriceSummary({
   priceRevealMotionClass?: string;
 }) {
   const chromeRevealClass = priceRevealMotionClass || undefined;
+  // ONE decider. This surface hands over the confirmation lane it owns and
+  // reads back a standing; the listed and modelled lanes reach the same call
+  // through their own owner rather than through a second judgement here.
+  const priceStanding = priceStandingFor({ confirmed: confirmedPrice ?? null });
   const baselinePriceRow = venue.prices.find(
     (price) => price.price_gbp === venue.cheapestPrice,
   );
@@ -126,9 +134,18 @@ function VenuePriceSummary({
         <span className={chromeRevealClass}>
           <ClaimBadge kind="contributor" /> Latest Pint Drop price
         </span>
-        <PriceBadge variant="current">
-          {formatPrice(latestContributorPrice)}
-        </PriceBadge>
+        {/* A confirmed price says the figure and its standing in ONE mark, so
+            the number is printed once and by the module that owns the words
+            (lib/priceTier.ts). Everything else keeps the badge it always had:
+            a lone report waiting for a second drinker is still a price, and
+            hanging "No price yet" beside it would be untrue. */}
+        {priceStanding.standing === "confirmed" ? (
+          <TrustPill decision={priceStanding} />
+        ) : (
+          <PriceBadge variant="current">
+            {formatPrice(latestContributorPrice)}
+          </PriceBadge>
+        )}
         {venue.latestContributorAt ? (
           <small className={chromeRevealClass}>{formatFreshness(venue.latestContributorAt)}</small>
         ) : null}
@@ -214,6 +231,7 @@ export default function VenueOverviewTab({
   inCrawl,
   latestContributorPrice,
   latestPintDropAt,
+  confirmedPrice,
   communityPrices,
   experienceLens,
   drinkLensCategory = null,
@@ -248,6 +266,11 @@ export default function VenueOverviewTab({
    *  submit receipt refuse to claim the map when a newer drop outranks the
    *  community figure in mergeCommunityPriceSignals. */
   latestPintDropAt?: number | null;
+  /** The venue's live Pint Drop confirmation, as `priceStandingFor` takes it,
+   *  or null when nobody has confirmed a price here. Read seam only: the
+   *  confirmation is minted on the server (lib/pintDropConfirm.server.ts) and
+   *  never derived in a render. */
+  confirmedPrice?: ConfirmedPriceInput | null;
   /** Community price layer - the dated submission row plus the submit card. */
   communityPrices: CommunityPricesState;
   experienceLens: MapExperienceLens;
@@ -524,6 +547,7 @@ export default function VenueOverviewTab({
         <VenuePriceSummary
           venue={venue}
           latestContributorPrice={latestContributorPrice}
+          confirmedPrice={confirmedPrice}
           sourcedPrice={sourcedPrice}
           sourcedObserved={sourcedObserved}
           anchorStamp={anchorStamp}

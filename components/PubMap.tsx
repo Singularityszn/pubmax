@@ -4765,6 +4765,9 @@ export default function PubMap({
           // Only the pins/list - which can show one number - take the merged one.
           latestContributorPrice={dropSignals.get(selectedVenue.id)?.latestContributorPrice}
           latestPintDropAt={dropSignals.get(selectedVenue.id)?.latestContributorAt}
+          // The venue's own minted confirmation, unmerged like the drop price
+          // beside it: the standing reports what a drinker confirmed HERE.
+          confirmedPrice={dropSignals.get(selectedVenue.id)?.confirmedPrice}
           // Share copy prefers the MERGED map-authority figure (same seam as
           // pins), dated — never a sheet-only uncorroborated report.
           shareLoggedPintGbp={venueSignals.get(selectedVenue.id)?.latestContributorPrice}
