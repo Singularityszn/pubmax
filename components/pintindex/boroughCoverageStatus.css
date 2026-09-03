@@ -26,6 +26,15 @@
   gap: 0.65rem;
 }
 
+/* One shared sentence above, then the boroughs as a plain row of named links.
+   They wrap on a phone rather than scrolling sideways. */
+.boroughCoverageList--shared {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.1rem;
+  margin-top: 0.6rem;
+}
+
 .boroughCoverageRow {
   display: flex;
   flex-wrap: wrap;

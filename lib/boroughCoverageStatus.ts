@@ -45,6 +45,64 @@ export function boroughCoverageStatusCopy(input: BoroughCoverageInput): string {
   return `${input.name} needs ${remaining} more corroborated ${pintWord} this month.${partialNote}`;
 }
 
+export type BoroughCoverageSummary =
+  /** Every borough is saying the same thing, so it is said once. */
+  | { kind: "shared"; line: string }
+  /** The boroughs differ, so each says its own. */
+  | { kind: "per-borough" };
+
+/**
+ * One line, or one line each.
+ *
+ * The counts here are real and per-borough. On 30 August 2026 they were also
+ * all zero, so the page printed "needs 20 more corroborated pints this month"
+ * five times over, once per borough. Five identical sentences do not carry five
+ * facts: they carry one, and they read as filler, which is what the audit
+ * called it.
+ *
+ * So nothing is reworded and nothing is invented. When the boroughs genuinely
+ * differ they each keep their own sentence; when they are all saying the same
+ * thing it is said once, and each borough keeps its own way onto the map. The
+ * moment one borough moves ahead of the others this goes back to a line each,
+ * because then the repetition would be carrying real news.
+ */
+export function boroughCoverageSummary(
+  rows: readonly BoroughCoverageInput[],
+): BoroughCoverageSummary {
+  if (rows.length < 2) return { kind: "per-borough" };
+
+  const lines = new Set<string>();
+  for (const row of rows) {
+    // Compare what each row would SAY with its own name taken out, so two
+    // boroughs at the same count collapse and two at different counts do not.
+    lines.add(boroughCoverageStatusCopy({ ...row, name: "" }));
+    if (lines.size > 1) return { kind: "per-borough" };
+  }
+
+  const first = rows[0];
+  const target = first.target ?? SEED_BOROUGH_MONTHLY_TARGET;
+  if (first.status === "degraded" || first.status === "unknown") {
+    return { kind: "shared", line: "We could not count corroborated pints just now." };
+  }
+  const partialNote =
+    first.status === "partial" ? " At least, that is: the counts may run higher." : "";
+  const remaining = Math.max(
+    0,
+    target - Math.max(0, Math.floor(first.corroboratedPintCount)),
+  );
+  if (remaining === 0) {
+    return {
+      kind: "shared",
+      line: `Every borough here has met its ${target} corroborated pints for this month.${partialNote}`,
+    };
+  }
+  const pintWord = remaining === 1 ? "pint" : "pints";
+  return {
+    kind: "shared",
+    line: `Every borough here needs ${remaining} more corroborated ${pintWord} this month.${partialNote}`,
+  };
+}
+
 /** Map href that opens the patch browse without inventing a selected pub. */
 export function boroughCoverageMapHref(mapQuery: string): string {
   return `/map?q=${encodeURIComponent(mapQuery)}`;

@@ -26,6 +26,9 @@ vi.mock("@/components/map/useWhatsOnTonight", () => ({
     retry: () => {},
   }),
 }));
+vi.mock("@/components/out/useOutListings", () => ({
+  useOutListings: () => ({ body: null, failed: false, pending: false, retry: () => {} }),
+}));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("@/app/tonight/TonightConditionsStrip", () => ({ default: () => null }));
 vi.mock("@/app/tonight/TonightGetHomeStrip", () => ({ default: () => null }));
@@ -67,7 +70,7 @@ const dealRow = () =>
     kind: "deal",
     title: "Two for one burgers",
     endsAt: ACTIVE_ENDS_AT,
-    source: { label: "Wetherspoon", url: "https://www.jdwetherspoon.com/deal" },
+    source: { label: "The Test Arms", url: "https://thetestarms.example/deal" },
   });
 
 describe("whatsOnBarePriceGbp", () => {
@@ -142,7 +145,9 @@ describe("the Tonight page renders no bare ticket price", () => {
     expect(withDeal).toContain("£23.50");
 
     const withEvent = renderTonight([row()]);
-    expect(withEvent).toContain("A Night at the Playhouse");
+    // Event rows are ticket-only listings. The primary Tonight spine excludes
+    // them, so the page cannot print their ticket price or title as a pub lead.
+    expect(withEvent).not.toContain("A Night at the Playhouse");
     expect(withEvent).not.toContain("£23.50");
     expect(withEvent).not.toContain("tonightRowPrice");
   });
