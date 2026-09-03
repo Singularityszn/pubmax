@@ -71,6 +71,13 @@ and invite-redemption prechecks. Captain owns reconciling and applying
 `0135` and `0136`; do not treat revoked-seat join or invite redemption as live
 until `0136` is present in the remote ledger.
 
+The 14-digit timestamp is the migration identity and execution order. The
+four-digit number is a human label only. Historical duplicate labels are
+pinned by `__tests__/migrationVersions.test.ts`; never rename an applied file
+to repair them. New work reserves `0137` for Plan replay and atomic fallback,
+`0138` for price-trust reconciliation, and `0139` for one-tap price-pair
+receipts. Update this reservation when each migration lands.
+
 The complete applied order is deliberately not copied here. Treat the live
 `supabase migration list` and the files in `supabase/migrations/` as authoritative.
 
