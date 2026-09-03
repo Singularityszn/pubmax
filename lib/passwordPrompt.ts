@@ -133,9 +133,20 @@ export function markPasswordPromptAnswered(accountId: string | null): void {
   notify();
 }
 
-export function subscribePasswordPrompt(onStoreChange: () => void): () => void {
+export function subscribePasswordPrompt(
+  onStoreChange: () => void,
+  accountId: string | null = null,
+): () => void {
   if (typeof window === "undefined") return () => undefined;
-  const handler = () => onStoreChange();
-  window.addEventListener(PASSWORD_PROMPT_EVENT, handler);
-  return () => window.removeEventListener(PASSWORD_PROMPT_EVENT, handler);
+  const sameTabHandler = () => onStoreChange();
+  const storageHandler = (event: StorageEvent) => {
+    if (!accountId || event.key !== passwordPromptAnsweredKey(accountId)) return;
+    onStoreChange();
+  };
+  window.addEventListener(PASSWORD_PROMPT_EVENT, sameTabHandler);
+  window.addEventListener("storage", storageHandler);
+  return () => {
+    window.removeEventListener(PASSWORD_PROMPT_EVENT, sameTabHandler);
+    window.removeEventListener("storage", storageHandler);
+  };
 }

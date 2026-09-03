@@ -1,11 +1,21 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState, useSyncExternalStore } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import { useAuth } from "@/components/auth/AuthProvider";
 import { authedActionFetch } from "@/lib/authedFetch";
-import { claimPromptBudget, hasPromptBudgetFor } from "@/lib/promptBudget";
+import {
+  claimPromptBudget,
+  hasPromptBudgetFor,
+  releasePromptBudget,
+  subscribePromptBudget,
+} from "@/lib/promptBudget";
 import {
   PASSWORD_PROMPT_ACCEPT_LABEL,
   PASSWORD_PROMPT_BODY,
@@ -44,12 +54,21 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   const accountId = user?.id ?? null;
   const [handle, setHandle] = useState<string | null>(null);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
+  const [budgetClaimed, setBudgetClaimed] = useState(false);
+  const [answeredLocallyFor, setAnsweredLocallyFor] = useState<string | null>(null);
 
-  const answered = useSyncExternalStore(
-    subscribePasswordPrompt,
+  const subscribeForAccount = useCallback(
+    (onStoreChange: () => void) =>
+      subscribePasswordPrompt(onStoreChange, accountId),
+    [accountId],
+  );
+
+  const persistedAnswer = useSyncExternalStore(
+    subscribeForAccount,
     () => readPasswordPromptAnswered(accountId),
     () => false,
   );
+  const answered = persistedAnswer || answeredLocallyFor === accountId;
 
   useEffect(() => {
     if (!configured || !user || !identityResolved) {
@@ -97,6 +116,11 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     return () => controller.abort();
   }, [configured, identityResolved, user]);
 
+  const hasBudget = useSyncExternalStore(
+    subscribePromptBudget,
+    () => hasPromptBudgetFor(PASSWORD_PROMPT_SURFACE),
+    () => false,
+  );
   const owed = shouldOfferPasswordPrompt({
     configured,
     accountId,
@@ -105,11 +129,21 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     hasPassword,
     answered,
   });
-  const canShow = owed && hasPromptBudgetFor(PASSWORD_PROMPT_SURFACE);
+  const eligible = owed && hasBudget;
 
   useEffect(() => {
-    if (canShow) claimPromptBudget(PASSWORD_PROMPT_SURFACE);
-  }, [canShow]);
+    if (!eligible) {
+      setBudgetClaimed(false);
+      return;
+    }
+    const claimed = claimPromptBudget(PASSWORD_PROMPT_SURFACE);
+    setBudgetClaimed(claimed);
+    return () => {
+      if (claimed) releasePromptBudget(PASSWORD_PROMPT_SURFACE);
+    };
+  }, [eligible]);
+
+  const canShow = eligible && budgetClaimed;
 
   if (!canShow) return null;
 
@@ -132,7 +166,10 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
           <button
             type="button"
             className="nativePushPrompt__later pressable"
-            onClick={() => markPasswordPromptAnswered(accountId)}
+            onClick={() => {
+              setAnsweredLocallyFor(accountId);
+              markPasswordPromptAnswered(accountId);
+            }}
           >
             {PASSWORD_PROMPT_DECLINE_LABEL}
           </button>
@@ -140,7 +177,10 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
             prefetch={false}
             href={PASSWORD_PROMPT_DESTINATION}
             className="nativePushPrompt__enable pressable"
-            onClick={() => markPasswordPromptAnswered(accountId)}
+            onClick={() => {
+              setAnsweredLocallyFor(accountId);
+              markPasswordPromptAnswered(accountId);
+            }}
           >
             {PASSWORD_PROMPT_ACCEPT_LABEL}
           </Link>

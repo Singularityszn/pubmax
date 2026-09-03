@@ -2,10 +2,12 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 import {
   PASSWORD_PROMPT_DESTINATION,
+  PASSWORD_PROMPT_EVENT,
   markPasswordPromptAnswered,
   passwordPromptAnsweredKey,
   readPasswordPromptAnswered,
   shouldOfferPasswordPrompt,
+  subscribePasswordPrompt,
   type PasswordPromptInputs,
 } from "@/lib/passwordPrompt";
 
@@ -23,12 +25,28 @@ function makeMemoryStorage(): Storage {
   };
 }
 
-function installWindow(storage: Storage | null): void {
+function installWindow(
+  storage: Storage | null,
+  listeners: {
+    sameTab: Set<() => void>;
+    storage: Set<(event: { key: string | null }) => void>;
+  } = { sameTab: new Set(), storage: new Set() },
+): void {
   (globalThis as { window?: unknown }).window = {
     localStorage: storage,
     dispatchEvent: () => true,
-    addEventListener: () => undefined,
-    removeEventListener: () => undefined,
+    addEventListener: (type: string, listener: unknown) => {
+      if (type === PASSWORD_PROMPT_EVENT) listeners.sameTab.add(listener as () => void);
+      if (type === "storage") {
+        listeners.storage.add(listener as (event: { key: string | null }) => void);
+      }
+    },
+    removeEventListener: (type: string, listener: unknown) => {
+      if (type === PASSWORD_PROMPT_EVENT) listeners.sameTab.delete(listener as () => void);
+      if (type === "storage") {
+        listeners.storage.delete(listener as (event: { key: string | null }) => void);
+      }
+    },
   };
 }
 
@@ -138,6 +156,32 @@ describe("password prompt answered marker", () => {
     };
     installWindow(refusing);
     expect(() => markPasswordPromptAnswered("acct-1")).not.toThrow();
+  });
+
+  it("notifies only the current account for cross-tab marker changes", () => {
+    const listeners = {
+      sameTab: new Set<() => void>(),
+      storage: new Set<(event: { key: string | null }) => void>(),
+    };
+    installWindow(storage, listeners);
+    const changes: string[] = [];
+    const unsubscribe = subscribePasswordPrompt(
+      () => changes.push("changed"),
+      "acct-1",
+    );
+
+    for (const listener of listeners.sameTab) listener();
+    for (const listener of listeners.storage) {
+      listener({ key: passwordPromptAnsweredKey("acct-2") });
+    }
+    for (const listener of listeners.storage) {
+      listener({ key: passwordPromptAnsweredKey("acct-1") });
+    }
+
+    expect(changes).toHaveLength(2);
+    unsubscribe();
+    expect(listeners.sameTab).toHaveLength(0);
+    expect(listeners.storage).toHaveLength(0);
   });
 });
 

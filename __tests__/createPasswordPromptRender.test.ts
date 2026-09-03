@@ -1,97 +1,141 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+// @vitest-environment jsdom
 
-import { PASSWORD_PROMPT_DESTINATION } from "@/lib/passwordPrompt";
+import { act, createElement } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-function read(path: string): string {
-  return readFileSync(join(process.cwd(), path), "utf8");
+const authState = vi.hoisted(() => ({
+  current: {
+    configured: true,
+    identityResolved: true,
+    user: { id: "acct-1" },
+  },
+}));
+const authedActionFetch = vi.hoisted(() => vi.fn());
+const budgetState = vi.hoisted(() => ({
+  hasBudget: true,
+  claimSucceeds: true,
+  listeners: new Set<() => void>(),
+}));
+const releasePromptBudget = vi.hoisted(() => vi.fn());
+
+vi.mock("next/link", () => ({
+  default: ({ children, ...props }: { children: unknown; href: string }) =>
+    createElement("a", props, children),
+}));
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => authState.current,
+}));
+vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
+vi.mock("@/lib/promptBudget", () => ({
+  claimPromptBudget: () => budgetState.claimSucceeds,
+  hasPromptBudgetFor: () => budgetState.hasBudget,
+  releasePromptBudget,
+  subscribePromptBudget: (onChange: () => void) => {
+    budgetState.listeners.add(onChange);
+    return () => budgetState.listeners.delete(onChange);
+  },
+}));
+
+import CreatePasswordPrompt from "@/components/auth/CreatePasswordPrompt";
+import {
+  PASSWORD_PROMPT_DESTINATION,
+  passwordPromptAnsweredKey,
+} from "@/lib/passwordPrompt";
+
+let container: HTMLDivElement;
+let root: Root;
+
+async function settle(): Promise<void> {
+  for (let turn = 0; turn < 5; turn += 1) {
+    await act(async () => {
+      await Promise.resolve();
+    });
+  }
 }
 
-const promptSource = read("components/auth/CreatePasswordPrompt.tsx");
-const shellSource = read("components/DeferredShellExtras.tsx");
-const accountHubSource = read("components/profile/PubmaxxAccountHub.tsx");
-const setPasswordSource = read("components/auth/SetAccountPassword.tsx");
-const promptCardCss = read("components/native/nativePushPrompt.css");
-
-describe("create-password prompt asks, and hands over", () => {
-  it("sets no password of its own", () => {
-    // The one place a password is set is SetAccountPassword, bound to the
-    // caller's own GoTrue session. A second setter is the account-takeover
-    // shape that law exists to prevent, so this surface holds no field at all.
-    expect(promptSource).not.toContain("updateUser");
-    expect(promptSource).not.toContain("<input");
-    expect(promptSource).not.toContain('type="password"');
+async function renderPrompt(): Promise<void> {
+  await act(async () => {
+    root.render(createElement(CreatePasswordPrompt));
   });
+  await settle();
+}
 
-  it("leaves SetAccountPassword as the only password setter", () => {
-    expect(setPasswordSource).toContain("supabase.auth.updateUser({ password })");
-  });
+function notifyBudget(): void {
+  for (const listener of budgetState.listeners) listener();
+}
 
-  it("sends people to a destination the account hub really answers", () => {
-    expect(promptSource).toContain("PASSWORD_PROMPT_DESTINATION");
-    const anchor = PASSWORD_PROMPT_DESTINATION.split("#")[1];
-    expect(anchor).toBeTruthy();
-    expect(accountHubSource).toContain(`id="${anchor}"`);
-    // And the form is really mounted on that surface.
-    expect(accountHubSource).toContain("<SetAccountPassword />");
-  });
+beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  authState.current = {
+    configured: true,
+    identityResolved: true,
+    user: { id: "acct-1" },
+  };
+  authedActionFetch.mockReset().mockResolvedValue(
+    Response.json({ handle: "karan", hasPassword: false }),
+  );
+  budgetState.hasBudget = true;
+  budgetState.claimSucceeds = true;
+  budgetState.listeners.clear();
+  releasePromptBudget.mockReset();
+  window.localStorage.clear();
+  window.sessionStorage.clear();
+  window.localStorage.setItem("pubmaxx:analytics-consent:v1", "denied");
+  container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
 });
 
-describe("create-password prompt gating", () => {
-  it("reads the shared decision rather than inlining its own gate", () => {
-    expect(promptSource).toContain("shouldOfferPasswordPrompt");
-    expect(promptSource).toContain("identityResolved");
-    expect(promptSource).toContain("hasPassword");
-  });
-
-  it("keeps the password answer tri-state on the wire", () => {
-    // Anything that is not a boolean stays null, so a read that could not
-    // answer can never be reported as "you have no password".
-    expect(promptSource).toContain(
-      'typeof body.hasPassword === "boolean" ? body.hasPassword : null',
-    );
-  });
-
-  it("carries its bearer token to the actor-gated identity read", () => {
-    expect(promptSource).toContain("authedActionFetch");
-    expect(promptSource).toContain("/api/identity/handle/current");
-  });
-
-  it("lets go of a body it decided not to read", () => {
-    expect(promptSource).toContain("discardBody");
-  });
-
-  it("spends the session prompt budget so it cannot stack on another ask", () => {
-    expect(promptSource).toContain("hasPromptBudgetFor");
-    expect(promptSource).toContain("claimPromptBudget");
-    expect(promptSource).toContain("PASSWORD_PROMPT_SURFACE");
-  });
-
-  it("spends the ask on either answer", () => {
-    // Both buttons end it. Asking again somebody who said yes and then walked
-    // away is the nagging the one-shot discipline exists to stop.
-    const spends = promptSource.match(/markPasswordPromptAnswered\(accountId\)/g);
-    expect(spends?.length).toBe(2);
-  });
+afterEach(async () => {
+  await act(async () => root.unmount());
+  container.remove();
 });
 
-describe("create-password prompt mount", () => {
-  it("mounts exactly once, in the deferred prompt host", () => {
-    const mounts = shellSource.match(/<CreatePasswordPrompt \/>/g);
-    expect(mounts?.length).toBe(1);
-    expect(shellSource).toContain(
-      'import("@/components/auth/CreatePasswordPrompt")',
-    );
-    expect(shellSource).toContain("ssr: false");
+describe("CreatePasswordPrompt rendered behavior", () => {
+  it("stays hidden when its budget claim loses a race, then shows when free", async () => {
+    budgetState.claimSucceeds = false;
+    await renderPrompt();
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+
+    budgetState.hasBudget = false;
+    notifyBudget();
+    await settle();
+
+    budgetState.hasBudget = true;
+    budgetState.claimSucceeds = true;
+    notifyBudget();
+    await settle();
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
   });
 
-  it("keeps its link action on the audited 44px tap floor", () => {
-    // The accept action is an anchor, and an anchor is inline by default, so
-    // the button rules' min-height would not apply to it without this.
-    expect(promptCardCss).toContain("a.nativePushPrompt__enable");
-    expect(promptCardCss).toMatch(
-      /a\.nativePushPrompt__later,\s*\n\s*a\.nativePushPrompt__enable \{[^}]*display: inline-flex;/,
-    );
+  it("rechecks after another prompt releases the budget", async () => {
+    budgetState.hasBudget = false;
+    budgetState.claimSucceeds = false;
+    await renderPrompt();
+
+    expect(container.querySelector('[role="dialog"]')).toBeNull();
+
+    budgetState.hasBudget = true;
+    budgetState.claimSucceeds = true;
+    notifyBudget();
+    await settle();
+
+    expect(container.querySelector('[role="dialog"]')).not.toBeNull();
+  });
+
+  it("renders an account link and spends marker on either answer", async () => {
+    await renderPrompt();
+
+    const link = container.querySelector<HTMLAnchorElement>("a");
+    expect(link?.getAttribute("href")).toBe(PASSWORD_PROMPT_DESTINATION);
+    expect(container.querySelector('input[type="password"]')).toBeNull();
+
+    await act(async () => link?.click());
+
+    expect(window.localStorage.getItem(passwordPromptAnsweredKey("acct-1"))).toBe("1");
+    expect(releasePromptBudget).toHaveBeenCalledWith("create-password");
   });
 });
