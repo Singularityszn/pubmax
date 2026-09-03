@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 
+import { DEFAULT_CITY_ID, type CityId } from "@/lib/cities";
 import { outWindowToApiDay, type OutDayWindow } from "@/lib/outListings";
 import { outAnswerView } from "@/lib/out/outStatus";
 import type { OutDay, OutResponse } from "@/lib/out/types";
@@ -9,6 +10,7 @@ import { discardBody } from "@/lib/responseBody";
 
 type HeldOutAnswer = {
   day: OutDay;
+  city: CityId;
   body: OutResponse | null;
   failed: boolean;
 };
@@ -26,12 +28,24 @@ export const OUT_FETCH_TIMEOUT_MS = 8_000;
 /**
  * One client read of GET /api/out. Shared by /out and /tonight so a ready
  * Ticketmaster answer cannot sit behind a second, idle What's-On wait.
+ *
+ * The answer is held WITH the city it is about as well as the day, because the
+ * reader's chosen city can change under the page (Places writes it, and the
+ * write notifies every tab). London listings under a Manchester heading is the
+ * same lie a stale day would be, so a city change is a pending read, never a
+ * relabelled one. `/tonight` stays on London by passing nothing.
  */
-export function useOutListings(window: OutDayWindow) {
+export function useOutListings(
+  window: OutDayWindow,
+  city: CityId = DEFAULT_CITY_ID,
+) {
   const apiDay = outWindowToApiDay(window);
   const [answer, setAnswer] = useState<HeldOutAnswer | null>(null);
   const [generation, setGeneration] = useState(0);
-  const view = outAnswerView(answer, apiDay);
+  const view = outAnswerView(
+    answer && answer.city === city ? answer : null,
+    apiDay,
+  );
 
   const retry = useCallback(() => {
     setAnswer(null);
@@ -44,27 +58,30 @@ export function useOutListings(window: OutDayWindow) {
     const timer = setTimeout(() => controller.abort(), OUT_FETCH_TIMEOUT_MS);
     void (async () => {
       try {
-        const res = await fetch(`/api/out?city=london&day=${apiDay}`, {
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `/api/out?city=${encodeURIComponent(city)}&day=${apiDay}`,
+          {
+            signal: controller.signal,
+          },
+        );
         if (cancelled) {
           discardBody(res);
           return;
         }
         if (!res.ok) {
           discardBody(res);
-          setAnswer({ day: apiDay, body: null, failed: true });
+          setAnswer({ day: apiDay, city, body: null, failed: true });
           return;
         }
         const json = (await res.json()) as OutResponse;
         if (cancelled) return;
-        setAnswer({ day: apiDay, body: json, failed: false });
+        setAnswer({ day: apiDay, city, body: json, failed: false });
       } catch {
         // Offline, DNS, a timeout abort: the reader is owed the same honest
         // line as a refused read, never day chips over an empty page with no
         // status, and never a skeleton that outlives the request behind it.
         if (cancelled) return;
-        setAnswer({ day: apiDay, body: null, failed: true });
+        setAnswer({ day: apiDay, city, body: null, failed: true });
       } finally {
         clearTimeout(timer);
       }
@@ -74,7 +91,7 @@ export function useOutListings(window: OutDayWindow) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [apiDay, generation]);
+  }, [apiDay, city, generation]);
 
   return { ...view, retry };
 }

@@ -71,7 +71,7 @@ describe("the pages with nothing to compose", () => {
     expect(createFabVisible("/today")).toBe(true);
   });
 
-  it("leaves the five-tab chrome on every route, which is a separate law", () => {
+  it("leaves the tab-bar chrome on every route, which is a separate law", () => {
     for (const path of ["/", "/pal", "/pal/chat", "/founders", "/today"]) {
       expect(shouldShowMobileTabBar(path), path).toBe(true);
     }

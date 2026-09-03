@@ -268,7 +268,7 @@ body:has(.mobileMapUtilityCorner) {
        the live tab array; --tab-inset is the pill's inner padding. Every
        equal-rhythm rule below (column width, highlight geometry) derives from
        these two, so adding or removing a tab can never desync the CSS. */
-    --tab-count: 5;
+    --tab-count: 6;
     --tab-inset: 2px;
     max-width: 420px;
     margin: 0 auto;

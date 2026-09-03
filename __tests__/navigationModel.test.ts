@@ -10,10 +10,11 @@ import {
 } from "@/components/nav/navigationModel";
 
 describe("PUBMAXX primary navigation", () => {
-  it("keeps five destinations and models Moment separately", () => {
+  it("keeps six destinations and models Moment separately", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ label }) => label)).toEqual([
       "Now",
       "Map",
+      "Places",
       "Out",
       "Social",
       "You",
@@ -25,6 +26,7 @@ describe("PUBMAXX primary navigation", () => {
     expect(PRIMARY_NAV_ITEMS.map(({ href }) => href)).toEqual([
       "/today",
       "/map",
+      "/places",
       "/out",
       "/social",
       "/u/you",
@@ -55,6 +57,17 @@ describe("PUBMAXX primary navigation", () => {
     expect(primaryNavKeyForPath("/borough")).toBeUndefined();
     expect(primaryNavKeyForPath("/borough/soho")).toBeUndefined();
     expect(navPathMatches("/social", social!.match)).toBe(true);
+  });
+
+  it("lights Places for the tab and for the older city picker it replaces", () => {
+    const places = PRIMARY_NAV_ITEMS.find((item) => item.key === "places");
+    expect(places?.match).toEqual(["/places", "/choose-city"]);
+    expect(primaryNavKeyForPath("/places")).toBe("places");
+    expect(primaryNavKeyForPath("/places?city=manchester".split("?")[0])).toBe("places");
+    expect(primaryNavKeyForPath("/choose-city")).toBe("places");
+    // Map and Places are separate destinations: neither may claim the other.
+    expect(primaryNavKeyForPath("/map")).toBe("map");
+    expect(primaryNavKeyForPath("/map/manchester")).toBe("map");
   });
 
   it("accepts only safe Moment return destinations", () => {

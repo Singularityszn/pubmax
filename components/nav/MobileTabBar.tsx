@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { Map, UserRound, Images, CalendarClock, DoorOpen } from "lucide-react";
+import { Map, UserRound, Images, CalendarClock, Signpost, DoorOpen } from "lucide-react";
 import { useCallback, useMemo, useSyncExternalStore, type CSSProperties } from "react";
 import { useViewerHandle } from "@/components/auth/useViewerHandle";
 import { warmNavRoute } from "@/lib/mapWarmup";
@@ -37,7 +37,7 @@ import "./mobileNav.css";
 // (see mobileNav.css). On desktop it is display:none, leaving existing desktop
 // navs untouched.
 //
-// Five durable destinations. Gated Social stays visible with preview metadata.
+// Six durable destinations. Gated Social stays visible with preview metadata.
 // Compose lives on the floating + action, never in this row.
 //
 // Path active-state is pure (usePathname). Route warming starts only from
@@ -64,7 +64,14 @@ export function buildTabs(
   socialFriendsLaunchEnabled = true,
   mapHref = "/map",
 ): Tab[] {
-  const icons = { now: CalendarClock, map: Map, out: DoorOpen, social: Images, you: UserRound };
+  const icons = {
+    now: CalendarClock,
+    map: Map,
+    places: Signpost,
+    out: DoorOpen,
+    social: Images,
+    you: UserRound,
+  };
   return PRIMARY_NAV_ITEMS
     .map((item) => ({
       ...item,

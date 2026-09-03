@@ -1,5 +1,7 @@
 import { expect, test, type Locator, type Page } from "@playwright/test";
 
+import { PRIMARY_NAV_ITEMS } from "../components/nav/navigationModel";
+
 // Rendered geometry for the phone map chrome at 320, 390 and 430.
 //
 // Design judgement 2026-08-01, finding 2.3 collapsed that chrome to ONE bar.
@@ -1192,7 +1194,13 @@ for (const viewport of VIEWPORTS) {
 }
 
 // Social is a primary phone destination in the live launch. The count-driven
-// row must close to five columns at every supported phone width.
+// row must close over the WHOLE primary set at every supported phone width.
+//
+// The total is read from the nav model rather than typed, because it is not
+// what this test is about: it grew from five to six when Places landed, and a
+// number written here fails the day the row changes for a reason this file has
+// no opinion on. What it holds is that the row is the primary set entire, and
+// that every column still clears the tap floor.
 for (const viewport of VIEWPORTS) {
   test(`${viewport.width}px live Social stays in primary phone chrome`, async ({
     page,
@@ -1201,6 +1209,14 @@ for (const viewport of VIEWPORTS) {
 
     const primary = page.getByRole("navigation", { name: "Primary" });
     await expect(primary.locator('a[href="/social"]')).toHaveCount(1);
-    await expect(primary.locator("a")).toHaveCount(5);
+    await expect(primary.locator("a")).toHaveCount(PRIMARY_NAV_ITEMS.length);
+    for (const tab of await primary.locator("a").all()) {
+      const box = await tab.boundingBox();
+      expect(box, "every primary tab has a box").not.toBeNull();
+      expect(
+        box!.height,
+        `${viewport.width}px tab keeps the 44px tap floor`,
+      ).toBeGreaterThanOrEqual(44);
+    }
   });
 }
