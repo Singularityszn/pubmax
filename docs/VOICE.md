@@ -77,6 +77,24 @@ Hard bans in product copy. These are the AI/marketing tells:
 
 Plus the plumbing words from Rule 2 (`capture`, `evidence gate`, `snapshot`, `provenance`, `Night Area`, etc.) and the corporate Latinate list from Rule 1.
 
+## Template patterns
+
+Captain, 3 September 2026: "I don't want AI slop; remove anything that looks AI generated." The tells are not a matter of taste. They are shapes a template generator reaches for and a person at the bar never asked for. `__tests__/templatePatterns.test.ts` reads the source of every file under `components/` and fails on nine of them. The fence keeps a backlog (`PENDING_REMOVAL`) that names the file, the pattern and the PR that removes it, and the backlog may only shrink.
+
+| Pattern | What it looks like | What to do instead |
+|---|---|---|
+| `orbit-or-scanline` | A ring, a drifting circle, a thin vertical line breathing behind the copy. | Nothing. The copy and the photo are the atmosphere. |
+| `glass-blur` | `backdrop-filter: blur()` on a section, a card or a marketing bar. | A solid surface from the elevation ladder. Blur belongs to the sheet material and floating chrome alone (`docs/DESIGN_SYSTEM.md`, "Sheet material"). |
+| `dot-grid` | A blueprint dot grid or graph paper painted under a section. | Paper. `--paper` is the ground; texture is not structure. |
+| `numbered-icon-triplet` | 01, 02, 03 in mono with an icon each and a line of copy. | Say the three things in one paragraph, or one list with no numbers and no icons. |
+| `hedge-copy` | "Whether you're X or Y", "we believe", "our mission", "look no further", "seamless", "effortless", "elevate". | State the fact and hand the reader a choice (Rule 3). |
+| `emoji-bullet` | A line that opens with an emoji standing in for a bullet. | Words. A pint glass icon is not punctuation. |
+| `card-in-card` | A bordered card whose child is another bordered card. | The de-box rule: a heading with controls under it is already a section. One edge at most, and usually none. |
+| `three-column-grid` | `repeat(3, 1fr)` of identical cells, each with an icon, a title and a sentence. | One column that reads top to bottom, the same on a phone and a desktop. |
+| `gamified-level` | Level 3, mastery points, XP, a progress track for being a person. | Nothing. A referral is a mark of honour and a Pal is a companion; neither has a level. |
+
+Two things the fence deliberately leaves alone. A comment about a banned phrase is not copy, because the scan reads the AST. And the sheet material over the map keeps its blur, because a movable overlay needs to show what is under it.
+
 ---
 
 ## Ten before / after, from the actual codebase
