@@ -1,6 +1,12 @@
 import { expect, type Page, type Request } from "@playwright/test";
 
-import { PERFORMANCE_BUDGETS, median, type BudgetMethod } from "../../lib/performanceBudgets";
+import {
+  PERFORMANCE_BUDGETS,
+  median,
+  resolveCountBoundary,
+  type BudgetMethod,
+  type PerfBoundarySource,
+} from "../../lib/performanceBudgets";
 
 /**
  * The ONE way a route's cost is measured in this suite.
@@ -14,13 +20,29 @@ import { PERFORMANCE_BUDGETS, median, type BudgetMethod } from "../../lib/perfor
  *
  * WHERE "BEFORE INTERACTIVE" IS CUT, and why it is not a wall clock: the app
  * deliberately warms the OTHER tab destinations once the foreground surface
- * says it has painted (lib/backgroundWarmup.ts). Those chunks are off the
- * critical path by design, but a time-based settle catches or misses them
- * depending on how fast the box is: the first CI run measured /today at 2726 KB
- * and the retry at 1186 KB, on one build. So the cut is the route's own
- * readiness gate, no earlier than the window load event, and a resource counts
- * if it STARTED before that moment. The run then waits for the network to go
- * quiet so every counted entry carries its final size.
+ * says it has painted (lib/mapWarmup.ts schedules that on an idle callback with
+ * a 2000 ms timeout). Those chunks are off the critical path by design, but a
+ * time-based settle catches or misses them depending on how fast the box is:
+ * the first CI run measured /today at 2726 KB and the retry at 1186 KB, on one
+ * build. So the cut is the route's own readiness gate, no earlier than the
+ * window load event, and a resource counts if it STARTED before that moment.
+ * The run then waits for the network to go quiet so every counted entry carries
+ * its final size.
+ *
+ * WHOSE CLOCK MAKES THAT CUT is the other half, and it is the half #1314 was
+ * about. The rule above was already right; the clock was wrong. Playwright
+ * learns a selector is visible by POLLING and learns the page clock by a round
+ * trip after that, so a harness-timed boundary lands a poll interval plus a
+ * round trip late and drifts with runner load. The same idle prefetch burst
+ * then falls inside the count or outside it: `/today` measured 43 requests and
+ * then 54 on identical code, on a docs-only commit.
+ *
+ * So the boundary is timestamped BY THE PAGE. An init script installs a gate
+ * that watches this route's own readiness selectors frame by frame and records
+ * the first frame they held, against the document's own time origin - the same
+ * origin `loadEventEnd` and every resource `startTime` already use. The harness
+ * figure survives only as a named fallback, so a run that had to use it says so
+ * rather than quietly reading as a heavier route.
  */
 export type PerfRoute = {
   /** The path measured, exactly as a browser would open it. */
@@ -35,6 +57,21 @@ export type PerfSample = {
   serverRenderMs: number;
   jsDecodedKB: number;
   requests: number;
+  lcpMs: number;
+  cls: number;
+  /** Which clock cut the count. `harness-ready` means the in-page gate never held. */
+  boundarySource: PerfBoundarySource;
+};
+
+/** One route's samples, kept so a run can print the spread beside the median. */
+export type PerfRouteRun = {
+  aggregate: PerfSample;
+  samples: PerfSample[];
+};
+
+/** The shape the in-page gate publishes. Mirrored by the init script below. */
+type PerfGate = {
+  readyAt: number;
   lcpMs: number;
   cls: number;
 };
@@ -86,10 +123,21 @@ export async function preparePerfPage(
   page: Page,
   origin: string,
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
+  routes: readonly PerfRoute[] = PERFORMANCE_BUDGETS.routes,
 ): Promise<void> {
   ensureNetworkTracker(page);
   await page.setViewportSize(method.viewport);
-  await page.addInitScript(() => {
+  // The whole route table is baked in at registration, and the gate picks its
+  // own row off `location.pathname` at run time. That is what lets ONE init
+  // script serve every navigation: an init script cannot be re-registered per
+  // route, and a per-route registration would leave the gate for the previous
+  // route still watching this one.
+  const gateRoutes = routes.map((route) => ({
+    path: route.path,
+    readySelector: route.readySelector,
+    settledSelectorHidden: route.settledSelectorHidden ?? null,
+  }));
+  await page.addInitScript((gate) => {
     window.localStorage.setItem("pubmax-tour-v1-done", "1");
     window.localStorage.setItem("pubmax_onboarding_dismissed", "1");
     window.sessionStorage.setItem("pubmax_onboarding_dismissed", "1");
@@ -98,9 +146,9 @@ export async function preparePerfPage(
     performance.setResourceTimingBufferSize(1000);
 
     const gateWindow = window as typeof window & {
-      __pubmaxPerfPaint?: { lcpMs: number; cls: number };
+      __pubmaxPerfPaint?: { readyAt: number; lcpMs: number; cls: number };
     };
-    gateWindow.__pubmaxPerfPaint = { lcpMs: Number.NaN, cls: 0 };
+    gateWindow.__pubmaxPerfPaint = { readyAt: Number.NaN, lcpMs: Number.NaN, cls: 0 };
     try {
       new PerformanceObserver((list) => {
         const last = list.getEntries().at(-1);
@@ -116,7 +164,42 @@ export async function preparePerfPage(
         }
       }).observe({ type: "layout-shift", buffered: true });
     } catch {}
-  });
+
+    const row = gate.routes.find((candidate) => {
+      const [pathOnly] = candidate.path.split("?");
+      return pathOnly === location.pathname;
+    });
+    if (!row) return;
+
+    // Deliberately no stricter than Playwright's own visibility rule, which is
+    // a non-empty box that is not `visibility: hidden`. A stricter test here
+    // would leave the gate unsatisfied on a route the harness calls ready, and
+    // the run would silently drop to the fallback clock it exists to replace.
+    const visible = (element: Element): boolean => {
+      if (element.getClientRects().length === 0) return false;
+      return getComputedStyle(element).visibility !== "hidden";
+    };
+    const held = (): boolean => {
+      const ready = document.querySelector(row.readySelector);
+      if (!ready || !visible(ready)) return false;
+      if (!row.settledSelectorHidden) return true;
+      const settling = document.querySelectorAll(row.settledSelectorHidden);
+      for (const element of Array.from(settling)) {
+        if (visible(element)) return false;
+      }
+      return true;
+    };
+
+    const tick = () => {
+      if (Number.isFinite(gateWindow.__pubmaxPerfPaint!.readyAt)) return;
+      if (held()) {
+        gateWindow.__pubmaxPerfPaint!.readyAt = performance.now();
+        return;
+      }
+      requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  }, { routes: gateRoutes });
 
   if (method.thirdPartyBlocked) {
     await page.route("**/*", (route) => {
@@ -171,13 +254,34 @@ export async function waitForQuietNetwork(page: Page): Promise<void> {
 
 /** One load, measured. */
 export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<PerfSample> {
-  const interactiveAt = await loadPerfRoute(page, route);
+  const harnessReadyAtMs = await loadPerfRoute(page, route);
   await waitForQuietNetwork(page);
-  return page.evaluate((boundary) => {
+  const { gate, loadEventEndMs } = await page.evaluate(() => {
     const gateWindow = window as typeof window & {
-      __pubmaxPerfPaint?: { lcpMs: number; cls: number };
+      __pubmaxPerfPaint?: { readyAt: number; lcpMs: number; cls: number };
     };
-    const paint = gateWindow.__pubmaxPerfPaint ?? { lcpMs: Number.NaN, cls: 0 };
+    const [navigation] = performance.getEntriesByType(
+      "navigation",
+    ) as PerformanceNavigationTiming[];
+    return {
+      gate: gateWindow.__pubmaxPerfPaint ?? {
+        readyAt: Number.NaN,
+        lcpMs: Number.NaN,
+        cls: 0,
+      },
+      loadEventEndMs: navigation ? navigation.loadEventEnd : Number.NaN,
+    };
+  });
+
+  // The one decision this whole helper exists to make. It is a pure function in
+  // lib/performanceBudgets.ts so it is unit-tested without a browser.
+  const { boundaryMs, source } = resolveCountBoundary({
+    loadEventEndMs,
+    pageReadyAtMs: (gate as PerfGate).readyAt,
+    harnessReadyAtMs,
+  });
+
+  const counted = await page.evaluate((boundary) => {
     const origin = location.origin;
     const [navigation] = performance.getEntriesByType(
       "navigation",
@@ -202,10 +306,15 @@ export async function samplePerfRoute(page: Page, route: PerfRoute): Promise<Per
       serverRenderMs: navigation
         ? Math.round(navigation.responseStart - navigation.requestStart)
         : Number.NaN,
-      lcpMs: paint.lcpMs,
-      cls: paint.cls,
     };
-  }, interactiveAt);
+  }, boundaryMs);
+
+  return {
+    ...counted,
+    lcpMs: (gate as PerfGate).lcpMs,
+    cls: (gate as PerfGate).cls,
+    boundarySource: source,
+  };
 }
 
 /**
@@ -218,6 +327,21 @@ export async function measurePerfRoute(
   route: PerfRoute,
   method: BudgetMethod = PERFORMANCE_BUDGETS.method,
 ): Promise<PerfSample> {
+  return (await runPerfRoute(page, route, method)).aggregate;
+}
+
+/**
+ * The same run, with its individual samples kept.
+ *
+ * #1314 asked for exactly this before choosing a fix: a run that reports only
+ * its median cannot say whether a swing happened inside the run or between
+ * runs, and those two have different fixes.
+ */
+export async function runPerfRoute(
+  page: Page,
+  route: PerfRoute,
+  method: BudgetMethod = PERFORMANCE_BUDGETS.method,
+): Promise<PerfRouteRun> {
   for (let run = 0; run < method.warmupRuns; run += 1) {
     await loadPerfRoute(page, route);
     await waitForQuietNetwork(page);
@@ -227,10 +351,18 @@ export async function measurePerfRoute(
     samples.push(await samplePerfRoute(page, route));
   }
   return {
-    serverRenderMs: aggregatePerfMetric(samples.map((sample) => sample.serverRenderMs)),
-    jsDecodedKB: aggregatePerfMetric(samples.map((sample) => sample.jsDecodedKB)),
-    requests: aggregatePerfMetric(samples.map((sample) => sample.requests)),
-    lcpMs: aggregatePerfMetric(samples.map((sample) => sample.lcpMs)),
-    cls: aggregatePerfMetric(samples.map((sample) => sample.cls)),
+    samples,
+    aggregate: {
+      serverRenderMs: aggregatePerfMetric(samples.map((sample) => sample.serverRenderMs)),
+      jsDecodedKB: aggregatePerfMetric(samples.map((sample) => sample.jsDecodedKB)),
+      requests: aggregatePerfMetric(samples.map((sample) => sample.requests)),
+      lcpMs: aggregatePerfMetric(samples.map((sample) => sample.lcpMs)),
+      cls: aggregatePerfMetric(samples.map((sample) => sample.cls)),
+      // A route whose gate held on every sample reports the page clock. One
+      // fallback sample makes the whole route's figures indicative.
+      boundarySource: samples.every((sample) => sample.boundarySource === "page-ready")
+        ? "page-ready"
+        : "harness-ready",
+    },
   };
 }

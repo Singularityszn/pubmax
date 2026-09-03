@@ -3,13 +3,16 @@ import { expect, test } from "@playwright/test";
 import {
   PERFORMANCE_BUDGETS,
   findBudgetBreaches,
+  findMethodWarnings,
   findRatchetCandidates,
   formatBreachTable,
   formatMeasurementTable,
   formatRatchetTable,
+  formatSampleTable,
   type RouteMeasurement,
+  type SampleRow,
 } from "../lib/performanceBudgets";
-import { measurePerfRoute, preparePerfPage } from "./helpers/perfMeasurement";
+import { preparePerfPage, runPerfRoute } from "./helpers/perfMeasurement";
 
 // The enforced site performance budget (docs/PERFORMANCE_BUDGETS.md).
 //
@@ -52,17 +55,43 @@ test("every budgeted route stays inside its performance budget", async ({ page, 
   await preparePerfPage(page, origin, budgets.method);
 
   const measured = new Map<string, RouteMeasurement>();
+  const samplesByPath = new Map<string, SampleRow[]>();
   for (const route of budgets.routes) {
-    const sample = await measurePerfRoute(page, route, budgets.method);
+    const run = await runPerfRoute(page, route, budgets.method);
     measured.set(route.path, {
-      serverRenderMs: sample.serverRenderMs,
-      jsDecodedKB: sample.jsDecodedKB,
-      requests: sample.requests,
-      lcpMs: Math.round(sample.lcpMs),
+      serverRenderMs: run.aggregate.serverRenderMs,
+      jsDecodedKB: run.aggregate.jsDecodedKB,
+      requests: run.aggregate.requests,
+      lcpMs: Math.round(run.aggregate.lcpMs),
     });
+    samplesByPath.set(
+      route.path,
+      run.samples.map((sample) => ({
+        serverRenderMs: sample.serverRenderMs,
+        jsDecodedKB: sample.jsDecodedKB,
+        requests: sample.requests,
+        lcpMs: Math.round(sample.lcpMs),
+        boundarySource: sample.boundarySource,
+      })),
+    );
   }
 
   console.log(`[perf-budget]\n${formatMeasurementTable(budgets.routes, measured)}`);
+
+  // Every sample beside its median. A red run is only actionable if an author
+  // can see whether the route moved or the runner did (#1314).
+  console.log(`\n[perf-budget][samples]\n${formatSampleTable(samplesByPath)}`);
+
+  // Facts about the METHOD rather than about the code under test: a route whose
+  // samples sat further apart than the tracked width, and any sample that had
+  // to fall back to the harness clock. Reported, never failed on.
+  const methodWarnings = findMethodWarnings(samplesByPath, budgets.method.sampleSpreadWarnPct);
+  if (methodWarnings.length > 0) {
+    console.log(
+      `\n[perf-budget][method] the measurement, not the code:\n` +
+        `${methodWarnings.map((warning) => `  - ${warning}`).join("\n")}\n`,
+    );
+  }
 
   // Slack does not stay slack (#1296): a ceiling set generously is a ceiling a
   // route quietly grows back into. A sweep that beats one by a clear margin

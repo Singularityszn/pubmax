@@ -69,6 +69,30 @@ export type BudgetMethod = {
    * at the same moment, and a time-based settle does not.
    */
   countedUpTo: string;
+  /**
+   * Whose clock cuts it. Deliberately tracked beside the words above, because
+   * the words were already right and the CLOCK was the flake (#1314): a
+   * boundary the harness times drifts by however long a visibility poll and a
+   * CDP round trip took on a shared runner, and the page's post-paint idle
+   * warmup crosses it or does not depending on that drift.
+   */
+  boundaryClock: "page";
+  /**
+   * How far apart a route's own samples may sit before the run says so. This
+   * is the evidence #1314 asked for: if the spread WITHIN one run is as wide as
+   * the spread BETWEEN runs, the method is the suspect rather than the code.
+   * It is a warning and fails nothing.
+   */
+  sampleSpreadWarnPct: number;
+  /**
+   * And how wide that has to be in the metric's OWN units before it is worth
+   * saying. A percentage alone is not information at these magnitudes: server
+   * render sits at 3 to 19 ms here, so a single millisecond of scheduler jitter
+   * reads as a 33% spread and every route warns on every run. A warning that
+   * fires on everything is a warning nobody reads, so the gap must also be big
+   * enough to matter against the tightest ceiling the metric has.
+   */
+  sampleSpreadFloors: Record<BudgetMetric, number>;
 };
 
 export type PerformanceBudgets = {
@@ -270,6 +294,153 @@ export function formatMeasurementTable(
     widths.map((width) => "-".repeat(width)).join("  "),
     ...rows.map(line),
   ].join("\n");
+}
+
+/**
+ * WHOSE CLOCK CUTS THE COUNT, and why it may not be the harness's.
+ *
+ * A route's cost is counted up to the moment it was interactive. That moment
+ * has to be read off the PAGE, because the app deliberately warms the other tab
+ * destinations once the foreground surface has painted (`lib/mapWarmup.ts`
+ * schedules that on an idle callback with a 2000 ms timeout). Those requests are
+ * off the critical path by design, so they must fall outside the count every
+ * time, not most times.
+ *
+ * The harness cannot cut there. Playwright learns a selector is visible by
+ * polling, and learns the page clock by a round trip after that, so its
+ * "interactive" lands a poll interval plus a round trip late, and how late
+ * depends on how loaded the runner is. #1314 is the record: `/today` measured
+ * 43 requests and then 54 on identical code, a swing of about ten, which is the
+ * size of one idle prefetch burst crossing the line.
+ *
+ * So the boundary is the page's own: the later of its `load` event and the
+ * first frame on which its readiness gate was satisfied, both timestamped
+ * in-page against the document's own time origin. The harness figure stays as
+ * the fallback for a gate that never reported, and the source travels with the
+ * sample so a run can say which clock it used.
+ */
+export type PerfBoundarySource = "page-ready" | "harness-ready";
+
+export type PerfBoundaryInput = {
+  /** `loadEventEnd` off the document's own navigation entry, in ms. */
+  loadEventEndMs: number;
+  /** First in-page frame on which the route's readiness gate held, in ms. */
+  pageReadyAtMs: number;
+  /** What the harness clocked, kept only as the fallback. */
+  harnessReadyAtMs: number;
+};
+
+export type PerfBoundary = {
+  boundaryMs: number;
+  source: PerfBoundarySource;
+};
+
+export function resolveCountBoundary(input: PerfBoundaryInput): PerfBoundary {
+  const { loadEventEndMs, pageReadyAtMs, harnessReadyAtMs } = input;
+  const load = Number.isFinite(loadEventEndMs) && loadEventEndMs > 0 ? loadEventEndMs : 0;
+  if (Number.isFinite(pageReadyAtMs)) {
+    return { boundaryMs: Math.max(load, pageReadyAtMs), source: "page-ready" };
+  }
+  // The gate never reported. Rather than count to a moment we cannot defend,
+  // fall back to the harness figure and SAY SO, so a drifting run is visible in
+  // the log instead of quietly reading as a heavier route.
+  return { boundaryMs: Math.max(load, harnessReadyAtMs), source: "harness-ready" };
+}
+
+export type SampleSpread = {
+  min: number;
+  max: number;
+  /** How far the widest sample sits from the median, as a whole percentage. */
+  spreadPct: number;
+};
+
+/**
+ * How far apart one route's own samples sat. NaN in, NaN out: an unmeasurable
+ * sample is not a narrow one.
+ */
+export function perfSampleSpread(values: readonly number[]): SampleSpread {
+  if (values.length === 0 || values.some((value) => !Number.isFinite(value))) {
+    return { min: Number.NaN, max: Number.NaN, spreadPct: Number.NaN };
+  }
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const middle = median(values);
+  if (middle <= 0) return { min, max, spreadPct: max === min ? 0 : Number.POSITIVE_INFINITY };
+  return { min, max, spreadPct: Math.round(((max - min) / middle) * 100) };
+}
+
+export type SampleRow = Record<BudgetMetric, number> & { boundarySource?: PerfBoundarySource };
+
+/**
+ * Every sample of every route, printed beside the aggregate.
+ *
+ * #1314 asked for exactly this before choosing a fix: a run that logs only its
+ * median cannot say whether a swing happened inside the run or between runs.
+ */
+export function formatSampleTable(
+  samplesByPath: ReadonlyMap<string, readonly SampleRow[]>,
+): string {
+  const rows: string[][] = [];
+  for (const [path, samples] of samplesByPath) {
+    for (const metric of BUDGET_METRICS) {
+      const values = samples.map((sample) => sample[metric]);
+      const spread = perfSampleSpread(values);
+      rows.push([
+        path,
+        BUDGET_METRIC_LABELS[metric],
+        values.map(figure).join(" / "),
+        figure(median(values)),
+        Number.isFinite(spread.spreadPct) ? `${spread.spreadPct}%` : "-",
+      ]);
+    }
+  }
+  if (rows.length === 0) return "";
+  const header = ["route", "metric", "samples", "median", "spread"];
+  const widths = header.map((cell, column) =>
+    Math.max(cell.length, ...rows.map((row) => row[column].length)),
+  );
+  const line = (cells: string[]) =>
+    cells.map((cell, column) => pad(cell, widths[column])).join("  ").trimEnd();
+  return [
+    line(header),
+    widths.map((width) => "-".repeat(width)).join("  "),
+    ...rows.map(line),
+  ].join("\n");
+}
+
+/**
+ * The routes whose own samples sat further apart than the tracked warning
+ * width, and every sample taken on the fallback clock. Both are facts about the
+ * METHOD rather than about the code under test, so they are reported and
+ * nothing fails on them.
+ */
+export function findMethodWarnings(
+  samplesByPath: ReadonlyMap<string, readonly SampleRow[]>,
+  warnPct: number = PERFORMANCE_BUDGETS.method.sampleSpreadWarnPct,
+  floors: Record<BudgetMetric, number> = PERFORMANCE_BUDGETS.method.sampleSpreadFloors,
+): string[] {
+  const warnings: string[] = [];
+  for (const [path, samples] of samplesByPath) {
+    const fallback = samples.filter((sample) => sample.boundarySource === "harness-ready").length;
+    if (fallback > 0) {
+      warnings.push(
+        `${path}: ${fallback} of ${samples.length} sample(s) fell back to the harness clock, ` +
+          `so the readiness gate never reported in-page. The figures are indicative, not comparable.`,
+      );
+    }
+    for (const metric of BUDGET_METRICS) {
+      const spread = perfSampleSpread(samples.map((sample) => sample[metric]));
+      if (!Number.isFinite(spread.spreadPct) || spread.spreadPct <= warnPct) continue;
+      const floor = floors[metric] ?? 0;
+      if (spread.max - spread.min < floor) continue;
+      warnings.push(
+        `${path} ${BUDGET_METRIC_LABELS[metric]}: samples spread ${spread.spreadPct}% ` +
+          `(${figure(spread.min)} to ${figure(spread.max)}), past the tracked ${warnPct}% ` +
+          `width and the ${floor} floor.`,
+      );
+    }
+  }
+  return warnings;
 }
 
 /** The middle value of a sample, so one slow run cannot fail a green route. */

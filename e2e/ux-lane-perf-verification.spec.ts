@@ -84,7 +84,11 @@ test("UX lane routes report LCP, CLS and JS decoded against route budgets", asyn
   test.setTimeout(SWEEP_TIMEOUT_MS);
 
   const origin = new URL(baseURL ?? "http://localhost:3100").origin;
-  await preparePerfPage(page, origin, method);
+  // The gate that cuts the count watches THIS spec's route table, not the
+  // budget file's: /near and /map/london are measured here and budgeted
+  // nowhere, so a gate seeded from the budget routes would find no row for them
+  // and drop them to the fallback clock.
+  await preparePerfPage(page, origin, method, UX_LANE_ROUTES);
 
   const rows: string[] = [];
   const notes: string[] = [];

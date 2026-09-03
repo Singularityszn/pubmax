@@ -187,18 +187,109 @@ route gets a warm-up load whose request lifecycle must fully drain before
 measurement, then the median of three measured runs. A network that does not
 drain within 20 seconds fails the run.
 
-Counting stops at an APP-DEFINED moment, not a wall clock: the route's own
-readiness gate, no earlier than the window load event. A resource counts if it
-started before that moment; the run then waits for the network to go quiet so
-every counted entry carries its final size.
+The method is tracked rather than remembered. It lives in the `method` block of
+`perf/route-budgets.json`, which `lib/performanceBudgets.ts` types and both perf
+specs read, so a figure cannot be taken one way and compared with a figure taken
+another:
+
+| field | value | why it is pinned |
+| --- | --- | --- |
+| `browser` | Desktop Chrome | One engine, so a run is comparable to the one before it. |
+| `viewport` | 390x844 at DPR 1 | A phone's CSS viewport, fixed, because a wider one loads different images and a different number of cards. |
+| `cpuThrottleRate` | 4 | A mid-range phone against a CI runner's core. |
+| `thirdPartyBlocked` | true | A run measures what we ship, never a tile server's morning. |
+| `warmupRuns` | 1 | Discarded, and its request lifecycle must fully drain, so a cold module load is not charged to the route. |
+| `measuredRuns` | 3 | Stated here rather than implied, because "the median" means nothing without an N. |
+| `aggregate` | median | One slow run cannot fail a green route. |
+| `boundaryClock` | page | Whose clock stops the count. See below. |
+| `sampleSpreadWarnPct` | 12 | How far a route's own samples may sit apart before the run says so. A warning; it fails nothing. |
+| `sampleSpreadFloors` | 25 ms / 20 KB / 3 requests / 250 ms | And how wide that gap has to be in the metric's own units. A percentage alone is not information here: server render sits at 3 to 19 ms, so one millisecond of jitter reads as a 33% spread and every route would warn on every run. |
+
+### Where counting stops, and whose clock stops it
+
+Counting stops at an APP-DEFINED moment, not a wall clock: the later of the
+document's own load event and the first in-page frame on which the route's
+readiness gate held. A resource counts if it started before that moment; the run
+then waits for the network to go quiet so every counted entry carries its final
+size.
 
 That distinction is the difference between a gate and a coin toss. `networkidle`
-catches or misses the post-paint background warmup
-(`lib/backgroundWarmup.ts`, which loads the OTHER tab destinations on purpose)
+catches or misses the post-paint background warmup (`lib/mapWarmup.ts` warms the
+OTHER tab destinations on purpose, on an idle callback with a 2000 ms timeout)
 depending on how fast the box is: the first CI run of this spec measured
-`/today` at 2726 KB and the retry at 1186 KB, on one build. Under the current
-anchor three consecutive local runs agree byte for byte, and CI agrees with
-them to within about 4 KB.
+`/today` at 2726 KB and the retry at 1186 KB, on one build.
+
+The rule above fixed the byte swing and left a smaller one behind, and #1314 is
+its record: on a docs-only commit, `/today` measured 54 requests where the same
+tree had measured 43. A markdown file moves neither figure, so the difference was
+the runner. The cause was WHOSE CLOCK read the moment. Playwright learns a
+selector is visible by polling, and learns the page's clock by a round trip after
+that, so a harness-timed boundary lands a poll interval plus a round trip late
+and drifts with load. One idle prefetch burst is about ten requests, which is the
+size of the swing.
+
+So the boundary is timestamped by the page. An init script installed by
+`e2e/helpers/perfMeasurement.ts` carries the whole route table, picks its own row
+off `location.pathname`, watches that route's readiness selectors frame by frame,
+and records the first frame they held against the document's own time origin -
+the same origin `loadEventEnd` and every resource `startTime` already use. Its
+visibility test is deliberately no stricter than Playwright's own, because a
+stricter one would leave the gate unheld on a route the harness calls ready.
+
+`resolveCountBoundary` in `lib/performanceBudgets.ts` makes that one decision and
+is unit-tested without a browser (`__tests__/perfBoundaryClock.test.ts`). The
+harness figure survives only as a NAMED fallback: a sample that had to use it is
+reported in the run's method warnings, so a drifting run is visible in the log
+instead of quietly reading as a heavier route.
+
+### What a run prints
+
+Three tables, in this order:
+
+- `[perf-budget]` - every route and metric against its ceiling.
+- `[perf-budget][samples]` - every individual sample beside its median and the
+  spread between them. #1314 asked for exactly this before choosing a fix: a run
+  that reports only its median cannot say whether a swing happened inside the run
+  or between runs, and those two have different fixes.
+- `[perf-budget][method]` - facts about the MEASUREMENT rather than about the
+  code: a route whose samples sat further apart than `sampleSpreadWarnPct`, and
+  any sample that fell back to the harness clock. Reported, never failed on.
+
+### What the page clock actually fixed, and what it did not
+
+Two consecutive sweeps on one production build of `main`, nine routes, taken on
+2026-09-03. The two COUNTED metrics - the ones the boundary decides, and the two
+#1314 flaked on - came back identical on all nine routes:
+
+| route | JS decoded (KB) | requests | first sweep = second sweep |
+| --- | --- | --- | --- |
+| `/` | 887 | 41 | yes |
+| `/pal` | 1160 | 41 | yes |
+| `/map` | 2972 | 122 | yes |
+| `/today` | 914 | 43 | yes |
+| `/tonight` | 926 | 50 | yes |
+| `/out` | 866 | 40 | yes |
+| `/about` | 828 | 36 | yes |
+| `/pubs` | 832 | 43 | yes |
+| `/webmcp` | 865 | 37 | yes |
+
+18 figures, 18 agreements. The same sweep taken on the harness clock beforehand
+counted more on every route (`/` 1144 KB over 48 requests, `/map` 3076 KB over
+133, `/tonight` 1164 KB over 52), which is the post-paint idle burst that used to
+land inside the count. Those ceilings are NOT re-seeded here: a method change and
+a ceiling change do not belong in one commit, and the down-only law means the
+banking is a separate, deliberate move.
+
+The two OBSERVED metrics still move, and they are honestly reported rather than
+claimed fixed. `serverRenderMs` sat between 3 and 19 ms and `lcpMs` between 84
+and 780 ms across the two sweeps. Neither reads off the boundary: one is
+`responseStart - requestStart` on the navigation entry, the other is a buffered
+`PerformanceObserver`, and both move with scheduling under a 4x throttle. What
+makes that tolerable is headroom rather than hope: every one of those figures
+sits an order of magnitude under its ceiling (LCP 84 to 780 against 1500 and
+2500; server render 3 to 19 against 150 and 450), so paint jitter cannot flip the
+gate. If either ever does, the `[perf-budget][samples]` table says whether the
+route moved or the runner did.
 
 Run it locally the same way CI does:
 
