@@ -28,6 +28,8 @@ import {
   filterMapPintDropEntries,
   type MapPintDropVenue,
 } from "@/lib/mapPintDropPolicy";
+import { confirmedPriceInputFor } from "@/lib/pintDropConfirmation";
+import type { ConfirmedPriceInput } from "@/lib/priceTier";
 import { clearPintDropDraft } from "@/lib/pintDropDraft";
 import { pintDropAuthorValue } from "@/lib/pintDropComposerIdentity";
 import { notifyCheapPintPingQualified } from "@/lib/cheapPintPingQualifyClient";
@@ -703,6 +705,8 @@ export function usePintDrops(
         latestContributorAt: number | null;
         /** Display-only demo price for pin colour when the slim index has null cheapestPrice. */
         latestDemoPrice: number | null;
+        /** The venue's live confirmation as priceStandingFor takes it, or null. */
+        confirmedPrice: ConfirmedPriceInput | null;
       }
     >();
     for (const [venueId, venueDrops] of mapDropsByVenueId) {
@@ -727,12 +731,20 @@ export function usePintDrops(
         )?.priceGbp ?? null;
       // dropCount/hasPintDrops match the map halo: any visible drop counts
       // (seeds included) so the "has drops" signal is consistent everywhere.
+      // The venue's minted confirmation, read rather than re-derived: a
+      // standing may only go green over a confirmation the server actually
+      // wrote (lib/pintDropConfirm.server.ts), never over a corroboration this
+      // render worked out for itself. An aged-out confirmation answers null
+      // here, so the pub falls through to a weaker standing with nothing
+      // deleted.
+      const confirmedPrice = confirmedPriceInputFor(venueDrops);
       signals.set(venueId, {
         hasPintDrops: venueDrops.length > 0,
         dropCount: venueDrops.length,
         latestContributorPrice,
         latestContributorAt,
         latestDemoPrice,
+        confirmedPrice,
       });
     }
     return signals;

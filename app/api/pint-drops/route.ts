@@ -31,6 +31,10 @@ import {
   pintDropsStore,
   type PintDropPhotos,
 } from "@/lib/pintDropsStore";
+import {
+  confirmPintDropByModerator,
+  confirmVenueBySecondReporter,
+} from "@/lib/pintDropConfirm.server";
 import { gateHandleAction } from "@/lib/profileOwnership";
 import { pintDropAuthorityKey } from "@/lib/pintDropAuthority.server";
 import { profileStore } from "@/lib/profileStore";
@@ -256,6 +260,39 @@ async function handleReportAction(
   }
 }
 
+async function handleModeratorConfirmAction(
+  request: Request,
+  fields: Record<string, unknown>,
+): Promise<Response> {
+  if (!isModerator(request)) return forbidden();
+  const id = readString(fields.id);
+  if (!id) return notFound();
+  const unavailable = productionStorageUnavailable();
+  if (unavailable) return unavailable;
+  try {
+    const confirmation = await confirmPintDropByModerator(id);
+    // Null is not an error: an unknown id and a drop that already carries a
+    // live confirmation both mean the queue has nothing left to decide here.
+    // Answering the confirmation on record keeps the moderator's view honest
+    // rather than pretending this call minted it.
+    if (confirmation) {
+      return jsonNoStore({ ok: true, confirmation }, { status: 200 });
+    }
+    return publicApiError(
+      "Nothing to confirm: this Pint Drop is unknown or already confirmed.",
+      "CONFLICT",
+      409,
+    );
+  } catch (err) {
+    log("error", "pint_drops.confirm_failed", {
+      route: "POST /api/pint-drops",
+      action: "confirm",
+      error: err instanceof Error ? err.message : String(err),
+    });
+    return storageUnavailable();
+  }
+}
+
 async function handleModeratorAction(
   request: Request,
   fields: Record<string, unknown>,
@@ -310,6 +347,14 @@ export async function POST(request: Request): Promise<Response> {
   // stamp moderated_at so the drop leaves the review queue. 403 without a token.
   if (fields.action === "restore" || fields.action === "keep_hidden") {
     return handleModeratorAction(request, fields);
+  }
+
+  // A moderator's own confirmation: the second way a Pint Drop earns a green
+  // standing when no second reporter has turned up. 403 without a token, and
+  // never a route a drinker can reach - a confirmation a reader could mint for
+  // their own price is not a confirmation.
+  if (fields.action === "confirm") {
+    return handleModeratorConfirmAction(request, fields);
   }
 
   // Solo-operator emergency freeze (U15): dropping a pint is a social write. The
@@ -396,6 +441,14 @@ export async function POST(request: Request): Promise<Response> {
 
   try {
     const drop = await pintDropsStore().create(dropPayload, photos);
+    // The second-reporter pass, awaited so the drinker's own answer carries the
+    // standing their report just earned. It never throws and never fails the
+    // drop: when it cannot read or write, the pill stays grey and the drop
+    // stands. Only a priced drop can complete a pair.
+    const confirmation =
+      dropPayload.priceGbp !== null
+        ? await confirmVenueBySecondReporter(dropPayload.venueId)
+        : null;
     // Fire-and-forget: the profile bootstrap must never delay or fail the drop
     // response (an awaited Supabase upsert here blocks every submission and hangs
     // unmocked tests). It never rejects — the inner try/catch swallows failures.
@@ -403,7 +456,10 @@ export async function POST(request: Request): Promise<Response> {
     if (ownership.callerUserId) {
       void qualifyCheapPintForAccountId(ownership.callerUserId);
     }
-    return jsonNoStore({ drop }, { status: 201 });
+    return jsonNoStore(
+      { drop, ...(confirmation ? { confirmation } : {}) },
+      { status: 201 },
+    );
   } catch (err) {
     // An invalid photo is the user's fault — surface as 400. The store has
     // already cleaned up anything it uploaded (no orphans). We don't log this
@@ -428,7 +484,12 @@ export async function GET(request: Request): Promise<Response> {
   // Moderator read: ?status=reported|hidden|pending → the review queue, WITH
   // metadata. `reported` contains visible rows with an unreviewed report.
   const status = params.get("status");
-  if (status === "reported" || status === "hidden" || status === "pending") {
+  if (
+    status === "reported" ||
+    status === "hidden" ||
+    status === "pending" ||
+    status === "confirmed"
+  ) {
     if (!isModerator(request)) return forbidden();
     const unavailable = productionStorageUnavailable();
     if (unavailable) return unavailable;

@@ -10,6 +10,9 @@
 // exact same browser-safe-twin pattern.
 
 import type { Provenance } from "@/lib/curation";
+// Type-only, so the browser-safe twin keeps its promise: a "use client" module
+// that imports this shape pulls no runtime module in behind it.
+import type { PintDropConfirmation } from "@/lib/pintDropConfirmation";
 import type { LastPintDecisionKind } from "@/lib/tfl";
 
 // A Pint Drop is one object with optional parts: a price log, a passed-down
@@ -126,6 +129,15 @@ export type PintDrop = {
   reportCount?: number;
   moderatedAt?: string;
   moderatorNote?: string;
+  /**
+   * The minted confirmation this drop carries, or absent when nobody has
+   * confirmed it. Written once by the server (lib/pintDropConfirm.server.ts)
+   * and never by a client: `confirmationId` is what the Pint Index cites, so a
+   * caller-supplied one would be a citation nobody made. Ageing out of the
+   * trust window is a READ-side answer, so a confirmation is never deleted for
+   * being old - see confirmationIsLive in lib/pintDropConfirmation.ts.
+   */
+  confirmation?: PintDropConfirmation | null;
   /**
    * Optional Last Train context captured when the Spill was posted (Wave F0).
    * Honest leave-by + decision kind for feed/venue stamps — never invent these.

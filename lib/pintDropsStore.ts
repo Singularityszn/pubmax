@@ -15,9 +15,16 @@ import { detectImageKind, magicBytesOk as magicBytesOkPure, stripImageMetadata }
 import { log } from "@/lib/log";
 import { demoDropsFor, demoPintDropsForCity } from "@/lib/pintDropSeeds";
 import {
+  isPintDropConfirmationBasis,
+  type PintDropConfirmation,
+} from "@/lib/pintDropConfirmation";
+import {
   addPintDrop,
   ANON_HANDLE_LABEL,
   canViewOnPublicSurface,
+  confirmPintDrop,
+  listConfirmedPintDrops,
+  isPubliclyReadableDrop,
   cleanVibeTags,
   cleanVisibility,
   dropMatchesCityScope,
@@ -48,6 +55,7 @@ function cleanVibeTagsOrUndefined(value: unknown): VibeTag[] | undefined {
   const tags = cleanVibeTags(value);
   return tags.length ? tags : undefined;
 }
+import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 import { isSupabaseConfigured, requireSupabaseAdmin, STORAGE_BUCKET } from "@/lib/supabase";
 import { isLiveLastTrainDecision } from "@/lib/lastTrainBadge";
 import { londonDayKey } from "@/lib/pintContributions";
@@ -151,6 +159,28 @@ export type PintDropStore = {
   /** Moderator decision: set the final status and stamp the review. False = unknown id. */
   moderate(id: string, status: PintDropStatus, note?: string): Promise<boolean>;
   /**
+   * The venue's priced drops a confirmation may be derived from: visible,
+   * publicly readable, newest-first, capped. Friends-only and legacy rows are
+   * deliberately excluded - the Pint Index publishes what a stranger can read,
+   * so a lane nobody else can see may not put a price in a citable edition.
+   * The pure finder (lib/pintDropConfirmation.ts) applies the age, tolerance
+   * and independence rules to what comes back.
+   */
+  listConfirmationCandidates(venueId: string): Promise<PintDrop[]>;
+  /**
+   * Record ONE minted confirmation against the drops it names, in ONE write, so
+   * a pair can never end up half-confirmed. Idempotent: a drop already carrying
+   * a LIVE confirmation keeps the one it has, because a later agreeing reporter
+   * is more evidence rather than a second event. True means this call WROTE;
+   * unknown ids and already-confirmed drops both answer false, because both
+   * mean nothing changed.
+   */
+  confirm(
+    ids: readonly string[],
+    confirmation: PintDropConfirmation,
+    now?: number,
+  ): Promise<boolean>;
+  /**
    * Duplicate guard (feat/price-drops-v2): true when `handle` has already logged
    * a PRICED drop at `venueId` on the current London calendar day. The route
    * pre-checks this and returns 409 before create, so one identity can't stack
@@ -236,6 +266,13 @@ function toRow(drop: PersistableDrop) {
     status: drop.status,
     created_at: drop.createdAt,
     authority_key: drop.authorityKey ?? null,
+    // Confirmation is minted by the server AFTER a drop lands (a drop cannot
+    // confirm itself), so a create always writes the empty shape. Kept in this
+    // one mapper so a column rename stays a one-line change on each side.
+    confirmation_id: drop.confirmation?.confirmationId ?? null,
+    confirmed_at: drop.confirmation?.confirmedAt ?? null,
+    confirmation_basis: drop.confirmation?.basis ?? null,
+    confirming_drop_id: drop.confirmation?.confirmingDropId ?? null,
     reported_at: drop.reportedAt ?? null,
     report_reason: drop.reportReason ?? null,
     report_count: drop.reportCount ?? 0,
@@ -245,6 +282,34 @@ function toRow(drop: PersistableDrop) {
     // Null when the composer had no live decision (or TfL was down).
     leave_by_iso: drop.leaveByIso ?? null,
     last_train_decision: drop.lastTrainDecision ?? null,
+  };
+}
+
+/**
+ * The minted confirmation a row carries, or undefined. Every field has to be
+ * present and the basis has to be one we know, because a half-written
+ * confirmation is not evidence: the Pint Index cites `confirmationId`, and a
+ * row that cannot say when or on what basis it was confirmed may not be cited.
+ */
+export function confirmationFromRow(
+  row: Record<string, unknown>,
+): PintDropConfirmation | undefined {
+  const confirmationId =
+    typeof row.confirmation_id === "string" ? row.confirmation_id.trim() : "";
+  const confirmedAt = row.confirmed_at ? String(row.confirmed_at) : "";
+  const basis = row.confirmation_basis;
+  if (!confirmationId || !confirmedAt || !isPintDropConfirmationBasis(basis)) {
+    return undefined;
+  }
+  const confirmingDropId =
+    typeof row.confirming_drop_id === "string" && row.confirming_drop_id.trim()
+      ? row.confirming_drop_id
+      : undefined;
+  return {
+    confirmationId,
+    confirmedAt: new Date(confirmedAt).toISOString(),
+    basis,
+    ...(confirmingDropId ? { confirmingDropId } : {}),
   };
 }
 
@@ -276,6 +341,7 @@ function fromRow(row: Record<string, unknown>): PersistableDrop {
       typeof row.authority_key === "string" && row.authority_key.trim()
         ? row.authority_key
         : undefined,
+    confirmation: confirmationFromRow(row),
     pintPhotoKey: row.pint_photo_key ? String(row.pint_photo_key) : undefined,
     venuePhotoKey: row.venue_photo_key ? String(row.venue_photo_key) : undefined,
     reportedAt: row.reported_at ? String(row.reported_at) : undefined,
@@ -425,6 +491,9 @@ export function toDTO(
     venuePhotoUrl: visible ? (photoUrls?.venue ?? null) : null,
   };
   if (drop.authorityKey) dto.authorityKey = drop.authorityKey;
+  // A confirmation is public: it is the whole point of the green pill, and the
+  // record names two drop ids, never two people.
+  if (drop.confirmation) dto.confirmation = drop.confirmation;
   // Vibe tags are public, safe content — always exposed when present. Kept
   // additive (absent, not []) so the public JSON shape stays backward-compatible.
   if (drop.vibeTags && drop.vibeTags.length) dto.vibeTags = drop.vibeTags;
@@ -499,10 +568,29 @@ export const memoryPintDropStore: PintDropStore = {
     );
   },
   async listForReview(status) {
-    const rows = status === "reported" ? listReportedPintDrops() : listByStatus(status);
+    const rows =
+      status === "reported"
+        ? listReportedPintDrops()
+        : status === "confirmed"
+          ? listConfirmedPintDrops()
+          : listByStatus(status);
     return rows
       .slice(0, MAX_PUBLIC_DROPS)
       .map((d) => toModeratorDTO(withVerifiedReportCount(d)));
+  },
+  async listConfirmationCandidates(venueId) {
+    return newestFirstCapped(
+      listVisiblePintDrops(venueId).filter(
+        (d) => d.priceGbp !== null && isPubliclyReadableDrop(d),
+      ),
+    );
+  },
+  async confirm(ids, confirmation, now = Date.now()) {
+    let wrote = false;
+    for (const id of ids) {
+      if (confirmPintDrop(id, confirmation, now)) wrote = true;
+    }
+    return wrote;
   },
   async report(id, reason, identity) {
     return reportPintDrop(id, reason, identity);
@@ -563,6 +651,25 @@ function isMissingAuthorityKeyColumnError(error: {
   );
 }
 
+// Additive-rollout guard for the confirmation columns (migration 0140). The
+// code ships before the owner applies the migration, so a create must keep the
+// drop and simply carry no confirmation: a drinker's price is not worth losing
+// over a standing nobody has earned yet.
+function isMissingConfirmationColumnError(error: {
+  code?: string;
+  message?: string;
+} | null): boolean {
+  if (!error) return false;
+  const code = error.code ?? "";
+  const message = (error.message ?? "").toLowerCase();
+  const mentions =
+    message.includes("confirmation_id") ||
+    message.includes("confirmed_at") ||
+    message.includes("confirmation_basis") ||
+    message.includes("confirming_drop_id");
+  return (code === "42703" || code === "PGRST204") && mentions;
+}
+
 // Additive-rollout guard for Wave G1 Last Train columns (migration 0021).
 function isMissingLastTrainColumnError(error: { code?: string; message?: string } | null): boolean {
   if (!error) return false;
@@ -603,6 +710,26 @@ export const supabasePintDropStore: PintDropStore = {
         void _omitAuthority;
         delete persistable.authorityKey;
         row = rowWithoutAuthority as typeof row;
+        ({ error } = await admin().from(TABLE).insert(row));
+      }
+      if (error && isMissingConfirmationColumnError(error)) {
+        console.warn(
+          "[pint-drops] confirmation columns missing - saving this drop unconfirmed (apply migration 0140):",
+          error.message,
+        );
+        const {
+          confirmation_id: _omitConfirmationId,
+          confirmed_at: _omitConfirmedAt,
+          confirmation_basis: _omitBasis,
+          confirming_drop_id: _omitConfirmingDrop,
+          ...rowWithoutConfirmation
+        } = row;
+        void _omitConfirmationId;
+        void _omitConfirmedAt;
+        void _omitBasis;
+        void _omitConfirmingDrop;
+        delete persistable.confirmation;
+        row = rowWithoutConfirmation as typeof row;
         ({ error } = await admin().from(TABLE).insert(row));
       }
       if (error && isMissingLastTrainColumnError(error)) {
@@ -719,8 +846,9 @@ export const supabasePintDropStore: PintDropStore = {
   },
 
   async listForReview(status) {
-    const query = status === "reported"
-      ? admin()
+    const reviewQuery = () => {
+      if (status === "reported") {
+        return admin()
           .from(TABLE)
           .select("*")
           .eq("status", "visible")
@@ -728,16 +856,69 @@ export const supabasePintDropStore: PintDropStore = {
           .is("moderated_at", null)
           .order("reported_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
-          .limit(MAX_PUBLIC_DROPS)
-      : admin()
+          .limit(MAX_PUBLIC_DROPS);
+      }
+      if (status === "confirmed") {
+        return admin()
           .from(TABLE)
           .select("*")
-          .eq("status", status)
+          .eq("status", "visible")
+          .not("confirmation_id", "is", null)
+          .order("confirmed_at", { ascending: false, nullsFirst: false })
           .order("created_at", { ascending: false })
           .limit(MAX_PUBLIC_DROPS);
-    const { data, error } = await query;
+      }
+      return admin()
+        .from(TABLE)
+        .select("*")
+        .eq("status", status)
+        .order("created_at", { ascending: false })
+        .limit(MAX_PUBLIC_DROPS);
+    };
+    const { data, error } = await reviewQuery();
     if (error) throw new Error(error.message);
     return toModeratorDTOsWithBatchedPhotos((data ?? []).map(fromRow));
+  },
+
+  /** The venue's publicly readable priced drops, newest-first. The window,
+   *  tolerance and independence rules stay in the pure finder. */
+  async listConfirmationCandidates(venueId) {
+    const { data, error } = await admin()
+      .from(TABLE)
+      .select("*")
+      .eq("status", "visible")
+      .eq("venue_id", venueId)
+      .in("visibility", ["public", "anonymous"])
+      .not("price_gbp", "is", null)
+      .order("created_at", { ascending: false })
+      .limit(MAX_PUBLIC_DROPS);
+    if (error) throw new Error(error.message);
+    return newestFirstCapped((data ?? []).map(fromRow));
+  },
+
+  /**
+   * ONE statement over both named drops, so a pair is confirmed together or not
+   * at all. The `or` filter is the idempotence guard the memory mirror applies
+   * in JS: write only where nothing is confirmed yet, or where the confirmation
+   * on record has already aged out of the trust window. Returns the ids it
+   * actually wrote, so a replay reports honestly that it changed nothing.
+   */
+  async confirm(ids, confirmation, now = Date.now()) {
+    if (ids.length === 0) return false;
+    const staleBefore = new Date(now - PRICE_AUTHORITY_MAX_AGE_MS).toISOString();
+    const { data, error } = await admin()
+      .from(TABLE)
+      .update({
+        confirmation_id: confirmation.confirmationId,
+        confirmed_at: confirmation.confirmedAt,
+        confirmation_basis: confirmation.basis,
+        confirming_drop_id: confirmation.confirmingDropId ?? null,
+      })
+      .in("id", [...ids])
+      .or(`confirmation_id.is.null,confirmed_at.lt.${staleBefore}`)
+      .select("id");
+    if (error) throw new Error(error.message);
+    return (data ?? []).length > 0;
   },
 
   /** ONE atomic RPC (migration 0112) writes the verified-account report ledger
