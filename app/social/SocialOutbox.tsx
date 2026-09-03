@@ -83,7 +83,7 @@ export default function SocialOutbox({
       }
       const response = await authedActionFetch(
         `/api/social/outbox${params.size ? `?${params}` : ""}`,
-        { cache: "no-store", signal },
+        { cache: "no-store", signal }, { requiresIdentity: true },
       );
       if (!response.ok) {
         discardBody(response);

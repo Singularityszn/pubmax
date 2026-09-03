@@ -113,7 +113,7 @@ export default function CrewsPanel({
           cache: "no-store",
           credentials: "same-origin",
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!response.ok) {
           discardBody(response);
           setGate("closed");
@@ -137,7 +137,7 @@ export default function CrewsPanel({
       cache: "no-store",
       credentials: "same-origin",
       signal: controller.signal,
-    })
+    }, { requiresIdentity: true })
       .then(async (response) => {
         if (!response.ok) throw new Error("Crews unavailable");
         const page = parseCrewListPage(await response.json());
@@ -171,7 +171,7 @@ export default function CrewsPanel({
         try {
           const response = await authedActionFetch(
             `/api/social/venues?q=${encodeURIComponent(query)}`,
-            { cache: "no-store", credentials: "same-origin", signal: controller.signal },
+            { cache: "no-store", credentials: "same-origin", signal: controller.signal }, { requiresIdentity: true },
           );
           if (!response.ok) {
             discardBody(response);
@@ -212,7 +212,7 @@ export default function CrewsPanel({
         credentials: "same-origin",
         headers: { "content-type": "application/json", "idempotency-key": planKey },
         body: JSON.stringify(body),
-      });
+      }, { requiresIdentity: true });
       const planBody = (await planResponse.json().catch(() => null)) as
         | { plan?: { plan?: { id?: string } }; memberToken?: string; error?: unknown }
         | null;
@@ -231,7 +231,7 @@ export default function CrewsPanel({
           authorization: `Bearer ${memberToken}`,
         },
         body: JSON.stringify({ planId, visibility }),
-      });
+      }, { requiresIdentity: true });
       const crewBody = (await crewResponse.json().catch(() => null)) as
         | Record<string, unknown>
         | null;

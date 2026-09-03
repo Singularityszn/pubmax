@@ -1,9 +1,8 @@
 // POST /api/wanted/resolve — paste a name or URL → venue candidates.
-// Auth-gated. Never fetches Instagram/TikTok. Rate-limited.
+// Public search. Never fetches Instagram/TikTok. Rate-limited.
 
 import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
-import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
 import { clientIp, hashIp } from "@/lib/supabase";
@@ -23,17 +22,12 @@ export async function POST(request: Request): Promise<Response> {
     return publicApiError("Malformed request body.", "MALFORMED_REQUEST", 400);
   }
 
-  const contributor = await resolveContributionIdentity(request);
-  if (!contributor.ok) {
-    return jsonNoStore(contributor.body, { status: contributor.httpStatus });
-  }
-
   const paste = readString(body.paste) || readString(body.q) || readString(body.query);
   if (!paste || paste.trim().length < 2) {
     return publicApiError("Paste a pub name or a link.", "INVALID_REQUEST", 400);
   }
 
-  const limiterKey = `wanted-resolve:${contributor.actor}:${hashIp(clientIp(request))}`;
+  const limiterKey = `wanted-resolve:${hashIp(clientIp(request))}`;
   if (await isLimited(limiterKey, limiterKey, RATE_LIMIT, RATE_WINDOW_MS)) {
     return publicApiError("Too many searches, slow down.", "RATE_LIMITED", 429, {
       retryable: true,

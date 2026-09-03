@@ -109,7 +109,7 @@ export default function SaveCrawlStory({ stops, defaultTitle }: SaveCrawlStoryPr
             priceGbp: stop.priceGbp ?? null,
           })),
         }),
-      });
+      }, { requiresIdentity: Boolean(authorHandle) });
       if (!res.ok) {
         discardBody(res);
         setSaveError(

@@ -125,12 +125,13 @@ export default function StarterPacks({
       try {
         // The pack list itself is public; `viewer` only drops the members that
         // viewer already follows, so a stranger asks for it without one.
-        const response = await authedActionFetch(
-          viewer
-            ? `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`
-            : "/api/starter-packs",
-          { cache: "no-store" },
-        );
+        const response = viewer
+          ? await authedActionFetch(
+              `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`,
+              { cache: "no-store" },
+              { requiresIdentity: true },
+            )
+          : await authedActionFetch("/api/starter-packs", { cache: "no-store" });
         if (!response.ok) {
           discardBody(response);
           if (live) setLoaded(true);
@@ -166,7 +167,7 @@ export default function StarterPacks({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ follower: viewer }),
-        },
+        }, { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => null)) as
         | {

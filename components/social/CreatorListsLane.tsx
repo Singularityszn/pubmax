@@ -52,7 +52,7 @@ function CreatorListFollowAction({
           listType: list.listType,
           action: "follow",
         }),
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setError(errorMessageFrom(body, "Could not follow this list. Try again."));

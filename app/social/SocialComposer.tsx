@@ -422,7 +422,7 @@ export default function SocialComposer({
     try {
       const { response, body: value } = await authedActionJson<{
         post?: SocialPostDTO;
-      }>(`/api/social/posts/${post.id}`, { cache: "no-store" });
+      }>(`/api/social/posts/${post.id}`, { cache: "no-store" }, { requiresIdentity: true });
       if (response.ok && value.post) {
         initialPostRef.current = value.post;
         setBasePost(value.post);
@@ -497,6 +497,7 @@ export default function SocialComposer({
               },
           body: requestBody,
         },
+        { requiresIdentity: true },
       );
       if (!response.ok) {
         if (editing && response.status === 409 && result.code === "EDIT_CONFLICT") {

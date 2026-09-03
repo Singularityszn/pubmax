@@ -260,7 +260,7 @@ export default function PeopleDirectory({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ follower: viewer }),
-        },
+        }, { requiresIdentity: true },
       );
       const body = (await response.json().catch(() => ({}))) as {
         following?: boolean;

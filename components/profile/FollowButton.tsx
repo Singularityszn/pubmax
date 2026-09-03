@@ -73,7 +73,7 @@ export default function FollowButton({
           follower: followerHandle,
           action: next ? "follow" : "unfollow",
         }),
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         setFollowing(!next); // roll back

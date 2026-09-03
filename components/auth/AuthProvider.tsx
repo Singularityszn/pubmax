@@ -700,7 +700,8 @@ export function AuthProvider({
             ? claimSignupReferralFromAuthCallback({
                 currentUrl: window.location.href,
                 callback: callbackAttempt,
-                request: authedActionFetch,
+                request: (input, init) =>
+                  authedActionFetch(input, init ?? {}, { requiresIdentity: true }),
                 replaceUrl: (cleanUrl) => {
                   window.history.replaceState(
                     window.history.state,

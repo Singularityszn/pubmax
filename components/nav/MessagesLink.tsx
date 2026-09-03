@@ -51,7 +51,7 @@ export default function MessagesLink(): React.JSX.Element {
     try {
       const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
-      });
+      }, { requiresIdentity: true });
       if (!res.ok) {
         discardBody(res);
         return;
