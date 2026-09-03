@@ -1,6 +1,6 @@
 import { MAX_PLAN_STOP_COUNT } from "@/lib/planStopCount";
 
-export const WEBMCP_TOOL_NAMES = [
+const WEBMCP_TOOL_NAMES = [
   "search_pubmaxx_venues",
   "read_london_night_context",
   "draft_pub_crawl",
