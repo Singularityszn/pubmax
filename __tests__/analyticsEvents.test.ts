@@ -814,6 +814,10 @@ describe("invite loop events", () => {
     expect(sanitizeEvent("landing_cta_clicked", { target: "tonight" })?.props).toEqual({
       target: "tonight",
     });
+    // The price receipt door, the landing's one primary action (issue #1354).
+    expect(sanitizeEvent("landing_cta_clicked", { target: "receipt" })?.props).toEqual({
+      target: "receipt",
+    });
     expect(sanitizeEvent("landing_cta_clicked", { target: "social" })).toBeNull();
     expect(sanitizeEvent("landing_cta_clicked", {})).toBeNull();
   });

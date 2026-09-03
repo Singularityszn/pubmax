@@ -43,7 +43,7 @@ async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promis
   const tops = await page
     .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
-  expect(tops.length, `${label} should render PUBMA, the doubled X and ING`).toBe(3);
+  expect(tops.length, `${label} should render PUBMAX and the accent X`).toBe(2);
   expect(
     Math.max(...tops) - Math.min(...tops),
     `${label} should keep the wordmark letters on one row`,
@@ -75,9 +75,11 @@ test.describe("mobile landing entry", () => {
       origin: new URL(page.url()).origin,
     });
 
-      await page
-      .locator(".lpHeroSecondaryRow")
-      .getByRole("link", { name: "Find my pint", exact: true })
+    // The price receipt door is the one primary, and it is the one-tap route
+    // to the answer.
+    await page
+      .locator(".lpHero [data-primary-action]")
+      .getByRole("link", { name: "Log what you paid", exact: true })
       .click();
 
     await expect(page).toHaveURL(/\/near\?locate=1$/);
@@ -163,22 +165,21 @@ test.describe("mobile landing entry", () => {
     await expectAppTabClearance(page, "root landing");
     await expectWordmarkLettersOnOneLine(page, "root landing wordmark");
 
-    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
     await expectTappable(
       planTonight,
-      "hero Plan tonight together CTA",
+      "hero Log what you paid CTA",
     );
-    await expectWithinFirstViewport(page, planTonight, "hero Plan tonight together CTA");
-    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
-    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Tonight", exact: true }), "hero Tonight link");
-    await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
+    await expectWithinFirstViewport(page, planTonight, "hero Log what you paid CTA");
+    await expectTappable(page.locator(".lpHero .screenSecondary").getByRole("link", { name: "Meet your Pub Pal" }), "hero Pub Pal door");
+    await expectTappable(page.locator("#why").getByRole("link", { name: "Open the map" }), "why Open the map link");
+    await expectTappable(page.locator(".lpFooterNav").getByRole("link", { name: "Find my pint" }), "footer Find my pint link");
 
-    const visibleHeroPins = page.locator(".thamesHeroPin:visible");
-    const pinCount = await visibleHeroPins.count();
-    expect(pinCount, "phone hero should keep only the tappable, non-crowded pins").toBeGreaterThanOrEqual(3);
-    for (let i = 0; i < Math.min(pinCount, 4); i++) {
-      await expectTappable(visibleHeroPins.nth(i), `hero drink pin ${i + 1}`);
-    }
+    // The one real pub sits in the first screen with its price and its source.
+    const pubCard = page.locator(".lpHero .lpPubCard");
+    await expect(pubCard).toBeVisible();
+    await expectTappable(pubCard.locator(".lpPubName a"), "hero pub name link");
+    await expect(pubCard.locator(".lpStanding")).toContainText("Listed");
 
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
@@ -197,12 +198,12 @@ test.describe("mobile landing entry", () => {
       await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
       await expectAppTabClearance(page, `root landing at ${width}px`);
       await expectWordmarkLettersOnOneLine(page, `root landing wordmark at ${width}px`);
-      const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+      const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
       await expectTappable(
         planTonight,
-        `hero Plan tonight together CTA at ${width}px`,
+        `hero Log what you paid CTA at ${width}px`,
       );
-      await expectWithinFirstViewport(page, planTonight, `hero Plan tonight together CTA at ${width}px`);
+      await expectWithinFirstViewport(page, planTonight, `hero Log what you paid CTA at ${width}px`);
       await expectNoHorizontalOverflow(page, width);
       await page.screenshot({
         path: testInfo.outputPath(`landing-root-${width}-light.png`),
@@ -219,12 +220,12 @@ test.describe("mobile landing entry", () => {
     await expect(page.getByRole("navigation", { name: "Primary" })).toBeVisible();
     await expectAppTabClearance(page, "dark root landing");
     await expectWordmarkLettersOnOneLine(page, "dark root landing wordmark");
-    const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+    const planTonight = page.locator(".lpHero").getByRole("link", { name: "Log what you paid" });
     await expectTappable(
       planTonight,
-      "dark hero Plan tonight together CTA",
+      "dark hero Log what you paid CTA",
     );
-    await expectWithinFirstViewport(page, planTonight, "dark hero Plan tonight together CTA");
+    await expectWithinFirstViewport(page, planTonight, "dark hero Log what you paid CTA");
     await expectNoHorizontalOverflow(page);
     await page.screenshot({
       path: testInfo.outputPath("landing-root-390-dark.png"),
@@ -232,19 +233,20 @@ test.describe("mobile landing entry", () => {
     });
   });
 
-  test("routes primary and secondary mobile CTAs to Plan and Map", async ({ page }) => {
+  test("routes the primary, the second door and the map link where they say", async ({ page }) => {
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Plan tonight together" }).first().click();
-    await expect(page).toHaveURL(/\/plan$/);
+    await page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }).click();
+    // No geolocation grant here, so Near lands honestly on the central patch.
+    await expect(page).toHaveURL(/\/near\?locate=1(?:&|$)/);
     await page.goto("/");
 
-    await page.getByRole("link", { name: "Open the map" }).first().click();
+    await page.locator(".lpHero").getByRole("link", { name: "Meet your Pub Pal" }).click();
+    await expect(page).toHaveURL(/\/pal$/);
+
+    await page.goto("/");
+    await page.locator("#why").getByRole("link", { name: "Open the map" }).click();
     await expect(page).toHaveURL(/\/map$/);
-
-    await page.goto("/");
-    await page.locator(".lpHeroActions").getByRole("link", { name: "Tonight", exact: true }).click();
-    await expect(page).toHaveURL(/\/tonight$/);
   });
 });
 
@@ -274,20 +276,22 @@ test("keeps desktop root free of mobile navigation", async ({ page }) => {
 
   await expect(page.locator(".mobileTabBar")).toBeHidden();
   await expectTappable(
-    page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" }),
-    "desktop hero Plan tonight together CTA",
+    page.locator(".lpHero").getByRole("link", { name: "Log what you paid" }),
+    "desktop hero Log what you paid CTA",
   );
   await expectNoHorizontalOverflow(page, 1440);
 });
 
-test("keeps the drink-signal image within a deliberate mobile crop", async ({ page }) => {
+test("keeps the one real pub card inside the phone's width with room to read", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
 
-  const image = page.locator(".thamesHeroPhoto");
-  await expect(image).toBeVisible();
-  const box = await image.boundingBox();
+  const card = page.locator(".lpHero .lpPubCard");
+  await expect(card).toBeVisible();
+  const box = await card.boundingBox();
   expect(box).not.toBeNull();
-  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeGreaterThan(0.74);
-  expect((box?.width ?? 0) / (box?.height ?? 1)).toBeLessThan(0.86);
+  expect(box!.x).toBeGreaterThanOrEqual(0);
+  expect(box!.x + box!.width).toBeLessThanOrEqual(390);
+  // A card narrower than the column reads as a widget; it takes the column.
+  expect(box!.width).toBeGreaterThanOrEqual(300);
 });

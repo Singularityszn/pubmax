@@ -1,28 +1,13 @@
-// @vitest-environment jsdom
-
-// The hero's lede belongs to the button it describes.
-//
-// DEFECT (UI audit, 2026-09-01, production, 390x844): "Choose its form and
-// voice in five steps..." floated roughly 200px below the call-to-action
-// cluster with nothing tying it to the "Meet your Pub Pal" button it is about,
-// and the three secondary links wrapped 2 + 1, leaving "Find my pint" dangling
-// alone under the pair.
-//
-// The cause of the first is one line of CSS: at phone width .lpHeroCopy is
-// `display: contents`, so the lede was flattened into the .lpHero grid as a
-// sibling of the whole action block and took that grid's 38px gap. It now sits
-// inside .lpHeroActions, under the primary, on that block's own 14px gap.
-
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { describe, expect, it, vi } from "vitest";
 
-vi.mock("next/dynamic", () => ({ default: () => () => null }));
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
 vi.mock("next/navigation", () => ({
-  useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined }),
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
 }));
 vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
 vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
@@ -30,7 +15,6 @@ vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/choose-city",
@@ -39,49 +23,78 @@ vi.mock("@/lib/cityPreference", () => ({
 }));
 
 import LandingPage from "@/components/landing/LandingPage";
+import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-const landingCss = readFileSync(
-  join(process.cwd(), "components/landing/landing.css"),
-  "utf8",
-);
+// The hero's rhythm is the Screen primitive's order and nothing else: kicker,
+// heading, the one primary, the second door, then the proof (the pub card and
+// the counts). That order is the DOM order, so it is the phone order, and the
+// desktop grid may only set the proof beside the copy, never reorder it.
 
-function heroActions(): HTMLElement {
-  const host = document.createElement("div");
-  host.innerHTML = renderToStaticMarkup(createElement(LandingPage));
-  const actions = host.querySelector<HTMLElement>(".lpHeroActions");
-  expect(actions, "landing action stack present").not.toBeNull();
-  return actions!;
+const card: LandingPubCardData = {
+  id: "venue-test",
+  name: "The Blackfriar",
+  area: "City of London",
+  priceGbp: 6.5,
+  pintName: "a pint of Pravha",
+  publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
+  collectedOn: "2026-07-03",
+  standing: "listed",
+  then: {
+    priceGbp: 3.6,
+    observedOn: "2013-07-14",
+    source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+  },
+  movementLine: "Up £2.90 in 13 years.",
+  mapHref: "/map?sel=venue-test",
+};
+
+function positions(html: string, needles: string[]): number[] {
+  return needles.map((needle) => {
+    const at = html.indexOf(needle);
+    expect(at, needle).toBeGreaterThan(-1);
+    return at;
+  });
 }
 
-describe("the lede sits under the call to action it describes", () => {
-  it("renders inside the action stack, between the primary and the links", () => {
-    const actions = heroActions();
-    expect([...actions.children].map((child) => child.className)).toEqual([
-      "lpButton lpButtonPrimary",
-      "lpHeroLede",
-      "lpHeroSecondaryRow",
+describe("landing hero rhythm", () => {
+  const html = renderToStaticMarkup(
+    createElement(LandingPage, {
+      card,
+      stats: {
+        pubsTracked: 953,
+        pintPricesObserved: 2788,
+        boroughsCovered: 33,
+        cheapestPint: 2.89,
+        dearestPint: 8,
+        averagePint: 5.5,
+        historicPubsCited: 0,
+        citiesCovered: 10,
+      },
+    }),
+  );
+
+  it("reads kicker, heading, primary, second door, pub card, counts, in that order", () => {
+    const order = positions(html, [
+      '<p class="kicker">PUBMAXX</p>',
+      '<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>',
+      'data-primary-action=""',
+      'class="screenSecondary"',
+      'class="lpPubCard"',
+      'class="lpLiveReadout"',
     ]);
-    expect(actions.querySelectorAll(".lpHeroLede")).toHaveLength(1);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 
-  it("carries no margin of its own, so the stack's gap owns the rhythm", () => {
-    expect(landingCss).toMatch(/\.lpHeroLede \{[^}]*margin: 0;/);
-  });
-});
-
-describe("the three secondary links are peers at phone width", () => {
-  it("stacks them one per row rather than wrapping 2 + 1", () => {
-    const phoneRule = landingCss.match(
-      /@media \(max-width: 640px\) \{\s*\.lpHeroSecondaryRow \{[\s\S]*?\}\s*\}/,
-    )?.[0];
-    expect(phoneRule, "phone rule for the secondary row present").toBeTruthy();
-    expect(phoneRule).toContain("flex-direction: column;");
-    expect(phoneRule).toContain("align-items: flex-start;");
+  it("carries no lede: the pub card is the support", () => {
+    const hero = html.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).not.toContain("screenLede");
+    expect(hero.match(/<p class="kicker">/g)).toHaveLength(1);
   });
 
-  it("leaves the wide-viewport row alone", () => {
-    const base = landingCss.match(/\n\.lpHeroSecondaryRow \{[\s\S]*?\}/)?.[0];
-    expect(base).toContain("flex-wrap: wrap;");
-    expect(base).not.toContain("flex-direction: column;");
+  it("renders no card and no counts when the data cannot back them", () => {
+    const bare = renderToStaticMarkup(createElement(LandingPage));
+    expect(bare).not.toContain("lpPubCard");
+    expect(bare).not.toContain("lpLiveReadout");
+    expect(bare).toContain('<h1 class="screenTitle" id="hero-title">What a pint costs, pub by pub.</h1>');
   });
 });

@@ -1,6 +1,9 @@
 import { expect, test, type Page } from "@playwright/test";
 
-// Permanent one-action hierarchy. No build flag changes this contract.
+// Permanent one-action hierarchy (captain 2026-09-03, issue #1354). No build
+// flag changes this contract: the price receipt door is the one primary, the
+// Pal is the quiet second door, the hero fills the viewport at every width and
+// the phone order is the desktop order.
 
 async function openLanding(page: Page, viewport: { width: number; height: number }) {
   await page.setViewportSize(viewport);
@@ -35,60 +38,80 @@ test("landing nav and footer name Social", async ({ page }) => {
   await expect(footerSocial).toHaveCount(1);
 });
 
-test.describe("landing Pub Pal hierarchy", () => {
-  test("keeps Meet your Pub Pal primary with Plan, Map, Tonight and location as secondary text", async ({ page }) => {
+test.describe("landing hierarchy", () => {
+  test("keeps the price receipt door primary and the Pal as the second door", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
-    const hero = page.locator(".lpHeroActions");
+    const hero = page.locator(".lpHero");
     await expect(hero).toBeVisible();
-    await expect(hero).toHaveClass("lpHeroActions");
 
-    const primaries = hero.locator(".lpButtonPrimary");
+    const primaries = hero.locator("[data-primary-action] a");
     await expect(primaries).toHaveCount(1);
-    await expect(primaries.first()).toHaveAttribute("href", "/pal");
-    await expect(primaries.first()).toContainText("Meet your Pub Pal");
+    await expect(primaries.first()).toHaveAttribute("href", "/near?locate=1");
+    await expect(primaries.first()).toContainText("Log what you paid");
 
-    // No quiet equal-weight button pair under the map-first hero.
-    await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
+    const secondary = hero.locator(".screenSecondary a");
+    await expect(secondary).toHaveCount(1);
+    await expect(secondary).toHaveAttribute("href", "/pal");
+    await expect(secondary).toContainText("Meet your Pub Pal");
 
-    const secondary = hero.locator(".lpHeroSecondaryRow");
-    await expect(secondary).toBeVisible();
-    const mapLink = secondary.getByRole("link", { name: /Open the map/i });
-    const tonightLink = secondary.getByRole("link", { name: "Tonight", exact: true });
-    const nearLink = secondary.getByRole("link", { name: /Find my pint/i });
-    await expect(mapLink).toBeVisible();
-    await expect(tonightLink).toBeVisible();
-    await expect(nearLink).toBeVisible();
-    await expect(mapLink).toHaveClass(/lpTextLink/);
-    await expect(nearLink).toHaveClass(/lpTextLink/);
+    // Nothing else on the page is a filled button.
+    await expect(page.locator("main [data-primary-action]")).toHaveCount(1);
+    await expect(page.locator(".lpButtonPrimary, .lpButtonQuiet")).toHaveCount(0);
+
+    // The map stays one text link below the hero.
+    const mapLink = page.locator("#why").getByRole("link", { name: "Open the map", exact: true });
     await expect(mapLink).toHaveAttribute("href", "/map");
-    await expect(tonightLink).toHaveAttribute("href", "/tonight");
-    await expect(nearLink).toHaveAttribute("href", "/near?locate=1");
   });
 
-  // Both viewports, because the retired flag-on spec proved the fold on the
-  // desktop screen too and a mobile-only check cannot see a hero that grows on
-  // a wide layout.
+  test("shows one real pub with its price, publisher, day and archive line", async ({ page }) => {
+    await openLanding(page, { width: 1440, height: 900 });
+    const card = page.locator(".lpHero .lpPubCard");
+    await expect(card).toBeVisible();
+    await expect(card.locator(".lpPubName a")).toHaveAttribute("href", /\/map\?sel=/);
+    await expect(card.locator(".priceBadge")).toContainText(/£\d+\.\d\d/);
+    await expect(card.locator(".lpPubSource")).toContainText(/collected \d+ \w+ \d{4}\./);
+    await expect(card.locator(".lpStanding")).toContainText("Listed");
+    await expect(card.locator(".lpPubThen")).toContainText(/£\d+\.\d\d in \w+ \d{4}\./);
+    await expect(card.locator(".lpPubThenSource a")).toHaveAttribute("href", /^https?:\/\//);
+  });
+
+  // Both viewports, because a mobile-only check cannot see a hero that shrinks
+  // on a wide layout and a desktop-only check cannot see the fold on a phone.
   for (const viewport of [
     { width: 1440, height: 900 },
     { width: 390, height: 844 },
   ] as const) {
-    test(`dominant primary stays tappable and above the fold at ${viewport.width}`, async ({ page }) => {
+    test(`hero fills the viewport and the primary sits above the fold at ${viewport.width}`, async ({ page }) => {
       await openLanding(page, viewport);
       await page.evaluate(() => window.scrollTo(0, 0));
-      const hero = page.locator(".lpHeroActions");
-      await expect(hero.getByRole("link", { name: /Plan tonight together/i })).toHaveAttribute("href", "/plan");
-      await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/map");
-      await expect(hero.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("href", "/tonight");
-      await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
-      const primary = hero.locator(".lpButtonPrimary");
+
+      const heroBox = await page.locator(".lpHero").boundingBox();
+      expect(heroBox).not.toBeNull();
+      expect(heroBox!.height).toBeGreaterThanOrEqual(viewport.height - 1);
+
+      const primary = page.locator(".lpHero [data-primary-action] a");
       await expect(primary).toHaveCount(1);
-      await expect(primary).toContainText("Meet your Pub Pal");
       const box = await primary.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);
-      // No equal-weight Map/Plan button pair beside the one primary.
-      await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
+
+      const secondary = await page.locator(".lpHero .screenSecondary a").boundingBox();
+      expect(secondary?.height ?? 0).toBeGreaterThanOrEqual(44);
     });
   }
+
+  test("reads the same order on a phone as on a desktop: kicker, heading, primary, second door, pub, counts", async ({ page }) => {
+    await openLanding(page, { width: 390, height: 844 });
+    const tops = await page.evaluate(() =>
+      [".lpHero .kicker", "#hero-title", ".lpHero [data-primary-action]", ".lpHero .screenSecondary", ".lpHero .lpPubCard", ".lpHero .lpLiveReadout"].map(
+        (selector) => document.querySelector(selector)?.getBoundingClientRect().top ?? Number.NaN,
+      ),
+    );
+    for (const top of tops) expect(Number.isFinite(top)).toBe(true);
+    expect([...tops].sort((a, b) => a - b)).toEqual(tops);
+    // Nothing spills sideways at the narrowest common width.
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow).toBeLessThanOrEqual(0);
+  });
 });

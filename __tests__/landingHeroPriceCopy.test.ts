@@ -1,73 +1,64 @@
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-// Captain decision 2026-08-17 (audit lane E, L2b): the landing hero carries no
-// example price figures, so the caption no longer has to disclaim them. Proven
-// against RENDERED markup, because a source read passes on any wording change
-// while the figure is still painted.
+import LandingPubCard from "@/components/landing/LandingPubCard";
+import type { LandingPubCardData } from "@/lib/landingPubCard";
 
-vi.mock("next/dynamic", () => ({
-  default: () => () => null,
-}));
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ prefetch: () => Promise.resolve(), push: () => undefined }),
-}));
-vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
-vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
-vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
-vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
-vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
-vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
-vi.mock("@/lib/cityPreference", () => ({
-  preferredCityMapHref: () => "/choose-city",
-  readPreferredCity: () => null,
-  subscribePreferredCity: () => () => {},
-}));
+// The one real pub above the fold prints facts with their sources beside
+// them and nothing that reads as a claim it cannot back: no price band, no
+// "live" wording, a grey pill that names the gap, and a "then" line a reader
+// can check by following the link.
 
-import LandingPage from "@/components/landing/LandingPage";
+const card: LandingPubCardData = {
+  id: "venue-test",
+  name: "The Blackfriar",
+  area: "City of London",
+  priceGbp: 6.5,
+  pintName: "a pint of Pravha",
+  publisher: { label: "pint-prices.com", url: "https://www.pint-prices.com/pub/x" },
+  collectedOn: "2026-07-03",
+  standing: "listed",
+  then: {
+    priceGbp: 3.6,
+    observedOn: "2013-07-14",
+    source: { label: "beerintheevening.com", url: "https://www.beerintheevening.com/pubs/x" },
+  },
+  movementLine: "Up £2.90 in 13 years.",
+  mapHref: "/map?sel=venue-test",
+};
 
-function heroFigure(): string {
-  const rendered = renderToStaticMarkup(createElement(LandingPage));
-  const figure = rendered.match(
-    /<figure class="lpHeroMap"[^>]*>[\s\S]*?<\/figure>/,
-  )?.[0];
-  expect(figure, "hero figure present").toBeTruthy();
-  return figure ?? "";
-}
+describe("landing pub card copy", () => {
+  const html = renderToStaticMarkup(createElement(LandingPubCard, { card }));
 
-describe("landing hero price copy", () => {
-  it("paints no price figure on any hero drink pin", () => {
-    const figure = heroFigure();
-
-    // The pins are still there and still named, so this is not passing on an
-    // empty hero.
-    expect(figure).toMatch(/class="thamesHeroPin"/);
-    expect(figure).toMatch(/class="thamesHeroPinPlace">The Dove</);
-    expect(figure).not.toContain("thamesHeroPinPrice");
-    expect(figure).not.toMatch(/£\s?\d/);
+  it("prints the listed price, who listed it and the collection day", () => {
+    expect(html).toContain("£6.50");
+    expect(html).toContain("a pint of Pravha");
+    expect(html).toMatch(/Listed by <a href="https:\/\/www\.pint-prices\.com\/pub\/x"[^>]*>pint-prices\.com<\/a>, collected 3 July 2026\./);
+    expect(html).toContain('href="/map?sel=venue-test"');
   });
 
-  it("hangs no price band on a hero pin", () => {
-    // The rim used to carry the map's own price key (green / amber / red) over
-    // six named pubs. With the figures and their disclaimer gone, a band would
-    // be a price claim nothing on the page answers for.
-    expect(heroFigure()).not.toMatch(/data-band=/);
+  it("wears the standing lib/priceTier.ts decided, in words", () => {
+    expect(html).toMatch(/<span class="lpStanding lpStanding-amber" data-standing="listed" title="[^"]+"><span class="lpStandingDot" aria-hidden="true"><\/span>Listed<\/span>/);
+    expect(html).not.toContain("Confirmed");
+    const none = renderToStaticMarkup(createElement(LandingPubCard, { card: { ...card, standing: "none" } }));
+    expect(none).toMatch(/lpStanding-grey" data-standing="none"[^>]*>[\s\S]*?No price yet<\/span>/);
   });
 
-  it("keeps one invite line and drops the example-price disclaimer", () => {
-    const caption = heroFigure().match(
-      /<figcaption class="lpHeroMapCaption"[^>]*>[\s\S]*?<\/figcaption>/,
-    )?.[0];
-    expect(caption, "hero caption present").toBeTruthy();
+  it("prints the archive line with its month and its source day", () => {
+    expect(html).toMatch(/<strong>£3\.60<\/strong> in July 2013\. Up £2\.90 in 13 years\./);
+    expect(html).toMatch(/<a href="https:\/\/www\.beerintheevening\.com\/pubs\/x"[^>]*>beerintheevening\.com<\/a>, 14 July 2013/);
+  });
 
-    expect(caption).toContain("lpHeroMapInvite");
-    expect(caption).toContain(
-      "Each shape is a drink. Tap or pick one to see the pubs that pour it.",
-    );
-    expect(caption).not.toContain("examples, not live listed prices");
-    expect(caption).not.toMatch(/Prices shown/i);
+  it("claims nothing it cannot back", () => {
+    expect(html).not.toMatch(/data-band=/);
+    expect(html).not.toMatch(/\blive\b|cheapest|verified/i);
+    expect(html).not.toContain("!");
+  });
+
+  it("says no publisher is recorded when the row names none", () => {
+    const bare = renderToStaticMarkup(createElement(LandingPubCard, { card: { ...card, publisher: null } }));
+    expect(bare).toContain("No publisher recorded, collected 3 July 2026.");
   });
 });

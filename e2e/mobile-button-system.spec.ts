@@ -27,9 +27,9 @@ for (const viewport of DEVICES) {
       await setTheme(page, theme);
       await page.goto("/");
 
-      const heroActions = page.locator(".lpHeroActions a");
-      await expect(heroActions).toHaveCount(3);
-      await expect(page.getByRole("link", { name: "Plan tonight together" }).first()).toBeVisible();
+      const heroActions = page.locator(".lpHero .screenActions a");
+      await expect(heroActions).toHaveCount(2);
+      await expect(page.getByRole("link", { name: "Log what you paid" }).first()).toBeVisible();
 
       const actionGeometry = await heroActions.evaluateAll((elements) =>
         elements.map((element) => {
@@ -41,7 +41,7 @@ for (const viewport of DEVICES) {
 
       const wordmark = page.getByRole("banner").locator(".lpWordmark .pubmaxxWordmark");
       await expect(wordmark).toBeVisible();
-      await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
+      await expect(wordmark.locator(".pubmaxxWordmarkAccent")).toHaveCount(1);
 
       await page.goto("/pal");
       await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
