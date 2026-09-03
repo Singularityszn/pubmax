@@ -55,9 +55,12 @@ export type EditorialSnapshot = {
 };
 
 /** The day an editorial snapshot was generated, in the house short form. */
-export function editorialCheckedDay(generatedAt: string): string | null {
+export function editorialCheckedDay(
+  generatedAt: string,
+  now: number = Date.now(),
+): string | null {
   const ms = Date.parse(generatedAt);
-  if (!Number.isFinite(ms)) return null;
+  if (!Number.isFinite(ms) || ms > now) return null;
   try {
     return new Intl.DateTimeFormat("en-GB", {
       timeZone: "Europe/London",
@@ -76,8 +79,11 @@ export function editorialCheckedDay(generatedAt: string): string | null {
  * reader gets, then when the check was. Falls back to the first sentence alone
  * when the snapshot carries no day we can print.
  */
-export function editorialStaleLine(snapshot: EditorialSnapshot): string {
-  const day = editorialCheckedDay(snapshot.generatedAt);
+export function editorialStaleLine(
+  snapshot: EditorialSnapshot,
+  now: number = Date.now(),
+): string {
+  const day = editorialCheckedDay(snapshot.generatedAt, now);
   return day ? `${EDITORIAL_STALE_LINE} Last checked ${day}.` : EDITORIAL_STALE_LINE;
 }
 

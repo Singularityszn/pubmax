@@ -274,7 +274,7 @@ function SignInSkeleton(): React.JSX.Element {
 }
 
 /** What the page says, which is the first thing a door differs in. */
-function PageHead({
+export function PageHead({
   title,
   lead,
 }: {

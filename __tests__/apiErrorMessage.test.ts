@@ -29,6 +29,12 @@ describe("errorMessageFrom", () => {
     expect(errorMessageFrom(null, "fallback")).toBe("fallback");
   });
 
+  it("keeps the generic failure action direct", () => {
+    expect(errorMessageFrom(null, "Something went wrong. Try again.")).toBe(
+      "Something went wrong. Try again.",
+    );
+  });
+
   it("uses fallback for an empty string error", () => {
     expect(errorMessageFrom({ error: "" }, "fallback")).toBe("fallback");
   });

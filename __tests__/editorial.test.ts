@@ -339,6 +339,12 @@ describe("editorial overlay: degraded reads are not empty", () => {
     expect(
       editorialStaleLine({ version: 1, generatedAt: "not a date", status: "ready", items: [] }),
     ).toBe(EDITORIAL_STALE_LINE);
+    expect(
+      editorialStaleLine(
+        { version: 1, generatedAt: "2026-09-04T00:00:00.000Z", status: "ready", items: [] },
+        Date.parse("2026-09-03T12:00:00.000Z"),
+      ),
+    ).toBe(EDITORIAL_STALE_LINE);
   });
 
   it("a shipped overlay file never stores a body or extra keys", () => {

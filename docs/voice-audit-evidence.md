@@ -1062,12 +1062,11 @@ about why the product exists rather than a hero claim.
 **3. A stale week names its day.** "Picks need a fresh check." admitted
 staleness without dating it, so a snapshot two days old and one two months old
 met the reader with the same sentence and the rail read as a permanent apology.
-`editorialStaleLine` (`lib/editorial.ts`) now says "Picks last checked 15 Aug."
-off the snapshot's own `generatedAt`. `EDITORIAL_UNDATED_LINE` ("We can’t date
-these picks yet.") remains for the case `editorialSnapshotIsStale` also covers,
-a `generatedAt` that will not parse or sits in the future, because a date we
-cannot read is never a date we invent. It is worded like
-`TonightProvenanceLines`' own undated sentence so the two cannot drift.
+`editorialStaleLine` (`lib/editorial.ts`) now composes "No fresh picks to show
+just now. Last checked 15 Aug." from the snapshot's own `generatedAt`. A
+snapshot with no printable day keeps the first sentence alone, because a date
+we cannot read is never a date we invent and a second apology in different
+words says less than saying less. A future timestamp follows the same path.
 `public/data/editorial/README.md` and the proof note move with the copy.
 
 The audit's other findings (the desktop header Map destination, the `/out`
