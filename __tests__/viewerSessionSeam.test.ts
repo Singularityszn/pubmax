@@ -214,5 +214,11 @@ describe("AuthProvider never publishes a sign-out it did not read", () => {
     expect(body).toContain("requestDeploymentSkewCheck()");
     expect(body).toContain('setProviderAuthState("supabase", "unavailable")');
     expect(body).toContain("setSessionLoading(false)");
+    expect(body).toMatch(
+      /void callbackCapture\s*\.then\([\s\S]*?\)\s*\.finally\(\(\) => \{\s*requestDeploymentSkewCheck\(\);\s*\}\);/,
+    );
+    expect(body).not.toMatch(
+      /void callbackCapture\.then\([\s\S]*?\);\s*requestDeploymentSkewCheck\(\);/,
+    );
   });
 });
