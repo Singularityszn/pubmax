@@ -6,12 +6,10 @@ test("route-first Pal chooser shows all six companions and restores its five-ste
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/pal");
 
-  await expect(page.getByRole("heading", { name: "First, describe your night." })).toBeVisible();
-  await expect(page.getByRole("link", { name: /Describe my night/ })).toHaveAttribute("href", "/map?plan=1");
-  await expect(page.getByRole("button", { name: /Meet your Pub Pal/ })).toHaveCount(0);
-
-  await page.evaluate(() => localStorage.setItem("pubmaxx.pub-pal-route-activation.v1", JSON.stringify({ version: 1, activatedAt: new Date().toISOString() })));
-  await page.reload();
+  // The Pal is the front door (#1280): the meeting screen opens with its one
+  // primary action and no route-activation gate in front of it.
+  await expect(page.getByRole("heading", { name: "A little signal that becomes yours." })).toBeVisible();
+  await expect(page.locator("[data-primary-action]")).toHaveCount(1);
   await page.getByRole("button", { name: /Meet your Pub Pal/ }).click();
   await expect(page.getByRole("heading", { name: "The grown-up bit first." })).toBeVisible();
   await page.getByRole("checkbox", { name: /18 or over/ }).check();
