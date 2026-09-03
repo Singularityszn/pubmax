@@ -16,17 +16,22 @@ import type { FoodPriceUpdate } from "@/lib/foodPriceUpdates";
 import { menuHubTiles } from "@/lib/menuHub";
 import type { DrinkCategory } from "@/lib/drinks";
 import type { TabKey } from "@/lib/venueInspectorTabs";
+import type { PintDrop } from "@/lib/pintDropShared";
+import { pintDropDrinksForMenu } from "@/lib/pintDropDrinks";
 
 /** The Drinks tab prints menu and website links, never a booking CTA. */
 const BOOKING_ONLY_ON_OVERVIEW = ["book"] as const;
+const NO_PINT_DROPS: readonly PintDrop[] = [];
 
 export default function VenueMenuTab({
   venue,
   tab,
+  pintDrops = NO_PINT_DROPS,
   onAddDrink,
 }: {
   venue: Venue;
   tab: TabKey;
+  pintDrops?: readonly PintDrop[];
   onAddDrink?: () => void;
 }) {
   // Observed price-update overlays, fetched once per session as data instead of
@@ -49,10 +54,13 @@ export default function VenueMenuTab({
   }, []);
 
   // The Menu tab's full drink list (beer from venue.prices + seeded non-beer
-  // drinks) — see lib/venueMenu.ts for the composition seam.
+  // drinks), plus public Pint Drops already loaded by the Venue sheet.
   const menuDrinks = useMemo(
-    () => venueMenuForInspector(venue, drinkUpdates),
-    [venue, drinkUpdates],
+    () => {
+      const curated = venueMenuForInspector(venue, drinkUpdates);
+      return [...curated, ...pintDropDrinksForMenu(pintDrops, curated)];
+    },
+    [venue, drinkUpdates, pintDrops],
   );
   const menuFood = useMemo(
     () => venueFoodMenuForInspector(venue, foodUpdates),
