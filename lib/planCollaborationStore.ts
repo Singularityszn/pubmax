@@ -3,7 +3,7 @@ import "server-only";
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import { isPlanId, type PlanMemberRole, type PlanState, type PlanStopDTO } from "@/lib/plan";
-import { grantMemoryPlanCollaboration, hashPlanMemberToken, isMissingDatabaseFunction, isPlanIdempotencyKey, planAccountHasActiveSeat, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
+import { grantMemoryPlanCollaboration, hashPlanMemberToken, isPlanIdempotencyKey, planIdempotencyDigest, planIdempotentUuid, planMemberIdentity, planMemberIdentityResult, planRequestDigest, planStateResult, planStore, reconcileMemoryPlanAccountJoin } from "@/lib/planStore";
 import { cleanText } from "@/lib/textClean";
 import { selectStore } from "@/lib/storeBackend";
 import { requireSupabaseAdmin } from "@/lib/supabase";
@@ -654,7 +654,6 @@ const supabaseStore: PlanCollaborationStore = {
     if (ended) return ended;
     const key = isPlanIdempotencyKey(options.idempotencyKey) ? options.idempotencyKey.trim() : randomUUID();
     const inviteTokenHash = inviteHash(rawToken.trim());
-    const anonymousRequestHash = planRequestDigest({ name, inviteHash: inviteTokenHash });
     const userId = typeof options.userId === "string" ? options.userId.trim() : "";
     const memberToken = planIdempotencyDigest(`plan-invite-join-token:${planId}`, key);
     const admin = requireSupabaseAdmin();
@@ -668,26 +667,12 @@ const supabaseStore: PlanCollaborationStore = {
       p_idempotency_key_hash: planIdempotencyDigest(`plan-invite-join-key:${planId}`, key),
       p_request_hash: planRequestDigest({ name, inviteHash: inviteTokenHash, ...(userId ? { userId } : {}) }),
     };
-    let { data, error } = await admin.rpc(userId
+    const { data, error } = await admin.rpc(userId
       ? "redeem_plan_invite_account_idempotent_atomic"
       : "redeem_plan_invite_idempotent_atomic", {
       ...redeemArgs,
       ...(userId ? { p_user_id: userId } : {}),
     });
-    if (userId && error && isMissingDatabaseFunction(error)) {
-      // The current Plan schema may be present while the invite-redemption
-      // FUNCTION is unavailable (0106 precedent). Redeeming without the
-      // account stamp keeps development parity; the seat binds later through
-      // the claim lane. Only a missing FUNCTION may take this path.
-      if (await planAccountHasActiveSeat(planId, userId)) {
-        return { ok: false, error: "account_conflict" };
-      }
-      console.warn("[plans] account invite redeem RPC missing; redeeming without account stamp");
-      ({ data, error } = await admin.rpc("redeem_plan_invite_idempotent_atomic", {
-        ...redeemArgs,
-        p_request_hash: anonymousRequestHash,
-      }));
-    }
     if (error) return { ok: false, error: "error" };
     if (data !== "joined" && data !== "replayed") return { ok: false, error: data === "full" ? "full" : data === "expired" ? "expired" : data === "revoked" ? "revoked" : data === "capability_replayed" ? "replayed" : data === "conflict" ? "conflict" : data === "account_conflict" ? "account_conflict" : data === "not_found" ? "not_found" : "error" };
     const plan = await planStore().get(planId);

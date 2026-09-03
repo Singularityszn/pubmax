@@ -30,17 +30,6 @@ export function isMissingDatabaseFunction(error: unknown): boolean {
   return typeof message === "string" && /could not find the function/i.test(message);
 }
 
-export async function planAccountHasActiveSeat(planId: string, userId: string): Promise<boolean> {
-  const { data, error } = await requireSupabaseAdmin().from(MEMBERS)
-    .select("id")
-    .eq("plan_id", planId)
-    .eq("user_id", userId)
-    .is("membership_revoked_at", null)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return Boolean(data);
-}
-
 export type PlanWriteError = "invalid" | "arrival_required" | "not_found" | "full" | "forbidden" | "conflict" | "account_conflict" | "error";
 export type PlanCreateResult = { ok: true; plan: PlanState; memberToken: string; role: "host"; created: boolean } | { ok: false; error: PlanWriteError };
 export type PlanJoinResult = { ok: true; plan: PlanState; memberToken: string; role: "guest"; collaborationAuthorized: boolean } | { ok: false; error: PlanWriteError };
@@ -336,10 +325,6 @@ export const supabasePlanStore: PlanStore = {
       collaborationAuthorized: options.collaborationAuthorized === true,
       ...(userId ? { userId } : {}),
     });
-    const anonymousRequestHash = planRequestDigest({
-      name,
-      collaborationAuthorized: options.collaborationAuthorized === true,
-    });
     const memberToken = planIdempotencyDigest(`plan-join-token:${id}`, key);
     const memberId = planIdempotentUuid(`plan-join-member:${id}`, key);
     const joinedAt = new Date().toISOString();
@@ -355,27 +340,12 @@ export const supabasePlanStore: PlanStore = {
         p_idempotency_key_hash: keyHash,
         p_request_hash: requestHash,
       };
-      let { data, error } = await admin.rpc(userId
+      const { data, error } = await admin.rpc(userId
         ? "join_plan_account_idempotent_atomic"
         : "join_plan_idempotent_atomic", {
         ...joinArgs,
         ...(userId ? { p_user_id: userId } : {}),
       });
-      if (userId && error && isMissingDatabaseFunction(error)) {
-        // The current Plan schema may be present while the account-join FUNCTION
-        // is unavailable (0106 precedent). Joining without the account stamp
-        // keeps keyless and development parity; the seat binds later through
-        // the claim lane. Only a missing FUNCTION may take this path: a genuine
-        // write failure must stay a refusal.
-        if (await planAccountHasActiveSeat(id, userId)) {
-          return { ok: false, error: "account_conflict" };
-        }
-        console.warn("[plans] account join RPC missing; joining without account stamp");
-        ({ data, error } = await admin.rpc("join_plan_idempotent_atomic", {
-          ...joinArgs,
-          p_request_hash: anonymousRequestHash,
-        }));
-      }
       if (error) throw new Error(error.message);
       if (data === "full") return { ok: false, error: "full" };
       if (data === "conflict") return { ok: false, error: "conflict" };
