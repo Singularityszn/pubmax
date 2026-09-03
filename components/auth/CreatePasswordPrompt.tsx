@@ -4,6 +4,7 @@ import Link from "next/link";
 import {
   useCallback,
   useEffect,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
@@ -56,6 +57,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [budgetClaimed, setBudgetClaimed] = useState(false);
   const [answeredLocallyFor, setAnsweredLocallyFor] = useState<string | null>(null);
+  const promptRendered = useRef(false);
 
   const subscribeForAccount = useCallback(
     (onStoreChange: () => void) =>
@@ -139,11 +141,15 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     const claimed = claimPromptBudget(PASSWORD_PROMPT_SURFACE);
     setBudgetClaimed(claimed);
     return () => {
-      if (claimed) releasePromptBudget(PASSWORD_PROMPT_SURFACE);
+      if (claimed && !promptRendered.current) {
+        releasePromptBudget(PASSWORD_PROMPT_SURFACE);
+      }
+      promptRendered.current = false;
     };
   }, [eligible]);
 
   const canShow = eligible && budgetClaimed;
+  if (canShow) promptRendered.current = true;
 
   if (!canShow) return null;
 

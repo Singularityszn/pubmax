@@ -136,6 +136,6 @@ describe("CreatePasswordPrompt rendered behavior", () => {
     await act(async () => link?.click());
 
     expect(window.localStorage.getItem(passwordPromptAnsweredKey("acct-1"))).toBe("1");
-    expect(releasePromptBudget).toHaveBeenCalledWith("create-password");
+    expect(releasePromptBudget).not.toHaveBeenCalled();
   });
 });
