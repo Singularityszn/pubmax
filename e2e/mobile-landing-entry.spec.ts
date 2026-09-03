@@ -170,6 +170,7 @@ test.describe("mobile landing entry", () => {
     );
     await expectWithinFirstViewport(page, planTonight, "hero Plan tonight together CTA");
     await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Open the map" }), "hero Open the map link");
+    await expectTappable(page.locator(".lpHeroActions").getByRole("link", { name: "Tonight", exact: true }), "hero Tonight link");
     await expectTappable(page.getByRole("link", { name: "Find my pint" }).first(), "hero Find my pint link");
 
     const visibleHeroPins = page.locator(".thamesHeroPin:visible");
@@ -239,7 +240,11 @@ test.describe("mobile landing entry", () => {
     await page.goto("/");
 
     await page.getByRole("link", { name: "Open the map" }).first().click();
-    await expect(page).toHaveURL(/\/(choose-city|map)/);
+    await expect(page).toHaveURL(/\/map$/);
+
+    await page.goto("/");
+    await page.locator(".lpHeroActions").getByRole("link", { name: "Tonight", exact: true }).click();
+    await expect(page).toHaveURL(/\/tonight$/);
   });
 });
 
