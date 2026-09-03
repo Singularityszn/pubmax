@@ -161,7 +161,9 @@ export default function TodayGetThereStrip() {
           </span>
         </div>
       )}
-      <p className="todayCardFootRow todayNearEntry">
+      {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
+          /today sends a first-time visitor to their pint. */}
+      <p className="todayCardFootRow todayNearEntry" data-primary-action="">
         <Link href="/near" className="todayCardFootLink">
           <LocateFixed size={14} aria-hidden="true" />
           Find pubs near you

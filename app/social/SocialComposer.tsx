@@ -551,10 +551,14 @@ export default function SocialComposer({
 
   return (
     <>
+      {/* The compose door is /social's one primary action (docs/design/
+          LAUNCH_SCREENS.md). An edit trigger on a post is not: it repeats per
+          post, and the route may carry the mark once. */}
       <button
         ref={triggerRef}
         className={editing ? "socialEditButton" : "socialButton socialComposeOpen"}
         type="button"
+        data-primary-action={editing ? undefined : ""}
         disabled={!draftReady}
         onClick={openComposer}
       >

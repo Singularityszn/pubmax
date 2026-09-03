@@ -16,12 +16,10 @@
 .palHalo {
   position: absolute;
   inset: 8%;
-  border: 1px solid color-mix(in srgb, var(--pal-accent) 44%, transparent);
   border-radius: 50%;
   box-shadow:
     0 0 0 12px color-mix(in srgb, var(--pal-accent) 4%, transparent),
     inset 0 0 48px color-mix(in srgb, var(--pal-accent) 11%, transparent);
-  animation: palOrbit 14s linear infinite;
 }
 .palBody {
   position: relative;
@@ -116,11 +114,6 @@
 .palAvatar.isCompact .palBody svg {
   width: 72%;
   height: 72%;
-}
-@keyframes palOrbit {
-  to {
-    transform: rotate(1turn);
-  }
 }
 @keyframes palBreathe {
   50% {
