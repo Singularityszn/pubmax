@@ -1,4 +1,9 @@
 import { MAX_PLAN_STOP_COUNT } from "@/lib/planStopCount";
+import { transferGeneratedRouteToDraft } from "@/lib/mapRouteTransfer";
+import {
+  writePlanRouteDraftEnvelope,
+  type PlanRouteDraftStorage,
+} from "@/lib/planRouteDraft";
 
 export type WebMcpEvidence = WebMcpJsonValue;
 
@@ -17,6 +22,7 @@ export type WebMcpRouteStop = {
 
 export type WebMcpRoute = {
   stops: WebMcpRouteStop[];
+  nightContext: WebMcpJsonValue;
   routeTotals: WebMcpJsonValue;
   planningConfidence: WebMcpJsonValue;
   warnings: string[];
@@ -132,11 +138,15 @@ export function parseWebMcpRouteResponse(value: unknown): WebMcpRoute | null {
   }
 
   const routeTotals = value.routeTotals === undefined ? null : cloneJson(value.routeTotals as WebMcpJsonValue);
+  const nightContext = value.inferredContext === undefined
+    ? null
+    : cloneJson(value.inferredContext as WebMcpJsonValue);
   const planningConfidence = confidence === undefined ? null : cloneJson(confidence as WebMcpJsonValue);
   const originalResponse = cloneJson(value as Record<string, WebMcpJsonValue>);
 
   return {
     stops: parsedStops,
+    nightContext,
     routeTotals,
     planningConfidence,
     warnings: confidenceWarnings ?? [],
@@ -146,6 +156,34 @@ export function parseWebMcpRouteResponse(value: unknown): WebMcpRoute | null {
     routeStale: false,
     originalResponse,
   };
+}
+
+export function writeWebMcpRouteToPlanDraft(
+  route: WebMcpRoute,
+  storage: PlanRouteDraftStorage | null,
+  now = Date.now(),
+): boolean {
+  if (!storage) return false;
+  if (!route.routeStale && route.originalResponse) {
+    return transferGeneratedRouteToDraft(route.originalResponse, storage, "plan-generated", now);
+  }
+  if (!route.routeStale) return false;
+  return writePlanRouteDraftEnvelope({
+    anchorVenueId: null,
+    anchorSource: null,
+    outcome: "unanchored",
+    stops: route.stops.map((stop) => ({ ...stop })),
+    alternatives: [],
+    nightContext: route.nightContext as never,
+    routeTotals: null,
+    transportBasis: null,
+    planningConfidence: null,
+    warnings: [],
+    groundingProof: null,
+    operationKey: null,
+    routeRevision: null,
+    routeStale: true,
+  }, "plan-generated", storage, now).v2;
 }
 
 export function createWebMcpBoard(): WebMcpBoard {

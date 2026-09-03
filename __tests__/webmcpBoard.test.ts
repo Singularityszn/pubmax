@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -8,14 +9,48 @@ import {
   retainWebMcpContextEvidence,
   retainWebMcpSearchEvidence,
   swapWebMcpBoardStop,
+  writeWebMcpRouteToPlanDraft,
 } from "@/lib/webmcp/board";
+import { readPlanRouteDraftEnvelope } from "@/lib/planRouteDraft";
+
+const NOW = Date.parse("2026-09-03T12:00:00.000Z");
+const GROUNDING_PROOF = `${Buffer.from(JSON.stringify({ v: 1, expiresAt: NOW + 2 * 60 * 60 * 1000 }), "utf8").toString("base64url")}.test-signature`;
+
+function memoryStorage(options: { throwOnSet?: boolean } = {}): Storage {
+  const values = new Map<string, string>();
+  return {
+    get length() { return values.size; },
+    clear: () => values.clear(),
+    getItem: (key) => values.get(key) ?? null,
+    key: (index) => [...values.keys()][index] ?? null,
+    removeItem: (key) => { values.delete(key); },
+    setItem: (key, value) => {
+      if (options.throwOnSet) throw new Error("blocked");
+      values.set(key, String(value));
+    },
+  };
+}
 
 function generatedRoute() {
   return {
     grounded: true,
     operationKey: "operation-1",
-    groundingProof: "payload.signature",
-    inferredContext: { nightArea: "clapham", stopCount: 3 },
+    groundingProof: GROUNDING_PROOF,
+    inferredContext: {
+      nightArea: "clapham",
+      daypart: "evening",
+      partyType: "friends",
+      groupSize: 4,
+      budget: "standard",
+      budgetLimitPence: null,
+      zeroProof: false,
+      wetherspoonsPreferred: false,
+      atmosphere: [],
+      foodNeeds: [],
+      accessibility: [],
+      transportConstraints: [],
+      stopCount: 3,
+    },
     stops: [
       {
         venueId: "venue-a",
@@ -99,7 +134,7 @@ describe("WebMCP board route contracts", () => {
         { kind: "venue_dataset", label: "PUBMAXX Venue Dataset" },
         { kind: "night_area_review", label: "Clapham route review" },
       ],
-      groundingProof: "payload.signature",
+      groundingProof: GROUNDING_PROOF,
       operationKey: "operation-1",
       routeStale: false,
     });
@@ -199,6 +234,44 @@ describe("WebMCP board route contracts", () => {
     expect(swapWebMcpBoardStop(fresh, 2)).toBe(fresh);
     expect(swapWebMcpBoardStop(fresh, 9)).toBe(fresh);
     expect(fresh.revision).toBe(1);
+  });
+
+  it("writes fresh and swapped routes through the canonical Plan draft", () => {
+    const fresh = publishWebMcpRoute(createWebMcpBoard(), generatedRoute());
+    const freshStorage = memoryStorage();
+    expect(writeWebMcpRouteToPlanDraft(fresh.route!, freshStorage, NOW)).toBe(true);
+    expect(readPlanRouteDraftEnvelope(freshStorage, NOW)?.value).toMatchObject({
+      routeStale: false,
+      groundingProof: GROUNDING_PROOF,
+      operationKey: "operation-1",
+      stops: [
+        { venueId: "venue-a" },
+        { venueId: "venue-b" },
+        { venueId: "venue-c" },
+      ],
+    });
+
+    const swapped = swapWebMcpBoardStop(fresh, 2);
+    const swappedStorage = memoryStorage();
+    expect(writeWebMcpRouteToPlanDraft(swapped.route!, swappedStorage, NOW)).toBe(true);
+    expect(readPlanRouteDraftEnvelope(swappedStorage, NOW)?.value).toMatchObject({
+      routeStale: true,
+      routeTotals: null,
+      planningConfidence: null,
+      groundingProof: null,
+      operationKey: null,
+      stops: [
+        { venueId: "venue-a" },
+        { venueId: "venue-x" },
+        { venueId: "venue-c" },
+      ],
+    });
+  });
+
+  it("does not navigate around blocked Plan draft storage", () => {
+    const fresh = publishWebMcpRoute(createWebMcpBoard(), generatedRoute());
+    expect(writeWebMcpRouteToPlanDraft(fresh.route!, memoryStorage({ throwOnSet: true }), NOW)).toBe(false);
+    expect(writeWebMcpRouteToPlanDraft(fresh.route!, null, NOW)).toBe(false);
   });
 });
 
