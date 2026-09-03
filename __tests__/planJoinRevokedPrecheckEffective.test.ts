@@ -104,34 +104,36 @@ async function startPostgres(): Promise<Session> {
   }
 
   const dataDir = mkdtempSync(join(tmpdir(), "pubmax-plan-join-0136-"));
-  const port = await pickPort();
-  execFileSync(
-    initdb,
-    ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
-    { stdio: "pipe" },
-  );
-  writeFileSync(
-    join(dataDir, "postgresql.auto.conf"),
-    [
-      "listen_addresses = '127.0.0.1'",
-      `port = ${port}`,
-      "max_connections = 12",
-      "shared_buffers = 16MB",
-      "fsync = off",
-      "full_page_writes = off",
-      "synchronous_commit = off",
-    ].join("\n") + "\n",
-  );
-
-  const handle = spawn(
-    postgres,
-    ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
-    { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
-  );
+  let handle: ReturnType<typeof spawn> | null = null;
   try {
+    const port = await pickPort();
+    execFileSync(
+      initdb,
+      ["-D", dataDir, "--locale=C", "-E", "UTF8", "--username=postgres", "--auth=trust"],
+      { stdio: "pipe" },
+    );
+    writeFileSync(
+      join(dataDir, "postgresql.auto.conf"),
+      [
+        "listen_addresses = '127.0.0.1'",
+        `port = ${port}`,
+        "max_connections = 12",
+        "shared_buffers = 16MB",
+        "fsync = off",
+        "full_page_writes = off",
+        "synchronous_commit = off",
+      ].join("\n") + "\n",
+    );
+
+    const processHandle = spawn(
+      postgres,
+      ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
+      { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
+    );
+    handle = processHandle;
     const logs: string[] = [];
-    handle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-    handle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
+    processHandle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
+    processHandle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
 
     const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
     let ready = false;
@@ -172,15 +174,15 @@ async function startPostgres(): Promise<Session> {
     };
 
     const stop = async (): Promise<void> => {
-      handle.kill("SIGINT");
+      processHandle.kill("SIGINT");
       await sleep(300);
-      handle.kill("SIGKILL");
+      processHandle.kill("SIGKILL");
       rmSync(dataDir, { recursive: true, force: true });
     };
 
     return { sql, applyFile, stop };
   } catch (error) {
-    handle.kill("SIGKILL");
+    handle?.kill("SIGKILL");
     rmSync(dataDir, { recursive: true, force: true });
     throw error;
   }
