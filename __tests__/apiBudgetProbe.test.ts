@@ -177,15 +177,6 @@ describe("probe-api-budgets CLI", () => {
     }
   }, 20_000);
 
-  // The kill timer is a BACKSTOP against a probe that hangs for ever, not a
-  // budget: what this asserts is that the CLI exits ITSELF on its own 25ms
-  // request timeout. So the timer has to clear full Node process startup, which
-  // under the loaded parallel suite is comfortably past a second. At 1s this
-  // test SIGTERM'd its own probe and failed on a busy machine while passing when
-  // run alone. Four seconds still fits inside the case's own 5s budget, so a
-  // genuinely hung probe is still caught.
-  const HANG_BACKSTOP_MS = 4_000;
-
   it("fails a sample that never sends response headers", async () => {
     let first = true;
     const { server, baseUrl } = await startServer((request, response) => {
@@ -200,7 +191,7 @@ describe("probe-api-budgets CLI", () => {
       const result = await runProbe(
         baseUrl,
         { PUBMAX_API_PROBE_TIMEOUT_MS: "25" },
-        HANG_BACKSTOP_MS,
+        1_000,
       );
 
       expect(result.signal).not.toBe("SIGTERM");

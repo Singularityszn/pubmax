@@ -13,11 +13,6 @@ import type { StoryBand } from "@/lib/storyBands";
 import type { Venue } from "@/lib/venues";
 import { isPubVenueKind } from "@/lib/venueKindFilters";
 import type { VenueWhatsOnSummary } from "@/lib/whatsOnBadges";
-import {
-  priceStandingFigure,
-  type PriceStanding,
-  type PriceStandingDecision,
-} from "@/lib/priceTier";
 import type { VenueSignal } from "./types";
 import { hashEntranceSeed } from "./filters";
 import { PIN_ENTRANCE_BUCKETS } from "./tokens";
@@ -46,29 +41,6 @@ export function formatPinPriceLabel(
   const pence = Math.round(price * 100);
   if (pence <= 0) return null;
   return pence % 100 === 0 ? `£${pence / 100}` : `£${(pence / 100).toFixed(2)}`;
-}
-
-/**
- * The one string a pin's price tag ever shows, or null for a silent pin.
- *
- * A lens owns the tag outright when one is active. Otherwise the pub's own
- * sayable figure wins, and a MODELLED figure speaks only where the pin would
- * otherwise be silent: an estimate never displaces a price the pub can stand
- * behind, and it never speaks under a lens, whose whole promise is a
- * corroborated price for one named category. `priceStandingFigure` formats it,
- * so the "est." cannot be lost on the way out of here.
- */
-function pinPriceTag(
-  venueId: string,
-  priceStandings: ReadonlyMap<string, PriceStandingDecision> | null,
-  labels: { lensActive: boolean; lensPriceLabel: string | null; basePriceLabel: string | null },
-): { label: string | null; standing: PriceStanding | null } {
-  const decision = priceStandings?.get(venueId) ?? null;
-  const standing = decision?.standing ?? null;
-  if (labels.lensActive) return { label: labels.lensPriceLabel, standing };
-  if (labels.basePriceLabel) return { label: labels.basePriceLabel, standing };
-  const modelled = standing === "estimate" && decision ? priceStandingFigure(decision) : null;
-  return { label: modelled, standing };
 }
 
 /**
@@ -138,14 +110,6 @@ export function pubsToGeoJSON(
   // Category prices can reach category-labelled pin figures. Food anchors have
   // no category and stay off pins.
   lensPrices: ReadonlyMap<string, MapLensPrice> | null = null,
-  // What each pub's pint price is allowed to CLAIM (lib/priceTier.ts). Its own
-  // argument for the same reason `provisionalVenueIds` is: an ESTIMATE is
-  // modelled rather than observed, so it must be impossible for it to reach the
-  // price stack that `bucket` and every downstream price surface read. It can
-  // do exactly two things here, both additive: stamp the `standing` property,
-  // and print a labelled `est. £X` tag on a pub that has no sayable price of
-  // its own. Absent map = today's behaviour, unchanged.
-  priceStandings: ReadonlyMap<string, PriceStandingDecision> | null = null,
 ): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
@@ -178,11 +142,7 @@ export function pubsToGeoJSON(
         lensPrice?.category && formatPinPriceLabel(lensPrice.priceGbp)
           ? `${formatPinPriceLabel(lensPrice.priceGbp)} ${lensPrice.categoryLabel}`
           : null;
-      const tag = pinPriceTag(venue.id, priceStandings, {
-        lensActive,
-        lensPriceLabel,
-        basePriceLabel,
-      });
+      const priceLabel = lensActive ? lensPriceLabel : basePriceLabel;
       // Active drink lens owns the glyph: beer → pint glasses, wine → wine, etc.
       // Without a lens, fall back to venue hint categories.
       const lens =
@@ -267,12 +227,7 @@ export function pubsToGeoJSON(
           //
           // Non-pint figures always carry their drink name in the same string.
           // A bare whisky or soft-drink number would masquerade as a pint.
-          ...(tag.label ? { priceLabel: tag.label } : {}),
-          // The standing this pub's price holds. ABSENT rather than "none" when
-          // nothing was passed, so ["has","standing"] separates "we were not
-          // asked" from "we looked and there is nothing", the way `whatsOn`
-          // and `priceLabel` above already do.
-          ...(tag.standing ? { standing: tag.standing } : {}),
+          ...(priceLabel ? { priceLabel } : {}),
         },
         geometry: {
           type: "Point" as const,
