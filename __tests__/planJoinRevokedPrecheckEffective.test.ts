@@ -300,11 +300,16 @@ describe("0136 applied to PostgreSQL", () => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();
     seedRevokedSeat(db);
-    db.sql(`insert into public.plan_invites(id, plan_id, token_hash, expires_at)
+    db.sql(`insert into public.plan_invites(
+      id, plan_id, created_by_member_id, token_hash, idempotency_key, created_at, expires_at
+    )
       values(
         '00000000-0000-4000-8000-0000000000e1',
         '${PLAN}',
+        '${HOST_SEAT}',
         md5('redeem-after-revoke-invite')||md5('redeem-after-revoke-invite-2'),
+        'redeem-after-revoke-invite',
+        now(),
         now()+interval '1 day'
       );`);
 
