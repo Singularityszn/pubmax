@@ -41,6 +41,15 @@ export const AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS = 20_000;
  * it. Probe local storage for one microtask, then read the durable hint in
  * parallel with any slower local lookup. A missing hint still waits for the
  * local read, because cookie absence cannot overrule a valid browser session.
+ *
+ * That costs latency in one case, and the cost is accepted on purpose: an
+ * anonymous visitor whose local read is slow now waits for it instead of
+ * settling from the absent hint alone. The wait is bounded by the provider
+ * ceiling, and the hint read is a network call that usually finishes after the
+ * storage read anyway. Do not restore the fast anonymous answer to reclaim it.
+ * An absent hint cannot tell an anonymous visitor apart from an owner whose
+ * session had not been read yet, and answering before that read settles is the
+ * race this function exists to close.
  */
 export async function bootstrapAuthSession(
   auth: BrowserAuthSession,
