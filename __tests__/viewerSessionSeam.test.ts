@@ -19,6 +19,8 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 
+import ts from "typescript";
+
 import { describe, expect, it } from "vitest";
 
 import {
@@ -194,6 +196,101 @@ describe("a load we could not run is not an answer about the viewer", () => {
   });
 });
 
+/**
+ * Does the deployment-skew recovery in the unavailable branch wait for the
+ * callback teardown, rather than racing it?
+ *
+ * Asked of the syntax tree, not of the source text. The invariant is a
+ * CONTAINMENT one - the skew check runs in a continuation of `callbackCapture`,
+ * or in the `finally` of a try that awaits it - and text matching cannot see
+ * containment. It answers false when the branch makes no skew check at all, so
+ * deleting the call cannot pass this quietly.
+ */
+function skewCheckWaitsForCallbackCleanup(): boolean {
+  const source = ts.createSourceFile(
+    "AuthProvider.tsx",
+    readFileSync(join(REPO_ROOT, "components/auth/AuthProvider.tsx"), "utf8"),
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+
+  // The root identifier of a call chain: `callbackCapture.then(...).finally`
+  // answers "callbackCapture".
+  const chainRootName = (expr: ts.Expression): string | null => {
+    let node: ts.Node = expr;
+    for (;;) {
+      if (ts.isCallExpression(node) || ts.isPropertyAccessExpression(node)) {
+        node = node.expression;
+        continue;
+      }
+      if (ts.isParenthesizedExpression(node) || ts.isNonNullExpression(node)) {
+        node = node.expression;
+        continue;
+      }
+      break;
+    }
+    return ts.isIdentifier(node) ? node.text : null;
+  };
+
+  const CONTINUATIONS = new Set(["then", "catch", "finally"]);
+
+  const waitsForCleanup = (call: ts.Node): boolean => {
+    for (let node = call.parent; node && !ts.isSourceFile(node); node = node.parent) {
+      if (
+        ts.isTryStatement(node) &&
+        node.finallyBlock &&
+        call.getStart() >= node.finallyBlock.getStart() &&
+        call.getEnd() <= node.finallyBlock.getEnd()
+      ) {
+        return true;
+      }
+      if (
+        (ts.isArrowFunction(node) || ts.isFunctionExpression(node)) &&
+        node.parent &&
+        ts.isCallExpression(node.parent) &&
+        node.parent.arguments.includes(node as ts.Expression) &&
+        ts.isPropertyAccessExpression(node.parent.expression) &&
+        CONTINUATIONS.has(node.parent.expression.name.text) &&
+        chainRootName(node.parent.expression.expression) === "callbackCapture"
+      ) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // Scope to the unavailable branch: another branch may one day want its own
+  // skew check under different rules, and this fence should not answer for it.
+  let branch: ts.IfStatement | null = null;
+  const findBranch = (node: ts.Node) => {
+    if (
+      ts.isIfStatement(node) &&
+      node.expression.getText().includes('outcome.status === "unavailable"')
+    ) {
+      branch ??= node;
+    }
+    ts.forEachChild(node, findBranch);
+  };
+  findBranch(source);
+  if (!branch) return false;
+
+  const skewChecks: ts.Node[] = [];
+  const collect = (node: ts.Node) => {
+    if (
+      ts.isCallExpression(node) &&
+      ts.isIdentifier(node.expression) &&
+      node.expression.text === "requestDeploymentSkewCheck"
+    ) {
+      skewChecks.push(node);
+    }
+    ts.forEachChild(node, collect);
+  };
+  collect(branch);
+
+  return skewChecks.length > 0 && skewChecks.every(waitsForCleanup);
+}
+
 describe("AuthProvider never publishes a sign-out it did not read", () => {
   const provider = readFileSync(
     join(REPO_ROOT, "components/auth/AuthProvider.tsx"),
@@ -214,5 +311,16 @@ describe("AuthProvider never publishes a sign-out it did not read", () => {
     expect(body).toContain("requestDeploymentSkewCheck()");
     expect(body).toContain('setProviderAuthState("supabase", "unavailable")');
     expect(body).toContain("setSessionLoading(false)");
+    // A recovery reload must not start while callback credentials are still in
+    // the address bar. The synchronous scrub can be REFUSED (Safari rate-limits
+    // history calls during load) or reverted by a router write, so the retry
+    // inside the callback continuation is what guarantees a clean URL, and the
+    // skew check has to wait for it.
+    //
+    // Read as structure rather than as source text: a regex over this block
+    // pins the formatting instead of the ordering, so it fires on a comment
+    // added inside the continuation and on an equivalent try/finally rewrite,
+    // while a regression written across two lines can slip past it.
+    expect(skewCheckWaitsForCallbackCleanup()).toBe(true);
   });
 });
