@@ -114,10 +114,16 @@
   min-width: 0;
 }
 
+/* On a desktop the headline and the pub card share the first screen from the
+   top: the grid starts under the nav rather than floating at the vertical
+   centre, so nothing sits low with a screen of air above it. Still 100dvh,
+   still full-bleed; only the vertical seat changes. */
 @media (min-width: 960px) {
   .lpHero {
     grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr);
-    align-items: center;
+    align-content: start;
+    align-items: start;
+    padding-top: clamp(128px, 17vh, 168px);
   }
 }
 
