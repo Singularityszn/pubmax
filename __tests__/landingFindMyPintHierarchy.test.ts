@@ -27,7 +27,8 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// One primary action is permanent; Plan, Map and location stay visible as text links.
+// One primary action is permanent; Plan, Map, Tonight and location stay visible
+// as text links.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -78,20 +79,33 @@ describe("landing Pub Pal hierarchy", () => {
     expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
   });
 
-  it("keeps Plan, Map and Find my pint visible as lower-weight text links", () => {
-    expect(landingTsx).toMatch(/className="lpHeroActions"/);
-    expect(landingTsx).toMatch(/lpHeroSecondaryRow/);
-    const secondaryBlock = landingTsx.match(
-      /className="lpHeroActions"[\s\S]*?lpHeroSecondaryRow[\s\S]*?<\/div>\s*<\/div>/,
+  it("keeps Plan, Map, Tonight and Find my pint visible as lower-weight text links", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const secondaryBlock = rendered.match(
+      /<div class="lpHeroSecondaryRow">[\s\S]*?<\/div>/,
     )?.[0];
     expect(secondaryBlock, "secondary action row present").toBeTruthy();
-    expect(secondaryBlock).toMatch(/lpTextLink/);
-    expect(secondaryBlock).toMatch(/Plan tonight together/);
-    expect(secondaryBlock).toMatch(/Open the map/);
-    expect(secondaryBlock).toMatch(/Find my pint/);
+    expect(secondaryBlock).toMatch(/href="\/plan"[\s\S]*Plan tonight together/);
+    expect(secondaryBlock).toMatch(/href="\/map"[\s\S]*Open the map/);
+    expect(secondaryBlock).toMatch(/href="\/tonight"[\s\S]*Tonight/);
+    expect(secondaryBlock).toMatch(/href="\/near\?locate=1"[\s\S]*Find my pint/);
     expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
-    expect(landingTsx).toMatch(/href=\{primaryCtaHref\}[\s\S]*Open the map/);
-    expect(landingTsx).toMatch(/href="\/near\?locate=1"[\s\S]*Find my pint/);
+  });
+
+  it("opens the Map directly for a stranger and keeps city choice explicit", () => {
+    const rendered = renderToStaticMarkup(createElement(LandingPage));
+    const landingNav = rendered.match(
+      /<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/,
+    )?.[0];
+    expect(landingNav, "landing navigation present").toBeTruthy();
+    expect(landingNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
+
+    const openMapLinks = [
+      ...rendered.matchAll(/<a[^>]*href="([^"]+)"[^>]*>([\s\S]*?)<\/a>/g),
+    ].filter((match) => match[2].includes("Open the map"));
+    expect(openMapLinks.length).toBeGreaterThan(0);
+    expect(openMapLinks.every((match) => match[1] === "/map")).toBe(true);
+    expect(rendered).toMatch(/href="\/choose-city"[^>]*>Pick your city<\/a>/);
   });
 
   it("CSS scopes dominant primary and high-contrast secondary text", () => {

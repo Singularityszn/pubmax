@@ -36,7 +36,7 @@ test("landing nav and footer name Social", async ({ page }) => {
 });
 
 test.describe("landing Pub Pal hierarchy", () => {
-  test("keeps Meet your Pub Pal primary with Plan, Map and location as secondary text", async ({ page }) => {
+  test("keeps Meet your Pub Pal primary with Plan, Map, Tonight and location as secondary text", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHeroActions");
@@ -54,12 +54,15 @@ test.describe("landing Pub Pal hierarchy", () => {
     const secondary = hero.locator(".lpHeroSecondaryRow");
     await expect(secondary).toBeVisible();
     const mapLink = secondary.getByRole("link", { name: /Open the map/i });
+    const tonightLink = secondary.getByRole("link", { name: "Tonight", exact: true });
     const nearLink = secondary.getByRole("link", { name: /Find my pint/i });
     await expect(mapLink).toBeVisible();
+    await expect(tonightLink).toBeVisible();
     await expect(nearLink).toBeVisible();
     await expect(mapLink).toHaveClass(/lpTextLink/);
     await expect(nearLink).toHaveClass(/lpTextLink/);
-    await expect(mapLink).toHaveAttribute("href", "/choose-city");
+    await expect(mapLink).toHaveAttribute("href", "/map");
+    await expect(tonightLink).toHaveAttribute("href", "/tonight");
     await expect(nearLink).toHaveAttribute("href", "/near?locate=1");
   });
 
@@ -75,7 +78,8 @@ test.describe("landing Pub Pal hierarchy", () => {
       await page.evaluate(() => window.scrollTo(0, 0));
       const hero = page.locator(".lpHeroActions");
       await expect(hero.getByRole("link", { name: /Plan tonight together/i })).toHaveAttribute("href", "/plan");
-      await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/choose-city");
+      await expect(hero.getByRole("link", { name: /Open the map/i })).toHaveAttribute("href", "/map");
+      await expect(hero.getByRole("link", { name: "Tonight", exact: true })).toHaveAttribute("href", "/tonight");
       await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
       const primary = hero.locator(".lpButtonPrimary");
       await expect(primary).toHaveCount(1);
