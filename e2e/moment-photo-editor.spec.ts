@@ -36,14 +36,20 @@ test.describe("Moment photo editor", () => {
   });
 
   test("edits with first-party crop, filter, text, and draw tools", async ({ page }) => {
-    const editorProviderRequests: string[] = [];
+    // Photo editing is private: the editor may reach NO third-party origin, and
+    // the CSP must not be widened for one. This used to watch a single vendor
+    // hostname, which is nothing at all now that the editor is first-party - the
+    // assertion passed whatever the page fetched, from anywhere else. It watches
+    // every cross-origin request instead, and the contract is that opening the
+    // editor adds none to whatever the page had already loaded.
+    const crossOriginRequests: string[] = [];
     const externalWrites: string[] = [];
     page.on("request", (request) => {
       const requestUrl = new URL(request.url());
       const appUrl = new URL(page.url());
       if (requestUrl.protocol === "blob:" || requestUrl.protocol === "data:") return;
       if (requestUrl.origin === appUrl.origin) return;
-      if (requestUrl.hostname.includes("unlayer")) editorProviderRequests.push(request.url());
+      crossOriginRequests.push(request.url());
       if (!["GET", "HEAD"].includes(request.method())) {
         externalWrites.push(request.url());
       }
@@ -61,13 +67,15 @@ test.describe("Moment photo editor", () => {
     await expect(page.getByRole("button", { name: "Edit night.png" })).toBeVisible();
     await expect(page.getByRole("dialog", { name: "Edit photo" })).toHaveCount(0);
     const originalDigest = await momentPreviewDigest(page);
+    // Whatever the page loaded before Edit is the baseline the editor may not add to.
+    const crossOriginBeforeEdit = [...crossOriginRequests];
 
     await page.getByRole("button", { name: "Edit night.png" }).click();
     const dialog = page.getByRole("dialog", { name: "Edit photo" });
     await expect(dialog).toBeVisible();
     await expect(page.getByRole("button", { name: "Close editor" })).toBeVisible();
     await expect(page.getByRole("button", { name: "Use photo" })).toBeVisible();
-    expect(editorProviderRequests).toEqual([]);
+    expect(crossOriginRequests).toEqual(crossOriginBeforeEdit);
     expect(externalWrites).toEqual([]);
 
     await page.getByRole("button", { name: "Close editor" }).click();
@@ -121,7 +129,7 @@ test.describe("Moment photo editor", () => {
     await expect(dialog).toBeHidden();
     await expect(page.getByText("Edited photo ready.")).toBeVisible();
     expect(await momentPreviewDigest(page)).not.toBe(originalDigest);
-    expect(editorProviderRequests).toEqual([]);
+    expect(crossOriginRequests).toEqual(crossOriginBeforeEdit);
     expect(externalWrites).toEqual([]);
   });
 });

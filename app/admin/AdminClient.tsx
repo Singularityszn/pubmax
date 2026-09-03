@@ -6,17 +6,24 @@ import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
 import Link from "next/link";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 
 import {
   ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
+  ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   browserFetch,
   readAdminSessionState,
   submitAdminToken,
   type AdminSessionSubmitOutcome,
 } from "@/lib/adminSessionClient";
-import { adminAlert, adminStatus, type AdminNotice } from "@/lib/adminNotice";
+import {
+  adminAlert,
+  adminQueueUnavailable,
+  adminStatus,
+  type AdminNotice,
+  type AdminQueueUnavailableReason,
+} from "@/lib/adminNotice";
 import { discardBody } from "@/lib/responseBody";
 import { errorMessageFrom, readApiJson } from "@/lib/apiErrorMessage";
 import { groupVenuePrices, type VenuePrice } from "@/lib/venues";
@@ -223,6 +230,40 @@ type ModeratorSocialPost = {
   updatedAt: string;
 };
 
+const MODERATOR_SOCIAL_POST_VISIBILITIES = new Set(["public", "friends", "private"]);
+const MODERATOR_SOCIAL_POST_COMMENT_POLICIES = new Set(["open", "friends", "locked"]);
+const MODERATOR_SOCIAL_POST_MODERATION_STATES = new Set(["needs_review", "approved"]);
+
+function isNullableString(value: unknown): value is string | null {
+  return value === null || typeof value === "string";
+}
+
+function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  const row = value as Record<string, unknown>;
+  return (
+    typeof row.staffDisplayName === "string" &&
+    typeof row.postId === "string" &&
+    isNullableString(row.mediaId) &&
+    Number.isSafeInteger(row.revision) &&
+    (row.revision as number) >= 0 &&
+    typeof row.authorHandle === "string" &&
+    typeof row.body === "string" &&
+    isNullableString(row.photoAltText) &&
+    isNullableString(row.area) &&
+    isNullableString(row.venueId) &&
+    typeof row.visibility === "string" &&
+    MODERATOR_SOCIAL_POST_VISIBILITIES.has(row.visibility) &&
+    typeof row.commentPolicy === "string" &&
+    MODERATOR_SOCIAL_POST_COMMENT_POLICIES.has(row.commentPolicy) &&
+    typeof row.moderationClaim === "string" &&
+    typeof row.moderationState === "string" &&
+    MODERATOR_SOCIAL_POST_MODERATION_STATES.has(row.moderationState) &&
+    typeof row.createdAt === "string" &&
+    typeof row.updatedAt === "string"
+  );
+}
+
 type SocialPostsState = "idle" | "loading" | "ready" | "unavailable";
 type SocialPostAction = { postId: string; action: "approve" | "hide" };
 
@@ -245,13 +286,20 @@ function socialPostActionLabel(
 function SocialPostModerationQueue({
   posts,
   state,
+  unavailableReason,
   pendingAction,
   onDecision,
+  onRetry,
+  retryDisabled,
 }: {
   posts: ModeratorSocialPost[];
   state: SocialPostsState;
+  /** Why the queue is unavailable. Four causes, four sentences, never one word. */
+  unavailableReason: AdminQueueUnavailableReason | null;
   pendingAction: SocialPostAction | null;
   onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
+  onRetry: () => void;
+  retryDisabled: boolean;
 }) {
   return (
     <>
@@ -259,10 +307,33 @@ function SocialPostModerationQueue({
       {state === "loading" ? (
         <div className="admin-empty" role="status">
           Loading Social posts awaiting review…
+          <button
+            type="button"
+            className="admin-retry"
+            onClick={onRetry}
+            disabled={retryDisabled || state === "loading"}
+          >
+            Try again
+          </button>
         </div>
       ) : state === "unavailable" ? (
         <div className="admin-empty" role="alert">
-          Social post moderation is unavailable.
+          <span>
+            {
+              adminQueueUnavailable(
+                "Social posts",
+                unavailableReason ?? "unreachable",
+              ).text
+            }
+          </span>
+          <button
+            type="button"
+            className="admin-retry"
+            onClick={onRetry}
+            disabled={retryDisabled}
+          >
+            Try again
+          </button>
         </div>
       ) : posts.length === 0 && state === "ready" ? (
         <div className="admin-empty">
@@ -330,6 +401,10 @@ function SocialPostModerationQueue({
 
 const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
+
+type AdminRetryResult =
+  | { kind: "response"; response: Response }
+  | { kind: "session-expired" };
 
 function readStoredToken(): string {
   if (typeof window === "undefined") return "";
@@ -436,6 +511,9 @@ export default function AdminClient() {
   const [hiddenCovers, setHiddenCovers] = useState<ModeratorProfileCover[]>([]);
   const [socialPosts, setSocialPosts] = useState<ModeratorSocialPost[]>([]);
   const [socialPostsState, setSocialPostsState] = useState<SocialPostsState>("idle");
+  const [socialPostsReason, setSocialPostsReason] =
+    useState<AdminQueueUnavailableReason | null>(null);
+  const socialPostsRequestGeneration = useRef(0);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
@@ -477,13 +555,23 @@ export default function AdminClient() {
     [token, sessionEstablished],
   );
 
-  const retryWithFreshSession = useCallback(async (request: () => Promise<Response>) => {
+  const retryWithFreshSession = useCallback(async (request: () => Promise<Response>): Promise<AdminRetryResult> => {
     const res = await request();
-    if (res.status !== 403) return res;
+    if (res.status !== 403) return { kind: "response", response: res };
     setSessionEstablished(false);
-    if ((await ensureAdminSession(true)).status !== "open") return res;
-    return request();
-  }, [ensureAdminSession]);
+    const session = await ensureAdminSession(true);
+    if (session.status !== "open") {
+      const anonymousProbe =
+        session.message === ADMIN_SESSION_NOT_KEPT_MESSAGE ||
+        (!token.trim() && session.message === ADMIN_SESSION_NOT_AUTHORISED_MESSAGE);
+      if (anonymousProbe) {
+        discardBody(res);
+        return { kind: "session-expired" };
+      }
+      return { kind: "response", response: res };
+    }
+    return { kind: "response", response: await request() };
+  }, [ensureAdminSession, token]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
@@ -499,9 +587,15 @@ export default function AdminClient() {
         return;
       }
       const qs = showDismissed ? "?includeDismissed=1" : "";
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch(`/api/admin/import-notes${qs}`, SESSION_FETCH),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportNotes([]);
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       if (res.status === 403) {
         discardBody(res);
         setImportNotes([]);
@@ -535,9 +629,14 @@ export default function AdminClient() {
           return null;
         }
 
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/community-prices", SESSION_FETCH),
         );
+        if (retryResult.kind === "session-expired") {
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return null;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
@@ -571,53 +670,96 @@ export default function AdminClient() {
     [ensureAdminSession, retryWithFreshSession],
   );
 
+  // Four causes, four sentences. A closed session, a refusal, an answer we
+  // could not read and a server we never reached used to render as one word
+  // with nothing to press, so a moderator could not tell whose fault it was
+  // and had no way onward either.
+  const socialQueueUnavailable = useCallback(
+    (reason: AdminQueueUnavailableReason) => {
+      setSocialPostsReason(reason);
+      setSocialPostsState("unavailable");
+    },
+    [],
+  );
+
   const loadSocialPosts = useCallback(
-    async (authenticatedSession: AdminSessionSubmitOutcome) => {
+    async (
+      authenticatedSession: AdminSessionSubmitOutcome,
+      requestGeneration: number,
+    ) => {
+      if (requestGeneration !== socialPostsRequestGeneration.current) return;
       setSocialPostsState("loading");
+      setSocialPostsReason(null);
       setSocialPosts([]);
       if (authenticatedSession.status !== "open") {
-        setSocialPostsState("unavailable");
+        socialQueueUnavailable("session");
         return;
       }
       try {
-        const response = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/social-posts", SESSION_FETCH),
         );
+        if (retryResult.kind === "session-expired") {
+          if (requestGeneration === socialPostsRequestGeneration.current) {
+            socialQueueUnavailable("session");
+          }
+          return;
+        }
+        const response = retryResult.response;
+        if (requestGeneration !== socialPostsRequestGeneration.current) {
+          discardBody(response);
+          return;
+        }
         if (!response.ok) {
           discardBody(response);
-          setSocialPostsState("unavailable");
+          socialQueueUnavailable("refused");
           return;
         }
-        const body = (await response.json()) as { posts?: unknown };
-        if (!Array.isArray(body.posts)) {
-          setSocialPostsState("unavailable");
+        let body: { posts?: unknown } | null;
+        try {
+          body = (await response.json()) as { posts?: unknown } | null;
+        } catch {
+          if (requestGeneration === socialPostsRequestGeneration.current) {
+            socialQueueUnavailable("unreadable");
+          }
           return;
         }
-        setSocialPosts(body.posts as ModeratorSocialPost[]);
+        if (requestGeneration !== socialPostsRequestGeneration.current) return;
+        if (!body || !Array.isArray(body.posts) || !body.posts.every(isModeratorSocialPost)) {
+          socialQueueUnavailable("unreadable");
+          return;
+        }
+        setSocialPosts(body.posts);
         setSocialPostsState("ready");
       } catch {
-        setSocialPostsState("unavailable");
+        if (requestGeneration === socialPostsRequestGeneration.current) {
+          socialQueueUnavailable("unreachable");
+        }
+        return;
       }
     },
-    [retryWithFreshSession],
+    [retryWithFreshSession, socialQueueUnavailable],
   );
 
-  const load = useCallback(async () => {
+  const load = useCallback(async (forceSession = false) => {
+    const requestGeneration = ++socialPostsRequestGeneration.current;
+    const isLatestLoad = () => requestGeneration === socialPostsRequestGeneration.current;
     setLoading(true);
     setMessage(null);
     try {
-      const session = await ensureAdminSession();
+      const session = await ensureAdminSession(forceSession);
+      if (!isLatestLoad()) return;
       if (session.status !== "open") {
         setReportedDrops([]);
         setDrops([]);
         setComments([]);
         setSocialPosts([]);
-        setSocialPostsState("unavailable");
+        socialQueueUnavailable("session");
         setMessage(adminAlert(session.message));
         return;
       }
 
-      void loadSocialPosts(session);
+      void loadSocialPosts(session, requestGeneration);
 
       // Community observations have their own reversible queues. Load them in
       // this pass, but keep their failures isolated from Pint Drops and the
@@ -745,20 +887,27 @@ export default function AdminClient() {
         setMessage(adminStatus("No reported drops in the queue."));
       }
     } catch {
+      if (!isLatestLoad()) return;
       setReportedDrops([]);
       setDrops([]);
       setMessage(adminAlert("Could not reach the server."));
     } finally {
-      setLoading(false);
+      if (isLatestLoad()) setLoading(false);
     }
-  }, [ensureAdminSession, loadCommunityPriceQueues, loadSocialPosts, venueNames.size]);
+  }, [
+    ensureAdminSession,
+    loadCommunityPriceQueues,
+    loadSocialPosts,
+    socialQueueUnavailable,
+    venueNames.size,
+  ]);
 
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
       setSocialPostAction({ postId: post.postId, action });
       setMessage(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/social-posts", {
             ...SESSION_FETCH,
             method: "POST",
@@ -771,6 +920,11 @@ export default function AdminClient() {
             }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setMessage(adminAlert("Not authorised. Check the admin token."));
@@ -1066,7 +1220,7 @@ export default function AdminClient() {
       setCommunityPricePendingId(row.id);
       setCommunityPriceMessage(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/admin/community-prices", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1074,6 +1228,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id: row.id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setCommunityPriceMessage(adminAlert("Not authorised. Check the admin token."));
@@ -1143,7 +1302,7 @@ export default function AdminClient() {
         setImportMsg(adminAlert(session.message));
         return;
       }
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch("/api/admin/import-notes", {
           ...SESSION_FETCH,
           method: "POST",
@@ -1156,6 +1315,11 @@ export default function AdminClient() {
           }),
         }),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -1189,7 +1353,7 @@ export default function AdminClient() {
         setImportMsg(adminAlert(session.message));
         return;
       }
-      const res = await retryWithFreshSession(() =>
+      const retryResult = await retryWithFreshSession(() =>
         fetch("/api/admin/import-notes", {
           ...SESSION_FETCH,
           method: "PATCH",
@@ -1197,6 +1361,11 @@ export default function AdminClient() {
           body: JSON.stringify({ id, action }),
         }),
       );
+      if (retryResult.kind === "session-expired") {
+        setImportMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const res = retryResult.response;
       const payload = (await res.json().catch(() => ({}))) as {
         error?: string;
         message?: string;
@@ -1230,7 +1399,7 @@ export default function AdminClient() {
         setOperatorMsg(adminAlert(session.message));
         return;
       }
-      const [claimsRes, proposalsRes] = await Promise.all([
+      const [claimsResult, proposalsResult] = await Promise.all([
         retryWithFreshSession(() =>
           fetch("/api/venue-operators/claim?state=pending", SESSION_FETCH),
         ),
@@ -1238,6 +1407,14 @@ export default function AdminClient() {
           fetch("/api/operator-proposals?status=pending", SESSION_FETCH),
         ),
       ]);
+      if (claimsResult.kind === "session-expired" || proposalsResult.kind === "session-expired") {
+        setOperatorClaims([]);
+        setOperatorProposals([]);
+        setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+        return;
+      }
+      const claimsRes = claimsResult.response;
+      const proposalsRes = proposalsResult.response;
       if (claimsRes.status === 403 || proposalsRes.status === 403) {
         setOperatorClaims([]);
         setOperatorProposals([]);
@@ -1266,7 +1443,7 @@ export default function AdminClient() {
       setOperatorActionId(id);
       setOperatorMsg(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/venue-operators/claim", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1274,6 +1451,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
@@ -1300,7 +1482,7 @@ export default function AdminClient() {
       setOperatorActionId(id);
       setOperatorMsg(null);
       try {
-        const res = await retryWithFreshSession(() =>
+        const retryResult = await retryWithFreshSession(() =>
           fetch("/api/operator-proposals", {
             ...SESSION_FETCH,
             method: "POST",
@@ -1308,6 +1490,11 @@ export default function AdminClient() {
             body: JSON.stringify({ action, id }),
           }),
         );
+        if (retryResult.kind === "session-expired") {
+          setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
+          return;
+        }
+        const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
           setOperatorMsg(adminAlert("Not authorised. Check the admin token."));
@@ -1389,7 +1576,7 @@ export default function AdminClient() {
           aria-label="Admin token"
         />
         {tab === "moderation" ? (
-          <button className="admin-btn" onClick={load} disabled={loading}>
+          <button className="admin-btn" onClick={() => load()} disabled={loading}>
             {loading ? "Loading…" : "Load reported drops"}
           </button>
         ) : null}
@@ -1596,8 +1783,11 @@ export default function AdminClient() {
           <SocialPostModerationQueue
             posts={socialPosts}
             state={socialPostsState}
+            unavailableReason={socialPostsReason}
             pendingAction={socialPostAction}
             onDecision={(post, action) => void decideSocialPost(post, action)}
+            onRetry={() => void load(true)}
+            retryDisabled={loading}
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}
