@@ -13,7 +13,7 @@ import { CENTRAL_PATCH } from "@/lib/nightPatches";
 const ROOT = join(__dirname, "..");
 
 describe("public pint-price clock", () => {
-  it("does not call bundled baseline prices collected when a newer drink overlay exists", () => {
+  it("separates Today's baseline collection date from the Pint Index as-of clock", () => {
     const drinkOverlay = JSON.parse(
       readFileSync(
         join(ROOT, "public", "data", "drink_price_updates", "latest.json"),
@@ -25,7 +25,7 @@ describe("public pint-price clock", () => {
     );
 
     const asOf = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
-    const collected = `collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
+    const lastCollected = `Last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
     const todayHtml = renderToStaticMarkup(
       createElement(TodayPintsCard, {
         index: {
@@ -56,9 +56,9 @@ describe("public pint-price clock", () => {
       }),
     );
 
-    expect(todayHtml).toContain(asOf);
+    expect(todayHtml).toContain(lastCollected);
+    expect(todayHtml).not.toContain(asOf);
     expect(pintIndexHtml).toContain(asOf);
-    expect(todayHtml).not.toContain(collected);
-    expect(pintIndexHtml).not.toContain(collected);
+    expect(pintIndexHtml).not.toContain(lastCollected);
   });
 });

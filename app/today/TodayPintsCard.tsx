@@ -7,7 +7,7 @@
 // central default).
 //
 // Copy claims "near you" only for a resolved remembered patch. The baseline
-// as-of date stays visible on every render. Every row deep-links to its venue on
+// collection date stays visible on every render. Every row deep-links to its venue on
 // the map. Fail-soft: an area with no verified prices renders nothing, never an
 // empty box.
 
@@ -15,7 +15,10 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ArrowRight, Beer } from "lucide-react";
 
-import { formatPintDatasetAsOf } from "@/lib/dataFreshness";
+import {
+  formatObservedDate,
+  PINT_DATASET_OBSERVED_AT,
+} from "@/lib/dataFreshness";
 import { readRememberedArea } from "@/lib/nightPatches";
 
 import {
@@ -49,7 +52,7 @@ function eyebrow(hasRememberedLocality: boolean): string {
   const scope = hasRememberedLocality
     ? "Lowest listed prices near you"
     : "Lowest listed prices in central London";
-  return `${scope}, ${formatPintDatasetAsOf()}`;
+  return `${scope}. Last collected ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}.`;
 }
 
 export default function TodayPintsCard({ index }: Props) {
