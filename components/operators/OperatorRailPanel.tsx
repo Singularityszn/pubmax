@@ -80,7 +80,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
   useEffect(() => {
     if (!open || !signedIn) return;
     let active = true;
-    authedActionFetch(`/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`)
+    authedActionFetch(`/api/venue-operators/claim?venueId=${encodeURIComponent(venueId)}`, {}, { requiresIdentity: true })
       .then((res) => (res.ok ? res.json() : null))
       .then((data: { claim: OperatorClaimDTO | null } | null) => {
         if (!active) return;
@@ -109,7 +109,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId, evidenceKind, evidenceNote: note }),
-      });
+      }, { requiresIdentity: true });
       const data = (await res.json().catch(() => ({}))) as { claim?: OperatorClaimDTO; error?: string };
       if (!res.ok) {
         setClaimFeedback({ kind: "error", text: errorMessageFrom(data, "Could not file your claim just now.") });
@@ -145,7 +145,7 @@ export default function OperatorRailPanel({ venueId, venueName }: OperatorRailPa
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ venueId, type: proposalType, payload }),
-      });
+      }, { requiresIdentity: true });
       const data = (await res.json().catch(() => ({}))) as { error?: string };
       if (!res.ok) {
         setProposalFeedback({ kind: "error", text: errorMessageFrom(data, "Could not send your proposal.") });

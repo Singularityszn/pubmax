@@ -682,7 +682,7 @@ export default function FeedPageClient({
 
     try {
       const body = await buildOptimisticSpillRetryFormData(entry.retry);
-      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body });
+      const response = await authedActionFetch("/api/pint-drops", { method: "POST", body }, { requiresIdentity: true });
       const data = (await response.json().catch(() => ({}))) as {
         drop?: PintDropDTO;
         error?: string;

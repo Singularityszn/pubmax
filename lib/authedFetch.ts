@@ -6,8 +6,8 @@
 
 import { getAccessToken } from "@/lib/authClient";
 import {
-  readProviderIdentityRevision,
-  readProviderIdentitySignal,
+  readProviderAccountRevision,
+  readProviderAccountSignal,
 } from "@/lib/authProviderRevision";
 
 export const AUTH_ACTION_SESSION_ERROR_MESSAGE = "Still waking your session. Try again.";
@@ -54,10 +54,17 @@ function abortReason(signal: AbortSignal): unknown {
   return signal.reason === undefined ? abortError() : signal.reason;
 }
 
-type AccountBoundAction = Readonly<{
+type QueuedAction = Readonly<{
   signal: AbortSignal;
   accountRevision: number;
+  requiresIdentity: boolean;
 }>;
+
+export type AuthFetchOptions = Readonly<{
+  requiresIdentity: boolean;
+}>;
+
+export type AuthActionOptions = AuthFetchOptions;
 
 function callerActionSignals(
   input: RequestInfo | URL,
@@ -68,6 +75,26 @@ function callerActionSignals(
     : undefined;
   const callerSignal = initSignal ?? requestSignal;
   return callerSignal ? [callerSignal] : [];
+}
+
+function readTokenWithSignal(signal?: AbortSignal): Promise<string | null> {
+  if (!signal) return getAccessToken();
+  if (signal.aborted) return Promise.reject(abortReason(signal));
+  return new Promise((resolve, reject) => {
+    let settled = false;
+    const finish = (token: string | null, error?: unknown): void => {
+      if (settled) return;
+      settled = true;
+      signal.removeEventListener("abort", onAbort);
+      if (error) reject(error);
+      else resolve(token);
+    };
+    const onAbort = (): void => finish(null, abortReason(signal));
+    signal.addEventListener("abort", onAbort, { once: true });
+    void getAccessToken()
+      .then((token) => finish(token))
+      .catch(() => finish(null));
+  });
 }
 
 const fallbackAbortControllers = new WeakMap<AbortSignal, AbortController>();
@@ -147,6 +174,7 @@ function fallbackCompositeActionSignal(
 
 function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
   const distinctSignals = [...new Set(signals)];
+  if (distinctSignals.length === 0) return new AbortController().signal;
   if (distinctSignals.length === 1) return distinctSignals[0] as AbortSignal;
   if (typeof AbortSignal.any === "function") {
     return AbortSignal.any(distinctSignals);
@@ -154,12 +182,18 @@ function compositeActionSignal(signals: readonly AbortSignal[]): AbortSignal {
   return fallbackCompositeActionSignal(distinctSignals);
 }
 
-function bindAccountAction(callerSignals: readonly AbortSignal[]): AccountBoundAction {
-  const accountRevision = readProviderIdentityRevision();
-  const providerSignal = readProviderIdentitySignal();
+function bindQueuedAction(
+  callerSignals: readonly AbortSignal[],
+  requiresIdentity: boolean,
+): QueuedAction {
+  const accountRevision = readProviderAccountRevision();
+  const signals = requiresIdentity
+    ? [readProviderAccountSignal(), ...callerSignals]
+    : callerSignals;
   return {
     accountRevision,
-    signal: compositeActionSignal([providerSignal, ...callerSignals]),
+    requiresIdentity,
+    signal: compositeActionSignal(signals),
   };
 }
 
@@ -240,38 +274,56 @@ function readTokenBefore(deadline: number, signal?: AbortSignal): Promise<string
  */
 export async function authedFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
+  options: AuthFetchOptions,
 ): Promise<Response> {
+  const callerSignal = callerActionSignals(input, init.signal ?? undefined)[0];
+  const signal = options.requiresIdentity
+    ? compositeActionSignal([
+        readProviderAccountSignal(),
+        ...(callerSignal ? [callerSignal] : []),
+      ])
+    : callerSignal;
   const headers = new Headers(init.headers);
+  if (!options.requiresIdentity) {
+    headers.delete("authorization");
+    return fetch(input, { ...init, headers });
+  }
   try {
-    const token = await getAccessToken();
+    const token = await readTokenWithSignal(signal);
+    if (signal?.aborted) throw abortReason(signal);
     if (token) headers.set("authorization", `Bearer ${token}`);
-  } catch {
+  } catch (error) {
+    if (signal?.aborted) throw error;
     // Signed-out / storage blocked — proceed anonymously.
   }
-  return fetch(input, { ...init, headers });
+  return fetch(input, { ...init, headers, signal });
 }
 
 type ActiveAuthActionResponse = Readonly<{
   signal: AbortSignal;
   accountRevision: number;
+  requiresIdentity: boolean;
   response: Response;
 }>;
 
 async function activeAuthActionFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
+  boundAction: QueuedAction | undefined,
+  options: AuthActionOptions,
 ): Promise<ActiveAuthActionResponse> {
   const callerSignals = callerActionSignals(input, init.signal ?? undefined);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  let action = authActionState.status === "unknown"
-    ? null
-    : bindAccountAction(callerSignals);
-  await waitForAuthActionReadiness(
-    deadline,
-    action?.signal ?? compositeActionSignal(callerSignals),
-  );
-  action ??= bindAccountAction(callerSignals);
+  const action = boundAction ?? bindQueuedAction(callerSignals, options.requiresIdentity);
+  if (!action.requiresIdentity) {
+    const headers = new Headers(init.headers);
+    headers.delete("authorization");
+    const response = await fetch(input, { ...init, headers, signal: action.signal });
+    retainedActionSignals.set(response, action.signal);
+    return { ...action, response };
+  }
+  await waitForAuthActionReadiness(deadline, action.signal);
 
   let token: string | null = null;
   for (const delayMs of AUTH_ACTION_TOKEN_RETRY_DELAYS_MS) {
@@ -302,7 +354,8 @@ async function activeAuthActionFetch(
 }
 
 /**
- * Fetch for a request whose server action requires the signed-in account.
+ * Fetch for a server action. Each caller declares whether its request carries
+ * viewer identity; anonymous actions omit auth and do not wait for readiness.
  * While auth is unresolved, this waits for the existing identity signal and
  * retries the browser session read within one bounded two-second window.
  * Once auth is usable, token lookup and the active fetch bind to that provider
@@ -312,9 +365,10 @@ async function activeAuthActionFetch(
  */
 export async function authedActionFetch(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
+  options: AuthActionOptions = { requiresIdentity: false },
 ): Promise<Response> {
-  return (await activeAuthActionFetch(input, init)).response;
+  return (await activeAuthActionFetch(input, init, undefined, options)).response;
 }
 
 /**
@@ -332,10 +386,12 @@ export async function signedInActionFetch(
   input: RequestInfo | URL,
   init: RequestInit = {},
 ): Promise<Response | null> {
+  const callerSignals = callerActionSignals(input, init.signal ?? undefined);
+  const action = bindQueuedAction(callerSignals, true);
   const deadline = Date.now() + AUTH_ACTION_TOKEN_TIMEOUT_MS;
-  await waitForAuthActionReadiness(deadline, init.signal ?? undefined);
+  await waitForAuthActionReadiness(deadline, action.signal);
   if (authActionState.status !== "signed-in" || !authActionState.identityResolved) return null;
-  return authedActionFetch(input, init);
+  return (await activeAuthActionFetch(input, init, action, { requiresIdentity: true })).response;
 }
 
 export type AuthedActionJson<T> = Readonly<{
@@ -346,11 +402,17 @@ export type AuthedActionJson<T> = Readonly<{
 /** Fetch and parse account-scoped JSON under one provider identity revision. */
 export async function authedActionJson<T = unknown>(
   input: RequestInfo | URL,
-  init: RequestInit = {},
+  init: RequestInit,
+  options: AuthActionOptions,
 ): Promise<AuthedActionJson<T>> {
-  const { signal, accountRevision, response } = await activeAuthActionFetch(input, init);
+  const { signal, accountRevision, requiresIdentity, response } = await activeAuthActionFetch(
+    input,
+    init,
+    undefined,
+    options,
+  );
   const body = (await response.json()) as T;
   if (signal.aborted) throw abortReason(signal);
-  if (readProviderIdentityRevision() !== accountRevision) throw abortError();
+  if (requiresIdentity && readProviderAccountRevision() !== accountRevision) throw abortError();
   return { response, body };
 }

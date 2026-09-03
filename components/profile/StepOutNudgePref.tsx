@@ -55,7 +55,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
-    void authedActionFetch("/api/step-out-nudge", { signal: controller.signal })
+    void authedActionFetch("/api/step-out-nudge", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -97,7 +97,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
       const response = await authedActionFetch("/api/step-out-nudge", {
         method: "POST",
         body: JSON.stringify({ enabled: true, token }),
-      });
+      }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(
@@ -126,7 +126,7 @@ export default function StepOutNudgePref(): React.JSX.Element | null {
     setBusy(true);
     setNotice("");
     try {
-      const response = await authedActionFetch("/api/step-out-nudge", { method: "DELETE" });
+      const response = await authedActionFetch("/api/step-out-nudge", { method: "DELETE" }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       if (!response.ok) {
         setNotice(

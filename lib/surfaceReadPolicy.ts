@@ -84,7 +84,7 @@ export const SURFACE_READ_EXEMPTIONS = [
   { path: "components/webmcp/WebMcpNightBoard.tsx", fetchCount: 4, reason: "Agent Night Board reads answer a person or agent action, not a mount: each carries the caller's AbortSignal, and the evidence read is tied to one route revision and cleared on a swap, so a cached answer would outlive the route it describes" },
   { path: "lib/analytics.ts", fetchCount: 2, reason: "analytics transport is fire-and-forget telemetry, never painted data" },
   { path: "lib/adminSessionClient.ts", fetchCount: 1, reason: "admin session transport must confirm the browser kept the secure session cookie" },
-  { path: "lib/authedFetch.ts", fetchCount: 3, reason: "shared graceful and strict bearer transports serve auth-gated actions and public reads" },
+  { path: "lib/authedFetch.ts", fetchCount: 5, reason: "shared graceful and strict bearer transports serve auth-gated actions and public reads" },
   { path: "lib/savedPubs.ts", fetchCount: 2, reason: "saved-list reads are private viewer context with their own mutation-sensitive state" },
   { path: "lib/heritage.ts", fetchCount: 1, reason: "heritage question is a user-submitted request, not a painted reload surface" },
   { path: "lib/pois.ts", fetchCount: 1, reason: "map POI pack is static viewport data with map-owned lifecycle" },

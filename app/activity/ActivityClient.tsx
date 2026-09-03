@@ -146,7 +146,7 @@ export default function ActivityClient(): React.JSX.Element {
     try {
       const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
-      });
+      }, { requiresIdentity: true });
       if (accountRevisionRef.current !== requestRevision) return;
       if (!res.ok) {
         discardBody(res);
@@ -161,7 +161,7 @@ export default function ActivityClient(): React.JSX.Element {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: h }),
         signal: controller.signal,
-      }).catch(() => {});
+      }, { requiresIdentity: true }).catch(() => {});
     } catch {
       if (controller.signal.aborted || accountRevisionRef.current !== requestRevision) return;
       setFailed(true);

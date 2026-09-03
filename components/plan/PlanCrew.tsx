@@ -237,7 +237,7 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
         method: "POST",
         headers: { "content-type": "application/json", "idempotency-key": operationKey },
         body: JSON.stringify({ name, inviteToken }),
-      });
+      }, { requiresIdentity: true });
       const body = await response.json();
       if (!response.ok || !body?.memberToken) throw new Error(errorMessageFrom(body, "Could not join this plan."));
       writePlanCapability(planId, { token: body.memberToken, collaborationAuthorized: body.collaborationAuthorized === true, role: "guest" });

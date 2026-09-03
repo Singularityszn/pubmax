@@ -282,7 +282,7 @@ export default function MessageThread({
       try {
         const res = await authedActionFetch(
           `/api/messages/${encodeURIComponent(conversationId)}?handle=${encodeURIComponent(h)}`,
-          { signal },
+          { signal }, { requiresIdentity: true },
         );
         if (!stillCurrent()) {
           discardBody(res);
@@ -423,13 +423,13 @@ export default function MessageThread({
         const form = new FormData();
         form.append("post", JSON.stringify(post));
         form.append("photo", pending.file);
-        res = await authedActionFetch(address, { method: "POST", body: form });
+        res = await authedActionFetch(address, { method: "POST", body: form }, { requiresIdentity: true });
       } else {
         res = await authedActionFetch(address, {
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify(post),
-        });
+        }, { requiresIdentity: true });
       }
 
       if (res.status === 401) {
@@ -479,7 +479,7 @@ export default function MessageThread({
           method: "POST",
           headers: { "content-type": "application/json" },
           body: JSON.stringify({ action: "report", handle: h, messageId }),
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           const body: unknown = await res.json().catch(() => null);
           setError(

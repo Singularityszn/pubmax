@@ -39,7 +39,7 @@ export default function WantedPromotionControl({
           id: wantedId,
           listType,
         }),
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await response.json().catch(() => null);
       if (!response.ok) {
         setStatus("error");

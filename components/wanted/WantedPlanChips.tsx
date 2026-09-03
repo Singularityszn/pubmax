@@ -27,7 +27,7 @@ export default function WantedPlanChips({
     let cancelled = false;
     void (async () => {
       try {
-        const res = await authedFetch("/api/wanted?open=1");
+        const res = await authedFetch("/api/wanted?open=1", {}, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           return;

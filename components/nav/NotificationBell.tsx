@@ -50,7 +50,7 @@ export default function NotificationBell(): React.JSX.Element {
     try {
       const res = await authedActionFetch(`/api/notifications?handle=${encodeURIComponent(h)}`, {
         signal: controller.signal,
-      });
+      }, { requiresIdentity: true });
       if (!res.ok) {
         discardBody(res);
         return;

@@ -92,7 +92,7 @@ export default function VenuePhotoWall({
       try {
         const params = new URLSearchParams({ venueId });
         if (cursor) params.set("cursor", cursor);
-        const response = await authedFetch(`/api/venue-photos?${params.toString()}`);
+        const response = await authedFetch(`/api/venue-photos?${params.toString()}`, {}, { requiresIdentity: true });
         const body: unknown = await response.json().catch(() => null);
         if (!response.ok || !isPage(body)) {
           setWall((current) => ({ ...current, status: "degraded" }));

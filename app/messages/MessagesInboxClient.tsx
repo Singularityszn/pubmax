@@ -116,7 +116,7 @@ export default function MessagesInboxClient({
       try {
         const res = await authedActionFetch(`/api/messages?handle=${encodeURIComponent(h)}`, {
           signal,
-        });
+        }, { requiresIdentity: true });
         if (!stillCurrent()) {
           discardBody(res);
           return;
