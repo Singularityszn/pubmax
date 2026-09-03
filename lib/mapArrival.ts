@@ -48,6 +48,39 @@ export function resolveQueryRestoreFit(matchCount: number): QueryRestoreFit {
   return "fit-many";
 }
 
+export type ArrivalQueryRestore = "wait" | "select-single" | "fit-many" | "retire";
+
+/**
+ * Decide whether the frozen arrival query may still move the live Map.
+ *
+ * `arrivalSearch` is intentionally frozen at mount, but `currentQuery` belongs
+ * to the reader after that. Clearing or changing search therefore retires the
+ * one-shot restore. A Venue selection owns the camera too, so it also retires
+ * restoration instead of leaving a latent replay after the sheet closes.
+ */
+export function resolveArrivalQueryRestore(input: {
+  arrivalSearch: string;
+  currentQuery: string;
+  mapReady: boolean;
+  selectedVenueId: string;
+  didRestore: boolean;
+  matchCount: number;
+}): ArrivalQueryRestore {
+  const arrivalQuery = new URLSearchParams(input.arrivalSearch).get("q")?.trim() ?? "";
+  if (
+    !shouldFitQueryVenuesOnArrival(input.arrivalSearch) ||
+    !arrivalQuery ||
+    input.currentQuery.trim() !== arrivalQuery ||
+    input.selectedVenueId ||
+    input.didRestore
+  ) {
+    return "retire";
+  }
+  if (!input.mapReady) return "wait";
+  const fit = resolveQueryRestoreFit(input.matchCount);
+  return fit === "none" ? "wait" : fit;
+}
+
 /**
  * Whether the planner (left drawer) should open on first paint.
  *
