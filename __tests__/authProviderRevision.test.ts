@@ -84,6 +84,10 @@ describe("provider identity revision", () => {
     expect(resolveSupabaseAuthState("bootstrap", false, null)).toBe("signed-out");
   });
 
+  it("keeps a timed-out auth read unavailable instead of claiming signed out", () => {
+    expect(resolveSupabaseAuthState("timeout", false, null)).toBe("unavailable");
+  });
+
   it("does not let a bootstrap timeout replace an authenticated session", () => {
     vi.useFakeTimers();
     let state: ProviderAuthState = "unresolved";
