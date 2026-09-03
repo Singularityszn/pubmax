@@ -198,6 +198,15 @@ describe("sanitizeEvent", () => {
       expect(INVITE_SCOREBOARD_DOC).toMatch(/participants\s*>=\s*2/);
       expect(INVITE_SCOREBOARD_DOC).toMatch(/crew_committed/);
     });
+
+    it("documents the emission as one event per plan per night", () => {
+      // The filter above only counts nights while the emission does. Issue
+      // #1253: the doc claimed nights over an event that fired on every join.
+      expect(METRICS_FUNNEL_DOC).toMatch(/One event per plan per night/);
+      expect(METRICS_FUNNEL_DOC).toMatch(/joinCommitsCrewNight/);
+      expect(INVITE_SCOREBOARD_DOC).toMatch(/once per\s+plan per night/);
+      expect(CREW_NIGHT_LOOP_DOC).toMatch(/once per plan per night/);
+    });
   });
 
   describe("loop north star (next_night_committed)", () => {

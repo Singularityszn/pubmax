@@ -2,8 +2,9 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { callerUserId } from "@/lib/authServer";
 import { formFriendEdgesForPlanJoin } from "@/lib/crewFriendEdges";
-import { cleanCrewName } from "@/lib/crew";
+import { cleanCrewName, joinCommitsCrewNight } from "@/lib/crew";
 import { isLimited } from "@/lib/pintDrops";
+import { londonDayKey } from "@/lib/pintContributions";
 import { isPlanId, type PlanState } from "@/lib/plan";
 import { isClassicPlanInviteToken } from "@/lib/planCrewInviteUrl";
 import { planRouteReady } from "@/lib/planPrivacy";
@@ -46,15 +47,21 @@ assertServerEnv();
 type Context = { params: Promise<{ id: string }> };
 
 // §4.10: a successful join returns a verified crew_committed delivery token so
-// the client can report the north-star Friend proof. The joinId is the new
-// member's non-secret crew id — never the member capability. Absent when the
-// store returned no plan/crew (nothing to commit).
+// the client can report the north-star Friend proof.
+//
+// The token rides ONE join per plan per night: the one that took the roster to
+// the crew-night threshold. Every join used to get its own token, so a plan
+// that reached four people reported three crew nights, and the biggest crews
+// were overcounted the most (issue #1253). A later join gets no token, so the
+// client sends no beacon at all. The plan id and its night stay inside the
+// signed subject and never ride on the event, which keeps §7 id hygiene.
+// Absent when the store returned no plan (nothing to commit).
 function crewCommittedToken(plan: PlanState | null): string | undefined {
-  const joinId = plan?.crew.at(-1)?.id;
-  if (!plan || !joinId) return undefined;
+  if (!plan || !joinCommitsCrewNight(plan.crew.length)) return undefined;
   return crewCommittedEventToken({
-    joinId,
-    joinedAt: new Date().toISOString(),
+    planId: plan.plan.id,
+    nightKey: londonDayKey(plan.plan.startTime) || "unscheduled",
+    committedAt: new Date().toISOString(),
     participants: plan.crew.length,
     routeReady: planRouteReady(plan),
   });

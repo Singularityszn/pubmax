@@ -248,16 +248,24 @@ export default function PlanCrew({ planId, hostName }: { planId: string; hostNam
       const nextCrew = body.plan?.crew ?? crew;
       setCrew(nextCrew);
       const routeReady = body.plan ? planRouteReady(body.plan) : false;
-      const deliveryToken = typeof body.crewCommitted === "string" ? body.crewCommitted : undefined;
-      trackEvent(
-        "crew_committed",
-        {
-          source: "shared-plan",
-          participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
-          routeReady,
-        },
-        deliveryToken ? { deliveryToken } : undefined,
-      );
+      const deliveryToken = typeof body.crewCommitted === "string" && body.crewCommitted
+        ? body.crewCommitted
+        : undefined;
+      // The unit is the NIGHT, not the join. The server hands back a delivery
+      // token only for the join that first takes this plan's roster to two, so
+      // a later join sends nothing. Emitting anyway spent a beacon the ingest
+      // route discards, and it is what let one plan report several crew nights.
+      if (deliveryToken) {
+        trackEvent(
+          "crew_committed",
+          {
+            source: "shared-plan",
+            participants: Array.isArray(nextCrew) ? nextCrew.length : 1,
+            routeReady,
+          },
+          { deliveryToken },
+        );
+      }
       if (typeof body.friendEdgesFormed === "number" && body.friendEdgesFormed > 0) {
         trackEvent("friend_edge_via_crew", { source: "plan-crew" });
       }

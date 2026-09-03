@@ -17,13 +17,34 @@ PostHog. Nothing in this wave weakens that gate.
 **Per-night metric:** share of nights where a plan reaches **at least two committed
 humans** on the crew roster, not scroll DAU on `/social`.
 
-**Event:** `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx`
+**Event:** `crew_committed` fires client-side in `components/plan/PlanCrew.tsx`
 after a confirmed `POST /api/plans/[id]/join` success. The host never emits
 this event for their own plan (they are already a member at creation).
 
-**Property:** `participants` — integer headcount on the plan crew after the
-join succeeds (`nextCrew.length` in `PlanCrew.tsx`). The registry allows
-integers from 1 through 100 inclusive (`lib/analyticsEvents.ts`).
+**One event per plan per night.** The event fires for exactly one join: the one
+that first takes the plan roster to two committed humans. A third, fourth or
+later join fires nothing, because the night it belongs to has already been
+counted. The server decides this, not the browser: `app/api/plans/[id]/join`
+mints the verified delivery token only when `joinCommitsCrewNight`
+(`lib/crew.ts`) answers true for the roster size after the join, and
+`PlanCrew.tsx` sends no beacon at all without that token.
+
+Two guards make it exactly once per night rather than once per crossing:
+
+1. A replayed or retried join returns the same plan through the existing
+   idempotency key, so the mint is deterministic and the receipt store
+   (`lib/analyticsReceiptStore.ts`) answers `delivered` for the second delivery.
+2. The token subject is `plan:<id>:crew-night:<london day>:crew-committed`, so a
+   roster that drops back to one and returns to two on the same night mints the
+   same receipt and is refused. The plan id and the night live inside that
+   signed subject only. Neither ever rides on the event, so the §7 id hygiene
+   rule below is unchanged.
+
+**Property:** `participants` is the integer headcount on the plan crew after
+the join succeeds (`nextCrew.length` in `PlanCrew.tsx`). At the one join that
+fires the event, that headcount is 2. The registry still allows integers from 1
+through 100 inclusive (`lib/analyticsEvents.ts`), so the prop shape and every
+saved dashboard filter are unchanged.
 
 **Formula:**
 
@@ -32,10 +53,13 @@ crew_nights_with_two_or_more = count(crew_committed WHERE participants >= 2, win
 crew_night_rate              = crew_nights_with_two_or_more / count(plan_saved, window=7d)
 ```
 
-Group by pseudonymous `distinct_id` when you need a per-planner rate. A single
-plan may emit several `crew_committed` events as guests join; each carries the
-then-current `participants` count, so the per-night filter is `participants >= 2`
-on the event, not a dedupe by plan id (no plan id rides on this event).
+Group by pseudonymous `distinct_id` when you need a per-planner rate. The
+filter is `participants >= 2` on the event, and it is now a count of nights
+because the emission is one per plan per night. It was a count of JOIN EVENTS
+until issue #1253: one plan that reached four people emitted `participants` 2,
+then 3, then 4, all three passed the filter, and the overcount grew with the
+crew. There is still no dedupe by plan id, because no plan id rides on this
+event.
 
 **Why not RSVP-only:** `invite_rsvp_submitted` on `/invite/[token]` measures a
 Going or Maybe tap on the public invite card. That is intent, not membership.
@@ -63,12 +87,12 @@ a venue id or a coordinate. `crew_committed >= 2` measures one night;
 ## 1. Nights planned / week
 
 **Events (both pre-existing, reused as-is):**
-- `plan_created` — fires client-side in `components/plan/PlanComposer.tsx` on
+- `plan_created` fires client-side in `components/plan/PlanComposer.tsx` on
   a confirmed `POST /api/plans` success (the host's own plan).
-- `crew_committed` — fires client-side in `components/plan/PlanCrew.tsx` on a
-  confirmed `POST /api/plans/[id]/join` success, with `source: "shared-plan"`.
+- `crew_committed` fires client-side in `components/plan/PlanCrew.tsx` on the
+  join that first takes a plan roster to two, with `source: "shared-plan"`.
 
-**Dedupe:** the two events are structurally exclusive — a host's own plan
+**Dedupe:** the two events are structurally exclusive. A host's own plan
 never re-fires `crew_committed` for itself (the host is a member at
 creation, not a joiner), and a guest join never fires `plan_created`. So:
 
@@ -79,6 +103,16 @@ nights_planned_per_week = count(plan_created, window=7d)
 
 grouped by the anonymous id (the `distinct_id` PostHog receives) to
 get a per-planner rate.
+
+**What the §0 change did to this figure.** The total is now one row per night
+rather than one per person on it, which is what the name already promised: a
+host plus three guests used to add 4 to this figure for one night, and now adds
+2 (the host's `plan_created` and the crew night). The per-planner grouping
+narrows with it: only the guest whose join formed the crew registers a planned
+night, so the later guests on a big crew no longer appear here. Read this
+figure as nights, not as people who went out. There is no per-guest event to
+restore that reading, and inventing one would need its own privacy review
+against §7.
 
 ## 2. Invites per planner (k-factor)
 

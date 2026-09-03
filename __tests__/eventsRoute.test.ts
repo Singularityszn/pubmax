@@ -357,8 +357,9 @@ describe("POST /api/events", () => {
     const crewResponse = await POST(post(JSON.stringify({
       ...crew,
       deliveryToken: crewCommittedEventToken({
-        joinId: "join-one",
-        joinedAt: occurredAt,
+        planId: "plan-one",
+        nightKey: "2026-08-21",
+        committedAt: occurredAt,
         participants: 3,
         routeReady: true,
       }),
