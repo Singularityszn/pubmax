@@ -250,6 +250,9 @@ describe("AGENTS.md pointers", () => {
     // reads as protection and can never fire. Same rule as the performance
     // budgets: take it UP when the count rises, and take it DOWN only in the
     // commit that removes pointers on purpose, with the reason.
-    expect(pointers().length).toBeGreaterThan(549);
+    // Raised from 549 with the law-by-law trim: the document lost 27 per cent of
+    // its bytes and NO pointer, so the shipped count rose from 563 to 569 and the
+    // floor keeps the same slack under it.
+    expect(pointers().length).toBeGreaterThan(555);
   });
 });
