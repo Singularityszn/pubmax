@@ -47,6 +47,41 @@ npm run dev            # http://localhost:3000 — works with NO secrets
 
 The app runs **keyless** for local dev: Pint Drops use an in-memory store and The Landlord answers in grounded/structured mode (reads the facts on record; no narration). To light up the durable seams, copy `.env.example` → `.env.local` and add Supabase + `OPENROUTER_API_KEY`.
 
+### WebMCP Agent Night Board
+
+Open [`/webmcp`](http://localhost:3000/webmcp) to build one visible Crawl Route with a person and a browser agent. It works without secrets or sign-in. ChatGPT's in-app browser supports WebMCP. Google Chrome 149 or later needs `chrome://flags/#enable-webmcp-testing` enabled.
+
+Challenge source: [karanmrn/pubmaxx-webmcp](https://github.com/karanmrn/pubmaxx-webmcp).
+
+The page registers five top-level tools only while the Night Board is open:
+
+- `search_pubmaxx_venues`
+- `read_london_night_context`
+- `draft_pub_crawl`
+- `swap_crawl_stop`
+- `open_crawl_in_pubmaxx`
+
+Registration uses the native imperative API:
+
+```ts
+document.modelContext.registerTool(
+  {
+    name: "search_pubmaxx_venues",
+    description: "Search the curated PUBMAXX Venue Dataset by venue name or area.",
+    inputSchema: {
+      type: "object",
+      properties: { query: { type: "string", minLength: 2, maxLength: 80 } },
+      required: ["query"],
+      additionalProperties: false,
+    },
+    execute: async (input, context) => searchPubmaxxVenues(input, context.signal),
+  },
+  { signal: registrationController.signal },
+);
+```
+
+Implementation, trust boundaries, browser test steps, and tool contracts are in [`docs/WEBMCP.md`](docs/WEBMCP.md). Challenge answers and the demo script are in [`docs/WEBMCP_SUBMISSION.md`](docs/WEBMCP_SUBMISSION.md).
+
 Useful scripts:
 
 | Command | What it does |

@@ -94,6 +94,15 @@
       "jsDecodedKB": 1200,
       "requests": 75,
       "lcpMs": 2500
+    },
+    {
+      "path": "/webmcp",
+      "readySelector": ".webmcpShell",
+      "why": "The Agent Night Board. It is unlinked and noindex, so nobody arrives here by browsing, but it is a route a judge and an agent both open and it must not become the place heavy work hides. Seeded from the 2026-09-03 sweep on this branch: 13 ms server render, 863 KB decoded, 37 requests, 184 ms LCP. The board fetches nothing on mount, so those figures are the shell; every read here answers a person or agent action afterwards. Ceilings are set in family with /about and /pubs, which measure about 830 KB against 1200 KB, rather than at the measured figure, because a request count measured on one box is not comparable to CI's. CI is the oracle: take these DOWN at the next sweep, never up.",
+      "serverRenderMs": 150,
+      "jsDecodedKB": 1200,
+      "requests": 56,
+      "lcpMs": 2500
     }
   ]
 }
