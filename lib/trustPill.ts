@@ -22,7 +22,10 @@ export type TrustPillLiveTone = (typeof TRUST_PILL_LIVE_TONES)[number];
 
 export const TRUST_PILL_LABEL: Record<TrustPillTone, string> = {
   confirmed: "Confirmed",
-  none: "No price logged",
+  // Grey sits beside a LISTED price nobody has confirmed, so it names the gap
+  // rather than denying the figure next to it, and it hands the reader the
+  // action that closes it.
+  none: "Not confirmed yet",
   held: "Scraped",
 };
 

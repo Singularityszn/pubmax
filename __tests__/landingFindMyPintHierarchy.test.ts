@@ -17,7 +17,6 @@ vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/choose-city",
@@ -27,8 +26,10 @@ vi.mock("@/lib/cityPreference", () => ({
 
 import LandingPage from "@/components/landing/LandingPage";
 
-// One primary action is permanent; Plan, Map, Tonight and location stay visible
-// as text links.
+// The landing hierarchy is permanent and no flag decides it (captain
+// 2026-09-03, issue #1354): ONE primary action, the price receipt door, with
+// the Pal as the quiet second door. Every other route off the page is a text
+// link below the hero or a directory link in the footer.
 
 const landingTsx = readFileSync(
   join(process.cwd(), "components/landing/LandingPage.tsx"),
@@ -44,7 +45,17 @@ const pintDropStrip = readFileSync(
   "utf8",
 );
 
-describe("landing Pub Pal hierarchy", () => {
+function render(): string {
+  return renderToStaticMarkup(createElement(LandingPage));
+}
+
+function hero(rendered: string): string {
+  const match = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
+  expect(match, "landing hero present").toBeTruthy();
+  return match ?? "";
+}
+
+describe("landing hierarchy: the price receipt door", () => {
   it("keeps the hierarchy permanent without a landing flag", () => {
     expect(pageTsx).not.toMatch(/readTrustedHandoffFlags/);
     expect(pageTsx).not.toMatch(/landingFindMyPint/);
@@ -55,48 +66,38 @@ describe("landing Pub Pal hierarchy", () => {
     expect(landingTsx).not.toMatch(/PUBMAX_LANDING_FIND_MY_PINT/);
   });
 
-  it("uses Meet your Pub Pal as the only primary action", () => {
-    const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const hero = rendered.match(/<section class="lpHero"[\s\S]*?<\/section>/)?.[0];
-    expect(hero, "landing hero present").toBeTruthy();
-    expect(hero).toMatch(
-      /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
+  it("uses the price receipt door as the only primary action, the Pal as the second door", () => {
+    const h = hero(render());
+    expect(h).toMatch(
+      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Log what you paid<\/a>/,
     );
-    expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
-    expect(hero).toContain("Sign in to keep it");
-    expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst/);
-    expect(landingTsx).not.toMatch(/lpHeroActions--findMyPint/);
+    expect(h.match(/data-primary-action/g)).toHaveLength(1);
+    expect(h).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Meet your Pub Pal<\/a>/);
+    // The old landing button family is gone, so nothing else can wear coral.
+    expect(h).not.toContain("lpButton");
+    expect(landingTsx).not.toMatch(/lpHeroActions--mapFirst|lpHeroActions--findMyPint|lpButtonPrimary/);
   });
 
-  it("asks for location only from the two deliberate CTAs, never the footer", () => {
-    const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const footerNav = rendered.match(
-      /<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/,
-    )?.[0];
+  it("asks for location only from the receipt door, never the footer", () => {
+    const rendered = render();
+    const footerNav = rendered.match(/<nav class="lpFooterNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(footerNav, "footer nav present").toBeTruthy();
     expect(footerNav).toMatch(/href="\/near"/);
     expect(footerNav).not.toMatch(/locate=1/);
-    expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(2);
+    expect(rendered.match(/href="\/near\?locate=1"/g)).toHaveLength(1);
   });
 
-  it("keeps Plan, Map, Tonight and Find my pint visible as lower-weight text links", () => {
-    const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const secondaryBlock = rendered.match(
-      /<div class="lpHeroSecondaryRow">[\s\S]*?<\/div>/,
-    )?.[0];
-    expect(secondaryBlock, "secondary action row present").toBeTruthy();
-    expect(secondaryBlock).toMatch(/href="\/plan"[\s\S]*Plan tonight together/);
-    expect(secondaryBlock).toMatch(/href="\/map"[\s\S]*Open the map/);
-    expect(secondaryBlock).toMatch(/href="\/tonight"[\s\S]*Tonight/);
-    expect(secondaryBlock).toMatch(/href="\/near\?locate=1"[\s\S]*Find my pint/);
-    expect(secondaryBlock).not.toMatch(/lpButtonQuiet/);
+  it("counts the landing's own calls to action: one primary, one second door, one text link", () => {
+    const rendered = render();
+    expect(rendered.match(/data-primary-action/g)).toHaveLength(1);
+    expect(rendered.match(/class="screenSecondary"/g)).toHaveLength(1);
+    const textLinks = [...rendered.matchAll(/<a[^>]*class="lpTextLink"[^>]*>([\s\S]*?)<\/a>/g)].map((m) => m[1]);
+    expect(textLinks).toEqual(["Open the map"]);
   });
 
   it("opens the Map directly for a stranger and keeps city choice explicit", () => {
-    const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const landingNav = rendered.match(
-      /<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/,
-    )?.[0];
+    const rendered = render();
+    const landingNav = rendered.match(/<nav class="lpPrimaryNav"[^>]*>[\s\S]*?<\/nav>/)?.[0];
     expect(landingNav, "landing navigation present").toBeTruthy();
     expect(landingNav).toMatch(/href="\/map"[^>]*>Map<\/a>/);
 
@@ -108,19 +109,11 @@ describe("landing Pub Pal hierarchy", () => {
     expect(rendered).toMatch(/href="\/choose-city"[^>]*>Pick your city<\/a>/);
   });
 
-  it("CSS scopes dominant primary and high-contrast secondary text", () => {
-    expect(landingCss).toMatch(/\.lpHeroActions\s*\{/);
-    expect(landingCss).toMatch(/\.lpHeroSecondaryRow\s*\{/);
-    expect(landingCss).toMatch(
-      /\.lpHeroSecondaryRow \.lpTextLink\s*\{[\s\S]*?color:\s*var\(--ink\)/,
-    );
-    expect(landingCss).toMatch(
-      /\.lpButtonPrimary\s*\{[\s\S]*?color:\s*var\(--color-on-accent\)/,
-    );
-    // Mobile: no equal-weight Pal/Plan/Map button group.
-    expect(landingCss).toMatch(
-      /\.lpHeroActions\s*\{[^}]*grid-template-columns:\s*1fr/,
-    );
+  it("CSS: the hero fills the viewport and the desktop only widens the phone order", () => {
+    expect(landingCss).toMatch(/\.lpHero\s*{[^}]*min-height:\s*100dvh/);
+    expect(landingCss).toMatch(/@media \(min-width: 960px\)\s*{\s*\.lpHero\s*{[^}]*grid-template-columns/);
+    // No decoration behind the copy, no glass, no dot grid, no photo card.
+    expect(landingCss).not.toMatch(/orbit|scanline|backdrop-filter|radial-gradient|thamesHero|cinema/i);
   });
 
   it("preserves Pint Drop eight-second fail-soft hang path (do not rework)", () => {

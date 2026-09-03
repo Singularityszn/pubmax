@@ -238,7 +238,7 @@ for (const viewport of VIEWPORTS) {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
     measurements.landingPrimary = await expectRenderedTextContrast(
-      page.locator(".lpHero .lpButtonPrimary").first(),
+      page.locator(".lpHero [data-primary-action] a").first(),
     );
     const landingMaterial = await page.locator(".lpNav").evaluate((node) => {
       const style = getComputedStyle(node);

@@ -8,7 +8,7 @@ import { expect, test, type Page } from "@playwright/test";
 // so the aperture animation itself gets real-browser proof: it appears,
 // animates, and resolves within the 700ms hard ceiling with zero CLS, then
 // flows into the hero cinema's dark-start frame (see
-// components/landing/heroCinema.css and __tests__/heroCinemaReducedMotion.test.ts).
+// the retired landing hero cinema, removed with the relaunch landing).
 
 async function overrideWebdriver(page: Page) {
   await page.addInitScript(() => {

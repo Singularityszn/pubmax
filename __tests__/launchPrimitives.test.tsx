@@ -64,9 +64,9 @@ describe("TrustPill", () => {
     expect(html).toContain('aria-hidden="true"');
   });
 
-  it("says no price is logged on the grey tone", () => {
+  it("names the gap on the grey tone without denying the listed figure", () => {
     const html = renderToStaticMarkup(createElement(TrustPill, { tone: "none" }));
-    expect(html).toContain("No price logged");
+    expect(html).toContain("Not confirmed yet");
     expect(html).not.toContain("Confirmed");
   });
 

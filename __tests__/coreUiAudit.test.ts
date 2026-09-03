@@ -17,7 +17,6 @@ vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
 vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
 vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
 vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
-vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
 vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
 vi.mock("@/lib/cityPreference", () => ({
   preferredCityMapHref: () => "/choose-city",
@@ -41,14 +40,15 @@ const nextConfig = readFileSync(join(root, "next.config.mjs"), "utf8");
 const vercelIgnore = readFileSync(join(root, ".vercelignore"), "utf8");
 
 describe("core UI audit fixes", () => {
-  it("makes Meet your Pub Pal the landing hero primary", () => {
+  it("makes the price receipt door the landing hero's one primary action", () => {
     const rendered = renderToStaticMarkup(createElement(LandingPage));
-    const hero = rendered.match(/<section class="lpHero"[\s\S]*?<\/section>/)?.[0];
+    const hero = rendered.match(/<section class="screen lpHero"[\s\S]*?<\/section>/)?.[0];
     expect(hero, "landing hero present").toBeTruthy();
     expect(hero).toMatch(
-      /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
+      /data-primary-action=""><a[^>]*href="\/near\?locate=1"[^>]*>Log what you paid<\/a>/,
     );
-    expect(hero?.match(/class="lpButton lpButtonPrimary"/g)).toHaveLength(1);
+    expect(hero?.match(/data-primary-action/g)).toHaveLength(1);
+    expect(hero).toMatch(/class="screenSecondary"><a[^>]*href="\/pal"[^>]*>Meet your Pub Pal<\/a>/);
   });
 
   it("publishes the complete PUBMAXX brand to assistive technology", () => {

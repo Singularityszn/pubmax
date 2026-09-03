@@ -127,7 +127,7 @@ describe("preferredCityMapHref", () => {
 // refuses site data (Chrome "Block all cookies", or a sandboxed frame without
 // allow-same-origin), so naming the identifier is itself a throwing expression.
 // `readPreferredCity` is the getSnapshot argument to `useSyncExternalStore` on
-// the root landing (components/landing/LandingPage.tsx, ThamesHero.tsx), and a
+// the root landing (components/landing/LandingPage.tsx), and a
 // getSnapshot runs DURING render - so a throw here is not a lost preference,
 // it is the landing page on the error boundary.
 describe("the browser refuses site data", () => {

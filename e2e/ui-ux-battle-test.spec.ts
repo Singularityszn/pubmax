@@ -396,7 +396,7 @@ test("audited labels keep readable contrast in reachable states", async ({ baseU
 
     await navigateToAuditedRoute(page, baseURL!, AUDITED_ROUTES[0]);
     const landing = await new AxeBuilder({ page })
-      .include(".lpProofSection .lpSectionLabel")
+      .include(".lpHero .kicker")
       .withRules(["color-contrast"])
       .analyze();
     expect(landing.violations, `${theme} landing contrast`).toEqual([]);

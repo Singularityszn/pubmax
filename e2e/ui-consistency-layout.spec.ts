@@ -733,7 +733,7 @@ async function captureSurface(
         ".citySwitcherTrigger",
       ].join(", "),
     ),
-    await row(page, "landing hero actions", ".lpHeroActions .lpButton"),
+    await row(page, "landing hero actions", ".lpHero .screenActions a"),
     await row(page, "Plan stop count choices", ".planStopCount__choices > button"),
     await row(page, "profile header actions", ".profileActions > a, .profileActions > button"),
     await row(page, "profile owner utilities", ".profileOwnerUtilities .siteNavMoreBtn"),

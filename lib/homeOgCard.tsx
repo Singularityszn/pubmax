@@ -62,7 +62,7 @@ export const HOME_CARD_HERO_LEAD = "What a pint";
 export const HOME_CARD_HERO_TAIL = "costs,";
 export const HOME_CARD_HERO_ACCENT = "pub by pub.";
 export const HOME_CARD_SUPPORT =
-  "Choose its form and voice in five steps. Sign in to keep it, then talk or type while it shapes a night from PUBMAXX prices, venues, and events.";
+  "You want somewhere that will not mug you on the first round. One map should answer that without the usual three-app shuffle.";
 
 export function HomeOgCard({ stats }: { stats: AboutStats }) {
   const coverageBits = homeCardCoverage(stats);
