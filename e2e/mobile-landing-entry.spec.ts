@@ -43,7 +43,7 @@ async function expectWordmarkLettersOnOneLine(page: Page, label: string): Promis
   const tops = await page
     .locator(".lpNav .lpWordmark .pubmaxxWordmarkLetters > *")
     .evaluateAll((elements) => elements.map((element) => element.getBoundingClientRect().top));
-  expect(tops.length, `${label} should render PUBMA, the doubled X and ING`).toBe(3);
+  expect(tops.length, `${label} should render PUBMAX and the accent X`).toBe(2);
   expect(
     Math.max(...tops) - Math.min(...tops),
     `${label} should keep the wordmark letters on one row`,

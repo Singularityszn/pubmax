@@ -41,7 +41,7 @@ for (const viewport of DEVICES) {
 
       const wordmark = page.getByRole("banner").locator(".lpWordmark .pubmaxxWordmark");
       await expect(wordmark).toBeVisible();
-      await expect(wordmark.locator(".pubmaxxDoubleX svg")).toHaveCount(2);
+      await expect(wordmark.locator(".pubmaxxWordmarkAccent")).toHaveCount(1);
 
       await page.goto("/pal");
       await page.getByRole("button", { name: /Meet your Pub Pal/i }).click();
