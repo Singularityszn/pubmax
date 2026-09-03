@@ -128,60 +128,62 @@ async function startPostgres(): Promise<Session> {
     ["-D", dataDir, "-k", dataDir, "-p", String(port), "-h", "127.0.0.1"],
     { stdio: ["ignore", "pipe", "pipe"], env: { ...process.env, LC_ALL: "C" } },
   );
-  const logs: string[] = [];
-  handle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
-  handle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
+  try {
+    const logs: string[] = [];
+    handle.stdout?.on("data", (chunk) => logs.push(chunk.toString()));
+    handle.stderr?.on("data", (chunk) => logs.push(chunk.toString()));
 
-  const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
-  let ready = false;
-  for (let attempt = 0; attempt < 60; attempt += 1) {
-    try {
-      execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
-        stdio: "pipe",
-      });
-      ready = true;
-      break;
-    } catch {
-      await sleep(100);
+    const connectionArgs = ["-h", "127.0.0.1", "-p", String(port), "-U", "postgres"];
+    let ready = false;
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      try {
+        execFileSync(psql, [...connectionArgs, "-d", "postgres", "-c", "select 1"], {
+          stdio: "pipe",
+        });
+        ready = true;
+        break;
+      } catch {
+        await sleep(100);
+      }
     }
-  }
-  if (!ready) {
+    if (!ready) throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
+
+    const database = "pubmax_plan_join_0136";
+    execFileSync(
+      psql,
+      [...connectionArgs, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", `create database ${database}`],
+      { stdio: "pipe" },
+    );
+    const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
+
+    const sql = (statement: string): string =>
+      execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
+        encoding: "utf8",
+        stdio: ["pipe", "pipe", "pipe"],
+      })
+        .trim()
+        .split("\n")
+        .filter((line) => line.trim() !== "SET")
+        .join("\n")
+        .trim();
+
+    const applyFile = (path: string): void => {
+      execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
+    };
+
+    const stop = async (): Promise<void> => {
+      handle.kill("SIGINT");
+      await sleep(300);
+      handle.kill("SIGKILL");
+      rmSync(dataDir, { recursive: true, force: true });
+    };
+
+    return { sql, applyFile, stop };
+  } catch (error) {
     handle.kill("SIGKILL");
     rmSync(dataDir, { recursive: true, force: true });
-    throw new Error(`PostgreSQL failed to start:\n${logs.join("")}`);
+    throw error;
   }
-
-  const database = "pubmax_plan_join_0136";
-  execFileSync(
-    psql,
-    [...connectionArgs, "-d", "postgres", "-v", "ON_ERROR_STOP=1", "-c", `create database ${database}`],
-    { stdio: "pipe" },
-  );
-  const databaseArgs = [...connectionArgs, "-d", database, "-v", "ON_ERROR_STOP=1"];
-
-  const sql = (statement: string): string =>
-    execFileSync(psql, [...databaseArgs, "-t", "-A", "-c", statement], {
-      encoding: "utf8",
-      stdio: ["pipe", "pipe", "pipe"],
-    })
-      .trim()
-      .split("\n")
-      .filter((line) => line.trim() !== "SET")
-      .join("\n")
-      .trim();
-
-  const applyFile = (path: string): void => {
-    execFileSync(psql, [...databaseArgs, "-f", path], { stdio: "pipe" });
-  };
-
-  const stop = async (): Promise<void> => {
-    handle.kill("SIGINT");
-    await sleep(300);
-    handle.kill("SIGKILL");
-    rmSync(dataDir, { recursive: true, force: true });
-  };
-
-  return { sql, applyFile, stop };
 }
 
 /** Ask the join boundary for a seat, as the returning account. */
@@ -226,6 +228,7 @@ function requireDatabase(): Session {
 function seedRevokedSeat(db: Session): void {
   db.sql(`delete from public.plan_crew_members where plan_id = '${PLAN}';
     delete from public.plan_stops where plan_id = '${PLAN}';
+    delete from public.plan_invites where plan_id = '${PLAN}';
     delete from public.plans where id = '${PLAN}';`);
   db.sql(`insert into public.plans(id,title,start_time,owner_user_id,status)
       values('${PLAN}','Revoked seat night',now()+interval '1 day','${HOST_USER}','ready');
@@ -295,13 +298,24 @@ describe("0136 applied to PostgreSQL", () => {
     if (skipReason) context.skip(true, skipReason);
     const db = requireDatabase();
     seedRevokedSeat(db);
+    db.sql(`insert into public.plan_invites(id, plan_id, token_hash, expires_at)
+      values(
+        '00000000-0000-4000-8000-0000000000e1',
+        '${PLAN}',
+        md5('redeem-after-revoke-invite')||md5('redeem-after-revoke-invite-2'),
+        now()+interval '1 day'
+      );`);
 
     const outcome = redeemAs(db, "00000000-0000-4000-8000-0000000000d2", "redeem-after-revoke");
 
-    // No invite row is seeded, so the honest answer past the precheck is a
-    // not-found shape. That it is not `account_conflict` is the whole point:
-    // the revoked seat no longer refuses before the invite is looked up.
-    expect(outcome).not.toBe("account_conflict");
+    expect(outcome).toBe("joined");
+    expect(
+      db.sql("select case when redeemed_at is not null then 'redeemed' else 'not_redeemed' end from public.plan_invites where id = '00000000-0000-4000-8000-0000000000e1';"),
+    ).toBe("redeemed");
+    expect(
+      db.sql(`select user_id::text || '|' || case when membership_revoked_at is null then 'active' else 'revoked' end
+        from public.plan_crew_members where id = '00000000-0000-4000-8000-0000000000d2';`),
+    ).toBe(`${RETURNING_USER}|active`);
   }, 120_000);
 
   it("still refuses an account holding an ACTIVE seat, which 0136 must not loosen", (context) => {

@@ -16,6 +16,15 @@
 // The BEHAVIOUR - that a revoked prior seat now joins and redeems - is driven
 // against real PostgreSQL in planJoinRevokedPrecheckEffective.test.ts, which
 // skips loudly when the binaries are absent rather than passing quietly.
+//
+// REVIEW DISPOSITION: This source check is intentional. The banned shape is
+// grepping component source to infer runtime behaviour, which is why
+// momentPhotoEditorWiring was retired. A migration's SQL text is the shipped
+// artefact, not a proxy for it. This repo already uses the same byte-identity
+// check for 0099 in accountHasPassword migration coverage. The effective test
+// beside this file proves behaviour against PostgreSQL, while this check catches
+// what PostgreSQL cannot report: create-or-replace carrying an unintended
+// change, such as a dropped SET clause.
 
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
