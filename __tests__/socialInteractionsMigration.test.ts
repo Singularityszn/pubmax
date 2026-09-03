@@ -178,10 +178,30 @@ describe("Social interactions migration forward, race, and rollback", () => {
     expect(db.sql(`select attempts from public.social_interaction_moderation_jobs where content_id='${held}'`)).toBe("2");
   });
 
+  // The locking statement runs in its OWN psql process, so a fixed sleep before
+  // the racer is a bet that a process spawn plus a TCP connect plus BEGIN plus
+  // the policy call all finish in time. Under the loaded parallel suite they do
+  // not, the racer gets in first, and the test fails on a serialisation the
+  // database performed correctly. So wait for the lock to be OBSERVABLY held:
+  // the locking transaction reaches `pg_sleep` only after its policy statement
+  // has run, so another session seeing that sleep proves the lock is held.
+  async function lockingTransactionIsHolding(db: Database): Promise<void> {
+    for (let attempt = 0; attempt < 200; attempt += 1) {
+      const holding = await db.sqlAsync(
+        `select count(*) from pg_stat_activity
+         where state = 'active' and query like '%pg_sleep%'
+           and query not like '%pg_stat_activity%' and pid <> pg_backend_pid()`,
+      );
+      if (Number(holding) > 0) return;
+      await sleep(20);
+    }
+    throw new Error("the locking transaction never became visible");
+  }
+
   it("serialises comment creation against an author lock", async () => {
     const db = database!;
     const locking = db.sqlAsync(`begin; select public.set_social_comment_policy('${ALICE}','${postId}','locked'); select pg_sleep(1); commit`);
-    await sleep(100);
+    await lockingTransactionIsHolding(db);
     await expect(db.sqlAsync(`select id from public.create_social_comment(
       '${CAROL}','${postId}','carol','Racing comment','${"d".repeat(64)}','${"e".repeat(64)}'
     )`)).rejects.toThrow();

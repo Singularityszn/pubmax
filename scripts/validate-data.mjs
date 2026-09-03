@@ -87,6 +87,7 @@ const POSTCODE_COORDINATE_DECISION_INPUTS = [
   "data/postcode_coordinate_exceptions.json",
 ];
 const DRINK_PRICE_UPDATES_DIR = join(DATA_DIR, "drink_price_updates");
+const PRICE_ESTIMATE_BASELINES_PATH = join(DATA_DIR, "price_estimates", "baselines.json");
 const WHATS_ON_DIR = join(DATA_DIR, "whats_on");
 const DRINK_CATEGORIES = new Set([
   "beer",
@@ -127,6 +128,7 @@ const ARTIFACT_CLASSIFICATION = [
   { id: "venue_details", required: true, reason: "venue sheet detail data" },
   { id: "pubmaxxing_seed", required: true, reason: "seeds the curated venue anchors the index is built from" },
   { id: "drink_price_updates", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
+  { id: "price_estimate_baselines", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the artifact is absent; a basis that IS present without its source pages, provenance or sample floor would put an unanswerable estimate on a pub and stays a hard gate" },
   { id: "whats_on", required: true, reason: "the validator itself SKIPs cleanly (ok: true) when the directory or files are absent; a file that IS present with bad data is a genuine defect and stays a hard gate" },
   { id: "pint_index_editions", required: true, reason: "the validator itself passes cleanly (ok: true) when no dated editions exist yet; a published edition that fails its hash/shape checks is a genuine defect and stays a hard gate" },
   { id: "night_signals", required: false, reason: "advisory tonight signal; map and app work without it. Unlike the three above, a missing/unreadable file here is not internally self-guarded to ok: true, so this flag is what keeps that case a WARN instead of a build failure" },
@@ -2592,6 +2594,109 @@ function validateDrinkPriceUpdates() {
   return { ok, count };
 }
 
+// price_estimates/baselines.json — the basis the estimate engine models from
+// (lib/priceEstimate.ts). TWO FENCES, and they are the reason this file exists.
+//
+// AN AMBER (listed) ROW MUST CARRY ITS SOURCE AND ITS DATE. That fence already
+// stands over the rows themselves in validateOneDrinkPriceUpdateFile above,
+// which refuses a row without an absolute http(s) source.url and a valid,
+// non-future observedAt. What is added here is the other half: a basis derived
+// FROM those rows has to name the permitted pages it was read from, or nobody
+// can check the chain figure a pub is being estimated at.
+//
+// AN ESTIMATE ROW MUST CARRY ITS BASIS AND ITS SAMPLE SIZE. A median with no
+// sample behind it is a number with no argument, and a sample under the engine's
+// own floor is worse than none because it looks like one. So the floor is
+// enforced here as well as in the engine: an artifact that ships a two-price
+// basis fails the build rather than quietly modelling nothing at runtime.
+//
+// The file is optional. It has not been built in a fresh clone, and an absent
+// basis is an honest "no estimates" rather than a defect.
+const ESTIMATE_MIN_SAMPLE = 3;
+const ESTIMATE_MIN_GBP = 2;
+const ESTIMATE_MAX_GBP = 12;
+const ESTIMATE_REGION_KINDS = new Set(["london_borough", "postcode_area"]);
+
+function validatePriceEstimateBaselines() {
+  const name = "public/data/price_estimates/baselines.json";
+  if (!existsSync(PRICE_ESTIMATE_BASELINES_PATH)) {
+    console.log(`SKIP ${name}: file does not exist`);
+    return { ok: true, count: 0 };
+  }
+  const errs = makeCollector();
+  const isIso = (value) => typeof value === "string" && Number.isFinite(Date.parse(value));
+  let data;
+  try {
+    data = JSON.parse(readFileSync(PRICE_ESTIMATE_BASELINES_PATH, "utf8"));
+  } catch (error) {
+    console.log(`FAIL ${name}: not valid JSON (${error.message})`);
+    return { ok: false, count: 0 };
+  }
+  if (typeof data !== "object" || data === null || Array.isArray(data)) {
+    console.log(`FAIL ${name}: must be an object`);
+    return { ok: false, count: 0 };
+  }
+  if (data.version !== 1) errs.add("version must be 1");
+  if (!isIso(data.computedAt)) errs.add("computedAt must be an ISO timestamp");
+  else if (Date.parse(data.computedAt) > Date.now()) errs.add("computedAt is in the future");
+  if (typeof data.method !== "string" || data.method.trim().length === 0) {
+    errs.add("method must name how the basis was derived");
+  }
+
+  const chains = Array.isArray(data.chains) ? data.chains : null;
+  if (!chains) errs.add("chains must be an array");
+  (chains ?? []).forEach((chain, i) => {
+    const where = `chain ${i}`;
+    if (typeof chain !== "object" || chain === null) { errs.add(`${where}: not an object`); return; }
+    if (typeof chain.id !== "string" || !chain.id.trim()) errs.add(`${where}: missing id`);
+    if (typeof chain.label !== "string" || !chain.label.trim()) errs.add(`${where}: missing label`);
+    if (!isFiniteNumber(chain.medianGbp) || chain.medianGbp < ESTIMATE_MIN_GBP || chain.medianGbp > ESTIMATE_MAX_GBP) {
+      errs.add(`${where}: medianGbp ${JSON.stringify(chain.medianGbp)} is outside the pint band`);
+    }
+    if (!Number.isInteger(chain.sampleSize) || chain.sampleSize < ESTIMATE_MIN_SAMPLE) {
+      errs.add(`${where}: sampleSize must be an integer of at least ${ESTIMATE_MIN_SAMPLE}`);
+    }
+    if (!Array.isArray(chain.sourceUrls) || chain.sourceUrls.length === 0) {
+      errs.add(`${where}: an amber basis must name the pages it was read from`);
+    } else {
+      chain.sourceUrls.forEach((url, j) => {
+        if (!isHttpUrlLocal(url)) errs.add(`${where}: sourceUrls[${j}] "${url}" is not an absolute http(s) URL`);
+      });
+    }
+    if (!Array.isArray(chain.operators) || !Array.isArray(chain.hosts)) {
+      errs.add(`${where}: operators and hosts must be arrays`);
+    }
+  });
+
+  const regions = Array.isArray(data.regions) ? data.regions : null;
+  if (!regions) errs.add("regions must be an array");
+  (regions ?? []).forEach((region, i) => {
+    const where = `region ${i}`;
+    if (typeof region !== "object" || region === null) { errs.add(`${where}: not an object`); return; }
+    if (!ESTIMATE_REGION_KINDS.has(region.kind)) errs.add(`${where}: kind "${region.kind}" is not a region kind`);
+    if (typeof region.code !== "string" || !region.code.trim()) errs.add(`${where}: missing code`);
+    if (typeof region.label !== "string" || !region.label.trim()) errs.add(`${where}: missing label`);
+    if (!isFiniteNumber(region.medianGbp) || region.medianGbp < ESTIMATE_MIN_GBP || region.medianGbp > ESTIMATE_MAX_GBP) {
+      errs.add(`${where}: medianGbp ${JSON.stringify(region.medianGbp)} is outside the pint band`);
+    }
+    if (!Number.isInteger(region.sampleSize) || region.sampleSize < ESTIMATE_MIN_SAMPLE) {
+      errs.add(`${where}: sampleSize must be an integer of at least ${ESTIMATE_MIN_SAMPLE}`);
+    }
+    // An estimate names where it came from. A region modelled off a scrape and
+    // one modelled off permitted menus are not the same claim, and a reader
+    // cannot weigh a figure whose basis will not say which it is.
+    if (typeof region.provenance !== "string" || region.provenance.trim().length === 0) {
+      errs.add(`${where}: an estimate basis must name its provenance`);
+    }
+  });
+
+  const count = (chains?.length ?? 0) + (regions?.length ?? 0);
+  const ok = errs.count === 0;
+  console.log(`${ok ? "PASS" : "FAIL"} ${name}: ${count} basis row(s), ${errs.count} error(s)`);
+  if (!ok) errs.report();
+  return { ok, count };
+}
+
 // whats_on/*.json — What's-On rows (Task B1). Mirrors lib/whatsOn.ts
 // isValidWhatsOnRow: every row carries non-negotiable provenance ({label,url};
 // NO licence field for this layer), a non-future observedAt, and a valid
@@ -3515,6 +3620,7 @@ const DATASET_RUNS = [
   { id: "uk_base_shards", run: validateUkBaseShards },
   { id: "venue_details", run: validateVenueDetails },
   { id: "drink_price_updates", run: validateDrinkPriceUpdates },
+  { id: "price_estimate_baselines", run: validatePriceEstimateBaselines },
   { id: "whats_on", run: validateWhatsOnUpdates },
   { id: "night_signals", run: validateNightSignalSnapshot },
   { id: "weather_snapshot", run: validateWeatherSnapshotData },
