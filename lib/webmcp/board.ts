@@ -107,7 +107,12 @@ function stringList(value: unknown): string[] | null {
 }
 
 export function parseWebMcpRouteResponse(value: unknown): WebMcpRoute | null {
-  if (!isRecord(value) || !isJsonSafe(value) || !Array.isArray(value.stops)) return null;
+  if (
+    !isRecord(value)
+    || !isJsonSafe(value)
+    || value.grounded !== true
+    || !Array.isArray(value.stops)
+  ) return null;
   if (value.stops.length < 1 || value.stops.length > MAX_PLAN_STOP_COUNT) return null;
 
   const stops = value.stops.map((stop, index) => parseStop(stop, index + 1));
@@ -127,15 +132,9 @@ export function parseWebMcpRouteResponse(value: unknown): WebMcpRoute | null {
       : [];
   if (confidenceWarnings === null || provenance === null) return null;
 
-  const groundingProof = value.groundingProof === undefined || value.groundingProof === null
-    ? null
-    : text(value.groundingProof, 4_096);
-  const operationKey = value.operationKey === undefined || value.operationKey === null
-    ? null
-    : text(value.operationKey, 500);
-  if ((value.groundingProof != null && !groundingProof) || (value.operationKey != null && !operationKey)) {
-    return null;
-  }
+  const groundingProof = text(value.groundingProof, 4_096);
+  const operationKey = text(value.operationKey, 500);
+  if (!groundingProof || !operationKey) return null;
 
   const routeTotals = value.routeTotals === undefined ? null : cloneJson(value.routeTotals as WebMcpJsonValue);
   const nightContext = value.inferredContext === undefined
@@ -264,6 +263,7 @@ export type WebMcpMutationStale = {
 };
 
 export type WebMcpMutationLease = {
+  isCurrent: () => boolean;
   runSideEffect: <T>(sideEffect: () => T) => { applied: true; value: T } | { applied: false };
 };
 
@@ -291,8 +291,9 @@ export function createWebMcpMutationArbiter(getRevision: () => number) {
         let sideEffectRefused = false;
         let acceptedRevision = expectedRevision;
         const lease: WebMcpMutationLease = {
+          isCurrent: () => token === operationToken && getRevision() === acceptedRevision,
           runSideEffect: (sideEffect) => {
-            if (token !== operationToken || getRevision() !== acceptedRevision) {
+            if (!lease.isCurrent()) {
               sideEffectRefused = true;
               return { applied: false };
             }

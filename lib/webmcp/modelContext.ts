@@ -46,7 +46,7 @@ function objectWithOnlyKeys(
 
 function boundedString(value: unknown, minimum: number, maximum: number): boolean {
   return typeof value === "string"
-    && value.length >= minimum
+    && value.trim().length >= minimum
     && value.length <= maximum;
 }
 
@@ -61,7 +61,7 @@ function validToolInput(name: WebMcpToolName, input: unknown): boolean {
   switch (name) {
     case "search_pubmaxx_venues":
       return objectWithOnlyKeys(input, ["query", "limit"])
-        && boundedString(input.query, 2, 120)
+        && boundedString(input.query, 2, 80)
         && (input.limit === undefined || boundedInteger(input.limit, 1, 8));
     case "read_london_night_context":
       return objectWithOnlyKeys(input, []) && Object.keys(input).length === 0;
@@ -81,7 +81,7 @@ function validToolInput(name: WebMcpToolName, input: unknown): boolean {
 
 const INPUT_EXPECTATIONS: Record<WebMcpToolName, string> = {
   search_pubmaxx_venues:
-    "an object with query as 2-120 characters and optional limit as an integer from 1 to 8, with no other fields.",
+    "an object with query as 2-80 non-blank characters and optional limit as an integer from 1 to 8, with no other fields.",
   read_london_night_context: "an empty object.",
   draft_pub_crawl:
     "an object with request as 3-500 characters and expectedRevision as a non-negative integer, with no other fields.",
@@ -110,7 +110,7 @@ const TOOL_REGISTRATIONS: Record<WebMcpToolName, ToolRegistration> = {
     inputSchema: {
       type: "object",
       properties: {
-        query: { type: "string", minLength: 2, maxLength: 120 },
+        query: { type: "string", minLength: 2, maxLength: 80 },
         limit: { type: "integer", minimum: 1, maximum: 8 },
       },
       required: ["query"],
