@@ -192,44 +192,40 @@ export async function recoverPlanMembership(
   }
 }
 
-/** Stamp an auth user onto a crew member row. Idempotent for the same user. */
+/**
+ * Stamp an auth user onto a crew member row. Idempotent for the same user.
+ *
+ * This delegates to the atomic claim RPC. It did NOT until migration 0135:
+ * production's `claim_plan_membership` predated #1270's
+ * `membership_revoked_at` column and never read it, so swapping here would
+ * have bought atomicity and silently reopened the revoked-seat guard #1270
+ * shipped. #1301 therefore kept a hand-rolled revoked-aware body, and #1294
+ * carried the debt.
+ *
+ * 0135 closes it. The RPC counts ACTIVE seats only, and 0128's unique index is
+ * narrowed to match, so a revoked seat no longer holds an account's place for
+ * the life of the Plan. With the function reading the column, one atomic call
+ * is strictly better than the two statements it replaces, which could
+ * interleave between the update and the read-back and answer on a row that had
+ * changed underneath them.
+ *
+ * The fallback still matters and is unchanged: where the FUNCTION is absent on
+ * a current schema, `claimPlanMembership` drops to `legacyClaimPlanMembership`,
+ * which is revoked-aware and maps a unique violation to a conflict rather than
+ * a retryable error.
+ *
+ * DEPLOY ORDER: this needs 0135 applied. Without it the call still succeeds,
+ * but against the OLD body, so an account whose earlier seat was revoked is
+ * refused a new one. That is the pre-0135 behaviour rather than a new fault,
+ * so landing the app half first degrades to today rather than breaking.
+ */
 export async function linkPlanMemberUser(
   planId: string,
   memberId: string,
   userId: string,
 ): Promise<boolean> {
-  if (!isPlanId(planId) || !isPlanId(memberId)) return false;
-  const uid = cleanUserId(userId);
-  if (!uid) return false;
-
-  if (!isSupabaseConfigured()) {
-    return __linkMemoryPlanMemberUser(planId, memberId, uid);
-  }
-  try {
-    const { data, error } = await requireSupabaseAdmin()
-      .from(MEMBERS)
-      .update({ user_id: uid })
-      .eq("plan_id", planId)
-      .eq("id", memberId)
-      .is("membership_revoked_at", null)
-      .is("user_id", null)
-      .select("id")
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (data) return true;
-    // Already linked to this user counts as success; a different user is refused.
-    const existing = await requireSupabaseAdmin()
-      .from(MEMBERS)
-      .select("user_id")
-      .eq("plan_id", planId)
-      .eq("id", memberId)
-      .is("membership_revoked_at", null)
-      .maybeSingle();
-    if (existing.error) throw new Error(existing.error.message);
-    return existing.data?.user_id === uid;
-  } catch {
-    return false;
-  }
+  const outcome = await claimPlanMembership(planId, memberId, userId);
+  return outcome === "claimed" || outcome === "already_claimed";
 }
 
 /** Stamp the plan owner when the host creates while signed in. */
