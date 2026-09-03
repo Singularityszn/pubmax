@@ -377,18 +377,21 @@ function beggingPhrasesIn(text: string): string[] {
   return BEGGING_PHRASES.filter((phrase) => phrase.test(text)).map((phrase) => phrase.source);
 }
 
-describe("rendered friction voice fence", () => {
-  it.each(RENDERED_FRICTION_SURFACES)("%s contains no begging copy", (_surface, render) => {
-    expect(beggingPhrasesIn(renderedText(render()))).toEqual([]);
-  });
+describe(
+  "rendered friction voice fence: TonightListingsNotice error, partial-read, empty; SocialAccessBoundary sign-in, unavailable",
+  () => {
+    it.each(RENDERED_FRICTION_SURFACES)("%s contains no begging copy", (_surface, render) => {
+      expect(beggingPhrasesIn(renderedText(render()))).toEqual([]);
+    });
 
-  it("catches a phrase split across rendered nodes", () => {
-    const interpolatedVerb = "try";
-    const markup = renderToStaticMarkup(
-      createElement("p", null, ["Please ", `${interpolatedVerb} `].join(""), "again later"),
-    );
-    const text = renderedText(markup);
-    expect(text).toContain("Please try again later");
-    expect(beggingPhrasesIn(text)).toContain("try\\s+again\\s+later");
-  });
-});
+    it("catches a phrase split across rendered nodes", () => {
+      const interpolatedVerb = "try";
+      const markup = renderToStaticMarkup(
+        createElement("p", null, ["Please ", `${interpolatedVerb} `].join(""), "again later"),
+      );
+      const text = renderedText(markup);
+      expect(text).toContain("Please try again later");
+      expect(beggingPhrasesIn(text)).toContain("try\\s+again\\s+later");
+    });
+  },
+);
