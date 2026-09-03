@@ -1,5 +1,6 @@
 import {
   OUT_LISTING_PUB_ABSENT_LINE,
+  OUT_LISTING_VENUE_BADGE_LABEL,
   OUT_OPEN_PLANS_MIN_SENDABLE,
   groupOutListings,
   outListingGroupKey,
@@ -193,7 +194,7 @@ describe("out desktop grouping", () => {
       }),
     );
 
-    expect(html).toContain(">PUBMAXX venue<");
+    expect(html).toContain(`>${OUT_LISTING_VENUE_BADGE_LABEL}<`);
     expect(html).not.toContain(">PUBMAXX pub<");
   });
 
