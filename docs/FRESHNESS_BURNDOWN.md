@@ -1,5 +1,11 @@
 # Freshness burndown - per-feed verdicts and fix classes (2026-08-07)
 
+> **Update 2026-09-03 (does not rewrite the inventory below).** `pint_prices`
+> now uses a 720-hour budget. This matches the 30-day Community Price authority
+> window. The bundled 3 July baseline is therefore stale until it is collected
+> again. `npm run check:freshness` reports the breach and `validate-data` warns
+> without failing the build.
+
 > **Update 2026-08-20 (does not rewrite the inventory below).** `price_updates`
 > is now **UNTRACKED** in the spine: episodic, no machine budget, empty served
 > envelope with an honest 2026-07-03 collection-day stamp while parsers are

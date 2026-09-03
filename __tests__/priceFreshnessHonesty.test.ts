@@ -14,7 +14,9 @@ import {
 import {
   formatObservedDate,
   PINT_DATASET_OBSERVED_AT,
+  PINT_DATASET_STALENESS_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
+import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
 
 const ROOT = join(__dirname, "..");
 const AS_OF_LABEL = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
@@ -64,6 +66,29 @@ describe("price freshness honesty (Grok W5.7)", () => {
     expect(priceUpdates?.status).toBe("untracked");
     expect(hasBreach(results.filter((row) => row.id === "price_updates"))).toBe(
       false,
+    );
+  });
+
+  it("does not let bundled pint prices outlive community prices", () => {
+    const bundledBudgetMs =
+      PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+
+    expect(bundledBudgetMs).toBeLessThanOrEqual(COMMUNITY_PRICE_MAX_AGE_MS);
+  });
+
+  it("reports bundled pint prices stale after the shared price window", () => {
+    const observedAt = PINT_DATASET_OBSERVED_AT.toISOString();
+    const now = new Date(
+      PINT_DATASET_OBSERVED_AT.getTime() + COMMUNITY_PRICE_MAX_AGE_MS + 60 * 60 * 1000,
+    );
+    const results = evaluateRegistry(
+      registry,
+      () => ({ observedAt, reason: null }),
+      now,
+    );
+
+    expect(results.find((row) => row.id === "pint_prices")?.status).toBe(
+      "stale",
     );
   });
 
