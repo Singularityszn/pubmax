@@ -140,7 +140,7 @@ const TOOL_REGISTRATIONS: Record<WebMcpToolName, ToolRegistration> = {
       required: ["request", "expectedRevision"],
       additionalProperties: false,
     },
-    annotations: { readOnlyHint: false },
+    annotations: { readOnlyHint: false, untrustedContentHint: true },
   },
   swap_crawl_stop: {
     description:
@@ -158,7 +158,7 @@ const TOOL_REGISTRATIONS: Record<WebMcpToolName, ToolRegistration> = {
       required: ["position", "expectedRevision"],
       additionalProperties: false,
     },
-    annotations: { readOnlyHint: false },
+    annotations: { readOnlyHint: false, untrustedContentHint: true },
   },
   open_crawl_in_pubmaxx: {
     description:

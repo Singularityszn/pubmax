@@ -128,8 +128,8 @@ describe("WebMCP tool registration", () => {
     expect(registrations.map(({ tool }) => tool.annotations)).toEqual([
       { readOnlyHint: true },
       { readOnlyHint: true, untrustedContentHint: true },
-      { readOnlyHint: false },
-      { readOnlyHint: false },
+      { readOnlyHint: false, untrustedContentHint: true },
+      { readOnlyHint: false, untrustedContentHint: true },
       { readOnlyHint: false },
     ]);
   });
