@@ -127,6 +127,37 @@ test.describe("one Map surface history owner", () => {
     await expectSoleDrawer(page, "venue");
   });
 
+  test("clearing a restored query after closing its Venue does not reopen it", async ({
+    page,
+  }) => {
+    await prepareMap(page);
+    await openMap(page, "/map?q=The+Ice+Wharf");
+
+    const toolbar = page.locator(".mapToolbar");
+    const search = toolbar.getByRole("combobox", { name: "Search pubs" });
+    await expect(search).toHaveValue("The Ice Wharf");
+    await expectSoleDrawer(page, "venue");
+
+    await venue(page).getByRole("button", { name: /Close/ }).click();
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+
+    await toolbar.getByRole("button", { name: "Clear search" }).click();
+    await expect(search).toHaveValue("");
+    // The old arrival effect replayed on the next filter render. Observe past
+    // both that render and the typed-search debounce before accepting success.
+    await page.waitForTimeout(500);
+
+    await expect(venue(page)).toHaveAttribute("aria-hidden", "true");
+    await expect
+      .poll(() =>
+        page.evaluate(() => {
+          const params = new URL(window.location.href).searchParams;
+          return { query: params.get("q"), selectedVenueId: params.get("sel") };
+        }),
+      )
+      .toEqual({ query: null, selectedVenueId: null });
+  });
+
   test("loaded crawl browser Back restores populated planner", async ({ page }) => {
     await page.setViewportSize(DESKTOP);
     await page.addInitScript(() => {

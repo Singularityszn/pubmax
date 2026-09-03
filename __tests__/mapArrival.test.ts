@@ -4,6 +4,7 @@ import {
   isBoroughBrowseArrival,
   isCuratedCrawlArrival,
   isDrinkShapeArrival,
+  resolveArrivalQueryRestore,
   resolveQueryRestoreFit,
   shouldFitQueryVenuesOnArrival,
   shouldOpenPlanningInitially,
@@ -67,6 +68,61 @@ describe("resolveQueryRestoreFit", () => {
   it("never moves the camera or claims pins for a zero-result restore", () => {
     expect(resolveQueryRestoreFit(0)).toBe("none");
     expect(resolveQueryRestoreFit(-1)).toBe("none");
+  });
+});
+
+describe("resolveArrivalQueryRestore", () => {
+  const base = {
+    arrivalSearch: "?q=The+Ice+Wharf",
+    currentQuery: "The Ice Wharf",
+    mapReady: true,
+    selectedVenueId: "",
+    didRestore: false,
+  };
+
+  it("waits for the map and matching pins while the arrival query still owns search", () => {
+    expect(resolveArrivalQueryRestore({ ...base, mapReady: false, matchCount: 1 })).toBe("wait");
+    expect(resolveArrivalQueryRestore({ ...base, matchCount: 0 })).toBe("wait");
+  });
+
+  it("selects one match and fits several matches while the arrival query still owns search", () => {
+    expect(resolveArrivalQueryRestore({ ...base, matchCount: 1 })).toBe("select-single");
+    expect(resolveArrivalQueryRestore({ ...base, matchCount: 4 })).toBe("fit-many");
+  });
+
+  it("retires restoration when the reader clears or changes the arrival query", () => {
+    expect(resolveArrivalQueryRestore({ ...base, currentQuery: "", matchCount: 953 })).toBe(
+      "retire",
+    );
+    expect(resolveArrivalQueryRestore({ ...base, currentQuery: "Camden", matchCount: 38 })).toBe(
+      "retire",
+    );
+  });
+
+  it("retires a q parameter that belongs to another arrival intent", () => {
+    expect(
+      resolveArrivalQueryRestore({
+        ...base,
+        arrivalSearch: "?drink=beer&q=The+Ice+Wharf",
+        matchCount: 1,
+      }),
+    ).toBe("retire");
+  });
+
+  it("retires restoration when a Venue selection already owns the camera", () => {
+    expect(
+      resolveArrivalQueryRestore({
+        ...base,
+        selectedVenueId: "venue-17u2i1w",
+        matchCount: 1,
+      }),
+    ).toBe("retire");
+  });
+
+  it("does not replay a completed restoration", () => {
+    expect(resolveArrivalQueryRestore({ ...base, didRestore: true, matchCount: 1 })).toBe(
+      "retire",
+    );
   });
 });
 
