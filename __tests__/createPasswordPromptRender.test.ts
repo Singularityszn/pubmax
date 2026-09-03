@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, createElement } from "react";
+import { act, createElement, type ReactNode } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -21,7 +21,7 @@ const budgetState = vi.hoisted(() => ({
 const releasePromptBudget = vi.hoisted(() => vi.fn());
 
 vi.mock("next/link", () => ({
-  default: ({ children, ...props }: { children: unknown; href: string }) =>
+  default: ({ children, ...props }: { children: ReactNode; href: string }) =>
     createElement("a", props, children),
 }));
 vi.mock("@/components/auth/AuthProvider", () => ({
