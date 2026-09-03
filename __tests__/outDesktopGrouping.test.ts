@@ -13,6 +13,8 @@ import {
 } from "@/lib/outDesktopGrouping";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { OutListingPubPair } from "@/components/out/OutListingPubPair";
 import type { OutOpenPlan } from "@/lib/out";
 import { describe, expect, it } from "vitest";
@@ -195,6 +197,14 @@ describe("out desktop grouping", () => {
     expect(html).toContain(`>${OUT_LISTING_VENUE_BADGE_LABEL}<`);
     expect(html).not.toContain(">PUBMAXX pub<");
     expect(OUT_LISTING_VENUE_BADGE_LABEL).not.toMatch(/\bpub\b|\bvenue\b/i);
+  });
+
+  it("keeps desktop listing columns balanced inside a centred surface", () => {
+    const css = readFileSync(join(process.cwd(), "app/out/out.css"), "utf8");
+    const desktop = css.match(/@media \(min-width: 1024px\) \{([\s\S]*)/)?.[1] ?? "";
+    expect(desktop).toMatch(
+      /\.outListingSurface\s*\{[^}]*max-width:\s*1120px;[^}]*margin-inline:\s*auto;/,
+    );
   });
 
   it("shows Open plans when one sendable plan exists", () => {

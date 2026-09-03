@@ -13,6 +13,8 @@
 //     one line under a Ticketmaster credit, where it reads as another
 //     company's logo rather than ours.
 
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
@@ -27,6 +29,9 @@ import {
   EDITORIAL_STALE_LINE,
 } from "@/lib/editorial";
 import type { WhatsOnRow } from "@/lib/whatsOn";
+
+const REPO_ROOT = join(__dirname, "..");
+const outClient = readFileSync(join(REPO_ROOT, "app/out/OutClient.tsx"), "utf8");
 
 const matchedRow: WhatsOnRow = {
   id: "mark-render",
@@ -46,6 +51,31 @@ function renderedPubPair(): HTMLElement {
   );
   return host;
 }
+
+describe("the listings come before the line about what is missing", () => {
+  it("renders the unmatched notice after the listing surface", () => {
+    const surfaceAt = outClient.indexOf('className="outListingSurface"');
+    const noticeAt = outClient.indexOf('data-testid="out-unmatched-notice"');
+    expect(surfaceAt).toBeGreaterThan(-1);
+    expect(noticeAt).toBeGreaterThan(-1);
+    expect(noticeAt).toBeGreaterThan(surfaceAt);
+  });
+
+  it("keeps the read's own status lines above the listings", () => {
+    const statusAt = outClient.indexOf("outStatusLines({ body, failed })");
+    const surfaceAt = outClient.indexOf('className="outListingSurface"');
+    expect(statusAt).toBeGreaterThan(-1);
+    expect(statusAt).toBeLessThan(surfaceAt);
+  });
+
+  it("keeps the notice inside the listings section it is about", () => {
+    const section = outClient.slice(
+      outClient.indexOf('className="outListings"'),
+      outClient.indexOf("<EditorialRail />"),
+    );
+    expect(section).toContain('data-testid="out-unmatched-notice"');
+  });
+});
 
 describe("an empty rail speaks to a drinker", () => {
   it("says what the reader gets, never what we need to do", () => {
