@@ -252,9 +252,12 @@ function isModeratorSocialPost(value: unknown): value is ModeratorSocialPost {
     isNullableString(row.photoAltText) &&
     isNullableString(row.area) &&
     isNullableString(row.venueId) &&
+    typeof row.visibility === "string" &&
     MODERATOR_SOCIAL_POST_VISIBILITIES.has(row.visibility) &&
+    typeof row.commentPolicy === "string" &&
     MODERATOR_SOCIAL_POST_COMMENT_POLICIES.has(row.commentPolicy) &&
     typeof row.moderationClaim === "string" &&
+    typeof row.moderationState === "string" &&
     MODERATOR_SOCIAL_POST_MODERATION_STATES.has(row.moderationState) &&
     typeof row.createdAt === "string" &&
     typeof row.updatedAt === "string"
@@ -327,7 +330,7 @@ function SocialPostModerationQueue({
             type="button"
             className="admin-retry"
             onClick={onRetry}
-            disabled={retryDisabled || state === "loading"}
+            disabled={retryDisabled}
           >
             Try again
           </button>

@@ -313,33 +313,34 @@ describe("Admin Social post moderation queue", () => {
     expect(state.fetchEvents).not.toContain("session:POST");
   });
 
-  it("disables retry during loading and ignores an older response", async () => {
+  // Two rapid clicks are the precondition; the OUTCOME the guard promises is
+  // that only one Social GET is ever issued, so a second load cannot exist to
+  // race the first. An earlier version of this test released a SECOND queued
+  // response and asserted its rows, which the guard makes unreachable: the
+  // second click starts nothing, so nothing is ever waiting on that gate and
+  // the queue sat on "Loading...". The stale-response case is covered by the
+  // test below, which produces two in-flight loads through the session lane.
+  it("issues one Social read for two rapid retry clicks and disables the control", async () => {
     state.socialRefusals = 1;
     await loadAdmin();
 
-    let releaseFirstResponse = () => {};
-    const firstResponse = new Promise<void>((resolve) => {
-      releaseFirstResponse = resolve;
+    let releaseResponse = () => {};
+    const gatedResponse = new Promise<void>((resolve) => {
+      releaseResponse = resolve;
     });
-    let releaseSecondResponse = () => {};
-    const secondResponse = new Promise<void>((resolve) => {
-      releaseSecondResponse = resolve;
-    });
-    const earlierPost = { ...heldPost, body: "Earlier retry response." };
-    const laterPost = {
+    const retryPost = {
       ...heldPost,
       postId: "33333333-3333-4333-8333-333333333333",
-      body: "Later retry response.",
+      body: "Retry response.",
     };
-    state.socialGetResponses = [
-      { gate: firstResponse, posts: [earlierPost] },
-      { gate: secondResponse, posts: [laterPost] },
-    ];
+    state.socialGetResponses = [{ gate: gatedResponse, posts: [retryPost] }];
     const retry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Try again",
     );
     expect(retry).toBeTruthy();
 
+    const readsBefore = state.fetchEvents.filter((event) => event === "social:GET").length;
+
     await act(async () => {
       retry!.click();
       retry!.click();
@@ -348,26 +349,20 @@ describe("Admin Social post moderation queue", () => {
       await Promise.resolve();
       await Promise.resolve();
     });
+
     const busyRetry = [...host.querySelectorAll("button")].find(
       (button) => button.textContent?.trim() === "Try again",
     );
     expect(busyRetry?.disabled).toBe(true);
+    const readsDuring = state.fetchEvents.filter((event) => event === "social:GET").length;
+    expect(readsDuring - readsBefore).toBe(1);
 
     await act(async () => {
-      releaseSecondResponse();
-      await secondResponse;
+      releaseResponse();
+      await gatedResponse;
       await Promise.resolve();
     });
-    expect(host.textContent).toContain("Later retry response.");
-    expect(host.textContent).not.toContain("Earlier retry response.");
-
-    await act(async () => {
-      releaseFirstResponse();
-      await firstResponse;
-      await Promise.resolve();
-    });
-    expect(host.textContent).toContain("Later retry response.");
-    expect(host.textContent).not.toContain("Earlier retry response.");
+    expect(host.textContent).toContain("Retry response.");
   });
 
   it("keeps a newer queue when an older retry loses its session", async () => {
