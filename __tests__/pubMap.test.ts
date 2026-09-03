@@ -13,9 +13,38 @@ import {
   UNKNOWN_MAP_SELECTION_NOTE,
   venueUpdateKey,
   normaliseTonightVenueLookup,
+  activeLensLabelFor,
+  activeLensPricesFor,
+  ambientBannerLaneOpen,
+  coordinatedMapOverlay,
+  crawlJourneysWanted,
+  drinkFiltersActiveFor,
+  drinkIndexStatusFor,
+  firstIdOf,
+  mapArrivalFrame,
+  mapDrinkLensSelection,
+  mapPlaceContext,
+  mapSelectionFrame,
+  mapShellClassName,
+  mapSurfaceIdFor,
+  mapSurfaceTitleFor,
+  nightAreaSlugOf,
+  openingViewportFrom,
+  priceLegendInput,
+  reactiveLogIntentActive,
+  restoredSessionFrame,
+  searchParamValue,
+  searchParamsQuery,
+  settledBoundsFor,
+  shouldResolveOpeningLocation,
+  suggestedRouteWanted,
+  tonightLaneKindFor,
+  tonightLaneReadState,
+  venueEntranceOvershootFor,
   type VenueDetailStatus,
 } from "@/lib/pubMap";
 import { curatedCrawls, type CuratedCrawl } from "@/lib/curatedCrawls";
+import { getCity } from "@/lib/cities";
 import { initialFilters } from "@/components/map/ControlRail";
 import {
   SAVED_ONLY_ARIA_LABEL,
@@ -214,5 +243,690 @@ describe("normaliseTonightVenueLookup", () => {
   it("lowercases, strips apostrophes, expands &, and collapses punctuation", () => {
     expect(normaliseTonightVenueLookup("O’Neill’s & Co.")).toBe("oneills and co");
     expect(normaliseTonightVenueLookup("  The  Crown  ")).toBe("the crown");
+  });
+});
+
+// ── PubMap body derivations (issue #1185) ────────────────────────────────────
+// These moved out of the component verbatim. The cases below are the ones the
+// component's own comments call out, so a later edit that "tidies" one of them
+// has to argue with a named rule rather than with a ternary in a 300-branch
+// render function.
+
+describe("mapArrivalFrame", () => {
+  const base = {
+    search: "",
+    placeArrival: null,
+    nationalBrowse: false,
+    cityId: "london" as const,
+    cityDisplayName: "London",
+  };
+
+  it("may resolve an opening location only on a clean London arrival", () => {
+    expect(mapArrivalFrame(base).needsOpeningResolution).toBe(true);
+    expect(mapArrivalFrame({ ...base, search: "?sel=v1" }).needsOpeningResolution).toBe(false);
+    expect(
+      mapArrivalFrame({ ...base, placeArrival: { name: "Llandudno" } }).needsOpeningResolution,
+    ).toBe(false);
+    expect(mapArrivalFrame({ ...base, nationalBrowse: true }).needsOpeningResolution).toBe(false);
+  });
+
+  it("is London only when London owns the whole surface", () => {
+    expect(mapArrivalFrame(base).isLondon).toBe(true);
+    expect(mapArrivalFrame({ ...base, cityId: "manchester" }).isLondon).toBe(false);
+    // An uncovered place or a national browse is not the London map, whatever
+    // city id the route carries.
+    expect(mapArrivalFrame({ ...base, placeArrival: { name: "Llandudno" } }).isLondon).toBe(false);
+    expect(mapArrivalFrame({ ...base, nationalBrowse: true }).isLondon).toBe(false);
+  });
+
+  it("invites the search the surface can actually answer", () => {
+    expect(mapArrivalFrame(base).searchPlaceholder).toBe("Search London venues or areas");
+    expect(mapArrivalFrame({ ...base, nationalBrowse: true }).searchPlaceholder).toBe(
+      "Search pubs or UK places",
+    );
+    expect(
+      mapArrivalFrame({ ...base, placeArrival: { name: "Llandudno" } }).searchPlaceholder,
+    ).toBe("Search priced pub names");
+  });
+
+  it("carries the place name and stands the curated corpus down with it", () => {
+    expect(mapArrivalFrame(base).placeName).toBeUndefined();
+    expect(mapArrivalFrame(base).limitedCoverage).toBe(false);
+    const place = mapArrivalFrame({ ...base, placeArrival: { name: "Llandudno" } });
+    expect(place.placeName).toBe("Llandudno");
+    expect(place.limitedCoverage).toBe(true);
+    expect(mapArrivalFrame({ ...base, nationalBrowse: true }).limitedCoverage).toBe(true);
+  });
+});
+
+describe("shouldResolveOpeningLocation", () => {
+  it("never asks over an answer the arrival already holds", () => {
+    const clean = {
+      needsOpeningResolution: true,
+      mapResumeSeed: null,
+      restoredMobileSession: null,
+    };
+    expect(shouldResolveOpeningLocation(clean)).toBe(true);
+    expect(shouldResolveOpeningLocation({ ...clean, mapResumeSeed: { rows: [] } })).toBe(false);
+    expect(
+      shouldResolveOpeningLocation({
+        ...clean,
+        restoredMobileSession: {
+          viewport: { center: [0, 0], zoom: 12, pitch: 0, bearing: 0 },
+        },
+      }),
+    ).toBe(false);
+    // A restored session with no viewport says nothing about where to open.
+    expect(
+      shouldResolveOpeningLocation({ ...clean, restoredMobileSession: { openSheet: "planner" } }),
+    ).toBe(true);
+    expect(shouldResolveOpeningLocation({ ...clean, needsOpeningResolution: false })).toBe(false);
+  });
+});
+
+describe("ambientBannerLaneOpen", () => {
+  it("is a desktop opening offer that steps off once the reader drives", () => {
+    expect(ambientBannerLaneOpen(false, false)).toBe(true);
+    expect(ambientBannerLaneOpen(false, true)).toBe(false);
+    expect(ambientBannerLaneOpen(true, false)).toBe(false);
+  });
+});
+
+describe("mapPlaceContext", () => {
+  // The real config, so the bounds this asserts on are the ones the map uses.
+  const city = getCity("london");
+  const inside = [-0.13, 51.51] as const;
+  const outside = [-3.83, 53.32] as const;
+
+  it("names the city while the view is over it", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: undefined,
+      nationalBrowse: false,
+      center: inside,
+      city,
+    });
+    expect(answer.mapContextName).toBe("London");
+    expect(answer.outsideCuratedBounds).toBe(false);
+    expect(answer.baseLedChrome).toBe(false);
+  });
+
+  it("hands the chrome to the base layer once the view leaves the city", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: undefined,
+      nationalBrowse: false,
+      center: outside,
+      city,
+    });
+    expect(answer.mapContextName).toBe("UK");
+    expect(answer.outsideCuratedBounds).toBe(true);
+    expect(answer.baseLedChrome).toBe(true);
+  });
+
+  it("is outside nothing before the camera has settled", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: undefined,
+      nationalBrowse: false,
+      center: null,
+      city,
+    });
+    expect(answer.outsideCuratedBounds).toBe(false);
+    expect(answer.mapContextName).toBe("London");
+  });
+
+  it("lets an uncovered place keep its own name wherever the camera is", () => {
+    const answer = mapPlaceContext({
+      placeArrivalName: "Llandudno",
+      nationalBrowse: false,
+      center: outside,
+      city,
+    });
+    expect(answer.mapContextName).toBe("Llandudno");
+    // The arrival is already base-led, so it is not ALSO "outside" the city.
+    expect(answer.outsideCuratedBounds).toBe(false);
+    expect(answer.baseLedChrome).toBe(true);
+  });
+});
+
+describe("mapDrinkLensSelection", () => {
+  const deps = {
+    isMapLensDrinkCategory: (value: string) => ["beer", "cocktail", "wine"].includes(value),
+    activeDrinkLane: (value: string) => (value === "" ? "beer" : value) as never,
+    defaultDrinkLane: "beer" as never,
+  };
+
+  it("never lenses the map on beer, which is the lane it rests in", () => {
+    const answer = mapDrinkLensSelection({
+      drinkCategory: "beer",
+      experienceLens: "all",
+      ...deps,
+    });
+    expect(answer.selectedDrinkCategory).toBe("beer");
+    expect(answer.mapDrinkLensCategory).toBeNull();
+    expect(answer.activeMapDrinkLane).toBe("beer");
+  });
+
+  it("lenses on a non-beer drink the map has an honest label for", () => {
+    const answer = mapDrinkLensSelection({
+      drinkCategory: "cocktail",
+      experienceLens: "all",
+      ...deps,
+    });
+    expect(answer.mapDrinkLensCategory).toBe("cocktail");
+    expect(answer.activeMapDrinkLane).toBe("cocktail");
+  });
+
+  it("refuses a category the map cannot label", () => {
+    // `other` is submittable but never lensable: a pin reading "£6 Other"
+    // labels a figure with a name that identifies no drink.
+    const answer = mapDrinkLensSelection({
+      drinkCategory: "other",
+      experienceLens: "all",
+      ...deps,
+    });
+    expect(answer.selectedDrinkCategory).toBeNull();
+    expect(answer.mapDrinkLensCategory).toBeNull();
+  });
+
+  it("stands the drink lane down while an experience view owns the map", () => {
+    const answer = mapDrinkLensSelection({
+      drinkCategory: "cocktail",
+      experienceLens: "food",
+      ...deps,
+    });
+    expect(answer.mapDrinkLensCategory).toBeNull();
+    expect(answer.activeMapDrinkLane).toBe("beer");
+  });
+});
+
+describe("drinkIndexStatusFor", () => {
+  it("reports the answering index's own completeness", () => {
+    const statuses = new Map([["cocktail", "partial" as const]]);
+    expect(
+      drinkIndexStatusFor("cocktail" as never, "all", statuses as never, "ready" as never),
+    ).toBe("partial");
+  });
+
+  it("names an index nobody has asked for rather than calling it ready", () => {
+    expect(
+      drinkIndexStatusFor("wine" as never, "all", new Map() as never, "ready" as never),
+    ).toBe("idle");
+  });
+
+  it("hands the no-alcohol view its own index, and the pint map a ready one", () => {
+    expect(
+      drinkIndexStatusFor(null, "no-alcohol", new Map() as never, "degraded" as never),
+    ).toBe("degraded");
+    expect(drinkIndexStatusFor(null, "all", new Map() as never, "degraded" as never)).toBe(
+      "ready",
+    );
+  });
+});
+
+describe("activeLensLabelFor and activeLensPricesFor", () => {
+  it("titles the lens the reader put the map under", () => {
+    expect(activeLensLabelFor(null, "no-alcohol")).toBe("No-alcohol");
+    expect(activeLensLabelFor(null, "food")).toBe("Food");
+    expect(activeLensLabelFor(null, "all")).toBeNull();
+  });
+
+  it("takes drink prices at rest and the experience view's own otherwise", () => {
+    const drink = new Map();
+    const experience = new Map();
+    expect(activeLensPricesFor("all", drink, experience)).toBe(drink);
+    expect(activeLensPricesFor("food", drink, experience)).toBe(experience);
+  });
+});
+
+describe("priceLegendInput", () => {
+  const renderedMapState = { pins: 1 };
+
+  it("gives food its own kind, because food never colours the map", () => {
+    expect(
+      priceLegendInput({
+        experienceLens: "food",
+        activeLensLabel: "Food",
+        activeLensNoun: "Food",
+        drinkIndexStatus: "ready" as never,
+        renderedMapState,
+      }),
+    ).toEqual({ kind: "food", renderedState: renderedMapState });
+  });
+
+  it("only earns the drink key once it has BOTH a heading and a sentence noun", () => {
+    expect(
+      priceLegendInput({
+        experienceLens: "all",
+        activeLensLabel: "Cocktails",
+        activeLensNoun: null,
+        drinkIndexStatus: "ready" as never,
+        renderedMapState,
+      }).kind,
+    ).toBe("default");
+    expect(
+      priceLegendInput({
+        experienceLens: "all",
+        activeLensLabel: "Cocktails",
+        activeLensNoun: "cocktail",
+        drinkIndexStatus: "partial" as never,
+        renderedMapState,
+      }),
+    ).toEqual({
+      kind: "drink",
+      label: "Cocktails",
+      noun: "cocktail",
+      status: "partial",
+      renderedState: renderedMapState,
+    });
+  });
+});
+
+describe("drinkFiltersActiveFor", () => {
+  const none = {
+    favoritePint: null,
+    drinkCategory: "",
+    drinkBrand: "",
+    drinkSubtype: "",
+    topShelfOnly: false,
+    requireCocktails: false,
+  };
+
+  it("is false only when the reader has narrowed the map in none of the six ways", () => {
+    expect(drinkFiltersActiveFor(none)).toBe(false);
+    expect(drinkFiltersActiveFor({ ...none, favoritePint: "guinness" })).toBe(true);
+    expect(drinkFiltersActiveFor({ ...none, drinkCategory: "cocktail" })).toBe(true);
+    expect(drinkFiltersActiveFor({ ...none, drinkBrand: "guinness" })).toBe(true);
+    expect(drinkFiltersActiveFor({ ...none, drinkSubtype: "stout" })).toBe(true);
+    expect(drinkFiltersActiveFor({ ...none, topShelfOnly: true })).toBe(true);
+    expect(drinkFiltersActiveFor({ ...none, requireCocktails: true })).toBe(true);
+  });
+});
+
+describe("coordinatedMapOverlay and mapSurfaceIdFor", () => {
+  const base = {
+    logIntentFallbackVisible: false,
+    detailOpen: false,
+    planningOpen: false,
+    mapOverlay: "layers" as const,
+  };
+
+  it("lets a surface that owns the screen answer ahead of the last-opened chip", () => {
+    expect(coordinatedMapOverlay(base)).toBe("layers");
+    expect(coordinatedMapOverlay({ ...base, planningOpen: true })).toBe("planner");
+    expect(coordinatedMapOverlay({ ...base, planningOpen: true, detailOpen: true })).toBe("venue");
+    expect(
+      coordinatedMapOverlay({ ...base, detailOpen: true, logIntentFallbackVisible: true }),
+    ).toBe("moment");
+  });
+
+  it("counts List view as a surface a reader can be on", () => {
+    expect(mapSurfaceIdFor("none", true)).toBe("venue-list");
+    expect(mapSurfaceIdFor("none", false)).toBe("none");
+    // An open sheet still owns the trail over the list behind it.
+    expect(mapSurfaceIdFor("layers", true)).toBe("layers");
+  });
+});
+
+describe("mapSurfaceTitleFor", () => {
+  const sheetTitles = { layers: "Map controls" } as never;
+  const base = {
+    basePubOpen: false,
+    basePub: null,
+    selectedVenue: { name: "The Crown" },
+    detailLabel: "Pub detail",
+    sheetTitles,
+  };
+
+  it("names the pub the sheet is about, curated or base", () => {
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue" })).toBe("The Crown");
+    expect(
+      mapSurfaceTitleFor({
+        ...base,
+        mapSurfaceId: "venue",
+        basePubOpen: true,
+        basePub: { name: "The Ship" },
+      }),
+    ).toBe("The Ship");
+  });
+
+  it("falls back to the sheet's own label rather than naming nothing", () => {
+    expect(
+      mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue", selectedVenue: null }),
+    ).toBe("Pub detail");
+    expect(
+      mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue", basePubOpen: true, basePub: null }),
+    ).toBe("Pub detail");
+  });
+
+  it("gives search a name of its own, because it is in no sheet-title table", () => {
+    // A Back offering to return the reader to "Map controls" would name a
+    // surface they never opened.
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "search" })).toBe("Search");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "layers" })).toBe("Map controls");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "planner" })).toBe("Plan an outing");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "venue-list" })).toBe("List view");
+    expect(mapSurfaceTitleFor({ ...base, mapSurfaceId: "tonight" })).toBe("Map controls");
+  });
+});
+
+describe("venueEntranceOvershootFor", () => {
+  const reveal = { form: "full", interrupted: false, venueId: "v1" };
+
+  it("overshoots only for the live full reveal of the venue that is open", () => {
+    expect(
+      venueEntranceOvershootFor({ entranceActive: true, reveal, selectedVenueId: "v1" }),
+    ).toBe(true);
+    // A reveal left over from the previous pick must not bounce this sheet.
+    expect(
+      venueEntranceOvershootFor({ entranceActive: true, reveal, selectedVenueId: "v2" }),
+    ).toBe(false);
+    expect(
+      venueEntranceOvershootFor({
+        entranceActive: true,
+        reveal: { ...reveal, interrupted: true },
+        selectedVenueId: "v1",
+      }),
+    ).toBe(false);
+    expect(
+      venueEntranceOvershootFor({
+        entranceActive: true,
+        reveal: { ...reveal, form: "brief" },
+        selectedVenueId: "v1",
+      }),
+    ).toBe(false);
+    expect(
+      venueEntranceOvershootFor({ entranceActive: true, reveal: null, selectedVenueId: "v1" }),
+    ).toBe(false);
+    expect(
+      venueEntranceOvershootFor({ entranceActive: false, reveal, selectedVenueId: "v1" }),
+    ).toBe(false);
+  });
+});
+
+describe("mapShellClassName", () => {
+  const base = {
+    planningOpen: false,
+    detailOpen: false,
+    sheetSnap: "half",
+    plannerSheetSnap: "half",
+    routeMappedActive: false,
+    mobileViewport: false,
+    showOnboarding: false,
+  };
+
+  it("is the bare shell when nothing is open", () => {
+    expect(mapShellClassName(base)).toBe("appShell dark");
+  });
+
+  it("marks sheet-full only at the most-expanded snap of an OPEN sheet", () => {
+    // Peek and half keep the map usable, so the chrome stays visible.
+    expect(mapShellClassName({ ...base, detailOpen: true, sheetSnap: "half" })).toBe(
+      "appShell dark detail-open",
+    );
+    expect(mapShellClassName({ ...base, detailOpen: true, sheetSnap: "full" })).toBe(
+      "appShell dark detail-open sheet-full",
+    );
+    // A full planner snap with the planner closed marks nothing.
+    expect(mapShellClassName({ ...base, plannerSheetSnap: "full" })).toBe("appShell dark");
+    expect(mapShellClassName({ ...base, planningOpen: true, plannerSheetSnap: "full" })).toBe(
+      "appShell dark planning-open sheet-full",
+    );
+  });
+
+  it("keeps the onboarding marker off the phone, which has its own chrome", () => {
+    expect(mapShellClassName({ ...base, showOnboarding: true })).toBe(
+      "appShell dark onboarding-open",
+    );
+    expect(
+      mapShellClassName({ ...base, showOnboarding: true, mobileViewport: true }),
+    ).toBe("appShell dark");
+  });
+
+  it("marks a mapped route", () => {
+    expect(mapShellClassName({ ...base, routeMappedActive: true })).toBe(
+      "appShell dark route-mapped",
+    );
+  });
+});
+
+describe("restoredSessionFrame", () => {
+  const seed = {
+    selectedVenueId: "",
+    filters: { query: "seeded" },
+    landmarkId: "",
+    builtIds: ["a", "b"],
+    mode: "build",
+  } as never;
+  const shouldOpenPlanningInitially = () => false;
+
+  it("prefers the URL's own pub over a restored one", () => {
+    expect(
+      restoredSessionFrame({
+        seed: { ...(seed as object), selectedVenueId: "url-pub" } as never,
+        restoredSession: { selectedVenueId: "saved-pub" },
+        resumeSeed: null,
+        cityId: "london",
+        search: "",
+        shouldOpenPlanningInitially,
+      }).selectedVenueId,
+    ).toBe("url-pub");
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: { selectedVenueId: "saved-pub" },
+        resumeSeed: null,
+        cityId: "london",
+        search: "",
+        shouldOpenPlanningInitially,
+      }).selectedVenueId,
+    ).toBe("saved-pub");
+  });
+
+  it("settles the city only when a resume snapshot supplies its rows", () => {
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: null,
+        resumeSeed: null,
+        cityId: "london",
+        search: "",
+        shouldOpenPlanningInitially,
+      }).loadedCityId,
+    ).toBeNull();
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: null,
+        resumeSeed: { viewport: null },
+        cityId: "london",
+        search: "",
+        shouldOpenPlanningInitially,
+      }).loadedCityId,
+    ).toBe("london");
+  });
+
+  it("never opens the planner over a pub the arrival picked", () => {
+    const withPlanner = {
+      seed,
+      restoredSession: { openSheet: "planner" },
+      resumeSeed: null,
+      cityId: "london" as const,
+      search: "",
+      shouldOpenPlanningInitially,
+    };
+    expect(restoredSessionFrame(withPlanner).plannerOpen).toBe(true);
+    expect(
+      restoredSessionFrame({
+        ...withPlanner,
+        seed: { ...(seed as object), selectedVenueId: "url-pub" } as never,
+      }).plannerOpen,
+    ).toBe(false);
+    // A restored venue sheet owns the surface instead.
+    expect(
+      restoredSessionFrame({ ...withPlanner, restoredSession: { openSheet: "venue" } })
+        .plannerOpen,
+    ).toBe(false);
+  });
+
+  it("lets the URL ask for the planner when no session says otherwise", () => {
+    expect(
+      restoredSessionFrame({
+        seed,
+        restoredSession: null,
+        resumeSeed: null,
+        cityId: "london",
+        search: "?mode=build",
+        shouldOpenPlanningInitially: () => true,
+      }).plannerOpen,
+    ).toBe(true);
+  });
+});
+
+describe("openingViewportFrom", () => {
+  const resume = { center: [0, 0], zoom: 12 } as never;
+  const restored = { center: [1, 1], zoom: 14 } as never;
+
+  it("prefers the resume snapshot, then the restored session, then nothing", () => {
+    expect(openingViewportFrom(resume, { viewport: restored })).toBe(resume);
+    expect(openingViewportFrom(null, { viewport: restored })).toBe(restored);
+    expect(openingViewportFrom(null, null)).toBeNull();
+    expect(openingViewportFrom(null, { openSheet: "planner" })).toBeNull();
+  });
+});
+
+describe("mapSelectionFrame", () => {
+  const crown = { id: "v1", name: "The Crown" } as never;
+  const venueById = new Map([["v1", crown]]) as never;
+  const isPubVenue = () => true;
+
+  it("opens the detail sheet for a curated pin", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: null,
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.selectedId).toBe("v1");
+    expect(answer.resolvable).toBe(true);
+    expect(answer.isPub).toBe(true);
+    expect(answer.basePubOpen).toBe(false);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("opens the SAME sheet for a tapped base pub the index cannot resolve", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "venue-uk-9",
+      selectedVenue: undefined,
+      selectedBasePub: { id: "venue-uk-9" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.resolvable).toBe(false);
+    expect(answer.basePubOpen).toBe(true);
+    expect(answer.detailOpen).toBe(true);
+  });
+
+  it("retires a held base pub the moment it stops being the selection", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "v1",
+      selectedVenue: crown,
+      selectedBasePub: { id: "venue-uk-9" },
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.basePubOpen).toBe(false);
+  });
+
+  it("holds the sheet shut while nothing is selected", () => {
+    const answer = mapSelectionFrame({
+      selectedVenueId: "",
+      selectedVenue: undefined,
+      selectedBasePub: null,
+      venueById,
+      isPubVenue,
+    });
+    expect(answer.detailOpen).toBe(false);
+    expect(answer.resolvable).toBe(false);
+    expect(answer.isPub).toBe(false);
+  });
+});
+
+describe("settledBoundsFor", () => {
+  const bounds = { north: 1, south: 0, east: 1, west: 0 };
+
+  it("reads bounds only once they belong to the city on screen", () => {
+    expect(settledBoundsFor(bounds, "london", "london")).toBe(bounds);
+    expect(settledBoundsFor(bounds, "manchester", "london")).toBeNull();
+    expect(settledBoundsFor(null, "london", "london")).toBeNull();
+  });
+});
+
+describe("tonightLaneKindFor and tonightLaneReadState", () => {
+  it("stops forcing a deep-linked lane open once the reader collapses it", () => {
+    expect(tonightLaneKindFor("quiz", "whats-on-quiz", null)).toBe("quiz");
+    expect(tonightLaneKindFor("quiz", "whats-on-quiz", "whats-on-quiz")).toBeNull();
+    expect(tonightLaneKindFor(null, "whats-on-quiz", null)).toBeNull();
+  });
+
+  it("separates a lane with rows from one nobody has read yet", () => {
+    expect(tonightLaneReadState(true, "ready", 3)).toEqual({ hasRows: true, pending: false });
+    expect(tonightLaneReadState(true, "ready", 0)).toEqual({ hasRows: false, pending: false });
+    expect(tonightLaneReadState(true, "idle", 0)).toEqual({ hasRows: false, pending: true });
+    // The lane is a London surface, so nowhere else holds first paint for it.
+    expect(tonightLaneReadState(false, "idle", 0)).toEqual({ hasRows: false, pending: false });
+  });
+});
+
+describe("suggestedRouteWanted and reactiveLogIntentActive", () => {
+  it("holds a Drop arrival's suggestion back until the reader asks for a route", () => {
+    expect(
+      suggestedRouteWanted({ hasReactiveLogIntent: true, planningOpen: false, routeMapped: false }),
+    ).toBe(false);
+    expect(
+      suggestedRouteWanted({ hasReactiveLogIntent: true, planningOpen: true, routeMapped: false }),
+    ).toBe(true);
+    expect(
+      suggestedRouteWanted({ hasReactiveLogIntent: true, planningOpen: false, routeMapped: true }),
+    ).toBe(true);
+    expect(
+      suggestedRouteWanted({ hasReactiveLogIntent: false, planningOpen: false, routeMapped: false }),
+    ).toBe(true);
+  });
+
+  it("disarms a log intent the reader has left", () => {
+    expect(reactiveLogIntentActive(true, false)).toBe(true);
+    expect(reactiveLogIntentActive(true, true)).toBe(false);
+    expect(reactiveLogIntentActive(false, false)).toBe(false);
+  });
+});
+
+describe("crawlJourneysWanted", () => {
+  it("only spends TfL reads once the route is on screen, and only in London", () => {
+    expect(crawlJourneysWanted(true, true, false)).toBe(true);
+    expect(crawlJourneysWanted(true, false, true)).toBe(true);
+    expect(crawlJourneysWanted(true, false, false)).toBe(false);
+    expect(crawlJourneysWanted(false, true, true)).toBe(false);
+  });
+});
+
+describe("small PubMap reads", () => {
+  it("firstIdOf answers the empty string rather than undefined", () => {
+    expect(firstIdOf([{ id: "a" }, { id: "b" }])).toBe("a");
+    expect(firstIdOf([])).toBe("");
+  });
+
+  it("searchParamValue and searchParamsQuery survive no reader", () => {
+    const params = new URLSearchParams("sel=v1&src=whats-on-quiz");
+    expect(searchParamValue(params, "sel")).toBe("v1");
+    expect(searchParamValue(params, "missing")).toBe("");
+    expect(searchParamValue(null, "sel")).toBe("");
+    expect(searchParamsQuery(params)).toBe("sel=v1&src=whats-on-quiz");
+    expect(searchParamsQuery(null)).toBe("");
+  });
+
+  it("nightAreaSlugOf answers null for no area", () => {
+    expect(nightAreaSlugOf({ slug: "camden" })).toBe("camden");
+    expect(nightAreaSlugOf(null)).toBeNull();
+    expect(nightAreaSlugOf(undefined)).toBeNull();
   });
 });
