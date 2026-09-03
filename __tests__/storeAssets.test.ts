@@ -2,6 +2,13 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { OG } from "@/lib/ogBrand";
+import { APP_NAME, BRAND_NAME } from "@/lib/brandNaming";
+import {
+  STORE_LISTING_FIELDS,
+  STORE_LISTING_LIMITS,
+  storeListingFieldFits,
+  type StoreListingField,
+} from "@/lib/storeListing";
 
 // Contract for the store visual identity masters (issue #440), re-branded to the
 // Wave C icon identity (#520/#523): a clean WHITE tile with the coral
@@ -131,5 +138,151 @@ describe("store asset masters", () => {
     expect(svg).not.toMatch(/<polygon[\s>]/);
     expect(svg).not.toMatch(/<path[\s>]/);
     expect(svg).not.toMatch(/<radialGradient[\s>]/);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// The listing itself: the copy and the screenshots the owner uploads beside
+// these masters. Both stores enforce hard limits at paste time rather than at
+// review, so a field that is one character over is discovered by the owner, on
+// the day, in the form.
+// ---------------------------------------------------------------------------
+
+const SCREENSHOTS = join(process.cwd(), "public", "store-assets", "screenshots");
+
+/**
+ * A PNG's real dimensions, read from the IHDR chunk. A file NAMED for a size
+ * proves nothing; these are the pixels each store measures on upload.
+ */
+function pngSize(path: string): { width: number; height: number } {
+  const header = readFileSync(path).subarray(0, 33);
+  expect(header.subarray(1, 4).toString("ascii"), path).toBe("PNG");
+  return { width: header.readUInt32BE(16), height: header.readUInt32BE(20) };
+}
+
+type ShotManifest = {
+  width: number;
+  height: number;
+  shots: Array<{ file: string; route: string; caption: string }>;
+};
+
+/** What each store measures on upload, and what the generator renders at. */
+const REQUIRED_SIZES = [
+  { key: "ios-6.7", width: 1290, height: 2796 },
+  { key: "ios-6.5", width: 1242, height: 2688 },
+  { key: "play-phone", width: 1080, height: 1920 },
+] as const;
+
+/** Google Play takes at least two phone screenshots and at most eight. */
+const PLAY_MIN_SHOTS = 2;
+const PLAY_MAX_SHOTS = 8;
+
+describe("store listing copy", () => {
+  it("fits every field into the form that will accept it", () => {
+    // Walking the record rather than listing fields by hand: a field added to
+    // lib/storeListing.ts without a limit cannot slip past unchecked.
+    for (const field of Object.keys(STORE_LISTING_FIELDS) as StoreListingField[]) {
+      const value = STORE_LISTING_FIELDS[field];
+      expect(value.length, `${field} is ${value.length} chars`).toBeLessThanOrEqual(
+        STORE_LISTING_LIMITS[field],
+      );
+      expect(storeListingFieldFits(field), field).toBe(true);
+      expect(value.trim(), field).not.toBe("");
+    }
+  });
+
+  it("keeps the limits the two stores actually publish", () => {
+    expect(STORE_LISTING_LIMITS.name).toBe(30);
+    expect(STORE_LISTING_LIMITS.subtitle).toBe(30);
+    expect(STORE_LISTING_LIMITS.shortDescription).toBe(80);
+    expect(STORE_LISTING_LIMITS.keywords).toBe(100);
+    expect(STORE_LISTING_LIMITS.description).toBe(4000);
+  });
+
+  it("names the app on the install surface and the brand in the prose", () => {
+    // AGENTS.md: PUBMAXX is the brand, PUBMAXXING is the app. The listing name
+    // is what appears under the icon, so it is the app.
+    expect(STORE_LISTING_FIELDS.name).toBe(APP_NAME);
+    expect(STORE_LISTING_FIELDS.description).toContain(BRAND_NAME);
+  });
+
+  it("spends no keyword character on a term the name already earns", () => {
+    // Apple indexes the name and subtitle for free, so a repeat buys nothing
+    // and the field is only 100 characters wide.
+    const keywords = STORE_LISTING_FIELDS.keywords.split(",");
+    expect(new Set(keywords).size, "duplicate keyword").toBe(keywords.length);
+    for (const keyword of keywords) {
+      expect(keyword, "leading or trailing space wastes a character").toBe(keyword.trim());
+      expect(
+        STORE_LISTING_FIELDS.subtitle.toLowerCase(),
+        `subtitle already carries "${keyword}"`,
+      ).not.toContain(keyword.toLowerCase());
+    }
+  });
+
+  it("obeys the house voice: no exclamation marks, no em dashes", () => {
+    for (const value of Object.values(STORE_LISTING_FIELDS)) {
+      expect(value).not.toContain("!");
+      expect(value).not.toContain("—");
+    }
+  });
+
+  it("says what a price is worth rather than promising one", () => {
+    // The whole product is built on not making a price claim it cannot keep,
+    // and a listing is the loudest place that claim could be made.
+    expect(STORE_LISTING_FIELDS.description).toContain("Treat it as a steer, not a promise.");
+  });
+});
+
+describe("store screenshots", () => {
+  it("ships every size both stores require, at its real pixel size", () => {
+    for (const size of REQUIRED_SIZES) {
+      const manifest = JSON.parse(
+        readFileSync(join(SCREENSHOTS, size.key, "manifest.json"), "utf8"),
+      ) as ShotManifest;
+      expect(manifest.width, size.key).toBe(size.width);
+      expect(manifest.height, size.key).toBe(size.height);
+
+      for (const shot of manifest.shots) {
+        // Rendered at the target size, never upscaled from a 430-wide frame.
+        expect(pngSize(join(SCREENSHOTS, size.key, shot.file)), shot.file).toEqual({
+          width: size.width,
+          height: size.height,
+        });
+      }
+    }
+  });
+
+  it("stays inside Google Play's count, which is the narrower of the two", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(SCREENSHOTS, "play-phone", "manifest.json"), "utf8"),
+    ) as ShotManifest;
+    expect(manifest.shots.length).toBeGreaterThanOrEqual(PLAY_MIN_SHOTS);
+    expect(manifest.shots.length).toBeLessThanOrEqual(PLAY_MAX_SHOTS);
+  });
+
+  it("shows the same journey in the same order at every size", () => {
+    // A listing that leads with the map on one device and the feed on another
+    // is two different arguments for the same app.
+    const orders = REQUIRED_SIZES.map((size) => {
+      const manifest = JSON.parse(
+        readFileSync(join(SCREENSHOTS, size.key, "manifest.json"), "utf8"),
+      ) as ShotManifest;
+      return manifest.shots.map((shot) => `${shot.route}|${shot.caption}`).join(",");
+    });
+    expect(new Set(orders).size, "the sizes disagree about the shot list").toBe(1);
+    // The map is the core promise, so it leads.
+    expect(orders[0]?.startsWith("/map|")).toBe(true);
+  });
+
+  it("carries a caption per shot, worded for a store field rather than baked in", () => {
+    const manifest = JSON.parse(
+      readFileSync(join(SCREENSHOTS, "ios-6.7", "manifest.json"), "utf8"),
+    ) as ShotManifest;
+    for (const shot of manifest.shots) {
+      expect(shot.caption.trim(), shot.file).not.toBe("");
+      expect(shot.caption, shot.file).not.toContain("!");
+      expect(shot.caption, shot.file).not.toContain("—");
+    }
   });
 });

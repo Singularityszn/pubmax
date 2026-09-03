@@ -1,0 +1,38 @@
+{
+  "generatedAt": "2026-09-03T23:16:43.394Z",
+  "note": "Apple 6.5 inch, 1242x2688",
+  "width": 1242,
+  "height": 2688,
+  "shots": [
+    {
+      "file": "01-map.png",
+      "route": "/map",
+      "caption": "London pubs on the map."
+    },
+    {
+      "file": "02-prices.png",
+      "route": "/borough/hackney",
+      "caption": "What a pint actually costs."
+    },
+    {
+      "file": "03-crawl.png",
+      "route": "/crawls",
+      "caption": "A crawl you can actually walk."
+    },
+    {
+      "file": "04-tonight.png",
+      "route": "/tonight",
+      "caption": "What is on across London tonight."
+    },
+    {
+      "file": "05-index.png",
+      "route": "/pint-index",
+      "caption": "Pint prices, month by month."
+    },
+    {
+      "file": "06-plan.png",
+      "route": "/plan",
+      "caption": "Describe the night. Get it in order."
+    }
+  ]
+}
