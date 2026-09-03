@@ -6,16 +6,21 @@ import {
   type WebMcpToolImplementations,
 } from "@/lib/webmcp/modelContext";
 
-type RegisteredTool = {
-  name: string;
-  description: string;
-  inputSchema: Record<string, unknown>;
-  annotations: Record<string, boolean>;
-  execute: (
-    input: unknown,
-    context?: WebMcpToolExecutionContext,
-  ) => Promise<WebMcpJsonValue>;
-};
+// The descriptor the page really hands to registerTool. Restating a narrower
+// shape here made every mock unassignable to the ambient signature, which
+// declares inputSchema and annotations optional: under strictFunctionTypes a
+// handler that demands more than the caller promises is not a valid handler.
+type RegisteredTool = WebMcpToolDescriptor;
+
+// registerTool's options are optional in the ambient type. This module always
+// passes a signal and the tests assert on it, so an absent one is a test
+// failure rather than a branch to carry through every assertion.
+function expectSignal(options?: { signal?: AbortSignal }): AbortSignal {
+  if (!options?.signal) {
+    throw new Error("registerTool was called without an abort signal");
+  }
+  return options.signal;
+}
 
 type Registration = {
   tool: RegisteredTool;
@@ -62,8 +67,8 @@ describe("WebMCP tool registration", () => {
     const statuses: WebMcpRegistrationStatus[] = [];
     const modelContext = {
       registerTool: vi.fn(
-        (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
+        (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          registrations.push({ tool, signal: expectSignal(options) });
           return Promise.resolve(undefined);
         },
       ),
@@ -162,8 +167,8 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          registrations.push({ tool, signal: expectSignal(options) });
           return Promise.resolve(undefined);
         },
       },
@@ -201,8 +206,8 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          registrations.push({ tool, signal: expectSignal(options) });
           return Promise.resolve(undefined);
         },
       },
@@ -229,8 +234,8 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          registrations.push({ tool, signal: expectSignal(options) });
           return Promise.resolve(undefined);
         },
       },
@@ -256,8 +261,8 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          registrations.push({ tool, signal: expectSignal(options) });
           index += 1;
           return index === 3 ? failure.promise : Promise.resolve(undefined);
         },
@@ -280,9 +285,10 @@ describe("WebMCP tool registration", () => {
 
     const cleanup = registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
-          registrations.push({ tool, signal: options.signal });
-          options.signal.addEventListener("abort", onAbort);
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
+          const signal = expectSignal(options);
+          registrations.push({ tool, signal });
+          signal.addEventListener("abort", onAbort);
           return Promise.resolve(undefined);
         },
       },
@@ -328,10 +334,10 @@ describe("WebMCP tool registration", () => {
 
     registerWebMcpTools({
       modelContext: {
-        registerTool: (tool: RegisteredTool, options: { signal: AbortSignal }) => {
+        registerTool: (tool: WebMcpToolDescriptor, options?: { signal?: AbortSignal }) => {
           index += 1;
           if (index === 3) throw new Error("registration refused synchronously");
-          registrations.push({ tool, signal: options.signal });
+          registrations.push({ tool, signal: expectSignal(options) });
           return Promise.resolve(undefined);
         },
       },
