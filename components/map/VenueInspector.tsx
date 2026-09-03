@@ -450,6 +450,7 @@ export default function VenueInspector({
       <VenueMenuTab
         venue={venue}
         tab={tab}
+        pintDrops={drops}
         onAddDrink={pubVenue ? startPintDrop : undefined}
       />
 
