@@ -1,5 +1,6 @@
 "use client";
 
+import { MapPin } from "lucide-react";
 import Link from "next/link";
 import { type ReactNode } from "react";
 
@@ -197,7 +198,7 @@ export default function ProfileHeader({
             <p className="profileHandle">{displayHandle(handle)}</p>
             {homeCity ? (
               <p className="profileHomeCity">
-                <span aria-hidden="true">📍 </span>
+                <MapPin size={14} strokeWidth={1.75} aria-hidden="true" />{" "}
                 {homeCity}
               </p>
             ) : null}

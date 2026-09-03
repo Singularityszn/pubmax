@@ -125,8 +125,12 @@ export default function PlanDescribeFirst({
           placeholder="Quiet in Clapham for 4"
           maxLength={500}
         />
+        {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md): the
+            submit control of the describe-first form. The wrapping div also
+            holds the field, so the mark rides the control itself. */}
         <button
           type="button"
+          data-primary-action=""
           onClick={() => query.trim() ? submit() : onGuideMeInstead()}
         >
           {query.trim() ? "Make a plan" : "Guide me"}

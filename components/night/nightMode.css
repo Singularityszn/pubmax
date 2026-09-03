@@ -244,46 +244,50 @@ html:has(.nightPill) {
   gap: 8px;
 }
 
-.nightCard__endingCard {
+/* De-box rule (docs/DESIGN_SYSTEM.md): the ending choices are a section of
+   the night card, not a second card inside it. No edge, no fill, no lift. */
+.nightCard__endingChoices {
   gap: 10px;
-  padding: 10px;
-  border-radius: var(--radius-sm);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
 }
 
-.nightCard__endingCard .routeEndingCard__eyebrow {
+.nightCard__endingChoices .routeEndingCard__eyebrow {
   display: none;
 }
 
-.nightCard__endingCard .routeEndingCard__title {
+.nightCard__endingChoices .routeEndingCard__title {
   font-size: 16px;
 }
 
-.nightCard__endingCard .routeEndingCard__description {
+.nightCard__endingChoices .routeEndingCard__description {
   font-size: 12px;
 }
 
-.nightCard__endingCard .routeEndingCard__choices {
+.nightCard__endingChoices .routeEndingCard__choices {
   grid-template-columns: 1fr;
   gap: 8px;
 }
 
-.nightCard__endingCard .routeEndingCard__choice {
+.nightCard__endingChoices .routeEndingCard__choice {
   grid-template-columns: minmax(0, 1fr) auto;
   grid-template-rows: auto auto;
   min-height: 58px;
   padding: 10px 12px;
 }
 
-.nightCard__endingCard .routeEndingCard__choiceTop {
+.nightCard__endingChoices .routeEndingCard__choiceTop {
   grid-column: 1 / -1;
 }
 
-.nightCard__endingCard .routeEndingCard__choiceDescription {
+.nightCard__endingChoices .routeEndingCard__choiceDescription {
   grid-column: 1;
 }
 
-.nightCard__endingCard .routeEndingCard__action {
+.nightCard__endingChoices .routeEndingCard__action {
   grid-column: 2;
   grid-row: 2;
   align-self: end;

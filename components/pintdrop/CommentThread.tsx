@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageCircle } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { discardBody } from "@/lib/responseBody";
@@ -263,7 +264,7 @@ export default function CommentThread({
       }
       onClick={() => setOpen((v) => !v)}
     >
-      <span aria-hidden="true">💬</span>
+      <MessageCircle size={16} strokeWidth={1.75} aria-hidden="true" />
       {loaded && count > 0 ? <span className="commentToggleCompactCount">{count}</span> : null}
     </button>
   ) : (
