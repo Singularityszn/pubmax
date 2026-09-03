@@ -55,6 +55,7 @@ import {
   type NearPriceTrustView,
 } from "@/components/nearme/useNearPriceTrust";
 import NearPriceEvidenceMission from "@/components/nearme/NearPriceEvidenceMission";
+import Kicker from "@/components/ui/kicker";
 
 import "./nearMeNow.css";
 
@@ -587,7 +588,11 @@ export default function NearMeNow({
   return (
     <section className="nmn" aria-label="Find nearby cheap pints">
       {state === "idle" ? (
-        <NearMeIdleIntro onLocate={locate} onPickPatch={pickPatch} />
+        <NearMeIdleIntro
+          onLocate={locate}
+          onPickPatch={pickPatch}
+          titledByHost={titledByHost}
+        />
       ) : null}
 
       {state === "requesting" ? <NearMeRequestingStatus patch={patch} /> : null}
@@ -653,14 +658,23 @@ export default function NearMeNow({
 function NearMeIdleIntro({
   onLocate,
   onPickPatch,
+  titledByHost,
 }: {
   onLocate: () => void;
   onPickPatch: (patch: NightPatch) => void;
+  /** The map's near-me sheet names itself in its chrome, so no kicker there. */
+  titledByHost: boolean;
 }) {
   return (
     <div className="nmnIntro">
+      {titledByHost ? null : <Kicker>Near you</Kicker>}
       <h1 className="nmnLede">{nearIntroLede()}</h1>
-      <button type="button" className="nmnLocate" onClick={onLocate}>
+      <button
+        type="button"
+        className="nmnLocate"
+        data-primary-action=""
+        onClick={onLocate}
+      >
         <LocateFixed size={18} aria-hidden="true" /> Find my pint
       </button>
       <p className="nmnHint">We only use your location to rank pubs nearby. Nothing is stored.</p>

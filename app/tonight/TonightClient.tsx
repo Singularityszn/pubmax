@@ -28,6 +28,7 @@ import {
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import Kicker from "@/components/ui/kicker";
 import { useWhatsOnTonight, type TonightFreshnessKind } from "@/components/map/useWhatsOnTonight";
 import { useOutListings } from "@/components/out/useOutListings";
 import EditorialRail from "@/components/out/EditorialRail";
@@ -481,7 +482,7 @@ export default function TonightClient({
       <header className="tonightHead">
         <NowSegment current="tonight" />
         <div className="tonightEyebrowRow">
-          <p className="tonightEyebrow">Tonight in London</p>
+          <Kicker className="tonightEyebrow">Tonight in London</Kicker>
           <TonightShareButton />
         </div>
         <h1 className="tonightTitle">{tonightHeading(localityBasis)}</h1>
@@ -836,7 +837,9 @@ export default function TonightClient({
             </p>
           ) : null}
 
-          <p className="tonightFoot">
+          {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
+              the map is where tonight's listings become a pint. */}
+          <p className="tonightFoot" data-primary-action="">
             <Link prefetch={false} href="/map" className="tonightFootLink">
               See them on the map
               <ArrowRight size={14} aria-hidden="true" />

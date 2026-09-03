@@ -26,13 +26,9 @@
 }
 
 .todayEyebrow {
-  /* Sentence case, not a stamp: DESIGN.md reserves caps for bordered/filled
-     stamp chips, and a shouted "GOOD EVENING" is the opposite of personal. */
+  /* Spacing only. The type is the Kicker primitive's (components/ui/kicker.css):
+     one size, one weight and one colour for every kicker in the app. */
   margin: 0 0 5px;
-  font-size: 0.8125rem;
-  font-weight: 650;
-  letter-spacing: 0.005em;
-  color: var(--ink-soft);
 }
 
 .todayTitle {

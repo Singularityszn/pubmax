@@ -10,8 +10,9 @@ import { OutOpenPlanCard } from "@/components/out/OutOpenPlanCard";
 import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import EditorialRail from "@/components/out/EditorialRail";
 import { useOutListings } from "@/components/out/useOutListings";
+import Kicker from "@/components/ui/kicker";
 import { trackEvent } from "@/lib/analytics";
-import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { CITIES, DEFAULT_CITY_ID } from "@/lib/cities";
 import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { outCardSource } from "@/lib/out/attribution";
 import {
@@ -94,6 +95,9 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
       <SiteNav active="out" />
 
       <header className="outHead">
+        {/* The kicker names the city the listings follow (docs/design/LAUNCH_SCREENS.md):
+            London on the server and on first paint, then the city Places set. */}
+        <Kicker>Out in {CITIES[cityId].displayName}</Kicker>
         <h1 className="outTitle">Out</h1>
         <nav className="outDayChips" aria-label="When">
           {OUT_DAY_WINDOWS.map((windowKey) => {
@@ -132,7 +136,9 @@ export default function OutClient({ day }: { day: OutDayWindow }) {
                   {OUT_RETRY_LABEL}
                 </button>
               ) : (
-                <Link prefetch={false} href={OUT_MAP_WAY.href}>
+                /* The route's one primary action (docs/design/LAUNCH_SCREENS.md):
+                   the map is the way onward from a lane with nothing in it. */
+                <Link prefetch={false} href={OUT_MAP_WAY.href} data-primary-action="">
                   {OUT_MAP_WAY.label}
                 </Link>
               )

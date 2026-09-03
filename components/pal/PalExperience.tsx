@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowLeft,
@@ -27,8 +27,6 @@ import {
   anonymousPalDraftOwner,
   clearPalOnboardingDraft,
   migrateLegacyPalOnboardingDraft,
-  PAL_UNLOCKS,
-  palMasteryProgress,
   PAL_ONBOARDING_SPECIES,
   PAL_VOICES,
   SIGNAL_FAMILIES,
@@ -46,6 +44,7 @@ import {
 import PalPortrait from "./PalPortrait";
 import PubPalVoice from "@/components/pubpal/PubPalVoice";
 import { Button } from "@/components/ui/button";
+import Kicker from "@/components/ui/kicker";
 import { setActivePlanPalContext } from "@/lib/activePlan";
 import { readFirstRunCompanion } from "@/lib/firstRunTour";
 
@@ -198,6 +197,49 @@ function RangeControl({
       />
       <span className="palRangeEnds"><small>{low}</small><small>{high}</small></span>
     </label>
+  );
+}
+
+/**
+ * The signed-out welcome: kicker, heading, one primary action.
+ *
+ * Extracted from PalExperience so the launch-screen audit can render it on its
+ * own. The experience holds every other mode behind a ready flag an effect
+ * sets, so a static render of the whole would only ever meet "Waking your Pub
+ * Pal". The markup is the block PalExperience rendered before, unchanged.
+ */
+export function PalMeetingScreen({
+  appearance,
+  onMeet,
+}: {
+  appearance: PubPalAppearance;
+  onMeet: () => void;
+}) {
+  return (
+    <main id="main" className="palExperience palMeeting">
+      <div className="palTopbar">
+        <Link href="/map"><ArrowLeft size={17} /> Map</Link>
+        <span><LockKeyhole size={14} /> Private by default</span>
+      </div>
+      <section className="palMeetingStage" aria-labelledby="pal-meeting-title">
+        <div className="palMeetingPortrait">
+          <PalPortrait appearance={appearance} name="Unclaimed Pub Pal" state="noticing" />
+          <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
+        </div>
+        <div className="palMeetingCopy">
+          <Kicker className="palEyebrow">Meet your companion</Kicker>
+          <h1 id="pal-meeting-title">A little signal that becomes yours.</h1>
+          <p>Choose its form, voice and boundaries. It can help plan the night. You choose what it may do.</p>
+          <div className="palMeetingActions">
+            {/* The route's one primary action (docs/design/LAUNCH_SCREENS.md).
+                The actions row also holds the quiet way out, so the mark rides
+                the control itself. */}
+            <Button className="palPrimary" size="large" type="button" data-primary-action="" onClick={onMeet}>Meet your Pub Pal<ArrowRight size={18} /></Button>
+            <Link href="/map">Use PUBMAXX without a Pal</Link>
+          </div>
+        </div>
+      </section>
+    </main>
   );
 }
 
@@ -362,7 +404,6 @@ export default function PalExperience() {
   }, [user]);
 
   const previewName = draft.name.trim() || `Your ${speciesCopy[draft.appearance.species].title}`;
-  const level = useMemo(() => Math.floor((pal?.masteryPoints ?? 0) / 50) + 1, [pal]);
   const canContinue = step !== 0 || draft.adultConfirmed;
 
   const updateAppearance = (patch: Partial<PubPalAppearance>) => {
@@ -646,12 +687,10 @@ export default function PalExperience() {
   if (mode === "home" && pal && user && pal.ownerId === user.id) {
     const visiblePalState: PalAnimationState = pal.muted ? "sleeping" : palAnimationState;
     const proposalPreferences = pal.proposalPreferences ?? { memories: false, routes: true };
-    const mastery = palMasteryProgress(pal.masteryPoints);
     return (
       <main id="main" className="palExperience palHome">
         <div className="palTopbar">
           <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-          <span>Level {level}</span>
         </div>
         <section className="palHomeHero" aria-labelledby="pal-home-title">
           <div className="palHomePortrait">
@@ -689,12 +728,6 @@ export default function PalExperience() {
               <MapPinned />
               <span><strong>Route proposals {proposalPreferences.routes ? "on" : "off"}</strong><small>{proposalPreferences.routes ? "Suggestions only; you confirm every change" : "Pal will not propose route changes"}</small></span>
             </button>
-            <div className="palUnlockSummary" aria-label="Pub Pal progression">
-              <strong>{pal.masteryPoints} mastery points</strong>
-              <p className="palMasteryNext">{mastery.line}</p>
-              <div className="palMasteryTrack" aria-hidden="true"><span style={{ width: `${Math.round(mastery.fraction * 100)}%` }} /></div>
-              <ul>{PAL_UNLOCKS.map((unlock) => <li key={unlock.id} className={pal.masteryPoints >= unlock.pointsRequired ? "isUnlocked" : ""}>{unlock.label}<span>{unlock.pointsRequired}</span></li>)}</ul>
-            </div>
             <button className="palDanger" type="button" disabled={controlSaving || saving} onClick={() => void removePal()}>
               <Trash2 />
               <span><strong>Delete {pal.name}</strong><small>Deletes the Pal and every confirmed memory</small></span>
@@ -739,27 +772,10 @@ export default function PalExperience() {
 
   if (mode === "meeting") {
     return (
-      <main id="main" className="palExperience palMeeting">
-        <div className="palTopbar">
-          <Link href="/map"><ArrowLeft size={17} /> Map</Link>
-          <span><LockKeyhole size={14} /> Private by default</span>
-        </div>
-        <section className="palMeetingStage" aria-labelledby="pal-meeting-title">
-          <div className="palMeetingPortrait">
-            <PalPortrait appearance={draft.appearance} name="Unclaimed Pub Pal" state="noticing" />
-            <p className="palSpeech" aria-live="polite">There you are. What kind of night are we making?</p>
-          </div>
-          <div className="palMeetingCopy">
-            <p className="palEyebrow">Meet your companion</p>
-            <h1 id="pal-meeting-title">A little signal that becomes yours.</h1>
-            <p>Choose its form, voice and boundaries. It can help plan the night. You choose what it may do.</p>
-            <div className="palMeetingActions">
-              <Button className="palPrimary" size="large" type="button" onClick={() => setMode("onboarding")}>Meet your Pub Pal<ArrowRight size={18} /></Button>
-              <Link href="/map">Use PUBMAXX without a Pal</Link>
-            </div>
-          </div>
-        </section>
-      </main>
+      <PalMeetingScreen
+        appearance={draft.appearance}
+        onMeet={() => setMode("onboarding")}
+      />
     );
   }
 

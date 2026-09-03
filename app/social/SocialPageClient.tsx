@@ -194,10 +194,14 @@ export function SocialAccessBoundary({
   // One line and one button in the same empty-state idiom as every other
   // boundary here. Never a dialog: arrival is not an admin form.
   const asking = state === "age_verification_required" && adultPrompt;
+  // A stranger's one way in is the Sign in link inside SocialViewerState, a
+  // component other surfaces share, so the mark rides the wrapper that is ours
+  // (docs/design/LAUNCH_SCREENS.md: one primary action per route).
   return (
     <section
       className="socialBoundary"
       role={state === "unavailable" ? "alert" : "status"}
+      data-primary-action={state === "sign_in_required" ? "" : undefined}
     >
       {state === "sign_in_required" ? (
         <SocialViewerState
@@ -212,6 +216,7 @@ export function SocialAccessBoundary({
         <button
           className="socialButton"
           type="button"
+          data-primary-action=""
           onClick={onAssertAdult}
           disabled={assertBusy}
         >
