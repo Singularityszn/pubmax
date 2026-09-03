@@ -104,20 +104,20 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
   expect(fit.boxHeight).toBeLessThanOrEqual(120);
   expect(fit.scrollHeight).toBeLessThanOrEqual(120);
 
-  const planTonight = page.locator(".lpHeroActions").getByRole("link", { name: "Plan tonight together" });
+  const planTonight = page.locator(".lpHero .screenActions").getByRole("link", { name: "Log what you paid" });
   await expect(planTonight).toBeVisible();
 
   // Landing mounts the same phone tab bar as every other route, so the consent
-  // card sits above the bar rather than on the safe-area floor. Plan tonight
-  // together is the ONE primary action on this page, and it is checked while
+  // card sits above the bar rather than on the safe-area floor. Log what you
+  // paid is the ONE primary action on this page, and it is checked while
   // the banner is still up.
   const coveredBox = await planTonight.boundingBox();
   expect(coveredBox).not.toBeNull();
-  expect(await pointOwner(page, coveredBox!, ".lpHeroActions")).toBe("control");
+  expect(await pointOwner(page, coveredBox!, ".lpHero .screenActions")).toBe("control");
 
   const promptBox = await prompt.boundingBox();
   expect(promptBox).not.toBeNull();
-  expect(await pointOwner(page, promptBox!, ".lpHeroActions")).toBe("prompt");
+  expect(await pointOwner(page, promptBox!, ".lpHero .screenActions")).toBe("prompt");
 
   await prompt.getByRole("button", { name: "No thanks" }).click();
   await expect(prompt).toBeHidden();
@@ -127,7 +127,7 @@ test("mobile consent never covers the landing CTA, before or after dismiss", asy
 
   const ctaBox = await planTonight.boundingBox();
   expect(ctaBox).not.toBeNull();
-  expect(await pointOwner(page, ctaBox!, ".lpHeroActions")).toBe("control");
+  expect(await pointOwner(page, ctaBox!, ".lpHero .screenActions")).toBe("control");
 });
 
 test("mobile consent never covers Today last-train while visible", async ({ page }) => {

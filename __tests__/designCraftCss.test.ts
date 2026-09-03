@@ -106,19 +106,14 @@ describe("responsive spring ownership", () => {
 });
 
 describe("surface and type hierarchy", () => {
-  it("makes one landing signal dominant and two supporting rows subordinate", () => {
-    expect(landingCss).toMatch(
-      /\.lpSignalGrid article:first-child\s*{[^}]*grid-row:\s*1\s*\/\s*span 2/,
-    );
-    expect(landingCss).toMatch(
-      /\.lpSignalGrid article:not\(:first-child\)\s*{[^}]*min-height:\s*0/,
-    );
-    expect(landingCss).toMatch(
-      /\.lpSignalGrid article:first-child h3\s*{[^}]*font-size:\s*clamp\(/,
-    );
-    expect(landingCss).toMatch(
-      /\.lpButtonQuiet\s*{[^}]*background:\s*transparent;[^}]*border-color:\s*transparent/,
-    );
+  it("gives the landing one primary through the Screen primitive and no second button family", () => {
+    // The relaunch landing (issue #1354) paints its one primary through
+    // components/ui/screen.css. The old landing button family, the signal
+    // grid and the glass nav are gone and must not creep back.
+    expect(landingCss).not.toMatch(/\.lpButton(Primary|Quiet)?\s*{/);
+    expect(landingCss).not.toMatch(/\.lpSignalGrid/);
+    expect(landingCss).not.toMatch(/backdrop-filter/);
+    expect(landingCss).toMatch(/\.lpHero\s*{[^}]*min-height:\s*100dvh/);
   });
 
   it("removes nested panel chrome and makes venue names the primary type", () => {
