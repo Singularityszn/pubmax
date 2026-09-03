@@ -222,6 +222,7 @@ Every production file with an inline `selectStore` or `isSupabaseConfigured` bra
     "lib/weatherRecommendationStore.ts",
     "lib/weatherSnapshotStore.ts",
     "lib/whatsOnListingStore.ts",
+    "scripts/build_pint_index_snapshot.mjs",
     "scripts/push/sendDailyBrief.mjs",
     "scripts/push/sendStepOutNudge.mjs"
   ]
