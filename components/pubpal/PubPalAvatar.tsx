@@ -1,5 +1,6 @@
 import type { PubPalAppearance, PubPalSpecies, SignalFamily } from "@/lib/pubPal";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 import "./pubPal.css";
 
 const silhouettes: Record<PubPalSpecies, string> = {
@@ -23,8 +24,8 @@ export function PubPalAvatar({ appearance, name, compact = false }: { appearance
     <div className={`palAvatar pal-${appearance.species} pal-${appearance.signalAffinity} ${compact ? "isCompact" : ""}`} role="img" aria-label={`${name}, a ${appearance.signalAffinity} hologram cyber ${appearance.species}`}>
       <span className="palHalo" aria-hidden="true" />
       <span className="palBody" aria-hidden="true">
-        {appearance.species === "robin" ? (
-          <PubPalMascot size={compact ? 28 : 40} circular decorative className="palAvatarMascot" />
+        {pubPalMascotSlugFor(appearance.species) ? (
+          <PubPalMascot species={appearance.species} size={compact ? 28 : 40} circular decorative className="palAvatarMascot" />
         ) : (
           <svg viewBox="0 0 80 80"><path d={silhouettes[appearance.species]} /></svg>
         )}

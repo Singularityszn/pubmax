@@ -14,6 +14,7 @@ import {
   IDENTITY_NUDGE_PENDING_TTL_MS,
   getIdentityNudgeClientSnapshot,
   getIdentityNudgeServerSnapshot,
+  identityNudgeAuthNext,
   isIdentityNudgePending,
   isWebCrawler,
   markIdentityNudgeAccepted,
@@ -24,6 +25,7 @@ import {
   shouldOfferIdentityNudge,
   type IdentityNudgeGateState,
 } from "@/lib/identityNudge";
+import { accountClaimReturnToFromUrl } from "@/lib/accountClaimReturnTo";
 
 type WindowLike = { localStorage: Storage };
 
@@ -52,6 +54,7 @@ function clearWindow(): void {
 }
 
 const NOW = 1_800_000_000_000;
+const PLAN_ID = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
 
 function baseState(): IdentityNudgeGateState {
   return {
@@ -141,6 +144,19 @@ describe("identity nudge store (localStorage-backed)", () => {
     recordPlanNudgeTrigger();
     expect(getIdentityNudgeClientSnapshot()).toBe("plan");
     expect(isIdentityNudgePending()).toBe(true);
+  });
+
+  it("carries the Plan return through account claim completion", () => {
+    recordPlanNudgeTrigger(PLAN_ID);
+    const next = identityNudgeAuthNext();
+
+    expect(next).toBe(`/u/you?returnTo=${encodeURIComponent(`/plan/${PLAN_ID}`)}`);
+    expect(accountClaimReturnToFromUrl(`https://pubmaxxing.com${next}`)).toBe(
+      `/plan/${PLAN_ID}`,
+    );
+
+    markIdentityNudgeAccepted();
+    expect(identityNudgeAuthNext()).toBeUndefined();
   });
 
   it("arms the moment trigger", () => {

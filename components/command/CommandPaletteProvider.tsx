@@ -8,8 +8,19 @@
 // state and "mounted" stay identical — see CommandPalette.tsx.
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import dynamic from "next/dynamic";
 
-import CommandPalette from "./CommandPalette";
+// The dialog is fetched when it first opens, not when the app boots. This
+// provider is mounted at the root on EVERY route, so a static import put the
+// palette, its command table, its filter and its stylesheet into the shared
+// shell that a phone downloads to read the landing - for an affordance a phone
+// has no key to reach. Open state and mounted stay identical, which is what
+// makes the split invisible: the chunk is requested by the same state change
+// that used to render it.
+const CommandPalette = dynamic(() => import("./CommandPalette"), {
+  ssr: false,
+  loading: () => null,
+});
 
 type CommandPaletteApi = {
   isOpen: boolean;

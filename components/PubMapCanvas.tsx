@@ -48,6 +48,11 @@ import LandmarkPhotoCredit from "@/components/LandmarkPhotoCredit";
 import MapHeroCard from "@/components/map/MapHeroCard";
 import type { CityId } from "@/lib/cities";
 import { cityMaxBounds, DEFAULT_CITY_ID, getCity } from "@/lib/cities";
+import {
+  mapCameraFocusKey,
+  mapCameraFocusMoves,
+  type MapCameraFocus,
+} from "@/lib/mapCameraFocus";
 import { resolveCompassAction } from "@/lib/mapCompass";
 import { selectMapFallbackPubs } from "@/lib/mapFallbackVenues";
 import {
@@ -363,7 +368,7 @@ type PubMapCanvasProps = {
    * Area centre). Reduced-motion is honoured by the shared `cinematic` helper
    * (it jumps at duration 0). Null / an unchanged token is a no-op.
    */
-  focusPoint?: { center: [number, number]; zoom: number; token: number } | null;
+  focusPoint?: MapCameraFocus | null;
   onViewportChange?: (viewport: MapViewportSnapshot) => void;
   /**
    * Fired once the reader moves the camera themselves — a drag, a pinch, a
@@ -1085,15 +1090,17 @@ export default function PubMapCanvas({
     cinematic({ center: landmark.coordinates, zoom: 15, duration: 800 }, "landmark");
   }, [initialLandmarkId, mapReady, landmarkById, cinematic]);
 
-  // Area button "go somewhere else": fly the camera to a Night Area centre when
-  // the parent bumps focusPoint.token. cinematic honours reduced-motion (it
-  // jumps at duration 0), so this needs no extra guard here.
-  const focusTokenRef = useRef(0);
+  // Every deliberate camera move arrives here: the opening-location answer and
+  // the area lane (choose-area pick, "go somewhere else", a map-search select).
+  // The identity is the SOURCE plus its own counter, because a bare number let
+  // one owner's first move look like the other's and swallowed the pick
+  // (lib/mapCameraFocus.ts). cinematic honours reduced-motion (it jumps at
+  // duration 0), so this needs no extra guard here.
+  const focusKeyRef = useRef<string | null>(null);
   useEffect(() => {
-    if (!mapReady || !focusPoint || focusPoint.token === focusTokenRef.current) {
-      return;
-    }
-    focusTokenRef.current = focusPoint.token;
+    if (!mapReady || !focusPoint) return;
+    if (!mapCameraFocusMoves(focusPoint, focusKeyRef.current)) return;
+    focusKeyRef.current = mapCameraFocusKey(focusPoint);
     cinematic(
       { center: focusPoint.center, zoom: focusPoint.zoom, duration: 900 },
       "area",

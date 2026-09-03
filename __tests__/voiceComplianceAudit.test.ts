@@ -163,7 +163,9 @@ describe("VOICE.md compliance audit", () => {
     expect(today).not.toContain("catch up shortly");
     expect(tonight).not.toContain("same spine as the map");
     expect(tonightPage).not.toContain("Same spine as the map");
-    expect(tonightPage).toContain("Open a listed venue on the map.");
+    expect(tonightPage).toContain(
+      "Check sourced London pub listings for tonight, with map links when available.",
+    );
     expect(planTemplates).not.toContain("What's-On spine");
     expect(planTemplates).toContain("Quiz listings with start times.");
 
@@ -494,8 +496,8 @@ describe("VOICE.md rule 2 — plumbing words stay off reader surfaces", () => {
     expect(composer).toMatch(/You&rsquo;ve changed the night since we sorted it/u);
     expect(pal).not.toContain("Optional by design");
     expect(pal).not.toContain("Route before character");
-    expect(pal).toContain("Skip it if you like");
-    expect(pal).toContain("Nothing to talk about yet");
+    expect(pal).toContain("Meet your companion");
+    expect(pal).toContain("A little signal that becomes yours.");
   });
 });
 

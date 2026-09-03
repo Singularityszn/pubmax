@@ -35,6 +35,71 @@ test.describe("desktop route composition", () => {
     expect(exploreBox!.x).toBeGreaterThan(briefBox!.x + briefBox!.width);
   });
 
+  test("We're out pairs its explanation with the check-in card", async ({ page }) => {
+    await page.goto("/we-are-out");
+
+    const explanation = page.locator(".weAreOut .feedHeader");
+    const card = page.locator(".weAreOut .weAreOutForm");
+    await expect(explanation).toBeVisible();
+    await expect(card).toBeVisible();
+
+    const [explanationBox, cardBox] = await Promise.all([
+      explanation.boundingBox(),
+      card.boundingBox(),
+    ]);
+    expect(explanationBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    // Side by side, not stacked: the card starts past the right edge of the copy.
+    expect(cardBox!.x).toBeGreaterThan(explanationBox!.x + explanationBox!.width);
+    // And they share the row rather than the card dropping below the fold.
+    expect(Math.abs(cardBox!.y - explanationBox!.y)).toBeLessThan(80);
+  });
+
+  test("Near leads with the answer and rails the mode control", async ({ page }) => {
+    await page.goto("/near");
+
+    const answer = page.locator(".nmnPageBody > .nmn");
+    const control = page.locator(".nmnPageBody > .nearModeSwitch");
+    await expect(answer).toBeVisible();
+    await expect(control).toBeVisible();
+
+    const [answerBox, controlBox] = await Promise.all([
+      answer.boundingBox(),
+      control.boundingBox(),
+    ]);
+    expect(answerBox).not.toBeNull();
+    expect(controlBox).not.toBeNull();
+    // Content first: the answer holds the primary column and the Pint/Desk
+    // control sits beside it instead of stacking above it.
+    expect(controlBox!.x).toBeGreaterThan(answerBox!.x + answerBox!.width);
+    // The answer took back the width the 560px column used to cap it at.
+    expect(answerBox!.width).toBeGreaterThan(560);
+  });
+
+  test("Login sits in the page instead of pinned to the top", async ({ page }) => {
+    await page.goto("/login");
+
+    const card = page.locator(".loginPageInner");
+    await expect(card).toBeVisible();
+
+    const alignment = await page
+      .locator(".loginPage")
+      .evaluate((element) => getComputedStyle(element).alignContent);
+    expect(alignment).toBe("center");
+
+    const box = await card.boundingBox();
+    expect(box).not.toBeNull();
+    const viewport = page.viewportSize();
+    expect(viewport).not.toBeNull();
+    // Centring only distributes free space, so the balance claim applies while
+    // the card fits. A taller card grows the page and scrolls instead.
+    if (box!.height < viewport!.height) {
+      const above = box!.y;
+      const below = viewport!.height - (box!.y + box!.height);
+      expect(Math.abs(above - below)).toBeLessThan(48);
+    }
+  });
+
 });
 
 test.describe("phone route composition", () => {
@@ -80,5 +145,25 @@ test.describe("phone route composition", () => {
     );
     expect(boxes.every((box) => box.width < 390)).toBe(true);
     expect(boxes.every((box, index) => index === 0 || box.top > boxes[index - 1]!.top)).toBe(true);
+  });
+
+  test("We're out keeps one stacked column on a phone", async ({ page }) => {
+    await page.goto("/we-are-out");
+
+    const explanation = page.locator(".weAreOut .feedHeader");
+    const card = page.locator(".weAreOut .weAreOutForm");
+    await expect(explanation).toBeVisible();
+    await expect(card).toBeVisible();
+
+    const [explanationBox, cardBox] = await Promise.all([
+      explanation.boundingBox(),
+      card.boundingBox(),
+    ]);
+    expect(explanationBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    // The desktop pairing is inside its breakpoint: the wrapper is
+    // `display: contents` here, so the phone still reads copy then form.
+    expect(cardBox!.y).toBeGreaterThan(explanationBox!.y);
+    expect(cardBox!.width).toBeLessThanOrEqual(390);
   });
 });

@@ -52,19 +52,24 @@ To check the live ledger, compare `supabase/migrations/` against the Supabase da
 supabase migration list
 ```
 
-**Live snapshot re-verified 2026-08-23** (reverify before any later push; this will go stale): production migrations through `0116` were applied. The owner must still compare the full repository and production ledgers before each release. Do not infer schema state from the latest filename alone.
+**Ledger reconciliation re-verified 2026-08-31:** production contains the objects
+recorded by source migrations `0127`-`0132`. The production objects were applied
+on 2026-08-27 through PR [#1237](https://github.com/Singularityszn/pubmax/pull/1237),
+which then closed unmerged. The source bodies are idempotent against that
+production state and let a fresh database reproduce it. This records source-ledger
+parity; it does not prove that Captain has applied these new version rows to the
+remote ledger.
+Check `supabase migration list` before any push or database action.
 
-| Order applied (timestamp) | File | Migration |
-|---|---|---|
-| 1 | `20260806150000_0073_social_interactions.sql` | `0073_social_interactions` |
-| 2 | `20260806151000_0074_social_composer.sql` | `0074_social_composer` |
-| 3 | `20260806160000_0076_plan_member_group_prefs.sql` | `0076_plan_member_group_prefs` |
-| 4 | `20260806162000_0077_pending_plan_recaps.sql` | `0077_pending_plan_recaps` |
-| 5 | `20260806235944_0075_social_crews.sql` | `0075_social_crews` |
-| 6 | `20260807000000_0078_profile_tombstone.sql` | `0078_profile_tombstone` |
-| 7 | `20260807010000_0079_handle_claim_no_inheritance.sql` | `0079_handle_claim_no_inheritance` |
-| 8 | `20260807020000_0080_na_friendly_signal.sql` | `0080_na_friendly_signal` |
-| 9 | `20260807030000_0081_plan_public_invite.sql` | `0081_plan_public_invite` |
+The Plan account-claim follow-up migrations `0133` and `0134` are in the
+source ledger with matching rollback files. Their account-claim RPCs are
+already live in production, so the application change has no deploy-order
+hazard. Captain still owns reconciling and applying these source migration
+rows before treating their revised recovery and account-join behaviour as
+applied.
+
+The complete applied order is deliberately not copied here. Treat the live
+`supabase migration list` and the files in `supabase/migrations/` as authoritative.
 
 Note the order: `0075_social_crews` has a later timestamp than `0076` and `0077`, so it applied after them despite its lower number. This is the same out-of-order case `docs/DEPLOYMENT.md` documents for `0070`-`0072`. Future pushes should still use `supabase db push --include-all` rather than assuming filename-number order.
 
@@ -164,7 +169,10 @@ Find the previous URL in the Vercel dashboard's Deployments list, or `vercel ls`
 
 Applied migrations are not covered by a code rollback. Rolling back the app does not undo a schema change.
 
-Every migration from `0071` onward, including all six migrations queued for this weekend (section 1.3), has its own matching file in `supabase/migrations/rollback/`. Run the rollback SQL manually against the database; nothing runs it automatically.
+Every migration from `0071` onward, including reconciliation migrations `0127`-
+`0134` (section 1.3), has its own matching file in
+`supabase/migrations/rollback/`. Run the rollback SQL manually against the
+database; nothing runs it automatically.
 
 Two points to know about the already-applied history:
 

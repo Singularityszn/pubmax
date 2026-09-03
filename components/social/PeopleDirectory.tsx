@@ -25,6 +25,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { authedActionFetch } from "@/lib/authedFetch";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import { errorMessageFrom } from "@/lib/apiErrorMessage";
 import { followListHandleSet } from "@/lib/followList";
 import {
@@ -64,7 +65,8 @@ export default function PeopleDirectory({
   limit?: number;
 }) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
-  const { accountRevision, user, identityResolved } = useAuth();
+  const { accountRevision, identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
   const identityViewerHandle = useViewerHandle();
   const [status, setStatus] = useState<LoadState>("loading");
   const [people, setPeople] = useState<Person[]>([]);
@@ -79,8 +81,12 @@ export default function PeopleDirectory({
   const [relationStateKey, setRelationStateKey] = useState("");
   const accountRevisionRef = useRef(accountRevision);
   const viewerRef = useRef("");
-  const handleRead = identityResolved;
-  const viewer = user ? normalizeHandle(identityViewerHandle ?? "") : "";
+  const identityReadyForSurface = identityResolved && !viewerSession.unresolved;
+  const handleRead = identityReadyForSurface;
+  const viewer =
+    viewerSession.signedIn && identityReadyForSurface
+      ? normalizeHandle(identityViewerHandle ?? "")
+      : "";
   const relationKey = `${accountRevision}:${viewer}`;
 
   useEffect(() => {
@@ -365,8 +371,13 @@ export default function PeopleDirectory({
                 {isSelf ? (
                   <span className="peopleDir__self">You</span>
                 ) : !viewer ? (
-                  <Link className="peopleDir__button" href={user ? "/u/you" : "/login"}>
-                    {user ? "Claim a handle to follow" : "Sign in to follow"}
+                  <Link
+                    className="peopleDir__button"
+                    href={viewerSession.signedIn ? "/u/you" : "/login"}
+                  >
+                    {viewerSession.signedIn
+                      ? "Claim a handle to follow"
+                      : "Sign in to follow"}
                   </Link>
                 ) : (
                   <button

@@ -35,8 +35,8 @@ test("landing nav and footer name Social", async ({ page }) => {
   await expect(footerSocial).toHaveCount(1);
 });
 
-test.describe("landing Plan tonight together hierarchy", () => {
-  test("keeps one Plan tonight together primary with Map and location as secondary text", async ({ page }) => {
+test.describe("landing Pub Pal hierarchy", () => {
+  test("keeps Meet your Pub Pal primary with Plan, Map and location as secondary text", async ({ page }) => {
     await openLanding(page, { width: 1440, height: 900 });
 
     const hero = page.locator(".lpHeroActions");
@@ -45,8 +45,8 @@ test.describe("landing Plan tonight together hierarchy", () => {
 
     const primaries = hero.locator(".lpButtonPrimary");
     await expect(primaries).toHaveCount(1);
-    await expect(primaries.first()).toHaveAttribute("href", "/plan");
-    await expect(primaries.first()).toContainText("Plan tonight together");
+    await expect(primaries.first()).toHaveAttribute("href", "/pal");
+    await expect(primaries.first()).toContainText("Meet your Pub Pal");
 
     // No quiet equal-weight button pair under the map-first hero.
     await expect(hero.locator(".lpButtonQuiet")).toHaveCount(0);
@@ -79,7 +79,7 @@ test.describe("landing Plan tonight together hierarchy", () => {
       await expect(hero.getByRole("link", { name: /Find my pint/i })).toHaveAttribute("href", "/near?locate=1");
       const primary = hero.locator(".lpButtonPrimary");
       await expect(primary).toHaveCount(1);
-      await expect(primary).toContainText("Plan tonight together");
+      await expect(primary).toContainText("Meet your Pub Pal");
       const box = await primary.boundingBox();
       expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
       expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(viewport.height + 1);

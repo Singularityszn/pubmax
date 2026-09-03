@@ -6,6 +6,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { DiscoverBody } from "@/app/discover/DiscoverPageClient";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
+import FoundersWallLink from "@/components/founding/FoundersWallLink";
 import SiteNav from "@/components/nav/SiteNav";
 import HandleAvatar from "@/components/profile/HandleAvatar";
 import CrewsPanel from "@/components/social/CrewsPanel";
@@ -409,9 +411,14 @@ function SocialPageAccountState({
   friendsLaunchEnabled = true,
 }: SocialPageClientProps) {
   const surfaceName = socialSurfaceName(friendsLaunchEnabled);
-  const { accountRevision, identityResolved, user } = useAuth();
+  const { accountRevision, identityResolved } = useAuth();
+  const viewerSession = useViewerSession();
   const viewerPhase: SocialViewerPhase =
-    !identityResolved ? "unresolved" : user ? "resolved" : "signed-out";
+    viewerSession.unresolved
+      ? "unresolved"
+      : viewerSession.signedIn
+        ? "resolved"
+        : "signed-out";
   const [access, setAccess] = useState<AccessLoadState>("checking");
   const [adultPrompt, setAdultPrompt] = useState(false);
   const [assertBusy, setAssertBusy] = useState(false);
@@ -448,17 +455,21 @@ function SocialPageAccountState({
       });
       return;
     }
-    if (!identityResolved) {
+    if (viewerSession.phase === "unresolved") {
       void Promise.resolve().then(() => setAccess("checking"));
       return;
     }
-    if (!user) {
+    if (viewerSession.phase === "signed-out") {
       void Promise.resolve().then(() => {
         setAccess("sign_in_required");
         setAdultPrompt(false);
         setDraftScope(null);
         setViewerHandle(null);
       });
+      return;
+    }
+    if (!identityResolved) {
+      void Promise.resolve().then(() => setAccess("checking"));
       return;
     }
 
@@ -496,7 +507,14 @@ function SocialPageAccountState({
         setAccess("unavailable");
       });
     return () => controller.abort();
-  }, [accessAttempt, accountRevision, friendsLaunchEnabled, identityResolved, initialState.tab, user]);
+  }, [
+    accessAttempt,
+    accountRevision,
+    friendsLaunchEnabled,
+    identityResolved,
+    initialState.tab,
+    viewerSession.phase,
+  ]);
 
   // Claiming a handle on this very page changes the answer the access route
   // gives, and the claim announces itself (`emitIdentityHandleChanged`). Without
@@ -679,9 +697,13 @@ function SocialPageAccountState({
     isPosts &&
     viewerPhase === "resolved" &&
     access === "verified";
+  // A signed-out reader meets the door in the body, so the packs go beside it
+  // there rather than in the narrow rail, where they left the column empty.
+  const packsBesideTheDoor =
+    friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
+
   return (
     <>
-      <SiteNav active="social" />
       <main className="socialPage" id="main-content">
         <h1 className="socialTitle">{surfaceName}</h1>
         <div className="socialLayout">
@@ -719,10 +741,16 @@ function SocialPageAccountState({
                 boundary, so leaving them mounted would offer follows on a page
                 that says it is not open yet. Pinned by
                 __tests__/socialRollbackRender.test.tsx. */}
-            {/* ONE live copy of the packs on this page. A second would keep its
-                own follow results, so the two would disagree about what a tap
-                just did. */}
-            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
+            {/* ONE live copy of the packs on this page. Signed-in cards keep
+                their follow results; stranger cards are read-only, and the
+                two render paths must never appear together. */}
+            {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
+            {/* The founders wall. Public, already sitemapped, and until now
+                reachable from nowhere inside the app. One quiet link, no
+                count, and no branch on whether this reader holds a number:
+                that would make the number a capability, which
+                lib/foundingMembers.ts forbids. */}
+            {isPosts ? <FoundersWallLink className="socialFoundersLink" /> : null}
             {/* And ONE live copy of the search-and-invite surface, for the same
                 reason: the body used to mount a second one beside it, so an
                 unverified viewer met the same heading, the same field and the
@@ -756,10 +784,18 @@ function SocialPageAccountState({
               />
             </section>
           ) : viewerPhase === "signed-out" ? (
-            <SocialAccessBoundary
-              state="sign_in_required"
-              friendsLaunchEnabled={friendsLaunchEnabled}
-            />
+            <>
+              <SocialAccessBoundary
+                state="sign_in_required"
+                friendsLaunchEnabled={friendsLaunchEnabled}
+              />
+              {/* The packs are public and already listed, so a stranger meeting
+                  the door can see who is already here rather than one sentence
+                  in an empty page. Still ONE live copy: the rail drops its
+                  signed-in copy while this one is up, so the two render paths
+                  cannot appear together or carry conflicting follow results. */}
+              {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
+            </>
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>
@@ -871,5 +907,16 @@ function SocialPageAccountState({
 
 export default function SocialPageClient(props: SocialPageClientProps) {
   const { user } = useAuth();
-  return <SocialPageAccountState key={user?.id ?? "signed-out"} {...props} />;
+  // The key is what isolates one account's Social state from the next: a switch
+  // remounts this subtree so no held feed, composer draft or activity list can
+  // carry over. SiteNav sits OUTSIDE it on purpose. The nav is not Social state,
+  // and remounting it destroyed the account menu mid-switch: the open card that
+  // is supposed to name the account you just switched TO disappeared instead,
+  // against the law that a held profile card carries the handle it is about.
+  return (
+    <>
+      <SiteNav active="social" />
+      <SocialPageAccountState key={user?.id ?? "signed-out"} {...props} />
+    </>
+  );
 }

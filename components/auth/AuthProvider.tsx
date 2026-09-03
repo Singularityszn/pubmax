@@ -42,6 +42,8 @@ import {
   establishAuthCallbackSession,
 } from "@/lib/authCallbackClient";
 import { ensureSupabaseBrowser, isAuthConfigured } from "@/lib/authClient";
+import { loadAuthClientWithRetry } from "@/lib/authClientLoad";
+import { requestDeploymentSkewCheck } from "@/lib/deploymentSkewRecovery";
 import {
   guardSocialAuthProvider,
   loadSocialAuthProviders,
@@ -297,7 +299,9 @@ export function AuthProvider({
       : supabaseProviderState === "authenticated" ||
           (clerkIntegrationConfigured && clerkProviderState === "authenticated")
         ? "authenticated"
-        : "signed-out";
+        : supabaseProviderState === "unavailable"
+          ? "unavailable"
+          : "signed-out";
   const sessionTransitions = useRef(createAuthSessionTransitionTracker());
   const updateSession = useCallback(
     (nextSession: Session | null, event: string | null = null) => {
@@ -501,8 +505,44 @@ export function AuthProvider({
 
     // Lazy-load the browser client (dynamic import) off the critical path, then
     // subscribe and restore. Everything client-dependent runs after it resolves.
-    void ensureSupabaseBrowser().then((supabase) => {
+    //
+    // The load can REJECT (a deploy moved the chunk, the connection dropped
+    // mid-download). That is a read we could not run, not an answer about the
+    // viewer, so it is retried and then published as unavailable - never as a
+    // confident sign-out. An unhandled rejection here used to leave the 20
+    // second ceiling to settle it, and every page in the tab then painted its
+    // signed-out variant over an intact session (lib/authClientLoad.ts).
+    void loadAuthClientWithRetry(ensureSupabaseBrowser, {
+      delay: (ms) =>
+        new Promise<void>((resolve) => {
+          window.setTimeout(resolve, ms);
+        }),
+    }).then((outcome) => {
       if (!active) return;
+
+      if (outcome.status === "unavailable") {
+        // Say nothing about the viewer and stop the ceiling from saying it for
+        // us. A stale document is the likeliest cause, so ask the deployment
+        // skew check to run: it reloads onto the current deployment, and its
+        // own guards refuse a loop or a page with unsaved input.
+        window.clearTimeout(loadingTimeout);
+        setProviderAuthState("supabase", "unavailable");
+        setSessionLoading(false);
+        void callbackCapture.then((captured) => {
+          const callbackAttempt = captured?.attempt ?? null;
+          if (callbackAttempt?.attemptId) {
+            releaseBrowserAuthAttempt(callbackAttempt.attemptId);
+          }
+          captured?.releaseCoordination();
+          scrubLingeringBrowserAuthCallback();
+          if (!active) return;
+          if (callbackAttempt) setAuthCallbackError(AUTH_CALLBACK_ERROR_MESSAGE);
+        });
+        requestDeploymentSkewCheck();
+        return;
+      }
+
+      const supabase = outcome.status === "ready" ? outcome.client : null;
 
       // Unconfigured / SSR-only: nothing to subscribe to.
       if (!supabase) {
@@ -691,20 +731,26 @@ export function AuthProvider({
         );
         if (!active) return;
         window.clearTimeout(loadingTimeout);
-        if (bootstrapped.status === "local") {
+        if (bootstrapped.status === "unavailable") {
+          if (readProviderAuthState("supabase") === "unresolved") {
+            setProviderAuthState("supabase", "unavailable");
+          }
+        } else if (bootstrapped.status === "local") {
           // INITIAL_SESSION normally supplied this same session already. The
           // explicit update also covers a client that did not emit that event.
           updateSession(bootstrapped.session);
         } else if (bootstrapped.status === "expired") {
           setWelcomeBack({ maskedEmail: bootstrapped.maskedEmail });
         }
-        const bootstrapAuthState = resolveSupabaseAuthState(
-          "bootstrap",
-          sessionTransitions.current.currentUserId() !== null,
-          sessionTransitions.current.currentUserId(),
-        );
-        if (bootstrapAuthState) {
-          setProviderAuthState("supabase", bootstrapAuthState);
+        if (bootstrapped.status !== "unavailable") {
+          const bootstrapAuthState = resolveSupabaseAuthState(
+            "bootstrap",
+            sessionTransitions.current.currentUserId() !== null,
+            sessionTransitions.current.currentUserId(),
+          );
+          if (bootstrapAuthState) {
+            setProviderAuthState("supabase", bootstrapAuthState);
+          }
         }
         // A restored result has already awaited auth.setSession. Supabase emits
         // SIGNED_IN through the subscription above, so the session and identity
@@ -887,11 +933,13 @@ export function AuthProvider({
           ? "unknown"
           : session
             ? "signed-in"
-            : "signed-out",
+            : supabaseProviderState === "unavailable"
+              ? "unknown"
+              : "signed-out",
       identityResolved:
         !configured || (canonicalIdentityState.status === "resolved" && !loading),
     });
-  }, [canonicalIdentityState.status, configured, loading, session]);
+  }, [canonicalIdentityState.status, configured, loading, session, supabaseProviderState]);
 
   const resumeSignIn = useCallback(async (next?: string): Promise<MagicLinkResult> => {
     if (typeof window === "undefined") {

@@ -10,6 +10,7 @@ CI refuses a change that goes past it.
 - The method both perf specs share: [`e2e/helpers/perfMeasurement.ts`](../e2e/helpers/perfMeasurement.ts)
 - The UX lane report: [`e2e/ux-lane-perf-verification.spec.ts`](../e2e/ux-lane-perf-verification.spec.ts). Four arrival routes (`/`, `/near`, `/map/london`, `/out`) with LCP and CLS beside decoded JS, written as a markdown table for the PR body. It REPORTS: a route over a ceiling here is a warning, and the only failure is a route it could not measure at all
 - The gate: the `performance-budget` job in `.github/workflows/ci.yml`; the UX lane report is its own `ux-lane-performance` job, because one 15-minute wall cannot hold two full sweeps
+- The API gate: the `api-latency-budget` job in `.github/workflows/api-performance.yml` probes a successful main deployment
 
 ## What each metric means
 
@@ -18,14 +19,173 @@ CI refuses a change that goes past it.
 | `serverRenderMs` | `responseStart - requestStart` on the document's own navigation entry | Over loopback there is no network in that figure, so it is the part of a production TTFB the code owns. |
 | `jsDecodedKB` | Decoded bytes of every same-origin script the route asked for before it was interactive | Decoded, not transferred, because parse time is what a phone feels. |
 | `requests` | Same-origin requests to the same point, the document included | A route can hold its bytes and still lose the night to a waterfall. |
+| `lcpMs` | The largest contentful paint the SAME run observed, from a buffered `PerformanceObserver` | The three above are levers; this is the one a drinker feels, and a route can hold every lever and still paint late. |
+
+## Where the LCP ceilings came from
+
+Seeded on 2026-09-01 from three production runs per route over the real network
+rather than loopback. Those seed runs used 390x844 at DPR 3. The enforced sweep
+uses Desktop Chrome at device pixel ratio 1 with the same CSS viewport, 4x CPU
+throttle, and cross-origin requests refused, so seed figures are indicative of
+their origin rather than reproductions of CI's method. Medians:
+
+| route | measured LCP | seeded ceiling |
+| --- | --- | --- |
+| `/` | 296 ms | 1500 ms |
+| `/pal` | 792 ms | 1500 ms |
+| `/map` | 1196 ms | 2500 ms |
+| `/today` | 720 ms | 2500 ms |
+| `/tonight` | 784 ms | 2500 ms |
+| `/out` | 900 ms | 2500 ms |
+| `/about` | 320 ms | 2500 ms |
+| `/pubs` | 372 ms | 2500 ms |
+
+The ceilings are deliberately looser than the measurements. A seed taken on one
+box against production is not the sweep, and a first ceiling that fails CI on
+the day it lands teaches nothing. `/` and `/pal` take the speed programme's own
+1500 ms target because they are the front door and its one primary action;
+every other route takes 2500 ms, the Core Web Vitals good boundary, so no route
+may be worse than good. Ratcheting them to CI's measured numbers is the same
+down-only move every other ceiling here makes.
+
+`/pal` joins the file with them. It was the heaviest unbudgeted route in the
+seed sweep at 1745 KB decoded, and an unbudgeted route is one nothing can
+regress.
+
+Production RUM corroborates the lab figure independently: `onLCP` already
+reports through `lib/webVitals.ts` and the consent-gated `web_vital` event
+(`components/PerformanceVitals.tsx`), rounded and route-patterned, carrying no
+identifier.
+
+## What each route actually parses
+
+Swept on 2026-09-01 against production at 390x844, by fetching every same-origin
+script the route loaded and reading the four heavy libraries out of the text.
+Decoded KB, so parse cost rather than transfer:
+
+| route | total | MapLibre | Convex | ElevenLabs | Supabase |
+| --- | --- | --- | --- | --- | --- |
+| `/` | 1143 | 0 | 0 | 0 | ~341 |
+| `/pal` | 1745 | 0 | 0 | 603 | ~341 |
+| `/map` | 2599 | 1024 | 0 | 0 | ~341 |
+| `/today` | 1180 | 0 | 0 | 0 | ~341 |
+| `/tonight` | 1175 | 0 | 0 | 0 | ~341 |
+| `/out` | 1129 | 0 | 0 | 0 | ~341 |
+| `/about` | 1081 | 0 | 0 | 0 | ~341 |
+| `/pubs` | 1092 | 0 | 0 | 0 | ~341 |
+
+Three things this settles.
+
+MapLibre is on `/map` and nowhere else, and Supabase is on every route as the
+same ~341 KB lazily fetched after paint by `ensureSupabaseBrowser`. Entry-point
+isolation is already correct for both.
+
+`/about` and `/pubs` were carrying 1900 and 1950 KB ceilings against 1081 and
+1092 KB measured. There was no accidental import to split: no MapLibre, no
+Convex, no voice SDK, no image cropper in any of their 24 and 25 chunks. They
+were 800 KB of unbanked slack, which is the shape #1296 named, so both ceilings
+ratchet to 1200.
+
+Their REQUEST ceilings are left alone. A seed run counts requests against its
+own interactive moment on a different box and network: this sweep counted 62 on
+`/` where CI is green at 50, so a request figure measured here is not
+comparable. Decoded bytes are, which is why only those ratcheted.
+
+## Which API reads may sit at the edge
+
+A shared cache holds ONE answer for everybody, so only a route whose answer is
+the same for everybody may ask for one. The bar is narrower than "is it
+public": the body has to be a pure function of the request URL and the
+deployment. A session, a caller's identity, a store read that can change
+between two requests, or a URL that can carry the viewer's own coordinates all
+disqualify it.
+
+| class | contract | verdict |
+| --- | --- | --- |
+| Night Areas (list and slug) | Bundled config; changes only on deploy | Cached (`jsonCached`) |
+| Tonight conditions | Public and read-only, but its URL carries `lat`/`lng` | No-store, deliberately |
+| What's-On | Bundled rows plus a live layer, and it accepts `near=lat,lng` | No-store, escalated |
+| Everything actor-gated | Answer differs per caller | No-store, by law |
+
+`__tests__/sharedCacheHonesty.test.ts` is the fence. It sweeps every route file
+and fails when a shared-cache header sits beside a per-caller read or a viewer
+point.
+
+It first flagged two routes that ship one from a file mentioning
+`coarsenViewerPoint`. The captain's ruling of 2026-09-01 set the invariant: no
+UN-COARSENED viewer point may ever appear in a URL or a shared cache key, and a
+bucket many people share by construction may. Traced against it, both are on the
+right side.
+
+`/api/tfl-disruption` is case one. Both callers, `DisruptionLine` and
+`TodayTubeCard`, run `coarsenViewerPoint` BEFORE they build the URL, so the key
+holds only bucket values and the route's own call is a defensive second pass for
+a direct caller. The bucket is three decimal places, roughly a 70 to 110 metre
+cell: in the London this strip serves that is a city block holding many people,
+and the answer is a whole transport patch, coarser again than the cell that
+selected it. The cache stays.
+
+`/api/citymcp/journey` was never a viewer-point cache. Its cacheable GET carries
+venue-to-venue coordinates, which are public map data; a journey that starts
+where the reader stands goes by POST with `cache: no-store`, which
+`useVenueJourney` says in its own comment.
+
+Both stay named in the fence with the reason that ruled them, and the list may
+only shrink. The fence now checks the invariant rather than trusting it: every
+caller must coarsen above the line that builds the URL, and the viewer-origin
+journey must stay on POST.
+
+## The API latency budgets
+
+`perf/api-budgets.json` is the same discipline one layer down: what the public
+GETs the map, Today and Out spend on arrival may make a reader wait for. A page
+can hold every byte budget it has and still lose the night because the read
+behind it took a second.
+
+Six reads are budgeted on p50 and p95, measured as time to the first byte of
+the body. `lib/apiBudgets.mjs` owns the runtime rules and
+`lib/apiBudgets.ts` supplies the application types; `scripts/probe-api-budgets.mjs`
+only measures, so the verdict is unit-tested without a network:
+
+```
+node scripts/probe-api-budgets.mjs --base-url https://<deployment>.vercel.app
+```
+
+Seeded on 2026-09-01 from eight production samples per route, timed as curl's
+`time_starttransfer`, which includes this machine's round trip and a cold
+invocation in the first sample. The ceilings are looser again than the seed for
+that reason, and the same down-only rule applies to them as to the page
+budgets. A route the probe could not measure fails: a budget nothing checked is
+not a budget, and an error page is not a fast read.
+
+## Banking the slack
+
+Slack does not stay slack. #1296 is the record of what happens otherwise: a
+ceiling set generously, a route that quietly grows back into it, and nobody
+able to say when.
+
+So the sweep prints a second table. Any route that beats a ceiling by more than
+15% is named as a ratchet candidate, with what it measured and how far under it
+sat. A sweep where every ceiling is snug prints nothing, so a quiet run stays
+quiet.
+
+It is a WARNING and only a warning. It edits no file and fails no build:
+`lib/performanceBudgets.ts` touches the filesystem at all only to read the
+ceilings, and `__tests__/lcpBudget.test.ts` holds it to that. A ceiling comes
+down because a person decided it should, with the measurement in front of them,
+which is the same rule the budget file's own note states.
+
+An unmeasured route is never a candidate. That route is a BREACH, and the
+breach table already says so.
 
 ## How a run is taken
 
-Against the production build, at 390x844, with a 4x CPU throttle and every
-cross-origin request refused, so a run measures what we ship and never a tile
-server's morning. Each route gets a warm-up load whose request lifecycle must
-fully drain before measurement, then the median of three measured runs. A
-network that does not drain within 20 seconds fails the run.
+Against the production build in Desktop Chrome at device pixel ratio 1, with a
+CSS viewport of 390x844, a 4x CPU throttle, and every cross-origin request
+refused, so a run measures what we ship and never a tile server's morning. Each
+route gets a warm-up load whose request lifecycle must fully drain before
+measurement, then the median of three measured runs. A network that does not
+drain within 20 seconds fails the run.
 
 Counting stops at an APP-DEFINED moment, not a wall clock: the route's own
 readiness gate, no earlier than the window load event. A resource counts if it
@@ -64,7 +224,7 @@ unmeasured route reads as a pass and never fails again.
 
 ## The pin-ready record on /map
 
-`/map` carries one extra tracked block, `pinReady`. It is NOT one of the three
+`/map` carries one extra tracked block, `pinReady`. It is NOT one of the four
 budgeted metrics: `lib/performanceBudgets.ts` never reads it, so nothing here
 fails a build. It is the RECORD of the map's own arrival promise - a cold phone
 visit must reach tappable pins - kept beside the route it describes so the

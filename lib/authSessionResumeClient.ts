@@ -13,6 +13,11 @@ type FetchLike = typeof fetch;
 
 export type ResumeHint = { maskedEmail: string | null };
 
+export type ResumeHintReadOutcome =
+  | { status: "present"; hint: ResumeHint }
+  | { status: "absent" }
+  | { status: "unavailable" };
+
 export type RedeemResult =
   | { status: "restored"; session: { access_token: string; refresh_token: string } }
   | { status: "expired"; maskedEmail: string | null }
@@ -30,19 +35,35 @@ function timeoutSignal(): AbortSignal | undefined {
 /** Cheap boot probe: is there a resume cookie on this device at all? */
 export async function fetchResumeHint(
   fetchImpl: FetchLike = fetch,
-): Promise<ResumeHint | null> {
+): Promise<ResumeHintReadOutcome> {
   try {
     const response = await fetchImpl(ENDPOINT, {
       cache: "no-store",
       signal: timeoutSignal(),
     });
-    if (!response.ok) return null;
-    const body = (await response.json()) as { hint?: { maskedEmail?: unknown } | null };
-    if (!body.hint || typeof body.hint !== "object") return null;
-    const masked = body.hint.maskedEmail;
-    return { maskedEmail: typeof masked === "string" ? masked : null };
+    if (!response.ok) return { status: "unavailable" };
+    const body = (await response.json()) as { hint?: unknown };
+    if (body.hint === null) return { status: "absent" };
+    if (
+      !body.hint ||
+      typeof body.hint !== "object" ||
+      Array.isArray(body.hint)
+    ) {
+      return { status: "unavailable" };
+    }
+    if (!Object.prototype.hasOwnProperty.call(body.hint, "maskedEmail")) {
+      return { status: "unavailable" };
+    }
+    const masked = (body.hint as { maskedEmail: unknown }).maskedEmail;
+    if (masked !== null && typeof masked !== "string") {
+      return { status: "unavailable" };
+    }
+    return {
+      status: "present",
+      hint: { maskedEmail: masked },
+    };
   } catch {
-    return null;
+    return { status: "unavailable" };
   }
 }
 

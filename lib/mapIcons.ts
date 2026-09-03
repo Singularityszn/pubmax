@@ -1203,13 +1203,54 @@ const BASE_PUB_RING_RADIUS = BOX * 0.2;
 // spends the accent that selection and the primary CTA own (design judgement
 // 2026-08-01, findings 2.1 and 2.9). The paper backing keeps the ring legible
 // over dark buildings without competing with a priced pin.
+//
+// LIGHT ONLY. In dark this pair was the same defect the drink pins were fixed
+// for: `paper` resolves to a near-black there, so the backing disc was black
+// and a 0.6-alpha bark ring over it measured a mid-grey of ~52 against a
+// near-black basemap. Every UK pub outside a priced city was on the map, placed
+// in the layer, and invisible - a captain browsing Cumbria reported the country
+// as having no pubs at all. The dark branch below takes the SAME two-tone edge
+// the bands take, through the same `pinRim` / `pinCasing` tokens
+// (components/map/canvas/tokens.ts venuePinEdgeTokens), so this mark cannot
+// drift from them again.
 export const BASE_PUB_RING_COLOR = "#6b5f57";
 export const BASE_PUB_RING_OPACITY = 0.6;
 
+/**
+ * Dark alpha for the ring. Higher than the light one because the mark is now
+ * carrying its own separation rather than borrowing a light backing disc, and
+ * still short of full so a base pub stays visibly second-class beside a priced
+ * pin (UK_BASE_ICON_OPACITY narrows it further at the layer).
+ */
+export const BASE_PUB_DARK_RING_OPACITY = 0.85;
+
 function drawBasePub(ctx: CanvasRenderingContext2D, t: IconTokens): void {
   const c = BOX / 2;
-  const ink = BASE_PUB_RING_COLOR;
   ctx.save();
+  if (t.pinRim && t.pinCasing) {
+    // Dark: casing first, so the ring has an opposite-luminance edge on the
+    // near-white road strokes as well as on near-black land. Same order and
+    // same reason as makeVenuePinDraw.
+    ctx.globalAlpha = 0.9;
+    ctx.strokeStyle = t.pinCasing;
+    ctx.lineWidth = STROKE * 2.3;
+    ctx.beginPath();
+    ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.globalAlpha = BASE_PUB_DARK_RING_OPACITY;
+    ctx.strokeStyle = t.pinRim;
+    ctx.lineWidth = STROKE * 1.15;
+    ctx.beginPath();
+    ctx.arc(c, c, BASE_PUB_RING_RADIUS, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.fillStyle = t.pinRim;
+    ctx.beginPath();
+    ctx.arc(c, c, BOX * 0.062, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+    return;
+  }
+  const ink = BASE_PUB_RING_COLOR;
   ctx.globalAlpha = 0.72;
   ctx.fillStyle = t.paper;
   ctx.beginPath();

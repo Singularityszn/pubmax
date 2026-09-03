@@ -13,6 +13,7 @@ import {
   publishAuthActionState,
   readFallbackFollowerCountForTest,
   readRetainedActionSignalForTest,
+  signedInActionFetch,
 } from "@/lib/authedFetch";
 import {
   readProviderIdentitySignal,
@@ -501,6 +502,64 @@ describe("authedFetch (Wave I2)", () => {
 
     const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
     expect(new Headers(init.headers).get("authorization")).toBeNull();
+  });
+
+  it("does not send a signed-in-only action while signed out", async () => {
+    vi.mocked(getAccessToken).mockResolvedValue("stale-jwt-token");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    await expect(signedInActionFetch("/api/plans/example/session", {
+      method: "PATCH",
+    })).resolves.toBeNull();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("does not send a signed-in-only action after unresolved readiness times out", async () => {
+    vi.useFakeTimers();
+    publishAuthActionState({ status: "signed-in", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    const request = signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+    await vi.advanceTimersByTimeAsync(2_100);
+
+    await expect(request).resolves.toBeNull();
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("sends a signed-in-only action when identity resolves before timeout", async () => {
+    publishAuthActionState({ status: "signed-in", identityResolved: false });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+    setTimeout(() => publishAuthActionState({ status: "signed-in", identityResolved: true }), 10);
+
+    await signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    expect(getAccessToken).toHaveBeenCalledOnce();
+  });
+
+  it("settles a signed-in-only action immediately while signed out", async () => {
+    vi.mocked(getAccessToken).mockImplementation(() => new Promise(() => {}));
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    await expect(signedInActionFetch("/api/plans/example/session", {
+      method: "PATCH",
+    })).resolves.toBeNull();
+
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(getAccessToken).not.toHaveBeenCalled();
+  });
+
+  it("attaches the account bearer to a signed-in-only action", async () => {
+    publishAuthActionState({ status: "signed-in", identityResolved: true });
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response("ok"));
+
+    await signedInActionFetch("/api/plans/example/session", { method: "PATCH" });
+
+    const init = fetchSpy.mock.calls[0]?.[1] as RequestInit;
+    expect(new Headers(init.headers).get("authorization")).toBe("Bearer test-jwt-token");
   });
 
   it("does not send an anonymous request when a signed-in token never arrives", async () => {

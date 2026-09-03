@@ -43,7 +43,7 @@ Snapshot time: 24 August 2026, Europe/London.
 | Production deployment | `dpl_HBPSaLMSbNpzzg7BoZcvdbiLtEcr` | `/api/version` |
 | Production state | Ready | Vercel inspection |
 | Supabase project | `iankajxliutqogqkmvdg` | Production Store |
-| Latest applied migrations | `0117_pint_drop_authority`, `0118_pint_drop_table_separation` | Supabase migration ledger |
+| Migration state | See [`docs/SOFT_LAUNCH_RUNBOOK.md`](docs/SOFT_LAUNCH_RUNBOOK.md#13-migrations) for current source-ledger reconciliation; use `supabase migration list` for the remote ledger | Runbook and live ledger |
 | Social launch flag | Unset, so Social is live by default; `0` is full emergency rollback | Vercel environment inventory and `lib/socialLaunch.ts` |
 | Open GitHub issues | 8 | #727, #443, #437, #392, #390, #287, #282, #252 |
 
@@ -162,7 +162,7 @@ Status: **SHIPPED WRITE PATH, ZERO PRODUCTION STOCK**
 - Non-alcohol drink categories use trust rules but never become Pint Index authority.
 - Price evidence missions, trust credits, contribution funnel events, and moderator restore.
 - Price authority protected from anonymous or legacy report-count manipulation.
-- Production migrations `0112`, `0116`, `0117`, and `0118` applied.
+- Production migration state is maintained in the [soft-launch runbook](docs/SOFT_LAUNCH_RUNBOOK.md#13-migrations); do not duplicate its version list here.
 
 Important merged slices:
 
@@ -359,7 +359,7 @@ Any new P0 is one of:
 - Authentication loses a guest Plan.
 - A private capability or account record becomes public.
 - A price without authority reaches pin colour, Pint Index, history, or publisher copy.
-- Production schema stops matching migrations `0001` through `0118`.
+- Production schema stops matching the current source ledger in `supabase/migrations/`; see the [migration runbook](docs/SOFT_LAUNCH_RUNBOOK.md#13-migrations).
 
 ### 4.2 P1 product gaps
 

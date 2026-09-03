@@ -1,42 +1,59 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
 
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
-const LANDING = path.join(__dirname, "..", "components", "landing", "LandingPage.tsx");
 const PLAN_INTAKE = path.join(__dirname, "..", "components", "plan", "PlanIntake.tsx");
 
-function landingCopy(): string {
-  return readFileSync(LANDING, "utf8")
-    .split("\n")
-    .filter((line) => !line.trim().startsWith("//") && !line.trim().startsWith("*"))
-    .join("\n");
-}
+vi.mock("next/dynamic", () => ({
+  default: () => () => null,
+}));
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ prefetch: () => Promise.resolve() }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({ default: () => null }));
+vi.mock("@/components/brand/PubmaxxWordmark", () => ({ default: () => null }));
+vi.mock("@/components/city/CityChooser", () => ({ default: () => null }));
+vi.mock("@/components/nav/MessagesLink", () => ({ default: () => null }));
+vi.mock("@/components/nav/NotificationBell", () => ({ default: () => null }));
+vi.mock("@/components/ThemeToggle", () => ({ default: () => null }));
+vi.mock("@/components/landing/ThamesHero", () => ({ default: () => null }));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/cityPreference", () => ({
+  preferredCityMapHref: () => "/choose-city",
+  readPreferredCity: () => null,
+  subscribePreferredCity: () => () => {},
+}));
+
+import LandingPage from "@/components/landing/LandingPage";
+
+const renderedLanding = renderToStaticMarkup(createElement(LandingPage));
+const planIntake = readFileSync(PLAN_INTAKE, "utf8");
 
 describe("Lane H plan discoverability", () => {
-  const landing = landingCopy();
-  const planIntake = readFileSync(PLAN_INTAKE, "utf8");
-
-  it("keeps a primary hero CTA on /plan for planning with mates", () => {
-    expect(landing).toMatch(/className="lpButton lpButtonPrimary"[\s\S]*href="\/plan"[\s\S]*Plan tonight together/);
-    expect(landing).toContain('href="/plan"');
-    expect(landing).toContain("Plan tonight together");
+  it("keeps a primary hero CTA on /pal for meeting Pub Pal", () => {
+    const hero = renderedLanding.match(/<section class="lpHero"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(hero).toMatch(
+      /class="lpButton lpButtonPrimary"[^>]*href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/,
+    );
   });
 
   it("exposes Plan in the landing primary nav", () => {
-    expect(landing).toMatch(/lpPrimaryNav[\s\S]*href="\/plan"[\s\S]*>Plan</);
+    const nav = renderedLanding.match(/<nav class="lpPrimaryNav"[\s\S]*?<\/nav>/)?.[0] ?? "";
+    expect(nav).toMatch(/href="\/plan"[^>]*>Plan<\/a>/);
   });
 
   it("does not bury Plan only behind the map in the final CTA", () => {
-    const finalBlock = landing.match(/lpFinalCta[\s\S]*?<\/section>/)?.[0] ?? "";
-    expect(finalBlock).toMatch(/href="\/plan"/);
-    expect(finalBlock).toContain("Plan tonight together");
+    const finalBlock = renderedLanding.match(/<section class="lpFinalCta"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(finalBlock).toMatch(/href="\/plan"[^>]*>[\s\S]*?Plan tonight together/);
   });
 
-  it("routes the Pub Pal callout to the ask surface, not back to Plan", () => {
-    expect(landing).toMatch(/lpPalCallout[\s\S]*href="\/pal\/chat"/);
-    expect(landing).toContain("Ask your Pub Pal");
-    const callout = landing.match(/lpPalCallout[\s\S]*?<\/div>\s*<\/section>/)?.[0] ?? "";
+  it("routes the Pub Pal callout to its meeting surface, not back to Plan", () => {
+    const callout = renderedLanding.match(/<div class="lpPalCallout"[\s\S]*?<\/section>/)?.[0] ?? "";
+    expect(callout).toMatch(/href="\/pal"[^>]*>[\s\S]*?Meet your Pub Pal/);
+    expect(callout).toContain("Ask your Pub Pal");
     expect(callout).not.toMatch(/href="\/plan"/);
   });
 

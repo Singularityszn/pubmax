@@ -36,6 +36,7 @@ import {
   starterPackFollowAccessibleLabel,
   starterPackMemberCountLabel,
   starterPacksSurfaceVisible,
+  starterPacksVisibleToStranger,
   type StarterPack,
   type StarterPackFollowOutcome,
   type StarterPackMember,
@@ -76,7 +77,19 @@ export function starterPackOutcomeChip(outcome: StarterPackFollowOutcome): {
   return { label: "Following", problem: false };
 }
 
-export default function StarterPacks({ compact = false }: { compact?: boolean }) {
+export default function StarterPacks({
+  compact = false,
+  readOnly = false,
+}: {
+  compact?: boolean;
+  /**
+   * Show the packs to somebody with no account: who is already here, and
+   * nothing offered. Following is an account action, so a card carrying a
+   * button that would answer 401 would be a second sign-in door beside the one
+   * such a reader is already looking at.
+   */
+  readOnly?: boolean;
+}) {
   const socialFriendsLaunchEnabled = useSocialFriendsLaunch();
   const { accountRevision, user } = useAuth();
   const viewerHandle = useViewerHandle();
@@ -104,13 +117,18 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
   }, [viewerKey]);
 
   useEffect(() => {
-    if (!socialFriendsLaunchEnabled || !viewer) return;
+    if (!socialFriendsLaunchEnabled) return;
+    if (!viewer && !readOnly) return;
     let live = true;
     const requestRevision = accountRevision;
     void (async () => {
       try {
+        // The pack list itself is public; `viewer` only drops the members that
+        // viewer already follows, so a stranger asks for it without one.
         const response = await authedActionFetch(
-          `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`,
+          viewer
+            ? `/api/starter-packs?viewer=${encodeURIComponent(viewer)}`
+            : "/api/starter-packs",
           { cache: "no-store" },
         );
         if (!response.ok) {
@@ -135,7 +153,7 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     return () => {
       live = false;
     };
-  }, [accountRevision, socialFriendsLaunchEnabled, viewer]);
+  }, [accountRevision, readOnly, socialFriendsLaunchEnabled, viewer]);
 
   async function followAll(pack: PackView) {
     if (!socialFriendsLaunchEnabled || !viewer) return;
@@ -184,18 +202,26 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
     }
   }
 
-  // The whole render decision is `starterPacksSurfaceVisible` in the policy
-  // module. It is not restated here: a second copy of the rule is how a surface
-  // starts offering packs to somebody who already has a lot.
-  const visible = starterPacksSurfaceVisible({
-    viewer,
-    loaded: viewerStateKey === viewerKey && loaded,
-    packCount: viewerStateKey === viewerKey ? packs.length : 0,
-    viewerFollowing: viewerStateKey === viewerKey ? viewerFollowing : null,
-    followedAny:
-      viewerStateKey === viewerKey &&
-      Object.values(packState).some((state) => state.status === "done"),
-  });
+  // Both render decisions live in the policy module. The signed-in surface
+  // asks `starterPacksSurfaceVisible` whether this viewer still needs packs;
+  // read-only stranger cards ask `starterPacksVisibleToStranger` only whether
+  // public packs exist. Neither rule is restated here.
+  const settledLoaded = viewerStateKey === viewerKey && loaded;
+  const settledPackCount = viewerStateKey === viewerKey ? packs.length : 0;
+  const visible = readOnly
+    ? starterPacksVisibleToStranger({
+        loaded: settledLoaded,
+        packCount: settledPackCount,
+      })
+    : starterPacksSurfaceVisible({
+        viewer,
+        loaded: settledLoaded,
+        packCount: settledPackCount,
+        viewerFollowing: viewerStateKey === viewerKey ? viewerFollowing : null,
+        followedAny:
+          viewerStateKey === viewerKey &&
+          Object.values(packState).some((state) => state.status === "done"),
+      });
   if (!socialFriendsLaunchEnabled || !visible) return null;
 
   return (
@@ -236,20 +262,22 @@ export default function StarterPacks({ compact = false }: { compact?: boolean })
                 {starterPackMemberCountLabel(pack.memberCount)}
               </p>
 
-              <button
-                type="button"
-                className="starterPacks__follow"
-                aria-label={starterPackFollowAccessibleLabel(pack)}
-                aria-describedby={descriptionId}
-                disabled={state.status === "working" || state.status === "done"}
-                onClick={() => void followAll(pack)}
-              >
-                {state.status === "working"
-                  ? STARTER_PACK_FOLLOW_WORKING_LABEL
-                  : state.status === "done"
-                    ? "Followed"
-                    : STARTER_PACK_FOLLOW_LABEL}
-              </button>
+              {readOnly ? null : (
+                <button
+                  type="button"
+                  className="starterPacks__follow"
+                  aria-label={starterPackFollowAccessibleLabel(pack)}
+                  aria-describedby={descriptionId}
+                  disabled={state.status === "working" || state.status === "done"}
+                  onClick={() => void followAll(pack)}
+                >
+                  {state.status === "working"
+                    ? STARTER_PACK_FOLLOW_WORKING_LABEL
+                    : state.status === "done"
+                      ? "Followed"
+                      : STARTER_PACK_FOLLOW_LABEL}
+                </button>
+              )}
 
               {state.status === "done" && state.summary ? (
                 <p className="starterPacks__summary" role="status">

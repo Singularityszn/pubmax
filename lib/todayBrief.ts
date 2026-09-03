@@ -22,6 +22,7 @@ import {
   type DrinkWeatherRuleId,
   type VenueLens,
 } from "@/lib/drinkWeather";
+import { daySlot } from "@/lib/daySlot";
 import { DAY_MS } from "@/lib/dayMs";
 import { haversineKm } from "@/lib/haversine";
 import {
@@ -117,6 +118,9 @@ export function buildWeatherBrief(
     tempC: observation.feelsLikeC,
     precipitationProbabilityPct: observation.precipitationProbabilityPct,
     month: londonMonth(now),
+    // The greeting above this card derives the same band. Without it the card
+    // said "evening" over a "Good morning".
+    dayPart: daySlot(now),
   });
   if (!verdict) return null;
 

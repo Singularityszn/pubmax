@@ -61,7 +61,7 @@ The member token is never logged or serialised back after the initial mint (`pla
 
 ### 1.2 Response caching
 
-All THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `publicApiError` both enforce it).
+Most THE LOCAL routes are `Cache-Control: no-store` (`jsonNoStore` and flat `publicApiError` both enforce it). The two Night Area GETs are the static-data exception: `jsonCached` sets `public, max-age=0, s-maxage=3600, stale-while-revalidate=86400` because their bodies are deployment facts plus review timestamps.
 
 ### 1.3 City scoping
 
@@ -440,7 +440,7 @@ type CompletePlanRequest = {
 // 200
 type NightAreasListResponse = {
   cityId: CityId;
-  areas: Array<NightArea & { routeReady: boolean }>;
+  areas: NightArea[];
 };
 ```
 - `400` if `city` missing/invalid; `404` if no areas for that city.
@@ -449,9 +449,11 @@ type NightAreasListResponse = {
 
 ```ts
 // 200
-type NightAreaDetailResponse = NightArea & { routeReady: boolean };
+type NightAreaDetailResponse = NightArea;
 ```
 - `404` if `slug` is not a known `NightAreaSlug` (`isNightAreaSlug`).
+
+Neither response serialises `routeReady`. It is derived state because it changes when the review window expires. Read `lastReviewedAt` and `reviewExpiresAt` from the cached body, then call `isNightAreaRouteReady(area, new Date())` at read time. That helper checks the evidence gate and review timestamps; do not cache or persist its boolean result.
 
 ### Rate limit
 

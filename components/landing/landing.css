@@ -185,7 +185,11 @@
   letter-spacing: -.04em;
   text-wrap: balance;
 }
-.lpHeroLede { max-width: 500px; margin: 18px 0 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
+/* Inside .lpHeroActions, directly under the call to action it describes, so the
+   grid's own gap governs the rhythm and this paragraph carries no margin of its
+   own. It used to sit BELOW the secondary links as a sibling of the whole
+   block, which read as an orphan floating mid-page. */
+.lpHeroLede { max-width: 500px; margin: 0; color: var(--ink-soft); font-size: clamp(16px, 1.45vw, 19px); line-height: 1.58; }
 .lpHeroActions {
   width: min(100%, 420px);
   margin-top: 22px;
@@ -204,6 +208,16 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px 22px;
+}
+/* Three links wrapped 2 + 1 on a phone, leaving "Find my pint" dangling under
+   the pair. One per row is the honest shape at this width: the three are peers,
+   and a ragged wrap made the last of them look like an afterthought. */
+@media (max-width: 640px) {
+  .lpHeroSecondaryRow {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+  }
 }
 .lpHeroSecondaryRow .lpTextLink {
   color: var(--ink);
@@ -501,13 +515,14 @@
   /* Phone fold: the product frame (.lpHeroMap) must enter the first 390x844
      viewport. Flattening .lpHeroCopy into the .lpHero grid (display: contents)
      lets us order its children against .lpHeroMap directly. Decision: the
-     stats-chip readout (.lpLiveReadout) drops below the map frame; h1, lede
-     and the CTA stack stay above it, since those three carry the actual
-     acquisition ask and the map preview needs to land inside the fold more
-     than the chips do. */
+     stats-chip readout (.lpLiveReadout) drops below the map frame; h1 and the
+     CTA stack stay above it, since those two carry the actual acquisition ask
+     and the map preview needs to land inside the fold more than the chips do.
+     The lede is INSIDE the CTA stack, so it takes that block's own 14px gap
+     rather than this grid's 38px one: as a flattened sibling it sat a whole
+     grid gap below the links, reading as an orphan paragraph mid-page. */
   .lpHeroCopy { display: contents; }
   .lpHero h1 { order: 1; }
-  .lpHeroLede { order: 2; }
   .lpHeroActions { order: 2; }
   .lpHeroMap { order: 3; }
   .lpLiveReadout { order: 4; }

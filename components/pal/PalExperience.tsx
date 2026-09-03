@@ -18,6 +18,7 @@ import {
   VolumeX,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/AuthProvider";
+import { useViewerSession } from "@/components/auth/useViewerSession";
 import SignInButton from "@/components/auth/SignInButton";
 import { authedActionFetch } from "@/lib/authedFetch";
 import { errorMessageFrom, offlineOrMessage } from "@/lib/apiErrorMessage";
@@ -202,6 +203,10 @@ function RangeControl({
 
 export default function PalExperience() {
   const { user, loading, configured } = useAuth();
+  const palViewerSession = useViewerSession();
+  // The account gate is a claim about the viewer, so it waits for the live
+  // session rather than reading a null user as a settled sign-out.
+  const showPalAccountGate = palViewerSession.signedOut;
   const [anonymousOwner] = useState(anonymousPalDraftOwner);
   const [draftOwner, setDraftOwner] = useState("");
   const [mode, setMode] = useState<"meeting" | "onboarding" | "home">("meeting");
@@ -844,7 +849,7 @@ export default function PalExperience() {
               </div>
               <label className="palToggleRow"><input type="checkbox" checked={privacy.visible} onChange={(event) => setPrivacy((current) => ({ ...current, visible: event.target.checked }))} /><span><strong>Show Pal shortcuts</strong><small>You can hide the Pal from Home, Plan and Map at any time.</small></span></label>
               <label className="palToggleRow"><input type="checkbox" checked={!privacy.muted} onChange={(event) => setPrivacy((current) => ({ ...current, muted: !event.target.checked }))} /><span><strong>Allow voice controls</strong><small>Your Pal still speaks only after you ask.</small></span></label>
-              {!user && <div className="palAccountGate"><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you choose to sign in. Nothing is saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
+              {showPalAccountGate && <div className="palAccountGate"><LockKeyhole /><div><strong>Sign in to make this Pal yours</strong><p>Your preview stays on this screen until you choose to sign in. Nothing is saved to an account yet.</p>{configured ? <SignInButton /> : <Link href="/map">Explore the map</Link>}</div></div>}
               {error && <p className="palError" role="alert">{error}</p>}
             </div>
           )}

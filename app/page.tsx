@@ -13,7 +13,7 @@ import { readTrustedHandoffFlag } from "@/lib/trustedHandoffFlags.server";
 // "interactive map".
 const HOME_TITLE = "PUBMAXXING: what a pint costs, pub by pub";
 const HOME_DESCRIPTION =
-  "Open the map, pick a drink, and see which nearby pubs pour it cheapest. We name the source when there is one, and say when there is not.";
+  "Choose its form and voice in five steps. Sign in to keep it, then talk or type while it shapes a night from PUBMAXX prices, venues, and events.";
 
 // Self-canonical for the homepage (Wave S1.4). Title/description inherit the
 // root layout defaults; this pins the canonical URL and the homepage's own

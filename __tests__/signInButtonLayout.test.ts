@@ -12,6 +12,7 @@ const authState = vi.hoisted(() => ({
     } as { id: string; email: string; user_metadata: Record<string, unknown> } | null,
     loading: false,
     configured: true,
+    supabaseAuthState: "signed-out",
     clerkIntegrationConfigured: true,
     socialProviders: { google: false, apple: false },
     signInWithGoogle: vi.fn(),

@@ -7,8 +7,8 @@ twice, and the default `<=£8.00` price cap cleared so every band paints. The
 overlays so the whole viewport is map and the pins can be measured;
 `chrome-dark-*` is the same view with the overlays on, as the product ships it.
 
-Band fills, band thresholds, pin sizes, the price tag and every ring are
-unchanged. The only difference is the glass's EDGE: in dark mode the rim was
+Band fills, band thresholds, pin sizes, the price tag and every price-pin ring
+are unchanged. The only difference is the glass's EDGE: in dark mode the rim was
 `--paper`, which resolves to the near-black `--ink-deep` there, so the rim
 documented as "light on saturated glasses" was a black rim inside 1.1:1 of dark
 land — no separation, and the stroke-only stems, feet and handles erased. It is

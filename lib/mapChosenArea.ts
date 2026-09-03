@@ -62,7 +62,7 @@ export function mapChosenAreaPickerKind(
  * both journeys have one value without storing presentation state.
  */
 export function mapChosenAreaFlyTarget(
-  area: { kind: MapChosenNamedPlaceKind },
+  area: MapChosenNamedPlace,
   localityZoom: number,
 ): {
   kind: "area" | "locality" | "borough";

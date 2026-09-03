@@ -478,3 +478,24 @@
     animation: none;
   }
 }
+
+/* ── Desktop rhythm ───────────────────────────────────────────────────────
+   The card was top-pinned at every height: `align-content: start` plus a
+   viewport-proportional 12vh top pad. On a phone that reads correctly — the
+   form wants to sit under the thumb, not float. On a tall desktop screen the
+   same rule pushed the card higher the taller the monitor got (12vh is 144px at
+   1200 tall) and left the whole lower half of the page empty beneath it, so the
+   one thing on the page did not sit in the page.
+
+   Desktop centres it instead and lets the padding become a floor rather than
+   the positioner. min-height (never a fixed height) means a card taller than
+   the viewport simply grows the page and scrolls: there is no free space to
+   distribute, so centring cannot clip the top of a long form. */
+@media (min-width: 1024px) {
+  .loginPage {
+    align-content: center;
+    padding-block:
+      max(4vh, calc(env(safe-area-inset-top, 0px) + 2.5rem))
+      max(4vh, calc(env(safe-area-inset-bottom, 0px) + 2.5rem));
+  }
+}

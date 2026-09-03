@@ -1,6 +1,45 @@
+// @vitest-environment jsdom
+
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { describe, expect, it } from "vitest";
+import { act, createElement, type ReactNode } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const authState = vi.hoisted(() => ({
+  current: { user: { id: "user-1" }, handle: "alice", accountRevision: 1 },
+}));
+
+vi.mock("@/components/auth/AuthProvider", () => ({
+  useAuth: () => authState.current,
+}));
+vi.mock("@/components/auth/useViewerSession", () => ({
+  useViewerSession: () => ({
+    phase: "signed-in",
+    signedIn: true,
+    signedOut: false,
+    unresolved: false,
+  }),
+}));
+vi.mock("@/components/auth/SignInButton", () => ({
+  default: () => createElement("button", { type: "button" }, "Continue with email"),
+}));
+vi.mock("next/link", () => ({
+  default: ({ href, children, ...props }: { href: string; children?: ReactNode }) =>
+    createElement("a", { href, ...props }, children),
+}));
+vi.mock("@/lib/authedFetch", () => ({
+  authedActionFetch: () => Promise.reject(new Error("network")),
+}));
+vi.mock("@/lib/messagesRealtime", () => ({
+  subscribeToMessages: () => () => {},
+}));
+vi.mock("@/lib/analytics", () => ({ trackEvent: vi.fn() }));
+vi.mock("@/lib/useDismissOnEscape", () => ({ useDismissOnEscape: vi.fn() }));
+vi.mock("@/lib/useFocusTrap", () => ({ useFocusTrap: vi.fn() }));
+vi.mock("@/components/profile/ProfileImageCropper", () => ({ default: () => null }));
+
+import MessageThread from "@/components/messages/MessageThread";
 
 // Messages friction fence. Both message surfaces are behind sign-in, so a
 // keyless run can never paint the thread's loading or failure frame — this
@@ -25,6 +64,31 @@ const LOADING_LINE = "With you in a sec.";
 
 const read = (file: string): string => readFileSync(join(process.cwd(), file), "utf8");
 
+let host: HTMLDivElement;
+let root: Root;
+
+beforeEach(() => {
+  (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+  window.matchMedia = (() => ({
+    matches: false,
+    media: "",
+    onchange: null,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+    addListener: () => {},
+    removeListener: () => {},
+    dispatchEvent: () => false,
+  })) as unknown as typeof window.matchMedia;
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(async () => {
+  await act(async () => root.unmount());
+  host.remove();
+});
+
 // The text nodes of the unreachable branch — what a reader actually reads,
 // with attributes and the retry handler left out of it.
 const failureCopy = (): string => {
@@ -45,14 +109,19 @@ describe("messages friction voice", () => {
     expect(read(THREAD)).toContain(LOADING_LINE);
   });
 
-  it("an unreachable thread is its own state, not the loading line", () => {
-    const source = read(THREAD);
-    expect(source).toContain('"loading" | "ready" | "notfound" | "signedout" | "unreachable"');
-    // The failure branch returns before the loading line can render.
-    const failureAt = source.indexOf('state === "unreachable"');
-    const loadingAt = source.indexOf(`>${LOADING_LINE}<`);
-    expect(failureAt).toBeGreaterThan(-1);
-    expect(loadingAt).toBeGreaterThan(failureAt);
+  it("renders an unreachable thread as its own state, not the loading line", async () => {
+    await act(async () => {
+      root.render(createElement(MessageThread, { conversationId: "conversation-1" }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.querySelector(".threadFailure")).not.toBeNull();
+    expect(host.textContent).toContain(
+      "This conversation won’t open right now. Your messages are safe.",
+    );
+    expect(host.textContent).not.toContain(LOADING_LINE);
   });
 
   it("the failure frame states the fact and hands over two exits", () => {
