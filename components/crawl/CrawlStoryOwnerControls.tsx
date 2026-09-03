@@ -50,7 +50,7 @@ export default function CrawlStoryOwnerControls({
         method: "DELETE",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle: viewer }),
-      });
+      }, { requiresIdentity: true });
       if (!res.ok) {
         discardBody(res);
         setMessage(res.status === 403 ? "You can only delete a crawl you authored." : "Could not delete this crawl.");

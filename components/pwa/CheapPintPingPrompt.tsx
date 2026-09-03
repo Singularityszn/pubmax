@@ -36,7 +36,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
   useEffect(() => {
     if (!user) return;
     const controller = new AbortController();
-    void authedActionFetch("/api/cheap-pint-ping", { signal: controller.signal })
+    void authedActionFetch("/api/cheap-pint-ping", { signal: controller.signal }, { requiresIdentity: true })
       .then(async (response) => {
         if (controller.signal.aborted) return;
         const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
@@ -68,7 +68,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     const response = await authedActionFetch("/api/cheap-pint-ping", {
       method: "POST",
       body: JSON.stringify({ action: "opt-in", token }),
-    });
+    }, { requiresIdentity: true });
     const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
     if (!response.ok) {
       setError(errorMessageFrom(body, "Could not save that choice. Try again."));
@@ -86,7 +86,7 @@ export default function CheapPintPingPrompt(): React.JSX.Element | null {
     const response = await authedActionFetch("/api/cheap-pint-ping", {
       method: "POST",
       body: JSON.stringify({ action: "decline" }),
-    });
+    }, { requiresIdentity: true });
     if (!response.ok) {
       const body = (await response.json().catch(() => ({}))) as Record<string, unknown>;
       setError(errorMessageFrom(body, "Could not save that choice. Try again."));

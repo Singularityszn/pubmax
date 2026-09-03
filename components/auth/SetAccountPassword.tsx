@@ -56,7 +56,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
     let cancelled = false;
     void (async () => {
       try {
-        const res = await authedActionFetch("/api/identity/handle/current");
+        const res = await authedActionFetch("/api/identity/handle/current", {}, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           if (!cancelled) {
@@ -131,7 +131,7 @@ export default function SetAccountPassword(): React.JSX.Element | null {
             method: "POST",
             headers: { "content-type": "application/json" },
             body: JSON.stringify({ currentPassword }),
-          },
+          }, { requiresIdentity: true },
         );
         if (!verification.ok) {
           discardBody(verification);

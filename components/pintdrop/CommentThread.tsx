@@ -197,7 +197,7 @@ export default function CommentThread({
             body: trimmedBody,
             ...(parentId ? { parentId } : {}),
           }),
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           discardBody(res);
           setError(

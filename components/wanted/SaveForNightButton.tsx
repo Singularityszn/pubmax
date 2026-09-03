@@ -32,7 +32,7 @@ export default function SaveForNightButton({
           venueKind: isUkBaseVenueId(venueId) ? "uk_base" : "curated",
           rawPaste: venueName,
         }),
-      });
+      }, { requiresIdentity: true });
       const body = (await res.json().catch(() => null)) as {
         wanted?: WantedDTO;
         error?: unknown;

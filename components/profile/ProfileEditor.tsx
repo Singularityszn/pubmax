@@ -177,7 +177,7 @@ export default function ProfileEditor({
       const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
         method: "POST",
         body: form,
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         markImage(
@@ -211,7 +211,7 @@ export default function ProfileEditor({
     try {
       const res = await authedActionFetch(`/api/profiles/${encodeURIComponent(handle)}/${slot}`, {
         method: "DELETE",
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
       if (!res.ok) {
         markImage(
@@ -255,7 +255,7 @@ export default function ProfileEditor({
           interests,
           workplace,
         }),
-      });
+      }, { requiresIdentity: true });
       const body: unknown = await res.json().catch(() => null);
 
       if (!res.ok) {

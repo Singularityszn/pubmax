@@ -66,6 +66,24 @@ describe("provider identity revision", () => {
     expect(store.signal()).toBe(after);
   });
 
+  it("rotates the account binding for the first and later account changes", () => {
+    const store = createProviderIdentityRevisionStore();
+    const initialSignal = store.accountSignal();
+
+    expect(store.accountRevision()).toBe(0);
+    store.set("supabase", "supabase-actor-a");
+    expect(initialSignal.aborted).toBe(true);
+    expect(store.accountRevision()).toBe(1);
+
+    const accountASignal = store.accountSignal();
+
+    store.set("supabase", "supabase-actor-b");
+
+    expect(accountASignal.aborted).toBe(true);
+    expect(store.accountRevision()).toBe(2);
+    expect(store.accountSignal().aborted).toBe(false);
+  });
+
   it("publishes provider authentication readiness without exposing provider identity", () => {
     const store = createProviderIdentityRevisionStore();
 

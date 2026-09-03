@@ -80,7 +80,7 @@ export default function WeAreOutClient({ socialFriendsLaunchEnabled = true }: Pr
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ handle, areaSlug, note, visibility: "friends" }),
-      });
+      }, { requiresIdentity: true });
       const data = await res.json().catch(() => null);
       if (!res.ok) throw new Error(errorMessageFrom(data, "Could not post that."));
       trackEvent("check_in_created");

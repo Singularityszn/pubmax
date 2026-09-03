@@ -519,7 +519,7 @@ function NightModeSheet({
         try {
           const ownedResponse = await authedActionFetch("/api/me/pending-plan-recaps", {
             signal: controller.signal,
-          });
+          }, { requiresIdentity: true });
           if (ownedResponse.ok && !controller.signal.aborted) {
             const ownedBody = (await ownedResponse.json().catch(() => null)) as {
               drafts?: PendingPlanRecap[];
@@ -811,7 +811,7 @@ function NightModeSheet({
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ memberToken, recap }),
-      });
+      }, { requiresIdentity: true });
       const body = (await response.json().catch(() => ({}))) as {
         memory?: { id: string };
         error?: string;

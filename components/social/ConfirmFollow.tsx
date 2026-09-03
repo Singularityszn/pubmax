@@ -86,7 +86,7 @@ async function performAdd(
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({ follower: adder }),
-    });
+    }, { requiresIdentity: true });
     const data = await res.json().catch(() => null);
     if (res.status === 404) {
       setAccountFollowResult(setResults, accountId, {

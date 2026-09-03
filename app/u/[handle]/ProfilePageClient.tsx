@@ -630,7 +630,7 @@ export default function ProfilePageClient({ params }: { params: Promise<{ handle
       }
       const response = await authedFetch(
         `/api/crawls?author=${encodeURIComponent(routeHandle)}&scope=own&limit=1&unlistedLimit=${unlistedLimit}`,
-        { signal: controller.signal, cache: "no-store" },
+        { signal: controller.signal, cache: "no-store" }, { requiresIdentity: true },
       ).catch(() => null);
       if (!response?.ok || controller.signal.aborted) {
         if (response) discardBody(response);

@@ -7,7 +7,7 @@ export function notifyCheapPintPingQualified(): void {
   void authedActionFetch("/api/cheap-pint-ping", {
     method: "POST",
     body: JSON.stringify({ action: "qualify" }),
-  })
+  }, { requiresIdentity: true })
     .then(async (response) => {
       if (!response.ok) {
         discardBody(response);

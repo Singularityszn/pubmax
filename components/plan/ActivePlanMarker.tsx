@@ -7,7 +7,7 @@ import {
   accountBoundFetch,
   captureAccountAuth,
 } from "@/lib/accountBoundFetch";
-import { readProviderIdentitySignal } from "@/lib/authProviderRevision";
+import { readProviderAccountSignal } from "@/lib/authProviderRevision";
 import { markActivePlan, setActivePlanRole } from "@/lib/activePlan";
 import {
   parsePlanCapabilitySnapshot,
@@ -69,7 +69,7 @@ export default function ActivePlanMarker({ id, startTime }: { id: string; startT
 
   useEffect(() => {
     const auth = captureAccountAuth(user?.id ?? null, session);
-    const actionSignal = readProviderIdentitySignal();
+    const actionSignal = readProviderAccountSignal();
     if (!auth || (role !== "host" && role !== "guest") || actionSignal.aborted) {
       return;
     }

@@ -88,7 +88,7 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
       try {
         const res = await authedActionFetch("/api/identity/handle/current", {
           signal: controller.signal,
-        });
+        }, { requiresIdentity: true });
         if (!res.ok) {
           // Between learning a status and leaving, the body is let go.
           discardBody(res);
