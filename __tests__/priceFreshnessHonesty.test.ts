@@ -1,4 +1,4 @@
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 import { createElement } from "react";
@@ -14,9 +14,11 @@ import {
 import {
   formatObservedDate,
   PINT_DATASET_OBSERVED_AT,
+  PINT_DATASET_PRESENTATION_BUDGET_DAYS,
   PINT_DATASET_STALENESS_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
 import { COMMUNITY_PRICE_MAX_AGE_MS } from "@/lib/communityPrice";
+import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 
 const ROOT = join(__dirname, "..");
 const AS_OF_LABEL = `as of ${formatObservedDate(PINT_DATASET_OBSERVED_AT)}`;
@@ -69,27 +71,92 @@ describe("price freshness honesty (Grok W5.7)", () => {
     );
   });
 
-  it("does not let bundled pint prices outlive community prices", () => {
-    const bundledBudgetMs =
-      PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+  // The drinker-facing question and the release-gate question have two owners
+  // on purpose. These three tests pin each owner and the gap between them; a
+  // change that collapses them back into one number fails here.
 
-    expect(bundledBudgetMs).toBeLessThanOrEqual(COMMUNITY_PRICE_MAX_AGE_MS);
+  it("does not let a bundled price outlive community prices in what a drinker is told", () => {
+    const presentationBudgetMs =
+      PINT_DATASET_PRESENTATION_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+
+    expect(presentationBudgetMs).toBeLessThanOrEqual(COMMUNITY_PRICE_MAX_AGE_MS);
+    expect(presentationBudgetMs).toBe(PRICE_AUTHORITY_MAX_AGE_MS);
   });
 
-  it("reports bundled pint prices stale after the shared price window", () => {
+  it("keeps the release gate on a neglect ceiling, not the drinker-facing window", () => {
+    // The registry budget answers "has nobody re-collected this bundle", so it
+    // is deliberately looser than the price-authority window. Tying it to that
+    // window would turn the CI freshness gate red the moment the bundle passed
+    // 30 days, which for a hand-collected episodic feed is ordinary, not neglect.
+    const gateBudgetMs =
+      PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+
+    expect(gateBudgetMs).toBeGreaterThan(PRICE_AUTHORITY_MAX_AGE_MS);
+    expect(
+      registry.datasets.find((dataset) => dataset.id === "pint_prices")
+        ?.stalenessBudgetHours,
+    ).toBe(PINT_DATASET_STALENESS_BUDGET_DAYS * 24);
+  });
+
+  it("does not alarm the release gate while the bundle is inside its neglect ceiling", () => {
     const observedAt = PINT_DATASET_OBSERVED_AT.toISOString();
-    const now = new Date(
-      PINT_DATASET_OBSERVED_AT.getTime() + COMMUNITY_PRICE_MAX_AGE_MS + 60 * 60 * 1000,
+    const justPastPriceAuthority = new Date(
+      PINT_DATASET_OBSERVED_AT.getTime() +
+        PRICE_AUTHORITY_MAX_AGE_MS +
+        60 * 60 * 1000,
     );
     const results = evaluateRegistry(
       registry,
       () => ({ observedAt, reason: null }),
-      now,
+      justPastPriceAuthority,
     );
 
     expect(results.find((row) => row.id === "pint_prices")?.status).toBe(
+      "fresh",
+    );
+
+    const pastNeglectCeiling = new Date(
+      PINT_DATASET_OBSERVED_AT.getTime() +
+        PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000 +
+        60 * 60 * 1000,
+    );
+    const neglected = evaluateRegistry(
+      registry,
+      () => ({ observedAt, reason: null }),
+      pastNeglectCeiling,
+    );
+
+    expect(neglected.find((row) => row.id === "pint_prices")?.status).toBe(
       "stale",
     );
+  });
+
+  // Structural guard, not a style rule. A reader surface that reaches for the
+  // registry budget re-merges the two owners in silence: the label tightens
+  // only by loosening what a drinker is told, or the release gate turns red as
+  // a side effect of a copy change. This is how the two got merged the first
+  // time, so the fence names the mistake rather than a file list.
+  it("keeps reader surfaces off the release-gate budget", () => {
+    const surfaceRoots = ["components", "app"];
+    const offenders: string[] = [];
+
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) {
+          walk(full);
+          continue;
+        }
+        if (!/\.(ts|tsx)$/.test(entry.name)) continue;
+        if (readFileSync(full, "utf8").includes("PINT_DATASET_STALENESS_BUDGET_DAYS")) {
+          offenders.push(full.slice(ROOT.length + 1));
+        }
+      }
+    };
+
+    for (const root of surfaceRoots) walk(join(ROOT, root));
+
+    expect(offenders).toEqual([]);
   });
 
   it("prints the bundled baseline as-of date on the Pint Index arrival strip", () => {

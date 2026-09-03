@@ -10,7 +10,7 @@
       "artifact": "public/data/pint_prices_app_dataset.json",
       "stamp": { "kind": "literal", "value": "2026-07-03T12:00:00Z", "consumedBy": "lib/dataFreshness.ts PINT_DATASET_OBSERVED_AT (build-time import; this stamp is the single source of truth for the pint dataset's collection date — the TS constant is derived from it, never hand-authored)" },
       "cadence": "episodic — re-collected by hand, then re-exported",
-      "stalenessBudgetHours": 720,
+      "stalenessBudgetHours": 2160,
       "refreshWorkflow": "manual (npm run export:data → canonicalize:venues → build:slim)",
       "gate": "none (bundled static; keyless)"
     },

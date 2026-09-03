@@ -9,7 +9,7 @@ import type { Drink } from "@/lib/drinks";
 import { venueDrinkMenu } from "@/lib/drinkMenu";
 import {
   PINT_DATASET_OBSERVED_AT,
-  PINT_DATASET_STALENESS_BUDGET_DAYS,
+  PINT_DATASET_PRESENTATION_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
@@ -262,12 +262,13 @@ describe("baseline price-source presentation", () => {
     expect(html).not.toMatch(/\b(current|tonight)\b/i);
   });
 
-  // The dataset lane's budget has ONE owner: data/freshness_registry.json,
-  // read through PINT_DATASET_STALENESS_BUDGET_DAYS. This test reads it rather
-  // than restating a number, so tightening the registry moves the label here
-  // instead of failing on a day count nobody meant to pin.
-  it("labels the dataset lane against its registry freshness budget", () => {
-    const budgetMs = PINT_DATASET_STALENESS_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+  // What a drinker is told has ONE owner: PINT_DATASET_PRESENTATION_BUDGET_DAYS,
+  // the shared price-authority window. This test reads it rather than restating
+  // a day count, and it deliberately does NOT read the freshness registry: that
+  // budget is the release gate's neglect ceiling and says nothing about whether
+  // a figure still speaks for tonight.
+  it("labels the dataset lane against the price-authority window", () => {
+    const budgetMs = PINT_DATASET_PRESENTATION_BUDGET_DAYS * 24 * 60 * 60 * 1000;
     const observedAtMs = PINT_DATASET_OBSERVED_AT.getTime();
     const render = () =>
       renderToStaticMarkup(

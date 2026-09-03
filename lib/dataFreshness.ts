@@ -15,6 +15,7 @@
 
 import freshnessRegistry from "@/data/freshness_registry.json";
 import { resolveObservedAt, type FreshnessRegistry } from "@/lib/freshness";
+import { PRICE_AUTHORITY_MAX_AGE_DAYS } from "@/lib/priceAuthorityWindow";
 
 /** The bundled London pint-price dataset every borough/index page reads. */
 export const PINT_DATASET_FILE = "pint_prices_app_dataset.json";
@@ -35,12 +36,37 @@ function stalenessBudgetDays(id: string): number {
   return hours / 24;
 }
 
+/**
+ * The bundled dataset's NEGLECT ceiling, straight off the freshness registry:
+ * how long the bundle may go un-re-collected before the release gate alarms
+ * (scripts/check_freshness.mjs, run by the freshness job in CI).
+ *
+ * It must never decide what a drinker is told about a price. That question is
+ * PINT_DATASET_PRESENTATION_BUDGET_DAYS below, and it is a tighter, separately
+ * owned window. Pointing a surface at this constant makes tightening the
+ * drinker-facing claim turn the release gate red as a side effect.
+ */
 export const PINT_DATASET_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
   PINT_DATASET_REGISTRY_ID,
 );
 export const DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS = stalenessBudgetDays(
   DRINK_PRICE_UPDATE_REGISTRY_ID,
 );
+
+/**
+ * How old a bundled dataset price may be and still read to a drinker as a
+ * current price. Past it the menu presents the figure as an estimate, dated
+ * with when it was last seen.
+ *
+ * This is the shared price-authority window, NOT the registry budget above.
+ * The registry budget is a neglect ceiling that decides when the release gate
+ * alarms about nobody re-collecting the bundle; this decides what a drinker is
+ * told about a figure. One number cannot answer both: the bundle is collected
+ * by hand and episodically, so it sits past the drinker-facing window long
+ * before anybody has neglected it.
+ */
+export const PINT_DATASET_PRESENTATION_BUDGET_DAYS =
+  PRICE_AUTHORITY_MAX_AGE_DAYS;
 
 /**
  * Resolve the pint dataset's collection stamp from the freshness registry —
