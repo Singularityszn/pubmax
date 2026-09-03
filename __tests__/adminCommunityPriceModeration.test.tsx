@@ -167,7 +167,6 @@ async function click(button: HTMLButtonElement): Promise<void> {
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
-  localStorage.setItem("pubmax_admin_token", "test-token");
   communityPrices = [];
   communityPriceFailure = false;
   moderationFailure = null;

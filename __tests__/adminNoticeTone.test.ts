@@ -66,12 +66,9 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 async function loadWithSessionAnswer(
   answer: (input: string, init?: RequestInit) => Promise<Response>,
-  storedToken = "",
+  submittedToken = "",
 ): Promise<HTMLElement | null> {
   session.answer = answer;
-  // The console seeds its token field from localStorage on first render, and a
-  // held token is what makes it POST rather than only re-read the session.
-  if (storedToken) window.localStorage.setItem("pubmax_admin_token", storedToken);
   await act(async () => {
     root.render(createElement(AdminClient));
   });
@@ -82,7 +79,25 @@ async function loadWithSessionAnswer(
   await act(async () => {
     load?.dispatchEvent(new MouseEvent("click", { bubbles: true }));
   });
-  return host.querySelector<HTMLElement>(".admin-msg");
+  if (submittedToken) {
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]');
+    const form = input?.closest("form");
+    expect(input).toBeTruthy();
+    expect(form).toBeTruthy();
+    await act(async () => {
+      const setValue = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype,
+        "value",
+      )?.set;
+      setValue?.call(input, submittedToken);
+      input!.dispatchEvent(new Event("input", { bubbles: true }));
+      form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+  }
+  return [...host.querySelectorAll<HTMLElement>(".admin-msg")].at(-1) ?? null;
 }
 
 describe("a moderator notice carries its own tone", () => {
