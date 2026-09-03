@@ -30,6 +30,11 @@ const TICKETMASTER_URL =
 const TICKETMASTER_SUBDOMAIN_URL =
   "https://theatre.ticketmaster.co.uk/book/1H8DJ-abba-voyage-admissions/#perf=1H8DJ-G8I";
 const TICKETMASTER_HOME = "https://www.ticketmaster.co.uk/";
+const SKIDDLE_EVENT_URL =
+  "https://www.skiddle.com/whats-on/London/Fabric/e/40412345/";
+const COMMON_EVENT_URL =
+  "https://www.common-social.com/post/the-big-pub-quiz";
+const VENUE_LISTING_URL = "https://theivyhousenunhead.com/whats-on";
 
 function row(overrides: Partial<WhatsOnRow> = {}): WhatsOnRow {
   return {
@@ -88,10 +93,43 @@ describe("a homepage is not an event page", () => {
     expect(outSourceLinksToEventPage("not a url")).toBe(false);
   });
 
+  it("rejects named-publisher collection, search and about pages", () => {
+    for (const url of [
+      "https://www.ticketmaster.co.uk/events",
+      "https://www.ticketmaster.co.uk/events/search",
+      "https://www.ticketmaster.co.uk/search?q=london",
+      "https://www.ticketmaster.co.uk/about",
+      "https://www.universe.com/events",
+      "https://www.universe.com/events/london",
+      "https://www.skiddle.com/whats-on/London/",
+      "https://www.common-social.com/post/",
+    ]) {
+      expect(outSourceLinksToEventPage(url), url).toBe(false);
+    }
+  });
+
   it("accepts a real event route with a path segment", () => {
     expect(outSourceLinksToEventPage(TICKETMASTER_URL)).toBe(true);
     expect(outSourceLinksToEventPage(UNIVERSE_URL)).toBe(true);
     expect(outSourceLinksToEventPage(TICKETMASTER_SUBDOMAIN_URL)).toBe(true);
+    expect(outSourceLinksToEventPage(SKIDDLE_EVENT_URL)).toBe(true);
+    expect(outSourceLinksToEventPage(COMMON_EVENT_URL)).toBe(true);
+  });
+
+  it("keeps a venue-owned schedule page linked as first-party evidence", () => {
+    expect(outRowSourceCredit({ label: "The Ivy House", url: VENUE_LISTING_URL })).toEqual({
+      label: "The Ivy House",
+      href: VENUE_LISTING_URL,
+    });
+  });
+
+  it("prints a named publisher without linking its generic collection", () => {
+    expect(
+      outRowSourceCredit({
+        label: "Ticketmaster",
+        url: "https://www.ticketmaster.co.uk/events",
+      }),
+    ).toEqual({ label: "Ticketmaster", href: null });
   });
 
   it("credits the publisher without a link when there is no event page", () => {
@@ -124,6 +162,25 @@ describe("Tonight makes the same claim the /out card makes", () => {
     expect(tonightRowLinks(row()).sourceLabel).toBe("Ticketmaster · universe.com");
   });
 
+  it("keeps direct provider event pages for music and sport rows", () => {
+    expect(
+      tonightRowLinks(
+        row({
+          kind: "music",
+          source: { label: "Ticketmaster", url: TICKETMASTER_URL },
+        }),
+      ).primary,
+    ).toEqual({ href: TICKETMASTER_URL, external: true });
+    expect(
+      tonightRowLinks(
+        row({
+          kind: "sport",
+          source: { label: "Ticketmaster", url: TICKETMASTER_SUBDOMAIN_URL },
+        }),
+      ).primary,
+    ).toEqual({ href: TICKETMASTER_SUBDOMAIN_URL, external: true });
+  });
+
   it("falls through to the map rather than opening a front door", () => {
     const links = tonightRowLinks(
       row({
@@ -133,5 +190,26 @@ describe("Tonight makes the same claim the /out card makes", () => {
     );
     expect(links.primary).toEqual({ href: "/map?sel=venue-1khnupq", external: false });
     expect(links.sourceLabel).toBe("Ticketmaster");
+  });
+
+  it("falls through to the map rather than opening a publisher collection", () => {
+    const links = tonightRowLinks(
+      row({
+        venueId: "venue-1khnupq",
+        source: { label: "Ticketmaster", url: "https://www.ticketmaster.co.uk/events" },
+      }),
+    );
+    expect(links.primary).toEqual({ href: "/map?sel=venue-1khnupq", external: false });
+    expect(links.sourceLabel).toBe("Ticketmaster");
+  });
+
+  it("keeps a venue-owned schedule as the primary evidence link", () => {
+    const links = tonightRowLinks(
+      row({
+        source: { label: "The Ivy House", url: VENUE_LISTING_URL },
+      }),
+    );
+    expect(links.primary).toEqual({ href: VENUE_LISTING_URL, external: true });
+    expect(links.sourceLabel).toBe("The Ivy House");
   });
 });

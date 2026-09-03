@@ -80,6 +80,11 @@ function hostBelongsToPublisher(parsed: URL, key: OutCardSource): boolean {
   return SOURCE_HOSTS[key].some((owned) => host === owned || host.endsWith(`.${owned}`));
 }
 
+function hostIs(parsed: URL, expected: string): boolean {
+  const host = readableHost(parsed);
+  return host === expected || host.endsWith(`.${expected}`);
+}
+
 /**
  * Whether a URL points at a page about ONE event, rather than at a publisher's
  * front door.
@@ -93,7 +98,25 @@ export function outSourceLinksToEventPage(url: string): boolean {
   const parsed = parsedUrl(url);
   if (!parsed) return false;
   const path = parsed.pathname.replace(/\/+$/, "");
-  return path !== "";
+  if (hostIs(parsed, "ticketmaster.co.uk") || hostIs(parsed, "ticketmaster.com")) {
+    return /(?:^|\/)event\/[a-z0-9_-]+$/i.test(path) || /^\/book\/[a-z0-9_-]+$/i.test(path);
+  }
+  if (hostIs(parsed, "universe.com")) {
+    return /^\/events\/[^/]+-tickets-[a-z0-9]+$/i.test(path);
+  }
+  if (hostIs(parsed, "skiddle.com")) {
+    return /\/e\/\d+$/u.test(path);
+  }
+  if (hostIs(parsed, "common-social.com")) {
+    return /^\/post\/[^/]+$/i.test(path);
+  }
+  return false;
+}
+
+function outSourceLinksToListingPage(url: string): boolean {
+  const parsed = parsedUrl(url);
+  if (!parsed) return false;
+  return parsed.pathname.replace(/\/+$/, "") !== "";
 }
 
 export type OutRowSourceCredit = {
@@ -114,10 +137,15 @@ export function outRowSourceCredit(source: {
   label: string;
   url: string;
 }): OutRowSourceCredit {
+  const sourceClass = outCardSource(source.label);
   const publisher = outSourceDisplayLabel(source.label);
   const parsed = parsedUrl(source.url);
-  const href = outSourceLinksToEventPage(source.url) ? source.url.trim() : null;
-  if (!parsed || hostBelongsToPublisher(parsed, outCardSource(source.label))) {
+  const linksToClaim =
+    sourceClass === "venue"
+      ? outSourceLinksToListingPage(source.url)
+      : outSourceLinksToEventPage(source.url);
+  const href = linksToClaim ? source.url.trim() : null;
+  if (!parsed || hostBelongsToPublisher(parsed, sourceClass)) {
     return { label: publisher, href };
   }
   // The publisher stays named - the feed is theirs and the attribution is owed
