@@ -13,6 +13,7 @@ const authState = vi.hoisted(() => ({
 }));
 const authedActionFetch = vi.hoisted(() => vi.fn());
 const budgetState = vi.hoisted(() => ({
+  holder: null as string | null,
   hasBudget: true,
   claimSucceeds: true,
   listeners: new Set<() => void>(),
@@ -28,9 +29,25 @@ vi.mock("@/components/auth/AuthProvider", () => ({
 }));
 vi.mock("@/lib/authedFetch", () => ({ authedActionFetch }));
 vi.mock("@/lib/promptBudget", () => ({
-  claimPromptBudget: () => budgetState.claimSucceeds,
+  // The real module WRITES a holder and publishes it; a mock that only answered
+  // "did the claim succeed" could not model the question the card actually
+  // asks, which is whether IT holds the budget right now.
+  claimPromptBudget: (surface: string) => {
+    if (!budgetState.claimSucceeds) return false;
+    budgetState.holder = surface;
+    // The real module publishes every budget change, which is how a subscriber
+    // learns it now holds the budget. A mock that mutated silently would leave
+    // the card waiting for news that never came.
+    for (const listener of budgetState.listeners) listener();
+    return true;
+  },
+  promptBudgetHolder: () => budgetState.holder,
   hasPromptBudgetFor: () => budgetState.hasBudget,
-  releasePromptBudget,
+  releasePromptBudget: (surface: string) => {
+    if (budgetState.holder === surface) budgetState.holder = null;
+    for (const listener of budgetState.listeners) listener();
+    releasePromptBudget(surface);
+  },
   subscribePromptBudget: (onChange: () => void) => {
     budgetState.listeners.add(onChange);
     return () => budgetState.listeners.delete(onChange);
@@ -78,6 +95,7 @@ beforeEach(() => {
   budgetState.hasBudget = true;
   budgetState.claimSucceeds = true;
   budgetState.listeners.clear();
+  budgetState.holder = null;
   releasePromptBudget.mockReset();
   window.localStorage.clear();
   window.sessionStorage.clear();

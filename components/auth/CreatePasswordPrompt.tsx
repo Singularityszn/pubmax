@@ -14,6 +14,7 @@ import { authedActionFetch } from "@/lib/authedFetch";
 import {
   claimPromptBudget,
   hasPromptBudgetFor,
+  promptBudgetHolder,
   releasePromptBudget,
   subscribePromptBudget,
 } from "@/lib/promptBudget";
@@ -56,7 +57,6 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   const [handle, setHandle] = useState<string | null>(null);
   const [hasPassword, setHasPassword] = useState<boolean | null>(null);
   const [statusAccountId, setStatusAccountId] = useState<string | null>(null);
-  const [budgetClaimed, setBudgetClaimed] = useState(false);
   const [answeredLocallyFor, setAnsweredLocallyFor] = useState<string | null>(null);
   const promptRendered = useRef(false);
 
@@ -129,6 +129,11 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     () => hasPromptBudgetFor(PASSWORD_PROMPT_SURFACE),
     () => false,
   );
+  const budgetHolder = useSyncExternalStore(
+    subscribePromptBudget,
+    () => promptBudgetHolder(),
+    () => null,
+  );
   const owed = shouldOfferPasswordPrompt({
     configured,
     accountId,
@@ -139,14 +144,19 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
   });
   const eligible = owed && hasBudget;
 
+  // The claim is a side effect on shared state, so it belongs in an effect and
+  // its ANSWER decides whether this card may paint. Both the claim result and
+  // the "did we actually paint" mark are settled here rather than during
+  // render: a ref written while rendering is read back inconsistently once
+  // React can retry or discard a render, and a setState in the effect BODY
+  // schedules a second pass before the first has committed.
   useEffect(() => {
-    if (!eligible) {
-      setBudgetClaimed(false);
-      return;
-    }
+    if (!eligible) return;
     const claimed = claimPromptBudget(PASSWORD_PROMPT_SURFACE);
-    setBudgetClaimed(claimed);
     return () => {
+      // Release only a claim this card never spent on a visible prompt. If it
+      // painted, the answer path owns the release, or the person is still
+      // looking at it.
       if (claimed && !promptRendered.current) {
         releasePromptBudget(PASSWORD_PROMPT_SURFACE);
       }
@@ -154,8 +164,16 @@ export default function CreatePasswordPrompt(): React.JSX.Element | null {
     };
   }, [eligible]);
 
-  const canShow = eligible && budgetClaimed;
-  if (canShow) promptRendered.current = true;
+  // Whether WE hold the budget is already published by the same store the
+  // eligibility read subscribes to, so it is DERIVED rather than copied into
+  // component state. Copying it meant a setState in the effect body, which
+  // schedules a second render pass before the first has committed, and it gave
+  // the same fact two owners that could disagree.
+  const canShow = eligible && budgetHolder === PASSWORD_PROMPT_SURFACE;
+
+  useEffect(() => {
+    if (canShow) promptRendered.current = true;
+  }, [canShow]);
 
   if (!canShow) return null;
 
