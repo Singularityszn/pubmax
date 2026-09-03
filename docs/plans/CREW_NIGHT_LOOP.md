@@ -12,7 +12,7 @@
 
 > Make the next soft, affordable, low-pressure IRL plan with your lot so obvious that staying in is the harder choice.
 
-**Per-night metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`.
+**Per-night metric:** share of nights where a plan reaches **≥2 committed humans** (`crew_committed` with `participants >= 2`). Not scroll DAU on `/social`. The event fires once per plan per night, on the join that first forms the crew, so this counts nights rather than joins (issue #1253; `docs/METRICS_FUNNEL.md` §0 owns the rule).
 
 **Loop north star:** `next_night_committed`. The loop below only counts when it closes: a finished night turns into the next one. `crew_committed >= 2` measures one night, and this measures the loop.
 

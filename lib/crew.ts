@@ -42,3 +42,21 @@ export function creatorNameFromAuthUser(user: {
 export function isCrewPresenceStatus(value: unknown): value is CrewPresenceStatus {
   return typeof value === "string" && CREW_PRESENCE_STATUSES.includes(value as CrewPresenceStatus);
 }
+
+/**
+ * The roster size that makes a Plan a crew night: at least two committed
+ * humans. `docs/METRICS_FUNNEL.md` §0 owns the formula this serves.
+ */
+export const CREW_NIGHT_MIN_PARTICIPANTS = 2;
+
+/**
+ * True only for the join that took a roster UP TO the crew-night threshold.
+ *
+ * The per-night metric counts NIGHTS, so the match is exact rather than `>=`:
+ * a join adds exactly one member, so the roster crosses the threshold once,
+ * and the third and later joins belong to a night already counted. Reading
+ * `>= 2` here is what made one four-person plan report three crew nights.
+ */
+export function joinCommitsCrewNight(participantsAfterJoin: number): boolean {
+  return participantsAfterJoin === CREW_NIGHT_MIN_PARTICIPANTS;
+}

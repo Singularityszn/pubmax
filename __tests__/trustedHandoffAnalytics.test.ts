@@ -154,8 +154,9 @@ describe("trusted handoff verified outcome tokens", () => {
 
   it("binds crew commitment to server-derived count and Route readiness", () => {
     const token = crewCommittedEventToken({
-      joinId: "join-one",
-      joinedAt: occurredAt,
+      planId: "plan-one",
+      nightKey: "2026-08-21",
+      committedAt: occurredAt,
       participants: 3,
       routeReady: true,
     });

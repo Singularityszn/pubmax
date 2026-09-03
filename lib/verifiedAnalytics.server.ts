@@ -183,9 +183,20 @@ export function planAcceptedEventTokens(input: {
   };
 }
 
+/**
+ * The crew-night commitment token.
+ *
+ * The subject is the PLAN and its NIGHT, never the join, because the metric it
+ * feeds counts nights: `eventId` is derived from the subject, so a repeat
+ * crossing of the same roster threshold on the same night mints the same
+ * receipt and the ingest route refuses it as already delivered. Keying this on
+ * the joining member's own id gave every join its own receipt, which is what
+ * let one plan report a crew night once per guest.
+ */
 export function crewCommittedEventToken(input: {
-  joinId: string;
-  joinedAt: string;
+  planId: string;
+  nightKey: string;
+  committedAt: string;
   participants: number;
   routeReady: boolean;
 }): string {
@@ -198,8 +209,8 @@ export function crewCommittedEventToken(input: {
         routeReady: input.routeReady,
       },
     },
-    `join:${input.joinId}:crew-committed`,
-    input.joinedAt,
+    `plan:${input.planId}:crew-night:${input.nightKey}:crew-committed`,
+    input.committedAt,
   );
 }
 
