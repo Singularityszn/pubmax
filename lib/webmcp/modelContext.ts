@@ -26,7 +26,7 @@ export interface WebMcpToolInputMap {
 export type WebMcpToolImplementation<Name extends WebMcpToolName> = (
   input: WebMcpToolInputMap[Name],
   context: WebMcpToolExecutionContext,
-) => WebMcpJsonValue | PromiseLike<WebMcpJsonValue>;
+) => Promise<WebMcpJsonValue>;
 
 export type WebMcpToolImplementations = {
   [Name in WebMcpToolName]: WebMcpToolImplementation<Name>;
@@ -38,10 +38,8 @@ function objectWithOnlyKeys(
   value: unknown,
   allowedKeys: readonly string[],
 ): value is UnknownObject {
-  return Boolean(value)
-    && typeof value === "object"
-    && !Array.isArray(value)
-    && Object.keys(value).every((key) => allowedKeys.includes(key));
+  if (!value || typeof value !== "object" || Array.isArray(value)) return false;
+  return Object.keys(value).every((key) => allowedKeys.includes(key));
 }
 
 function boundedString(value: unknown, minimum: number, maximum: number): boolean {
