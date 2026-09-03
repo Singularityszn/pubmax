@@ -39,8 +39,8 @@ export const AUTH_SESSION_BOOTSTRAP_TIMEOUT_MS = 20_000;
  * The local Supabase session is the fast path. A missing local session is not
  * proof of sign-out because iOS Safari and browser storage pressure can evict
  * it. Probe local storage for one microtask, then read the durable hint in
- * parallel with any slower local lookup. A missing hint is a truthful fast
- * anonymous answer; a present hint still waits for recovery before settling.
+ * parallel with any slower local lookup. A missing hint still waits for the
+ * local read, because cookie absence cannot overrule a valid browser session.
  */
 export async function bootstrapAuthSession(
   auth: BrowserAuthSession,
@@ -70,9 +70,8 @@ export async function bootstrapAuthSession(
     localSessionPromise = Promise.resolve(null);
   }
 
-  // Preserve the no-cookie fast path for a normal local session without
-  // starting a resume request that cannot be needed. A slow local lookup does
-  // not get to hold anonymous visitors behind the recovery ceiling.
+  // Preserve the no-cookie fast path for a settled local session without
+  // starting a resume request that cannot be needed.
   await Promise.resolve();
   if (localSettled && localReadFailed) return { status: "unavailable" };
   if (localSettled && localSession) return { status: "local", session: localSession };
@@ -86,13 +85,11 @@ export async function bootstrapAuthSession(
     return { status: "unavailable" };
   }
   if (hint.status === "unavailable") return { status: "unavailable" };
-  if (hint.status === "absent") {
-    return localReadFailed ? { status: "unavailable" } : { status: "none" };
-  }
 
   const resolvedLocalSession = await localSessionPromise;
   if (localReadFailed) return { status: "unavailable" };
   if (resolvedLocalSession) return { status: "local", session: resolvedLocalSession };
+  if (hint.status === "absent") return { status: "none" };
 
   let restored: RedeemResult;
   try {

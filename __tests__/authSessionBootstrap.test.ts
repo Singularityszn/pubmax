@@ -68,31 +68,83 @@ describe("browser auth session bootstrap", () => {
     expect(browser.setSession).toHaveBeenCalledWith(RESTORED_SESSION);
   });
 
-  it("settles anonymous when the resume hint is absent before local session lookup finishes", async () => {
-    vi.useFakeTimers();
-    try {
-      let resolveLocal: ((value: { data: { session: null } }) => void) | undefined;
-      const browser = auth({
-        getSession: vi.fn(
-          () =>
-            new Promise<{ data: { session: null } }>((resolve) => {
-              resolveLocal = resolve;
-            }),
-        ),
-      });
-      const startedAt = Date.now();
+  it("waits for a pending local read before publishing signed out", async () => {
+    let resolveLocal: ((value: { data: { session: null } }) => void) | undefined;
+    const browser = auth({
+      getSession: vi.fn(
+        () =>
+          new Promise<{ data: { session: null } }>((resolve) => {
+            resolveLocal = resolve;
+          }),
+      ),
+    });
+    let settled = false;
+    const bootstrap = bootstrapAuthSession(browser, {
+      readHint: async () => ({ status: "absent" }),
+    });
+    void bootstrap.finally(() => {
+      settled = true;
+    });
 
-      await expect(
-        bootstrapAuthSession(browser, {
-          readHint: async () => ({ status: "absent" }),
-        }),
-      ).resolves.toEqual({ status: "none" });
-      expect(Date.now() - startedAt).toBeLessThan(1_000);
+    await Promise.resolve();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(settled).toBe(false);
 
-      resolveLocal?.({ data: { session: null } });
-    } finally {
-      vi.useRealTimers();
-    }
+    resolveLocal?.({ data: { session: null } });
+    await expect(bootstrap).resolves.toEqual({ status: "none" });
+  });
+
+  it("keeps a pending local session when the resume hint is absent", async () => {
+    const localSession = {
+      access_token: "access-local",
+      refresh_token: "refresh-local",
+      user: { id: "account-1" },
+    } as unknown as Session;
+    let resolveLocal:
+      | ((value: { data: { session: Session | null } }) => void)
+      | undefined;
+    const browser = auth({
+      getSession: vi.fn(
+        () =>
+          new Promise<{ data: { session: Session | null } }>((resolve) => {
+            resolveLocal = resolve;
+          }),
+      ),
+    });
+    const bootstrap = bootstrapAuthSession(browser, {
+      readHint: async () => ({ status: "absent" }),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    resolveLocal?.({ data: { session: localSession } });
+
+    await expect(bootstrap).resolves.toEqual({
+      status: "local",
+      session: localSession,
+    });
+  });
+
+  it("keeps a pending local read failure unavailable when the hint is absent", async () => {
+    let rejectLocal: ((reason: Error) => void) | undefined;
+    const browser = auth({
+      getSession: vi.fn(
+        () =>
+          new Promise<{ data: { session: Session | null } }>((_resolve, reject) => {
+            rejectLocal = reject;
+          }),
+      ),
+    });
+    const bootstrap = bootstrapAuthSession(browser, {
+      readHint: async () => ({ status: "absent" }),
+    });
+
+    await Promise.resolve();
+    await Promise.resolve();
+    rejectLocal?.(new Error("storage blocked"));
+
+    await expect(bootstrap).resolves.toEqual({ status: "unavailable" });
   });
 
   it("preserves a failed local session read as unavailable", async () => {
