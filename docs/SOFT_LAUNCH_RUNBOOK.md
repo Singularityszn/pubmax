@@ -74,9 +74,33 @@ until `0136` is present in the remote ledger.
 The 14-digit timestamp is the migration identity and execution order. The
 four-digit number is a human label only. Historical duplicate labels are
 pinned by `__tests__/migrationVersions.test.ts`; never rename an applied file
-to repair them. New work reserves `0137` for Plan replay and atomic fallback,
-`0138` for price-trust reconciliation, and `0139` for one-tap price-pair
-receipts. Update this reservation when each migration lands.
+to repair them. New work reserves `0138` for price-trust reconciliation.
+Update this reservation when each migration lands.
+
+`0139` withdraws `public.create_one_tap_price_pair` (#1292). The function is
+live in production, no app code calls it, and it cannot report the drinker's
+own figure: it builds the Pint Drop from whatever row the newer-wins shared
+upsert returns, so a stored newer price makes the drop report a figure nobody
+submitted. The honest lane is already the live two-phase write in
+`app/api/price-submit/route.ts`. `0132` stays in the ledger as the record of
+what production ran; `0139` records the withdrawal, and its rollback restores
+`0132`'s exact body. Before applying, run this read-only query to see whether
+any drop needs a look first, and note that no column separates a pair-written
+Pint Drop from a two-phase one, so this is a review prompt rather than proof:
+
+```sql
+select count(*)
+  from public.pint_drops drop_row
+  join public.community_prices price
+    on price.venue_id = drop_row.venue_id
+ where drop_row.provenance = 'contributor'
+   and drop_row.created_at < price.submitted_at
+   and price.price_pennies = round(drop_row.price_gbp * 100);
+```
+
+`0139` removes the function and no row. Never turn that query into a delete:
+taking down a real drinker's Pint Drop on a shape match would be a worse
+defect than the latent one this closes.
 
 The complete applied order is deliberately not copied here. Treat the live
 `supabase migration list` and the files in `supabase/migrations/` as authoritative.

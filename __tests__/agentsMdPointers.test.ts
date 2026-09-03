@@ -116,6 +116,7 @@ const NOT_REPO_PATHS = new Set([
   "profileImageSlotSpec.cover.aspectRatio",
   "PublicProfile.coverUrls",
   "row.priceGbp",
+  "submission.priceGbp",
   "supabase.auth.setSession",
   "supabasePlanStore.create",
   "webServer.env",
@@ -126,6 +127,7 @@ const NOT_REPO_PATHS = new Set([
   "uploaded_image.object_unreadable",
   // Database objects, not repository paths.
   "public.account_has_password",
+  "public.create_one_tap_price_pair",
   "public.rls_*",
   "pubmax_private.grant_founding_member_number",
   // Storage key TEMPLATES with runtime segments, not committed files.
