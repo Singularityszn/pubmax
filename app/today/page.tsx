@@ -110,6 +110,7 @@ export default async function TodayPage() {
     whatsOnRows.length,
     out,
     now.getTime(),
+    whatsOnRows,
   );
   const picks = digestSectionPicks(listingRows, { limit: Number.POSITIVE_INFINITY }).map((pick) => {
     const dto = toTonightPickDto(pick.row);

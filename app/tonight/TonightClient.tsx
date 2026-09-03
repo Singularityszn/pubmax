@@ -87,6 +87,7 @@ import {
   tonightRowLinks,
   tonightProvenanceCredits,
 } from "@/lib/tonightOutListings";
+import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import type { QuietPintModule } from "@/lib/quietPint";
 import type { TrustedHandoffFlagsDTO } from "@/lib/trustedHandoffFlags";
 import { whatsOnBarePriceGbp, type WhatsOnKind, type WhatsOnRow } from "@/lib/whatsOn";
@@ -245,7 +246,7 @@ export default function TonightClient({
   // One instant answers both questions. Reading the clock twice lets the merge
   // drop the night's last row while the status still calls the page ready, and
   // a ready page over no rows shows neither cards nor the quiet-night sentence.
-  const { listingRows, listingsStatus, outEvents } = useMemo(() => {
+  const { listingRows, primaryListingRows, listingsStatus, outEvents } = useMemo(() => {
     // The past guard needs the real clock, and this memo reads it again only
     // when one of the two reads answers, so both halves keep the same instant.
     // eslint-disable-next-line react-hooks/purity -- deliberate clock read
@@ -257,6 +258,17 @@ export default function TonightClient({
       selectableVenueIds,
       true,
     );
+    const primaryWhatsOnRows = tonightPrimaryRows(rows);
+    const primaryOutEvents = tonightPrimaryRows(outBody?.events ?? []);
+    const primaryOutAnswer = outBody
+      ? {
+          ...outAnswer,
+          body: {
+            ...outBody,
+            events: primaryOutEvents,
+          },
+        }
+      : outAnswer;
     return {
       listingRows: mergeTonightListingRows(
         rows,
@@ -266,15 +278,23 @@ export default function TonightClient({
         selectableVenueIds,
         true,
       ),
-      listingsStatus: tonightListingsStatus(
-        status,
-        outAnswer,
+      primaryListingRows: mergeTonightListingRows(
+        primaryWhatsOnRows,
+        primaryOutEvents,
         now,
-        rows,
+        status,
         selectableVenueIds,
         true,
       ),
-      outEvents: eligibleOutEvents,
+      listingsStatus: tonightListingsStatus(
+        status,
+        primaryOutAnswer,
+        now,
+        primaryWhatsOnRows,
+        selectableVenueIds,
+        true,
+      ),
+      outEvents: tonightPrimaryRows(eligibleOutEvents),
     };
   }, [rows, outBody, status, outAnswer, selectableVenueIds]);
   const retryLanes = tonightRetryLanes(status, outAnswer);
@@ -352,12 +372,18 @@ export default function TonightClient({
     [tonightNear],
   );
   const groupedAll = useMemo(() => {
-    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null, {
+    const groups = groupTonightListings(primaryListingRows, tonightNear?.near ?? null, {
       v2: flags.tonightGrouping,
     });
     // Deals order among themselves: nearest patch first, then closing soonest.
     // In place, so no quiz, match or gig moves to make room, and so the order
     // holds on the mixed list rather than only behind the Deal filter.
+    return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
+  }, [primaryListingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
+  const groupedSecondaryAll = useMemo(() => {
+    const groups = groupTonightListings(listingRows, tonightNear?.near ?? null, {
+      v2: flags.tonightGrouping,
+    });
     return orderDealsInPlace(groups, (group) => group.row, dealAnchor);
   }, [listingRows, tonightNear, flags.tonightGrouping, dealAnchor]);
   const grouped = useMemo(
@@ -368,8 +394,8 @@ export default function TonightClient({
   const displayedFacets = useMemo(() => laneKindFacets(grouped.map((g) => g.row)), [grouped]);
   const ready = listingsStatus === "ready";
   const listingLede = useMemo(
-    () => tonightListingLede(listingsStatus, listingRows, selectableVenueIds),
-    [listingRows, listingsStatus, selectableVenueIds],
+    () => tonightListingLede(listingsStatus, primaryListingRows, selectableVenueIds),
+    [primaryListingRows, listingsStatus, selectableVenueIds],
   );
   const visibleVibeChips = useMemo(
     () => visibleTonightVibeChips(ready ? facets.map((facet) => facet.kind) : []),
@@ -407,29 +433,29 @@ export default function TonightClient({
   // lane is identified by the same reference identity the credits use.
   const rowEvidence = useMemo(() => {
     const fromOut = new Set(
-      tonightListingLanes(listingRows, outEvents).outRows,
+      tonightListingLanes(primaryListingRows, outEvents).outRows,
     );
     return (row: WhatsOnRow): TonightRowEvidence => ({
       observedAt: row.observedAt,
       kind: fromOut.has(row) ? "out-listing" : "whats-on",
     });
-  }, [listingRows, outEvents]);
-  // Unfiltered listing count, not the kind-filtered `visible.length` — a thin
+  }, [primaryListingRows, outEvents]);
+  // Unfiltered primary listing count, not the kind-filtered `visible.length` - a thin
   // night stays thin regardless of which chip is active, and this must not
   // flicker in/out as the user taps filters.
-  const thinNight = empty || (ready && listingRows.length <= THIN_NIGHT_MAX_ROWS);
+  const thinNight = empty || (ready && primaryListingRows.length <= THIN_NIGHT_MAX_ROWS);
   const hasGeoRows =
     ready &&
-    listingRows.some(
+    primaryListingRows.some(
       (row) => typeof row.lat === "number" && typeof row.lng === "number",
     );
   const showLocation = hasGeoRows || thinNight;
   const locationExpanded = locationOpen || origin != null;
 
-  // Secondary Deals/Music lanes reuse the already-loaded grouped heroes instead
-  // of each firing their own /api/whats-on fetch.
+  // Secondary Deals/Music lanes reuse already-loaded all-row grouped heroes
+  // instead of each firing their own /api/whats-on fetch.
   const localityBasis = tonightLocalityBasis(origin != null, tonightNear);
-  const secondaryHeroes = groupedAll.map((group) => group.row);
+  const secondaryHeroes = groupedSecondaryAll.map((group) => group.row);
   const secondaryLanes = (
     <>
       <DealsTonightLane rows={secondaryHeroes} anchor={dealAnchor} />

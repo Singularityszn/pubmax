@@ -8,6 +8,7 @@ import Link from "next/link";
 import { CalendarClock, Timer } from "lucide-react";
 
 import { dealsEndingSoon } from "@/lib/dealsHonesty";
+import { tonightPrimaryRows } from "@/lib/tonightPrimary";
 import type { WhatsOnKind, WhatsOnRow } from "@/lib/whatsOn";
 import type { WhatsOnKindFacet } from "@/lib/whatsOnBadges";
 
@@ -43,19 +44,32 @@ export default function TonightOnTonightSummary({
   totalCount,
   now,
 }: TonightOnTonightSummaryProps) {
-  if (totalCount === 0 || facets.length === 0) return null;
+  const primaryRows = tonightPrimaryRows(rows);
+  const primaryFacetCounts = new Map<WhatsOnKind, number>();
+  for (const row of primaryRows) {
+    primaryFacetCounts.set(row.kind, (primaryFacetCounts.get(row.kind) ?? 0) + 1);
+  }
+  const primaryFacets = facets
+    .map((facet) => ({
+      ...facet,
+      count: primaryFacetCounts.get(facet.kind) ?? 0,
+    }))
+    .filter((facet) => facet.count > 0);
+  const primaryTotalCount = Math.max(0, totalCount - (rows.length - primaryRows.length));
+
+  if (primaryTotalCount === 0 || primaryFacets.length === 0) return null;
 
   // The one place money-saving gets pushed harder, and it only appears when the
   // rows say so: real deals, still on, closing inside the next two hours. It
   // counts them and hands the reader down to the list that holds them. No
   // saved-money figure rides here, because no row can prove one.
-  const endingSoon = dealsEndingSoon(rows, now);
-  const topTitles = rows.slice(0, TOP_TITLE_LIMIT);
-  const facetKinds = new Set<WhatsOnKind>(facets.map((facet) => facet.kind));
-  const headlineKinds = facets
+  const endingSoon = dealsEndingSoon(primaryRows, now);
+  const topTitles = primaryRows.slice(0, TOP_TITLE_LIMIT);
+  const facetKinds = new Set<WhatsOnKind>(primaryFacets.map((facet) => facet.kind));
+  const headlineKinds = primaryFacets
     .filter((facet) => facet.kind === "music" || facet.kind === "deal")
     .map((facet) => facetLine(facet));
-  const otherKinds = facets
+  const otherKinds = primaryFacets
     .filter((facet) => facet.kind !== "music" && facet.kind !== "deal")
     .map((facet) => facetLine(facet));
   const kindLines = [...headlineKinds, ...otherKinds];
@@ -72,7 +86,7 @@ export default function TonightOnTonightSummary({
           On tonight
         </h2>
         <span className="tonightOnTonightSummaryCount">
-          {totalCount} listing{totalCount === 1 ? "" : "s"}
+          {primaryTotalCount} listing{primaryTotalCount === 1 ? "" : "s"}
         </span>
       </div>
       {kindLines.length > 0 ? (
@@ -92,7 +106,7 @@ export default function TonightOnTonightSummary({
       ) : null}
       {topTitles.length > 0 ? (
         <ul className="tonightOnTonightSummaryTitles" aria-label="Headline listings">
-          {rows.slice(0, TOP_TITLE_LIMIT).map((row) => (
+          {topTitles.map((row) => (
             <li key={row.id}>{row.title}</li>
           ))}
         </ul>
