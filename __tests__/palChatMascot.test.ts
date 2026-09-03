@@ -20,6 +20,13 @@ vi.mock("@/lib/analytics", () => ({
   trackEvent: vi.fn(),
 }));
 
+import {
+  PAL_MASCOT_SIZES,
+  PAL_MASCOT_SLUGS,
+  PAL_MASCOT_WEBP_512_BUDGET,
+  palMascotSlug,
+} from "@/lib/palMascotAssets.mjs";
+import { PAL_VISUAL_MANIFEST } from "@/lib/pubPal";
 import PalChat from "@/components/pal/PalChat";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
 
@@ -72,12 +79,38 @@ describe("PubPalMascot", () => {
   });
 });
 
-describe("circuit robin public renditions", () => {
+describe("public mascot renditions", () => {
   const palDir = join(process.cwd(), "public", "pal");
 
-  it("keeps the 512 webp square under the 60KB budget", () => {
-    const bytes = statSync(join(palDir, "circuit-robin-512.webp")).size;
-    expect(bytes).toBeGreaterThan(0);
-    expect(bytes).toBeLessThan(60 * 1024);
+  it("ships the whole rendition set for every species with a master", () => {
+    for (const slug of Object.values(PAL_MASCOT_SLUGS)) {
+      for (const size of PAL_MASCOT_SIZES) {
+        for (const name of [`${slug}-${size}`, `${slug}-avatar-${size}`]) {
+          for (const ext of ["webp", "png"]) {
+            expect(statSync(join(palDir, `${name}.${ext}`)).size).toBeGreaterThan(0);
+          }
+        }
+      }
+    }
+  });
+
+  it("keeps every 512 webp square under the budget", () => {
+    for (const slug of Object.values(PAL_MASCOT_SLUGS)) {
+      const bytes = statSync(join(palDir, `${slug}-512.webp`)).size;
+      expect(bytes).toBeGreaterThan(0);
+      expect(bytes).toBeLessThan(PAL_MASCOT_WEBP_512_BUDGET);
+    }
+  });
+
+  // The manifest is what a surface reads and the slug table is what the generator
+  // writes, so a species named in one and not the other would render a broken
+  // image or leave a shipped master unreachable.
+  it("agrees with the visual manifest about which species are rendered", () => {
+    for (const [species, entry] of Object.entries(PAL_VISUAL_MANIFEST)) {
+      expect(entry.format).toBe(palMascotSlug(species) ?? "layered-svg");
+    }
+    for (const species of Object.keys(PAL_MASCOT_SLUGS)) {
+      expect(Object.keys(PAL_VISUAL_MANIFEST)).toContain(species);
+    }
   });
 });

@@ -5,6 +5,7 @@ import {
   type PubPalAppearance,
 } from "@/lib/pubPal";
 import { PubPalMascot } from "@/components/pal/PubPalMascot";
+import { pubPalMascotSlugFor } from "@/lib/pubPalMascot";
 
 const legacySpeciesIcons: Partial<Record<PubPalAppearance["species"], LucideIcon>> = {
   rabbit: Rabbit,
@@ -189,7 +190,11 @@ export default function PalPortrait({ appearance, name, compact = false, state =
 }) {
   const LegacyIcon = legacySpeciesIcons[appearance.species];
   const mascotSize = compact ? 96 : 192;
-  const Rig = appearance.species === "robin" ? null
+  // A species that ships a master is drawn as that photograph; the rigs below are
+  // the fallback for the forms that have none, so the question is asked once here
+  // rather than by comparing species names in three places.
+  const rendered = pubPalMascotSlugFor(appearance.species) !== null;
+  const Rig = rendered ? null
     : appearance.species === "greyhound" || appearance.species === "hound" ? GreyhoundRig
     : appearance.species === "cat" ? CatRig
     : appearance.species === "fox" ? FoxRig
@@ -203,7 +208,7 @@ export default function PalPortrait({ appearance, name, compact = false, state =
     <div
       className={`palPortrait palPortrait-${appearance.signalAffinity} palPortrait-${appearance.material} ${compact ? "isCompact" : ""}`}
       data-pal-state={state}
-      {...(appearance.species === "robin"
+      {...(rendered
         ? {}
         : {
             role: "img" as const,
@@ -213,9 +218,9 @@ export default function PalPortrait({ appearance, name, compact = false, state =
       <span className="palPortraitField" aria-hidden="true" />
       <span className="palPortraitOrbit palPortraitOrbitA" aria-hidden="true" />
       <span className="palPortraitOrbit palPortraitOrbitB" aria-hidden="true" />
-      <span className="palPortraitCore" aria-hidden={appearance.species !== "robin"}>
-        {appearance.species === "robin" ? (
-          <PubPalMascot size={mascotSize} circular={false} className="palPortraitMascot" />
+      <span className="palPortraitCore" aria-hidden={!rendered}>
+        {rendered ? (
+          <PubPalMascot species={appearance.species} size={mascotSize} circular={false} className="palPortraitMascot" />
         ) : Rig ? (
           <Rig />
         ) : LegacyIcon ? (

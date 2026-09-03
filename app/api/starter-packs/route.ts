@@ -1,5 +1,5 @@
-// The starter packs a new drinker may follow in one tap, and whether this
-// viewer is short of a lot yet.
+// A signed-in drinker may follow these starter packs in one tap. A stranger
+// may read the public pack list without an account.
 //
 // The pack list is the same closed row set the people directory reads, so this
 // discloses nothing the directory would not: handle, optional display name,
@@ -7,14 +7,15 @@
 // gender, full name, user id and every ownership or tombstone internal stay
 // behind the owner-authenticated reads.
 //
-// The VIEWER half is why the answer is personalised and no-store. The gate
-// ("offer packs to somebody following fewer than three accounts") has to be
-// answered by the read that lists the packs, because the fail-soft
-// `/api/profiles/[handle]/following` returns an empty list for BOTH "follows
-// nobody" and "could not check", and a surface that read the second as the
-// first would push starter packs at a drinker with a full lot. So the count is
-// TRI-STATE here: a number, or null meaning nobody asked or the read could not
-// answer, and `viewerNeedsStarterPacks` renders nothing for null.
+// The pack list is public and the optional viewer makes the response
+// personalised and `no-store`. The gate ("offer packs to somebody following
+// fewer than three accounts") has to be answered by the read that lists the
+// packs, because the fail-soft `/api/profiles/[handle]/following` returns an
+// empty list for BOTH "follows nobody" and "could not check", and a surface
+// that read the second as the first would push starter packs at a drinker with
+// a full lot. So `viewerFollowing` is TRI-STATE here: a number, or null meaning
+// nobody asked or the read could not answer. A stranger gets null and uses only
+// the public pack list; `viewerNeedsStarterPacks` renders nothing for null.
 
 import { publicApiError } from "@/lib/apiError";
 import { jsonNoStore } from "@/lib/apiResponses";

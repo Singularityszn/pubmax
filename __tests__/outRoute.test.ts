@@ -63,6 +63,8 @@ import {
   OUT_READY_CACHE_CONTROL,
   OUT_UNSETTLED_CACHE_CONTROL,
   outAnswerView,
+  OUT_EMPTY_LINE,
+  OUT_NOT_CONFIGURED_LINE,
   outStatusLines,
 } from "@/lib/out/outStatus";
 import { buildOutVenueMatchIndex } from "@/lib/out/venueMatch";
@@ -171,9 +173,13 @@ describe("buildOutResponse", () => {
         expect.objectContaining({ name: "skiddle", configured: false, rows: 0 }),
       ]),
     );
-    expect(outStatusLines({ body, failed: false })).toEqual([
-      "Listings are not switched on yet.",
-    ]);
+    expect(outStatusLines({ body, failed: false })).toEqual([OUT_NOT_CONFIGURED_LINE]);
+    // The sentence is about US having nothing to show, never a claim that the
+    // city is quiet - we did not look - and it names no plumbing of ours.
+    expect(OUT_NOT_CONFIGURED_LINE).not.toBe(OUT_EMPTY_LINE);
+    expect(OUT_NOT_CONFIGURED_LINE).not.toMatch(
+      /switched on|configur|set up|api|key|provider|enabled/i,
+    );
   });
 
   it("stays ready over bundled rows at listed pubs, with no quiet line above cards", async () => {

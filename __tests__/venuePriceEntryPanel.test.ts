@@ -67,6 +67,11 @@ describe("price contribution auth destination", () => {
       user: null,
       loading: false,
       configured: true,
+      // A SETTLED signed-out drinker. Without this the provider has not
+      // answered, SignInButton withholds itself by design, and the gate would
+      // render its heading over no way in - which is the opposite of what this
+      // test is about.
+      supabaseAuthState: "signed-out",
       socialProviders: { google: false, microsoft: false },
       signInWithGoogle: vi.fn(),
       signInWithMicrosoft: vi.fn(),

@@ -697,6 +697,11 @@ function SocialPageAccountState({
     isPosts &&
     viewerPhase === "resolved" &&
     access === "verified";
+  // A signed-out reader meets the door in the body, so the packs go beside it
+  // there rather than in the narrow rail, where they left the column empty.
+  const packsBesideTheDoor =
+    friendsLaunchEnabled && isPosts && viewerPhase === "signed-out";
+
   return (
     <>
       <main className="socialPage" id="main-content">
@@ -736,10 +741,10 @@ function SocialPageAccountState({
                 boundary, so leaving them mounted would offer follows on a page
                 that says it is not open yet. Pinned by
                 __tests__/socialRollbackRender.test.tsx. */}
-            {/* ONE live copy of the packs on this page. A second would keep its
-                own follow results, so the two would disagree about what a tap
-                just did. */}
-            {friendsLaunchEnabled && isPosts ? <StarterPacks compact /> : null}
+            {/* ONE live copy of the packs on this page. Signed-in cards keep
+                their follow results; stranger cards are read-only, and the
+                two render paths must never appear together. */}
+            {friendsLaunchEnabled && isPosts && !packsBesideTheDoor ? <StarterPacks compact /> : null}
             {/* The founders wall. Public, already sitemapped, and until now
                 reachable from nowhere inside the app. One quiet link, no
                 count, and no branch on whether this reader holds a number:
@@ -779,10 +784,18 @@ function SocialPageAccountState({
               />
             </section>
           ) : viewerPhase === "signed-out" ? (
-            <SocialAccessBoundary
-              state="sign_in_required"
-              friendsLaunchEnabled={friendsLaunchEnabled}
-            />
+            <>
+              <SocialAccessBoundary
+                state="sign_in_required"
+                friendsLaunchEnabled={friendsLaunchEnabled}
+              />
+              {/* The packs are public and already listed, so a stranger meeting
+                  the door can see who is already here rather than one sentence
+                  in an empty page. Still ONE live copy: the rail drops its
+                  signed-in copy while this one is up, so the two render paths
+                  cannot appear together or carry conflicting follow results. */}
+              {packsBesideTheDoor ? <StarterPacks readOnly /> : null}
+            </>
           ) : access === "checking" ? (
             <section className="socialBoundary" role="status" aria-busy="true">
               <h2>Checking {surfaceName} access…</h2>

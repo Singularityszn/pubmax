@@ -25,7 +25,27 @@ export function outCacheControl(
 export const OUT_READ_FAILED_LINE = "Could not check listings.";
 export const OUT_DEGRADED_LINE = "Some listings could not be checked.";
 export const OUT_EMPTY_LINE = "No listings for this day yet.";
-export const OUT_NOT_CONFIGURED_LINE = "Listings are not switched on yet.";
+/**
+ * A lane nobody asked, said to a drinker rather than to us.
+ *
+ * "Listings are not switched on yet." described our own configuration, which
+ * never belongs in a drinker's copy. This says what the reader gets and keeps
+ * the state distinguishable from OUT_EMPTY_LINE: it is about US having nothing
+ * to show, never a claim that the city is quiet, which we did not look at.
+ */
+export const OUT_NOT_CONFIGURED_LINE = "We don\u2019t have listings to show yet.";
+
+/**
+ * The one way onward from an /out lane with nothing in it.
+ *
+ * Nothing here is a dead end, and the two ways out are the two honest ones: a
+ * lane that answered with nothing still has the pubs behind it, and a lane we
+ * could not read is worth asking again.
+ */
+export const OUT_MAP_WAY = { href: "/map", label: "Open the map" } as const;
+export const OUT_RETRY_LABEL = "Try again";
+
+export type OutEmptyWay = "map" | "retry";
 
 /**
  * What the surface may show for the day currently on screen.
@@ -105,4 +125,27 @@ export function outStatusLines(input: {
     lines.push(OUT_EMPTY_LINE);
   }
   return lines;
+}
+
+/**
+ * What an /out lane with no rows owes its reader: the sentence it already has,
+ * and which of the two ways onward belongs under it. `null` means the lane has
+ * something to show, or has not answered yet, and owes neither - a wait is a
+ * skeleton, and a list needs no way out of itself.
+ *
+ * A read we could not run is asked again; anything else sends the reader to the
+ * map, because whatever is listed tonight, the pubs are always there.
+ */
+export function outEmptyLane(input: {
+  body: OutListingsBody | null;
+  failed: boolean;
+  pending: boolean;
+}): { lines: string[]; way: OutEmptyWay } | null {
+  if (input.pending) return null;
+  if (input.body && input.body.events.length > 0) return null;
+  const lines = outStatusLines({ body: input.body, failed: input.failed });
+  if (lines.length === 0) return null;
+  const unreadable =
+    input.failed || (input.body ? outListingsHealth(input.body).status === "degraded" : false);
+  return { lines, way: unreadable ? "retry" : "map" };
 }

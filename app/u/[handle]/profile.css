@@ -926,6 +926,36 @@
   opacity: 0.72;
 }
 
+/* The follow SLOT for somebody who cannot follow yet - signed out, or signed in
+   with no handle. It is the same action in the same place as .followBtn, so it
+   takes the same box and the same 44px tap floor; carrying no rule at all left
+   it a bare underlined link 20px tall, which is the one control a stranger
+   arriving from an add link is meant to press. The outline tone keeps it from
+   reading as a Follow already pressed. */
+.profilePage .profileFollowSignIn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: 10px 16px;
+  border: 1px solid var(--accent-action);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--accent-action);
+  font-size: 0.9rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.profilePage .profileFollowSignIn:hover {
+  background: color-mix(in srgb, var(--accent-action) 12%, transparent);
+}
+
+.profilePage .profileFollowSignIn:focus-visible {
+  outline: 2px solid var(--brass);
+  outline-offset: 2px;
+}
+
 /* Button first, then whatever it could not say. Wrapping matters: the hint is
    a sentence, and inline beside a button it ran off the identity pane. */
 .profilePage .profileFollow {

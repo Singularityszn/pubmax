@@ -10,11 +10,56 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  fetchResumeHint,
   persistSessionForResume,
   redeemPersistedSession,
 } from "@/lib/authSessionResumeClient";
 
 const SESSION = { access_token: "at_1", refresh_token: "rt_1" };
+
+describe("reading the resume hint", () => {
+  it("distinguishes a present hint from an absent cookie", async () => {
+    const present = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ hint: { maskedEmail: "p***@example.com" } }), {
+          status: 200,
+        }),
+    );
+    const absent = vi.fn(
+      async () => new Response(JSON.stringify({ hint: null }), { status: 200 }),
+    );
+
+    await expect(fetchResumeHint(present)).resolves.toEqual({
+      status: "present",
+      hint: { maskedEmail: "p***@example.com" },
+    });
+    await expect(fetchResumeHint(absent)).resolves.toEqual({ status: "absent" });
+  });
+
+  it("keeps server and transport failures unavailable", async () => {
+    const serverFailure = vi.fn(async () => new Response("", { status: 503 }));
+    const transportFailure = vi.fn(async () => {
+      throw new Error("offline");
+    });
+
+    await expect(fetchResumeHint(serverFailure)).resolves.toEqual({
+      status: "unavailable",
+    });
+    await expect(fetchResumeHint(transportFailure)).resolves.toEqual({
+      status: "unavailable",
+    });
+  });
+
+  it("rejects a present hint without its masked address field", async () => {
+    const malformed = vi.fn(
+      async () => new Response(JSON.stringify({ hint: {} }), { status: 200 }),
+    );
+
+    await expect(fetchResumeHint(malformed)).resolves.toEqual({
+      status: "unavailable",
+    });
+  });
+});
 
 describe("persisting the resume cookie", () => {
   it("reports a stored cookie", async () => {

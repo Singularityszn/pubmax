@@ -5,6 +5,24 @@ export type ProviderAuthState =
   | "signed-out"
   | "unavailable";
 
+/**
+ * Whether a provider has TOLD US about the viewer.
+ *
+ * TWO of the four states mean "not told", and they must be read together or a
+ * surface half-learns the rule. `unresolved` is "still asking"; `unavailable`
+ * is "the client could not load, so we know nothing", which AuthProvider sets
+ * deliberately to stop the ceiling speaking for the viewer.
+ *
+ * The landing header enumerated `unresolved` alone and let `unavailable`
+ * through, so a drinker with a long-lived session met "Sign in" while every
+ * surface on the viewer-session seam knew the account perfectly well. The two
+ * states are named here, once, because enumerating them per surface is exactly
+ * how that happened.
+ */
+export function providerHasAnswered(state: ProviderAuthState): boolean {
+  return state === "authenticated" || state === "signed-out";
+}
+
 export type SupabaseAuthSettlement =
   | "initial-session"
   | "auth-event"

@@ -18,7 +18,11 @@ const state = vi.hoisted(() => ({
   identityResolved: true,
   provider: "clerk" as "clerk" | "supabase" | "signed-out",
   providerUserId: "clerk-actor-a" as string | null,
-  providerAuthState: "authenticated" as "authenticated" | "signed-out" | "unresolved",
+  providerAuthState: "authenticated" as
+    | "authenticated"
+    | "signed-out"
+    | "unresolved"
+    | "unavailable",
   socialLaunchEnabled: true,
   accountRevision: 1,
   privateState: "none" as "none" | "pending" | "member",
@@ -300,6 +304,20 @@ describe("PublicCrewRouteClient identity and crew boundaries", () => {
 
     expect(state.actionCalls).not.toContain(`GET /api/social/crews/${CREW_A}`);
     expect(container.textContent).toContain("Ask to join");
+  });
+
+  it("keeps an unavailable reader neutral", async () => {
+    state.provider = "signed-out";
+    state.providerUserId = null;
+    state.providerAuthState = "unavailable";
+    state.accountRevision = 2;
+    await act(async () => {
+      root.render(createElement(PublicCrewRouteClient, { crewId: CREW_A, invitationId: null }));
+    });
+    await settle();
+
+    expect(state.actionCalls).not.toContain(`GET /api/social/crews/${CREW_A}`);
+    expect(container.textContent).not.toContain("Ask to join");
   });
 
   it("clears private join state when provider account revision changes", async () => {

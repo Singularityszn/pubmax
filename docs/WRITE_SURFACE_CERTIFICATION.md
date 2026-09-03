@@ -1204,10 +1204,10 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   live accounts placed by their own public location or holding a founding
   number, never a seeded or invented member.
 - **Scope:** a pack below the member floor answers the same 404 as an unknown
-  slug, so the refusal discloses nothing about who is in it. The read half
-  (`GET app/api/starter-packs`) is personalised and `no-store`, and returns the
-  viewer's follow count tri-state so a failed count is never read as "follows
-  nobody".
+  slug, so the refusal discloses nothing about who is in it. The pack list in
+  `GET app/api/starter-packs` is public and `no-store`; an optional viewer makes
+  the response personalised and returns that viewer's follow count tri-state,
+  so a failed count is never read as "follows nobody".
 
 ### `app/api/venues/[id]/occupancy` - crowd occupancy readings (route 91)
 
@@ -1268,8 +1268,17 @@ npx vitest run __tests__/writeSurfaceCertification.test.ts __tests__/rateLimit.t
   `recover_plan_account_membership_atomic`), so a partial claim can never leave
   a Plan attached to two accounts and a recovery can never mint a second seat.
   A membership held by a different account is an honest 409. The missing-function
-  fallbacks preserve keyless and development parity when the current Plan schema
-  is present; a genuine write failure remains a refusal.
+  fallbacks preserve keyless and development parity after identity verification
+  when the current Plan schema is present; a genuine write failure remains a
+  refusal.
+- **Browser proof:** `e2e/plan-capability-recovery.spec.ts` runs in the
+  `law-pins` job. Its signed-out case proves that a lost capability does not
+  trigger a recovery PATCH. The signed-in case remains deliberately skipped in
+  the keyless server: without `SUPABASE_SERVICE_ROLE_KEY`, `getSupabaseAdmin()`
+  is null, `verifyCallerAuth` answers `unavailable`, and both the claim PUT and
+  recovery PATCH answer 503. The complete journey remains in the spec for a
+  future authenticated browser lane; shared doubles live in
+  `e2e/helpers/authDoubles.ts`.
 
 The structural scan, live atomic-limiter check, and deployment configuration must
 all remain green. A future route added without a reviewed boundary fails the closed

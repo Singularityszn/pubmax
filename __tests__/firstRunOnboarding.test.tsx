@@ -66,6 +66,10 @@ describe("first-run companion choice", () => {
 
     expect(robin.getAttribute("aria-pressed")).toBe("false");
     expect(buttonContaining("Greyhound").getAttribute("aria-pressed")).toBe("true");
-    expect(container.querySelector(".palRigGreyhound")).not.toBeNull();
+    // The greyhound ships its own master, so the preview swaps the portrait
+    // rather than keeping the robin's.
+    const greyhoundImg = container.querySelector('img[alt="Pub Pal"]');
+    expect(greyhoundImg?.getAttribute("src")).toContain("circuit-greyhound");
+    expect(container.querySelector(".palRigGreyhound")).toBeNull();
   });
 });
