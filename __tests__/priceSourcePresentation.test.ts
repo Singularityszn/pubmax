@@ -7,6 +7,10 @@ import VenueOverviewTab from "@/components/map/inspector/VenueOverviewTab";
 import type { CommunityPricesState } from "@/components/map/useCommunityPrices";
 import type { Drink } from "@/lib/drinks";
 import { venueDrinkMenu } from "@/lib/drinkMenu";
+import {
+  PINT_DATASET_OBSERVED_AT,
+  PINT_DATASET_PRESENTATION_BUDGET_DAYS,
+} from "@/lib/dataFreshness";
 import type { PricedVenue } from "@/lib/priceUpdates";
 import type { Venue, VenuePrice } from "@/lib/venues";
 
@@ -258,19 +262,37 @@ describe("baseline price-source presentation", () => {
     expect(html).not.toMatch(/\b(current|tonight)\b/i);
   });
 
-  it("uses the dataset lane's 3 July collection stamp and 90-day freshness budget", () => {
+  // What a drinker is told has ONE owner: PINT_DATASET_PRESENTATION_BUDGET_DAYS,
+  // the shared price-authority window. This test reads it rather than restating
+  // a day count, and it deliberately does NOT read the freshness registry: that
+  // budget is the release gate's neglect ceiling and says nothing about whether
+  // a figure still speaks for tonight.
+  it("labels the dataset lane against the price-authority window", () => {
+    const budgetMs = PINT_DATASET_PRESENTATION_BUDGET_DAYS * 24 * 60 * 60 * 1000;
+    const observedAtMs = PINT_DATASET_OBSERVED_AT.getTime();
+    const render = () =>
+      renderToStaticMarkup(
+        createElement(DrinkMenu, {
+          drinks: venueDrinkMenu("venue-test", [price("")], () => []),
+          venueName: "The Test Arms",
+        }),
+      );
+
     vi.useFakeTimers();
-    vi.setSystemTime(new Date("2026-10-01T12:00:00.000Z"));
-    const html = renderToStaticMarkup(
-      createElement(DrinkMenu, {
-        drinks: venueDrinkMenu("venue-test", [price("")], () => []),
-        venueName: "The Test Arms",
-      }),
+    vi.setSystemTime(new Date(observedAtMs + budgetMs - 60 * 60 * 1000));
+    const withinBudget = render();
+
+    expect(withinBudget).toContain("Seen");
+    expect(withinBudget).not.toContain("Last seen");
+    expect(withinBudget).toContain(
+      '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
     );
 
-    expect(html).toContain("Seen");
-    expect(html).not.toContain("Last seen");
-    expect(html).toContain(
+    vi.setSystemTime(new Date(observedAtMs + budgetMs + 60 * 60 * 1000));
+    const pastBudget = render();
+
+    expect(pastBudget).toContain("Last seen");
+    expect(pastBudget).toContain(
       '<time dateTime="2026-07-03T12:00:00.000Z">3 Jul 2026</time>',
     );
   });

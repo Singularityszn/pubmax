@@ -1,5 +1,22 @@
 # Freshness burndown - per-feed verdicts and fix classes (2026-08-07)
 
+> **Update 2026-09-03 (does not rewrite the inventory below).** `pint_prices`
+> now has TWO windows with two owners, because one number was answering two
+> questions.
+>
+> - The registry `stalenessBudgetHours` stays at 2160. It is a NEGLECT ceiling:
+>   it decides when the release gate alarms that nobody has re-collected the
+>   bundle. The gate therefore keeps failing on merit.
+> - What a drinker is told is `PINT_DATASET_PRESENTATION_BUDGET_DAYS`
+>   (`lib/dataFreshness.ts`), which reads the shared 30-day price-authority
+>   window in `lib/priceAuthorityWindow.ts`. Past it the venue menu presents a
+>   bundled figure as an estimate, dated with when it was last seen, rather
+>   than as a current price.
+>
+> The bundled 3 July baseline is 1487 hours old, so it is already presented as
+> an estimate while sitting inside its 2160-hour neglect ceiling. Re-collection
+> is tracked as its own issue.
+
 > **Update 2026-08-20 (does not rewrite the inventory below).** `price_updates`
 > is now **UNTRACKED** in the spine: episodic, no machine budget, empty served
 > envelope with an honest 2026-07-03 collection-day stamp while parsers are

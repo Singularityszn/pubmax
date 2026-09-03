@@ -20,6 +20,7 @@ import {
   type DrinkCategory,
 } from "@/lib/drinks";
 import { DAY_MS } from "@/lib/dayMs";
+import { PRICE_AUTHORITY_MAX_AGE_MS } from "@/lib/priceAuthorityWindow";
 
 /**
  * Plausible-price envelope for a UK drink, in GBP. Below the floor is a
@@ -229,9 +230,13 @@ export const COMMUNITY_PRICE_CORROBORATION_THRESHOLD = 2;
  * How long a community price keeps the map after it was logged. Beyond this the
  * map falls back to the scraped/sourced baseline (or a Pint Drop) while the
  * sheet keeps the dated row - the observation was true, it is just no longer
- * evidence about tonight. 30 days is a pub's realistic price-change horizon.
+ * evidence about tonight.
+ *
+ * The window itself is the shared price-authority horizon, so it is read from
+ * its own leaf owner rather than restated here: the bundled dataset lane asks
+ * the same question of its own prices.
  */
-export const COMMUNITY_PRICE_MAX_AGE_MS = 30 * DAY_MS;
+export const COMMUNITY_PRICE_MAX_AGE_MS = PRICE_AUTHORITY_MAX_AGE_MS;
 
 /**
  * Agreement window between two reports of the same drink at the same pub:

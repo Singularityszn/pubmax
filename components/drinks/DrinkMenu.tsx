@@ -14,7 +14,7 @@ import {
 import { firstHttp } from "@/lib/httpUrl";
 import {
   DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
-  PINT_DATASET_STALENESS_BUDGET_DAYS,
+  PINT_DATASET_PRESENTATION_BUDGET_DAYS,
 } from "@/lib/dataFreshness";
 import { DrinkGlyph } from "./DrinkGlyph";
 
@@ -110,7 +110,7 @@ function DrinkRow({ drink, venueId }: { drink: Drink; venueId?: string }) {
     : drinkMenuObservationMeta(
         drink.provenance.observedAt,
         drink.provenance.lane === "dataset" || drink.provenance.source === "app-dataset"
-          ? PINT_DATASET_STALENESS_BUDGET_DAYS
+          ? PINT_DATASET_PRESENTATION_BUDGET_DAYS
           : DRINK_PRICE_UPDATE_STALENESS_BUDGET_DAYS,
       );
   return (
