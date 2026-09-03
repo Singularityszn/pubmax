@@ -10,7 +10,9 @@ import { jsonNoStore } from "@/lib/apiResponses";
 import { publicApiError } from "@/lib/apiError";
 import { resolveContributionIdentity } from "@/lib/contributionIdentity.server";
 import { readCommunityPricesWithStatus } from "@/lib/communityPriceStore";
+import { log } from "@/lib/log";
 import { isLimited } from "@/lib/pintDrops";
+import { pintDropsStore } from "@/lib/pintDropsStore";
 import {
   parsePriceEvidenceMissionVenueIds,
   rankPriceEvidenceMission,
@@ -47,12 +49,28 @@ export async function GET(request: Request): Promise<Response> {
   }
 
   const now = Date.now();
-  const rows: VenueMissionRows[] = await Promise.all(
+  const priced: VenueMissionRows[] = await Promise.all(
     parsed.venueIds.map(async (venueId) => {
       const read = await readCommunityPricesWithStatus(venueId, now);
       return { venueId, prices: read.prices, degraded: read.degraded };
     }),
   );
+  // Which of these pubs the public Pint Index can already DATE. ONE read for
+  // the whole page. A failed read answers no dated pubs, which only removes a
+  // tie-break: the mission on offer is still a real one, never an invented one.
+  let dated = new Set<string>();
+  try {
+    dated = await pintDropsStore().listConfirmedVenueIds(parsed.venueIds, now);
+  } catch (err) {
+    log("warn", "price_missions.confirmation_read_failed", {
+      route: "GET /api/price-missions",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+  const rows: VenueMissionRows[] = priced.map((row) => ({
+    ...row,
+    undated: !dated.has(row.venueId),
+  }));
   const degraded = rows.some((row) => row.degraded);
   const ranked = rankPriceEvidenceMission(rows, now);
   return jsonNoStore({
