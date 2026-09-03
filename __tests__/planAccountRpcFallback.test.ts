@@ -1,9 +1,6 @@
-// The account-claim RPCs are live in production. A keyless dev database or a
-// current-schema database with one account function unavailable must keep
-// parity without refusing every signed-in join, redeem or claim. Only a
-// MISSING FUNCTION may take a fallback: a genuine write failure stays a refusal.
-
-import { createHash } from "node:crypto";
+// The account-claim RPCs are live in production. Signed-in joins and invite
+// redemptions must never fall back to account-blind writes when an account RPC
+// is unavailable. Claims keep their bounded compatibility fallback.
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -39,7 +36,7 @@ import {
   recoverPlanMembership,
 } from "@/lib/planCrewIdentity";
 import { planCollaborationStore } from "@/lib/planCollaborationStore";
-import { planRequestDigest, supabasePlanStore } from "@/lib/planStore";
+import { supabasePlanStore } from "@/lib/planStore";
 
 const PLAN_ID = "11111111-1111-4111-8111-111111111111";
 const MEMBER_ID = "33333333-3333-4333-8333-333333333333";
@@ -84,9 +81,8 @@ describe("account claim RPC fallbacks", () => {
     vi.restoreAllMocks();
   });
 
-  it("joins without the account stamp when the account join function is unavailable", async () => {
+  it("refuses a signed-in join when the account join function is unavailable", async () => {
     supabase.maybeSingleResults.push({ data: { id: PLAN_ID }, error: null });
-    supabase.maybeSingleResults.push({ data: null, error: null });
     supabase.rpc.mockImplementation(async (fn: string) =>
       fn === "join_plan_account_idempotent_atomic"
         ? missingFunction(fn)
@@ -97,21 +93,14 @@ describe("account claim RPC fallbacks", () => {
       userId: USER_ID,
     });
 
-    expect(result.ok).toBe(true);
-    expect(supabase.rpc).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ ok: false, error: "error" });
+    expect(supabase.rpc).toHaveBeenCalledOnce();
     expect(supabase.rpc.mock.calls[0][0]).toBe("join_plan_account_idempotent_atomic");
-    const fallback = supabase.rpc.mock.calls[1];
-    expect(fallback[0]).toBe("join_plan_idempotent_atomic");
-    expect(fallback[1]).not.toHaveProperty("p_user_id");
-    expect(fallback[1]).toMatchObject({
-      p_request_hash: planRequestDigest({ name: "Priya", collaborationAuthorized: false }),
-    });
-    expect(fallback[1].p_request_hash).not.toBe(supabase.rpc.mock.calls[0][1].p_request_hash);
+    expect(supabase.rpc).not.toHaveBeenCalledWith("join_plan_idempotent_atomic", expect.anything());
   });
 
   it("reports a genuine account-join failure rather than retrying it unguarded", async () => {
     supabase.maybeSingleResults.push({ data: { id: PLAN_ID }, error: null });
-    supabase.maybeSingleResults.push({ data: null, error: null });
     supabase.rpc.mockResolvedValue({ data: null, error: { code: "23505", message: "duplicate key" } });
 
     const result = await supabasePlanStore.join(PLAN_ID, "Priya", {
@@ -123,9 +112,8 @@ describe("account claim RPC fallbacks", () => {
     expect(supabase.rpc).toHaveBeenCalledOnce();
   });
 
-  it("refuses account fallback before creating a second active seat", async () => {
+  it("does not pre-read or mutate an account seat when the account join function is unavailable", async () => {
     supabase.maybeSingleResults.push({ data: { id: PLAN_ID }, error: null });
-    supabase.maybeSingleResults.push({ data: { id: MEMBER_ID }, error: null });
     supabase.rpc.mockResolvedValue(missingFunction("join_plan_account_idempotent_atomic"));
 
     const result = await supabasePlanStore.join(PLAN_ID, "Priya", {
@@ -133,17 +121,13 @@ describe("account claim RPC fallbacks", () => {
       userId: USER_ID,
     });
 
-    expect(result).toEqual({ ok: false, error: "account_conflict" });
+    expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
     expect(supabase.rpc.mock.calls[0][0]).toBe("join_plan_account_idempotent_atomic");
-    expect(supabase.queryCalls).toEqual(expect.arrayContaining([
-      ["eq", "user_id", USER_ID],
-      ["is", "membership_revoked_at", null],
-    ]));
+    expect(supabase.queryCalls).not.toContainEqual(["eq", "user_id", USER_ID]);
   });
 
-  it("redeems without the account stamp when the account invite function is unavailable", async () => {
-    supabase.maybeSingleResults.push({ data: null, error: null });
+  it("refuses a signed-in invite redemption when the account function is unavailable", async () => {
     supabase.rpc.mockImplementation(async (fn: string) =>
       fn === "redeem_plan_invite_account_idempotent_atomic"
         ? missingFunction(fn)
@@ -157,22 +141,13 @@ describe("account claim RPC fallbacks", () => {
       { idempotencyKey: "account-redeem-fallback", userId: USER_ID },
     );
 
-    expect(result.ok).toBe(true);
-    expect(supabase.rpc).toHaveBeenCalledTimes(2);
+    expect(result).toEqual({ ok: false, error: "error" });
+    expect(supabase.rpc).toHaveBeenCalledOnce();
     expect(supabase.rpc.mock.calls[0][0]).toBe("redeem_plan_invite_account_idempotent_atomic");
-    const fallback = supabase.rpc.mock.calls[1];
-    expect(fallback[0]).toBe("redeem_plan_invite_idempotent_atomic");
-    expect(fallback[1]).not.toHaveProperty("p_user_id");
-    const inviteSalt = process.env.PLAN_INVITE_TOKEN_SALT ?? process.env.ACTOR_HASH_SALT ?? "pubmax-plan-invite";
-    const inviteTokenHash = createHash("sha256").update(`${inviteSalt}:invite-token`).digest("hex");
-    expect(fallback[1].p_request_hash).toBe(
-      planRequestDigest({ name: "Priya", inviteHash: inviteTokenHash }),
-    );
-    expect(fallback[1].p_request_hash).not.toBe(supabase.rpc.mock.calls[0][1].p_request_hash);
+    expect(supabase.rpc).not.toHaveBeenCalledWith("redeem_plan_invite_idempotent_atomic", expect.anything());
   });
 
-  it("refuses account invite fallback without consuming the invite for a second seat", async () => {
-    supabase.maybeSingleResults.push({ data: { id: MEMBER_ID }, error: null });
+  it("does not pre-read or consume an invite when the account function is unavailable", async () => {
     supabase.rpc.mockResolvedValue(missingFunction("redeem_plan_invite_account_idempotent_atomic"));
 
     const result = await planCollaborationStore().redeemInviteAndJoin(
@@ -183,10 +158,11 @@ describe("account claim RPC fallbacks", () => {
       { idempotencyKey: "account-redeem-second-seat", userId: USER_ID },
     );
 
-    expect(result).toEqual({ ok: false, error: "account_conflict" });
+    expect(result).toEqual({ ok: false, error: "error" });
     expect(supabase.rpc).toHaveBeenCalledOnce();
     expect(supabase.rpc.mock.calls[0][0]).toBe("redeem_plan_invite_account_idempotent_atomic");
     expect(supabase.rpc).not.toHaveBeenCalledWith("redeem_plan_invite_idempotent_atomic", expect.anything());
+    expect(supabase.queryCalls).not.toContainEqual(["eq", "user_id", USER_ID]);
   });
 
   it("stamps the member row when the account claim function is unavailable", async () => {
