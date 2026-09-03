@@ -53,6 +53,7 @@ const state = vi.hoisted(() => ({
     gate: Promise<void> | null;
     accepted: boolean;
   }>,
+  sessionPostBodies: [] as unknown[],
   socialResponsePosts: null as unknown[] | null,
   socialGetResponses: [] as Array<{
     gate: Promise<void> | null;
@@ -87,10 +88,15 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
   if (url.pathname === "/api/admin/session") {
     state.fetchEvents.push(`session:${method}`);
     if (method === "POST") {
+      state.sessionPostBodies.push(JSON.parse(String(init?.body)));
       const queuedResponse = state.sessionPostResponses.shift();
-      const response = () => queuedResponse?.accepted === false
-        ? jsonResponse({ error: "refused" }, 403)
-        : jsonResponse({ ok: true });
+      const response = () => {
+        if (queuedResponse?.accepted === false) {
+          return jsonResponse({ error: "refused" }, 403);
+        }
+        state.sessionAuthenticated = true;
+        return jsonResponse({ ok: true });
+      };
       return queuedResponse?.gate ? queuedResponse.gate.then(response) : response();
     }
     if (state.sessionProbeUnknown) return rawResponse("{");
@@ -103,6 +109,7 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
       const response = () => state.socialActionStatus === 200
         ? jsonResponse({ ok: true })
         : jsonResponse({ error: "unavailable" }, state.socialActionStatus);
+      if (state.socialActionStatus === 403) state.sessionAuthenticated = false;
       return state.socialActionGate ? state.socialActionGate.then(response) : response();
     }
     if (state.socialThrows) throw new TypeError("Failed to fetch");
@@ -126,6 +133,10 @@ function responseFor(input: string, init?: RequestInit): Response | Promise<Resp
     return state.socialUnavailable
       ? jsonResponse({ error: "unavailable" }, 503)
       : jsonResponse({ posts: state.socialPosts });
+  }
+  if (url.pathname === "/api/admin/import-notes") {
+    state.fetchEvents.push(`import:${method}`);
+    return jsonResponse({ notes: [] });
   }
   if (url.pathname.startsWith("/api/pint-drops")) {
     return state.pintDropsFail ? jsonResponse({ error: "unavailable" }, 503) : jsonResponse({ drops: [] });
@@ -157,10 +168,19 @@ async function loadAdmin(): Promise<void> {
   });
 }
 
+function enterToken(input: HTMLInputElement, token: string): void {
+  const setValue = Object.getOwnPropertyDescriptor(
+    window.HTMLInputElement.prototype,
+    "value",
+  )?.set;
+  setValue?.call(input, token);
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+}
+
 beforeEach(() => {
   (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
   localStorage.clear();
-  localStorage.setItem("pubmax_admin_token", "admin-token");
+  sessionStorage.clear();
   state.pintDropsFail = false;
   state.socialPosts = [];
   state.socialUnavailable = false;
@@ -173,6 +193,7 @@ beforeEach(() => {
   state.sessionAuthenticated = true;
   state.sessionProbeUnknown = false;
   state.sessionPostResponses = [];
+  state.sessionPostBodies = [];
   state.socialResponsePosts = null;
   state.socialGetResponses = [];
   state.fetchEvents = [];
@@ -209,6 +230,18 @@ describe("Admin Social post moderation queue", () => {
     createdAt: "2026-08-29T12:00:00.000Z",
     updatedAt: "2026-08-29T12:05:00.000Z",
   };
+
+  it("removes legacy raw tokens when an authenticated console mounts", async () => {
+    localStorage.setItem("pubmax_admin_token", "legacy-local-token");
+    sessionStorage.setItem("pubmax_admin_token", "legacy-session-token");
+
+    await act(async () => {
+      root.render(createElement(AdminClient));
+    });
+
+    expect(localStorage.getItem("pubmax_admin_token")).toBeNull();
+    expect(sessionStorage.getItem("pubmax_admin_token")).toBeNull();
+  });
 
   it("shows empty only after a successful empty response", async () => {
     await loadAdmin();
@@ -365,46 +398,137 @@ describe("Admin Social post moderation queue", () => {
     expect(host.textContent).toContain("Retry response.");
   });
 
-  it("keeps a newer queue when an older retry loses its session", async () => {
-    state.socialRefusals = 1;
-    await loadAdmin();
-
-    let releaseOlderSession = () => {};
-    const olderSession = new Promise<void>((resolve) => {
-      releaseOlderSession = resolve;
-    });
+  it("re-enters an expired Social session without retaining the raw token", async () => {
     const newerPost = {
       ...heldPost,
       postId: "44444444-4444-4444-8444-444444444444",
       body: "Newer queue response.",
     };
-    state.sessionPostResponses = [
-      { gate: olderSession, accepted: false },
-      { gate: null, accepted: true },
-    ];
+    localStorage.setItem("pubmax_admin_token", "legacy-local-token");
+    sessionStorage.setItem("pubmax_admin_token", "legacy-session-token");
+    state.sessionAuthenticated = false;
+    state.sessionPostResponses = [{ gate: null, accepted: true }];
     state.socialGetResponses = [{ gate: null, posts: [newerPost] }];
-    const retry = [...host.querySelectorAll("button")].find(
-      (button) => button.textContent?.trim() === "Try again",
-    );
-    expect(retry).toBeTruthy();
+    await loadAdmin();
+
+    expect(host.textContent).toContain("The console session has expired. Re-enter the admin token.");
+    expect(localStorage.getItem("pubmax_admin_token")).toBeNull();
+    expect(sessionStorage.getItem("pubmax_admin_token")).toBeNull();
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]');
+    const form = input?.closest("form");
+    expect(input).toBeTruthy();
+    expect(form).toBeTruthy();
 
     await act(async () => {
-      retry!.click();
-      retry!.click();
+      enterToken(input!, "new-secret");
+      form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
       await Promise.resolve();
     });
-    expect(host.textContent).toContain("Newer queue response.");
 
-    await act(async () => {
-      releaseOlderSession();
-      await olderSession;
-      await Promise.resolve();
-    });
+    expect(state.sessionPostBodies).toEqual([{ token: "new-secret" }]);
     expect(host.textContent).toContain("Newer queue response.");
     expect(host.textContent).not.toContain("The console session has expired.");
+    expect(host.querySelector('input[aria-label="Admin token"]')).toBeNull();
+    expect(localStorage.getItem("pubmax_admin_token")).toBeNull();
+    expect(sessionStorage.getItem("pubmax_admin_token")).toBeNull();
+    expect(document.activeElement?.textContent).toContain("Social post moderation");
+  });
+
+  it("clears a refused ephemeral token and leaves the recovery door open", async () => {
+    state.sessionAuthenticated = false;
+    state.sessionPostResponses = [{ gate: null, accepted: false }];
+    await loadAdmin();
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]');
+    const form = input?.closest("form");
+
+    await act(async () => {
+      enterToken(input!, "wrong-secret");
+      form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.sessionPostBodies).toEqual([{ token: "wrong-secret" }]);
+    expect(host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]')?.value).toBe("");
+    expect(host.querySelector('[role="alert"]')?.textContent).toContain(
+      "Not authorised. Check the admin token.",
+    );
+    expect(localStorage.getItem("pubmax_admin_token")).toBeNull();
+    expect(form!.closest('[role="alert"]')).toBeNull();
+  });
+
+  it("recovers when a Social decision finds an expired session", async () => {
+    state.socialPosts = [heldPost];
+    await loadAdmin();
+    state.socialActionStatus = 403;
+    state.sessionPostResponses = [{ gate: null, accepted: true }];
+
+    const hide = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Hide",
+    );
+    await act(async () => {
+      hide!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(host.textContent).toContain("The console session has expired. Re-enter the admin token.");
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]');
+    const form = input?.closest("form");
+    expect(input).toBeTruthy();
+    state.socialActionStatus = 200;
+    state.socialGetResponses = [{ gate: null, posts: [heldPost] }];
+
+    await act(async () => {
+      enterToken(input!, "replacement-secret");
+      form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.sessionPostBodies).toEqual([{ token: "replacement-secret" }]);
+    expect(host.textContent).toContain("Friday at the Pineapple.");
+    expect(document.activeElement?.textContent).toContain("Social post moderation");
+  });
+
+  it("uses the same ephemeral recovery boundary on the Import tab", async () => {
+    state.sessionAuthenticated = false;
+    state.sessionPostResponses = [{ gate: null, accepted: true }];
+    await act(async () => {
+      root.render(createElement(AdminClient));
+    });
+    const importTab = [...host.querySelectorAll<HTMLButtonElement>("button")].find(
+      (button) => button.textContent === "Import note",
+    );
+
+    await act(async () => {
+      importTab!.click();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const input = host.querySelector<HTMLInputElement>('input[aria-label="Admin token"]');
+    const form = input?.closest("form");
+    expect(input).toBeTruthy();
+    await act(async () => {
+      enterToken(input!, "import-secret");
+      form!.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(state.sessionPostBodies).toEqual([{ token: "import-secret" }]);
+    expect(state.fetchEvents).toContain("import:GET");
+    expect(host.querySelector('input[aria-label="Admin token"]')).toBeNull();
   });
 
   it("rejects a Social row with an invalid moderation state", async () => {

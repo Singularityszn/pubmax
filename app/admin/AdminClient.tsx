@@ -6,15 +6,15 @@ import VenuePhotoModeration, {
   type ModeratorVenuePhoto,
 } from "./VenuePhotoModeration";
 import Link from "next/link";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
   ADMIN_SESSION_NOT_AUTHORISED_MESSAGE,
   ADMIN_SESSION_NOT_KEPT_MESSAGE,
   ADMIN_SESSION_UNCONFIRMED_MESSAGE,
   browserFetch,
+  clearLegacyAdminTokenStorage,
   readAdminSessionState,
-  submitAdminToken,
   type AdminSessionSubmitOutcome,
 } from "@/lib/adminSessionClient";
 import {
@@ -34,6 +34,7 @@ import {
   isCommunityVenueSignalKey,
 } from "@/lib/communityVenueSignals";
 import SiteNav from "@/components/nav/SiteNav";
+import AdminSessionEntry from "./AdminSessionEntry";
 
 import "./admin.css";
 
@@ -291,6 +292,7 @@ function SocialPostModerationQueue({
   onDecision,
   onRetry,
   retryDisabled,
+  headingRef,
 }: {
   posts: ModeratorSocialPost[];
   state: SocialPostsState;
@@ -300,10 +302,13 @@ function SocialPostModerationQueue({
   onDecision: (post: ModeratorSocialPost, action: "approve" | "hide") => void;
   onRetry: () => void;
   retryDisabled: boolean;
+  headingRef: React.RefObject<HTMLHeadingElement | null>;
 }) {
   return (
     <>
-      <h2 className="admin-section">Social post moderation</h2>
+      <h2 className="admin-section" ref={headingRef} tabIndex={-1}>
+        Social post moderation
+      </h2>
       {state === "loading" ? (
         <div className="admin-empty" role="status">
           Loading Social posts awaiting review…
@@ -326,14 +331,16 @@ function SocialPostModerationQueue({
               ).text
             }
           </span>
-          <button
-            type="button"
-            className="admin-retry"
-            onClick={onRetry}
-            disabled={retryDisabled}
-          >
-            Try again
-          </button>
+          {unavailableReason !== "session" ? (
+            <button
+              type="button"
+              className="admin-retry"
+              onClick={onRetry}
+              disabled={retryDisabled}
+            >
+              Try again
+            </button>
+          ) : null}
         </div>
       ) : posts.length === 0 && state === "ready" ? (
         <div className="admin-empty">
@@ -399,22 +406,15 @@ function SocialPostModerationQueue({
   );
 }
 
-const TOKEN_KEY = "pubmax_admin_token";
 const SESSION_FETCH: RequestInit = { credentials: "include" };
 
 type AdminRetryResult =
   | { kind: "response"; response: Response }
   | { kind: "session-expired" };
 
-function readStoredToken(): string {
-  if (typeof window === "undefined") return "";
-  return window.localStorage.getItem(TOKEN_KEY) ?? "";
-}
-
 // Both admin doors spend the same route, so both ask the same question: a 200
 // from the POST is not a session, only a cookie the browser may have dropped.
-async function establishSession(token: string): Promise<AdminSessionSubmitOutcome> {
-  if (token) return submitAdminToken(token, browserFetch);
+async function establishSession(): Promise<AdminSessionSubmitOutcome> {
   const state = await readAdminSessionState(browserFetch);
   if (state === "authenticated") return { status: "open" };
   if (state === "anonymous") {
@@ -486,10 +486,8 @@ async function loadProfileModerationQueues(): Promise<{
 }
 
 export default function AdminClient() {
-  // Lazy initialiser reads localStorage on first client render — no effect, so we
-  // don't trip react-hooks/set-state-in-effect.
-  const [token, setToken] = useState(readStoredToken);
   const [sessionEstablished, setSessionEstablished] = useState(false);
+  const [sessionRecoveryNeeded, setSessionRecoveryNeeded] = useState(false);
   const [tab, setTab] = useState<AdminTab>("moderation");
   const [reportedDrops, setReportedDrops] = useState<ModeratorDrop[]>([]);
   const [drops, setDrops] = useState<ModeratorDrop[]>([]);
@@ -514,6 +512,7 @@ export default function AdminClient() {
   const [socialPostsReason, setSocialPostsReason] =
     useState<AdminQueueUnavailableReason | null>(null);
   const socialPostsRequestGeneration = useRef(0);
+  const socialPostsHeadingRef = useRef<HTMLHeadingElement>(null);
   const [socialPostAction, setSocialPostAction] = useState<SocialPostAction | null>(null);
   const [message, setMessage] = useState<AdminNotice | null>(null);
   const [communityPriceMessage, setCommunityPriceMessage] = useState<AdminNotice | null>(null);
@@ -543,16 +542,19 @@ export default function AdminClient() {
   const [operatorMsg, setOperatorMsg] = useState<AdminNotice | null>(null);
   const [operatorActionId, setOperatorActionId] = useState<string | null>(null);
 
+  useEffect(() => {
+    clearLegacyAdminTokenStorage();
+  }, []);
+
   const ensureAdminSession = useCallback(
     async (force = false): Promise<AdminSessionSubmitOutcome> => {
-      const t = token.trim();
-      if (typeof window !== "undefined") window.localStorage.setItem(TOKEN_KEY, t);
       if (sessionEstablished && !force) return { status: "open" };
-      const outcome = await establishSession(t);
+      const outcome = await establishSession();
       setSessionEstablished(outcome.status === "open");
+      setSessionRecoveryNeeded(outcome.status !== "open");
       return outcome;
     },
-    [token, sessionEstablished],
+    [sessionEstablished],
   );
 
   const retryWithFreshSession = useCallback(async (request: () => Promise<Response>): Promise<AdminRetryResult> => {
@@ -561,17 +563,17 @@ export default function AdminClient() {
     setSessionEstablished(false);
     const session = await ensureAdminSession(true);
     if (session.status !== "open") {
-      const anonymousProbe =
+      if (
         session.message === ADMIN_SESSION_NOT_KEPT_MESSAGE ||
-        (!token.trim() && session.message === ADMIN_SESSION_NOT_AUTHORISED_MESSAGE);
-      if (anonymousProbe) {
+        session.message === ADMIN_SESSION_NOT_AUTHORISED_MESSAGE
+      ) {
         discardBody(res);
         return { kind: "session-expired" };
       }
       return { kind: "response", response: res };
     }
     return { kind: "response", response: await request() };
-  }, [ensureAdminSession, token]);
+  }, [ensureAdminSession]);
 
   const loadImportNotes = useCallback(async (opts?: { includeDismissed?: boolean }) => {
     setImportLoading(true);
@@ -690,7 +692,6 @@ export default function AdminClient() {
       if (requestGeneration !== socialPostsRequestGeneration.current) return;
       setSocialPostsState("loading");
       setSocialPostsReason(null);
-      setSocialPosts([]);
       if (authenticatedSession.status !== "open") {
         socialQueueUnavailable("session");
         return;
@@ -902,6 +903,13 @@ export default function AdminClient() {
     venueNames.size,
   ]);
 
+  const resumeSocialSession = useCallback(async () => {
+    setSessionEstablished(true);
+    setMessage(null);
+    const requestGeneration = ++socialPostsRequestGeneration.current;
+    await loadSocialPosts({ status: "open" }, requestGeneration);
+  }, [loadSocialPosts]);
+
   const decideSocialPost = useCallback(
     async (post: ModeratorSocialPost, action: "approve" | "hide") => {
       setSocialPostAction({ postId: post.postId, action });
@@ -921,12 +929,15 @@ export default function AdminClient() {
           }),
         );
         if (retryResult.kind === "session-expired") {
+          socialQueueUnavailable("session");
           setMessage(adminAlert("Not authorised. Check the admin token."));
           return;
         }
         const res = retryResult.response;
         if (res.status === 403) {
           discardBody(res);
+          socialQueueUnavailable("session");
+          setSessionRecoveryNeeded(true);
           setMessage(adminAlert("Not authorised. Check the admin token."));
           return;
         }
@@ -949,7 +960,7 @@ export default function AdminClient() {
         setSocialPostAction(null);
       }
     },
-    [retryWithFreshSession],
+    [retryWithFreshSession, socialQueueUnavailable],
   );
 
   const decideComment = useCallback(async (id: string, action: "restore" | "keep_hidden") => {
@@ -1564,23 +1575,13 @@ export default function AdminClient() {
         </button>
       </div>
 
-      <div className="admin-bar">
-        <input
-          type="password"
-          value={token}
-          onChange={(e) => {
-            setToken(e.target.value);
-            setSessionEstablished(false);
-          }}
-          placeholder="Admin token"
-          aria-label="Admin token"
-        />
-        {tab === "moderation" ? (
+      {tab === "moderation" ? (
+        <div className="admin-bar">
           <button className="admin-btn" onClick={() => load()} disabled={loading}>
             {loading ? "Loading…" : "Load reported drops"}
           </button>
-        ) : null}
-      </div>
+        </div>
+      ) : null}
 
       {tab === "moderation" ? (
         <>
@@ -1788,6 +1789,12 @@ export default function AdminClient() {
             onDecision={(post, action) => void decideSocialPost(post, action)}
             onRetry={() => void load(true)}
             retryDisabled={loading}
+            sessionEntry={
+              <AdminSessionEntry
+                submitLabel="Resume moderation"
+                onOpened={resumeSocialSession}
+              />
+            }
           />
 
           {/* ── Community observation moderation queue ─────────────────────── */}

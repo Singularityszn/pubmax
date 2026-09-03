@@ -30,6 +30,22 @@ export const ADMIN_SESSION_UNCONFIRMED_MESSAGE =
 export const ADMIN_SESSION_MISSING_TOKEN_MESSAGE = "Enter the admin token.";
 
 export const ADMIN_SESSION_PATH = "/api/admin/session";
+export const LEGACY_ADMIN_TOKEN_KEY = "pubmax_admin_token";
+
+/** Remove raw-token storage left by console versions before cookie-only auth. */
+export function clearLegacyAdminTokenStorage(): void {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
+  } catch {
+    // Restricted storage must not block the cookie-backed console.
+  }
+  try {
+    window.sessionStorage.removeItem(LEGACY_ADMIN_TOKEN_KEY);
+  } catch {
+    // Restricted storage must not block the cookie-backed console.
+  }
+}
 
 export type AdminSessionSubmitOutcome =
   | { status: "open" }

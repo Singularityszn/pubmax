@@ -48,9 +48,13 @@ describe("submitAdminToken", () => {
       status: "open",
     });
     expect(calls).toHaveLength(2);
+    expect(calls[0].input).toBe("/api/admin/session");
+    expect(calls[0].input).not.toContain("secret");
     expect(calls[0].init?.method).toBe("POST");
     expect(calls[0].init?.body).toBe(JSON.stringify({ token: "secret" }));
     expect(calls[0].init?.credentials).toBe("include");
+    expect(calls[0].init?.headers).toEqual({ "content-type": "application/json" });
+    expect(JSON.stringify(calls[0].init?.headers)).not.toContain("secret");
     expect(calls[1].init?.method).toBe("GET");
     expect(calls[1].init?.credentials).toBe("include");
   });
