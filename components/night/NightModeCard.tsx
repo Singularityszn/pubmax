@@ -978,7 +978,7 @@ function NightModeSheet({
       ) : currentStop ? (
         <div className="nightCard__ending">
           <RouteEndingCard
-            className="nightCard__endingCard"
+            className="nightCard__endingChoices"
             title="Last stop. What next?"
             description="Choose an ending to review. PUBMAXX changes nothing until you confirm."
             options={endingOptions}

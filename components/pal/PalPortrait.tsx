@@ -216,8 +216,6 @@ export default function PalPortrait({ appearance, name, compact = false, state =
           })}
     >
       <span className="palPortraitField" aria-hidden="true" />
-      <span className="palPortraitOrbit palPortraitOrbitA" aria-hidden="true" />
-      <span className="palPortraitOrbit palPortraitOrbitB" aria-hidden="true" />
       <span className="palPortraitCore" aria-hidden={!rendered}>
         {rendered ? (
           <PubPalMascot species={appearance.species} size={mascotSize} circular={false} className="palPortraitMascot" />

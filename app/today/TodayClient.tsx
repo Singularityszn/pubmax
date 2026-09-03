@@ -35,6 +35,7 @@ import { useEffect, useState } from "react";
 
 import NowSegment from "@/components/nav/NowSegment";
 import SiteNav from "@/components/nav/SiteNav";
+import Kicker from "@/components/ui/kicker";
 import {
   buildDayGreeting,
   picksCardStatus,
@@ -428,7 +429,7 @@ export default function TodayClient({
 
       <header className="todayHead" data-testid="today-greeting">
         <NowSegment current="day" />
-        <p className="todayEyebrow">{shownGreeting.salutation}</p>
+        <Kicker className="todayEyebrow">{shownGreeting.salutation}</Kicker>
         <h1 className="todayTitle" data-weather-aware={shownGreeting.weatherAware}>
           {shownGreeting.headline}
         </h1>

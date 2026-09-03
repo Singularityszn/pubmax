@@ -115,13 +115,6 @@ const HEDGE_PHRASES = [
  * that takes it out. Delete the row in that PR.
  */
 const PENDING_REMOVAL: ReadonlyArray<{ file: string; pattern: Pattern; owner: string }> = [
-  // Design track PR 3, "surface audit" (issue #1354).
-  { file: "components/pal/PalExperience.tsx", pattern: "gamified-level", owner: "surface audit PR" },
-  { file: "components/pal/PalPortrait.tsx", pattern: "orbit-or-scanline", owner: "surface audit PR" },
-  { file: "components/pubpal/pubPal.css", pattern: "orbit-or-scanline", owner: "surface audit PR" },
-  { file: "components/pintdrop/CommentThread.tsx", pattern: "emoji-bullet", owner: "surface audit PR" },
-  { file: "components/profile/ProfileHeader.tsx", pattern: "emoji-bullet", owner: "surface audit PR" },
-  { file: "components/night/NightModeCard.tsx", pattern: "card-in-card", owner: "surface audit PR" },
 ];
 
 function walk(dir: string, out: string[]): void {
