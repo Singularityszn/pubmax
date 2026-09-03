@@ -46,6 +46,70 @@ If you're adding a new component: reach for a token below before writing a
 literal value. If the token you need does not exist, add it to the theme source
 first, then document its non-obvious role here.
 
+## Launch tokens
+
+The September 2026 relaunch (issue #1354) builds every launch surface from
+this subset of `app/globals.css`. It is the whole vocabulary a new screen
+needs, and it is closed: `__tests__/designTokens.test.ts` holds this list and
+the file to each other, checks each token is declared, and holds the four
+launch primitives in `components/ui/` (Kicker, TrustPill, EmptyState, Screen)
+to these tokens and no hex, `rgb()` or foreign token.
+
+**Surfaces.** The elevation ladder, recessed to overlay: `--panel`, `--paper`,
+`--panel-raised`, `--panel-overlay`, and `--ink-deep` for inverse chrome. Their
+semantic names are `--color-surface-panel`, `--color-surface`,
+`--color-surface-raised`, `--color-surface-overlay`, `--color-surface-inverse`.
+
+**Text.** `--ink`, `--ink-soft`, `--muted` as `--color-text`,
+`--color-text-soft`, `--color-text-muted`. On a painted fill: `--color-on-accent`
+(dark ink on coral), `--color-on-accent-strong`, `--color-on-inverse` (cream
+on ink-deep), `--color-on-photo` (white on a scrim).
+
+**Edges.** `--line`, `--line-soft`, `--hairline`, `--hairline-strong`;
+semantic `--color-border`, `--color-border-soft`. Borders are for inputs,
+hairlines for structure (see "Edges: the de-box rule").
+
+**Accent.** One coral: `--brass` as `--color-accent` and `--accent-action`,
+`--brass-bright` as `--color-accent-strong` and `--accent-action-strong`.
+`--brass-accessible` is the login primary alone. A Screen paints exactly one
+control with `--accent-action`; nothing else on that screen wears it.
+
+**Status and price.** `--pint` (`--color-positive`, a confirmed price),
+`--amber` (`--color-caution`, the held scraped lane), `--brick`
+(`--color-negative`), `--river` (`--color-info`). Prices read as brass plaques
+through `--accent-price` and `--accent-price-ink`. Counts and metadata take the
+neutral `--badge-surface`, `--badge-border`, `--badge-ink`. "You are here" is
+`--state-active-surface`, `--state-active-border`, `--state-active-ink`.
+
+**Type.** Three faces: `--font-display`, `--font-body`, `--font-data`. Nine
+sizes: `--text-2xs`, `--text-xs`, `--text-sm`, `--text-base`, `--text-md`,
+`--text-lg`, `--text-xl`, `--text-2xl`, `--text-3xl`. Leading `--leading-tight`
+(display), `--leading-snug` (cards), `--leading-normal` (body). Tracking
+`--tracking-tight` on display sizes only. Sentence case everywhere but a stamp.
+
+**Space and measure.** `--space-1`, `--space-2`, `--space-3`, `--space-4`,
+`--space-5`, `--space-6`, `--space-8`, `--space-10`, `--space-12`.
+`--page-gutter` is the one horizontal inset;
+`--content-max` the reading column; `--content-max-wide` the page.
+
+**Shape and depth.** `--radius`, `--radius-sm`, `--radius-lg`, `--radius-pill`
+and `--control-radius` for buttons and control chips. `--shadow`,
+`--shadow-sm`. No other shadow, no glow.
+
+**Motion.** `--duration-fast`, `--duration-base`, `--duration-slow`;
+`--ease-out` for colour, `--ease-out-strong` for entrances; `--press-scale` on
+press. Every animation sits behind the reduced-motion contract.
+
+**Stacking.** `--z-float`, `--z-nav`, `--z-tabbar`, `--z-modal`,
+`--z-overlay-top`. Never a literal.
+
+The four primitives: `Kicker` is the sentence-case line above a heading;
+`TrustPill` is green for a price confirmed inside 30 days, grey for none, amber
+defined and passed by nothing until London is re-collected (#1329);
+`EmptyState` is a title, one line and at most one quiet way onward; `Screen` is
+kicker, heading, one painted primary and at most one secondary, in that order at
+every width. The screen table is `docs/design/LAUNCH_SCREENS.md`.
+
 The map has a deliberate style-layer contract. Dark mode uses a neon-noir
 near-black field with slate water and restrained roads; light mode uses warm
 paper land with quieter washes. Pub marks lead the hierarchy: basemap pub POI
