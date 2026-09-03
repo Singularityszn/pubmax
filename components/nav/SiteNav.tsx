@@ -30,7 +30,7 @@ import "./siteNavMoment.css";
 // drifts page-to-page.
 //
 // The mobile fix: at ≤640px the app already renders a fixed bottom tab bar
-// (MobileTabBar: Now/Map/Out/Social/You). Repeating the full link list up
+// (MobileTabBar: Now/Map/Places/Out/Social/You). Repeating the full link list up
 // top there caused the old `.appNav` pill to overflow the viewport (Admin +
 // theme toggle clipped off-screen) on /map. So on mobile this renders a COMPACT
 // bar — just the wordmark + theme toggle + sign-in — and hides the full link
@@ -46,6 +46,7 @@ type NavKey =
   | "now"
   | "today"
   | "map"
+  | "places"
   | "pubs"
   | "drop"
   | "out"

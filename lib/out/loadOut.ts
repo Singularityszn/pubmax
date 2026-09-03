@@ -1,7 +1,7 @@
 import rawEventsLondon from "../../public/data/whats_on/events_london.json";
 import { EVENT_REFRESH_CITIES } from "@/lib/whatson/eventNormalise.mjs";
 import { eventIdentityKey } from "@/lib/whatsOnRowShape.mjs";
-import { CITIES, type CityId } from "@/lib/cities";
+import { CITIES, parseCityId, type CityId } from "@/lib/cities";
 import type { EventsProvider } from "@/lib/events/provider";
 import { createSkiddleProvider } from "@/lib/events/skiddle";
 import { createTicketmasterProvider } from "@/lib/events/ticketmaster";
@@ -37,8 +37,19 @@ import {
   type WhatsOnRow,
 } from "@/lib/whatsOn";
 
+/** The cities the events refresh lane knows how to ask an upstream about. */
 export const OUT_CITIES = EVENT_REFRESH_CITIES;
-export type OutCity = (typeof OUT_CITIES)[number];
+/**
+ * A city /api/out will ANSWER for, which is every city the app itself knows.
+ *
+ * Deliberately wider than OUT_CITIES. Coverage is `isOutCityCovered` below and
+ * it is one predicate over one table, so a city with no bundled file gets the
+ * honest "does not cover" body rather than a 400 the caller has to guess at.
+ * Narrowing this to the refresh lane meant the three cities outside it (Bath,
+ * Durham, Llandudno) could be a reader's chosen city on Places and still make
+ * their own Out tab answer INVALID_REQUEST.
+ */
+export type OutCity = CityId;
 export type { OutDay, OutQuery, OutResponse } from "@/lib/out/types";
 export { MAX_OUT_EVENTS, OUT_DAYS } from "@/lib/out/types";
 
@@ -66,7 +77,7 @@ const BUNDLED_EVENT_FILES: Partial<Record<OutCity, unknown>> = {
 };
 
 function isOutCity(value: string): value is OutCity {
-  return (OUT_CITIES as readonly string[]).includes(value);
+  return parseCityId(value) !== null;
 }
 
 function isOutDay(value: string): value is OutDay {
@@ -78,7 +89,7 @@ export function isOutCityCovered(city: OutCity): boolean {
 }
 
 function cityDisplayName(city: OutCity): string {
-  return CITIES[city as CityId]?.displayName ?? city;
+  return CITIES[city]?.displayName ?? city;
 }
 
 export function outCityNotCoveredReason(city: OutCity): string {

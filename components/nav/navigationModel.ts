@@ -1,6 +1,6 @@
 import { LONDON_DAY_MS, londonHour, londonMsSinceMidnight } from "@/lib/londonHour";
 
-export type PrimaryNavKey = "now" | "map" | "out" | "social" | "you";
+export type PrimaryNavKey = "now" | "map" | "places" | "out" | "social" | "you";
 
 export type PrimaryNavItem = {
   key: PrimaryNavKey;
@@ -10,13 +10,22 @@ export type PrimaryNavItem = {
 };
 
 /**
- * The five durable destinations in the PUBMAXX shell. Moment is deliberately
+ * The six durable destinations in the PUBMAXX shell. Moment is deliberately
  * modelled separately below because it is a compose action, never a location.
  * The time-aware Now href is applied at render time; Map stays canonical /map.
+ *
+ * Places sits beside Map because the two answer the same question in opposite
+ * order: Map opens ONE city, and Places is where a reader chooses WHICH. It is a
+ * destination rather than a control inside Map, because the city it sets is read
+ * by Out and Near as well, so it was never the map's own setting to own.
  */
 export const PRIMARY_NAV_ITEMS: readonly PrimaryNavItem[] = [
   { key: "now", href: "/today", label: "Now", match: ["/today", "/tonight"] },
   { key: "map", href: "/map", label: "Map", match: ["/map"] },
+  // /choose-city is the older picker the landing page and the national browse
+  // entry still link. It lights Places too, so a reader who lands there from
+  // either is not left with no tab marked.
+  { key: "places", href: "/places", label: "Places", match: ["/places", "/choose-city"] },
   { key: "out", href: "/out", label: "Out", match: ["/out"] },
   {
     key: "social",

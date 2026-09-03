@@ -1,0 +1,261 @@
+/* Places tab. Launch tokens only (docs/DESIGN_SYSTEM.md "Launch tokens").
+   The head, the one painted action and the kickers come from the primitives in
+   components/ui; this file styles what sits under them. No em dashes.
+   De-box rule: a heading with a line under it is already a section, so the
+   sections here take a hairline and space rather than a card each. */
+
+.placesPage {
+  min-height: 100dvh;
+  min-height: 100svh;
+  color: var(--color-text);
+}
+
+.placesBody {
+  padding-bottom: calc(
+    var(--tabbar-h, 64px) + env(safe-area-inset-bottom, 0px) + var(--space-6)
+  );
+}
+
+.placesBack {
+  width: min(var(--content-max-wide), 100%);
+  margin: 0 auto;
+  padding-inline: var(--page-gutter);
+  padding-top: var(--space-4);
+}
+
+.placesBackLink {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.placesBackLink:hover {
+  color: var(--color-text);
+}
+
+.placesBackLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+/* ── Search ───────────────────────────────────────────────────────────────── */
+
+.placesSearch {
+  display: grid;
+  gap: var(--space-2);
+  max-width: var(--content-max);
+  margin-bottom: var(--space-5);
+}
+
+.placesSearchLabel {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  font-weight: 700;
+}
+
+.placesSearchField {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 48px;
+  padding-inline: var(--space-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--control-radius);
+  background: var(--color-surface-raised);
+  color: var(--color-text-soft);
+}
+
+.placesSearchField:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.placesSearchInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-text);
+  /* 16px floor: anything smaller makes iOS Safari zoom the page on focus. */
+  font-size: var(--text-base);
+  line-height: var(--leading-normal);
+}
+
+.placesSearchInput:focus {
+  outline: none;
+}
+
+/* ── The city list ────────────────────────────────────────────────────────── */
+
+.placesCityList {
+  display: grid;
+  gap: 0;
+  max-width: var(--content-max);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.placesCityItem + .placesCityItem {
+  border-top: var(--hairline);
+}
+
+.placesCityLink {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  min-height: 44px;
+  padding-block: var(--space-3);
+  color: var(--color-text);
+  text-decoration: none;
+}
+
+.placesCityLink:hover .placesCityName {
+  color: var(--color-accent);
+}
+
+.placesCityLink:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm);
+}
+
+.placesCityMark {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 22px;
+  height: 22px;
+  margin-top: 2px;
+  color: var(--color-text-muted);
+}
+
+.placesCityCopy {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.placesCityNameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.placesCityName {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  color: var(--color-text);
+}
+
+.placesCityTagline {
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+/* A pill states one fact about the city beside it and WRAPS rather than
+   truncating: whether a city has listed prices is the thing a reader picks on,
+   so it may never be cut to an ellipsis. Neutral metadata tokens, because this
+   is a fact about our coverage, not a trust claim about one price: a price's
+   own confidence is TrustPill's job and this is deliberately not that. */
+.placesPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px var(--space-2);
+  border: 1px solid var(--badge-border);
+  border-radius: var(--radius-pill);
+  background: var(--badge-surface);
+  color: var(--badge-ink);
+  font-family: var(--font-data);
+  font-size: var(--text-2xs);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.placesPill[data-tone="yours"] {
+  border-color: var(--state-active-border);
+  background: var(--state-active-surface);
+  color: var(--state-active-ink);
+}
+
+/* ── The city panel ───────────────────────────────────────────────────────── */
+
+.placesConfirm {
+  max-width: var(--content-max);
+  margin: 0 0 var(--space-5);
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.placesConfirmLabel {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.placesSection {
+  max-width: var(--content-max);
+  padding-block: var(--space-5);
+  border-top: var(--hairline);
+}
+
+.placesSectionHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.placesSectionHead .placesSectionTitle {
+  margin: 0;
+}
+
+.placesSectionTitle {
+  margin: 0 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  font-weight: 700;
+  line-height: var(--leading-snug);
+  color: var(--color-text);
+}
+
+.placesSectionLine {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}
+
+.placesAreaList {
+  display: grid;
+  gap: var(--space-3);
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.placesAreaName {
+  margin: 0 0 2px;
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.placesAreaLine {
+  margin: 0;
+  color: var(--color-text-soft);
+  font-size: var(--text-sm);
+  line-height: var(--leading-normal);
+}

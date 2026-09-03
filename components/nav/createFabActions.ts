@@ -45,7 +45,7 @@ export const CREATE_FAB_ACTIONS: readonly CreateFabAction[] = [
 /**
  * Routes with no use for a compose control.
  *
- * The five-tab chrome rides EVERY route (`shouldShowMobileTabBar`), and that
+ * The tab-bar chrome rides EVERY route (`shouldShowMobileTabBar`), and that
  * law is untouched: this is the narrower question of whether the floating
  * create action belongs beside the content. On the Pub Pal intro it does not -
  * the page is one coral call to action, and a second coral circle beside it

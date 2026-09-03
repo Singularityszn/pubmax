@@ -2,9 +2,10 @@ import { describe, expect, it } from "vitest";
 import { buildTabs, shouldShowMobileTabBar } from "@/components/nav/MobileTabBar";
 import { navPathMatches } from "@/components/nav/navigationModel";
 
-// Five-tab contract for the mobile bar. Moment is a floating + action, never
+// Six-tab contract for the mobile bar. Moment is a floating + action, never
 // a destination, so it is not in this row. Today and Tonight share the Now
-// tab; the URL is the truth.
+// tab; the URL is the truth. Places is the city choice the Map, Out and Near
+// surfaces all read, which is why it is a destination rather than a map control.
 
 function activeLabel(pathname: string): string | undefined {
   const tabs = buildTabs();
@@ -22,11 +23,12 @@ describe("mobile tab bar contract", () => {
     expect(shouldShowMobileTabBar("/area/clapham/drink/guinness")).toBe(true);
   });
 
-  it("renders exactly five tabs in the journey order", () => {
+  it("renders exactly six tabs in the journey order", () => {
     const tabs = buildTabs();
     expect(tabs.map((tab) => tab.label)).toEqual([
       "Now",
       "Map",
+      "Places",
       "Out",
       "Social",
       "You",
@@ -36,7 +38,14 @@ describe("mobile tab bar contract", () => {
   it("keeps gated Social visible as a preview destination", () => {
     const tabs = buildTabs("/u/you", "/today", false);
     const social = tabs.find((tab) => tab.label === "Social");
-    expect(tabs.map((tab) => tab.label)).toEqual(["Now", "Map", "Out", "Social", "You"]);
+    expect(tabs.map((tab) => tab.label)).toEqual([
+      "Now",
+      "Map",
+      "Places",
+      "Out",
+      "Social",
+      "You",
+    ]);
     expect(social?.preview).toBe(true);
     expect(social?.ariaLabel).toBe("Social preview");
   });
@@ -47,14 +56,17 @@ describe("mobile tab bar contract", () => {
     expect(byLabel.Now.href).toBe("/tonight");
     expect(byLabel.Now.match).toEqual(["/today", "/tonight"]);
     expect(byLabel.Map.href).toBe("/map");
+    expect(byLabel.Places.href).toBe("/places");
     expect(byLabel.Out.href).toBe("/out");
     expect(byLabel.Social.href).toBe("/social");
     expect(byLabel.You.href).toBe("/u/you");
   });
 
-  it("accepts the preferred-city Map destination", () => {
+  it("accepts the preferred-city Map destination, and Places keeps its own", () => {
     const tabs = buildTabs("/u/you", "/today", true, "/map/glasgow");
     expect(tabs.find((tab) => tab.label === "Map")?.href).toBe("/map/glasgow");
+    // Places is where the city is CHOSEN, so it never follows the chosen one.
+    expect(tabs.find((tab) => tab.label === "Places")?.href).toBe("/places");
   });
 
   it("points You at the device handle when known (skips /u/you sentinel hop)", () => {
@@ -75,6 +87,8 @@ describe("mobile tab bar contract", () => {
     expect(activeLabel("/today")).toBe("Now");
     expect(activeLabel("/tonight")).toBe("Now");
     expect(activeLabel("/out")).toBe("Out");
+    expect(activeLabel("/places")).toBe("Places");
+    expect(activeLabel("/choose-city")).toBe("Places");
     expect(activeLabel("/social")).toBe("Social");
     expect(activeLabel("/feed")).toBe("Social");
     expect(activeLabel("/moment")).toBeUndefined();

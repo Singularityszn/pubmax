@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useSyncExternalStore } from "react";
 
 import SiteNav from "@/components/nav/SiteNav";
 import { OutCardBody } from "@/components/out/OutCard";
@@ -11,6 +11,8 @@ import ListingsSkeleton from "@/components/out/ListingsSkeleton";
 import EditorialRail from "@/components/out/EditorialRail";
 import { useOutListings } from "@/components/out/useOutListings";
 import { trackEvent } from "@/lib/analytics";
+import { DEFAULT_CITY_ID } from "@/lib/cities";
+import { readPreferredCity, subscribePreferredCity } from "@/lib/cityPreference";
 import { outCardSource } from "@/lib/out/attribution";
 import {
   groupOutListings,
@@ -43,7 +45,17 @@ const DAY_LABEL: Record<OutDayWindow, string> = {
 };
 
 export default function OutClient({ day }: { day: OutDayWindow }) {
-  const { body, failed, pending, retry } = useOutListings(day);
+  // Out follows the city Places set. The server snapshot is null, so the first
+  // paint asks for London and the browser's own answer takes over after mount:
+  // this page is CDN-eligible by way of nothing personal being in its document,
+  // and a city read at render time would put a stranger's choice in it.
+  const preferredCity = useSyncExternalStore(
+    subscribePreferredCity,
+    readPreferredCity,
+    () => null,
+  );
+  const cityId = preferredCity ?? DEFAULT_CITY_ID;
+  const { body, failed, pending, retry } = useOutListings(day, cityId);
 
   useEffect(() => {
     trackEvent("out_screen_view");
