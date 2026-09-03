@@ -3,7 +3,7 @@
 ## Links
 
 - Live application: `https://pubmaxxing.com/webmcp`
-- Public source: `PUBLIC_REPOSITORY_URL_PENDING`
+- Public source: `https://github.com/Singularityszn/pubmaxx-webmcp`
 - Public demo video: `YOUTUBE_URL_PENDING`
 
 Do not replace a pending value until the URL is public and verified.
