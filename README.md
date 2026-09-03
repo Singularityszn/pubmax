@@ -51,7 +51,7 @@ The app runs **keyless** for local dev: Pint Drops use an in-memory store and Th
 
 Open [`/webmcp`](http://localhost:3000/webmcp) to build one visible Crawl Route with a person and a browser agent. It works without secrets or sign-in. ChatGPT's in-app browser supports WebMCP. Google Chrome 149 or later needs `chrome://flags/#enable-webmcp-testing` enabled.
 
-Challenge source: [Singularityszn/pubmaxx-webmcp](https://github.com/Singularityszn/pubmaxx-webmcp).
+Challenge source: [karanmrn/pubmaxx-webmcp](https://github.com/karanmrn/pubmaxx-webmcp).
 
 The page registers five top-level tools only while the Night Board is open:
 
