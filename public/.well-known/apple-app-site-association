@@ -7,6 +7,10 @@
           { "/": "/plan/*", "comment": "Shared plan deep links open in the app" },
           { "/": "/rounds/*", "comment": "Round invites open in the app" },
           { "/": "/p/*", "comment": "Pub detail pages open in the app" },
+          { "/": "/map", "comment": "A shared pin carries its pub in the query" },
+          { "/": "/map/*", "comment": "A shared city map opens in the app" },
+          { "/": "/venue/*", "comment": "Venue permalinks open on the map" },
+          { "/": "/pub/*", "comment": "Pub permalinks open on the map" },
           { "/": "/auth/callback", "comment": "Sign-in returns to the app" }
         ]
       }

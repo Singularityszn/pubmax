@@ -82,6 +82,7 @@
     "@capacitor/android": "^8.5.0",
     "@capacitor/app": "^8.1.1",
     "@capacitor/camera": "^8.2.3",
+    "@capacitor/haptics": "^8.0.2",
     "@capacitor/push-notifications": "^8.1.2",
     "@clerk/nextjs": "^7.8.2",
     "@elevenlabs/react": "^1.15.0",

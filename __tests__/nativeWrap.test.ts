@@ -4,6 +4,10 @@ import { describe, expect, it } from "vitest";
 
 import capacitorConfig from "../capacitor.config";
 import { APP_NAME } from "@/lib/brandNaming";
+import {
+  NATIVE_DEEP_LINK_EXACT_PATHS,
+  NATIVE_DEEP_LINK_PATH_PREFIXES,
+} from "@/lib/nativeDeepLinks";
 
 const rootFile = (path: string) => readFileSync(join(process.cwd(), path), "utf8");
 
@@ -90,17 +94,27 @@ describe("Capacitor wrapped-build contract", () => {
   });
 
   it("declares the same supported paths for iOS and Android deep links", () => {
+    // THREE declarations, one list. lib/nativeDeepLinks.ts is the app's fence,
+    // the AASA is what iOS reads and the manifest is what Android reads. A
+    // family added to one alone either keeps opening the browser or hands the
+    // shell a URL the app then refuses, and neither failure says anything.
     const aasa = JSON.parse(
       rootFile("public/.well-known/apple-app-site-association"),
     ) as { applinks: { details: Array<{ appIDs: string[]; components: Array<{ "/": string }> }> } };
     const detail = aasa.applinks.details[0];
     expect(detail?.appIDs).toEqual(["TEAMID.com.pubmaxx.app"]);
-    expect(detail?.components.map((component) => component["/"])).toEqual([
-      "/plan/*",
-      "/rounds/*",
-      "/p/*",
-      "/auth/callback",
-    ]);
+
+    const declared = new Set(detail?.components.map((component) => component["/"]) ?? []);
+    for (const prefix of NATIVE_DEEP_LINK_PATH_PREFIXES) {
+      expect(declared, prefix).toContain(`${prefix}*`);
+    }
+    for (const path of NATIVE_DEEP_LINK_EXACT_PATHS) {
+      expect(declared, path).toContain(path);
+    }
+    // Nothing iOS admits that the app would then refuse.
+    expect(declared.size).toBe(
+      NATIVE_DEEP_LINK_PATH_PREFIXES.length + NATIVE_DEEP_LINK_EXACT_PATHS.length,
+    );
 
     const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
     const verifiedFilters = [
@@ -108,13 +122,21 @@ describe("Capacitor wrapped-build contract", () => {
         /<intent-filter android:autoVerify="true">([\s\S]*?)<\/intent-filter>/g,
       ),
     ].map((match) => match[1] ?? "");
-    expect(verifiedFilters).toHaveLength(4);
-    for (const path of ["/plan/", "/rounds/", "/p/"]) {
-      expect(manifest).toContain(`android:pathPrefix="${path}"`);
+    expect(verifiedFilters).toHaveLength(
+      NATIVE_DEEP_LINK_PATH_PREFIXES.length + NATIVE_DEEP_LINK_EXACT_PATHS.length,
+    );
+    for (const prefix of NATIVE_DEEP_LINK_PATH_PREFIXES) {
       expect(
         verifiedFilters.some((filter) =>
-          filter.includes(`android:pathPrefix="${path}"`),
+          filter.includes(`android:pathPrefix="${prefix}"`),
         ),
+        prefix,
+      ).toBe(true);
+    }
+    for (const path of NATIVE_DEEP_LINK_EXACT_PATHS) {
+      expect(
+        verifiedFilters.some((filter) => filter.includes(`android:path="${path}"`)),
+        path,
       ).toBe(true);
     }
     for (const filter of verifiedFilters) {
@@ -123,9 +145,16 @@ describe("Capacitor wrapped-build contract", () => {
       expect(filter).toContain('android:scheme="https"');
       expect(filter).toContain('android:host="pubmaxxing.com"');
     }
-    expect(manifest).toContain('android:path="/auth/callback"');
-    expect(manifest).toContain('android:host="pubmaxxing.com"');
     expect(manifest).toContain('android:launchMode="singleTask"');
+  });
+
+  it("declares the runtime notification permission Android 13 made mandatory", () => {
+    // Undeclared, the request lib/nativePush.ts makes cannot be granted: no
+    // dialog, no token, no error anybody would ever see. Declaring it asks for
+    // nothing on its own - the contextual explainer is still the only thing
+    // that raises the OS dialog, and only after a kept action.
+    const manifest = rootFile("android/app/src/main/AndroidManifest.xml");
+    expect(manifest).toContain('android.permission.POST_NOTIFICATIONS');
   });
 
   it("keeps store identity, Android toolchain, and location answers truthful", () => {
